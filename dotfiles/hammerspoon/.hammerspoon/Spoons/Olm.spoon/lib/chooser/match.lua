@@ -70,6 +70,56 @@ local function wordByteAt(s, j)
   return true
 end
 
+-- Latin letters with diacritics folded to their base letters, Milos's decision on 2026-10-17, so
+-- resume finds Résumé, cafe finds Café and zurich finds Zürich, and typing the accent still
+-- matches, since the query is folded the same way. The table maps the two byte UTF-8 form of
+-- each letter in Latin-1 and Latin Extended-A, and the Romanian comma letters, to its base, an
+-- upper case letter to an upper case base so a camel hump survives the fold. A combining mark,
+-- the decomposed form macOS gives many file names, is dropped. Every text is folded before it
+-- is lowered, the query and every field alike, so the matcher compares base letters only.
+local FOLD = {}
+do
+  local groups = {
+    { "ÀÁÂÃÄÅĀĂĄ", "A" }, { "àáâãäåāăą", "a" }, { "Æ", "AE" }, { "æ", "ae" },
+    { "ÇĆĈĊČ", "C" }, { "çćĉċč", "c" }, { "ÐĎĐ", "D" }, { "ðďđ", "d" },
+    { "ÈÉÊËĒĔĖĘĚ", "E" }, { "èéêëēĕėęě", "e" }, { "ĜĞĠĢ", "G" }, { "ĝğġģ", "g" },
+    { "ĤĦ", "H" }, { "ĥħ", "h" }, { "ÌÍÎÏĨĪĬĮİ", "I" }, { "ìíîïĩīĭįı", "i" },
+    { "Ĳ", "IJ" }, { "ĳ", "ij" }, { "Ĵ", "J" }, { "ĵ", "j" }, { "Ķ", "K" }, { "ķĸ", "k" },
+    { "ĹĻĽĿŁ", "L" }, { "ĺļľŀł", "l" }, { "ÑŃŅŇŊ", "N" }, { "ñńņňŉŋ", "n" },
+    { "ÒÓÔÕÖØŌŎŐ", "O" }, { "òóôõöøōŏő", "o" }, { "Œ", "OE" }, { "œ", "oe" },
+    { "ŔŖŘ", "R" }, { "ŕŗř", "r" }, { "ŚŜŞŠȘ", "S" }, { "śŝşšșſ", "s" }, { "ß", "ss" },
+    { "ŢŤŦȚ", "T" }, { "ţťŧț", "t" }, { "Þ", "TH" }, { "þ", "th" },
+    { "ÙÚÛÜŨŪŬŮŰŲ", "U" }, { "ùúûüũūŭůűų", "u" }, { "Ŵ", "W" }, { "ŵ", "w" },
+    { "ÝŶŸ", "Y" }, { "ýÿŷ", "y" }, { "ŹŻŽ", "Z" }, { "źżž", "z" },
+  }
+  for _, g in ipairs(groups) do
+    for ch in g[1]:gmatch("[\192-\223][\128-\191]") do FOLD[ch] = g[2] end
+  end
+end
+
+-- The lead bytes of every sequence FOLD names or a combining mark starts with. A text holding
+-- none of them is answered as it is, found by plain finds, which scan at the speed of a byte
+-- search, where a pattern for any byte above 127 steps through Lua's matcher and measured near
+-- six milliseconds a megabyte. So ASCII text, nearly every row, pays six byte scans and nothing
+-- else.
+local FOLD_LEADS = { "\195", "\196", "\197", "\200", "\204", "\205" }
+
+local function fold(s)
+  local find = string.find
+  local any = false
+  for i = 1, #FOLD_LEADS do
+    if find(s, FOLD_LEADS[i], 1, true) then any = true; break end
+  end
+  if not any then return s end
+  s = s:gsub("[\195-\197\200][\128-\191]", FOLD)
+  s = s:gsub("\204[\128-\191]", ""):gsub("\205[\128-\175]", "")
+  return s
+end
+
+--- M.fold(text) -> the text with Latin letters with diacritics folded to their base letters, the
+--- fold every query and field goes through before it is lowered, exposed for the cases.
+M.fold = fold
+
 -- Scoring weights, which order rows inside one level. A matched character is worth MATCH plus
 -- a bonus for where it lands. Extending a run (CONSEC) is worth the most, so a word matched
 -- in one piece beats the same word split over several words. START rewards the very first
@@ -103,41 +153,74 @@ local INSIDE_MIN = 3
 -- 2026-10-17, so no name loses its pieces or its typo.
 local LONG = 256
 
--- A long body lowered once rather than on every keystroke. Lowering a body costs an
+-- A long body folded and lowered once rather than on every keystroke. Lowering a body costs an
 -- allocation the size of the body, which the words strategy measured as four fifths of its
 -- work, and a list asks the same bodies again on every key, so the lowered copy is kept,
 -- keyed by the body itself. Lua does not intern a long string, but it computes a long
 -- string's hash once and keeps it in the string, and a lookup compares the very string the
 -- row already holds by identity before it would compare bytes, so finding the copy again is
--- cheap.
+-- cheap. A body holding a letter with a diacritic also keeps its folded text before lowering,
+-- since a word start is read from the case of the folded text and its positions differ from
+-- the body's.
 --
--- The memo is two generations bounded by how many bodies each holds, not by their bytes. A
--- byte budget, eight megabytes until 2026-10-17, thrashed on a real clipboard history, a
--- thousand bodies with a long tail coming to fourteen megabytes, since every keystroke lowered
--- the whole list again once the budget was passed and a keystroke cost fifteen times the words
--- strategy, decisions/olm-unified-search.md. What a list asks is what it needs, so the bound
--- is a count generous enough for the longest list, FOLD_LIMIT bodies a generation. When the
--- current generation fills it becomes the previous one and a body found there moves back to
+-- The memo is two generations, each bounded both by how many bodies it holds and by their
+-- bytes, the body, its folded text and its lowered copy all counted, since the memo is what
+-- keeps a body alive once no row holds it. When the current generation passes either bound it
+-- becomes the previous one, the previous one is let go, and a body found there moves back to
 -- the current one, so a body every keystroke asks is never lowered again, and a body no list
--- asks any more is gone after two turns. The copies cost what the bodies cost, which is what
--- the clipboard's own lowered cache held for the words strategy before.
+-- asks any more is gone after two turns. So the memo holds at most two generations of
+-- FOLD_BYTES each, plus the one body that passed the bound.
+--
+-- Both bounds have a history, decisions/olm-unified-search.md. A single byte budget of eight
+-- megabytes, until 2026-10-17, thrashed on a real clipboard history, a thousand bodies with a
+-- long tail coming to fourteen megabytes, since every keystroke lowered the whole list again
+-- once the budget was passed. A count alone, four thousand bodies a generation, fixed that and
+-- kept every body alive until four thousand distinct ones had arrived, so an append
+-- accumulator growing one entry to six megabytes left 540 megabytes behind. FOLD_BYTES is
+-- forty eight megabytes, so a history whose bodies and copies come to that fits in one
+-- generation and is never lowered twice, which holds the measured history, twenty eight
+-- megabytes counted, with room to grow, and the memo never holds more than about a hundred.
 --
 -- A Lua pattern with a class of both cases per letter would avoid the copy altogether, and
 -- was measured and rejected on 2026-10-17, decisions/olm-unified-search.md. The pattern
 -- matcher steps through the body a byte at a time in Lua's own matcher, where a plain find
 -- is a C level scan, and it came out four times slower than lowering on every call.
 local FOLD_LIMIT = 4096
-local folded, foldedOld, foldedCount = {}, {}, 0
-local function lowered(hay)
-  local low = folded[hay]
-  if low then return low end
-  low = foldedOld[hay] or hay:lower()
-  if foldedCount >= FOLD_LIMIT then
-    foldedOld, folded, foldedCount = folded, {}, 0
+local FOLD_BYTES = 48 * 1024 * 1024
+local folded, foldedOld, foldedCount, foldedBytes = {}, {}, 0, 0
+
+-- The memo's entry for a long body, the lowered copy alone when folding changed nothing, so
+-- the common case keeps one string, or { text, low } when it did. Answers the folded text,
+-- the body itself when nothing was folded, and its lowered copy.
+local function longOf(hay)
+  local hit = folded[hay]
+  if not hit then
+    hit = foldedOld[hay]
+    if not hit then
+      local f = fold(hay)
+      local low = f:lower()
+      if f == hay then hit = low else hit = { f, low } end
+    end
+    local bytes = #hay + ((type(hit) == "table") and (#hit[1] + #hit[2]) or #hit)
+    if foldedCount >= FOLD_LIMIT or foldedBytes + bytes > FOLD_BYTES then
+      foldedOld, folded, foldedCount, foldedBytes = folded, {}, 0, 0
+    end
+    folded[hay] = hit
+    foldedCount = foldedCount + 1
+    foldedBytes = foldedBytes + bytes
   end
-  folded[hay] = low
-  foldedCount = foldedCount + 1
-  return low
+  if type(hit) == "table" then return hit[1], hit[2] end
+  return hay, hit
+end
+
+--- M._memo([bound]) -> the bytes the long field memo's current generation counts, and its
+--- bound, so a case can prove the memo stays bounded without reaching into the module. A case
+--- may lower the bound on its own loaded copy, so the proof needs megabytes rather than the
+--- hundreds the real bound would. The previous generation is at most the bound plus the one
+--- body that passed it.
+function M._memo(bound)
+  if type(bound) == "number" and bound > 0 then FOLD_BYTES = bound end
+  return foldedBytes, FOLD_BYTES
 end
 
 -- The bonus a word starting at byte j earns, or zero when no word starts there. The first
@@ -155,12 +238,14 @@ end
 -- { s, e, bonus }, the words by their first lowered byte, and for each word whether a phrase
 -- ends after it and whether the next word follows with nothing between, a camel hump. Short
 -- strings are interned in Lua, so the key is cheap. PREP_LIMIT bounds the memo by entries and
--- it starts over when full.
+-- it starts over when full. The field is folded first, so everything below reads base letters,
+-- and the positions in a prepared field are positions in the folded text.
 local PREP_LIMIT = 20000
 local prepared, preparedCount = {}, 0
-local function prepare(s)
-  local p = prepared[s]
+local function prepare(key)
+  local p = prepared[key]
   if p then return p end
+  local s = fold(key)
   local m = #s
   -- Which bytes are word bytes, worked out once so a separator's bytes are known everywhere.
   local wb = {}
@@ -211,21 +296,29 @@ local function prepare(s)
   end
   -- The phrases, runs of words with no break between them, each with its first word and its
   -- text lowered with the spaces taken out, which is what a phrase typed run together is
-  -- compared with. Every word knows its phrase.
+  -- compared with. Every word knows its phrase. A standalone ampersand is taken out of that key
+  -- too, since it joins words rather than spelling one, so smileysemo finds smileys & emotion.
+  -- The key as it was, with the ampersand, is kept beside it when they differ, so typing the
+  -- ampersand still finds the phrase.
   local phrases = {}
   local k = 1
   while k <= #words do
     local last = k
     while last < #words and not words[last].breakAfter do last = last + 1 end
-    local compact = low:sub(words[k].s, words[last].e):gsub("%s+", "")
-    phrases[#phrases + 1] = { first = k, last = last, compact = compact }
+    local text = low:sub(words[k].s, words[last].e)
+    local withAmp = text:gsub("%s+", "")
+    local compact = text:gsub("%S+", function(tok)
+      if tok:find("^&+$") then return "" end
+    end):gsub("%s+", "")
+    phrases[#phrases + 1] = { first = k, last = last, compact = compact,
+      withAmp = (withAmp ~= compact) and withAmp or nil }
     for x = k, last do words[x].phrase = #phrases end
     k = last + 1
   end
   p = { low = low, words = words, byFirst = byFirst, wb = wb, phrases = phrases }
   preparedCount = preparedCount + 1
   if preparedCount > PREP_LIMIT then prepared, preparedCount = {}, 1 end
-  prepared[s] = p
+  prepared[key] = p
   return p
 end
 
@@ -251,7 +344,7 @@ end
 local function atWordStart(w, s, p)
   local list = p.byFirst[w:byte(1)]
   if not list then return nil end
-  local best, at, m = nil, nil, #s
+  local best, at, m = nil, nil, #p.low
   for _, k in ipairs(list) do
     local word = p.words[k]
     if prefixAt(p.low, word.s, w) then
@@ -273,7 +366,7 @@ end
 local function inPieces(w, s, p)
   local first = p.byFirst[w:byte(1)]
   if not first then return nil end
-  local n, words, low, m = #w, p.words, p.low, #s
+  local n, words, low, m = #w, p.words, p.low, #p.low
   local memo = {}
   local rest
   -- The best for the next piece after word k, starting the query at qi.
@@ -365,7 +458,7 @@ end
 local function withOneEdit(w, s, p)
   local list = p.byFirst[w:byte(1)]
   if not list then return nil end
-  local best, m = nil, #s
+  local best, m = nil, #p.low
   local function wb(k) return p.wb[k] == true end
   for _, k in ipairs(list) do
     local word = p.words[k]
@@ -384,12 +477,27 @@ local function insideWord(w, low, m)
   return framed(m, pos, pos + #w - 1, pieceScore(0, #w))
 end
 
--- A long field. Only a word start, its best occurrence, or from INSIDE_MIN letters the word
--- inside a word, its first. The leading gap is counted only up to LONG and the trailing gap
--- not at all, which keeps every score inside the range the step is derived for. Answers
--- whether it was a word start, the score and where it matched.
+-- How many places a word is tried at in one long field before the search settles for what it
+-- has, decided 2026-10-17 after a review measured 405 to 455 milliseconds a keystroke for ng
+-- over twenty bodies of a megabyte of words like running and string. A word that sits only
+-- inside words is found everywhere and starts a word nowhere, so trying every occurrence for a
+-- word start cost a Lua step per occurrence, millions of them. Past this many occurrences with
+-- no word start among them the word is read as found inside a word at its first occurrence,
+-- which keeps the row from INSIDE_MIN letters in a name and does not match a shorter word or a
+-- secondary field, the same answer the field gives when no word start exists at all. So the
+-- rows that match are unchanged whenever a word start exists in the first OCCURRENCES places,
+-- and a word start found later lands at the inside level rather than the start level. Telling
+-- exactly would need the whole body read per keystroke whatever the word, and the cheapest
+-- exact form, a frontier pattern, measured twelve milliseconds a megabyte.
+local OCCURRENCES = 256
+
+-- A long field. Only a word start, the first found, or from INSIDE_MIN letters the word inside
+-- a word, its first. s is the folded field and low its lowered copy, so their positions agree.
+-- The leading gap is counted only up to LONG and the trailing gap not at all, which keeps every
+-- score inside the range the step is derived for. Answers whether it was a word start, the
+-- score and where it matched.
 local function longField(w, s, low, allowInside)
-  local n, first, init = #w, nil, 1
+  local n, first, init, tried = #w, nil, 1, 0
   local function scored(pos, bonus)
     return math.min(pos - 1, LONG) * GAP_LEAD + pieceScore(bonus, n)
   end
@@ -416,6 +524,8 @@ local function longField(w, s, low, allowInside)
     end
     if bonus > 0 then return true, scored(pos, bonus), pos end
     first = first or pos
+    tried = tried + 1
+    if tried >= OCCURRENCES then break end
     init = pos + 1
   end
   if first and allowInside and n >= INSIDE_MIN then return false, scored(first, 0), first end
@@ -434,7 +544,8 @@ M.LEVEL = LEVEL
 local function matchName(w, name)
   if name == nil or name == "" then return nil end
   if #name > LONG then
-    local atStart, score = longField(w, name, lowered(name), true)
+    local f, low = longOf(name)
+    local atStart, score = longField(w, f, low, true)
     if atStart == nil then return nil end
     return atStart and LEVEL.nameStart or LEVEL.nameInside, score
   end
@@ -450,7 +561,7 @@ local function matchName(w, name)
     end
   end
   if #w >= INSIDE_MIN then
-    local s = insideWord(w, p.low, #name)
+    local s = insideWord(w, p.low, #p.low)
     if s then return LEVEL.nameInside, s end
   end
   return nil
@@ -461,32 +572,45 @@ end
 -- pieces stay inside one. The best is taken and never a sum, which is what keeps a row with more
 -- names from scoring above an equal row with fewer. A name that matches no better than the ones
 -- before it changes nothing, and every name is bounded exactly as the title is, so the spread
--- the step is derived from holds whatever the number of names.
+-- the step is derived from holds whatever the number of names. The third answer is whether the
+-- level came only from a further name, the name itself reaching no level that good, which
+-- M.fuzzy ranks below the same level found in the name. A further name the word spells whole
+-- counts as the name, since that is the row's name as a person types it, so grin still lists
+-- the beaming face whose shortcode is grin before grinning face, Milos's correction of
+-- 2026-10-17, while face lists person facepalming before the fist whose shortcode is facepunch.
+local function spellsWhole(w, n)
+  return #n <= LONG and prepare(n).low == w
+end
 local function matchNames(w, name, names)
   local level, score = matchName(w, name)
+  local fromNames = false
   if names then
     for i = 1, #names do
       local n = names[i]
       if type(n) == "string" then
         local l, sc = matchName(w, n)
-        if l and (level == nil or l > level or (l == level and sc > score)) then
-          level, score = l, sc
+        if l and (level == nil or l > level) then
+          level, score, fromNames = l, sc, not spellsWhole(w, n)
+        elseif l and l == level then
+          if sc > score then score = sc end
+          if fromNames and spellsWhole(w, n) then fromNames = false end
         end
       end
     end
   end
-  return level, score
+  return level, score, fromNames
 end
 
 -- A phrase typed run together, the lowered word a prefix of a declared phrase with its spaces
 -- taken out, counted from the phrase's start. nomore and nomo find "no more", donotd finds "do
 -- not disturb", ore and otdisturb find nothing, and a comma ends a phrase so nothing runs across
--- one. Scored like a word start run of the word's length at the phrase's first word, which keeps
+-- one. A standalone ampersand is out of the key, so smileysemo finds "smileys & emotion", and
+-- the key with it still answers smileys&emo. Scored like a word start run of the word's length at the phrase's first word, which keeps
 -- it inside the range the step is derived for.
-local function runTogether(w, text, p)
-  local best, m = nil, #text
+local function runTogether(w, p)
+  local best, m = nil, #p.low
   for _, ph in ipairs(p.phrases) do
-    if ph.compact:sub(1, #w) == w then
+    if ph.compact:sub(1, #w) == w or (ph.withAmp and ph.withAmp:sub(1, #w) == w) then
       local first = p.words[ph.first]
       local sc = framed(m, first.s, math.min(m, first.s + #w - 1), pieceScore(first.bonus, #w))
       if best == nil or sc > best then best = sc end
@@ -507,13 +631,14 @@ local function matchDeclared(w, secondary)
     if type(text) == "string" and text ~= "" then
       local s
       if #text > LONG then
-        local atStart, sc = longField(w, text, lowered(text), false)
+        local f, low = longOf(text)
+        local atStart, sc = longField(w, f, low, false)
         if atStart then s = sc end
       else
         local p = prepare(text)
         s = atWordStart(w, text, p)
         if f.declared then
-          local r = runTogether(w, text, p)
+          local r = runTogether(w, p)
           if r and (s == nil or r > s) then s = r end
         end
       end
@@ -547,9 +672,18 @@ local function inOnePhrase(cores, secondary)
   return false
 end
 
+-- A field folded and lowered, through whichever memo its length uses.
+local function lowOf(text)
+  if #text > LONG then
+    local _, low = longOf(text)
+    return low
+  end
+  return prepare(text).low
+end
+
 -- Whether a field holds the lowered text t anywhere, for the symbol part of a query word.
 local function holdsIn(t, text)
-  return text ~= "" and ((#text > LONG) and lowered(text) or prepare(text).low):find(t, 1, true) ~= nil
+  return text ~= "" and lowOf(text):find(t, 1, true) ~= nil
 end
 local function holds(t, name, names, secondary)
   if name and holdsIn(t, name) then return true end
@@ -559,14 +693,13 @@ local function holds(t, name, names, secondary)
   for _, f in ipairs(secondary or {}) do
     local text = f.text
     if type(text) == "string" and text ~= "" then
-      local low = (#text > LONG) and lowered(text) or prepare(text).low
-      if low:find(t, 1, true) then return true end
+      if lowOf(text):find(t, 1, true) then return true end
     end
   end
   return false
 end
 
---- M.fuzzy(query, hay, fields) -> score, level, within, atStart, phrase, or nil
+--- M.fuzzy(query, hay, fields) -> score, level, within, atStart, phrase, fromNames, or nil
 --- The one search, docs/PLAN-UNIFIED-SEARCH.md phase one, as Milos settled it on 2026-10-17
 --- after the live test and the review that followed. A row has a primary field, its name, and
 --- secondary fields, the text it shows or declares on purpose. fields is { primary = string,
@@ -581,8 +714,8 @@ end
 --- word never spans two names and pieces stay inside one. The best is taken, never a sum, so a
 --- row never scores higher for having more names than an equal row with fewer.
 ---
---- A word never matches across fields. Each query word, lowered, matches at the strongest of
---- five levels.
+--- A word never matches across fields. Each query word, folded and lowered like every field, so
+--- resume finds Résumé, matches at the strongest of five levels.
 ---   A. In the name, at the start of a word. lose in Loser, se in Settings.
 ---   B. In the name, in pieces, each the start of one of a run of consecutive words in one
 ---      phrase. lose in LOcal SErvers, os in OLM settings, initials being every piece one
@@ -613,29 +746,57 @@ end
 --- matches on its own, focus disturb finds Focus with focus in its name and disturb in a
 --- keyword, only without the bonus.
 ---
+--- At one level a word found in the name leads the same level found only in a further name,
+--- Milos's rule after the review of 2026-10-17, so face lists person facepalming before oncoming
+--- fist, whose alias is facepunch, and github pull lists a tab titled Pull request github before
+--- one titled Pull request on github.com. Each such word costs the row one spread inside its
+--- level, so the score orders by level sum, then the phrase bonus, then how many words came only
+--- from further names, fewer first, then where the words landed. That takes room the step did
+--- not have, so with k words the phrase bonus inside the score is k plus one spreads and the
+--- step twice that. A row with no names pays nothing, so rows without names order exactly as
+--- before.
+---
 --- The later answers are for consumers. level is the row's level sum, within its score
 --- inside the level, atStart whether every word matched the name at a word start, which the
---- launcher's memory gate reads, and phrase whether the phrase bonus was earned. Two rows with
---- the same level and the same phrase are equally good, and only the near free gaps and the
+--- launcher's memory gate reads, phrase whether the phrase bonus was earned, and fromNames how
+--- many words reached their level only in a further name. within carries the phrase bonus as one
+--- spread and each further name word as minus one, so a row with no names answers the within it
+--- always did, which the launcher's nearness reads as a proportion. Two rows with the same level,
+--- the same phrase and the same fromNames are equally good, and only the near free gaps and the
 --- bonuses of where a word landed tell them apart, which is what lib/chooser/rank.lua lets a
---- row's own bonus decide. phrase is answered on its own because within folds it in, and one
---- spread cannot be read back out of within without restating the spread here.
+--- row's own bonus decide. phrase and fromNames are answered on their own because within folds
+--- them in, and they cannot be read back out of it without restating the spread here.
+
+-- A query parsed once, its words folded and lowered and split into a symbol lead and a core,
+-- since the same query is matched against every row of a list on a keystroke. The last query is
+-- kept, which is all a keystroke needs.
+local lastQuery, lastWords
+local function queryWords(query)
+  if query == lastQuery then return lastWords end
+  local list = {}
+  for word in fold(query):lower():gmatch("%S+") do
+    local lead = word:match("^[%p%c]*")
+    list[#list + 1] = { word = word, lead = lead, core = word:sub(#lead + 1) }
+  end
+  lastQuery, lastWords = query, list
+  return list
+end
+
 function M.fuzzy(query, hay, fields)
   local name = fields and fields.primary or hay
   local names = fields and fields.names
   local secondary = fields and fields.secondary
-  local level, within, spread, atStart = 0, 0, 0, true
-  local any, cores = false, {}
-  for word in query:lower():gmatch("%S+") do
-    any = true
-    local lead = word:match("^[%p%c]*")
-    local core = word:sub(#lead + 1)
+  local level, within, spread, atStart, fromNames = 0, 0, 0, true, 0
+  local cores = {}
+  local words = queryWords(query)
+  for i = 1, #words do
+    local word, lead, core = words[i].word, words[i].lead, words[i].core
     if core == "" then
       -- No letter or digit at all, a plain substring anywhere in the row.
       if not holds(word, name, names, secondary) then return nil end
     else
       if lead ~= "" and not holds(lead, name, names, secondary) then return nil end
-      local wordLevel, score = matchNames(core, name, names)
+      local wordLevel, score, named = matchNames(core, name, names)
       if not wordLevel then
         score = matchDeclared(core, secondary)
         if not score then return nil end
@@ -643,18 +804,23 @@ function M.fuzzy(query, hay, fields)
       end
       level = level + wordLevel
       within = within + score
+      if named then fromNames = fromNames + 1 end
       if wordLevel ~= LEVEL.nameStart then atStart = false end
       spread = spread + #core * TOP + LONG * math.max(-GAP_LEAD, -GAP_TRAIL)
       cores[#cores + 1] = core
     end
   end
-  if not any then return 0, 0, 0, true, false end
-  -- The phrase bonus is one spread, so a row whose words all sit in one declared phrase leads
-  -- every row at its level sum, and the step is two spreads, so the bonus never reaches the
-  -- next level.
+  if #words == 0 then return 0, 0, 0, true, false, 0 end
+  -- Inside one level the words' scores span less than one spread, and each further name word
+  -- takes one more below them, so the non phrase band is at most k plus one spreads wide. The
+  -- phrase bonus in the score is that width, so a phrase row leads every row at its level sum,
+  -- and the step is twice it, so the bonus never reaches the next level. within answers the
+  -- phrase as one spread, as it always did.
   local phrase = inOnePhrase(cores, secondary)
-  if phrase then within = within + spread end
-  return level * 2 * spread + within, level, within, atStart, phrase
+  local band = (#cores + 1) * spread
+  local inLevel = within - fromNames * spread
+  local score = level * 2 * band + inLevel + (phrase and band or 0)
+  return score, level, inLevel + (phrase and spread or 0), atStart, phrase, fromNames
 end
 
 --- M.substring(query, hay) -> score or nil

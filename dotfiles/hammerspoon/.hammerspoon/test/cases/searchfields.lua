@@ -319,3 +319,92 @@ do
       out.rows == nil and logged:find("rowLimit", 1, true) ~= nil, logged)
   end
 end
+
+--------------------------------------------------------------------------------
+-- a title before a further name at the same level
+--------------------------------------------------------------------------------
+
+-- At one level a word found in the title or filterText leads the same level found only in a
+-- further name, decided 2026-10-17 after the review of phase three. It sits inside the level,
+-- under the phrase bonus and over the row's own bonus, so a recent row never lifts over one
+-- whose title holds the word. The reviewer's three examples.
+do
+  local function ranked(q, list, search)
+    return titles(rank.apply(list, q, fuzzy, search))
+  end
+  local fist = { title = "oncoming fist", names = { "facepunch", "punch" } }
+  local palm = { title = "person facepalming", names = { "facepalm" } }
+  local got = ranked("face", { fist, palm })
+  check("face lists person facepalming before the fist whose alias is facepunch",
+    got == "person facepalming,oncoming fist", got)
+
+  local carp = { title = "carp streamer", names = { "flags" } }
+  local cuba = { title = "flag: Cuba", names = { "cuba" } }
+  got = ranked("flag", { carp, cuba })
+  check("flag lists a flag before carp streamer whose alias is flags", got == "flag: Cuba,carp streamer", got)
+
+  local onHost = { title = "Pull request", names = { "github.com", "https://github.com/x/pull/1" }, bonus = 1 }
+  local inTitle = { title = "Pull request github", names = {} }
+  got = ranked("github pull", { onHost, inTitle })
+  check("github pull lists the title holding github first, whatever the other's bonus",
+    got == "Pull request github,Pull request", got)
+
+  -- The rule never crosses a level. A word start found only in a name still leads the same
+  -- word inside a word of a title.
+  local startInName = { title = "Repository", names = { "Positron" } }
+  local insideTitle = { title = "Composer" }
+  got = ranked("pos", { insideTitle, startInName })
+  check("a name word start still leads a title inside a word", got == "Repository,Composer", got)
+
+  -- A further name the word spells whole counts as the name, so an exact shortcode keeps
+  -- leading, Milos's emoji correction of 2026-10-17.
+  local beaming = { title = "beaming face with smiling eyes", names = { "grin" } }
+  local grinning = { title = "grinning face", names = { "grinning" } }
+  got = ranked("grin", { grinning, beaming })
+  check("an alias spelled whole counts as the name", got == "beaming face with smiling eyes,grinning face", got)
+
+  -- The score alone orders the same way, for a consumer reading only the first answer, and a
+  -- further name word never costs a row its level.
+  -- The title alone, since palm's own alias facepalm would lift its score past the fist's
+  -- without the rule.
+  local palmTitle = { title = "person facepalming" }
+  check("the score alone puts the title match first", graded("face", palmTitle) > graded("face", fist))
+  check("and the ranking agrees", titles(rank.apply({ fist, palmTitle }, "face", fuzzy)) == "person facepalming,oncoming fist")
+  check("the score alone keeps a name word start over a title inside a word",
+    graded("pos", startInName) > graded("pos", insideTitle))
+
+  local _, _, _, _, _, fromNames = graded("face", fist)
+  check("fuzzy answers how many words came only from a further name", fromNames == 1, tostring(fromNames))
+  _, _, _, _, _, fromNames = graded("face", palm)
+  check("a word in the title came from no further name", fromNames == 0, tostring(fromNames))
+
+  -- A row with no names answers within exactly as before, the words' scores plus one spread for
+  -- the phrase, which the launcher's nearness reads as a proportion.
+  local row = { title = "Focus", keywords = "do not disturb" }
+  local _, _, within = graded("do not", row)
+  local _, _, a = graded("do", row)
+  local _, _, b = graded("not", row)
+  local spread = (2 * 11 + 256 * 0.02) + (3 * 11 + 256 * 0.02)
+  check("a row with no names answers the within it always did",
+    math.abs(within - (a + b + spread)) < 1e-9, string.format("%.3f against %.3f", within, a + b + spread))
+end
+
+--------------------------------------------------------------------------------
+-- a category typed run together across its ampersand
+--------------------------------------------------------------------------------
+
+-- The run together key drops a standalone ampersand, so smileysemo finds a row declaring
+-- smileys & emotion, and the key with the ampersand still answers smileys&emo.
+do
+  local grin = { title = "grinning face", keywords = "smile, happy, smileys & emotion" }
+  local pizza = { title = "pizza", keywords = "food, food & drink" }
+  for _, q in ipairs({ "smileysemo", "smileysemotion", "smileys&emo" }) do
+    local got = titles(rank.apply({ pizza, grin }, q, fuzzy))
+    check(q .. " finds the smileys & emotion row and only it", got == "grinning face", got)
+  end
+  local got = titles(rank.apply({ pizza, grin }, "fooddr", fuzzy))
+  check("fooddr finds food & drink", got == "pizza", got)
+  check("an ampersand inside a word stays in the key, atandt does not find AT&T",
+    fuzzy("atandt", "x", { primary = "x", secondary = { { text = "AT&T", declared = true } } }) == nil)
+  check("and at&t still does", fuzzy("at&t", "x", { primary = "x", secondary = { { text = "AT&T", declared = true } } }) ~= nil)
+end

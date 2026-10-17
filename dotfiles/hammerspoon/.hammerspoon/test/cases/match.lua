@@ -330,3 +330,75 @@ do
   got = table.concat(order("do not", { together, named }), ",")
   check("the phrase bonus never lifts a row past a name match", got == "Do Not Track,Together", got)
 end
+
+-- Accents fold, Milos's decision on 2026-10-17. Every query and every field is folded to base
+-- letters before it is lowered, in the one matcher every list uses, so the plain spelling finds
+-- the accented name, the accented spelling still finds it, and a decomposed name, the form
+-- macOS often gives a file name, reads the same as a composed one.
+do
+  check("resume finds Résumé", M.fuzzy("resume", "Résumé.pdf") ~= nil)
+  check("cafe finds Café at a word start", levelOf("cafe", "Café Central") == L.nameStart)
+  check("zurich finds Zürich", M.fuzzy("zurich", "Zürich trip") ~= nil)
+  check("typing the accent still finds it", M.fuzzy("résumé", "Résumé.pdf") ~= nil)
+  check("an accent typed finds the plain spelling too", M.fuzzy("café", "Cafe menu") ~= nil)
+  check("a decomposed name folds like a composed one",
+    levelOf("resume", "Re\u{301}sume\u{301}.pdf") == L.nameStart)
+  check("a Serbian name folds, nikolic finds Nikolić", levelOf("nikolic", "porodično stablo nikolić") == L.nameStart)
+  check("ß folds to ss", M.fuzzy("strasse", "Hauptstraße") ~= nil)
+  check("an upper case accent keeps its camel hump, mycafe has a word start at Cafe",
+    levelOf("cafe", "myÉclairCafé") == L.nameStart)
+  check("the fold leaves ASCII alone and returns the same string", M.fold("plain text") == "plain text")
+  check("a letter outside the table is kept as it is", M.fold("Ωmega") == "Ωmega")
+  local body = string.rep("lorem ipsum ", 40) .. "Zürich résumé"
+  check("a long body folds too", levelOf("zurich", body) == L.nameStart
+    and levelOf("resume", body) == L.nameStart)
+  local order1 = table.concat(order("resume", { "notes.txt", "Résumé.pdf", "resume.doc" }), ",")
+  check("ranking keeps both spellings and drops the rest", order1 == "resume.doc,Résumé.pdf"
+    or order1 == "Résumé.pdf,resume.doc", order1)
+end
+
+-- A long field tries a word at OCCURRENCES places at most, 256, decided 2026-10-17 after a
+-- word sitting only inside words of twenty megabyte bodies cost over 400 milliseconds a key.
+-- A word start among those places is found as before. Past them, a word of three letters or
+-- more in a name is kept at the inside level from its first place, and a shorter word or a
+-- secondary field, which never match inside a word, do not match.
+do
+  local early = "running " .. string.rep("thing string ", 100) .. "nginx"
+  check("a word start within the bound is found", levelOf("ngi", "nginx " .. early) == L.nameStart)
+  local engines = string.rep("engine ", 300) .. "nginx"
+  check("past the bound a three letter word is kept, at the inside level",
+    levelOf("ngi", engines) == L.nameInside, tostring(levelOf("ngi", engines)))
+  check("within the bound the same word start is found",
+    levelOf("ngi", string.rep("engine ", 100) .. "nginx") == L.nameStart)
+  local dense = string.rep("thing string ", 300) .. "nginx"
+  check("past the bound a two letter word does not match", M.fuzzy("ng", dense) == nil)
+  local fewer = string.rep("thing string ", 100) .. "nginx"
+  check("the same two letter word matches when its word start is within the bound",
+    levelOf("ng", fewer) == L.nameStart)
+  check("a long secondary field past the bound does not match",
+    M.fuzzy("ngi", "Row", { primary = "Row", secondary = { { text = engines } } }) == nil)
+end
+
+-- The long field memo is bounded by bytes as well as by count. An append accumulator growing
+-- one entry asks a new long body on every search, and with a count alone every one of them
+-- stayed alive, 540 megabytes for an entry of six. The current generation never counts past
+-- its bound, so with the previous one the memo holds at most two bounds and one body. The bound
+-- is lowered on this loaded copy so the proof allocates a few megabytes, since cases run inside
+-- the live Hammerspoon.
+do
+  local bound = 256 * 1024
+  M._memo(bound)
+  local body = string.rep("lorem ipsum dolor ", 50)
+  local peak, turned, last = 0, false, 0
+  for _ = 1, 100 do
+    body = body .. string.rep("appended text ", 150)
+    M.fuzzy("zzz", "title", { primary = "title", names = { body } })
+    local bytes = M._memo()
+    if bytes < last then turned = true end
+    last = bytes
+    if bytes > peak then peak = bytes end
+  end
+  check("the memo's current generation never counts past its byte bound and one body",
+    peak <= bound + 2 * #body, string.format("%d over %d", peak, bound))
+  check("the memo turned a generation on bytes long before four thousand bodies", turned)
+end

@@ -128,12 +128,13 @@ M.fieldsOf = fieldsOf
 
 --- M.score(items, query, matcher) -> a new list of entries, unsorted.
 --- Every candidate scored through matcher(query, haystackOf(item), fieldsOf(item)), a nil
---- score dropping it. An entry is { item, score, idx, level, within, atStart, phrase, graded,
---- tier, bonus }, idx the candidate's place in items. level, within, atStart and phrase are
---- the later answers lib/chooser/match.lua's fuzzy gives, the row's level sum, its score
---- inside that level, whether every word matched the name at a word start, and whether it
---- earned the phrase bonus. A matcher answering only a score reads as level zero, within equal
---- to the score, not at a word start and no phrase, and graded is false for it, so M.before
+--- score dropping it. An entry is { item, score, idx, level, within, atStart, phrase,
+--- fromNames, graded, tier, bonus }, idx the candidate's place in items. level, within, atStart,
+--- phrase and fromNames are the later answers lib/chooser/match.lua's fuzzy gives, the row's
+--- level sum, its score inside that level, whether every word matched the name at a word start,
+--- whether it earned the phrase bonus, and how many words reached their level only in a further
+--- name. A matcher answering only a score reads as level zero, within equal to the score, not at
+--- a word start, no phrase and no further name word, and graded is false for it, so M.before
 --- knows it was told nothing about the kind of match. They exist for a consumer that orders by
 --- something besides the score and needs to know what kind of match a row is, the launcher's
 --- nearness rule today. tier and bonus are the row's own, read as the vocabulary above says.
@@ -144,11 +145,12 @@ function M.score(items, query, matcher)
   local entries = {}
   for i = 1, #items do
     local it = items[i]
-    local score, level, within, atStart, phrase = matcher(query, haystackOf(it), fieldsOf(it))
+    local score, level, within, atStart, phrase, fromNames = matcher(query, haystackOf(it), fieldsOf(it))
     if score ~= nil then
       entries[#entries + 1] = {
         item = it, score = score, idx = i, level = level or 0, within = within or score,
-        atStart = atStart == true, phrase = phrase == true, graded = level ~= nil,
+        atStart = atStart == true, phrase = phrase == true,
+        fromNames = type(fromNames) == "number" and fromNames or 0, graded = level ~= nil,
         tier = tierOf(it), bonus = bonusOf(it),
       }
     end
@@ -156,27 +158,31 @@ function M.score(items, query, matcher)
   return entries
 end
 
--- How good a match an entry is, as two numbers compared descending, the first key and whether
--- the phrase bonus was earned. A graded entry answers its level sum and its phrase. An ungraded
--- one, from a matcher that answered only a score, was told nothing about the kind of match, so
--- its score stands in for the level and it never has the phrase. Every entry maps to the same
--- fixed pair whoever it is compared with, which is what keeps M.before a strict weak ordering
--- when graded and ungraded entries meet in one sort.
+-- How good a match an entry is, as three numbers compared descending, the first key, whether
+-- the phrase bonus was earned, and how few words came only from further names, as its negative.
+-- A graded entry answers its level sum, its phrase and its further name words. An ungraded one,
+-- from a matcher that answered only a score, was told nothing about the kind of match, so its
+-- score stands in for the level and the other two are zero. Every entry maps to the same fixed
+-- triple whoever it is compared with, which is what keeps M.before a strict weak ordering when
+-- graded and ungraded entries meet in one sort.
 local function matchKey(e)
-  if e.graded then return e.level or 0, e.phrase == true and 1 or 0 end
-  return e.score or 0, 0
+  if e.graded then return e.level or 0, e.phrase == true and 1 or 0, -(e.fromNames or 0) end
+  return e.score or 0, 0, 0
 end
 
 --- M.before(a, b) -> true when entry a sorts ahead of entry b.
 --- The one comparison, exposed for a consumer that puts something of its own ahead of it. It is
 --- lexicographic over one fixed tuple per entry, tier ascending, the match key descending, the
---- phrase descending, the row's bonus descending, the score descending, which is where a word
---- landed, and the original index ascending last. The match key is the level sum for a graded
---- entry and the score for an ungraded one, matchKey above.
+--- phrase descending, the words found only in further names ascending, the row's bonus
+--- descending, the score descending, which is where a word landed, and the original index
+--- ascending last. The match key is the level sum for a graded entry and the score for an
+--- ungraded one, matchKey above.
 ---
---- For a graded list that orders by level sum and phrase first, which is exactly what the score
---- already orders by, since the score steps two spreads per level sum and one for the phrase,
---- then lets the bonus decide among equally good rows. For an ungraded list the score comes
+--- For a graded list that orders by level sum, phrase and further name words first, which is
+--- exactly what the score already orders by, see M.fuzzy, then lets the bonus decide among
+--- equally good rows. A word found in the title therefore leads the same level found only in a
+--- further name whatever the bonus, so a recent tab never lifts over one whose title holds the
+--- word. For an ungraded list the score comes
 --- first, so only an equal score is equally good and the bonus orders only those. Rows setting
 --- no tier and no bonus therefore order exactly as score then index did before the fields
 --- existed. The index keeps a stable order the supplier already carries, the launcher's own
@@ -186,10 +192,11 @@ end
 function M.before(a, b)
   local ta, tb = a.tier or 0, b.tier or 0
   if ta ~= tb then return ta < tb end
-  local ka, pa = matchKey(a)
-  local kb, pb = matchKey(b)
+  local ka, pa, na = matchKey(a)
+  local kb, pb, nb = matchKey(b)
   if ka ~= kb then return ka > kb end
   if pa ~= pb then return pa > pb end
+  if na ~= nb then return na > nb end
   local ba, bb = a.bonus or 0, b.bonus or 0
   if ba ~= bb then return ba > bb end
   local sa, sb = a.score or 0, b.score or 0
