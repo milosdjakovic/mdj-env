@@ -914,3 +914,16 @@ after every name holding flag, and grin lists the beaming face, grinning cat and
 The hand built rows in test/cases/searchfields.lua are replaced by the real rows, built through
 the provider over a stand in hs, and searchlists.lua now expects grinning cat second. Reverting
 the fix fails five checks.
+
+### 2026-10-17 21:30, the BrowserTabs harness fails on main too, phase three merged
+
+Milos tried phase three live and gave a green. The BrowserTabs live harness then ran in full on
+this branch, 11 passed and 45 failed, every failure the same shape. The harness ranked the right
+tab to the top on every round, so the ranking under test held, and after Return the tab never came
+to the front, Safari keeping its selected tab and Chrome selecting the tab but staying behind
+another application. A quick run on main as a baseline failed the same way, 8 passed and 29
+failed, and this branch does not touch how a tab is opened. So the harness is broken on this
+machine independently of search, most likely focus changes after synthetic key presses on macOS
+27 or a lapsed Automation grant, and Milos's own hand test of the tabs list passed. Phase three
+merged on his word with the harness recorded as a broken check on main, to be investigated as its
+own item.
