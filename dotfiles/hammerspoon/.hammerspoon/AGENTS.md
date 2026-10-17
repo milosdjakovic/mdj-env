@@ -1180,17 +1180,19 @@ constants at the top of `match.lua`, tuned so the floor cuts obvious noise while
 staying loose enough to forgive a fumbled letter; raising the floor step cuts more.
 
 Since 2026-10-17 `fuzzy` is also the one search every list is moving onto,
-`Spoons/Olm.spoon/docs/PLAN-UNIFIED-SEARCH.md`, and three rules sit on top of the scorer. A word
-found whole in a row, ignoring case, puts the row a tier above every row that only matches it
-with gaps or typos, so typing se ranks Settings and even Base above Some example, and inside a
-tier the scorer orders as before. The tier is a step in the one score, derived per query from the
-weights as the widest the ordinary scores can spread, so the engine still sorts one number, and a
-word found whole skips the floor. Each word of a query is matched separately, every word is
-required, and the scores add. Past 256 bytes a row matches a word only where it sits whole, over a
-lowered copy `match.lua` keeps in a bounded memo, which costs about what `words` costs and is what
-lets `words` retire. `fuzzy` answers the tier and the score inside it as a second and third value
-for a consumer comparing by proportion, the launcher's nearness rule. The measurements behind the
-bound and the memo are in `decisions/olm-unified-search.md`.
+`Spoons/Olm.spoon/docs/PLAN-UNIFIED-SEARCH.md`. Each word of a query matches at one of four
+levels, strongest first. At a word start, the start of the row, after a separator or at a camel
+hump, se in Settings. By initials, the first letters of consecutive words, os in OLM settings or
+ps in Printers & Scanners, where a standalone symbol such as the ampersand is not a word. Inside a
+word, se in Base. And scattered, the scorer's alignment with gaps or typos. A row's level is the
+sum over its words, every word is required, and the step between levels is derived per query from
+the weights as the widest the ordinary scores can spread, so a stronger level always wins and the
+engine still sorts one number. Only a word start and initials skip the floor. Past 256 bytes a row
+matches a word only where it sits whole, at its best occurrence, over a lowered copy `match.lua`
+keeps in a bounded memo, which costs about what `words` costs and is what lets `words` retire.
+`fuzzy` answers the level, the score inside it and whether every word matched at a word start as
+later values, for the launcher's nearness rule. The measurements are in
+`decisions/olm-unified-search.md`.
 
 The atom owns the filtering when a matcher is set and the field is in filter mode. The
 supplier returns the full candidate list and the atom scores it, keeps the matches,

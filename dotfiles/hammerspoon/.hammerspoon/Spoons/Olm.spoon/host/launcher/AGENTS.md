@@ -579,10 +579,12 @@ only among rows that scored close to the best one, as a proportion rather than a
 number of points since the score grows with every character. Measured, `mail`
 puts Maps at 28.6% of Mail, `map` puts Mail at 65% of Maps, and `ma` puts them
 at 99.4% of each other, so the default of 0.9 sits a long way from both edges.
-Since the shared search ranks a word found whole a tier above any scattered
-match, a remembered row must also sit in the best row's tier, and the proportion
-is taken of the score inside that tier, the number those measurements were made
-on, so a step between tiers never reads as closeness.
+Since the shared search ranks four levels of match and carries the level as a
+large step in the score, the proportion is taken of the score inside the level,
+the number those measurements were made on, and measured down from the best
+row's score by its size so a best score below zero cannot invert it. A pick may
+lead at any level unless the best row matches every word at a word start and
+the pick does not, which is the Mail and Maps guard stated as a kind of match.
 
 Pruning is deliberately partial. An application that has gone is proven gone by
 the disk scan, so its pairs are dropped in `_pruneAssociations`, hung off the

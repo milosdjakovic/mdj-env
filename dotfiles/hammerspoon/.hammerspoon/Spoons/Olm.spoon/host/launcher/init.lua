@@ -947,16 +947,22 @@ function obj:_rankCatalog(query, rows)
   -- one did, see the note above. A row further away than that keeps its place on the match
   -- alone, however often it has been chosen for some shorter spelling of this query.
   --
-  -- About as well means the same kind of match first. The shared search ranks a word found
-  -- whole in a tier above every scattered match, and the score carries that tier as a large
-  -- step, so a proportion of the whole score would read two rows a tier apart as near and two
-  -- rows in one tier as nearer than they are. So a remembered row must sit in the best row's
-  -- tier, and the proportion is taken of the score inside that tier, which is the number the
-  -- measurements above were made on.
+  -- About as well is two tests. The first is the kind of match. When the best row matches
+  -- every word at a word start, a remembered row that does not is never lifted over it, which
+  -- is the Mail and Maps guard above stated as a kind rather than a number. Below that the
+  -- shared search's levels do not lock a pick out, so a pick at a lower level can still be
+  -- learned, Docker Desktop for dd against a row holding dd inside a word for one example.
+  -- The second is the proportion, taken of the score inside the level and never of the whole
+  -- score, since the whole score carries a large step per level and a proportion of it would
+  -- read every pair at the same level as near. The proportion is measured downward from the
+  -- best row's own score by its size, so a best score below zero, which a long inner gap can
+  -- produce, still admits the best row itself rather than inverting and dropping its own pick.
   local nearness = tonumber((self._ranking or {}).nearness) or DEFAULT_NEARNESS
+  local nearFloor = best and (best.within - math.abs(best.within) * (1 - nearness))
   for _, entry in ipairs(scored) do
-    if entry.assoc and (entry.tier ~= best.tier or entry.within < best.within * nearness) then
-      entry.assoc = nil
+    if entry.assoc then
+      local lockedOut = best.atStart and not entry.atStart
+      if lockedOut or entry.within < nearFloor then entry.assoc = nil end
     end
   end
 

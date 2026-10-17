@@ -78,6 +78,12 @@ of it in plain Lua, which matters because this host is the dry gate's permanent 
   are pruned, where the disk scan is a real answer. A dead key costs nothing, since a pair is
   only ever looked up for a row already in the list.
 
+- **Locking a pick to the best row's tier.** 2026-10-17, built at 6539235 and found by the
+  adversarial review. A remembered row had to sit in the best row's tier of the shared search,
+  so a pick at a lower tier could never be learned, Docker Desktop for dd against Hidden Bar, which
+  held dd whole. The gate keyed on a score shape rather than on the one case the memory must not
+  bridge, a best row the person spelled out.
+
 ## Log
 
 ### 2026-09-21 20:40
@@ -127,3 +133,29 @@ and 28.6% measurements were made on. Inside a tier the order is what it was, and
 can no longer lift a scattered match over a whole one. `_rankCatalog` scores and sorts through
 `lib/chooser/rank.lua` behind the query memory instead of its own loop. Every expectation in
 `test/ranking.lua` passed unchanged.
+
+Corrected 2026-10-17 12:29, see below.
+
+### 2026-10-17 12:29
+
+The shared search now ranks four levels per word, word start, initials, inside a word and
+scattered, `olm-unified-search.md`. A remembered row may lead unless the best row matches every
+word at a word start and the remembered row does not. Inside that, nearness is the proportion of
+the score inside the level, measured down from the best row's score by its size, so a best score
+below zero, which a long inner gap between initials produces, admits its own pick rather than
+inverting the proportion and dropping every pick.
+
+This is not the rejected hard band. The gate is on the kind of match, a fact about what was typed
+and where it sits in the row, which incidental text such as a subtitle's length never moves, so
+it has no edge two near equal rows can drift across while typing. The proportion inside it is the
+same proportion as before. Nor is it unconditional memory. The Mail and Maps case is exactly a best
+row at a word start against a pick that is not, and the gate keeps Mail first however often Maps
+was picked at ma.
+
+Four cases in `test/ranking.lua` pin it, each proved by mutation. A pick at a lower level leads
+when the best row is not a word start match, Axb over Crab for ab, which the phase one tier gate
+fails. A pick that is not a word start match never leads over one that is, Alpha Bravo against a
+row starting ab deep inside it, which removing the gate fails. Rows close only because of the
+step, Mail and a row starting Map late, are not near, which a proportion of the whole score
+fails. A pick near a best row scoring below zero still leads, which the plain proportion fails.
+Every earlier expectation passed unchanged, 50 checks.

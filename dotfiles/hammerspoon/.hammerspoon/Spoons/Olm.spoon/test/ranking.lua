@@ -356,6 +356,64 @@ do
     "no store still scores and sorts")
 end
 
+-- The shared search ranks four levels of match, docs/PLAN-UNIFIED-SEARCH.md, and carries the
+-- level as a large step in the score. These four cases pin how the memory reads that. Each was
+-- proved by mutation on 2026-10-17, decisions/olm-unified-search.md, failing under the rule it
+-- guards against.
+local function plainRow(text, id)
+  return { title = text, subTitle = "", item = { kind = "app", bundleID = id }, filterText = text }
+end
+
+-- A pick at a lower level can still be learned when the best row is not a word start match.
+-- ab sits inside Crab, and Axb only spells it with a gap, yet their scores inside their levels
+-- are near, so the pick decides. A gate on the level itself locked this out.
+do
+  local a = fresh()
+  local l = launcher(a)
+  a.note("ab", "app:axb")
+  eq(titles(l:_rankCatalog("ab", { plainRow("Crab", "crab"), plainRow("Axb", "axb") })), "Axb,Crab",
+    "a pick at a lower level leads when the best row is not a word start match")
+end
+
+-- A pick never lifts a row over a best row matching at a word start when it does not, however
+-- near their scores. ab starts a word deep in the first row, and Alpha Bravo spells it by
+-- initials with a score inside its level that is near the first row's.
+do
+  local a = fresh()
+  local l = launcher(a)
+  a.note("ab", "app:alpha")
+  local deep = plainRow(string.rep("x", 150) .. " ab", "deep")
+  eq(titles(l:_rankCatalog("ab", { deep, plainRow("Alpha Bravo", "alpha") }))
+      :gsub("^x+ ab", "deep"), "deep,Alpha Bravo",
+    "a pick that is not a word start match never leads over a best row that is")
+end
+
+-- Two rows close only because of the step. Both start a word with ma, so both carry the same
+-- large step, but the deep one scores well below Mail inside the level. A proportion of the
+-- whole score read them as near, which this rules out.
+do
+  local a = fresh()
+  local l = launcher(a)
+  a.note("ma", "app:deep")
+  local deep = plainRow("Some other words then Map", "deep")
+  eq(titles(l:_rankCatalog("ma", { plainRow("Mail", "mail"), deep })), "Mail,Some other words then Map",
+    "rows close only because of the step are not near")
+end
+
+-- A best row scoring below zero inside its level, which a long inner gap produces, still
+-- admits a pick near it rather than the proportion inverting and dropping every pick.
+do
+  local a = fresh()
+  local l = launcher(a)
+  a.note("abc", "app:second")
+  local gap = string.rep("x", 100)
+  local first = plainRow("A" .. gap .. " B" .. gap .. " C", "first")
+  local second = plainRow("A" .. gap .. "x B" .. gap .. " C", "second")
+  local got = l:_rankCatalog("abc", { first, second })
+  eq(got[1] and got[1].item.bundleID, "second",
+    "a pick near a best row scoring below zero still leads")
+end
+
 -- Recording is keyed by the same function the timeline uses, so a row with no identity to
 -- remember is never recorded and the two memories can never disagree about what a row is.
 do

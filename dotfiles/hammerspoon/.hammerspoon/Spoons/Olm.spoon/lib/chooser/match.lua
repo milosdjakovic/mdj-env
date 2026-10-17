@@ -9,9 +9,10 @@
 --- every chooser shares one matcher and swapping them all is a single edit.
 ---
 --- fuzzy is the one search every list is moving onto, docs/PLAN-UNIFIED-SEARCH.md. It may
---- answer two more values after the score, the tier and the score inside that tier, which
---- lib/chooser/rank.lua carries along for a consumer that has to tell a better kind of
---- match from a better scored one of the same kind. A caller reading only the first value
+--- answer three more values after the score, the level, the score inside that level and
+--- whether every word matched at a word start, which lib/chooser/rank.lua carries along for
+--- a consumer that has to tell a better kind of match from a better scored one of the same
+--- kind. A caller reading only the first value
 --- loses nothing, the score alone already orders every row correctly.
 
 local M = {}
@@ -52,7 +53,7 @@ local NEG       = -1e9
 
 -- The most one matched character can ever earn, a match plus the largest bonus there is.
 -- No alignment of a word of n characters scores above n times this, which is what the
--- tier below is derived from.
+-- step between levels below is derived from.
 local TOP = MATCH + math.max(START, BOUND, CAMEL, CONSEC)
 
 -- Typo tolerance. The matcher may skip a query character it cannot place, so a missed,
@@ -67,8 +68,8 @@ local TYPO = 6
 -- Such a match earns few bonuses, so it scores low, and a minimum score scaled to the
 -- word length, since a longer word naturally scores higher, drops the scattered tail
 -- while every real match clears it easily. Raise FLOOR_STEP to cut more, lower it to
--- keep more. It applies to a word matched with gaps or typos only. A word found whole
--- is a match however little its position earns, see the tier below.
+-- keep more. It applies to a word matched inside a word or scattered. A word at a word start
+-- or spelled by initials is a match however little its position earns, see the levels below.
 local FLOOR_BASE = 2
 local FLOOR_STEP = 3.5
 local function minScore(n) return FLOOR_BASE + (n - 1) * FLOOR_STEP end
@@ -158,79 +159,162 @@ end
 -- A long body lowered once rather than on every keystroke. Lowering a body costs an
 -- allocation the size of the body, which the words strategy measured as four fifths of its
 -- work, and a list asks the same bodies again on every key, so the lowered copy is kept,
--- keyed by the body itself. Lua interns a string and caches a long string's hash in it, so
--- finding the copy again is a table lookup on the very string the row already holds. The
--- memo is bounded by FOLD_BUDGET bytes and starts over when it fills, so a body that left
--- the list is forgotten within a budget's worth of new ones, and a list larger than the
--- budget degrades to lowering per call, which is still correct.
+-- keyed by the body itself. Lua does not intern a long string, but it computes a long
+-- string's hash once and keeps it in the string, and a lookup compares the very string the
+-- row already holds by identity before it would compare bytes, so finding the copy again is
+-- cheap. The memo holds the body as its key as well as the copy, which keeps a body alive
+-- after its row is gone, so both are counted against FOLD_BUDGET and the memo starts over
+-- when it fills. That makes FOLD_BUDGET the real bound on what the memo holds, bodies and
+-- copies together, and a list larger than it degrades to lowering per call, still correct.
 --
 -- A Lua pattern with a class of both cases per letter would avoid the copy altogether, and
 -- was measured and rejected on 2026-10-17, decisions/olm-unified-search.md. The pattern
 -- matcher steps through the body a byte at a time in Lua's own matcher, where a plain find
 -- is a C level scan, and it came out four times slower than lowering on every call.
-local FOLD_BUDGET = 4 * 1024 * 1024
+local FOLD_BUDGET = 8 * 1024 * 1024
 local folded, foldedBytes = {}, 0
 local function lowered(hay)
   local low = folded[hay]
   if low then return low end
   low = hay:lower()
-  foldedBytes = foldedBytes + #low
+  local cost = #hay + #low
+  foldedBytes = foldedBytes + cost
   if foldedBytes > FOLD_BUDGET then
-    folded, foldedBytes = {}, #low
+    folded, foldedBytes = {}, cost
   end
   folded[hay] = low
   return low
+end
+
+-- Whether a word of the haystack starts at position j, the very first byte, a byte after a
+-- separator, or a camel hump. The same three places bonusAt rewards, so a level and the
+-- scoring never disagree about where a word begins.
+local function startsWord(hay, j)
+  return bonusAt(hay, j) > 0
+end
+
+-- Whether a byte can begin a word for initials. A letter, a digit, or any byte of a non
+-- ASCII character. A standalone symbol such as the ampersand in Printers & Scanners is not a
+-- word, so ps finds it, since nobody types the ampersand when spelling a name by its
+-- initials, and counting it would make the one name that carries it unreachable that way.
+local function wordByte(b)
+  return b ~= nil and (b >= 128 or string.char(b):match("%w") ~= nil)
+end
+
+-- The four levels a word can match at, strongest first. The number is what the level adds to
+-- a row's level sum, so a stronger level is a larger number.
+local LEVEL = { start = 3, initials = 2, inside = 1, scattered = 0 }
+
+-- Whether a lowered word occurs whole at a word start, or else where it first occurs at all,
+-- answering the position and whether it was a word start. Every occurrence is tried until one
+-- sits at a word start, so a long body's best occurrence is found rather than its first hit.
+local function wholeAt(word, hay, hlow)
+  local first
+  local init = 1
+  while true do
+    local pos = hlow:find(word, init, true)
+    if not pos then return first, false end
+    if startsWord(hay, pos) then return pos, true end
+    first = first or pos
+    init = pos + 1
+  end
+end
+
+-- Whether a lowered word is spelled by the first letters of consecutive words, os in OLM
+-- settings, dd in Docker Desktop. Words begin where startsWord says, and only at a byte that
+-- can begin a word.
+local function isInitials(word, hay, hlow)
+  local starts = {}
+  for j = 1, #hay do
+    if wordByte(hay:byte(j)) and startsWord(hay, j) then starts[#starts + 1] = j end
+  end
+  local n = #word
+  for k = 1, #starts - n + 1 do
+    local all = true
+    for i = 1, n do
+      if hlow:byte(starts[k + i - 1]) ~= word:byte(i) then all = false; break end
+    end
+    if all then return true end
+  end
+  return false
 end
 
 -- What a word found whole at position pos scores in a long body, the score the dynamic
 -- program gives the same contiguous run, a first character with its boundary bonus and
 -- every later one extending the run. The leading gap is counted only up to LONG, so a word
 -- deep in a long body costs no more than one at the end of a short one, which keeps every
--- score inside the range the tier below is derived for.
+-- score inside the range the step below is derived for.
 local function runScore(hay, pos, n)
   local lead = pos - 1
   if lead > LONG then lead = LONG end
   return lead * GAP_LEAD + bonusAt(hay, pos) + MATCH + (n - 1) * (CONSEC + MATCH)
 end
 
---- M.fuzzy(query, hay) -> score, tier, within, or nil
+-- One word against one haystack, answering its level and its score inside the level, or nil
+-- when it does not match. Levels start and initials skip the floor, since each is a deliberate
+-- way of naming a row however little its position earns. inside and scattered must clear it,
+-- which is what keeps one typed letter from matching every row that holds it somewhere.
+local function matchWord(word, hay, hlow, long)
+  local n = #word
+  local floor = minScore(n)
+  if long then
+    -- Past the bound only a word found whole matches, at a word start or inside a word.
+    local pos, atStart = wholeAt(word, hay, hlow)
+    if not pos then return nil end
+    local score = runScore(hay, pos, n)
+    if atStart then return LEVEL.start, score end
+    if score < floor then return nil end
+    return LEVEL.inside, score
+  end
+  local score = align(word, hay, hlow)
+  local pos, atStart = wholeAt(word, hay, hlow)
+  if atStart then return LEVEL.start, score end
+  if isInitials(word, hay, hlow) then return LEVEL.initials, score end
+  if score < floor then return nil end
+  if pos then return LEVEL.inside, score end
+  return LEVEL.scattered, score
+end
+
+--- M.fuzzy(query, hay) -> score, level, within, atStart, or nil
 --- The one search, docs/PLAN-UNIFIED-SEARCH.md phase one. Three rules sit on top of the
 --- subsequence scorer above.
 ---
 --- Each word separately. The query splits on whitespace, every word must match, and their
 --- scores are summed, so "hello there" finds "there, hello" and a word is never assembled
---- from letters belonging to the other one. A single word query is the old behaviour.
+--- from letters belonging to the other one. Every word is required, so google chrome finds
+--- nothing in a row titled Chrome.
 ---
---- Contiguous first. A word found whole in the haystack, ignoring case, is a better kind of
---- match than any alignment with gaps or typos, so the score carries a tier, the count of
---- words found whole, and every tier sits above the one below it whatever the scores inside
---- them. Typing se ranks Settings, Sending and even Base above Some example, and inside a
---- tier the ordinary scoring orders the rows, so a word found at a word start still beats
---- one found mid word. The tier counts per word rather than once for the whole query
---- because a query of two words is a request for both, and a row holding both whole is a
---- better answer than one holding one of them whole and the other scattered. A word found
---- whole skips the floor, since the floor exists to cut scattered alignments and a whole
---- word deep in a long row is not one.
+--- Four levels per word, strongest first, decided by Milos on 2026-10-17. A word found whole
+--- at a word start, se in Settings. A word spelled by the first letters of consecutive words,
+--- os in OLM settings, dd in Docker Desktop, ps in Printers & Scanners. A word found whole
+--- inside a word, se in Base. And a scattered alignment with gaps or typos, the old fuzzy
+--- match. A row's level is the sum over its words, and every step up outranks any difference
+--- between scores at the same level, so typing se ranks Settings, then Some example, then
+--- Base, and inside a level the ordinary scoring orders the rows as before. The first two
+--- levels skip the floor, the last two must clear it.
 ---
---- The tier is a step of span points, derived per query from the weights rather than
---- chosen. A word of n characters scores at most n times TOP, and a word found whole scores
---- at least its run minus a full LONG of near free gap, so the scores inside a tier can
---- never spread wider than the sum over the words of n times TOP plus that gap. span is
---- that sum, so one more word found whole outranks any difference inside a tier, and the
---- score stays the single number lib/chooser/rank.lua sorts on.
+--- The step is derived per query from the weights rather than chosen. A word of n characters
+--- scores at most n times TOP. The least a matching word can score is above minus a full LONG
+--- of inner gap, since every alignment the levels accept pays at most its haystack length in
+--- gaps, the inner gap costs most, and a short haystack is at most LONG bytes while a long one
+--- is scored only by runScore, whose gap is capped. So the scores at one level sum can never
+--- spread wider than the sum over the words of n times TOP plus LONG times the inner gap, the
+--- step is that sum, and a row with a higher level sum always scores higher. The score stays
+--- the single number lib/chooser/rank.lua sorts on.
 ---
---- Long bodies. Past LONG bytes a word matches only where it sits whole, found with a plain
---- byte scan over a lowered copy kept from one keystroke to the next, see lowered. That
---- keeps the words strategy's speed over a long body, so the words strategy can retire.
+--- Long bodies. Past LONG bytes a word matches only where it sits whole, at a word start or
+--- inside a word, the best occurrence chosen, found with a plain byte scan over a lowered copy
+--- kept from one keystroke to the next, see lowered. That keeps the words strategy's speed
+--- over a long body, so the words strategy can retire.
 ---
---- The second and third answers are the tier and the score inside it, for a consumer that
---- compares rows by proportion, the launcher's nearness rule, where a step of span would
---- read as closeness it is not. Returns nil when a word is absent, or when a word matched
---- only with gaps scores below the floor.
+--- The later answers are for a consumer that compares rows by more than order, the
+--- launcher's nearness rule. level is the row's level sum, within its score inside the level,
+--- and atStart whether every word matched at a word start. Returns nil when a word is absent,
+--- or when a word matched only inside a word or scattered scores below the floor.
 function M.fuzzy(query, hay)
   local words = {}
   for word in query:lower():gmatch("%S+") do words[#words + 1] = word end
-  if #words == 0 then return 0, 0, 0 end
+  if #words == 0 then return 0, 0, 0, true end
   local m = #hay
   if m == 0 then return nil end
 
@@ -239,29 +323,16 @@ function M.fuzzy(query, hay)
   -- and the dynamic program reads it byte by byte anyway. A long one comes from the memo.
   local hlow = long and lowered(hay) or hay:lower()
 
-  local within, tier, span = 0, 0, 0
+  local within, level, step, atStart = 0, 0, 0, true
   for _, word in ipairs(words) do
-    local n = #word
-    span = span + n * TOP
-    local score
-    if long then
-      local pos = hlow:find(word, 1, true)
-      if not pos then return nil end
-      score = runScore(hay, pos, n)
-      tier = tier + 1
-    else
-      score = align(word, hay, hlow)
-      if hlow:find(word, 1, true) then
-        tier = tier + 1
-      elseif score < minScore(n) then
-        return nil
-      end
-    end
+    local wordLevel, score = matchWord(word, hay, hlow, long)
+    if not wordLevel then return nil end
+    level = level + wordLevel
     within = within + score
+    if wordLevel ~= LEVEL.start then atStart = false end
+    step = step + #word * TOP - LONG * GAP_INNER
   end
-  -- The near free gap a word found whole can still pay, at most LONG bytes of it per word.
-  span = span + #words * LONG * math.max(-GAP_LEAD, -GAP_TRAIL)
-  return tier * span + within, tier, within
+  return level * step + within, level, within, atStart
 end
 
 --- M.substring(query, hay) -> score or nil

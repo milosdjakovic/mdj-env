@@ -128,7 +128,9 @@ end
 do
   local rows = {
     row("Displays", "System Preferences pane", 1),
-    row("Downloads System Preferences Look", "an unrelated bag of words", 2),
+    -- Was Downloads System Preferences Look until 2026-10-17, whose words spell dspl by their
+    -- initials and so now lead Displays by design. This bag keeps the case's point.
+    row("Device Management sync profile lock", "an unrelated bag of words", 2),
   }
   local s = model.newState(rows, ROWS_10)
   local filtered = model.setQuery(s, "dspl", fuzzy)

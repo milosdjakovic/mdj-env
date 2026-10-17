@@ -44,9 +44,13 @@ check(
   M.fuzzy("zzzzzz", "Displays") == nil
 )
 
+-- The scattered bag was "Downloads System Preferences Look" until 2026-10-17. Its words spell
+-- dspl by their initials, which the four levels rank above a scattered match on Milos's
+-- decision, so that row now leads Displays. The case keeps its point with a bag whose words do
+-- not spell the query, the shape of the Device Management bug it was written for.
 do
   local nearScore = M.fuzzy("dspl", "Displays")
-  local scatteredScore = M.fuzzy("dspl", "Downloads System Preferences Look")
+  local scatteredScore = M.fuzzy("dspl", "Device Management sync profile lock")
   check(
     "a near contiguous match outranks the same letters scattered across separate words",
     nearScore ~= nil and (scatteredScore == nil or nearScore > scatteredScore),
@@ -120,24 +124,43 @@ local function placeOf(list, title)
   return nil
 end
 
--- Contiguous first. se whole in a row beats s then e scattered, whatever the scattered row
--- scored before, and a whole match mid word still beats every scattered one.
+-- The four levels, strongest first, each word's own. A word start, then initials, then inside
+-- a word, then scattered.
+local LEVEL_START, LEVEL_INITIALS, LEVEL_INSIDE, LEVEL_SCATTERED = 3, 2, 1, 0
+local function levelOf(query, hay) return select(2, M.fuzzy(query, hay)) end
+
+check("se in Settings is a word start", levelOf("se", "Settings") == LEVEL_START)
+check("se in Some example is initials", levelOf("se", "Some example") == LEVEL_INITIALS)
+check("se in Base is inside a word", levelOf("se", "Base") == LEVEL_INSIDE)
+check("se in Safe is scattered", levelOf("se", "Safe") == LEVEL_SCATTERED)
+check("a camel hump is a word start", levelOf("se", "macSettings") == LEVEL_START)
+check("os in OLM settings is initials", levelOf("os", "OLM settings") == LEVEL_INITIALS)
+check("dd in Docker Desktop is initials", levelOf("dd", "Docker Desktop") == LEVEL_INITIALS)
+check("ps in Printers & Scanners is initials, the ampersand is no word",
+  levelOf("ps", "Printers & Scanners") == LEVEL_INITIALS)
+check("mb in Menu Bar is initials", levelOf("mb", "Menu Bar") == LEVEL_INITIALS)
+check("initials must be consecutive words", levelOf("dd", "Docker Hub Desktop") ~= LEVEL_INITIALS)
+
 do
-  local got = order("se", { "Some example", "Safe", "Screen Time Sharing", "Base", "Sending", "Settings" })
-  local joined = table.concat(got, ",")
-  check(
-    "se ranks the rows holding se whole above every row matching s then e scattered",
-    (placeOf(got, "Settings") or 99) <= 3 and (placeOf(got, "Sending") or 99) <= 3
-      and (placeOf(got, "Base") or 99) == 3,
-    joined
-  )
-  check(
-    "inside the whole tier a word start still beats a match mid word",
-    (placeOf(got, "Base") or 0) > (placeOf(got, "Settings") or 99)
-      and (placeOf(got, "Base") or 0) > (placeOf(got, "Sending") or 99),
-    joined
-  )
+  local got = order("se", { "Safe", "Base", "Some example", "Settings" })
+  check("se gives Settings, then Some example, then Base, then the scattered row",
+    table.concat(got, ",") == "Settings,Some example,Base,Safe", table.concat(got, ","))
 end
+
+for _, pair in ipairs({
+  { "os", "OLM settings", "Photos" },
+  { "dd", "Docker Desktop", "Hidden Bar" },
+  { "mb", "Menu Bar", "Numbers" },
+}) do
+  local got = order(pair[1], { pair[3], pair[2] })
+  check(pair[1] .. " ranks " .. pair[2] .. " above " .. pair[3], got[1] == pair[2], table.concat(got, ","))
+end
+
+-- One letter. Only a word start skips the floor among the whole matches, so a letter inside a
+-- word deep in a row drops as it always did, and one typed letter does not list every row.
+check("one letter at a word start matches", M.fuzzy("e", "Something Else") ~= nil)
+check("one letter inside a word late in a row does not",
+  M.fuzzy("e", "Something about a tree") == nil)
 
 -- The measurement this work started from. Four real Chrome addresses that do not hold the
 -- word, and a made up title that spells it scattered, all below the row that holds it.
@@ -169,10 +192,11 @@ do
 end
 
 -- The keyword bag case recorded at the weights. dspl is scattered in every row here, so this
--- proves the ordering inside the scattered tier is unchanged.
+-- proves the ordering inside the scattered level is unchanged. A bag whose words spell dspl by
+-- their initials leads instead, which is the decided order and checked by the level cases.
 do
   local got = order("dspl", {
-    "trackpad system preferences panel click", "Downloads System Preferences Look", "Displays" })
+    "trackpad system preferences panel click", "Device Management sync profile lock", "Displays" })
   check(
     "dspl still finds Displays first and the Trackpad keyword bag not at all",
     got[1] == "Displays" and placeOf(got, "trackpad system preferences panel click") == nil,

@@ -35,20 +35,22 @@ M.haystackOf = haystackOf
 
 --- M.score(items, query, matcher) -> a new list of entries, unsorted.
 --- Every candidate scored through matcher(query, haystackOf(item)), a nil score dropping
---- it. An entry is { item, score, idx, tier, within }, idx the candidate's place in items.
---- tier and within are the second and third answers lib/chooser/match.lua's fuzzy gives,
---- the count of words found whole and the score inside that tier, and a matcher answering
---- only a score reads as tier zero with within equal to the score. They exist for a
---- consumer that orders by something besides the score and needs to know which rows are a
---- comparable kind of match, the launcher's nearness rule today. This is the one scoring
+--- it. An entry is { item, score, idx, level, within, atStart }, idx the candidate's place
+--- in items. level, within and atStart are the later answers lib/chooser/match.lua's fuzzy
+--- gives, the row's level sum, its score inside that level, and whether every word matched
+--- at a word start. A matcher answering only a score reads as level zero, within equal to
+--- the score, and not at a word start. They exist for a consumer that orders by something
+--- besides the score and needs to know what kind of match a row is, the launcher's nearness
+--- rule today. This is the one scoring
 --- loop, so no host or list keeps a copy of it, docs/PLAN-UNIFIED-SEARCH.md phase one.
 function M.score(items, query, matcher)
   local entries = {}
   for i = 1, #items do
-    local score, tier, within = matcher(query, haystackOf(items[i]))
+    local score, level, within, atStart = matcher(query, haystackOf(items[i]))
     if score ~= nil then
       entries[#entries + 1] = {
-        item = items[i], score = score, idx = i, tier = tier or 0, within = within or score,
+        item = items[i], score = score, idx = i, level = level or 0, within = within or score,
+        atStart = atStart == true,
       }
     end
   end

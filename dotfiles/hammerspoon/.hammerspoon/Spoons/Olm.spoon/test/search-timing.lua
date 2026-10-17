@@ -46,7 +46,9 @@ for i = 1, 1000 do
 end
 -- The first search ever lowers every body once, and every later one finds the copy kept.
 time("fuzzy, the first search, lowering each body", 1000, function(i) match.fuzzy("settings", bodies[i]) end)
-for _, q in ipairs({ "settings", "hello there", "chooser", "zebra" }) do
+-- ump sits only inside words, so every occurrence is tried for a word start before the first
+-- is kept, the worst case of choosing the best occurrence.
+for _, q in ipairs({ "settings", "hello there", "chooser", "zebra", "ump" }) do
   print(" query " .. q)
   time("words over a body the caller lowered", 1000, function(i) match.words(q, lowered[i]) end)
   time("fuzzy over the body as the row holds it", 1000, function(i) match.fuzzy(q, bodies[i]) end)
