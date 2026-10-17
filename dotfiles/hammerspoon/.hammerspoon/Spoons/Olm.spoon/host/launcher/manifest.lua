@@ -259,7 +259,7 @@ return {
     specialRows = {
       { name = "aliasDirectory", description = "Aliases",
         subTitle = "Tools · every word that scopes this list", icon = "aliases",
-        keywords = "alias, aliases, scope, scopes, shortcut, words, prefix" },
+        keywords = "alias, scope, shortcut, prefix" },
       { name = "lock", description = "Lock Screen", category = "System", key = "§", icon = "lock" },
       { name = "sleep", description = "Sleep", category = "System", key = "escape", icon = "sleep" },
     },

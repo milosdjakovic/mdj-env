@@ -271,7 +271,7 @@ return {
   -- the console naming why.
   registry = {
     row = { category = "System", detail = "stops a dev server, container, or watcher",
-      icon = "processes", keywords = "processes, port, node, docker" },
+      icon = "processes", keywords = "dev server, port, kill process, node, docker, container" },
     open = { member = "chooser.show", call = "dot" },
     surface = "chooser",
   },

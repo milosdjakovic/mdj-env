@@ -83,7 +83,7 @@ return {
   -- landing there needs the redraw callback the launcher hands in rather than redrawPresented.
   registry = {
     row = { category = "Network", detail = "see the current network, disconnect, or join another",
-      keywords = "wifi, wi-fi, wireless, network, ssid, join, connect, disconnect" },
+      keywords = "wifi, wireless, network, ssid, join network, disconnect, airport" },
     open = { member = "show", call = "dot" },
     hosted = true,
     scope = {

@@ -415,3 +415,14 @@ proposal outside the repository and nothing in the manifests was changed by it. 
 plurals and generic words, and it moves the search words of nine descriptions into keywords. It
 proposes taking docker out of Local Servers, which is why do lists that row beside Docker.
 
+
+### 2026-10-17 14:03, the keywords audit applied
+
+The keywords audit was applied on Milos's approval, with one exception. Docker stays on Local
+Servers, so do still lists that row beside Docker, and the row now reads dev server, port, kill
+process, node, docker, container. Every other proposed value went in as written. Over 54 lists in
+14 manifests, 54 keyword values were changed, 12 tool rows, 39 settings panes and 3 clipboard
+commands, and no description or detail was touched. The one test that asserted an old value, the
+Wi-Fi pane keywords in launcher-contributions, was updated to the new list, since the audit
+plainly removed internet and network there. The inventory golden was not rerun and carries no
+keyword lines.

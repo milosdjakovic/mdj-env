@@ -133,7 +133,7 @@ return {
     -- application's own face. The icon in defaults stays as the fallback everywhere an
     -- app icon cannot go.
     row = { category = "Tools", detail = "search and open notes", bundle = BUNDLE,
-      keywords = "obsidian, notes, vault, markdown, note, write" },
+      keywords = "notes, vault, markdown" },
     open = { member = "show", call = "dot" },
     scope = {
       -- False for the identical reason presentation.matcher above is, the rows arrive

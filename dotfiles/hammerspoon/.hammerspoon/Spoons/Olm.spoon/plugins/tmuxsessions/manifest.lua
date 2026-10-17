@@ -178,7 +178,7 @@ return {
   -- them, insertSelected replacing the retired enter being exactly what closed that gap.
   registry = {
     row = { category = "Tools",
-      keywords = "tmux, sessions, windows, terminal, ghostty" },
+      keywords = "sessions, terminal, ghostty" },
     open = "show",
     hosted = true,
     shortcut = "leader",
