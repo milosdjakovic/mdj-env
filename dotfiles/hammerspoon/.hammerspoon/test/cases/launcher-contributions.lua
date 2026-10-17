@@ -259,7 +259,8 @@ expectRow("pane row", actionRows[lastWindow + 1], {
   owner = "systemsettings" })
 eq("pane row keeps its url", actionRows[lastWindow + 1].item.url,
   "x-apple.systempreferences:com.apple.wifi-settings-extension")
-eq("pane row keywords", actionRows[lastWindow + 1].keywords, "wifi wireless internet network")
+-- A row's declared search terms are a list since 2026-10-17, the contributed phrases its first.
+eq("pane row keywords", (actionRows[lastWindow + 1].keywords or {})[1], "wifi, wireless, internet, network")
 
 -- The icon each contributed row names is one its owner declares, drawn the same as the
 -- launcher's own copy was, so the picture did not change when the owner did.

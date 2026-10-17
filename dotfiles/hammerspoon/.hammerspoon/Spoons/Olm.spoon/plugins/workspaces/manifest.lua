@@ -141,7 +141,7 @@ return {
   -- matcher is false because scopeRows filters by the typed rest itself.
   registry = {
     row = { category = "Displays", detail = "window layouts you snapshot and put back",
-      icon = "workspaces", keywords = "workspace workspaces layout layouts window windows snapshot arrange" },
+      icon = "workspaces", keywords = "workspace, workspaces, layout, layouts, window, windows, snapshot, arrange" },
     open = { member = "chooser.show", call = "dot" },
     scope = {
       matcher = false,

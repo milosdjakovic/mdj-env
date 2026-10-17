@@ -65,7 +65,7 @@ return {
   -- in time both mean the same thing here, flip the setting in place.
   registry = {
     row = { category = "System", detail = "hides or reveals the Dock", icon = "dockautohide",
-      keywords = "dock hide hiding autohide show" },
+      keywords = "dock, hide, hiding, autohide, show" },
     open = "toggle",
     hosted = true,
     scope = {

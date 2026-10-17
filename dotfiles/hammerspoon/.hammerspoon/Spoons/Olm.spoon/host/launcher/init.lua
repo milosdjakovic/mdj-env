@@ -429,8 +429,19 @@ function obj:_buildActionRows()
     -- never about it. The usual answer is empty.
     -- A row a plugin contributed carries its owner and is never asked, since its name is that
     -- plugin's own word and a registered tool or a scope sharing it must not lend it a hint.
+    -- What the row answers to beyond its name, the declared search terms of the shared search,
+    -- lib/chooser/rank.lua. keywords arrives as a string or a list, and the alias hint joins it
+    -- since the words it names are words this row is reached by.
+    local terms = {}
+    if type(keywords) == "table" then
+      for _, k in ipairs(keywords) do terms[#terms + 1] = k end
+    elseif type(keywords) == "string" then
+      terms[1] = keywords
+    end
     if item and item.kind == "special" and item.owner == nil then
-      subTitle = (subTitle or "") .. self._aliasHint(item.name)
+      local hint = self._aliasHint(item.name)
+      subTitle = (subTitle or "") .. hint
+      if hint ~= "" then terms[#terms + 1] = hint end
     end
     -- An image handed in outright wins over the drawn icon, the one caller today being
     -- a registered tool whose row declares the bundle it fronts, so the row wears the
@@ -443,7 +454,7 @@ function obj:_buildActionRows()
     rows[#rows + 1] = { title = title, subTitle = subTitle, image = image,
                         icon = image == nil and icon or nil,
                         iconOwner = image == nil and icon ~= nil and (owner or self._iconOwner) or nil,
-                        item = item, when = when, keywords = keywords, subTitleFn = subTitleFn }
+                        item = item, when = when, keywords = terms, subTitleFn = subTitleFn }
   end
   -- addTool(name) asks the injected registry for this name's row and, when there is one,
   -- builds it exactly as the thirteen hand written calls this replaced built theirs,
@@ -524,8 +535,14 @@ function obj:_buildActionRows()
     -- here once per cache build rather than per keystroke, with the icon standing in
     -- whenever the bundle resolves to nothing on this machine.
     local image = row.bundle and hs.image.imageFromAppBundle(row.bundle) or nil
+    -- The description is the one part of a tool's subtitle that says what it does, so it is
+    -- searched beside the declared keywords. The category word and the chord are not, they
+    -- name a kind of thing and a key, and do inside Window listed every window command.
+    local terms = {}
+    if row.keywords then terms[#terms + 1] = row.keywords end
+    if row.detail and not detailFn then terms[#terms + 1] = row.detail end
     add(row.description, subTitle, { kind = "special", name = name },
-      row.icon, nil, row.keywords, subTitleFn, image, tool or name)
+      row.icon, nil, terms, subTitleFn, image, tool or name)
   end
   -- One row per registered tool, and one per registered command, asked of the registry in the
   -- order it holds rather than listed here by hand. This is what the thirteen addTool calls
@@ -871,12 +888,12 @@ function obj:_commandRows(query)
   local catalog = {}
   for _, row in ipairs(self:_orderedRows()) do
     if not (row.when and not (preds[row.when] and preds[row.when]())) then
-      local subTitle = self:_rowSubTitle(row)
-      local filterText = row.title .. " " .. subTitle
-      if row.keywords then filterText = filterText .. " " .. row.keywords end
-      catalog[#catalog + 1] = { title = row.title, subTitle = subTitle, image = row.image,
-                                icon = row.icon, iconOwner = row.iconOwner,
-                                item = row.item, filterText = filterText }
+      -- The name is searched first and the declared terms after it. The subtitle is not, since
+      -- here it is a category, a status and a chord, which filterText set to the title says,
+      -- lib/chooser/rank.lua.
+      catalog[#catalog + 1] = { title = row.title, subTitle = self:_rowSubTitle(row),
+                                image = row.image, icon = row.icon, iconOwner = row.iconOwner,
+                                item = row.item, filterText = row.title, keywords = row.keywords }
     end
   end
   for _, row in ipairs(self:_rankCatalog(query, catalog)) do out[#out + 1] = row end
@@ -948,15 +965,15 @@ function obj:_rankCatalog(query, rows)
   -- alone, however often it has been chosen for some shorter spelling of this query.
   --
   -- About as well is two tests. The first is the kind of match. When the best row matches
-  -- every word at a word start, a remembered row that does not is never lifted over it, which
-  -- is the Mail and Maps guard above stated as a kind rather than a number. Below that the
-  -- shared search's levels do not lock a pick out, so a pick at a lower level can still be
-  -- learned, Docker Desktop for dd against a row holding dd inside a word for one example.
-  -- The second is the proportion, taken of the score inside the level and never of the whole
+  -- every word at the start of a word of its name, a remembered row that does not is never
+  -- lifted over it, which is the Mail and Maps guard above stated as a kind rather than a
+  -- number. Below that the shared search's levels do not lock a pick out, so a pick at a lower
+  -- level can still be learned, Closet for lose against Local Servers for one example. The
+  -- second is the proportion, taken of the score inside the level and never of the whole
   -- score, since the whole score carries a large step per level and a proportion of it would
   -- read every pair at the same level as near. The proportion is measured downward from the
-  -- best row's own score by its size, so a best score below zero, which a long inner gap can
-  -- produce, still admits the best row itself rather than inverting and dropping its own pick.
+  -- best row's own score by its size, so a best score below zero, which a matcher may answer,
+  -- still admits the best row itself rather than inverting and dropping its own pick.
   local nearness = tonumber((self._ranking or {}).nearness) or DEFAULT_NEARNESS
   local nearFloor = best and (best.within - math.abs(best.within) * (1 - nearness))
   for _, entry in ipairs(scored) do
@@ -974,7 +991,7 @@ function obj:_rankCatalog(query, rows)
     return rank.before(a, b)
   end)
   local out = {}
-  for i = 1, #scored do out[i] = scored[i].item end
+  for i = 1, #scored do out[i] = rank.present(scored[i]) end
   return out
 end
 
@@ -1009,12 +1026,9 @@ function obj:rowsOfKind(kind)
     local it = row.item
     if it and it.kind == kind
       and not (row.when and not (preds[row.when] and preds[row.when]())) then
-      local subTitle = self:_rowSubTitle(row)
-      local filterText = row.title .. " " .. subTitle
-      if row.keywords then filterText = filterText .. " " .. row.keywords end
-      out[#out + 1] = { title = row.title, subTitle = subTitle, image = row.image,
+      out[#out + 1] = { title = row.title, subTitle = self:_rowSubTitle(row), image = row.image,
                         icon = row.icon, iconOwner = row.iconOwner,
-                        item = it, filterText = filterText }
+                        item = it, filterText = row.title, keywords = row.keywords }
     end
   end
   return out

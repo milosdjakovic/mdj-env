@@ -125,7 +125,7 @@ return {
 
   registry = {
     row = { category = "Network", detail = "measure this connection and compare it with its own past",
-      keywords = "speedtest speed network bandwidth latency rpm" },
+      keywords = "speedtest, speed, network, bandwidth, latency, rpm" },
     open = { member = "chooser.show", call = "dot" },
     hosted = true,
     -- The scope is deliberately not the whole tool. A scope shows its rows inside the

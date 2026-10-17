@@ -159,3 +159,16 @@ row starting ab deep inside it, which removing the gate fails. Rows close only b
 step, Mail and a row starting Map late, are not near, which a proportion of the whole score
 fails. A pick near a best row scoring below zero still leads, which the plain proportion fails.
 Every earlier expectation passed unchanged, 50 checks.
+
+### 2026-10-17 12:55
+
+The shared search now favours names, five levels per word, `olm-unified-search.md`, and the
+launcher hands its catalog over as each row's name plus its declared terms, so a subtitle's
+category, status and chord no longer decide anything. The gate reads as before, a remembered row
+may lead unless the best row matches every word at the start of a word of its name and the pick
+does not. The cases were rebuilt on the new levels and each still fails under the mutation it
+guards against. Three older expectations changed by the new search rather than by this rule,
+each with its reason beside it. mail no longer matches Maps at all, map no longer matches Mail,
+and with nothing remembered Mail and Maps tie on ma, since the subtitle that used to separate
+them is a status and no longer searched, so the resting order decides as the original complaint
+asked.

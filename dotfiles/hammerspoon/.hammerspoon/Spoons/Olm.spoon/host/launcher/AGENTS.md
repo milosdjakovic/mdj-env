@@ -583,8 +583,11 @@ Since the shared search ranks four levels of match and carries the level as a
 large step in the score, the proportion is taken of the score inside the level,
 the number those measurements were made on, and measured down from the best
 row's score by its size so a best score below zero cannot invert it. A pick may
-lead at any level unless the best row matches every word at a word start and
-the pick does not, which is the Mail and Maps guard stated as a kind of match.
+lead at any level unless the best row matches every word at the start of a word
+of its name and the pick does not, which is the Mail and Maps guard stated as a
+kind of match. The catalog hands each row over with its name as `filterText` and
+its keyword bag, description and alias words as `keywords`, so the category,
+status and chord in a subtitle are never searched.
 
 Pruning is deliberately partial. An application that has gone is proven gone by
 the disk scan, so its pairs are dropped in `_pruneAssociations`, hung off the

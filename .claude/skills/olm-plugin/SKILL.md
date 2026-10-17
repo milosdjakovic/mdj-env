@@ -124,7 +124,11 @@ The key is a string or a number and unique within the list, since a table built 
 rebuild never compares equal and a duplicate lands the highlight on the first row carrying it.
 
 A list of items a person picks from always filters on the shared matcher, so leave matcher
-undeclared. `matcher = false` is only for a page of a few fixed options, or for a plugin that
+undeclared. A row is found by its title first and its subtitle after, and a word it should
+answer to without showing goes in `keywords`, a string or a list, a comma between phrases, never
+padded into the title or the subtitle. A subtitle that is a category, a status or a chord is
+taken out of search by setting `filterText` to the title. `lib/chooser/rank.lua` states the
+vocabulary. `matcher = false` is only for a page of a few fixed options, or for a plugin that
 ranks the query itself. A false matcher on a long list shows an unfiltered list and nothing
 notices.
 

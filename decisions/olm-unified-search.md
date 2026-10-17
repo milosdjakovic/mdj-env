@@ -1,10 +1,9 @@
 # Olm one search for every list
 
-Status. Phase one is built on branch `olm/search-algorithm` with the four levels Milos decided
-after review, word start, initials, inside a word and scattered, and one rank engine with its
-four copies deleted, awaiting a live load. Phases two to four of
-`Spoons/Olm.spoon/docs/PLAN-UNIFIED-SEARCH.md` are planned. The exact field names are left to
-phase 2.
+Status. Phase one is built on branch `olm/search-algorithm`, settled after Milos's live test on
+names first, five levels per word and no scattered match, with one rank engine and its four copies
+deleted, awaiting a live load. Phases two to four of `Spoons/Olm.spoon/docs/PLAN-UNIFIED-SEARCH.md`
+are planned.
 
 ## Now
 
@@ -12,19 +11,18 @@ Search is one algorithm and one ranking engine, `lib/chooser/match.lua` and
 `lib/chooser/rank.lua`, used by every chooser list. No plugin or host matches or ranks rows
 itself, and a search that differs per list is a defect.
 
-The algorithm ranks four levels per word, strongest first. The word at a word start, the word
-spelled by the initials of consecutive words, the word inside a word, and a scattered match with
-gaps or typos. A stronger level always outranks any score at the levels below it, and the
-existing scoring orders rows inside a level. Each word of a query is scored separately, every word is
-required, and the scores are summed. Fuzzy subsequence matching applies only to short fields,
-and long bodies such as clipboard contents and file paths match by plain substring. Typo
-tolerance and the relevance floor stay for the fuzzy part.
+A row has a primary field, its name, and secondary fields, the subtitle it shows and the keywords
+it declares, and a word never matches across fields. Each query word matches at the strongest of
+five levels. In the name at the start of a word. In the name in pieces, each the start of one of
+a run of consecutive words in one phrase, initials being every piece one letter. In the name with
+one edit, from four letters on. In the name inside a word, from three letters on. And in a
+secondary field at a word start or in pieces only, below every name level. There is no scattered
+match and no relevance floor. Every word is required and the scores add. A row listed only
+through a hidden keyword shows the phrase in its subtitle while a query is typed.
 
-Plugins declare a row vocabulary and only core applies it. Rows carry several searchable
-fields and keep the best score. Pinned rows are never ranked or dropped. Query rows always
-survive. Tiers order before score. A bounded bonus reorders equally good matches and never
-lifts a worse match over a better one. A level may declare only that its field is not a search
-at all.
+Plugins declare a row vocabulary and only core applies it. Today that is `title`, `subTitle`,
+`keywords` and `filterText`, stated at the head of `rank.lua`. Phase two adds several names per
+row, pinned rows, query rows, tiers and a bounded bonus.
 
 ## Rejected
 
@@ -53,6 +51,18 @@ at all.
   spelled by initials is what a person means. And the launcher's tier gate locked learned picks
   out, so Docker Desktop for dd could never be relearned against Hidden Bar. Replaced by four
   levels.
+
+- **A scattered level, letters matched with gaps anywhere in a field.** 2026-10-17, built in
+  both earlier phase one builds and removed after Milos's live test. It is what lets do find
+  Local Servers through a d and an o picked out of its subtitle prose, and what the floor existed
+  to hold back, and a floor tuned to keep typos cannot also cut scattered noise. Milos asked for
+  tighter matching, one mistyped character or the start of words.
+- **Searching the subtitle and every declared word as one string with the name.** 2026-10-17.
+  The launcher glued title, subtitle, category, status, chord text, description and keyword bag
+  into one filterText. Typing do on main listed 47 of the 232 launcher rows, every window command
+  through do inside the category word Window, Wi-Fi through the initials of "disconnect, or join"
+  in its description, and Local Servers through letters scattered in its prose. Fields are now
+  searched apart, the name first, and a launcher subtitle is not searched at all.
 
 ## Log
 
@@ -205,4 +215,84 @@ real bound.
 The launcher rule changed with it, recorded in `olm-launcher-ranking.md`.
 
 Gates. Dry gate 0 findings, 23 accepted, 0 unknown. `check-dependencies.sh` clean. Units 1425
+assertions all passing, and `test/ranking.lua` 50 checks.
+
+### 2026-10-17 12:55, names first, five levels, no scattered match
+
+Milos tested the four level build live. Typing do listed every window command, since their
+subtitle category Window holds do inside a word, Wi-Fi by initials across "disconnect, or join"
+in its description, and Local Servers and others by d and o scattered through subtitle prose. He
+asked for tighter matching, one mistyped character or the start of words, lose finding Local
+Servers, an exact match at a word start first, Loser above Local Servers, and the main name
+favoured over anything else, with the reason for a row visible somehow.
+
+The main session set the design and it is built. A row has a primary field, the name, and
+secondary fields, its subtitle and its declared keywords, and a word never matches across them.
+Each query word matches at the strongest of five levels, worth 4 to 0. A, a name word starts
+with it. B, it splits into pieces that start a run of consecutive words of the name in one
+phrase, the best split kept. C, A or B with one edit, a substitution, an insertion, a deletion or
+two neighbours swapped, from four letters on. D, inside a word of the name, from three letters
+on. E, a secondary field at A or B only. Inside a level the position bonuses order, an earlier
+word, a shorter name and fewer pieces winning. The scattered level and the floor are gone, since
+the floor's only job was cutting scattered matches and every level left is a deliberate way of
+naming a row.
+
+Three choices inside the design. A camel hump offers a piece start without demanding one, so
+DaVinci Control Panels answers dcp, which the strict reading made unreachable, and YouTube Music
+answers ym, the case the four level build lost. Clause punctuation, a comma, a semicolon, a
+question or exclamation mark, ends a phrase, so pieces never span "disconnect, or" and a keyword
+string holds several phrases. A standalone symbol such as an ampersand is no word, so ps finds
+Printers & Scanners.
+
+The step. A word of n letters matched by any variant scores at most n plus one times eleven, the
+one being an inserted letter, and more than minus 256 times 0.02, the near free gap before and
+after it, which a short field pays at most its length of and a long one has capped. So rows at
+one level sum differ by less than the sum over the words of that spread, the step is that sum,
+and a higher level sum always scores higher.
+
+Fields in core. `rank.lua` builds them. title is the name, subTitle is searched beside it, and
+keywords, a string or a list, is declared and not shown, a comma ending a phrase. filterText,
+when set, replaces the name and turns the subtitle off, which keeps menu search's parents
+searchable and computed rows matching their query, and is how the launcher says its subtitle is
+a category, a status and a chord. The launcher hands each catalog row over as its name plus a list
+of terms, the keyword bag, a tool's description and its alias words. Every keyword bag in the
+manifests became comma separated phrases, focus, do not disturb, dnd for one, which is the only
+plugin change. A row listed only through a hidden phrase gets the phrase added to its subtitle,
+in `rank.present`, while a query is typed, a copy so the supplier's row is never changed.
+
+Results over the real catalog, 232 rows dumped through a temporary unit case then deleted. do
+lists 9 rows where main listed 47, Dock, Docker, Docker Desktop, Move Down, Google Docs, Desktop &
+Dock, Focus showing do not disturb, Local Servers showing docker, and Screen Time showing
+downtime. Every window command and Wi-Fi are gone. Local Servers stays, at level E, because its
+declared keywords hold docker, and dropping it would take Screen Time with it since downtime is
+the same kind of match. That conflicts with the list the live test asked for and is left for
+Milos. lose lists Local Servers by pieces and then four rows by one edit. One letter queries now
+match only word starts, e 8 against 10 on main, i 19 against 20, o 15 against 42, a 38 against
+40, s 70 against 94, d 33 against 35. Of 660 queries of two to four letters, 71 change their top
+result against main. Most are two names matching at the same level now ordered by the shorter
+name or the earlier word where main ordered them by incidental subtitle text, do giving Dock
+before Docker, dd Desktop & Dock before Docker Desktop, sy System Settings before System
+Information. The rest are real changes, md giving Move Down by pieces where main gave Device
+Management, met Digital Color Meter where main matched Center on its chord text Meta. The full
+list is in the commit report.
+
+Cost. A typo query over launcher sized names measured about 37 microseconds a row and a two
+letter query about 5, against about 34 for main's scorer on a 64 byte field. One edit over a
+256 byte name is the dearest path, about 340 microseconds, which only a long title with a typo
+reaches. Long bodies are unchanged, about 2.3 microseconds for settings against 1.9 for words.
+
+Launcher memory. The gate reads the same, a remembered row may lead unless the best row matches
+every word at a name word start and the pick does not. Its cases were rebuilt on the new levels,
+Closet by one edit over Local Servers by pieces for lose, and the guard against a best score below
+zero now uses a stand in matcher, since the new weights cannot produce one. Mutation, the phase
+one tier gate fails the lower level and negative cases, removing the gate fails the word start
+case, a proportion of the whole score fails the lower level and step cases, and the plain
+proportion fails the negative case. Three older launcher expectations changed by the new rule
+and say so where they sit. mail no longer lists Maps, map no longer lists Mail, and with nothing
+remembered Mail and Maps tie on ma and keep their resting order.
+
+Other order changes in existing cases. `test/cases/launcher-contributions.lua` reads a row's
+keywords as a list whose first entry is the manifest's phrases.
+
+Gates. Dry gate 0 findings, 23 accepted, 0 unknown. `check-dependencies.sh` clean. Units 1434
 assertions all passing, and `test/ranking.lua` 50 checks.

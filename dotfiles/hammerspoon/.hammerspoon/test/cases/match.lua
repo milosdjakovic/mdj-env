@@ -102,49 +102,55 @@ check(
   M.words("hel", "hello") ~= nil
 )
 
--- The one search, docs/PLAN-UNIFIED-SEARCH.md phase one. These rank through the real engine,
--- lib/chooser/rank.lua, since the promise is about the order a list shows, not about a number.
+-- The one search, docs/PLAN-UNIFIED-SEARCH.md phase one, as settled on 2026-10-17 after the
+-- live test. These rank through the real engine, lib/chooser/rank.lua, since the promise is
+-- about the order a list shows, not about a number.
 
 local rank = assert(loadfile(caseDir .. "/../../Spoons/Olm.spoon/lib/chooser/rank.lua"))()
+local L = M.LEVEL
 
-local function rows(titles)
+local function rows(list)
   local out = {}
-  for i, t in ipairs(titles) do out[i] = { title = t, filterText = t } end
+  for i, r in ipairs(list) do
+    out[i] = type(r) == "string" and { title = r } or r
+  end
   return out
 end
 
-local function order(query, titles)
+local function order(query, list)
   local out = {}
-  for i, r in ipairs(rank.apply(rows(titles), query, M.fuzzy)) do out[i] = r.title end
+  for i, r in ipairs(rank.apply(rows(list), query, M.fuzzy)) do out[i] = r.title end
   return out
 end
 
-local function placeOf(list, title)
-  for i, t in ipairs(list) do if t == title then return i end end
-  return nil
-end
+local function levelOf(query, name) return select(2, M.fuzzy(query, name)) end
 
--- The four levels, strongest first, each word's own. A word start, then initials, then inside
--- a word, then scattered.
-local LEVEL_START, LEVEL_INITIALS, LEVEL_INSIDE, LEVEL_SCATTERED = 3, 2, 1, 0
-local function levelOf(query, hay) return select(2, M.fuzzy(query, hay)) end
-
-check("se in Settings is a word start", levelOf("se", "Settings") == LEVEL_START)
-check("se in Some example is initials", levelOf("se", "Some example") == LEVEL_INITIALS)
-check("se in Base is inside a word", levelOf("se", "Base") == LEVEL_INSIDE)
-check("se in Safe is scattered", levelOf("se", "Safe") == LEVEL_SCATTERED)
-check("a camel hump is a word start", levelOf("se", "macSettings") == LEVEL_START)
-check("os in OLM settings is initials", levelOf("os", "OLM settings") == LEVEL_INITIALS)
-check("dd in Docker Desktop is initials", levelOf("dd", "Docker Desktop") == LEVEL_INITIALS)
-check("ps in Printers & Scanners is initials, the ampersand is no word",
-  levelOf("ps", "Printers & Scanners") == LEVEL_INITIALS)
-check("mb in Menu Bar is initials", levelOf("mb", "Menu Bar") == LEVEL_INITIALS)
-check("initials must be consecutive words", levelOf("dd", "Docker Hub Desktop") ~= LEVEL_INITIALS)
+-- Each level, with Milos's own examples.
+check("lose in Loser is a name word start", levelOf("lose", "Loser") == L.nameStart)
+check("lose in Local Servers is name pieces", levelOf("lose", "Local Servers") == L.namePieces)
+check("lose inside Enclosed is inside a word", levelOf("lose", "Enclosed") == L.nameInside)
+check("os in OLM settings is name pieces", levelOf("os", "OLM settings") == L.namePieces)
+check("dd in Docker Desktop is name pieces", levelOf("dd", "Docker Desktop") == L.namePieces)
+check("mb in Menu Bar is name pieces", levelOf("mb", "Menu Bar") == L.namePieces)
+check("ps in Printers & Scanners is name pieces, the ampersand is no word",
+  levelOf("ps", "Printers & Scanners") == L.namePieces)
+check("a camel hump offers a piece start without demanding one",
+  levelOf("dcp", "DaVinci Control Panels") == L.namePieces
+    and levelOf("dvcp", "DaVinci Control Panels") == L.namePieces)
+check("dokcer finds Docker with one edit", levelOf("dokcer", "Docker") == L.nameEdit)
+check("dcoker finds Docker with one edit", levelOf("dcoker", "Docker") == L.nameEdit)
+check("two edits find nothing", M.fuzzy("dkocre", "Docker") == nil)
+check("a two letter word with a typo matches nothing", M.fuzzy("dp", "Docker") == nil)
+check("a two letter word never matches inside a word", M.fuzzy("do", "Window") == nil)
+check("a three letter word does", levelOf("ndo", "Window") == L.nameInside)
+check("os is not inside Photos", M.fuzzy("os", "Photos") == nil)
+check("pieces never span clause punctuation",
+  M.fuzzy("do", "x", { primary = "x", secondary = { { text = "disconnect, or join", visible = true } } }) == nil)
 
 do
-  local got = order("se", { "Safe", "Base", "Some example", "Settings" })
-  check("se gives Settings, then Some example, then Base, then the scattered row",
-    table.concat(got, ",") == "Settings,Some example,Base,Safe", table.concat(got, ","))
+  local got = table.concat(order("lose", { "Enclosed", "Local Servers", "Loser" }), ",")
+  check("lose gives Loser, then Local Servers, then the row holding lose inside a word",
+    got == "Loser,Local Servers,Enclosed", got)
 end
 
 for _, pair in ipairs({
@@ -153,79 +159,92 @@ for _, pair in ipairs({
   { "mb", "Menu Bar", "Numbers" },
 }) do
   local got = order(pair[1], { pair[3], pair[2] })
-  check(pair[1] .. " ranks " .. pair[2] .. " above " .. pair[3], got[1] == pair[2], table.concat(got, ","))
+  check(pair[1] .. " lists " .. pair[2] .. " and not " .. pair[3],
+    #got == 1 and got[1] == pair[2], table.concat(got, ","))
 end
 
--- One letter. Only a word start skips the floor among the whole matches, so a letter inside a
--- word deep in a row drops as it always did, and one typed letter does not list every row.
-check("one letter at a word start matches", M.fuzzy("e", "Something Else") ~= nil)
-check("one letter inside a word late in a row does not",
-  M.fuzzy("e", "Something about a tree") == nil)
-
--- The measurement this work started from. Four real Chrome addresses that do not hold the
--- word, and a made up title that spells it scattered, all below the row that holds it.
+-- A declared term ranks below every name level, and a hidden one says why the row is listed.
 do
-  local addresses = {
+  local focus = { title = "Focus", subTitle = "System Settings", keywords = "focus, do not disturb, dnd" }
+  local dock = { title = "Dock", subTitle = "System" }
+  local got = rank.apply({ focus, dock }, "do", M.fuzzy)
+  check("a name match ranks above a declared term match", got[1] and got[1].title == "Dock")
+  check("the declared phrase joins the subtitle of a row listed by it",
+    got[2] and got[2].subTitle == "System Settings · do not disturb", got[2] and got[2].subTitle)
+  check("the row handed in is never changed", focus.subTitle == "System Settings")
+  local plain = rank.apply({ focus }, "foc", M.fuzzy)
+  check("a row listed by its name shows its subtitle unchanged", plain[1].subTitle == "System Settings")
+end
+
+-- Real launcher rows, copied from the live catalog on 2026-10-17 in the shape the launcher now
+-- hands them over, the name as filterText and the declared terms as keywords.
+do
+  local catalog = {
+    { title = "Docker", subTitle = "Open", filterText = "Docker" },
+    { title = "Docker Desktop", subTitle = "Open · Hyper D", filterText = "Docker Desktop" },
+    { title = "Dock", subTitle = "System · hides or reveals the Dock (d, dock)", filterText = "Dock",
+      keywords = { "dock, hide, hiding, autohide, show", "hides or reveals the Dock", " (d, dock)" } },
+    { title = "Google Docs", subTitle = "Not running", filterText = "Google Docs" },
+    { title = "Move Down", subTitle = "Window · Meta S", filterText = "Move Down" },
+    { title = "Desktop & Dock", subTitle = "System Settings", filterText = "Desktop & Dock",
+      keywords = { "desktop, dock, mission control, stage manager, hot corners" } },
+    { title = "Focus", subTitle = "System Settings", filterText = "Focus",
+      keywords = { "focus, do not disturb, dnd" } },
+    { title = "Screen Time", subTitle = "System Settings", filterText = "Screen Time",
+      keywords = { "screen time, limits, downtime" } },
+    { title = "Maximize", subTitle = "Window · Meta ↩", filterText = "Maximize" },
+    { title = "Move Left", subTitle = "Window · Meta A", filterText = "Move Left" },
+    { title = "Center", subTitle = "Window · Meta C", filterText = "Center" },
+    { title = "Wi-Fi", subTitle = "Network · see the current network, disconnect, or join another (wi, wifi)",
+      filterText = "Wi-Fi", keywords = { "wifi, wi-fi, wireless, network, ssid, join, connect, disconnect",
+        "see the current network, disconnect, or join another", " (wi, wifi)" } },
+  }
+  local got = {}
+  for _, r in ipairs(rank.apply(catalog, "do", M.fuzzy)) do got[r.title] = true end
+  local keep = { "Docker", "Docker Desktop", "Dock", "Google Docs", "Move Down", "Desktop & Dock",
+    "Focus", "Screen Time" }
+  local missing = {}
+  for _, t in ipairs(keep) do if not got[t] then missing[#missing + 1] = t end end
+  check("do keeps every row that names it", #missing == 0, table.concat(missing, ","))
+  check("do drops every window command and Wi-Fi",
+    not got["Maximize"] and not got["Move Left"] and not got["Center"] and not got["Wi-Fi"])
+end
+
+-- The measurement this work started from. Four real Chrome addresses and a made up title that
+-- spells the word scattered, none of which match any more.
+do
+  local titles = {
+    "seven little things",
     "https://resources.anthropic.com/hubfs/The-Complete-Guide-to-Building-Skill-for-Claude.pdf",
     "https://vicert-testing.canvasmedical.com/login?next=%2Fpatients",
     "https://vicert-testing.canvasmedical.com/login?next=%2Fpatient%2Fda85ab13b6cc4b0fa3a40c97ccbc7f96%2Fedit",
     "https://www.loom.com/share/5092de42f8f64542a66faf090599b20c",
+    "Settings",
   }
-  local titles = { "seven little things" }
-  for _, a in ipairs(addresses) do titles[#titles + 1] = a end
-  titles[#titles + 1] = "Settings"
   local got = order("settings", titles)
-  check(
-    "settings ranks Settings first, above the four addresses and the scattered title",
-    got[1] == "Settings",
-    table.concat(got, " | ")
-  )
-  local whole = M.fuzzy("settings", "Settings")
-  local beaten = true
-  for _, t in ipairs(titles) do
-    if t ~= "Settings" then
-      local s = M.fuzzy("settings", t)
-      if s ~= nil and s >= whole then beaten = false end
-    end
-  end
-  check("every row without the word scores below the row holding it, or not at all", beaten)
+  check("settings lists Settings alone, the four addresses no longer match",
+    #got == 1 and got[1] == "Settings", table.concat(got, " | "))
 end
 
--- The keyword bag case recorded at the weights. dspl is scattered in every row here, so this
--- proves the ordering inside the scattered level is unchanged. A bag whose words spell dspl by
--- their initials leads instead, which is the decided order and checked by the level cases.
-do
-  local got = order("dspl", {
-    "trackpad system preferences panel click", "Device Management sync profile lock", "Displays" })
-  check(
-    "dspl still finds Displays first and the Trackpad keyword bag not at all",
-    got[1] == "Displays" and placeOf(got, "trackpad system preferences panel click") == nil,
-    table.concat(got, ",")
-  )
-end
-
-check("a swapped pair of letters still matches", M.fuzzy("settigns", "Settings") ~= nil)
+check("se in Base is not a match, two letters never match inside a word", M.fuzzy("se", "Base") == nil)
 
 -- Each word separately, and every word required.
 check("a two word query matches its words in either order", M.fuzzy("hello there", "there, hello") ~= nil)
 check("a two word query drops a row holding only one of its words", M.fuzzy("hello there", "hello") == nil)
-check(
-  "a row holding both words whole beats one holding only one of them whole",
-  (M.fuzzy("hello there", "hello everyone there") or 0) > (M.fuzzy("hello there", "help others there") or 0)
-)
+check("google chrome finds nothing in a row titled Chrome", M.fuzzy("google chrome", "Chrome") == nil)
+check("a word never matches across the name and a secondary field together",
+  M.fuzzy("ab", "x", { primary = "Alpha", secondary = { { text = "Beta", visible = true } } }) == nil)
 
--- Long bodies match a word only where it sits whole, and never by subsequence or typo.
+-- Long bodies match a word only whole, at its best occurrence.
 do
   local filler = string.rep("lorem ipsum dolor sit amet ", 12)
   local body = filler .. "the Chooser draws its rows " .. filler
   check("a long body is past the bound this case relies on", #body > 256, tostring(#body))
-  check("a long body matches a word it holds whole, ignoring case", M.fuzzy("chooser", body) ~= nil)
-  check("a long body matches two words held whole anywhere", M.fuzzy("rows chooser", body) ~= nil)
-  check("a long body does not match the same word as a subsequence", M.fuzzy("chsr", body) == nil)
+  check("a long body matches a word it holds at a word start", levelOf("chooser", body) == L.nameStart)
+  check("a long body matches a word inside a word from three letters", levelOf("hoose", body) == L.nameInside)
+  check("a long body never matches in pieces", M.fuzzy("tcd", body) == nil)
   check("a long body does not forgive a typo", M.fuzzy("choosre", body) == nil)
-  check("a short row still matches the same subsequence", M.fuzzy("chsr", "the Chooser") ~= nil)
-  check(
-    "asking the same long body twice answers the same score, the lowered copy is kept faithfully",
-    M.fuzzy("chooser", body) == M.fuzzy("chooser", body)
-  )
+  check("a short name does match the same pieces", M.fuzzy("tcd", "the Chooser draws") ~= nil)
+  check("a long body prefers a word start to an earlier hit inside a word",
+    levelOf("ipsum", "xipsum " .. body) == L.nameStart)
 end

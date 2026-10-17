@@ -32,7 +32,7 @@ local function time(label, iterations, fn)
   print(string.format("  %-52s %8.2f microseconds a call", label, (clock() - started) / iterations * 1e6))
 end
 
-print("the subsequence scorer by haystack length, an eight letter word with a typo")
+print("a name by its length, an eight letter word with one typo, the dearest path")
 for _, m in ipairs({ 64, 128, 256 }) do
   local h = body(m, m)
   time(m .. " bytes", 2000, function() match.fuzzy("settigns", h) end)

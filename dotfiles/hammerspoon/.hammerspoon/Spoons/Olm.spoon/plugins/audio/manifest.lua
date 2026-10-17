@@ -62,7 +62,7 @@ return {
   -- devices itself when what it holds has gone stale.
   registry = {
     row = { category = "System", detail = "switch the sound output or the microphone",
-      keywords = "audio sound output input microphone mic speaker headphones device" },
+      keywords = "audio, sound, output, input, microphone, mic, speaker, headphones, device" },
     open = { member = "show", call = "dot" },
     hosted = true,
     scope = {

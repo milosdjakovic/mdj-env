@@ -143,7 +143,7 @@ return {
   registry = {
     row = { category = "System", icon = "settings",
       detail = "where the OLM launcher appears, the colour theme and other preferences",
-      keywords = "olm settings preferences options window placement theme colour colors appearance" },
+      keywords = "olm, settings, preferences, options, window, placement, theme, colour, colors, appearance" },
     open = { member = "show", call = "dot" },
   },
 }

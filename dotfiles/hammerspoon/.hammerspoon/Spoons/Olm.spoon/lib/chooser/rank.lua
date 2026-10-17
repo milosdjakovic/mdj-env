@@ -21,24 +21,61 @@
 
 local M = {}
 
--- The text a matcher searches for a row, the row's own filterText when it carries one,
--- otherwise its title and subtitle joined with a space. A supplier that sets no
--- filterText still matches on what it shows, the same haystack every consumer's own
--- substring test relied on before this policy had a name.
+-- The row vocabulary for search, settled 2026-10-17.
+--
+-- title is the name, the primary field the shared search ranks first.
+-- subTitle is what the row shows under its name, searched as a secondary field.
+-- keywords is what the row declares it answers to without showing it, a string or a list of
+-- strings, each a secondary field. Inside one string a comma or a semicolon ends a phrase,
+-- so "focus, do not disturb, dnd" holds three phrases and a match shows the one it was in.
+-- filterText, when a row sets it, replaces both the name and the subtitle. It becomes the
+-- primary field and the subtitle is not searched, so a row whose subtitle is a category, a
+-- status or a chord sets filterText to its title, a menu item sets it to its title and its
+-- parents, a computed row sets it to the query, and a row setting it empty never matches by
+-- its name. keywords are searched either way.
+
+-- The text a strategy that reads one string searches for a row, substring and words, the
+-- row's own filterText when it carries one, otherwise its title and subtitle joined with a
+-- space, exactly what it was before the fields existed.
 local function haystackOf(it)
   return it.filterText or ((it.title or "") .. " " .. (it.subTitle or ""))
 end
 
---- M.haystackOf(item) -> the text a matcher searches for one row, exposed so a consumer
---- scoring rows through M.score below never restates the rule.
+--- M.haystackOf(item) -> the text a one string matcher searches for one row, exposed so a
+--- consumer scoring rows through M.score below never restates the rule.
 M.haystackOf = haystackOf
 
+-- The fields the shared search reads for a row, the vocabulary above as one table,
+-- { primary, secondary = { { text, visible }, ... } }.
+local function fieldsOf(it)
+  local secondary = {}
+  local primary = it.filterText
+  if primary == nil then
+    primary = it.title or ""
+    if type(it.subTitle) == "string" and it.subTitle ~= "" then
+      secondary[#secondary + 1] = { text = it.subTitle, visible = true }
+    end
+  end
+  local kw = it.keywords
+  if type(kw) == "string" then kw = { kw } end
+  if type(kw) == "table" then
+    for _, k in ipairs(kw) do
+      if type(k) == "string" and k ~= "" then secondary[#secondary + 1] = { text = k, visible = false } end
+    end
+  end
+  return { primary = type(primary) == "string" and primary or "", secondary = secondary }
+end
+
+--- M.fieldsOf(item) -> the fields the shared search reads for one row.
+M.fieldsOf = fieldsOf
+
 --- M.score(items, query, matcher) -> a new list of entries, unsorted.
---- Every candidate scored through matcher(query, haystackOf(item)), a nil score dropping
---- it. An entry is { item, score, idx, level, within, atStart }, idx the candidate's place
---- in items. level, within and atStart are the later answers lib/chooser/match.lua's fuzzy
---- gives, the row's level sum, its score inside that level, and whether every word matched
---- at a word start. A matcher answering only a score reads as level zero, within equal to
+--- Every candidate scored through matcher(query, haystackOf(item), fieldsOf(item)), a nil
+--- score dropping it. An entry is { item, score, idx, level, within, atStart, shown }, idx
+--- the candidate's place in items. The later fields are the later answers
+--- lib/chooser/match.lua's fuzzy gives, the row's level sum, its score inside that level,
+--- whether every word matched the name at a word start, and the declared phrase it matched
+--- in. A matcher answering only a score reads as level zero, within equal to
 --- the score, and not at a word start. They exist for a consumer that orders by something
 --- besides the score and needs to know what kind of match a row is, the launcher's nearness
 --- rule today. This is the one scoring
@@ -46,11 +83,12 @@ M.haystackOf = haystackOf
 function M.score(items, query, matcher)
   local entries = {}
   for i = 1, #items do
-    local score, level, within, atStart = matcher(query, haystackOf(items[i]))
+    local score, level, within, atStart, shown =
+      matcher(query, haystackOf(items[i]), fieldsOf(items[i]))
     if score ~= nil then
       entries[#entries + 1] = {
         item = items[i], score = score, idx = i, level = level or 0, within = within or score,
-        atStart = atStart == true,
+        atStart = atStart == true, shown = shown,
       }
     end
   end
@@ -66,6 +104,24 @@ end
 function M.before(a, b)
   if a.score ~= b.score then return a.score > b.score end
   return a.idx < b.idx
+end
+
+--- M.present(entry) -> the row to show for one scored entry.
+--- A row listed only through a phrase it declares and does not show would be listed with no
+--- visible reason, so the phrase joins its subtitle, Focus for do reading System Settings ·
+--- do not disturb. The row is copied for that, never changed, since a supplier may hand the
+--- same table back on the next keystroke, and a phrase the subtitle already shows is not
+--- repeated. Every list ranked by this engine gets this, while a query is typed, because an
+--- empty query never scores and so never presents.
+function M.present(entry)
+  local it, shown = entry.item, entry.shown
+  if type(shown) ~= "string" or shown == "" then return it end
+  local sub = type(it.subTitle) == "string" and it.subTitle or ""
+  if sub:lower():find(shown:lower(), 1, true) then return it end
+  local copy = {}
+  for k, v in pairs(it) do copy[k] = v end
+  copy.subTitle = (sub ~= "" and (sub .. " · ") or "") .. shown
+  return copy
 end
 
 --- M.apply(items, query, matcher) -> a new list, the ranked items.
@@ -91,7 +147,7 @@ function M.apply(items, query, matcher)
 
   local out = {}
   for i = 1, #ranked do
-    out[i] = ranked[i].item
+    out[i] = M.present(ranked[i])
   end
   return out
 end

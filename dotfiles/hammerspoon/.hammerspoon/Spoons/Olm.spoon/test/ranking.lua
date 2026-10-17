@@ -246,7 +246,9 @@ local Launcher = assert(loadfile(spoon .. "host/launcher/init.lua"))()
 local function appRow(name, bundleID, subTitle)
   return {
     title = name, subTitle = subTitle, item = { kind = "app", bundleID = bundleID },
-    filterText = name .. " " .. subTitle,
+    -- The name alone, the shape the launcher hands its catalog over in since 2026-10-17, the
+    -- subtitle being a status that is not searched.
+    filterText = name,
   }
 end
 
@@ -311,7 +313,10 @@ do
   local a = fresh()
   local l = launcher(a)
   for _ = 1, 20 do a.note("ma", "app:com.apple.Maps") end
-  eq(titles(l:_rankCatalog("mail", { MAIL, MAPS })), "Mail,Maps",
+  -- Maps used to match mail through the scorer's typo allowance and trail Mail. Since
+  -- 2026-10-17 a four letter word gets one edit at a word start and nothing scattered, so Maps
+  -- does not match at all and Mail stands alone, the same guarantee stated more strongly.
+  eq(titles(l:_rankCatalog("mail", { MAIL, MAPS })), "Mail",
     "spelling a name out still wins, whatever was picked at a shorter spelling")
   eq(titles(l:_rankCatalog("ma", { MAIL, MAPS })), "Maps,Mail",
     "and the same memory still decides where the two match about equally")
@@ -323,7 +328,9 @@ do
   local a = fresh()
   local l = launcher(a)
   a.note("map", "app:com.apple.mail")
-  eq(titles(l:_rankCatalog("map", { MAPS, MAIL })), "Maps,Mail",
+  -- Mail used to match map weakly and trail Maps. Since 2026-10-17 a three letter word gets no
+  -- edit, so Mail does not match at all and the association has nothing to lift.
+  eq(titles(l:_rankCatalog("map", { MAPS, MAIL })), "Maps",
     "an exact association cannot bridge a real difference in match quality either")
 end
 
@@ -352,7 +359,10 @@ end
 -- optional policy on the declaration promises.
 do
   local l = launcher(nil)
-  eq(titles(l:_rankCatalog("ma", { MAPS, MAIL })), "Mail,Maps",
+  -- Mail used to win here on its shorter subtitle. The subtitle is a status and is no longer
+  -- searched, so the two names tie on ma and the resting order decides, which is what the
+  -- complaint above asked for.
+  eq(titles(l:_rankCatalog("ma", { MAPS, MAIL })), "Maps,Mail",
     "no store still scores and sorts")
 end
 
@@ -365,13 +375,14 @@ local function plainRow(text, id)
 end
 
 -- A pick at a lower level can still be learned when the best row is not a word start match.
--- ab sits inside Crab, and Axb only spells it with a gap, yet their scores inside their levels
--- are near, so the pick decides. A gate on the level itself locked this out.
+-- lose spells Local Servers in pieces and Closet with one edit, a level lower, yet Closet's score
+-- inside its level is near, so the pick decides. A gate on the level itself locked this out.
 do
   local a = fresh()
   local l = launcher(a)
-  a.note("ab", "app:axb")
-  eq(titles(l:_rankCatalog("ab", { plainRow("Crab", "crab"), plainRow("Axb", "axb") })), "Axb,Crab",
+  a.note("lose", "app:closet")
+  eq(titles(l:_rankCatalog("lose", { plainRow("Local Servers", "servers"), plainRow("Closet", "closet") })),
+    "Closet,Local Servers",
     "a pick at a lower level leads when the best row is not a word start match")
 end
 
@@ -400,16 +411,21 @@ do
     "rows close only because of the step are not near")
 end
 
--- A best row scoring below zero inside its level, which a long inner gap produces, still
--- admits a pick near it rather than the proportion inverting and dropping every pick.
+-- A best row scoring below zero inside its level still admits a pick near it rather than the
+-- proportion inverting and dropping every pick. The shared search no longer produces such a
+-- score, its gaps are capped well under one matched letter, so a stand in matcher answers the
+-- two scores directly, the guard being a property of the rule rather than of today's weights.
 do
   local a = fresh()
   local l = launcher(a)
-  a.note("abc", "app:second")
-  local gap = string.rep("x", 100)
-  local first = plainRow("A" .. gap .. " B" .. gap .. " C", "first")
-  local second = plainRow("A" .. gap .. "x B" .. gap .. " C", "second")
-  local got = l:_rankCatalog("abc", { first, second })
+  a.note("zz", "app:second")
+  local saved = l._matcher
+  l._matcher = function(_, hay)
+    if hay == "First" then return 100 - 4.0, 1, -4.0, false end
+    return 100 - 4.2, 1, -4.2, false
+  end
+  local got = l:_rankCatalog("zz", { plainRow("First", "first"), plainRow("Second", "second") })
+  l._matcher = saved
   eq(got[1] and got[1].item.bundleID, "second",
     "a pick near a best row scoring below zero still leads")
 end

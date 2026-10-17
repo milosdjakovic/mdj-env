@@ -1160,38 +1160,26 @@ injects one through `Chooser.configure({ matcher = ... })`, so switching every l
 between them is one edit. Today the root default is fuzzy, and the clipboard overrides
 its own to `words`.
 
-`fuzzy` is a small dynamic-programming subsequence scorer in the spirit of fzy, chosen
-over a greedy scan because greedy locks onto the leftmost occurrence of each letter, so
-it cannot find a term late in a long body and cannot tolerate a swapped letter, it
-starves the rest of the query once it takes a wrong turn. The DP explores every
-alignment for the query length times the haystack length per row, still well under a
-frame over a few hundred rows at typing speed. It carries three decisions worth
-knowing. Extending a contiguous run outscores landing on a word start, so a
-near-contiguous match beats the same letters scattered across the separate words of a
-keyword bag, the bug where Device Management outranked Displays for `dspl`. Inner gaps
-between matched characters cost real points while the leading and trailing gaps are
-nearly free, so a wide scattered span is penalized but a term sitting deep in a long
-clipboard body is not. And it tolerates typos, a query character it cannot place is
-skipped at a fixed cost, so a missed, misspelled, or swapped letter still hits, with no
-hard budget since enough skips just sink the score. A relevance floor scaled to the
-query length then drops whatever scores too low, the scattered tail, the absent letter,
-the query that is mostly wrong. The weights, the floor, and the typo cost are named
-constants at the top of `match.lua`, tuned so the floor cuts obvious noise while
-staying loose enough to forgive a fumbled letter; raising the floor step cuts more.
-
-Since 2026-10-17 `fuzzy` is also the one search every list is moving onto,
-`Spoons/Olm.spoon/docs/PLAN-UNIFIED-SEARCH.md`. Each word of a query matches at one of four
-levels, strongest first. At a word start, the start of the row, after a separator or at a camel
-hump, se in Settings. By initials, the first letters of consecutive words, os in OLM settings or
-ps in Printers & Scanners, where a standalone symbol such as the ampersand is not a word. Inside a
-word, se in Base. And scattered, the scorer's alignment with gaps or typos. A row's level is the
-sum over its words, every word is required, and the step between levels is derived per query from
-the weights as the widest the ordinary scores can spread, so a stronger level always wins and the
-engine still sorts one number. Only a word start and initials skip the floor. Past 256 bytes a row
-matches a word only where it sits whole, at its best occurrence, over a lowered copy `match.lua`
-keeps in a bounded memo, which costs about what `words` costs and is what lets `words` retire.
-`fuzzy` answers the level, the score inside it and whether every word matched at a word start as
-later values, for the launcher's nearness rule. The measurements are in
+`fuzzy` is the one search every list is moving onto,
+`Spoons/Olm.spoon/docs/PLAN-UNIFIED-SEARCH.md`, settled on 2026-10-17 after Milos tested it live.
+The name stays because the root and the manifests name it, though it matches no scattered letters
+any more. A row has a primary field, its name, and secondary fields, the subtitle it shows and the
+keywords it declares, and a word never matches across fields. Each query word matches at the
+strongest of five levels. In the name at the start of a word, lose in Loser. In the name in
+pieces, each the start of one of a run of consecutive words in one phrase, lose in LOcal SErvers
+or os in OLM settings, where a camel hump offers a piece start without demanding one and a
+standalone ampersand is no word. In the name with exactly one edit, from four letters on, dokcer
+in Docker. In the name inside a word, from three letters on, so do never finds Window. And in a
+secondary field at a word start or in pieces only, below every name level. Every word is
+required, google chrome finds nothing in a row titled Chrome, and a row's level is the sum over
+its words, with a step derived per query from the weights so a stronger level always wins while
+the engine still sorts one number. Inside a level the position bonuses order, an earlier word, a
+shorter name and fewer pieces winning. There is no relevance floor, since its only job was cutting
+scattered matches. Past 256 bytes a field matches a word only at a word start or inside a word, its
+best occurrence, over a lowered copy `match.lua` keeps in a bounded memo, which costs about what
+`words` costs and is what lets `words` retire. A row listed only through a keyword it does not show
+gets the matched phrase added to its subtitle while a query is typed, Focus for do reading System
+Settings · do not disturb, done once in `rank.lua`. The measurements are in
 `decisions/olm-unified-search.md`.
 
 The atom owns the filtering when a matcher is set and the field is in filter mode. The
@@ -1200,8 +1188,12 @@ sorts by score, and styles only the survivors, so a supplier no longer writes it
 `:find` test and the matching logic exists in exactly one place rather than copied into
 each tool. The ranking is `Spoons/Olm.spoon/lib/chooser/rank.lua`, the one engine both
 providers, the stage, the query scope, the action panel and the launcher rank through, and a
-host that needs it is handed it as root data rather than keeping a loop of its own. A row searchable by more than its visible text sets `filterText` to fold in
-hidden keywords or synonyms, defaulting to the title plus the subtitle. On an empty
+host that needs it is handed it as root data rather than keeping a loop of its own. What a row
+is searched by is its title as the name and its subtitle beside it, plus `keywords`, a string or
+a list of strings it declares without showing, where a comma ends a phrase. `filterText`, when a
+row sets it, replaces the name and turns the subtitle off, which is how a launcher row whose
+subtitle is a category, a status and a chord says so, and how a menu item keeps its parents
+searchable. The full statement is at the head of `rank.lua`. On an empty
 query the atom skips scoring and keeps the supplier's order, which is what makes the
 launcher's recency order and the VPN action row survive until the user types.
 

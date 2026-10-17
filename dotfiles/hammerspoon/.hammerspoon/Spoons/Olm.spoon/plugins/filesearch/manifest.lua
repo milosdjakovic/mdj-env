@@ -415,7 +415,7 @@ return {
   -- and root/compose.lua's own surfaceAdapterFor falls through to whatever this field names
   -- once the stage's own five have been asked and answered nothing.
   registry = {
-    row = { category = "Tools", keywords = "find files folders spotlight locate" },
+    row = { category = "Tools", keywords = "find, files, folders, spotlight, locate" },
     open = { member = "chooser.show", call = "dot" },
     surface = "chooser",
     hosted = true,

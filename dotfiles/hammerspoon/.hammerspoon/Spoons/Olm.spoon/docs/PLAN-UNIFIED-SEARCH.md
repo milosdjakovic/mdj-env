@@ -28,28 +28,32 @@ let each list keep its own.
 
 ## The algorithm
 
-Four levels per word, strongest first, decided by Milos after the phase one review. The word at
-a word start, se in Settings. The word spelled by the initials of consecutive words, se in Some
-example, os in OLM settings. The word inside a word, se in Base. A scattered match with gaps or
-typos. A stronger level outranks any score below it, and inside a level the existing scoring
-orders the rows. So typing se gives Settings, then Some example, then Base.
+Settled on 2026-10-17 after Milos tested the first two builds live. A row has a primary field,
+its name, and secondary fields, the subtitle it shows and the keywords it declares, and a word
+never matches across fields. Each query word matches at the strongest of five levels.
 
-Each word is scored separately. A query of several words requires every word to match and
-sums their scores. Every word is required, so google chrome finds nothing in a row titled
-Chrome.
+1. In the name, at the start of a word. lose in Loser.
+2. In the name, in pieces, each the start of one of a run of consecutive words in one phrase.
+   lose in LOcal SErvers, os in OLM settings, initials being every piece one letter.
+3. In the name, 1 or 2 with exactly one edit, from four letters on. dokcer in Docker.
+4. In the name, inside a word, from three letters on. do never finds Window.
+5. In a secondary field, 1 or 2 only, below every name level.
 
-Fuzzy subsequence matching applies only to short fields. Long bodies, such as clipboard
-contents and file paths, match by plain substring only. That keeps them fast and replaces the
-separate words strategy rather than keeping a second algorithm beside it.
-
-Typo tolerance and the relevance floor stay for the fuzzy part.
+There is no scattered match and no relevance floor. Every word is required, so google chrome
+finds nothing in a row titled Chrome, and the words' scores add. Past 256 bytes a field matches a
+word only at a word start or inside a word, which keeps long bodies fast and retires the words
+strategy. A row listed only through a keyword it does not show adds the matched phrase to its
+subtitle while a query is typed.
 
 ## The row vocabulary
 
 Plugins declare these, and only core applies them.
 
-1. Several searchable fields per row, with the best score kept, so a match cannot be assembled
-   across a title and an address.
+1. Several searchable fields per row, so a match cannot be assembled across a title and an
+   address. Phase one built the first of them, the name as `title` or `filterText`, the
+   subtitle, and `keywords`, a string or a list with a comma between phrases, stated at the
+   head of `lib/chooser/rank.lua`. A row with several names of equal weight, a tab's title, host
+   and address, is phase two.
 2. Pinned rows that are never ranked or dropped. These are Back, Settings, Capture current
    arrangement, New snapshot and create note.
 3. Rows that are the query itself and always survive. These are the calculator, convert,
@@ -75,21 +79,21 @@ merge.
 The algorithm goes into match.lua and one rank engine goes into rank.lua. The four copies are
 deleted and routed to `rank.apply`. No list changes how it looks, only how its matches rank.
 
-**Done.** Built 2026-10-17 on `olm/search-algorithm`, reworked the same day to four levels after
-the adversarial review, awaiting a live load. `match.fuzzy` is the one search. Each word matches
-at a word start, by initials, inside a word or scattered, a row's level is the sum over its words,
-and the step between levels is derived from the weights so a stronger level always wins. Only a
-word start and initials skip the floor, so one typed letter lists what it did on main. Past 256
-bytes a word matches only whole, at its best occurrence, over a lowered copy kept in a bounded
-memo. The boundary bonus is unchanged, since the levels put the four addresses below Settings.
-`rank.lua` gained `score` and `before`, and the copies in host/queryscope, host/actionpanel, the
-default list model and the launcher's scoring loop are gone, with `rank` handed to the three hosts
-as root data. The launcher keeps its query memory, which may lead unless the best row matches at a
-word start and the pick does not. This phase does change what lists show, not only their order,
-since initials now admit rows the floor used to cut, and one existing case changed by design, a
-keyword bag spelling dspl by initials now leads Displays. File paths fall under the 256 byte bound,
-which phase three has to answer. `decisions/olm-unified-search.md` has the measurements and the
-launcher catalog comparison.
+**Done.** Built 2026-10-17 on `olm/search-algorithm`, reworked twice the same day, after the
+adversarial review and after Milos's live test, awaiting a live load. `match.fuzzy` matches each
+word in the name at a word start, in pieces, with one edit from four letters, or inside a word
+from three, and otherwise in a secondary field at a word start or in pieces, with a step between
+level sums derived from the weights. There is no scattered match and no floor. `rank.lua` builds
+the fields from `title`, `subTitle`, `keywords` and `filterText`, adds a hidden matched phrase to
+the subtitle, and gained `score`, `before`, `fieldsOf` and `present`. The copies in
+host/queryscope, host/actionpanel, the default list model and the launcher's scoring loop are
+gone, with `rank` handed to the three hosts as root data. The launcher hands its catalog over as
+the name plus declared terms, so category, status and chord are not searched, and its memory may
+lead unless the best row matches at a name word start and the pick does not. Keyword bags in the
+manifests became comma separated phrases. This phase changes what lists show, not only their
+order, and every list ranked by the engine reads names first. File paths fall under the 256 byte
+bound, which phase three has to answer. `decisions/olm-unified-search.md` has the measurements
+and the launcher catalog comparison.
 
 ### Phase 2, the vocabulary and the simple lists
 
