@@ -544,3 +544,14 @@ surface and empty state, the scroll and the teardown, `pane = true` on a surface
   at 10:15, its sections now describe the flat list. The Settings row leads the tab list only when
   the trimmed query, ignoring case, is a whole settings word, and on a prefix of one it trails the
   tabs as it did before 91cf8be, since di for Discord or en then Enter opened settings.
+  Corrected 2026-10-17 10:27, see below.
+- 2026-10-17 10:27. Review of the 10:17 entry found its list of lists that now follow the item rather than
+  the row number incomplete. It named processes, menusearch and speedtest. The launcher changes
+  too, since System Settings pane rows carry their url as a key and menu scope rows carry keys, so
+  an async `Launcher:refresh` now follows those items while app rows, which state no key, keep the
+  row number. The Plugins page, through its Apply row and its plugin rows, and BrowserTabs settings
+  follow the item as well. Kept on purpose, holding what the person sees is the principle. The
+  same review found the lookup called a plugin's rows and the ranking a second time with no pcall,
+  so a raising rows function escaped `Stage:refresh` and could stop a background tick such as live
+  process sampling. Both now run under pcall, a failure is logged and the row number stands, and
+  `test/cases/stage-holdkey.lua` proves it with rows that raise on the lookup's call.

@@ -272,8 +272,9 @@ end
 
 -- Unlike the other two children, this page declares no matcher and so filters on the shared
 -- default. Those two pages are two fixed option rows a query cannot usefully narrow, while this
--- is a list of every plugin a person picks from, and typing a title or a state word such as off
--- has to narrow it. Choosing a plugin stages the opposite of what the row shows and answers
+-- is a list of every plugin a person picks from, and typing a title or an identity has to
+-- narrow it. A row filters on those two alone and never on its state words, so staging a row
+-- never changes whether it matches the query being typed. Choosing a plugin stages the opposite of what the row shows and answers
 -- stay, since it mutates the list it stands on and the person keeps the row they chose, and a
 -- row that cannot be switched answers stay too, doing nothing, so a press on it never leaves
 -- the page. Nothing is applied here, the page stays open however many rows are flipped.

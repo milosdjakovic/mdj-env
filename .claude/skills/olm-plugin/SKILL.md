@@ -120,6 +120,8 @@ on selection, leaving is always the person's own key. Plain true from intercept 
 wholesale swap of the list and nothing else. A list whose rows can appear or vanish above the
 highlight, on a stay or an async redraw, gives every item a stable `key`, and the stage holds
 the highlight on that item, typed query included, while a row with no key keeps its number.
+The key is a string or a number and unique within the list, since a table built afresh on each
+rebuild never compares equal and a duplicate lands the highlight on the first row carrying it.
 
 A list of items a person picks from always filters on the shared matcher, so leave matcher
 undeclared. `matcher = false` is only for a page of a few fixed options, or for a plugin that

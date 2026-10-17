@@ -63,8 +63,10 @@ local factory = { matchers = Chooser.matchers, rank = Chooser.rank, new = functi
   return inst
 end }
 
+local loggedErrors = 0
 local env = setmetatable({
-  hs = { logger = { new = function() return { w = function() end, e = print, i = function() end } end },
+  hs = { logger = { new = function() return { w = function() end,
+    e = function() loggedErrors = loggedErrors + 1 end, i = function() end } end },
     processInfo = {}, timer = { secondsSinceEpoch = os.time },
     application = { frontmostApplication = function() return nil end } },
 }, { __index = _G })
@@ -179,4 +181,29 @@ gone = true
 stage:refresh()
 check("a held key that is gone keeps the row number", inst:selectedRow() == 2
   and inst:selectedItem().key == "c")
+stage:hide()
+
+-- A keyed level whose rows raise on the second call after a redraw is asked for. The provider's
+-- own rebuild is the first call and survives, the stage's lookup by key is the second, and it
+-- must not unwind out of refresh into whatever background tick asked for the redraw. The row
+-- number stands and the failure is logged.
+local calls, armed = 0, false
+local raising = { name = "raising", matcher = false,
+  rows = function()
+    if armed then
+      calls = calls + 1
+      if calls == 2 then error("rows failed on purpose") end
+    end
+    return { { title = "a", item = { key = "a" } }, { title = "b", item = { key = "b" } },
+      { title = "c", item = { key = "c" } } }
+  end,
+  onSelect = function() end }
+stage:present(raising)
+inst:selectRow(2)
+armed = true
+local before = loggedErrors
+local okRefresh, why = pcall(function() stage:refresh() end)
+check("a refresh whose rows raise inside the hold does not raise", okRefresh, tostring(why))
+check("and the row number stands", inst:selectedRow() == 2 and inst:selectedItem().key == "b")
+check("and the failure is logged", loggedErrors == before + 1, tostring(loggedErrors - before))
 stage:hide()

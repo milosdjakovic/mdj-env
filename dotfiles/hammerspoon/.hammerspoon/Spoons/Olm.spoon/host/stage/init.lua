@@ -846,18 +846,34 @@ end
 -- so the index is the one on screen without the provider having to hand its rows out. A
 -- facade with no rank can only answer for an order it already knows, an empty field or a
 -- level that stood the matcher down.
+--
+-- The rows and the ranking are a plugin's code and a matcher, called a second time here, so
+-- both run under pcall the way the provider's own safeCall runs them. A raise is logged and
+-- answers nil, which leaves the row number standing, rather than unwinding out of a refresh
+-- into whatever background tick asked for the redraw and stopping it.
 function obj:_shownIndexWhere(match)
   local p = self:_current()
   if not (p and self._instance and type(match) == "table" and next(match) ~= nil) then
     return nil
   end
   local query = self:query()
-  local rows = self:_rows(query)
+  local ok, rows = pcall(self._rows, self, query)
+  if not ok then
+    log.e("Stage could not rebuild the rows to hold the highlight, " .. tostring(rows))
+    return nil
+  end
+  rows = rows or {}
   if query ~= "" then
     local matcher = self._instance:matcher()
     local rank = self._chooser and self._chooser.rank
     if rank and rank.apply then
-      rows = rank.apply(rows, query, matcher)
+      local ranked
+      ok, ranked = pcall(rank.apply, rows, query, matcher)
+      if not ok then
+        log.e("Stage could not rank the rows to hold the highlight, " .. tostring(ranked))
+        return nil
+      end
+      rows = ranked
     elseif type(matcher) == "function" then
       return nil
     end
