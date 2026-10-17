@@ -186,7 +186,20 @@ The launcher moves onto the engine, with its query memory feeding the bounded bo
 dry gate check fails any plugin or host that declares matcher false for a search level, or
 that calls a matcher or sorts rows by a query itself.
 
-**Done.**
+**Built** 2026-10-17 on `olm/search-launcher`, awaiting review and a live load. Milos decided the
+memory orders only equal matches, exactly like recency in every other list, so ma still learns
+Maps over Mail while lose keeps Local Servers above a remembered Loes. The launcher's presentation
+dropped `matcher = false`, and its supplier hands the query rows first, then the catalog in its
+resting recency order, each remembered row carrying its place in `queryassoc.orderFor(query)` as a
+bonus from one down to one over the count. `_rankCatalog`, the nearness rule and its number, the
+atStart lock, the launcher's sort, the `rank` handed to it and the scored entry's `within` and
+`atStart` fields are deleted, and `queryassoc` is unchanged, so the leader still changes on the
+fourth pick. `test/ranking.lua` drives the supplier through `rank.apply` with the shared matcher.
+The dry gate gained `test/drygate-search.lua`. Outside `lib/chooser` and the test directories it
+refuses `matcher = false`, a call of a matcher, `rank.apply` outside the stage, the query scope
+and the action panel, any `rank.score` or `rank.before`, and a sort by a query or by a score in a
+function reading the query, unless the line carries `search-exempt` and a reason. The input and
+confirm pages and FileSearch's matcher probe and kept first preference carry one, fourteen lines.
 
 ## Decisions this overrules
 

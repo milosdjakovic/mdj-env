@@ -1189,8 +1189,9 @@ supplier returns the full candidate list and the atom scores it, keeps the match
 sorts by score, and styles only the survivors, so a supplier no longer writes its own
 `:find` test and the matching logic exists in exactly one place rather than copied into
 each tool. The ranking is `Spoons/Olm.spoon/lib/chooser/rank.lua`, the one engine both
-providers, the stage, the query scope, the action panel and the launcher rank through, and a
-host that needs it is handed it as root data rather than keeping a loop of its own. What a row
+providers, the stage, the query scope and the action panel rank through, and a host that needs
+it is handed it as root data rather than keeping a loop of its own. The launcher calls neither,
+its rows ranked by the stage like any list's. What a row
 is searched by is its title as the name and its subtitle beside it, plus `keywords`, a string or
 a list of strings it declares without showing, where a comma ends a phrase. `filterText`, when a
 row sets it, replaces the name and turns the subtitle off, which is how a launcher row whose
@@ -1238,11 +1239,22 @@ Obsidian and Processes moved in phase three and declare their fields, the emoji 
 rowLimit of a hundred. The clipboard and FileSearch moved in the same phase, the clipboard's rows
 naming their bodies and paths and its searchText answering what follows a type prefix, and
 FileSearch's searchText answering the free text its grammar parses out, with a rowLimit of two
-hundred. The launcher itself still ranks its own query, behind the reason its own file explains,
-and phase four of the plan moves it.
+hundred. The launcher moved in phase four and ranks nothing itself. Its supplier hands the
+catalog over in the resting recency order and its learned query memory as each row's bonus, the
+leader at one, so a remembered row leads only rows matching equally well. ma still learns Maps
+over Mail, and lose keeps Local Servers, spelled in pieces, above a remembered Loes, one typo away.
 
 So every list chooser is fuzzy by default with no per-tool wiring, and a future list
-chooser inherits it for free, while a field that is input opts out in one word.
+chooser inherits it for free, while a field that is input opts out in one word and says why. No
+list matches or ranks its own rows, and the dry gate holds that, `test/drygate-search.lua`. Outside
+`lib/chooser` and the test directories it refuses `matcher = false`, a call of a matcher, a call
+of `rank.apply` anywhere but the stage, the query scope and the action panel, any call of
+`rank.score` or `rank.before`, and a `table.sort` whose comparator reads a query, calls a matcher
+or the engine, or reads a score in a function that reads the query. A sort by load, date or
+frecency reads no query and is not hit. A line answers a finding with `-- search-exempt, <reason>`
+on it or on the comment line above, counted as accepted, and an exemption with no reason or
+marking nothing is a finding. The input and confirm pages and FileSearch's matcher probe and
+kept first preference carry one.
 
 The clipboard searches through the shared engine since phase three of the unified search on
 2026-10-17. A history row filters on its one line title, since its subtitle is a kind, an age and
@@ -1508,7 +1520,7 @@ and hands back a glyph string rather than an image, so it loads and is exercised
 with no Hammerspoon at all, which is how the grammar and the slice counting were checked before
 anything went live.
 
-**Launcher.** Hyper+Space opens a filterable app switcher and command runner, the built-in one, built over the Chooser atom. It is a coordinator spoon that owns the app scan caches and an `hs.application.watcher`, orders open apps by recency the way Command+Tab does, and follows the picker checklist above. Its decision trail and internals live in `Spoons/Olm.spoon/host/launcher/AGENTS.md`.
+**Launcher.** Hyper+Space opens a filterable app switcher and command runner, the built-in one, built over the Chooser atom. It is a coordinator spoon that owns the app scan caches and an `hs.application.watcher`, orders open apps by recency the way Command+Tab does, and follows the picker checklist above. Once something is typed the shared search ranks it like any list, and what a query has been used to pick reaches the engine as a bonus that only orders rows matching equally well. Its decision trail and internals live in `Spoons/Olm.spoon/host/launcher/AGENTS.md`.
 
 Besides its catalog of apps and commands it also shows rows *computed* from what is
 typed, supplied by injected query row sources the root composes in order. A source is

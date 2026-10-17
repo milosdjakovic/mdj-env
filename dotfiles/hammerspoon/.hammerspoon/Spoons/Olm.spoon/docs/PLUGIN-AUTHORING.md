@@ -114,9 +114,16 @@ every present, since a new list means something new.
 
 Add one only when something is actually wrong without it.
 
-`matcher` is `false` only when the level's field is not a search, a typed name or a confirm,
-or a string naming a strategy the Chooser atom exports. Absent inherits the root default, which
-is what a list wants, its supplier returning every row and the engine filtering. A row that must
+`matcher` is `false` only when the level's field is not a search, a typed name, a duration, a
+level or a confirm, or a string naming a strategy the Chooser atom exports. Absent inherits the
+root default, which is what a list wants, its supplier returning every row and the engine
+filtering. No list matches or ranks its own rows, the launcher included since phase four of
+`docs/PLAN-UNIFIED-SEARCH.md`, and the dry gate refuses a false matcher, a call of a matcher, a
+call of the rank engine and a sort by a query or a match score outside `lib/chooser` and the
+tests, through `test/drygate-search.lua`. A field that is genuinely not a search says so on the
+`matcher = false` line or the line above, `-- search-exempt, <reason>`, and the gate counts it
+as accepted. A memory of what was picked, recency or a learned query, is a `bonus`, never a
+sort. A row that must
 always show comes in two kinds. A door or a placeholder, Back, a capture or new snapshot row,
 Apply now, sets `pinned = true`, keeping its place on an empty query and trailing the matches
 under a typed one, so the first row, which takes the highlight and Enter, is the best match. A
@@ -387,8 +394,8 @@ live wiring layer too, register, stage five; `registry.open`, `registry.scope`, 
 `registry.commands.*.fn` are checked only by the gate, never by a live reload, so running it is
 what stands between a typo there and a key that does nothing.
 
-A `matcher = false` level over a long list shows an unfiltered list, and nothing notices.
-Declare it only where the field is input. The row fields `pinned`, `fromQuery`, `tier` and
+A `matcher = false` level over a long list would show an unfiltered list, which is why the dry
+gate refuses one without a `search-exempt` reason. Declare it only where the field is input. The row fields `pinned`, `fromQuery`, `tier` and
 `bonus` are the way to say where a row goes without turning the search off.
 
 An `enter` that never calls `proceed` strands the person on a launcher row that silently does

@@ -541,16 +541,17 @@ charges a fraction for every character after the last one it matched. Typing
 `Not running` being nine characters longer than `Open`. So the order you saw
 while typing was the text score alone and nothing you did ever changed it.
 
-`_rankCatalog` now does that work. On an empty query it hands the rows straight
-back, untouched, which is what keeps the resting list exactly as it was. Once
-something is typed it scores every row through the one rank engine,
-`lib/chooser/rank.lua`, handed over by the root as `rank`, and drops the misses,
-exactly as the atom does, and then orders the survivors with anything this query
-has been used to pick before leading, the rest by the engine's own order, score
-first and the resting position breaking a tie so the timeline still shows
-through underneath. The presentation therefore carries `matcher = false`, which is the
-presentation's own field and not the manifest's, the manifest naming which
-strategy to inject rather than whether the atom should use it.
+This host ranks nothing itself since phase four of `docs/PLAN-UNIFIED-SEARCH.md`,
+Milos's decision of 2026-10-17 that search never differs per list. The presentation
+declares no matcher and inherits the shared search, and `_commandRows` hands the
+query rows first, then the catalog in its resting recency order, each catalog row
+carrying a `bonus` from `_memoryBonus`. That is the row's place in what
+`queryassoc.orderFor(query)` answers, scaled from one for the leader down to one
+over the count, nothing for a row with no memory and nothing on an empty query. The
+engine reads a bonus only among rows it calls equally good, the same level sum,
+phrase and further name words, so the memory orders exactly what recency orders in
+every other list and never lifts a row over a better match. On an empty query the
+engine keeps the supplier's order, so the resting list is the timeline untouched.
 
 A pick is recorded against the query that was in the field and against every
 prefix of it two characters or longer, so the shorter searches improve on the
@@ -568,27 +569,22 @@ Here a score converges on a ceiling, so the picks needed to overturn a settled
 favourite are the same handful whatever its history, four at the shipped decay.
 The leader is sticky by a margin, which costs nothing in speed and roughly
 halves how often the top row changes where two rows are used about equally. The
-three numbers are `ranking` in the manifest defaults and each carries its own
+two numbers are `ranking` in the manifest defaults and each carries its own
 note there.
 
-The guard worth knowing about is `nearness`. Because every remembered spelling
-answers for the longer queries it begins, a pick made at `ma` is consulted when
-you type `mail` too, and Maps really does match `mail` by spending the scorer's
-typo allowance on the letter it cannot place. Left unconditional, that ordered
-Maps above Mail while Mail was spelled out in full. So a remembered pick decides
-only among rows that scored close to the best one, as a proportion rather than a
-number of points since the score grows with every character. Measured, `mail`
-puts Maps at 28.6% of Mail, `map` puts Mail at 65% of Maps, and `ma` puts them
-at 99.4% of each other, so the default of 0.9 sits a long way from both edges.
-Since the shared search ranks four levels of match and carries the level as a
-large step in the score, the proportion is taken of the score inside the level,
-the number those measurements were made on, and measured down from the best
-row's score by its size so a best score below zero cannot invert it. A pick may
-lead at any level unless the best row matches every word at the start of a word
-of its name and the pick does not, which is the Mail and Maps guard stated as a
-kind of match. The catalog hands each row over with its name as `filterText` and
-its keyword bag and alias words as `keywords`, so the category, status, chord
-and description prose in a subtitle are never searched.
+There is no guard of the launcher's own any more. Because every remembered
+spelling answers for the longer queries it begins, a pick made at `ma` is consulted
+when you type `mail` too, and that once needed a nearness proportion and then a
+lock on a word start match to keep Maps under a spelled out Mail. The shared search
+answers it now. `mail` does not match Maps at all, and wherever a remembered row
+matches at a worse level than the best row the bonus cannot reach it. So `ma` still
+learns Maps over Mail, both at the start of their name, while `lose` keeps Local
+Servers, spelled in pieces, above a remembered Loes, one typo away. Both rules are
+in `decisions/olm-launcher-ranking.md` under Rejected. The catalog hands each row
+over with its name as `filterText` and its keyword bag and alias words as
+`keywords`, so the category, status, chord and description prose in a subtitle are
+never searched. `test/ranking.lua` drives the supplier through `rank.apply` with the
+shared matcher exactly as the stage does.
 
 Pruning is deliberately partial. An application that has gone is proven gone by
 the disk scan, so its pairs are dropped in `_pruneAssociations`, hung off the

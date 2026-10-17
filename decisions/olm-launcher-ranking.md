@@ -1,29 +1,35 @@
 # Olm launcher ranking
 
-Status. Once something is typed the launcher orders its own list, putting what this query has
-been used to pick before above the rest, and only among rows that matched about as well. The
-resting list on an empty field is unchanged and still the plain recency timeline.
+Status. Once something is typed the shared search ranks the launcher like every other list, and
+what this query has been used to pick before reaches it as a bonus, which orders only rows that
+match equally well. The resting list on an empty field is unchanged and still the plain recency
+timeline.
 
 ## Now
 
 Two memories, answering two questions. `_mru` under `launcherRecency` says what was picked last
 and is what an untouched list opens on. `lib/queryassoc.lua` under `launcherQueryAssoc` says
-what a query has come to mean and is what orders the list once a character is typed. Both are
-keyed by the same `recencyKey`, so they can never disagree about what a row is.
+what a query has come to mean and orders equal matches once a character is typed. Both are keyed
+by the same `recencyKey`, so they can never disagree about what a row is.
 
 A pick records the query in the field together with the row chosen, and every prefix of that
 query two characters or longer, so shorter searches improve on the way to longer ones. A single
 character is recorded only when it was the whole query. Strength is one decaying number per
 pair on an event clock counted per query, so a score converges on a ceiling and the picks
 needed to overturn a settled favourite are the same handful whatever its history. The leader is
-sticky by a margin. A remembered pick decides only among rows scoring close to the best match,
-as a proportion of it. The three numbers are `ranking` in `host/launcher/manifest.lua`.
+sticky by a margin. The two numbers are `ranking` in `host/launcher/manifest.lua`.
 
-The launcher scores and sorts its own rows now, through `matcher = false` on its presentation
-and the shared strategy it already received and never read. `test/ranking.lua` proves the whole
-of it in plain Lua, which matters because this host is the dry gate's permanent unknown.
+The launcher ranks nothing itself, Milos's decision of 2026-10-17 that search never differs per
+list. Its presentation declares no matcher, and its supplier hands the query rows first, then
+the catalog in its resting recency order, each catalog row carrying a `bonus` that is its place
+in `orderFor(query)`, one for the leader down to one over the count, nothing for a row with no
+memory. The engine reads a bonus only among rows it calls equally good, so ma learns Maps over
+Mail, both at the start of a name, and lose keeps Local Servers, spelled in pieces, above a
+remembered Loes, one typo away. `test/ranking.lua` proves it through the real path, the supplier
+ranked by `rank.apply` with the shared matcher, and the dry gate refuses a launcher, or any
+list, that ranks its own rows again.
 
-`host/launcher/CLAUDE.md` carries the working detail and the measurements.
+`host/launcher/AGENTS.md` carries the working detail.
 
 ## Rejected
 
@@ -83,6 +89,20 @@ of it in plain Lua, which matters because this host is the dry gate's permanent 
   so a pick at a lower tier could never be learned, Docker Desktop for dd against Hidden Bar, which
   held dd whole. The gate keyed on a score shape rather than on the one case the memory must not
   bridge, a best row the person spelled out.
+
+- **The nearness rule, a remembered row leading rows scoring close to the best as a
+  proportion.** 2026-10-17, removed in phase four of `docs/PLAN-UNIFIED-SEARCH.md`. Milos
+  decided search never differs per list and the launcher's memory orders only equal matches,
+  exactly like recency everywhere else, so a better match always leads. Nearness let a
+  remembered row cross a level, Loes, one typo from lose, over Local Servers spelled in pieces.
+- **The atStart lock, a remembered row never leading a best row matching every word at a name
+  word start.** 2026-10-17, removed with it for the same reason. It existed only to stop the
+  memory crossing one particular level, and a bonus inside one level answers every level at
+  once, so ma still learns Maps over Mail and nothing needs to know about word starts here.
+- **The launcher's own sort, `_rankCatalog` scoring with `rank.score` and sorting remembered
+  rows first.** 2026-10-17, removed with them. A list that sorts its own rows is a search that
+  differs per list, which Milos ruled out, and it was the reason the presentation carried
+  `matcher = false`. The memory is a `bonus` on each row and the stage ranks the list.
 
 - **A typed size under the floor offering no row at all.** Until 2026-10-17, rejected that day
   by Milos because nothing conveyed why. Window Size answered nothing for a size with an edge
@@ -245,3 +265,33 @@ that a typed query would drop were pinned the same way, audio, processes, text c
 `enterPage` and its prose, and the stale `hostedInPlace` and every tool row is hosted claims, were
 removed or corrected. `test/cases/chooser-emptystate.lua` now covers the provider's `_rankedQuery`
 across show, setQuery and refresh, including a field that runs ahead of the rows.
+
+### 2026-10-17 21:45
+
+Phase four of `docs/PLAN-UNIFIED-SEARCH.md`, on `olm/search-launcher`. Milos decided that the
+launcher's learned query memory orders only rows that match equally well, exactly like recency in
+every other list, so a better match always leads. ma still learns Maps over Mail, lose keeps
+Local Servers above a remembered Loes, and the empty field keeps today's recency order.
+
+The presentation dropped `matcher = false`. `_commandRows` hands the catalog over in its resting
+order with each row's bonus from the new `_memoryBonus`, the place in `orderFor(query)` scaled
+from one down to one over the count. `_rankCatalog`, the nearness rule and its default, the
+atStart lock, the launcher's sort, the `nearness` number in the manifest, the `rank` root data
+and the stored matcher are deleted, and so are the `within` and `atStart` fields of a scored
+entry in `rank.lua`, which only the launcher read. `queryassoc`, the margin, the decay, the
+prefixes, pruning and recording are unchanged, so the leader still changes on the fourth pick.
+
+`test/ranking.lua`'s launcher half now drives the supplier through `rank.apply` with the shared
+fuzzy matcher, as the stage does, 59 checks against 50. Kept as they were, ma learns Maps after
+one pick, a longer pick orders the shorter query, mail spelled out stands alone, a remembered row
+that does not match is not added, an empty query keeps recency, recording skips a computed row,
+nothing is recorded on a hosted page, and the three prune cases. Changed to the new decision,
+lose now keeps Local Servers above Loes after twenty picks, where it used to put Loes first. A
+row starting a word deep in its name and Mail at the same level now order by the memory, where
+nearness kept Mail first. Deleted, the case of a best row scoring below zero, since no
+proportion is left to invert. Added, the fourth pick overturns a settled leader in the list as
+well as in the store, a remembered row never passes a better level, the bonus is one for the
+leader and one half for the last of two and nothing on an empty query, a calc row leads and is
+never recorded, and a hosted page keeps its source's rows and order. Making the bonus nil failed
+eight checks, making it a tier failed five and inverting it five.
+

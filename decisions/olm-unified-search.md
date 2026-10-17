@@ -1,15 +1,22 @@
 # Olm one search for every list
 
-Status. Phase one is built on branch `olm/search-algorithm`, settled after Milos's live test on
-names first, five levels per word and no scattered match, with one rank engine and its four copies
-deleted, awaiting a live load. Phases two to four of `Spoons/Olm.spoon/docs/PLAN-UNIFIED-SEARCH.md`
-are planned.
+Status. Phases one to three of `Spoons/Olm.spoon/docs/PLAN-UNIFIED-SEARCH.md` are merged. Phase
+four, the launcher on the engine and the dry gate's search check, is built on branch
+`olm/search-launcher`, awaiting review and a live load.
 
 ## Now
 
 Search is one algorithm and one ranking engine, `lib/chooser/match.lua` and
 `lib/chooser/rank.lua`, used by every chooser list. No plugin or host matches or ranks rows
-itself, and a search that differs per list is a defect.
+itself, and a search that differs per list is a defect. Since phase four that holds without an
+exception, the launcher's learned query memory reaching the engine as a bonus like every other
+list's recency, and the dry gate enforces it through `Spoons/Olm.spoon/test/drygate-search.lua`.
+Outside `lib/chooser` and the test directories a `matcher = false`, a call of a matcher, a call of
+`rank.apply` outside the stage, the query scope and the action panel, any call of `rank.score` or
+`rank.before`, and a sort whose comparator reads a query, calls a matcher or the engine, or reads
+a score in a function that reads the query, are findings, unless the line carries
+`search-exempt` and a reason. The input pages, the confirm pages and FileSearch's matcher probe
+and kept first preference carry one.
 
 A row has a primary field, its name, and secondary fields, the subtitle it shows and the keywords
 it declares, and a word never matches across fields. Each query word matches at the strongest of
@@ -927,3 +934,41 @@ machine independently of search, most likely focus changes after synthetic key p
 27 or a lapsed Automation grant, and Milos's own hand test of the tabs list passed. Phase three
 merged on his word with the harness recorded as a broken check on main, to be investigated as its
 own item.
+
+### 2026-10-17 21:45, phase four, the launcher on the engine and the search check
+
+Built on `olm/search-launcher` from main at 1238877. Milos decided the launcher's learned query
+memory only reorders rows that match equally well, exactly like recency in every other list, so a
+better match always leads, ma still learns Maps over Mail and lose keeps Local Servers above a
+remembered Loes. The launcher's presentation dropped `matcher = false`, its supplier hands the
+catalog over in resting order with each remembered row's place in `orderFor(query)` as a bonus,
+one down to one over the count, and `_rankCatalog`, the nearness rule, the atStart lock and its
+sort are deleted, `decisions/olm-launcher-ranking.md` 21:45 has the detail and the cases.
+
+The search check scans every file `drygate.sh` lists in `DRYGATE_SOURCES` except `lib/chooser`
+and any test directory, the spoon's and a plugin's own, since the BrowserTabs harness ranks
+through the engine on purpose. rank.apply stays allowed in the stage, which ranks for its
+highlight hold, the query scope, which ranks a scope's rows, and the action panel, which ranks
+its own verbs. The providers live in `lib/chooser` and are not read. No host calls `rank.score`
+or `rank.before` any more, so both are findings everywhere outside the engine. A sort is hit
+only when its comparator, or a named comparator followed to its definition in the same file,
+reads a query other than a field of its own two parameters, calls a matcher or the engine, or
+reads a score inside a function that reads the query or calls a matcher, so the 84 sorts in the
+tree, by load, date, frecency or a stored query's strength, are not hit. A `search-exempt` with no
+reason, or one that marks no hit, is a finding, so an exemption cannot outlive its code.
+
+Fourteen lines carry the comment. The speedtest naming page, the Caffeinate and Volume
+presentations and scopes, the Workspaces new snapshot and rename pages, the DisplayProfiles rename
+and capture pages, which are input, the Workspaces and DisplayProfiles delete confirms and the
+Workspaces single app page, which is Back and one action, and in FileSearch the probe that asks
+the matcher how long a word must be to sit inside a word and the keeps preference that fills the
+retain cap with rows the search keeps first without reordering them. FileSearch's request
+building, Spotlight's matchingRoots and the walker's word filter call no matcher, compute no
+score and sort nothing by the query, so the rules do not hit them and they carry no comment. Each
+narrows what its own source returns before the shared search ranks it.
+
+Proved by mutation. The launcher at 1238877 restored gave five findings, its `matcher = false`,
+`rank.score`, two `rank.before` calls and its sort. A planted block in a plugin, a sort calling a
+matcher, a sort by a score in a function reading the query and a `matcher = false`, gave three.
+`test/cases/searchcheck.lua` holds 26 checks of what the rule must hit and must leave alone.
+

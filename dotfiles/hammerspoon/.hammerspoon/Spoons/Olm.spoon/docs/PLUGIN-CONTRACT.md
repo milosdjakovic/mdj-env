@@ -758,7 +758,6 @@ registry = {
   hosted = true,
   shortcut = "leader",                            -- or "global"
   scope = {
-    matcher = false,
     -- Reached through the submodule they actually live on, since a bare name is walked
     -- against the plugin ROOT. This example named them bare for a while and a real manifest
     -- copied it, which built a scope, registered it, resolved its word, and answered an empty
@@ -917,15 +916,15 @@ surface = {
   primary = { action = "enter", description = "Select" },
   nav     = true,                  -- j, k, i, x, defaults to true
   extra   = { { key = "d", action = "close", description = "Close tab" } },
-  matcher = false,                 -- opt out of the shared matcher
   pane    = true,                  -- the docked companion preview
   when    = nil,                   -- defaults to <context>Open
 }
 ```
 
 `matcher` and `pane` live here rather than being ambient because they are per plugin
-choices. Since phase three of the unified search on 2026-10-17 no plugin names a matcher, every
-list ranks through the shared search, and a list that differs is a defect. Five want the
+choices. Since phase three of the unified search on 2026-10-17 no plugin names a matcher, and
+since phase four the launcher ranks through the shared search too, so no list matches or ranks
+its own rows, and the dry gate refuses one that does, `test/drygate-search.lua`. Five want the
 preview pane. The rest want neither and say nothing.
 
 ### The docked pane
@@ -962,13 +961,13 @@ padded box once docked and nil before, for a plugin that caches a layout by its 
 `paneWidth` should report, so a root that granted no pane gets the list with no companion rect.
 
 **`matcher` names a strategy and nothing else.** It does not say whether the shared
-widget filters, and the difference cost a real defect. Four plugins turn the widget's own
-filtering off in their own code, because their query is structured rather than a plain
-filter, and they then use the injected strategy for their own scoring, one layer further
-down. So the two questions are independent and only one of them is the manifest's
-business. Which strategy to inject is declared here. Whether the widget filters is the
-plugin's own internal decision, already written in its own code, and restating it here
-gives it a second place to drift.
+widget filters, and the difference cost a real defect. Which strategy to inject is declared
+here. Whether the widget filters is the presentation's `matcher` below. Four plugins once
+turned the widget's filtering off and scored rows with the injected strategy themselves, and
+since phase four of `docs/PLAN-UNIFIED-SEARCH.md` none may, since a call of a matcher outside
+`lib/chooser` is a dry gate finding. FileSearch still reads the injected strategy, to ask its
+sources for a word the way the search keeps it and to fill its retain cap with kept rows first,
+and both lines carry a `search-exempt` reason since neither orders a shown row.
 
 Writing `matcher = false` therefore means inject no strategy at all, which is almost never
 what a plugin wants. BrowserTabs declared exactly that and the effect would have been to
@@ -1023,7 +1022,7 @@ presentation = {
   onPositioned = { member = "onPositioned", call = "dot" }, -- optional
   rowCount    = 2,                                       -- optional, a plain number
   paneWidth   = 320,                                     -- optional, a plain number, true, or a member spec
-  matcher     = false,                                   -- optional, false or a strategy name, rarely right
+  matcher     = false,                                   -- optional, false only where the field is not a search, with a search-exempt reason
   titleLineBreak = "truncateMiddle",                     -- optional, a plain string
   searchText  = { member = "searchText", call = "dot" }, -- optional
   rowLimit    = 200,                                     -- optional, a positive whole number
@@ -1110,7 +1109,8 @@ Under a typed query a `fromQuery` row, made from what was typed, leads the ranke
 `pinned` row, a door or a placeholder, trails them, and on an empty query both keep the
 supplier's order. `matcher` is `false`, meaning the field is not a
 search and the supplier owns what shows, the one case that stays for an input page or a confirm,
-and it was what filesearch and clipboard asked their own standalone `Chooser.new` for, or a string naming a strategy in `Chooser.matchers`, the identical table
+which says so with a `-- search-exempt, <reason>` comment on the line or the line above, since the
+dry gate refuses a false matcher without one, or a string naming a strategy in `Chooser.matchers`, the identical table
 `root/compose.lua` already resolves this word against for every consumer that still builds its
 own instance. No presentation names one since phase three of the unified search, and absent
 inherits the root default, the version
