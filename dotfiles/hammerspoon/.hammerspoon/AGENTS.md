@@ -1246,9 +1246,11 @@ chooser inherits it for free, while a field that is input opts out in one word.
 
 The clipboard searches through the shared engine since phase three of the unified search on
 2026-10-17. A history row filters on its one line title, since its subtitle is a kind, an age and
-a count, names its full text body and every file path, so a word deep in a long body is found by
-the long field rule, a word start or inside a word over a lowered copy `match.lua` keeps, with
-nothing truncated, and carries its place in the store as a bonus, so among equally good matches
+a count, names its full text body, so a word deep in a long body is found by the long field rule,
+a word start or inside a word over a lowered copy `match.lua` keeps, with nothing truncated. A
+copied file names only the file name of each path and never its folders or its body, Milos's
+decision of 2026-10-17, since support listed every screenshot saved under Application Support.
+The row carries its place in the store as a bonus, so among equally good matches
 the newer leads and a newer entry never lifts over a better one. The preview line is not searched,
 since it reads 1200 chars or URL, and searching it made chars match every text entry. The type
 prefix, img, url, file or txt, stays the clipboard's own grammar. The supplier reads it to keep

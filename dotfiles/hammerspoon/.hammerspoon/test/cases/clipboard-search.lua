@@ -80,6 +80,7 @@ UI.configure({
     -- When the age text next reads differently, far ahead unless a case moves it.
     relTimeChanges = function(ts) return (ageChanges[ts] or math.huge) end,
     fileExt = function(p) return (p:match("%.([^./]+)$") or ""):lower() end,
+    basename = function(p) return p:match("([^/]+)/?$") or p end,
   },
   media = { fileBadge = function() return nil end },
   prune = prune,
@@ -116,7 +117,8 @@ check("the supplier hands every entry over in the store's order", #rows == #hist
 check("a row filters on its title, so its kind and age subtitle is not searched",
   rows[1].filterText == "alpha beta gamma")
 check("a text row names its whole body", #(rows[2].names or {}) == 1 and (rows[2].names or {})[1] == history[2].text)
-check("a file row names its path", (rows[3].names or {})[1] == "/tmp/q3/report.pdf")
+check("a file row names its file name and not its folder", #(rows[3].names or {}) == 1
+  and (rows[3].names or {})[1] == "report.pdf", table.concat(rows[3].names or {}, ","))
 check("an image row has no names", type(rows[6].names) == "table" and #rows[6].names == 0)
 check("the newest row has bonus one and the oldest one over the count",
   rows[1].bonus == 1 and rows[8].bonus == 1 / 8, tostring(rows[1].bonus) .. " " .. tostring(rows[8].bonus))
@@ -163,6 +165,31 @@ kept = ranked("zucchini")
 check("an appended entry is searched by its new text", titles(kept) == "alpha", titles(kept))
 history[8].text = before
 UI.entryChanged(history[8])
+
+-- A copied file answers only to its file name, Milos's decision of 2026-10-17, after support
+-- listed eight screenshots saved under Application Support. The entry also carries a body naming
+-- the folders, so a body named for a file would still match them. Its second file's name is in
+-- no title, so a match on it can only come from the names.
+local copied = { kind = "file", title = "Screenshot one.png  +1", ts = 11, preview = "2 files",
+  text = "/Users/x/Library/Application Support/Shots/Screenshot one.png\n"
+    .. "/Users/x/Library/Application Support/Shots/invoice.pdf",
+  files = { { path = "/Users/x/Library/Application Support/Shots/Screenshot one.png" },
+    { path = "/Users/x/Library/Application Support/Shots/invoice.pdf" } } }
+table.insert(history, 1, copied)
+kept = ranked("support")
+check("support finds no file saved under Application Support", position(kept, copied.title) == nil, titles(kept))
+kept = ranked("library")
+check("library finds no file saved under Library", position(kept, copied.title) == nil, titles(kept))
+kept = ranked("shots")
+check("the folder the files share finds neither", position(kept, copied.title) == nil, titles(kept))
+kept = ranked("invoice")
+check("a file name finds its entry", position(kept, copied.title) == 1, titles(kept))
+kept = ranked("voice")
+check("a part of a file name finds its entry", position(kept, copied.title) == 1, titles(kept))
+kept = ranked("file screenshot")
+check("the file name in the title still answers under the type prefix",
+  position(kept, copied.title) == 1, titles(kept))
+table.remove(history, 1)
 
 --------------------------------------------------------------------------------
 -- The row cache

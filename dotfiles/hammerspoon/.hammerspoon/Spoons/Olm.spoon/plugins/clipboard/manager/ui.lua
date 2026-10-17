@@ -302,17 +302,23 @@ local function colorChip(col)
   return img or nil, key
 end
 
--- What a history row is searched by, besides its title. The full text body and every file
--- path, each a further name of the row matched at the title's levels, so a word deep in a long
--- body is found by the shared search's long field rule, a word start or inside a word, with
--- nothing truncated. The preview is not among them, it reads 1200 chars or URL or image, so
--- searching it once made chars match every text entry.
+-- What a history row is searched by, besides its title. A text or url entry names its full body,
+-- a further name of the row matched at the title's levels, so a word deep in a long body is
+-- found by the shared search's long field rule, a word start or inside a word, with nothing
+-- truncated. A copied file answers only to its file name, the last part of each path, Milos's
+-- decision of 2026-10-17, since a folder word matched every file under that folder, and support
+-- listed eight screenshots saved under Application Support. So a file entry names the basename
+-- of every path and nothing else, its body included. The preview is not among them, it reads
+-- 1200 chars or URL or image, so searching it once made chars match every text entry.
 local function namesOf(e)
   local names = {}
-  if type(e.text) == "string" and e.text ~= "" then names[#names + 1] = e.text end
-  for _, el in ipairs(e.files or {}) do
-    if type(el.path) == "string" then names[#names + 1] = el.path end
+  if e.kind == "file" then
+    for _, el in ipairs(e.files or {}) do
+      if type(el.path) == "string" then names[#names + 1] = util.basename(el.path) end
+    end
+    return names
   end
+  if type(e.text) == "string" and e.text ~= "" then names[#names + 1] = e.text end
   return names
 end
 
@@ -322,7 +328,7 @@ end
 -- narrowing by kind, since it is a filter the grammar states rather than a match. What is left
 -- after the prefix reaches the shared search through UI.searchText, the presentation's
 -- searchText. A row filters on its title, since its subtitle is a kind, an age and a count,
--- names its body and its paths, and carries its place in the store as a bonus, so among rows
+-- names its body or its file names, and carries its place in the store as a bonus, so among rows
 -- the search calls equally good the newer leads, and a newer entry never lifts over a better
 -- match.
 local function buildChoices(q)

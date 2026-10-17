@@ -877,3 +877,13 @@ score keeping the old step 1, no kept first 2, no nothing found 1, held rows nev
 narrows in place of sameShape 1, Spotlight asking anywhere 1, fzf scattered 1, the walker fixed 1,
 entryChanged keeping the row 3, an age that never refreshes 1, an open keeping rows 1, a stale
 bonus 1 and no cache 4.
+
+### 2026-10-17 20:19, a copied file answers only to its file name
+
+Milos's decision. A clipboard file entry named its full text body and every file path, so the
+words of the folders a file sits in matched it, and support listed eight screenshots saved under
+Application Support. A file entry now names only the last part of each path, its file name, and
+never its folders or its body. A text or url entry still names its whole body. The case in
+test/cases/clipboard-search.lua adds a file entry under Library and Application Support whose
+body also names those folders, and support, library and the shared folder find nothing while a
+file name and a part of one still find it. Naming the paths again fails four of its checks.
