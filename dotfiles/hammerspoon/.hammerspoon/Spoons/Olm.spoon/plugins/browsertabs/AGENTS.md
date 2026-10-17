@@ -500,33 +500,25 @@ scripts one browser and raises one prompt, and the rest are switched on delibera
 added to the root later also starts off, because the default set and not mere presence is what
 turns one on.
 
-## Why the tab list opts out of the shared matcher
+## Why the tab list still opts out of the shared matcher, and where Settings sits
 
-Letting the atom filter the tab list uniformly would pull the pinned Settings row into the tab
-ranking. So the tab list opts out and scores its tab rows itself with the matcher the root
-injects, which keeps the one shared matching policy while leaving the pinned row outside it.
-That is the same reason `DisplayProfiles` opts out, with the difference that this tool still
-uses the shared matcher rather than writing its own filter. The settings level does not opt
-out. It is a list of items like any other, so it filters on the shared matcher, Back states an
-empty filterText so a query never leaves it above the rows that matched, Back is its first row
-per the chooser menu convention, and every other row filters on its browser's name.
+The tab list still scores its tab rows itself with the matcher the root injects, so the
+presentation keeps matcher false until phase three of the unified search moves the tabs onto
+the engine. The scoring is by field and with a recency bonus, which the engine does not do
+yet. The settings level does not opt out. It is a list of items like any other, so it filters
+on the shared matcher, Back is pinned so a query never drops it, Back is its first row per the
+chooser menu convention, and every other row filters on its browser's name.
 
-The Settings row is pinned last rather than ordered, so it never drifts up into the recency
-order and a typed filter targets the tabs, the same reason `Vpn` pins its action row above the
-cities.
-
-Last is not the same as reachable, though, and the first build got that wrong. With a hundred
-tabs above it the row sat a hundred keystrokes away, and the chooser's navigation clamps at the
-ends rather than wrapping, so in practice it could only be reached with the mouse. So a typed
-query that reaches for a word meaning settings brings it back, placed beside whatever tabs
-matched rather than ranked among them. The query, trimmed and ignoring case, equal to a whole
-word in the list puts it first, since that is a clear reach for the door. A query that is only
-the start of one, two letters or more, puts it after the tabs instead, because a prefix is too
-often the start of a tab's name, di for Discord or en for an English page, and the first row is
-what Enter takes. Leading on every prefix was tried and opened settings on those. The test is a
-match over a small fixed keyword list and deliberately not the injected matcher, because fuzzy
-matching against a keyword list also fires on queries that never meant it, and a settings row
-appearing unbidden is noise.
+The Settings row is scored like any row since phase two on 2026-10-17. On an empty query it
+trails the tabs, where it was asked to be. Once something is typed it is one more candidate in
+`matchedTabs`, scored through the same injected matcher against its own title, with no recency
+bonus, merged with the tabs by score and dropped when it does not match. So typing settings
+brings it back above a hundred tabs, which the first build got wrong when the row sat a hundred
+keystrokes away with the chooser's navigation clamping at the ends. A word that is merely like
+a tab name no longer needs a rule of its own, a tab that matches better simply outranks it, and
+the tie goes to the tab. The keyword list `SETTINGS_WORDS` and the `settingsPlace` rule that
+led on a whole word and trailed on a prefix are deleted, since the matcher's own answer for the
+title replaced both. `decisions/olm-unified-search.md` keeps the rejection.
 
 Menu steps are in place, using the same Return interceptor `DisplayProfiles` uses, so stepping
 into settings and back never closes and re-shows. Opening a tab is the one terminal action.
@@ -556,9 +548,8 @@ The gate is the fix, not the removal, and the difference showed up as a regressi
 was merely admitted at a fixed low score instead, which let a Safari page that fuzzily resembled
 `chrome` sit above sixty six actual Chrome tabs. Once the gate has passed, the name goes through
 the same matcher as everything else, so typing a browser gathers its tabs and a page genuinely
-named after that browser can still outrank them. This is the same reasoning as the settings
-keyword test above, and for the same reason, a fuzzy match against a short fixed name fires on
-queries that never meant it.
+named after that browser can still outrank them. A fuzzy match against a short fixed
+name fires on queries that never meant it, which is why the gate stays.
 
 A row therefore carries no `filterText`. That field is how a row tells the atom what to search,
 and the atom is stood down here and in the launcher scope alike, so a row carrying one would be
@@ -686,8 +677,7 @@ pinning is the only mechanism that can. It was asked for during the redesign abo
 deliberately left out of it, so that the ordering could be settled on its own.
 
 The shape it should take, so far as it is decided. A small pinned block above everything else,
-outside the ranking the way the settings door is outside it, since a pin that a query can rank
-away is not a pin. Its own storage, and the choice between `hs.settings` and a git tracked file is
+outside the ranking, a row set pinned, since a pin that a query can rank away is not a pin. Its own storage, and the choice between `hs.settings` and a git tracked file is
 the same one `DisplayProfiles` faced, per machine preference against something worth carrying
 between machines. Identity has to be the bundle id plus the URL, matching `recency.keyFor`, which
 means a pinned tab that is closed and reopened at the same address is still pinned and one that

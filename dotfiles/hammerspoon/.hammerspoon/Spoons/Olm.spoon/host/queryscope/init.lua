@@ -236,11 +236,11 @@ end
 -- to the scope that made it. It stays plain data, because a presenter hands every row to a
 -- native chooser that serialises it and would drop a function.
 --
--- filterText becomes the raw query, including the alias. Filtering already happened above,
--- against the scope's own query, so this is what stops the presenter's matcher scoring these
--- rows a second time against a string that carries a word they were never meant to contain.
--- Every row then scores alike and the order decided above survives, the same trick a
--- computed row already uses.
+-- Every row is pinned. Filtering already happened above, against the scope's own query, so
+-- this is what stops the presenter's matcher scoring these rows a second time against a
+-- query that carries the alias, a word they were never meant to contain. A pinned row is
+-- never scored or dropped, so the order decided above survives, the same way a computed row
+-- already does.
 function obj:_present(scope, query, rows)
   -- The same helper the stage runs on a presentation's rows, so an icon key means one thing in
   -- a scope and in a list. The owner is the scope's name, which is the plugin's identity.
@@ -264,7 +264,7 @@ function obj:_present(scope, query, rows)
       icon = icon,
       iconOwner = iconOwner,
       enabled = r.enabled,
-      filterText = query,
+      pinned = true,
       item = { kind = "scope", scope = scope.name, payload = r.item },
     }
   end
@@ -299,7 +299,7 @@ function obj:rows(query)
       icon = scopeIcon,
       iconOwner = scopeOwner,
       enabled = false,
-      filterText = query,
+      pinned = true,
       item = { kind = "scope", scope = scope.name },
     } }, true
   end
@@ -312,7 +312,7 @@ function obj:rows(query)
       icon = scopeIcon,
       iconOwner = scopeOwner,
       enabled = false,
-      filterText = query,
+      pinned = true,
       item = { kind = "scope", scope = scope.name },
     } }, true
   end

@@ -4,7 +4,8 @@
 --- session, one row each, title the window name and subtitle the session it belongs to, so
 --- a window with a common name (several sessions keep a plain "zsh" window) still reads
 --- unambiguously and is searchable by either name, or both together, a word at a time in
---- any order ("vic zsh" finds the zsh window inside vicert), matchesQuery below. Choosing
+--- any order ("vic zsh" finds the zsh window inside vicert), by the shared search reading the
+--- window name first and the session as the secondary field. Choosing
 --- one jumps straight to that window and closes like any ordinary row. The last row is a
 --- Settings door, the shape BrowserTabs and DisplayProfiles both use, leading to a second
 --- level that names which terminal a fresh attach opens into.
@@ -26,8 +27,8 @@
 --- gone along with the flag it used to read.
 ---
 --- The list is ordered by recency, not by session then index, the engine's own doing
---- (windows() returns it already ordered), so this file only ever filters what it is
---- handed and never reorders it itself.
+--- (windows() returns it already ordered), so this file hands it over as it is and the shared
+--- search filters and ranks it, recency standing as the order of an empty query.
 ---
 --- This file talks to tmux and to the terminal providers only through the injected api
 --- table, so it is pure command policy, the same split DisplayProfiles keeps between its
@@ -40,9 +41,9 @@ local log = hs.logger.new("TmuxSessions", "info")
 local cfg = {}       -- injected across two calls: api from the spoon, view deps from the root
 
 
-local function row(title, subTitle, icon, item, enabled)
+local function row(title, subTitle, icon, item, enabled, pinned)
   return { title = title, subTitle = subTitle, icon = icon, item = item,
-    enabled = enabled ~= false }
+    enabled = enabled ~= false, pinned = pinned }
 end
 
 -- A window is what is genuinely on screen right now, not merely the window that happens
@@ -52,36 +53,18 @@ local function isLive(w)
   return w.sessionAttached and w.active
 end
 
--- Word matching over the window name and the session name combined, the same strategy
--- the clipboard and Local Servers already use over their own two-plus fields, and for the
--- same reason: a query here is a real remembered fragment of more than one thing, a piece
--- of the window and a piece of the session, not a single guess at one label. Splitting the
--- query on whitespace and requiring every word to be a substring somewhere in the combined
--- text, in any order, is what lets "vic zsh" find the zsh window inside vicert even though
--- neither word alone names the whole row. This stays a hand written check rather than the
--- shared matcher because the Settings level below still needs to opt out of it entirely,
--- the same reason DisplayProfiles and BrowserTabs each write their own filter by hand.
-local function matchesQuery(body, query)
-  if query == "" then return true end
-  for word in query:gmatch("%S+") do
-    if not body:find(word, 1, true) then return false end
-  end
-  return true
-end
-
--- The matching window rows alone, shared between this chooser's own top level and the
--- launcher scope below, so the two can never rank or filter differently. No Settings door
--- here, since that is a step into a second level only this chooser's own native instance
--- can show, the browserTabs precedent for the identical reason.
-local function windowRows(query)
-  local q = (query or ""):lower()
+-- Every window row, shared between this chooser's own top level and the launcher scope
+-- below, so the two can never rank or filter differently. The title is the window name and
+-- the subtitle the session, which is what the search reads, a query being a remembered
+-- fragment of more than one thing, a piece of the window and a piece of the session, so
+-- "vic zsh" finds the zsh window inside vicert. No Settings door here, since that is a step
+-- into a second level only this chooser's own native instance can show, the browserTabs
+-- precedent for the identical reason.
+local function windowRows()
   local out = {}
   for _, w in ipairs(cfg.api:windows()) do
-    local body = (w.name .. " " .. w.session):lower()
-    if matchesQuery(body, q) then
-      out[#out + 1] = row(w.name, w.session, isLive(w) and "active" or "window",
-        { go = w.target, label = w.name .. " in " .. w.session }, true)
-    end
+    out[#out + 1] = row(w.name, w.session, isLive(w) and "active" or "window",
+      { go = w.target, label = w.name .. " in " .. w.session }, true)
   end
   return out
 end
@@ -89,20 +72,19 @@ end
 -- The top level's own rows, the window list plus the Settings door. The door is a genuine
 -- drill into a level of its own, so it carries the { nav = true, to = ... } shape select
 -- below reads to decide which child to push, the same tag displayprofiles and browsertabs
--- both use for the identical reason.
-local function topRows(query)
-  local out = windowRows(query)
+-- both use for the identical reason. It is an ordinary row, scored like any window, so
+-- typing settings finds it and an unrelated word drops it.
+local function topRows()
+  local out = windowRows()
   out[#out + 1] = row("Settings", "Choose which terminal opens a fresh attach", "settings",
     { nav = true, to = "settings" }, true)
   return out
 end
 
 -- The settings level's own rows, a Back row leading per the chooser menu convention, then
--- one row per terminal provider. Ignores the typed query entirely, exactly as it always
--- has, since the field on this level exists for the settings child's own placeholder text
--- to name rather than for filtering a list this short.
+-- one row per terminal provider. Back is pinned, and the shared search narrows the providers.
 local function settingsRows()
-  local out = { row("Back", "", "back", { nav = true, to = "back" }, true) }
+  local out = { row("Back", "", "back", { nav = true, to = "back" }, true, true) }
   local current = cfg.api:currentProviderName()
   for _, p in ipairs(cfg.api:providers()) do
     local isActive = p.name == current
@@ -152,11 +134,6 @@ end
 -- runtime, rather than through the manifest's own placeholder member, the identical choice
 -- every child in this configuration makes.
 --
--- matcher is a real false here too, unchanged by the migration, for the reason
--- matchesQuery's own comment above already gives, this level's rows are not a fixed list a
--- uniform pass should rank, they are a Back row and a short list of providers nothing
--- should reorder.
---
 -- select never actually answers, every reachable row on this level is caught by intercept
 -- below, but the field is required on every presentation, host/stage's own isPresentation
 -- refusing one without it.
@@ -171,7 +148,6 @@ end
 function buildSettingsChild()
   return {
     placeholder = "Search sessions and windows",
-    matcher = false,
     rows = settingsRows,
     onSelect = function() end,
     intercept = function(item)
@@ -189,13 +165,13 @@ function buildSettingsChild()
   }
 end
 
---- M.hostRows(query) - the matching window rows alone, for the launcher's own scope rather
+--- M.hostRows() - the window rows alone, for the launcher's own scope rather
 --- than this chooser's native instance. No Settings door, since hosting shows one list and
 --- a door is a step into a second one only the native picker can show; Hyper+U still opens
 --- that picker directly when the terminal needs changing. Reuses windowRows exactly, so a
 --- hosted list and this chooser's own top level can never disagree about what matched.
-function M.hostRows(query)
-  return windowRows(query or "")
+function M.hostRows()
+  return windowRows()
 end
 
 --- M.explain(where) - why the hosted list is empty, as a single row naming it, for the rare
@@ -203,7 +179,7 @@ end
 --- started, since a hosted list has no row of its own to point at, the browserTabs shape.
 function M.explain(where)
   return { row("No tmux sessions", "Start one, then search " .. where, "window",
-    { noop = true }, false) }
+    { noop = true }, false, true) }
 end
 
 --- M.scopeRows(rest) - the hosted rows with the empty case already answered, which is what a
@@ -215,8 +191,8 @@ end
 ---
 --- Where is stated plainly rather than read from a catalog, since the settings level it points
 --- at is this tool's own and its name does not move when a key binding does.
-function M.scopeRows(rest)
-  local out = M.hostRows(rest)
+function M.scopeRows()
+  local out = M.hostRows()
   if #out == 0 then
     return M.explain("in Tmux Manager settings")
   end

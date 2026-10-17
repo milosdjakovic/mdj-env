@@ -1099,9 +1099,12 @@ presentation naming none of its own resolves back to `"truncateTail"`, the atom'
 inherited at configure.
 
 `matcher` and `enter`, contract v2, docs/BRIEF-CONTRACT-V2.md, close the two gaps the trickle
-migrations opened rather than one either brief anticipated. `matcher` is `false`, meaning the
-supplier owns filtering, exactly what filesearch and clipboard already ask their own standalone
-`Chooser.new` for, or a string naming a strategy in `Chooser.matchers`, the identical table
+migrations opened rather than one either brief anticipated. Since phase two of the unified
+search a row may also carry `pinned`, `tier` and `bonus`, which `lib/chooser/rank.lua` states.
+`pinned = true` is never scored or dropped, so it replaces a false matcher wherever the only
+reason for one was a row that must always show. `matcher` is `false`, meaning the field is not a
+search and the supplier owns what shows, the one case that stays for an input page or a confirm,
+and it was what filesearch and clipboard asked their own standalone `Chooser.new` for, or a string naming a strategy in `Chooser.matchers`, the identical table
 `root/compose.lua` already resolves this word against for every consumer that still builds its
 own instance, `words` for processes among them. Absent inherits the root default, the version
 one behaviour, unchanged for every plugin that names nothing here. The registrar checks a

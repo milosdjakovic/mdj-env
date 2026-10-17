@@ -397,13 +397,12 @@ end
 -- since this is not the presentation redrawPresented knows about. The scope is asked again on
 -- every keystroke and on that redraw too, so starting a scan whenever it is asked loops, each
 -- landing asking for the next. A scan starts only when the last one is stale. The waiting rows
--- carry the typed text as their filter text so the matcher cannot rank away the only rows
--- there are.
-function M.scopeRows(rest, redraw)
+-- are pinned so the matcher cannot rank away the only rows there are.
+function M.scopeRows(_, redraw)
   if hs.timer.secondsSinceEpoch() - scannedAt > SCAN_FRESH then scan(redraw) end
   local out = rows()
   for _, r in ipairs(out) do
-    if r.item and r.item.id == "none" then r.filterText = rest end
+    if r.item and r.item.id == "none" then r.pinned = true end
   end
   return out
 end

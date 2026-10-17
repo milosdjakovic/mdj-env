@@ -102,9 +102,9 @@ return {
 
   -- A nested menu you navigate, so the primary verb is insertSelected, the atom's real
   -- completion path, which every level's own intercept is asked ahead of. No pane, no level
-  -- here reserves a companion, and matcher is false because each level's own supplier either
-  -- filters the list itself or morphs its rows from the query, which is what a name field is,
-  -- so the shared strategy would be filtering a list that is already the answer.
+  -- here reserves a companion, and no matcher is declared at the top, so the layouts are
+  -- searched by the shared strategy. Only the levels whose field is a typed name or a confirm
+  -- set matcher false themselves.
   surface = {
     context = "workspaces",
     primary = { action = "insertSelected", description = "Select" },
@@ -119,7 +119,6 @@ return {
     rows = { member = "chooser.rows", call = "dot" },
     select = { member = "chooser.select", call = "dot" },
     placeholder = { member = "chooser.placeholder", call = "dot" },
-    matcher = false,
   },
 
   -- The plugin root's own configure runs by default and builds the store and the api. The one
@@ -138,13 +137,12 @@ return {
   --
   -- The scope's two members live on the chooser submodule, reached through it by the dotted
   -- name, since a bare name is walked against the plugin root and answers nil in silence.
-  -- matcher is false because scopeRows filters by the typed rest itself.
+  -- No matcher, so the shared one filters the rows scopeRows returns by the typed rest.
   registry = {
     row = { category = "Displays", detail = "window layouts you snapshot and put back",
       icon = "workspaces", keywords = "layout, snapshot, arrange windows, restore windows" },
     open = { member = "chooser.show", call = "dot" },
     scope = {
-      matcher = false,
       rows = { member = "chooser.scopeRows", call = "dot" },
       run = { member = "chooser.applyScoped", call = "dot" },
     },

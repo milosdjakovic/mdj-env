@@ -117,7 +117,15 @@ menus, displayprofiles, workspaces, tmuxsessions and the query rows. The Browser
 door is scored like any row with its keyword list deleted, which means `SETTINGS_WORDS` and
 `settingsPlace` go.
 
-**Done.**
+**Done.** On 2026-10-17 rank.lua gained `pinned`, `tier` and `bonus`. The settings page, the
+VPN provider page, DisplayProfiles, Workspaces and TmuxSessions dropped matcher false for every
+level whose field is a search, with their Back rows and always showing rows pinned and their
+hand filters deleted. The row kept false where the field is input or a confirm, rename, capture,
+new snapshot, delete and the app level of Workspaces. The launcher's query rows and the query
+scope's rewrap, Arithmetic, Convert, WindowSize and Wifi now pin their rows instead of setting
+filterText to the query. The BrowserTabs Settings row is one more candidate in the tab scoring
+through the injected matcher, with its keyword list deleted. The tabs keep their own scoring until
+phase three.
 
 ### Phase 3, the lists with real scoring
 

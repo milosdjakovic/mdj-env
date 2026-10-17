@@ -98,8 +98,8 @@ end
 --- The row is plain data like every other launcher row, carrying a glyph rather than a
 --- rendered image so the presenter draws it with its own cache, and a serializable descriptor
 --- rather than a function, since a function cannot survive being handed to a native chooser.
---- filterText is the raw query, so a presenter that filters its list with a matcher keeps
---- this row rather than scoring the size it produced against the size that was typed.
+--- The row is pinned, so a presenter that filters its list with a matcher keeps this row
+--- rather than scoring the size it produced against the size that was typed.
 ---
 --- The descriptor carries the size AS TYPED and not the size the plan says would land. The
 --- plan is read here, while the list is up and there is no ordinary focused window to read a
@@ -126,7 +126,7 @@ function obj:rows(query)
       title = lands,
       subTitle = self._category .. " · " .. detail,
       icon = self._icon,
-      filterText = query,
+      pinned = true,
       -- The window kind, naming the window manager's own exact size action and carrying the
       -- size that action needs, run by launcherRun below once the root has stamped this
       -- plugin as the row's owner. The row is computed rather than catalogued.

@@ -28,8 +28,10 @@ row, pinned rows, query rows, tiers and a bounded bonus.
 
 - **Fixing the BrowserTabs Settings row with a keyword list that leads on a whole word.**
   2026-10-17. Built as commit 7fbf1e4 the same day. Milos rejected it because it is search
-  special to one list, and the goal is that search never differs per list. It stays in the tree
-  only until phase 2 deletes it, together with `SETTINGS_WORDS` and `settingsPlace`.
+  special to one list, and the goal is that search never differs per list. It stayed in the tree
+  only until phase 2 deleted it, together with `SETTINGS_WORDS` and `settingsPlace`, on
+  2026-10-17 15:16. The Settings row is now scored through the injected matcher against its own
+  title.
 - **Raising the relevance floor only.** 2026-10-17. It drops the scattered matches that
   surfaced the four tabs, but it leaves no guarantee that a contiguous match beats a scattered
   one, and it would cut real typo matches along with them.
@@ -446,3 +448,31 @@ The score steps two spreads per level sum and one for the phrase, so ordering by
 first is what the score already did, and a case over fourteen rows, ten queries and three matchers
 proves rows setting none of the fields keep the old order exactly. Every case in
 `test/cases/rankvocabulary.lua` failed under a mutation switching off the feature it proves.
+
+### 2026-10-17 15:16, phase two, the simple lists on the vocabulary
+
+The settings page, the VPN provider page, DisplayProfiles, Workspaces, TmuxSessions, the query
+rows and the BrowserTabs Settings row moved onto `pinned`. A level whose field is a search
+dropped matcher false and its hand filter, and its supplier now returns every row. Back, the
+capture and new snapshot rows, the waiting placeholders and the answer rows of Arithmetic,
+Convert, WindowSize and Wifi are pinned instead of faking a match through `filterText` or
+`filterText = ""`. Rename, capture, new snapshot, delete confirms and the Workspaces app level
+keep matcher false, since their field is input or a confirm.
+
+The query scope rewrapped every row with `filterText` set to the query, and read why, its only
+purpose was to keep rows the scope had already filtered from being scored a second time against a
+query carrying the alias. That is exactly what pinned says, so the rewrap and the two error rows
+beside it are pinned now. The launcher's own copy of query rows is pinned the same way and no
+longer copies a row's filterText.
+
+BrowserTabs deleted `SETTINGS_WORDS` and `settingsPlace`. On an empty query the Settings row
+trails the tabs as before. Once something is typed it is one more candidate in the tab scoring,
+through the same injected matcher against its own title, with no recency, merged by score and
+dropped when it does not match, so a tie leaves it after a tab. The tabs keep their field by
+field scoring until phase three.
+
+Two behaviour changes follow and are meant. A Back row that used to vanish while typing, through
+an empty filterText, now stays, and Workspaces never shows an empty list since New snapshot is
+pinned, so the No layout matches row is gone. TmuxSessions lost its hand written word match and
+the settings level lost its opt out, since the shared search reads the window name first and the
+session second.

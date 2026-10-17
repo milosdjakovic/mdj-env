@@ -34,12 +34,15 @@ local cfg = {}  -- injected across two calls, api from the plugin root, stage wo
 -- Small row builders
 --------------------------------------------------------------------------------
 
-local function row(title, subTitle, icon, item, enabled)
-  return { title = title, subTitle = subTitle, icon = icon, item = item, enabled = enabled }
+local function row(title, subTitle, icon, item, enabled, pinned)
+  return { title = title, subTitle = subTitle, icon = icon, item = item, enabled = enabled,
+    pinned = pinned }
 end
 
+-- Back is pinned, so on a level that searches it is never scored or dropped. Where a level
+-- keeps matcher false the flag changes nothing.
 local function backRow()
-  return row("Back", "", "back", { nav = "back" }, true)
+  return row("Back", "", "back", { nav = "back" }, true, true)
 end
 
 -- One app row, carrying the app's own icon from the api rather than the generic emoji mark, so
@@ -56,10 +59,6 @@ local function countLabel(n, one, many)
   return n .. " " .. (n == 1 and one or many)
 end
 
-local function matches(text, q)
-  return q == "" or text:lower():find(q, 1, true) ~= nil
-end
-
 local function pop()
   if cfg.stagePop then cfg.stagePop() end
 end
@@ -69,34 +68,27 @@ end
 --------------------------------------------------------------------------------
 
 -- The top level. New snapshot leads, since taking one is the reason to open this at all on a
--- fresh machine, then every layout, the ones that apply here first. A typed query filters by a
--- case insensitive substring on the name, and the snapshot row stays while it matches too.
-local function topRows(query)
-  local q = trim(query):lower()
+-- fresh machine, then every layout, the ones that apply here first. The shared search filters
+-- and ranks the layouts by name. New snapshot is pinned, so it leads whatever is typed and the
+-- list is never empty, which is why there is no row for a query that matches nothing.
+local function topRows()
   local out = {}
   if not cfg.api.persists() then
     out[#out + 1] = row("Nothing can be stored", "No file was given for layouts to live in",
-      "warn", { noop = true }, false)
+      "warn", { noop = true }, false, true)
     return out
   end
-  if matches("New snapshot", q) then
-    out[#out + 1] = row("New snapshot", "Record where every window sits on " .. cfg.api.here(),
-      "new", { nav = "new" }, true)
-  end
+  out[#out + 1] = row("New snapshot", "Record where every window sits on " .. cfg.api.here(),
+    "new", { nav = "new" }, true, true)
   for _, l in ipairs(cfg.api.list()) do
-    if matches(l.name, q) then
-      local sub
-      if l.available then
-        sub = "Applies here, " .. countLabel(l.apps, "app", "apps") .. ", taken on " .. l.topology
-      else
-        sub = "Not here, it " .. l.reason .. ", taken on " .. l.topology
-      end
-      out[#out + 1] = row(l.name, sub, l.available and "available" or "unavailable",
-        { nav = "layout", id = l.id }, true)
+    local sub
+    if l.available then
+      sub = "Applies here, " .. countLabel(l.apps, "app", "apps") .. ", taken on " .. l.topology
+    else
+      sub = "Not here, it " .. l.reason .. ", taken on " .. l.topology
     end
-  end
-  if #out == 0 then
-    out[#out + 1] = row("No layout matches", "", "hint", { noop = true }, false)
+    out[#out + 1] = row(l.name, sub, l.available and "available" or "unavailable",
+      { nav = "layout", id = l.id }, true)
   end
   return out
 end
@@ -127,7 +119,7 @@ end
 local function layoutRows(id)
   local l = cfg.api.get(id)
   if not l then
-    return { backRow(), row("Layout is gone", "It may have been deleted", "warn", { noop = true }, false) }
+    return { backRow(), row("Layout is gone", "It may have been deleted", "warn", { noop = true }, false, true) }
   end
   local out = { backRow() }
   if l.available then
@@ -154,7 +146,7 @@ local function appsRows(id)
   local apps = cfg.api.apps(id)
   if #apps == 0 then
     out[#out + 1] = row("Nothing recorded here", "Update the snapshot with some windows open",
-      "hint", { noop = true }, false)
+      "hint", { noop = true }, false, true)
     return out
   end
   for _, a in ipairs(apps) do
@@ -220,9 +212,9 @@ end
 -- Child levels, built lazily and pushed the moment a row drills into one
 --------------------------------------------------------------------------------
 
--- Every child below shares one shape. rows reads whatever the level names, matcher stands the
--- shared strategy down because each supplier either filters itself or morphs its rows from the
--- query, and intercept is where a level that leaves for its parent answers for itself. The
+-- Every child below shares one shape. rows reads whatever the level names, matcher is false
+-- only where the field is input, a typed name or a confirm, and a level that is a list
+-- inherits the shared search, and intercept is where a level that leaves for its parent answers for itself. The
 -- disabled row guard is never written by hand, the stage's own gate answering for any row built
 -- with enabled false before a presentation is ever asked.
 
@@ -267,7 +259,6 @@ end
 buildLayoutChild = function(id)
   return {
     placeholder = "",
-    matcher = false,
     rows = function() return layoutRows(id) end,
     onSelect = function(item)
       if not item then return nil end
@@ -302,7 +293,6 @@ end
 buildAppsChild = function(id)
   return {
     placeholder = "Search apps in this layout",
-    matcher = false,
     rows = function() return appsRows(id) end,
     onSelect = function(item)
       if item and item.nav == "app" then return buildAppChild(id, item.bundle, item.name, item.excluded) end
@@ -430,24 +420,21 @@ end
 --- layout is for and the manager above exists for everything else. A layout that cannot apply
 --- here is still listed, disabled and saying what it needs, so the answer to why is it not
 --- here is on the row rather than in a silence.
-function M.scopeRows(rest)
-  local q = trim(rest):lower()
+function M.scopeRows()
   local out = {}
   if not cfg.api.persists() then
-    return { row("Nothing can be stored", "No place was given for layouts to live in", "warn", { noop = true }, false) }
+    return { row("Nothing can be stored", "No place was given for layouts to live in", "warn", { noop = true }, false, true) }
   end
   for _, l in ipairs(cfg.api.list()) do
-    if matches(l.name, q) then
-      if l.available then
-        out[#out + 1] = row(l.name, "Apply, " .. countLabel(l.apps, "app", "apps") .. ", taken on " .. l.topology,
-          "available", { id = l.id }, true)
-      else
-        out[#out + 1] = row(l.name, "Not here, it " .. l.reason, "unavailable", { noop = true }, false)
-      end
+    if l.available then
+      out[#out + 1] = row(l.name, "Apply, " .. countLabel(l.apps, "app", "apps") .. ", taken on " .. l.topology,
+        "available", { id = l.id }, true)
+    else
+      out[#out + 1] = row(l.name, "Not here, it " .. l.reason, "unavailable", { noop = true }, false)
     end
   end
   if #out == 0 then
-    out[#out + 1] = row("No layout to apply", "Open Workspaces and take a snapshot", "hint", { noop = true }, false)
+    out[#out + 1] = row("No layout to apply", "Open Workspaces and take a snapshot", "hint", { noop = true }, false, true)
   end
   return out
 end

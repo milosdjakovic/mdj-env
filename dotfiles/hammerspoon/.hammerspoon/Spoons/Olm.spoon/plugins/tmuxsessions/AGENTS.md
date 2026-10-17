@@ -188,7 +188,8 @@ Recency lives in the engine, not the chooser, the same place BrowserTabs and Vpn
 their own instance, injected once from the root rather than built here. `windows()` hands
 back the flattened list already ordered, a remembered window leading in the order it was
 last reached and everything else keeping its plain session-then-index arrival order behind
-it, so the chooser only ever filters what it is given and never reorders it a second time.
+it, so the chooser hands the list over as it is and the shared search ranks it, an equal match
+keeping the recency order.
 The key a row carries, an ordering is remembered under, and a jump touches on success are
 all the exact same string, the tmux target `session:index`, which is what lets `goTo`
 recognise a window row's `go` field with no translation at either end.
@@ -252,23 +253,23 @@ for the existing `M.insertSelected`, since both names now have to reach the exac
 call, `chooser:insertSelected()`, and `M.hide` replaces the invented `M.close` outright,
 nothing else in this plugin ever called it under the old name.
 
-## Searching both fields at once, why a hand written word match rather than the shared one
+## Searching both fields at once, through the shared search
 
 Typing the whole session name found a row, and typing the whole window name found a row,
-but the two together found nothing, because the first filter checked whether the typed
-text matched entirely inside one field or entirely inside the other, never both at once.
-`matchesQuery` fixes it by splitting the query on whitespace and requiring every word to
-be a substring somewhere in the window name and the session name concatenated, in any
-order, so `vic gen` finds the `general` window inside `vicert` even though neither word
-names the whole of either field alone.
+but the two together once found nothing, because the first filter checked whether the typed
+text matched entirely inside one field or entirely inside the other, never both at once. A
+hand written word match fixed that for a while. Since phase two of the unified search on
+2026-10-17 the shared search does it, so `matchesQuery` is gone. A window row carries the
+window name as its title and the session as its subtitle, and the shared search matches each
+typed word against the name first and the session as a secondary field, so `vic gen` finds
+the `general` window inside `vicert` even though neither word names the whole of either field.
 
-This is the same `words` strategy the clipboard and Local Servers already use over their
-own multi-field bodies, for the identical reason, a query here is a real remembered
-fragment of more than one thing rather than a single guess at one label. It stays a hand
-written function rather than `Chooser.matchers.words` itself, because that matcher is a
-construction-time option on the whole instance and this chooser's Settings level still
-needs to opt out of any shared matcher entirely, the same reason DisplayProfiles and
-BrowserTabs each write their own filter rather than turning the shared one on.
+The presentation and the scope no longer declare matcher false, and the supplier returns
+every window with no filtering of its own. The Settings door is an ordinary row, scored like
+any window and not pinned, so typing a word it does not answer to drops it. The settings
+level pins Back and lets the shared search narrow the providers. The old reason for a hand
+written filter, a Settings level that had to opt out of the shared matcher, ended when each
+level became its own presentation.
 
 ## Two Olm-wide landmines this plugin's wiring had to route around
 

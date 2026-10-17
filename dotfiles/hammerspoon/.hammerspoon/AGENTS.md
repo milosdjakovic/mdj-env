@@ -1203,26 +1203,24 @@ launcher's recency order and the VPN action row survive until the user types.
 Two knobs sit on the per-instance config, both the single `matcher` field. Omitting it
 inherits the root default. Setting it to `Chooser.matchers.substring` keeps search but
 drops fuzzy for that one tool. Setting it to `false` opts out of the shared matcher
-entirely, for a tool whose query is not a plain filter over a list. Several tools do
-that, each for its own reason, four of them worth walking through here as examples of the
-shape rather than a complete roster. Caffeinate's field is a value being typed, a time or
-a duration, parsed into one morphing row, so a matcher would only filter that row against
-its own label. The DisplayProfiles menu is the same shape, a stack of frames whose field
-filters at the top but is a name entry on the rename and capture screens, so its supplier
-morphs the rows from the query and the atom must not second-guess them, which would hide
-the Back row and the Save row. The emoji picker filters over a hidden haystack, the folded
-name, aliases, tags, and category rather than the visible title and subtitle, and caps its
-rows to bound the glyph icon render, so its own supplier owns the query and the atom
-filtering again would drop a tag only match and undo the cap. The clipboard parses a
-leading type prefix (`img ...`) off its query, so it owns filtering and opts out at its
-own `new()`, and for the free-text part it uses the `words` strategy rather than the
-shared fuzzy one, keeping its rows in recency order rather than reranking. BrowserTabs,
-FileSearch, TmuxSessions, Workspaces, and the OLM settings page all opt out the same way
-too, each behind its own reason its own file explains, so the count of tools opting out
-keeps growing and is deliberately not enumerated here in full.
+entirely, and since phase two of the unified search on 2026-10-17 it declares only a field
+that is not a search, a typed name on a rename, capture or new snapshot page, a value being
+typed as Caffeinate's time or duration is, or a confirm. A level that is a list of things
+a person picks from declares nothing and inherits, and its supplier returns every row and
+never filters by hand. A row that must show whatever is typed, a Back row, a capture row, a
+placeholder while a list loads, or the answer to the query itself such as a calculator
+result, sets `pinned = true` instead of faking a match through `filterText`. A pinned row the
+supplier gives before every unpinned row leads, any other pinned row trails, and none is
+ever scored or dropped. `tier`, a number where smaller sorts first, and `bonus`, a number from
+zero to one that only orders rows the matcher calls equally good, are the other two fields the
+vocabulary added, and `rank.lua` states all of them. The DisplayProfiles, Workspaces and
+TmuxSessions lists and the settings page all inherit now, and the query scope and launcher
+query rows pin what a scope hands over. The emoji picker, the clipboard, FileSearch,
+BrowserTabs tabs and the launcher itself still rank their own query, each behind its own
+reason its own file explains, and phases three and four of the plan move them.
 
 So every list chooser is fuzzy by default with no per-tool wiring, and a future list
-chooser inherits it for free, while the structured-query tools opt out in one word.
+chooser inherits it for free, while a field that is input opts out in one word.
 
 The clipboard uses `words` instead of fuzzy deliberately. Fuzzy earns its place in the
 label choosers, where you type an abbreviation of a short known name and subsequence

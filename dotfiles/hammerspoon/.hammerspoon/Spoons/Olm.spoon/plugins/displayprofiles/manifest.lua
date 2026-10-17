@@ -112,14 +112,13 @@ return {
   -- bare string shorthand this contract allows everywhere else a member is not a
   -- presentation's own. placeholder resolves once, at register, to the top level's own
   -- static wording, every child level below it carrying its own instead, a plain field on a
-  -- table built at runtime rather than something the registrar ever resolves. matcher is a
-  -- real false, unchanged by the migration, since the top level's own supplier already
-  -- filters the profile list itself rather than leaving that to the shared strategy.
+  -- table built at runtime rather than something the registrar ever resolves. matcher is
+  -- not declared, since the profile list is searched by the shared strategy. The capture row is pinned
+  -- and so is never filtered away.
   presentation = {
     rows = { member = "chooser.rows", call = "dot" },
     select = { member = "chooser.select", call = "dot" },
     placeholder = { member = "chooser.placeholder", call = "dot" },
-    matcher = false,
   },
 
   -- Configure alone leaves this plugin half wired. Start begins the screen watcher

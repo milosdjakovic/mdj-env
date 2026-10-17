@@ -132,16 +132,14 @@ return {
   -- manifest member, host/stage's own Stage:pop already restoring this level on Backspace
   -- with no back hook needed from either level.
   --
-  -- matcher is a real false, unchanged by the migration. The rows are already ordered by
-  -- what was jumped to last and carry a Settings row that a second uniform pass would rank
-  -- away, which is the same reason this plugin's own picker always stood the shared matcher
-  -- down, the settings child below standing it down again for its own rows.
+  -- No matcher is declared, so the shared search filters the windows and the Settings door
+  -- alike. The windows arrive ordered by what was jumped to last, which is the order of an
+  -- empty query.
   presentation = {
     rows = { member = "chooser.rows", call = "dot" },
     select = { member = "chooser.select", call = "dot" },
     placeholder = { member = "chooser.placeholder", call = "dot" },
     onPresent = { member = "chooser.onPresent", call = "dot" },
-    matcher = false,
   },
 
   -- configure alone leaves this plugin with an engine and no picker. The picker lives on the
@@ -183,7 +181,6 @@ return {
     hosted = true,
     shortcut = "leader",
     scope = {
-      matcher = false,
       -- Both names are reached THROUGH the chooser submodule, which is where this plugin
       -- keeps its picker, the same path browserTabs and fileSearch already write. A bare
       -- name is walked against this plugin's own root, finds nothing there, and answers nil

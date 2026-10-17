@@ -133,8 +133,11 @@ that would match half a list, never a sentence and never the description. They m
 start or as a phrase typed run together, below any title match, and the words of a query match on
 their own with a bonus for staying in one phrase. The authoring guide carries the detail. A subtitle that is a category, a status or a chord is
 taken out of search by setting `filterText` to the title. `lib/chooser/rank.lua` states the
-vocabulary. `matcher = false` is only for a page of a few fixed options, or for a plugin that
-ranks the query itself. A false matcher on a long list shows an unfiltered list and nothing
+vocabulary. `matcher = false` only declares a field that is not a search, an input page where
+the typed text is a name, or a confirm. A row that must always show, a Back row, a capture row,
+a waiting row or the answer to the query itself, sets `pinned = true`, never `filterText` set to
+fake a match and never a hand filter in the supplier. `tier` and `bonus` order rows without
+changing what matches. A false matcher on a long list shows an unfiltered list and nothing
 notices.
 
 The placeholder names the list, never a key, and no user visible text anywhere names a

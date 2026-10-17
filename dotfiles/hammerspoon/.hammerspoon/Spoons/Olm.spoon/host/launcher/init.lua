@@ -835,7 +835,7 @@ function obj:_queryRows(query)
           iconOwner = r.image == nil and r.icon ~= nil and (r.iconOwner or self._iconOwner) or nil,
           enabled = r.enabled,
           item = r.item,
-          filterText = r.filterText or query,
+          pinned = true,
         }
       end
       if exclusive then return out, true end
@@ -869,9 +869,9 @@ end
 --- ties. Gated rows drop out live through the shared predicate registry the window
 --- bindings use.
 ---
---- A computed row sets filterText to the raw query, so the matcher scores it against what
---- was typed rather than against the answer it produced, which is what keeps a result at
---- the top of the list instead of being dropped for not resembling its own expression.
+--- A computed row is pinned, so the engine never scores or drops it, which is what keeps a
+--- result at the top of the list instead of being dropped for not resembling its own
+--- expression.
 function obj:_commandRows(query)
   -- A hosted list. The field holds only what the user typed, so the page's own prefix goes in
   -- front of it before the sources are asked, and their answer is the whole list. One line,

@@ -45,12 +45,15 @@ local cfg = {}        -- injected across two calls: api from the spoon, view dep
 -- Small row builders
 --------------------------------------------------------------------------------
 
-local function row(title, subTitle, icon, item, enabled)
-  return { title = title, subTitle = subTitle, icon = icon, item = item, enabled = enabled }
+local function row(title, subTitle, icon, item, enabled, pinned)
+  return { title = title, subTitle = subTitle, icon = icon, item = item, enabled = enabled,
+    pinned = pinned }
 end
 
+-- Back is pinned, so on a level that searches it is never scored or dropped. Where a level
+-- keeps matcher false the flag changes nothing.
 local function backRow()
-  return row("Back", "", "back", { nav = true, to = "back" }, true)
+  return row("Back", "", "back", { nav = true, to = "back" }, true, true)
 end
 
 -- A profile's display count, read from its command, for the list subtitles.
@@ -67,24 +70,22 @@ end
 --------------------------------------------------------------------------------
 
 -- Top level, the profile list. The active profile is marked, and a capture row appears only
--- when the current arrangement matches no profile, which is the tool's notion of add new. A
--- typed query filters the profiles by a case insensitive substring on the name.
-local function topRows(query)
-  local q = (query or ""):lower()
+-- when the current arrangement matches no profile, which is the tool's notion of add new. It
+-- is pinned, so it leads whatever is typed. The shared search filters and ranks the profiles
+-- by name, so this supplier returns every one.
+local function topRows()
   local out = {}
   local active = cfg.api.active()
   if not active then
     out[#out + 1] = row("Capture current arrangement", "The displays attached now match no profile",
-      "capture", { nav = true, to = "capture" }, true)
+      "capture", { nav = true, to = "capture" }, true, true)
   end
   for _, p in ipairs(cfg.api.list()) do
-    if q == "" or p.name:lower():find(q, 1, true) then
-      local isActive = p.name == active
-      local n = displayCount(p)
-      local sub = (isActive and "Active, " or "") .. n .. (n == 1 and " display" or " displays")
-      out[#out + 1] = row(p.name, sub, isActive and "active" or "profile",
-        { nav = true, to = "profile", name = p.name }, true)
-    end
+    local isActive = p.name == active
+    local n = displayCount(p)
+    local sub = (isActive and "Active, " or "") .. n .. (n == 1 and " display" or " displays")
+    out[#out + 1] = row(p.name, sub, isActive and "active" or "profile",
+      { nav = true, to = "profile", name = p.name }, true)
   end
   return out
 end
@@ -179,10 +180,9 @@ end
 -- Child levels, built lazily and pushed the moment a row drills into one
 --------------------------------------------------------------------------------
 
--- Every child below shares this one shape. rows reads whatever this level names, matcher
--- stands the shared strategy down for the identical reason the retired single instance
--- always did, its own supplier morphing rows from the query and the level rather than
--- filtering a fixed list, and intercept is where a level that mutates the list it is on, or
+-- Every child below shares this one shape. rows reads whatever this level names, matcher is
+-- false only on a level whose field is input, a typed name or a confirm, and a level that is
+-- a list inherits the shared search, and intercept is where a level that mutates the list it is on, or
 -- leaves it for its parent, answers for itself. A level with nothing to mutate and nowhere
 -- to leave from a row, profile and top among them, simply declares no intercept, exactly as
 -- an ordinary presentation with none already does, backspace still reaching the parent
@@ -279,7 +279,6 @@ local function buildProfileChild(name)
   local state = { name = name }
   return {
     placeholder = "",
-    matcher = false,
     rows = function() return profileRows(state.name) end,
     -- Rename and Delete are genuine levels, so each answers through select, the ordinary
     -- child push decision one describes, host/stage pushing whatever comes back. Reapply is

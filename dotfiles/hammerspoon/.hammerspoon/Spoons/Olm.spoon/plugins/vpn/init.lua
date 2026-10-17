@@ -379,7 +379,7 @@ end
 local function providerRows()
   local out = {
     { title = "Back", subTitle = "", icon = "back",
-      item = { nav = true, to = "back" } },
+      item = { nav = true, to = "back" }, pinned = true },
   }
   for _, entry in ipairs(providers) do
     local usable = entry.module.available()
@@ -413,12 +413,11 @@ end
 -- should be ejected from, leaving is their own Backspace. Back is the one row that really is
 -- a level change, so it pops and answers plain true.
 --
--- The matcher is off because this is a short fixed menu rather than a list to search
--- through, and a filter here could rank the Back row away.
+-- No matcher is declared, so the page inherits the shared one and a typed word narrows the
+-- backends. Back is pinned, so the search can never rank it away.
 local function buildProviderChild()
   return {
     placeholder = "Which backend drives the VPN controls",
-    matcher = false,
     rows = providerRows,
     -- Required on every presentation even though nothing reaches it, since both kinds of
     -- reachable row on this level are caught by intercept below and the disabled ones are
@@ -607,9 +606,8 @@ end
 --- redraw is a plain callback the caller hands in for that one moment rather than this spoon
 --- reaching for whatever is showing these rows, which is the whole reason this spoon still
 --- names no launcher and no host. Unchanged by the migration, decision eight, this scope
---- stays exactly as is. The typed text rides along as the filter text on the one placeholder
---- row below, so the matcher can never rank away the only row there is while the real list
---- is still in flight.
+--- stays exactly as is. The one placeholder row below is pinned, so the matcher can never rank
+--- away the only row there is while the real list is still in flight.
 --- The provider page is deliberately not among these rows. A scope's own run door discards
 --- whatever select answers, so the one row whose entire job is to answer a child
 --- presentation would look live in the launcher and then do nothing at all when chosen. The
@@ -626,7 +624,7 @@ function M.scopeRows(rest, redraw)
   end
   if #out == 0 and not M.ready() then
     return { { title = "Reading the locations", subTitle = "one moment",
-               icon = "loading", enabled = false, filterText = rest } }
+               icon = "loading", enabled = false, pinned = true } }
   end
   return out
 end

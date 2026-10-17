@@ -5,9 +5,10 @@
 -- The promises under test are three. Choosing a browser row switches it where it stands, so
 -- the intercept answers "stay" and the state flips. A permission row appears under a switched
 -- on browser only when the permission asks something, names the browser and filters on its name
--- alone. The Settings row leads the tab list only when the query is a whole settings word, and
--- trails it on an empty query and on the start of one. Everything is
--- read through the module's own select, rows and intercept over a fake api, no test hook.
+-- alone. The Settings row trails the tab list on an empty query, and once something is typed it
+-- is scored through the injected matcher against its own title, kept when it matches and
+-- dropped when it does not, since phase two of the unified search deleted its keyword rule.
+-- Everything is read through the module's own select, rows and intercept over a fake api, no test hook.
 
 local source = debug.getinfo(1, "S").source
 local herePath = source:match("^@(.*)$") or source
@@ -25,6 +26,10 @@ end
 local chunk, err = loadfile(chooserPath)
 if not chunk then error("could not load the browsertabs chooser, " .. tostring(err)) end
 local M = chunk()
+
+local matchChunk, matchErr = loadfile(caseDir .. "/../../Spoons/Olm.spoon/lib/chooser/match.lua")
+if not matchChunk then error("could not load the shared match, " .. tostring(matchErr)) end
+local fuzzy = matchChunk().fuzzy
 
 local states = { granted = "granted", notDetermined = "notDetermined", denied = "denied",
   notRunning = "notRunning", noTarget = "noTarget", unknown = "unknown" }
@@ -63,7 +68,8 @@ local function find(title)
   for i, r in ipairs(rows) do if r.title == title then return r, i end end
 end
 
-check("Back leads and filters on nothing", rows[1].title == "Back" and rows[1].filterText == "")
+check("Back leads and is pinned", rows[1].title == "Back" and rows[1].pinned == true
+  and rows[1].filterText == nil)
 local alpha, ai = find("Alpha")
 check("a browser row filters on its name", alpha ~= nil and alpha.filterText == "Alpha")
 check("a switched off browser wears the off marker", alpha and alpha.icon == "off")
@@ -106,18 +112,36 @@ api.listTabs = function(cb)
   cb({ { title = "Settings page", url = "https://example.com/a", browser = "Alpha", bundleID = "com.test.a" },
     { title = "Discord", url = "https://discord.com/app", browser = "Alpha", bundleID = "com.test.a" } }, {})
 end
+M:configure({ api = api, matcher = fuzzy })
 M.reload()
+
+local function titlesOf(list)
+  local out = {}
+  for i, r in ipairs(list) do out[i] = r.title end
+  return table.concat(out, ",")
+end
+local function position(list, title)
+  for i, r in ipairs(list) do if r.title == title then return i end end
+  return nil
+end
+
 local list = M.rows("")
 check("with an empty query Settings is the last row", list[#list].title == "Settings")
 list = M.rows("settings")
-check("typing a whole settings word puts Settings first", list[1].title == "Settings" and list[2] ~= nil)
-list = M.rows("  Browsers ")
-check("a whole word leads whatever its case and spaces", list[1].title == "Settings")
-list = M.rows("di")
-check("the start of a settings word that is also a tab's name leaves the tab first",
-  list[1].title == "Discord" and list[#list].title == "Settings", list[1].title)
+check("typing settings scores the Settings row in with the tabs", position(list, "Settings") ~= nil,
+  titlesOf(list))
 list = M.rows("sett")
-check("the start of a settings word keeps Settings in reach after the tabs",
-  list[1].title == "Settings page" and list[#list].title == "Settings", list[1].title)
+check("the start of its title keeps Settings in the list", position(list, "Settings") ~= nil, titlesOf(list))
 list = M.rows("disc")
-check("a query reaching for no settings word shows no Settings row", list[#list].title ~= "Settings")
+check("a query that is a tab's name puts the tab first", list[1].title == "Discord", titlesOf(list))
+check("and drops Settings when it does not match", position(list, "Settings") == nil, titlesOf(list))
+list = M.rows("browsers")
+check("a word that was a settings keyword no longer reaches the row", position(list, "Settings") == nil,
+  titlesOf(list))
+check("the module no longer carries the keyword rule", not io.open(chooserPath):read("a"):find("SETTINGS_WORDS", 1, true))
+
+-- With no tabs the guidance rows stay and the Settings row follows them whatever is typed.
+api.listTabs = function(cb) cb({}, {}) end
+M.reload()
+list = M.rows("zzz")
+check("with no tabs Settings still follows the guidance rows", list[#list].title == "Settings", titlesOf(list))

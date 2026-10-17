@@ -56,6 +56,10 @@ also what the rename and capture screens want, where the field is the name entry
 filter. The row supplier reads the top frame plus the live query, so those rows morph as you
 type, and stay disabled until the name is valid.
 
+The top level and the profile screen inherit the shared search, so their suppliers return every row
+and the engine filters. Back and Capture current arrangement are pinned, never scored or dropped.
+Rename, capture and the delete confirm keep matcher false, their field is input or a confirm.
+
 Entering a profile shows its displays straight away, one read only row per monitor, with
 Reapply, Rename, and Delete beneath, so there is no separate list displays step. An earlier
 version had that extra layer and it earned nothing.

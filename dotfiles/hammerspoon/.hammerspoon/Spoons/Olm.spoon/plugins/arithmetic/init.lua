@@ -153,9 +153,9 @@ end
 --- The row is plain data like every other launcher row, carrying a glyph rather than a
 --- rendered image so the presenter draws it with its own cache, and a serializable
 --- descriptor rather than a function, since a function cannot survive being handed to a
---- native chooser. filterText is the raw query, so a presenter that filters its list
---- with a matcher keeps this row at the top instead of scoring the result against the
---- expression that produced it.
+--- native chooser. The row is pinned, so a presenter that filters its list with a matcher
+--- keeps this row at the top instead of scoring the result against the expression that
+--- produced it.
 function obj:rows(query)
   local value = self:evaluate(query)
   if not value then return {} end
@@ -165,7 +165,7 @@ function obj:rows(query)
       title = text,
       subTitle = self._category .. " · " .. (query or ""):gsub("^%s+", ""):gsub("%s+$", "") .. " · copy the result",
       icon = self._icon,
-      filterText = query,
+      pinned = true,
       item = { kind = "calc", value = text },
     },
   }

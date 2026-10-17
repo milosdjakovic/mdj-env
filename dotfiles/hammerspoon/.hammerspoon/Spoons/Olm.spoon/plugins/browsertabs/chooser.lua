@@ -95,8 +95,12 @@ local function glyphRow(title, subTitle, icon, item, enabled)
   return { title = title, subTitle = subTitle, icon = icon, item = item, enabled = enabled }
 end
 
+-- Back is pinned, so the shared search never scores or drops it and it leads the settings
+-- level whatever is typed.
 local function backRow()
-  return glyphRow("Back", "", "back", { nav = true, to = "back" }, true)
+  local r = glyphRow("Back", "", "back", { nav = true, to = "back" }, true)
+  r.pinned = true
+  return r
 end
 
 -- The host of a URL, for a tab subtitle, so a long address still says where the tab is. Falls
@@ -204,18 +208,10 @@ local function emptyRows(where)
   return out
 end
 
--- The words that reach the settings door by typing. It answers to what someone would be
--- looking for when they want it, the browsers and the permission, not only its own name.
-local SETTINGS_WORDS = {
-  "settings", "browsers", "browser", "permission", "permissions",
-  "allow", "enable", "disable", "toggle",
-}
-
--- The settings door. Never inside the ranking. It is reachable two ways because last is not the
--- same as visible. On an empty query it trails the tabs, which is where it was asked to be. But a
--- list of a hundred tabs puts it a hundred keystrokes away, so a query that reaches for it brings
--- it back, placed beside whatever tabs matched rather than scored among them. Where is decided
--- by settingsPlace below.
+-- The settings door. On an empty query it trails the tabs, which is where it was asked to be.
+-- Once something is typed it is one more candidate in the ranking, scored through the same
+-- matcher against its own title and given no recency, so typing settings brings it back above
+-- a hundred tabs and an unrelated word drops it. matchedTabs below does the scoring.
 local function settingsRow()
   local on, total = 0, 0
   for _, s in ipairs(cfg.api.status()) do
@@ -224,28 +220,6 @@ local function settingsRow()
   end
   return glyphRow("Settings", on .. " of " .. total .. " browsers switched on", "settings",
     { nav = true, to = "settings" }, true)
-end
-
--- Where a typed query puts the settings door, "lead", "trail" or nil for not at all. This is a
--- test against a fixed keyword list and deliberately not the injected matcher. The matcher is
--- the right policy for tab rows, which are the user's own content, but a fuzzy match against a
--- keyword list is lenient enough to surface this row on queries that never meant it, and a row
--- that appears unbidden is noise.
---
--- The trimmed query, ignoring case, equal to a whole word leads, since that is a clear reach for
--- the door and the first row is what Enter takes. A prefix of one of two letters or more trails
--- the tabs, so the door is still in reach while typing toward the word, but a prefix is too
--- often the start of a tab's name, di for Discord or en for an English page, and leading there
--- made Enter open settings instead of the tab. One letter means nothing yet.
-local function settingsPlace(query)
-  local q = query:lower():match("^%s*(.-)%s*$")
-  if #q < 2 then return nil end
-  local prefix = false
-  for _, word in ipairs(SETTINGS_WORDS) do
-    if word == q then return "lead" end
-    if word:sub(1, #q) == q then prefix = true end
-  end
-  return prefix and "trail" or nil
 end
 
 -- Whether a query is naming a browser rather than a page. A plain prefix test, deliberately not
@@ -316,12 +290,14 @@ local function recencyBonus(position)
   return RECENCY_WEIGHT * (RECENCY_SPAN - position + 1) / RECENCY_SPAN
 end
 
--- The matching tabs alone, no guidance row and no settings door, so this is the part worth
--- reusing. The atom does not filter for this tool, so the query is scored here, which is what
--- lets the settings row stay pinned outside the ranking wherever it is added. On an empty query
--- the recency order stands, already applied to the listing before it arrived.
+-- The matching tabs, no guidance row. The atom does not filter for this tool yet, so the query
+-- is scored here. When the caller hands over door, the settings row, it is scored as one more
+-- candidate with the matcher's answer for its own title and no recency, merged with the tabs by
+-- score and dropped when it does not match, and a tie leaves it after the tabs. The hosted list
+-- passes none, since it has no level to push. On an empty query the recency order stands,
+-- already applied to the listing before it arrived, and the caller adds the door at the end.
 --
-local function matchedTabs(query)
+local function matchedTabs(query, door)
   local list = tabs or {}
   if query == "" then
     local out = {}
@@ -343,6 +319,7 @@ local function matchedTabs(query)
         end
       end
     end
+    if door and door.title:lower():find(q, 1, true) then out[#out + 1] = door end
     return out
   end
 
@@ -365,31 +342,33 @@ local function matchedTabs(query)
       }
     end
   end
+  if door then
+    local score = matcher(query, door.title)
+    if score ~= nil then ranked[#ranked + 1] = { row = door, score = score, idx = #list + 1 } end
+  end
   table.sort(ranked, function(a, b)
     if a.score ~= b.score then return a.score > b.score end
     return a.idx < b.idx
   end)
-  for _, e in ipairs(ranked) do out[#out + 1] = tabRow(e.tab) end
+  for _, e in ipairs(ranked) do out[#out + 1] = e.row or tabRow(e.tab) end
   return out
 end
 
 -- The tab list as our own chooser shows it, the matching tabs plus the settings door. The door
--- trails an empty query, where it was asked to be, leads a query that is a whole settings word,
--- and trails a query that is only the start of one, settingsPlace above saying why.
+-- trails an empty query, where it was asked to be, and is scored among the tabs once something
+-- is typed, matchedTabs above saying how.
 local function tabRows(query)
   if #(tabs or {}) == 0 then
     local out = emptyRows()
     out[#out + 1] = settingsRow()
     return out
   end
-  local out = matchedTabs(query)
-  local place = query == "" and "trail" or settingsPlace(query)
-  if place == "trail" then
+  if query == "" then
+    local out = matchedTabs(query)
     out[#out + 1] = settingsRow()
-  elseif place == "lead" then
-    table.insert(out, 1, settingsRow())
+    return out
   end
-  return out
+  return matchedTabs(query, settingsRow())
 end
 
 --------------------------------------------------------------------------------
@@ -463,8 +442,7 @@ end
 
 -- The settings level is the whole of the settings. Selecting a browser row switches it on or off
 -- where it stands, there is no level beneath it, so a person flips a browser and sees the answer
--- on the same screen. Back is the first row and filters on nothing, so a typed query never
--- leaves it sitting above the rows that matched. Every other row, a permission row included,
+-- on the same screen. Back is the first row and pinned, so a typed query never drops it. Every other row, a permission row included,
 -- filters on the browser's name alone, so a toggle never changes whether a row matches, and a
 -- permission row matches exactly when its browser does, sits right under it in a ranked list
 -- and never shows on its own. Every row carries a key, the bundle id for a browser and the
@@ -473,9 +451,7 @@ end
 -- landing late, or either under a typed query, so a permission row appearing above the browser
 -- the person is on never moves them onto it.
 local function settingsRows()
-  local back = backRow()
-  back.filterText = ""
-  local out = { back }
+  local out = { backRow() }
   for _, s in ipairs(cfg.api.status()) do
     local r = glyphRow(s.name, statusText(s), settingsIcon(s),
       s.installed and { act = "toggle", bundleID = s.bundleID, key = s.bundleID }
@@ -534,8 +510,8 @@ end
 -- answers to.
 --
 -- The list filters on the shared matcher like every other list of items, so no matcher is
--- declared. Every row states its own filterText in settingsRows, which is what keeps Back out of
--- a typed query and keeps a state word from deciding whether a browser matches.
+-- declared. Back is pinned in settingsRows, and every other row states its own filterText, which
+-- keeps a state word from deciding whether a browser matches.
 --
 -- A browser's switch and a permission request both mutate this level in place and stand, so
 -- both answer "stay" from intercept, the stage holding the highlight on the pressed item by its

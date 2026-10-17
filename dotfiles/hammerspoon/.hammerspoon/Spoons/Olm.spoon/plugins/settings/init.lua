@@ -87,13 +87,15 @@ local ICON_APPLY = "apply"
 local ICON_SELECTED = "selected"
 local ICON_NOT_SELECTED = "notSelected"
 
-local function row(title, subTitle, icon, item, enabled, filterText)
+local function row(title, subTitle, icon, item, enabled, pinned)
   return { title = title, subTitle = subTitle, icon = icon, item = item, enabled = enabled,
-    filterText = filterText }
+    pinned = pinned }
 end
 
+-- Back is pinned, so the shared search never scores or drops it and it stays the first row
+-- whatever is typed.
 local function backRow()
-  return row("Back", nil, ICON_BACK, { nav = true, to = "back" }, true)
+  return row("Back", nil, ICON_BACK, { nav = true, to = "back" }, true, true)
 end
 
 -- Plain words for the top level's own subtitle, one per mode this resolver knows.
@@ -121,14 +123,11 @@ local function placementRows()
   return rows
 end
 
--- matcher is false for the identical reason every other menu style page in this tree opts
--- out, a fixed set of rows that already answers the query in full rather than a list a
--- shared strategy should filter, and a filter here would risk hiding the Back row on a typed
--- character.
+-- No matcher is declared, so the page inherits the shared one and a typed word filters the two
+-- options. Back is pinned and so is never hidden by it.
 local function buildPlacementChild()
   return {
     placeholder = "Where the OLM launcher appears",
-    matcher = false,
     rows = placementRows,
     -- select never actually answers, both reachable rows on this level are caught by
     -- intercept below, back and the two options alike, but the field is required on every
@@ -181,14 +180,12 @@ local function themeRows()
   return rows
 end
 
--- Built exactly as the placement child is, a fixed list that answers the query in full and
--- so opts out of the shared matcher, and choosing a theme answers stay for the same reason
--- choosing a placement does. A theme is a mutation of the policy the row stands beside, so
+-- Built exactly as the placement child is, inheriting the shared matcher with Back pinned, and
+-- choosing a theme answers stay for the same reason choosing a placement does. A theme is a mutation of the policy the row stands beside, so
 -- the page keeps the highlight on the row just chosen and only the circle moves.
 local function buildThemeChild()
   return {
     placeholder = "Theme",
-    matcher = false,
     rows = themeRows,
     -- Every reachable row is caught by intercept below, but the field is required on every
     -- presentation, host/stage's own isPresentation refusing one without it.
@@ -232,14 +229,12 @@ end
 -- confirm step.
 local function pluginRows()
   local list = catalog()
-  -- Back and Apply now carry an empty filterText, which the matcher scores as nothing, so any
-  -- typed text hides them and they never sit above a chosen row while a query is typed.
-  local back = backRow()
-  back.filterText = ""
-  local rows = { back }
+  -- Back and Apply now are pinned, so the shared search never drops them and they lead the
+  -- ranked plugins while a query is typed.
+  local rows = { backRow() }
   local summary = page.pendingSummary(list)
   if summary and cfg.applyPluginSwitches then
-    rows[#rows + 1] = row("Apply now", summary, ICON_APPLY, { apply = true, key = "apply" }, true, "")
+    rows[#rows + 1] = row("Apply now", summary, ICON_APPLY, { apply = true, key = "apply" }, true, true)
   end
   for _, r in ipairs(page.rows(list, row, SELF)) do rows[#rows + 1] = r end
   return rows
@@ -270,10 +265,8 @@ local function describeHighlighted()
   describe(cfg.stageSelectedItem and cfg.stageSelectedItem())
 end
 
--- Unlike the other two children, this page declares no matcher and so filters on the shared
--- default. Those two pages are two fixed option rows a query cannot usefully narrow, while this
--- is a list of every plugin a person picks from, and typing a title or an identity has to
--- narrow it. A row filters on those two alone and never on its state words, so staging a row
+-- Like the other two children, this page declares no matcher and so filters on the shared
+-- default, and typing a title or an identity narrows the list of plugins. A row filters on those two alone and never on its state words, so staging a row
 -- never changes whether it matches the query being typed. Choosing a plugin stages the opposite of what the row shows and answers
 -- stay, since it mutates the list it stands on and the person keeps the row they chose, and a
 -- row that cannot be switched answers stay too, doing nothing, so a press on it never leaves

@@ -114,9 +114,12 @@ every present, since a new list means something new.
 
 Add one only when something is actually wrong without it.
 
-`matcher` is `false` when your own supplier ranks the query and the widget must not rank it
-again, or a string naming a strategy the Chooser atom exports. Absent inherits the root
-default. Beware that `surface.matcher` is a different question, which strategy gets injected
+`matcher` is `false` only when the level's field is not a search, a typed name or a confirm,
+or a string naming a strategy the Chooser atom exports. Absent inherits the root default, which
+is what a list wants, its supplier returning every row and the engine filtering. A row that must
+always show, Back or the answer to the query itself, sets `pinned = true`. A row may also set
+`tier`, a number where smaller sorts first among ranked rows, and `bonus`, a number from zero to
+one that only breaks a tie between equally good matches, both read from `rank.lua`. Beware that `surface.matcher` is a different question, which strategy gets injected
 into your code, and this one is whether the widget itself filters.
 
 `enter` is a member handed one function, `proceed`, called in place of showing you
@@ -363,9 +366,9 @@ live wiring layer too, register, stage five; `registry.open`, `registry.scope`, 
 `registry.commands.*.fn` are checked only by the gate, never by a live reload, so running it is
 what stands between a typo there and a key that does nothing.
 
-A `matcher = false` plugin that then filters nothing shows an unfiltered list, and nothing
-notices. The two questions, whether the widget filters and whether you rank, are independent
-and only one of them is declared.
+A `matcher = false` level over a long list shows an unfiltered list, and nothing notices.
+Declare it only where the field is input. The row fields `pinned`, `tier` and `bonus` are the
+way to say where a row goes without turning the search off.
 
 An `enter` that never calls `proceed` strands the person on a launcher row that silently does
 nothing. The stage will not time you out.

@@ -226,8 +226,8 @@ return {
   -- longer declared, host/stage's own surfaceFor answering the five generic nav verbs now
   -- that presentation above exists, and this plugin binds no verb beyond them, insertSelected
   -- replacing the retired enter being exactly what closed that gap. matcher is false for the
-  -- same reason presentation.matcher above is, this plugin scores its own rows and a second,
-  -- uniform pass would rank the Back row away.
+  -- same reason presentation.matcher above is, this plugin scores its own rows until phase
+  -- three of the unified search moves them onto the engine.
   registry = {
     row = { category = "Tools" },
     open = "show",
