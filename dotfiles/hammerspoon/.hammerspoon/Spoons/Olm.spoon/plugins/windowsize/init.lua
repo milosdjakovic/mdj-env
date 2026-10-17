@@ -92,15 +92,26 @@ function obj:parse(query)
   return w, h
 end
 
--- The name of the application the row will act on, or nil when none can be known. The app
--- object can outlive the app it names, one that quit while the list was up, and a query row
--- source runs on every keystroke, so a failed read answers nil rather than raising into the
--- launcher's own rebuild.
+-- The name of the application the row will act on, or nil when none can be named truthfully.
+-- The action resizes the focused window once the launcher has closed, so the title names the
+-- covered app only when that app has a focused window to receive it, and otherwise reads as a
+-- plain window. Asking for the window happens here, after the size has parsed, so an ordinary
+-- query that is not a size never touches the app.
+--
+-- The launcher keeps the earlier app when Hammerspoon is frontmost alone, which is its own
+-- policy and is left as it is, so in that one case this reads the name of the earlier app.
+--
+-- The app object can outlive the app it names, one that quit while the list was up, and a query
+-- row source runs on every keystroke, so any failed read answers nil rather than raising into
+-- the launcher's own rebuild.
 local function coveredAppName(self)
   if not self._coveredApp then return nil end
   local app = self._coveredApp()
   if not app then return nil end
-  local ok, name = pcall(function() return app:name() end)
+  local ok, name = pcall(function()
+    if not app:focusedWindow() then return nil end
+    return app:name()
+  end)
   if ok and type(name) == "string" and name ~= "" then return name end
   return nil
 end

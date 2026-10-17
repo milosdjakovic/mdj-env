@@ -2,7 +2,8 @@
 
 Turns a typed pair of dimensions into one launcher row that sizes the focused window to
 exactly that and centers it. Typing `1920x1080` offers a row titled `Resize Safari`, naming
-the application the list was covering, or `Resize window` when that cannot be known, and
+the application the list was covering when it has a focused window, or `Resize window` when
+that cannot be known, and
 choosing it resizes that application's window once focus is back on it. A capital X and the
 multiplication sign are the same separator. An asterisk is not one, since `1920*1080` is
 arithmetic and already answers with a product.

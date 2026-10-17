@@ -4,8 +4,10 @@
 -- from there, the same way cases/arithmetic.lua does. No absolute path is written down here.
 --
 -- The plugin reaches nothing of Hammerspoon's own, since the window manager's plan and the
--- launcher's covered app both arrive through configure. So both are stand ins here, a plan that
--- answers whatever the case wants the display to do, and an app that answers a name.
+-- launcher's covered app both arrive through configure. The covered app is a stand in that
+-- answers a name and whether it has a focused window. The plan is the window manager's real
+-- exactSizePlan, loaded from this checkout over a small hs stand in and handed a fake screen,
+-- so the trim arithmetic is the one the action uses and is not copied here.
 --
 -- Each check prints one line, PASS or FAIL followed by a plain description, and the runner
 -- counts from those lines alone.
@@ -36,19 +38,37 @@ local function fresh(opts)
   return instance
 end
 
+-- The window manager's own module, which reads hs only while loading, for a logger.
+local realHs = hs
+hs = {
+  logger = { new = function()
+    return setmetatable({}, { __index = function() return function() end end })
+  end },
+}
+local wmChunk, wmErr = loadfile(caseDir .. "/../../Spoons/Olm.spoon/plugins/windowmanager/init.lua")
+local windowManager = wmChunk and wmChunk()
+hs = realHs
+if not windowManager then print("FAIL load the window manager, " .. tostring(wmErr)) end
+
+local function planOn(width, height)
+  local screen = { frame = function() return { x = 0, y = 0, w = width, h = height } end }
+  return function(w, h)
+    if not windowManager then return nil end
+    return windowManager.exactSizePlan(windowManager, w, h, screen)
+  end
+end
+
 -- A display large enough for anything typed below, so nothing is trimmed.
-local function roomy(w, h)
-  return { width = w, height = h, clamped = false }
-end
+local roomy = planOn(100000, 100000)
 
--- A display 1728 by 1080, trimming the way the window manager's exactSizePlan does.
-local function laptop(w, h)
-  local fw, fh = math.min(w, 1728), math.min(h, 1080)
-  return { width = fw, height = fh, clamped = fw < w or fh < h }
-end
+-- A display 1728 by 1080.
+local laptop = planOn(1728, 1080)
 
-local function app(name)
-  return { name = function() return name end }
+local function app(name, windowless)
+  return {
+    name = function() return name end,
+    focusedWindow = function() if not windowless then return {} end end,
+  }
 end
 
 local function only(instance, query)
@@ -62,6 +82,28 @@ do
   local row = only(ws, "1920x1080")
   check("the title names the covered application", row and row.title == "Resize Safari",
     row and row.title)
+end
+
+-- A covered app with no focused window cannot receive the resize, so the title does not name it.
+do
+  local ws = fresh({ plan = roomy, coveredApp = function() return app("Finder", true), 3 end })
+  local row = only(ws, "1920x1080")
+  check("an app with no focused window reads Resize window",
+    row and row.title == "Resize window", row and row.title)
+
+  local asked = false
+  ws = fresh({ plan = roomy, coveredApp = function()
+    return { name = function() return "Safari" end, focusedWindow = function() asked = true return {} end }
+  end })
+  only(ws, "not a size")
+  check("an ordinary query never asks the app for its window", asked == false)
+
+  ws = fresh({ plan = roomy, coveredApp = function()
+    return { name = function() return "Safari" end, focusedWindow = function() error("the app quit") end }
+  end })
+  row = only(ws, "1920x1080")
+  check("an app that cannot answer its window reads Resize window",
+    row and row.title == "Resize window", row and row.title)
 end
 
 -- No covered app, or no root word at all, reads as a window.
