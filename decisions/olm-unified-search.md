@@ -10,13 +10,19 @@ Search is one algorithm and one ranking engine, `lib/chooser/match.lua` and
 `lib/chooser/rank.lua`, used by every chooser list. No plugin or host matches or ranks rows
 itself, and a search that differs per list is a defect. Since phase four that holds without an
 exception, the launcher's learned query memory reaching the engine as a bonus like every other
-list's recency, and the dry gate enforces it through `Spoons/Olm.spoon/test/drygate-search.lua`.
-Outside `lib/chooser` and the test directories a `matcher = false`, a call of a matcher, a call of
-`rank.apply` outside the stage, the query scope and the action panel, any call of `rank.score` or
-`rank.before`, and a sort whose comparator reads a query, calls a matcher or the engine, or reads
-a score in a function that reads the query, are findings, unless the line carries
-`search-exempt` and a reason. The input pages, the confirm pages and FileSearch's matcher probe
-and kept first preference carry one.
+list's recency. No source or supplier tests rows against the typed words either, so FileSearch's
+walker and Spotlight's scope roots hand their rows over whole. The dry gate checks the shapes of
+that a static scan can see through `Spoons/Olm.spoon/test/drygate-search.lua`, which lists them
+and the ones it cannot. Outside `lib/chooser`, `lib/ui` and the test directories a `matcher =
+false`, a matcher declared as anything but absent or false in a plugin or a host, a call of a
+matcher or of a local aliasing one, a use of `rank.apply` outside the stage, the query scope and
+the action panel, any use of `rank.score` or `rank.before`, a find of the typed text deciding a
+row in a plugin or a host, and a sort whose comparator reads a query, calls a matcher or the
+engine, or reads a score in a function that reads the query, are findings, unless the line
+carries `search-exempt, ` and a reason. A comparator or filter in another module, a weight table
+precomputed from the query and a matcher reached through a parameter are left to review. The
+input pages, the confirm pages and FileSearch's matcher probe and kept first preference carry
+one.
 
 A row has a primary field, its name, and secondary fields, the subtitle it shows and the keywords
 it declares, and a word never matches across fields. Each query word matches at the strongest of
@@ -146,6 +152,12 @@ Plugins declare a row vocabulary and only core applies it. Today that is `title`
   trip for the same text never returns, since Spotlight matches names only, and the cap cut before
   ranking. The engine now hands every held row over, the shared search ranks them by the text
   `searchText` answers, frecency is the bonus and `rowLimit` cuts after ranking.
+- **A source testing the later typed words against its own rows.** 2026-10-17, removed in the
+  phase four rework. FileSearch's walker handed the first
+  word to the tool and dropped what came back by the later words in Lua, and Spotlight's scope
+  roots were kept only when every word sat in the folder name as a substring. Each was a second
+  matcher disagreeing with the shared one, a typo in a second word dropping a row the shared search
+  keeps, notes reprot against notes report.md. A source now narrows only the request it builds.
 
 ## Log
 
@@ -971,4 +983,48 @@ Proved by mutation. The launcher at 1238877 restored gave five findings, its `ma
 `rank.score`, two `rank.before` calls and its sort. A planted block in a plugin, a sort calling a
 matcher, a sort by a score in a function reading the query and a `matcher = false`, gave three.
 `test/cases/searchcheck.lua` holds 26 checks of what the rule must hit and must leave alone.
+Corrected 2026-10-17 22:07, see below. The walker's word filter was a break of the rule and was
+removed, and Spotlight's matchingRoots with it.
 
+### 2026-10-17 22:07, phase four reworked after the adversarial review
+
+The review found the gate narrower than the docs said and one break of the rule it let through.
+The docs claimed the gate held the rule, and it held four shapes. A `matcher` naming a strategy,
+`["matcher"] = false`, an alias of a matcher or of `rank.apply` called under another name,
+`rank["apply"]`, a call whose arguments ran onto the next line, a block comment or a long string
+read as code, and a commaless `search-exempt` all passed or misfired. FileSearch's walker dropped
+fd's answer by the later words in Lua and Spotlight's matchingRoots tested each word against the
+root folders as a substring, both second matchers that disagreed with the shared one, so notes
+reprot lost notes report.md, which the shared search keeps at one edit. The 21:45 entry called
+both a source narrowing its own request, which was wrong. Three docs were stale, the launcher's
+header claiming it owns the matching, the query scope's AGENTS.md letting a scope own its
+filtering behind `matcher = false`, and the action panel counting eleven tools that declare it.
+
+The gate now lexes a file first, dropping every comment and emptying every long string, reads a
+quoted name index as a field, and joins a call split across lines. It refuses a matcher declared
+as anything but absent, nil or false in a plugin or a host, a table value excepted since that is
+a dependency request, follows a local assigned from a name ending in matcher, a `:matcher()` read,
+a strategy of match or matchers, the rank module or one of its verbs, through further locals in
+the same file, and refuses a `:find(` or `string.find(` whose pattern is typed text, a variable
+named query, q, text, rest, word or w, a field path through one or a lowered one, used as a truth
+value on something that is not itself typed text, in a plugin or a host. That last rule leaves a
+grammar parse, typed text searched for a vocabulary word, a position kept in a local, and an
+exact lookup alone. One parser reads a marker for the scan and the stale check alike, a marker
+starts its comment, and one with no comma is a finding. The tree gave two new hits, both the
+FileSearch filters, and both were removed rather than exempted. `test/cases/searchcheck.lua`
+holds 71 checks, and the scanner at 55c85e3 fails 27 of the 45 new ones, every new hit among
+them. A scratch copy of the spoon with every shape planted in one plugin file gave ten findings,
+and the block comment and long string in it none.
+
+The walker now hands every row fd answered to the shared search, keeping the first word's word
+start pattern that builds the request, and Spotlight hands every scope root over. The engine's
+kept first pass still holds the rows the search keeps ahead of the rest. Measured in plain Lua over
+real fd output for test under the Development folder, two thousand rows, the retain cap, cost
+about 10 milliseconds for the kept first pass and 3 to 5 for `rank.apply` with a row limit of two
+hundred, and 4949 rows about 30 and 17.
+
+What the gate still cannot see, left to review. A comparator or a filter defined in another
+module and handed in, a weight or score table precomputed from the query, a matcher or the rank
+module reached through a parameter, a call's result or a variable index, a self filter through
+`:match(`, `:gmatch(`, a byte loop or a pattern variable of any other name, a position from find
+tested later, and any other rule a supplier drops rows by. `lib/ui` is not in the scanned set.

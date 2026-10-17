@@ -1246,15 +1246,25 @@ over Mail, and lose keeps Local Servers, spelled in pieces, above a remembered L
 
 So every list chooser is fuzzy by default with no per-tool wiring, and a future list
 chooser inherits it for free, while a field that is input opts out in one word and says why. No
-list matches or ranks its own rows, and the dry gate holds that, `test/drygate-search.lua`. Outside
-`lib/chooser` and the test directories it refuses `matcher = false`, a call of a matcher, a call
-of `rank.apply` anywhere but the stage, the query scope and the action panel, any call of
-`rank.score` or `rank.before`, and a `table.sort` whose comparator reads a query, calls a matcher
-or the engine, or reads a score in a function that reads the query. A sort by load, date or
-frecency reads no query and is not hit. A line answers a finding with `-- search-exempt, <reason>`
-on it or on the comment line above, counted as accepted, and an exemption with no reason or
-marking nothing is a finding. The input and confirm pages and FileSearch's matcher probe and
-kept first preference carry one.
+list matches, filters or ranks its own rows by the query. The dry gate checks the shapes of that it
+can see statically, `Spoons/Olm.spoon/test/drygate-search.lua`, over every file outside
+`lib/chooser`, `lib/ui` and the test directories, with comments and long strings stripped and a
+call split across lines joined first. It refuses `matcher = false`, and in a plugin or a host a
+matcher declared as anything but absent or false, a quoted `["matcher"]` index included. It
+refuses a call of a matcher, of a strategy of `match` or `matchers`, or of a local aliasing one in
+the same file, a use of `rank.apply` anywhere but the stage, the query scope and the action panel,
+any use of `rank.score` or `rank.before`, through an alias or a quoted index too, a `:find(` or
+`string.find(` in a plugin or a host whose pattern is the typed text, a variable named query, q,
+text, rest, word or w, used as a truth value on something that is not itself typed text, and a
+`table.sort` whose comparator reads a query, calls a matcher or the engine, or reads a score in a
+function that reads the query. A sort by load, date or frecency reads no query and is not hit, and
+neither is a grammar parse, an alias lookup or a value parse. What it cannot see is left to
+review, a comparator or a filter living in another module, a weight or score table precomputed
+from the query, a matcher reached through a parameter, a call's result or a variable index, and a
+filter through `:match(`, a byte loop or another variable name. A line answers a finding with
+`-- search-exempt, <reason>`, the comma required, on it or on the comment line above, counted as
+accepted, and an exemption with no comma, no reason or marking nothing is a finding. The input and
+confirm pages and FileSearch's matcher probe and kept first preference carry one.
 
 The clipboard searches through the shared engine since phase three of the unified search on
 2026-10-17. A history row filters on its one line title, since its subtitle is a kind, an age and

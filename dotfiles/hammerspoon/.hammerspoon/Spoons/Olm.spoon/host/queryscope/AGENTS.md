@@ -112,12 +112,14 @@ raised names only the scope, so it is `pinned`. Each is the only row of a claime
 
 ## Filtering mirrors the atom rather than inventing a policy
 
-A scope inherits the shared matcher and may set `matcher = false` to own its
-filtering, which is exactly the Chooser atom's own contract. Keep awake opts out
-because its field is a value being typed rather than a filter over rows, the same
-reason its own chooser opts out. Mirroring costs nothing to understand and means a
-list shaped scope is one entry in the root with no filter loop of its own, which is
-what the next few scopes need.
+A scope inherits the shared matcher, which ranks its rows through the one engine, exactly the
+Chooser atom's own contract. It sets `matcher = false` only when its field is not a search at
+all, a value being typed, and then its supplier answers the one row that value means rather
+than filtering a list. Keep awake and Volume opt out that way, each with a `search-exempt`
+reason, the same reason their own choosers opt out. A scope never filters or ranks rows by the
+typed text itself and never names a strategy, since search never differs per list, and the dry
+gate refuses both shapes it can see. Mirroring costs nothing to understand and means a list
+shaped scope is one entry in the root with no filter loop of its own.
 
 ## What a scope may be, which is more than a tool
 

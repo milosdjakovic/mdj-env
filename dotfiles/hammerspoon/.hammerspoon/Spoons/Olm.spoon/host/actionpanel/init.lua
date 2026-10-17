@@ -434,10 +434,11 @@ function obj:decorate(instance, config)
   -- instance:matcher() is read live here instead, inside the closure, the identical value
   -- legacy.lua's own Chooser:_build already reads fresh on every keystroke rather than once
   -- at construction, so the panel now filters, or does not, for whichever presentation is
-  -- actually current when a key is actually pressed. Eleven tools across this track declare
-  -- matcher = false today, four before this batch and seven more inside it, and every one of
-  -- them typed into the action panel over their own rows without narrowing anything until
-  -- this line changed. Read through the accessor rather than off the field directly since
+  -- actually current when a key is actually pressed. Eleven tools declared matcher = false
+  -- when this line changed, and every one of them typed into the action panel over their own
+  -- rows without narrowing anything until then. Since phase four of the unified search only
+  -- input and confirm pages declare it, each with a search-exempt reason, and every list
+  -- inherits the shared matcher. Read through the accessor rather than off the field directly since
   -- the contract freeze phase closed that reach, docs/BRIEF-CONTRACT-FREEZE.md.
   config.rows = function(query, ...)
     if self._openInstance == instance then

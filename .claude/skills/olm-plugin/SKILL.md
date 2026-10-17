@@ -134,12 +134,16 @@ start or as a phrase typed run together, below any title match, and the words of
 their own with a bonus for staying in one phrase. The authoring guide carries the detail. A subtitle that is a category, a status or a chord is
 taken out of search by setting `filterText` to the title. `lib/chooser/rank.lua` states the
 vocabulary. No list matches or ranks its own rows, the launcher included, whose learned query
-memory is a `bonus` like every other list's recency. `matcher = false` only declares a field that
-is not a search, an input page where the typed text is a name, a duration or a level, or a
-confirm, and it carries a `-- search-exempt, <reason>` comment on its line or the line above,
-since the dry gate refuses a false matcher, a call of a matcher, a call of the rank engine and a
-sort by a query or a match score anywhere outside `lib/chooser` and the tests unless the line says
-why it is not a search. There is no exception list beyond those comments. A row that always shows comes in two kinds, and neither fakes a match through
+memory is a `bonus` like every other list's recency. `matcher` is absent or `false`, never a
+strategy name, and `false` only declares a field that is not a search, an input page where the
+typed text is a name, a duration or a level, or a confirm, with a `-- search-exempt, <reason>`
+comment, the comma required, on its line or the line above. The dry gate checks what it can see
+statically, `test/drygate-search.lua` states the shapes, a false or named matcher, a call of a
+matcher or of a local aliasing one, the rank engine outside its three hosts, a find of the typed
+text deciding a row and a sort by a query or a match score, outside `lib/chooser`, `lib/ui` and
+the tests. It cannot see a comparator or filter in another module, a weight table precomputed
+from the query or a matcher reached through a parameter, so a review checks those by reading.
+There is no exception list beyond those comments. A row that always shows comes in two kinds, and neither fakes a match through
 `filterText` or a hand filter in the supplier. `pinned = true` is a door or a placeholder, Back,
 a capture or new snapshot row, Apply now, which keeps its place on an empty query and trails the
 matches under a typed one, so Enter takes the best match. `fromQuery = true` is a row made from
@@ -269,9 +273,11 @@ In order, before anything merges.
    it runs the composition root a second time with every plugin renamed and fails on any
    difference. A difference after a manifest change usually means the manifest names an
    identity in a field that proof does not rename, `test/drygate-rename.lua` lists the ones it
-   does. And it fails on a list that matches or ranks by itself, `test/drygate-search.lua`, a
-   finding naming the file and line, answered by handing the rows to the shared search or, for
-   a field that is not a search, a `search-exempt` comment with the reason.
+   does. And it fails on the shapes of a list matching, filtering or ranking by itself that a
+   static scan can see, `test/drygate-search.lua` lists them and the ones it cannot, a finding
+   naming the file and line, answered by handing the rows to the shared search or, for a field
+   that is not a search, a `search-exempt, <reason>` comment. A green gate is not proof the rule
+   holds, so read a new supplier for a filter or an order the scan cannot see.
 3. One live load. This is the gate no static check replaces, and the discipline around the
    devlock, the console read, and the scheduled reload lives in the hammerspoon `AGENTS.md`.
    Never drive the screen or the keyboard for a test until Milos says start.

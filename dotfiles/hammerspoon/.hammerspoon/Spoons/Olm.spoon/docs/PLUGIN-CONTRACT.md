@@ -967,7 +967,9 @@ turned the widget's filtering off and scored rows with the injected strategy the
 since phase four of `docs/PLAN-UNIFIED-SEARCH.md` none may, since a call of a matcher outside
 `lib/chooser` is a dry gate finding. FileSearch still reads the injected strategy, to ask its
 sources for a word the way the search keeps it and to fill its retain cap with kept rows first,
-and both lines carry a `search-exempt` reason since neither orders a shown row.
+and both lines carry a `search-exempt` reason since neither orders a shown row. Since the phase
+four rework the dry gate also refuses any value here but absent or false in a plugin or a host,
+a strategy name included, so every plugin takes the root's one strategy.
 
 Writing `matcher = false` therefore means inject no strategy at all, which is almost never
 what a plugin wants. BrowserTabs declared exactly that and the effect would have been to
@@ -1110,10 +1112,11 @@ Under a typed query a `fromQuery` row, made from what was typed, leads the ranke
 supplier's order. `matcher` is `false`, meaning the field is not a
 search and the supplier owns what shows, the one case that stays for an input page or a confirm,
 which says so with a `-- search-exempt, <reason>` comment on the line or the line above, since the
-dry gate refuses a false matcher without one, or a string naming a strategy in `Chooser.matchers`, the identical table
-`root/compose.lua` already resolves this word against for every consumer that still builds its
-own instance. No presentation names one since phase three of the unified search, and absent
-inherits the root default, the version
+dry gate refuses a false matcher without one. The registrar still accepts a string naming a
+strategy in `Chooser.matchers`, the identical table `root/compose.lua` already resolves this word
+against for every consumer that still builds its own instance, but the dry gate refuses one in any
+plugin or host since the phase four rework, since search never differs per list. No presentation
+names one since phase three of the unified search, and absent inherits the root default, the version
 one behaviour, unchanged for every plugin that names nothing here. The registrar checks a
 declared string against the real strategy names at register, the same loud refusal `rowCount`
 and `paneWidth` already get, since a typo left to `host/stage`'s own `_resolveMatcher` would

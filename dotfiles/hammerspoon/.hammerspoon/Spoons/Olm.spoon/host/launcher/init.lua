@@ -10,9 +10,11 @@
 --- shared predicate registry, the tool registry from phase seven of the build plan,
 --- the rows other plugins contribute and the runners that take them back, and a
 --- small dispatch of leaf actions that close over core alone. So the launcher owns
---- the row building, the matching, the app enumeration, and the command dispatch
---- structure, and knows nothing about what a row ultimately does or which plugin
---- it came from.
+--- the row building, the app enumeration, and the command dispatch structure, and
+--- knows nothing about what a row ultimately does or which plugin it came from. It
+--- does not own the matching. Since phase four of docs/PLAN-UNIFIED-SEARCH.md the
+--- shared search matches and ranks its rows like every other list's, and its learned
+--- query memory reaches that search as each row's bonus.
 ---
 --- The Command pattern is preserved. Each row carries only a serializable
 --- descriptor, its kind plus a name or bundle id, and the owner identity of a row a

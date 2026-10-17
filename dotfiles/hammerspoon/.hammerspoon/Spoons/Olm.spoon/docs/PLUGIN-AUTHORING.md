@@ -114,15 +114,29 @@ every present, since a new list means something new.
 
 Add one only when something is actually wrong without it.
 
-`matcher` is `false` only when the level's field is not a search, a typed name, a duration, a
-level or a confirm, or a string naming a strategy the Chooser atom exports. Absent inherits the
-root default, which is what a list wants, its supplier returning every row and the engine
-filtering. No list matches or ranks its own rows, the launcher included since phase four of
-`docs/PLAN-UNIFIED-SEARCH.md`, and the dry gate refuses a false matcher, a call of a matcher, a
-call of the rank engine and a sort by a query or a match score outside `lib/chooser` and the
-tests, through `test/drygate-search.lua`. A field that is genuinely not a search says so on the
-`matcher = false` line or the line above, `-- search-exempt, <reason>`, and the gate counts it
-as accepted. A memory of what was picked, recency or a learned query, is a `bonus`, never a
+`matcher` is absent or `false`, nothing else. Absent inherits the root default, which is what
+a list wants, its supplier returning every row and the engine filtering. `false` is only for a
+level whose field is not a search, a typed name, a duration, a level or a confirm. A list never
+names a strategy of its own, since search never differs per list. No list matches, filters or
+ranks its own rows by the query, the launcher included since phase four of
+`docs/PLAN-UNIFIED-SEARCH.md`.
+
+The dry gate checks part of that through `test/drygate-search.lua`, over every file outside
+`lib/chooser`, `lib/ui` and the test directories. It refuses a `matcher = false`, and under
+`plugins/` and `host/` a matcher declared as anything but absent or false, a quoted index such as
+`["matcher"]` read like the field. It refuses a call of a matcher, a strategy of `match` or
+`matchers`, or a local that aliases one in the same file, a call split across lines included, a
+use of `rank.apply` outside the stage, the query scope and the action panel and of `rank.score` or
+`rank.before` anywhere, through an alias or a quoted index too, a `:find(` or `string.find(` of
+the typed text, a variable named query, q, text, rest, word or w, used as a truth value under
+`plugins/` or `host/`, and a sort whose comparator reads the query or a match score. Comments
+and long strings are never read. It cannot see a comparator or a filter in another module, a
+weight or score table precomputed from the query, a matcher reached through a parameter, a call's
+result or a variable index, a filter through `:match(` or under another variable name, or any
+other rule a supplier drops rows by, so review catches those. A field that is genuinely not a
+search says so on the `matcher = false` line or the line above, `-- search-exempt, <reason>`
+with the comma, and the gate counts it as accepted. A marker with no comma, no reason or no hit
+is itself a finding. A memory of what was picked, recency or a learned query, is a `bonus`, never a
 sort. A row that must
 always show comes in two kinds. A door or a placeholder, Back, a capture or new snapshot row,
 Apply now, sets `pinned = true`, keeping its place on an empty query and trailing the matches
@@ -135,7 +149,8 @@ one that only breaks a tie between equally good matches, both read from `rank.lu
 more than one name a person might type, a tab's title, host and address, or a clipboard entry's
 body, lists the extra ones in `names`, a list of strings never shown, each matched like the title.
 A word takes its best name, never spans two, and more names never lift a row. Beware that `surface.matcher` is a different question, which strategy gets injected
-into your code, and this one is whether the widget itself filters.
+into your code, and this one is whether the widget itself filters. Neither ever names a strategy,
+the dry gate refuses one in either.
 
 `searchText` is a member spec, called with the raw text of the field, answering the text the
 shared search ranks by. Declare it when your field carries a grammar of its own, a root and an
