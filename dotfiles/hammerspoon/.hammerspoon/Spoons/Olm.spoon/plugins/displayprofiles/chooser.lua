@@ -200,6 +200,7 @@ end
 local function buildRenameChild(state)
   return {
     placeholder = "New name for '" .. state.name .. "'",
+    -- search-exempt, the field is the profile's new name being typed, input and not a search
     matcher = false,
     rows = function(query) return renameRows(state.name, query) end,
     -- select never actually answers, every reachable row on this level is caught by
@@ -242,6 +243,7 @@ end
 local function buildDeleteChild(state)
   return {
     placeholder = "",
+    -- search-exempt, a delete confirm, Keep or Delete, with nothing to search
     matcher = false,
     rows = function() return deleteRows(state.name) end,
     onSelect = function() end,
@@ -321,6 +323,7 @@ end
 local function buildCaptureChild()
   return {
     placeholder = "Name this arrangement",
+    -- search-exempt, the field is the captured arrangement's name being typed, input and not a search
     matcher = false,
     rows = captureRows,
     onSelect = function() end,

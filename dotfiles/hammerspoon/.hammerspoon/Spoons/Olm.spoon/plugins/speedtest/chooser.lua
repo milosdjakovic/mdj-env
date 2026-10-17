@@ -392,6 +392,7 @@ function namingChild()
   local child
   child = {
     placeholder = "Type a name for this network",
+    -- search-exempt, the field is the name being typed for this network and the row is made from it, so it is input and not a search
     matcher = false,
     rows = function(query)
       local rows = { backRow() }

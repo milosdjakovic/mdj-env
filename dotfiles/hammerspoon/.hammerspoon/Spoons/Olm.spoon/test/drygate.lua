@@ -849,6 +849,44 @@ do
 end
 
 ----------------------------------------------------------------------------------------
+-- Ten, the search rule, see test/drygate-search.lua. Every list is searched by the shared
+-- matcher and ranked by lib/chooser/rank.lua, docs/PLAN-UNIFIED-SEARCH.md phase four, so outside
+-- lib/chooser and the test directories a matcher = false, a call of a matcher, a call of the
+-- engine outside the three hosts that rank for a list, and a sort by a query or a match score
+-- are findings, each naming its file and line. A line carrying a search-exempt comment with a
+-- reason, a field that is input or a confirm, a source narrowing its own request, is counted
+-- as accepted and still printed, the way a type-exempt line is, so an exemption is never silent.
+----------------------------------------------------------------------------------------
+
+do
+  local scanner = dofile(scriptDir .. "drygate-search.lua")
+  local list = os.getenv("DRYGATE_SOURCES")
+  if not list or list == "" then
+    warning("dry gate did not run the search check, DRYGATE_SOURCES names no files, run it through test/drygate.sh")
+  else
+    for path in list:gmatch("[^\n]+") do
+      local rel = path:sub(1, #spoonDir) == spoonDir and path:sub(#spoonDir + 1) or path
+      if scanner.applies(rel) then
+        local found = scanner.scanFile(path, rel)
+        if not found then
+          warning(string.format("dry gate could not read '%s' for the search check", rel))
+        else
+          for _, hit in ipairs(found) do
+            if hit.exempt then
+              accepted[#accepted + 1] = string.format("accepted, %s:%d, search-exempt, %s", rel, hit.line, hit.exempt)
+            else
+              findings[#findings + 1] = string.format(
+                "dry gate refused '%s', line %d, %s, '%s', let the shared search rank the rows, declare pinned, fromQuery, tier or bonus on them, or if the field is not a search say so with a search-exempt comment and a reason",
+                rel, hit.line, hit.what, hit.source)
+            end
+          end
+        end
+      end
+    end
+  end
+end
+
+----------------------------------------------------------------------------------------
 -- An accepted line that no longer matches anything this run is itself a finding, appended
 -- straight to the real list rather than through finding() above, so it is never itself
 -- eligible to be accepted away, the one rule that keeps this file from rotting.

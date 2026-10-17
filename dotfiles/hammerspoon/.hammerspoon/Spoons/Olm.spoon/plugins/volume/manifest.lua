@@ -60,6 +60,7 @@ return {
     select = { member = "select", call = "dot" },
     placeholder = { member = "placeholder", call = "dot" },
     rowCount = 1,
+    -- search-exempt, the field is a volume level being typed, parsed into the one row it means, so it is input and not a search
     matcher = false,
   },
 
@@ -69,6 +70,7 @@ return {
     open = { member = "show", call = "dot" },
     hosted = true,
     scope = {
+      -- search-exempt, the scope's field is the same typed volume level, input and not a search
       matcher = false,
       rows = { member = "rows", call = "dot" },
       run = { member = "select", call = "dot" },

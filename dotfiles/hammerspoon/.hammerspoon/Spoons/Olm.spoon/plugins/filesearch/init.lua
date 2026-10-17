@@ -191,6 +191,7 @@ local function insideFromOf(matcher)
   if type(matcher) ~= "function" then return nil end
   for n = 1, 8 do
     local w = string.rep("q", n)
+    -- search-exempt, a probe of the shared matcher's own rule with a made up word, so the sources ask for a short word the way the search keeps it, no row is matched
     local ok, score = pcall(matcher, w, "x" .. w)
     if ok and score ~= nil then return n end
   end
@@ -221,6 +222,7 @@ function obj:configure(opts)
   local insideFrom = insideFromOf(matcher)
   local keeps = nil
   if matcher then
+    -- search-exempt, which held rows fill the retain cap first, a row the search would drop going last, each part in the source's order, so it never orders a shown row
     keeps = function(row, text) return matcher(text, obj.chooser.searchName(row)) ~= nil end
   end
 

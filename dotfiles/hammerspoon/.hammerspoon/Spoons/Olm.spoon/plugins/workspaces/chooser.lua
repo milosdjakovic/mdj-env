@@ -235,6 +235,7 @@ local buildLayoutChild, buildAppsChild, buildAppChild, buildRenameChild, buildDe
 local function buildNewChild()
   return {
     placeholder = "Name for this snapshot",
+    -- search-exempt, the field is the new snapshot's name being typed, input and not a search
     matcher = false,
     rows = newRows,
     onSelect = function(item)
@@ -321,6 +322,7 @@ end
 buildAppChild = function(id, bundle, name, excluded)
   return {
     placeholder = "",
+    -- search-exempt, Back and the one action for this app, a two row choice like a confirm with nothing to search
     matcher = false,
     rows = function() return appRows(name, excluded) end,
     onSelect = function() end,
@@ -345,6 +347,7 @@ end
 buildRenameChild = function(id)
   return {
     placeholder = "New name for this layout",
+    -- search-exempt, the field is the layout's new name being typed, input and not a search
     matcher = false,
     rows = function(query) return renameRows(id, query) end,
     onSelect = function() end,
@@ -370,6 +373,7 @@ end
 buildDeleteChild = function(id)
   return {
     placeholder = "",
+    -- search-exempt, a delete confirm, Keep or Delete, with nothing to search
     matcher = false,
     rows = function() return deleteRows(id) end,
     onSelect = function() end,
