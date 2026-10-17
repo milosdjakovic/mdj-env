@@ -173,7 +173,7 @@ end
 function obj:_buildRows(text)
   if not text or text:match("^%s*$") then
     return { { title = "No text selected", subTitle = "Select some text, then open Text Case",
-              image = self:_glyphIcon(EMPTY_ICON), enabled = false } }
+              image = self:_glyphIcon(EMPTY_ICON), enabled = false, pinned = true } }
   end
   -- The catalog order is the resting order, and the cases applied before lead in the order
   -- they were last applied, the shared lift to front service deciding which is which. The

@@ -230,7 +230,7 @@ end
 
 local function listRows()
   if #rows == 0 then
-    return { { title = "Nothing running", enabled = false,
+    return { { title = "Nothing running", enabled = false, pinned = true,
                subTitle = "No development servers or containers found",
                image = icons.emoji(ICON_EMPTY) } }
   end

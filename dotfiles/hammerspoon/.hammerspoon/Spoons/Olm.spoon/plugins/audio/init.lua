@@ -62,7 +62,7 @@ local function rows()
   end
   if #out == 0 then
     out[1] = { title = "No audio devices", subTitle = "CoreAudio reported none",
-               icon = "warn", enabled = false, item = { id = "none" } }
+               icon = "warn", enabled = false, pinned = true, item = { id = "none" } }
   end
   return out
 end

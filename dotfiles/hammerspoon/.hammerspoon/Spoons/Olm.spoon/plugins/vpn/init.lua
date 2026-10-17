@@ -463,12 +463,23 @@ local function unavailableRow()
     subTitle = info.note or "The provider CLI is not installed",
     icon = "warn",
     enabled = false,
+    -- Pinned so the shared matcher never scores it against a typed query. It says why nothing
+    -- else is here, and ranking it away would leave the list reading No results instead.
+    pinned = true,
     item = { id = "unavailable" },
   }
 end
 
+-- The row shown while the locations have not landed. The top level and the query scope both
+-- show it, so a typed query reads as loading and never as No results for cities that are about
+-- to arrive. Pinned for the same reason the unavailable row is, and disabled so it is a label.
+local function waitingRow()
+  return { title = "Reading the locations", subTitle = "one moment",
+           icon = "loading", enabled = false, pinned = true, item = { id = "waiting" } }
+end
+
 -- The merged supplier. When the provider is unavailable the whole list is the one
--- self explaining install row, and typing has nothing to filter. Otherwise the action
+-- self explaining install row, pinned so it shows under any query. Otherwise the action
 -- row leads only on the empty query, then every city follows, and the atom's shared
 -- matcher filters and ranks the cities against the query. Each city carries filterText
 -- of its label plus country code, so typing London, USA, or gb all narrow it. The action
@@ -478,6 +489,7 @@ local function rows(query)
   if not available then return { unavailableRow(), settingsRow() } end
   local out = {}
   if (query or "") == "" then out[#out + 1] = actionRow() end
+  if #cache == 0 then out[#out + 1] = waitingRow() end
   for _, loc in ipairs(cache) do
     out[#out + 1] = {
       title = loc.label,
@@ -515,7 +527,7 @@ local function onSelect(sel)
   -- The unavailable row is built disabled, so this never dispatches it and there is no
   -- branch for it here. Guarded anyway, since a row arriving without a live engine would
   -- otherwise reach an engine call.
-  if sel.id == "unavailable" then return end
+  if sel.id == "unavailable" or sel.id == "waiting" then return end
   -- Answering a table is what pushes a level, so this returns the page rather than opening
   -- anything itself.
   if sel.id == "providers" then return buildProviderChild() end
@@ -609,9 +621,8 @@ end
 --- redraw is a plain callback the caller hands in for that one moment rather than this spoon
 --- reaching for whatever is showing these rows, which is the whole reason this spoon still
 --- names no launcher and no host. Unchanged by the migration, decision eight, this scope
---- stays exactly as is. The one placeholder row below waits on this query, so it is fromQuery,
---- and the matcher can never rank away the only row there is while the real list is still in
---- flight.
+--- stays exactly as is. While the locations are in flight the rows carry the waiting row, which
+--- is pinned, so the matcher can never rank away the only row there is.
 --- The provider page is deliberately not among these rows. A scope's own run door discards
 --- whatever select answers, so the one row whose entire job is to answer a child
 --- presentation would look live in the launcher and then do nothing at all when chosen. The
@@ -625,10 +636,6 @@ function M.scopeRows(rest, redraw)
   for i = #out, 1, -1 do
     local item = out[i].item
     if item and item.id == "providers" then table.remove(out, i) end
-  end
-  if #out == 0 and not M.ready() then
-    return { { title = "Reading the locations", subTitle = "one moment",
-               icon = "loading", enabled = false, fromQuery = true } }
   end
   return out
 end

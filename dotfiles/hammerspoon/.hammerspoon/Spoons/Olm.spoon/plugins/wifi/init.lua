@@ -251,7 +251,7 @@ local function rows()
   local device = iface()
   if not device then
     return { { title = "No Wi-Fi hardware", subTitle = "This Mac reports no wireless interface",
-               icon = "warn", enabled = false, item = { id = "none" } } }
+               icon = "warn", enabled = false, pinned = true, item = { id = "none" } } }
   end
 
   local current = readable(hs.wifi.currentNetwork(device))
@@ -267,7 +267,7 @@ local function rows()
     out[#out + 1] = { title = "Allow Location Services",
       subTitle = "macOS hides network names without it. If nothing asks, turn Hammerspoon on in " ..
                  "System Settings, Privacy and Security, Location Services",
-      icon = "locked", item = { id = "locate" } }
+      icon = "locked", pinned = true, item = { id = "locate" } }
     return out
   end
 
@@ -289,10 +289,10 @@ local function rows()
   if #list == 0 then
     if scanning or not scannedOnce then
       out[#out + 1] = { title = "Looking for networks", subTitle = "One moment",
-                        icon = "loading", enabled = false, item = { id = "none" } }
+                        icon = "loading", enabled = false, pinned = true, item = { id = "none" } }
     else
       out[#out + 1] = { title = "No other networks in range", icon = "network",
-                        enabled = false, item = { id = "none" } }
+                        enabled = false, pinned = true, item = { id = "none" } }
     end
   end
   return out
