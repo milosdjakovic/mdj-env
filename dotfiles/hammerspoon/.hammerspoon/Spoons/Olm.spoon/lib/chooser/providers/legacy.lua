@@ -285,7 +285,8 @@ end
 -- them, exactly as before the move.
 function Chooser:_build(query)
   local items = self.config.rows and self.config.rows(query) or {}
-  local ranked = rank.apply(items, query, self._matcher)
+  local ranked, reason = rank.apply(items, query, self._matcher, self._search)
+  if reason then print("Olm legacy provider, " .. reason) end
   local out = {}
   for i = 1, #ranked do
     out[i] = self:_toChoice(ranked[i])
@@ -1058,15 +1059,19 @@ function Chooser:rowCount()
 end
 
 --- Chooser:matcher() -> the current matching strategy, a function, false meaning the
---- supplier owns filtering, or nil meaning no matching, fronting self._matcher.
+--- supplier owns filtering, or nil meaning no matching, fronting self._matcher, and as a
+--- second answer the search beside it, see setMatcher.
 function Chooser:matcher()
-  return self._matcher
+  return self._matcher, self._search
 end
 
---- Chooser:setMatcher(m) -> sets the live matching strategy. false and nil are different
---- answers and both survive the round trip through self._matcher.
-function Chooser:setMatcher(m)
+--- Chooser:setMatcher(m, search) -> sets the live matching strategy. false and nil are
+--- different answers and both survive the round trip through self._matcher. search, optional,
+--- is how the rows are searched beside the strategy, { searchText, rowLimit } as
+--- lib/chooser/rank.lua's M.apply reads it, and nil clears it.
+function Chooser:setMatcher(m, search)
   self._matcher = m
+  self._search = search
 end
 
 --- Chooser:titleLineBreak() -> the truncation mode a title takes, fronting
@@ -1178,6 +1183,8 @@ function obj.new(config)
     -- contract freeze phase adds a matcher() accessor of its own, and a method cannot
     -- share a name with a plain field on the same table.
     _matcher = config.matcher,
+    -- How the rows are searched beside the strategy, searchText and rowLimit, see setMatcher.
+    _search = config.search,
     currentChoices = {},
     active = false,
     theme = FALLBACK.dark,

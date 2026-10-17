@@ -400,9 +400,16 @@ end
 -- underscore apply's own pcall never reached this, that pcall only wraps the model
 -- mutation and the notify call that reads this file's own rebuilt list happens after
 -- it returns, outside any guard field input.lua itself owns.
+--
+-- self._search is the presentation's searchText and rowLimit, handed over beside the matcher
+-- through setMatcher, so the rows drawn are the rows the search kept and a list of thousands
+-- styles only as many as its limit allows. A searchText that failed ranks nothing, and the
+-- reason is said here the way a consumer callback's failure is.
 function Provider:_rankedRows(query)
   local items = safeCall(self.config.rows, query) or {}
-  return rank.apply(items, query, self._matcher)
+  local ranked, reason = rank.apply(items, query, self._matcher, self._search)
+  if reason then print("Olm canvas provider, " .. reason) end
+  return ranked
 end
 
 -- Rebuilds self.listState from config.rows(query), ranked through
@@ -1141,15 +1148,18 @@ function Provider:settleDelay()
 end
 
 --- Provider colon matcher, arity zero. The current matching strategy, fronting
---- self._matcher.
+--- self._matcher, and as a second answer the search beside it, see setMatcher.
 function Provider:matcher()
-  return self._matcher
+  return self._matcher, self._search
 end
 
 --- Provider colon setMatcher, arity one. false and nil are different answers and both
---- survive the round trip through self._matcher.
-function Provider:setMatcher(m)
+--- survive the round trip through self._matcher. search, optional, is how the rows are
+--- searched beside the strategy, { searchText, rowLimit } as lib/chooser/rank.lua's M.apply
+--- reads it, and nil clears it, so a presentation declaring neither leaves nothing behind.
+function Provider:setMatcher(m, search)
   self._matcher = m
+  self._search = search
 end
 
 --- Provider colon titleLineBreak, arity zero. The truncation mode a title takes,
@@ -1280,6 +1290,7 @@ function M.new(config)
     _tokens = nil,
     _type = nil,
     _matcher = config.matcher,
+    _search = config.search,
     _paneWidth = nil,
     listState = listModel.newState({}, layout, ""),
     active = false,

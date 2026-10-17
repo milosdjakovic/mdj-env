@@ -91,6 +91,12 @@ obj._panelRows = nil
 obj._capturedItem = nil
 obj._capturedRow = nil
 obj._capturedQuery = nil
+-- The search the underlying presentation set beside its matcher, its searchText and rowLimit,
+-- taken off the instance while the panel is open and handed back on the way out. A searchText
+-- turns a typed query into what the tool's own rows are ranked by, a grammar the panel's verbs
+-- never speak, so leaving it on would rank Copy and Reveal by whatever that grammar made of the
+-- panel's query.
+obj._capturedSearch = nil
 -- The scheduler _choose below defers a verb's own restore and run through, defaulting to
 -- hs.timer.doAfter and settable directly on an instance, bypassing configure exactly the way
 -- a unit case sets _log directly, so a case can hand in a synchronous stand in, delay and fn
@@ -296,6 +302,7 @@ function obj:_close()
   self._capturedItem = nil
   self._capturedRow = nil
   self._capturedQuery = nil
+  self._capturedSearch = nil
 end
 
 -- The one place every way out of the panel ends, whichever of the four it is, choosing Back
@@ -335,7 +342,9 @@ function obj:_leave(instance, action)
   local capturedRow = self._capturedRow
   local capturedQuery = self._capturedQuery
   local capturedItem = self._capturedItem
+  local capturedSearch = self._capturedSearch
   self:_close()
+  if capturedSearch ~= nil then instance:setMatcher(instance:matcher(), capturedSearch) end
   instance:setQuery(capturedQuery)
   local defer = self._defer or hs.timer.doAfter
   defer(0, function()
@@ -555,6 +564,11 @@ function obj:toggle(contextName, hosted)
   self._capturedItem = instance:selectedItem()
   self._capturedRow = instance:selectedRow()
   self._capturedQuery = instance:query()
+  local matcher, search = instance:matcher()
+  if search ~= nil then
+    self._capturedSearch = search
+    instance:setMatcher(matcher, nil)
+  end
   self._panelRows = self:_buildRows(contextName, hosted)
   self._openInstance = instance
   instance:setQuery("")

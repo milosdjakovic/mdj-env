@@ -384,6 +384,12 @@ function obj.validatePresentation(name, identity, manifest, modules, deps)
     -- the only consumer anywhere, a canvas row offering no native right click handling of
     -- its own either.
     "onRightClick",
+    -- searchText, phase three of docs/PLAN-UNIFIED-SEARCH.md, the function that turns the
+    -- field's raw text into the text the shared search ranks by, for a tool whose field
+    -- carries its own grammar. A member spec like every other function here, so a value that
+    -- is not one, a string or a number, is refused by the same two lines, and a manifest never
+    -- holds a function itself.
+    "searchText",
   }
   local broken = false
   for _, field in ipairs(presentationFields) do
@@ -504,6 +510,18 @@ function obj.validatePresentation(name, identity, manifest, modules, deps)
       end
     end
   end
+  -- rowLimit, phase three of docs/PLAN-UNIFIED-SEARCH.md, the most rows the list shows that are
+  -- neither pinned nor fromQuery, cut after ranking by lib/chooser/rank.lua. A plain value like
+  -- rowCount and checked the same way, since zero, a fraction or a string would read as no
+  -- limit at runtime and the list of thousands it exists for would build every row in silence.
+  if p.rowLimit ~= nil and (type(p.rowLimit) ~= "number" or p.rowLimit < 1 or p.rowLimit % 1 ~= 0) then
+    broken = true
+    if deps.log then
+      deps.log("e", string.format(
+        "registrar refused '%s', its presentation.rowLimit is '%s', not a positive whole number",
+        name, tostring(p.rowLimit)))
+    end
+  end
   -- Rework rider, filesearch's own titleLineBreak restored. A fourth plain value field,
   -- the identical shape matcher just above takes, since host/stage writes it onto the live
   -- instance the same live way rather than resolving it once at construction. Only a type
@@ -579,6 +597,11 @@ function obj.validatePresentation(name, identity, manifest, modules, deps)
       -- titleLineBreak, the rework rider, carried through the identical way, a plain string
       -- or nil, host/stage writing it live rather than this file resolving anything.
       titleLineBreak = p.titleLineBreak,
+      -- searchText resolved the identical lazy way every member above is, and rowLimit carried
+      -- as the plain value the check above trusts, both written onto the live instance by
+      -- host/stage beside the matcher.
+      searchText = obj.action(modules, identity, name, p.searchText, nil),
+      rowLimit = p.rowLimit,
     }
     -- paneWidth, review finding M1. A member spec resolves once, right here, the identical
     -- moment and the identical reason placeholder does, since a plugin's own reservation
@@ -716,6 +739,12 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
     if admit then
       scope = {
         matcher = s.matcher,
+        -- searchText and rowLimit, phase three of docs/PLAN-UNIFIED-SEARCH.md, the same two a
+        -- presentation declares. searchText is a member spec resolved like rows, with no redraw
+        -- handed on, since it answers text and never draws, and rowLimit a plain value.
+        -- host/queryscope refuses a scope carrying either in a wrong shape.
+        searchText = obj.action(modules, identity, name, s.searchText, nil),
+        rowLimit = s.rowLimit,
         rows = obj.action(modules, identity, name, s.rows, deps.redraw),
         run = obj.action(modules, identity, name, s.run, deps.redraw),
         peek = obj.action(modules, identity, name, s.peek, deps.redraw),
@@ -1033,6 +1062,8 @@ function obj.scopeSpec(plan, registry, names, meta)
         iconOwner = identity,
         aliases = aliases,
         matcher = scope.matcher,
+        searchText = scope.searchText,
+        rowLimit = scope.rowLimit,
         rows = scope.rows,
         run = scope.run,
         peek = scope.peek,

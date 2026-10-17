@@ -1177,8 +1177,9 @@ shorter name and fewer pieces winning. There is no relevance floor, since its on
 scattered matches. A query word with no letter or digit, an ampersand or a plus sign, is a plain
 substring anywhere in the row and adds no level, so date & time and 2 + 3 still match, and a word
 starting with symbols, $5, matches on its word part with the symbols somewhere in the row. Past 256 bytes a field matches a word only at a word start or inside a word, its
-best occurrence, over a lowered copy `match.lua` keeps in a bounded memo, which costs about what
-`words` costs and is what lets `words` retire. A row always shows the subtitle its supplier gave,
+best occurrence, over a lowered copy `match.lua` keeps in a memo of two generations bounded by
+entries rather than bytes, so a clipboard history of fourteen megabytes is lowered once and not
+on every key, which costs about twice what `words` costs and is what lets `words` retire. A row always shows the subtitle its supplier gave,
 whatever it matched through. The measurements are in
 `decisions/olm-unified-search.md`.
 
@@ -1194,7 +1195,12 @@ a list of strings it declares without showing, where a comma ends a phrase. `fil
 row sets it, replaces the name and turns the subtitle off, which is how a launcher row whose
 subtitle is a category, a status and a chord says so, and a menu item names itself by its
 title and declares its parents as keywords, so its parents stay searchable and no match runs
-from the title into a parent. Description prose is never a search term. The full statement is at the head of `rank.lua`. On an empty
+from the title into a parent. Description prose is never a search term. `names`, a list of
+strings a row declares and never shows, a tab's host and address or a clipboard entry's body,
+are further names matched at the name levels exactly like the title, or like filterText when the
+row sets it. Each word takes its best level across the title and the names, so github pull finds
+a tab titled Pull request on github.com, but one word never spans two names, and the best is
+taken rather than a sum, so more names never lift a row. The full statement is at the head of `rank.lua`. On an empty
 query the atom skips scoring and keeps the supplier's order, which is what makes the
 launcher's recency order and the VPN action row survive until the user types.
 
@@ -1215,7 +1221,16 @@ match. A row made from what was typed, a calculator or conversion result, a wind
 scope's already filtered rows, sets `fromQuery = true` and leads under a typed query. Neither
 kind is ever scored or dropped, and a row setting both is fromQuery. `tier`, a number where smaller sorts first, and `bonus`, a number from
 zero to one that only orders rows the matcher calls equally good, are the other two fields the
-vocabulary added, and `rank.lua` states all of them. The DisplayProfiles, Workspaces and
+vocabulary added, and `rank.lua` states all of them. A presentation, or a scope through
+`registry.scope`, may declare two more beside its matcher, and the stage writes them onto the
+instance with it before every show. `searchText`, a member spec resolving to a function from the
+raw field text to the text the engine ranks by, keeps a field's own grammar in its plugin, so
+FileSearch can rank ~/dev .js foo by foo, and an empty answer keeps the supplier's order like an
+empty query. `rowLimit`, a positive whole number, cuts the rows that are neither pinned nor
+fromQuery after ranking, since the provider styles every row it is handed, at about 17
+microseconds an `hs.styledtext`, so the emoji set's 5648 rows would cost about 190 milliseconds a
+keystroke. The action panel takes the search off the instance while it is open, since its verbs
+do not speak a tool's grammar. The DisplayProfiles, Workspaces and
 TmuxSessions lists and the settings page all inherit now, and the query scope and launcher
 query rows mark what a scope hands over as fromQuery. The emoji picker, the clipboard, FileSearch,
 BrowserTabs tabs and the launcher itself still rank their own query, each behind its own

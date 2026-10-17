@@ -151,10 +151,14 @@ fields on the provider's private struct.
 `matcher()` arity 0, answers the current matching strategy, a `match(query, hay)` function,
 or `false` meaning the supplier owns filtering, or nil meaning no matching. The action panel
 reads this live inside its own wrapped `rows` closure, because `decorate` runs once at the
-shared instance's single construction, long before any presentation exists to capture.
+shared instance's single construction, long before any presentation exists to capture. Its
+second answer is the search set beside the strategy, see `setMatcher`.
 
-`setMatcher(m)` arity 1, answers nothing. `false` and nil are different answers and both
-must survive the round trip.
+`setMatcher(m, search)` arity 1, answers nothing. `false` and nil are different answers and both
+must survive the round trip. `search`, optional since phase three of the unified search, is the
+presentation's `{ searchText, rowLimit }`, handed to `lib/chooser/rank.lua`'s `apply` with the
+strategy on every rank, and nil clears it. The stage writes both together before every show, so
+a presentation declaring neither leaves nothing of the one before it behind.
 
 `titleLineBreak()` arity 0, answers the truncation mode a title takes, `truncateTail` or
 `truncateMiddle`. Subtitles are always cut at the tail.

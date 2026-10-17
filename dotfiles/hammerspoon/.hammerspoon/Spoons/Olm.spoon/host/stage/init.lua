@@ -477,7 +477,10 @@ function obj:_show(p, wasShowing, outgoing)
   -- tool that never asks for anything unusual keeps behaving exactly as it did before this
   -- field existed. Written through setMatcher() now, the same accessor rename that also
   -- closed the equivalent reach for the pane width just above.
-  self._instance:setMatcher(self:_resolveMatcher(p.matcher))
+  -- searchText and rowLimit, phase three of docs/PLAN-UNIFIED-SEARCH.md, travel beside the
+  -- matcher in the same write, so a presentation declaring neither clears what the one before
+  -- it declared rather than inheriting it.
+  self._instance:setMatcher(self:_resolveMatcher(p.matcher), self:_searchOf(p))
   -- Rework rider, filesearch's own titleLineBreak restored. Written before every show, cold
   -- or swap alike, the identical placement the matcher just above keeps, since a swap's own
   -- refresh(true) rebuilds every row's styling live off titleLineBreak exactly the way it
@@ -863,20 +866,21 @@ function obj:_shownIndexWhere(match)
     return nil
   end
   rows = rows or {}
-  if query ~= "" then
-    local matcher = self._instance:matcher()
-    local rank = self._chooser and self._chooser.rank
-    if rank and rank.apply then
-      local ranked
-      ok, ranked = pcall(rank.apply, rows, query, matcher)
-      if not ok then
-        log.e("Stage could not rank the rows to hold the highlight, " .. tostring(ranked))
-        return nil
-      end
-      rows = ranked
-    elseif type(matcher) == "function" then
+  -- The search beside the matcher is read too, since a searchText decides what the rows are
+  -- ranked by and a rowLimit which rows are shown at all, an empty field included, so a row
+  -- past the limit is not on screen and must not be found here.
+  local matcher, search = self._instance:matcher()
+  local rank = self._chooser and self._chooser.rank
+  if rank and rank.apply then
+    local ranked
+    ok, ranked = pcall(rank.apply, rows, query, matcher, search)
+    if not ok then
+      log.e("Stage could not rank the rows to hold the highlight, " .. tostring(ranked))
       return nil
     end
+    rows = ranked
+  elseif query ~= "" and type(matcher) == "function" then
+    return nil
   end
   for index, row in ipairs(rows) do
     local item = type(row) == "table" and row.item or nil
@@ -1094,6 +1098,16 @@ function obj:_resolveMatcher(matcher)
     if fn then return fn end
   end
   return self._defaultMatcher
+end
+
+-- How a presentation asks its rows to be searched beside the matcher, its searchText and its
+-- rowLimit, as the table lib/chooser/rank.lua's M.apply reads, or nil when it declares neither.
+-- A registered presentation's searchText is already the function the registrar resolved, and
+-- a child presentation hands its own function, so both are read the same way here. A value
+-- of the wrong type is passed along as it is, since the engine reads it as absent.
+function obj:_searchOf(p)
+  if p.searchText == nil and p.rowLimit == nil then return nil end
+  return { searchText = p.searchText, rowLimit = p.rowLimit }
 end
 
 --- Stage:paneAnchor(chooserFrame, companionFrame) -> table

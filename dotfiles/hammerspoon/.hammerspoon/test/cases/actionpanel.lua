@@ -858,3 +858,23 @@ do
     ap:decoratedCount() == 2
   )
 end
+
+-- A presentation's search, its searchText and rowLimit, is taken off the instance while the
+-- panel is open, so the panel's verbs are never ranked by the tool's own grammar, and handed
+-- back unchanged on the way out with the matcher left as it was.
+do
+  local ap = configuredPanel({ demo = { { action = "copy", title = "Copy" } } })
+  ap._defer = function(_, fn) fn() end
+  local config = fakeConfig()
+  local strategy = function() return 0 end
+  local search = { searchText = function(t) return t end, rowLimit = 5 }
+  local instance = fakeInstance({ showing = true })
+  local liveMatcher, liveSearch = strategy, search
+  instance.matcher = function() return liveMatcher, liveSearch end
+  instance.setMatcher = function(_, m, s) liveMatcher, liveSearch = m, s end
+  ap:decorate(instance, config)
+  ap:toggle("demo")
+  check("opening the panel clears the presentation's search", liveSearch == nil and liveMatcher == strategy)
+  ap:toggle("demo")
+  check("leaving the panel hands the same search back", liveSearch == search and liveMatcher == strategy)
+end

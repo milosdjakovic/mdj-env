@@ -109,27 +109,34 @@ local LONG = 256
 -- keyed by the body itself. Lua does not intern a long string, but it computes a long
 -- string's hash once and keeps it in the string, and a lookup compares the very string the
 -- row already holds by identity before it would compare bytes, so finding the copy again is
--- cheap. The memo holds the body as its key as well as the copy, which keeps a body alive
--- after its row is gone, so both are counted against FOLD_BUDGET and the memo starts over
--- when it fills. That makes FOLD_BUDGET the real bound on what the memo holds, bodies and
--- copies together, and a list larger than it degrades to lowering per call, still correct.
+-- cheap.
+--
+-- The memo is two generations bounded by how many bodies each holds, not by their bytes. A
+-- byte budget, eight megabytes until 2026-10-17, thrashed on a real clipboard history, a
+-- thousand bodies with a long tail coming to fourteen megabytes, since every keystroke lowered
+-- the whole list again once the budget was passed and a keystroke cost fifteen times the words
+-- strategy, decisions/olm-unified-search.md. What a list asks is what it needs, so the bound
+-- is a count generous enough for the longest list, FOLD_LIMIT bodies a generation. When the
+-- current generation fills it becomes the previous one and a body found there moves back to
+-- the current one, so a body every keystroke asks is never lowered again, and a body no list
+-- asks any more is gone after two turns. The copies cost what the bodies cost, which is what
+-- the clipboard's own lowered cache held for the words strategy before.
 --
 -- A Lua pattern with a class of both cases per letter would avoid the copy altogether, and
 -- was measured and rejected on 2026-10-17, decisions/olm-unified-search.md. The pattern
 -- matcher steps through the body a byte at a time in Lua's own matcher, where a plain find
 -- is a C level scan, and it came out four times slower than lowering on every call.
-local FOLD_BUDGET = 8 * 1024 * 1024
-local folded, foldedBytes = {}, 0
+local FOLD_LIMIT = 4096
+local folded, foldedOld, foldedCount = {}, {}, 0
 local function lowered(hay)
   local low = folded[hay]
   if low then return low end
-  low = hay:lower()
-  local cost = #hay + #low
-  foldedBytes = foldedBytes + cost
-  if foldedBytes > FOLD_BUDGET then
-    folded, foldedBytes = {}, cost
+  low = foldedOld[hay] or hay:lower()
+  if foldedCount >= FOLD_LIMIT then
+    foldedOld, folded, foldedCount = folded, {}, 0
   end
   folded[hay] = low
+  foldedCount = foldedCount + 1
   return low
 end
 
@@ -386,10 +393,27 @@ local function longField(w, s, low, allowInside)
   local function scored(pos, bonus)
     return math.min(pos - 1, LONG) * GAP_LEAD + pieceScore(bonus, n)
   end
+  local find, byte = string.find, string.byte
   while true do
-    local pos = low:find(w, init, true)
+    local pos = find(low, w, init, true)
     if not pos then break end
-    local bonus = startBonus(s, pos, wordByteAt)
+    -- A word with no word start in a long body tries every occurrence, so the common case,
+    -- an ASCII byte before an ASCII byte, is answered here without the general check. The
+    -- byte at pos is a word byte, since a query word's core starts with one.
+    local bonus
+    local prev = pos > 1 and byte(s, pos - 1) or nil
+    local here = byte(s, pos)
+    if prev and prev < 128 and here < 128 then
+      if not ALNUM[prev] then
+        bonus = BOUND
+      elseif isLower(prev) and isUpper(here) then
+        bonus = CAMEL
+      else
+        bonus = 0
+      end
+    else
+      bonus = startBonus(s, pos, wordByteAt)
+    end
     if bonus > 0 then return true, scored(pos, bonus), pos end
     first = first or pos
     init = pos + 1
@@ -430,6 +454,28 @@ local function matchName(w, name)
     if s then return LEVEL.nameInside, s end
   end
   return nil
+end
+
+-- One lowered word against the name and the row's further names, its best level and, at that
+-- level, its best score, or nil. Each name is matched alone, so a word never spans two names and
+-- pieces stay inside one. The best is taken and never a sum, which is what keeps a row with more
+-- names from scoring above an equal row with fewer. A name that matches no better than the ones
+-- before it changes nothing, and every name is bounded exactly as the title is, so the spread
+-- the step is derived from holds whatever the number of names.
+local function matchNames(w, name, names)
+  local level, score = matchName(w, name)
+  if names then
+    for i = 1, #names do
+      local n = names[i]
+      if type(n) == "string" then
+        local l, sc = matchName(w, n)
+        if l and (level == nil or l > level or (l == level and sc > score)) then
+          level, score = l, sc
+        end
+      end
+    end
+  end
+  return level, score
 end
 
 -- A phrase typed run together, the lowered word a prefix of a declared phrase with its spaces
@@ -502,9 +548,13 @@ local function inOnePhrase(cores, secondary)
 end
 
 -- Whether a field holds the lowered text t anywhere, for the symbol part of a query word.
-local function holds(t, name, secondary)
-  if name and name ~= "" and ((#name > LONG) and lowered(name) or prepare(name).low):find(t, 1, true) then
-    return true
+local function holdsIn(t, text)
+  return text ~= "" and ((#text > LONG) and lowered(text) or prepare(text).low):find(t, 1, true) ~= nil
+end
+local function holds(t, name, names, secondary)
+  if name and holdsIn(t, name) then return true end
+  for _, n in ipairs(names or {}) do
+    if type(n) == "string" and holdsIn(t, n) then return true end
   end
   for _, f in ipairs(secondary or {}) do
     local text = f.text
@@ -520,9 +570,16 @@ end
 --- The one search, docs/PLAN-UNIFIED-SEARCH.md phase one, as Milos settled it on 2026-10-17
 --- after the live test and the review that followed. A row has a primary field, its name, and
 --- secondary fields, the text it shows or declares on purpose. fields is { primary = string,
---- secondary = { { text, declared }, ... } } as lib/chooser/rank.lua builds it. Without fields,
---- hay is the name and there is nothing secondary, which is how a plugin scoring its own
---- strings calls it.
+--- names = { string, ... } or nil, secondary = { { text, declared }, ... } } as
+--- lib/chooser/rank.lua builds it. Without fields, hay is the name and there is nothing
+--- secondary, which is how a plugin scoring its own strings calls it.
+---
+--- names are further names of the row, a tab's host and address beside its title, a clipboard
+--- entry's body, matched at levels A to D exactly like the primary. Each word takes its best
+--- level, and at that level its best score, across the primary and the names, so github pull
+--- finds a tab titled Pull request on github.com with each word in a different name, while one
+--- word never spans two names and pieces stay inside one. The best is taken, never a sum, so a
+--- row never scores higher for having more names than an equal row with fewer.
 ---
 --- A word never matches across fields. Each query word, lowered, matches at the strongest of
 --- five levels.
@@ -565,6 +622,7 @@ end
 --- spread cannot be read back out of within without restating the spread here.
 function M.fuzzy(query, hay, fields)
   local name = fields and fields.primary or hay
+  local names = fields and fields.names
   local secondary = fields and fields.secondary
   local level, within, spread, atStart = 0, 0, 0, true
   local any, cores = false, {}
@@ -574,10 +632,10 @@ function M.fuzzy(query, hay, fields)
     local core = word:sub(#lead + 1)
     if core == "" then
       -- No letter or digit at all, a plain substring anywhere in the row.
-      if not holds(word, name, secondary) then return nil end
+      if not holds(word, name, names, secondary) then return nil end
     else
-      if lead ~= "" and not holds(lead, name, secondary) then return nil end
-      local wordLevel, score = matchName(core, name)
+      if lead ~= "" and not holds(lead, name, names, secondary) then return nil end
+      local wordLevel, score = matchNames(core, name, names)
       if not wordLevel then
         score = matchDeclared(core, secondary)
         if not score then return nil end

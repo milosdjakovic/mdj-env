@@ -142,7 +142,14 @@ a model to copy. A row that always shows comes in two kinds, and neither fakes a
 a capture or new snapshot row, Apply now, which keeps its place on an empty query and trails the
 matches under a typed one, so Enter takes the best match. `fromQuery = true` is a row made from
 what was typed, a calculator answer, a conversion, a scope's already filtered rows, which leads
-under a typed query. `tier` and `bonus` order rows without changing what matches. A false matcher on a long list shows an unfiltered list and nothing
+under a typed query. `tier` and `bonus` order rows without changing what matches. A row with
+further names a person might type, a tab's host and address or a clipboard entry's body, lists
+them in `names`, never in the title or keywords, since names match at the title's levels and
+keywords below them. A field that carries its own grammar, a root, an extension or a kind before
+the word, declares `searchText` on the presentation or scope, a member answering the text to
+rank by, so the grammar stays in the plugin and the search stays shared, never a hand filter. A
+list of thousands declares `rowLimit` and hands the engine every row, never capping in the
+supplier, since a cap there cuts before ranking. A false matcher on a long list shows an unfiltered list and nothing
 notices.
 
 The placeholder names the list, never a key, and no user visible text anywhere names a

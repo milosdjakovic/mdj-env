@@ -124,8 +124,24 @@ row made from what was typed, a calculator answer or a conversion, sets `fromQue
 leads under a typed query. Neither is ever scored or dropped. A row whose subtitle is a status,
 a count or a sentence sets `filterText` to its title, so the subtitle is not searched. A row may also set
 `tier`, a number where smaller sorts first among ranked rows, and `bonus`, a number from zero to
-one that only breaks a tie between equally good matches, both read from `rank.lua`. Beware that `surface.matcher` is a different question, which strategy gets injected
+one that only breaks a tie between equally good matches, both read from `rank.lua`. A row with
+more than one name a person might type, a tab's title, host and address, or a clipboard entry's
+body, lists the extra ones in `names`, a list of strings never shown, each matched like the title.
+A word takes its best name, never spans two, and more names never lift a row. Beware that `surface.matcher` is a different question, which strategy gets injected
 into your code, and this one is whether the widget itself filters.
+
+`searchText` is a member spec, called with the raw text of the field, answering the text the
+shared search ranks by. Declare it when your field carries a grammar of its own, a root and an
+extension before the word as FileSearch does, a kind before the word as the clipboard does, and
+keep the grammar in your plugin. Your supplier still gets the raw text, so it can read the root
+or the kind itself. An empty answer ranks nothing and keeps your order, the same as an empty
+field, and an answer that raises does the same with a console line. A scope declares it the same
+way under `registry.scope`.
+
+`rowLimit` is a positive whole number, the most rows your list shows that are neither pinned nor
+fromQuery, kept after ranking so the best ones survive. Declare it for a list of thousands, since
+the provider styles every row it is handed, and hand the engine every row rather than capping in
+your supplier, where a cap would cut rows before they were ranked.
 
 `enter` is a member handed one function, `proceed`, called in place of showing you
 immediately. Use it when your first row is meaningless before an async gather lands, as

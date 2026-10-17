@@ -84,6 +84,12 @@ local function admissible(s)
   if s.act ~= nil and type(s.act) ~= "function" then
     return reject(label .. " has an act that is not a function")
   end
+  if s.searchText ~= nil and type(s.searchText) ~= "function" then
+    return reject(label .. " has a searchText that is not a function")
+  end
+  if s.rowLimit ~= nil and (type(s.rowLimit) ~= "number" or s.rowLimit < 1 or s.rowLimit % 1 ~= 0) then
+    return reject(label .. " has a rowLimit that is not a positive whole number")
+  end
   if type(s.aliases) ~= "table" or #s.aliases == 0 then return reject(label .. " has no aliases") end
   return true
 end
@@ -214,11 +220,21 @@ end
 -- Skipped for a scope that opted out and for an empty query, where the scope's natural order
 -- is what it means. The ranking itself is the presenter's own engine, handed over as rank, so a
 -- list shaped scope orders exactly like every other list and keeps no loop of its own.
+--
+-- A scope declares searchText and rowLimit the way a presentation does, through registry.scope,
+-- so a scope over the same rows as a list ranks by the same text and keeps the same number of
+-- rows. A searchText that failed ranks nothing and is said in the console.
 function obj:_filter(scope, rest, rows)
   local matcher = scope.matcher
   if matcher == nil then matcher = self._matcher end
   if not self._rank then return rows end
-  return self._rank.apply(rows, rest, matcher)
+  local search
+  if scope.searchText ~= nil or scope.rowLimit ~= nil then
+    search = { searchText = scope.searchText, rowLimit = scope.rowLimit }
+  end
+  local ranked, reason = self._rank.apply(rows, rest, matcher, search)
+  if reason then hs.printf("QueryScope: scope %s, %s", tostring(scope.name), reason) end
+  return ranked
 end
 
 -- The fields that give a row a scope's own identity icon, for a row that names none and for the

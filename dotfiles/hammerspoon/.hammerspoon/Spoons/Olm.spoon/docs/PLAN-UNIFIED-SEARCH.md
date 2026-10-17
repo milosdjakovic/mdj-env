@@ -64,7 +64,7 @@ Plugins declare these, and only core applies them.
    task, never a title word, never a generic word, never a sentence, as the olm-plugin skill and
    PLUGIN-AUTHORING.md state. A description sentence is never a search term, since prose
    matches words nobody meant, set listing Wi-Fi through "see the current network". A row with several names of equal weight, a tab's title, host
-   and address, is phase two.
+   and address, declares the extra ones in `names`, built in phase three packet one.
 2. Pinned rows that are never ranked or dropped. These are Back, Settings, Capture current
    arrangement, New snapshot and create note.
 3. Rows that are the query itself and always survive. These are the calculator, convert,
@@ -140,7 +140,23 @@ the moved lists search a status or prose subtitle no more, filterText being the 
 The lists with their own scoring move onto the engine. They are browsertabs tabs, obsidian,
 emoji, clipboard, filesearch and processes.
 
-**Done.**
+Milos decided on 2026-10-17 that recency and use history only order matches of the same level,
+so the clipboard's newest first and Obsidian's remembered notes first are overruled, that
+Processes rank by match first with the group only ordering equal matches, and that the phase is
+one branch, `olm/search-lists`, with one live round.
+
+**Packet one done**, 2026-10-17, the vocabulary the lists need. A row's `names`, further names
+never shown, matched at the name levels, each word taking its best name and never spanning two,
+the best taken and never a sum. A presentation's or a scope's `searchText`, the function turning
+a field's own grammar into the text ranked by, and `rowLimit`, the most unkept rows shown, cut
+after ranking, since the default provider styles every row it is handed at about 17
+microseconds an `hs.styledtext`. The stage writes both beside the matcher, the providers, the
+stage's highlight hold and the query scope rank with them, and the action panel takes them off
+while it is open. The lowered memo is bounded by entries rather than bytes, since a real
+clipboard history thrashed the byte budget.
+
+**Packet two to come**, moving BrowserTabs tabs, emoji, Obsidian, Processes, the clipboard and
+FileSearch onto the engine with these fields and deleting their own scoring.
 
 ### Phase 4, the launcher and the gate
 

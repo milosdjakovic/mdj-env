@@ -21,8 +21,8 @@ match and no relevance floor. A word with no letter or digit is a plain substrin
 level. Every word is required and the scores add. A row shows the subtitle its supplier gave.
 
 Plugins declare a row vocabulary and only core applies it. Today that is `title`, `subTitle`,
-`keywords` and `filterText`, stated at the head of `rank.lua`. Phase two adds several names per
-row, pinned rows, query rows, tiers and a bounded bonus.
+`keywords`, `filterText`, `names`, `pinned`, `fromQuery`, `tier` and `bonus` on a row, and
+`searchText` and `rowLimit` on a presentation or a scope, stated at the head of `rank.lua`.
 
 ## Rejected
 
@@ -90,6 +90,16 @@ row, pinned rows, query rows, tiers and a bounded bonus.
   match. Typing work in Workspaces and pressing Enter opened New snapshot, and typing clip on the
   settings Plugins page popped Back. Replaced by `pinned`, which trails under a typed query, and
   `fromQuery`, which leads.
+
+- **A lowered memo bounded at eight megabytes of bodies and copies.** 2026-10-17, built in phase
+  one and replaced in phase three packet one. A clipboard history of a thousand bodies with a
+  long tail came to fourteen megabytes, twice the budget with the copies, so the memo started
+  over inside every keystroke and lowered the whole history again, 21 to 27 milliseconds a
+  keystroke against 1.4 to 7.3 for the words strategy. Replaced by two generations bounded by
+  entries.
+- **Capping a long list in its supplier.** 2026-10-17. The emoji supplier keeps 100 rows before
+  any ranking the shared search could do, so the cap decides which rows can be found first. A
+  list of thousands hands the engine every row and declares `rowLimit`, which cuts after ranking.
 
 ## Log
 
@@ -519,3 +529,92 @@ settings door and providers now search the title alone. The settings row constru
 filterText parameter to pinned in 39ccf34, so the Plugins page searched the state words under
 each plugin, and it carries filterText again with pinned set by a small helper. A tmux window's
 session subtitle stays searchable, since it is what the row is.
+
+### 2026-10-17 18:33, phase three packet one, names, searchText, rowLimit and the memo
+
+Milos decided three things for phase three before it started. Recency and use history only
+order matches of the same level, so the clipboard's newest first and Obsidian's remembered
+notes first are overruled and both feed the bounded bonus. Processes rank by match first, and
+the group only orders equal matches. The phase is one branch, `olm/search-lists`, with one live
+round.
+
+Packet one builds what the six lists need, on `olm/search-lists` from main at 3c9b629.
+
+`names`, a row field, a list of strings never shown. Each is matched at name levels A to D
+exactly like the title, or like filterText when the row sets it, since names add to the primary.
+Each query word takes its best level across the primary and the names and, at that level, its
+best score, then the words add as before. So github pull finds a tab titled Pull request whose
+host is github.com, while one word never spans two names and pieces stay inside one. The combine
+rule is the maximum per word and never a sum, so an extra name that matches no better changes
+nothing and a row never scores higher for having more names than an equal row with fewer. Every
+name is bounded exactly as the title is, a long one by the 256 byte rule, so the spread the step
+is derived from holds whatever the number of names. The phrase bonus is unchanged. A one string
+strategy, words or substring, never sees names, since joining a body of megabytes into one
+string on every key is the cost the shared search exists to avoid.
+
+`searchText`, a presentation field, a member spec resolving to a function from the raw field
+text to the text the engine ranks by. A scope declares it the same way under `registry.scope`.
+An empty answer, or one of spaces only, keeps the supplier's order, the same as an empty query,
+and an answer that raises or is not a string does the same with a console line. The supplier
+still gets the raw text. The registrar refuses anything but a member spec resolving to a
+function, through the same loop every presentation member goes through, and host/queryscope
+refuses a scope's that is not a function.
+
+`rowLimit`, a presentation and scope field, a positive whole number, the most rows shown that
+are neither pinned nor fromQuery, cut after `rank.apply` places the kept rows, never cutting a
+pinned or fromQuery row, on an empty query too. It was needed. The default provider's list
+model and its render are bounded to the visible window, `visibleRows` answers ten rows and an
+icon is resolved only at paint, but `_rebuildList` styles every ranked row through
+`hs.styledtext.new`, title and subtitle, and the legacy provider draws an icon for every row. A
+plain Lua build of the 5648 emoji rows through rank, the style step with a stand in and the
+model measured the Lua side at 0.06 milliseconds to rank an empty query, 10 to 15 for a typed
+one, 2.7 to copy every row and 0.04 for the model. `hs.styledtext.new` measured 16.8
+microseconds a call over 2000 calls inside the running Hammerspoon, so an empty emoji query
+would cost about 190 milliseconds of styling a keystroke and s, matching 2759 rows, about 93.
+
+Both travel beside the matcher. The stage hands them to `setMatcher` as a second argument before
+every show, so a presentation declaring neither clears them, and `matcher()` answers them as a
+second value. The default and legacy providers rank with them, the stage's highlight hold ranks
+with them on an empty field too so it never finds a row the limit cut, and the query scope ranks
+a scope's rows with the scope's own. The action panel ranks only its own rows and takes the
+search off the instance while it is open, since its verbs do not speak a tool's grammar, and
+hands it back as it leaves. The picker contract keeps its names and arities.
+
+The memo. The eight megabyte budget thrashed, see Rejected. The memo is now two generations of
+at most 4096 lowered bodies each, a body found in the older one moving back to the current, so
+the live set is never lowered again after the first keystroke and a body no list asks is gone
+after two turns. A word with no word start in a long body tries every occurrence, and that loop
+now answers the common ASCII case inline. Measured by `Spoons/Olm.spoon/test/search-timing.lua`
+over a thousand bodies, 89 percent of 80 to 980 bytes, 10 percent of 4 to 64 kilobytes and 1
+percent of about a megabyte, 14 megabytes in all, a keystroke after the first, in milliseconds.
+
+| query | words | fuzzy, old memo | fuzzy, now |
+|---|---|---|---|
+| c | 1.5 | 21.9 | 3.1 |
+| cho | 1.4 | 21.6 | 3.9 |
+| chooser | 1.5 | 23.1 | 3.2 |
+| settings | 7.0 | 27.0 | 8.3 |
+| hello there | 6.4 | 26.5 | 8.1 |
+| zebra | 1.8 | 21.0 | 2.9 |
+| quick fox | 1.6 | 21.8 | 4.2 |
+| ump | 1.5 | 46.7 | 20.0 |
+
+The old column was measured with each body as the row's name, the same path a name takes. Every
+query but one is within about twice to under three times the words strategy. ump is the one
+outlier, a word that sits only inside words, so every occurrence is tried for a word start
+before the first is kept, the best occurrence rule phase one decided, which this synthetic text
+makes dense since jumps is one word in twenty. The first keystroke over the history costs 48
+milliseconds while every body is lowered and every short one prepared, where the clipboard's own
+lowering of the same bodies took 20. No body is truncated.
+
+Cases in `test/cases/searchfields.lua`, `test/cases/stage-search.lua` and a block in
+`test/cases/actionpanel.lua`. Every mutation tried failed at least one case. Summing names
+instead of taking the best failed 2, ignoring names 10, joining names into one 2, dropping names
+under filterText 2, not applying searchText 1, ranking an empty answer 4, the registrar taking
+any searchText 4 and any rowLimit 4, the limit cutting kept rows 2, the limit not applied after
+ranking 2, the stage passing no search 7, the hold ignoring it 2, the provider ignoring it 5, the
+scope ignoring it 1, the scope admitting any searchText 1, the panel leaving the search on 1 and
+never restoring it 1. A default limit for rows setting nothing failed the unchanged order case in
+`test/cases/rankvocabulary.lua`, which with a new case over an empty search proves rows and
+searches setting none of the new fields rank exactly as before.
+

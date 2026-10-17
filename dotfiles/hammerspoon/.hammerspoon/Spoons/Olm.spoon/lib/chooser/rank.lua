@@ -35,6 +35,16 @@ local M = {}
 -- declares its parents as keywords, and a row setting it empty never matches by its name.
 -- keywords are searched either way. Prose is never a search term, a description sentence
 -- matches words nobody meant.
+-- names is a list of strings, further names of the row that are never shown, a tab's host and
+-- address beside its title, a clipboard entry's body, settled 2026-10-17 for phase three. Each
+-- is matched at the name levels A to D exactly like the title, or like filterText when the row
+-- sets it, since names add to the primary rather than replace it. Each query word takes its
+-- best level across the primary and the names, so two words may land in two names, but one
+-- word never spans two names and pieces stay inside one. The best is taken and never a sum, so
+-- a row never scores higher for having more names than an equal row with fewer. A long name
+-- follows the 256 byte rule in lib/chooser/match.lua. A strategy that reads one string, words
+-- or substring, never sees names, since joining a body of megabytes into one string on every
+-- key is the cost the shared search exists to avoid.
 --
 -- Four fields say where a row goes rather than what it answers to, settled 2026-10-17 for
 -- phase two. A field of the wrong type is read as absent.
@@ -55,6 +65,11 @@ local M = {}
 -- matcher calls equally good, the same tier, the same level sum and the same phrase bonus,
 -- and there it leads before where a word landed. It never lifts a row over a better match,
 -- which is what makes it safe to feed from recency or frecency.
+--
+-- Two more belong to the list rather than to a row, settled 2026-10-17 for phase three, and
+-- reach M.apply as its search argument, see searchTextOf below. searchText turns the raw field
+-- text into the text ranked by, so a field's own grammar stays in its plugin, and rowLimit cuts
+-- the rows that are neither pinned nor fromQuery after ranking, for a list of thousands.
 
 -- tier and bonus as M.before reads them, a wrong type being the default. A NaN fails both
 -- comparisons below and so reads as the default too, since it would break the sort's order.
@@ -83,9 +98,13 @@ end
 M.haystackOf = haystackOf
 
 -- The fields the shared search reads for a row, the vocabulary above as one table,
--- { primary, secondary = { { text, declared }, ... } }, declared marking keywords, which also
--- answer a phrase typed run together where the subtitle does not.
+-- { primary, names, secondary = { { text, declared }, ... } }, declared marking keywords,
+-- which also answer a phrase typed run together where the subtitle does not. names is the
+-- row's own list handed over as it is, never copied, since a clipboard body in it can run to
+-- megabytes and this runs for every row on every key. The search skips an entry that is not
+-- a string.
 local function fieldsOf(it)
+  local names = type(it.names) == "table" and it.names or nil
   local secondary = {}
   local primary = it.filterText
   if primary == nil then
@@ -101,7 +120,7 @@ local function fieldsOf(it)
       if type(k) == "string" and k ~= "" then secondary[#secondary + 1] = { text = k, declared = true } end
     end
   end
-  return { primary = type(primary) == "string" and primary or "", secondary = secondary }
+  return { primary = type(primary) == "string" and primary or "", names = names, secondary = secondary }
 end
 
 --- M.fieldsOf(item) -> the fields the shared search reads for one row.
@@ -178,21 +197,85 @@ function M.before(a, b)
   return a.idx < b.idx
 end
 
---- M.apply(items, query, matcher) -> a new list, the ranked items.
---- With matcher a function and query not empty, this owns filtering. The fromQuery rows and
---- the pinned rows are set aside, every other candidate is scored through M.score, a nil score
---- drops it, and the survivors are sorted by M.before. The answer is the fromQuery rows, the
---- ranked rows, then the pinned rows, each kept group in the supplier's order. With no matcher,
---- an empty query, or matcher set to false, every candidate is kept in the order the supplier
---- gave them, whatever it sets, since false means the supplier already owns its own filtering
---- and an empty query has nothing yet to score against.
-function M.apply(items, query, matcher)
-  if type(matcher) ~= "function" or query == "" then
-    local out = {}
-    for i = 1, #items do
-      out[i] = items[i]
+-- How the presentation asks its rows to be searched, beside the matcher, settled 2026-10-17 for
+-- phase three. search is a table or nil, and a field of the wrong type is read as absent.
+-- searchText is a function taking the raw text of the field and answering the text the engine
+-- ranks by, for a list whose field carries its own grammar, FileSearch ranking ~/dev .js foo by
+-- foo, the clipboard ranking img cat by cat. The grammar stays in the plugin. An empty answer,
+-- or one of spaces only, ranks nothing and keeps the supplier's order, the same as an empty
+-- query. An answer that raises or is not a string is treated as empty, and M.apply hands the
+-- reason back so the caller can say so, since the list must never stop working over it.
+-- rowLimit is a positive whole number, the most rows a list shows that are neither pinned nor
+-- fromQuery, taken after ranking, so the best rows are the ones kept and a pinned or fromQuery
+-- row is never cut. It bounds what a provider builds for a list of thousands of rows, the
+-- emoji set among them, since a provider styles every row it is handed.
+local function searchTextOf(search)
+  local f = type(search) == "table" and search.searchText or nil
+  return type(f) == "function" and f or nil
+end
+local function rowLimitOf(search)
+  local n = type(search) == "table" and search.rowLimit or nil
+  if type(n) == "number" and n >= 1 and n % 1 == 0 then return n end
+  return nil
+end
+
+-- The list cut to at most limit rows that are neither pinned nor fromQuery, every kept row
+-- left where it stands. A list within the limit is answered as it is.
+local function limited(list, limit)
+  if not limit or #list <= limit then return list end
+  local out, counted = {}, 0
+  for i = 1, #list do
+    local it = list[i]
+    if it.fromQuery == true or it.pinned == true then
+      out[#out + 1] = it
+    elseif counted < limit then
+      counted = counted + 1
+      out[#out + 1] = it
     end
-    return out
+  end
+  return out
+end
+
+-- The supplier's order, a copy, cut to the limit.
+local function supplierOrder(items, limit)
+  local out = {}
+  for i = 1, #items do
+    out[i] = items[i]
+  end
+  return limited(out, limit)
+end
+
+--- M.apply(items, query, matcher, search) -> a new list, the ranked items, and a reason or nil.
+--- With matcher a function and query not empty, this owns filtering. search, when given, says
+--- how, see searchTextOf above. The query is first turned into the text to rank by through
+--- searchText when the search declares one, and an empty answer keeps the supplier's order. The
+--- fromQuery rows and the pinned rows are set aside, every other candidate is scored through
+--- M.score, a nil score drops it, and the survivors are sorted by M.before. The answer is the
+--- fromQuery rows, the ranked rows, then the pinned rows, each kept group in the supplier's
+--- order. With no matcher, an empty query, or matcher set to false, every candidate is kept in
+--- the order the supplier gave them, whatever it sets, since false means the supplier already
+--- owns its own filtering and an empty query has nothing yet to score against. Either way a
+--- search's rowLimit then cuts the rows that are neither pinned nor fromQuery. The second
+--- answer is the reason a searchText failed, nil when nothing did.
+function M.apply(items, query, matcher, search)
+  local limit = rowLimitOf(search)
+  if type(matcher) ~= "function" or query == "" then
+    return supplierOrder(items, limit)
+  end
+
+  local reason
+  local searchText = searchTextOf(search)
+  if searchText then
+    local ok, answer = pcall(searchText, query)
+    if not ok then
+      reason = "searchText raised, " .. tostring(answer)
+      answer = ""
+    elseif type(answer) ~= "string" then
+      reason = "searchText answered a " .. type(answer) .. ", not a string"
+      answer = ""
+    end
+    if not answer:find("%S") then return supplierOrder(items, limit), reason end
+    query = answer
   end
 
   -- A list with no kept row hands M.score its own items, so the common case builds nothing
@@ -222,9 +305,12 @@ function M.apply(items, query, matcher)
 
   local out = {}
   for i = 1, #lead do out[#out + 1] = lead[i] end
-  for i = 1, #ranked do out[#out + 1] = ranked[i].item end
+  for i = 1, #ranked do
+    if limit and i > limit then break end
+    out[#out + 1] = ranked[i].item
+  end
   for i = 1, #trail do out[#out + 1] = trail[i] end
-  return out
+  return out, reason
 end
 
 return M

@@ -1024,10 +1024,12 @@ presentation = {
   paneWidth   = 320,                                     -- optional, a plain number, true, or a member spec
   matcher     = "words",                                 -- optional, false or a strategy name
   titleLineBreak = "truncateMiddle",                     -- optional, a plain string
+  searchText  = { member = "searchText", call = "dot" }, -- optional
+  rowLimit    = 200,                                     -- optional, a positive whole number
 }
 ```
 
-Every field but `rowCount`, `matcher`, and `titleLineBreak` is either a member spec or, for `paneWidth`
+Every field but `rowCount`, `matcher`, `titleLineBreak` and `rowLimit` is either a member spec or, for `paneWidth`
 alone, may be either one, the same `{ member, call }` shape
 `registry.open` and `registry.scope` already resolve, with one deliberate tightening. **A presentation member
 must be the table form and must state `call` itself, `"dot"` or `"method"`, never the bare
@@ -1118,6 +1120,24 @@ fall back to the root default in silence with nothing anywhere naming the misspe
 swap, present, push, and pop alike, the identical live mutation discipline `paneWidth` already
 follows for `layout.companionWidth`, since `legacy.lua`'s own `Chooser:_build` reads `self.matcher`
 fresh on every keystroke rather than once at construction.
+
+`searchText` and `rowLimit` came with phase three of the unified search,
+`docs/PLAN-UNIFIED-SEARCH.md`, and say how the rows are searched beside the matcher.
+`searchText` is a member, called with the raw text of the field, answering the text
+`lib/chooser/rank.lua` ranks by, so a field with a grammar of its own, FileSearch's root and
+extension or the clipboard's kind, keeps that grammar in its plugin while the shared search ranks
+the word. The supplier still receives the raw text. An empty answer ranks nothing and keeps the
+supplier's order, as an empty field does, and an answer that raises or is not a string does the
+same and is said in the console. `rowLimit` is the most rows shown that are neither `pinned` nor
+`fromQuery`, cut after ranking, for a list of thousands of rows, since the provider styles every
+row it is handed. The registrar refuses a `searchText` that is not a member spec resolving to a
+function and a `rowLimit` that is not a positive whole number. `host/stage` hands both to the
+instance as the second argument of `setMatcher` before every show and swap, so a presentation
+declaring neither clears them, and the instance answers them as the second value of `matcher()`.
+A scope declares the same two under `registry.scope`, and `host/queryscope` refuses either in a
+wrong shape. The action panel takes them off the instance while it is open and gives them back as
+it closes. A row may also carry `names`, a list of further names never shown, which
+`rank.lua` states.
 
 `enter` is a member, called with one function, `proceed`, in place of the stage showing this
 presentation immediately. Processes' own documented rule is that its picker never appears
