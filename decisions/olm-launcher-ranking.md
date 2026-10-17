@@ -172,3 +172,14 @@ each with its reason beside it. mail no longer matches Maps at all, map no longe
 and with nothing remembered Mail and Maps tie on ma, since the subtitle that used to separate
 them is a status and no longer searched, so the resting order decides as the original complaint
 asked.
+
+### 2026-10-17 17:32
+
+Not about ranking, logged here because this is the launcher's file. Choosing the Aliases row
+closed the launcher and then seeded a field that was already gone. The row is a special row with
+no owner and no tool, so the registry has no presentation for it and the row intercept declined
+it. `registrar.aliasRowReplacement` now answers it, seeding the word `queryFor` gives through
+the same path a directory row takes, and `special.aliasDirectory` stays as the fallback for a
+click whose row could not be resolved. `enterPage` has no caller left. The notes that said the
+Aliases row was hosted were wrong and are corrected in `AGENTS.md`. `test/cases/launcher-aliasrow.lua`
+covers it.

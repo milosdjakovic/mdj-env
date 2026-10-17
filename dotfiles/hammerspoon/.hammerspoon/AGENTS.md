@@ -1053,8 +1053,10 @@ Hosting costs nothing per tool because it reuses the alias as an invisible prefi
 typed before asking the query sources, so the field holds only the typing and the rows are the
 tool's own. There is no second row mechanism, no second matcher, and no second definition of
 what choosing a row does. A tool is hostable exactly when it is already reachable by a typed
-word, `hostedInPlace` in the composition root names the rows that are, and a name whose alias
-does not resolve falls back to opening the picker on its own. The placeholder names the list, since
+word. That was the first shape of hosting and nothing calls `enterPage` any more, since a tool row
+now pushes its presentation onto the stage through `rowIntercept`, and `hostedInPlace` no longer
+exists in the composition root. Both are kept described here as history. A name whose alias does
+not resolve falls back to opening the picker on its own. The placeholder names the list, since
 the word that reached it is no longer visible. Backspace on an empty field leaves it, which is the
 atom's `back` hook and the same press that steps out of a typed scope, and it is listed in the hint
 panel as a key with no chord, gated on there being a list to leave, see `chord = false` above.
@@ -1561,9 +1563,13 @@ canonical and the separator after it stay with the grammar that owns them.
 Choosing a directory row seeds the field, by Return, by the insert key or by the mouse, so the
 word arrives under the list that is already there and nothing closes. It was a reopen at first,
 and it worked while looking broken, a list closing and another opening to deliver two characters.
-The Aliases row itself is hosted, so opening the directory costs no reopen either, and
-`enterScope` is what remains for the one way in with no list to replace, a click whose row the
-accessibility tree could not resolve, which arrives after the chooser has already gone.
+The Aliases row seeds the field too, with `?` and a space, so opening the directory costs no
+reopen either. It is a catalog row of kind special with no owner and no tool, so the registry has
+no presentation for it, and it is answered by `registrar.aliasRowReplacement` through the same
+`rowIntercept` a directory row takes. Before that it was not intercepted at all, so the launcher
+closed and `special.aliasDirectory` then seeded a field that was already gone. That special
+handler stays as the fallback for a click whose row the accessibility tree could not resolve,
+which arrives after the chooser has already gone.
 
 This is the one list here whose rows hand over a WORD rather than a list, which is the whole point
 of it, so it is also the one place seeding is right. Every tool row is hosted instead. Both are

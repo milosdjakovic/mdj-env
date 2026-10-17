@@ -2336,6 +2336,12 @@ function obj.run(olm, cfg)
       log = function(message) log.e("Olm compose, " .. message) end,
     })
 
+    local aliasRowReplacement = queryScopeModule and registrarLib.aliasRowReplacement({
+      name = "aliasDirectory",
+      queryFor = function(name) return queryScopeModule:queryFor(name) end,
+      seed = function(query) launcherModule:seedQuery(query) end,
+    }) or nil
+
     -- THE SEAM. Stage is one of the five host modules this file may name. It is fully
     -- configured already, in the ordinary stage two pass above. stageModule itself was
     -- assigned earlier in this same function, ahead of the surface adapters loop which
@@ -2429,6 +2435,13 @@ function obj.run(olm, cfg)
           -- registered tool of the same name nor for a scope, so only its owner's runner can
           -- act on it.
           if item.owner ~= nil then return nil end
+          -- The Aliases row is root policy with no tool behind it, so the registry never has a
+          -- presentation for it. It is answered here, by the same seeding its fallback uses, so
+          -- choosing it replaces the open list instead of closing the launcher first.
+          if aliasRowReplacement then
+            local seed = aliasRowReplacement(item)
+            if seed then return seed end
+          end
           if item.kind == "special" and wiredRegistry.presentationFor then
             local presentation = wiredRegistry.presentationFor(item.name)
             if presentation then
