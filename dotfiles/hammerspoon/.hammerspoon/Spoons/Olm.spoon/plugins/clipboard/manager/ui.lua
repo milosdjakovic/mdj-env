@@ -76,6 +76,16 @@ local thumbCache = {} -- path -> hs.image (or false), for row thumbnails
 local imageCache = {} -- preview png path -> hs.image (or false), so a re-highlight re-decodes nothing
 local iconCache = {} -- bundle id -> hs.image (or false), for row source-app icons
 local existCache = {} -- linked-file path -> bool, so the badge does not restat per keystroke
+-- entry -> its history row, so a keystroke over a thousand entries builds no row and no names
+-- table it built before, decided 2026-10-17 after a review counted every row rebuilt on every
+-- key. Weak keyed, so an entry that leaves the store falls out on its own. A row is rebuilt when
+-- its entry's content changes, UI.entryChanged, when rowGen moves, on every open and when media
+-- lands, since a thumbnail, an icon or a file badge may then read differently, when its batch
+-- position changes, and when its age text would read differently, at the time
+-- util.relTimeChanges answers, so the subtitle is always what it would be built fresh. Only the
+-- bonus, the entry's place in a store that grows, is written on every keystroke.
+local rowCache = setmetatable({}, { __mode = "k" })
+local rowGen = 0
 
 -- Append batch. The Hyper a binding collects the highlighted entry here, in the
 -- order pressed, so several items can be gathered and pasted together on close.
@@ -326,8 +336,16 @@ local function buildChoices(q)
   local out = {}
   local all = store.all()
   local count = #all
+  local now = os.time()
   for i, e in ipairs(all) do
-    if not kind or e.kind == kind then
+    local cached = rowCache[e]
+    local pos = (not kind or e.kind == kind) and batchPos(e) or nil
+    if cached and (not kind or e.kind == kind) and cached.gen == rowGen and cached.pos == pos
+      and now < cached.ageUntil then
+      local row = cached.row
+      row.bonus = (count - i + 1) / count
+      out[#out + 1] = row
+    elseif not kind or e.kind == kind then
       -- An appended row shows its 1-based batch position as its icon (the keycap
       -- number), the most visible mark on the native chooser, which renders no icon
       -- badge. Otherwise the icon says the kind: an image shows its own thumbnail, a
@@ -335,7 +353,6 @@ local function buildChoices(q)
       -- url and text a named icon. The source app is no longer a row icon, it
       -- moved to the preview header. The stable iconKey lets the atom encode each icon
       -- once and reuse it.
-      local pos = batchPos(e)
       local img, iconKey, icon
       if pos then
         icon = queuedIcon(pos)
@@ -354,7 +371,7 @@ local function buildChoices(q)
           icon = "text"
         end
       end
-      out[#out + 1] = {
+      local row = {
         title = e.title,
         subTitle = subTextFor(e),
         filterText = e.title,
@@ -366,6 +383,8 @@ local function buildChoices(q)
         badge = pos and tostring(pos) or nil,
         item = e,
       }
+      rowCache[e] = { row = row, gen = rowGen, pos = pos, ageUntil = util.relTimeChanges(e.ts) }
+      out[#out + 1] = row
     end
   end
   return out
@@ -1055,6 +1074,7 @@ function UI.mediaReady()
   thumbCache = {}
   imageCache = {}
   existCache = {}
+  rowGen = rowGen + 1
   if showing then
     if cfg.redrawPresented then cfg.redrawPresented("clipboard") end
     renderPreview(cfg.stageSelectedItem and cfg.stageSelectedItem())
@@ -1062,13 +1082,14 @@ function UI.mediaReady()
 end
 
 --- UI.entryChanged(entry) - one entry's content was rewritten in place, which only the append
---- accumulator does. Repaint if the chooser happens to be open so the row and the preview show
---- the grown content. Nothing has to be invalidated for search. The row is built from the entry
---- itself on every keystroke, so its names carry the grown text, and the shared search keys its
---- lowered copy of a long body by the string, which the append replaced with a new one. Until
---- phase three of the unified search on 2026-10-17 this also dropped the entry's cached
---- lowercased haystack, which the words matcher searched and nothing reads any more.
+--- accumulator does. Drop the entry's cached row, so the next keystroke builds it again with the
+--- grown title, count and body as its name, and repaint if the chooser happens to be open so the
+--- row and the preview show the grown content. The shared search keys its lowered copy of a long
+--- body by the string, which the append replaced with a new one, so nothing else is invalidated.
+--- Until phase three of the unified search on 2026-10-17 this dropped the entry's cached
+--- lowercased haystack instead, which the words matcher searched and nothing reads any more.
 function UI.entryChanged(entry)
+  rowCache[entry] = nil
   if showing then
     if cfg.redrawPresented then cfg.redrawPresented("clipboard") end
     renderPreview(cfg.stageSelectedItem and cfg.stageSelectedItem())
@@ -1233,6 +1254,7 @@ end
 --- toggle, and every guard in this file, now reads in place of an instance's own isShowing().
 function UI.onPresent()
   showing = true
+  rowGen = rowGen + 1
 end
 
 --- UI.build() - no longer creates a Chooser instance, the trickle migration. Whatever this

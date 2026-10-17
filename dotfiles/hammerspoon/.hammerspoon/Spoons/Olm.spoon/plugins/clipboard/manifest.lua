@@ -268,6 +268,11 @@ return {
     -- migration, consumer map surprise 9.4 naming the other eight as restated atom defaults.
     paneWidth = true,
     searchText = { member = "manager.searchText", call = "dot" },
+    -- The most history rows shown, cut after ranking, decided 2026-10-17, so the provider styles
+    -- two hundred of a thousand entries on a keystroke and an empty field shows the newest two
+    -- hundred. The supplier still hands every entry over, from a row cache, so the cut never
+    -- decides which entries can be found.
+    rowLimit = 200,
   },
 
   -- Configure alone leaves this plugin silent. Every field the picker needs, the

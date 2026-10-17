@@ -67,6 +67,8 @@ local history = {
   { kind = "text", title = "alpha", text = "alpha", preview = "5 chars", ts = 2 },
 }
 local store = { all = function() return history end }
+-- The time each entry's age text next changes, by its ts, for the row cache cases below.
+ageChanges = {}
 
 local prune = load("plugins/clipboard/manager/prune.lua")
 prune.configure({ store = store })
@@ -75,6 +77,8 @@ UI.configure({
   store = store,
   util = {
     relTime = function() return "now" end,
+    -- When the age text next reads differently, far ahead unless a case moves it.
+    relTimeChanges = function(ts) return (ageChanges[ts] or math.huge) end,
     fileExt = function(p) return (p:match("%.([^./]+)$") or ""):lower() end,
   },
   media = { fileBadge = function() return nil end },
@@ -87,6 +91,8 @@ check("the clipboard history inherits the shared search", manifest.presentation.
   and manifest.surface.matcher == nil)
 check("the presentation declares searchText", type(manifest.presentation.searchText) == "table"
   and manifest.presentation.searchText.member == "manager.searchText")
+check("the presentation keeps two hundred rows after ranking", manifest.presentation.rowLimit == 200,
+  tostring(manifest.presentation.rowLimit))
 -- The manager loads the monitor and the store, which reach the live hs at load, so its forward
 -- is read as text rather than loaded.
 local managerFile = assert(io.open(olm .. "plugins/clipboard/manager/init.lua"))
@@ -152,9 +158,50 @@ check("among equal matches the newer leads, even where the older matched its who
 -- since the row names its body afresh and the long body memo is keyed by the string.
 local before = history[8].text
 history[8].text = before .. "\nappended zucchini"
+UI.entryChanged(history[8])
 kept = ranked("zucchini")
 check("an appended entry is searched by its new text", titles(kept) == "alpha", titles(kept))
 history[8].text = before
+UI.entryChanged(history[8])
+
+--------------------------------------------------------------------------------
+-- The row cache
+--------------------------------------------------------------------------------
+
+-- A keystroke reuses each entry's row rather than building it and its names again, decided
+-- 2026-10-17. Only the bonus is written each time.
+local first = UI.rows("a")
+local again = UI.rows("ab")
+check("a keystroke hands the same row tables over again", first[2] == again[2] and first[5] == again[5])
+check("and the same names table", first[2].names == again[2].names)
+history[2].title = "scratch renamed"
+UI.entryChanged(history[2])
+again = UI.rows("ab")
+check("an entry that changed is built again", again[2] ~= first[2] and again[2].title == "scratch renamed",
+  again[2].title)
+check("and the others are kept", again[5] == first[5])
+history[2].title = "scratch"
+UI.entryChanged(history[2])
+-- The cached row keeps the time its age text was built to change at, so the entry is built
+-- again here with that time already past.
+ageChanges[history[4].ts] = 0
+UI.entryChanged(history[4])
+first = UI.rows("a")
+again = UI.rows("ab")
+check("a row whose age text would now read differently is built again", again[4] ~= first[4]
+  and again[5] == first[5])
+ageChanges[history[4].ts] = nil
+first = UI.rows("a")
+UI.onPresent()
+again = UI.rows("a")
+check("an open builds every row again, so icons and badges are current", again[1] ~= first[1])
+UI.onClose()
+check("the bonus still follows the store's order from the cache", again[1].bonus == 1 and again[8].bonus == 1 / 8)
+table.insert(history, 1, { kind = "text", title = "newest", text = "newest", preview = "6 chars", ts = 10 })
+local grown = UI.rows("a")
+check("a cached row takes its new place in a grown store", grown[2] == again[1]
+  and grown[2].bonus == 8 / 9 and grown[9].bonus == 1 / 9, tostring(grown[2].bonus))
+table.remove(history, 1)
 
 --------------------------------------------------------------------------------
 -- The manage history page

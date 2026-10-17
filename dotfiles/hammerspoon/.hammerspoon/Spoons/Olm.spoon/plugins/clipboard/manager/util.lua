@@ -51,6 +51,19 @@ function U.relTime(ts)
   return floor(d / 86400) .. "d ago"
 end
 
+--- U.relTimeChanges(ts) -> the time, in os.time seconds, at which U.relTime(ts) next reads
+--- differently, the next second, minute, hour or day boundary of the age. A row that cached its
+--- age text keeps it until then, so the text is exactly what U.relTime would say now. Kept beside
+--- U.relTime so the two thresholds can never disagree.
+function U.relTimeChanges(ts)
+  ts = ts or 0
+  local d = os.time() - ts
+  if d < 60 then return ts + d + 1 end
+  if d < 3600 then return ts + (floor(d / 60) + 1) * 60 end
+  if d < 86400 then return ts + (floor(d / 3600) + 1) * 3600 end
+  return ts + (floor(d / 86400) + 1) * 86400
+end
+
 function U.humanSize(n)
   if not n then return "?" end
   if n < 1024 then return n .. " B" end

@@ -114,3 +114,24 @@ end
 for _, q in ipairs({ "c", "cho", "chooser", "settings", "hello there", "zebra", "quick fox", "ump" }) do
   print(string.format("  %-12s rows and rank %7.2f", q, clipKeystroke(q)))
 end
+
+-- The same rows as the clipboard keeps them since 2026-10-17, built once per entry and handed
+-- over again on every keystroke with only the bonus written, and cut to two hundred after
+-- ranking, the presentation's rowLimit.
+print("the clipboard's cached rows over that history, rowLimit 200, one keystroke after the first, in milliseconds")
+local cachedRows = clipboardRows()
+local function cachedKeystroke(q)
+  local search = { searchText = function(x) return x end, rowLimit = 200 }
+  local function once()
+    local n = #cachedRows
+    for i = 1, n do cachedRows[i].bonus = (n - i + 1) / n end
+    rank.apply(cachedRows, q, match.fuzzy, search)
+  end
+  once()
+  local started = clock()
+  for _ = 1, 5 do once() end
+  return (clock() - started) / 5 * 1000
+end
+for _, q in ipairs({ "c", "cho", "chooser", "settings", "hello there", "zebra", "quick fox", "ump" }) do
+  print(string.format("  %-12s cached rows and rank %7.2f", q, cachedKeystroke(q)))
+end
