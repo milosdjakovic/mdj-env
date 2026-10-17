@@ -45,13 +45,17 @@ local cfg = {}        -- injected across two calls: api from the spoon, view dep
 -- Small row builders
 --------------------------------------------------------------------------------
 
+-- Every row searches its title alone. A subtitle here is a status or a sentence about what the
+-- row does, "Active, 2 displays", and searched it would let active or displays match rows that
+-- are not named so, so filterText is the title, the vocabulary in lib/chooser/rank.lua.
 local function row(title, subTitle, icon, item, enabled, pinned)
   return { title = title, subTitle = subTitle, icon = icon, item = item, enabled = enabled,
-    pinned = pinned }
+    filterText = title, pinned = pinned }
 end
 
--- Back is pinned, so on a level that searches it is never scored or dropped. Where a level
--- keeps matcher false the flag changes nothing.
+-- Back is pinned, so on a level that searches it is never scored or dropped, and under a typed
+-- query it trails the matches so Enter takes the best one. Where a level keeps matcher false the
+-- flag changes nothing.
 local function backRow()
   return row("Back", "", "back", { nav = true, to = "back" }, true, true)
 end
@@ -71,8 +75,9 @@ end
 
 -- Top level, the profile list. The active profile is marked, and a capture row appears only
 -- when the current arrangement matches no profile, which is the tool's notion of add new. It
--- is pinned, so it leads whatever is typed. The shared search filters and ranks the profiles
--- by name, so this supplier returns every one.
+-- is pinned, so no query drops it, and it leads the resting list and trails the matches once
+-- something is typed, so Enter on a typed name opens that profile. The shared search filters
+-- and ranks the profiles by name, so this supplier returns every one.
 local function topRows()
   local out = {}
   local active = cfg.api.active()
@@ -110,7 +115,7 @@ end
 -- enter.
 local function profileRows(name)
   local p = profileByName(name)
-  if not p then return { backRow(), row("Profile is gone", "It may have been removed", "warn", { noop = true }, false) } end
+  if not p then return { backRow(), row("Profile is gone", "It may have been removed", "warn", { noop = true }, false, true) } end
   local out = { backRow() }
   for _, d in ipairs(cfg.api.displays(p.command)) do
     local title = (d.res or "?") .. (d.main and "   (main)" or "")

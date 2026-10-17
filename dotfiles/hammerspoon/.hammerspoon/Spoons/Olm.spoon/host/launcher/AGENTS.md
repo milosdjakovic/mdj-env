@@ -151,9 +151,10 @@ in the root, with no change here.
 Four details make it work. A source returns an icon rather than an image, a key into its own
 manifest icons or a table spec, and the root wraps each source so the rows it answers come back
 stamped with their owner, so a source draws nothing and there is one icon cache rather than one per source. A computed row sets
-`filterText` to the raw query, so the shared matcher scores it against what was
-typed rather than against the answer it produced, which is what keeps a result at
-the top instead of being dropped for not resembling its own expression. A source
+`fromQuery = true`, since it is made from what was typed, so the shared search never scores it
+against the answer it produced and never drops it, and it leads under a typed query, which is
+what keeps a result at the top instead of being dropped for not resembling its own expression.
+`_queryRows` marks every row a source hands over the same way. A source
 that raises is dropped for that keystroke with a log line, so a bad source cannot
 empty the list. And `refresh()` exists for a source whose answer arrives late, which
 the root wires to that source's own result callback, so the row lands without the

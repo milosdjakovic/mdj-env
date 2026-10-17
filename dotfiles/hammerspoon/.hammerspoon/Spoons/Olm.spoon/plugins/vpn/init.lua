@@ -396,6 +396,8 @@ local function providerRows()
     out[#out + 1] = {
       title = entry.module.name or entry.id,
       subTitle = detail,
+      -- The subtitle is a status, Active or Installed, so the row searches its name alone.
+      filterText = entry.module.name or entry.id,
       icon = mark,
       enabled = usable,
       item = { provider = entry.id },
@@ -414,7 +416,8 @@ end
 -- a level change, so it pops and answers plain true.
 --
 -- No matcher is declared, so the page inherits the shared one and a typed word narrows the
--- backends. Back is pinned, so the search can never rank it away.
+-- backends by name. Back is pinned, so the search can never rank it away, and it trails the
+-- matches under a typed query so Enter takes the best one.
 local function buildProviderChild()
   return {
     placeholder = "Which backend drives the VPN controls",
@@ -606,8 +609,9 @@ end
 --- redraw is a plain callback the caller hands in for that one moment rather than this spoon
 --- reaching for whatever is showing these rows, which is the whole reason this spoon still
 --- names no launcher and no host. Unchanged by the migration, decision eight, this scope
---- stays exactly as is. The one placeholder row below is pinned, so the matcher can never rank
---- away the only row there is while the real list is still in flight.
+--- stays exactly as is. The one placeholder row below waits on this query, so it is fromQuery,
+--- and the matcher can never rank away the only row there is while the real list is still in
+--- flight.
 --- The provider page is deliberately not among these rows. A scope's own run door discards
 --- whatever select answers, so the one row whose entire job is to answer a child
 --- presentation would look live in the launcher and then do nothing at all when chosen. The
@@ -624,7 +628,7 @@ function M.scopeRows(rest, redraw)
   end
   if #out == 0 and not M.ready() then
     return { { title = "Reading the locations", subTitle = "one moment",
-               icon = "loading", enabled = false, pinned = true } }
+               icon = "loading", enabled = false, fromQuery = true } }
   end
   return out
 end

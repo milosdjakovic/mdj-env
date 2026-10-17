@@ -36,12 +36,19 @@ local M = {}
 -- keywords are searched either way. Prose is never a search term, a description sentence
 -- matches words nobody meant.
 --
--- Three fields say where a row goes rather than what it answers to, settled 2026-10-17 for
+-- Four fields say where a row goes rather than what it answers to, settled 2026-10-17 for
 -- phase two. A field of the wrong type is read as absent.
--- pinned, when true, means the row is never scored and never dropped. A pinned row the
--- supplier gives before every unpinned row leads, any other trails after every ranked row,
--- both in the supplier's order. A row that is the query itself, a calculator answer or a save
--- row, is pinned too, since its supplier already decided it exists for this query.
+-- pinned, when true, means the row is never scored and never dropped. It is a row that always
+-- shows whatever is typed, Back, New snapshot, Apply now, a placeholder. On an empty query it
+-- keeps its place in the supplier's order like every row. Under a typed query every pinned row
+-- trails, after every ranked row, in the supplier's order, wherever the supplier put it, so the
+-- first row, which takes the highlight and Enter, is always the best match and never a door.
+-- fromQuery, when true, means the row was made from what was typed, a calculator answer, a
+-- conversion, a window size, a scope's rows already filtered by its own query, a waiting row
+-- for that query. It is never scored and never dropped either, and under a typed query every
+-- such row leads, ahead of every ranked row, in the supplier's order, since its supplier
+-- already decided it is the answer to this query. On an empty query it keeps its place like
+-- every row. A row setting both is a fromQuery row.
 -- tier is a number, zero when absent, and a smaller tier sorts first among ranked rows, ahead
 -- of how well a row matched, so a list can keep one kind of row above another.
 -- bonus is a number from zero to one, clamped, zero when absent. It orders only rows the
@@ -111,8 +118,9 @@ M.fieldsOf = fieldsOf
 --- knows it was told nothing about the kind of match. They exist for a consumer that orders by
 --- something besides the score and needs to know what kind of match a row is, the launcher's
 --- nearness rule today. tier and bonus are the row's own, read as the vocabulary above says.
---- pinned is not read here, M.apply keeps pinned rows out of the loop. This is the one scoring
---- loop, so no host or list keeps a copy of it, docs/PLAN-UNIFIED-SEARCH.md phase one.
+--- pinned and fromQuery are not read here, M.apply keeps those rows out of the loop. This is
+--- the one scoring loop, so no host or list keeps a copy of it, docs/PLAN-UNIFIED-SEARCH.md
+--- phase one.
 function M.score(items, query, matcher)
   local entries = {}
   for i = 1, #items do
@@ -129,42 +137,54 @@ function M.score(items, query, matcher)
   return entries
 end
 
+-- How good a match an entry is, as two numbers compared descending, the first key and whether
+-- the phrase bonus was earned. A graded entry answers its level sum and its phrase. An ungraded
+-- one, from a matcher that answered only a score, was told nothing about the kind of match, so
+-- its score stands in for the level and it never has the phrase. Every entry maps to the same
+-- fixed pair whoever it is compared with, which is what keeps M.before a strict weak ordering
+-- when graded and ungraded entries meet in one sort.
+local function matchKey(e)
+  if e.graded then return e.level or 0, e.phrase == true and 1 or 0 end
+  return e.score or 0, 0
+end
+
 --- M.before(a, b) -> true when entry a sorts ahead of entry b.
---- The one comparison, exposed for a consumer that puts something of its own ahead of it.
---- Tier ascending first. Then how good the match is, the level sum descending and the phrase
---- bonus ahead of none, which is exactly what the score already orders by, since the score
---- steps two spreads per level sum and one for the phrase. Then the row's bonus descending
---- inside that group, then the score descending, which is where a word landed, and the
---- original index ascending last, so a stable order the supplier already carries, the
---- launcher's own recency for one example, still shows through equal scores. Lua's sort is
---- not stable, which is why the index is folded in rather than relied on.
+--- The one comparison, exposed for a consumer that puts something of its own ahead of it. It is
+--- lexicographic over one fixed tuple per entry, tier ascending, the match key descending, the
+--- phrase descending, the row's bonus descending, the score descending, which is where a word
+--- landed, and the original index ascending last. The match key is the level sum for a graded
+--- entry and the score for an ungraded one, matchKey above.
 ---
---- A matcher that answered only a score said nothing about the kind of match, so for its
---- rows only an equal score is equally good and the score decides before the bonus does.
---- Rows setting no tier and no bonus therefore order exactly as score then index did before
---- the fields existed. A field missing from an entry built elsewhere reads as its default.
+--- For a graded list that orders by level sum and phrase first, which is exactly what the score
+--- already orders by, since the score steps two spreads per level sum and one for the phrase,
+--- then lets the bonus decide among equally good rows. For an ungraded list the score comes
+--- first, so only an equal score is equally good and the bonus orders only those. Rows setting
+--- no tier and no bonus therefore order exactly as score then index did before the fields
+--- existed. The index keeps a stable order the supplier already carries, the launcher's own
+--- recency for one example, showing through equal scores, and Lua's sort is not stable, which
+--- is why it is folded in rather than relied on. A field missing from an entry built elsewhere
+--- reads as its default.
 function M.before(a, b)
   local ta, tb = a.tier or 0, b.tier or 0
   if ta ~= tb then return ta < tb end
-  if a.graded and b.graded then
-    if a.level ~= b.level then return a.level > b.level end
-    if (a.phrase == true) ~= (b.phrase == true) then return a.phrase == true end
-  elseif a.score ~= b.score then
-    return a.score > b.score
-  end
+  local ka, pa = matchKey(a)
+  local kb, pb = matchKey(b)
+  if ka ~= kb then return ka > kb end
+  if pa ~= pb then return pa > pb end
   local ba, bb = a.bonus or 0, b.bonus or 0
   if ba ~= bb then return ba > bb end
-  if a.score ~= b.score then return a.score > b.score end
+  local sa, sb = a.score or 0, b.score or 0
+  if sa ~= sb then return sa > sb end
   return a.idx < b.idx
 end
 
 --- M.apply(items, query, matcher) -> a new list, the ranked items.
---- With matcher a function and query not empty, this owns filtering. Pinned rows are set
---- aside, the leading ones and the trailing ones, every other candidate is scored through
---- M.score, a nil score drops it, and the survivors are sorted by M.before. The answer is the
---- leading pinned rows, the ranked rows, then the trailing pinned rows. With no matcher, an
---- empty query, or matcher set to false, every candidate is kept in the order the supplier
---- gave them, pinned or not, since false means the supplier already owns its own filtering
+--- With matcher a function and query not empty, this owns filtering. The fromQuery rows and
+--- the pinned rows are set aside, every other candidate is scored through M.score, a nil score
+--- drops it, and the survivors are sorted by M.before. The answer is the fromQuery rows, the
+--- ranked rows, then the pinned rows, each kept group in the supplier's order. With no matcher,
+--- an empty query, or matcher set to false, every candidate is kept in the order the supplier
+--- gave them, whatever it sets, since false means the supplier already owns its own filtering
 --- and an empty query has nothing yet to score against.
 function M.apply(items, query, matcher)
   if type(matcher) ~= "function" or query == "" then
@@ -175,23 +195,24 @@ function M.apply(items, query, matcher)
     return out
   end
 
-  -- The leading pinned rows are the run before the first unpinned one. A list without a
-  -- pinned row hands M.score its own items, so the common case builds nothing extra.
+  -- A list with no kept row hands M.score its own items, so the common case builds nothing
+  -- extra.
   local lead, trail, rest = {}, {}, items
-  local anyPinned = false
+  local anyKept = false
   for i = 1, #items do
-    if items[i].pinned == true then anyPinned = true; break end
+    local it = items[i]
+    if it.fromQuery == true or it.pinned == true then anyKept = true; break end
   end
-  if anyPinned then
+  if anyKept then
     rest = {}
     for i = 1, #items do
       local it = items[i]
-      if it.pinned ~= true then
-        rest[#rest + 1] = it
-      elseif #rest == 0 then
+      if it.fromQuery == true then
         lead[#lead + 1] = it
-      else
+      elseif it.pinned == true then
         trail[#trail + 1] = it
+      else
+        rest[#rest + 1] = it
       end
     end
   end

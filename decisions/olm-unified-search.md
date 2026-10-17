@@ -84,6 +84,13 @@ row, pinned rows, query rows, tiers and a bounded bonus.
   is what a row also answers to, never a second name to spell out by initials, so dnd no longer
   matches Focus through do not disturb, only through the keyword dnd itself.
 
+- **One field for both kinds of always shown row.** 2026-10-17, built at b9b187e as `pinned`,
+  leading when the supplier gave it first and trailing otherwise. Rejected because the first row
+  takes the highlight and Enter under a typed query, so a leading pinned door took Enter from the
+  match. Typing work in Workspaces and pressing Enter opened New snapshot, and typing clip on the
+  settings Plugins page popped Back. Replaced by `pinned`, which trails under a typed query, and
+  `fromQuery`, which leads.
+
 ## Log
 
 ### 2026-10-17 11:31, the measurement, the survey and the decision
@@ -476,3 +483,39 @@ an empty filterText, now stays, and Workspaces never shows an empty list since N
 pinned, so the No layout matches row is gone. TmuxSessions lost its hand written word match and
 the settings level lost its opt out, since the shared search reads the window name first and the
 session second.
+
+### 2026-10-17 15:49, two kinds of always shown row, and a comparator that cannot cycle
+
+An adversarial review of b9b187e and 39ccf34 found four things. A pinned row that led the list
+took the highlight under a typed query, since the list model puts it on row one, so Enter in
+Workspaces on work opened New snapshot and on the settings Plugins page clip popped Back.
+`M.before` was not a strict weak ordering once graded and ungraded entries met, a and b graded
+at one level with a carrying the bonus and the lower score, c ungraded between their scores,
+giving a before b, b before c and c before a. Status and prose subtitles were searched in the
+lists that moved, so apps or studio matched every layout through "Applies here, 3 apps, taken on
+Studio". And several docs still described filterText set to the query.
+
+Milos decided two kinds. `pinned` keeps its meaning of never scored and never dropped, keeps the
+supplier's place on an empty query, so Back still leads a fresh page, and under a typed query
+trails every ranked row in supplier order wherever it was given. `fromQuery` is a row made from
+what was typed, never scored or dropped, and under a typed query it leads in supplier order. A
+row setting both is fromQuery. The calculator, Convert, WindowSize, the launcher's query rows,
+the query scope's rewrap and the VPN waiting row are fromQuery. The scope's No match row names
+the typed rest, so it is fromQuery, and the row for a scope that raised names only the scope, so
+it is pinned. The Wifi rows the review named stay pinned, because none of them is built from the
+typed rest, and Not connected sits above the networks, where leading would take Enter from the
+network that matched. DisplayProfiles Profile is gone is pinned to match Layout is gone.
+
+The comparator maps every entry to one fixed tuple and compares it lexicographically, tier
+ascending, a match key descending, the phrase descending, bonus descending, score descending and
+index ascending. The match key is the level sum for a graded entry and the score for an ungraded
+one, which never has the phrase. A fixed tuple per entry cannot cycle. An ungraded list still
+orders by score before bonus, and rows setting no field still rank as score then index did, which
+the fourteen row case keeps proving. A case with the cycle above and a randomized mixed list of
+thirty six entries checked over every triple fail under the old comparator.
+
+Workspaces, DisplayProfiles, the settings top level, the VPN provider page and the TmuxSessions
+settings door and providers now search the title alone. The settings row constructor had lost its
+filterText parameter to pinned in 39ccf34, so the Plugins page searched the state words under
+each plugin, and it carries filterText again with pinned set by a small helper. A tmux window's
+session subtitle stays searchable, since it is what the row is.

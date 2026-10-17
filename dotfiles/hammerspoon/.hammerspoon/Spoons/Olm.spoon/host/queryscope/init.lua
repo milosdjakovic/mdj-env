@@ -236,11 +236,11 @@ end
 -- to the scope that made it. It stays plain data, because a presenter hands every row to a
 -- native chooser that serialises it and would drop a function.
 --
--- Every row is pinned. Filtering already happened above, against the scope's own query, so
--- this is what stops the presenter's matcher scoring these rows a second time against a
--- query that carries the alias, a word they were never meant to contain. A pinned row is
--- never scored or dropped, so the order decided above survives, the same way a computed row
--- already does.
+-- Every row is fromQuery. Filtering already happened above, against the scope's own query, so
+-- these rows are the answer to what was typed, and this is what stops the presenter's matcher
+-- scoring them a second time against a query that carries the alias, a word they were never
+-- meant to contain. A fromQuery row is never scored or dropped and keeps the supplier's order,
+-- so the order decided above survives, the same way a computed row already does.
 function obj:_present(scope, query, rows)
   -- The same helper the stage runs on a presentation's rows, so an icon key means one thing in
   -- a scope and in a list. The owner is the scope's name, which is the plugin's identity.
@@ -264,7 +264,7 @@ function obj:_present(scope, query, rows)
       icon = icon,
       iconOwner = iconOwner,
       enabled = r.enabled,
-      pinned = true,
+      fromQuery = true,
       item = { kind = "scope", scope = scope.name, payload = r.item },
     }
   end
@@ -285,6 +285,11 @@ end
 --- A scope is trusted for its own rows and not for the presenter's stability, so one that
 --- raises becomes a disabled row naming the failure rather than an empty list or an error out
 --- of a keystroke.
+---
+--- The No match row names the typed rest, so it is made from the query and is fromQuery like
+--- the rows it stands in for. The failure row names the scope and not the query, so it is
+--- pinned. Each is the only row of a claimed query, so the kind decides nothing about order
+--- today and says what the row is.
 function obj:rows(query)
   local scope, rest = self:resolve(query)
   if not scope then return {}, false end
@@ -312,7 +317,7 @@ function obj:rows(query)
       icon = scopeIcon,
       iconOwner = scopeOwner,
       enabled = false,
-      pinned = true,
+      fromQuery = true,
       item = { kind = "scope", scope = scope.name },
     } }, true
   end

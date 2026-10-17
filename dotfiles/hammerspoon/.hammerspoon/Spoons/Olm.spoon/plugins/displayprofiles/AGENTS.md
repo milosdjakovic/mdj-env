@@ -57,7 +57,9 @@ filter. The row supplier reads the top frame plus the live query, so those rows 
 type, and stay disabled until the name is valid.
 
 The top level and the profile screen inherit the shared search, so their suppliers return every row
-and the engine filters. Back and Capture current arrangement are pinned, never scored or dropped.
+and the engine filters. Back, Capture current arrangement and Profile is gone are pinned, never
+scored or dropped, and under a typed query they trail the matches so Enter takes the best one.
+Every row searches its title alone, since the subtitles are a status or a sentence.
 Rename, capture and the delete confirm keep matcher false, their field is input or a confirm.
 
 Entering a profile shows its displays straight away, one read only row per monitor, with

@@ -87,15 +87,25 @@ local ICON_APPLY = "apply"
 local ICON_SELECTED = "selected"
 local ICON_NOT_SELECTED = "notSelected"
 
-local function row(title, subTitle, icon, item, enabled, pinned)
+-- filterText is what the row is searched by, lib/chooser/rank.lua. pluginspage.lua hands its
+-- own through this same constructor, the title and the identity, so it is a parameter rather
+-- than fixed here.
+local function row(title, subTitle, icon, item, enabled, filterText)
   return { title = title, subTitle = subTitle, icon = icon, item = item, enabled = enabled,
-    pinned = pinned }
+    filterText = filterText }
 end
 
--- Back is pinned, so the shared search never scores or drops it and it stays the first row
--- whatever is typed.
+-- A row the shared search never scores or drops. It leads the resting list where the supplier
+-- puts it and trails the matches under a typed query, so Enter takes the best match.
+local function pinned(r)
+  r.pinned = true
+  return r
+end
+
+-- Back is pinned, so the shared search never drops it. It is the first row on a fresh page and
+-- trails the matches once something is typed.
 local function backRow()
-  return row("Back", nil, ICON_BACK, { nav = true, to = "back" }, true, true)
+  return pinned(row("Back", nil, ICON_BACK, { nav = true, to = "back" }, true))
 end
 
 -- Plain words for the top level's own subtitle, one per mode this resolver knows.
@@ -229,12 +239,13 @@ end
 -- confirm step.
 local function pluginRows()
   local list = catalog()
-  -- Back and Apply now are pinned, so the shared search never drops them and they lead the
-  -- ranked plugins while a query is typed.
+  -- Back and Apply now are pinned, so the shared search never drops them. They lead the resting
+  -- page and trail the matching plugins while a query is typed, so Enter on clip stages the
+  -- clipboard rather than leaving the page.
   local rows = { backRow() }
   local summary = page.pendingSummary(list)
   if summary and cfg.applyPluginSwitches then
-    rows[#rows + 1] = row("Apply now", summary, ICON_APPLY, { apply = true, key = "apply" }, true, true)
+    rows[#rows + 1] = pinned(row("Apply now", summary, ICON_APPLY, { apply = true, key = "apply" }, true))
   end
   for _, r in ipairs(page.rows(list, row, SELF)) do rows[#rows + 1] = r end
   return rows
@@ -337,13 +348,14 @@ end
 --- live choice in words, Theme, its subtitle naming the live theme, and Plugins, only when the
 --- root delivered the plugin switch words, its subtitle counting what is off. No matcher
 --- declared in the manifest, the shared default fuzzy strategy is more than enough over so few
---- rows.
+--- rows. Each row searches its title alone, since every subtitle here is a live status.
 function M.rows()
   local mode = liveMode()
   local words = MODE_WORDS[mode] or MODE_WORDS.cursor
   local rows = {
-    row("Where the OLM launcher appears", words, ICON_PLACEMENT, { nav = true, to = "placement" }, true),
-    row("Theme", liveTheme(), ICON_THEME, { nav = true, to = "theme" }, true),
+    row("Where the OLM launcher appears", words, ICON_PLACEMENT, { nav = true, to = "placement" }, true,
+      "Where the OLM launcher appears"),
+    row("Theme", liveTheme(), ICON_THEME, { nav = true, to = "theme" }, true, "Theme"),
   }
   if pluginsAvailable() then
     local list = catalog()
@@ -353,7 +365,8 @@ function M.rows()
     end
     local words = off == 0 and "all on" or (off .. " off")
     if page.pendingSummary(list) then words = words .. " after apply" end
-    rows[#rows + 1] = row("Plugins", words, ICON_PLUGINS, { nav = true, to = PLUGINS_STEP.to }, true)
+    rows[#rows + 1] = row("Plugins", words, ICON_PLUGINS, { nav = true, to = PLUGINS_STEP.to }, true,
+      "Plugins")
   end
   return rows
 end

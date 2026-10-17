@@ -122,10 +122,18 @@ VPN provider page, DisplayProfiles, Workspaces and TmuxSessions dropped matcher 
 level whose field is a search, with their Back rows and always showing rows pinned and their
 hand filters deleted. The row kept false where the field is input or a confirm, rename, capture,
 new snapshot, delete and the app level of Workspaces. The launcher's query rows and the query
-scope's rewrap, Arithmetic, Convert, WindowSize and Wifi now pin their rows instead of setting
+scope's rewrap, Arithmetic, Convert, WindowSize and Wifi now mark their rows instead of setting
 filterText to the query. The BrowserTabs Settings row is one more candidate in the tab scoring
 through the injected matcher, with its keyword list deleted. The tabs keep their own scoring until
 phase three.
+
+The review of that build found a leading pinned row taking Enter under a typed query, so the
+same day Milos split the always shown row in two. `pinned` is a door or a placeholder, kept in
+place on an empty query and trailing every match under a typed one. `fromQuery` is a row made
+from what was typed, the calculator, Convert, WindowSize, the VPN waiting row and a scope's rows,
+and it leads. The Wifi status rows stay pinned, since none is made from the query. The comparison
+became one fixed tuple per entry so graded and ungraded entries can no longer form a cycle, and
+the moved lists search a status or prose subtitle no more, filterText being the title.
 
 ### Phase 3, the lists with real scoring
 

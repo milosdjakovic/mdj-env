@@ -22,16 +22,10 @@
 --- browser a tab belongs to reads at a glance rather than from the text. Choosing one selects that
 --- tab in its window, raises the window, and brings the browser to the front.
 ---
---- Settings is the only row that is not a tab. It is pinned rather than ordered, so it never
---- drifts up into the recency order, and a typed filter targets the tabs and never has to
---- filter it out. That is the same reason Vpn pins its action row above the cities. On an empty
---- query it is the last row. Last does not make it reachable though, since a hundred tabs put it
---- a hundred keystrokes away, so typing toward a word that means settings brings it back. It
---- leads, above the tabs that matched, only once the query is that whole word, since a whole word
---- is a clear reach for the door and four Chrome tabs matching it should not sit between the
---- person and it. On a prefix of one it trails the tabs instead, because a prefix is too often
---- the start of a tab's name, di for Discord or en for an English page, and the first row is
---- what Enter takes.
+--- Settings is the only row that is not a tab. On an empty query it is the last row, outside the
+--- recency order. Last does not make it reachable though, since a hundred tabs put it a hundred
+--- keystrokes away, so once something is typed it is scored like any tab against its own title,
+--- with no recency, and typing settings brings it back while an unrelated word drops it.
 ---
 --- Settings has no level beneath it. Each browser is one row, and choosing it switches that
 --- browser on or off where it stands. A permission row sits directly under a switched on browser,
@@ -95,8 +89,9 @@ local function glyphRow(title, subTitle, icon, item, enabled)
   return { title = title, subTitle = subTitle, icon = icon, item = item, enabled = enabled }
 end
 
--- Back is pinned, so the shared search never scores or drops it and it leads the settings
--- level whatever is typed.
+-- Back is pinned, so the shared search never scores or drops it. It leads the settings level on
+-- an empty query and trails the matching browsers once something is typed, so Enter takes the
+-- browser that matched.
 local function backRow()
   local r = glyphRow("Back", "", "back", { nav = true, to = "back" }, true)
   r.pinned = true
@@ -442,8 +437,9 @@ end
 
 -- The settings level is the whole of the settings. Selecting a browser row switches it on or off
 -- where it stands, there is no level beneath it, so a person flips a browser and sees the answer
--- on the same screen. Back is the first row and pinned, so a typed query never drops it. Every other row, a permission row included,
--- filters on the browser's name alone, so a toggle never changes whether a row matches, and a
+-- on the same screen. Back is the first row and pinned, so a typed query never drops it and
+-- moves it below the matches. Every other row, a permission row included, filters on the
+-- browser's name alone, so a toggle never changes whether a row matches, and a
 -- permission row matches exactly when its browser does, sits right under it in a ranked list
 -- and never shows on its own. Every row carries a key, the bundle id for a browser and the
 -- bundle id with a suffix for its permission row, because the stage holds the highlight on the

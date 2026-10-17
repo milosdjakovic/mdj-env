@@ -81,7 +81,7 @@ local function keyed() local it = inst:selectedItem() return it and it.key end
 local extra = false
 local page = { name = "keyed",
   rows = function()
-    local r = { { title = "Back", filterText = "", item = { back = true } } }
+    local r = { { title = "Back", pinned = true, item = { back = true } } }
     r[#r + 1] = { title = "Safari", filterText = "Safari", item = { key = "safari" } }
     if extra then
       r[#r + 1] = { title = "Ask Safari for permission", filterText = "Safari",
@@ -113,10 +113,11 @@ check("a stay on Chrome that inserts a row above keeps Chrome", keyed() == "chro
 -- Under a typed query the shown list is filtered and ranked, so the row number of the item is
 -- its place in that list rather than in the presentation's own. Both Chrome rows score the
 -- same, so the provider keeps them in the order the rows gave them, and the Safari line
--- inserted above does not match the query at all. A Chrome line inserted above both does.
+-- inserted above does not match the query at all. A Chrome line inserted above both does. Back
+-- is pinned, so it trails the matches and never shifts their row numbers.
 extra = false
 inst:setQuery("chrome")
-check("a typed query shows the two Chrome rows alone", inst:selectedRow() == 1 and keyed() == "chrome")
+check("a typed query shows the two Chrome rows first", inst:selectedRow() == 1 and keyed() == "chrome")
 inst:selectRow(2)
 check("the highlight is on Canary", keyed() == "canary")
 local insertedAbove = false

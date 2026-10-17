@@ -228,9 +228,9 @@ end
 --- so a typo does not leave a stale row sitting in the list.
 ---
 --- Rows are plain data carrying a glyph rather than an image and a serializable descriptor
---- rather than a function, matching every other launcher row. Both rows are pinned, so a
---- presenter that ranks with a matcher keeps them at the top rather than scoring the answer
---- against the question.
+--- rather than a function, matching every other launcher row. Both rows are fromQuery, made
+--- from what was typed, so a presenter that ranks with a matcher keeps them at the top rather
+--- than scoring the answer against the question.
 function obj:rows(query)
   if not self._path then return {} end
   local q = trim(query or "")
@@ -245,7 +245,7 @@ function obj:rows(query)
         title = hit.value,
         subTitle = self._category .. " · " .. q .. " · copy the result",
         icon = self._icon,
-        pinned = true,
+        fromQuery = true,
         item = { kind = "calc", value = hit.value },
       },
     }
@@ -280,7 +280,7 @@ function obj:rows(query)
       title = "Converting",
       subTitle = self._category .. " · " .. q,
       icon = self._icon,
-      pinned = true,
+      fromQuery = true,
       enabled = false,
       item = { kind = "calc", value = nil },
     },

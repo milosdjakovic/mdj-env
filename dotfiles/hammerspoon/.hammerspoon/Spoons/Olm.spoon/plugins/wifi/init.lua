@@ -397,7 +397,9 @@ end
 -- since this is not the presentation redrawPresented knows about. The scope is asked again on
 -- every keystroke and on that redraw too, so starting a scan whenever it is asked loops, each
 -- landing asking for the next. A scan starts only when the last one is stale. The waiting rows
--- are pinned so the matcher cannot rank away the only rows there are.
+-- are pinned so the matcher cannot rank away the only rows there are. They are a status and not
+-- made from what was typed, so pinned rather than fromQuery, and Not connected, which sits above
+-- the networks, trails them under a typed query so Enter takes the network that matched.
 function M.scopeRows(_, redraw)
   if hs.timer.secondsSinceEpoch() - scannedAt > SCAN_FRESH then scan(redraw) end
   local out = rows()

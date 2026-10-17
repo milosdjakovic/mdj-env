@@ -507,7 +507,8 @@ presentation keeps matcher false until phase three of the unified search moves t
 the engine. The scoring is by field and with a recency bonus, which the engine does not do
 yet. The settings level does not opt out. It is a list of items like any other, so it filters
 on the shared matcher, Back is pinned so a query never drops it, Back is its first row per the
-chooser menu convention, and every other row filters on its browser's name.
+chooser menu convention and trails the matching browsers under a typed query, and every other
+row filters on its browser's name.
 
 The Settings row is scored like any row since phase two on 2026-10-17. On an empty query it
 trails the tabs, where it was asked to be. Once something is typed it is one more candidate in

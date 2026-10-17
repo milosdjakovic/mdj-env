@@ -1208,14 +1208,18 @@ that is not a search, a typed name on a rename, capture or new snapshot page, a 
 typed as Caffeinate's time or duration is, or a confirm. A level that is a list of things
 a person picks from declares nothing and inherits, and its supplier returns every row and
 never filters by hand. A row that must show whatever is typed, a Back row, a capture row, a
-placeholder while a list loads, or the answer to the query itself such as a calculator
-result, sets `pinned = true` instead of faking a match through `filterText`. A pinned row the
-supplier gives before every unpinned row leads, any other pinned row trails, and none is
-ever scored or dropped. `tier`, a number where smaller sorts first, and `bonus`, a number from
+placeholder while a list loads, or the answer to the query itself, never fakes a match through
+`filterText`, and comes in two kinds. A door or a placeholder, Back, a capture or new snapshot
+row, Apply now, sets `pinned = true`. It keeps its place on an empty query, so Back still leads a
+fresh page, and trails every match under a typed query in the supplier's order, since the
+first row is what the highlight and Enter land on, and a leading Back once took Enter from the
+match. A row made from what was typed, a calculator or conversion result, a window size, a
+scope's already filtered rows, sets `fromQuery = true` and leads under a typed query. Neither
+kind is ever scored or dropped, and a row setting both is fromQuery. `tier`, a number where smaller sorts first, and `bonus`, a number from
 zero to one that only orders rows the matcher calls equally good, are the other two fields the
 vocabulary added, and `rank.lua` states all of them. The DisplayProfiles, Workspaces and
 TmuxSessions lists and the settings page all inherit now, and the query scope and launcher
-query rows pin what a scope hands over. The emoji picker, the clipboard, FileSearch,
+query rows mark what a scope hands over as fromQuery. The emoji picker, the clipboard, FileSearch,
 BrowserTabs tabs and the launcher itself still rank their own query, each behind its own
 reason its own file explains, and phases three and four of the plan move them.
 

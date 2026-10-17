@@ -117,7 +117,12 @@ Add one only when something is actually wrong without it.
 `matcher` is `false` only when the level's field is not a search, a typed name or a confirm,
 or a string naming a strategy the Chooser atom exports. Absent inherits the root default, which
 is what a list wants, its supplier returning every row and the engine filtering. A row that must
-always show, Back or the answer to the query itself, sets `pinned = true`. A row may also set
+always show comes in two kinds. A door or a placeholder, Back, a capture or new snapshot row,
+Apply now, sets `pinned = true`, keeping its place on an empty query and trailing the matches
+under a typed one, so the first row, which takes the highlight and Enter, is the best match. A
+row made from what was typed, a calculator answer or a conversion, sets `fromQuery = true` and
+leads under a typed query. Neither is ever scored or dropped. A row whose subtitle is a status,
+a count or a sentence sets `filterText` to its title, so the subtitle is not searched. A row may also set
 `tier`, a number where smaller sorts first among ranked rows, and `bonus`, a number from zero to
 one that only breaks a tie between equally good matches, both read from `rank.lua`. Beware that `surface.matcher` is a different question, which strategy gets injected
 into your code, and this one is whether the widget itself filters.
@@ -367,8 +372,8 @@ live wiring layer too, register, stage five; `registry.open`, `registry.scope`, 
 what stands between a typo there and a key that does nothing.
 
 A `matcher = false` level over a long list shows an unfiltered list, and nothing notices.
-Declare it only where the field is input. The row fields `pinned`, `tier` and `bonus` are the
-way to say where a row goes without turning the search off.
+Declare it only where the field is input. The row fields `pinned`, `fromQuery`, `tier` and
+`bonus` are the way to say where a row goes without turning the search off.
 
 An `enter` that never calls `proceed` strands the person on a launcher row that silently does
 nothing. The stage will not time you out.

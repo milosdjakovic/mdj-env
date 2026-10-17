@@ -34,21 +34,27 @@ local cfg = {}  -- injected across two calls, api from the plugin root, stage wo
 -- Small row builders
 --------------------------------------------------------------------------------
 
+-- Every row searches its title alone. A subtitle here is a status, a count or a sentence about
+-- what the row does, "Applies here, 3 apps, taken on Studio", and searched it would let apps or
+-- studio match every layout, so filterText is the title, the vocabulary in lib/chooser/rank.lua.
 local function row(title, subTitle, icon, item, enabled, pinned)
   return { title = title, subTitle = subTitle, icon = icon, item = item, enabled = enabled,
-    pinned = pinned }
+    filterText = title, pinned = pinned }
 end
 
--- Back is pinned, so on a level that searches it is never scored or dropped. Where a level
--- keeps matcher false the flag changes nothing.
+-- Back is pinned, so on a level that searches it is never scored or dropped, and under a typed
+-- query it trails the matches so Enter takes the best one. Where a level keeps matcher false the
+-- flag changes nothing.
 local function backRow()
   return row("Back", "", "back", { nav = "back" }, true, true)
 end
 
 -- One app row, carrying the app's own icon from the api rather than the generic emoji mark, so
--- the Apps list reads at a glance the way the launcher and the other choosers already do.
+-- the Apps list reads at a glance the way the launcher and the other choosers already do. It
+-- searches the app's name alone, since the subtitle says where its windows sit.
 local function appRow(title, subTitle, icon, item)
-  return { title = title, subTitle = subTitle, image = icon, icon = icon == nil and "app" or nil, item = item, enabled = true }
+  return { title = title, subTitle = subTitle, image = icon, icon = icon == nil and "app" or nil, item = item,
+    enabled = true, filterText = title }
 end
 
 local function trim(s)
@@ -69,8 +75,10 @@ end
 
 -- The top level. New snapshot leads, since taking one is the reason to open this at all on a
 -- fresh machine, then every layout, the ones that apply here first. The shared search filters
--- and ranks the layouts by name. New snapshot is pinned, so it leads whatever is typed and the
--- list is never empty, which is why there is no row for a query that matches nothing.
+-- and ranks the layouts by name. New snapshot is pinned, so no query drops it and the list is
+-- never empty, which is why there is no row for a query that matches nothing. It leads the
+-- resting list and trails the matches once something is typed, so Enter on a typed name opens
+-- that layout rather than taking a snapshot.
 local function topRows()
   local out = {}
   if not cfg.api.persists() then

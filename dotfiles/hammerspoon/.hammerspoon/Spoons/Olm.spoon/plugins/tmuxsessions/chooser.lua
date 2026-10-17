@@ -46,6 +46,14 @@ local function row(title, subTitle, icon, item, enabled, pinned)
     enabled = enabled ~= false, pinned = pinned }
 end
 
+-- A row that searches its title alone, for a row whose subtitle is a status or a sentence
+-- rather than something it is, the vocabulary in lib/chooser/rank.lua. A window row is not one,
+-- its subtitle is the session it lives in and stays searchable.
+local function titled(r)
+  r.filterText = r.title
+  return r
+end
+
 -- A window is what is genuinely on screen right now, not merely the window that happens
 -- to be highlighted inside a detached session, so the green dot marks a window only when
 -- its own session is attached and this is the window that session is currently showing.
@@ -72,25 +80,26 @@ end
 -- The top level's own rows, the window list plus the Settings door. The door is a genuine
 -- drill into a level of its own, so it carries the { nav = true, to = ... } shape select
 -- below reads to decide which child to push, the same tag displayprofiles and browsertabs
--- both use for the identical reason. It is an ordinary row, scored like any window, so
--- typing settings finds it and an unrelated word drops it.
+-- both use for the identical reason. It is an ordinary row, scored like any window by its
+-- title alone, so typing settings finds it and an unrelated word drops it.
 local function topRows()
   local out = windowRows()
-  out[#out + 1] = row("Settings", "Choose which terminal opens a fresh attach", "settings",
-    { nav = true, to = "settings" }, true)
+  out[#out + 1] = titled(row("Settings", "Choose which terminal opens a fresh attach", "settings",
+    { nav = true, to = "settings" }, true))
   return out
 end
 
 -- The settings level's own rows, a Back row leading per the chooser menu convention, then
--- one row per terminal provider. Back is pinned, and the shared search narrows the providers.
+-- one row per terminal provider. Back is pinned, and the shared search narrows the providers by
+-- name, never by the Installed status under it.
 local function settingsRows()
   local out = { row("Back", "", "back", { nav = true, to = "back" }, true, true) }
   local current = cfg.api:currentProviderName()
   for _, p in ipairs(cfg.api:providers()) do
     local isActive = p.name == current
     local sub = p.available() and "Installed" or "Not installed"
-    out[#out + 1] = row(p.name, sub, isActive and "active" or "terminal",
-      { setProvider = p.name }, p.available())
+    out[#out + 1] = titled(row(p.name, sub, isActive and "active" or "terminal",
+      { setProvider = p.name }, p.available()))
   end
   return out
 end

@@ -1100,9 +1100,12 @@ inherited at configure.
 
 `matcher` and `enter`, contract v2, docs/BRIEF-CONTRACT-V2.md, close the two gaps the trickle
 migrations opened rather than one either brief anticipated. Since phase two of the unified
-search a row may also carry `pinned`, `tier` and `bonus`, which `lib/chooser/rank.lua` states.
-`pinned = true` is never scored or dropped, so it replaces a false matcher wherever the only
-reason for one was a row that must always show. `matcher` is `false`, meaning the field is not a
+search a row may also carry `pinned`, `fromQuery`, `tier` and `bonus`, which
+`lib/chooser/rank.lua` states. A row setting either of the first two is never scored or dropped,
+so they replace a false matcher wherever the only reason for one was a row that must always show.
+Under a typed query a `fromQuery` row, made from what was typed, leads the ranked rows and a
+`pinned` row, a door or a placeholder, trails them, and on an empty query both keep the
+supplier's order. `matcher` is `false`, meaning the field is not a
 search and the supplier owns what shows, the one case that stays for an input page or a confirm,
 and it was what filesearch and clipboard asked their own standalone `Chooser.new` for, or a string naming a strategy in `Chooser.matchers`, the identical table
 `root/compose.lua` already resolves this word against for every consumer that still builds its

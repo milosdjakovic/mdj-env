@@ -134,10 +134,15 @@ start or as a phrase typed run together, below any title match, and the words of
 their own with a bonus for staying in one phrase. The authoring guide carries the detail. A subtitle that is a category, a status or a chord is
 taken out of search by setting `filterText` to the title. `lib/chooser/rank.lua` states the
 vocabulary. `matcher = false` only declares a field that is not a search, an input page where
-the typed text is a name, or a confirm. A row that must always show, a Back row, a capture row,
-a waiting row or the answer to the query itself, sets `pinned = true`, never `filterText` set to
-fake a match and never a hand filter in the supplier. `tier` and `bonus` order rows without
-changing what matches. A false matcher on a long list shows an unfiltered list and nothing
+the typed text is a name, or a confirm. The exceptions still standing are BrowserTabs tabs, the
+clipboard, FileSearch, emoji, Obsidian, processes and the launcher, which still rank their own
+query until phases three and four of `docs/PLAN-UNIFIED-SEARCH.md` move them, so none of them is
+a model to copy. A row that always shows comes in two kinds, and neither fakes a match through
+`filterText` or a hand filter in the supplier. `pinned = true` is a door or a placeholder, Back,
+a capture or new snapshot row, Apply now, which keeps its place on an empty query and trails the
+matches under a typed one, so Enter takes the best match. `fromQuery = true` is a row made from
+what was typed, a calculator answer, a conversion, a scope's already filtered rows, which leads
+under a typed query. `tier` and `bonus` order rows without changing what matches. A false matcher on a long list shows an unfiltered list and nothing
 notices.
 
 The placeholder names the list, never a key, and no user visible text anywhere names a

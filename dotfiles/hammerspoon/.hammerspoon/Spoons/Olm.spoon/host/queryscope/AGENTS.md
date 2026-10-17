@@ -102,11 +102,13 @@ end of this file. If a row ever really does fail to dispatch, measure the depth 
 before adding indirection, since the measurement takes a minute and the indirection
 couples a build to a selection by array index forever.
 
-`filterText` becomes the raw query including the alias. Filtering already happened,
-against the scope's own query, so this is what stops the presenter's matcher scoring
-these rows a second time against a string carrying a word they were never meant to
-contain. Every row then scores alike and the order decided here survives. A computed
-row already uses the same trick for the same reason.
+Every row becomes `fromQuery = true`. Filtering already happened, against the scope's own
+query, so the rows are the answer to what was typed, and this is what stops the presenter's
+matcher scoring them a second time against a query carrying the alias, a word they were never
+meant to contain. A fromQuery row is never scored or dropped and keeps the supplier's order, so
+the order decided here survives. A computed row is marked the same way for the same reason.
+The No match row names the typed rest, so it is fromQuery too, and the row for a scope that
+raised names only the scope, so it is `pinned`. Each is the only row of a claimed query.
 
 ## Filtering mirrors the atom rather than inventing a policy
 
