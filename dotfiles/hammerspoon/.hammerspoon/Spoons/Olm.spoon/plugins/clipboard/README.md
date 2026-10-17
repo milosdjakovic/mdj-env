@@ -10,6 +10,10 @@ glues the current selection onto the newest entry instead of pushing a new one,
 and paste next on Ctrl and Option and V walks backward through history one press
 at a time.
 
+Typing searches the history by each entry's first line, its whole text and the paths of
+copied files, the best matches first and the newer first among equally good ones. A leading
+img, url, file or txt keeps only that kind, so file report lists the copied files named report.
+
 While the list is open, j and k move, i pastes the highlighted entry, a appends it
 to a batch, d deletes it, and x closes the list.
 

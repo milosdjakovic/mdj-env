@@ -101,6 +101,15 @@ Plugins declare a row vocabulary and only core applies it. Today that is `title`
   any ranking the shared search could do, so the cap decides which rows can be found first. A
   list of thousands hands the engine every row and declares `rowLimit`, which cuts after ranking.
 
+- **The clipboard keeping its own words matcher behind `matcher = false`.** 2026-10-17, removed in
+  phase three packet two B. It was right for the old fuzzy, whose cost ran query length times body
+  length, and wrong once Milos decided search never differs per list. It kept a row when every
+  word was a substring anywhere in a lowered haystack of title, preview and body, so it matched
+  letters inside any word, and the preview made chars match every text entry, and it ranked
+  nothing, so the newest match led however weak it was. The rows now name their body and paths,
+  the newer leads only among equal matches, and the type prefix reaches the engine through
+  `searchText`.
+
 ## Log
 
 ### 2026-10-17 11:31, the measurement, the survey and the decision

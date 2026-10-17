@@ -1155,8 +1155,8 @@ ties. `Chooser.matchers` exposes the strategies, `fuzzy`, `substring` (the pre-f
 behaviour, a plain substring test where every match scores zero so the list keeps its
 natural order), and `words` (a word tokenizer, see the clipboard below). `root/compose.lua`
 injects one through `Chooser.configure({ matcher = ... })`, so switching every list
-between them is one edit. Today the root default is fuzzy, and the clipboard overrides
-its own to `words`.
+between them is one edit. Today the root default is fuzzy, and no presentation overrides it
+since the clipboard's `words` override retired in phase three, see the clipboard below.
 
 `fuzzy` is the one search every list is moving onto,
 `Spoons/Olm.spoon/docs/PLAN-UNIFIED-SEARCH.md`, settled on 2026-10-17 after Milos tested it live.
@@ -1234,30 +1234,36 @@ do not speak a tool's grammar. The DisplayProfiles, Workspaces and
 TmuxSessions lists and the settings page all inherit now, and the query scope and launcher
 query rows mark what a scope hands over as fromQuery. BrowserTabs tabs, the emoji picker,
 Obsidian and Processes moved in phase three and declare their fields, the emoji picker with a
-rowLimit of a hundred. The clipboard, FileSearch and the launcher itself still rank their own
-query, each behind its own reason its own file explains, and phases three and four of the plan
-move them.
+rowLimit of a hundred. The clipboard moved in the same phase, its rows naming their bodies and
+paths and its searchText answering what follows a type prefix. FileSearch and the launcher itself
+still rank their own query, each behind its own reason its own file explains, and phases three
+and four of the plan move them.
 
 So every list chooser is fuzzy by default with no per-tool wiring, and a future list
 chooser inherits it for free, while a field that is input opts out in one word.
 
-The clipboard uses `words` instead of fuzzy deliberately. Fuzzy earns its place in the
-label choosers, where you type an abbreviation of a short known name and subsequence
-matching with typo tolerance is the point. Clipboard entries are arbitrary prose and code
-searched from the inside, where you remember and type a real word, and there fuzzy was both
-the wrong fit and the performance cost. Its query-length times body-length cost per row,
-run over uncapped clipboard bodies and rebuilt every keystroke, dragged worse the more you
-typed, and the only ways to bound it (truncating the searchable body) lost content the
-matcher was meant to reach. `words` splits the query on whitespace and keeps a row when
-every word is a substring of the body in any order, so words need not be adjacent and a
-prefix still hits. It is a plain byte scan with no dynamic program and no allocation, so it
-searches the full body of every entry on each keystroke with nothing truncated, and its
-only blind spot is a wrong letter inside a word, a fair trade on this kind of text. Two
-smaller changes go with it: the clipboard caches each entry's lowercased searchable text
-once (a weak-keyed table in `ui.lua`) instead of rebuilding it every keystroke, and the
-row build filters and styles only survivors as before. A database-backed full-text index
-(`hs.sqlite3`) would only matter if the 1000-entry in-memory history ever grew into the
-tens of thousands; at this scale the scan is already well within a frame.
+The clipboard searches through the shared engine since phase three of the unified search on
+2026-10-17. A history row filters on its one line title, since its subtitle is a kind, an age and
+a count, names its full text body and every file path, so a word deep in a long body is found by
+the long field rule, a word start or inside a word over a lowered copy `match.lua` keeps, with
+nothing truncated, and carries its place in the store as a bonus, so among equally good matches
+the newer leads and a newer entry never lifts over a better one. The preview line is not searched,
+since it reads 1200 chars or URL, and searching it made chars match every text entry. The type
+prefix, img, url, file or txt, stays the clipboard's own grammar. The supplier reads it to keep
+only that kind, and the presentation's `searchText` answers the rest, so img cat ranks the images
+by cat. The manage history page shares the presentation, and its field is a duration, so
+`searchText` answers nothing there and its rows keep their order whatever is typed. Over a
+thousand entries and fourteen megabytes of bodies a keystroke measured 3 to 11 milliseconds in
+plain Lua, rows and ranking together, and 20 for a word found only inside words.
+
+Until then the clipboard used `words` instead of fuzzy deliberately, and the reason is kept
+because it was right for the matcher it had. Clipboard entries are prose and code searched from
+the inside, and the old fuzzy, a subsequence scorer whose cost ran query length times body length,
+dragged over uncapped bodies on every keystroke, while truncating the bodies lost what the search
+was for. `words` kept a row when every word was a substring of a lowered body, a plain byte scan,
+with a weak keyed cache of each entry's lowercased text in `ui.lua`. The shared search answers both
+reasons now, a long body is matched by plain scans over a kept lowered copy, and the cache went
+with the matcher. `decisions/olm-unified-search.md` has the measurements and the rejection.
 
 **An option with a closed set of values is named by its owner, never spelled at the call
 site.** Two options are like this today, `placement` and `align`, both on `CanvasPanel`, and the
@@ -1421,8 +1427,11 @@ monitor grew one hook, `onCapture`, fired after a genuine copy and nowhere else.
 
 An append is the one thing that changes an entry's content after capture, which two places had
 assumed could never happen. `store.replaceText` is the only way it happens, so the dedupe key
-recompute that keeps identity honest lives there alone, and `ui.entryChanged` drops that entry's
-cached searchable text, without which a search would keep missing the words just appended.
+recompute that keeps identity honest lives there alone. `ui.entryChanged` repaints the open list.
+A search finds the appended words with nothing dropped, since the row names its body afresh on
+every keystroke and the shared search keys its lowered copy by the string the append replaced.
+Until phase three of the unified search it also dropped a cached lowercased haystack, without
+which the words matcher kept missing the words just appended.
 
 Both keys, the append and the sequential walk, are built on the shared insertion primitives that
 used to live only here, direct insertion against a paste, the restore guard, the held chord hazard,

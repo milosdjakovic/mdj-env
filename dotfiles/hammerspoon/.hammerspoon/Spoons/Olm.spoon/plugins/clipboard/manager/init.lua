@@ -165,6 +165,10 @@ function M.placeholder()
   return ui.placeholder()
 end
 
+function M.searchText(raw)
+  return ui.searchText(raw)
+end
+
 function M.onPresent()
   ui.onPresent()
 end

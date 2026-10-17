@@ -76,11 +76,6 @@ local thumbCache = {} -- path -> hs.image (or false), for row thumbnails
 local imageCache = {} -- preview png path -> hs.image (or false), so a re-highlight re-decodes nothing
 local iconCache = {} -- bundle id -> hs.image (or false), for row source-app icons
 local existCache = {} -- linked-file path -> bool, so the badge does not restat per keystroke
--- entry -> its lowercased searchable text, built once. Weak keyed, so an entry that leaves
--- the store falls out on its own. One thing does change an entry's content after capture,
--- the append accumulator growing it, and that is the single case this has to be told about,
--- through UI.entryChanged.
-local hayCache = setmetatable({}, { __mode = "k" })
 
 -- Append batch. The Hyper a binding collects the highlighted entry here, in the
 -- order pressed, so several items can be gathered and pasted together on close.
@@ -211,24 +206,9 @@ local function subTextFor(e)
   return table.concat(parts, "  ·  ")
 end
 
--- The lowercased text the word matcher searches for an entry, its title, preview,
--- body, and any file paths folded together. Built once per entry and cached against
--- the live store reference, so a keystroke no longer rebuilds and lowercases the full
--- body of the whole history, which was the bulk of the old per-keystroke cost.
-local function haystack(e)
-  local hit = hayCache[e]
-  if hit then return hit end
-  local parts = { e.title, e.preview or "" }
-  if e.text then parts[#parts + 1] = e.text end
-  for _, el in ipairs(e.files or {}) do
-    parts[#parts + 1] = el.path
-  end
-  local hay = table.concat(parts, " "):lower()
-  hayCache[e] = hay
-  return hay
-end
-
--- Split an optional leading type token ("img ...", "file: ...") off the query.
+-- Split an optional leading type token ("img ...", "file: ...") off the query. The supplier
+-- reads the kind to narrow the candidates and UI.searchText answers the rest, so the grammar is
+-- parsed here once for both and the shared search never sees the prefix.
 local function parseQuery(q)
   q = q or ""
   local word, rest = q:match("^(%a+)[:%s]%s*(.*)$")
@@ -312,24 +292,42 @@ local function colorChip(col)
   return img or nil, key
 end
 
--- The atom's rows supplier. Returns plain items; the atom styles them with the
--- active palette. Filtering, the type prefix, the batch mark, and the kind icon
--- are all clipboard policy and live here. The free-text part runs through
--- the injected word matcher (Chooser.matchers.words), not the fuzzy one the label choosers
--- use, so the full body of every entry stays searchable with a cheap byte scan and nothing
--- is truncated. Its result is used only as a yes or no, so a match keeps the row and the
--- store's recency order is preserved.
+-- What a history row is searched by, besides its title. The full text body and every file
+-- path, each a further name of the row matched at the title's levels, so a word deep in a long
+-- body is found by the shared search's long field rule, a word start or inside a word, with
+-- nothing truncated. The preview is not among them, it reads 1200 chars or URL or image, so
+-- searching it once made chars match every text entry.
+local function namesOf(e)
+  local names = {}
+  if type(e.text) == "string" and e.text ~= "" then names[#names + 1] = e.text end
+  for _, el in ipairs(e.files or {}) do
+    if type(el.path) == "string" then names[#names + 1] = el.path end
+  end
+  return names
+end
+
+-- The atom's rows supplier. Returns plain items, every history entry of the kind the query
+-- names, in the store's order, newest first, and the shared search ranks them. The type prefix,
+-- the batch mark and the kind icon are clipboard policy and live here, and so does the
+-- narrowing by kind, since it is a filter the grammar states rather than a match. What is left
+-- after the prefix reaches the shared search through UI.searchText, the presentation's
+-- searchText. A row filters on its title, since its subtitle is a kind, an age and a count,
+-- names its body and its paths, and carries its place in the store as a bonus, so among rows
+-- the search calls equally good the newer leads, and a newer entry never lifts over a better
+-- match.
 local function buildChoices(q)
   -- The page is a different list, not a filtered one, so it answers first and the type prefix
-  -- and the word matcher below never see its query. That field is a duration being typed rather
-  -- than a search, which is also why the chooser opts out of the shared matcher entirely.
+  -- never sees its query. That field is a duration being typed rather than a search, which is
+  -- why UI.searchText answers nothing on this page and the shared search keeps these rows as
+  -- they are.
   if page == "prune" then return prune.rows(q) end
 
-  local kind, rest = parseQuery(q)
-  rest = (rest or ""):gsub("^%s+", ""):gsub("%s+$", ""):lower()
+  local kind = parseQuery(q)
   local out = {}
-  for _, e in ipairs(store.all()) do
-    if (not kind or e.kind == kind) and (rest == "" or cfg.matcher(rest, haystack(e)) ~= nil) then
+  local all = store.all()
+  local count = #all
+  for i, e in ipairs(all) do
+    if not kind or e.kind == kind then
       -- An appended row shows its 1-based batch position as its icon (the keycap
       -- number), the most visible mark on the native chooser, which renders no icon
       -- badge. Otherwise the icon says the kind: an image shows its own thumbnail, a
@@ -359,6 +357,9 @@ local function buildChoices(q)
       out[#out + 1] = {
         title = e.title,
         subTitle = subTextFor(e),
+        filterText = e.title,
+        names = namesOf(e),
+        bonus = (count - i + 1) / count,
         image = img,
         icon = icon,
         iconKey = iconKey,
@@ -1061,12 +1062,13 @@ function UI.mediaReady()
 end
 
 --- UI.entryChanged(entry) - one entry's content was rewritten in place, which only the append
---- accumulator does. Drop its cached searchable text, or a search would keep missing the words
---- just appended, and repaint if the chooser happens to be open so the row and the preview show
---- the grown content. Nothing else has to be invalidated, since the row is built from the entry
---- itself and the media caches are keyed by path.
+--- accumulator does. Repaint if the chooser happens to be open so the row and the preview show
+--- the grown content. Nothing has to be invalidated for search. The row is built from the entry
+--- itself on every keystroke, so its names carry the grown text, and the shared search keys its
+--- lowered copy of a long body by the string, which the append replaced with a new one. Until
+--- phase three of the unified search on 2026-10-17 this also dropped the entry's cached
+--- lowercased haystack, which the words matcher searched and nothing reads any more.
 function UI.entryChanged(entry)
-  hayCache[entry] = nil
   if showing then
     if cfg.redrawPresented then cfg.redrawPresented("clipboard") end
     renderPreview(cfg.stageSelectedItem and cfg.stageSelectedItem())
@@ -1237,8 +1239,8 @@ end
 --- used to hand a Chooser.new call, theme, fieldMode, rows, onSelect, the drill down pair, the
 --- panel triple, and layout, is now either read straight off this module by the registrar,
 --- rows and select through the manifest's own presentation block, or owned by the stage as
---- fixed, atom level policy, matcher being contract v2's own exception, still read straight
---- off presentation.matcher rather than computed here since this plugin never varies it.
+--- fixed, atom level policy. The presentation declares no matcher since phase three of the
+--- unified search, so the shared one ranks, and its searchText is UI.searchText below.
 --- widthPct, paneMaxW, rowH, baseH, rowCount, gap, topFrac, and minVPad were eight restated
 --- atom defaults even before this migration, surprise 9.4 of the consumer map, and pollInterval
 --- turns out to equal the atom's own hardcoded fallback of 0.08 exactly, so nothing here was
@@ -1280,6 +1282,19 @@ end
 --- as the contract's rows, exposing buildChoices, the atom's own rows supplier from before
 --- the migration, without a second copy to disagree with.
 UI.rows = buildChoices
+
+--- UI.searchText(raw) -> string. The presentation's searchText, the text the shared search
+--- ranks the history by, which is what follows a type prefix, so img cat ranks the images by
+--- cat while buildChoices keeps only the images. On the manage history page the field is a
+--- duration or a count rather than a search, so it answers nothing, which keeps that page's rows
+--- in the order prune.lua gave them whatever is typed, as matcher false did for the whole
+--- presentation before. The page swaps inside one presentation, so the matcher the stage writes
+--- before a show cannot follow it, and this is read on every keystroke, so it can.
+function UI.searchText(raw)
+  if page == "prune" then return "" end
+  local _, rest = parseQuery(raw)
+  return rest or ""
+end
 
 --- UI.select(item) - apply a row, named on the manifest's own presentation block as the
 --- contract's onSelect, exposing the file local onSelect already defined above.

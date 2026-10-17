@@ -85,3 +85,32 @@ for _, q in ipairs({ "c", "cho", "chooser", "settings", "hello there", "zebra", 
   print(string.format("  %-12s words %7.2f   fuzzy %7.2f", q,
     perKeystroke(q, historyLowered, match.words), perKeystroke(q, history, match.fuzzy)))
 end
+
+-- The same history as the clipboard's rows declare it since phase three packet two B, a title
+-- that is the body's first hundred bytes on one line, filterText set to it, the body as the one
+-- name and the store's place as the bonus, ranked with the presentation's searchText, which
+-- answers the query whole when it carries no type prefix. The row tables are built on every
+-- keystroke too, as the supplier builds them, minus the icons, which need Hammerspoon.
+print("the clipboard's own rows over that history, one keystroke after the first, in milliseconds")
+-- A title is computed once at capture and kept on the entry, so it is built here once too.
+local clipTitles = {}
+for i = 1, #history do clipTitles[i] = history[i].names[1]:sub(1, 100):gsub("%s+", " ") end
+local function clipboardRows()
+  local out, n = {}, #history
+  for i = 1, n do
+    local title = clipTitles[i]
+    out[i] = { title = title, subTitle = "Text  ·  2m ago", filterText = title,
+      names = { history[i].names[1] }, bonus = (n - i + 1) / n }
+  end
+  return out
+end
+local clipSearch = { searchText = function(q) return q end }
+local function clipKeystroke(q)
+  rank.apply(clipboardRows(), q, match.fuzzy, clipSearch)
+  local started = clock()
+  for _ = 1, 5 do rank.apply(clipboardRows(), q, match.fuzzy, clipSearch) end
+  return (clock() - started) / 5 * 1000
+end
+for _, q in ipairs({ "c", "cho", "chooser", "settings", "hello there", "zebra", "quick fox", "ump" }) do
+  print(string.format("  %-12s rows and rank %7.2f", q, clipKeystroke(q)))
+end

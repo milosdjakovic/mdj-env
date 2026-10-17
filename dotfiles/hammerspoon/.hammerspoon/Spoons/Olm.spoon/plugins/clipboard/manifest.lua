@@ -196,17 +196,11 @@ return {
       { key = "delete", action = "leaveManageHistory", when = "clipboardManagingHistory",
         chord = false, description = "Back to history", icon = "back" },
     },
-    -- Entries here are prose and code searched from the inside, a real remembered
-    -- word rather than an abbreviation of a short label, so the words matcher fits
-    -- and fuzzy would only cost more for less. The manager still opts its own picker
-    -- out of the atom's own ranking, since it parses a type prefix off the query
-    -- itself, but it wants the shared matching value handed to it anyway to score
-    -- the free text part, which is what makes the pane worth having. Migrated onto
-    -- the shared stage, contract v2, the opt out itself now travels through
-    -- presentation.matcher below as false, while this word stays declared here too,
-    -- unread by the stage, since needs.data's own engine facing matcher injection,
-    -- unrelated to either, still reads this exact word for buildChoices's own scoring.
-    matcher = "words",
+    -- No matcher. Until phase three of the unified search on 2026-10-17 this declared the words
+    -- strategy, injected for buildChoices to score the free text itself, since entries are prose
+    -- and code searched from the inside and fuzzy then cost too much over long bodies. The shared
+    -- search now matches a long body by a word start or inside a word over a lowered copy it
+    -- keeps, so the clipboard ranks through it like every list, decisions/olm-unified-search.md.
     -- The docked companion pane is most of what this picker is, the live preview of
     -- whatever is highlighted, so it earns the reserved room rather than going without.
     pane = true,
@@ -220,13 +214,14 @@ return {
   -- cfg.stageSetPlaceholder, since a static contract field cannot express a page that changes
   -- what the field means.
   --
-  -- matcher is false, contract v2's own first addition and the largest reason this plugin
-  -- needed it. The atom's own scoring did no filtering here before the migration, buildChoices
-  -- owning every bit of it itself, the type prefix parsed off the query and the free text part
-  -- scored by the injected words matcher while preserving the store's own recency order, and
-  -- the manage history page reads the same field as a duration with no relationship to entry
-  -- content at all. host/stage writes false onto the live instance before every show and swap,
-  -- so both pages keep exactly the filtering, or the total absence of it, they always had.
+  -- No matcher, so the shared search ranks the history, phase three of
+  -- docs/PLAN-UNIFIED-SEARCH.md on 2026-10-17. Until then this declared matcher false, since
+  -- buildChoices did all of its own filtering, the type prefix parsed off the query and the free
+  -- text scored by the words matcher while keeping the store's recency order. A row now declares
+  -- its title, its body and paths as names and its place in the store as a bonus, and searchText
+  -- answers what follows the type prefix, which buildChoices still reads to narrow by kind. The
+  -- manage history page reads the same field as a duration, and searchText answers nothing there,
+  -- so its rows keep their order whatever is typed, the one thing matcher false still did.
   --
   -- intercept and back are the manage history page's own drill down pair, unchanged in what
   -- they do, migrated in how they reach the field, cfg.stageSetQuery and cfg.stageSetPlaceholder
@@ -272,7 +267,7 @@ return {
     -- the manager's own config, this plugin's only real layout override even before the
     -- migration, consumer map surprise 9.4 naming the other eight as restated atom defaults.
     paneWidth = true,
-    matcher = false,
+    searchText = { member = "manager.searchText", call = "dot" },
   },
 
   -- Configure alone leaves this plugin silent. Every field the picker needs, the
