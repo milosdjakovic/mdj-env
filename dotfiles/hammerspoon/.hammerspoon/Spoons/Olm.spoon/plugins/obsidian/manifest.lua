@@ -125,6 +125,9 @@ return {
     select = { member = "select", call = "dot" },
     placeholder = { member = "placeholder", call = "dot" },
     onPresent = { member = "onPresent", call = "dot" },
+    -- The most notes shown, cut after ranking, decided 2026-10-17, so a vault of thousands is
+    -- styled two hundred rows at a time and the pinned rows are never cut.
+    rowLimit = 200,
   },
 
   registry = {
@@ -139,6 +142,7 @@ return {
       -- No matcher, so the query scope ranks the same rows through the shared search.
       rows = { member = "rows", call = "dot" },
       run = { member = "select", call = "dot" },
+      rowLimit = 200,
     },
   },
 }

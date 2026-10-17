@@ -178,6 +178,8 @@ do
   local manifest = load("plugins/obsidian/manifest.lua")
   check("the Obsidian list and its scope inherit the shared search", manifest.presentation.matcher == nil
     and manifest.registry.scope.matcher == nil)
+  check("both keep two hundred notes after ranking", manifest.presentation.rowLimit == 200
+    and manifest.registry.scope.rowLimit == 200)
 
   local tree = {
     ["/v/Work"] = "dir",
