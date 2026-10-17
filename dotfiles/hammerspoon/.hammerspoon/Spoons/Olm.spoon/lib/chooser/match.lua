@@ -27,19 +27,56 @@ local BYTE_a, BYTE_z = string.byte("a"), string.byte("z")
 local function isUpper(b) return b ~= nil and b >= BYTE_A and b <= BYTE_Z end
 local function isLower(b) return b ~= nil and b >= BYTE_a and b <= BYTE_z end
 
--- A character that ends a word, so the next character starts one. Space and the common
--- name separators.
-local SEP = {}
-for _, ch in ipairs({ " ", "/", "\\", "-", "_", ".", ":", "(", ")", "[", "]", "@" }) do
-  SEP[string.byte(ch)] = true
+-- A byte that is part of a word. An ASCII letter or digit, or a byte of a non ASCII character
+-- that is not one of the separators below. Every other byte ends a word, a space, a hyphen, a
+-- slash, an ampersand, a dollar sign, so the next word byte starts one.
+local ALNUM = {}
+for b = 0, 127 do ALNUM[b] = string.char(b):match("%w") ~= nil end
+
+-- Non ASCII characters that separate rather than spell, by their UTF-8 bytes. The middle dot
+-- and the triangle are how subtitles and menu paths here join their parts, and the others are
+-- their usual neighbours. Each of them also ends a phrase, see BREAK.
+local MULTI_SEP = { "\u{00B7}", "\u{25B8}", "\u{2022}", "\u{2014}", "\u{2013}", "\u{203A}", "\u{2192}" }
+
+-- ASCII punctuation that ends a phrase, so pieces never span "disconnect, or" and a declared
+-- string "a, b" holds two phrases. The non ASCII separators above end one too, the same set
+-- for matching and for the phrase a row shows, so the two never disagree.
+local BREAK = { [string.byte(",")] = true, [string.byte(";")] = true,
+                [string.byte("!")] = true, [string.byte("?")] = true }
+
+-- The length of the non ASCII separator starting at byte j of s, or nil.
+local function multiSepAt(s, j)
+  local b = s:byte(j)
+  if b == nil or b < 128 then return nil end
+  for _, seq in ipairs(MULTI_SEP) do
+    local ok = true
+    for k = 1, #seq do
+      if s:byte(j + k - 1) ~= seq:byte(k) then ok = false; break end
+    end
+    if ok then return #seq end
+  end
+  return nil
+end
+
+-- Whether byte j of s is a word byte, for a field that has not been prepared. A non ASCII
+-- byte is looked at in the context of the separators that could hold it.
+local function wordByteAt(s, j)
+  local b = s:byte(j)
+  if b == nil then return false end
+  if b < 128 then return ALNUM[b] end
+  for back = 0, 2 do
+    local len = (j - back >= 1) and multiSepAt(s, j - back) or nil
+    if len and len > back then return false end
+  end
+  return true
 end
 
 -- Scoring weights, which order rows inside one level. A matched character is worth MATCH plus
 -- a bonus for where it lands. Extending a run (CONSEC) is worth the most, so a word matched
 -- in one piece beats the same word split over several words. START rewards the very first
--- character of the field, BOUND a word start after a separator, CAMEL a camel hump. The gap
--- before the first matched character and after the last is nearly free, GAP_LEAD and
--- GAP_TRAIL, so an earlier word and a shorter field win a tie and nothing more.
+-- character of the field, BOUND a word start after anything that is no word byte, CAMEL a
+-- camel hump. The gap before the first matched character and after the last is nearly free,
+-- GAP_LEAD and GAP_TRAIL, so an earlier word and a shorter field win a tie and nothing more.
 local MATCH   = 1
 local START   = 10
 local BOUND   = 7
@@ -60,24 +97,12 @@ local TOP = MATCH + math.max(START, BOUND, CAMEL, CONSEC)
 local TYPO_MIN = 4
 local INSIDE_MIN = 3
 
--- The long body bound, in bytes. A field longer than this matches a word only at a word
+-- The long field bound, in bytes. A field longer than this matches a word only at a word
 -- start or, from INSIDE_MIN letters, inside a word, its best occurrence, never by pieces or
 -- with an edit, which is what the words strategy did for clipboard bodies and file paths and
--- why this one search can replace it. Measured on 2026-10-17, decisions/olm-unified-search.md,
--- every launcher row's fields are under 200 bytes, so no name loses its pieces or its typo,
--- and a body past the bound costs about what the words strategy costs once its lowered copy
--- is kept.
+-- why this one search can replace it. Every launcher row's fields measured under 200 bytes on
+-- 2026-10-17, so no name loses its pieces or its typo.
 local LONG = 256
-
--- The bonus for matching a query character at haystack position j (one based), read from
--- the original haystack so casing still informs the rank.
-local function bonusAt(hay, j)
-  if j == 1 then return START end
-  local pb = hay:byte(j - 1)
-  if SEP[pb] then return BOUND end
-  if isLower(pb) and isUpper(hay:byte(j)) then return CAMEL end
-  return 0
-end
 
 -- A long body lowered once rather than on every keystroke. Lowering a body costs an
 -- allocation the size of the body, which the words strategy measured as four fifths of its
@@ -109,229 +134,255 @@ local function lowered(hay)
   return low
 end
 
--- Whether a word of the field starts at position j, the very first byte, a byte after a
--- separator, or a camel hump. The same three places bonusAt rewards, so the levels and the
--- scoring never disagree about where a word begins.
-local function startsWord(hay, j)
-  return bonusAt(hay, j) > 0
+-- The bonus a word starting at byte j earns, or zero when no word starts there. The first
+-- byte, a byte after anything that is no word byte, or a camel hump.
+local function startBonus(s, j, isWord)
+  if not isWord(s, j) then return 0 end
+  if j == 1 then return START end
+  if not isWord(s, j - 1) then return BOUND end
+  if isLower(s:byte(j - 1)) and isUpper(s:byte(j)) then return CAMEL end
+  return 0
 end
 
--- Whether a byte can be part of a word. A letter, a digit, or any byte of a non ASCII
--- character. A standalone symbol such as the ampersand in Printers & Scanners is not a word,
--- so ps finds it, since nobody types the ampersand when spelling a name by its pieces.
-local function wordByte(b)
-  return b ~= nil and (b >= 128 or string.char(b):match("%w") ~= nil)
-end
-
--- The words of a field, each { s, e } by byte position. A word begins where startsWord says
--- and runs until a byte that is no word byte or begins the next word, so a camel hump splits
--- one, macOS Settings reads as mac, OS, Settings.
-local function wordsOf(hay)
-  local list, m, j = {}, #hay, 1
+-- A short field read once and kept, the same idea as the lowered memo and for the same reason,
+-- a list asks the same names on every key. A field becomes its lowered text, its words each
+-- { s, e, bonus }, the words by their first lowered byte, and for each word whether a phrase
+-- ends after it and whether the next word follows with nothing between, a camel hump. Short
+-- strings are interned in Lua, so the key is cheap. PREP_LIMIT bounds the memo by entries and
+-- it starts over when full.
+local PREP_LIMIT = 20000
+local prepared, preparedCount = {}, 0
+local function prepare(s)
+  local p = prepared[s]
+  if p then return p end
+  local m = #s
+  -- Which bytes are word bytes, worked out once so a separator's bytes are known everywhere.
+  local wb = {}
+  local j = 1
   while j <= m do
-    if wordByte(hay:byte(j)) and startsWord(hay, j) then
+    local len = multiSepAt(s, j)
+    if len then
+      for k = j, j + len - 1 do wb[k] = false end
+      j = j + len
+    else
+      local b = s:byte(j)
+      wb[j] = (b >= 128) or ALNUM[b]
+      j = j + 1
+    end
+  end
+  local function isWord(_, k) return wb[k] == true end
+  local words, byFirst = {}, {}
+  local low = s:lower()
+  j = 1
+  while j <= m do
+    local bonus = startBonus(s, j, isWord)
+    if bonus > 0 then
       local e = j
-      while e < m and wordByte(hay:byte(e + 1)) and not startsWord(hay, e + 1) do e = e + 1 end
-      list[#list + 1] = { s = j, e = e }
+      while e < m and wb[e + 1] and startBonus(s, e + 1, isWord) == 0 do e = e + 1 end
+      local w = { s = j, e = e, bonus = bonus }
+      words[#words + 1] = w
+      local fb = low:byte(j)
+      local list = byFirst[fb]
+      if not list then list = {}; byFirst[fb] = list end
+      list[#list + 1] = #words
       j = e + 1
     else
       j = j + 1
     end
   end
-  return list
-end
-
--- Where the piece after one at word wi may start. The next word always, and past it any later
--- word of the same token, the run of words a camel hump splits with nothing between them, up to
--- and including the first word of the next token. So a camel hump offers a piece start without
--- demanding one, DaVinci Control Panels answers dcp and dvcp alike, and YouTube Music answers
--- ym as well as ytm.
-local function nextStarts(hay, words, wi)
-  local out = {}
-  local k = wi + 1
-  while k <= #words do
-    out[#out + 1] = k
-    if words[k].s ~= words[k - 1].e + 1 then break end
-    k = k + 1
-  end
-  return out
-end
-
--- Whether two neighbouring words belong to one phrase. Clause punctuation between them, a
--- comma, a semicolon, a question or exclamation mark, ends a phrase, so pieces never span
--- "disconnect, or join" in a sentence and a declared list "a, b" keeps its phrases apart.
-local function samePhrase(hay, left, right)
-  return hay:sub(left.e + 1, right.s - 1):find("[,;!?]") == nil
-end
-
--- A query word as a list of bytes, where 0 stands for any one byte of a word, which is how
--- the one edit variants below say a letter is wrong or missing.
-local WILD = 0
-local function bytesOf(word)
-  local q = {}
-  for i = 1, #word do q[i] = word:byte(i) end
-  return q
-end
-local function same(qb, hb)
-  return qb == hb or (qb == WILD and wordByte(hb))
-end
-
--- The score of the pieces of one match, each { pos, len }, the first character of a piece
--- earning its word start bonus and every later one extending the run, plus the near free
--- gaps before the first piece and after the last.
-local function piecesScore(hay, first, lastEnd, sum)
-  return sum + (first - 1) * GAP_LEAD + (#hay - lastEnd) * GAP_TRAIL
-end
-local function pieceScore(hay, pos, len)
-  return bonusAt(hay, pos) + MATCH + (len - 1) * (CONSEC + MATCH)
-end
-
--- Level A, the word at the start of a word of the field, the best such place, answering its
--- score or nil.
-local function atWordStart(q, hay, hlow, words)
-  local n, best = #q, nil
-  for _, w in ipairs(words) do
-    local ok = w.s + n - 1 <= #hay
-    for i = 1, n do
-      if not ok then break end
-      ok = same(q[i], hlow:byte(w.s + i - 1))
+  -- Between each word and the next, whether a phrase ends and whether they touch.
+  for k = 1, #words - 1 do
+    local w, nx = words[k], words[k + 1]
+    w.joined = (nx.s == w.e + 1)
+    local broken = false
+    local g = w.e + 1
+    while g < nx.s do
+      local b = s:byte(g)
+      if BREAK[b] or multiSepAt(s, g) then broken = true; break end
+      g = g + 1
     end
-    if ok then
-      local s = piecesScore(hay, w.s, w.s + n - 1, pieceScore(hay, w.s, n))
-      if best == nil or s > best then best = s end
+    w.breakAfter = broken
+  end
+  p = { low = low, words = words, byFirst = byFirst, wb = wb }
+  preparedCount = preparedCount + 1
+  if preparedCount > PREP_LIMIT then prepared, preparedCount = {}, 1 end
+  prepared[s] = p
+  return p
+end
+
+-- The score of a match from its pieces, the sum of the pieces plus the near free gaps before
+-- the first and after the last.
+local function framed(m, first, lastEnd, sum)
+  return sum + (first - 1) * GAP_LEAD + (m - lastEnd) * GAP_TRAIL
+end
+local function pieceScore(bonus, len)
+  return bonus + MATCH + (len - 1) * (CONSEC + MATCH)
+end
+
+-- Whether the lowered word w sits at byte s of the lowered text low.
+local function prefixAt(low, s, w)
+  for i = 1, #w do
+    if low:byte(s + i - 1) ~= w:byte(i) then return false end
+  end
+  return true
+end
+
+-- Level A, the word at the start of a word of the field, the best such place. Answers the
+-- score and where it starts, or nil.
+local function atWordStart(w, s, p)
+  local list = p.byFirst[w:byte(1)]
+  if not list then return nil end
+  local best, at, m = nil, nil, #s
+  for _, k in ipairs(list) do
+    local word = p.words[k]
+    if prefixAt(p.low, word.s, w) then
+      local sc = framed(m, word.s, word.s + #w - 1, pieceScore(word.bonus, #w))
+      if best == nil or sc > best then best, at = sc, word.s end
     end
   end
-  return best
+  return best, at
 end
 
--- Level B, the word split into two or more pieces, each the start of one of a run of
--- consecutive words in one phrase, in order, every piece at least one letter. Initials are
--- the case where every piece is one letter. The best split is kept, and since a piece's first
--- letter earns a word start bonus where a continued run earns more, fewer pieces score higher.
-local function inPieces(q, hay, hlow, words)
-  local n = #q
+-- Level B, the word in two or more pieces, each the start of a word, the words consecutive and
+-- in one phrase, initials being every piece one letter. After a piece the next may start at
+-- the next word, or further along the same camel joined token up to the first word of the
+-- next token, so a camel hump offers a piece start without demanding one, DaVinci Control
+-- Panels answering dcp. The best split is kept, and since a piece's first letter earns a word
+-- start bonus where a continued run earns more, fewer pieces score higher. The work is a memo
+-- over the query position and the word, so it is bounded by the word length times the number
+-- of words times the longest word, linear in the field for a fixed query.
+local function inPieces(w, s, p)
+  local first = p.byFirst[w:byte(1)]
+  if not first then return nil end
+  local n, words, low, m = #w, p.words, p.low, #s
   local memo = {}
-  -- The best score for q[qi..n] with its first piece at word wi, the trailing gap included,
-  -- or nil.
-  local function rest(qi, wi)
-    local key = qi * 4096 + wi
-    if memo[key] ~= nil then return memo[key] or nil end
-    local w, best = words[wi], nil
-    local len = w.e - w.s + 1
-    for L = 1, math.min(n - qi + 1, len) do
-      if not same(q[qi + L - 1], hlow:byte(w.s + L - 1)) then break end
-      local here = pieceScore(hay, w.s, L)
+  local rest
+  -- The best for the next piece after word k, starting the query at qi.
+  local function after(qi, k)
+    local best = nil
+    local j = k + 1
+    while j <= #words do
+      local prev = words[j - 1]
+      if prev.breakAfter then break end
+      local r = rest(qi, j)
+      if r and (best == nil or r > best) then best = r end
+      -- A word that does not touch the next ended its token, so the word after it was the
+      -- last candidate.
+      if not prev.joined then break end
+      j = j + 1
+    end
+    return best
+  end
+  rest = function(qi, k)
+    local key = qi * 1024 + k
+    local hit = memo[key]
+    if hit ~= nil then return hit or nil end
+    local word = words[k]
+    local best = nil
+    local len = word.e - word.s + 1
+    local L = 0
+    while L < len and qi + L <= n and low:byte(word.s + L) == w:byte(qi + L) do
+      L = L + 1
+      local here = pieceScore(word.bonus, L)
       local total
       if qi + L - 1 == n then
-        total = here + (#hay - (w.s + L - 1)) * GAP_TRAIL
+        total = here + (m - (word.s + L - 1)) * GAP_TRAIL
       else
-        for _, k in ipairs(nextStarts(hay, words, wi)) do
-          if samePhrase(hay, words[k - 1], words[k]) then
-            local after = rest(qi + L, k)
-            if after and (total == nil or here + after > total) then total = here + after end
-          end
-        end
+        local a = after(qi + L, k)
+        if a then total = here + a end
       end
       if total and (best == nil or total > best) then best = total end
     end
     memo[key] = best or false
     return best
   end
-  local best = nil
-  for wi = 1, #words - 1 do
-    local w = words[wi]
-    local len = w.e - w.s + 1
-    for L = 1, math.min(n - 1, len) do
-      if not same(q[L], hlow:byte(w.s + L - 1)) then break end
-      for _, k in ipairs(nextStarts(hay, words, wi)) do
-        if samePhrase(hay, words[k - 1], words[k]) then
-          local after = rest(L + 1, k)
-          if after then
-            local total = pieceScore(hay, w.s, L) + after + (w.s - 1) * GAP_LEAD
-            if best == nil or total > best then best = total end
-          end
-        end
+  local best, at = nil, nil
+  for _, k in ipairs(first) do
+    local word = words[k]
+    local len = word.e - word.s + 1
+    local L = 0
+    while L < len and L < n - 1 and low:byte(word.s + L) == w:byte(1 + L) do
+      L = L + 1
+      local a = after(1 + L, k)
+      if a then
+        local total = pieceScore(word.bonus, L) + a + (word.s - 1) * GAP_LEAD
+        if best == nil or total > best then best, at = total, word.s end
       end
     end
   end
-  return best
+  return best, at
 end
 
--- Level A then B, the two forms a name and a declared term are both matched in.
-local function startOrPieces(q, hay, hlow, words)
-  return atWordStart(q, hay, hlow, words) or inPieces(q, hay, hlow, words)
+-- Whether the lowered word w matches at byte s of low with exactly one edit, as a word start
+-- match, level C. The first letter is never edited, it is already known to match. Allowed are
+-- two neighbours swapped anywhere after the first letter, docekr for Docker, and a letter
+-- wrong, extra or missing strictly inside the word, dokcer and dcoker. A wrong or extra last
+-- letter is not allowed, since dropping it leaves a shorter prefix that already reads as a word
+-- start, note would find Notifications and show Shortcuts. A letter standing in or inserted
+-- must be a word byte, so an edit never reaches across a space.
+local function oneEditAt(low, s, w, wb)
+  local n = #w
+  local i = 2
+  while i <= n and low:byte(s + i - 1) == w:byte(i) do i = i + 1 end
+  if i > n then return false end
+  local function restEq(wi, ti)
+    for x = 0, n - wi do
+      if low:byte(ti + x) ~= w:byte(wi + x) then return false end
+    end
+    return true
+  end
+  local here = s + i - 1
+  if i < n then
+    if wb(here) and restEq(i + 1, here + 1) then return true end
+    if restEq(i + 1, here) then return true end
+    if low:byte(here) == w:byte(i + 1) and low:byte(here + 1) == w:byte(i) and restEq(i + 2, here + 2) then
+      return true
+    end
+  end
+  return wb(here) and restEq(i, here + 1)
 end
 
--- Level C, A or B with exactly one edit, a letter dropped, doubled, wrong, or two neighbours
--- swapped. Each edit becomes a variant of the word, a wrong or missing letter written as a
--- wildcard, and the best variant matching as A or B is kept.
-local function withOneEdit(word, hay, hlow, words)
-  local q = bytesOf(word)
-  local n = #q
-  local variants = {}
-  for i = 1, n do
-    local d, s = {}, {}
-    for k = 1, n do
-      if k ~= i then d[#d + 1] = q[k] end
-      s[k] = (k == i) and WILD or q[k]
-    end
-    variants[#variants + 1] = d
-    variants[#variants + 1] = s
-    if i < n then
-      local t = {}
-      for k = 1, n do t[k] = q[k] end
-      t[i], t[i + 1] = q[i + 1], q[i]
-      variants[#variants + 1] = t
-    end
-  end
-  for i = 1, n + 1 do
-    local ins = {}
-    for k = 1, n do
-      if k == i then ins[#ins + 1] = WILD end
-      ins[#ins + 1] = q[k]
-    end
-    if i == n + 1 then ins[#ins + 1] = WILD end
-    variants[#variants + 1] = ins
-  end
-  -- Every form here starts at the start of a word, so a variant whose first letter starts no
-  -- word is skipped before it is tried, which is most of them on a long name.
-  local starts = {}
-  for _, w in ipairs(words) do starts[hlow:byte(w.s)] = true end
-  local best = nil
-  for _, v in ipairs(variants) do
-    if v[1] == WILD or starts[v[1]] then
-      local s = startOrPieces(v, hay, hlow, words)
-      if s and (best == nil or s > best) then best = s end
+-- Level C, the best word start where the word matches with one edit.
+local function withOneEdit(w, s, p)
+  local list = p.byFirst[w:byte(1)]
+  if not list then return nil end
+  local best, m = nil, #s
+  local function wb(k) return p.wb[k] == true end
+  for _, k in ipairs(list) do
+    local word = p.words[k]
+    if oneEditAt(p.low, word.s, w, wb) then
+      local sc = framed(m, word.s, math.min(m, word.s + #w - 1), pieceScore(word.bonus, #w))
+      if best == nil or sc > best then best = sc end
     end
   end
   return best
 end
 
 -- Level D, the word whole inside a word, its earliest place, which earns the most.
-local function insideWord(word, hay, hlow)
-  local pos = hlow:find(word, 1, true)
+local function insideWord(w, low, m)
+  local pos = low:find(w, 1, true)
   if not pos then return nil end
-  local n = #word
-  return piecesScore(hay, pos, pos + n - 1, pieceScore(hay, pos, n))
+  return framed(m, pos, pos + #w - 1, pieceScore(0, #w))
 end
 
 -- A long field. Only a word start, its best occurrence, or from INSIDE_MIN letters the word
 -- inside a word, its first. The leading gap is counted only up to LONG and the trailing gap
--- not at all, which keeps every score inside the range the step is derived for.
-local function longField(word, hay, hlow, allowInside)
-  local n, first, init = #word, nil, 1
-  local function scored(pos)
-    local lead = math.min(pos - 1, LONG)
-    return lead * GAP_LEAD + pieceScore(hay, pos, n)
+-- not at all, which keeps every score inside the range the step is derived for. Answers
+-- whether it was a word start, the score and where it matched.
+local function longField(w, s, low, allowInside)
+  local n, first, init = #w, nil, 1
+  local function scored(pos, bonus)
+    return math.min(pos - 1, LONG) * GAP_LEAD + pieceScore(bonus, n)
   end
   while true do
-    local pos = hlow:find(word, init, true)
+    local pos = low:find(w, init, true)
     if not pos then break end
-    if startsWord(hay, pos) then return true, scored(pos) end
+    local bonus = startBonus(s, pos, wordByteAt)
+    if bonus > 0 then return true, scored(pos, bonus), pos end
     first = first or pos
     init = pos + 1
   end
-  if first and allowInside and n >= INSIDE_MIN then return false, scored(first) end
+  if first and allowInside and n >= INSIDE_MIN then return false, scored(first, 0), first end
   return nil
 end
 
@@ -341,73 +392,67 @@ end
 local LEVEL = { nameStart = 4, namePieces = 3, nameEdit = 2, nameInside = 1, declared = 0 }
 M.LEVEL = LEVEL
 
--- One lowered word against the name, answering its level and score, or nil.
-local function matchName(word, name)
+-- One lowered word against the name, answering its level and score, or nil. A, B and C all
+-- begin at a word start with the word's own first letter, so a name with no word starting with
+-- that letter skips straight to D.
+local function matchName(w, name)
   if name == nil or name == "" then return nil end
   if #name > LONG then
-    local atStart, score = longField(word, name, lowered(name), true)
+    local atStart, score = longField(w, name, lowered(name), true)
     if atStart == nil then return nil end
     return atStart and LEVEL.nameStart or LEVEL.nameInside, score
   end
-  local hlow = name:lower()
-  local words = wordsOf(name)
-  local q = bytesOf(word)
-  local s = atWordStart(q, name, hlow, words)
-  if s then return LEVEL.nameStart, s end
-  s = inPieces(q, name, hlow, words)
-  if s then return LEVEL.namePieces, s end
-  if #word >= TYPO_MIN then
-    s = withOneEdit(word, name, hlow, words)
-    if s then return LEVEL.nameEdit, s end
+  local p = prepare(name)
+  if p.byFirst[w:byte(1)] then
+    local s = atWordStart(w, name, p)
+    if s then return LEVEL.nameStart, s end
+    s = inPieces(w, name, p)
+    if s then return LEVEL.namePieces, s end
+    if #w >= TYPO_MIN then
+      s = withOneEdit(w, name, p)
+      if s then return LEVEL.nameEdit, s end
+    end
   end
-  if #word >= INSIDE_MIN then
-    s = insideWord(word, name, hlow)
+  if #w >= INSIDE_MIN then
+    local s = insideWord(w, p.low, #name)
     if s then return LEVEL.nameInside, s end
   end
   return nil
 end
 
--- The phrase of a declared field holding position pos, the text between the clause
--- punctuation around it, trimmed, which is what a row shows to say why it is listed.
+-- The phrase of a field holding byte pos, the text between the phrase breaks around it,
+-- trimmed. The same breaks the pieces respect, so what a row shows is what was matched in.
 local function phraseAt(text, pos)
-  local from = 1
-  for p in text:gmatch("()[,;]") do
-    if p < pos then from = p + 1 else
-      return (text:sub(from, p - 1):gsub("^%s+", ""):gsub("%s+$", ""))
+  local from, to, j, m = 1, #text, 1, #text
+  while j <= m do
+    local b = text:byte(j)
+    local len = BREAK[b] and 1 or multiSepAt(text, j)
+    if len then
+      if j < pos then from = j + len else to = j - 1; break end
+      j = j + len
+    else
+      j = j + 1
     end
   end
-  return (text:sub(from):gsub("^%s+", ""):gsub("%s+$", ""))
+  return (text:sub(from, to):gsub("^%s+", ""):gsub("%s+$", ""))
 end
 
 -- One lowered word against the secondary fields, word start or pieces only, the best field
 -- kept, answering its score and, when that field is not shown on the row, the phrase that
 -- matched.
-local function matchDeclared(word, secondary)
+local function matchDeclared(w, secondary)
   local best, shown
   for _, f in ipairs(secondary or {}) do
     local text = f.text
     if type(text) == "string" and text ~= "" then
       local s, pos
       if #text > LONG then
-        local atStart
-        atStart, s = longField(word, text, lowered(text), false)
-        if atStart then pos = lowered(text):find(word, 1, true) end
+        local atStart, sc, at = longField(w, text, lowered(text), false)
+        if atStart then s, pos = sc, at end
       else
-        local hlow, words = text:lower(), wordsOf(text)
-        local q = bytesOf(word)
-        s = atWordStart(q, text, hlow, words)
-        if s then
-          for _, w in ipairs(words) do
-            if hlow:sub(w.s, w.s + #word - 1) == word then pos = w.s; break end
-          end
-        else
-          s = inPieces(q, text, hlow, words)
-          if s then
-            for _, w in ipairs(words) do
-              if hlow:byte(w.s) == word:byte(1) then pos = w.s; break end
-            end
-          end
-        end
+        local p = prepare(text)
+        s, pos = atWordStart(w, text, p)
+        if not s then s, pos = inPieces(w, text, p) end
       end
       if s and (best == nil or s > best) then
         best = s
@@ -418,12 +463,28 @@ local function matchDeclared(word, secondary)
   return best, shown
 end
 
+-- Whether a field holds the lowered text t anywhere, for the symbol part of a query word.
+local function holds(t, name, secondary)
+  if name and name ~= "" and ((#name > LONG) and lowered(name) or prepare(name).low):find(t, 1, true) then
+    return true
+  end
+  for _, f in ipairs(secondary or {}) do
+    local text = f.text
+    if type(text) == "string" and text ~= "" then
+      local low = (#text > LONG) and lowered(text) or prepare(text).low
+      if low:find(t, 1, true) then return true end
+    end
+  end
+  return false
+end
+
 --- M.fuzzy(query, hay, fields) -> score, level, within, atStart, shown, or nil
 --- The one search, docs/PLAN-UNIFIED-SEARCH.md phase one, as Milos settled it on 2026-10-17
---- after the live test. A row has a primary field, its name, and secondary fields, the text it
---- shows or declares on purpose. fields is { primary = string, secondary = { { text, visible
---- }, ... } } as lib/chooser/rank.lua builds it. Without fields, hay is the name and there is
---- nothing secondary, which is how a plugin scoring its own strings calls it.
+--- after the live test and the review that followed. A row has a primary field, its name, and
+--- secondary fields, the text it shows or declares on purpose. fields is { primary = string,
+--- secondary = { { text, visible }, ... } } as lib/chooser/rank.lua builds it. Without fields,
+--- hay is the name and there is nothing secondary, which is how a plugin scoring its own
+--- strings calls it.
 ---
 --- A word never matches across fields. Each query word, lowered, matches at the strongest of
 --- five levels.
@@ -431,54 +492,69 @@ end
 ---   B. In the name, in pieces, each the start of one of a run of consecutive words in one
 ---      phrase. lose in LOcal SErvers, os in OLM settings, initials being every piece one
 ---      letter. A standalone symbol such as an ampersand is no word.
----   C. In the name, A or B with exactly one edit, from four letters on. dokcer finds Docker.
+---   C. In the name, A with exactly one edit, from four letters on, never on the first letter
+---      and never a wrong or extra last letter. dokcer and docekr find Docker.
 ---   D. In the name, whole inside a word, from three letters on. Two letters never do, so do
 ---      does not find Window.
 ---   E. In a secondary field, A or B only, below every name level.
---- There is no scattered match and so no relevance floor, since everything the levels accept
---- is a deliberate way of naming a row, and the floor existed only to cut scattered noise.
+--- There is no scattered match and so no relevance floor.
+---
+--- A query word with no letter or digit, an ampersand, a plus, a percent sign, matches as a
+--- plain substring of any field and adds no level and no score, so date & time and 10 % of 50
+--- still find what they name. A word starting with symbols, $5 or #1, is matched on its word
+--- part, and its symbol part must appear somewhere in the row.
 ---
 --- Every word is required, scored on its own, and summed, so google chrome finds nothing in a
 --- row titled Chrome. A row's level is the sum of its words' levels. The step between level
---- sums is derived per query from the weights. A word of n letters matched by any variant
---- scores at most n plus one times TOP, the one being an inserted letter, and more than minus
---- LONG times the near free gap, since a short field pays at most its length in gap and a long
---- one has its gap capped. So two rows at one level sum differ by less than the sum over the
---- words of that spread, the step is that sum, and a row with a higher level sum always
---- scores higher. The score stays the single number lib/chooser/rank.lua sorts on.
+--- sums is derived per query from the weights. A word of n letters scores at most n times TOP,
+--- an edit never adding a letter to what is scored, and more than minus LONG times the near
+--- free gap, since a short field pays at most its length in gap and a long one has its gap
+--- capped. So two rows at one level sum differ by less than the sum over the words of that
+--- spread, the step is that sum, and a row with a higher level sum always scores higher.
 ---
 --- The later answers are for consumers. level is the row's level sum, within its score
 --- inside the level, atStart whether every word matched the name at a word start, which the
---- launcher's memory gate reads, and shown the declared phrase a word matched in when that
---- phrase is not on the row already, which rank.lua puts into the subtitle so a person sees
---- why the row is listed.
+--- launcher's memory gate reads, and shown the list of declared phrases, each once, that a
+--- word matched in where the field is not shown, which rank.lua puts into the subtitle so a
+--- person sees why the row is listed.
 function M.fuzzy(query, hay, fields)
-  local words = {}
-  for word in query:lower():gmatch("%S+") do words[#words + 1] = word end
-  if #words == 0 then return 0, 0, 0, true, nil end
   local name = fields and fields.primary or hay
   local secondary = fields and fields.secondary
-
-  local level, within, step, atStart, shownList = 0, 0, 0, true, nil
-  for _, word in ipairs(words) do
-    local wordLevel, score = matchName(word, name)
-    local shown
-    if not wordLevel then
-      score, shown = matchDeclared(word, secondary)
-      if not score then return nil end
-      wordLevel = LEVEL.declared
+  local level, within, step, atStart = 0, 0, 0, true
+  local shownList, shownSeen = nil, nil
+  local any = false
+  for word in query:lower():gmatch("%S+") do
+    any = true
+    local lead = word:match("^[%p%c]*")
+    local core = word:sub(#lead + 1)
+    if core == "" then
+      -- No letter or digit at all, a plain substring anywhere in the row.
+      if not holds(word, name, secondary) then return nil end
+    else
+      if lead ~= "" and not holds(lead, name, secondary) then return nil end
+      local wordLevel, score = matchName(core, name)
+      local shown
+      if not wordLevel then
+        score, shown = matchDeclared(core, secondary)
+        if not score then return nil end
+        wordLevel = LEVEL.declared
+      end
+      level = level + wordLevel
+      within = within + score
+      if wordLevel ~= LEVEL.nameStart then atStart = false end
+      if shown and shown ~= "" then
+        shownSeen = shownSeen or {}
+        if not shownSeen[shown] then
+          shownSeen[shown] = true
+          shownList = shownList or {}
+          shownList[#shownList + 1] = shown
+        end
+      end
+      step = step + #core * TOP + LONG * math.max(-GAP_LEAD, -GAP_TRAIL)
     end
-    level = level + wordLevel
-    within = within + score
-    if wordLevel ~= LEVEL.nameStart then atStart = false end
-    if shown then
-      shownList = shownList or {}
-      shownList[#shownList + 1] = shown
-    end
-    step = step + (#word + 1) * TOP + LONG * math.max(-GAP_LEAD, -GAP_TRAIL)
   end
-  local shownText = shownList and table.concat(shownList, ", ") or nil
-  return level * step + within, level, within, atStart, shownText
+  if not any then return 0, 0, 0, true, nil end
+  return level * step + within, level, within, atStart, shownList
 end
 
 --- M.substring(query, hay) -> score or nil

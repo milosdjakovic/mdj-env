@@ -14,10 +14,11 @@ itself, and a search that differs per list is a defect.
 A row has a primary field, its name, and secondary fields, the subtitle it shows and the keywords
 it declares, and a word never matches across fields. Each query word matches at the strongest of
 five levels. In the name at the start of a word. In the name in pieces, each the start of one of
-a run of consecutive words in one phrase, initials being every piece one letter. In the name with
-one edit, from four letters on. In the name inside a word, from three letters on. And in a
+a run of consecutive words in one phrase, initials being every piece one letter. In the name at
+a word start with one edit, from four letters on, never on the first letter or a wrong last one. In the name inside a word, from three letters on. And in a
 secondary field at a word start or in pieces only, below every name level. There is no scattered
-match and no relevance floor. Every word is required and the scores add. A row listed only
+match and no relevance floor. A word with no letter or digit is a plain substring and adds no
+level. Every word is required and the scores add. A row listed only
 through a hidden keyword shows the phrase in its subtitle while a query is typed.
 
 Plugins declare a row vocabulary and only core applies it. Today that is `title`, `subTitle`,
@@ -63,6 +64,17 @@ row, pinned rows, query rows, tiers and a bounded bonus.
   through do inside the category word Window, Wi-Fi through the initials of "disconnect, or join"
   in its description, and Local Servers through letters scattered in its prose. Fields are now
   searched apart, the name first, and a launcher subtitle is not searched at all.
+
+- **Searching a launcher tool's description sentence as a declared term.** 2026-10-17, built at
+  6237367 and found by the review. Prose matches words nobody meant. set listed Wi-Fi through
+  "see the current network" and the listed six tools. Only the name, the declared keywords and
+  the alias words are searched now.
+- **An edit on the first letter, on the last letter, or inside pieces.** 2026-10-17, built at
+  6237367 and found by the review. An inserted first letter let lose find Closet and Lock Screen
+  by an edit, a wrong or extra last letter is only a shorter prefix, note finding Notifications
+  and show finding Shortcuts, and an edit inside pieces let focs find Local Servers. One edit now
+  applies to a word start match only, strictly after the first letter, never making the last
+  letter wrong or extra.
 
 ## Log
 
@@ -296,3 +308,62 @@ keywords as a list whose first entry is the manifest's phrases.
 
 Gates. Dry gate 0 findings, 23 accepted, 0 unknown. `check-dependencies.sh` clean. Units 1434
 assertions all passing, and `test/ranking.lua` 50 checks.
+
+Corrected 2026-10-17 13:15, see below.
+
+### 2026-10-17 13:15, the review of 6237367
+
+The cost paragraph above is wrong. It compared single calls on launcher sized names and called
+them comparable to main, while whole lists measured far slower. The review measured 1500 menu
+rows at 172 milliseconds against 55 on main for settings and 153 against 51 for inspect, 300 tab
+titles at 61 against 16, and 200 names made of one letter words at 16 seconds for a 20 letter
+query. The entry also listed the description sentence among the searched terms, which this
+review removed.
+
+Fixed in one commit, decided by the main session with Milos's intent, tight, one mistyped
+character in between, word starts first, name first.
+
+Symbols. A query word with no letter or digit, an ampersand, a plus, a minus, a percent sign,
+matched nothing, so date & time, desktop & dock, touch id & password and every computed row whose
+name is the query, 2 + 3, 100 - 20, 10 % of 50, dropped. Such a word is now a plain substring
+anywhere in the row and adds no level and no score, and a word starting with symbols, $5, -5, #1,
+matches on its word part with the symbols somewhere in the row. Every byte that is no letter,
+digit or non ASCII letter now ends a word, and the middle dot, the triangle and their usual
+neighbours count as separators and as phrase breaks.
+
+The typo is tighter, see Rejected. lose now lists Loser, Local Servers, and Closet only because
+lose sits inside its word, level D, which the design keeps for three letters and more. The
+review's list asked that Closet not be listed at all, which conflicts with level D as decided, so
+it is left at D for the main session.
+
+Presentation. Two words in one hidden phrase show it once, a pieces match shows the phrase its
+pieces started in, a long field the occurrence that matched, the phrase a row shows splits on the
+same breaks the matching respects, and a phrase is left out of the subtitle only when the
+subtitle holds it as whole words, so time is shown beside Sometimes.
+
+Rows. VPN's settings row keeps its name and declares providers, backend, settings and config as
+keywords instead of replacing its name. A menu item is named by its title and declares its
+parents as keywords, so pieces never run from the title into a parent.
+
+Cost. Every short field is now read once into its lowered text, its words, its words by first
+letter and the phrase breaks between them, kept in a memo bounded at 20000 entries. A, B and C
+all begin at a word whose first letter is the query's, so a name with none skips them. Pieces are
+a memo over the query position and the word, bounded by the query length times the words times
+the longest word. Measured on synthetic lists of the same shapes, every keystroke after the
+first, main against the reviewed build against now. 1500 menu rows for settings, 30 against 69
+against 3.6 milliseconds, and the first keystroke 18 while the memo fills. The same for inspect,
+29 against 50 against 2.3. 300 tab titles for settings, 10 against 23 against 0.8. 200 names of
+one letter words for a 20 letter query, 17 against 104 against 0.5, and names of a b c repeated,
+the worst shape found here, 28 against 34 against 16. The reviewed build's 16 seconds did not
+reproduce on these lists, its shape is unknown here.
+
+The launcher comparison was rerun on the live catalog through a temporary unit case, deleted
+after. do lists the same 9 rows, Local Servers still among them through its keyword docker. lose
+lists Local Servers alone, the catalog having no Loser. One letter queries match e 8, i 16, o 10,
+a 33, s 70, d 33 rows against 10, 20, 42, 40, 94, 35 on main. Of 660 queries of two to four
+letters, 71 change their top result against main, the same list as before.
+
+The launcher's lower level pick case is now Loes by two swapped letters over Local Servers by
+pieces for lose, since Closet no longer matches lose by an edit. Mutation results are unchanged.
+
+Gates are in the commit report.

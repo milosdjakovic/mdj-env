@@ -224,7 +224,12 @@ local function buildRow(r, icon, iconKey)
     image = icon,
     iconKey = iconKey,
     item = { path = r.path, key = r.key },
-    filterText = title .. " " .. parents,
+    -- The item's own title is its name and its parents are a declared field beside it, so a
+    -- query's pieces never run from the title into a parent, and every parent, each its own
+    -- phrase between the triangles, stays searchable. The subtitle shows them already, so
+    -- nothing is added to it, lib/chooser/rank.lua.
+    filterText = title,
+    keywords = parents,
     enabled = true,
     shortcut = r.shortcut,
     key = r.key,
@@ -416,7 +421,8 @@ local function mergeFresh(entry, freshKeyed)
       local title, parents = titleAndParents(fresh.path)
       row.title = title
       row.subTitle = subtitleFor(parents, fresh.shortcut)
-      row.filterText = title .. " " .. parents
+      row.filterText = title
+      row.keywords = parents
     else
       row.enabled = false
     end

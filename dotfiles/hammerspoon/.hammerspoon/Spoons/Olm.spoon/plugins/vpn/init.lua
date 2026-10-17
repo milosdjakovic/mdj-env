@@ -364,7 +364,7 @@ local function settingsRow()
     subTitle = (provider and provider.name) or "none",
     icon = "settings",
     item = { id = "providers" },
-    filterText = "VPN provider providers backend settings config",
+    keywords = "providers, backend, settings, config",
   }
 end
 

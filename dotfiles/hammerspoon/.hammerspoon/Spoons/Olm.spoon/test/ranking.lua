@@ -375,14 +375,15 @@ local function plainRow(text, id)
 end
 
 -- A pick at a lower level can still be learned when the best row is not a word start match.
--- lose spells Local Servers in pieces and Closet with one edit, a level lower, yet Closet's score
--- inside its level is near, so the pick decides. A gate on the level itself locked this out.
+-- lose spells Local Servers in pieces and Loes with two letters swapped, a level lower, yet
+-- the score of Loes inside its level is near, so the pick decides. A gate on the level itself
+-- locked this out.
 do
   local a = fresh()
   local l = launcher(a)
-  a.note("lose", "app:closet")
-  eq(titles(l:_rankCatalog("lose", { plainRow("Local Servers", "servers"), plainRow("Closet", "closet") })),
-    "Closet,Local Servers",
+  a.note("lose", "app:loes")
+  eq(titles(l:_rankCatalog("lose", { plainRow("Local Servers", "servers"), plainRow("Loes", "loes") })),
+    "Loes,Local Servers",
     "a pick at a lower level leads when the best row is not a word start match")
 end
 

@@ -248,3 +248,68 @@ do
   check("a long body prefers a word start to an earlier hit inside a word",
     levelOf("ipsum", "xipsum " .. body) == L.nameStart)
 end
+
+-- Symbols, the review of 2026-10-17. A word with no letter or digit is a plain substring
+-- anywhere in the row and adds no level, and a word starting with symbols matches on its word
+-- part with the symbols somewhere in the row.
+do
+  local function names(query, list) return table.concat(order(query, list), ",") end
+  check("date & time finds Date & Time", names("date & time", { "Date & Time", "Time Machine" }) == "Date & Time")
+  check("desktop & dock finds Desktop & Dock", names("desktop & dock", { "Desktop & Dock", "Dock" }) == "Desktop & Dock")
+  check("touch id & password finds Touch ID & Password",
+    names("touch id & password", { "Touch ID & Password", "Passwords" }) == "Touch ID & Password")
+  for _, q in ipairs({ "2 + 3", "100 - 20", "10 % of 50", "$5", "-5", "#1" }) do
+    check("a query row whose name is the query matches " .. q, M.fuzzy(q, q) ~= nil)
+  end
+  check("an ampersand alone adds no level",
+    select(2, M.fuzzy("date &", "Date & Time")) == select(2, M.fuzzy("date", "Date & Time")))
+  check("a symbol the row does not hold drops it", M.fuzzy("date %", "Date & Time") == nil)
+  check("$5 needs the dollar sign somewhere in the row", M.fuzzy("$5", "5 items") == nil)
+end
+
+-- The tighter typo, the review of 2026-10-17. One edit applies to a word start match only,
+-- never touches the first letter, and never makes the last letter wrong or extra.
+do
+  check("docekr finds Docker, two neighbours swapped", levelOf("docekr", "Docker") == L.nameEdit)
+  check("an edit never applies to pieces", M.fuzzy("lsoe", "Local Servers") == nil)
+  check("an edit never touches the first letter", M.fuzzy("xocker", "Docker") == nil)
+  -- Closet holds lose inside a word, level D, which the design keeps for words of three letters
+  -- and more. It no longer reaches the edit level through an inserted first letter.
+  check("lose finds Closet only inside a word, never by an edit", levelOf("lose", "Closet") == L.nameInside)
+  check("note does not find Notifications", M.fuzzy("note", "Notifications") == nil)
+  check("show does not find Shortcuts", M.fuzzy("show", "Shortcuts") == nil)
+  check("wifi does not find Window Size", M.fuzzy("wifi", "Window Size") == nil)
+  check("mail does not find Manage clipboard history", M.fuzzy("mail", "Manage clipboard history") == nil)
+  check("focs does not find Lock Screen or Local Servers",
+    M.fuzzy("focs", "Lock Screen") == nil and M.fuzzy("focs", "Local Servers") == nil)
+  check("focs does find Focus", M.fuzzy("focs", "Focus") ~= nil)
+  local got = table.concat(order("lose", { "Closet", "Login Items & Extensions", "OLM settings",
+    "Lock Screen", "Local Servers", "Loser" }), ",")
+  check("lose lists Loser, Local Servers, then Closet inside a word, and none of the edit rows",
+    got == "Loser,Local Servers,Closet", got)
+end
+
+-- What a row shows for a hidden phrase, the review of 2026-10-17.
+do
+  local focus = { title = "Focus", subTitle = "System Settings", keywords = "focus, do not disturb, dnd" }
+  local got = rank.apply({ focus }, "do not", M.fuzzy)
+  check("two words in one hidden phrase show it once",
+    got[1] and got[1].subTitle == "System Settings · do not disturb", got[1] and got[1].subTitle)
+  local pieces = { title = "Screen", subTitle = "", keywords = "lock, screen time limits" }
+  got = rank.apply({ pieces }, "stl", M.fuzzy)
+  check("a pieces match shows the phrase its pieces started in",
+    got[1] and got[1].subTitle == "screen time limits", got[1] and got[1].subTitle)
+  local some = { title = "Clock", subTitle = "Sometimes", keywords = "time" }
+  got = rank.apply({ some }, "time", M.fuzzy)
+  check("a phrase inside a longer subtitle word is still shown",
+    got[1] and got[1].subTitle == "Sometimes · time", got[1] and got[1].subTitle)
+  local menu = { title = "Find Next", subTitle = "Edit ▸ Find", filterText = "Find Next",
+    keywords = "Edit ▸ Find" }
+  got = rank.apply({ menu }, "edit", M.fuzzy)
+  check("a phrase the subtitle shows between triangles is not repeated",
+    got[1] and got[1].subTitle == "Edit ▸ Find", got[1] and got[1].subTitle)
+  check("pieces never span a triangle", M.fuzzy("ef", "x", { primary = "x",
+    secondary = { { text = "Edit ▸ Find", visible = true } } }) == nil)
+  check("pieces never span a middle dot", M.fuzzy("ns", "x", { primary = "x",
+    secondary = { { text = "Network · see", visible = true } } }) == nil)
+end

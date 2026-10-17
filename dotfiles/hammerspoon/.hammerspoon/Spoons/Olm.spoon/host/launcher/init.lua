@@ -535,12 +535,12 @@ function obj:_buildActionRows()
     -- here once per cache build rather than per keystroke, with the icon standing in
     -- whenever the bundle resolves to nothing on this machine.
     local image = row.bundle and hs.image.imageFromAppBundle(row.bundle) or nil
-    -- The description is the one part of a tool's subtitle that says what it does, so it is
-    -- searched beside the declared keywords. The category word and the chord are not, they
-    -- name a kind of thing and a key, and do inside Window listed every window command.
+    -- Only the declared keywords are searched beside the name, and the alias words add() puts
+    -- with them. The category word and the chord name a kind of thing and a key, and do inside
+    -- Window listed every window command. The description is prose, and searching it made
+    -- set list Wi-Fi through "see the current network" and the list six tools.
     local terms = {}
     if row.keywords then terms[#terms + 1] = row.keywords end
-    if row.detail and not detailFn then terms[#terms + 1] = row.detail end
     add(row.description, subTitle, { kind = "special", name = name },
       row.icon, nil, terms, subTitleFn, image, tool or name)
   end
@@ -968,7 +968,7 @@ function obj:_rankCatalog(query, rows)
   -- every word at the start of a word of its name, a remembered row that does not is never
   -- lifted over it, which is the Mail and Maps guard above stated as a kind rather than a
   -- number. Below that the shared search's levels do not lock a pick out, so a pick at a lower
-  -- level can still be learned, Closet for lose against Local Servers for one example. The
+  -- level can still be learned, Loes for lose against Local Servers for one example. The
   -- second is the proportion, taken of the score inside the level and never of the whole
   -- score, since the whole score carries a large step per level and a proportion of it would
   -- read every pair at the same level as near. The proportion is measured downward from the

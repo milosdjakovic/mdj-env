@@ -1168,14 +1168,17 @@ keywords it declares, and a word never matches across fields. Each query word ma
 strongest of five levels. In the name at the start of a word, lose in Loser. In the name in
 pieces, each the start of one of a run of consecutive words in one phrase, lose in LOcal SErvers
 or os in OLM settings, where a camel hump offers a piece start without demanding one and a
-standalone ampersand is no word. In the name with exactly one edit, from four letters on, dokcer
-in Docker. In the name inside a word, from three letters on, so do never finds Window. And in a
+standalone ampersand is no word. In the name at a word start with exactly one edit, from four
+letters on, never on the first letter and never a wrong or extra last letter, dokcer and docekr
+in Docker while note never finds Notifications. In the name inside a word, from three letters on, so do never finds Window. And in a
 secondary field at a word start or in pieces only, below every name level. Every word is
 required, google chrome finds nothing in a row titled Chrome, and a row's level is the sum over
 its words, with a step derived per query from the weights so a stronger level always wins while
 the engine still sorts one number. Inside a level the position bonuses order, an earlier word, a
 shorter name and fewer pieces winning. There is no relevance floor, since its only job was cutting
-scattered matches. Past 256 bytes a field matches a word only at a word start or inside a word, its
+scattered matches. A query word with no letter or digit, an ampersand or a plus sign, is a plain
+substring anywhere in the row and adds no level, so date & time and 2 + 3 still match, and a word
+starting with symbols, $5, matches on its word part with the symbols somewhere in the row. Past 256 bytes a field matches a word only at a word start or inside a word, its
 best occurrence, over a lowered copy `match.lua` keeps in a bounded memo, which costs about what
 `words` costs and is what lets `words` retire. A row listed only through a keyword it does not show
 gets the matched phrase added to its subtitle while a query is typed, Focus for do reading System
@@ -1192,8 +1195,9 @@ host that needs it is handed it as root data rather than keeping a loop of its o
 is searched by is its title as the name and its subtitle beside it, plus `keywords`, a string or
 a list of strings it declares without showing, where a comma ends a phrase. `filterText`, when a
 row sets it, replaces the name and turns the subtitle off, which is how a launcher row whose
-subtitle is a category, a status and a chord says so, and how a menu item keeps its parents
-searchable. The full statement is at the head of `rank.lua`. On an empty
+subtitle is a category, a status and a chord says so, and a menu item names itself by its
+title and declares its parents as keywords, so its parents stay searchable and no match runs
+from the title into a parent. Description prose is never a search term. The full statement is at the head of `rank.lua`. On an empty
 query the atom skips scoring and keeps the supplier's order, which is what makes the
 launcher's recency order and the VPN action row survive until the user types.
 

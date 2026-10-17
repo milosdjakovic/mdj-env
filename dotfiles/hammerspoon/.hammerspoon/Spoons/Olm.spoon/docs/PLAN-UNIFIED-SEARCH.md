@@ -35,7 +35,8 @@ never matches across fields. Each query word matches at the strongest of five le
 1. In the name, at the start of a word. lose in Loser.
 2. In the name, in pieces, each the start of one of a run of consecutive words in one phrase.
    lose in LOcal SErvers, os in OLM settings, initials being every piece one letter.
-3. In the name, 1 or 2 with exactly one edit, from four letters on. dokcer in Docker.
+3. In the name, 1 with exactly one edit, from four letters on, never on the first letter and
+   never a wrong or extra last letter. dokcer and docekr in Docker.
 4. In the name, inside a word, from three letters on. do never finds Window.
 5. In a secondary field, 1 or 2 only, below every name level.
 
@@ -52,7 +53,8 @@ Plugins declare these, and only core applies them.
 1. Several searchable fields per row, so a match cannot be assembled across a title and an
    address. Phase one built the first of them, the name as `title` or `filterText`, the
    subtitle, and `keywords`, a string or a list with a comma between phrases, stated at the
-   head of `lib/chooser/rank.lua`. A row with several names of equal weight, a tab's title, host
+   head of `lib/chooser/rank.lua`. A description sentence is never a search term, since prose
+   matches words nobody meant, set listing Wi-Fi through "see the current network". A row with several names of equal weight, a tab's title, host
    and address, is phase two.
 2. Pinned rows that are never ranked or dropped. These are Back, Settings, Capture current
    arrangement, New snapshot and create note.
@@ -92,8 +94,11 @@ the name plus declared terms, so category, status and chord are not searched, an
 lead unless the best row matches at a name word start and the pick does not. Keyword bags in the
 manifests became comma separated phrases. This phase changes what lists show, not only their
 order, and every list ranked by the engine reads names first. File paths fall under the 256 byte
-bound, which phase three has to answer. `decisions/olm-unified-search.md` has the measurements
-and the launcher catalog comparison.
+bound, which phase three has to answer. After the review of 6237367 a word with no letter or
+digit is a plain substring, the one edit applies to a word start only and never to the first or a
+wrong last letter, descriptions are not searched, menu parents and the VPN settings words are
+declared keywords, and prepared fields keep every measured list well under main's cost.
+`decisions/olm-unified-search.md` has the measurements and the launcher catalog comparison.
 
 ### Phase 2, the vocabulary and the simple lists
 
