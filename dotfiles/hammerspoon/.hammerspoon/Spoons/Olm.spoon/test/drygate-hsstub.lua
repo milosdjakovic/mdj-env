@@ -30,6 +30,13 @@
 -- UNKNOWN rather than either PASS or FAIL for that module. An honest unknown beats a false
 -- green.
 --
+-- WHAT THE ANSWER SHAPE TRADES AWAY, since 2026-10-17. A stub that joins and compares without
+-- raising no longer surfaces a genuine type bug at those places. A plugin that joins an hs
+-- object into a string raises in a live load, and the older stub turned that raise into an
+-- unknown, where now it loads and configures clean. And a numeric index answers nil, so correct
+-- code shaped like `hs.screen.allScreens()[1]:frame()` raises here and reads as unknown. That
+-- one is a false unknown rather than a false pass, which is the side this gate prefers to err on.
+--
 -- WHY CONFIGURE TOO, NOT ONLY LOAD. A real tool commonly assembles the very members check
 -- two goes looking for, self.rows, self.select, self.open, INSIDE its own configure, exactly
 -- the discipline lib/registrar.lua's own comments describe at length and MenuSearch is the

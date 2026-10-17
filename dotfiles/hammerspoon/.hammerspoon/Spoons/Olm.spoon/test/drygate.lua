@@ -372,13 +372,19 @@ local function buildOpts(manifest)
   --
   -- An optional field is the exception and is left absent. Optional is the manifest's own
   -- promise that the plugin runs without the value, which is how lib/plugins.lua's own
-  -- obj.data reads the policy, required unless it says otherwise, and absent is a state a real
-  -- load reaches, a fresh install with nothing in the person's config, or a root word whose
-  -- host is switched off. An empty table is a state no real load reaches for such a field,
-  -- since the value is a string, a host object or a function, and handing one over measured
-  -- as two false unknowns, a Chrome bundle id read as present and handed to a factory that
-  -- wants a string, and a stage read as present and asked for a method it does not have.
+  -- obj.data reads the policy, required unless it says otherwise, and absent is exactly what
+  -- lib/wire.lua's own optionsFor delivers for an optional field nobody supplied, a fresh
+  -- install with nothing in the person's config, or a root word whose host is switched off.
+  -- An empty table is not always wrong, several optional fields are tables, but for one that
+  -- is a string or a host object it is a state no real load reaches, and handing one over
+  -- measured as two false unknowns, a Chrome bundle id read as present and handed to a factory
+  -- that wants a string, and a stage read as present and asked for a method it does not have.
   -- Absent puts configure on the path the manifest's own breaks sentence describes.
+  --
+  -- The trade. An optional root word is present on every live load, yet this checks the
+  -- degraded configure path without it. A member a plugin assigns only when such a value is
+  -- present would therefore show here as a finding that is false but loud, never as a silent
+  -- pass, and none does on this tree today.
   for field, decl in pairs((manifest.needs or {}).data or {}) do
     local optional = type(decl) == "table" and decl.policy == "optional"
     if opts[field] == nil and not optional then opts[field] = {} end

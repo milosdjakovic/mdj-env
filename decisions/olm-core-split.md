@@ -480,3 +480,18 @@ surface and empty state, the scroll and the teardown, `pane = true` on a surface
   budget used to burn. Noticed and left for a change of its own, browsertabs hands an empty
   string Chrome bundle id to the factory, which raises and takes Safari down with it, against its
   manifest's own breaks sentence.
+  Corrected 2026-10-17 09:31, see below.
+- 2026-10-17 09:31. Review of the entry above found two claims too broad. It said an empty table
+  for an optional data field is a state no real load reaches. Several optional fields are tables,
+  capture's providers, apptoggler's apps and toggles, windowmanager's margins and settings and
+  processes' policy, so that holds only for a field that is a string or a host object, as the
+  Chrome bundle id and the stage are. What is true for every optional field is that
+  `lib/wire.lua` delivers it absent when nobody supplied it, which is the reason the gate leaves
+  it absent. The entry also named no cost. The gate now checks the degraded configure path for an
+  optional root word that is present on every live load, so a member assigned only when such a
+  value is present would read as a false finding, loud rather than a silent pass. And the stub's
+  new shape stops surfacing a genuine type bug where an hs object is joined into a string, which
+  a live load raises on and the old stub reported as unknown, while a numeric index answering
+  nil makes correct code like `hs.screen.allScreens()[1]:frame()` read as unknown, a false
+  unknown rather than a false pass. Both comments now say this, in `test/drygate.lua` and
+  `test/drygate-hsstub.lua`. No behaviour changed.
