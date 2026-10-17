@@ -1,17 +1,16 @@
 --- === BrowserTabs.chooser ===
 ---
 --- The surface. Three levels shown through the shared stage, the same shape DisplayProfiles
---- uses, contract v3. The tab list, the settings list of browsers, and one browser's
---- own actions.
+--- uses, contract v3. The tab list and the settings list of browsers, where a browser is
+--- switched on or off in place.
 ---
---- Migrated onto host/stage, contract v3, docs/BRIEF-CONTRACT-V3.md. Settings and a
---- browser's own level are each built lazily and pushed as a child the moment a row drills
---- into one, rather than one instance driven as a hand kept stack of frames. Leaving a
---- level, every Back row, rides each level's own intercept, decision three's reserved case,
---- a row that mutates the list it is on and stands, reached through cfg.stagePop. A
---- browser's own toggle and permission request mutate that same level in place through
---- intercept too, standing exactly as they always did, while opening a tab and opening
---- Automation settings both answer through select with nothing, the ordinary meaning this
+--- Migrated onto host/stage, contract v3, docs/BRIEF-CONTRACT-V3.md. Settings is built lazily
+--- and pushed as a child the moment its row is chosen, rather than one instance driven as a
+--- hand kept stack of frames. Leaving a level, every Back row, rides each level's own
+--- intercept, decision three's reserved case, a row that mutates the list it is on and stands,
+--- reached through cfg.stagePop. A browser's toggle and permission request mutate the settings
+--- level in place through intercept too, standing exactly as they always did, while opening a
+--- tab and opening Automation settings both answer through select with nothing, the ordinary meaning this
 --- contract gives nil, the whole tool closing exactly as chooser:hide() always did. The
 --- private Return swallowing eventtap, the hand kept frame stack, and the zero timer
 --- re-show the click path used to need are all gone, since intercept is asked before
@@ -23,18 +22,20 @@
 --- browser a tab belongs to reads at a glance rather than from the text. Choosing one selects that
 --- tab in its window, raises the window, and brings the browser to the front.
 ---
---- Settings is the last row, and the only row that is not a tab. It is pinned rather than
---- ordered, so it never drifts up into the recency order, and a typed filter targets the tabs
---- and never has to filter it out. That is the same reason Vpn pins its action row above the
---- cities. Being last does not make it reachable though, since a hundred tabs put it a hundred
---- keystrokes away, so typing a word that means settings brings it back, still last.
+--- Settings is the only row that is not a tab. It is pinned rather than ordered, so it never
+--- drifts up into the recency order, and a typed filter targets the tabs and never has to
+--- filter it out. That is the same reason Vpn pins its action row above the cities. On an empty
+--- query it is the last row. Last does not make it reachable though, since a hundred tabs put it
+--- a hundred keystrokes away, so typing a word that means settings brings it back, and then it
+--- leads, above the tabs that matched. A person typing a settings word is reaching for the door,
+--- and four Chrome tabs matching the same word should not sit between them and it.
 ---
---- A browser's own level shows a row only when that row asks something of you. The switch is
---- always there, and beyond it a state that reads fine is hidden rather than confirmed, so the
---- one thing that does need attention is never buried under three that do not. What is hidden
---- goes to the Hammerspoon console instead, because a quiet screen has to mean nothing was
---- wrong and not that nothing was noticed. Glancing at state belongs one level up, where every
---- browser already carries its own in a subtitle.
+--- Settings has no level beneath it. Each browser is one row, and choosing it switches that
+--- browser on or off where it stands. A permission row sits directly under a switched on browser,
+--- and only when the permission asks something of you. A state that reads fine is hidden rather
+--- than confirmed, so the one thing that does need attention is never buried under rows that do
+--- not. What is hidden goes to the Hammerspoon console instead, because a quiet screen has to
+--- mean nothing was wrong and not that nothing was noticed.
 ---
 --- This file is pure policy over an injected api, so it reaches the engine, the recency
 --- memory and the permission probe without naming any of them. The spoon composition root
@@ -207,11 +208,11 @@ local SETTINGS_WORDS = {
   "allow", "enable", "disable", "toggle",
 }
 
--- The settings door. Always the last row, never inside the ranking. It is reachable two ways
--- because last is not the same as visible. On an empty query it trails the tabs, which is where
--- it was asked to be. But a list of a hundred tabs puts it a hundred keystrokes away, so a
--- query that matches it brings it back, still last, appended after whatever tabs matched rather
--- than scored among them.
+-- The settings door. Never inside the ranking. It is reachable two ways because last is not the
+-- same as visible. On an empty query it trails the tabs, which is where it was asked to be. But a
+-- list of a hundred tabs puts it a hundred keystrokes away, so a query that matches it brings it
+-- back, and then it leads, placed above whatever tabs matched rather than scored among them. A
+-- person typing a settings word is reaching for the door, so it comes first.
 local function settingsRow()
   local on, total = 0, 0
   for _, s in ipairs(cfg.api.status()) do
@@ -362,8 +363,8 @@ local function matchedTabs(query)
 end
 
 -- The tab list as our own chooser shows it, the matching tabs plus the settings door. The door
--- trails an empty query, where it was asked to be, and comes back on a query that reaches for
--- it, still last.
+-- trails an empty query, where it was asked to be, and leads a query that reaches for it, since
+-- a person typing a settings word is reaching for the door and not for the tabs that share it.
 local function tabRows(query)
   if #(tabs or {}) == 0 then
     local out = emptyRows()
@@ -371,7 +372,11 @@ local function tabRows(query)
     return out
   end
   local out = matchedTabs(query)
-  if query == "" or wantsSettings(query) then out[#out + 1] = settingsRow() end
+  if query == "" then
+    out[#out + 1] = settingsRow()
+  elseif wantsSettings(query) then
+    table.insert(out, 1, settingsRow())
+  end
   return out
 end
 
@@ -380,7 +385,7 @@ end
 --------------------------------------------------------------------------------
 
 -- One line describing everything true of a browser right now, so the list answers installed,
--- open, and allowed without drilling in. A browser that is switched off says only that, since
+-- open, and allowed at a glance. A browser that is switched off says only that, since
 -- nothing else about it matters until it is switched on.
 local function statusText(s)
   if not s.installed then return "not installed" end
@@ -399,85 +404,72 @@ local function settingsIcon(s)
   return s.enabled and "active" or "off"
 end
 
-local function settingsRows()
-  local out = { backRow() }
-  for _, s in ipairs(cfg.api.status()) do
-    out[#out + 1] = glyphRow(s.name, statusText(s), settingsIcon(s),
-      { nav = true, to = "browser", bundleID = s.bundleID }, s.installed)
-  end
-  return out
-end
-
---------------------------------------------------------------------------------
--- One browser's actions
---------------------------------------------------------------------------------
-
-local function statusFor(bundleID)
-  for _, s in ipairs(cfg.api.status()) do
-    if s.bundleID == bundleID then return s end
-  end
-  return nil
-end
-
--- A browser's own screen. Back leads, per the chooser menu convention, so stepping out is the
--- default. The switch comes next and is always there, since it is what this level is for.
---
--- Everything after those two appears only when it asks something of you. A browser that is
--- installed, allowed, and switched on therefore shows exactly two rows, because a column of
--- facts that all read fine is a column nobody needs, and it buries the one row that might not.
--- Nothing is lost by hiding them, since the state of every browser is already in its subtitle
--- one level up, which is where glancing belongs.
+-- A browser's permission row, the one extra line under a switched on browser, and only when
+-- the permission asks something. A state that reads fine is hidden rather than confirmed, so the
+-- one thing that does need attention is never buried under rows that do not, and what is hidden
+-- goes to the Hammerspoon console instead, because a quiet screen has to mean nothing was wrong
+-- and not that nothing was noticed. The browser is named in every title, since this is one flat
+-- list and a row reading Ask for permission alone would not say which browser it is for.
 --
 -- The permission rows are gated on the browser being switched on. A switched off browser is
 -- never scripted, so whether macOS would allow it is not a question yet, and offering to raise
 -- a system prompt for a browser deliberately turned off would be asking for the wrong thing.
-local function browserRows(bundleID)
-  local s = statusFor(bundleID)
-  if not s then
-    return { backRow(), glyphRow("This browser is gone", "It may have been removed", "warn",
-      { noop = true }, false) }
+local function attentionRow(s)
+  local perm = permState[s.bundleID]
+  local key = s.bundleID .. ".permission"
+  local function attention(title, subTitle, icon, item, enabled)
+    item.key = key
+    item.bundleID = s.bundleID
+    local r = glyphRow(title, subTitle, icon, item, enabled)
+    r.filterText = s.name .. " " .. title
+    return r
   end
-
-  local out = { backRow() }
-
-  -- Not installed is the one obstacle the switch cannot answer, so it takes the switch's place
-  -- rather than sitting under a control that would do nothing.
-  if not s.installed then
-    out[#out + 1] = glyphRow("Not installed", "There is nothing here to read tabs from",
-      "warn", { noop = true }, false)
-    return out
-  end
-
-  out[#out + 1] = glyphRow(s.enabled and ("Switch " .. s.name .. " off") or ("Switch " .. s.name .. " on"),
-    s.enabled and "Stop reading its tabs, and stop scripting it at all"
-      or "Read its tabs along with the others",
-    s.enabled and "off" or "active",
-    { act = "toggle", bundleID = bundleID }, true)
-
-  if not s.enabled then return out end
-
-  local perm = permState[bundleID]
   if perm == cfg.api.states.notDetermined then
     if s.running then
-      out[#out + 1] = glyphRow("Ask for permission",
+      return attention("Ask " .. s.name .. " for permission",
         "macOS will ask whether Hammerspoon may read " .. s.name,
-        "ask", { act = "request", bundleID = bundleID }, true)
-    else
-      -- Asking is impossible while it is closed, so the obstacle is named instead of a control
-      -- that could only sit there greyed out.
-      out[#out + 1] = glyphRow("Open " .. s.name .. " first",
-        "Permission can only be asked while it runs", "warn", { noop = true }, false)
+        "ask", { act = "request" }, true)
     end
+    -- Asking is impossible while it is closed, so the obstacle is named instead of a control
+    -- that could only sit there greyed out.
+    return attention("Open " .. s.name .. " first",
+      "Permission can only be asked while it runs", "warn", { noop = true }, false)
   elseif perm == cfg.api.states.denied then
-    out[#out + 1] = glyphRow("Open Automation settings", "macOS never asks twice, so this is changed by hand",
-      "locked", { act = "openSettings" }, true)
+    return attention("Open Automation settings for " .. s.name,
+      "macOS never asks twice, so this is changed by hand", "locked", { act = "openSettings" }, true)
   elseif perm == cfg.api.states.unknown or perm == cfg.api.states.noTarget then
     -- Nothing here can fix this one, so it is stated rather than offered, and the console
     -- carries the detail.
-    out[#out + 1] = glyphRow("Permission cannot be read",
+    return attention("Permission for " .. s.name .. " cannot be read",
       "The tab list still works, see the Hammerspoon console", "warn", { noop = true }, false)
   end
+  return nil
+end
 
+-- The settings level is the whole of the settings. Selecting a browser row switches it on or off
+-- where it stands, there is no level beneath it, so a person flips a browser and sees the answer
+-- on the same screen. Back is the first row and filters on nothing, so a typed query never
+-- leaves it sitting above the rows that matched. Every other row filters on the browser's name,
+-- never on the state words, so a toggle never changes whether a row matches and the redraw keeps
+-- the highlight on the row that was pressed. The key is the bundle id for the same reason, the
+-- stage holds the highlight on the same browser when a permission row appears or goes above or
+-- below it.
+local function settingsRows()
+  local back = backRow()
+  back.filterText = ""
+  local out = { back }
+  for _, s in ipairs(cfg.api.status()) do
+    local r = glyphRow(s.name, statusText(s), settingsIcon(s),
+      s.installed and { act = "toggle", bundleID = s.bundleID, key = s.bundleID }
+        or { noop = true, key = s.bundleID },
+      s.installed)
+    r.filterText = s.name
+    out[#out + 1] = r
+    if s.installed and s.enabled then
+      local extra = attentionRow(s)
+      if extra then out[#out + 1] = extra end
+    end
+  end
   return out
 end
 
@@ -513,66 +505,58 @@ local function refreshPermissions(token)
 end
 
 --------------------------------------------------------------------------------
--- Child levels, built lazily and pushed the moment a row drills into one
+--------------------------------------------------------------------------------
+-- The settings level, built lazily and pushed the moment the Settings row is chosen
 --------------------------------------------------------------------------------
 
--- Every child below shares the shape displayprofiles' own children settled, contract v3.
--- rows reads whatever this level names, matcher stands the shared strategy down for the
--- identical reason the retired single instance always did, and intercept is where a level
--- that mutates the list it is on, or leaves it for its parent, answers for itself. Drilling
--- into a genuine deeper level, settings to one browser, answers through onSelect instead,
--- the ordinary child push decision one describes.
-
--- A browser's own level, a child of settings. bundleID names the browser, frozen at
--- creation rather than a shared upvalue, since nothing here ever needs to correct which
--- browser this level is about the way displayprofiles' own rename corrects a shared name.
--- Self referential, review finding M2, rework, so the permission request handler below can
--- close over this exact table and hand it to cfg.redrawPresented as its own token, the one
--- identity precise enough to say "this browser's own level" rather than "browserTabs at any
--- depth", the shared name every level of this tool still answers to for hints and routing.
-local function buildBrowserChild(bundleID)
+-- The settings level, a child of the tab list, and the only level beneath it. onPresent starts
+-- the permission reads the moment this level becomes current, through either door, present or
+-- push, the identical warmth VPN's own async fetch already gets. Self referential, review
+-- finding M2, rework, so refreshPermissions and the permission request can hand their landing
+-- redraw this exact table as a token rather than the shared name every level of this tool still
+-- answers to.
+--
+-- The list filters on the shared matcher like every other list of items, so no matcher is
+-- declared. Every row states its own filterText in settingsRows, which is what keeps Back out of
+-- a typed query and keeps a state word from deciding whether a browser matches.
+--
+-- A browser's switch and a permission request both mutate this level in place and stand, so
+-- both answer "stay" from intercept, the highlight holding on the row that was pressed and the
+-- list repainting with the new state. Back is the one row that leaves, through cfg.stagePop.
+-- Opening Automation settings is a genuine completion, not a level, so it answers through
+-- onSelect, calling the api and returning nothing, the ordinary meaning this contract has always
+-- given nil, the whole stack tears down and the tool closes for good.
+local function buildSettingsChild()
   local child
   child = {
-    placeholder = "",
-    matcher = false,
-    rows = function() return browserRows(bundleID) end,
-    -- Opening Automation settings is a genuine completion, not a level, so it answers
-    -- through select, calling the api and returning nothing, the ordinary meaning this
-    -- contract has always given nil, the whole stack tears down, closing the tool for good
-    -- exactly as the retired chooser:hide() always did for this one row.
+    placeholder = "Browsers",
+    rows = settingsRows,
+    onPresent = function() refreshPermissions(child) end,
     onSelect = function(item)
       if item and item.act == "openSettings" then
         cfg.api.openPermissionSettings()
       end
       return nil
     end,
-    -- Back leaves, decision three's reserved case, a row that mutates nothing, and answers
-    -- true, a level change. The switch and the permission request both mutate this same
-    -- level in place and stand instead, the mandate's own reserved case, so both answer
-    -- "stay" rather than true, the highlight holding on the row that was pressed rather
-    -- than resetting to the top, reading fine again on the very next line the moment the
-    -- async answer they started lands.
     intercept = function(item)
-      -- The disabled row guard once written here by hand is gone, review findings H1 and
-      -- H2, rework, host/stage's own _intercept answering true and doing nothing for any
-      -- disabled row before this is ever asked.
+      -- The disabled row guard is host/stage's own, _intercept answering true and doing nothing
+      -- for any disabled row before this is ever asked, so an uninstalled browser never gets here.
       if not item then return true end
       if item.nav and item.to == "back" then
         if cfg.stagePop then cfg.stagePop() end
         return true
       end
       if item.act == "toggle" then
-        cfg.api.setEnabled(bundleID, not cfg.api.isEnabled(bundleID))
-        -- Switching a browser on is only useful once its tabs appear, and switching one
-        -- off should drop them, so the listing is redone straight away rather than on the
-        -- next open. Reloads the tab list in the background regardless of which level is
-        -- current, the identical unconditional call the retired applySelection made, and
-        -- M.reload's own landing redraw already targets the tab list alone, review finding
-        -- M2, so it correctly touches nothing while this level is what is showing.
+        cfg.api.setEnabled(item.bundleID, not cfg.api.isEnabled(item.bundleID))
+        -- Switching a browser on is only useful once its tabs appear, and switching one off
+        -- should drop them, so the listing is redone straight away rather than on the next
+        -- open. M.reload's own landing redraw targets the tab list alone, so it correctly
+        -- touches nothing while this level is what is showing.
         M.reload()
         return "stay"
       end
       if item.act == "request" then
+        local bundleID = item.bundleID
         cfg.api.permissionRequest(bundleID, function(state)
           permState[bundleID] = state
           -- A grant makes tabs readable that were not a moment ago, so pick them up at once.
@@ -581,55 +565,14 @@ local function buildBrowserChild(bundleID)
           else
             log.w("the automation request for " .. tostring(bundleID) .. " ended as " .. tostring(state))
           end
-          -- token is this level's own table, review finding M2, rework, so the redraw
-          -- lands here specifically, or not at all once the person has moved on.
+          -- token is this level's own table, so the redraw lands here specifically, or not at
+          -- all once the person has moved on.
           if cfg.redrawPresented then cfg.redrawPresented("browserTabs", nil, child) end
         end)
         -- Answers "stay" immediately even though the mutation itself is asynchronous and has
         -- not landed yet, since the person just acted on this row and belongs on it while the
-        -- request is outstanding, the redraw above catching up once cfg.api.permissionRequest's
-        -- own callback fires.
+        -- request is outstanding, the redraw above catching up once the callback fires.
         return "stay"
-      end
-      return false
-    end,
-  }
-  return child
-end
-
--- The settings level, a child of the tab list. onPresent starts the permission reads the
--- moment this level becomes current, through either door, present or push, the identical
--- warmth VPN's own async fetch already gets, replacing the retired applySelection's own
--- special case for entering this one frame. Self referential, review finding M2, rework,
--- the identical reason buildBrowserChild above is, so refreshPermissions can hand its own
--- landing redraw this exact table as a token rather than the shared name every level of
--- this tool still answers to.
-local function buildSettingsChild()
-  local child
-  child = {
-    placeholder = "Browsers",
-    matcher = false,
-    rows = settingsRows,
-    onPresent = function() refreshPermissions(child) end,
-    -- A browser row is a genuine deeper level, so it answers through select, host/stage
-    -- pushing whatever comes back.
-    onSelect = function(item)
-      if item and item.nav and item.to == "browser" then
-        return buildBrowserChild(item.bundleID)
-      end
-      return nil
-    end,
-    -- Back is the one row on this level that leaves rather than drills, decision three's
-    -- reserved case, so it alone answers through intercept, cfg.stagePop leaving the level
-    -- the row was pressed on and the parent, the tab list, standing in its place.
-    intercept = function(item)
-      -- The disabled row guard once written here by hand is gone, review findings H1 and
-      -- H2, rework, host/stage's own _intercept answering true and doing nothing for any
-      -- disabled row before this is ever asked.
-      if not item then return true end
-      if item.nav and item.to == "back" then
-        if cfg.stagePop then cfg.stagePop() end
-        return true
       end
       return false
     end,
@@ -813,7 +756,7 @@ end
 
 --- M.isShowing() - whether this tool's own tab list is current, plainly true from the first
 --- M.onPresent until the next M.onClose, unaffected by drilling into or backing out of
---- settings or a browser's own level in between. Not part of the presentation contract and
+--- settings in between. Not part of the presentation contract and
 --- not routed through by host/stage's own surfaceFor, which answers the identical question
 --- for the nav registry by asking the stage directly, kept only for
 --- plugins/browsertabs/test/agent.lua's own commands.showing, the integration harness's one
@@ -829,11 +772,10 @@ end
 --- no token, review finding M2, rework, so it targets the tab list specifically, host/stage
 --- comparing by table identity against the registrar's own stored presentation for
 --- "browserTabs" rather than matching the shared name at any depth, and it is a silent no op
---- while a child, settings or one browser's own level, is what is actually showing, since
---- the tab list has nothing to say about either. M.reload's own landing callback is the one
+--- while the settings child is what is actually showing, since
+--- the tab list has nothing to say about it. M.reload's own landing callback is the one
 --- caller, so this is never asked to redraw a child's own answer, each child's own async
---- work redrawing itself through its own token instead, buildSettingsChild and
---- buildBrowserChild above.
+--- work redrawing itself through its own token instead, buildSettingsChild above.
 function M.refresh()
   if cfg.redrawPresented then cfg.redrawPresented("browserTabs") end
 end

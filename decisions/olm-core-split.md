@@ -505,3 +505,9 @@ surface and empty state, the scroll and the teardown, `pane = true` on a surface
   `test/cases/browsertabs-chromeid.lua`, configures safari and chrome with nil, an empty string, a
   number and a valid id, and proves configure never raises, Safari is always built and Chrome is
   built only for the valid string.
+- 2026-10-17 10:15. The BrowserTabs per browser level was dropped at Milos's request. Selecting a
+  browser on the settings level now switches it in place and answers stay, and the permission
+  actions it held moved to one extra row directly under a switched on browser, only when the
+  permission asks something, each naming the browser. The settings list also filters now, with
+  Back and every row stating a filterText, and a settings word typed in the tab list puts the
+  Settings row first instead of last.
