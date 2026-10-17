@@ -111,31 +111,17 @@ local function startPattern(w)
   return pattern
 end
 
--- Whether a lowered word sits in a file name as the shared search keeps it, at a word start
--- when it is short, anywhere when it is not.
-local function nameHas(name, w)
-  local low = name:lower()
-  if not wantsStart(w) then return low:find(w, 1, true) ~= nil end
-  local init = 1
-  while true do
-    local pos = low:find(w, init, true)
-    if not pos then return false end
-    if pos == 1 then return true end
-    local prev, here = name:sub(pos - 1, pos - 1), name:sub(pos, pos)
-    if not prev:match("%w") or (prev:match("%l") and here:match("%u")) then return true end
-    init = pos + 1
-  end
-end
-
 -- Recursive search beneath the scope.
 --
--- The walker takes one pattern, so the FIRST word is handed to it and any remaining words are
--- applied here to what came back, each to the file name, the field the shared search keeps a
--- row by, and as that search keeps it, a short word at a word start. Until 2026-10-17 the first
--- went as a fixed string anywhere in the name and the rest anywhere in the full path, so a word
--- in a folder or two letters inside a word filled the capped answer with rows the list dropped. That keeps the expensive part, visiting
--- the tree, filtering in C on the most selective thing available, while the cheap part runs
--- over a bounded list. Extensions go to the tool as well, since it filters those natively.
+-- The walker takes one pattern, so the FIRST word is handed to it, as the shared search keeps
+-- it, a short word at a word start and a longer one anywhere in the name, and that request is
+-- the only narrowing this source does. Every row the walker answers goes to the shared search,
+-- which ranks the remaining words with everything else. Until the phase four rework the remaining
+-- words were also tested here, in Lua, against the file name, and that was a second matcher
+-- disagreeing with the first, since a typo in a later word dropped a row the shared search
+-- keeps, notes reprot against notes report.md. The engine still holds the rows the search keeps
+-- ahead of the rest when its retain cap cuts, so a loose answer costs ranking time and never
+-- the best rows. Extensions go to the tool as well, since it filters those natively.
 local function search(parsed, ctx, cb)
   local dir = ctx.scopePath
   local cap = ctx.cap or 200
@@ -186,21 +172,10 @@ local function search(parsed, ctx, cb)
       return
     end
     local rows = {}
-    local extra = {}
-    for i = 2, #parsed.words do extra[#extra + 1] = parsed.words[i]:lower() end
     for line in util.lines(out) do
-      local keep = true
-      if #extra > 0 then
-        local name = line:gsub("/+$", ""):match("([^/]*)$") or line
-        for _, w in ipairs(extra) do
-          if not nameHas(name, w) then keep = false break end
-        end
-      end
-      if keep then
-        local isDir = line:sub(-1) == "/"
-        local path = isDir and line:sub(1, -2) or line
-        rows[#rows + 1] = util.row(path, { isDir = isDir, source = M.name })
-      end
+      local isDir = line:sub(-1) == "/"
+      local path = isDir and line:sub(1, -2) or line
+      rows[#rows + 1] = util.row(path, { isDir = isDir, source = M.name })
     end
     cb(rows, nil)
   end)

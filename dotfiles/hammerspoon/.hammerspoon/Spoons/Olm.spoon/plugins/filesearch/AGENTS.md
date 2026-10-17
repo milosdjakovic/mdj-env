@@ -26,8 +26,16 @@ surface's own `searchName`, and the engine fills the retain cap with the rows th
 first, then says no matches when a round trip brought back none of them. The root also asks the
 matcher how many letters a word needs before it is kept inside a word, three, and hands that to
 Spotlight and the walker, so a shorter word is asked at a word start, Spotlight through
-`LIKE[cdw]` and the walker through a pattern, and the walker matches later words on the file name
-rather than the path. fzf is asked for whole words with the file name first. While a round trip
+`LIKE[cdw]` and the walker through a pattern. The walker hands the first word to the tool and
+every row the tool answers to the shared search, which ranks the later words, and Spotlight hands
+every scope root over the same way. A source narrows only the request it builds and never tests a
+row against the typed words in Lua, since a second matcher disagrees with the shared one. The
+walker's own later word filter did exactly that until the phase four rework, a typo in a second
+word dropping a row the shared search keeps, notes reprot against notes report.md, and the dry
+gate's self filter rule now refuses the shape. Handing a walker answer over whole costs little,
+measured on 2026-10-17 over real walker output in plain Lua, two thousand rows, the retain cap,
+took about 10 milliseconds for the kept first pass and 3 to 5 for the shared ranking, and five
+thousand took about 30 and 17. fzf is asked for whole words with the file name first. While a round trip
 for another population is pending, a scope, a type or a sigil changed, the held rows are not
 handed over and only the searching status shows, and over the same population, a typed letter,
 a backspace or an edit, they stay.
@@ -220,8 +228,10 @@ a query searches INSIDE each one and the folders themselves are never results. T
 found everything called downloads except `~/Downloads`, and those are the shortest, most obvious
 names anyone types first.
 
-They are about ten entries, so `sources/spotlight.lua` matches them in plain Lua and adds them to
-what the index returned. It lives there rather than in the engine for the same reason the hidden
+They are about ten entries, so `sources/spotlight.lua` adds every one of them to what the index
+returned for a typed search, and the shared search keeps the ones the words match. Until the phase
+four rework of 2026-10-17 it tested each word against them as a substring first, a second matcher
+that disagreed with the shared one on a typo. It lives there rather than in the engine for the same reason the hidden
 source exists at all, a blind spot is owned by the source that has it. The engine knows nothing
 about scopes and must not start.
 

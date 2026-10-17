@@ -152,23 +152,20 @@ end
 -- that. A query searches INSIDE each top level folder, so those folders are never results, and
 -- they are exactly the ones with short obvious names people type first.
 --
--- They are a handful of entries, so they are matched here in plain Lua and added to what the
--- index returned. It belongs in this file for the same reason the hidden source exists at all, a
--- blind spot is owned by the source that has it, rather than worked around by the engine, which
--- knows nothing about scopes.
+-- They are a handful of entries, so every one of them is added to what the index returned and
+-- the shared search ranks them with the rest, keeping the ones the typed words match and
+-- dropping the others. Until the phase four rework they were filtered here by a substring test of
+-- each word, a second matcher that disagreed with the shared one on a typo. It belongs in this
+-- file for the same reason the hidden source exists at all, a blind spot is owned by the source
+-- that has it, rather than worked around by the engine, which knows nothing about scopes.
 --
 -- Skipped when a type filter is on, since a directory has no extension and could not satisfy it.
-local function matchingRoots(parsed)
+local function scopeRoots(parsed)
   if parsed.kind ~= "search" then return {} end
   if parsed.exts and #parsed.exts > 0 then return {} end
   local rows = {}
   for _, dir in ipairs(searchScopes()) do
-    local name = (dir:match("([^/]+)$") or ""):lower()
-    local all = #parsed.words > 0
-    for _, w in ipairs(parsed.words) do
-      if not name:find(w:lower(), 1, true) then all = false break end
-    end
-    if all then rows[#rows + 1] = util.row(dir, { isDir = true, source = M.name }) end
+    rows[#rows + 1] = util.row(dir, { isDir = true, source = M.name })
   end
   return rows
 end
@@ -317,9 +314,11 @@ function M.search(parsed, ctx, cb)
   end
 
   local function harvest()
-    -- The scope roots first, since the index cannot return them. The set is only built when
-    -- there is one to skip, so the ordinary case pays no lookup per row at all.
-    local rows = matchingRoots(parsed)
+    -- The scope roots first, since the index cannot return them, all of them for a typed search,
+    -- taking a few dozen places of the cap at most, and the shared search drops the ones the
+    -- words do not match. The set is only built when there is one to skip, so the recent list
+    -- and a bare type token pay no lookup per row at all.
+    local rows = scopeRoots(parsed)
     local seen = nil
     if #rows > 0 then
       seen = {}
