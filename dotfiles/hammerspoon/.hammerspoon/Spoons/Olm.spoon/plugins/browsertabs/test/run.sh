@@ -230,6 +230,16 @@ screen_locked() {
   [ "$(ioreg -n Root -d1 -a 2>/dev/null | grep -c CGSSessionScreenIsLocked)" -gt 0 ]
 }
 
+# The two lines a failing round adds beside its other witnesses, the chord's reply and the leader
+# trace the agent recorded since the typing began. Asking for the trace stops the timer, so a round
+# that passes never prints it and the next round's watch starts clean.
+round_witness() {
+  local chord_reply=$1 trace
+  note "    chord $(jq -c '{ok, reposted, releasedAfter}' <<<"$chord_reply" 2>/dev/null)"
+  trace=$(hs_cmd watched)
+  note "    trace $(jq -c '.samples // []' <<<"$trace" 2>/dev/null)"
+}
+
 # A round is always the whole path. A second driver that skipped the chord and the typing and
 # committed through the chooser's own public activate was built and withdrawn, and the reasoning is
 # in the README under why every round still uses the keyboard. The short version is that macOS
@@ -265,15 +275,27 @@ round() {
 
   # Open the list exactly as the shortcut does. A chord that does not open it is the tool failing,
   # not the harness, so it is reported as a failure of the round.
-  hs_cmd chord "key=w" "hold=$hold" > /dev/null
+  local chorded
+  chorded=$(hs_cmd chord "key=w" "hold=$hold")
+  if [ "$(jq -r '.ok' <<<"$chorded")" != "true" ]; then
+    note "    chord $(jq -c '{ok, reposted, releasedAfter, err}' <<<"$chorded" 2>/dev/null)"
+    hs_cmd key "name=escape" > /dev/null
+    printf 'the chord did not finish, %s' "$(jq -r '.err // "no reason given"' <<<"$chorded")"
+    return 1
+  fi
   if ! hs_wait_showing true; then
     printf 'the shortcut did not open the list'
     return 1
   fi
 
+  # The leader trace starts just before the typing and is read after the live loop. It is printed
+  # only for a round that fails, together with the chord's own reply, since the question it answers
+  # is whether the leader was believed held while the token was typed.
+  hs_cmd watch "seconds=6" > /dev/null
   if [ -n "$query" ]; then
     typed=$(hs_cmd type "text=$query")
     if [ "$(jq -r '.ok' <<<"$typed")" != "true" ]; then
+      round_witness "$chorded"
       hs_cmd key "name=escape" > /dev/null
       printf 'typing was refused, %s' "$(jq -r '.err // "no reason given"' <<<"$typed")"
       return 1
@@ -307,6 +329,7 @@ round() {
   # asked for.
   note "    top  $(jq -c '[.rows[] | {title, url}]' <<<"$rows" 2>/dev/null)"
   if [ "$top" != "$url" ]; then
+    round_witness "$chorded"
     hs_cmd key "name=escape" > /dev/null
     printf 'the intended tab was not the top row, the top row was %s' "$top"
     return 1
@@ -327,18 +350,22 @@ round() {
     sleep 0.1
     waited=$(( waited + 1 ))
   done
-  note "    live $(jq -c '{query, url, kind}' <<<"$live" 2>/dev/null)"
+  hs_cmd watched > /dev/null
+  note "    live $(jq -c '{query, url, kind, leaderHeld}' <<<"$live" 2>/dev/null)"
   if [ "$(jq -r '.ok' <<<"$live")" != "true" ]; then
+    round_witness "$chorded"
     hs_cmd key "name=escape" > /dev/null
     printf 'the live list could not be read, %s' "$(jq -r '.err // "no reason given"' <<<"$live")"
     return 1
   fi
   if [ "$liveQuery" != "$query" ]; then
+    round_witness "$chorded"
     hs_cmd key "name=escape" > /dev/null
     printf 'the query did not land, the field holds %s' "$liveQuery"
     return 1
   fi
   if [ "$liveURL" != "$url" ]; then
+    round_witness "$chorded"
     hs_cmd key "name=escape" > /dev/null
     printf 'the live top row is %s, not the intended tab' "$liveURL"
     return 1

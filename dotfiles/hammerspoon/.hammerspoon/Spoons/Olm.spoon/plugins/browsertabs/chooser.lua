@@ -713,7 +713,14 @@ function M.live()
   return {
     query = cfg.stageQuery and cfg.stageQuery() or "",
     item = cfg.stageSelectedItem and cfg.stageSelectedItem() or nil,
+    leaderHeld = M.leaderHeld(),
   }
+end
+
+--- M.leaderHeld() - whether the Hyper leader is believed held right now, read through the root's
+--- own word. Present for the integration harness only. False when the root hands no word.
+function M.leaderHeld()
+  return cfg.leaderHeld ~= nil and cfg.leaderHeld() == true
 end
 
 --- M:configure(opts) - merge injected deps across two callers. The spoon composition root

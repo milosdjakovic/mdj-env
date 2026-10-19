@@ -1263,6 +1263,14 @@ function obj.run(olm, cfg)
       return stageModule and stageModule:query() or ""
     end,
 
+    -- leaderHeld, whether the Hyper leader is currently believed held, false when there is no
+    -- atom. The BrowserTabs harness reads it to trace the leader through a round's typing and to
+    -- refuse typing while it is held, since the default chooser's field yields every key to
+    -- Hyper then, and no plugin reads it for behaviour.
+    leaderHeld = function()
+      return hyperKeyAtom ~= nil and hyperKeyAtom:isActive() == true
+    end,
+
     -- stageTextBudget and stageTextWidth, the trickle migration's own addition, FileSearch's
     -- own fitDir, which used to measure a row's own room straight off the picker instance it
     -- held and now has no instance left to ask. Both proxy host/stage's own public methods,

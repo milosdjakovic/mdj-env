@@ -131,6 +131,8 @@ return {
         breaks = "the integration harness can no longer read the live field before Return, so a query that never landed goes unseen until the wrong tab opens" },
       stageSelectedItem = { source = "root", policy = "optional",
         breaks = "the integration harness can no longer read the live highlighted row before Return, so a wrong top row goes unseen until the wrong tab opens" },
+      leaderHeld = { source = "root", policy = "optional",
+        breaks = "the integration harness can no longer trace the leader through a round or refuse to type while it is held, so a lost key up goes unseen until the token runs as chords" },
     },
   },
 

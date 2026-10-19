@@ -177,9 +177,49 @@ function commands.ping(_, done)
   done({ ok = true, config = hs.configdir })
 end
 
+-- The chord answers only once the leader is believed released. The leader's key up can be lost,
+-- which ChordKey releases by its watchdog only after thirty seconds, and a token typed while the
+-- leader is believed held runs as Hyper chords whose last letter closes the list. So after the key
+-- up this polls the tool's own word for the leader every twenty milliseconds for three hundred, and
+-- posts the key up again with the same stamp when it is still held, at most three times. The reply
+-- says how long the release took and how many key ups it needed, which is the measurement as well
+-- as the guard.
+local RELEASE_POLL = 0.02
+local RELEASE_WINDOW_MS = 300
+local RELEASE_RETRIES = 3
+
+local function leaderHeld()
+  local ui = spoon.BrowserTabs and spoon.BrowserTabs.chooser
+  return ui ~= nil and ui.leaderHeld ~= nil and ui.leaderHeld() == true
+end
+
 function commands.chord(p, done)
-  chord(p.leader or "f18", p.key or "w", tonumber(p.hold) or 0.12, function()
-    done({ ok = true })
+  local leader = p.leader or "f18"
+  chord(leader, p.key or "w", tonumber(p.hold) or 0.12, function()
+    local started = hs.timer.secondsSinceEpoch()
+    local reposted = 0
+    local function elapsed() return math.floor((hs.timer.secondsSinceEpoch() - started) * 1000) end
+    local function poll(since)
+      if not leaderHeld() then
+        done({ ok = true, releasedAfter = elapsed(), reposted = reposted })
+        return
+      end
+      if elapsed() - since >= RELEASE_WINDOW_MS then
+        if reposted >= RELEASE_RETRIES then
+          done({
+            ok = false,
+            err = "the leader is still believed held after " .. reposted .. " repeated key ups",
+            reposted = reposted,
+          })
+          return
+        end
+        reposted = reposted + 1
+        postKey(leader, false)
+        since = elapsed()
+      end
+      after(RELEASE_POLL, function() poll(since) end)
+    end
+    poll(0)
   end)
 end
 
@@ -201,6 +241,10 @@ function commands.type(p, done)
   local ui = spoon.BrowserTabs and spoon.BrowserTabs.chooser
   if not (ui and ui.isShowing()) then
     done({ ok = false, err = "the tab list is not showing, so nothing was typed" })
+    return
+  end
+  if leaderHeld() then
+    done({ ok = false, err = "the leader is still believed held" })
     return
   end
   hs.eventtap.keyStrokes(p.text or "")
@@ -243,9 +287,54 @@ function commands.live(_, done)
   done({
     ok = true,
     query = live.query or "",
+    leaderHeld = live.leaderHeld == true,
     url = item and item.tab and item.tab.url or nil,
     kind = item and item.kind or nil,
   })
+end
+
+-- The leader trace. `watch` starts a timer sampling every twenty milliseconds for the given seconds,
+-- six by default, and records a compact line only when the leader held state or the showing flag
+-- differs from the sample before, plus the first one. `watched` stops it and answers the lines.
+-- Both live on the module, since a timer nothing refers to is collected and the buffer is read
+-- from a later command. The point is to see, when a round's typed token fails to land, whether the
+-- leader was believed held while it was typed and when the list closed relative to that.
+local WATCH_POLL = 0.02
+
+local function stopWatch()
+  if M.watcher then
+    M.watcher:stop()
+    M.watcher = nil
+  end
+end
+
+function commands.watch(p, done)
+  stopWatch()
+  M.samples = {}
+  local seconds = tonumber(p.seconds) or 6
+  local started = hs.timer.secondsSinceEpoch()
+  local lastHeld, lastShowing
+  M.watcher = hs.timer.new(WATCH_POLL, function()
+    local elapsed = hs.timer.secondsSinceEpoch() - started
+    if elapsed > seconds then
+      stopWatch()
+      return
+    end
+    local ui = spoon.BrowserTabs and spoon.BrowserTabs.chooser
+    local held = leaderHeld()
+    local showing = ui ~= nil and ui.isShowing() == true
+    if lastHeld == nil or held ~= lastHeld or showing ~= lastShowing then
+      M.samples[#M.samples + 1] = string.format("%dms held=%s showing=%s", math.floor(elapsed * 1000), tostring(held), tostring(showing))
+      lastHeld, lastShowing = held, showing
+    end
+  end)
+  M.watcher:start()
+  done({ ok = true })
+end
+
+function commands.watched(_, done)
+  stopWatch()
+  done({ ok = true, samples = M.samples or {} })
 end
 
 -- Which Space is current, and which Space each of a browser's windows is on. Both accessibility

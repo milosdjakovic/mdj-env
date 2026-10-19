@@ -2,9 +2,9 @@
 
 Status. The harness types untargeted and reads the live list before Return. The quick run of 10:14 on
 2026-10-19 passed 43, failed 1 and skipped 2, with every multi window case green. Two things are
-open, the reproducible first round reading of `frontmost on chrome`, whose most likely cause is named
-and whose settling measurement is not yet taken, and the unexplained Chrome witness anomaly of
-2026-10-17, which has not recurred.
+open. The reproducible first round reading of `frontmost on chrome` now has its settling measurement
+built, a leader trace and a guard that refuse to type while the leader is believed held, and it has
+not yet been run. The unexplained Chrome witness anomaly of 2026-10-17 has not recurred.
 
 ## Now
 
@@ -38,9 +38,9 @@ whole four second poll. Being first alone does not fail, since the Safari round 
 rerun of 10:01 and passed, and Chrome frontmost alone does not fail, since `background_window on
 chrome` passed. The most likely cause is that the leader was still believed held after the round's
 chord, so the field yielded every key to Hyper and the token's last letter, x, which closes every
-list context, closed the list. That is unproven. The one measurement that settles it is a harness
-command polling the leader's active state and the plugin's showing flag every twenty milliseconds from
-just before the typing until the failure, read together with the console. It has not been taken.
+list context, closed the list. That is unproven. The measurement is built as of the log entry of
+2026-10-19 11:22 and has not been run. A leader trace and a guard that refuses to type while the leader is held
+now ship together, so one run of the single case both measures and tests.
 
 The second is the Chrome witness anomaly from 2026-10-17, which did not recur in any raise round of
 either quick run and is not explained. There the browser's dictionary, `hs.application:allWindows` and
@@ -233,3 +233,29 @@ plugin's showing flag every twenty milliseconds from just before the typing unti
 together with the console for a ChordKey lost key up line, a reload banner, or a second test agent
 listening line. That measurement was not taken, so the item is recorded and left here. The Status and
 Now above were rewritten from this entry, and the multi window cases are no longer open.
+
+### 2026-10-19 11:22, the harness traces the leader through the typing and refuses to type while it is held
+
+Built from the theory of the entry of 2026-10-19 10:30, and not yet run. The root gained a word,
+`leaderHeld`, beside `stageQuery`, answering whether the Hyper leader is believed held through the
+hyper key atom's own `isActive`, and the BrowserTabs manifest declares it as optional, saying only
+the harness depends on it. The tool's surface hands it out inside `live()` and as its own
+`leaderHeld()`. In `test/agent.lua` a `watch` command polls every twenty milliseconds for up to six
+seconds and records the leader state and the showing flag only when either changed, a `watched`
+command stops it and answers the lines, and the timer is kept on the module. The chord now polls
+the leader after its key up for three hundred milliseconds, posts the key up again with the same
+stamp when it is still held, at most three times, and answers how long the release took and how many
+repeats it needed, or fails with a reason. `commands.type` refuses while the leader is believed held,
+so a token is never dispatched as Hyper chords. The runner starts the watch before the typing and
+prints the chord's reply and the trace as `chord` and `trace` lines only when a round fails.
+
+The guard and the trace landed together on purpose. One run of the single case then both measures
+and tests, since a round that would have failed by the leader staying held either is repaired by the
+repeated key up, which the chord reply reports, or stops with the reason, and in both the evidence is
+in the log.
+
+If the theory holds the trace of a failing first round shows a sample with the leader held during the
+typing, the showing flag going false shortly after it, and the chord reply showing a nonzero
+`reposted` or a failure. A trace with the leader never held and the list closing anyway would mean
+the theory is wrong and something else closed the list. The run is owed, and nothing here was run
+against Hammerspoon.
