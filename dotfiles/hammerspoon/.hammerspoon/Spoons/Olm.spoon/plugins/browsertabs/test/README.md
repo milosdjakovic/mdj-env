@@ -196,6 +196,8 @@ is checked before every round now, and the machine is held awake with an asserti
 present, because holding only the display awake was not enough. The lock runs off the idle timer and
 synthesised keystrokes do not reset it.
 
+A run through `suite.sh` cannot show whether the engine's repeat raise fired. The suite restores main at the end by relaunching Hammerspoon, a relaunch wipes the console scrollback, and the info line the engine logs when it raises again is gone before anyone can read it. The console after the restore holds only main's own load. So reading the console after a suite run does not work. The agent would have to record that line itself, through `hs.logger` history or the console inside Hammerspoon before the restore, and print it as a witness line, which is not built.
+
 ## Two ways this suite destroyed somebody's work
 
 Both are fixed and both are worth stating plainly, because a harness that runs against a real
@@ -405,6 +407,8 @@ The one failure was again the very first round, `frontmost on chrome`, with the 
 A read only survey of the code after the run found that the message comes from the plugin's own showing flag, set true on present and false only on close, so the list was really closed between the typing and the live read. Nothing in the default provider or the stage closes a list on an application change, a focus change, a screen or Space change, or a timer, and the canvas is a non activating popup, so Chrome coming forward cannot close it. The closers are Escape, Return, a mouse down outside the canvas, a programmatic stage hide from another plugin, a second present over it, or a config reload, and a reload is unlikely since the recomputed top row survived.
 
 The most likely cause is the leader being believed still held after the round's chord. The field yields every key to Hyper while the leader is owned, so the typed token's letters would run as Hyper chords instead of reaching the field, and every token ends in x, the shared close key of every list context, so the list would close on the token's own last letter. A lost leader key up would leave it held, which the chord engine documents as its one real fragility, released by its watchdog only after thirty seconds. That fits the first round, which follows the warm up chord and about three seconds of scripting against Chrome with a freshly raised window. It is not proven. The one measurement that settles it is a harness command polling the leader's active state and the plugin's showing flag every twenty milliseconds from just before the typing until the failure, read together with the console for a lost key up line, a reload banner, or a second test agent listening line. That measurement was not taken, so the reading stays open, with the Chrome witness anomaly beside it.
+
+The quick run of about 12:50 on 2026-10-19 passed 45, failed 0 and skipped 1, from the worktree at 306c364 with the raise confirm and repeat live. Two windows in each browser were opened on blank pages by id and closed by the same ids after. The skip was `tab_group on safari`, a machine fact. It is the first run of this suite that day with nothing red, and the first since 2026-08-20. The first round passed, so the close between the typing and the live read did not reproduce in three runs with the trace armed, and the trace stays armed. `no_query on chrome` passed. Whether the repeat raise fired could not be read, because the suite's restore wipes the console, see the traps above. The Chrome witness anomaly did not recur.
 
 ## What is deliberately not covered
 

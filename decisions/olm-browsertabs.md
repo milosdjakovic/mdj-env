@@ -1,13 +1,11 @@
 # Olm BrowserTabs, the harness and the raise
 
-Status. The harness types untargeted and reads the live list before Return. The quick run of 12:00 on
-2026-10-19 passed 44, failed 1 and skipped 1. The one failure, `no_query on chrome`, was a cross
-application raise after which the browser was not frontmost, observed once in four quick runs that day
-with witnesses, and the engine now confirms a raise once and repeats the same request once. Two things
-are open. The first round close, `frontmost on chrome`, did not reproduce in two runs with the trace
-armed, and the trace stays armed. The Chrome witness anomaly of 2026-10-17 is unchanged. Whether the
-repeat is honoured where the first was not has not been read, and only the console tells, since a passing
-run cannot.
+Status. The harness is green at 45 passed, 0 failed and 1 skipped in the quick run of 2026-10-19 at
+about 12:50, the first run of this suite with nothing red since 2026-08-20. The engine confirms a raise once
+and repeats the same request once, and the repeat is live and unread, since a run through `suite.sh` cannot
+show whether it fired. The first round close, `frontmost on chrome`, is not reproduced in three runs with the
+trace armed, and the trace stays armed. The Chrome witness anomaly of 2026-10-17 has not recurred. What would
+read the repeat is the agent recording the engine's log line itself before the restore, which is not built.
 
 ## Now
 
@@ -34,18 +32,20 @@ The second quick run, from main at cb2d4da after the branch merged, ended at 10:
 passed 43, failed 1 and skipped 2, and all eight multi window cases ran and passed. The two skips are
 machine facts, no window in a tab group on Safari and no ordinary tab to pick on Chrome.
 
-The quick run of 12:00 on 2026-10-19 passed 44, failed 1 and skipped 1, and the engine now confirms a
-raise once and repeats the same request once, see the log. The console must be read after a run for the
-info line. No line means the repeat was not exercised, a line then a pass means it was honoured, and a
-line then a failure means it was declined too. Two things are open. The first is the first round close.
-`frontmost on chrome` failed at 08:39 and 10:14 with the list closed before the live read, and it passed in
-the 11:50 and 12:00 runs, so it has not reproduced in two runs with the trace armed. The agent records the
-closing handler's traceback, the field text, the frontmost application and every key down with its source
-stamp, so a run that reproduces it names the closer. The trace stays armed.
+The quick run of 12:00 on 2026-10-19 passed 44, failed 1 and skipped 1, and the engine then began to
+confirm a raise once and repeat the same request once, see the log. The quick run of about 12:50, from the
+worktree at 306c364 with the repeat live, passed 45, failed 0 and skipped 1, the skip being `tab_group on
+safari`, a machine fact. `no_query on chrome` passed. Whether the repeat fired could not be read. The suite
+restores main at the end by relaunching Hammerspoon, a relaunch wipes the console scrollback, and the info
+line the engine logs on a repeat is gone before anyone can read it. So reading the console after a suite run,
+which an earlier entry advised, cannot work, and a run through `suite.sh` can never say whether the repeat
+fired. The agent would have to record the line itself, through `hs.logger` history or the console inside
+Hammerspoon before the restore, and print it as a witness line. That is not built, and it is the one open
+item on the repeat.
 
-The second is the Chrome witness anomaly from 2026-10-17, unchanged. There the browser's dictionary,
-`hs.application:allWindows` and System Events disagreed about Chrome's windows, and a second Chrome
-process or profile sharing the bundle id is a plausible cause and unverified.
+Two other things stay as they were. The first round close did not reproduce in three runs with the trace
+armed, and the trace stays armed. The Chrome witness anomaly of 2026-10-17 has not recurred, and a run where
+it does not appear says nothing about its cause.
 
 ## Rejected
 
@@ -357,3 +357,25 @@ How to read the next run. A plain passing run proves nothing about the repeat, s
 see it. The console must be read after a run for the info line. No line means the repeat was not
 exercised. A line followed by a pass means it was honoured. A line followed by a failure means it was
 declined too. Not run against Hammerspoon.
+Corrected 2026-10-19 12:51, see below.
+
+### 2026-10-19 12:51, the quick run is green at 45, and the suite's restore wipes the console
+
+At about 12:50 on 2026-10-19 `suite.sh --quick` ran from the worktree at 306c364, with the raise confirm and
+repeat live. Two windows in each browser were opened on blank pages by id and closed by the same ids after.
+It passed 45, failed 0 and skipped 1, the skip being `tab_group on safari`, a machine fact. It is the first
+run of this suite today with nothing red, and the first since 2026-08-20. The first round passed, so the
+close between the typing and the live read did not reproduce in three runs with the trace armed, and the
+trace stays armed. `no_query on chrome` passed.
+
+Whether the repeat raise fired could not be read, and the reason is a trap. `suite.sh` restores main at the
+end by relaunching Hammerspoon, and a relaunch wipes the console scrollback. The info line the engine logs
+when it raises again was gone before it could be read, and the console after the restore held only main's
+own load, clean with no problems. The entry of 12:32 said to read the console after a run for that line, and
+through the suite that cannot work. It is corrected above. A run through `suite.sh` can never answer whether
+the repeat fired.
+
+The one open item on the repeat is therefore this. The agent would record the engine's log line itself,
+through `hs.logger` history or the console inside Hammerspoon before the restore, and print it as a witness
+line. That is not built. Nothing was run against Hammerspoon for this entry, which only records the run
+above.
