@@ -115,6 +115,7 @@ surface and empty state, the scroll and the teardown, `pane = true` on a surface
   routing a tool's open key onto it would need the registrar to know two engines and the window
   sheet and the key inventory taught a second source, all for a case no plugin has. Refused out
   loud at wiring instead.
+  Reopened 2026-10-19 16:44, see `olm-keymap.md`.
 - **Renaming the icon engine's `emoji` source set to clear the layer rule.** 2026-10-16 16:52.
   The word is core's own vocabulary, written in `config/icons.toml` as the set and the fallback,
   and it shares a spelling with the emoji picker plugin by coincidence. Renaming it would change a
