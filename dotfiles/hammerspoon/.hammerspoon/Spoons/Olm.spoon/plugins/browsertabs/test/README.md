@@ -372,6 +372,18 @@ harness on the real path for the first time. Milos's own hand test of the tabs l
 this is the concern's first harness reading and not its first reading. It is to be watched in that rerun and not fixed before it has been
 seen.
 
+The first run after the fix ended at 08:39 on 2026-10-19. It was a quick run of the branch, passed 37, failed 1 and reported 8 not covered, against the baseline on main of 2026-10-17 that passed 8, failed 29 and reported 9 not covered. The belief that the fault was the harness and this machine was right in the end, only not in the way it was first read, and two Chrome rounds of that day are still not explained by an unfiltered list, see the anomaly below. Every typed round printed a `live` line with the typed token in the field and the intended tab under the highlight, and the browser then arrived with it.
+
+The raise concern did not show. No round selected the right tab and left the browser behind, so the first harness reading of a raise from a canvas that never held the front is that macOS honoured it on every round that asked. That is one run on one machine and it is a reading, not a guarantee, since the raise is still at the discretion of the system.
+
+The Chrome witness anomaly did not recur in any raise round. The one null window reading in the log was Finder in front in the `drift_window_closed on chrome` round, which is a no crash round where no window is expected, so it is not the anomaly. The anomaly is still unexplained, and a run where it does not appear says nothing about its cause.
+
+The snapshot at the start saw one window in Chrome and one in Safari, so the eight multi window cases skipped, and `tab_group on safari` skipped as before. They wait for a run that starts with two windows open in each browser.
+
+The one failure was the very first round, `frontmost on chrome`. Typing was not refused, so the list was showing when the token was typed, and the recomputed top row was right. The live read then answered that no list was showing for its whole four second poll, so between the typing and the live read the list had closed. It was the first chord after the config load, which the runner already warms up for. The rule above applies, a single red round is a thing to run again before it is investigated.
+
+A rerun at 10:01 the same morning, `suite.sh --only frontmost`, took one round per browser at the case's own count. Safari passed. Chrome skipped with the browser has no window, since by then Chrome had no window open, so the red round could not be run again. It stays a single first round reading to run again when Chrome has a window, and it is not recorded as a defect. The console was read after both restores to main and was clean, with the config's composed problems list empty.
+
 ## What is deliberately not covered
 
 A window on a second ordinary Space, because this machine has one. The full screen case is the

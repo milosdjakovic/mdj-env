@@ -1,9 +1,9 @@
 # Olm BrowserTabs, the harness and the raise
 
-Status. The integration harness types untargeted since 2026-10-19, and its first rerun after
-that is still owed. Two things are open and unread. Whether macOS honours the cross application
-raise from a chooser that never holds the front, and the Chrome witness anomaly, where three
-readers of one browser disagree about its windows. The anomaly has nothing to do with typing.
+Status. The harness types untargeted and reads the live list before Return. Its first rerun, on
+2026-10-19, passed 37, failed 1 and skipped 8, against 8, 29 and 9 on main two days before, and the
+raise concern did not show. Three things are open, the first round reading of `frontmost on chrome`,
+the multi window cases, and the Chrome witness anomaly.
 
 ## Now
 
@@ -12,22 +12,29 @@ untargeted events through `hs.eventtap`, the chord stamped as hardware. The defa
 never becomes the key window, and its field reads keys only through a session level event tap, so
 untargeted events are the only kind it can receive. A round is judged by two witnesses that share
 no implementation, the browser's own dictionary and System Events. Its `top` precondition is a
-ranking the agent recomputes from the plugin's rows, so it proves what the ranking would put first
-and says nothing about what the live list shows, so since 2026-10-19 08:28 a round also reads the
-live field text and the live highlighted row through the stage before Return and requires the
-typed query and the intended tab, and `commands.type` refuses unless the list is showing. The
-read goes through the root words `stageQuery` and `stageSelectedItem` that the BrowserTabs surface
-exposes as `live()`. The Chrome witness anomaly is open. Across the
-Chrome rounds of the run of 2026-10-17, `hs.application:allWindows` on Chrome returned an empty
-list while `hs.window.focusedWindow` returned a Chrome window, and in `hidden_app on chrome`
-System Events reported no Chrome window for the whole settle although Chrome ended frontmost with
-the target window focused. In `frontmost on chrome` the front window was a "Vicert One-Pager"
-window that the browser's own dictionary does not list. The three readers are the browser's
-dictionary, `hs.application:allWindows` and System Events, and they disagree. A second Chrome
-process or profile sharing the bundle id is a plausible cause and it is unverified. It has nothing
-to do with typing, and the rerun is where it will be read. The tool's own raise path is unchanged in code
-since 2026-08-21, and the raise concern in `plugins/browsertabs/AGENTS.md` stays open until a rerun
-reads it.
+ranking the agent recomputes from the plugin's rows, so it says what the ranking would put first and
+nothing about what the live list shows. So a round also reads the live field text and the live
+highlighted row through the stage before Return and requires the typed query and the intended tab,
+and `commands.type` refuses unless the list is showing. The read goes through the root words
+`stageQuery` and `stageSelectedItem` that the BrowserTabs surface exposes as `live()`.
+
+The quick run of this branch on 2026-10-19 passed 37, failed 1 and skipped 8, against the baseline
+on main of 2026-10-17 that passed 8, failed 29 and skipped 9. Every typed round printed a `live`
+line with the typed token in the field and the intended tab under the highlight, and the browser then
+arrived with it. The raise concern did not show. No round selected the right tab and left the
+browser behind, so the first harness reading of a raise from a canvas that never held the front is
+that macOS honoured it on every round that asked. The tool's own raise path is unchanged in code
+since 2026-08-21, and the concern in `plugins/browsertabs/AGENTS.md` is read once and not closed.
+
+Three things are open. The one failure was the very first round, `frontmost on chrome`, where the
+list had closed between the typing and the live read, on the first chord after the config load.
+The rerun of 10:01 could not repeat it, since Chrome had no window open then, so it stays a single
+first round reading to run again when Chrome has a window, and it is not a defect. The eight multi
+window cases skipped, since the snapshot saw one window in each browser, and they wait for a run
+with two windows open in each. The Chrome witness anomaly from 2026-10-17 did not recur in any
+raise round and is not explained. There the browser's dictionary, `hs.application:allWindows` and
+System Events disagreed about Chrome's windows, and a second Chrome process or profile sharing the
+bundle id is a plausible cause and unverified. It has nothing to do with typing.
 
 ## Rejected
 
@@ -142,3 +149,26 @@ published words, so the root gained `stageQuery` beside the existing `stageSelec
 BrowserTabs manifest declares both as optional, and the tool's surface answers them through a small
 `live()` the agent calls. Nothing in the tool reads it while it runs. Nothing was run here, since
 the rerun is still owed, and the first rerun will show the `live` line for the first time.
+
+### 2026-10-19 10:05, the quick run and the rerun, estimated
+
+Estimated, anchored to the console relaunch stamps 08:39:02 and 10:01:22, the first when the quick
+run ended and main was restored, the second when the rerun ended and main was restored again. The
+quick run was `suite.sh --quick` from the worktree with the lock, and it passed 37, failed 1 and
+skipped 8, against 8, 29 and 9 on main of 2026-10-17. Every typed round printed a `live` line with the
+typed token in the field and the intended tab under the highlight, and the browser then arrived
+with it. No round selected the right tab and left the browser behind, so the raise concern did not
+show, and the first harness reading of a raise from a canvas that never held the front is that macOS
+honoured it on every round that asked. The Chrome witness anomaly did not recur in any raise round.
+The one null window reading in the log was Finder in front in the `drift_window_closed on chrome`
+round, a no crash round where no window is expected. The snapshot saw one window in Chrome and one in
+Safari, so the eight multi window cases skipped, and `tab_group on safari` skipped as before.
+
+The one failure was the first round, `frontmost on chrome`. Typing was not refused, so the list was
+showing, and the recomputed top row was right, yet the live read answered that no list was showing
+for its whole four second poll. The list had closed between the typing and the live read, on the first
+chord after the config load, which the runner already warms up for. The rerun at 10:01, `suite.sh
+--only frontmost`, took one round per browser. Safari passed and Chrome skipped with the browser has
+no window, so the red round could not be run again. It stays a single first round reading to run again
+when Chrome has a window. The console was read after both restores and was clean, with
+`spoon.Olm._composed.problems` empty. The Status and Now above were rewritten from this entry.
