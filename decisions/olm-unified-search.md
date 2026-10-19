@@ -1040,3 +1040,11 @@ and not for all of them, so it is narrower than it first read. The 21:30 entry's
 harness ranked the right tab to the top on every round, so the ranking under test held, rested on
 `top`, which the agent recomputes from the plugin's rows, so it said nothing about the live list.
 The measurement, the fix and what is still open are in `decisions/olm-browsertabs.md`.
+
+### 2026-10-19 15:54, the placement row inside OLM Settings declares four keywords
+
+Measured by reading the row. At Milos's ask the top row of the OLM Settings page, Where the OLM
+launcher appears, now declares the keywords placement, cursor, window and position, a related task
+and its two options, none a title word, so typing cursor or window inside the page finds it. This is
+the last keyword ask from the track. The vs keyword for Code was dropped by Milos the same day,
+since the app is named Code.

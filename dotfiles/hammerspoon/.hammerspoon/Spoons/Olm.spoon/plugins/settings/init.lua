@@ -89,10 +89,11 @@ local ICON_NOT_SELECTED = "notSelected"
 
 -- filterText is what the row is searched by, lib/chooser/rank.lua. pluginspage.lua hands its
 -- own through this same constructor, the title and the identity, so it is a parameter rather
--- than fixed here.
-local function row(title, subTitle, icon, item, enabled, filterText)
+-- than fixed here. keywords is what a row also answers to without showing them, comma
+-- separated phrases, secondary fields in the same rank.lua.
+local function row(title, subTitle, icon, item, enabled, filterText, keywords)
   return { title = title, subTitle = subTitle, icon = icon, item = item, enabled = enabled,
-    filterText = filterText }
+    filterText = filterText, keywords = keywords }
 end
 
 -- A row the shared search never scores or drops. It leads the resting list where the supplier
@@ -354,7 +355,7 @@ function M.rows()
   local words = MODE_WORDS[mode] or MODE_WORDS.cursor
   local rows = {
     row("Where the OLM launcher appears", words, ICON_PLACEMENT, { nav = true, to = "placement" }, true,
-      "Where the OLM launcher appears"),
+      "Where the OLM launcher appears", "placement, cursor, window, position"),
     row("Theme", liveTheme(), ICON_THEME, { nav = true, to = "theme" }, true, "Theme"),
   }
   if pluginsAvailable() then

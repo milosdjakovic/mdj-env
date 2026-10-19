@@ -233,6 +233,9 @@ do
   check("and Back and Apply now trail it", titles(kept) == "Clipboard,Back,Apply now", titles(kept))
   kept = ranked(rows, "off")
   check("a plugin's state words are not searched", titles(kept) == "Back,Apply now", titles(kept))
-  kept = ranked(M.rows(), "cursor")
+  kept = ranked(M.rows(), "mouse")
   check("the top level's live status subtitles are not searched", #kept == 0, titles(kept))
+  kept = ranked(M.rows(), "cursor")
+  check("the placement row answers to its declared keywords", titles(kept) == "Where the OLM launcher appears",
+    titles(kept))
 end
