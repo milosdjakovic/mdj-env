@@ -126,6 +126,8 @@ local provider = nil  -- the active backend, one of the modules loaded above
 local activeId = nil  -- its file stem, the identity the page and the stored choice join on
 local available = false -- whether the active provider's CLI was found
 local cache = {}      -- the last fetched location list, filtered by the supplier
+local refused = false -- the last listing broke the location contract and was refused whole,
+                      -- cleared when a good one lands, so the page can say so
 local current = { state = "unavailable" } -- status snapshot, refreshed on open and change
 local target = nil    -- where a connect goes, { countryCode, cityCode }, nil for nowhere named
 local fetching = false -- status, the selected relay, and the location list are all in
@@ -284,11 +286,14 @@ local function targetLabel(t)
   if not t then return nil end
   for _, loc in ipairs(cache) do
     if loc.countryCode == t.countryCode and (not t.cityCode or loc.cityCode == t.cityCode) then
-      return t.cityCode and loc.label or loc.country
+      if t.cityCode then return loc.label end
+      return loc.country or t.label or t.countryCode
     end
   end
   if t.label then return t.label end
-  if t.cityCode then return t.cityCode end
+  -- Mullvad's published selection carries no label, so before the list lands the city code and
+  -- the country code are spelled together as given, which reads as the row will once it lands.
+  if t.cityCode then return t.cityCode .. ", " .. t.countryCode end
   return t.countryCode
 end
 
@@ -478,6 +483,16 @@ local function waitingRow()
            icon = "loading", enabled = false, pinned = true, item = { id = "waiting" } }
 end
 
+-- The row shown in place of the waiting row when the last listing was refused. The waiting row
+-- would be false then, since nothing is on its way, so this one names the provider and points at
+-- the console where the entry and the gap are logged. Built the way the other label rows are,
+-- disabled and pinned.
+local function refusedRow()
+  local name = provider.name or activeId or "VPN"
+  return { title = "The " .. name .. " list breaks the contract", subTitle = "see the console",
+           icon = "warn", enabled = false, pinned = true, item = { id = "refused" } }
+end
+
 -- The merged supplier. When the provider is unavailable the whole list is the one
 -- self explaining install row, pinned so it shows under any query. Otherwise the action
 -- row leads only on the empty query, then every city follows, and the atom's shared
@@ -490,7 +505,11 @@ local function rows(query)
   if not available then return { unavailableRow(), settingsRow() } end
   local out = {}
   if (query or "") == "" then out[#out + 1] = actionRow() end
-  if #cache == 0 then out[#out + 1] = waitingRow() end
+  if refused then
+    out[#out + 1] = refusedRow()
+  elseif #cache == 0 then
+    out[#out + 1] = waitingRow()
+  end
   for _, loc in ipairs(cache) do
     -- The builder reads only the contract. The subtitle is the adapter's own detail, and
     -- the search sees the label plus the adapter's declared terms as further names, so a
@@ -528,7 +547,7 @@ local function onSelect(sel)
   -- The unavailable row is built disabled, so this never dispatches it and there is no
   -- branch for it here. Guarded anyway, since a row arriving without a live engine would
   -- otherwise reach an engine call.
-  if sel.id == "unavailable" or sel.id == "waiting" then return end
+  if sel.id == "unavailable" or sel.id == "waiting" or sel.id == "refused" then return end
   -- Answering a table is what pushes a level, so this returns the page rather than opening
   -- anything itself.
   if sel.id == "providers" then return buildProviderChild() end
@@ -751,11 +770,15 @@ function M.prepare(onReady)
   local onStatus, statusTimeout = landedGate(function(status) current = status end)
   local onTarget, targetTimeout = landedGate(function(loc) target = targetFrom(loc) end)
   local onList, listTimeout = landedGate(function(list)
-    -- A listing that breaks the location contract is refused whole and read as empty, so
-    -- the page shows its waiting row rather than a half contract.
+    -- A listing that breaks the location contract is refused whole and read as empty, and the
+    -- page shows its refused row rather than a half contract. Both parsers emit an entry only
+    -- when every capture matched, so a malformed entry is a systematic adapter defect and the
+    -- whole listing is the honest unit to refuse. Validation runs in every fetch round, so the
+    -- line below repeats once per round by design, and the console shows it is still broken.
     local good, at, gap = contract.validateLocations(list or {})
+    refused = not good
     if not good then
-      log.w(string.format("Vpn: the %s provider listed a location that breaks the contract, entry %d, %s", tostring(activeId), at, tostring(gap)))
+      log.w(string.format("Vpn the %s provider listed a location that breaks the contract, entry %d, %s", tostring(activeId), at, tostring(gap)))
       list = {}
     end
     cache = cfg.recency.order(list or {}, function(loc) return loc.id end)
@@ -882,6 +905,7 @@ switchTo = function(id)
   fetching = false
   pending = {}
   cache = {}
+  refused = false
   current = { state = "unavailable" }
   target = nil
 

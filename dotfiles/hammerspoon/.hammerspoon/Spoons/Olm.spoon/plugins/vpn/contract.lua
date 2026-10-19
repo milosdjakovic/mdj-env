@@ -30,15 +30,19 @@
 ---                                   location in the shape below.
 ---
 --- The location shape. Every adapter owes all of these, and validateLocation checks them.
----   id           string, a stable unique key for the place within this provider.
----   label        string, the row title.
----   detail       string, the row subtitle in the adapter's own spelling.
----   countryCode  string, the country the flag is drawn from.
+---   id           string, a stable unique key for the place within this provider, not empty.
+---   label        string, the row title, not empty.
+---   detail       string, the row subtitle in the adapter's own spelling. It may be empty.
+---   countryCode  string of two lower case letters, the country the flag is drawn from, since
+---                the flag answers nothing for any other spelling.
 ---   cityCode     string, the adapter's own key for the city, which connect reads back off a
 ---                target and which this plugin treats as opaque.
----   terms        a table of strings, what the place also answers to, each a code or a name a
----                person would type as the place's own name, never prose. It may be empty, and
----                it is mandatory all the same, so an adapter states its answer on purpose.
+---   terms        a sequence of strings, index 1 to n with no gaps, what the place also answers
+---                to, each a code or a name a person would type as the place's own name, never
+---                prose. It may be empty, and it is mandatory all the same, so an adapter
+---                states its answer on purpose. A term is matched as words split at any non
+---                alphanumeric byte, so a term holding a dot or a hyphen is several words, and
+---                a term with a space in it is refused, since prose is never a term.
 ---   country, city  strings, optional.
 --- The shared layer holds no special case for any provider. The vocabulary of a provider, a
 --- city code or a gateway host, reaches the search only through terms and the subtitle only
@@ -145,13 +149,24 @@ function M.validateLocation(loc)
     if type(loc[name]) ~= "string" then
       return false, name .. " is not a string"
     end
+    if loc[name] == "" and name ~= "detail" then
+      return false, name .. " is empty"
+    end
+  end
+  if not loc.countryCode:match("^%l%l$") then
+    return false, "countryCode is not two lower case letters"
   end
   if type(loc.terms) ~= "table" then return false, "terms is not a table of strings" end
-  for _, term in ipairs(loc.terms) do
-    if type(term) ~= "string" then return false, "terms is not a table of strings" end
-  end
+  local count = 0
   for key in pairs(loc.terms) do
     if type(key) ~= "number" then return false, "terms is not a table of strings" end
+    count = count + 1
+  end
+  if count ~= #loc.terms then return false, "terms is not a sequence" end
+  for _, term in ipairs(loc.terms) do
+    if type(term) ~= "string" then return false, "terms is not a table of strings" end
+    if term == "" then return false, "a term is empty" end
+    if term:find("%s") then return false, "a term holds whitespace" end
   end
   return true
 end

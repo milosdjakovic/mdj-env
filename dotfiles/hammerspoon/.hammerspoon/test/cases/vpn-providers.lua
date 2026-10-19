@@ -82,8 +82,17 @@ if ivpn then
   local ok, index, gap = contract.validateLocations(ivpn)
   check("every ivpn location passes the contract", ok == true, tostring(index) .. " " .. tostring(gap))
   local sjc = ivpn[1] or {}
-  check("ivpn terms are the gateway host then the country code",
-    type(sjc.terms) == "table" and same(sjc.terms, { "us-ca-sjc.wg.ivpn.net", "us" }))
+  check("ivpn terms are the host's first label then the country code",
+    type(sjc.terms) == "table" and same(sjc.terms, { "us-ca-sjc", "us" }))
+  local dotted = false
+  for _, list in ipairs({ mullvad or {}, ivpn }) do
+    for _, loc in ipairs(list) do
+      for _, term in ipairs(loc.terms or {}) do
+        if term:find(".", 1, true) then dotted = true end
+      end
+    end
+  end
+  check("no term of either provider contains a dot", dotted == false)
   check("ivpn detail is the gateway host", sjc.detail == "us-ca-sjc.wg.ivpn.net", tostring(sjc.detail))
   check("ivpn city code is the gateway host", sjc.cityCode == "us-ca-sjc.wg.ivpn.net", tostring(sjc.cityCode))
 end

@@ -285,7 +285,7 @@ local function parseServers(output)
           country = country, countryCode = cc,
           city = city, cityCode = host,
           detail = host,
-          terms = { host, cc },
+          terms = { host:match("^[^.]+"), cc },
         }
       end
     end

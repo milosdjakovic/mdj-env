@@ -10,8 +10,8 @@ A location carries `id`, `label`, `detail`, `countryCode`, `cityCode` and `terms
 and `city` optional. `detail` is the row subtitle in the adapter's own spelling, `cityCode` is the
 adapter's own key for the city and opaque to the plugin, and `terms` is a list of strings the place
 also answers to, mandatory even when empty. `contract.validateLocation` and `validateLocations`
-check the shape. When a listing lands, an entry that breaks it refuses the whole listing with one
-console line naming the provider and the gap, and the page shows its waiting row. The row builder
+check the shape. When a listing lands, an entry that breaks it refuses the whole listing with a
+console line naming the provider and the gap, and the page shows a refused row. The row builder
 reads only the contract, the title from `label`, the subtitle from `detail`, the search text from
 `label` and the names from `terms`. Mullvad declares its city code then its country code, IVPN its
 gateway host then its country code. The plugin AGENTS.md says the same for a new adapter's author.
@@ -56,3 +56,39 @@ further name, on the real Mullvad relay list through the shared engine.
 
 Decided that the contract gains `validateLocation` and `validateLocations`, that a listing breaking
 the shape is refused whole, and that `detail` and `terms` are required.
+
+Corrected 2026-10-19 14:46, see below.
+
+### 2026-10-19 14:46
+
+An adversarial review of the change above found six things, all fixed here. IVPN declared the full
+gateway host as a term, and the matcher splits at every non alphanumeric byte, so wg, ivpn and net
+became name matches on every IVPN row. IVPN now declares the host's first label then the country
+code, and the detail stays the full host. Mullvad's published selection carries no label, so before
+the list landed the action row read Connect to lax where it had read Connect to LAX, US, and the
+fallback now spells the city code, a comma and the country code as given. A refused listing was
+logged once per fetch round rather than once, which the earlier entry got wrong in saying one
+console line, and it showed the waiting row, which was false. The log line repeats per round by
+design, and the page now shows a disabled row, The provider list breaks the contract, with the
+subtitle see the console. The validator accepted prose, so it now refuses an empty term, whitespace
+inside a term, an empty id, label or country code, a country code that is not two lower case
+letters, and terms that are not a sequence from index 1 to n. An empty detail stays allowed. The
+log string lost its colon to match the other lines.
+
+The row builder is a local function with no case. The row shape, including the refused row, is
+covered only by the live look.
+
+The measurement, a typed query and the rows it listed, on the six IVPN rows and the Mullvad list.
+
+| Query | Before | After |
+| --- | --- | --- |
+| net | all six IVPN rows, with the full host | one row, with the first label |
+| wg | six rows | none |
+| ivpn | six rows | none |
+| sjc | not measured | finds San Jose |
+| us | not measured | finds both US rows |
+| at (Mullvad) | not measured | Vienna ahead of Atlanta, the whole code leads |
+| au (Mullvad) | not measured | the whole code leads |
+
+Decided that an IVPN term is never a dotted host, that the validator is the guard against prose,
+and that a refused listing is said on the page as well as in the console.

@@ -29,21 +29,25 @@ required fields are these.
 
 - `id`, a stable unique key for the place.
 - `label`, the row title.
-- `detail`, the subtitle in the backend's own spelling (Mullvad, the country and city code, `al tia`) (IVPN, the gateway host, `us-ca-sjc`).
+- `detail`, the subtitle in the backend's own spelling (Mullvad, the country and city code, `al tia`) (IVPN, the full gateway host, `us-ca-sjc.wg.ivpn.net`).
 - `countryCode`, which the flag is drawn from.
 - `cityCode`, the backend's own key for the city, which `connect` reads back off a target and
   which this plugin treats as opaque (Mullvad, `tia`) (IVPN, the gateway host).
 - `terms`, the list of what the place also answers to, each a code or a name a person would
   type as the place's own name and never prose, mandatory even when empty (Mullvad, the city
-  code and the country code, `tia` and `al`) (IVPN, the gateway host and the country code,
-  `us-ca-sjc` and `us`).
+  code and the country code, `tia` and `al`) (IVPN, the host's first label and the country code,
+  `us-ca-sjc` and `us`). The matcher splits a term at every non alphanumeric byte, so a term
+  holding a dot or a hyphen is several words, which is why IVPN declares the first label and
+  never the whole host. A term is never empty and never holds whitespace.
 
 `country` and `city` are optional. The row builder reads only these fields, the title from
 `label`, the subtitle from `detail`, the search names from `terms`, so no file here holds a
 special case for one backend and a code the person types is found only because the backend
 declared it. When a listing carries an entry that breaks this shape, `contract.validateLocations`
-names the entry and the gap, the whole listing is refused with one console line naming the
-backend, and the page shows its waiting row instead of a half contract.
+names the entry and the gap, the whole listing is refused with a console line naming the
+backend. That line repeats in every fetch round, by design, so the console shows the listing is
+still broken. Meanwhile the page shows a disabled row, The provider list breaks the contract,
+with the subtitle see the console, instead of the waiting row, since nothing is on its way.
 
 Naming where a connect goes is not the new backend's job. It implements `connect(target, cb)`
 like the others and the row names where it is going, because the target comes from this plugin's

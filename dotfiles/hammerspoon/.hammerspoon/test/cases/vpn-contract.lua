@@ -74,6 +74,51 @@ noDetail.detail = nil
 ok = contract.validateLocation(noDetail)
 check("a location missing detail is refused", ok == false)
 
+local spaced = mullvad()
+spaced.terms = { "new york" }
+ok, gap = contract.validateLocation(spaced)
+check("a term with a space is refused", ok == false, tostring(gap))
+
+local emptyTerm = mullvad()
+emptyTerm.terms = { "" }
+ok = contract.validateLocation(emptyTerm)
+check("an empty term is refused", ok == false)
+
+local holey = mullvad()
+holey.terms = { [1] = "tia", [3] = "al" }
+ok = contract.validateLocation(holey)
+check("terms that are not a sequence are refused", ok == false)
+
+local keyed = mullvad()
+keyed.terms = { "tia", name = "x" }
+ok = contract.validateLocation(keyed)
+check("terms with a string key are refused", ok == false)
+
+local upper = mullvad()
+upper.countryCode = "AL"
+ok, gap = contract.validateLocation(upper)
+check("an upper case country code is refused", ok == false, tostring(gap))
+
+local longCode = mullvad()
+longCode.countryCode = "alb"
+ok = contract.validateLocation(longCode)
+check("a three letter country code is refused", ok == false)
+
+local emptyLabel = mullvad()
+emptyLabel.label = ""
+ok, gap = contract.validateLocation(emptyLabel)
+check("an empty label is refused", ok == false, tostring(gap))
+
+local emptyId = mullvad()
+emptyId.id = ""
+ok = contract.validateLocation(emptyId)
+check("an empty id is refused", ok == false)
+
+local emptyDetail = mullvad()
+emptyDetail.detail = ""
+ok = contract.validateLocation(emptyDetail)
+check("an empty detail is accepted", ok == true)
+
 ok = contract.validateLocation("not a table")
 check("a non table location is refused", ok == false)
 
