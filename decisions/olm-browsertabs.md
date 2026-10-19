@@ -1,9 +1,10 @@
 # Olm BrowserTabs, the harness and the raise
 
-Status. The harness types untargeted and reads the live list before Return. Its first rerun, on
-2026-10-19, passed 37, failed 1 and skipped 8, against 8, 29 and 9 on main two days before, and the
-raise concern did not show. Three things are open, the first round reading of `frontmost on chrome`,
-the multi window cases, and the Chrome witness anomaly.
+Status. The harness types untargeted and reads the live list before Return. The quick run of 10:14 on
+2026-10-19 passed 43, failed 1 and skipped 2, with every multi window case green. Two things are
+open, the reproducible first round reading of `frontmost on chrome`, whose most likely cause is named
+and whose settling measurement is not yet taken, and the unexplained Chrome witness anomaly of
+2026-10-17, which has not recurred.
 
 ## Now
 
@@ -26,13 +27,23 @@ browser behind, so the first harness reading of a raise from a canvas that never
 that macOS honoured it on every round that asked. The tool's own raise path is unchanged in code
 since 2026-08-21, and the concern in `plugins/browsertabs/AGENTS.md` is read once and not closed.
 
-Three things are open. The one failure was the very first round, `frontmost on chrome`, where the
-list had closed between the typing and the live read, on the first chord after the config load.
-The rerun of 10:01 could not repeat it, since Chrome had no window open then, so it stays a single
-first round reading to run again when Chrome has a window, and it is not a defect. The eight multi
-window cases skipped, since the snapshot saw one window in each browser, and they wait for a run
-with two windows open in each. The Chrome witness anomaly from 2026-10-17 did not recur in any
-raise round and is not explained. There the browser's dictionary, `hs.application:allWindows` and
+The second quick run, from main at cb2d4da after the branch merged, ended at 10:14 on 2026-10-19. It
+passed 43, failed 1 and skipped 2, and all eight multi window cases ran and passed. The two skips are
+machine facts, no window in a tab group on Safari and no ordinary tab to pick on Chrome.
+
+Two things are open. The first is the reproducible first round reading. `frontmost on chrome`, the
+very first round of a quick run, failed at 08:39 and again at 10:14 with the same signature, typing
+not refused, the recomputed top row right, and the live read answering that no list is showing for its
+whole four second poll. Being first alone does not fail, since the Safari round was first in the
+rerun of 10:01 and passed, and Chrome frontmost alone does not fail, since `background_window on
+chrome` passed. The most likely cause is that the leader was still believed held after the round's
+chord, so the field yielded every key to Hyper and the token's last letter, x, which closes every
+list context, closed the list. That is unproven. The one measurement that settles it is a harness
+command polling the leader's active state and the plugin's showing flag every twenty milliseconds from
+just before the typing until the failure, read together with the console. It has not been taken.
+
+The second is the Chrome witness anomaly from 2026-10-17, which did not recur in any raise round of
+either quick run and is not explained. There the browser's dictionary, `hs.application:allWindows` and
 System Events disagreed about Chrome's windows, and a second Chrome process or profile sharing the
 bundle id is a plausible cause and unverified. It has nothing to do with typing.
 
@@ -50,6 +61,10 @@ bundle id is a plausible cause and unverified. It has nothing to do with typing.
   and the activate closure are unchanged in code since 2026-08-21, `no_query` passes on both
   browsers, and nothing about the raise can be read until a query reaches the list. Both could
   matter, and the rerun is where they would show.
+
+- **Treating the first round failure as a flake to run again.** Rejected 2026-10-19. It reproduced on
+  the first round of both quick runs with the same signature, so it is a reading with a most likely
+  cause and a named measurement, recorded in the log entry of 2026-10-19 10:30.
 
 ## Log
 
@@ -172,3 +187,49 @@ chord after the config load, which the runner already warms up for. The rerun at
 no window, so the red round could not be run again. It stays a single first round reading to run again
 when Chrome has a window. The console was read after both restores and was clean, with
 `spoon.Olm._composed.problems` empty. The Status and Now above were rewritten from this entry.
+
+### 2026-10-19 10:30, the second quick run and a survey of the first round reading, estimated
+
+Estimated, anchored to the console relaunch stamp 10:14:36, when the run ended and main was restored,
+and to the read only survey of the code that followed. The run was `suite.sh --quick` from main after
+the branch merged at cb2d4da. Before it Chrome had no window and Safari had one, so two Chrome windows
+and one more Safari window were opened on blank pages by their ids and closed by the same ids
+afterwards, which left each browser with two windows at the snapshot. It passed 43, failed 1 and
+skipped 2. All eight multi window cases ran and passed. The two skips were `tab_group on safari`, no
+window in a tab group, and `existing_user_tab on chrome`, no ordinary tab to pick, both machine
+facts. The Chrome witness anomaly did not appear in any round. The console on restored main was
+clean.
+
+The one failure was again the very first round, `frontmost on chrome`, with the same signature as at
+08:39. Typing was not refused, so the list was showing when the token was typed, the recomputed top row
+was right, and the live read answered that no list is showing for its whole four second poll. Twice in
+a row on the first round of a quick run is no longer a single reading to run again, it is a
+reproducible first round reading. In the 10:01 rerun where Chrome had no window, the Safari round was
+the first after the load and passed, so being first alone does not fail. `background_window on
+chrome`, the other case with Chrome frontmost at chord time, passed, so Chrome frontmost alone does not
+fail either.
+
+The survey found this. The message comes from the plugin's own showing flag in
+`plugins/browsertabs/chooser.lua`, set true on present and false only on close, so the list was
+really closed between the typing and the live read and not merely hidden. Nothing in the default
+provider or the stage closes a list on an application change, a focus change, a screen or Space
+change, or a timer, and the canvas is a non activating popup, so Chrome coming forward cannot close
+it. The closers are Escape, Return, a mouse down outside the canvas, a programmatic stage hide from
+another plugin, a second present over it, or a config reload, and a reload is unlikely since the
+recomputed top row survived. The fixture page is inert, one script setting the title and heading.
+
+The most likely cause is the leader being believed still held after the round's chord. The field
+yields every key to Hyper while the leader is owned, `yields` in `root/compose.lua` through
+`hyperkey:owns`, so the typed token's letters would run as Hyper chords instead of reaching the
+field, and every token ends in x, which is the shared close key of every list context, so the list
+would close on the token's own last letter. What would leave the leader believed held is a lost
+leader key up, which `lib/chordkey.lua` documents as the one real fragility, caused by secure input
+blanking the tap or a callback overrunning, and released by its watchdog only after thirty seconds.
+That fits the first round, which follows the warm up chord and about three seconds of scripting
+against Chrome with a freshly raised window. It is not proven.
+
+The one measurement that settles it is a harness command polling the leader's active state and the
+plugin's showing flag every twenty milliseconds from just before the typing until the failure, read
+together with the console for a ChordKey lost key up line, a reload banner, or a second test agent
+listening line. That measurement was not taken, so the item is recorded and left here. The Status and
+Now above were rewritten from this entry, and the multi window cases are no longer open.
