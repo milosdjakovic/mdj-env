@@ -119,7 +119,7 @@ aliases live only in `config/keymap.lua`.
   folded in, aliases into `config/keymap.lua`, commands and special rows into descriptors, and the
   shorthand into `bindings` rows for `open`, and the plan now carries a table of each concern and
   its one way.
-- 2026-10-19 18:14. Phase 0 landed. `test/keys-probe.lua` reads every chord the live config has
+- 2026-10-19 18:11. Phase 0 landed. `test/keys-probe.lua` reads every chord the live config has
   bound, through the two leader engines and `hs.hotkey.getHotkeys`, and `test/keys.sh` diffs it
   against `test/keys.golden`, 159 lines on main, 140 on Hyper, 16 on META and 3 plain combos, with
   every owner resolved from declarations and none guessed. Two runs are byte identical.
