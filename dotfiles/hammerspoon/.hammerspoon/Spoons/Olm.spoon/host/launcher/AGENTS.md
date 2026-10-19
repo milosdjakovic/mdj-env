@@ -62,11 +62,16 @@ is the Command pattern with the command encoded as data, and the launcher still
 never learns what a row does.
 
 Adding a row for a registered tool is one registration and no edit here. A tool's row
-data, its category, its icon, its detail, its keywords, and whether it renders a chord,
-lives on that tool's `row` in its registration, and `_buildActionRows` asks the registry
-for every row it holds, in the registry's own order, through `listing` and `rowFor`. The
-one `addTool` line per tool this paragraph used to describe is gone, and those registry
-rows lead the catalog ahead of every contributed and declared row.
+data, its category, its icon, its detail and its keywords, lives on that tool's `row` in its
+registration, and `_buildActionRows` asks the registry for every row it holds, in the registry's
+own order, through `listing` and `rowFor`. The chord a tool's row names is not on the row. It is
+the tool's open row in the keymap, asked of the root through the injected `chordOf` by the tool's
+name, a leader role or false for a plain combination, so the subtitle names the key the binder
+bound. The one `addTool` line per tool this paragraph used to describe is gone, and those
+registry rows lead the catalog ahead of every contributed and declared row. The registry held a
+tool's commands too, the clipboard's append copy, paste next and manage history, until phase 2b
+of the keymap plan made them action descriptors, and their rows now arrive as contributed rows
+that follow the clipboard's own row, see below.
 The three rows belonging to no registered tool and no plugin, `lock`, `sleep`, and the
 alias directory, are declared in this host's own manifest as `specialRows`, since none of
 those names anything the registry has ever heard of. The System Settings search row was a
@@ -74,16 +79,24 @@ fourth until phase three of the core split, and it is that plugin's own contribu
 
 ## Rows other plugins contribute, and the owner that runs them
 
-A plugin whose actions deserve rows in this catalog, rather than one row for the plugin as a
-whole, declares `provides.launcherRows`, a member answering plain row descriptors, and
-`provides.launcherRun`, a member handed a chosen row's item. Capture, the window manager and
-System Settings do today. The manifest asks the set for both, `needs.set.launcherRows` and
+Every action a plugin answers in `provides.actions` that is listed is a row of this catalog, and
+neither this host nor the plugin builds it. The root's `lib/contributions.lua` builds one row per
+listed descriptor, in the plugin's own order, its title the descriptor's description, its group
+word the descriptor's subtitle, its chord the keymap's row for that action, its icon, keywords and
+gate the descriptor's, and its item the descriptor's kind, else the plugin's identity, joined to
+the action name, and a chosen one runs the descriptor. Capture, the window manager and the
+clipboard reach the list this way. A plugin whose rows are not actions declares
+`provides.launcherRows`, a member answering plain row descriptors in the same shape, and
+`provides.launcherRun`, a member handed a chosen row's item, which System Settings does for its
+panes and its search row. The manifest asks the set for both, `needs.set.launcherRows` and
 `needs.set.launcherRun`, so the plugins join by declaring and this host names none of them.
 A plugin may declare `launcherRun` alone, which is what Window Size does, since its one row is
 computed from a typed size and reaches the list as a query row instead.
 
-The root turns the set answers into two values this host receives, `rowSuppliers`, one function
-per contributor answering that plugin's rows, and `runners`, keyed by owner identity. Every row
+The root turns the set answers and the descriptors into two values this host receives,
+`rowSuppliers`, one function per contributor answering that plugin's rows, and `runners`, keyed by
+owner identity, a plugin with actions getting one that runs a chosen action and hands any other
+row to its own `launcherRun`. Every row
 a supplier answers, and every row a query source answers, comes back with the plugin's identity
 stamped on its item as `owner` and on the row as `iconOwner`, so the icon key is read against
 the plugin that named it and a chosen row is routed by one plain string. `_runItem` asks first
@@ -106,20 +119,27 @@ kinds keep rules of their own, an app by its bundle id, a computed or scoped row
 that existed before the change keeps exactly the key it was persisted under, `capture` and the
 action name, `window` and the action name, `settingsPane` and the url stated as its key,
 `special` and `searchSettings`, and a typed window size states `remember = false` where this host
-used to recognise one by its size field. Two contributed rows answering one kind and one key are
+used to recognise one by its size field. The rows built from descriptors keep theirs the same way,
+each descriptor stating the kind its rows were remembered by, capture, window, and special for the
+clipboard's three, which were registry command rows keyed `special` and the command name.
+Two contributed rows answering one kind and one key are
 named at build with both owners, since they would share a memory and nothing would say so. A row
 names its chord as parts rather than as words, `group` the word before it and `chord = {
 leader, key, mods }` with the leader as a role, so the subtitle is spelled by `_chordSuffix`
 with the one shared speller and the leader display name the root passes for every role, and
-reads byte for byte what it read when this host built the row itself. A row with a finished
+reads byte for byte what it read when this host built the row itself. A chord whose leader is
+false is a plain combination, spelled whole by the glyph renderer the way a registered tool's
+global combination always was, which is how the clipboard's rows read Clipboard · ⌃⌥C. A row with a finished
 `subTitle` keeps it as it stands.
 
 The order of an untouched list is a declared number, not something this host works out. Each
 contributor states `defaults.launcherOrder` in its own manifest, a person may move it in
 `config/plugins.lua` like any default, and the root stamps it on every row the plugin answers
-that does not state its own `order`. This host's own declared rows take its own
-`defaults.launcherOrder`. `_buildActionRows` puts the registry's rows first and then sorts the
-rest by that number, a row with none after every numbered one, a tie keeping the suppliers in
+that does not state its own `order`, a descriptor's row included. This host's own declared rows
+take its own `defaults.launcherOrder`. `_buildActionRows` puts the registry's rows first, each
+followed directly by the contributed rows its own tool owns, the clipboard's three actions after
+Clipboard history where they sat as commands, and then sorts the rest by that number,
+a row with none after every numbered one, a tie keeping the suppliers in
 the set's own order, each supplier's rows in the order it answered them, and this host's own rows
 last. The shipped numbers are capture 10, the settings search row 20 by its own `order`, this
 host's alias directory, lock and sleep 30, the window manager 40 and the System Settings panes
@@ -470,7 +490,9 @@ is left to keep honest and never has one land on it afterwards.
 The last thing used bubbles to the top whether it was an app or a command. There
 is one most-recently-used timeline, not an app-only one, keyed by a
 kind-qualified item key (`app:<bundleID>`, `capture:<name>`, `special:<name>`,
-`window:<name>`, `settingsPane:<url>`) so an app and a command never collide.
+`window:<name>`, `settingsPane:<url>`) so an app and a command never collide. An action row's
+kind is its descriptor's, so the key survived phase 2b of the keymap plan unchanged, which
+`test/launcher.golden` pins row by row.
 The key is the kind and the row's own `key` or its name, never the owner, so a
 row a plugin contributes is remembered under the same key the launcher used when
 it built that row itself, a pane stating its url as its key, and a pick persisted

@@ -49,8 +49,6 @@ obj._providers = nil     -- active chain, in priority order, contract-checked
 obj._hyperKey = nil
 obj._lastReason = nil    -- name -> last failing reason, for deduped live logging
 obj._deps = nil          -- injected per consumer dependency adapter, handed to each available()
-obj._bindings = nil      -- the effective bindings, for the launcher rows built from them
-obj._leader = nil        -- the leader role those bindings sit on, app unless overridden
 
 --- Capture:init()
 --- Method
@@ -80,11 +78,6 @@ function obj:configure(opts)
   opts = opts or {}
   self._hyperKey = opts.hyperKey
   self._deps = opts.deps
-  -- The effective bindings and the leader they sit on, this plugin's own defaults after any
-  -- override, kept so launcherRows below builds the launcher's rows from the same list the
-  -- keys are bound from. A key moved in the person's config moves its row with it.
-  self._bindings = opts.bindings or {}
-  self._leader = opts.leader
   self._providers = self:_validate(self:_named(opts.providers) or self._defaultProviders or {})
   self:_logAvailability()
   return self
@@ -232,66 +225,35 @@ function obj:capture(action)
   end
 end
 
--- The actions this plugin can run, the vocabulary the provider chain speaks. Which provider
--- answers each one is the chain's business, so this list names actions and never a backend.
-local ACTIONS = { "ocrArea", "captureArea", "captureAreaClipboard", "recordArea" }
+-- The actions this plugin can run, the vocabulary the provider chain speaks, in the order their
+-- launcher rows take. Which provider answers each one is the chain's business, so this list names
+-- actions and never a backend. Each carries the words every surface shows for it, so the launcher
+-- row, the cheat sheet label and the chord all come from Olm reading these, and this plugin builds
+-- no row. The kind is the word the launcher remembered these rows by before they were descriptors,
+-- capture and the action name, so a pick a person made before is not forgotten.
+local ACTIONS = {
+  { name = "ocrArea", description = "OCR", icon = "ocr" },
+  { name = "captureAreaClipboard", description = "Screenshot (copy)", icon = "screenshot" },
+  { name = "captureArea", description = "Screenshot", icon = "screenshot" },
+  { name = "recordArea", description = "Record screen", icon = "record" },
+}
 
---- Capture:actions() -> { [name] = descriptor }
+--- Capture:actions() -> list of descriptors
 --- Method
 --- One action descriptor per capture action, declared as provides.actions. Olm binds whatever
---- key a binding names to the descriptor's run, so this plugin never binds a key of its own. A
---- run starts the capture through the chain, which waits for the leader to be released first.
+--- key a binding names to the descriptor's run and lists each in the launcher's catalog, so this
+--- plugin never binds a key and builds no row of its own. A run starts the capture through the
+--- chain, which waits for the leader to be released first.
 function obj:actions()
   local out = {}
-  for _, name in ipairs(ACTIONS) do
-    out[name] = { run = function() self:capture(name) end }
-  end
-  return out
-end
-
--- camelCase action name to a Title Case label, for a binding that sets no description. The
--- launcher used to apply this to the rows it built for this plugin, and the rows are built
--- here now, so the fallback came along with them.
-local function humanize(name)
-  local s = tostring(name):gsub("(%l)(%u)", "%1 %2")
-  return s:sub(1, 1):upper() .. s:sub(2)
-end
-
---- Capture:launcherRows() -> rows
---- Method
---- One launcher row per keyed action, declared as provides.launcherRows. This plugin has no
---- picker and no registration of its own, yet its actions are exactly what a person looks
---- for by typing screenshot, so each binding earns a row in the launcher's own catalog.
----
---- Each row is plain data and never a function, because the launcher hands every row to
---- hs.chooser and a row holding a function is silently dropped. The item keeps the kind and
---- the name it has always carried, capture and the action name, since the launcher's recency
---- memory is keyed by those two words and a change would lose what a person picked before.
---- group and chord are the subtitle's parts, and the launcher spells them the way it spells
---- every chord, so a row and the docked hint bar can never print two words for one key. The
---- composition root stamps this plugin's identity on each row as its owner, which is how a
---- chosen row finds its way back to launcherRun below.
-function obj:launcherRows()
-  local rows = {}
-  for _, b in ipairs(self._bindings or {}) do
-    rows[#rows + 1] = {
-      title = b.description or humanize(b.action),
-      group = "Capture",
-      chord = { leader = self._leader, key = b.key, mods = b.mods },
-      icon = b.icon,
-      item = { kind = "capture", name = b.action },
+  for _, a in ipairs(ACTIONS) do
+    out[#out + 1] = {
+      name = a.name, description = a.description, icon = a.icon,
+      subtitle = "Capture", kind = "capture",
+      run = function() self:capture(a.name) end,
     }
   end
-  return rows
-end
-
---- Capture:launcherRun(item)
---- Method
---- Run a chosen launcher row, declared as provides.launcherRun. The launcher calls this once
---- its chooser has closed and focus has returned, on the same short delay every row waits
---- for, so the capture starts over the app that was in front rather than over the list.
-function obj:launcherRun(item)
-  if item and item.name then self:capture(item.name) end
+  return out
 end
 
 return obj

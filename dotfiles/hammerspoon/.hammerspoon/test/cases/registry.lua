@@ -119,71 +119,26 @@ do
   )
 end
 
--- Refusal three, a commands key colliding with any name already indexed, whether a
--- tool name or another tool's command, or with its own tool's name, which is not yet in
--- that index at the point a command is checked.
+-- Refusal three, a descriptor still carrying commands. Commands retired in phase 2b of the keymap
+-- plan, since an action descriptor in a plugin's provides.actions is the one way to declare
+-- something runnable, and a tool registered without the rows and keys its commands declared would
+-- be the quieter failure, so the whole descriptor is refused, naming the tool and what replaced
+-- them, and nothing about it is committed.
 do
   local r, warnings = freshRegistry(1)
-  check(
-    "a tool with a command registers",
-    r.register({ name = "clipboard", apiVersion = 1, commands = { appendCopy = function() end } }) == true
-  )
-
-  local ok = r.register({ name = "textCase", apiVersion = 1, commands = { appendCopy = function() end } })
-  check("a command colliding with another tool's command is refused", ok == false)
-  check(
-    "the refusal names the new tool and the command that collided",
-    found(warnings, "textCase") and found(warnings, "appendCopy"),
-    table.concat(warnings, " | ")
-  )
-
-  local ok2 = r.register({ name = "appendCopy", apiVersion = 1, open = function() end })
-  check("a tool named after another tool's existing command is refused", ok2 == false)
-
-  -- The tool's own name is not yet in the flat index at the point a command is checked,
-  -- only a prior tool's is, so a command keyed the same as its own tool's name needs its
-  -- own check rather than falling out of the one against the flat index.
   local calls = {}
-  local ok3 = r.register({
-    name = "vpn",
-    apiVersion = 1,
+  local ok = r.register({ name = "clipboard", apiVersion = 1,
     open = function() calls[#calls + 1] = "open" end,
-    commands = { vpn = function() calls[#calls + 1] = "vpn" end },
-  })
-  check("a command keyed the same as its own tool's name is refused", ok3 == false)
+    commands = { appendCopy = function() calls[#calls + 1] = "appendCopy" end } })
+  check("a descriptor carrying commands is refused", ok == false)
   check(
-    "the self collision refusal names the tool and says it collided with its own tool name",
-    found(warnings, "own tool name"),
+    "the refusal names the tool and says an action descriptor replaces its commands",
+    found(warnings, "clipboard") and found(warnings, "provides.actions"),
     table.concat(warnings, " | ")
   )
-  check("nothing about the refused descriptor was committed, run answers false", r.run("vpn") == false and #calls == 0)
-end
-
--- Refusal, a commands entry that is neither a function nor a table with a callable fn.
--- Before this check existed such a value was stored as is and would have raised when
--- run called it, loud. Storing a nil function instead would have let run answer false
--- forever with nothing logged, which is why this is caught here instead.
-do
-  local r, warnings = freshRegistry(1)
-  local ok = r.register({ name = "clipboard", apiVersion = 1, commands = { appendCopy = "not a function" } })
-  check("a commands entry that is a string rather than a function or a table is refused", ok == false)
-  check(
-    "the refusal names the tool and the command",
-    found(warnings, "clipboard") and found(warnings, "appendCopy"),
-    table.concat(warnings, " | ")
-  )
-  check("nothing about the refused descriptor was committed, run answers false", r.run("appendCopy") == false)
-end
-
-do
-  local r, warnings = freshRegistry(1)
-  local ok = r.register({ name = "clipboard", apiVersion = 1, commands = { appendCopy = { row = { category = "Clipboard" } } } })
-  check("a commands entry that is a table with no callable fn is refused", ok == false)
-  check(
-    "the refusal names the tool and the command that had no callable fn",
-    found(warnings, "clipboard") and found(warnings, "appendCopy"),
-    table.concat(warnings, " | ")
-  )
+  r.activate({ "clipboard" })
+  check("nothing about the refused descriptor was committed, run answers false",
+    r.run("clipboard") == false and r.run("appendCopy") == false and #calls == 0)
 end
 
 -- Refusal four, an apiVersion that is missing, not an integer, or does not match the
@@ -280,30 +235,6 @@ do
   )
 end
 
--- A command dispatching through its owning tool, and following its tool's active
--- state.
-do
-  local r = freshRegistry(1)
-  local calls = {}
-  r.register({
-    name = "clipboard",
-    apiVersion = 1,
-    open = function() calls[#calls + 1] = "open" end,
-    commands = {
-      appendCopy = function() calls[#calls + 1] = "appendCopy" end,
-    },
-  })
-
-  check(
-    "a command on an inactive tool does not run",
-    r.run("appendCopy") == false and #calls == 0
-  )
-
-  r.activate({ "clipboard" })
-  check("a command on an active tool runs through its owning tool", r.run("appendCopy") == true)
-  check("the command's own function is what ran", calls[#calls] == "appendCopy")
-end
-
 -- Refusal, a surface that is present and is not a function. This is the guard the
 -- ordering hazard section of the second packet asks for, since a surface handed in
 -- already built rather than as a closure is exactly the mistake that discipline exists
@@ -356,34 +287,6 @@ do
   check(
     "rowFor answers the tool's own row once it is active",
     row ~= nil and row.category == "Network"
-  )
-end
-
--- rowFor, a command's row resolved through its owning tool, and nil for every command
--- an inactive tool owns, the same silence rowFor already answers for the tool itself.
-do
-  local r = freshRegistry(1)
-  r.register({
-    name = "clipboard",
-    apiVersion = 1,
-    open = function() end,
-    row = { category = "Clipboard" },
-    commands = {
-      appendCopy = { fn = function() end, row = { category = "Clipboard", chord = "modifier" } },
-      pasteNext = { fn = function() end, row = { category = "Clipboard", chord = "modifier" } },
-    },
-  })
-  check("rowFor answers nil for a command of an inactive tool", r.rowFor("appendCopy") == nil)
-  check(
-    "rowFor answers nil for every other command the same inactive tool owns",
-    r.rowFor("pasteNext") == nil
-  )
-
-  r.activate({ "clipboard" })
-  local commandRow = r.rowFor("appendCopy")
-  check(
-    "rowFor answers a command's own row through its owning tool once that tool is active",
-    commandRow ~= nil and commandRow.category == "Clipboard" and commandRow.chord == "modifier"
   )
 end
 
@@ -627,21 +530,6 @@ do
   check("scopeFor answers nil for a name nothing registered", r.scopeFor("noSuchTool") == nil)
 end
 
--- scopeFor, a command name answers nil, since nothing in this packet gives a command
--- its own scope, the same silence rowFor answers for a name that owns no row.
-do
-  local r = freshRegistry(1)
-  r.register({
-    name = "clipboard",
-    apiVersion = 1,
-    open = function() end,
-    scope = { rows = function() end, run = function() end },
-    commands = { appendCopy = function() end },
-  })
-  r.activate({ "clipboard" })
-  check("scopeFor answers nil for a command name, a command carries no scope", r.scopeFor("appendCopy") == nil)
-end
-
 -- all() reports scope presence beside surface and hosted, the cross check this packet
 -- adds so a tool that is hosted with no scope behind it is visible in a committed file
 -- rather than caught only by a warning nobody is watching for.
@@ -730,11 +618,8 @@ do
   local ok = r.register({ name = "vpn", apiVersion = 1, shortcut = "leader", open = function() end })
   check("a tool whose shortcut is leader and which has an open registers", ok == true)
 
-  local ok2 = r.register({
-    name = "clipboard", apiVersion = 1, open = function() end,
-    commands = { appendCopy = { fn = function() end, shortcut = "global" } },
-  })
-  check("a command whose shortcut is global and which has a callable fn registers", ok2 == true)
+  local ok2 = r.register({ name = "clipboard", apiVersion = 1, shortcut = "global", open = function() end })
+  check("a tool whose shortcut is global and which has an open registers", ok2 == true)
 end
 
 -- Refusal, a shortcut that is present and is neither leader nor global, one of the two
@@ -750,27 +635,8 @@ do
   )
 end
 
--- The same refusal on a command's own shortcut, named through the owning tool and the
--- command together rather than the tool alone.
-do
-  local r, warnings = freshRegistry(1)
-  local ok = r.register({
-    name = "clipboard", apiVersion = 1, open = function() end,
-    commands = { appendCopy = { fn = function() end, shortcut = "modifier" } },
-  })
-  check("a command whose shortcut is neither leader nor global is refused", ok == false)
-  check(
-    "the refusal names the tool, the command, and says its shortcut is neither leader nor global",
-    found(warnings, "clipboard") and found(warnings, "appendCopy") and found(warnings, "neither 'leader' nor 'global'"),
-    table.concat(warnings, " | ")
-  )
-end
-
 -- Refusal, a shortcut that is present and well formed but has nothing to bind, the second
 -- of the two shortcut refusals, since a shortcut bound to nothing is worse than none at all.
--- A tool declaring shortcut with no open is the only place this is reachable, since a
--- command with no callable fn is already refused above before its own shortcut is ever
--- examined.
 do
   local r, warnings = freshRegistry(1)
   local ok = r.register({ name = "colorPicker", apiVersion = 1, shortcut = "leader" })
@@ -782,18 +648,15 @@ do
   )
 end
 
--- shortcuts(), an active tool and its command, each carrying a shortcut, answered in
--- registration order, an inactive tool contributing neither itself nor its command.
+-- shortcuts(), every active tool carrying a shortcut, answered in registration order, an
+-- inactive tool contributing nothing.
 do
   local r = freshRegistry(1)
   local vpnOpen = function() end
-  local appendFn = function() end
+  local clipOpen = function() end
   local emojiOpen = function() end
   r.register({ name = "vpn", apiVersion = 1, shortcut = "leader", open = vpnOpen })
-  r.register({
-    name = "clipboard", apiVersion = 1, open = function() end,
-    commands = { appendCopy = { fn = appendFn, shortcut = "global" } },
-  })
+  r.register({ name = "clipboard", apiVersion = 1, shortcut = "global", open = clipOpen })
   -- Registered after clipboard but never activated, so it must contribute nothing below,
   -- the same nil-and-false silence every other read already answers for an inactive tool.
   r.register({ name = "emoji", apiVersion = 1, shortcut = "leader", open = emojiOpen })
@@ -802,14 +665,13 @@ do
   local out = r.shortcuts()
   check("shortcuts contributes nothing for a registered but inactive tool", #out == 2)
   check(
-    "shortcuts answers in registration order, the tool before its own command",
+    "shortcuts answers in registration order",
     out[1].name == "vpn" and out[1].kind == "leader" and out[1].fn == vpnOpen
-      and out[2].name == "appendCopy" and out[2].kind == "global" and out[2].fn == appendFn
+      and out[2].name == "clipboard" and out[2].kind == "global" and out[2].fn == clipOpen
   )
 end
 
--- shortcuts(), registration order preserved across three active tools, none of them
--- carrying a command, so the order is a plain fact about the tools alone.
+-- shortcuts(), registration order preserved across three active tools.
 do
   local r = freshRegistry(1)
   local openA, openB, openC = function() end, function() end, function() end

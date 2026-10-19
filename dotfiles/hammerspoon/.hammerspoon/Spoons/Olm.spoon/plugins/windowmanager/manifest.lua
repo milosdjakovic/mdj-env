@@ -3,12 +3,13 @@
 -- Window positioning and sizing operations only, taking its margins and its settings block
 -- as plain policy data through configure, so neither is a declared need.
 --
--- Six of the sixteen carry `repeats`, the four moves and the two resize steps, since each of
+-- Six of the sixteen actions repeat, the four moves and the two resize steps, since each of
 -- those is a STEP and a person placing a window by eye wants several of them without pressing
 -- the key several times. The other ten are placements, so holding one would put the window
--- where it already is, again. How that repeat is timed is not decided here, the window leader
--- answers it once for every key under it and takes the answer off the machine, which is why an
--- entry says only that it repeats and never how often.
+-- where it already is, again. That is a fact about the action, so its descriptor in init.lua
+-- says it, together with the gate on the two display switches, and a binding below is only an
+-- action and a key. How the repeat is timed is not decided here either, the window leader
+-- answers it once for every key under it, which is why an action says only that it repeats.
 --
 -- Its sixteen bindings hang off the WINDOW leader rather than the app leader, and every one
 -- of them, resize, move, center, maximize, and the display switch pair, depends on nothing
@@ -16,7 +17,8 @@
 -- it is why they belong here even though AppToggler's per app toggles do not, those need to
 -- know which apps are installed and these need nothing. The order below is copied exactly
 -- as config/keys.lua once had it, since it matches the cheat sheet grid, two switch display rows
--- gated on multiple displays, then resize, then move and center, then hide all last.
+-- gated on multiple displays, then resize, then move and center, then hide all last, and the
+-- descriptor list in init.lua keeps the same order for the launcher's rows.
 return {
   -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
   apiVersion = 1,
@@ -31,8 +33,7 @@ return {
   -- The one icon every window action's launcher row wears, the chord in the subtitle telling
   -- the rows apart. It was the launcher's own icon while the launcher built these rows from
   -- this plugin's action map, and it moved here with the rows in phase three of the core
-  -- split, drawn identically in both sets, so the picture is unchanged and only the manifest
-  -- it is read from differs.
+  -- split. Each descriptor names it, and Olm builds the row.
   icons = {
     windows = { emoji = "🪟", sf = "macwindow" },
   },
@@ -60,18 +61,13 @@ return {
   },
 
   -- actions answers one descriptor per window action, and Olm binds each binding below on the
-  -- window leader to the descriptor its action names, the binding's `when` and `repeats`
-  -- travelling with it, so this plugin binds nothing and needs no leader of its own. The cheat
-  -- sheet reads the same effective bindings by walking the plan for every plugin on the window
-  -- leader, so it shows what is bound without ever naming this plugin. launcherRows is one
-  -- launcher row per bound action, built from the same effective bindings, and launcherRun runs
-  -- a chosen row's action once the launcher has closed. The launcher asks the set for both
-  -- rather than naming this plugin, and its window scope narrows its own catalog to these rows
-  -- by their kind.
+  -- window leader to the descriptor its action names, the descriptor's gate and repeat
+  -- travelling with it, so this plugin binds nothing and needs no leader of its own. The window
+  -- sheet reads the keymap's rows on the window leader, so it shows what is bound without ever
+  -- naming this plugin, and the launcher lists every listed action as a row of its own catalog,
+  -- built by Olm from the descriptor and the keymap, which its window scope narrows by kind.
   provides = {
     actions = "actions",
-    launcherRows = "launcherRows",
-    launcherRun = "launcherRun",
   },
 
   defaults = {
@@ -82,8 +78,8 @@ return {
     launcherOrder = 40,
     bindings = {
       -- Switch display (first row, hidden on a single display by the predicate)
-      { action = "previousDisplay",      key = ",", when = "multipleDisplays" },
-      { action = "nextDisplay",          key = ".", when = "multipleDisplays" },
+      { action = "previousDisplay",      key = "," },
+      { action = "nextDisplay",          key = "." },
       -- Resize (bare key)
       { action = "leftHalf",             key = "left" },
       { action = "rightHalf",            key = "right" },
@@ -91,13 +87,13 @@ return {
       { action = "reasonableSize",       key = "down" },
       { action = "maximize",             key = "return" },
       { action = "smallSize",            key = "Z" },
-      { action = "increaseSize",         key = "=", repeats = true },
-      { action = "decreaseSize",         key = "-", repeats = true },
+      { action = "increaseSize",         key = "=" },
+      { action = "decreaseSize",         key = "-" },
       -- Move (WASD) and center
-      { action = "moveLeft",             key = "a", repeats = true },
-      { action = "moveRight",            key = "d", repeats = true },
-      { action = "moveUp",               key = "w", repeats = true },
-      { action = "moveDown",             key = "s", repeats = true },
+      { action = "moveLeft",             key = "a" },
+      { action = "moveRight",            key = "d" },
+      { action = "moveUp",               key = "w" },
+      { action = "moveDown",             key = "s" },
       { action = "center",               key = "C" },
       -- Hide all except the focused window (kept last so it sits in the last row)
       { action = "hideAllExceptFocused", key = "H" },

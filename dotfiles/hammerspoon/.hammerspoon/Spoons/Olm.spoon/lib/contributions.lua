@@ -3,11 +3,15 @@
 --- How what other plugins contribute reaches a host. Two hosts ask today, the launcher with two
 --- questions and a leader's cheat sheet with one.
 ---
---- The launcher. A plugin declares provides.launcherRows, a member answering plain row
---- descriptors, and provides.launcherRun, a member handed a chosen row's item. The launcher
---- asks the set for both and names no plugin. This module turns the set answers into what the
---- launcher receives, one supplier per contributor and one runner per owner identity, and wraps
---- a query row source so the rows it computes carry their owner too.
+--- The launcher. Every action a plugin answers in provides.actions that is listed becomes a row
+--- of the launcher's own catalog, built here from the descriptor, its title, its subtitle, its
+--- icon and its keywords, with the chord the keymap binds it to, so a plugin with actions learns
+--- nothing about the launcher at all. Rows that are not actions, a pane list or the alias
+--- directory, still come from provides.launcherRows, a member answering plain row descriptors,
+--- and a row the plugin computed is run by provides.launcherRun, a member handed a chosen row's
+--- item. The launcher asks the set for both and names no plugin. This module turns all of it into
+--- what the launcher receives, one supplier per contributor and one runner per owner identity,
+--- and wraps a query row source so the rows it computes carry their owner too.
 ---
 --- A leader's cheat sheet. A plugin declares provides.cheatSheetSections, a member answering
 --- the sections it adds to the sheet of the leader its defaults.leader names, asked on every
@@ -93,21 +97,66 @@ local function resolveMember(opts, identity, field, hostWords)
   return registrar.action(modules, identity, identity, spec)
 end
 
+-- The first global keymap row binding one action of one owner, whose chord the launcher's row
+-- for that action shows and whose gate it takes. A row the keymap refused or left quiet still
+-- names the chord a person would press, so it is not skipped, and an action with no row answers
+-- nil.
+local function keymapRowFor(keymap, owner, action)
+  for _, row in ipairs((keymap or {}).bound or {}) do
+    if row.owner == owner and row.action == action and row.key ~= nil then return row end
+  end
+  return nil
+end
+
+--- contributions.actionRow(identity, name, descriptor, keymap) -> row
+--- One launcher row built from one action descriptor, the shape a launcherRows member answers.
+--- The title is the descriptor's description, else the action's own name. The subtitle is the
+--- descriptor's subtitle followed by the chord the keymap binds the action to, spelled by the
+--- launcher, and the subtitle alone where the action has no chord. The item is the descriptor's
+--- kind, else the owner's own identity, joined to the action's name, and that pair is what the
+--- launcher's recency and query memory remember the row by, so a descriptor states kind exactly
+--- when its rows must keep a key they were remembered by before they were descriptors.
+---
+--- The row's gate is the one its key carries, the binding's own when, else the descriptor's, the
+--- rule the keymap and both sheets follow, so a row and its key are never gated apart.
+function M.actionRow(identity, name, descriptor, keymap)
+  local row = keymapRowFor(keymap, identity, name)
+  return {
+    title = descriptor.description or name,
+    group = descriptor.subtitle,
+    chord = row and { leader = row.role or false, key = row.key, mods = row.shownMods } or nil,
+    icon = descriptor.icon,
+    keywords = descriptor.keywords,
+    when = (row and row.when) or descriptor.when,
+    item = { kind = descriptor.kind or identity, name = name },
+  }
+end
+
 --- contributions.assemble(opts) -> rowSuppliers, runners
 --- opts.host        the identity of the host whose set answers are read, the launcher
---- opts.plan        the load plan, its sets and its effective defaults
+--- opts.plan        the load plan, its order, its sets and its effective defaults
 --- opts.manifests   every manifest by identity
 --- opts.modules     every loaded module by identity
 --- opts.registrar   lib/registrar.lua, for memberSpec, memberResolves and action
+--- opts.actions     optional, the validated action descriptors by plugin directory
+--- opts.actionOrder optional, each plugin's action names in its own order, by directory
+--- opts.keymap      optional, the built keymap, read for the chord each action row shows
 --- opts.stampIcons  optional, function(rows, owner) stamping iconOwner on rows naming an icon
 --- opts.log         optional, function(message) for a member that resolves to nothing
 ---
 --- One supplier per plugin answering the launcherRows set, in the set's own order, each a
 --- function calling that plugin's declared member when the launcher builds its rows and
---- answering them owned, icon stamped and ordered. One runner per plugin answering the
---- launcherRun set, keyed by its identity. A member that resolves to nothing on the real module
---- is named once and skipped, since the launcher would otherwise lose that plugin's rows or
---- runs in silence.
+--- answering them owned, icon stamped and ordered. Then one supplier per plugin in plan order
+--- with an action that is listed, answering one row per such action in the plugin's own order,
+--- owned, stamped and ordered the same way, so a descriptor's row and a declared row are one
+--- shape to the launcher. A descriptor whose listed is false gets no row.
+---
+--- One runner per owner identity. A plugin answering the launcherRun set runs its own rows. A
+--- plugin with listed actions has a chosen action row, its kind and name, run by that
+--- descriptor's run, called with no argument, the same call a press makes before any repeat, and any other row it owns falls
+--- through to its own launcherRun where it declares one. A member that resolves to nothing on the
+--- real module is named once and skipped, since the launcher would otherwise lose that plugin's
+--- rows or runs in silence.
 function M.assemble(opts)
   local plan, modules = opts.plan or {}, opts.modules or {}
   local stampIcons = opts.stampIcons
@@ -132,6 +181,41 @@ function M.assemble(opts)
   for _, identity in ipairs(sets.launcherRun or {}) do
     local call = modules[identity] and resolve(identity, "launcherRun")
     if call then runners[identity] = call end
+  end
+
+  local actions, actionOrder = opts.actions or {}, opts.actionOrder or {}
+  for _, directory in ipairs(plan.order or {}) do
+    local identity = (plan.identity or {})[directory] or directory
+    local answered = actions[directory] or {}
+    local listed = {}
+    for _, name in ipairs(actionOrder[directory] or {}) do
+      local descriptor = answered[name]
+      if descriptor and descriptor.listed ~= false then
+        listed[#listed + 1] = name
+      end
+    end
+    if #listed > 0 then
+      local pluginOrder = ((plan.effective or {})[directory] or {}).launcherOrder
+      rowSuppliers[#rowSuppliers + 1] = function()
+        local rows = {}
+        for _, name in ipairs(listed) do
+          rows[#rows + 1] = M.actionRow(identity, name, answered[name], opts.keymap)
+        end
+        if stampIcons then rows = stampIcons(rows, identity) end
+        return stampOrder(M.ownRows(rows, identity), pluginOrder)
+      end
+      local isListed = {}
+      for _, name in ipairs(listed) do isListed[name] = true end
+      local ownRun = runners[identity]
+      runners[identity] = function(item)
+        local name = type(item) == "table" and item.name or nil
+        if name and isListed[name] and item.kind == (answered[name].kind or identity) then
+          answered[name].run()
+        elseif ownRun then
+          ownRun(item)
+        end
+      end
+    end
   end
   return rowSuppliers, runners
 end

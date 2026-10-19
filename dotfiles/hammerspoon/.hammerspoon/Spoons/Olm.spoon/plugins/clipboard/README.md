@@ -5,10 +5,11 @@ any of them back into whatever app is in front. The picker shows a live preview
 beside the list, filtered by whatever you type.
 
 Opens on Hyper and X, showing its own list rather than the launcher. Two extra
-commands work with nothing open at all, append copy on Ctrl and Option and C
+actions work with nothing open at all, append copy on Ctrl and Option and C
 glues the current selection onto the newest entry instead of pushing a new one,
 and paste next on Ctrl and Option and V walks backward through history one press
-at a time.
+at a time. Both, and manage history, are action descriptors the plugin answers,
+so Olm binds their keys and lists each as a launcher row beside Clipboard history.
 
 Typing searches the history by each entry's first line, its whole text and the names of
 copied files, the best matches first and the newer first among equally good ones. A leading

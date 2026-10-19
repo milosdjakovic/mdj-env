@@ -99,7 +99,8 @@ return {
 
   defaults = {
     leader = "app",
-    key = "e",
+    -- The open key, a bindings row whose action is open, on the leader above.
+    bindings = { { action = "open", key = "e" } },
     description = "Menu search",
     icon = "menusearch",
     aliases = { "m", "menu" },

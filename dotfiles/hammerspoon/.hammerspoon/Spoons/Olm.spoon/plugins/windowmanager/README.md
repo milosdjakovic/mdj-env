@@ -30,4 +30,7 @@ Holding the leader with no other key reveals all of them on the cheat sheet.
 
 Each action is a descriptor this plugin answers through `provides.actions`, and the keys are
 the ones its `defaults.bindings` suggest. Olm binds every one of them on the window leader to
-the descriptor its binding names, so the plugin never binds a key itself.
+the descriptor its binding names, so the plugin never binds a key itself, and lists each as a
+launcher row built from the same descriptor, which the launcher's window scope narrows to. The
+exact size action and screen recording are unlisted, the first reached only through Window
+Size and the second through nothing yet.

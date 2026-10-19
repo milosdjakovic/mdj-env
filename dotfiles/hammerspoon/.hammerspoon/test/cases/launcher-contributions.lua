@@ -1,8 +1,12 @@
 -- Unit case for the rows other plugins contribute to the launcher's own catalog, phase three of
--- the core split. Capture, the window manager and System Settings each answer their own rows
--- through provides.launcherRows and run a chosen one through provides.launcherRun, and the
--- launcher routes a chosen row by the owner lib/contributions.lua stamps on its item. Before
--- that the launcher held seven siblings on four plugins and built these rows itself.
+-- the core split, and since phase 2b of the keymap plan the rows Olm builds from action
+-- descriptors. Capture's and the window manager's rows are built by lib/contributions.lua from
+-- the descriptors each plugin answers in provides.actions, with the chord the keymap binds, and a
+-- chosen one runs its descriptor. System Settings still answers its own rows through
+-- provides.launcherRows and runs a chosen one through provides.launcherRun, since a pane is not
+-- an action until a later phase. The launcher routes a chosen row by the owner
+-- lib/contributions.lua stamps on its item. Before the core split the launcher held seven
+-- siblings on four plugins and built these rows itself.
 --
 -- What is asserted is what a person sees and what the launcher remembers. The titles, the
 -- subtitles, the icon keys, the order of an untouched list, and the recency key of every row,
@@ -82,6 +86,7 @@ end
 
 local contributions = load("lib/contributions.lua")
 local registrar = load("lib/registrar.lua")
+local keymapLib = load("lib/keymap.lua")
 
 local manifests = {
   capture = load("plugins/capture/manifest.lua"),
@@ -94,17 +99,10 @@ local captureManifest, windowManifest = manifests.capture, manifests.windowmanag
 local settingsManifest, launcherManifest = manifests.systemsettings, manifests.launcher
 
 -- The three contributors and the one query row source that runs its own row, each a fresh
--- copy given the effective defaults its manifest ships, the same values configure receives
--- from the wiring. Capture and the window manager are given only the two fields their rows
--- read, since their own configure validates a provider chain or sets the global window
--- animation duration, and neither is any of this case's business.
+-- copy. Capture and the window manager are not configured, since their own configure validates
+-- a provider chain or sets the global window animation duration, and their actions need neither.
 local capture = load("plugins/capture/engine.lua")
-capture._bindings = captureManifest.defaults.bindings
-capture._leader = captureManifest.defaults.leader
-
 local windows = load("plugins/windowmanager/init.lua")
-windows._bindings = windowManifest.defaults.bindings
-windows._leader = windowManifest.defaults.leader
 
 local settings = load("plugins/systemsettings/init.lua")
 settings:init()
@@ -147,11 +145,30 @@ local function planWith(overrides)
   end
   return {
     sets = { launcher = {
-      launcherRows = { "capture", "systemsettings", "windowmanager" },
-      launcherRun = { "capture", "systemsettings", "windowmanager", "windowsize" },
+      launcherRows = { "systemsettings" },
+      launcherRun = { "systemsettings", "windowsize" },
     } },
     effective = effective,
+    order = { "capture", "launcher", "systemsettings", "windowmanager", "windowsize" },
+    identity = {}, contexts = {},
   }
+end
+
+-- What each plugin can run, through the registrar's own validation, and the keymap over the
+-- plan, the two inputs the root hands lib/contributions.lua for the rows it builds from
+-- descriptors. The capture leader is told apart from the window leader by the roles.
+local function actionsOf(plan)
+  local actions, order = {}, {}
+  for _, directory in ipairs(plan.order) do
+    local manifest, module = manifests[directory], modules[directory]
+    if manifest and (manifest.provides or {}).actions ~= nil then
+      local answered, _, _, names = registrar.validateActions(directory, manifest, module)
+      actions[directory], order[directory] = answered, names
+    end
+  end
+  local keymap = keymapLib.build({ plan = plan, roles = { app = "HYPER", window = "META" },
+    actions = actions, hostRun = function() return nil end })
+  return actions, order, keymap
 end
 
 -- A chord speller that keeps every part visible, so a subtitle that names the wrong leader,
@@ -162,9 +179,11 @@ end
 
 local leafCalls = {}
 local function buildLauncher(plan, extraSuppliers)
+  local actions, actionOrder, keymap = actionsOf(plan)
   local suppliers, runners = contributions.assemble({
     host = "launcher", plan = plan, manifests = manifests, modules = modules,
     registrar = registrar, stampIcons = stampIcons,
+    actions = actions, actionOrder = actionOrder, keymap = keymap,
   })
   for _, s in ipairs(extraSuppliers or {}) do suppliers[#suppliers + 1] = s end
   local launcher = load("host/launcher/init.lua")
@@ -249,8 +268,11 @@ expectRow("gated window row", actionRows[9], {
   title = "Previous Display", subTitle = "Window · Meta ,", icon = "windows",
   iconOwner = "windowmanager", kind = "window", id = "previousDisplay", owner = "windowmanager",
   when = "multipleDisplays" })
+-- The key arrives in the keymap's one spelling, lowercased, and the real speller's glyph renderer
+-- upper cases a letter, so the live subtitle still reads Meta H. This speller keeps the key as
+-- given, which is why the letter is lower here.
 expectRow("window row", actionRows[lastWindow], {
-  title = "Hide All Except Focused", subTitle = "Window · Meta H", icon = "windows",
+  title = "Hide All Except Focused", subTitle = "Window · Meta h", icon = "windows",
   iconOwner = "windowmanager", kind = "window", id = "hideAllExceptFocused",
   owner = "windowmanager" })
 expectRow("pane row", actionRows[lastWindow + 1], {
@@ -372,19 +394,15 @@ end
 -- Dispatch, one row per kind, each reaching its own runner with its own argument.
 --------------------------------------------------------------------------------
 
+-- A descriptor's run calls its plugin's own method when it fires, so replacing the method on the
+-- module is enough to record what a chosen row reached.
 local calls = {}
 capture.capture = function(_, name) calls[#calls + 1] = "capture " .. tostring(name) end
-windows.actions = function()
-  return setmetatable({}, { __index = function(_, name)
-    return { run = function(arg)
-      calls[#calls + 1] = "window " .. name .. (type(arg) == "table" and (" " .. arg.width .. "x" .. arg.height) or "")
-    end }
-  end })
-end
+windows.maximize = function() calls[#calls + 1] = "window maximize" end
 settings.open = function(_, url) calls[#calls + 1] = "open " .. tostring(url) end
 settings.focusSearch = function() calls[#calls + 1] = "focusSearch" end
 windowSize._windowActions = function()
-  return { exactSize = { run = function(size) calls[#calls + 1] = "exactSize " .. size.width .. "x" .. size.height end } }
+  return { { name = "exactSize", run = function(size) calls[#calls + 1] = "exactSize " .. size.width .. "x" .. size.height end } }
 end
 
 local function run(item)

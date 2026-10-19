@@ -285,8 +285,8 @@ return {
     -- native macOS clipboard, and every automated check still reported no problems, because
     -- every check was asking whether wiring returned rather than what the key did.
     --
-    -- The key is read from the live manifest and config/plugins.lua rather than written here, so
-    -- rebinding it moves the test with it, asked by the plugin's identity.
+    -- The key is read from the live keymap rather than written here, so rebinding it moves the
+    -- test with it, asked by the plugin's identity.
     steps = {
       { fn = function(w)
           w._key = w.keyFor("clipboard")

@@ -272,7 +272,8 @@ return {
   -- expects a viewer, and the picker then raised on start every single time it opened.
   defaults = {
     leader = "app",
-    key = "/",
+    -- The open key, a bindings row whose action is open, on the leader above.
+    bindings = { { action = "open", key = "/" } },
     description = "File search",
     icon = "filesearch",
     aliases = { "/" },

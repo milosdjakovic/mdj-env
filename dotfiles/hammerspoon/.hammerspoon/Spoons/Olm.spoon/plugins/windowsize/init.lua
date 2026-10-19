@@ -187,8 +187,14 @@ end
 --- manager's exact size action trims the size as typed against the screen that window is on.
 function obj:launcherRun(item)
   if not (item and self._windowActions) then return end
-  local action = self._windowActions()[item.name]
-  if action and type(action.run) == "function" then action.run(item.size) end
+  -- The window manager answers its actions as a list, each naming itself, so the one this row
+  -- names is found by its name.
+  for _, action in ipairs(self._windowActions() or {}) do
+    if type(action) == "table" and action.name == item.name then
+      if type(action.run) == "function" then action.run(item.size) end
+      return
+    end
+  end
 end
 
 return obj

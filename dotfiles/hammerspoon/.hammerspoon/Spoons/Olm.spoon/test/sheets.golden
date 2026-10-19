@@ -1,0 +1,36 @@
+hyper	supplied	1	RUNNING	1.0	-	icons
+hyper	supplied	1	DORMANT	0.55	1.0	icons
+hyper	section	2	ACTIONS	1.0	-	plain columns=4 colWidth=215 iconSize=0
+hyper	row	2	W	Browser tabs	-
+hyper	row	2	K	Keep awake	-
+hyper	row	2	X	Clipboard history	-
+hyper	row	2	2	Color picker	-
+hyper	row	2	J	Emoji picker	-
+hyper	row	2	/	File search	-
+hyper	row	2	E	Menu search	-
+hyper	row	2	U	Tmux Manager	-
+hyper	row	2	P	VPN	-
+hyper	row	2	3	OCR	-
+hyper	row	2	4	Screenshot (copy)	-
+hyper	row	2	⇧4	Screenshot	-
+hyper	row	2	5	Record screen	-
+hyper	row	2	␣	Launcher	-
+hyper	row	2	§	Lock Screen	-
+hyper	row	2	esc	Sleep	-
+window	group	WINDOW MANAGEMENT
+window	row	1	,	Previous Display	multipleDisplays
+window	row	2	.	Next Display	multipleDisplays
+window	row	3	←	Left Half	-
+window	row	4	→	Right Half	-
+window	row	5	↑	Full Height	-
+window	row	6	↓	Reasonable Size	-
+window	row	7	↩	Maximize	-
+window	row	8	Z	Small Size	-
+window	row	9	=	Increase Size	-
+window	row	10	-	Decrease Size	-
+window	row	11	A	Move Left	-
+window	row	12	D	Move Right	-
+window	row	13	W	Move Up	-
+window	row	14	S	Move Down	-
+window	row	15	C	Center	-
+window	row	16	H	Hide All Except Focused	-

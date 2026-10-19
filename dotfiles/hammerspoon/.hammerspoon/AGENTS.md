@@ -196,8 +196,13 @@ and supply the per-key lookup, but only the core calls `bind`. Olm's keymap,
 row on the engine its leader names, in the order the old binding paths used. A plugin
 reaches the window leader the way it reaches Hyper, by declaring `leader = "window"`
 with a `bindings` list in its manifest defaults and answering the actions those
-bindings name through `provides.actions`, which is what `windowmanager` does, and the
-dry gate refuses a bind call under `plugins/` and `host/`. The window leader binds
+bindings name through `provides.actions`, a list of descriptors, which is what
+`windowmanager` does, and the dry gate refuses a bind call under `plugins/` and `host/`.
+`defaults.bindings` is the one place a plugin suggests a key. A tool's open key is the row
+whose action is `open`, a row may name its own role or `leader = false` for a plain
+combination with its modifiers, and `defaults.leader` is the role a row naming none inherits.
+Every listed action descriptor is also a launcher row Olm builds, so a plugin builds no row
+for what it can run. The window leader binds
 onto the one keycode the root configured it with, so a plugin never sees a keycode. Both now share one mods-aware resolver (Hyper and
 the leaders): optional per-binding `mods`, exact-match on shift/ctrl/alt/cmd,
 ignoring the `fn` flag macOS stamps on arrow keys, then a catch-all fallback. A
@@ -292,14 +297,14 @@ inert though still swallowed, so neither sheet appears over an open list and no
 window action fires underneath one. One gate answers it, `anyListShowing` in
 `root/compose.lua`, walking the same `contextOwners` table the predicates route
 through, consulted by the hyper hold reveal directly and injected into
-`WindowLeader` as `suppressWhen`. Its rows are every binding any plugin declared on
-the window leader, collected by `lib/hints.lua` walking the plan and stamped with the
-window keycode once in `root/compose.lua`, so it never drifts and names no plugin, and the
-launcher's window rows are built by the window manager from the same declared bindings.
-Each row's label is the action name humanized (`nextDisplay` → "Next Display") unless the
-entry sets an explicit `description` override.
+`WindowLeader` as `suppressWhen`. Its rows are every row the keymap holds on the window
+leader, read by `lib/hints.lua` and stamped with the window keycode once in `root/compose.lua`
+after the keymap is built, so it never drifts and names no plugin, and the launcher's window
+rows are built by Olm from the window manager's action descriptors and the same keymap.
+Each row's label is the binding's or the descriptor's `description`, and the action name
+humanized (`nextDisplay` → "Next Display") where neither states one.
 
-A binding may also carry an optional `when = "<predicate>"` that gates it on live
+A binding, or the action descriptor it names, may also carry an optional `when = "<predicate>"` that gates it on live
 state. When the named predicate returns false the key becomes a no-op (still
 swallowed by the held leader, so no raw character leaks) and its cheat-sheet row
 is hidden. The predicate registry, `ownPredicates` merged in `root/compose.lua` and
@@ -910,8 +915,8 @@ step mirroring what the clipboard already does.
    wants a real hold overlay again can register a model builder there without touching
    the reveal logic.
 6. Inject the panel's `onClose` (which also runs the root's overlay teardown) as the
-   surface's `onClose`, wire `onPositioned`/`onActivity`, and bind the open key as a
-   base HyperKey binding.
+   surface's `onClose`, wire `onPositioned`/`onActivity`, and suggest the open key as a
+   `defaults.bindings` row whose action is `open`, which Olm binds as a base Hyper binding.
 7. Decide how this list is entered from another one. If a launcher row, an alias, or any other
    list can lead here, that entry must replace the rows of the chooser already open rather than
    opening this one over it, which means a query scope that the launcher hosts and not a `show`.
@@ -1589,8 +1594,9 @@ actions and System Settings panes
 are neither, they narrow the launcher's own catalog, so they read `Launcher:rowsOfKind(kind)` and
 hand a chosen row back through `Launcher:runItem`, which keeps one row builder and one dispatcher
 however a row is reached. The window and pane rows in that catalog are contributed by the plugins
-that own them, through `provides.launcherRows` and `provides.launcherRun`, so the launcher routes a
-chosen one back to its plugin by the owner stamped on its item and names none of them. Those three scope a group of rows rather than one row, so like menu
+that own them, the window rows built by Olm from the window manager's action descriptors and the
+panes through System Settings' `provides.launcherRows` and `provides.launcherRun`, so the launcher
+routes a chosen one back to its plugin by the owner stamped on its item and names none of them. Those three scope a group of rows rather than one row, so like menu
 search they have no row of their own to advertise an alias on, and their manifest defaults
 carry a description and an alias and no key because they open nothing. The alias
 directory is where they are found instead.

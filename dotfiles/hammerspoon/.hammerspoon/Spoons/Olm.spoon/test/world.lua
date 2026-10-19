@@ -217,24 +217,17 @@ function obj.new()
     end
   end
 
-  --- The key a plugin is on, read the way Olm reads it. The plugin's manifest proposes a default
-  --- key, and the person's entry in config/plugins.lua may override it, so the answer is the
-  --- override when there is one and the manifest default otherwise. Both come from the live
-  --- composed record and the live config directory, so a rebind moves the scenarios that ask
-  --- with it rather than leaving a hardcoded key behind. The name is the plugin's identity.
-  local pluginsCache = nil
+  --- The key a plugin is on, read the way Olm reads it. Since phase 2b of the keymap plan a
+  --- plugin's open key is the open row of the keymap the live root built, which already carries
+  --- any override the person wrote in config/plugins.lua, so it is asked there and nowhere else,
+  --- and a rebind moves the scenarios that ask with it. The name is the plugin's identity.
   function w.keyFor(name)
-    if pluginsCache == nil then
-      local ok, answer = pcall(dofile, hs.configdir .. "/config/plugins.lua")
-      pluginsCache = ok and type(answer) == "table" and answer or false
-    end
-    local mine = pluginsCache and pluginsCache[name]
-    if type(mine) == "table" and mine.key then return mine.key end
     local olm = spoon and spoon.Olm
-    local manifest = olm and olm._composed and olm._composed.manifests
-      and olm._composed.manifests[name]
-    local defaults = manifest and manifest.defaults
-    return defaults and defaults.key or nil
+    local keymap = olm and olm._composed and olm._composed.keymap
+    for _, row in ipairs((keymap and keymap.rows) or {}) do
+      if row.owner == name and row.action == "open" and row.layer == "global" then return row.key end
+    end
+    return nil
   end
 
   function w.frontmostBundle()

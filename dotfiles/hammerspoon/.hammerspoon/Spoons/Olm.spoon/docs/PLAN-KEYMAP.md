@@ -93,8 +93,9 @@ surfaces, which is the decoupling this plan exists for. The test is that a new p
 actions and suggests keys, and is reachable, listed and labelled with nothing else to learn.
 
 ```lua
--- a descriptor, every field but run optional
-leftHalf = {
+-- a descriptor, one entry of the list provides.actions answers, every field but name and run optional
+{
+  name        = "leftHalf",           -- the action's name, the list's order is the rows' order
   run         = function(depth) end,  -- depth is how deep into a held repeat, 0 on the press
   description = "Left Half",          -- the label on every surface
   subtitle    = nil,                  -- the launcher row's second line
@@ -103,7 +104,7 @@ leftHalf = {
   repeats     = true,                 -- the action is a step worth repeating while held
   when        = nil,                  -- a predicate name, live state gating key and rows together
   group       = nil,                  -- a word or a function answering one, the cheat sheet section
-  kind        = nil,                  -- the launcher catalog kind a scope narrows by
+  kind        = nil,                  -- the launcher catalog kind a scope narrows by, else the identity
   app         = nil,                  -- a bundle id this action stands for, see below
   listed      = true,                 -- false keeps an internal action off the launcher
 },
@@ -163,10 +164,12 @@ person's file.
 
 **A plugin suggests keys in one place, and a default names a role, never a leader.**
 `defaults.bindings` is the only way a plugin suggests a key, a row naming an action, a role, a key
-and optional modifiers. The shorthand `defaults.key`, `defaults.mods` and `defaults.leader` for a
-tool's open key retire, each becoming a `bindings` row for `open`. The role word is `app` or
-`window`, so a shipped plugin never learns a person's leader names, and Olm maps `app` to `hyper`
-and `window` to `meta`.
+and optional modifiers. The shorthand `defaults.key` and `defaults.mods` for a tool's open key
+retire, each becoming a `bindings` row for `open`. `defaults.leader` stays, as the role every row
+of the plugin inherits when the row names none, which is a default for a field rather than a
+second way to declare a key, corrected in phase 2b. A row may also say `leader = false` for a
+plain combination with its modifiers. The role word is `app` or `window`, so a shipped plugin
+never learns a person's leader names, and Olm maps `app` to `hyper` and `window` to `meta`.
 
 ```lua
 -- a manifest's suggested keys, the only form
@@ -283,8 +286,8 @@ What goes. `config/keys.lua` is deleted. apptoggler's literal Hyper fallback goe
 every key and a plugin has nothing left to fall back to. `provides.cheatSheetSections`,
 `provides.launcherAppDetails` and `provides.bindings` leave the contract, and `launcherRows` and
 `launcherRun` remain only for rows that are not actions. The registry's `commands` block, the
-launcher's lock and sleep `specialRows`, and `defaults.key`, `defaults.mods` and `defaults.leader`
-retire too. The registrar refuses a manifest that still declares a retired field, naming the field
+launcher's lock and sleep `specialRows`, and `defaults.key` and `defaults.mods` retire too, while
+`defaults.leader` stays as the default role. The registrar refuses a manifest that still declares a retired field, naming the field
 and what replaced it. `config/plugins.lua` refuses `key`, `mods`, `leader`, `bindings`, `surface`
 and `aliases` with a problem line naming `config/keymap.lua`.
 
@@ -314,6 +317,9 @@ Milos rather than fixed in passing.
 
 ### Phase 2, descriptors, and the core binds every action
 
+Built in two halves, 2a binding every key from the keymap and 2b deriving launcher rows from
+descriptors and retiring `registry.commands` and the `defaults.key` shorthand.
+
 Introduce the descriptor contract in `lib/registrar.lua`, validated like every other manifest field,
 a malformed descriptor refused with one line naming the plugin, the action and the field. The
 binder walks the keymap and binds each row's `run` through the engine its leader resolves to, still
@@ -328,8 +334,16 @@ the two existing adapters plus `hs.hotkey` for modifier chords.
   toggle stating `modifiers` becomes a modifier chord row. This is a bridge that phase 6 removes.
 - The clipboard's two commands become descriptors with modifier chord rows, the registry's
   `commands` block retires, and the clipboard's dead `bindHotkeys` is deleted.
-- Every manifest's `defaults.key`, `defaults.mods` and `defaults.leader` becomes a `bindings` row
-  for `open`, nine tools and the launcher host, a mechanical move the golden proves.
+- Every manifest's `defaults.key` and `defaults.mods` becomes a `bindings` row for `open`, nine
+  tools and the launcher host, a mechanical move the golden proves. `defaults.leader` stays as the
+  role a row naming none inherits.
+- Found in 2b. `provides.actions` answers a list, each descriptor naming itself, since the rows
+  need an order a keyed table cannot give. A descriptor states `kind` to keep the memory key its
+  rows had, capture, window and special, and a registered tool's action rows follow the tool's own
+  row, which is where the clipboard's commands always sat. Two baselines beside the key golden,
+  `test/launcher.golden` and `test/sheets.golden`, prove the move, and the window sheet's rows
+  became the keymap's here rather than in phase 4, since the gates the descriptors now carry had
+  to reach it.
 - The registrar stops binding and the refusal at 908 goes, since a tool's `open` is an ordinary
   row. That reopens a rejection in `decisions/olm-core-split.md`, which the record says.
 - The dry gate refuses `hs.hotkey.bind`, `hs.hotkey.new` and any leader `bind` call under
@@ -352,7 +366,7 @@ of each row, so the hint bar can spell any leader.
 ### Phase 4, one sheet host
 
 Replace both cheat sheet hosts with `host/leadersheet`, its rows built from the keymap filtered by
-the held leader and the descriptor behind each chord, sectioned by `group`, with a descriptor's
+the held leader and the descriptor behind each chord, which both sheets already read since 2b, sectioned by `group`, with a descriptor's
 `when` hiding its row exactly while its key is gated. Layout per leader reproduces today, four
 columns with icons for `hyper` and two for `meta`. The toggler's app section is the first group
 answered by a function, until phase 6 still supplied as a section, after it as descriptors. Parity is checked by holding each leader under
@@ -362,8 +376,11 @@ the devlock with Milos watching, since a drawn sheet is what a test cannot see.
 
 Read `config/keymap.lua` with its `leaders`, `keys`, `roles` and `aliases`, and migrate
 `appLeader` and `windowLeader` out of `config/keys.lua` into `roles`, written only when they
-differ from the default. Hosts answer their descriptors, lock and sleep leaving `specialRows`, and
-the registrar's `meta` key override is retired, with any entry on this machine moved into `keys`.
+differ from the default. Hosts answer their descriptors, lock and sleep leaving `specialRows`. The
+registrar's `meta` key override for commands already retired with commands in phase 2b, and this
+machine had no entry. Any `key` or `mods` a person wrote for a plugin in `config/plugins.lua`, which
+2b translates onto that plugin's open row, moves into `keys` here, this machine having none, and
+the translation itself retires in phase 7 when that file refuses every key field.
 Any alias override on this machine moves from `config/plugins.lua` into `aliases`. An action that does not exist, a chord that does not
 parse, or a leader name that clashes is a problem line naming the entry. Prove Milos's case with a
 test fixture holding `meta+E` and `meta+Y` on two plugins and a `nav` modifier leader, and leave the

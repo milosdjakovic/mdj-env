@@ -433,7 +433,7 @@ local function checkMember(dir, identity, fieldPath, spec, mod)
   end
 end
 
---- registry.open, every registry.commands[*].fn, and every registry.scope member, none of
+--- registry.open and every registry.scope member, none of
 --- which lib/registrar.lua's own obj.describe checks eagerly today.
 local function checkRegistryMembers(dir, identity, manifest, mod)
   local reg = manifest.registry
@@ -445,13 +445,6 @@ local function checkRegistryMembers(dir, identity, manifest, mod)
   -- launcher falling back to the static one with no line anywhere.
   if type(reg.row) == "table" and type(reg.row.detail) == "table" then
     checkMember(dir, identity, "registry.row.detail", reg.row.detail, mod)
-  end
-  if type(reg.commands) == "table" then
-    for cmdName, cmdSpec in pairs(reg.commands) do
-      if type(cmdSpec) == "table" then
-        checkMember(dir, identity, "registry.commands." .. tostring(cmdName) .. ".fn", cmdSpec.fn, mod)
-      end
-    end
   end
   if type(reg.scope) == "table" then
     local s = reg.scope
@@ -478,6 +471,16 @@ local function checkLauncherMembers(dir, identity, manifest, mod)
   if type(provides) ~= "table" then return end
   checkMember(dir, identity, "provides.launcherRows", provides.launcherRows, mod)
   checkMember(dir, identity, "provides.launcherRun", provides.launcherRun, mod)
+end
+
+--- The retired manifest fields, registry.commands, defaults.key and defaults.mods, through
+--- lib/registrar.lua's own retiredFields, the rule the root applies at every load, so a manifest
+--- written to the old contract is named here before a reload rather than losing a key in silence.
+--- Needs no module, since it reads manifest data alone.
+local function checkRetired(dir, identity, manifest)
+  for _, problem in ipairs(registrarLib.retiredFields(identity, manifest)) do
+    finding(string.format("dry gate refused '%s', %s", identity, problem.why))
+  end
 end
 
 --- provides.actions and provides.bindings, what a plugin can run and the rows it provides from
@@ -559,6 +562,7 @@ for dir, manifest in pairs(manifestsByDir) do
   local mod = modules[identity]
 
   checkRootWords(dir, identity, manifest)
+  checkRetired(dir, identity, manifest)
 
   local launcherMembers = type(manifest.provides) == "table"
     and (manifest.provides.launcherRows ~= nil or manifest.provides.launcherRun ~= nil)

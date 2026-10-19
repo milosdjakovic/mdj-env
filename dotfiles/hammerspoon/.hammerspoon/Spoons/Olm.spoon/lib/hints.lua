@@ -555,108 +555,63 @@ function obj.toast(deps)
   return toast
 end
 
--- The Hyper hold overlay's ACTIONS section, replacing the hand kept list the live root
--- carried and had already let go stale by one entry. Walks registry.shortcuts, the tools
--- both registered and active right now, keeps every entry whose kind is leader, since a
--- global shortcut belongs to no hold overlay, and builds one row per tool from
--- registry.rowFor of that name plus plan.effective's key and description, the same two
--- values every other presentation piece in this file reads off the plan rather than off a
--- second copy of it.
+-- The Hyper hold overlay's ACTIONS section, every chord the keymap holds on one leader. Since
+-- phase 2b of the keymap plan this reads the keymap rather than the registry and the plan, so a
+-- tool's open key, a host's, a plugin's bindings and the special rows all reach the sheet through
+-- the one table that binds them, and nothing here reads a key off a manifest field.
 --
--- Must be called after wire's own register and activate stages have run, since
--- registry.shortcuts only yields entries for a tool both registered and active, never
--- earlier, or this answers an empty list.
+-- The order is the one the sheet has always drawn. Every registered tool first, in registration
+-- order, which is the order the keymap's bound list holds tool rows in. Then, walking the plan
+-- order, each plugin's host key, its own bindings in their declared order, and its special rows.
+-- A chord already listed is not listed twice, identity being the key and the modifiers, since two
+-- rows may share a key with different modifiers, screenshot and screenshot to the clipboard. The
+-- rows a plugin provides from its own data and the lists' own keys are left out, the first reach
+-- the sheet through the plugin's own sections and the second are not global keys.
 --
--- registry arrives as a parameter, per this whole file's own rule, so this never reaches for
--- spoon.Olm.registry itself.
-function obj.sections(registry, plan, deps)
-  local function keyForIdentity(identity)
-    for _, key in ipairs(plan.order) do
-      if (plan.identity[key] or key) == identity then return key end
-    end
-    return nil
-  end
+-- deps.leader is the catalog leader the sheet reveals, as a keymap row spells it. deps.registry,
+-- optional, lends a tool row with no description of its own the detail its launcher row wears.
+-- Must be called once the keymap is built, after register, or this answers an empty section.
+function obj.sections(keymap, plan, deps)
+  deps = deps or {}
+  local leader = deps.leader
+  local registry = deps.registry
+  local bindings, seen = {}, {}
 
-  -- Which leader's overlay this is being built for, as the role word a manifest already uses,
-  -- app or window. A nil answers for every leader at once, which is what this did before it
-  -- was asked the question at all, so an existing caller that never cared still works.
-  local role = (deps or {}).leader
-
-  local bindings = {}
-  local seen = {}
-
-  local function add(key, mods, action, description)
-    if key == nil then return end
-    -- Two entries may legitimately share a key with different modifiers, screenshot to the
-    -- clipboard and screenshot to a file being the real pair, so identity here is the key
-    -- AND the modifiers rather than the key alone.
-    local mark = tostring(key) .. "/" .. table.concat(mods or {}, "+")
+  local function add(row, label)
+    if row.key == nil then return end
+    local mods = row.shownMods
+    local mark = tostring(row.key) .. "/" .. table.concat(mods or {}, "+")
     if seen[mark] then return end
     seen[mark] = true
-    bindings[#bindings + 1] = {
-      key = key, mods = mods, action = action, description = description or action,
-    }
+    bindings[#bindings + 1] = { key = row.key, mods = mods, action = row.action, description = label }
   end
 
-  -- A leader command is bound through the registrar's own key lookup, never through the plan,
-  -- since a command belongs to no directory. Reading it through the plan alone found no key for
-  -- one and dropped it from the sheet while the key worked, which is what phase four of the core
-  -- split found. The root hands the lookup only to the sheet of the leader whose engine binds
-  -- registry commands, so a command never lands on a sheet whose leader does not answer it.
-  local commandKey = (deps or {}).commandKey
+  local rows = {}
+  for _, row in ipairs((keymap or {}).bound or {}) do
+    if row.leader ~= nil and row.leader == leader then rows[#rows + 1] = row end
+  end
 
-  for _, entry in ipairs(registry.shortcuts()) do
-    local key = entry.kind == "leader" and keyForIdentity(entry.name) or nil
-    if entry.kind == "leader" and key == nil then
-      local bound = commandKey and commandKey(entry.name)
-      if bound then
-        local row = registry.rowFor(entry.name)
-        local detail = row and type(row.detail) == "string" and row.detail or nil
-        add(bound.key, bound.mods, entry.name, bound.description or detail or entry.name)
-      end
-    elseif entry.kind == "leader" then
-      local eff = plan.effective[key] or {}
-      -- A tool living on another leader has no business on this leader's overlay, and one
-      -- that states no leader is left in rather than guessed at.
-      if role == nil or eff.leader == nil or eff.leader == role then
-        local row = registry.rowFor(entry.name)
-        -- A detail may be a resolved function rather than a string for a row whose subtitle
-        -- is computed at open time, and an overlay label wants the stable words, so only a
-        -- plain string is borrowed here.
-        local detail = row and type(row.detail) == "string" and row.detail or nil
-        add(eff.key, eff.mods, entry.name,
-          eff.description or detail or entry.name)
-      end
+  for _, row in ipairs(rows) do
+    if row.source == "tool" then
+      local reg = registry and registry.rowFor and registry.rowFor(row.owner)
+      -- A detail may be a resolved function for a row whose subtitle is computed at open time,
+      -- and an overlay label wants the stable words, so only a plain string is borrowed.
+      local detail = reg and type(reg.detail) == "string" and reg.detail or nil
+      add(row, row.description or detail or row.owner)
     end
   end
 
-  -- A registry row is not the only way to own a chord, and reading only those left four real
-  -- Hyper keys off this overlay. Capture declares four bindings of its own and no launcher row
-  -- at all, because a screenshot is an action rather than a list you open, so screenshot,
-  -- screenshot to clipboard, OCR and record were each bound, each pressable, and each missing
-  -- from the very overlay that exists to say what the leader does.
-  --
-  -- Walked through plan.order rather than by iterating the effective table, because pairs has
-  -- no order and the overlay would otherwise draw its rows in a different sequence every load.
-  -- The same walk answers two more sources, for the same reason. A plugin's own key, which is
-  -- how a host like the launcher owns a chord without ever being a registry tool, and the
-  -- special rows some plugin declares, which is where lock and sleep live. Both are bound and
-  -- pressable, and neither appeared here. The first loop already added every registry tool, so
-  -- the dedupe above is what keeps a tool from being listed twice by two different routes.
-  --
-  -- Fields are read by name rather than by knowing which plugin declares them, exactly as
-  -- bindings already is, so this file still names nothing.
-  for _, directory in ipairs(plan.order or {}) do
-    local eff = (plan.effective or {})[directory] or {}
-    if role == nil or eff.leader == role then
-      add(eff.key, eff.mods, directory, eff.description)
-      for _, b in ipairs(eff.bindings or {}) do
-        add(b.key, b.mods, b.action, b.description)
-      end
-      for _, r in ipairs(eff.specialRows or {}) do
-        -- Only the ones carrying a key. A special row without one opens from a list and
-        -- nowhere else, so it has no chord to show and no business on a chord overlay.
-        add(r.key, r.mods, r.name, r.description)
+  local directoryOf = {}
+  for _, directory in ipairs((plan or {}).order or {}) do
+    directoryOf[(plan.identity or {})[directory] or directory] = directory
+  end
+  for _, directory in ipairs((plan or {}).order or {}) do
+    for _, source in ipairs({ "host", "bindings", "special" }) do
+      for _, row in ipairs(rows) do
+        if row.source == source and directoryOf[row.owner] == directory then
+          local fallback = source == "host" and directory or row.action
+          add(row, row.description or fallback)
+        end
       end
     end
   end
@@ -664,46 +619,43 @@ function obj.sections(registry, plan, deps)
   return { { title = "ACTIONS", bindings = bindings } }
 end
 
---- hints.leaderBindings(plan, role)
---- Every binding any plugin declared on one leader, as plain entries and in a stable order,
---- the plan order and then each plugin's own order. It is the same walk the second half of
---- sections does, kept as its own answer because the window leader needs the raw entries
---- rather than overlay rows. Its cheat sheet wants the `when` gate and the launcher wants the
---- icon, and a row model drops both. Reading fields by name rather than by knowing who
---- declares them is what lets a plugin join a leader by writing leader = "window" and a
---- bindings list, with nothing here or in the root naming it.
----
---- Only the bindings list is read. A single key of a plugin's own, eff.key, is not, so a tool or
---- a host whose open key the keymap binds on the window leader is bound there and missing from
---- that leader's sheet. No shipped plugin does this, and the sheet's rows move to the keymap in a
---- later phase of the keymap plan, which closes the gap rather than a second walk here. Entries are copied, never the declared tables themselves, so a caller stamping a keycode
---- onto them cannot reach back into a plugin's effective record.
-function obj.leaderBindings(plan, role)
+--- hints.leaderRows(keymap, leader) -> entries
+--- Every global chord the keymap holds on one leader, as plain entries in the keymap's binding
+--- order, a plugin's bindings in plan order and then each plugin's own order, then tools, hosts
+--- and special rows. The window cheat sheet draws these, its `when` hiding a row exactly while the
+--- key is gated and its label the description the row carries, which is the binding's own, else
+--- the descriptor's. Since phase 2b of the keymap plan this reads the keymap rather than walking
+--- every plugin's bindings, so a row's leader is the one it binds on, a tool's open key on the
+--- window leader reaches the sheet too, and a row moved off the leader leaves it. Entries are
+--- copies, so a caller stamping a keycode onto one cannot reach back into the keymap.
+function obj.leaderRows(keymap, leader)
   local out = {}
-  for _, directory in ipairs((plan or {}).order or {}) do
-    local eff = ((plan or {}).effective or {})[directory] or {}
-    if eff.leader == role then
-      for _, b in ipairs(eff.bindings or {}) do
-        local copy = { owner = directory }
-        for k, v in pairs(b) do copy[k] = v end
-        out[#out + 1] = copy
-      end
+  for _, row in ipairs((keymap or {}).bound or {}) do
+    if row.leader ~= nil and row.leader == leader then
+      out[#out + 1] = { key = row.key, mods = row.shownMods, action = row.action,
+        description = row.description, when = row.when, owner = row.owner }
     end
   end
   return out
 end
 
 --- hints.hostKeyBinding(eff, module, claimed) -> role, key, mods or nil
---- The one rule for a host that carries a key. Anything with a key, a leader and a way to be
---- shown, that the registry did not already claim, has its key bound on that leader, since a
+--- The one rule for a host that carries a key. Anything with an open bindings row and a way to
+--- be shown, that the registry did not already claim, has that row bound on its leader, since a
 --- host is not a registered tool and nothing else binds it. It answers the leader role and the
---- key and modifiers to bind, or nil when the rule does not apply. The root decides which
---- engine a role reaches, and the leader sheet test reads the same answer, so the rule is
---- written once and neither side restates it.
+--- key and modifiers to bind, or nil when the rule does not apply. The root decides which engine
+--- a role reaches, and the keymap reads the same answer, so the rule is written once.
 function obj.hostKeyBinding(eff, module, claimed)
-  if type(eff) ~= "table" or not (eff.key and eff.leader) or claimed then return nil end
+  if type(eff) ~= "table" or claimed then return nil end
   if not module or type(module.show) ~= "function" then return nil end
-  return eff.leader, eff.key, eff.mods
+  for _, b in ipairs(eff.bindings or {}) do
+    if type(b) == "table" and b.action == "open" and b.key ~= nil and b.leader ~= false then
+      local role = b.leader or eff.leader
+      if role then return role, b.key, b.mods end
+      return nil
+    end
+  end
+  return nil
 end
 
 return obj

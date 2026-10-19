@@ -16,11 +16,13 @@ promise is kept by where the sections come from rather than by anything this hos
 Two sources, both assembled by the composition root and handed over as one list in
 `opts.sections`.
 
-The sheet's own block is every chord the root found bound on the app leader,
-`lib/hints.lua`'s `sections`. It walks the registry's leader shortcuts, the registry commands
-on the leader through the registrar's own key lookup, and every plugin on the app leader in
-plan order for its own key, its `bindings` and its keyed special rows. It carries no live state,
-so it is built once at configure.
+The sheet's own block is every chord the keymap holds on the app leader, `lib/hints.lua`'s
+`sections`, read since phase 2b of the keymap plan from the one table that binds them rather
+than from the registry and the plan. Registered tools come first in registration order, then
+each plugin in plan order with its host key, its other `bindings` and its keyed special rows,
+labelled with the binding's or the action descriptor's description. A registry command on the
+leader was the one case the old walk needed a second lookup for, and commands retired in the
+same phase. It carries no live state, so it is built once at configure.
 
 The rest comes from plugins that declare `provides.cheatSheetSections` and state
 `defaults.leader = "app"`, found by the set this host declares, `needs.set.cheatSheetSections`.

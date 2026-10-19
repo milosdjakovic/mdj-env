@@ -107,6 +107,16 @@ local ASSOC_SETTINGS_KEY = "launcherQueryAssoc"
 -- float Hammerspoon to the top instead of the app the user was just in.
 local SELF_BUNDLE = hs.processInfo and hs.processInfo.bundleID
 
+-- The kinds this host keys and dispatches by rules of its own, read off recencyKey and _runItem
+-- below. An app is remembered by its bundle id and opened as an app, a computed row and a scoped
+-- row are never remembered and run through their own branches. A row built from another
+-- plugin's action descriptor must not claim one, or it would be remembered or routed as this
+-- host's own, so the root hands this set to the registrar, which refuses such a descriptor.
+-- special is not here. It is legal for a name no registered tool has, which is how the
+-- clipboard's actions keep the key they were remembered by as registry commands, and the
+-- registrar refuses it only on a tool's name. Keep this in step with the two functions.
+obj.reservedKinds = { app = true, calc = true, scope = true }
+
 -- The recency key for a row's serializable descriptor, qualified by kind so an app
 -- and a command never collide. Returns nil for a missing item, which sorts as unused.
 local function recencyKey(item)
@@ -215,6 +225,12 @@ function obj:configure(opts)
   -- silently erased the speller whenever it happened to run second, which is a landmine
   -- rather than a bug today only because of the order those two stages happen to run in.
   self._chordLabel = opts.chordLabel or self._chordLabel
+  -- The chord a registered tool opens on, asked by the tool's name and answered from the keymap
+  -- the root built, a leader role or false for a plain combination, a key and modifiers, or nil
+  -- for a tool with no key. A tool's row names its key this way since phase 2b of the keymap
+  -- plan, when the key stopped being a field of the row. Kept rather than overwritten, for the
+  -- reason the chord speller above documents.
+  self._chordOf = opts.chordOf or self._chordOf
   -- The two numbers the association store is built with, and the store itself. Built here
   -- rather than by lib/services.lua, whose per plugin instance is keyed to a field literally
   -- named recency, and building it in the consumer also means the dry gate and the live root
@@ -439,7 +455,7 @@ function obj:_buildActionRows()
   -- reading the description and the chord out of self._keys under the row's keysName or
   -- the name itself. Doing nothing when the registry has no row for that name, whether
   -- because nothing registered under it or because rowFor already answers nil for an
-  -- inactive tool and every command it owns, is what will make an inactive tool's row
+  -- inactive tool, is what will make an inactive tool's row
   -- disappear once the activation list finally means that, and that case is legitimate
   -- silence rather than a mistake.
   --
@@ -462,8 +478,8 @@ function obj:_buildActionRows()
   -- every row, and the capture and window loops that sat beside it are gone too, since phase
   -- three of the core split, those rows arriving from their own plugins through the row
   -- suppliers further down.
-  -- tool is the registered tool the row belongs to, which is its own name for a tool's row and
-  -- the owning tool for a command's, and it is the owner a row's icon key is read against.
+  -- tool is the registered tool the row belongs to, and it is the owner a row's icon key is read
+  -- against.
   local function addTool(name, tool)
     local row = self._registry and self._registry.rowFor(name)
     if not row then return end
@@ -482,15 +498,18 @@ function obj:_buildActionRows()
     -- copy reads through _rowSubTitle, so these cached rows stay built once while their text
     -- stays honest per open.
     local detailFn = type(row.detail) == "function" and row.detail or nil
+    -- The chord this tool opens on is a row of the keymap, asked of the root by the tool's name,
+    -- so the subtitle names the key the binder actually bound rather than a field of the row.
+    local chord = self._chordOf and self._chordOf(name) or nil
     local subTitle
     if row.detail and not detailFn then
       subTitle = row.category .. " · " .. row.detail
-    elseif row.chord then
+    elseif chord and chord.leader == false then
       -- A global combination rather than a leader chord, so the subtitle spells the whole
       -- thing out and names no leader, which is the only way it reads correctly.
-      subTitle = row.category .. " · " .. self._glyphFor(row.key, row.mods)
-    elseif row.key then
-      subTitle = self:_chordSuffix(row.category, self:_leaderName(row.leader), row.key)
+      subTitle = row.category .. " · " .. self._glyphFor(chord.key, chord.mods)
+    elseif chord then
+      subTitle = self:_chordSuffix(row.category, self:_leaderName(chord.leader), chord.key, chord.mods)
     else
       -- No chord at all, which is ordinary. Several tools open from this list and nowhere
       -- else, so the subtitle carries only what kind of thing they are.
@@ -522,38 +541,33 @@ function obj:_buildActionRows()
     add(row.description, subTitle, { kind = "special", name = name },
       row.icon, nil, terms, subTitleFn, image, tool or name)
   end
-  -- One row per registered tool, and one per registered command, asked of the registry in the
-  -- order it holds rather than listed here by hand. This is what the thirteen addTool calls
-  -- that used to sit here became, and it is the difference between a tool joining this list by
-  -- being registered and a tool joining it by somebody remembering to add a line. The file's
-  -- own note above said this was the last thing keeping a roster here, and this is it going.
-  --
-  -- Nothing is named. A tool that is not registered, or is registered and switched off, simply
-  -- is not in the answer, which is also how deactivating one takes its row away without a
-  -- second place having to agree.
-  for _, entry in ipairs(self._registry and self._registry.listing() or {}) do
-    addTool(entry.name, entry.tool)
-  end
-
   -- Rows other plugins contribute, and this host's own declared rows beside them. A contributed
-  -- row is plain data its plugin built from its own bindings or its own data, carrying its
-  -- title, an icon key read against its owner, and either a finished subTitle or a group and a
-  -- chord this host spells, so every chord in the list is spelled by the one shared speller.
-  -- The owner is already on the item, stamped by the root, and it is what _runItem routes by.
+  -- row is plain data, built by Olm from a plugin's action descriptors or by the plugin itself
+  -- from its own data, carrying its title, an icon key read against its owner, and either a
+  -- finished subTitle or a group and a chord this host spells, so every chord in the list is
+  -- spelled by the one shared speller. The owner is already on the item, stamped by the root,
+  -- and it is what _runItem routes by.
   --
-  -- THE ORDER, which is what a person sees scrolling an untouched list. Every row carries a
-  -- number, `order`, declared rather than derived. A contributed row has its own when it states
-  -- one and its plugin's defaults.launcherOrder otherwise, stamped by the root, and this host's
-  -- own rows take this host's own launcherOrder. Rows sort by that number, a row with none
-  -- after every numbered one, and a tie keeps the suppliers in the set's own stable order, then
-  -- each supplier's rows in the order it answered them, then this host's rows last. So the place
-  -- of a row is a number its owner wrote down and a person may move, and nothing here reads a
-  -- kind word or a plugin name to decide it. The shipped numbers reproduce the order the list
-  -- has always had, docs/PLUGIN-CONTRACT.md lists them.
+  -- THE ORDER, which is what a person sees scrolling an untouched list. The registry's rows lead,
+  -- in the registry's own order, and a contributed row whose owner is a registered tool with a
+  -- row of its own follows that tool's row directly, in the order its supplier answered, so a
+  -- tool's own actions sit with the tool. Every other row carries a number, `order`, declared
+  -- rather than derived. A contributed row has its own when it states one and its plugin's
+  -- defaults.launcherOrder otherwise, stamped by the root, and this host's own rows take this
+  -- host's own launcherOrder. Those rows sort by that number, a row with none after every
+  -- numbered one, and a tie keeps the suppliers in their stable order, then each supplier's rows
+  -- in the order it answered them, then this host's rows last. So the place of a row is a number
+  -- its owner wrote down and a person may move, and nothing here reads a kind word or a plugin
+  -- name to decide it. The shipped numbers reproduce the order the list has always had,
+  -- docs/PLUGIN-CONTRACT.md lists them.
   --
   -- A supplier that raises is dropped with a log line rather than costing the list every
   -- other row, the same rule a query row source lives under.
-  local entries = {}
+  local listing = self._registry and self._registry.listing() or {}
+  local toolRow = {}
+  for _, entry in ipairs(listing) do toolRow[entry.tool or entry.name] = true end
+
+  local entries, follows = {}, {}
   local seen = {}
   local function push(entry)
     entry.seq = #entries + 1
@@ -578,7 +592,13 @@ function obj:_buildActionRows()
           elseif not first then
             seen[id] = r.item.owner
           end
-          push({ contributed = r, order = r.order })
+          local owner = r.item.owner
+          if owner ~= nil and toolRow[owner] then
+            follows[owner] = follows[owner] or {}
+            table.insert(follows[owner], r)
+          else
+            push({ contributed = r, order = r.order })
+          end
         end
       end
     end
@@ -595,12 +615,30 @@ function obj:_buildActionRows()
   -- The subtitle a contributed row shows. A finished one is taken as it stands, otherwise the
   -- group word joined to the chord, otherwise the group word alone, which is what a row with no
   -- key reads as everywhere else in this list.
+  -- A chord whose leader is false is a plain combination on no leader, spelled whole by the
+  -- glyph renderer the way a registered tool's global combination is.
   local function contributedSubTitle(r)
     if r.subTitle then return r.subTitle end
     if r.group and type(r.chord) == "table" and r.chord.key then
+      if r.chord.leader == false then
+        return r.group .. " · " .. self._glyphFor(r.chord.key, r.chord.mods)
+      end
       return self:_chordSuffix(r.group, self:_leaderName(r.chord.leader), r.chord.key, r.chord.mods)
     end
     return r.group
+  end
+  local function addContributed(r)
+    add(r.title, contributedSubTitle(r), r.item, r.icon, r.when, r.keywords, nil, nil,
+      r.iconOwner or r.item.owner)
+  end
+
+  -- One row per registered tool, asked of the registry in the order it holds rather than listed
+  -- here by hand, each followed by the rows its own plugin contributed. A tool that is not
+  -- registered, or is registered and switched off, simply is not in the answer, which is also
+  -- how deactivating one takes its row away without a second place having to agree.
+  for _, entry in ipairs(listing) do
+    addTool(entry.name, entry.tool)
+    for _, r in ipairs(follows[entry.tool or entry.name] or {}) do addContributed(r) end
   end
 
   for _, entry in ipairs(entries) do
@@ -612,9 +650,7 @@ function obj:_buildActionRows()
       end
       add(r.description, subTitle, { kind = "special", name = r.name }, r.icon, nil, r.keywords)
     else
-      local r = entry.contributed
-      add(r.title, contributedSubTitle(r), r.item, r.icon, r.when, r.keywords, nil, nil,
-        r.iconOwner or r.item.owner)
+      addContributed(entry.contributed)
     end
   end
   return rows

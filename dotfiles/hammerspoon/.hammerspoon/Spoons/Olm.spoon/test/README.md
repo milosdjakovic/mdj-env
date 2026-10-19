@@ -10,6 +10,8 @@ Spoons/Olm.spoon/test/icons.lua             # the icon engine, the config file, 
 Spoons/Olm.spoon/test/leaders.lua           # the two leader adapters' resolvers as they stand, see below
 Spoons/Olm.spoon/test/keys.sh               # every bound chord in the live config, diffed against keys.golden
 Spoons/Olm.spoon/test/keys.sh --bound       # what the binder bound under the stub, diffed against keys.golden
+Spoons/Olm.spoon/test/views.sh --offline    # the launcher's catalog and both cheat sheets under the stub, against their goldens
+Spoons/Olm.spoon/test/goldens.sh            # every golden the keymap plan holds a phase to, offline, in one command
 Spoons/Olm.spoon/test/suite.sh structure    # no screen needed, fast, safe any time
 Spoons/Olm.spoon/test/suite.sh surface      # opens and closes every picker
 Spoons/Olm.spoon/test/suite.sh behaviour    # the hand written per plugin scenarios
@@ -133,6 +135,36 @@ and key and keeps call order inside each group, with the lists' own keys sorted 
 ones, since the root walks its contexts with `pairs`. Handed a copy of main's spoon, extracted
 with `git archive` into a scratch directory, it records both against this config and diffs them,
 which is how a change to who binds proves it left the order alone.
+
+Two more goldens hold what a person sees rather than what is bound, since phase 2b of the plan
+moved where launcher rows and sheet labels come from. `launcher.golden` is every row of the
+launcher's own catalog except the apps, in resting order with no recency applied, one line each
+with the key its recency and query memory remember it by, its title, its subtitle with the chord
+inside it, its icon key and the manifest that icon is read against, its gate, its keywords and the
+launcher order number it was placed by. The remembered key is the field that must never change,
+since a change makes the launcher forget every pick a person made. App rows are left out, a disk
+scan and the running set a stubbed run cannot see. `sheets.golden` is the content model each held
+leader's sheet would draw, the Hyper sheet's sections and rows and the window sheet's rows, with
+badge, label, section and fade, everything except pixels. A section a plugin supplies, the app
+toggler's running and dormant apps, is written as its headers alone, title, fade and layout, and
+nothing about its rows, since which apps are installed and running is a fact about one machine
+and the goldens are the same on every machine. Those rows are checked by eye, holding Hyper and
+reading the app sections against the toggles. `launcher-project.lua` and `sheets-project.lua` are the one place each format
+is spelled.
+
+```
+Spoons/Olm.spoon/test/views.sh             # both, live and read only, against the goldens
+Spoons/Olm.spoon/test/views.sh --offline   # both, from a stubbed run of the root
+Spoons/Olm.spoon/test/views.sh --update    # rewrite both goldens from the live config
+Spoons/Olm.spoon/test/goldens.sh           # keys.sh --offline, keys.sh --bound and views.sh --offline
+Spoons/Olm.spoon/test/goldens.sh --live    # keys.sh and views.sh against the running config
+```
+
+The live probes, `launcher-probe.lua` and `sheets-probe.lua`, read the running config only. Each
+asks a host to build its rows afresh without touching the caches an open uses, shows nothing,
+posts no key and writes to a file. Every golden
+matched its offline projection byte for byte on six runs in a row once the plan's own order was
+made stable, see `decisions/olm-keymap.md`.
 
 `leaders.lua` is the other half, plain Lua with no Hammerspoon, run by `suite.sh dry`. It pins
 `HyperKey:_resolve` and the window leader's resolver as they stand, including the places they

@@ -205,6 +205,37 @@ function obj:configure(opts)
   return self
 end
 
+-- The actions this plugin runs beyond opening its list, in the order their launcher rows take,
+-- each a plain call on the manager. They were registry commands until phase 2b of the keymap
+-- plan. The kind is the word the launcher remembered their rows by then, special and the action
+-- name, so a pick a person made before is not forgotten.
+local ACTIONS = {
+  { name = "appendCopy", call = "appendCopy", description = "Append copy", icon = "append",
+    keywords = "accumulate, add to clipboard, collect" },
+  { name = "manageHistory", call = "manageHistory", description = "Manage clipboard history",
+    icon = "sweep", keywords = "clear history, wipe, prune, delete old" },
+  { name = "pasteNext", call = "pasteNext", description = "Paste next", icon = "pasteNext",
+    keywords = "paste in order, sequential paste, paste stack" },
+}
+
+--- ClipboardHistory:actions() -> list of descriptors
+--- Method
+--- One action descriptor per manager action, declared as provides.actions. Olm binds the keys
+--- the manifest's bindings suggest to these and lists each in the launcher's catalog beside this
+--- tool's own row, so this plugin binds nothing and builds no row. The manager is looked up when a
+--- run fires rather than now, the way the registry commands resolved it.
+function obj:actions()
+  local out = {}
+  for _, a in ipairs(ACTIONS) do
+    out[#out + 1] = {
+      name = a.name, description = a.description, icon = a.icon, keywords = a.keywords,
+      subtitle = "Clipboard", kind = "special",
+      run = function() obj.manager[a.call]() end,
+    }
+  end
+  return out
+end
+
 --- ClipboardHistory:open()
 --- Method
 --- Reveal clipboard history via the configured provider. The provider is

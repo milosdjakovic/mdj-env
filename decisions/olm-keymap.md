@@ -1,7 +1,8 @@
 # Olm keymap, and leaders as data
 
-Status. Phases 0 and 1 landed 2026-10-19, phase 2a, the core binds every key, built the same
-evening and awaiting review and a live load. The plan is
+Status. Phases 0, 1 and 2a landed 2026-10-19, and phase 2b, launcher rows from descriptors and
+the retirement of `registry.commands` and the `defaults.key` shorthand, was built the same evening
+and awaits review and a live load. The plan is
 `dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/docs/PLAN-KEYMAP.md`.
 
 ## Now
@@ -11,9 +12,14 @@ adapter in `lib/hyperkey.lua` and `lib/windowleader.lua` and its own cheat sheet
 composition root names both. With phase 2a every global key is a row of the keymap,
 `lib/keymap.lua`, carrying the function it calls, and `lib/binder.lua` binds the keymap's bound
 list on the engine each row's leader names, or as a plain combo, in the order the five old paths
-used. A plugin answers what it can run as descriptors through `provides.actions` and binds
-nothing, and the app toggler's keys arrive as complete rows through `provides.bindings`, a bridge
-phase 6 removes. A list's own keys are still bound through the root's contexts. The collision
+used. A plugin answers what it can run as a list of descriptors through `provides.actions` and
+binds nothing, and since phase 2b Olm also builds a launcher row from every listed descriptor,
+with the chord the keymap binds, so capture, the window manager and the clipboard build no row.
+`defaults.bindings` is the one place a plugin suggests a key, a tool's open key being the row
+whose action is `open`, a row naming its own role or `leader = false` for a plain combination,
+and `defaults.leader` the role a row naming none inherits. `registry.commands`, `defaults.key`
+and `defaults.mods` are retired and refused by name. Both cheat sheets read the keymap. The app
+toggler's keys arrive as complete rows through `provides.bindings`, a bridge phase 6 removes. A list's own keys are still bound through the root's contexts. The collision
 check covers every row, modifiers, case, bindings, toggles, commands, list keys and plain combos.
 The plan replaces the rest of this with one keymap the core builds from
 actions plugins export and bindings they propose, overridden by the person in one file Olm owns,
@@ -94,6 +100,24 @@ aliases live only in `config/keymap.lua`.
   pure, has never raised, and runs under pcall, so a raise is reported in the wiring report as
   leaving every global key unbound, and the lists' own keys, the leaders' taps and the remap are
   left as they are.
+
+- **A table of action descriptors keyed by name.** 2026-10-19 20:53. It was the shape phase 2a
+  shipped, and it says nothing about order, while every surface that lists actions needs one, the
+  launcher's rows first. Ordering by the plugin's bindings reproduced the window rows and not the
+  clipboard's, whose keyless manage history sat between its two keyed commands, and ordering by
+  name did the reverse. A list where each descriptor names itself is the plugin saying its order
+  once, so `provides.actions` answers a list and a keyed table is refused whole.
+- **Retiring `defaults.leader` with `defaults.key`.** 2026-10-19 20:53. The plan listed all three
+  as shorthand for the open key. `defaults.leader` turned out to be read by every bindings row of
+  a plugin, not only the open key, so retiring it would move the role onto every row, sixteen
+  times for the window manager, to say one thing. It stays as the default a row naming no role
+  inherits, a default for a field rather than a second way to declare a key, and the plan text
+  was corrected.
+- **Keeping a predicate on both the window manager's bindings and its descriptors.** 2026-10-19
+  20:53. The window sheet read the raw bindings for `when` while the launcher rows needed it on
+  the descriptor, so either the gate was written twice or the sheet moved. The sheet now reads the
+  keymap's rows on its leader, a step phase 4 had planned, and the gate and the repeat live once,
+  on the action.
 
 ## Log
 
@@ -206,3 +230,62 @@ aliases live only in `config/keymap.lua`.
   window action on META, the placed terminal on Option and backtick, a tool's open key and Caps
   Lock's tap, and called all of them good. Phase 2b, launcher rows from descriptors, the
   retirement of `registry.commands` and the `defaults.key` shorthand as `bindings` rows, is next.
+- 2026-10-19 20:53. Phase 2b built, awaiting review and a live load. Two baselines were taken
+  first from the live main config, read only, `test/launcher.golden`, the launcher's own catalog
+  in resting order with each row's remembered key, title, subtitle, icon and its owner, gate,
+  keywords and order number, 85 lines, and `test/sheets.golden`, both sheets' content model, 54
+  lines, the Hyper sheet's app sections written as headers and one sorted membership so whether an
+  app is running does not move a line. `test/views.sh` diffs both live or offline and
+  `test/goldens.sh` runs all three goldens offline in one command. The offline sheets run answered
+  installed apps from `test/sheets-apps.lua`, a fixture the live probe wrote, corrected at 21:10,
+  and the offline runs
+  answer a tool at a fixed system path present the way they already answered a PATH tool, without
+  which the Dock row went missing. The first launcher golden also carried each row's routing owner,
+  and the branch showed exactly one difference there, the clipboard's three rows now owned by the
+  clipboard and run by its descriptors rather than by the registry, which is the intended move, so
+  the column was taken out as routing rather than anything a person sees and the golden retaken
+  from live main, identical in every other field. The build. `provides.actions` answers a list,
+  `lib/contributions.lua` builds one row per listed descriptor with the keymap's chord and one
+  runner per owner, and the launcher puts a registered tool's own action rows right after its row.
+  Capture and the window manager lost `launcherRows` and `launcherRun`, the window manager's gates
+  and repeats moved onto its descriptors, exact size and screen recording are unlisted since
+  neither had a row, and Window Size finds exact size by name. The clipboard's three commands,
+  manage history included, became descriptors of kind special, so `special:appendCopy` and its
+  siblings are remembered exactly as before, with append copy and paste next as `leader = false`
+  rows. `lib/registry.lua` lost commands whole and refuses a descriptor carrying them,
+  `registrar.commandKey` and the command half of the `meta` override went, and
+  `registrar.retiredFields` names `registry.commands`, `defaults.key` and `defaults.mods` on every
+  load and in the dry gate. Every open key is a bindings row, the keymap tells a tool's open row
+  from a host's, and each row now carries its role and its modifiers in the order a Mac spells
+  them, which the launcher and both sheets read, since the keymap's sorted order would print
+  Option before Control. A person's `key` and `mods` in `config/plugins.lua` land on the open row
+  through `lib/defaults.lua` until phase 7, and this machine's file sets none. One defect was found
+  on the way and fixed. `lib/plugins.lua` sorted the plan's entry order but walked each plugin's
+  siblings and set queries with `pairs`, so the plan order, the registry and the launcher's
+  catalog varied between loads, two runs in six of main's own tree listing the tools in another
+  order. Sorting those edges made six runs in a row agree, and agree with the live golden. Proof.
+  All three goldens reproduced byte for byte offline, `keys.sh --bound` matched and
+  `--bound-order` against a copy of main showed the same order on every key, the dry gate reported
+  no finding and no unknown with a clean rename proof, the plain Lua cases pass, and the three
+  unit cases this phase touched, the registry, the leader sheets and the launcher contributions,
+  pass under plain Lua. They also run inside the live Hammerspoon, which this build did not do.
+- 2026-10-19 21:10. An adversarial review of the 2b commit found no blocker and seven fixes,
+  applied on top. A person's `key = NONE` or `key = false` unbinds the open row again, as it left
+  a tool with no key on main. A person's `bindings` override that states no open row keeps the
+  plugin's default one unless the key was declined, every other row still replaced wholesale, and
+  a registered leader tool left with no open row is one problem line, quiet where the person
+  unbound it. Writing the case for that found a worse defect in the translation itself, an
+  override holding only `key` left an empty table to merge, which the merge reads as a list and
+  so replaced every default of the plugin with nothing, and it now merges nothing. The sheets
+  golden committed this machine's app inventory, `test/sheets-apps.lua`, which made it a per
+  machine file against the root rules on machines, so the fixture is gone and a supplied section
+  is written as its headers alone, its rows checked by eye, retaken from live main at 36 lines and
+  reproduced offline. A descriptor's launcher row now takes its key's gate, the binding's own
+  `when` before the descriptor's, as the keymap and both sheets do. The `windowBindings` docs in
+  the contract, the root and the window sheet manifest describe the step K handover. A descriptor
+  claiming a kind the launcher keys specially, app, calc or scope, read from the launcher's own
+  `reservedKinds`, is refused, and special is refused only on a registered tool's name. A role word
+  no leader answers is a problem naming the plugin, the action and the word, and that row is left
+  unbound rather than moved to the app leader. All three goldens match offline and live, the bound
+  recording and the order against main match, and the dry suite, the dry gate and the dependency
+  check are clean.

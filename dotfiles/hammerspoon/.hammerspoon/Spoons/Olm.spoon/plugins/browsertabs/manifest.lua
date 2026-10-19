@@ -159,7 +159,8 @@ return {
   -- has ever opened one, so it is the answer to what you see first on a fresh machine.
   defaults = {
     leader = "app",
-    key = "W",
+    -- The open key, a bindings row whose action is open, on the leader above.
+    bindings = { { action = "open", key = "W" } },
     description = "Browser tabs",
     icon = "browsertabs",
     aliases = { "t", "tabs" },

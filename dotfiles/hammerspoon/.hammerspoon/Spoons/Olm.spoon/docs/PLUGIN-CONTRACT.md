@@ -271,13 +271,14 @@ names by role, and Olm binds every one, see `provides` below. A plugin asks for 
 only to read it, capture and the clipboard asking Hyper whether it is still held so a synthetic
 keystroke waits for its release.
 
-The root finds every binding declared on the window leader by walking the plan, whichever plugin
-declared it, stamps the leader keycode onto them once and hands the list to the window cheat
-sheet, so a binding declared this way appears in the held sheet with no other step. A binding may
-carry `when`, which gates the key and its sheet row together, `repeats`, true for a step worth
-repeating while the key is held, and `description`, which overrides the label the sheet humanizes
-from the action name. A false predicate makes a window key a swallowed no op and an unknown name
-stays active.
+The root reads every row the keymap holds on the window leader, whichever plugin declared it,
+stamps the leader keycode onto them once and hands the list to the window cheat sheet, so a key
+declared this way appears in the held sheet with no other step, a tool's open key moved to that
+leader included. A row's `when` gates the key and its sheet row together, its `repeats` marks a
+step worth repeating while the key is held, and its label is its `description`, each the
+binding's own where it states one and its action descriptor's otherwise, the sheet humanizing the
+action name when neither says. A false predicate makes a window key a swallowed no op and an
+unknown name stays active.
 
 The value is delivered on `opts` under the field name you chose, and a member defined as a
 method arrives already bound to its own module, so you can call it plainly. Both halves
@@ -417,14 +418,15 @@ by declaring a need under the same word the root publishes it under, and which p
 doing the asking makes no difference whatsoever.
 
 The composition root builds one table of these values, keyed by field name, and today it
-publishes the following words. `windowBindings`, every binding any plugin declared on the
-window leader, collected by walking the plan and stamped with the window keycode, which the
-window cheat sheet host reads. `coveredApp`, the application the launcher opened over and the
+publishes the following words. `coveredApp`, the application the launcher opened over and the
 id of that open, and `refreshLauncher`, asking the launcher to draw again, both closures over
 the launcher for a plugin that works in the app underneath it, MenuSearch, TextCase and WindowSize today. `predicates`, the shared when name to
 predicate table every gated binding is resolved against. `leaders`, what the window
 leader's own overlay section is called, since the leader's own name says nothing to
-somebody reading a list of window actions. `redraw`, repaint whichever list is on screen,
+somebody reading a list of window actions. `windowBindings` is not in that table. It is every
+row the keymap holds on the window leader, stamped with the window keycode, so it exists only once
+the keymap is built after register, and the root hands it to the window cheat sheet in its second
+configure, step K, as it hands the Hyper sheet its sections. `redraw`, repaint whichever list is on screen,
 for a plugin whose own answer lands after the keystroke that asked for it. `notify`,
 `showColor`, and `report`, one line of feedback, one sampled colour, and one titled list of
 rows each with an icon, a label, and a detail, all drawn on the shared overlay so they read
@@ -539,7 +541,7 @@ set = {
   surfaces     = { has = "surface" },
   scopes       = { provides = { "rows", "select" } },
   queryRows    = { provides = { "queryRows" } },
-  launcherRows = { provides = { "launcherRows" } },
+  launcherRows = { provides = { "launcherRows" } },   -- rows that are not actions
   launcherRun  = { provides = { "launcherRun" } },
   launcherAppDetails = { provides = { "launcherAppDetails" } },
   cheatSheetSections = { provides = { "cheatSheetSections" } },   -- host/hypercheatsheet
@@ -574,36 +576,55 @@ The split is not cosmetic. A query for `rows` alone returns every scopable tool 
 computed source may also propose `defaults.example`, one short line the launcher's empty
 field can wear, which is the only way a person finds out a typed sum answers at all.
 
-`actions` is what a plugin can run. It names a member answering a table, or a table itself,
-keyed by action name, each value a descriptor. The function form is called once, with its module
-as the receiver, after every plugin's `configure` and wiring have run and every tool has
-registered, so a table built in `configure` is there.
+`actions` is what a plugin can run, and the one way to declare anything runnable. It names a
+member answering a list, or a list itself, each entry a descriptor naming its own action in
+`name`. The list's order is the order the plugin's rows take wherever Olm lists its actions,
+the launcher's catalog first. The function form is called once, with its module as the receiver,
+after every plugin's `configure` and wiring have run and every tool has registered, so a list
+built in `configure` is there.
 
 ```lua
 provides = { actions = "actions" },
 
 function obj:actions()
   return {
-    leftHalf = { run = function() self:leftHalf() end },
-    moveLeft = { run = function(depth) self:moveByPixels("left", self:_moveStep(depth)) end },
+    { name = "leftHalf", run = function() self:leftHalf() end,
+      description = "Left Half", subtitle = "Window", icon = "windows", kind = "window" },
+    { name = "moveLeft", run = function(depth) self:moveByPixels("left", self:_moveStep(depth)) end,
+      repeats = true, description = "Move Left", subtitle = "Window", icon = "windows", kind = "window" },
+    { name = "exactSize", run = function(size) self:resizeByPixels(size) end, listed = false },
   }
 end
 ```
 
-`run` is the one required field, a function called with the hold depth, 0 on the press and
-counting up while a key carrying `repeats` is held. A caller that is not a key may hand its own
-argument instead, the window manager's `exactSize` taking the size Window Size parsed, so an
-action that reads its argument says what it expects. Every other field is optional and checked
-by type where present, `description`, `subtitle`, `kind` and `app` strings, `icon` a string or a
-table, `keywords` a string or a list of strings, `repeats` and `listed` booleans, `when` a
-predicate name, and `group` a string or a function. A field outside that list, or one of the
-wrong type, refuses that one action with a problem line naming the plugin, the action and the
-field, and the rest of the plugin is still wired. A binding in `defaults.bindings` names an
-action by its key in this table, and Olm binds the binding's key on its leader to that
-descriptor's `run`, the binding's own `when` and `repeats` winning over the descriptor's. A
-binding naming an action the table does not hold is reported and left unbound. Capture and the
-window manager are the shipped cases, and Window Size reads the window manager's table as a
-sibling, calling `run`.
+`name` and `run` are required. `run` is a function called with the hold depth, 0 on the press and
+counting up while a key carrying `repeats` is held, and with nothing when the action is chosen as
+a launcher row. A caller that is neither may hand its own argument, the window manager's
+`exactSize` taking the size Window Size parsed, so an action that reads its argument says what it
+expects. Every other field is optional and checked by type where present, `description`,
+`subtitle`, `kind` and `app` strings, `icon` a string or a table, `keywords` a string or a list
+of strings, `repeats` and `listed` booleans, `when` a predicate name, and `group` a string or a
+function. A field outside that list, or one of the wrong type, refuses that one action with a
+problem line naming the plugin, the action and the field, and the rest of the plugin is still
+wired. A descriptor with no name is refused by its place in the list, a second one taking a name
+already taken is refused while the first keeps it, and a table keyed by name rather than a list,
+the shape before phase 2b of the keymap plan, is refused whole, since it cannot say an order.
+
+What each field earns. A binding in `defaults.bindings` names an action by its `name`, and Olm
+binds the binding's key on its leader to that descriptor's `run`, the binding's own `when`,
+`repeats` and `description` winning over the descriptor's and the descriptor's answering where the
+binding is silent. A binding naming an action the list does not hold is reported and left unbound.
+Every action that is not `listed = false` is a row of the launcher's own catalog, built by Olm,
+its title the `description` or else the name, its subtitle the `subtitle` followed by the chord
+the keymap binds the action to, its icon the `icon` read against the plugin's own manifest icons,
+its search terms the `keywords`, and its `when` hiding it live exactly while its key is gated.
+The row's memory key is the `kind`, else the plugin's identity, joined to the name, so a
+descriptor states `kind` exactly when its rows must keep a key the launcher remembered them by
+before they were descriptors, and the launcher's catalog scopes narrow by it. Choosing the row runs
+the descriptor. A plugin with actions therefore builds no launcher row and declares no
+`launcherRows` or `launcherRun` for them. `group` and `app` are read by later phases of the keymap
+plan. Capture, the window manager and the clipboard are the shipped cases, and Window Size reads
+the window manager's list as a sibling, finding `exactSize` by its name and calling `run`.
 
 `bindings` is a bridge for a plugin whose keys are still built from the person's own data rather
 than declared, the app toggler's toggles being its one user. It names a member answering a list
@@ -625,29 +646,32 @@ resolver asks for without knowing any plugin manages arrangements at all. A valu
 `true` where the capability is a fact about the plugin rather than a member to call, as
 `profile` is.
 
-`launcherRows` and `launcherRun` are how a plugin puts rows in the launcher's own catalog and
-runs the one a person chooses, the launcher asking the set for each and naming no plugin.
-Capture declares both for its four screenshot actions, the window manager for its window
-actions, and System Settings for its panes and its search row. Window Size declares
-`launcherRun` alone, since its one row is computed from a typed size and reaches the list as a
-query row.
+`launcherRows` and `launcherRun` are how a plugin puts rows that are not actions in the
+launcher's own catalog and runs the one a person chooses, the launcher asking the set for each
+and naming no plugin. An action is never declared this way, since Olm lists every action
+descriptor itself, see `actions` above. System Settings declares both for its panes and its
+search row until a later phase makes each pane an action. Window Size declares `launcherRun`
+alone, since its one row is computed from a typed size and reaches the list as a query row.
 
 ```lua
 provides = { launcherRows = "launcherRows", launcherRun = "launcherRun" },
 ```
 
 `launcherRows` is a member answering a list of plain descriptors, asked when the launcher first
-builds its rows rather than at load, so a list assembled inside configure is ready.
+builds its rows rather than at load, so a list assembled inside configure is ready. It is the
+same shape Olm builds for an action descriptor, which is why a row that names a chord reads one
+way whoever built it.
 
 ```lua
-{ title = "Screenshot", group = "Capture",
-  chord = { leader = "app", key = "4", mods = { "shift" } },
-  icon = "screenshot",                      -- a key into this plugin's own manifest icons
+{ title = "Wi-Fi", group = "System Settings",
+  chord = nil,                              -- { leader = role or false, key, mods }, optional
+  icon = "wifi",                            -- a key into this plugin's own manifest icons
   when = nil,                               -- a predicate name gating the row live, optional
-  keywords = nil,                           -- comma separated phrases a person types, optional
+  keywords = "wifi, wireless, airport",     -- comma separated phrases a person types, optional
   order = nil,                              -- this row's own place, else the plugin's
-  item = { kind = "capture", name = "captureArea",
-           key = nil,                       -- what it is remembered by, else the name
+  item = { kind = "settingsPane", name = "wifi",
+           key = "x-apple.systempreferences:com.apple.wifi-settings-extension",
+                                            -- what it is remembered by, else the name
            remember = nil } }               -- false keeps it out of every memory
 ```
 
@@ -661,8 +685,9 @@ PLUGIN-AUTHORING.md says more.
 
 A row is data and never a function, because the launcher hands every row to `hs.chooser`,
 which drops a row holding one without a word. The subtitle is either a finished `subTitle` or
-the parts, `group` and `chord` with its leader named by role, which the launcher spells with the
-shared chord speller so a row and the docked hint bar print the same words for one key. The
+the parts, `group` and `chord` with its leader named by role, or `false` for a plain combination
+the glyph renderer spells whole, which the launcher spells with the shared chord speller so a row
+and the docked hint bar print the same words for one key. The
 root stamps the plugin's identity on every item as `owner`, always, over anything the row
 arrived with, so a plugin cannot route a row into another plugin's runner, and on the row as
 `iconOwner`. The launcher routes a chosen row by that owner, so `launcherRun` is handed the whole
@@ -686,11 +711,15 @@ by the dry gate and on the console rather than failing in silence.
 
 Where a row sits is a number, `defaults.launcherOrder` in the contributing plugin's manifest,
 which a person overrides in `config/plugins.lua` like any default and which the root stamps on
-every row of that plugin that states no `order` of its own. The launcher's own special rows take
-its own `defaults.launcherOrder`. The registry's rows lead the catalog, and every other row
-follows sorted by its number, a row with none after every numbered one, a tie keeping the set's
-own order of suppliers, then each supplier's own order of rows, then the launcher's rows. The
-shipped numbers reproduce the order the list has always had.
+every row of that plugin that states no `order` of its own, the rows Olm builds from its action
+descriptors included. The launcher's own special rows take its own `defaults.launcherOrder`. The
+registry's rows lead the catalog, and a row whose owner is a registered tool with a row of its own
+follows that tool's row directly, which is where the clipboard's three action rows sit, beside
+Clipboard history, as they did when they were registry commands. Every other row follows sorted by
+its number, a row with none after every numbered one, a tie keeping the suppliers' own order, the
+set's suppliers first and then the plugins with actions in plan order, then each supplier's own
+order of rows, then the launcher's rows. The shipped numbers reproduce the order the list has
+always had.
 
 | Rows | Number | Declared in |
 |---|---|---|
@@ -705,8 +734,8 @@ renumbering.
 
 `cheatSheetSections` is how a plugin adds sections of its own to a leader's held cheat sheet,
 the sheet asking the set and naming no plugin. Every key a plugin declares through its manifest,
-its own key, its `bindings`, its leader commands, already reaches the sheet without this, since
-the root collects those itself. This is for keys a plugin builds from data the manifest does not
+its open key and every other row of its `bindings`, already reaches the sheet without this, since
+the sheet reads the keymap. This is for keys a plugin builds from data the manifest does not
 spell as bindings, the app toggler's person supplied toggle list being the shipped case.
 
 ```lua
@@ -799,24 +828,18 @@ registry = {
     rows = { member = "chooser.scopeRows", call = "dot" },
     run  = { member = "chooser.activate",  call = "dot" },
   },
-  commands = {
-    appendCopy = {
-      fn = { member = "manager.appendCopy", call = "dot" },
-      key = "C", mods = { "ctrl", "alt" },
-      row = { category = "Clipboard", description = "Append copy", chord = "modifier" },
-      shortcut = "global",
-    },
-  },
 }
 ```
 
 A member is a bare string for a colon method on the plugin root, or a table carrying
-`member` and `call`. A dotted member reaches a submodule, `manager.appendCopy`. `surface`
+`member` and `call`. A dotted member reaches a submodule, `chooser.scopeRows`. `surface`
 may be `true` to mean the plugin root itself.
 
 `row` is what a person reads. Its `category` is required for a row to exist at all, and
-`description`, `icon`, `aliases`, `key` and `leader` come from `defaults` rather than being
-retyped here, so one answer serves the row, the key binding and the scope directory.
+`description`, `icon` and `aliases` come from `defaults` rather than being retyped here, so one
+answer serves the row, the cheat sheet and the scope directory. The chord the row names is the
+tool's open row in the keymap, the `defaults.bindings` row whose action is `open`, which the
+launcher asks the root for by the tool's name.
 
 `row.bundle` is a bundle id for a tool that fronts exactly one application, and it puts that
 application's real icon on the launcher row in place of the drawn icon, resolved by the
@@ -834,16 +857,19 @@ member name, since a string detail already means words a person reads, which is 
 dry gate checks only the table form against the real module. TextCase is the consumer, its
 row saying up front that nothing is selected.
 
-`shortcut = "leader"` binds the tool's own key on the leader its `defaults.leader` names, the
-window leader included, and `shortcut = "global"` binds it as a plain combo. Olm's keymap holds
-it as one row and binds it like every other. A tool on the window leader used to be refused at
-wiring, while the registrar bound a tool's key on Hyper alone, and that refusal is gone. The
-window sheet still lists only plugins' `bindings`, so such a key is bound and not yet on it.
+`shortcut = "leader"` binds the tool's open row on the leader that row names, its own role or
+else `defaults.leader`, the window leader included, and `shortcut = "global"` binds it as a plain
+combo. Olm's keymap holds it as one row and binds it like every other, and the window sheet,
+which reads the keymap, lists it on whichever leader it sits. A tool on the window leader used to
+be refused at wiring, while the registrar bound a tool's key on Hyper alone, and that refusal is
+gone.
 
-`commands` are named actions that belong to a tool but are not tools themselves. A command
-has no plugin directory, so nothing can resolve a key for it through the plan, which is why
-its key and mods ride on the command itself. Both clipboard commands bound nothing at all
-until they did.
+`commands` retired in phase 2b of the keymap plan. They were named actions belonging to a tool,
+each with its own key, row and shortcut, and a second way beside `provides.actions` to declare
+something runnable. The clipboard's append copy, paste next and manage history are action
+descriptors now, their keys rows of the clipboard's `defaults.bindings`. A manifest still
+declaring `registry.commands` is named on the console with what replaced it, and the registry
+refuses a descriptor carrying commands.
 
 **This block is the source and `cfg.registry` is only an override.** The composition root
 merges any per identity override over what the manifest declares, per field. It used to be
@@ -861,10 +887,22 @@ app leader to SUPER carries every default with it.
 
 ```lua
 defaults = {
-  leader = "app", key = "j", description = "Emoji picker",
+  leader = "app", description = "Emoji picker",
   icon = "emoji", aliases = { "e", "emoji" },
+  bindings = { { action = "open", key = "j" } },
 },
 ```
+
+`bindings` is the one place a plugin suggests a key. Each row names an `action`, a `key` and
+optional `mods`, and a tool's or a host's own open key is the row whose action is `open`. A row
+may name its own `leader` role, or `leader = false` for a plain combination on no leader, which
+must then state its `mods`, since a bare key with neither would be taken from every app. A row
+naming no leader inherits `defaults.leader`, which is what that field is, the default role every
+row of the plugin takes, and a person who overrides it moves every such row at once.
+`defaults.key` and `defaults.mods` retired in phase 2b of the keymap plan, each a second way to
+suggest the open key, and a manifest still declaring either is named on the console with the
+open row that replaced it. A person's own `key` and `mods` for a plugin in `config/plugins.lua`
+are carried onto its open row until phase 5 brings `config/keymap.lua`.
 
 A default is admissible only if it works on a fresh macOS install with nothing
 configured. Two things disqualify one, and they are different. A missing binary
@@ -875,6 +913,14 @@ Overrides resolve as follows. A list replaces wholesale. A map merges per key. A
 level `false` switches the whole plugin off, see Switching a plugin off below. `defaults.NONE` removes a single key, and it
 exists because overloading boolean `false` made a meaningful `false` impossible to
 express, which silently broke `matcher = false`.
+
+`bindings` has one exception to the list rule, the open row. A person's `bindings` that states no
+row whose action is `open` keeps the plugin's own open row, put back at the front, since the open
+key was a field of its own until phase 2b of the keymap plan and rewriting a plugin's other keys
+never meant taking it away. Every other row is replaced wholesale as any list is. A person
+unbinds the open key with `key = defaults.NONE` or `key = false`, which removes the open row, and
+`key` and `mods` otherwise move it. A registered tool with a leader shortcut left with no open
+row for any other reason is named in the wiring report, since it would have no key.
 
 #### Switching a plugin off
 
@@ -1447,10 +1493,11 @@ once in Olm's root and never computed.
    uninstalled table leaves every navigation key live at all times.
 5. **register**, a registry descriptor per tool. It carries `apiVersion` and a
    `category`, and its `surface` is a function. The registry refuses anything else.
-6. **activate**. Then the root asks every plugin for its `provides.actions` and
-   `provides.bindings`, builds the keymap from every declaration, and binds every global row
-   through the one binder, in the order the paths it replaced bound them, plugin bindings in
-   plan order, then the registry's shortcuts, then the hosts' keys, then the special rows.
+6. **activate**. Then the root names every retired field a manifest still declares, asks every
+   plugin for its `provides.actions` and `provides.bindings`, builds the keymap from every
+   declaration, and binds every global row through the one binder, in the order the paths it
+   replaced bound them, plugin bindings in plan order, then the registry's tools, then the hosts'
+   keys, then the special rows.
 7. **contexts**, the navigation bind loop over every surface.
 8. **start**, engines last, and the one shared event tap last of all, since it must
    see a complete key set.
@@ -1479,8 +1526,9 @@ row silently vanished.
   checked against every value this plugin's own submodules already read off opts, since
   a collision there silently overwrites what the plugin root meant to pass.
 - A surfaced plugin declares `surface` and does not declare `chooser` or `theme`.
-- A plugin that wants a launcher row, a word, or a key declares `registry`, and its `row`
-  carries a `category`, without which no row is built.
+- A plugin that wants a launcher row, a word, or an open key declares `registry`, and its `row`
+  carries a `category`, without which no row is built. The key is a `defaults.bindings` row
+  whose action is `open`.
 - A plugin that shows its own rows through the shared stage rather than building its own
   `Chooser.new` declares `presentation`, with `rows` and `select` required. It declares
   `registry.surface` only if `surface.extra` binds a verb beyond the five generic ones,
@@ -1494,7 +1542,8 @@ row silently vanished.
   path one of its own backends needs, and what an empty list means are all its business, and
   a composition root that has to know any of them must be edited every time a file is added.
 - Any lifecycle beyond `configure(opts)` is in `wiring`, and no step binds a key. What the
-  plugin can run is `provides.actions` and the keys it suggests are `defaults.bindings`.
+  plugin can run is `provides.actions`, a list of descriptors that also gives every listed
+  action its launcher row, and the keys it suggests are `defaults.bindings`.
 - `hs -c "return dofile(...inspect...)"` reports the plugin wired with no problems.
 - The plugin is then actually **used**, once, with a real key press. Everything above is
   structure, and a clean plan has never once proven that a key fires.

@@ -388,7 +388,8 @@ add("registry scopes count=" .. #scopeCatalog)
 for _, l in ipairs(scopeLines) do add(l) end
 
 -- The launcher host's own command rows, read live through its own rowsOfKind for the
--- special kind, which is every row a registered tool or one of its commands builds.
+-- special kind, which is every row a registered tool builds plus the clipboard's action rows,
+-- whose descriptors keep the special kind they were remembered by as registry commands.
 -- Phase seven's third packet moves the presentation data behind these rows, the
 -- category, the icon, the detail, the keywords, and the chord, off the launcher and
 -- onto the registry descriptor, and this section is the instrumentation that packet

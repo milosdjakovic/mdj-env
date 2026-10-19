@@ -32,8 +32,6 @@ end
 -- Dependencies (injected via configure)
 obj._margins = {}
 obj._settings = nil
-obj._bindings = nil   -- the effective bindings, for the launcher rows built from them
-obj._leader = nil     -- the leader role those bindings sit on, window unless overridden
 
 -- The round trip memory for _placeOnScreen, declared here as well as reset in init, since
 -- init runs inside loader.lua's own pcall and a failure anywhere else inside it would
@@ -59,10 +57,6 @@ function obj:configure(opts)
   opts = opts or {}
   self._margins = opts.margins or {}
   self._settings = opts.settings or {}
-  -- The effective bindings and the leader they sit on, kept so launcherRows builds the
-  -- launcher's rows from the very list Olm binds, after any override.
-  self._bindings = opts.bindings or {}
-  self._leader = opts.leader
   hs.window.animationDuration = self._settings.windowAnimationDuration or 0
   return self
 end
@@ -752,15 +746,48 @@ function obj:smallSize()
   self:center()
 end
 
---- WindowManager:actions() -> { [name] = descriptor }
+-- camelCase action name to a Title Case label, the words every surface shows for an action,
+-- the launcher row, the window sheet and the action panel alike.
+local function humanize(name)
+  local s = tostring(name):gsub("(%l)(%u)", "%1 %2")
+  return s:sub(1, 1):upper() .. s:sub(2)
+end
+
+-- The actions in the order their launcher rows take, the order the bindings were authored in,
+-- which matches the window sheet grid. Each names the facts every surface reads. repeats marks a
+-- step worth repeating while its key is held, and when gates the key, the sheet row and the
+-- launcher row together, the two display switches being pointless on one display. The last two
+-- are unlisted, since neither has a key, and a row for exactSize could carry no size.
+local ORDER = {
+  { name = "previousDisplay", when = "multipleDisplays" },
+  { name = "nextDisplay", when = "multipleDisplays" },
+  { name = "leftHalf" }, { name = "rightHalf" }, { name = "fullHeight" },
+  { name = "reasonableSize" }, { name = "maximize" }, { name = "smallSize" },
+  { name = "increaseSize", repeats = true }, { name = "decreaseSize", repeats = true },
+  { name = "moveLeft", repeats = true }, { name = "moveRight", repeats = true },
+  { name = "moveUp", repeats = true }, { name = "moveDown", repeats = true },
+  { name = "center" }, { name = "hideAllExceptFocused" },
+  { name = "exactSize", listed = false }, { name = "screenRecording", listed = false },
+}
+
+--- WindowManager:actions() -> list of descriptors
 --- Method
---- One action descriptor per window action, declared as provides.actions. Olm binds every key
---- the bindings name to the descriptor's run and hands it the hold depth, 0 on the press, so
---- this plugin binds nothing. windowsize reads the same table as a sibling and calls run with a
---- size, which only exactSize reads.
+--- One action descriptor per window action, declared as provides.actions, in the order above.
+--- Olm binds every key the bindings name to the descriptor's run and hands it the hold depth, 0
+--- on the press, and lists every listed action in the launcher's catalog, so this plugin binds
+--- nothing and builds no row. The kind is the word the launcher remembered these rows by before
+--- they were descriptors, window and the action name, which the launcher's window scope also
+--- narrows by. windowsize reads the same list as a sibling and calls exactSize's run with a size.
 function obj:actions()
+  local handlers = self:_handlers()
   local out = {}
-  for name, fn in pairs(self:_handlers()) do out[name] = { run = fn } end
+  for _, a in ipairs(ORDER) do
+    out[#out + 1] = {
+      name = a.name, run = handlers[a.name], description = humanize(a.name),
+      subtitle = "Window", icon = "windows", kind = "window",
+      when = a.when, repeats = a.repeats, listed = a.listed,
+    }
+  end
   return out
 end
 
@@ -813,58 +840,6 @@ function obj:_handlers()
     moveUp =               function(hold) self:moveByPixels("up", self:_moveStep(hold)) end,
     moveDown =             function(hold) self:moveByPixels("down", self:_moveStep(hold)) end,
   }
-end
-
--- camelCase action name to a Title Case label, for a binding that sets no description. The
--- launcher used to apply this to the window rows it built from this plugin's action map, and
--- the rows are built here now, so the fallback came along with them. The window cheat sheet
--- humanizes the same way, so a row and the sheet read alike.
-local function humanize(name)
-  local s = tostring(name):gsub("(%l)(%u)", "%1 %2")
-  return s:sub(1, 1):upper() .. s:sub(2)
-end
-
---- WindowManager:launcherRows() -> rows
---- Method
---- One launcher row per bound window action, declared as provides.launcherRows, in the order
---- the bindings are declared. A binding whose action this plugin does not answer gets no row,
---- since a row that runs nothing is worse than no row, and Olm reports such a binding when it
---- binds the keys.
----
---- Each row is plain data and never a function, because the launcher hands every row to
---- hs.chooser and a row holding a function is silently dropped. The item keeps the kind and the
---- name it has always carried, window and the action name, since the launcher's recency memory
---- is keyed by those two words. A binding's `when` rides along, so the display switch rows drop
---- out of the list on a single display exactly as their keys go quiet. group and chord are the
---- subtitle's parts and the launcher spells them, so the row names the key the leader binds.
-function obj:launcherRows()
-  local actionMap = self:actions()
-  local rows = {}
-  for _, b in ipairs(self._bindings or {}) do
-    if actionMap[b.action] then
-      rows[#rows + 1] = {
-        title = b.description or humanize(b.action),
-        group = "Window",
-        chord = { leader = self._leader, key = b.key, mods = b.mods },
-        icon = b.icon or "windows",
-        when = b.when,
-        item = { kind = "window", name = b.action },
-      }
-    end
-  end
-  return rows
-end
-
---- WindowManager:launcherRun(item)
---- Method
---- Run a chosen launcher row's window action, declared as provides.launcherRun. The launcher
---- calls this after its chooser has closed and focus has gone back to the window that was in
---- front, which every action here reads through hs.window.focusedWindow. A row may carry the
---- size it means, which exactSize reads and every other action ignores, the repeating ones
---- reading an absent argument as the press itself.
-function obj:launcherRun(item)
-  local action = item and self:actions()[item.name]
-  if action then action.run(item.size) end
 end
 
 return obj

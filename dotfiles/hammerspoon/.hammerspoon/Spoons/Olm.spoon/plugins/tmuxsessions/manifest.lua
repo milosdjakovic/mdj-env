@@ -96,7 +96,8 @@ return {
   -- because the picker reaches windows and a settings level as well as sessions.
   defaults = {
     leader = "app",
-    key = "U",
+    -- The open key, a bindings row whose action is open, on the leader above.
+    bindings = { { action = "open", key = "U" } },
     description = "Tmux Manager",
     icon = "tmuxsessions",
     aliases = { "u", "tmux" },

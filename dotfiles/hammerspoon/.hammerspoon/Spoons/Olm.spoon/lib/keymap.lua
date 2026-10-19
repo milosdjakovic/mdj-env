@@ -1,8 +1,10 @@
 -- The keymap, one read model of every chord Olm binds.
 --
--- Every key Olm binds comes from one of six sources, a tool's open key, a registered command, a
--- plugin's own bindings, rows a plugin provides from its own data, and the keys Olm owns itself,
--- the host key, the lock and sleep rows and every list's context bindings. This module reads
+-- Every key Olm binds comes from one of five sources, a tool's or a host's open row, a plugin's
+-- own bindings, rows a plugin provides from its own data, and the keys Olm owns itself, the lock
+-- and sleep rows and every list's context bindings. A tool's open key is not a field of its own
+-- any more. It is the bindings row whose action is open, so one list in the manifest suggests
+-- every key a plugin has, and this module tells an open row of a tool from one of a host. This module reads
 -- the declarations behind all of them and writes them down as one list of rows in one spelling,
 -- then checks that list for two rows on the same chord. Each global row also carries the
 -- function its source answers, and a second list holds the global rows in the order the engines
@@ -19,21 +21,27 @@
 --   layer       the word global for a key live whenever its leader is held, or always for a plain
 --               combo, otherwise the name of the list the key is live in while that list is open.
 --   leader      the catalog name lowercased, or nil for a plain combo with no leader at all.
+--   role        the role word the leader answers, app or window, or nil for a plain combo. A
+--               surface that names a leader to a person asks the root what the role is called,
+--               so it reads this rather than the catalog name.
 --   key         one spelling, the name the keycode table gives the key, lowercase.
 --   mods        the required modifiers, sorted, spelled cmd, ctrl, alt and shift.
+--   shownMods   the same modifiers in the order a Mac spells them, control, option, shift,
+--               command, or nil for a catch all. Every surface spelling a chord to a person
+--               reads this one, since the sorted list is for comparing and reads wrong.
 --   anyMods     true when the binding states no modifiers at all and fires whatever extra
 --               modifiers are held. That is a different binding from one that states an empty
 --               list, which demands no modifier, and the two never collide with each other.
 --   owner       the identity of the plugin or host that declared the chord. For a list's own
 --               keys it is the list's name.
---   action      what the chord does, open for a tool's open key, the command name for a
---               registered command, the app name for a toggle, the row name for a special row,
---               and the binding's own action name for everything else.
---   source      one word naming the path, tool, host, command, bindings, provided, special or
---               context.
+--   action      what the chord does, open for a tool's or a host's open row, the app name for a
+--               toggle, the row name for a special row, and the binding's own action name for
+--               everything else.
+--   source      one word naming the path, tool, host, bindings, provided, special or context.
 --   when        the predicate gating the chord, where there is one.
 --   priority    the context priority, where there is one.
---   description the declared label, where there is one.
+--   description the declared label, the binding's own, else the descriptor's, else for an open
+--               row the plugin's own description.
 --   origin      default when the plugin shipped the chord and user when the person set it.
 --   repeats     whether the action keeps firing while its key is held, where the source says.
 --   run         the function the chord calls, or nil where the source answers none. A list's
@@ -120,6 +128,23 @@ function obj.modsText(mods)
   return table.concat(list, "+")
 end
 
+-- The order a Mac spells modifiers in, which is what a person reads on a badge or a subtitle.
+local MAC_ORDER = { ctrl = 1, alt = 2, shift = 3, cmd = 4 }
+
+--- obj.shownMods(mods, anyMods) -> list or nil
+--- The modifiers in the order a Mac spells them, or nil for a catch all.
+function obj.shownMods(mods, anyMods)
+  if anyMods or type(mods) ~= "table" then return nil end
+  local out = {}
+  for _, m in ipairs(mods) do out[#out + 1] = m end
+  table.sort(out, function(a, b)
+    local ra, rb = MAC_ORDER[a] or 9, MAC_ORDER[b] or 9
+    if ra ~= rb then return ra < rb end
+    return a < b
+  end)
+  return out
+end
+
 local function rowModsText(row)
   if row.anyMods then return "any" end
   if #row.mods == 0 then return "none" end
@@ -157,9 +182,6 @@ end
 ---   keycodes    Hammerspoon's keycode table, or nil, in which case a key is only lowercased.
 ---   shortcuts   what the registry holds as shortcuts, in registration order, entries with a
 ---               name, a kind and the fn the chord calls.
----   manifests   every live manifest by directory, read for the commands they declare.
----   commandKey  a function from a command name to its key, mods and origin, or nil, in which
----               case the key the declaring manifest ships is read and the origin is default.
 ---   actions     the action descriptors each plugin answered, by directory, already validated.
 ---   refusedActions the action names each plugin declared and had refused, by directory, or
 ---               true for a plugin whose whole actions member failed.
@@ -203,8 +225,10 @@ function obj.build(inputs)
     local row = {
       layer = spec.layer or GLOBAL,
       leader = spec.leader,
+      role = spec.role,
       key = obj.keyName(spec.key, keycodes),
       mods = mods,
+      shownMods = obj.shownMods(mods, anyMods),
       anyMods = anyMods,
       owner = spec.owner,
       action = spec.action,
@@ -252,37 +276,81 @@ function obj.build(inputs)
     end
   end
 
+  -- Where one bindings row sits. A row names a role of its own, or false for a plain combo with
+  -- no leader at all, and a row naming neither inherits the plugin's defaults.leader, which is
+  -- what that field is now, the role every row of the plugin takes unless it says otherwise. A
+  -- row with no leader must state its modifiers, since a bare key with neither would be taken
+  -- from every app, a leader of any other shape is a typo, and so is a role word the roles table
+  -- does not know, which used to fall back to the app leader in silence. Each is a problem naming
+  -- the word, and the row is not read.
+  local function placeOfRow(b, eff)
+    if b.leader == false then
+      if type(b.mods) ~= "table" or #b.mods == 0 then
+        return nil, "states leader false and no mods, and a key with neither a leader nor a modifier would be taken from every app"
+      end
+      return { leader = nil, role = nil }
+    end
+    if b.leader ~= nil and type(b.leader) ~= "string" then
+      return nil, "names a leader that is a " .. type(b.leader) .. ", where a row takes a role word or false"
+    end
+    local role = b.leader or eff.leader or "app"
+    if type(role) ~= "string" or not roles[role] then
+      return nil, "names the leader role '" .. tostring(role) .. "', which no leader answers"
+    end
+    return { leader = leaderOf(role), role = role }
+  end
+  local rowProblems = {}
+  local function badRow(owner, b, why)
+    rowProblems[#rowProblems + 1] = { where = tostring(owner) .. " " .. tostring(b.action),
+      why = "the bindings row " .. why .. ", so it is not bound" }
+  end
+
+  -- An open row belongs to the open keys source, unless the plugin answers a descriptor named
+  -- open of its own, in which case it is an ordinary binding running that descriptor.
+  local function isOpenRow(directory, b)
+    return b.action == "open" and not (actions[directory] or {}).open
+  end
+
   source("open keys", function()
     for hostIndex, directory in ipairs(sortedKeys(plan.effective)) do
       local eff = plan.effective[directory]
       local owner = identityOf[directory] or directory
       local prov = (plan.provenance or {})[directory] or {}
 
-      -- The open key of a tool, or of a host that is not a tool. A tool's key sits on whatever
-      -- leader its own defaults name, the window leader included, and a tool registered with a
-      -- global shortcut is a plain combo. A host's key calls whatever the root answers for it.
-      if eff.key then
-        local entry = shortcutOf[owner]
-        if entry then
-          add({
-            leader = kindOf[owner] ~= "global" and leaderOf(eff.leader) or nil,
-            key = eff.key, mods = eff.mods, owner = owner,
-            action = "open", source = "tool",
-            description = eff.description, origin = originOf(prov, "key", "mods", "leader"),
-            run = entry.fn, order = orderOf(2, shortcutAt[owner]),
-          })
-        else
-          -- A host with a key and no way to be shown, or no leader, was skipped in silence before
-          -- the binder existed, so its row is kept for the collision check and left unbound
-          -- without a line.
-          local run = inputs.hostRun and inputs.hostRun(directory) or nil
-          add({
-            leader = leaderOf(eff.leader), key = eff.key, mods = eff.mods, owner = owner,
-            action = "open", source = "host",
-            description = eff.description, origin = originOf(prov, "key", "mods", "leader"),
-            run = run, quiet = run == nil,
-            order = orderOf(3, hostIndex),
-          })
+      -- The open row of a tool, or of a host that is not a tool. A tool's key sits on whatever
+      -- leader its row names, the window leader included, and a tool registered with a global
+      -- shortcut is a plain combo. A host's key calls whatever the root answers for it. The
+      -- person's key override arrives on this row too, see lib/defaults.lua, so its origin
+      -- also reads the key and mods paths.
+      for _, b in ipairs(eff.bindings or {}) do
+        if isOpenRow(directory, b) then
+          local place, why = placeOfRow(b, eff)
+          local entry = shortcutOf[owner]
+          local origin = originOf(prov, "bindings", "key", "mods", "leader")
+          if not place then
+            badRow(owner, b, why)
+          elseif entry then
+            local global = kindOf[owner] == "global"
+            add({
+              leader = not global and place.leader or nil, role = not global and place.role or nil,
+              key = b.key, mods = b.mods, owner = owner,
+              action = "open", source = "tool",
+              description = b.description or eff.description, origin = origin,
+              run = entry.fn, order = orderOf(2, shortcutAt[owner]),
+            })
+          else
+            -- A host with a key and no way to be shown, or no leader, was skipped in silence
+            -- before the binder existed, so its row is kept for the collision check and left
+            -- unbound without a line.
+            local run = inputs.hostRun and inputs.hostRun(directory) or nil
+            add({
+              leader = place.leader, role = place.role, key = b.key, mods = b.mods, owner = owner,
+              action = "open", source = "host",
+              description = b.description or eff.description, origin = origin,
+              run = run, quiet = run == nil,
+              order = orderOf(3, hostIndex),
+            })
+          end
         end
       end
     end
@@ -294,26 +362,34 @@ function obj.build(inputs)
       local owner = identityOf[directory] or directory
       local prov = (plan.provenance or {})[directory] or {}
       -- A plugin's own bindings, each with its own key, modifiers and gate, each running the
-      -- descriptor its action names. The binding's own gate and repeat win, and the descriptor's
-      -- answer them where the binding is silent.
+      -- descriptor its action names. The binding's own gate, repeat and label win, and the
+      -- descriptor's answer them where the binding is silent.
       local answered = actions[directory] or {}
       -- true when the plugin's whole provides.actions member failed, which that failure has
       -- already said once, otherwise the set of action names that were refused one by one.
       local refusedHere = refusedActions[directory]
       for i, b in ipairs(eff.bindings or {}) do
-        local descriptor = answered[b.action]
-        local repeats = b.repeats
-        if repeats == nil and descriptor then repeats = descriptor.repeats end
-        add({
-          leader = leaderOf(eff.leader), key = b.key, mods = b.mods, owner = owner,
-          action = b.action, source = "bindings", when = b.when or (descriptor and descriptor.when),
-          priority = b.priority,
-          description = b.description, origin = originOf(prov, "bindings"),
-          repeats = repeats, run = descriptor and descriptor.run or nil,
-          refused = refusedHere == true
-            or (type(refusedHere) == "table" and refusedHere[b.action] == true),
-          order = orderOf(1, position[directory], i),
-        })
+        if not isOpenRow(directory, b) then
+          local place, why = placeOfRow(b, eff)
+          if not place then
+            badRow(owner, b, why)
+          else
+            local descriptor = answered[b.action]
+            local repeats = b.repeats
+            if repeats == nil and descriptor then repeats = descriptor.repeats end
+            add({
+              leader = place.leader, role = place.role, key = b.key, mods = b.mods, owner = owner,
+              action = b.action, source = "bindings", when = b.when or (descriptor and descriptor.when),
+              priority = b.priority,
+              description = b.description or (descriptor and descriptor.description),
+              origin = originOf(prov, "bindings"),
+              repeats = repeats, run = descriptor and descriptor.run or nil,
+              refused = refusedHere == true
+                or (type(refusedHere) == "table" and refusedHere[b.action] == true),
+              order = orderOf(1, position[directory], i),
+            })
+          end
+        end
       end
     end
   end)
@@ -327,7 +403,7 @@ function obj.build(inputs)
       for i, row in ipairs(eff.specialRows or {}) do
         if row.key then
           add({
-            leader = leaderOf("app"), key = row.key, owner = owner, action = row.name,
+            leader = leaderOf("app"), role = "app", key = row.key, owner = owner, action = row.name,
             source = "special", description = row.description,
             origin = originOf(prov, "specialRows"),
             run = inputs.specialRun and inputs.specialRun(owner, row.name) or nil,
@@ -347,7 +423,7 @@ function obj.build(inputs)
       for _, b in ipairs(block.bindings or {}) do
         if b.chord ~= false then
           add({
-            layer = name, leader = leaderOf("app"), key = b.key, mods = b.mods, owner = name,
+            layer = name, leader = leaderOf("app"), role = "app", key = b.key, mods = b.mods, owner = name,
             action = b.action, source = "context", when = block.when, priority = block.priority,
             description = b.description, origin = "default",
           })
@@ -370,6 +446,7 @@ function obj.build(inputs)
         if not r.leader and mods == nil then mods = {} end
         add({
           leader = r.leader and leaderOf(r.leader) or nil,
+          role = r.leader and (roles[r.leader] and r.leader or "app") or nil,
           key = r.key, mods = mods, owner = owner,
           action = r.action, source = "provided", when = r.when, description = r.description,
           origin = "user", repeats = r.repeats, run = r.fn,
@@ -379,27 +456,25 @@ function obj.build(inputs)
     end
   end)
 
-  -- A registered command's own key. The command belongs to the manifest declaring it. A
-  -- global one is a plain combo and a leader one a key on the app leader. The person's
-  -- override of the key is applied by the lookup, which says so in its origin.
-  source("commands", function()
-    for _, directory in ipairs(sortedKeys(inputs.manifests)) do
-      local commands = ((inputs.manifests[directory] or {}).registry or {}).commands or {}
-      for _, name in ipairs(sortedKeys(commands)) do
-        local info = kindOf[name] and (inputs.commandKey and inputs.commandKey(name) or commands[name])
-        if info and info.key then
-          local description = info.description
-          if description == nil and type(info.row) == "table" then description = info.row.description end
-          add({
-            leader = kindOf[name] ~= "global" and leaderOf("app") or nil,
-            key = info.key, mods = info.mods, owner = identityOf[directory] or directory,
-            action = name, source = "command", description = description,
-            origin = info.origin, run = shortcutOf[name].fn, order = orderOf(2, shortcutAt[name]),
-          })
-        end
+  -- A registered tool with a leader shortcut and no open row has no key, which the person's own
+  -- key NONE or false asks for and anything else, a bindings override that dropped the row or a
+  -- manifest without one, does not. Said once per tool, and quiet where the person unbound it.
+  local hasOpen = {}
+  for _, row in ipairs(rows) do
+    if row.source == "tool" then hasOpen[row.owner] = true end
+  end
+  local directoryOf = {}
+  for directory in pairs(plan.effective or {}) do directoryOf[identityOf[directory] or directory] = directory end
+  for _, entry in ipairs(inputs.shortcuts or {}) do
+    if type(entry) == "table" and entry.kind == "leader" and not hasOpen[entry.name] then
+      local directory = directoryOf[entry.name]
+      local prov = directory and (plan.provenance or {})[directory] or {}
+      if prov.key ~= "user" then
+        rowProblems[#rowProblems + 1] = { where = tostring(entry.name) .. " open",
+          why = "the registered tool has a leader shortcut and no bindings row whose action is open, so it has no key" }
       end
     end
-  end)
+  end
 
   local bound = {}
   for _, row in ipairs(rows) do
@@ -418,6 +493,7 @@ function obj.build(inputs)
   end)
 
   local problems = obj.collisions(rows)
+  for _, problem in ipairs(rowProblems) do problems[#problems + 1] = problem end
   for _, problem in ipairs(sourceProblems) do problems[#problems + 1] = problem end
   return { rows = rows, bound = bound, problems = problems }
 end

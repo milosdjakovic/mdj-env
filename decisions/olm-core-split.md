@@ -18,23 +18,27 @@ the window leader is `lib/windowleader.lua` beside `lib/hyperkey.lua`, and the w
 sheet is a host. A plugin reaches the window leader the way it reaches Hyper, by declaring
 `defaults.leader = "window"` with `defaults.bindings` and answering their actions through
 `provides.actions`, the core binds every key from its keymap since phase 2a of `olm-keymap.md`,
-and the root collects every window binding by walking the plan rather than reading any plugin.
-A plugin puts rows in the launcher's own catalog by declaring `provides.launcherRows` and
-`provides.launcherRun`, the root stamps its identity on each row's item as `owner`, and the
-launcher runs an owned row through that owner's runner, so the launcher declares no siblings.
+and the window sheet reads the keymap's rows on that leader rather than any plugin. Every listed
+action descriptor is a row of the launcher's own catalog that the root builds, since phase 2b of
+`olm-keymap.md`, and a plugin puts rows that are not actions there by declaring
+`provides.launcherRows` and `provides.launcherRun`. The root stamps the plugin's identity on each
+row's item as `owner`, and the launcher runs an owned row through that owner's runner, so the
+launcher declares no siblings.
 Where a row sits is the contributor's own `defaults.launcherOrder`, and what it is remembered by
 is its own kind joined to its item's `key` or name.
 Bringing an app forward is `lib/appfocus.lua`, and `coveredApp` and `refreshLauncher` are words
 the root publishes over the launcher.
-A leader's cheat sheet lists what the root collected from the manifests, a plugin's own key, its
-`bindings`, its keyed special rows and its registry leader commands, plus the sections a plugin
+A leader's cheat sheet lists what the keymap holds on that leader, a plugin's open key and its
+other `bindings` and the keyed special rows, registry commands having retired in phase 2b of
+`olm-keymap.md`, plus the sections a plugin
 supplies by declaring `provides.cheatSheetSections`, placed by `defaults.cheatSheetOrder` and
 routed by `defaults.leader`. The app toggler supplies the app sections, so the Hyper sheet reads
 no person data and names no plugin. The launcher's app rows learn each bound app's chord and url
 the same way, from `provides.launcherAppDetails`, so the launcher reads neither the toggles nor
 the app registry. A registry tool's open key binds on whichever leader its defaults name, the
 window leader included, since the refusal at wiring was reopened and removed in phase 2a of
-`olm-keymap.md`, and the window sheet does not list such a key until that plan's phase 4. The dry gate
+`olm-keymap.md`, and the window sheet lists such a key since phase 2b, when its rows became the
+keymap's. The dry gate
 fails on any file outside `plugins/` that names a plugin, as a string, a path, a field, a table
 key or a string folded from literals, with the icon engine's own `emoji` source set and icon spec
 field accepted line by line, and it runs the composition root a second time with every plugin

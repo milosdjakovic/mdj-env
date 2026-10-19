@@ -28,8 +28,8 @@
 --
 -- Owners. The engines keep only functions, so an owner is worked out by crossing each stored
 -- binding with what the live plan declares. The declarations are read by lib/keymap.lua, a
--- tool's open key, a plugin's own bindings, the context bindings of every list, the rows a
--- plugin provides, a launcher special row and a registered command's key, and this probe indexes the
+-- tool's or a host's open row, a plugin's own bindings, the context bindings of every list, the
+-- rows a plugin provides and a launcher special row, and this probe indexes the
 -- rows it returns rather than reading the plan a second time. A registered tool's function is also matched by identity against what the
 -- registry holds, which is exact where a key match could be ambiguous. Two declarations that
 -- claim one chord are both named, joined with a bar, since that is a collision worth seeing
@@ -116,9 +116,7 @@ end
 
 -- The declarations are the keymap's rows. A config that built its own is read as it is, and one
 -- that did not, main before the keymap landed, has the same module fed from the same live plan,
--- so this probe still describes it. The roles come from the person's own key file, and a
--- command's key is read as its manifest ships it, which is why an override held only in the
--- root's registry table shows as a question mark, as it always did.
+-- so this probe still describes it. The roles come from the person's own key file.
 local keymap = composed.keymap
 if not keymap then
   local ok, keys = pcall(dofile, hs.configdir .. "/config/keys.lua")
@@ -142,9 +140,7 @@ for _, row in ipairs(keymap.rows) do
 end
 
 -- A registered tool's own function, matched by identity against what the engines hold, which
--- is exact where a key match could be ambiguous. A person's override of a command's key lives
--- in the root's registry table and not in the plan, so the keymap reads it through the same
--- lookup the binder uses, and this match is the second opinion.
+-- is exact where a key match could be ambiguous, and the second opinion beside the keymap.
 local fnOwner = {}
 for _, entry in pairs(olm.registry.shortcuts() or {}) do
   if type(entry.fn) == "function" then fnOwner[entry.fn] = entry.name end

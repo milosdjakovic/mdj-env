@@ -813,15 +813,11 @@ function obj.run(olm, cfg)
     return "(" .. table.concat(aliases, ", ") .. ")"
   end
 
-  -- THE SEAM, Fact 1. The window cheat sheet and the launcher's window rows must show the
-  -- identical physical key the leader dispatches, so this stamped list is built exactly once,
-  -- right here, and the same local is handed to both rather than two calls that would only
-  -- happen to agree today. It is every binding any plugin declared on the window leader,
-  -- found by walking the plan in lib/hints.lua, so no plugin is named and a second plugin
-  -- declaring leader = "window" joins the sheet with no edit. The binder below binds the same
-  -- entries on the window leader lib, which already knows the one keycode.
-  local stampedWindowBindings = leadersLib.stampBindings(
-    hintsLib.leaderBindings(firstPass, "window"), windowKeycode)
+  -- The window cheat sheet's rows are not built here any more. Since phase 2b of the keymap plan
+  -- they are the keymap's rows on the window leader, so they can only be built once the keymap
+  -- is, after register, and step K hands them over with the keycode stamped. The launcher's
+  -- window rows come from the same keymap, through the window manager's action descriptors, so
+  -- a row and the sheet still read one answer.
 
   ------------------------------------------------------------------------------
   -- STEP I. Everything the root itself owes its plugins, in one table, keyed by
@@ -1100,12 +1096,6 @@ function obj.run(olm, cfg)
   local launcherInPlan = (firstPass.effective or {})[launcherIdentity] ~= nil
 
   local rootValues = {
-    -- THE SEAM, Fact 1's other half. The window cheat sheet reads the stamped list, every
-    -- binding on the window leader. The launcher's window rows come from the window manager's
-    -- own effective bindings since phase three of the core split, which are the same entries
-    -- before the keycode stamp, so a row and the sheet still read one declaration.
-    windowBindings = stampedWindowBindings,
-
     -- Two words over the launcher, which is core, for plugins that work in the app the
     -- launcher opened over. coveredApp answers that app and the id of the open, and
     -- refreshLauncher asks the launcher to draw again once a late answer lands. Both were
@@ -1676,13 +1666,12 @@ function obj.run(olm, cfg)
     cheatSheet = cheatSheetAtom,
   }
 
-  -- The window overlay's own three root owned values are NOT built here any more, and that is
-  -- the point rather than an omission. It declares windowBindings, leaders and predicates,
-  -- every one of them a root value another plugin also asks for by the same name, so all three
-  -- now reach it through the root fan out above with this file never naming it. Building them
-  -- here was what made a plugin under plugins appear as a literal in a file whose own header
-  -- forbids exactly that, and being on the hand written list is what every plugin that went
-  -- without was missing.
+  -- The window overlay's root owned values are NOT built here. It declares windowBindings,
+  -- leaders and predicates. leaders and predicates reach it through the root fan out above, root
+  -- values other plugins ask for by the same names. windowBindings is the keymap's rows on the
+  -- window leader, which exist only once the keymap is built after register, so step K builds
+  -- it and configures the host a second time with all three, the way the Hyper sheet gets its
+  -- sections there.
   local queryScopeOpts = {
     matcher = chooserAtom.matchers and chooserAtom.matchers[policy.matcher],
     rank = chooserAtom.rank,
@@ -1843,10 +1832,6 @@ function obj.run(olm, cfg)
     return registrarLib.describe(name, planArg, modules, manifests, registryMeta,
       API_VERSION, { merge = defaultsLib.merge, redraw = redrawSurface, log = logFn,
         matchers = chooserAtom.matchers })
-  end
-
-  local function commandKey(name)
-    return registrarLib.commandKey(manifests, registryMeta, name)
   end
 
   -- Which context actions repeat while held, rather than firing once per press, a small
@@ -2019,14 +2004,30 @@ function obj.run(olm, cfg)
   -- configure and wiring have run and every tool has registered, so a table built in configure
   -- is already there. A malformed descriptor or row is refused with one problem line and costs
   -- only itself.
-  local pluginActions, refusedActions, providedRows = {}, {}, {}
+  --
+  -- The same walk names every retired field a manifest still declares, registry.commands,
+  -- defaults.key and defaults.mods, with what replaced each. Nothing reads a retired field, so
+  -- without the line a manifest written to the old contract would lose that key or that row in
+  -- silence.
+  local pluginActions, refusedActions, actionOrder, providedRows = {}, {}, {}, {}
+  -- The kinds the launcher keys specially, asked of the launcher itself, and the registered tool
+  -- names, so a descriptor cannot claim a row the launcher would remember or route as its own.
+  -- THE SEAM. The launcher is one of the host modules this file may name.
+  local launcherForKinds = modules[plan.identity.launcher or "launcher"]
+  local toolNames = {}
+  for _, entry in ipairs(wiredRegistry.all() or {}) do toolNames[entry.name] = true end
+  local actionOpts = { reservedKinds = launcherForKinds and launcherForKinds.reservedKinds,
+    toolNames = toolNames }
   for _, directory in ipairs(plan.order) do
     local identity = plan.identity[directory] or directory
     local manifest = manifests[directory] or manifests[identity] or {}
     local module = modules[identity] or modules[directory]
+    for _, problem in ipairs(registrarLib.retiredFields(identity, manifest)) do
+      w.problem("retired", problem.where, problem.why)
+    end
     if (manifest.provides or {}).actions ~= nil then
-      local answered, refused, problems = registrarLib.validateActions(identity, manifest, module)
-      pluginActions[directory], refusedActions[directory] = answered, refused
+      local answered, refused, problems, order = registrarLib.validateActions(identity, manifest, module, actionOpts)
+      pluginActions[directory], refusedActions[directory], actionOrder[directory] = answered, refused, order
       for _, problem in ipairs(problems) do w.problem("actions", problem.where, problem.why) end
     end
     if (manifest.provides or {}).bindings ~= nil then
@@ -2076,8 +2077,6 @@ function obj.run(olm, cfg)
     roles = leaderRoles,
     keycodes = hs.keycodes.map,
     shortcuts = wiredRegistry.shortcuts(),
-    manifests = manifests,
-    commandKey = commandKey,
     actions = pluginActions,
     refusedActions = refusedActions,
     provided = providedRows,
@@ -2212,12 +2211,13 @@ function obj.run(olm, cfg)
     -- here rather than the zero argument wire adapter, since sections reads rowFor and
     -- shortcuts, neither of which the wire adapter promises to carry.
     local opts = { cheatSheet = hyperCheatSheetOpts.cheatSheet }
-    -- Told which leader's overlay this is, so a tool bound to the window leader stays off the
-    -- Hyper one, and so the plugins that carry their own binding list rather than a launcher
-    -- row are picked up for this leader too. Handed the command key lookup because a leader
-    -- command's row in the keymap sits on the app leader, so a command bound there shows here.
+    -- Every chord the keymap holds on the app leader, read from the one table that binds them,
+    -- so a tool's open key, a plugin's bindings and the special rows reach the sheet by being
+    -- bound and a key moved to the window leader leaves it. The registry lends a tool row with
+    -- no description the detail its launcher row wears.
     local hyperIdentity = plan.identity.hypercheatsheet or "hypercheatsheet"
-    local own = hintsLib.sections(wiredRegistry, plan, { leader = "app", commandKey = commandKey })
+    local own = hintsLib.sections(keymap, plan, {
+      leader = tostring(leaderRoles.app):lower(), registry = wiredRegistry })
     -- The sections plugins supply for the app leader's sheet, the app toggles today, ordered
     -- with the sheet's own block by each one's declared number. lib/contributions.lua asks the
     -- set the sheet declared, so this names none of them.
@@ -2238,6 +2238,22 @@ function obj.run(olm, cfg)
     -- others in this set do not, so using the identity here would quietly stop matching the day
     -- one of them was renamed.
     lateData.hypercheatsheet = opts
+  end
+
+  -- The window cheat sheet's rows, every global chord the keymap holds on the window leader, each
+  -- stamped with the leader keycode the sheet groups by. Its leaders and predicates are the same
+  -- root values the fan out handed it, given again because the host resets what configure gave
+  -- it on every call, and keyed by directory for the delivery check, as the Hyper sheet's are.
+  if windowCheatSheetModule then
+    local windowCheatSheetLate = {
+      windowBindings = leadersLib.stampBindings(
+        hintsLib.leaderRows(keymap, tostring(leaderRoles.window):lower()), windowKeycode),
+      leaders = rootValues.leaders,
+      predicates = rootValues.predicates,
+      cheatSheet = cheatSheetAtom,
+    }
+    windowCheatSheetModule:configure(windowCheatSheetLate)
+    lateData.windowcheatsheet = windowCheatSheetLate
   end
 
   local queryScopeModule = modules[plan.identity.queryscope or "queryscope"]
@@ -2379,12 +2395,17 @@ function obj.run(olm, cfg)
     -- one runner per owner identity, each row stamped with its owner, its icon owner and its
     -- place, so the launcher routes a chosen row by one plain word and never learns which
     -- plugin built it.
+    -- A plugin's action descriptors are rows too, built by Olm with the chord the keymap binds
+    -- each one to, so a plugin with actions supplies no rows of its own.
     local rowSuppliers, runners = contributionsLib.assemble({
       host = plan.identity.launcher or "launcher",
       plan = plan,
       manifests = manifests,
       modules = modules,
       registrar = registrarLib,
+      actions = pluginActions,
+      actionOrder = actionOrder,
+      keymap = keymap,
       stampIcons = iconRows.stampAll,
       log = function(message) log.e("Olm compose, " .. message) end,
     })
@@ -2441,6 +2462,16 @@ function obj.run(olm, cfg)
       -- The shared speller rather than one the launcher owns for itself, so a row states the
       -- same chord the docked hint bar already agreed on.
       chordLabel = chordLabel,
+      -- The chord a registered tool's row names, its open row in the keymap, a leader role or
+      -- false for a plain combination, a key and the modifiers as a person reads them.
+      chordOf = function(name)
+        for _, row in ipairs(keymap.bound or {}) do
+          if row.owner == name and row.source == "tool" then
+            return { leader = row.role or false, key = row.key, mods = row.shownMods }
+          end
+        end
+        return nil
+      end,
       rowSuppliers = rowSuppliers,
       runners = runners,
       specialRows = launcherEffective.specialRows,

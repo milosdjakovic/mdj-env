@@ -40,14 +40,11 @@
 -- and are documented as exactly that where they are read below.
 --
 -- What this file must never do matters as much as what it does. It never names a tool, never
--- hardcodes a roster, and never reads a keys catalog to find a physical key, because the plan
--- already resolved one for every plugin that declared it and asking a second source for the
--- same fact is exactly the kind of place two answers drift apart with nothing watching. The one
--- deliberate exception is commands, appendCopy and pasteNext being the concrete example a
--- reader can check this file against, since a command belongs to no plugin and so owns no entry
--- in the plan at all. Its key is root policy with nowhere else to live, and the seam that lets
--- it in is commented at the one place it is read, rather than folded quietly into the rule it is
--- the exception to.
+-- hardcodes a roster, and never reads a key at all, because every key is a row of the keymap
+-- built from the plan, and asking a second source for the same fact is exactly the kind of place
+-- two answers drift apart with nothing watching. Registry commands were the one exception, a key
+-- riding on a command with a root owned override beside it, and they retired in phase 2b of the
+-- keymap plan. What a plugin can run is an action descriptor now, and its key a bindings row.
 
 local obj = {}
 
@@ -299,10 +296,11 @@ end
 --- fields already stay silent for the same reason a line below.
 ---
 --- eff, the plugin's own effective declarations already merged with whatever the person
---- overrode, gives description, icon, aliases, key and leader, since those are what the plugin
---- itself proposed or the person changed through the ordinary defaults door, the same one every
---- other field in this config answers to. The merged registry table, info below, gives
---- everything else, category, detail, keywords, open, surface, hosted, shortcut, commands and
+--- overrode, gives description, icon and aliases, since those are what the plugin itself
+--- proposed or the person changed through the ordinary defaults door, the same one every other
+--- field in this config answers to. The tool's key is not on the row, it is a row of the keymap,
+--- and the launcher asks the keymap for the chord a row shows. The merged registry table, info
+--- below, gives everything else, category, detail, keywords, open, surface, hosted, shortcut and
 --- scope, since all of it is now the plugin's own claim about itself, reconciled against
 --- whatever the root chose to override, rather than a second, competing source of truth about a
 --- fact the manifest already states.
@@ -317,7 +315,7 @@ end
 --- above already explains and for the same reason, a plugin that builds its surface inside its
 --- own configure must still be found once that has actually run.
 ---
---- open, and every scope and command action, resolve through obj.action above instead, since
+--- open, and every scope action, resolve through obj.action above instead, since
 --- unlike surface they are not asked for a value, they are run, later, with real arguments a
 --- scope's own caller hands them on every keystroke or every chosen row, and obj.member's own
 --- "call the function once and keep what it answered" contract would run a tool's open action
@@ -670,8 +668,6 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
       bundle = rowSpec.bundle,
       aliases = eff.aliases,
       description = eff.description,
-      key = eff.key,
-      leader = eff.leader,
     }
   end
 
@@ -700,32 +696,8 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
     end
   end
 
-  local commands = nil
-  if type(info.commands) == "table" then
-    commands = {}
-    for cmdName, cmdSpec in pairs(info.commands) do
-      cmdSpec = cmdSpec or {}
-      local fn = nil
-      if type(cmdSpec.fn) == "function" then
-        fn = cmdSpec.fn
-      else
-        fn = obj.action(modules, identity, name, cmdSpec.fn, nil)
-      end
-      -- The command's own key and mods are folded ONTO its row rather than left beside it.
-      -- A command belongs to no plugin directory, so nothing downstream can look its key up
-      -- the way a tool's own key is looked up through the plan, and a catalogue drawing a row
-      -- for it needs the chord to write the subtitle. The row is the only thing that travels
-      -- that far, so this is where the answer has to ride.
-      local cmdRow = cmdSpec.row
-      if type(cmdRow) == "table" and (cmdSpec.key or cmdSpec.mods) then
-        cmdRow = {}
-        for k, v in pairs(cmdSpec.row) do cmdRow[k] = v end
-        cmdRow.key = cmdRow.key or cmdSpec.key
-        cmdRow.mods = cmdRow.mods or cmdSpec.mods
-      end
-      commands[cmdName] = { fn = fn, row = cmdRow, shortcut = cmdSpec.shortcut }
-    end
-  end
+  -- registry.commands is retired, see obj.retiredFields below. A manifest that still declares it
+  -- is named once by the root and nothing here builds from it, so a command registers nothing.
 
   local scope = nil
   if type(info.scope) == "table" then
@@ -834,7 +806,6 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
     open = open,
     hosted = info.hosted,
     shortcut = info.shortcut,
-    commands = commands,
     scope = scope,
     row = row,
     surface = surface,
@@ -846,10 +817,12 @@ end
 -- Actions, what a plugin can run, and the rows a plugin provides from its own data
 --------------------------------------------------------------------------------
 
--- The fields an action descriptor may carry, each with the types it may take. Only run is
--- required in this phase. The rest are what the surfaces Olm derives from a descriptor will read,
--- accepted now and checked by type so a typo is refused at load rather than read as absent later.
+-- The fields an action descriptor may carry, each with the types it may take. run is required,
+-- and so is name inside provides.actions, the list every descriptor arrives in. The rest are what
+-- the surfaces Olm derives from a descriptor read, the launcher row since phase 2b, and each is
+-- checked by type so a typo is refused at load rather than read as absent later.
 local DESCRIPTOR_FIELDS = {
+  name = { "string" },
   run = { "function" },
   description = { "string" },
   subtitle = { "string" },
@@ -921,43 +894,80 @@ function obj.validateDescriptor(descriptor)
   return true
 end
 
---- obj.validateActions(identity, manifest, module) -> actions, refused, problems
+--- obj.validateActions(identity, manifest, module, opts) -> actions, refused, problems, order
 --- What a plugin can run, read from the member provides.actions names, a table or a function
---- answering one, keyed by action name with a descriptor as each value. The function form is
---- called once, here, and the root calls this after every plugin's wiring has run, so a
---- descriptor table built in configure is already there.
+--- answering one. The answer is a list of descriptors, each naming its own action in name, and
+--- the list's order is the order the plugin's rows take wherever Olm lists its actions, the
+--- launcher's catalog first. The function form is called once, here, and the root calls this
+--- after every plugin's wiring has run, so a list built in configure is already there.
 ---
 --- A malformed descriptor is refused rather than raised, the same rule the registry keeps for a
 --- registration, so one bad action costs that action and the rest of the plugin is still wired.
---- Each refusal is one problem naming the plugin, the action and the field. actions holds only
---- the descriptors that passed, refused names the ones that did not, and a plugin declaring no
---- provides.actions answers three empty tables. When the member itself names nothing or raises,
---- refused is true, so every binding of that plugin is covered by the one problem line.
-function obj.validateActions(identity, manifest, module)
-  local actions, refused, problems = {}, {}, {}
+--- Each refusal is one problem naming the plugin, the action and the field, a descriptor with no
+--- name is named by its place, and a second descriptor taking a name already taken is refused
+--- while the first keeps it. actions holds the descriptors that passed keyed by name, refused
+--- names the ones that did not, and order lists the passed names in the plugin's own order. A
+--- plugin declaring no provides.actions answers four empty tables. When the member itself names
+--- nothing, raises, or answers a table keyed by name rather than a list, refused is true, so every
+--- binding of that plugin is covered by the one problem line.
+---
+--- opts, optional, carries what the launcher keys specially. opts.reservedKinds is the set of
+--- kinds the launcher remembers and routes by rules of its own, handed over from the launcher
+--- host itself, and a descriptor claiming one is refused. opts.toolNames is the set of registered
+--- tool names, and a descriptor of kind special named like one is refused, since its row would
+--- share that tool's memory key, special stays legal for any other name.
+function obj.validateActions(identity, manifest, module, opts)
+  opts = opts or {}
+  local actions, refused, problems, order = {}, {}, {}, {}
   local spec = ((manifest or {}).provides or {}).actions
-  if spec == nil then return actions, refused, problems end
+  if spec == nil then return actions, refused, problems, order end
   local answer, why = provided(module, spec)
   if not answer then
     problems[#problems + 1] = { where = tostring(identity),
       why = "provides.actions " .. why .. ", so none of its actions can run" }
-    return actions, true, problems
+    return actions, true, problems, order
   end
-  for _, name in ipairs(sortedNames(answer)) do
-    local ok, field, fieldWhy = obj.validateDescriptor(answer[name])
-    if type(name) ~= "string" then
+  -- A table keyed by name was the shape before phase 2b. It cannot say an order, which every
+  -- surface listing the actions needs, so it is refused whole rather than read in some order.
+  local count = #answer
+  for k in pairs(answer) do
+    if math.type(k) ~= "integer" or k < 1 or k > count then
       problems[#problems + 1] = { where = tostring(identity),
-        why = "provides.actions holds a " .. type(name) .. " key, and an action is named by a string" }
+        why = "provides.actions answers a table keyed by " .. type(k) .. " rather than a list of "
+          .. "descriptors each naming itself in name, so none of its actions can run" }
+      return actions, true, problems, order
+    end
+  end
+  for i, descriptor in ipairs(answer) do
+    local name = type(descriptor) == "table" and descriptor.name or nil
+    local ok, field, fieldWhy = obj.validateDescriptor(descriptor)
+    if type(name) ~= "string" or name == "" then
+      problems[#problems + 1] = { where = tostring(identity) .. " action " .. i,
+        why = "the descriptor's field name is missing, and an action in the list names itself, so it is refused" }
+    elseif actions[name] or refused[name] then
+      problems[#problems + 1] = { where = tostring(identity) .. " action " .. name,
+        why = "a second descriptor takes the name, so it is refused and the first keeps it" }
     elseif not ok then
       refused[name] = true
       problems[#problems + 1] = { where = tostring(identity) .. " action " .. name,
         why = "the descriptor's " .. (field and ("field " .. field .. " ") or "") .. fieldWhy
           .. ", so the action is refused and the rest of the plugin is still wired" }
+    elseif descriptor.kind ~= nil and (opts.reservedKinds or {})[descriptor.kind] then
+      refused[name] = true
+      problems[#problems + 1] = { where = tostring(identity) .. " action " .. name,
+        why = "the descriptor's field kind is '" .. descriptor.kind .. "', a kind the launcher "
+          .. "remembers and routes by rules of its own, so the action is refused and the rest of the plugin is still wired" }
+    elseif descriptor.kind == "special" and (opts.toolNames or {})[name] then
+      refused[name] = true
+      problems[#problems + 1] = { where = tostring(identity) .. " action " .. name,
+        why = "the descriptor's kind is special and its name is a registered tool's, so its row "
+          .. "would share that tool's memory, and the action is refused and the rest of the plugin is still wired" }
     else
-      actions[name] = answer[name]
+      actions[name] = descriptor
+      order[#order + 1] = name
     end
   end
-  return actions, refused, problems
+  return actions, refused, problems, order
 end
 
 --- obj.providedBindings(identity, manifest, module) -> rows, problems
@@ -996,35 +1006,36 @@ function obj.providedBindings(identity, manifest, module)
   return rows, problems
 end
 
---- obj.commandKey(manifests, meta, name) -> { key, mods, description, origin } or nil
---- The key a registered command binds on, for a name the plan has no directory for. A person's
---- override for the command's own name in meta wins, the same way it does for a tool, otherwise
---- whichever manifest declares a command by this
---- name ships its key. Walked rather than looked up, because a command is named inside its
---- owner's registry block and nothing records which plugin owns which command name, which is
---- right, since a command is deliberately not a tool of its own.
----
---- It lives here rather than inline in the composition root since phase four of the core split,
---- because the cheat sheet has to ask the same question the keymap asks. While only the root knew
---- it, the sheet looked a command up through the plan, found no directory and no key, and
---- dropped every command bound on a leader without a word. The description rides along so the
---- sheet labels the row with the words its launcher row already wears. The origin says whether
---- the key is the person's override or the manifest's own, which the keymap records per row.
-function obj.commandKey(manifests, meta, name)
-  local info = (meta or {})[name]
-  local declared = nil
-  for _, m in pairs(manifests or {}) do
-    local found = ((m.registry or {}).commands or {})[name]
-    if found then declared = found break end
+--- obj.retiredFields(identity, manifest) -> problems
+--- The manifest fields that were a second way to declare something runnable or to suggest a
+--- key, each named with what replaced it. Phase 2b of the keymap plan retired three. A command
+--- in registry.commands became an action descriptor, and a tool's or a host's own open key,
+--- defaults.key and defaults.mods, became a defaults.bindings row whose action is open. Nothing
+--- reads a retired field any more, so a manifest still declaring one would lose that key or that
+--- row in silence, and this is what says so, one problem per field, the root's wiring report
+--- printing each. The plugin is still wired, and only what the retired field declared is refused.
+--- defaults.leader is not one of them. It stays, the role every bindings row of the plugin
+--- inherits when the row names none, which is a default for a field rather than a key.
+local RETIRED = {
+  { section = "registry", field = "commands",
+    now = "an action descriptor in provides.actions, with its key in a defaults.bindings row" },
+  { section = "defaults", field = "key",
+    now = "a defaults.bindings row whose action is open" },
+  { section = "defaults", field = "mods",
+    now = "the mods of a defaults.bindings row whose action is open" },
+}
+
+function obj.retiredFields(identity, manifest)
+  local problems = {}
+  for _, retired in ipairs(RETIRED) do
+    local section = type(manifest) == "table" and manifest[retired.section] or nil
+    if type(section) == "table" and section[retired.field] ~= nil then
+      problems[#problems + 1] = { where = tostring(identity),
+        why = retired.section .. "." .. retired.field .. " is retired, replaced by " .. retired.now
+          .. ", so it is refused and nothing it declares is bound or listed" }
+    end
   end
-  local description = declared and type(declared.row) == "table" and declared.row.description or nil
-  if info and info.key then
-    return { key = info.key, mods = info.mods, description = description, origin = "user" }
-  end
-  if declared and declared.key then
-    return { key = declared.key, mods = declared.mods, description = description, origin = "default" }
-  end
-  return nil
+  return problems
 end
 
 --- obj.forWire(registry)

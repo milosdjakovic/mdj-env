@@ -54,14 +54,16 @@ return {
       surfaces  = { has = "surface" },
       scopes    = { provides = { "rows", "select" } },
       queryRows = { provides = { "queryRows" } },
-      -- Every plugin that adds rows to this catalog, and every plugin that runs a row it owns.
-      -- A contributor answers plain row descriptors from its own launcherRows member, built
-      -- from its own bindings or its own data, so moving one of its keys moves the row with
-      -- it instead of leaving a copy here to drift. A runner answers launcherRun, handed the
-      -- chosen row's item. The two are separate questions because a query row source may own
-      -- the rows it computes and run them without adding anything to the catalog. Asking the
-      -- set is what lets this host list window actions, screenshots and System Settings panes
-      -- while naming none of the plugins behind them.
+      -- Every plugin that adds rows to this catalog that are not actions, and every plugin that
+      -- runs a row it owns. A contributor answers plain row descriptors from its own launcherRows
+      -- member, built from its own data, the System Settings panes being the case today. A
+      -- runner answers launcherRun, handed the chosen row's item. The two are separate questions
+      -- because a query row source may own the rows it computes and run them without adding
+      -- anything to the catalog. A plugin's actions are not asked for here at all. Olm builds a
+      -- row from every listed action descriptor, with the chord the keymap binds it to, and runs
+      -- a chosen one through that descriptor, so screenshots, window actions and the clipboard's
+      -- actions are listed with no plugin building a row. Asking the set and reading the
+      -- descriptors is what lets this host list all of it while naming none of the plugins.
       launcherRows = { provides = { "launcherRows" } },
       launcherRun = { provides = { "launcherRun" } },
       -- Every plugin that knows something about an installed app's row, the chord that brings
@@ -124,17 +126,23 @@ return {
       -- need neither, they come from a disk scan.
       appDetails = { source = "root", policy = "optional",
         breaks = "no app row names the chord that brings its app forward, and an app row a toggle points at a pane opens the app instead" },
-      -- One supplier per plugin answering the launcherRows set above, in the set's order, each
-      -- a function answering that plugin's rows with the plugin's identity already stamped as
-      -- the owner on every item. Root assembled because only the root may resolve a member on
-      -- another plugin's module, and stamped there so a plugin never has to know its own
-      -- identity for the routing to work.
+      -- One supplier per plugin answering the launcherRows set above, in the set's order, then
+      -- one per plugin with a listed action descriptor, in plan order, each a function answering
+      -- that plugin's rows with the plugin's identity already stamped as the owner on every
+      -- item. Root assembled because only the root may resolve a member on another plugin's
+      -- module and only the root holds the keymap a row's chord comes from, and stamped there so
+      -- a plugin never has to know its own identity for the routing to work.
       rowSuppliers = { source = "root", policy = "optional",
-        breaks = "no screenshot, window action, System Settings pane or settings search row is listed, since nothing hands over the rows those plugins contribute" },
+        breaks = "no screenshot, window action, clipboard action, System Settings pane or settings search row is listed, since nothing hands over those rows" },
       -- Owner identity to a function running that owner's chosen row, one per plugin answering
-      -- the launcherRun set above. Root assembled for the same reason.
+      -- the launcherRun set above or answering a listed action, which runs the descriptor. Root
+      -- assembled for the same reason.
       runners = { source = "root", policy = "optional",
         breaks = "choosing a contributed row, a screenshot, a window action, a typed window size or a System Settings pane, does nothing at all" },
+      -- The chord a registered tool's row names, asked by the tool's name and answered from the
+      -- keymap, since a tool's open key is a keymap row rather than a field of its registry row.
+      chordOf = { source = "root", policy = "optional",
+        breaks = "a registered tool's row names no chord, so a key that opens it is found only on the cheat sheet" },
       -- The shared predicate registry, gating a row's `when` the same way a Hyper context
       -- binding does.
       predicates = { source = "root", policy = "optional",
@@ -188,7 +196,8 @@ return {
   -- nothing.
   defaults = {
     leader = "app",
-    key = "space",
+    -- The open key, a bindings row whose action is open, on the leader above.
+    bindings = { { action = "open", key = "space" } },
     description = "Launcher",
     icon = "launcher",
 

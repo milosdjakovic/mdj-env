@@ -82,8 +82,8 @@ argument along by one, and your list quietly answers nothing forever.
 
 ## What that alone buys you
 
-Declare only those two members, plus `registry` for a row and a key and `surface` for a
-context, and all of this already works.
+Declare only those two members, plus `registry` for a row, a `defaults.bindings` row whose action
+is `open` for a key, and `surface` for a context, and all of this already works.
 
 Your leader key opens you standalone, the root asking the registry for your presentation and
 handing it to the stage as a fresh stack of one.
@@ -371,9 +371,7 @@ names really does go quiet.
 - `Registry refused '%s', its surface is present and is not a function`
 - `Registry refused '%s', its shortcut is '%s', neither 'leader' nor 'global'`
 - `Registry refused '%s', its shortcut has nothing to bind`
-- `Registry refused '%s', its command '%s' collides with its own tool name`
-- `Registry refused '%s', its command '%s' collides with '%s' already registered`
-- `Registry refused '%s', its command '%s' is not a function or a table with a callable fn`
+- `Registry refused '%s', it carries commands, which retired, an action descriptor in provides.actions replaces each`
 - `Registry refused '%s', its scope is present and is not a table`
 - `Registry refused '%s', its scope has no rows function`
 - `Registry refused '%s', its scope has no run function`
@@ -388,12 +386,24 @@ names really does go quiet.
 The root, on what a plugin can run, after every plugin's wiring and before any key is bound.
 Each is one line in the wiring report, and costs only the action, the row or the key it names.
 
+- `wire, retired, <plugin>, registry.commands is retired, replaced by an action descriptor in provides.actions, with its key in a defaults.bindings row, so it is refused and nothing it declares is bound or listed`
+- `wire, retired, <plugin>, defaults.key is retired, replaced by a defaults.bindings row whose action is open, so it is refused and nothing it declares is bound or listed`
+- `wire, retired, <plugin>, defaults.mods is retired, replaced by the mods of a defaults.bindings row whose action is open, so it is refused and nothing it declares is bound or listed`
 - `wire, actions, <plugin>, provides.actions names no member, so none of its actions can run`
+- `wire, actions, <plugin>, provides.actions answers a table keyed by string rather than a list of descriptors each naming itself in name, so none of its actions can run`
+- `wire, actions, <plugin> action <n>, the descriptor's field name is missing, and an action in the list names itself, so it is refused`
+- `wire, actions, <plugin> action <name>, a second descriptor takes the name, so it is refused and the first keeps it`
 - `wire, actions, <plugin> action <name>, the descriptor's field <field> is not a descriptor field, so the action is refused and the rest of the plugin is still wired`
 - `wire, actions, <plugin> action <name>, the descriptor's field <field> is a <type> where a descriptor takes <types>, so the action is refused and the rest of the plugin is still wired`
 - `wire, actions, <plugin> action <name>, the descriptor's field run is missing, and run is the one required field, so the action is refused and the rest of the plugin is still wired`
 - `wire, actions, <plugin> provided row <n>, the row has no function in fn, so it is not bound`
 - `wire, keymap, <plugin> <action>, the bindings row answers no function to run, so <leader> <key> is not bound`
+- `wire, keymap, <plugin> <action>, the bindings row states leader false and no mods, and a key with neither a leader nor a modifier would be taken from every app, so it is not bound`
+- `wire, keymap, <plugin> <action>, the bindings row names a leader that is a <type>, where a row takes a role word or false, so it is not bound`
+
+One more comes from the resolver while the plan is drawn, about the person's own file.
+
+- `override, <plugin>, config/plugins.lua sets key or mods for '<plugin>', which has no bindings row whose action is open, so the key is not bound`
 - `wire, keymap, <plugin> <action>, no engine binds on the leader <leader>, so <leader> <key> is not bound`
 
 `lib/services.lua` answers one more question separately, `owed`, every `source = "root"` need
@@ -416,9 +426,9 @@ costs you a key that does nothing with no line anywhere. `registry.open` and eve
 `registry.scope` member used to share that gap and no longer do, the dry gate's own
 `checkRegistryMembers` resolves both against the real module the identical way it resolves a
 presentation member, step 9 of the build order below. Presentation members are checked at the
-live wiring layer too, register, stage five; `registry.open`, `registry.scope`, and every
-`registry.commands.*.fn` are checked only by the gate, never by a live reload, so running it is
-what stands between a typo there and a key that does nothing.
+live wiring layer too, register, stage five. `registry.open` and `registry.scope` are checked only
+by the gate, never by a live reload, so running it is what stands between a typo there and a key
+that does nothing.
 
 A `matcher = false` level over a long list would show an unfiltered list, which is why the dry
 gate refuses one without a `search-exempt` reason. Declare it only where the field is input. The row fields `pinned`, `fromQuery`, `tier` and
@@ -550,7 +560,8 @@ declare it like any other.
 
 ```lua
 icons = { vpn = { emoji = "🌐", sf = "globe" } },
-defaults = { leader = "app", key = "P", description = "VPN", icon = "vpn" },
+defaults = { leader = "app", description = "VPN", icon = "vpn",
+  bindings = { { action = "open", key = "P" } } },
 ```
 
 A key `defaults.icon` names that `icons` does not declare is refused at register with one console
@@ -589,8 +600,8 @@ a thumbnail is content and is the one kind of drawing that may stay in a plugin,
 ## Keys on a leader
 
 A plugin never binds a key. It says what it can run and which keys it would like, and Olm binds
-them. What it can run is `provides.actions`, a member answering a table keyed by action name, or a
-table itself, each value a descriptor whose one required field is `run`.
+them. What it can run is `provides.actions`, a member answering a list of descriptors, or a list
+itself, each naming its action in `name` and carrying `run`, the two required fields.
 
 ```lua
 provides = { actions = "actions" },
@@ -598,7 +609,7 @@ defaults = {
   leader = "window",
   bindings = {
     { action = "leftHalf", key = "left" },
-    { action = "moveLeft", key = "a", repeats = true },
+    { action = "moveLeft", key = "a" },
   },
 },
 ```
@@ -606,41 +617,45 @@ defaults = {
 ```lua
 function obj:actions()
   return {
-    leftHalf = { run = function() self:leftHalf() end },
-    moveLeft = { run = function(depth) self:moveByPixels("left", self:_moveStep(depth)) end },
+    { name = "leftHalf", run = function() self:leftHalf() end,
+      description = "Left Half", subtitle = "Window", icon = "windows", kind = "window" },
+    { name = "moveLeft", run = function(depth) self:moveByPixels("left", self:_moveStep(depth)) end,
+      repeats = true, description = "Move Left", subtitle = "Window", icon = "windows", kind = "window" },
   }
 end
 ```
 
 `run` is called with the hold depth, 0 on the press and counting up while a key with `repeats`
 is held, and an action that does not repeat ignores it. The member is asked once, after your
-`configure` and wiring have run, so a table built in `configure` is there. A descriptor may
-also carry `description`, `subtitle`, `icon`, `keywords`, `repeats`, `when`, `group`, `kind`,
-`app` and `listed`, each checked by type, and these are what later surfaces will read. A field
+`configure` and wiring have run, so a list built in `configure` is there, and the list's order is
+the order your rows take. A descriptor may also carry `description`, `subtitle`, `icon`,
+`keywords`, `repeats`, `when`, `group`, `kind`, `app` and `listed`, each checked by type. A field
 that is not one of these, or one of the wrong type, refuses that action with one problem line
-naming your plugin, the action and the field, and the rest of the plugin is still wired.
+naming your plugin, the action and the field, and the rest of the plugin is still wired. A fact
+about the action belongs on the descriptor, `repeats` for a step worth repeating while its key is
+held and `when` for a predicate that gates it live, so a binding is only an action and a key.
 
 The keys you suggest are your `bindings`, each naming an action, a key and optional `mods`, on
-the leader your `defaults.leader` names by role, `app` or `window`. Olm builds one keymap row
-per binding and binds it on that leader to the descriptor its action names, the binding's
-`when` and `repeats` travelling with it, so a binding never names a keycode. A binding whose
-action you do not answer is reported and left unbound. Windowmanager is the worked example on
-the window leader and capture on the app leader. A binding's `repeats = true` marks a step worth
-repeating while the key is held, and its `when` names a predicate the leader checks live, a
-false one making the key a swallowed no op on the window leader.
+the leader your `defaults.leader` names by role, `app` or `window`. A row may name its own role in
+`leader`, or `leader = false` for a plain combination on no leader, which must state its `mods`,
+the clipboard's append copy and paste next on Control and Option being the case. Your tool's own
+open key is the row whose action is `open`, there is no other field for it, and `defaults.leader`
+is the role every row stating none inherits. Olm builds one keymap row per binding and binds it
+on its leader to the descriptor its action names, the descriptor's `when` and `repeats`
+travelling with it, so a binding never names a keycode. A binding whose action you do not answer
+is reported and left unbound. Windowmanager is the worked example on the window leader and capture
+on the app leader. A false `when` makes the key a swallowed no op on the window leader.
 
-Your tool's own open key, `defaults.key` with `registry.shortcut = "leader"`, sits on whichever
-leader `defaults.leader` names, the window leader included. It is not refused there any more,
-since the keymap binds every row on its own leader. The window sheet still lists only the
-`bindings` of plugins on that leader, so an open key there is bound and not yet on the sheet.
+Your tool's open row, with `registry.shortcut = "leader"`, sits on whichever leader the row
+names, the window leader included. It is not refused there, since the keymap binds every row on
+its own leader.
 
-You write nothing for the sheet. The root walks the plan for every binding declared on the
-window leader and the held window sheet draws it, with `when` hiding the row and the key
-together and `description` replacing the label humanized from the action name. A person moves
+You write nothing for either sheet. Holding a leader shows every row the keymap holds on it, the
+window sheet with `when` hiding the row and the key together and the `description`, the
+binding's or the descriptor's, replacing the label humanized from the action name. A person moves
 the whole leader to another physical key in `config/keys.lua`, and no plugin changes. The sheet
-is one of the two places every key must be found. The launcher is the other, and a plugin puts
-its keyed actions there itself, as the next section says, which is what the window manager does
-for its window rows.
+is one of the two places every key must be found. The launcher is the other, and you write nothing
+there either, as the next section says.
 
 Never call `hs.hotkey.bind`, `hs.hotkey.new`, or a leader engine's `bind` from a plugin or a
 host. The dry gate refuses all three under `plugins/` and `host/`, see
@@ -648,35 +663,51 @@ host. The dry gate refuses all three under `plugins/` and `host/`, see
 
 ## Rows in the launcher's own catalog
 
-A registered tool gets its one launcher row from its `registry` block. A plugin whose separate
-actions each deserve a row, four screenshot actions, sixteen window actions, thirty nine System
-Settings panes, contributes them to the launcher's own catalog instead, with two members.
+A registered tool gets its one launcher row from its `registry` block. Every action you answer
+gets a row too, and you build none of them. Olm builds the row from the descriptor, its title the
+`description`, its subtitle the `subtitle` followed by the chord the keymap binds, its icon the
+`icon`, its search terms the `keywords`, and its `when` hiding it live. Choosing the row runs the
+descriptor with no argument. An action with no row worth showing, one only another plugin calls
+or one that needs an argument a row cannot carry, says `listed = false`.
+
+The kind and the name are a memory key. The launcher remembers picks in `hs.settings` as the row's
+kind joined to its name, and an action's kind is its `kind`, else your identity. Pick them once,
+since renaming either makes the launcher forget every time a person chose that row. That is why
+capture's actions say `kind = "capture"`, the window manager's `kind = "window"` and the
+clipboard's `kind = "special"`, each the word its rows were remembered by before they were
+descriptors, and why the launcher's window scope finds the window rows by their kind.
+
+Where your rows sit is `defaults.launcherOrder`, a number compared with every other
+contributor's, and the contract lists the shipped numbers, so choose one in a gap between them. A
+registered tool's actions sit directly after the tool's own row instead, which is where the
+clipboard's three are.
+
+A row that is not an action, a settings pane or a computed size, still comes from two members.
 
 ```lua
 provides = { launcherRows = "launcherRows", launcherRun = "launcherRun" },
 ```
 
-`launcherRows` answers a list of plain rows, built from your own effective bindings or your own
-data so a key moved in the person's config moves its row too. Keep the bindings your
-`configure` receives, `opts.bindings` and `opts.leader`, and build from those.
+`launcherRows` answers a list of plain rows built from your own data, the same shape Olm builds
+for an action, and `launcherRun` is handed a chosen row's whole item back.
 
 ```lua
 function obj:launcherRows()
   local rows = {}
-  for _, b in ipairs(self._bindings or {}) do
+  for _, pane in ipairs(self._panes or {}) do
     rows[#rows + 1] = {
-      title = b.description,
-      group = "Capture",
-      chord = { leader = self._leader, key = b.key, mods = b.mods },
-      icon = b.icon,
-      item = { kind = "capture", name = b.action },
+      title = pane.title,
+      group = "System Settings",
+      icon = pane.icon,
+      keywords = pane.keywords,
+      item = { kind = "settingsPane", name = pane.id, key = pane.url },
     }
   end
   return rows
 end
 
 function obj:launcherRun(item)
-  self:capture(item.name)
+  self:open(item.key)
 end
 ```
 
@@ -685,18 +716,16 @@ Four rules, each one a way this goes wrong without a sound.
 A row is data. Never put a function in a row or its item, since the launcher hands every row to
 `hs.chooser`, which drops a row holding one, and the list comes up without it.
 
-Name the chord rather than spelling it. Give `group` and `chord` with the leader as a role, and
-the launcher spells the subtitle with the same speller the hint bar uses. A finished `subTitle`
-is for a row with no key, and it is taken as it stands.
+Name the chord rather than spelling it. Give `group` and `chord` with the leader as a role, or
+`false` for a plain combination, and the launcher spells the subtitle with the same speller the
+hint bar uses. A finished `subTitle` is for a row with no key, and it is taken as it stands.
 
 Your run gets the whole item back. Olm stamps your identity on every item as `owner`, and the
 launcher routes a chosen row to your `launcherRun` by it, after the list has closed and focus has
 gone back to the app underneath. Read the fields you put there yourself.
 
-The kind and the name are a memory key. The launcher remembers picks in `hs.settings` as the
-kind joined to the item's `key`, or to its name when it states no key. Pick them once, since
-renaming either makes the launcher forget every time a person chose that row. A row computed
-from what was typed states `remember = false` and is never remembered at all.
+The memory key is the kind joined to the item's `key`, or to its name when it states no key. A row
+computed from what was typed states `remember = false` and is never remembered at all.
 
 `icon` is a key into your own manifest icons, read against your identity like every row icon.
 `when` names a predicate that hides the row live, the way a window binding's gate hides its key.
@@ -709,19 +738,17 @@ person types as one thing, `"dnd, do not disturb, quiet hours"`, never a sentenc
 matches where one of its words starts with a query word, or when a phrase is typed run together
 from its start, donotd for do not disturb. It always ranks below any match in the title, and the
 words of a query match on their own, with a bonus when all of them land in one phrase in order.
-The same rules hold for a tool's `row.keywords` and a settings pane's keywords.
-`lib/chooser/rank.lua` states the row vocabulary. Where your rows sit is `defaults.launcherOrder`,
-a number compared with every other contributor's, and a single row may state its own `order`
-to sit apart from the rest of yours. The contract lists the shipped numbers, so choose one in a
-gap between them.
+The same rules hold for a tool's `row.keywords`, a descriptor's `keywords` and a settings pane's.
+`lib/chooser/rank.lua` states the row vocabulary. A single row may state its own `order` to sit
+apart from the rest of yours.
 
 A query row source owns the rows it computes too, so one that wants a chosen row run by itself
 declares `launcherRun` alone and leaves `launcherRows` out. Window Size is that case.
 
 ## Sections on a leader's cheat sheet
 
-Holding a leader shows every key bound on it. A key your manifest declares, your own `key`, your
-`bindings`, a registry command on the leader, is collected by Olm and listed without you doing
+Holding a leader shows every key bound on it. A key your manifest declares, your open row and
+every other row of your `bindings`, is read from the keymap and listed without you doing
 anything. Only a plugin that builds keys from data the manifest does not spell as bindings needs
 more, and it supplies its own sections.
 
@@ -786,7 +813,8 @@ disagreement between your declaration and the map. The full rule is in the repos
    lines at the repository root.
 3. `init.lua` with `configure(opts)`, plus the `rows` and `select` members the presentation
    will name.
-4. `defaults`, then `registry` with a row `category` and an `open`, which earns the launcher
+4. `defaults`, its `bindings` holding a row whose action is `open` with the key you suggest,
+   then `registry` with a row `category`, an `open` and a `shortcut`, which earns the launcher
    row, the word, and the key.
 5. `surface` with a `context` spelled exactly as your identity, and the primary key.
 6. `presentation` with `rows` and `select` only, table form, `call` stated, nothing else yet.

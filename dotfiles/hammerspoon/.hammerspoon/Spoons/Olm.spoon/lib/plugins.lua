@@ -665,9 +665,24 @@ function obj.order(manifests, blocked)
   -- answer. Keeping that edge would report a cycle for a plugin that never actually
   -- waits on anything, and a cycle here is fatal for the whole plan, so a plugin's own
   -- name is dropped from what its own queries return before it ever becomes an edge.
+  -- Every field walked in sorted order, the same reason the entry order below is sorted. The
+  -- edges of one plugin were read with pairs, so which dependency a walk visited first, and so
+  -- where it landed in the order, varied from one load to the next even with the entry order
+  -- fixed, and the registry, the launcher's catalog and every list built in plan order moved
+  -- with it. Found by the launcher golden of phase 2b of the keymap plan, two runs in six of an
+  -- unchanged tree listing the registered tools in another order.
+  local function sortedValues(t)
+    local keys = {}
+    for k in pairs(t or {}) do keys[#keys + 1] = k end
+    table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
+    local out = {}
+    for i, k in ipairs(keys) do out[i] = t[k] end
+    return out
+  end
+
   local function dependenciesOf(name, m)
     local deps = {}
-    for _, value in pairs((m.needs or {}).siblings or {}) do
+    for _, value in ipairs(sortedValues((m.needs or {}).siblings)) do
       local sib = normalizeSibling(value)
       -- A lazy need, ordering false, still has to exist and is still checked by
       -- capabilities and cascade exactly like any other need. It contributes no edge
@@ -676,7 +691,7 @@ function obj.order(manifests, blocked)
       -- the first one.
       if sib.plugin and sib.plugin ~= name and sib.ordering then deps[#deps + 1] = sib.plugin end
     end
-    for _, query in pairs((m.needs or {}).set or {}) do
+    for _, query in ipairs(sortedValues((m.needs or {}).set)) do
       for _, member in ipairs(obj.set(manifests, query, blocked)) do
         if member ~= name then deps[#deps + 1] = member end
       end

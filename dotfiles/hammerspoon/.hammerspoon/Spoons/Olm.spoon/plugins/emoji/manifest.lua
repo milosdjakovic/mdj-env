@@ -91,7 +91,8 @@ return {
   -- whole word.
   defaults = {
     leader = "app",
-    key = "j",
+    -- The open key, a bindings row whose action is open, on the leader above.
+    bindings = { { action = "open", key = "j" } },
     description = "Emoji picker",
     icon = "emoji",
     aliases = { "e", "em", "emoji" },

@@ -45,11 +45,12 @@ local M = {}
 -- generic fan out every ordinary plugin's own root sourced need is answered from. The other
 -- five are root/compose.lua's own hand built option tables for the host modules that bypass
 -- that fan out entirely, hypercheatsheet, queryscope, actionpanel, and stage, plus
--- queryScopeLate and launcherOpts, both built later and folded into lateData rather than
--- wireData, for queryscope's own second pass and the launcher.
+-- queryScopeLate, launcherOpts and windowCheatSheetLate, built later and folded into lateData
+-- rather than wireData, for queryscope's own second pass, the launcher and the window sheet,
+-- whose rows are the keymap's and exist only once it is built.
 M.TABLE_NAMES = {
   "rootValues", "hyperCheatSheetOpts", "queryScopeOpts", "queryScopeLate",
-  "actionPanelOpts", "stageOpts", "launcherOpts",
+  "actionPanelOpts", "stageOpts", "launcherOpts", "windowCheatSheetLate",
 }
 
 local function stripCommentsAndStrings(src)

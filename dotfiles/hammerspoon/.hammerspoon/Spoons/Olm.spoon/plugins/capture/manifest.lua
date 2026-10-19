@@ -74,17 +74,12 @@ return {
 
   -- What this plugin can run is its actions, one descriptor per capture action, and Olm binds
   -- the keys the bindings below suggest to those descriptors, so this plugin binds nothing. It
-  -- has no picker and no registration of its own, so it would appear in the launcher's list
-  -- nowhere at all, yet its four actions are exactly the kind of thing a person looks for by
-  -- typing screenshot. Declaring launcherRows is how it says that each of its own keyed actions
-  -- deserves a row, which the launcher asks the set for rather than naming this plugin, and
-  -- launcherRun is how a chosen row comes back here to run. The rows are built from the
-  -- bindings below, so a key moved here moves in the list too and no copy of it exists anywhere
-  -- else.
+  -- has no picker and no registration of its own, yet its four actions are exactly the kind of
+  -- thing a person looks for by typing screenshot, and Olm lists every action a plugin answers in
+  -- the launcher's own catalog, its title, icon and subtitle from the descriptor and its chord
+  -- from the keymap, so a key moved moves its row too and this plugin supplies no row at all.
   provides = {
     actions = "actions",
-    launcherRows = "launcherRows",
-    launcherRun = "launcherRun",
   },
 
   defaults = {
@@ -95,10 +90,10 @@ return {
     -- config/plugins.lua like any default.
     launcherOrder = 10,
     bindings = {
-      { action = "ocrArea", key = "3", description = "OCR", icon = "ocr" },
-      { action = "captureAreaClipboard", key = "4", description = "Screenshot (copy)", icon = "screenshot" },
-      { action = "captureArea", key = "4", mods = { "shift" }, description = "Screenshot", icon = "screenshot" },
-      { action = "recordArea", key = "5", description = "Record screen", icon = "record" },
+      { action = "ocrArea", key = "3" },
+      { action = "captureAreaClipboard", key = "4" },
+      { action = "captureArea", key = "4", mods = { "shift" } },
+      { action = "recordArea", key = "5" },
     },
   },
 }

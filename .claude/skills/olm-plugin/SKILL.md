@@ -58,7 +58,8 @@ consistent, and more discoverable than the one below it.
 
 1. No list at all. A plugin whose whole job is an action declares its actions as descriptors
    under `provides.actions`, suggests their keys in `defaults.bindings`, and shows nothing, and
-   a watcher declares wiring. WindowManager and Capture are the settled examples. The recipe is
+   Olm gives every listed action its key, its cheat sheet row and its launcher row. A watcher
+   declares wiring. WindowManager and Capture are the settled examples. The recipe is
    written for list tools, so for this shape read its "Keys on a leader" section and the
    contract's `provides` and `wiring` sections. Do not invent a list so the plugin has a face.
 2. A typed word. When the thing beneath a row can be reached by typing, prefer a scope, the
@@ -228,16 +229,28 @@ held, never to bind on it, and the cheatsheet renderer for the hosts that draw a
 value, and the vocabulary is deliberately shared, so grep the other manifests and reuse an
 existing word before minting a new one, since a vocabulary of one word per plugin is a
 vocabulary nobody can pay. Siblings exist and are rare, prefer not needing one, and a sibling
-never names a host. A plugin whose actions deserve rows in the launcher's own catalog declares
-`provides.launcherRows` and `provides.launcherRun` instead, the contract has the row shape and
-the authoring guide has the walk through.
+never names a host.
 
-A plugin never binds a key. Declaring `provides.actions`, a table of descriptors keyed by action
-name with `run` required, plus a `defaults.bindings` row naming each action, earns every one of
-those keys bound on the leader the plugin's `defaults.leader` names by role, through the core's
-one binder, with a malformed descriptor refused by name and the rest still wired. A registry
-tool's own open key binds on whichever leader its defaults name, the window leader included. A
-plugin whose keys are built from the person's data rather than declared answers complete rows
+A plugin never binds a key and never builds a launcher row for something it can run. Declaring
+`provides.actions`, a list of descriptors each with `name` and `run` required, plus a
+`defaults.bindings` row naming each action, earns every one of those keys bound on its leader
+through the core's one binder, and every action not marked `listed = false` a row in the
+launcher's own catalog built by Olm from the descriptor's description, subtitle, icon, keywords,
+gate and kind, with the chord the keymap binds, run through the descriptor when chosen. A
+malformed descriptor is refused by name and the rest is still wired. The list's order is the
+rows' order, and a descriptor states `kind` exactly when its rows must keep a memory key they had
+before, since kind and name are what the launcher remembers. A fact about the action, that it
+repeats or that a predicate gates it, goes on the descriptor, so a binding is an action and a
+key. `provides.launcherRows` and `provides.launcherRun` remain only for rows that are not actions,
+a pane list or a row computed from typing, and the contract has that row shape.
+
+`defaults.bindings` is the only way a plugin suggests a key. A tool's or a host's own open key is
+the row whose action is `open`, a row may name its own role or `leader = false` for a plain
+combination that then states its modifiers, and a row naming none inherits `defaults.leader`,
+which stays as that default role. `defaults.key`, `defaults.mods` and `registry.commands` are
+retired and refused by name with what replaced them. A registry tool's open row binds on whichever
+leader it names, the window leader included, and both sheets read the keymap, so a key is listed
+where it is bound. A plugin whose keys are built from the person's data rather than declared answers complete rows
 through `provides.bindings`, a bridge the app toggler alone uses until its actions are built from
 data, and declares `provides.cheatSheetSections` so those keys reach its leader's sheet, which
 otherwise lists only what the manifests declare. Its `defaults.leader` decides which sheet
@@ -245,9 +258,10 @@ receives the sections, a supplier with none, or on a leader whose sheet does not
 sheet and is logged, and one that has an app's chord declares `provides.launcherAppDetails` so
 the launcher's row for that app names it.
 
-Configuration splits three ways. The plugin proposes its own `defaults`, a leader role, a key,
-aliases, an icon, and a person overrides them outside the plugin, rebinding a physical key only
-in that plugin's entry in `config/plugins.lua`, so no other file ever names one. Person supplied policy arrives as `needs.data` with `source = "user"`,
+Configuration splits three ways. The plugin proposes its own `defaults`, a leader role, its
+`bindings`, aliases, an icon, and a person overrides them outside the plugin, rebinding a key only
+in that plugin's entry in `config/plugins.lua`, so no other file ever names one. A person's `key`
+there still moves the plugin's open row until the keymap plan's own person file arrives. Person supplied policy arrives as `needs.data` with `source = "user"`,
 always optional, always with a `breaks` sentence and a working fallback.
 
 A field on that configuration surface prefers a structural value over a loose quoted word, a
@@ -274,8 +288,9 @@ In order, before anything merges.
 1. `./src/check-dependencies.sh` clean, from the repository root.
 2. The dry gate, `Spoons/Olm.spoon/test/drygate.sh` under `dotfiles/hammerspoon/.hammerspoon`,
    lock free and instant. Run it and read
-   the line naming your tool. It is the only thing that checks `registry.open`, scope members,
-   and command functions, so skipping it is how a typo becomes a key that does nothing. It also
+   the line naming your tool. It is the only thing that checks `registry.open` and scope members
+   before a load, and it names a retired manifest field, so skipping it is how a typo becomes a
+   key that does nothing. It also
    fails on any file outside `plugins/` that names a plugin, so core never learns your name, and
    it runs the composition root a second time with every plugin renamed and fails on any
    difference. A difference after a manifest change usually means the manifest names an

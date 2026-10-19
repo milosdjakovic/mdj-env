@@ -292,11 +292,24 @@ function obj.new(deps)
 
     -- 6. Merge each plugin's proposed defaults under the user's own configuration, keeping the
     -- provenance so every effective value can say where it came from.
+    --
+    -- A person's key and mods for a plugin are carried onto its open bindings row rather than
+    -- merged as fields of their own, since defaults.key retired in phase 2b of the keymap plan.
+    -- lib/defaults.lua's splitOpenKey says why, and phase 7 retires the translation. The
+    -- provenance is taken from the override as the person wrote it, so the key still reads as
+    -- theirs.
     for _, name in ipairs(order) do
       local proposed = (live[name].defaults) or {}
       local mine = userConfig[name]
-      out.effective[name] = D.merge(proposed, mine)
+      local rest, openKey = D.splitOpenKey(mine)
+      out.effective[name] = D.merge(proposed, rest)
+      -- A person's bindings list that states no open row keeps the plugin's own, see keepOpenRow.
+      D.keepOpenRow(proposed, mine, out.effective[name])
       out.provenance[name] = D.provenance(proposed, mine)
+      if openKey and not D.applyOpenKey(out.effective[name], openKey) then
+        problem("override", name, "config/plugins.lua sets key or mods for '" .. tostring(name)
+          .. "', which has no bindings row whose action is open, so the key is not bound")
+      end
     end
 
     -- 7. Collisions between what two plugins proposed, which is the alias half only now. Keys

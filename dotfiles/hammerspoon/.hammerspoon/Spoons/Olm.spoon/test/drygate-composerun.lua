@@ -70,6 +70,12 @@
 -- stub then answers it, otherwise a key is only lowercased. Every tool a plugin declares is
 -- reported present, so no plugin is left out for a missing program. The snapshot is not written.
 --
+-- THE VIEWS MODE, used by test/views.sh. With DRYGATE_VIEWS set to launcher or to sheets, the run
+-- stops after the root finishes and writes what the launcher's own catalog holds, or what each
+-- leader's cheat sheet would draw, through test/launcher-project.lua or test/sheets-project.lua,
+-- the same projections the live probes use, so the offline answer and the live one compare byte
+-- for byte. It answers tools the way the keymap mode does.
+--
 -- THE BOUND MODE, the second half of the same proof. With DRYGATE_BINDS set, every call into the
 -- two leader engines' bind and into hs.hotkey.bind is recorded as it happens, and the run writes
 -- what was actually bound rather than what the keymap declares. DRYGATE_BINDS=golden writes one
@@ -84,6 +90,8 @@ local scriptDir = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local bindMode = os.getenv("DRYGATE_BINDS")
 if bindMode == "" then bindMode = nil end
 local bindCalls = {}
+local viewsMode = os.getenv("DRYGATE_VIEWS")
+if viewsMode == "" then viewsMode = nil end
 local keycodesPath = os.getenv("DRYGATE_KEYCODES")
 local realKeycodes = keycodesPath and keycodesPath ~= "" and dofile(keycodesPath) or nil
 if not (spoonDir and hsRoot and sandbox) then
@@ -293,8 +301,17 @@ fs.dir = recorded("hs.fs.dir", function(path)
   local i = 0
   return function() i = i + 1 return all[i] end, {}
 end)
+-- The modes that report every declared tool present answer a tool at a fixed system path the
+-- same way, a file, since the listing above covers only the two trees. Only the system binary
+-- directories are answered, so nothing a plugin keeps elsewhere is invented.
+local everyToolPresent = os.getenv("DRYGATE_KEYMAP") == "1" or bindMode ~= nil or viewsMode ~= nil
+local SYSTEM_BIN = { ["/usr/bin"] = true, ["/bin"] = true, ["/usr/sbin"] = true, ["/sbin"] = true }
 fs.attributes = recorded("hs.fs.attributes", function(path, field)
   local mode = kinds[clean(path)]
+  if not mode and everyToolPresent then
+    local dir = clean(path):match("^(.*)/[^/]+$")
+    if dir and SYSTEM_BIN[dir] then mode = "file" end
+  end
   if not mode then return nil end
   if field == nil then return { mode = mode } end
   if field == "mode" then return mode end
@@ -323,7 +340,7 @@ hs.execute = recorded("hs.execute", function() return "", true, "exit", 0 end)
 -- way they are on the machine the golden was taken on. Otherwise a plugin whose required tool
 -- is absent here is left out of the plan, and its keys with it, which says nothing about the
 -- read model. The probe is one command v call naming every locator, so each name is answered.
-if os.getenv("DRYGATE_KEYMAP") == "1" or bindMode then
+if os.getenv("DRYGATE_KEYMAP") == "1" or bindMode or viewsMode then
   hs.execute = function(command)
     local out = {}
     for name in tostring(command):gmatch("%S+") do
@@ -564,6 +581,36 @@ if os.getenv("DRYGATE_KEYMAP") == "1" then
     if line:match("^log %S+ e ") or line:match("^log %S+ w ") then io.stderr:write(line, "\n") end
   end
   io.stdout:write(table.concat(project.project(keymap.rows, keys.windowLeader), "\n"), "\n")
+  os.exit(0)
+end
+
+if viewsMode then
+  debug.sethook()
+  recording = false
+  local record = olm and olm._composed
+  if type(record) ~= "table" then
+    io.stderr:write("the composition root recorded nothing\n")
+    os.exit(1)
+  end
+  for _, line in ipairs(lines) do
+    if line:match("^log %S+ e ") or line:match("^log %S+ w ") then io.stderr:write(line, "\n") end
+  end
+  local identity = (record.plan and record.plan.identity) or {}
+  local out
+  if viewsMode == "launcher" then
+    local launcher = record.modules[identity.launcher or "launcher"]
+    if not launcher then
+      io.stderr:write("the composition root built no launcher\n")
+      os.exit(1)
+    end
+    out = assert(loadfile(scriptDir .. "launcher-project.lua"))().lines(launcher)
+  else
+    local glyphFor = olm.lib and olm.lib.cheatsheet and olm.lib.cheatsheet.glyphFor
+    out = assert(loadfile(scriptDir .. "sheets-project.lua"))().lines(
+      record.modules[identity.hypercheatsheet or "hypercheatsheet"],
+      record.modules[identity.windowcheatsheet or "windowcheatsheet"], glyphFor)
+  end
+  io.stdout:write(table.concat(out, "\n"), "\n")
   os.exit(0)
 end
 

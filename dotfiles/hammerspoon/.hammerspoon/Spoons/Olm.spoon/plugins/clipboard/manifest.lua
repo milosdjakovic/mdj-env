@@ -154,15 +154,32 @@ return {
     },
   },
 
-  -- No provides. The manager is not itself scoped by an alias.
+  -- What this plugin can run beyond opening its list, three actions on the manager, append copy,
+  -- paste next and the manage history page. They were registry commands until phase 2b of the
+  -- keymap plan, and they are action descriptors now, init.lua's actions, so Olm binds the keys
+  -- below to them and lists each as a launcher row beside this tool's own. The manager is not
+  -- itself scoped by an alias.
+  provides = {
+    actions = "actions",
+  },
 
   -- Hyper plus X opens the native manager. No icon and no aliases are set on this
   -- entry in config/plugins.lua, unlike most of the other pickers, so none are stated
-  -- here either.
+  -- here either. Append copy and paste next sit on global combinations, Control and Option
+  -- with C and V, rather than on a Hyper chord, because both act on whatever was frontmost a
+  -- moment ago rather than on a list that is already open, a different gesture that wants a
+  -- plain combination, and it is the only place either has ever lived. leader false is how a
+  -- row says it sits on no leader. Manage history has no key on purpose. It already has one
+  -- inside the picker, and a second global chord for a door one keystroke from the list it acts
+  -- on would be a key to remember for nothing, so its launcher row is how it is found.
   defaults = {
     leader = "app",
-    key = "X",
     description = "Clipboard history",
+    bindings = {
+      { action = "open", key = "X" },
+      { action = "appendCopy", key = "C", mods = { "ctrl", "alt" }, leader = false },
+      { action = "pasteNext", key = "V", mods = { "ctrl", "alt" }, leader = false },
+    },
   },
 
   -- Append copy and paste next sit on their own global combos rather than on this
@@ -286,10 +303,7 @@ return {
   },
 
   -- The base Hyper chord opens this plugin's own root, a colon method, so open needs no
-  -- call convention beyond the default. appendCopy and pasteNext belong to no plugin, they
-  -- are named actions this manager's own submodule answers as plain dot called functions
-  -- with no arguments, and each sits on a global combination rather than on the Hyper
-  -- leader, since that is the only place either has ever lived.
+  -- call convention beyond the default.
   registry = {
     row = { category = "Clipboard", icon = "clipboard" },
     -- open still stays, and still matters, the hotkey door this plugin's own leader key binds
@@ -311,42 +325,5 @@ return {
     -- system's own five never was.
     surface = "manager",
     shortcut = "leader",
-    --
-    -- Both ship a key of their own, which is the one thing this block was missing. A command
-    -- belongs to no plugin DIRECTORY, so the plan has no effective entry to resolve a key from
-    -- the way it does for a tool's own open key, and nothing anywhere else held an answer
-    -- either, so a fresh install bound neither and said so twice in the console. Control and
-    -- Alt rather than a Hyper chord because both act on whatever was frontmost a moment ago
-    -- rather than on a list that is already open, a different gesture that wants a plain
-    -- global combination, and it is the only place either has ever lived.
-    commands = {
-      -- The manage history page from the launcher, for the case where the picker is not open and
-      -- deleting a slice of history is the whole errand. No key and no shortcut, deliberately.
-      -- It already has one inside the picker, and a second global chord for a door that is one
-      -- keystroke away from the list it acts on would be a key to remember for nothing. The row
-      -- is how it is found, which is what a keyless command is for.
-      manageHistory = {
-        fn = { member = "manager.manageHistory", call = "dot" },
-        row = { category = "Clipboard", icon = "sweep",
-          description = "Manage clipboard history",
-          keywords = "clear history, wipe, prune, delete old" },
-      },
-      appendCopy = {
-        fn = { member = "manager.appendCopy", call = "dot" },
-        key = "C", mods = { "ctrl", "alt" },
-        row = { category = "Clipboard", chord = "modifier", icon = "append",
-          description = "Append copy",
-          keywords = "accumulate, add to clipboard, collect" },
-        shortcut = "global",
-      },
-      pasteNext = {
-        fn = { member = "manager.pasteNext", call = "dot" },
-        key = "V", mods = { "ctrl", "alt" },
-        row = { category = "Clipboard", chord = "modifier", icon = "pasteNext",
-          description = "Paste next",
-          keywords = "paste in order, sequential paste, paste stack" },
-        shortcut = "global",
-      },
-    },
   },
 }

@@ -63,7 +63,8 @@ return {
   -- dispatcher, rather than through a scope that would draw the icon a second time.
   defaults = {
     leader = "app",
-    key = "2",
+    -- The open key, a bindings row whose action is open, on the leader above.
+    bindings = { { action = "open", key = "2" } },
     description = "Color picker",
   },
 

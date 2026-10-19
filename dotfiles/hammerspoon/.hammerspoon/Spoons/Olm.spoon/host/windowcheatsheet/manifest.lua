@@ -32,11 +32,12 @@ return {
     },
 
     data = {
-      -- Every binding declared on the window leader by any plugin, in plan order and then in
-      -- each plugin's own order, stamped with the resolved window leader keycode. The root
-      -- builds it once and the launcher's window rows read the same list, so the key a row
-      -- names and the key the overlay shows come from one answer. Root computed, required,
-      -- since an absent list leaves the row model empty for every leader.
+      -- Every row the keymap holds on the window leader, a plugin's bindings in plan order and
+      -- then each plugin's own order, then any tool's open key there, stamped with the resolved
+      -- window leader keycode. The root builds it in step K once the keymap exists and hands it
+      -- over in this host's second configure, and the launcher's window rows read the same
+      -- keymap, so the key a row names and the key the overlay shows come from one answer. Root
+      -- computed, required, since an absent list leaves the row model empty for every leader.
       windowBindings = { source = "root", policy = "required",
         breaks = "holding a leader shows nothing at all, since the row model built from an empty list has no group for any leader to show" },
       -- Section titles keyed by leader keycode, read as the overlay heading over that

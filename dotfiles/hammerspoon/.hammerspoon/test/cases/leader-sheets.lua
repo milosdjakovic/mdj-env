@@ -9,8 +9,8 @@
 -- What is bound is found by running the code that binds, with a recorder standing in for each
 -- leader engine. Every global key is bound by lib/binder.lua from the rows lib/keymap.lua builds,
 -- the same two modules the root runs, over a real lib/registry.lua instance holding one
--- registration per manifest that declares a registry block, with its commands keyed through the
--- registrar's own command lookup. What a plugin can run comes from the registrar's own
+-- registration per manifest that declares a registry block. What a plugin can run comes from the
+-- registrar's own
 -- validateActions and providedBindings, asked of a fresh copy of each plugin that declares
 -- provides.actions or provides.bindings. No wiring step may bind a key any more, so a step whose
 -- method starts with bind fails the case. Two inputs the root builds inline, which no unit case
@@ -19,23 +19,23 @@
 -- system function, here a stand in.
 --
 -- What the sheet shows is read off the real hosts. The Hyper sheet is configured with the list
--- lib/contributions.lua assembles from lib/hints.lua's sections and every supplier answering the
--- cheatSheetSections set, then shown into a recorder. The window sheet is configured with the
--- stamped list the root hands it and shown the same way. A badge is spelled by a glyph function
+-- lib/contributions.lua assembles from lib/hints.lua's sections, read off the keymap since phase
+-- 2b of the keymap plan, and every supplier answering the cheatSheetSections set, then shown into
+-- a recorder. The window sheet is configured with the keymap's rows on the window leader, stamped
+-- the way the root stamps them, and shown the same way. A badge is spelled by a glyph function
 -- that keeps the key and its modifiers readable, so a bound chord and a sheet row compare as one
 -- plain string.
 --
--- Then the defect phase four was asked to check. A command declared on a leader, a registry
--- command with a key and shortcut leader, was bound by the registrar and dropped by the sheet,
--- since the sheet looked its key up through the plan and a command belongs to no directory. No
--- shipped command sits on a leader today, the clipboard's two are global, so a probe command is
--- added to a copy of one manifest and must reach both the binding and the sheet.
+-- Then the defect phase four was asked to check, in the shape phase 2b of the keymap plan gave it.
+-- A registry command on a leader was bound and dropped by the sheet, since the sheet looked its
+-- key up through the plan. Commands are action descriptors now, so a probe bindings row puts one
+-- of the clipboard's actions on the app leader, and it must reach both the binding and the sheet,
+-- labelled with the descriptor's own description.
 --
 -- Last, a registry tool declaring the window leader with a leader shortcut. It was refused at
 -- wiring while the registrar bound a tool's key on the app leader alone. The keymap binds every
--- row on its own leader, so such a key now lands on the window leader and nowhere else. The
--- window sheet lists only plugins' bindings until its rows are built from the keymap, so the
--- open key is missing there, which the case states rather than hides.
+-- row on its own leader, so such a key lands on the window leader and nowhere else, and since the
+-- window sheet reads the keymap's rows the open key is on that sheet too.
 --
 -- Under a plain lua interpreter with no Hammerspoon at all, a small stub stands in. Inside the
 -- running Hammerspoon nothing here touches the live config, every module is a fresh copy loaded
@@ -77,6 +77,7 @@ if hs == nil then
     },
     image = { imageFromAppBundle = function() return "icon" end },
     hotkey = { bind = function() end },
+    keycodes = { map = {} },
   }
 end
 
@@ -188,21 +189,13 @@ local function run(manifests, person)
     local identity = plan.identity[directory] or directory
     local block = (manifests[identity] or {}).registry
     if block then
-      local commands = nil
-      if block.commands then
-        commands = {}
-        for name, spec in pairs(block.commands) do
-          commands[name] = { fn = noop, shortcut = spec.shortcut }
-        end
-      end
       registry.register({ name = identity, apiVersion = 1, open = noop, shortcut = block.shortcut,
-        commands = commands })
+        row = block.row })
     end
   end
   local names = {}
   for _, entry in ipairs(registry.all()) do names[#names + 1] = entry.name end
   registry.activate(names)
-  local function commandKey(name) return registrar.commandKey(manifests, {}, name) end
 
   -- No wiring step binds a key. Olm binds every one from the keymap.
   for _, directory in ipairs(plan.order) do
@@ -258,7 +251,7 @@ local function run(manifests, person)
   for _, entry in ipairs(registry.shortcuts()) do claimed[entry.name] = true end
   local keymap = keymapLib.build({
     plan = plan, roles = { app = "HYPER", window = "META" },
-    shortcuts = registry.shortcuts(), manifests = manifests, commandKey = commandKey,
+    shortcuts = registry.shortcuts(),
     actions = actions, refusedActions = refused, provided = provided,
     hostRun = function(directory)
       local identity = plan.identity[directory] or directory
@@ -291,7 +284,7 @@ local function run(manifests, person)
     }
   end
   local hyperIdentity = plan.identity.hypercheatsheet or "hypercheatsheet"
-  local own = hints.sections(registry, plan, { leader = "app", commandKey = commandKey })
+  local own = hints.sections(keymap, plan, { leader = "hyper", registry = registry })
   local entries = contributions.sheetSections({
     host = hyperIdentity, role = "app", plan = plan, manifests = manifests, modules = modules,
     registrar = registrar, own = own,
@@ -303,15 +296,15 @@ local function run(manifests, person)
   hyper:configure({ cheatSheet = recorder(result.sheet.app), sections = entries })
   hyper:show()
   result.hyper = hyper
-  result.ownWithout = hints.sections(registry, plan, { leader = "app" })
 
-  -- The window sheet, handed the stamped list the root builds, every predicate open.
+  -- The window sheet, handed the keymap's rows on the window leader stamped the way the root
+  -- stamps them, every predicate open.
   local code = 106
   local predicates = setmetatable({}, { __index = function() return function() return true end end })
   local windowSheet = load("host/windowcheatsheet/init.lua")
   windowSheet:init()
   windowSheet:configure({
-    windowBindings = leaders.stampBindings(hints.leaderBindings(plan, "window"), code),
+    windowBindings = leaders.stampBindings(hints.leaderRows(keymap, "meta"), code),
     leaders = { [code] = "WINDOW" },
     cheatSheet = recorder(result.sheet.window),
     predicates = predicates,
@@ -436,41 +429,34 @@ check("without the app toggler Finder's key is neither bound nor shown",
   not off.bound.app["f"] and not off.sheet.app["f"])
 
 --------------------------------------------------------------------------------
--- A command on a leader, the case phase four was asked to check.
+-- An action on a leader, the case phase four was asked to check, once as a registry command and
+-- since phase 2b as a bindings row naming one of the clipboard's action descriptors.
 --------------------------------------------------------------------------------
 
 local probe = {}
 for identity, m in pairs(realManifests) do probe[identity] = m end
 local clipboard = {}
 for k, v in pairs(realManifests.clipboard) do clipboard[k] = v end
-local reg = {}
-for k, v in pairs(realManifests.clipboard.registry) do reg[k] = v end
-local commands = {}
-for k, v in pairs(realManifests.clipboard.registry.commands) do commands[k] = v end
-commands.probeLeaderCommand = { fn = "open", key = "9", shortcut = "leader",
-  row = { description = "Probe command" } }
-reg.commands = commands
-clipboard.registry = reg
+local clipDefaults = {}
+for k, v in pairs(realManifests.clipboard.defaults) do clipDefaults[k] = v end
+local clipBindings = {}
+for _, b in ipairs(realManifests.clipboard.defaults.bindings) do clipBindings[#clipBindings + 1] = b end
+clipBindings[#clipBindings + 1] = { action = "manageHistory", key = "9" }
+clipDefaults.bindings = clipBindings
+clipboard.defaults = clipDefaults
 probe.clipboard = clipboard
 
-local withCommand = run(probe)
-check("a command declared on the leader is bound there", withCommand.bound.app["9"] == 1)
-check("a command declared on the leader is on that leader's sheet", withCommand.sheet.app["9"] == 1)
+local withAction = run(probe)
+check("an action bound on the leader is bound there", withAction.bound.app["9"] == 1)
+check("an action bound on the leader is on that leader's sheet", withAction.sheet.app["9"] == 1)
 local labelled = false
-for _, section in ipairs(withCommand.hyper:_sections()) do
+for _, section in ipairs(withAction.hyper:_sections()) do
   for _, row in ipairs(section.rows or {}) do
-    if row.badge == "9" and row.label == "Probe command" then labelled = true end
+    if row.badge == "9" and row.label == "Manage clipboard history" then labelled = true end
   end
 end
-check("the command's row wears the description its launcher row declares", labelled)
-local before = false
-for _, section in ipairs(withCommand.ownWithout) do
-  for _, b in ipairs(section.bindings or {}) do
-    if tostring(b.key) == "9" then before = true end
-  end
-end
-check("without the command lookup the sheet drops it, the defect this case guards", not before)
-check("the command stays off the window sheet", not withCommand.sheet.window["9"])
+check("the action's sheet row wears its descriptor's description", labelled)
+check("the action stays off the window sheet", not withAction.sheet.window["9"])
 
 --------------------------------------------------------------------------------
 -- A registry tool declaring the window leader with a leader shortcut. It was refused while the
@@ -488,7 +474,10 @@ for k, v in pairs(realManifests.caffeinate.defaults) do caffeinateDefaults[k] = 
 caffeinateDefaults.leader = "window"
 caffeinate.defaults = caffeinateDefaults
 moved.caffeinate = caffeinate
-local movedKey = mark(caffeinateDefaults.key)
+local movedKey
+for _, b in ipairs(caffeinateDefaults.bindings or {}) do
+  if b.action == "open" then movedKey = mark(b.key, b.mods) end
+end
 
 local onWindow = run(moved)
 check("a registry tool on the window leader is bound without a problem", #onWindow.bindProblems == 0,
@@ -496,15 +485,12 @@ check("a registry tool on the window leader is bound without a problem", #onWind
 check("its open key is bound on the window leader", onWindow.bound.window[movedKey] == 1)
 check("and not on the app leader", not onWindow.bound.app[movedKey])
 check("and not on the Hyper sheet", not onWindow.sheet.app[movedKey])
--- The window sheet's rows are every plugin's bindings on that leader and not yet the keymap's
--- rows, so a tool's open key is missing from it. Stated here so the gap shows, and the line is
--- expected to flip when the sheet reads the keymap.
-check("the window sheet does not list it yet, its rows are bindings only", not onWindow.sheet.window[movedKey])
-local windowBound = {}
-for k, n in pairs(onWindow.bound.window) do if k ~= movedKey then windowBound[k] = n end end
-check("with the tool moved every other key still matches its sheet on both leaders",
+-- The window sheet reads the keymap's rows on its leader since phase 2b, so the gap this line used
+-- to state is closed and a tool's open key moved there is listed.
+check("the window sheet lists it, its rows are the keymap's", onWindow.sheet.window[movedKey] == 1)
+check("with the tool moved every key still matches its sheet on both leaders",
   #missing(onWindow.bound.app, onWindow.sheet.app) == 0 and #missing(onWindow.sheet.app, onWindow.bound.app) == 0
-    and #missing(windowBound, onWindow.sheet.window) == 0
-    and #missing(onWindow.sheet.window, windowBound) == 0)
+    and #missing(onWindow.bound.window, onWindow.sheet.window) == 0
+    and #missing(onWindow.sheet.window, onWindow.bound.window) == 0)
 check("the same tool on the app leader is bound and shown", real.bound.app[movedKey] == 1
   and real.sheet.app[movedKey] == 1)

@@ -106,7 +106,8 @@ return {
 
   defaults = {
     leader = "app",
-    key = "P",
+    -- The open key, a bindings row whose action is open, on the leader above.
+    bindings = { { action = "open", key = "P" } },
     description = "VPN",
     icon = "vpn",
     aliases = { "v", "vpn" },
