@@ -9,6 +9,7 @@ Spoons/Olm.spoon/test/ranking.lua           # one of the three dry runs, standal
 Spoons/Olm.spoon/test/icons.lua             # the icon engine, the config file, the row resolver and the two sources
 Spoons/Olm.spoon/test/leaders.lua           # the two leader adapters' resolvers as they stand, see below
 Spoons/Olm.spoon/test/keys.sh               # every bound chord in the live config, diffed against keys.golden
+Spoons/Olm.spoon/test/keys.sh --bound       # what the binder bound under the stub, diffed against keys.golden
 Spoons/Olm.spoon/test/suite.sh structure    # no screen needed, fast, safe any time
 Spoons/Olm.spoon/test/suite.sh surface      # opens and closes every picker
 Spoons/Olm.spoon/test/suite.sh behaviour    # the hand written per plugin scenarios
@@ -47,6 +48,12 @@ It also enforces the layer rule, no file outside `plugins/` names a plugin, in t
 stub through `drygate-composerun.lua`, once as the spoon is and once with every plugin renamed,
 and fails on any difference in what core decided. That run is the one place the composition root
 runs without a live Hammerspoon, and it adds about a second.
+
+It enforces the binding rule too, `drygate-binding.lua`. Olm binds every key from its keymap, so
+a call of `hs.hotkey.bind`, of `hs.hotkey.new` or of any bind function in a file under `plugins/`
+or `host/` is a finding naming the file and the line. And it checks each plugin's
+`provides.actions` and `provides.bindings` through the registrar's own validation, against the
+module it configured, so a malformed descriptor is refused here in the words a live load uses.
 
 Run it standalone too, straight from the shell, no suite.sh, no lock, no Hammerspoon:
 
@@ -103,13 +110,37 @@ is only lowercased unless `DRYGATE_KEYCODES` names a Lua file returning one dump
 session, and it cannot tell which tools are installed, so the offline run reports every one
 present. Both runs matched the golden byte for byte when the keymap landed. `keymap.lua` is plain
 Lua cases for the read model itself, collisions by layer, leader, key and modifiers, the one
-exemption, and the spelling, and `suite.sh dry` runs it.
+exemption, the spelling, the function each row runs and the binding order, and the registrar's
+descriptor validation, and `suite.sh dry` runs it.
+
+Since the keymap binds, a projection of its rows is not the whole proof, so a second offline
+check records what was actually bound. `keys.sh --bound` runs the composition root under the
+same stub with every call into the two leader engines' `bind` and into `hs.hotkey.bind`
+recorded, writes each call in the golden's format with its owner found from the keymap the way
+the live probe finds one, and diffs that against `keys.golden`. The stub hands out a keycode
+table that answers the same code for a name every time, since the root compares two leaders'
+keycodes and a stand in would never agree with itself.
+
+```
+Spoons/Olm.spoon/test/keys.sh --bound                     # bound calls against keys.golden
+Spoons/Olm.spoon/test/keys.sh --bound-order               # bound calls per engine and key, in call order
+Spoons/Olm.spoon/test/keys.sh --bound-order <spoon dir>   # the same for this spoon and another, diffed
+```
+
+The order matters as much as the set, since an engine keeps every binding on a key in the order
+it arrived and resolves a press by walking that list. `--bound-order` groups the calls by engine
+and key and keeps call order inside each group, with the lists' own keys sorted after the global
+ones, since the root walks its contexts with `pairs`. Handed a copy of main's spoon, extracted
+with `git archive` into a scratch directory, it records both against this config and diffs them,
+which is how a change to who binds proves it left the order alone.
 
 `leaders.lua` is the other half, plain Lua with no Hammerspoon, run by `suite.sh dry`. It pins
 `HyperKey:_resolve` and the window leader's resolver as they stand, including the places they
 disagree, a false `when` skipping on one and swallowing on the other, and an unknown predicate
 passing silently on one and warning once on the other. A line there records current behaviour,
-not a judgement that it is right.
+not a judgement that it is right. It also drives `lib/binder.lua` into both real engines, a row
+landing on the engine its leader names with its gate and repeat, a plain combo reaching the combo
+binder, the order kept, and a missing engine or function reported.
 
 ## The idea
 

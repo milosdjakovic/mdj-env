@@ -22,6 +22,15 @@
 #   keys.sh --update   dump and overwrite keys.golden with the result
 #   keys.sh --out FILE dump to FILE and stop, no diff
 #   keys.sh --offline  the keymap projection from a stubbed run of the root, no Hammerspoon needed
+#   keys.sh --bound    what the binder actually bound in a stubbed run of the root, every call into
+#                      the two leader engines' bind and into hs.hotkey.bind recorded and written in
+#                      the golden's format, diffed against keys.golden. The keymap projection proves
+#                      the read model is complete, this proves the binder binds exactly that.
+#   keys.sh --bound-order [SPOON]
+#                      the same recording grouped by engine and key in call order, which is what
+#                      decides two bindings on one key. Given another spoon directory, a copy of
+#                      main for instance, both are recorded against this config and diffed, and
+#                      with none the recording is printed.
 #   keys.sh --keymap   write the keymap's own rows in the golden's format and diff those against
 #                      keys.golden. It reads the keymap the live root built, so it needs the
 #                      config that contains the keymap to be the live one, which for a worktree
@@ -33,6 +42,7 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 golden="$here/keys.golden"
 mode="diff"
 out=""
+other=""
 probe_mode=""
 
 case "${1:-}" in
@@ -40,9 +50,51 @@ case "${1:-}" in
   --out) mode="out"; out="${2:?--out needs a file}" ;;
   --keymap) probe_mode="keymap" ;;
   --offline) mode="offline" ;;
+  --bound) mode="bound" ;;
+  --bound-order) mode="boundorder"; other="${2:-}" ;;
   "") ;;
   *) echo "keys.sh: unknown argument $1" >&2; exit 2 ;;
 esac
+
+# The bound modes, see drygate-composerun.lua's own header. Each run needs a sandbox of its own.
+record_bound() {
+  local spoonDir="$1" what="$2" into="$3" config sb
+  config="$(cd "$here/../../.." && pwd)"
+  sb="$(mktemp -d)"
+  DRYGATE_BINDS="$what" lua "$here/drygate-composerun.lua" "$spoonDir/" "$config" "$sb" >"$into" 2>"$into.err"
+  local status=$?
+  rm -rf "$sb"
+  return $status
+}
+
+if [ "$mode" = "bound" ] || [ "$mode" = "boundorder" ]; then
+  spoon="$(cd "$here/.." && pwd)"
+  work="$(mktemp -d)"
+  trap 'rm -rf "$work"' EXIT
+  if [ "$mode" = "bound" ]; then
+    record_bound "$spoon" golden "$work/bound.txt"
+    if [ ! -s "$work/bound.txt" ]; then
+      echo "keys.sh: the bound recording wrote nothing" >&2
+      tail -5 "$work/bound.txt.err" >&2
+      exit 2
+    fi
+    if diff -u "$golden" "$work/bound.txt"; then
+      echo "keys.sh: what the binder bound offline matches keys.golden, $(wc -l < "$golden" | tr -d ' ') lines"
+      exit 0
+    fi
+    echo "keys.sh: what the binder bound offline differs from keys.golden" >&2
+    exit 1
+  fi
+  record_bound "$spoon" order "$work/here.txt"
+  if [ -z "$other" ]; then cat "$work/here.txt"; exit 0; fi
+  record_bound "$(cd "$other" && pwd)" order "$work/other.txt"
+  if diff -u "$work/other.txt" "$work/here.txt"; then
+    echo "keys.sh: every engine receives its bindings in the same order in both spoons, $(wc -l < "$work/here.txt" | tr -d ' ') lines"
+    exit 0
+  fi
+  echo "keys.sh: the binding order differs between the two spoons" >&2
+  exit 1
+fi
 
 if [ "$mode" = "offline" ]; then
   spoon="$(cd "$here/.." && pwd)"

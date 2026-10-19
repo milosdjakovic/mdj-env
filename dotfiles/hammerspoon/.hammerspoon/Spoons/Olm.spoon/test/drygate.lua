@@ -480,6 +480,27 @@ local function checkLauncherMembers(dir, identity, manifest, mod)
   checkMember(dir, identity, "provides.launcherRun", provides.launcherRun, mod)
 end
 
+--- provides.actions and provides.bindings, what a plugin can run and the rows it provides from
+--- its own data. Both go through lib/registrar.lua's own validateActions and providedBindings,
+--- the identical rule the root applies once wiring has run, asked here against the module this
+--- gate configured, so a malformed descriptor is refused here in the words a live load uses.
+local function checkActions(dir, identity, manifest, mod)
+  local provides = manifest.provides
+  if type(provides) ~= "table" then return end
+  if provides.actions ~= nil then
+    local _, _, problems = registrarLib.validateActions(identity, manifest, mod)
+    for _, problem in ipairs(problems) do
+      finding(string.format("dry gate refused '%s', %s, %s", identity, problem.where, problem.why))
+    end
+  end
+  if provides.bindings ~= nil then
+    local _, problems = registrarLib.providedBindings(identity, manifest, mod)
+    for _, problem in ipairs(problems) do
+      finding(string.format("dry gate refused '%s', %s, %s", identity, problem.where, problem.why))
+    end
+  end
+end
+
 --- manifest.wiring, mirroring lib/wire.lua's own targetOf and its method lookup, call.lua
 --- lines this gate never touched since neither is exposed and both are small enough to
 --- write again here than to justify a seam for. Absent target means the plugin root, a
@@ -541,13 +562,16 @@ for dir, manifest in pairs(manifestsByDir) do
 
   local launcherMembers = type(manifest.provides) == "table"
     and (manifest.provides.launcherRows ~= nil or manifest.provides.launcherRun ~= nil)
+  local actionMembers = type(manifest.provides) == "table"
+    and (manifest.provides.actions ~= nil or manifest.provides.bindings ~= nil)
   local needsModule = (manifest.registry ~= nil) or (manifest.presentation ~= nil)
     or (type(manifest.wiring) == "table" and #manifest.wiring > 0) or launcherMembers
+    or actionMembers
 
   if needsModule and not mod then
     unknown(dir, string.format(
       "its module did not load under the dry gate's stub (%s), so its presentation, "
-        .. "registry, scope, and wiring member paths could not be checked",
+        .. "registry, scope, wiring and action member paths could not be checked",
       moduleErr[dir] or "no reason recorded"))
   else
     -- Presentation without a registry block never reaches obj.describe at all, since that
@@ -604,6 +628,7 @@ for dir, manifest in pairs(manifestsByDir) do
       checkWiring(dir, identity, manifest, mod)
     end
     if launcherMembers then checkLauncherMembers(dir, identity, manifest, mod) end
+    if actionMembers then checkActions(dir, identity, manifest, mod) end
   end
 end
 
@@ -881,6 +906,38 @@ do
                 "dry gate refused '%s', line %d, %s, '%s', let the shared search rank the rows, declare pinned, fromQuery, tier or bonus on them, or if the field is not a search say so with a search-exempt comment and a reason",
                 rel, hit.line, hit.what, hit.source)
             end
+          end
+        end
+      end
+    end
+  end
+end
+
+----------------------------------------------------------------------------------------
+-- Eleven, the binding rule, see test/drygate-binding.lua, which states the three shapes and
+-- what a static scan cannot see. Olm binds every key from the keymap, so under plugins/ and
+-- host/ a call of hs.hotkey.bind, of hs.hotkey.new or of any bind function is a finding naming
+-- its file and line. There is no exemption comment, since no plugin and no host has a reason
+-- to bind a key of its own, and a genuine exception would go in test/drygate-accepted.txt.
+----------------------------------------------------------------------------------------
+
+do
+  local scanner = dofile(scriptDir .. "drygate-binding.lua")
+  local list = os.getenv("DRYGATE_SOURCES")
+  if not list or list == "" then
+    warning("dry gate did not run the binding check, DRYGATE_SOURCES names no files, run it through test/drygate.sh")
+  else
+    for path in list:gmatch("[^\n]+") do
+      local rel = path:sub(1, #spoonDir) == spoonDir and path:sub(#spoonDir + 1) or path
+      if scanner.applies(rel) then
+        local found = scanner.scanFile(path)
+        if not found then
+          warning(string.format("dry gate could not read '%s' for the binding check", rel))
+        else
+          for _, hit in ipairs(found) do
+            finding(string.format(
+              "dry gate refused '%s', line %d, %s, '%s', declare the action under provides.actions and suggest its key in defaults.bindings, Olm binds every key",
+              rel, hit.line, hit.what, hit.source))
           end
         end
       end

@@ -5,10 +5,10 @@
 -- and exactly why something else has to build the descriptor it is handed. That something is
 -- this file. It turns one plugin's own effective declarations, plus that plugin's own
 -- manifest.registry block and whatever a person overrode on top of it, into the well formed
--- table register wants, resolves and binds the physical key that descriptor earns once it is
--- active, assembles the one list whose order decides who wins an alias collision, and adapts
--- the registry instance to the exact no argument contract lib/wire.lua's fifth stage already
--- calls it with.
+-- table register wants, validates the actions and the provided rows a plugin answers so the
+-- keymap can bind them, assembles the one list whose order decides who wins an alias collision,
+-- and adapts the registry instance to the exact no argument contract lib/wire.lua's fifth stage
+-- already calls it with. It binds no key, the keymap does that through lib/binder.lua.
 --
 -- The first attempt at this collapsed under its own genericness, and the audit names the exact
 -- shape of the collapse. Every registration it built skipped apiVersion, so the real registry
@@ -842,106 +842,169 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
   }
 end
 
---- obj.bind(entry, plan, deps)
---- Binds one entry from registry.shortcuts(), the base open key for an active, registered tool
---- or one of its commands. entry carries name, kind and fn, exactly what the registry answers
---- and nothing more, since the registry itself reads no configuration and holds no key.
----
---- entry.name is the tool's IDENTITY, colorPicker for the real tool that lives in a directory
---- called eyedropper, while plan.effective is keyed by the DIRECTORY, and seven of the twelve
---- real tools spell the two differently. Binding straight against entry.name, the way the first
---- attempt did, finds nothing for those seven and loses their key with one warning line each and
---- nothing that reads as failure, audit findings ten and thirty two. So the identity map the
---- plan already built is walked once here, backwards, to find which directory answers to this
---- identity, and only then is plan.effective asked for a key.
----
---- A command answers to neither. appendCopy and pasteNext are not tools of their own, they are
---- named actions the clipboard's own registration carries, so the reverse walk above finds no
---- directory for them and plan.effective has nothing to say either. Their key is root policy
---- with nowhere else to live, not a manifest concern and not something this plan was ever asked
---- to resolve, so deps.rootKey is the one seam this function leans on a named collaborator for,
---- a lookup the composition root builds over whatever it kept for its own commands, asked only
---- once the plan has already answered no for a name.
----
---- kind decides which engine binds it. leader goes through deps.bindLeader, the Hyper leader
---- every registered tool's own open key already goes through. global goes through
---- deps.bindGlobal, hs.hotkey underneath it, which the first attempt never wired a branch for at
---- all, so the clipboard's two global commands, the only entries that carry that kind, were
---- never bound and never wired, audit finding twelve. Neither engine is named here, both arrive
---- through deps, since which concrete thing binds a leader chord is the composition root's own
---- business and this file's job stops at deciding which of the two engines this entry wants.
----
---- deps.leaderRole is the leader role word bindLeader's engine answers, app at the root. A tool
---- whose effective leader names another role, a registry tool declaring leader = "window" with a
---- leader shortcut, is refused by raising, which the wiring stage reports as a problem line naming
---- the tool. Binding it on bindLeader's engine anyway put its key on a leader it never asked for
---- and on neither sheet, since each sheet lists only its own leader's tools. It is refused rather
---- than routed onto the window leader because that leader binds a declared bindings list and
---- nothing else, the same rule lib/hints.lua's leaderBindings and the root's host key loop keep,
---- and a second route onto it would need the sheet, the inventory and the binding all taught the
---- open key of a tool with no tool on that leader needing one. A command answers to no leader of
---- its own, so it is never refused here.
-function obj.bind(entry, plan, deps)
-  plan = plan or {}
-  deps = deps or {}
+--------------------------------------------------------------------------------
+-- Actions, what a plugin can run, and the rows a plugin provides from its own data
+--------------------------------------------------------------------------------
 
-  local directory = nil
-  for dirName, identity in pairs(plan.identity or {}) do
-    if identity == entry.name then
-      directory = dirName
-      break
+-- The fields an action descriptor may carry, each with the types it may take. Only run is
+-- required in this phase. The rest are what the surfaces Olm derives from a descriptor will read,
+-- accepted now and checked by type so a typo is refused at load rather than read as absent later.
+local DESCRIPTOR_FIELDS = {
+  run = { "function" },
+  description = { "string" },
+  subtitle = { "string" },
+  icon = { "string", "table" },
+  keywords = { "string", "table" },
+  repeats = { "boolean" },
+  when = { "string" },
+  group = { "string", "function" },
+  kind = { "string" },
+  app = { "string" },
+  listed = { "boolean" },
+}
+
+local function sortedNames(t)
+  local out = {}
+  for k in pairs(t) do out[#out + 1] = k end
+  table.sort(out, function(a, b) return tostring(a) < tostring(b) end)
+  return out
+end
+
+-- The value a provides member names, a table as it sits or a function's answer, called once with
+-- the table that carried it as the receiver unless the spec says dot. Answers the value, or nil
+-- and a reason when the member names nothing or raised.
+local function provided(module, spec)
+  local member, callKind = memberSpec(spec)
+  if member == nil then return nil, "names no member" end
+  if type(module) ~= "table" then return nil, "has no module to resolve it against" end
+  local owner, value = module, module
+  for part in tostring(member):gmatch("[^.]+") do
+    if type(value) ~= "table" then return nil, "names '" .. tostring(member) .. "', which is not on the module" end
+    owner, value = value, value[part]
+  end
+  if type(value) == "function" then
+    local ok, answer
+    if callKind == "dot" then ok, answer = pcall(value) else ok, answer = pcall(value, owner) end
+    if not ok then return nil, "names '" .. tostring(member) .. "', which raised, " .. tostring(answer) end
+    value = answer
+  end
+  if type(value) ~= "table" then
+    return nil, "names '" .. tostring(member) .. "', which answers a " .. type(value) .. " rather than a table"
+  end
+  return value
+end
+
+--- obj.validateDescriptor(descriptor) -> ok, field, why
+--- One action descriptor checked against the fields above. The first field that is missing, of
+--- the wrong type or not a field at all is named, so a refusal says exactly what to fix.
+function obj.validateDescriptor(descriptor)
+  if type(descriptor) ~= "table" then
+    return false, nil, "is a " .. type(descriptor) .. " rather than a descriptor table"
+  end
+  for _, field in ipairs(sortedNames(descriptor)) do
+    local allowed = DESCRIPTOR_FIELDS[field]
+    if not allowed then
+      return false, tostring(field), "is not a descriptor field"
+    end
+    local t, fits = type(descriptor[field]), false
+    for _, a in ipairs(allowed) do if t == a then fits = true end end
+    if not fits then
+      return false, field, "is a " .. t .. " where a descriptor takes " .. table.concat(allowed, " or ")
     end
   end
-
-  local eff = directory and (plan.effective or {})[directory]
-  if not eff and deps.rootKey then
-    eff = deps.rootKey(entry.name)
-  end
-
-  if not eff or not eff.key then
-    if deps.log then
-      deps.log("w", "registrar has no key for '" .. tostring(entry.name) .. "', nothing bound")
-    end
-    return
-  end
-
-  if entry.kind == "leader" then
-    if directory and deps.leaderRole and eff.leader ~= nil and eff.leader ~= deps.leaderRole then
-      error("'" .. tostring(entry.name) .. "' declares a leader shortcut with leader = '"
-        .. tostring(eff.leader) .. "', and a registry tool's open key binds only on the "
-        .. tostring(deps.leaderRole) .. " leader, so it is not bound, list its key under bindings "
-        .. "for the " .. tostring(eff.leader) .. " leader or move the tool to the "
-        .. tostring(deps.leaderRole) .. " leader", 0)
-    end
-    if not deps.bindLeader then
-      if deps.log then deps.log("w", "registrar has no deps.bindLeader, '" .. tostring(entry.name) .. "' is not bound") end
-      return
-    end
-    deps.bindLeader(eff.key, eff.mods, entry.fn)
-  elseif entry.kind == "global" then
-    if not deps.bindGlobal then
-      if deps.log then deps.log("w", "registrar has no deps.bindGlobal, '" .. tostring(entry.name) .. "' is not bound") end
-      return
-    end
-    deps.bindGlobal(eff.mods, eff.key, entry.fn)
-  else
-    if deps.log then
-      deps.log("w", "registrar does not know the shortcut kind '" .. tostring(entry.kind)
-        .. "' for '" .. tostring(entry.name) .. "'")
+  if descriptor.run == nil then return false, "run", "is missing, and run is the one required field" end
+  if type(descriptor.keywords) == "table" then
+    for _, word in ipairs(descriptor.keywords) do
+      if type(word) ~= "string" then return false, "keywords", "holds a " .. type(word) .. " where it takes words" end
     end
   end
+  return true
+end
+
+--- obj.validateActions(identity, manifest, module) -> actions, refused, problems
+--- What a plugin can run, read from the member provides.actions names, a table or a function
+--- answering one, keyed by action name with a descriptor as each value. The function form is
+--- called once, here, and the root calls this after every plugin's wiring has run, so a
+--- descriptor table built in configure is already there.
+---
+--- A malformed descriptor is refused rather than raised, the same rule the registry keeps for a
+--- registration, so one bad action costs that action and the rest of the plugin is still wired.
+--- Each refusal is one problem naming the plugin, the action and the field. actions holds only
+--- the descriptors that passed, refused names the ones that did not, and a plugin declaring no
+--- provides.actions answers three empty tables.
+function obj.validateActions(identity, manifest, module)
+  local actions, refused, problems = {}, {}, {}
+  local spec = ((manifest or {}).provides or {}).actions
+  if spec == nil then return actions, refused, problems end
+  local answer, why = provided(module, spec)
+  if not answer then
+    problems[#problems + 1] = { where = tostring(identity),
+      why = "provides.actions " .. why .. ", so none of its actions can run" }
+    return actions, refused, problems
+  end
+  for _, name in ipairs(sortedNames(answer)) do
+    local ok, field, fieldWhy = obj.validateDescriptor(answer[name])
+    if type(name) ~= "string" then
+      problems[#problems + 1] = { where = tostring(identity),
+        why = "provides.actions holds a " .. type(name) .. " key, and an action is named by a string" }
+    elseif not ok then
+      refused[name] = true
+      problems[#problems + 1] = { where = tostring(identity) .. " action " .. name,
+        why = "the descriptor's " .. (field and ("field " .. field .. " ") or "") .. fieldWhy
+          .. ", so the action is refused and the rest of the plugin is still wired" }
+    else
+      actions[name] = answer[name]
+    end
+  end
+  return actions, refused, problems
+end
+
+--- obj.providedBindings(identity, manifest, module) -> rows, problems
+--- The rows a plugin answers through provides.bindings, for a plugin whose keys are still built
+--- from the person's own data rather than declared, the app toggler's toggles being the case it
+--- exists for. Each row is complete, an action name, a key, a function in fn, and either a leader
+--- role in leader or the modifiers of a plain combo in mods, plus an optional description. The
+--- member is called once, after wiring. A row missing its key or its function is refused with
+--- one problem and every other row is kept.
+function obj.providedBindings(identity, manifest, module)
+  local rows, problems = {}, {}
+  local spec = ((manifest or {}).provides or {}).bindings
+  if spec == nil then return rows, problems end
+  local answer, why = provided(module, spec)
+  if not answer then
+    problems[#problems + 1] = { where = tostring(identity),
+      why = "provides.bindings " .. why .. ", so none of its rows is bound" }
+    return rows, problems
+  end
+  for i, row in ipairs(answer) do
+    local bad
+    if type(row) ~= "table" then bad = "is a " .. type(row) .. " rather than a row"
+    elseif type(row.fn) ~= "function" then bad = "has no function in fn"
+    elseif type(row.key) ~= "string" and type(row.key) ~= "number" then bad = "has no key"
+    elseif row.leader ~= nil and type(row.leader) ~= "string" then bad = "names a leader that is not a role word"
+    elseif row.mods ~= nil and type(row.mods) ~= "table" then bad = "has mods that are not a list"
+    elseif row.leader == nil and row.mods == nil then bad = "names neither a leader role nor the modifiers of a plain combo"
+    end
+    if bad then
+      problems[#problems + 1] = { where = tostring(identity) .. " provided row " .. i,
+        why = "the row " .. bad .. ", so it is not bound" }
+    else
+      rows[#rows + 1] = row
+    end
+  end
+  return rows, problems
 end
 
 --- obj.commandKey(manifests, meta, name) -> { key, mods, description, origin } or nil
---- The key a registered command binds on, the answer obj.bind's deps.rootKey gives for a name
---- the plan has no directory for. A person's override for the command's own name in meta wins,
---- the same way it does for a tool, otherwise whichever manifest declares a command by this
+--- The key a registered command binds on, for a name the plan has no directory for. A person's
+--- override for the command's own name in meta wins, the same way it does for a tool, otherwise
+--- whichever manifest declares a command by this
 --- name ships its key. Walked rather than looked up, because a command is named inside its
 --- owner's registry block and nothing records which plugin owns which command name, which is
 --- right, since a command is deliberately not a tool of its own.
 ---
 --- It lives here rather than inline in the composition root since phase four of the core split,
---- because the cheat sheet has to ask the same question binding asks. While only the root knew
+--- because the cheat sheet has to ask the same question the keymap asks. While only the root knew
 --- it, the sheet looked a command up through the plan, found no directory and no key, and
 --- dropped every command bound on a leader without a word. The description rides along so the
 --- sheet labels the row with the words its launcher row already wears. The origin says whether

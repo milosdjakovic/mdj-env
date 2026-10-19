@@ -27,3 +27,7 @@ There is no key of its own. Every action is bound under the window leader
 instead, a bare arrow key for resizing, WASD for moving, and letters and symbols
 for maximise, presets, growing, shrinking, centring, and switching displays.
 Holding the leader with no other key reveals all of them on the cheat sheet.
+
+Each action is a descriptor this plugin answers through `provides.actions`, and the keys are
+the ones its `defaults.bindings` suggest. Olm binds every one of them on the window leader to
+the descriptor its binding names, so the plugin never binds a key itself.

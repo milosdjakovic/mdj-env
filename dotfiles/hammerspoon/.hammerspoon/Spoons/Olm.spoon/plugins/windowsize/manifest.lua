@@ -34,7 +34,8 @@ return {
     -- owns every other move and size on this machine. This plugin asks it what a request
     -- would actually do, so the row can say up front that a size the display cannot hold is
     -- about to be trimmed, and the resize that follows is the same plugin's own exact size
-    -- action, which launcherRun below reaches through the second sibling. That used to be the
+    -- action, which launcherRun below reaches through the second sibling, the window manager's
+    -- action descriptors, calling the exact size action's run with the size. That used to be the
     -- launcher's window dispatch holding the window manager's action map, and phase three of
     -- the core split moved the call here so the launcher names no plugin.
     --

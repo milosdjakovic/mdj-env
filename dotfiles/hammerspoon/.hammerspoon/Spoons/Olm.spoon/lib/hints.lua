@@ -673,9 +673,10 @@ end
 --- declares them is what lets a plugin join a leader by writing leader = "window" and a
 --- bindings list, with nothing here or in the root naming it.
 ---
---- Only the bindings list is read. A single key of a plugin's own, eff.key, is not, since
---- nothing binds one on the window leader, the root binds a host key on the app leader alone,
---- and a sheet row for a key that does nothing would be dishonest. Entries are copied, never the declared tables themselves, so a caller stamping a keycode
+--- Only the bindings list is read. A single key of a plugin's own, eff.key, is not, so a tool or
+--- a host whose open key the keymap binds on the window leader is bound there and missing from
+--- that leader's sheet. No shipped plugin does this, and the sheet's rows move to the keymap in a
+--- later phase of the keymap plan, which closes the gap rather than a second walk here. Entries are copied, never the declared tables themselves, so a caller stamping a keycode
 --- onto them cannot reach back into a plugin's effective record.
 function obj.leaderBindings(plan, role)
   local out = {}

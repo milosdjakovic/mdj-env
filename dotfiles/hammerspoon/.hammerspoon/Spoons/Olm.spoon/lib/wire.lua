@@ -347,8 +347,10 @@ function obj.new(deps)
 
   -- STAGE 3. The declared steps beyond configure.
   --
-  -- Without this stage window management wired up completely dead. Its binding call is not
-  -- configure, nothing ran it, and nothing anywhere said that anything should.
+  -- Without this stage window management once wired up completely dead. Its binding call was
+  -- not configure, nothing ran it, and nothing anywhere said that anything should. No step binds
+  -- a key any more, the binder does that from the keymap, but a step is still how a plugin whose
+  -- lifecycle is not configure(opts) joins the pipeline.
   function self.steps(modules, manifests)
     for _, name in ipairs(plan.order) do
       local steps = plan.wiring[name]
@@ -405,15 +407,15 @@ function obj.new(deps)
     return ok and answer or false
   end
 
-  -- STAGE 5 and 6. Register every tool, then activate, then bind the open keys.
+  -- STAGE 5 and 6. Register every tool, then activate.
   --
-  -- These three are one stage because their order is not negotiable and splitting them invites
+  -- These two are one stage because their order is not negotiable and splitting them invites
   -- a caller to interleave something. The shortcut list only yields entries for tools both
-  -- registered and active, so a tool registered after that list was read silently never gets
-  -- its key. The descriptor must be complete on the way in, since the registry refuses an
+  -- registered and active, so the keymap the root builds after this stage reads every tool's
+  -- open key, and the binder binds it from there. This stage binds nothing. The descriptor must be complete on the way in, since the registry refuses an
   -- incomplete one outright and the first attempt built every descriptor without the version
   -- field, so every single registration was refused and nothing got a row, a scope or a key.
-  function self.register(registry, describe, bind)
+  function self.register(registry, describe)
     for _, name in ipairs(plan.order) do
       local descriptor = describe(name, plan)
       if descriptor then
@@ -440,23 +442,13 @@ function obj.new(deps)
 
     local ok, e = pcall(registry.activate)
     if not ok then fail("register", "activate", tostring(e)) end
-
-    for _, entry in ipairs(registry.shortcuts() or {}) do
-      local bound, be = pcall(bind, entry)
-      if not bound then
-        fail("register", tostring(entry.name or "a shortcut"), tostring(be))
-      else
-        note("register", "bound the open key for " .. tostring(entry.name))
-      end
-    end
     return self
   end
 
   -- STAGE 7. The in list navigation keys, for every surface the plan built.
   --
-  -- Separate from the open keys above and must stay separate. One binds the key that OPENS a
-  -- tool, the other binds the keys that are live while it is open. Conflating them loses the
-  -- distinction that a few tools still bind their own open key directly.
+  -- Separate from the global keys the binder binds and must stay separate. Those open a tool or
+  -- run an action from anywhere, these are live only while their list is open.
   function self.contexts(engine, bindOne)
     for contextName, block in pairs(plan.contexts) do
       for _, binding in ipairs(block.bindings or {}) do

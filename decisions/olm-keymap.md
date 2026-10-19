@@ -1,17 +1,21 @@
 # Olm keymap, and leaders as data
 
-Status. Planned 2026-10-19, nothing built. The plan is
+Status. Phases 0 and 1 landed 2026-10-19, phase 2a, the core binds every key, built the same
+evening and awaiting review and a live load. The plan is
 `dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/docs/PLAN-KEYMAP.md`.
 
 ## Now
 
 Olm has exactly two leaders, Hyper on the app role and META on the window role, each with its own
 adapter in `lib/hyperkey.lua` and `lib/windowleader.lua` and its own cheat sheet host, and the
-composition root names both. A shortcut is bound by one of five paths, the registrar for a tool's
-open key on Hyper only, `hs.hotkey.bind` for a global command, a plugin's own wiring step for its
-bindings, apptoggler from person data with a direct `hs.hotkey.bind` for a toggle with modifiers,
-and the root for host keys and surface contexts. The collision check sees only top level
-`defaults.key` and ignores modifiers. The plan replaces this with one keymap the core builds from
+composition root names both. With phase 2a every global key is a row of the keymap,
+`lib/keymap.lua`, carrying the function it calls, and `lib/binder.lua` binds the keymap's bound
+list on the engine each row's leader names, or as a plain combo, in the order the five old paths
+used. A plugin answers what it can run as descriptors through `provides.actions` and binds
+nothing, and the app toggler's keys arrive as complete rows through `provides.bindings`, a bridge
+phase 6 removes. A list's own keys are still bound through the root's contexts. The collision
+check covers every row, modifiers, case, bindings, toggles, commands, list keys and plain combos.
+The plan replaces the rest of this with one keymap the core builds from
 actions plugins export and bindings they propose, overridden by the person in one file Olm owns,
 `config/keymap.lua`, where a chord string maps to a `plugin.action` name and a person may name a
 set of modifiers as a leader of their own. The three held leaders are built in from the catalog
@@ -80,6 +84,17 @@ aliases live only in `config/keymap.lua`.
   so the earlier revisions left them, but they answer the same question, how a plugin is reached,
   and splitting that question across two files was the problem this plan set out to remove.
 
+- **Keeping the old binding paths callable as a fallback for a keymap that fails to build.**
+  2026-10-19 19:39. It was the lean in the brief for phase 2a, so a defect in the read model
+  could not leave a machine with no keys. The evidence ran the other way. No plugin binds a key
+  any more and the dry gate refuses a bind call under `plugins/` and `host/`, so the only paths
+  left to fall back on were the root's own, the registry shortcuts, the host keys and the special
+  rows, which would bind some keys and silently drop every plugin binding and toggle. A partial
+  fallback with nothing saying which half is missing is worse than one loud line. The build is
+  pure, has never raised, and runs under pcall, so a raise is reported in the wiring report as
+  leaving every global key unbound, and the lists' own keys, the leaders' taps and the remap are
+  left as they are.
+
 ## Log
 
 - 2026-10-19 16:44. Milos asked how Olm should split core from plugins for shortcuts, with the
@@ -147,3 +162,29 @@ aliases live only in `config/keymap.lua`.
   console was clean, the wiring report said no problems, the live root built 159 keymap rows, and
   both `keys.sh --keymap` and `keys.sh` matched `keys.golden`. A review before the load put the
   build under pcall, since a read model that binds nothing must never stop the keys after it.
+- 2026-10-19 19:39. Phase 2a built, awaiting review and a live load. `lib/binder.lua` is the one
+  place a global key is bound. It walks the keymap's new `bound` list, the global rows in the
+  order the old paths bound them, plugin bindings and provided rows in plan order, then the
+  registry's shortcuts in registration order, then host keys, then special rows, and binds each
+  on the engine its leader names, or through `hs.hotkey.bind` for a row with no leader, passing
+  `when`, `priority` and `repeats` in the options. Each keymap row now carries `run`, the
+  registry fn for a tool or a command, the descriptor's run for a binding, the provided row's fn,
+  the host's show and the launcher's lock and sleep calls, all handed to the keymap by the root,
+  so the module still names no plugin and binds nothing. The order lives on a second list rather
+  than as a number on each row, since the number is a place in the plan's own order and showed as
+  80 differences in the rename proof. `lib/registrar.lua` lost `bind` and gained
+  `validateActions` and `providedBindings`, refusing a malformed descriptor or row with one
+  problem line, and `lib/wire.lua`'s register stage no longer binds. Capture and windowmanager
+  answer descriptors and lost `bindHotkeys` and `bindToLeader`, windowmanager its
+  `needs.lib.windowLeader`, capture its `hs.hotkey.bind` fallback, windowsize calls `run`, and
+  apptoggler builds its rows in configure and lost its wiring step, its `hyperKey` need and its
+  literal Hyper fallback. The keymap's toggles source reads the bridge instead of a data shape.
+  The clipboard's dead `bindHotkeys` is deleted, and the dry gate refuses `hs.hotkey.bind`,
+  `hs.hotkey.new` and any bind call under `plugins/` and `host/`. This reopens the 2026-10-16
+  16:52 rejection in `olm-core-split.md` in code, a registry tool on the window leader is no
+  longer refused and binds there. Its window sheet does not list it yet, since that sheet reads
+  only bindings, and phase 4 closes that. Proof, all offline. `keys.sh --offline` matches the
+  golden, and the new `keys.sh --bound`, which records every bind call under the stub, matches
+  it byte for byte too, 159 lines, as main's own recording did. `keys.sh --bound-order` against
+  a copy of main shows every engine receives its bindings in the same order on every key. The
+  wiring report under the stub says no problems.

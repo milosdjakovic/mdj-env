@@ -60,7 +60,7 @@ function obj:configure(opts)
   self._margins = opts.margins or {}
   self._settings = opts.settings or {}
   -- The effective bindings and the leader they sit on, kept so launcherRows builds the
-  -- launcher's rows from the very list bindToLeader binds, after any override.
+  -- launcher's rows from the very list Olm binds, after any override.
   self._bindings = opts.bindings or {}
   self._leader = opts.leader
   hs.window.animationDuration = self._settings.windowAnimationDuration or 0
@@ -752,10 +752,21 @@ function obj:smallSize()
   self:center()
 end
 
---- WindowManager:actions()
+--- WindowManager:actions() -> { [name] = descriptor }
 --- Method
---- Return the action-name -> handler map used by hotkey/leader binding.
+--- One action descriptor per window action, declared as provides.actions. Olm binds every key
+--- the bindings name to the descriptor's run and hands it the hold depth, 0 on the press, so
+--- this plugin binds nothing. windowsize reads the same table as a sibling and calls run with a
+--- size, which only exactSize reads.
 function obj:actions()
+  local out = {}
+  for name, fn in pairs(self:_handlers()) do out[name] = { run = fn } end
+  return out
+end
+
+-- The handler for each action, keyed by name. A repeating action reads the hold depth it is
+-- called with, every other ignores the argument.
+function obj:_handlers()
   return {
     maximize =             function() self:maximize() end,
     center =               function() self:center() end,
@@ -804,34 +815,6 @@ function obj:actions()
   }
 end
 
---- WindowManager:bindToLeader(windowLeader, bindings)
---- Method
---- Bind window actions onto the window leader, the core lib the manifest asks for through
---- needs.lib.windowLeader. `bindings` is this plugin's own ordered list, the effective
---- defaults.bindings after any override. Each entry is { action = <name>, key = <key>,
---- mods = <optional list>, when = <optional predicate name>, repeats = <optional bool> },
---- with no leader on it, since the lib binds onto the one keycode the root configured it with.
---- `repeats` says the action keeps firing while its key is
---- held, which only some of these want. A step is worth repeating and a placement is not, so
---- moving and resizing carry it while maximize, the halves and the display switch do not,
---- since holding a key that puts a window somewhere exact would only put it there again.
---- `when` and `repeats` are handed to the leader through its bind options. The leader owns the
---- predicate gate, so a false predicate makes the key a no op, still swallowed by the held
---- leader so no raw character leaks, and the overlay applies the same gate to its rows.
-function obj:bindToLeader(windowLeader, bindings)
-  local actionMap = self:actions()
-  for _, binding in ipairs(bindings or {}) do
-    local action = actionMap[binding.action]
-    if action then
-      windowLeader:bind(binding.key, action, binding.mods,
-        { when = binding.when, repeats = binding.repeats })
-    else
-      log.w("Unknown action '" .. tostring(binding.action) .. "'")
-    end
-  end
-  return self
-end
-
 -- camelCase action name to a Title Case label, for a binding that sets no description. The
 -- launcher used to apply this to the window rows it built from this plugin's action map, and
 -- the rows are built here now, so the fallback came along with them. The window cheat sheet
@@ -845,8 +828,8 @@ end
 --- Method
 --- One launcher row per bound window action, declared as provides.launcherRows, in the order
 --- the bindings are declared. A binding whose action this plugin does not answer gets no row,
---- the same filter bindToLeader applies before binding, since a row that runs nothing is worse
---- than no row.
+--- since a row that runs nothing is worse than no row, and Olm reports such a binding when it
+--- binds the keys.
 ---
 --- Each row is plain data and never a function, because the launcher hands every row to
 --- hs.chooser and a row holding a function is silently dropped. The item keeps the kind and the
@@ -880,8 +863,8 @@ end
 --- size it means, which exactSize reads and every other action ignores, the repeating ones
 --- reading an absent argument as the press itself.
 function obj:launcherRun(item)
-  local fn = item and self:actions()[item.name]
-  if fn then fn(item.size) end
+  local action = item and self:actions()[item.name]
+  if action then action.run(item.size) end
 end
 
 return obj

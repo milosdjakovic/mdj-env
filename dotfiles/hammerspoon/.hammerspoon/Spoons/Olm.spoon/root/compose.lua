@@ -58,6 +58,9 @@ local registrarLib = load("lib/registrar.lua")
 -- The read model of every chord that gets bound, built once from declarations. A pure module
 -- like the registrar, so the unit case drives the same code this file runs.
 local keymapLib = load("lib/keymap.lua")
+-- The one place a global key is bound, walking the keymap's rows in order. Pure like the keymap,
+-- with the engines handed in, so a plain case drives the same dispatch this file runs.
+local binderLib = load("lib/binder.lua")
 -- How rows other plugins contribute reach the launcher and how a chosen one runs, assembled
 -- from the plan's set answers. A pure module like the registrar, so the unit case drives the
 -- same code this file runs.
@@ -573,8 +576,8 @@ function obj.run(olm, cfg)
 
   -- Bringing an application forward, core since phase three of the core split. Configured here,
   -- once, with the shared door's path resolver, since its url form runs the launcher binary
-  -- root/manifest.lua declares, and before any plugin is wired, since the app toggler binds keys
-  -- that call it as soon as its own wiring step runs.
+  -- root/manifest.lua declares, and before any plugin is wired, since the app toggler builds the
+  -- functions its keys call in its own configure.
   local appFocusAtom = atoms.appfocus
   appFocusAtom.configure({ path = sharedDepsScope.path })
 
@@ -815,8 +818,8 @@ function obj.run(olm, cfg)
   -- right here, and the same local is handed to both rather than two calls that would only
   -- happen to agree today. It is every binding any plugin declared on the window leader,
   -- found by walking the plan in lib/hints.lua, so no plugin is named and a second plugin
-  -- declaring leader = "window" joins the sheet with no edit. Each plugin binds its own
-  -- entries through the window leader lib, which already knows the one keycode.
+  -- declaring leader = "window" joins the sheet with no edit. The binder below binds the same
+  -- entries on the window leader lib, which already knows the one keycode.
   local stampedWindowBindings = leadersLib.stampBindings(
     hintsLib.leaderBindings(firstPass, "window"), windowKeycode)
 
@@ -1592,8 +1595,8 @@ function obj.run(olm, cfg)
   })
 
   -- Initialized and configured here like hyperKeyAtom just above, since a lib is not walked
-  -- by lib/loader.lua the way a plugin is. The keycode is the window role's own, so a plugin
-  -- on leader = "window" binds with no keycode in sight. suppressWhen is anyListShowing, the
+  -- by lib/loader.lua the way a plugin is. The keycode is the window role's own, so a row on
+  -- the window leader binds with no keycode in sight. suppressWhen is anyListShowing, the
   -- same gate the hyper hold reveal reads, so while any list is open the window leader
   -- neither reveals its sheet nor moves a window, and the two leaders go quiet on the same
   -- evidence.
@@ -1846,23 +1849,6 @@ function obj.run(olm, cfg)
     return registrarLib.commandKey(manifests, registryMeta, name)
   end
 
-  local function bindShortcut(entry)
-    return registrarLib.bind(entry, plan, {
-      log = logFn,
-      bindLeader = function(key, mods, fn) hyperKeyAtom:bind(key, fn, mods) end,
-      -- The role the engine above answers, so a tool declaring another leader is refused out
-      -- loud rather than bound on Hyper and listed on neither sheet.
-      leaderRole = "app",
-      bindGlobal = function(mods, key, fn) hs.hotkey.bind(mods, key, fn) end,
-      -- A command belongs to no plugin, appendCopy and pasteNext being the concrete example,
-      -- so its key is root policy with nowhere else to live. registryMeta is exactly that
-      -- policy table, keyed the same way for a command's own name as for a tool's identity.
-      -- The lookup is the registrar's, shared with the cheat sheet's sections below, so the
-      -- key a command binds on and the key its sheet row shows come from one answer.
-      rootKey = commandKey,
-    })
-  end
-
   -- Which context actions repeat while held, rather than firing once per press, a small
   -- root owned set of generic navigation verbs rather than a fact about any one plugin.
   local repeatableActions = {
@@ -2026,15 +2012,65 @@ function obj.run(olm, cfg)
   -- Every tool that registered is activated, since the plan already left out every plugin that
   -- is switched off and there is no second switch.
   local forWire = registrarLib.forWire(wiredRegistry)
-  w.register(forWire, describeForRegistry, bindShortcut)
+  w.register(forWire, describeForRegistry)
 
-  -- The keymap, every chord Olm binds as one list of rows, built once now that the plan and the
-  -- registry both exist. It reads declarations only and binds nothing, so who binds each key
-  -- and in what order is exactly what it was. Anything it finds goes into the wiring report
-  -- through the same problem channel the stages use, and the whole list is kept on the record
-  -- so a probe can read it from a running config.
-  -- It is a read model that binds nothing, so a defect inside it must never take down the load.
-  -- A raise is reported as one problem and the keymap is left empty, and composing carries on.
+  -- What every plugin can run, its provides.actions descriptors, and the rows a plugin provides
+  -- from its own data through provides.bindings. Both are asked once, here, after every plugin's
+  -- configure and wiring have run and every tool has registered, so a table built in configure
+  -- is already there. A malformed descriptor or row is refused with one problem line and costs
+  -- only itself.
+  local pluginActions, refusedActions, providedRows = {}, {}, {}
+  for _, directory in ipairs(plan.order) do
+    local identity = plan.identity[directory] or directory
+    local manifest = manifests[directory] or manifests[identity] or {}
+    local module = modules[identity] or modules[directory]
+    if (manifest.provides or {}).actions ~= nil then
+      local answered, refused, problems = registrarLib.validateActions(identity, manifest, module)
+      pluginActions[directory], refusedActions[directory] = answered, refused
+      for _, problem in ipairs(problems) do w.problem("actions", problem.where, problem.why) end
+    end
+    if (manifest.provides or {}).bindings ~= nil then
+      local rows, problems = registrarLib.providedBindings(identity, manifest, module)
+      providedRows[directory] = rows
+      for _, problem in ipairs(problems) do w.problem("actions", problem.where, problem.why) end
+    end
+  end
+
+  -- What a host's key and a special row call. A host is shown, by the one rule lib/hints.lua
+  -- keeps for a host that carries a key, and locking and sleeping are plain macOS calls with
+  -- nothing behind them worth a plugin, read from the launcher's own special rows.
+  local claimedShortcuts = {}
+  for _, entry in ipairs(wiredRegistry.shortcuts() or {}) do claimedShortcuts[entry.name] = true end
+  local function hostRun(directory)
+    local identity = plan.identity[directory] or directory
+    local module = modules[identity]
+    local role = hintsLib.hostKeyBinding((plan.effective or {})[directory], module, claimedShortcuts[identity])
+    if not role then return nil end
+    return function() module:show() end
+  end
+  local systemCalls = {
+    lock = function() hs.caffeinate.lockScreen() end,
+    sleep = function() hs.caffeinate.systemSleep() end,
+  }
+  local function specialRun(owner, name)
+    -- THE SEAM. The launcher is one of the five host modules this file may name, and its special
+    -- rows are the only ones with a system call behind them.
+    if owner ~= (plan.identity.launcher or "launcher") then return nil end
+    return systemCalls[name]
+  end
+
+  -- The keymap, every chord Olm binds as one list of rows, built once now that the plan, the
+  -- registry and every plugin's actions exist. Each global row carries the function it calls and
+  -- its place in the binding order, and the binder below binds exactly that list, so the keymap
+  -- is the binding rather than a picture of it. Anything it finds goes into the wiring report
+  -- through the same problem channel the stages use, and the whole list is kept on the record so
+  -- a probe can read it from a running config.
+  --
+  -- A raise is reported loudly and leaves every global key unbound. There is no second binding
+  -- path to fall back on, since no plugin binds a key of its own any more and the keymap is the
+  -- only list of what to bind, so a partial fallback would bind some keys and not others with
+  -- nothing saying which. The lists' own keys, the leaders' taps and the remap are untouched, so
+  -- Caps Lock still toggles and every open list still answers its keys.
   local built, keymap = pcall(keymapLib.build, {
     plan = plan,
     roles = leaderRoles,
@@ -2042,60 +2078,33 @@ function obj.run(olm, cfg)
     shortcuts = wiredRegistry.shortcuts(),
     manifests = manifests,
     commandKey = commandKey,
-    data = wireData,
+    actions = pluginActions,
+    refusedActions = refusedActions,
+    provided = providedRows,
+    hostRun = hostRun,
+    specialRun = specialRun,
   })
   if not built then
-    w.problem("keymap", "build", tostring(keymap))
-    keymap = { rows = {}, problems = {} }
+    w.problem("keymap", "build", tostring(keymap) .. ", so no global key is bound this load")
+    keymap = { rows = {}, bound = {}, problems = {} }
   end
   for _, problem in ipairs(keymap.problems) do
     w.problem("keymap", problem.where, problem.why)
   end
 
-  -- The two system actions that belong to no plugin and therefore to no registration, so the
-  -- one loop that binds every registered tool's key never sees them. Locking and sleeping are
-  -- plain macOS calls with nothing behind them worth a plugin, and inventing one just to give
-  -- them a home would be ceremony, so the leader binds them here from whatever the launcher's
-  -- own special rows declared. They were bound by the retired root and by nothing here, which
-  -- is how two working keys became two rows in a list and nothing else.
-  -- The open key of anything that declares one and does NOT register. Every registered tool's
-  -- key is bound by the loop above, off registry.shortcuts, and a host is not a tool, so a host
-  -- that declares a key had nothing anywhere binding it. The launcher is that case, and its own
-  -- key is the one every other surface is reached from, so losing it takes most of the config
-  -- with it while every check still reports a clean wiring run.
-  --
-  -- Derived rather than named. Anything with a key, a leader, and a way to be shown, that the
-  -- registry did not already claim, gets its key bound, so a second host answering the same
-  -- description needs no edit here.
-  do
-    local claimed = {}
-    for _, entry in ipairs(wiredRegistry.shortcuts() or {}) do claimed[entry.name] = true end
-
-    for directory, eff in pairs(plan.effective or {}) do
-      local identity = plan.identity[directory] or directory
-      local module = modules[identity]
-      local role, key, mods = hintsLib.hostKeyBinding(eff, module, claimed[identity])
-      if role then
-        local code = leadersLib.keycode(keymapCatalog, leaderRoles[role] or role)
-        -- Only the app leader's own engine binds by key today, which is what hyperKeyAtom is,
-        -- so a host on another leader is left alone rather than bound to the wrong engine.
-        if code == appKeycode then
-          hyperKeyAtom:bind(key, function() module:show() end, mods)
-        end
-      end
-    end
-  end
-
-  do
-    local systemCalls = {
-      lock = function() hs.caffeinate.lockScreen() end,
-      sleep = function() hs.caffeinate.systemSleep() end,
-    }
-    local launcherEff = (plan.effective or {})[plan.identity.launcher or "launcher"] or {}
-    for _, row in ipairs(launcherEff.specialRows or {}) do
-      local call = systemCalls[row.name]
-      if call and row.key then hyperKeyAtom:bind(row.key, call) end
-    end
+  -- The binder, the one place a global key is bound. Each leader's engine is found by the name
+  -- its catalog entry has, the way a keymap row spells it, and a row with no leader is a plain
+  -- combo. The order the engines receive the rows in is the order the paths it replaced bound
+  -- them in, which is the order of the keymap's bound list.
+  local leaderEngines = {
+    [tostring(leaderRoles.app):lower()] = hyperKeyAtom,
+    [tostring(leaderRoles.window):lower()] = windowLeaderAtom,
+  }
+  for _, problem in ipairs(binderLib.bind(keymap.bound, {
+    engines = leaderEngines,
+    hotkey = function(mods, key, fn) hs.hotkey.bind(mods, key, fn) end,
+  })) do
+    w.problem("keymap", problem.where, problem.why)
   end
 
   -- lib/nav.lua's own dispatch table has to be built, and its side effect of stamping
@@ -2196,9 +2205,8 @@ function obj.run(olm, cfg)
     local opts = { cheatSheet = hyperCheatSheetOpts.cheatSheet }
     -- Told which leader's overlay this is, so a tool bound to the window leader stays off the
     -- Hyper one, and so the plugins that carry their own binding list rather than a launcher
-    -- row are picked up for this leader too. Handed the command key lookup because the app
-    -- leader's engine is the one bindShortcut binds a leader command on, so a command bound
-    -- there shows here.
+    -- row are picked up for this leader too. Handed the command key lookup because a leader
+    -- command's row in the keymap sits on the app leader, so a command bound there shows here.
     local hyperIdentity = plan.identity.hypercheatsheet or "hypercheatsheet"
     local own = hintsLib.sections(wiredRegistry, plan, { leader = "app", commandKey = commandKey })
     -- The sections plugins supply for the app leader's sheet, the app toggles today, ordered

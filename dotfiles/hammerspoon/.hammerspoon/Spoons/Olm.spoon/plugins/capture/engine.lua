@@ -68,8 +68,8 @@ end
 ---                  priority list is a list of words in their config, and turning a word into a
 ---                  backend has to happen inside this plugin, the only place that knows which
 ---                  file answers to which word.
---- opts.hyperKey  - optional HyperKey spoon; when present, bindHotkeys binds
----                  into its modal and dispatch waits for its release
+--- opts.hyperKey  - optional HyperKey lib; when present, dispatch waits for its
+---                  release, since Olm binds this plugin's keys on that leader
 --- opts.deps      - the per consumer dependency adapter, injected by the composition root
 ---                  and handed to each provider's available(). A provider backed by an
 ---                  external tool asks it rather than probing, so the probing happens once
@@ -232,26 +232,21 @@ function obj:capture(action)
   end
 end
 
---- Capture:bindHotkeys(mapping)
+-- The actions this plugin can run, the vocabulary the provider chain speaks. Which provider
+-- answers each one is the chain's business, so this list names actions and never a backend.
+local ACTIONS = { "ocrArea", "captureArea", "captureAreaClipboard", "recordArea" }
+
+--- Capture:actions() -> { [name] = descriptor }
 --- Method
---- mapping - an ordered list of { action, key, modifiers, mods }. Each binds into
---- the Hyper key when one is wired, otherwise the literal `modifiers` combo (the
---- fallback, matching appToggles). Optional `mods` is a list of sub-modifiers
---- within the Hyper modal ({"shift"} for Hyper+Shift+key), so one key can host
---- two actions; it is only meaningful on the Hyper path.
-function obj:bindHotkeys(mapping)
-  for _, binding in ipairs(mapping or {}) do
-    local action = binding.action
-    local fn = function()
-      self:capture(action)
-    end
-    if self._hyperKey then
-      self._hyperKey:bind(binding.key, fn, binding.mods)
-    else
-      hs.hotkey.bind(binding.modifiers, binding.key, fn)
-    end
+--- One action descriptor per capture action, declared as provides.actions. Olm binds whatever
+--- key a binding names to the descriptor's run, so this plugin never binds a key of its own. A
+--- run starts the capture through the chain, which waits for the leader to be released first.
+function obj:actions()
+  local out = {}
+  for _, name in ipairs(ACTIONS) do
+    out[name] = { run = function() self:capture(name) end }
   end
-  return self
+  return out
 end
 
 -- camelCase action name to a Title Case label, for a binding that sets no description. The

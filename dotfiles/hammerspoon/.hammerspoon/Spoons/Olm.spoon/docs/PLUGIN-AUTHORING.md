@@ -385,6 +385,17 @@ names really does go quiet.
 - `Registry refused '%s', its scope's verbs entry '%s' is not a function or a table with a callable fn`
 - `Registry refused '%s', its scope's verbs entry '%s' does not say whether it closes the list`
 
+The root, on what a plugin can run, after every plugin's wiring and before any key is bound.
+Each is one line in the wiring report, and costs only the action, the row or the key it names.
+
+- `wire, actions, <plugin>, provides.actions names no member, so none of its actions can run`
+- `wire, actions, <plugin> action <name>, the descriptor's field <field> is not a descriptor field, so the action is refused and the rest of the plugin is still wired`
+- `wire, actions, <plugin> action <name>, the descriptor's field <field> is a <type> where a descriptor takes <types>, so the action is refused and the rest of the plugin is still wired`
+- `wire, actions, <plugin> action <name>, the descriptor's field run is missing, and run is the one required field, so the action is refused and the rest of the plugin is still wired`
+- `wire, actions, <plugin> provided row <n>, the row has no function in fn, so it is not bound`
+- `wire, keymap, <plugin> <action>, the bindings row answers no function to run, so <leader> <key> is not bound`
+- `wire, keymap, <plugin> <action>, no engine binds on the leader <leader>, so <leader> <key> is not bound`
+
 `lib/services.lua` answers one more question separately, `owed`, every `source = "root"` need
 that nothing actually delivered. A declaration that is right, validated, reported satisfied,
 and then never published is the failure class that check exists for, and six of them were live
@@ -577,15 +588,51 @@ a thumbnail is content and is the one kind of drawing that may stay in a plugin,
 
 ## Keys on a leader
 
-A plugin that wants keys on the window leader declares `leader = "window"` and a `bindings`
-list in its defaults, asks for the leader with `needs.lib.windowLeader = { from =
-"windowleader" }`, and names a wiring step that binds each entry through the lib. That is all of
-it, the same shape capture uses on the app leader. Windowmanager is the worked example, its
-sixteen bindings are plain data in `defaults.bindings` and its `bindToLeader` step takes
-`self.windowLeader` and `self.bindings`. The lib binds onto the one keycode the root gave it,
-so a binding never names a keycode. A binding's `repeats = true` marks a step worth repeating
-while the key is held, and its `when` names a predicate the lib checks live, a false one
-making the key a swallowed no op.
+A plugin never binds a key. It says what it can run and which keys it would like, and Olm binds
+them. What it can run is `provides.actions`, a member answering a table keyed by action name, or a
+table itself, each value a descriptor whose one required field is `run`.
+
+```lua
+provides = { actions = "actions" },
+defaults = {
+  leader = "window",
+  bindings = {
+    { action = "leftHalf", key = "left" },
+    { action = "moveLeft", key = "a", repeats = true },
+  },
+},
+```
+
+```lua
+function obj:actions()
+  return {
+    leftHalf = { run = function() self:leftHalf() end },
+    moveLeft = { run = function(depth) self:moveByPixels("left", self:_moveStep(depth)) end },
+  }
+end
+```
+
+`run` is called with the hold depth, 0 on the press and counting up while a key with `repeats`
+is held, and an action that does not repeat ignores it. The member is asked once, after your
+`configure` and wiring have run, so a table built in `configure` is there. A descriptor may
+also carry `description`, `subtitle`, `icon`, `keywords`, `repeats`, `when`, `group`, `kind`,
+`app` and `listed`, each checked by type, and these are what later surfaces will read. A field
+that is not one of these, or one of the wrong type, refuses that action with one problem line
+naming your plugin, the action and the field, and the rest of the plugin is still wired.
+
+The keys you suggest are your `bindings`, each naming an action, a key and optional `mods`, on
+the leader your `defaults.leader` names by role, `app` or `window`. Olm builds one keymap row
+per binding and binds it on that leader to the descriptor its action names, the binding's
+`when` and `repeats` travelling with it, so a binding never names a keycode. A binding whose
+action you do not answer is reported and left unbound. Windowmanager is the worked example on
+the window leader and capture on the app leader. A binding's `repeats = true` marks a step worth
+repeating while the key is held, and its `when` names a predicate the leader checks live, a
+false one making the key a swallowed no op on the window leader.
+
+Your tool's own open key, `defaults.key` with `registry.shortcut = "leader"`, sits on whichever
+leader `defaults.leader` names, the window leader included. It is not refused there any more,
+since the keymap binds every row on its own leader. The window sheet still lists only the
+`bindings` of plugins on that leader, so an open key there is bound and not yet on the sheet.
 
 You write nothing for the sheet. The root walks the plan for every binding declared on the
 window leader and the held window sheet draws it, with `when` hiding the row and the key
@@ -594,6 +641,10 @@ the whole leader to another physical key in `config/keys.lua`, and no plugin cha
 is one of the two places every key must be found. The launcher is the other, and a plugin puts
 its keyed actions there itself, as the next section says, which is what the window manager does
 for its window rows.
+
+Never call `hs.hotkey.bind`, `hs.hotkey.new`, or a leader engine's `bind` from a plugin or a
+host. The dry gate refuses all three under `plugins/` and `host/`, see
+`test/drygate-binding.lua`.
 
 ## Rows in the launcher's own catalog
 
@@ -671,7 +722,7 @@ declares `launcherRun` alone and leaves `launcherRows` out. Window Size is that 
 
 Holding a leader shows every key bound on it. A key your manifest declares, your own `key`, your
 `bindings`, a registry command on the leader, is collected by Olm and listed without you doing
-anything. Only a plugin that binds keys from data the manifest does not spell as bindings needs
+anything. Only a plugin that builds keys from data the manifest does not spell as bindings needs
 more, and it supplies its own sections.
 
 ```lua
@@ -680,21 +731,22 @@ defaults = { leader = "app", cheatSheetOrder = 10 },
 ```
 
 The member answers a list of sections, each a title and rows of badge, label and an optional
-icon, and it is asked on every show. Build the expensive part once, where you bind, and keep the
-member to what changes while Hammerspoon runs. List exactly what you bound on that leader. A
-key that does nothing on the sheet is the dishonesty the sheet exists to prevent, and a global
-combo belongs to no leader. The app toggler is the worked example, it resolves names and icons
-in `bindHotkeys` and splits running from dormant in `cheatSheetSections`. The contract has the
-section shape and the shipped numbers.
+icon, and it is asked on every show. Build the expensive part once, where you build your keys,
+and keep the member to what changes while Hammerspoon runs. List exactly what has a key on that
+leader. A key that does nothing on the sheet is the dishonesty the sheet exists to prevent, and a
+global combo belongs to no leader. The app toggler is the worked example, it resolves names and
+icons in `configure` and splits running from dormant in `cheatSheetSections`. The contract has
+the section shape and the shipped numbers.
 
-A registry tool's own open key, the one `registry.shortcut = "leader"` binds, goes on the app
-leader only. A tool stating `leader = "window"` with a leader shortcut is refused at wiring with
-a problem line naming it, since binding it on Hyper would put it on neither sheet. A key on the
-window leader belongs in `bindings`, which that leader binds and its sheet lists.
+The keys such a plugin builds from data reach Olm through `provides.bindings`, a member
+answering complete rows, each with an `action`, a `key`, the function in `fn`, either a
+`leader` role or the `mods` of a plain combo, and an optional `description`. Olm binds every row.
+It is a bridge for keys that are still the person's data rather than actions, the app toggler
+is its one user, and a later phase of the keymap plan replaces it with one action per app.
 
 ## Chords on the launcher's app rows
 
-The launcher lists every installed app from its own disk scan. A plugin that binds a chord for an
+The launcher lists every installed app from its own disk scan. A plugin that has a chord for an
 app tells the launcher so, and the app's row then names the chord and opens the url the plugin
 states.
 
@@ -703,11 +755,11 @@ provides = { launcherAppDetails = "launcherAppDetails" },
 ```
 
 The member answers a table keyed by bundle id, asked whenever the launcher builds its app rows,
-which is after your wiring step has run. Each entry is `{ chord = { leader = "app", key = "f" } }`
+which is after your wiring has run. Each entry is `{ chord = { leader = "app", key = "f" } }`
 for a key on a leader, or `{ chord = { key = "8", mods = { "ctrl", "alt" } }, description =
-"Placed" }` for a literal combo, with an optional `url`. List only what you bound. The app
-toggler is the worked example, it builds the table in `bindHotkeys` from exactly the entries it
-bound.
+"Placed" }` for a literal combo, with an optional `url`. List only what has a key. The app
+toggler is the worked example, it builds the table in `configure` from exactly the entries that
+became binding rows.
 
 ## Tools your plugin needs
 

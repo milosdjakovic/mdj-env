@@ -7,4 +7,6 @@ text. A screenshot copies to the clipboard on Hyper and four, adding Shift saves
 it to a file instead, and Hyper and five records the screen.
 
 There is no single open and no picker. Each chord fires its own action directly,
-and nothing here is navigated or searched.
+and nothing here is navigated or searched. Each action is a descriptor this plugin
+answers through `provides.actions`, and Olm binds the keys its `defaults.bindings`
+suggest to them, so the plugin never binds a key itself.

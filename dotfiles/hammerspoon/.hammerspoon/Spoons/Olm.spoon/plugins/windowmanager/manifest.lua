@@ -38,15 +38,6 @@ return {
   },
 
   needs = {
-    -- The window leader is core, a lib like Hyper, and a plugin that declares leader = "window"
-    -- binds onto it through the grant below with no keycode in sight, the way capture binds
-    -- onto Hyper. The grant is the whole module rather than one member, because bindToLeader
-    -- calls windowLeader:bind(...) on it as a colon method. Required, since none of the
-    -- sixteen bindings below bind to anything without a leader to bind into.
-    lib = {
-      windowLeader = { from = "windowleader", policy = "required" },
-    },
-
     data = {
       -- The when name to predicate table is not declared here any more. The window leader lib
       -- owns the gate, like Hyper, and the root hands it the table when it configures it, so
@@ -68,22 +59,15 @@ return {
     },
   },
 
-  -- bindToLeader is a second call beyond configure, so it is named here rather than assumed.
-  -- The leader is the lib grant above and the bindings are this plugin's own effective list,
-  -- after any override, which is the same shape capture's bindHotkeys takes. A binding's
-  -- `when` and `repeats` travel to the lib through its bind options. The root reads the same
-  -- effective list by walking the plan for every plugin on the window leader, so the cheat
-  -- sheet shows what is bound without ever naming this plugin, and launcherRows below builds
-  -- the launcher's rows from the same list.
-  wiring = {
-    { method = "bindToLeader", args = { "self.windowLeader", "self.bindings" } },
-  },
-
-  -- actions is the action name to handler map the window leader binds from. launcherRows is
-  -- one launcher row per bound action, built from the same effective bindings, and
-  -- launcherRun runs a chosen row's action once the launcher has closed. The launcher asks
-  -- the set for both rather than naming this plugin, and its window scope narrows its own
-  -- catalog to these rows by their kind.
+  -- actions answers one descriptor per window action, and Olm binds each binding below on the
+  -- window leader to the descriptor its action names, the binding's `when` and `repeats`
+  -- travelling with it, so this plugin binds nothing and needs no leader of its own. The cheat
+  -- sheet reads the same effective bindings by walking the plan for every plugin on the window
+  -- leader, so it shows what is bound without ever naming this plugin. launcherRows is one
+  -- launcher row per bound action, built from the same effective bindings, and launcherRun runs
+  -- a chosen row's action once the launcher has closed. The launcher asks the set for both
+  -- rather than naming this plugin, and its window scope narrows its own catalog to these rows
+  -- by their kind.
   provides = {
     actions = "actions",
     launcherRows = "launcherRows",

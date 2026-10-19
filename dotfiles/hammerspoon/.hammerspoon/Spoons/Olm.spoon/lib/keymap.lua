@@ -1,18 +1,18 @@
 -- The keymap, one read model of every chord Olm binds.
 --
--- Five paths bind a key today, a tool's open key, a registered command, a plugin's own
--- bindings, the person's toggles, and the keys Olm owns itself, the host key, the lock and
--- sleep rows and every list's context bindings. This module reads the declarations behind all
--- five and writes them down as one list of rows in one spelling, then checks that list for two
--- rows on the same chord. It binds nothing and changes nothing, who binds each key is still the
--- root's business. A later phase makes the binder walk this list, so the row shape is the part
--- worth getting right now.
+-- Every key Olm binds comes from one of six sources, a tool's open key, a registered command, a
+-- plugin's own bindings, rows a plugin provides from its own data, and the keys Olm owns itself,
+-- the host key, the lock and sleep rows and every list's context bindings. This module reads
+-- the declarations behind all of them and writes them down as one list of rows in one spelling,
+-- then checks that list for two rows on the same chord. Each global row also carries the
+-- function its source answers, and a second list holds the global rows in the order the engines
+-- receive them, so lib/binder.lua binds that list as it stands and nothing else binds a global
+-- key. This module itself binds nothing.
 --
--- It is pure Lua. It touches no hs global, and the keycode table it spells keys with arrives
--- through its inputs, so a plain test can drive it with a small fake. It names no plugin and no
--- leader. A leader is whatever word the roles table maps a role to, a plugin is whatever the
--- plan's identity table calls its directory, and a toggle is found by the shape of the data a
--- plugin was handed rather than by who the plugin is.
+-- It is pure Lua. It touches no hs global, and the keycode table it spells keys with and every
+-- function a row carries arrive through its inputs, so a plain test can drive it with small
+-- fakes. It names no plugin and no leader. A leader is whatever word the roles table maps a role
+-- to, and a plugin is whatever the plan's identity table calls its directory.
 --
 -- The row.
 --
@@ -29,12 +29,17 @@
 --   action      what the chord does, open for a tool's open key, the command name for a
 --               registered command, the app name for a toggle, the row name for a special row,
 --               and the binding's own action name for everything else.
---   source      one word naming the path, tool, host, command, bindings, toggles, special or
+--   source      one word naming the path, tool, host, command, bindings, provided, special or
 --               context.
 --   when        the predicate gating the chord, where there is one.
 --   priority    the context priority, where there is one.
 --   description the declared label, where there is one.
 --   origin      default when the plugin shipped the chord and user when the person set it.
+--   repeats     whether the action keeps firing while its key is held, where the source says.
+--   run         the function the chord calls, or nil where the source answers none. A list's
+--               own keys carry none, since the root binds those through its contexts.
+--   refused     true when the action behind a binding was declared and refused, so the binder
+--               leaves the row unbound without a second line about it.
 --
 -- The lines this module can name are problems. A problem is a table with where, the chord, and
 -- why, one sentence, so the root can hand each straight to the wiring report.
@@ -138,17 +143,27 @@ local function originOf(prov, ...)
   return "default"
 end
 
---- obj.build(inputs) -> { rows = list, problems = list }
+--- obj.build(inputs) -> { rows = list, bound = list, problems = list }
+--- rows is every row sorted by chord, the read model. bound is the global rows again in the
+--- order the engines receive them, which is the order the paths bound in before the binder
+--- existed, since two rows on one key are resolved by that order and only by that order.
 --- Reads declarations and nothing else.
 ---
----   plan        the root's plan, its effective, provenance, contexts and identity tables.
+---   plan        the root's plan, its effective, provenance, contexts, identity and order.
 ---   roles       the role word to leader catalog name table, app and window at least.
 ---   keycodes    Hammerspoon's keycode table, or nil, in which case a key is only lowercased.
----   shortcuts   what the registry holds as shortcuts, entries with a name and a kind.
+---   shortcuts   what the registry holds as shortcuts, in registration order, entries with a
+---               name, a kind and the fn the chord calls.
 ---   manifests   every live manifest by directory, read for the commands they declare.
 ---   commandKey  a function from a command name to its key, mods and origin, or nil, in which
 ---               case the key the declaring manifest ships is read and the origin is default.
----   data        the data each plugin was handed, by directory.
+---   actions     the action descriptors each plugin answered, by directory, already validated.
+---   refusedActions the action names each plugin declared and had refused, by directory.
+---   provided    the rows a plugin answered through provides.bindings, by directory, each with
+---               its own action, key, mods, leader role or none, description and fn.
+---   hostRun     a function from a host's directory to the function its key calls, or nil.
+---   specialRun  a function from a host's identity and a special row's name to its function.
+---
 function obj.build(inputs)
   local plan = assert(inputs and inputs.plan, "keymap needs a plan")
   local roles = assert(inputs.roles, "keymap needs the roles")
@@ -156,6 +171,21 @@ function obj.build(inputs)
   local keycodes = inputs.keycodes
   local identityOf = plan.identity or {}
   local rows = {}
+
+  -- The order the engines receive the global rows in, one number per row. The paths this list
+  -- replaced bound in four passes, every plugin's own bindings in plan order, then every
+  -- registered shortcut in registration order, then the hosts' keys, then the special rows, and
+  -- each phase keeps that order so an engine meets two rows on one key exactly as it did.
+  local position = {}
+  for i, directory in ipairs(plan.order or {}) do position[directory] = i end
+  -- Kept beside the rows rather than on them, since the number is a place in the plan's own
+  -- order and says nothing a reader of a row needs.
+  local placeOf = {}
+  local function orderOf(phase, major, minor)
+    return phase * 1000000 + (major or 0) * 1000 + (minor or 0)
+  end
+  local actions = inputs.actions or {}
+  local refusedActions = inputs.refusedActions or {}
 
   -- Any role word the roles table does not know falls back to the app leader, since that is
   -- where the root binds a key that names no other.
@@ -166,7 +196,7 @@ function obj.build(inputs)
 
   local function add(spec)
     local mods, anyMods = obj.mods(spec.mods)
-    rows[#rows + 1] = {
+    local row = {
       layer = spec.layer or GLOBAL,
       leader = spec.leader,
       key = obj.keyName(spec.key, keycodes),
@@ -179,48 +209,83 @@ function obj.build(inputs)
       priority = spec.priority,
       description = spec.description,
       origin = spec.origin or "default",
+      repeats = spec.repeats,
+      run = spec.run,
+      refused = spec.refused,
     }
+    rows[#rows + 1] = row
+    placeOf[row] = { order = spec.order or math.huge, index = #rows }
   end
 
-  -- The registered tools, by identity, so a chord of a tool is told from a chord of a host.
-  local registered, kindOf = {}, {}
-  for _, entry in pairs(inputs.shortcuts or {}) do
+  -- The registered tools, by identity, so a chord of a tool is told from a chord of a host. Each
+  -- shortcut entry carries the function its chord calls and its place in registration order.
+  local registered, kindOf, shortcutOf, shortcutAt = {}, {}, {}, {}
+  for i, entry in ipairs(inputs.shortcuts or {}) do
     if type(entry) == "table" and entry.name then
       registered[entry.name] = true
       kindOf[entry.name] = entry.kind
+      shortcutOf[entry.name] = entry
+      shortcutAt[entry.name] = i
     end
   end
 
-  for _, directory in ipairs(sortedKeys(plan.effective)) do
+  for hostIndex, directory in ipairs(sortedKeys(plan.effective)) do
     local eff = plan.effective[directory]
     local owner = identityOf[directory] or directory
     local prov = (plan.provenance or {})[directory] or {}
 
-    -- The open key of a tool, or of a host that is not a tool.
+    -- The open key of a tool, or of a host that is not a tool. A tool's key sits on whatever
+    -- leader its own defaults name, the window leader included, and a tool registered with a
+    -- global shortcut is a plain combo. A host's key calls whatever the root answers for it.
     if eff.key then
-      add({
-        leader = leaderOf(eff.leader), key = eff.key, mods = eff.mods, owner = owner,
-        action = "open", source = registered[owner] and "tool" or "host",
-        description = eff.description, origin = originOf(prov, "key", "mods", "leader"),
-      })
+      local entry = shortcutOf[owner]
+      if entry then
+        add({
+          leader = kindOf[owner] ~= "global" and leaderOf(eff.leader) or nil,
+          key = eff.key, mods = eff.mods, owner = owner,
+          action = "open", source = "tool",
+          description = eff.description, origin = originOf(prov, "key", "mods", "leader"),
+          run = entry.fn, order = orderOf(2, shortcutAt[owner]),
+        })
+      else
+        add({
+          leader = leaderOf(eff.leader), key = eff.key, mods = eff.mods, owner = owner,
+          action = "open", source = "host",
+          description = eff.description, origin = originOf(prov, "key", "mods", "leader"),
+          run = inputs.hostRun and inputs.hostRun(directory) or nil,
+          order = orderOf(3, hostIndex),
+        })
+      end
     end
 
-    -- A plugin's own bindings, each with its own key, modifiers and gate.
-    for _, b in ipairs(eff.bindings or {}) do
+    -- A plugin's own bindings, each with its own key, modifiers and gate, each running the
+    -- descriptor its action names. The binding's own gate and repeat win, and the descriptor's
+    -- answer them where the binding is silent.
+    local answered = actions[directory] or {}
+    for i, b in ipairs(eff.bindings or {}) do
+      local descriptor = answered[b.action]
+      local repeats = b.repeats
+      if repeats == nil and descriptor then repeats = descriptor.repeats end
       add({
         leader = leaderOf(eff.leader), key = b.key, mods = b.mods, owner = owner,
-        action = b.action, source = "bindings", when = b.when, priority = b.priority,
+        action = b.action, source = "bindings", when = b.when or (descriptor and descriptor.when),
+        priority = b.priority,
         description = b.description, origin = originOf(prov, "bindings"),
+        repeats = repeats, run = descriptor and descriptor.run or nil,
+        refused = (refusedActions[directory] or {})[b.action] == true,
+        order = orderOf(1, position[directory], i),
       })
     end
 
-    -- The special rows of a host that carry a key, which the root binds on the app leader.
-    for _, row in ipairs(eff.specialRows or {}) do
+    -- The special rows of a host that carry a key, which bind on the app leader.
+    for i, row in ipairs(eff.specialRows or {}) do
       if row.key then
         add({
           leader = leaderOf("app"), key = row.key, owner = owner, action = row.name,
           source = "special", description = row.description,
           origin = originOf(prov, "specialRows"),
+          run = inputs.specialRun and inputs.specialRun(owner, row.name) or nil,
+          order = orderOf(4, i),
         })
       end
     end
@@ -242,26 +307,24 @@ function obj.build(inputs)
     end
   end
 
-  -- The person's toggles, found by the shape of the data a plugin was handed, a list under the
-  -- name toggles. An entry that states its own modifiers is a plain combo, any other is a key
-  -- on the app leader. The list is the person's own, so every row of it is theirs.
-  for _, directory in ipairs(sortedKeys(inputs.data)) do
-    local data = inputs.data[directory]
-    if type(data) == "table" and type(data.toggles) == "table" then
-      local owner = identityOf[directory] or directory
-      for _, t in ipairs(data.toggles) do
-        if t.modifiers then
-          add({
-            key = t.key, mods = t.modifiers, owner = owner, action = t.app, source = "toggles",
-            description = t.description, origin = "user",
-          })
-        else
-          add({
-            leader = leaderOf("app"), key = t.key, owner = owner, action = t.app,
-            source = "toggles", description = t.description, origin = "user",
-          })
-        end
-      end
+  -- The rows a plugin answered through provides.bindings, each complete with its own function.
+  -- A row naming a leader role sits on that role's leader and one naming none is a plain combo.
+  -- This is a bridge for a plugin whose keys are still built from the person's own data, so
+  -- every row of it is the person's, which is how the collision check has always classed them.
+  for _, directory in ipairs(sortedKeys(inputs.provided)) do
+    local owner = identityOf[directory] or directory
+    for i, r in ipairs(inputs.provided[directory] or {}) do
+      -- A key on a leader stating no modifiers is a catch all, as it is everywhere, while a plain
+      -- combo always states its own.
+      local mods = r.mods
+      if not r.leader and mods == nil then mods = {} end
+      add({
+        leader = r.leader and leaderOf(r.leader) or nil,
+        key = r.key, mods = mods, owner = owner,
+        action = r.action, source = "provided", when = r.when, description = r.description,
+        origin = "user", repeats = r.repeats, run = r.fn,
+        order = orderOf(1, position[directory], i),
+      })
     end
   end
 
@@ -279,11 +342,21 @@ function obj.build(inputs)
           leader = kindOf[name] ~= "global" and leaderOf("app") or nil,
           key = info.key, mods = info.mods, owner = identityOf[directory] or directory,
           action = name, source = "command", description = description,
-          origin = info.origin,
+          origin = info.origin, run = shortcutOf[name].fn, order = orderOf(2, shortcutAt[name]),
         })
       end
     end
   end
+
+  local bound = {}
+  for _, row in ipairs(rows) do
+    if row.layer == GLOBAL then bound[#bound + 1] = row end
+  end
+  table.sort(bound, function(a, b)
+    local pa, pb = placeOf[a], placeOf[b]
+    if pa.order ~= pb.order then return pa.order < pb.order end
+    return pa.index < pb.index
+  end)
 
   table.sort(rows, function(a, b)
     local ka = table.concat({ a.layer, a.leader or "", a.key, rowModsText(a), a.action or "", a.owner or "" }, "\0")
@@ -291,7 +364,7 @@ function obj.build(inputs)
     return ka < kb
   end)
 
-  return { rows = rows, problems = obj.collisions(rows) }
+  return { rows = rows, bound = bound, problems = obj.collisions(rows) }
 end
 
 --------------------------------------------------------------------------------

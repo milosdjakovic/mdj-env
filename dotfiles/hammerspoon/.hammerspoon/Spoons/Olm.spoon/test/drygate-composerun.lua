@@ -69,8 +69,21 @@
 -- Lua file returning a real Hammerspoon keycode table, dumped from a live session, and the
 -- stub then answers it, otherwise a key is only lowercased. Every tool a plugin declares is
 -- reported present, so no plugin is left out for a missing program. The snapshot is not written.
+--
+-- THE BOUND MODE, the second half of the same proof. With DRYGATE_BINDS set, every call into the
+-- two leader engines' bind and into hs.hotkey.bind is recorded as it happens, and the run writes
+-- what was actually bound rather than what the keymap declares. DRYGATE_BINDS=golden writes one
+-- line per bind call in the format of test/keys.golden, sorted, with each owner found from the
+-- keymap's rows the way the live probe finds it. DRYGATE_BINDS=order writes the same lines
+-- grouped by engine and key and kept in call order inside each group, since the order an engine
+-- receives two bindings on one key is what decides which of them wins. It answers tools and
+-- keycodes the way the keymap mode does, and it writes nothing else.
 
 local spoonDir, hsRoot, sandbox, mapPath = arg[1], arg[2], arg[3], arg[4]
+local scriptDir = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
+local bindMode = os.getenv("DRYGATE_BINDS")
+if bindMode == "" then bindMode = nil end
+local bindCalls = {}
 local keycodesPath = os.getenv("DRYGATE_KEYCODES")
 local realKeycodes = keycodesPath and keycodesPath ~= "" and dofile(keycodesPath) or nil
 if not (spoonDir and hsRoot and sandbox) then
@@ -253,6 +266,24 @@ hs = stub("hs")
 spoon = {}
 hs.configdir = hsRoot
 if realKeycodes then hs.keycodes = { map = realKeycodes } end
+-- The bound mode needs a keycode table that answers the same code for the same name every time,
+-- since the root compares two leaders' keycodes and an engine files a binding under its code, and
+-- a stand in answers a fresh table on every read, so no two would ever agree. Without a dumped
+-- table each name is given the next free code the first time it is asked for, and the code
+-- answers the name back, which spells every key as its own lowercase name.
+if bindMode and not realKeycodes then
+  local nextCode = 1000
+  local map = setmetatable({}, { __index = function(t, k)
+    if type(k) ~= "string" then return nil end
+    local code = nextCode
+    nextCode = nextCode + 1
+    rawset(t, k, code)
+    rawset(t, code, k)
+    return code
+  end })
+  hs.keycodes = { map = map }
+  realKeycodes = map
+end
 local fs = stub("hs.fs")
 fs.dir = recorded("hs.fs.dir", function(path)
   local names = children[clean(path)]
@@ -292,7 +323,7 @@ hs.execute = recorded("hs.execute", function() return "", true, "exit", 0 end)
 -- way they are on the machine the golden was taken on. Otherwise a plugin whose required tool
 -- is absent here is left out of the plan, and its keys with it, which says nothing about the
 -- read model. The probe is one command v call naming every locator, so each name is answered.
-if os.getenv("DRYGATE_KEYMAP") == "1" then
+if os.getenv("DRYGATE_KEYMAP") == "1" or bindMode then
   hs.execute = function(command)
     local out = {}
     for name in tostring(command):gmatch("%S+") do
@@ -300,6 +331,16 @@ if os.getenv("DRYGATE_KEYMAP") == "1" then
     end
     return table.concat(out, "\n") .. "\n", true, "exit", 0
   end
+end
+-- The bound mode records every plain combo the run binds. The real call hands back a hotkey
+-- object, so a stand in is answered for whatever the caller does with it next.
+if bindMode then
+  local hotkey = stub("hs.hotkey")
+  hotkey.bind = function(mods, key, fn)
+    bindCalls[#bindCalls + 1] = { engine = "hotkey", key = key, mods = mods or {}, fn = fn }
+    return stub("hs.hotkey.bind()")
+  end
+  hs.hotkey = hotkey
 end
 hs.json = { read = recorded("hs.json.read", none), write = recorded("hs.json.write", function() return false end),
   decode = recorded("hs.json.decode", none), encode = recorded("hs.json.encode", function() return "{}" end) }
@@ -462,6 +503,22 @@ hs.loadSpoon = function(name)
     opaque[atom] = true
     instrument(atom, "lib." .. atomName, 2)
   end
+  -- The bound mode taps the two leader engines' bind on the very tables the root binds through,
+  -- after instrumenting, so a call is recorded once whichever path made it.
+  if bindMode then
+    for atomName, label in pairs({ hyperkey = "hyper", windowleader = "window" }) do
+      local atom = olm.lib and olm.lib[atomName]
+      if type(atom) == "table" and type(atom.bind) == "function" then
+        local inner = atom.bind
+        atom.bind = function(self, key, fn, mods, opts)
+          bindCalls[#bindCalls + 1] = { engine = label, key = key, mods = mods, fn = fn,
+            when = type(opts) == "table" and opts.when or nil,
+            priority = type(opts) == "table" and opts.priority or nil }
+          return inner(self, key, fn, mods, opts)
+        end
+      end
+    end
+  end
   local start = olm.start
   olm.start = function(self, cfg)
     cfg = cfg or {}
@@ -507,6 +564,35 @@ if os.getenv("DRYGATE_KEYMAP") == "1" then
     if line:match("^log %S+ e ") or line:match("^log %S+ w ") then io.stderr:write(line, "\n") end
   end
   io.stdout:write(table.concat(project.project(keymap.rows, keys.windowLeader), "\n"), "\n")
+  os.exit(0)
+end
+
+if bindMode then
+  debug.sethook()
+  recording = false
+  local record = olm and olm._composed
+  local keymap = type(record) == "table" and record.keymap
+  if not keymap then
+    io.stderr:write("the composition root recorded no keymap, so no owner can be named\n")
+    os.exit(1)
+  end
+  for _, line in ipairs(lines) do
+    if line:match("^log %S+ e ") or line:match("^log %S+ w ") then io.stderr:write(line, "\n") end
+  end
+  -- Loaded from beside this file rather than from the spoon under test, so a copy of an older
+  -- spoon can be recorded with the same projection and the two outputs compared.
+  local project = assert(loadfile(scriptDir .. "keys-project.lua"))()
+  local keys = dofile(hsRoot .. "/config/keys.lua")
+  local fnOwner = {}
+  local registry = olm.registry
+  if type(registry) == "table" and type(registry.shortcuts) == "function" then
+    for _, entry in ipairs(registry.shortcuts() or {}) do
+      if type(entry.fn) == "function" then fnOwner[entry.fn] = entry.name end
+    end
+  end
+  local out = project.boundLines(bindCalls, keymap.rows, keys.windowLeader, realKeycodes, fnOwner,
+    bindMode == "order")
+  io.stdout:write(table.concat(out, "\n"), "\n")
   os.exit(0)
 end
 

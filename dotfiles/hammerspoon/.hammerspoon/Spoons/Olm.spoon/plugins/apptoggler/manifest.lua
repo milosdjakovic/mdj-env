@@ -1,9 +1,10 @@
 -- AppToggler, what it declares about itself.
 --
 -- A general toggle mechanism serving every app in config/keys.lua's appToggles, so it owns
--- no single key of its own. Most entries fire within the app leader modal, but an entry may
--- opt out of the modal entirely by stating its own `modifiers`, which asks for a literal
--- global combo instead, live all the time rather than only while Hyper is held. Which apps
+-- no single key of its own. Most entries are keys on the app leader, but an entry may opt out
+-- of the leader entirely by stating its own `modifiers`, which asks for a literal global combo
+-- instead, live all the time rather than only while Hyper is held. Olm binds every one of them
+-- from the rows this plugin answers through provides.bindings, so the plugin binds nothing. Which apps
 -- beyond the one below, which key each one answers to, and whether an entry hides, cycles,
 -- or places itself on show, stays the person's own choice in config/apps.lua and
 -- config/keys.lua, the same reasoning windowmanager's much larger binding table gets for
@@ -39,14 +40,7 @@ return {
   },
 
   needs = {
-    -- Toggles fire while the physical Hyper key is held, through the shared hold engine
-    -- HyperKey wraps, so a modal entry reads as a modal chord rather than a literal
-    -- modifier combination. Optional, because AppToggler already falls back to binding the
-    -- literal HYPER combo when HyperKey is not wired, so losing it costs a nicer chord
-    -- rather than the feature itself, and an entry that stated its own `modifiers` never
-    -- reaches this at all, either way.
     lib = {
-      hyperKey = { from = "hyperkey", policy = "optional" },
       -- Bringing the app forward, focus or cycle and toggle by url, the core lib the launcher's
       -- app rows share. Required, since the ordinary toggle and the url form both call it, and
       -- a core lib is always present, so requiring it costs nothing on any install.
@@ -67,8 +61,8 @@ return {
       -- plugin as `data.apps` in its own apptoggler entry in config/plugins.lua.
       apps = { source = "user", policy = "optional",
                breaks = "only Finder resolves, every other toggle logs Unknown app and does nothing" },
-      -- config/keys.lua's appToggles, the list bindHotkeys walks below, reaching this plugin as
-      -- `data.toggles` in the same entry. Each entry's own
+      -- config/keys.lua's appToggles, the list the binding rows are built from, reaching this
+      -- plugin as `data.toggles` in the same entry. Each entry's own
       -- optional fields, modifiers, hides, description, and placement, live inside this
       -- same list rather than as separate declarations, since they are the person's
       -- per app choices and this door already carries those.
@@ -77,34 +71,32 @@ return {
     },
   },
 
-  -- bindHotkeys is a second call this plugin exposes beyond configure, so it belongs in
-  -- wiring rather than being folded into opts. It takes the toggle list positionally rather
-  -- than the whole options table, the same reason any step that is not configure(opts) needs args at all. self is
-  -- right rather than root now, toggles is this plugin's own effective declaration below,
-  -- already merged with whatever the person's own file overrides.
-  wiring = {
-    { method = "bindHotkeys", args = { "self.toggles" } },
-  },
-
+  -- The keys are the rows bindings answers, one complete row per toggle whose app resolves, each
+  -- with its key, the app role or its own modifiers, its description and the function it calls.
+  -- They are built in configure from this plugin's own effective toggles, already merged with
+  -- whatever the person's own file overrides, and Olm binds them. It is a bridge, since these
+  -- keys are still the person's data rather than actions, and a later phase of the keymap plan
+  -- replaces it with one action per app.
+  --
   -- The Hyper cheat sheet lists the toggles because this plugin says it supplies sections for
   -- a leader's sheet, never because the sheet knows it exists. cheatSheetSections answers the
-  -- running and dormant split of every toggle this plugin bound into the Hyper modal, asked on
-  -- every show since which apps are running changes while Hammerspoon runs. Switched off, the
-  -- sheet simply has no app section.
+  -- running and dormant split of every toggle that is a key on the app leader, asked on every
+  -- show since which apps are running changes while Hammerspoon runs. Switched off, the sheet
+  -- simply has no app section.
   --
   -- The launcher's app rows show each bound app's chord because this plugin says it supplies
   -- details for them, never because the launcher reads the toggles. launcherAppDetails answers
-  -- every app bindHotkeys bound, keyed by bundle id, with its chord, its description and its
-  -- url. Switched off, an app row simply carries no chord.
+  -- every app that has a row, keyed by bundle id, with its chord, its description and its url.
+  -- Switched off, an app row simply carries no chord.
   provides = {
+    bindings = "bindings",
     cheatSheetSections = "cheatSheetSections",
     launcherAppDetails = "launcherAppDetails",
   },
 
   defaults = {
-    -- The leader whose sheet lists the toggles, the one a modal entry binds on through
-    -- needs.lib.hyperKey. An entry with its own `modifiers` is a global combo on no leader and
-    -- is never listed.
+    -- The leader whose sheet lists the toggles, the one an entry with no `modifiers` binds on.
+    -- An entry with its own `modifiers` is a global combo on no leader and is never listed.
     leader = "app",
     -- Where the app sections sit on that sheet, compared with the sheet's own block of bound
     -- chords at fifty. Ten keeps the apps first, where they have always been.
@@ -113,8 +105,8 @@ return {
       Finder = "com.apple.finder",
     },
     toggles = {
-      -- No modifiers, meaning the Hyper modal, exactly what a fresh install with nothing
-      -- else configured is meant to demonstrate.
+      -- No modifiers, meaning a key on the app leader, exactly what a fresh install with
+      -- nothing else configured is meant to demonstrate.
       { app = "Finder", key = "f" },
     },
   },

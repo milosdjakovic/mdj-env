@@ -26,18 +26,11 @@ local log = hs.logger.new("AppToggler", "info")
 
 -- Configuration
 obj._apps = nil
-obj._hyperKey = nil
 obj._appFocus = nil   -- lib/appfocus.lua, dot called, focus or cycle and toggle by url
-obj._toggles = nil    -- the toggle list bindHotkeys bound from
-obj._sheetItems = nil -- the modal toggles as cheat sheet rows, { key, name, bundleID, icon }
+obj._toggles = nil    -- the toggle list the rows were built from
+obj._rows = nil       -- one complete binding row per toggle that resolved, see bindings
+obj._sheetItems = nil -- the leader toggles as cheat sheet rows, { key, name, bundleID, icon }
 obj._appDetails = nil -- bundle id to what the launcher's row for that app shows, see launcherAppDetails
-
--- The literal combo an entry with no `modifiers` field falls back to when HyperKey is not
--- wired at all, so losing that spoon degrades the chord rather than the toggle itself.
--- Nobody has ever wanted a different combo here, the same reasoning the timing constants
--- below get, so it stays an internal constant rather than something config/keys.lua states
--- for every entry the way it used to.
-local HYPER_FALLBACK = { "shift", "ctrl", "alt", "cmd" }
 
 -- The async ready wait's own timing, ported unchanged from TerminalHandler, which is where
 -- it was tuned. A window a fresh launch or a fresh focus produces is not necessarily ready
@@ -156,22 +149,19 @@ end
 function obj:configure(opts)
   opts = opts or {}
   self._apps = opts.apps or {}
-  -- When a HyperKey spoon is provided, an entry with no modifiers of its own binds into
-  -- its modal (fired by holding the physical Hyper key) instead of a literal modifier
-  -- combination.
-  self._hyperKey = opts.hyperKey
   -- Focus or cycle and toggle by url, the core lib the manifest asks for through needs.lib.
   -- Both used to be methods here, and the launcher reached them as siblings on this plugin.
   -- Phase three of the core split moved them into lib/appfocus.lua so the launcher's app rows
   -- name no plugin, and this plugin calls the same module rather than keeping a copy.
   self._appFocus = opts.appFocus
-  -- The leader default only routes which sheet receives the app sections, while the keys
-  -- always bind through the app leader's hyperKey, so any other word would bind the keys on
-  -- one leader and list them on another's sheet, or on none. It is refused here, loudly.
+  -- The leader default only routes which sheet receives the app sections, while every row
+  -- names the app role, so any other word would bind the keys on one leader and list them on
+  -- another's sheet, or on none. It is refused here, loudly.
   if opts.leader ~= nil and opts.leader ~= "app" then
     error("AppToggler binds its keys on the app leader only, so leader must be \"app\" and not "
       .. tostring(opts.leader), 2)
   end
+  self:_build(opts.toggles or {})
   return self
 end
 
@@ -325,21 +315,24 @@ function obj:_buildAction(toggle, bundleID)
   end
 end
 
---- AppToggler:bindHotkeys(toggles)
+--- AppToggler:_build(toggles)
 --- Method
---- Bind app toggle hotkeys from config. An entry with no `modifiers` field binds into the
---- Hyper modal when HyperKey is wired, and falls back to the internal literal combo when it
---- is not, exactly as before. An entry that DOES state `modifiers` binds as a literal global
---- combo through hs.hotkey.bind outright, live all the time rather than only while Hyper is
---- held, regardless of whether HyperKey is wired, since stating a combo is asking to skip
---- the modal entirely rather than asking for a fallback from it. Every entry used to be
---- forced into the modal no matter what it declared, a defect this fixes.
-function obj:bindHotkeys(toggles)
-  -- Kept as given, the list this plugin bound from, so the key inventory reads the toggles where
-  -- they are used rather than from a copy somewhere else.
+--- One complete binding row per toggle whose app resolves, built once from the effective toggle
+--- list when the plugin is configured. An entry with no `modifiers` field is a key on the app
+--- leader, named by its role so this plugin never learns which physical key that is. An entry
+--- that states `modifiers` is a plain combo, live all the time rather than only while the
+--- leader is held, since stating a combo is asking to skip the leader entirely. Olm binds every
+--- row, so this plugin binds nothing.
+---
+--- The sheet items and the launcher's app details are built here too, from exactly the entries
+--- that became rows, the leader entries for the sheet and every one for the launcher, so neither
+--- can list an app that has no key.
+function obj:_build(toggles)
+  -- Kept as given, the list the rows were built from, so the key inventory reads the toggles
+  -- where they are used rather than from a copy somewhere else.
   self._toggles = toggles
-  local modal, bound = {}, {}
-  self._sheetItems, self._appDetails = {}, {}
+  local onLeader, built = {}, {}
+  self._rows, self._sheetItems, self._appDetails = {}, {}, {}
   for _, toggle in ipairs(toggles) do
     local ok, err = pcall(function()
       local bundleID = self._apps[toggle.app]
@@ -347,51 +340,55 @@ function obj:bindHotkeys(toggles)
         log.w("Unknown app '" .. tostring(toggle.app) .. "' in config")
         return
       end
-      local action = self:_buildAction(toggle, bundleID)
-      local inModal = false
-      if toggle.modifiers then
-        hs.hotkey.bind(toggle.modifiers, toggle.key, action)
-      elseif self._hyperKey then
-        -- Fires while the physical Hyper key is held (HyperKey.spoon eventtap)
-        self._hyperKey:bind(toggle.key, action)
-        inModal = true
-      else
-        -- Fallback when no HyperKey is wired: the literal modifier combo
-        hs.hotkey.bind(HYPER_FALLBACK, toggle.key, action)
-      end
-      -- Only an entry that bound reaches the sheet and the launcher, and each is built here on
-      -- its own, so a lookup that raises for one app costs that app's row and nothing else.
+      local row = {
+        action = toggle.app, key = toggle.key, description = toggle.description,
+        fn = self:_buildAction(toggle, bundleID),
+      }
+      if toggle.modifiers then row.mods = toggle.modifiers else row.leader = "app" end
+      -- Each entry is built on its own, so a lookup that raises for one app costs that app's row
+      -- and nothing else.
       local entry = { toggle = toggle, bundleID = bundleID }
-      bound[#bound + 1] = entry
-      if inModal then modal[#modal + 1] = entry end
+      self._rows[#self._rows + 1] = row
+      built[#built + 1] = entry
+      if not toggle.modifiers then onLeader[#onLeader + 1] = entry end
     end)
     if not ok then
       log.w("Toggle for '" .. tostring(type(toggle) == "table" and toggle.app or toggle)
-        .. "' failed to bind, " .. tostring(err))
+        .. "' failed to build, " .. tostring(err))
     end
   end
-  self._sheetItems = self:_sheetItemsFor(modal)
-  self._appDetails = self:_appDetailsFor(bound)
+  self._sheetItems = self:_sheetItemsFor(onLeader)
+  self._appDetails = self:_appDetailsFor(built)
   return self
+end
+
+--- AppToggler:bindings() -> rows
+--- Method
+--- The toggles as complete binding rows, declared as provides.bindings. Each row carries the
+--- action name, the key, either the app leader role or the modifiers of a plain combo, the
+--- description and the function the key calls. This is a bridge for keys still built from the
+--- person's own data, which a later phase replaces with one action per app. Empty before
+--- configure has run.
+function obj:bindings()
+  return self._rows or {}
 end
 
 --------------------------------------------------------------------------------
 -- What the launcher's row for a bound app shows, supplied through provides.launcherAppDetails.
 -- The launcher read the person's toggles and app registry itself until the core split finished,
 -- the same leak phase four removed from the Hyper sheet, so a core host knew this plugin's data
--- and its shape. It is built here now, from exactly the entries bindHotkeys bound.
+-- and its shape. It is built here now, from exactly the entries that became binding rows.
 --------------------------------------------------------------------------------
 
 --- AppToggler:_appDetailsFor(bound)
 --- Method
---- One entry per bundle id. Two toggles may name the same app, one in the Hyper modal for the
+--- One entry per bundle id. Two toggles may name the same app, one on the app leader for the
 --- ordinary focus and cycle and one stating its own modifiers for something like a placed
 --- summon. The one with modifiers wins the chord the row shows, since a literal combo appears on
---- no cheat sheet and the row is the only place it can be found, while the modal entry keeps the
+--- no cheat sheet and the row is the only place it can be found, while the leader entry keeps the
 --- Hyper sheet as its own. A url from either belongs to the row whichever chord is shown, since
---- choosing the row always opens it. A modal entry names its leader by role, so the launcher
---- spells the leader's name and this plugin never writes the word Hyper. An entry bound on the
---- literal fallback combo because no HyperKey was wired is still a Hyper chord and reads as one.
+--- choosing the row always opens it. A leader entry names its leader by role, so the launcher
+--- spells the leader's name and this plugin never writes the word Hyper.
 function obj:_appDetailsFor(bound)
   local out = {}
   local function chordOf(toggle)
@@ -418,7 +415,7 @@ end
 --- Method
 --- Bundle id to { chord, description, url } for every app this plugin bound, asked by the
 --- launcher whenever it builds its app rows. chord is { leader, key } for a key on a leader, or
---- { key, mods } for a literal combo on no leader. Empty before bindHotkeys has run.
+--- { key, mods } for a literal combo on no leader. Empty before configure has run.
 function obj:launcherAppDetails()
   return self._appDetails or {}
 end
@@ -427,8 +424,8 @@ end
 -- The Hyper cheat sheet's app sections, supplied through provides.cheatSheetSections. They were
 -- built by the sheet itself until phase four of the core split, from the same person data this
 -- plugin binds, which made a core host know this plugin's data and its shape. They are built
--- here now, from exactly the entries bindHotkeys put into the Hyper modal, so the sheet cannot
--- list a toggle that was not bound there.
+-- here now, from exactly the entries that became rows on the app leader, so the sheet cannot
+-- list a toggle that is not bound there.
 --------------------------------------------------------------------------------
 
 -- Order by key, alphanumeric first (0 to 9, a to z), then symbols such as ` and / at the end,
@@ -438,16 +435,16 @@ local function keyRank(k)
   return k:match("^%w$") and 0 or 1
 end
 
---- AppToggler:_sheetItemsFor(modal)
+--- AppToggler:_sheetItemsFor(onLeader)
 --- Method
---- Resolve each modal toggle's name and icon once, since both are disk work and the sheet is
+--- Resolve each leader toggle's name and icon once, since both are disk work and the sheet is
 --- shown on a key hold that must feel instant. An app that is not installed is dropped, so the
 --- sheet never shows a row for something that is not on this machine. pathForBundleID answers
 --- an empty string rather than nil for such an app, and an empty string is truthy in Lua, so
 --- the test is for a non empty path.
-function obj:_sheetItemsFor(modal)
+function obj:_sheetItemsFor(onLeader)
   local items = {}
-  for _, m in ipairs(modal) do
+  for _, m in ipairs(onLeader) do
     -- Each lookup is guarded on its own, so one app whose name or icon raises is logged and
     -- skipped while every other row stays.
     local ok, err = pcall(function()

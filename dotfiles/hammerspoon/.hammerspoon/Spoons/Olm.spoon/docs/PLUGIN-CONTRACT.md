@@ -264,32 +264,20 @@ lib = { ui = { from = "ui" } },
 docs/DESIGN-UI-KIT.md is the design and docs/PLUGIN-AUTHORING.md has a worked example under
 "Drawing with the kit".
 
-`hyperkey` and `windowleader` are the two leader engines, both core. A plugin joins a leader
-by declaring `defaults.leader` as the role word, `"app"` or `"window"`, a `defaults.bindings`
-list, and the matching grant, and by calling the lib's `bind` from a wiring step with
-`self.bindings`. On the window leader that is the whole contract.
+`hyperkey` and `windowleader` are the two leader engines, both core. A plugin never binds a key
+on either, so it never asks for one in order to bind. It answers its actions through
+`provides.actions` and suggests keys in `defaults.bindings` on the leader its `defaults.leader`
+names by role, and Olm binds every one, see `provides` below. A plugin asks for a leader engine
+only to read it, capture and the clipboard asking Hyper whether it is still held so a synthetic
+keystroke waits for its release.
 
-```lua
-needs = { lib = { windowLeader = { from = "windowleader", policy = "required" } } },
-defaults = {
-  leader = "window",
-  bindings = { { action = "leftHalf", key = "left" }, { action = "nextDisplay", key = ".", when = "multipleDisplays" } },
-},
-wiring = { { method = "bindToLeader", args = { "self.windowLeader", "self.bindings" } } },
-```
-
-The lib's `bind(key, fn, mods, opts)` binds onto the one keycode the root configured it
-with, so a plugin never names a keycode. `opts` carries `repeats`, true for a step worth
-repeating while the key is held, and `when`, a predicate name the lib resolves live against
-the table the root configured it with, so a false predicate makes the key a swallowed no op
-and an unknown name stays active, the same rule Hyper applies. The root finds every binding
-declared on the window leader by walking the plan, whichever plugin declared it, stamps the
-leader keycode onto them once and hands the list to the window cheat sheet, so a binding
-declared this way appears in the held sheet with no other step. A binding may carry `when`,
-which gates the key and its sheet row together, and `description`, which overrides the label
-the sheet humanizes from the action name. The launcher's window rows still come only from
-windowmanager's own action map until phase three of the core split, so a binding from another
-plugin is on the sheet and not yet in the launcher.
+The root finds every binding declared on the window leader by walking the plan, whichever plugin
+declared it, stamps the leader keycode onto them once and hands the list to the window cheat
+sheet, so a binding declared this way appears in the held sheet with no other step. A binding may
+carry `when`, which gates the key and its sheet row together, `repeats`, true for a step worth
+repeating while the key is held, and `description`, which overrides the label the sheet humanizes
+from the action name. A false predicate makes a window key a swallowed no op and an unknown name
+stays active.
 
 The value is delivered on `opts` under the field name you chose, and a member defined as a
 method arrives already bound to its own module, so you can call it plainly. Both halves
@@ -586,6 +574,52 @@ The split is not cosmetic. A query for `rows` alone returns every scopable tool 
 computed source may also propose `defaults.example`, one short line the launcher's empty
 field can wear, which is the only way a person finds out a typed sum answers at all.
 
+`actions` is what a plugin can run. It names a member answering a table, or a table itself,
+keyed by action name, each value a descriptor. The function form is called once, with its module
+as the receiver, after every plugin's `configure` and wiring have run and every tool has
+registered, so a table built in `configure` is there.
+
+```lua
+provides = { actions = "actions" },
+
+function obj:actions()
+  return {
+    leftHalf = { run = function() self:leftHalf() end },
+    moveLeft = { run = function(depth) self:moveByPixels("left", self:_moveStep(depth)) end },
+  }
+end
+```
+
+`run` is the one required field, a function called with the hold depth, 0 on the press and
+counting up while a key carrying `repeats` is held. A caller that is not a key may hand its own
+argument instead, the window manager's `exactSize` taking the size Window Size parsed, so an
+action that reads its argument says what it expects. Every other field is optional and checked
+by type where present, `description`, `subtitle`, `kind` and `app` strings, `icon` a string or a
+table, `keywords` a string or a list of strings, `repeats` and `listed` booleans, `when` a
+predicate name, and `group` a string or a function. A field outside that list, or one of the
+wrong type, refuses that one action with a problem line naming the plugin, the action and the
+field, and the rest of the plugin is still wired. A binding in `defaults.bindings` names an
+action by its key in this table, and Olm binds the binding's key on its leader to that
+descriptor's `run`, the binding's own `when` and `repeats` winning over the descriptor's. A
+binding naming an action the table does not hold is reported and left unbound. Capture and the
+window manager are the shipped cases, and Window Size reads the window manager's table as a
+sibling, calling `run`.
+
+`bindings` is a bridge for a plugin whose keys are still built from the person's own data rather
+than declared, the app toggler's toggles being its one user. It names a member answering a list
+of complete rows, each an `action` name, a `key`, the function in `fn`, either a `leader` role or
+the `mods` of a plain combo, and an optional `description`. The member is asked once at the same
+moment as `actions`, and Olm binds every row. A row missing its function, its key, or both a
+leader and modifiers is refused with one problem line and every other row is kept. A later phase
+of the keymap plan, docs/PLAN-KEYMAP.md, replaces it with one action per app.
+
+```lua
+provides = { bindings = "bindings" },
+-- answers
+{ { action = "Finder", key = "f", leader = "app", fn = focusFinder },
+  { action = "Ghostty", key = "`", mods = { "alt" }, description = "Terminal", fn = placeTerminal } }
+```
+
 `profile` means this plugin can say which display arrangement is current, which the overlay
 resolver asks for without knowing any plugin manages arrangements at all. A value may be
 `true` where the capability is a fact about the plugin rather than a member to call, as
@@ -670,9 +704,9 @@ Leave gaps when choosing a number, so a plugin added later can sit between two w
 renumbering.
 
 `cheatSheetSections` is how a plugin adds sections of its own to a leader's held cheat sheet,
-the sheet asking the set and naming no plugin. Every key a plugin binds through its manifest,
+the sheet asking the set and naming no plugin. Every key a plugin declares through its manifest,
 its own key, its `bindings`, its leader commands, already reaches the sheet without this, since
-the root collects those itself. This is for keys a plugin binds from data the manifest does not
+the root collects those itself. This is for keys a plugin builds from data the manifest does not
 spell as bindings, the app toggler's person supplied toggle list being the shipped case.
 
 ```lua
@@ -682,7 +716,7 @@ defaults = { leader = "app", cheatSheetOrder = 10 },
 
 The member answers a list of sections and is asked every time the sheet is shown, so a section
 may read live state, which apps are running for instance. Keep it cheap, since the sheet opens on
-a key hold, and resolve anything that touches the disk once, when you bind.
+a key hold, and resolve anything that touches the disk once, where you build your keys.
 
 ```lua
 { title = "RUNNING",
@@ -722,8 +756,8 @@ provides = { launcherAppDetails = "launcherAppDetails" },
 ```
 
 The member answers a table keyed by bundle id and is asked whenever the launcher builds its app
-rows, which happens when the running set changes, after every wiring step, so a table built where
-the plugin binds is ready.
+rows, which happens when the running set changes, after every wiring step, so a table built in the
+plugin's `configure` is ready.
 
 ```lua
 { ["com.apple.finder"] = {
@@ -800,11 +834,11 @@ member name, since a string detail already means words a person reads, which is 
 dry gate checks only the table form against the real module. TextCase is the consumer, its
 row saying up front that nothing is selected.
 
-`shortcut = "leader"` binds the tool's own key on the app leader, the one engine that binds a
-registry key. A tool whose `defaults.leader` is `"window"` and which asks for a leader shortcut
-is refused at wiring, a problem line naming the tool, rather than bound on Hyper and listed on
-neither sheet. The window leader binds a plugin's declared `bindings` and nothing else, so a key
-meant for it goes there.
+`shortcut = "leader"` binds the tool's own key on the leader its `defaults.leader` names, the
+window leader included, and `shortcut = "global"` binds it as a plain combo. Olm's keymap holds
+it as one row and binds it like every other. A tool on the window leader used to be refused at
+wiring, while the registrar bound a tool's key on Hyper alone, and that refusal is gone. The
+window sheet still lists only plugins' `bindings`, so such a key is bound and not yet on it.
 
 `commands` are named actions that belong to a tool but are not tools themselves. A command
 has no plugin directory, so nothing can resolve a key for it through the plan, which is why
@@ -1357,8 +1391,10 @@ means `plugin.chooser`. This exists because five plugins keep their picker on a
 submodule, and global policy landed on the parent for all five, where the live root
 passes none of it.
 
-`method` may be anything, not only `configure`. Without this, WindowManager wired up
-completely dead, because `bindToLeader` never ran and nothing anywhere said it should.
+`method` may be anything, not only `configure`. Without this, WindowManager once wired up
+completely dead, because its binding step never ran and nothing anywhere said it should. No
+step binds a key any more, Olm binds every key from the keymap, and the dry gate refuses a bind
+call under `plugins/` and `host/`.
 
 A step may declare `args`, a list naming what it receives when the step is not the
 ordinary options table. Each entry is a dotted string whose first part says where the
@@ -1368,14 +1404,14 @@ say which.
 ```lua
 wiring = {
   -- this plugin's own effective declarations, already merged with the user's overrides
-  { method = "bindHotkeys", args = { "self.bindings" } },
-  -- values the composition root assembles
-  { method = "bindToLeader", args = { "self.windowLeader", "self.bindings" } },
+  { method = "start", args = { "self.settings" } },
 }
 ```
 
-`self.` is right for a plugin's own data, which is what a binding list is, and for a lib
-grant, which arrives under the field name the plugin declared it by. `root.` is right for
+No shipped step takes `args` today. The two that did were the binding steps the keymap retired,
+which took `self.bindings`, and the shape stays for the next step that is not `configure(opts)`.
+`self.` is right for a plugin's own data and for a lib grant, which arrives under the field name
+the plugin declared it by. `root.` is right for
 something built from several plugins, which is what the shared predicate table is.
 Leaving the namespace implicit was the first version and two readers took it two
 different ways.
@@ -1411,7 +1447,10 @@ once in Olm's root and never computed.
    uninstalled table leaves every navigation key live at all times.
 5. **register**, a registry descriptor per tool. It carries `apiVersion` and a
    `category`, and its `surface` is a function. The registry refuses anything else.
-6. **activate**, then the open keys read from `registry.shortcuts()`.
+6. **activate**. Then the root asks every plugin for its `provides.actions` and
+   `provides.bindings`, builds the keymap from every declaration, and binds every global row
+   through the one binder, in the order the paths it replaced bound them, plugin bindings in
+   plan order, then the registry's shortcuts, then the hosts' keys, then the special rows.
 7. **contexts**, the navigation bind loop over every surface.
 8. **start**, engines last, and the one shared event tap last of all, since it must
    see a complete key set.
@@ -1454,7 +1493,8 @@ row silently vanished.
 - Anything only this plugin's own code could know stays inside it. Its provider order, the
   path one of its own backends needs, and what an empty list means are all its business, and
   a composition root that has to know any of them must be edited every time a file is added.
-- Any lifecycle beyond `configure(opts)` is in `wiring`.
+- Any lifecycle beyond `configure(opts)` is in `wiring`, and no step binds a key. What the
+  plugin can run is `provides.actions` and the keys it suggests are `defaults.bindings`.
 - `hs -c "return dofile(...inspect...)"` reports the plugin wired with no problems.
 - The plugin is then actually **used**, once, with a real key press. Everything above is
   structure, and a clean plan has never once proven that a key fires.

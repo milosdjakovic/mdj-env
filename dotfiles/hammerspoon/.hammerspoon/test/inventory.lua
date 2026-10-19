@@ -121,7 +121,7 @@ end
 -- the toggles and the plugin began supplying its own sections. Icons are left out of the item
 -- line on purpose, since an hs.image carries no stable text form of its own, only an address.
 local hcsApps = must(appToggler._apps, "apptoggler._apps, the app roster the app toggler was configured with")
-local hcsToggles = must(appToggler._toggles, "apptoggler._toggles, the toggle list the app toggler bound from")
+local hcsToggles = must(appToggler._toggles, "apptoggler._toggles, the toggle list the app toggler built its rows from")
 local hcsItems = must(appToggler._sheetItems, "apptoggler._sheetItems, the cheat sheet rows the app toggler precomputed")
 
 local appNames = {}

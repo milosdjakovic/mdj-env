@@ -190,14 +190,15 @@ the state machine — swallow other keys while held, fire `onTap` on a quick
 release (Caps Lock's real toggle), fire `onHold(keyCode)` once ~0.6s pass with
 no other key. `lib/hyperkey.lua` and `lib/windowleader.lua` are thin domain adapters
 over it, both core and both published under `Olm.lib`. They keep their public
-contracts (`HyperKey:bind`/`isActive` for the plugins on the app leader,
-`WindowLeader:bind(key, fn, mods, opts)` for the plugins on the window leader)
-and supply the per-key lookup. A plugin reaches the window leader the way it reaches
-Hyper, by declaring `leader = "window"` with a `bindings` list in its manifest defaults
-and `needs.lib.windowLeader = { from = "windowleader" }`, with a wiring step that calls
-the lib's `bind` for each binding, which is what `windowmanager` does. The window
-leader binds onto the one keycode the root configured it with, so a plugin never sees
-a keycode. Both now share one mods-aware resolver (Hyper and
+contracts (`HyperKey:bind`/`isActive`, `WindowLeader:bind(key, fn, mods, opts)`)
+and supply the per-key lookup, but only the core calls `bind`. Olm's keymap,
+`lib/keymap.lua`, holds every global key as one row, and `lib/binder.lua` binds each
+row on the engine its leader names, in the order the old binding paths used. A plugin
+reaches the window leader the way it reaches Hyper, by declaring `leader = "window"`
+with a `bindings` list in its manifest defaults and answering the actions those
+bindings name through `provides.actions`, which is what `windowmanager` does, and the
+dry gate refuses a bind call under `plugins/` and `host/`. The window leader binds
+onto the one keycode the root configured it with, so a plugin never sees a keycode. Both now share one mods-aware resolver (Hyper and
 the leaders): optional per-binding `mods`, exact-match on shift/ctrl/alt/cmd,
 ignoring the `fn` flag macOS stamps on arrow keys, then a catch-all fallback. A
 binding with no `mods` is the catch-all, so most keys stay a single press. Hyper
@@ -304,7 +305,8 @@ swallowed by the held leader, so no raw character leaks) and its cheat-sheet row
 is hidden. The predicate registry, `ownPredicates` merged in `root/compose.lua` and
 fanned out under the field name `predicates`, is the one
 place the logic lives, injected into both the dispatch gate
-(`WindowManager:bindToLeader`) and the overlay filter (the window cheat sheet host), so
+(the window leader engine, handed each binding's `when` by the binder) and the overlay
+filter (the window cheat sheet host), so
 the key and the overlay never disagree, and `config/keys.lua` stays pure data.
 Predicates are evaluated live (at dispatch and at each overlay show), so they
 track runtime state; an unknown name is treated as always active so a typo fails
@@ -740,8 +742,8 @@ side effects. `configure(opts)` takes a single `opts` table holding every
 collaborator and choice, defaults it, and returns self, so all injection goes
 through one door. `start()` and `stop()` are optional and exist only when a spoon
 owns live resources, a watcher, an eventtap, or a timer, that genuinely need to
-begin and be torn down. A spoon that only binds keys keeps using `bindHotkeys` or
-`bindToLeader` as its activation step rather than growing an empty `start`. Do not
+begin and be torn down. A spoon whose whole job is keys has no activation step at all, it
+answers `provides.actions` and Olm binds its keys, rather than growing an empty `start`. Do not
 add `start`/`stop` with nothing to do, that is the ceremony the design principles
 reject. Both call styles are allowed, the colon and self spoons that are the norm
 and the dot called module style Vpn and the clipboard submodules use, since the

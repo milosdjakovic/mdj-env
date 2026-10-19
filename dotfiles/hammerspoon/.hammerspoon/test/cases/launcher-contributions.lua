@@ -376,15 +376,15 @@ local calls = {}
 capture.capture = function(_, name) calls[#calls + 1] = "capture " .. tostring(name) end
 windows.actions = function()
   return setmetatable({}, { __index = function(_, name)
-    return function(arg)
+    return { run = function(arg)
       calls[#calls + 1] = "window " .. name .. (type(arg) == "table" and (" " .. arg.width .. "x" .. arg.height) or "")
-    end
+    end }
   end })
 end
 settings.open = function(_, url) calls[#calls + 1] = "open " .. tostring(url) end
 settings.focusSearch = function() calls[#calls + 1] = "focusSearch" end
 windowSize._windowActions = function()
-  return { exactSize = function(size) calls[#calls + 1] = "exactSize " .. size.width .. "x" .. size.height end }
+  return { exactSize = { run = function(size) calls[#calls + 1] = "exactSize " .. size.width .. "x" .. size.height end } }
 end
 
 local function run(item)
@@ -423,8 +423,8 @@ eq("an owned special row whose owner runs nothing reaches no tool",
   run({ kind = "special", name = "searchSettings", owner = "arithmetic" }), nil)
 
 --------------------------------------------------------------------------------
--- The app rows. The app toggler binds a toggle list and supplies what each bound app's row
--- shows, and the launcher shows it. The subtitles are the ones the launcher wrote when it read
+-- The app rows. The app toggler builds its rows from a toggle list and supplies what each app
+-- with a row shows, and the launcher shows it. The subtitles are the ones the launcher wrote when it read
 -- the person's toggles and app registry itself, a modal key spelled with the app leader's name,
 -- a literal combo spelled by the glyph function with its description, and a second toggle on
 -- one app winning the chord only when it states modifiers while a url from either stays.
@@ -432,21 +432,21 @@ eq("an owned special row whose owner runs nothing reaches no tool",
 
 local toggler = load("plugins/apptoggler/init.lua")
 toggler:init()
-toggler:configure({ apps = { Alpha = "olm.test.alpha", Beta = "olm.test.beta", Gamma = "olm.test.gamma" },
-  hyperKey = { bind = function() end }, appFocus = {} })
--- A toggle stating modifiers binds a global combo, so the binding call is swapped for a no op for
--- this one call and the live config is never handed a hotkey.
-local realHotkey = hs.hotkey
-hs.hotkey = { bind = function() end }
-local bindOk, bindErr = pcall(toggler.bindHotkeys, toggler, {
-  { app = "Alpha", key = "A" },
-  { app = "Beta", key = "B", url = "x-test:beta-first" },
-  { app = "Beta", key = "8", modifiers = { "ctrl", "alt" }, description = "Placed", url = "x-test:beta" },
-  { app = "Gamma", key = "G", modifiers = { "cmd" }, description = "First" },
-  { app = "Gamma", key = "H", url = "x-test:gamma" },
+-- The toggler binds nothing, it builds a row per toggle in configure and Olm binds them, so no
+-- hotkey reaches the live config here.
+local bindOk, bindErr = pcall(toggler.configure, toggler, {
+  apps = { Alpha = "olm.test.alpha", Beta = "olm.test.beta", Gamma = "olm.test.gamma" },
+  appFocus = {},
+  toggles = {
+    { app = "Alpha", key = "A" },
+    { app = "Beta", key = "B", url = "x-test:beta-first" },
+    { app = "Beta", key = "8", modifiers = { "ctrl", "alt" }, description = "Placed", url = "x-test:beta" },
+    { app = "Gamma", key = "G", modifiers = { "cmd" }, description = "First" },
+    { app = "Gamma", key = "H", url = "x-test:gamma" },
+  },
 })
-hs.hotkey = realHotkey
-check("the app toggler binds the probe toggles", bindOk, tostring(bindErr))
+check("the app toggler builds the probe toggles", bindOk, tostring(bindErr))
+check("the app toggler answers one binding row per toggle", bindOk and #toggler:bindings() == 5)
 
 local function appLauncher(details)
   local l = load("host/launcher/init.lua")

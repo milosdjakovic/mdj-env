@@ -56,10 +56,11 @@ deprecated and is touched only when a request names it.
 Work down this ladder and stop at the first rung that fits. Each rung is cheaper, more
 consistent, and more discoverable than the one below it.
 
-1. No list at all. A plugin whose whole job is an action or a watcher declares commands or
-   wiring and shows nothing. WindowManager and Capture are the settled examples. The recipe
-   is written for list tools, so for this shape read the contract's `wiring` and `registry`
-   sections directly. Do not invent a list so the plugin has a face.
+1. No list at all. A plugin whose whole job is an action declares its actions as descriptors
+   under `provides.actions`, suggests their keys in `defaults.bindings`, and shows nothing, and
+   a watcher declares wiring. WindowManager and Capture are the settled examples. The recipe is
+   written for list tools, so for this shape read its "Keys on a leader" section and the
+   contract's `provides` and `wiring` sections. Do not invent a list so the plugin has a face.
 2. A typed word. When the thing beneath a row can be reached by typing, prefer a scope, the
    alias and a space in the launcher, declared through `provides` or `registry.scope`. A
    scope needs no Back row because deleting the text is the way back. A row is only worth
@@ -188,8 +189,8 @@ the hard way, and that file records why, never what.
 
 A plugin receives its whole world through `configure(opts)` and through the stage words it
 declared. It never references `spoon.Olm`, never loads a lib file by path, never builds an
-`hs.chooser`, an `hs.hotkey`, or an eventtap for a leader key, and never resolves where a tool
-is installed. External binaries and bundles are declared in `needs.tools` and arrive through
+`hs.chooser`, an `hs.hotkey`, or an eventtap for a leader key, never calls a bind function of any
+leader, since Olm binds every key from its keymap, and never resolves where a tool is installed. External binaries and bundles are declared in `needs.tools` and arrive through
 the scoped `deps` adapter, and anything undeclared answers nothing by design.
 
 Never set a font, a size, a line height or a colour literal. Text goes through the UI kit,
@@ -222,21 +223,27 @@ plugin grant shaped by the plugin's own stated declaration, and the contract hol
 Declaring
 `needs.tools` earns `deps`. Declaring `needs.lib` earns the named lib instance, and the set in
 real use is small, paste for insertion, recency for lift to front ordering, storage for cache
-and data paths, plus the leader engines and the cheatsheet renderer for the plugins that own
-those surfaces. Declaring `needs.data` with `source = "root"` earns a stage word or a root
+and data paths, plus a leader engine for a plugin that must know whether its leader is still
+held, never to bind on it, and the cheatsheet renderer for the hosts that draw a sheet. Declaring `needs.data` with `source = "root"` earns a stage word or a root
 value, and the vocabulary is deliberately shared, so grep the other manifests and reuse an
 existing word before minting a new one, since a vocabulary of one word per plugin is a
 vocabulary nobody can pay. Siblings exist and are rare, prefer not needing one, and a sibling
 never names a host. A plugin whose actions deserve rows in the launcher's own catalog declares
 `provides.launcherRows` and `provides.launcherRun` instead, the contract has the row shape and
-the authoring guide has the walk through. A plugin that binds leader keys from its own data rather than
-from manifest bindings declares `provides.cheatSheetSections` so its keys reach that leader's
-sheet, which otherwise lists only what the manifests declare, and its `defaults.leader` decides
-which sheet receives the sections, a supplier with none, or on a leader whose sheet does not ask,
-reaches no sheet and is logged, and one that binds an app's chord
-declares `provides.launcherAppDetails` so the launcher's row for that app names it. A registry
-tool's open key binds on the app leader only, so a tool stating `leader = "window"` with a leader
-shortcut is refused at wiring with a problem line, and a window key belongs in `bindings`.
+the authoring guide has the walk through.
+
+A plugin never binds a key. Declaring `provides.actions`, a table of descriptors keyed by action
+name with `run` required, plus a `defaults.bindings` row naming each action, earns every one of
+those keys bound on the leader the plugin's `defaults.leader` names by role, through the core's
+one binder, with a malformed descriptor refused by name and the rest still wired. A registry
+tool's own open key binds on whichever leader its defaults name, the window leader included. A
+plugin whose keys are built from the person's data rather than declared answers complete rows
+through `provides.bindings`, a bridge the app toggler alone uses until its actions are built from
+data, and declares `provides.cheatSheetSections` so those keys reach its leader's sheet, which
+otherwise lists only what the manifests declare. Its `defaults.leader` decides which sheet
+receives the sections, a supplier with none, or on a leader whose sheet does not ask, reaches no
+sheet and is logged, and one that has an app's chord declares `provides.launcherAppDetails` so
+the launcher's row for that app names it.
 
 Configuration splits three ways. The plugin proposes its own `defaults`, a leader role, a key,
 aliases, an icon, and a person overrides them outside the plugin, rebinding a physical key only
@@ -273,7 +280,8 @@ In order, before anything merges.
    it runs the composition root a second time with every plugin renamed and fails on any
    difference. A difference after a manifest change usually means the manifest names an
    identity in a field that proof does not rename, `test/drygate-rename.lua` lists the ones it
-   does. And it fails on the shapes of a list matching, filtering or ranking by itself that a
+   does. It fails on a call of `hs.hotkey.bind`, `hs.hotkey.new` or any bind function under
+   `plugins/` and `host/`, since Olm binds every key. And it fails on the shapes of a list matching, filtering or ranking by itself that a
    static scan can see, `test/drygate-search.lua` lists them and the ones it cannot, a finding
    naming the file and line, answered by handing the rows to the shared search or, for a field
    that is not a search, a `search-exempt, <reason>` comment. A green gate is not proof the rule

@@ -218,5 +218,70 @@ do
   eq(#warnings, before + 1, "window: and is warned about")
 end
 
+-- The binder, lib/binder.lua, handing keymap rows to these same engines. A row lands on the
+-- engine its leader names, with its gate, priority and repeat in the options and nil modifiers
+-- for a catch all, a row with no leader goes to the plain combo binder, and the engines receive
+-- the rows in the order of the list handed in, which is what decides a tie on one key.
+do
+  local binder = assert(loadfile(lib .. "binder.lua"))()
+  local h, w = newHyper(predicates), newWindow(predicates)
+  local plain = {}
+  local function row(fields)
+    local r = { layer = "global", mods = {}, anyMods = true, owner = "o", action = "x", source = "bindings" }
+    for k, v in pairs(fields) do r[k] = v end
+    return r
+  end
+  local rows = {
+    row({ layer = "someList", leader = "hyper", key = "c", run = handler("list") }),
+    row({ leader = "hyper", key = "a", run = handler("first") }),
+    row({ leader = "hyper", key = "a", run = handler("second") }),
+    row({ leader = "hyper", key = "b", mods = { "shift" }, anyMods = false, run = handler("shifted") }),
+    row({ leader = "meta", key = "c", run = handler("early"), when = "on", repeats = true }),
+    row({ leader = "meta", key = "c", run = handler("late") }),
+    row({ key = "left", mods = { "alt" }, anyMods = false, run = handler("combo") }),
+    row({ leader = "super", key = "a", run = handler("nowhere") }),
+    row({ leader = "hyper", key = "b", run = nil }),
+    row({ leader = "hyper", key = "b", run = nil, refused = true }),
+  }
+  local problems = binder.bind(rows, {
+    engines = { hyper = h, meta = w },
+    hotkey = function(mods, key, fn) plain[#plain + 1] = { mods = mods, key = key, fn = fn } end,
+  })
+
+  local a = listOf(h, "a")
+  eq(a and #a, 2, "binder: both rows on one hyper key are bound")
+  eq(a and nameOf(a[1].fn), "first", "binder: the engine receives rows in the order of the list")
+  eq(a and nameOf(a[2].fn), "second", "binder: and never reorders them")
+  eq(a and a[1].mods, nil, "binder: a catch all row is bound with nil modifiers")
+  local b = listOf(h, "b")
+  eq(b and #b, 1, "binder: a row with no function and a refused row are not bound")
+  eq(b and table.concat(b[1].mods, "+"), "shift", "binder: an exact row keeps its modifiers")
+  local c = listOf(w, "c")
+  eq(c and #c, 2, "binder: a row on the window leader lands on the window engine")
+  eq(c and c[1].when, "on", "binder: the gate travels in the options")
+  eq(c and c[1].repeats, true, "binder: the repeat travels in the options")
+  eq(nameOf((w:_resolve(c, {}))), "late", "binder: on the window leader the later catch all wins, so order is kept")
+  eq(listOf(h, "c"), nil, "binder: a list's own key is left to the contexts")
+  eq(#plain, 1, "binder: a row with no leader goes to the plain combo binder")
+  eq(plain[1] and plain[1].key, "left", "binder: with its own key")
+  eq(plain[1] and plain[1].mods[1], "alt", "binder: and its own modifiers")
+  eq(#problems, 2, "binder: a leader with no engine and a row with no function are each one problem")
+  local whys = {}
+  for _, pr in ipairs(problems) do whys[#whys + 1] = pr.why end
+  local text = table.concat(whys, " | ")
+  eq(text:find("no engine binds on the leader super", 1, true) ~= nil, true, "binder: the missing engine is named")
+  eq(text:find("answers no function", 1, true) ~= nil, true, "binder: the missing function is named")
+
+  -- A raise inside one engine costs that row and every other row still binds.
+  local raising = { bind = function() error("boom") end }
+  local h2 = newHyper(predicates)
+  local raised = binder.bind({
+    row({ leader = "broken", key = "a", run = handler("x") }),
+    row({ leader = "hyper", key = "a", run = handler("kept") }),
+  }, { engines = { broken = raising, hyper = h2 } })
+  eq(#raised, 1, "binder: a raising engine is one problem")
+  eq(listOf(h2, "a") and #listOf(h2, "a"), 1, "binder: and the next row still binds")
+end
+
 print(string.format("leaders: %d checks, %d failed", checks, failures))
 if failures > 0 then os.exit(1) end

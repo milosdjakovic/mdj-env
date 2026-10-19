@@ -11,16 +11,24 @@ never on a press that only cycled to another window of an app already in front.
 
 Each app is bound to its own chord on the Hyper leader by default, holding Caps
 Lock and pressing the app's own letter. An entry may instead state its own
-`modifiers` and bind as a literal global combo through `hs.hotkey.bind`, live
-all the time rather than only while Hyper is held, which is what a toggle
-pressed mid work, rather than reached through a leader, wants. The whole set
+`modifiers` and bind as a literal global combo, live all the time rather than
+only while Hyper is held, which is what a toggle pressed mid work, rather than
+reached through a leader, wants.
+
+The plugin binds none of these itself. It answers one complete row per toggle
+whose app resolves through `provides.bindings`, each with its key, either the
+app leader role or its own modifiers, its description and the function the key
+calls, and Olm's keymap binds every row. The rows are built once in `configure`
+from the effective toggle list. This is a bridge while the keys are still the
+person's own data, and a later phase of the keymap plan replaces it with one
+action per app. The whole set
 also appears as rows in the launcher's application list, reached by typing a or
 app to narrow to only those rows, and a literal combo entry carries its own
 `description` there, since it never reaches the Hyper cheat sheet the way a
-modal entry does and the launcher row is its only discoverability surface.
+leader entry does and the launcher row is its only discoverability surface.
 
 The launcher learns those chords from this plugin through `provides.launcherAppDetails`, a
-table keyed by bundle id built in `bindHotkeys` from exactly the entries it bound, each with its
+table keyed by bundle id built in `configure` from exactly the entries that became rows, each with its
 chord, its description and its url. Where two entries name one app the one with its own
 `modifiers` wins the chord the row shows, and a url from either stays with the row. The launcher
 asks the set for it and never names this plugin, and until the core split finished it read the
@@ -30,16 +38,16 @@ There are no other keys.
 
 ## On the Hyper cheat sheet
 
-Holding Hyper shows every modal entry, the apps running now first and the rest faded below
+Holding Hyper shows every leader entry, the apps running now first and the rest faded below
 them, each with its key and its icon. This plugin supplies those two sections itself through
 `provides.cheatSheetSections`, with `defaults.leader = "app"` naming the sheet and
 `defaults.cheatSheetOrder = 10` keeping them ahead of the other chords. The sheet asks the set
 for them and never names this plugin, so switched off, the sheet simply has no app section.
 
-The rows are built from exactly the entries `bindHotkeys` bound into the Hyper modal, so the
-sheet cannot list an app this plugin did not bind there. An entry with its own `modifiers` is a
+The sheet rows are built from exactly the entries that became rows on the app leader, so the sheet
+cannot list an app that has no key there. An entry with its own `modifiers` is a
 global combo on no leader and is never listed. An app that is not installed is dropped. Each
-name and icon is resolved once, when the keys are bound, since that is disk work and the sheet
+name and icon is resolved once, when the rows are built, since that is disk work and the sheet
 opens on a key hold, and only which apps are running is read again on every show, in one call
 for all of them. The order is by key, letters and digits first, then symbols, ignoring case.
 
@@ -50,12 +58,9 @@ toggle list, which made a core host know this plugin's data and its shape.
 
 Every field beyond `app` and `key` is optional.
 
-`modifiers` opts an entry out of the Hyper modal and into a literal combo.
-Absent means the Hyper modal, fired by holding the physical Hyper key through
-HyperKey's own hold engine, or the internal literal `HYPER` combo when HyperKey
-is not wired at all, exactly as an unmodified entry always has. Stated, it asks
-for that literal combo outright and skips the modal, regardless of whether
-HyperKey is wired.
+`modifiers` opts an entry out of the Hyper leader and into a literal combo.
+Absent means a key on the app leader, fired by holding the physical Hyper key.
+Stated, it asks for that literal combo outright and skips the leader.
 
 `hides` swaps the default focus-or-cycle behaviour for show and hide. Focused
 hides, visible but unfocused focuses, hidden or not running launches or shows.

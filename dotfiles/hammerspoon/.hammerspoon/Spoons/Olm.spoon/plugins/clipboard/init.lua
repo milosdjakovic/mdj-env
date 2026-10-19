@@ -185,8 +185,7 @@ end
 --- Method
 --- opts.provider - table implementing :isShowing() and :show(); defaults to
 ---                 ClipboardHistory.providers.spotlightTahoe
---- opts.hyperKey - optional HyperKey spoon; when present the action binds into
----                 its modal, and each provider decides via
+--- opts.hyperKey - optional HyperKey lib; when present each provider decides via
 ---                 deferUntilHyperRelease whether to wait for the Hyper key to
 ---                 be released before firing
 function obj:configure(opts)
@@ -243,57 +242,6 @@ function obj:open()
   else
     fire()
   end
-end
-
---- ClipboardHistory:bindHotkeys(mapping)
---- Method
---- mapping.open       - { modifiers = ..., key = ... }. Binds into the Hyper key when
----                      one is wired, otherwise the literal modifier combo.
---- mapping.appendCopy - { modifiers = ..., key = ... }, optional. Copy the selection onto
----                      the newest entry rather than pushing a new one.
---- mapping.pasteNext  - { modifiers = ..., key = ... }, optional. Paste the next entry in a
----                      walk through history.
----
---- The last two are always the literal combo and never go into the Hyper modal, because they
---- extend the ordinary copy and paste keys and are pressed mid edit rather than reached
---- through a leader. They also bypass the provider chain and speak to the manager directly,
---- since an external clipboard manager has no history of ours to append to, so these are
---- capabilities of the built-in backend rather than of whichever backend shows a list. Being
---- literal combos they fire with their own modifiers still held, which the synthetic copy and
---- paste both survive, so neither waits for a release and both can be tapped against a held
---- chord. The one thing that does not survive is posting the stroke in the same instant, which
---- the shared insertion engine handles with a short delay before each.
-function obj:bindHotkeys(mapping)
-  mapping = mapping or {}
-
-  if mapping.open then
-    local binding = mapping.open
-    local action = function()
-      self:open()
-    end
-    if self._hyperKey then
-      self._hyperKey:bind(binding.key, action)
-    else
-      hs.hotkey.bind(binding.modifiers, binding.key, action)
-    end
-  end
-
-  local managerActions = {
-    appendCopy = function()
-      self.manager.appendCopy()
-    end,
-    pasteNext = function()
-      self.manager.pasteNext()
-    end,
-  }
-  for name, action in pairs(managerActions) do
-    local binding = mapping[name]
-    if binding then
-      hs.hotkey.bind(binding.modifiers, binding.key, action)
-    end
-  end
-
-  return self
 end
 
 return obj

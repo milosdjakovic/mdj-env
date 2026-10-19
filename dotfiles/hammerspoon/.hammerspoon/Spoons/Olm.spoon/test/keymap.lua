@@ -123,9 +123,9 @@ do
   eq(#result.problems, 1, "case and modifier order do not hide a collision")
 end
 
--- The sources and their provenance. A toggle is found by its data shape, a plain combo has no
--- leader, a command takes the lookup's origin, a tool is told from a host and a special row
--- is read from the host that declares it.
+-- The sources and their provenance. A provided row comes from the rows a plugin answered, a
+-- plain combo has no leader, a command takes the lookup's origin, a tool is told from a host and
+-- a special row is read from the host that declares it.
 do
   local plan = defaultPlan({
     tool = { leader = "app", key = "t" },
@@ -136,10 +136,10 @@ do
     shortcuts = { { name = "tool", kind = "leader" }, { name = "pasteNext", kind = "global" } },
     manifests = { source = { registry = { commands = { pasteNext = { key = "v", mods = { "ctrl", "alt" } } } } } },
     commandKey = function(name) return { key = "v", mods = { "ctrl", "alt" }, origin = "user" } end,
-    data = { toggler = { toggles = {
-      { app = "Safari", key = "S" },
-      { app = "Terminal", key = "S", modifiers = { "alt" } },
-    } } },
+    provided = { toggler = {
+      { action = "Safari", key = "S", leader = "app", fn = function() end },
+      { action = "Terminal", key = "S", mods = { "alt" }, fn = function() end },
+    } },
   })
   eq(#result.problems, 0, "the sources raise no collision between themselves")
   local seen = {}
@@ -151,11 +151,117 @@ do
   eq(seen["special:nokey"], nil, "a special row with no key is not")
   eq(seen["bindings:left"].leader, "meta", "a window role resolves through the roles table")
   eq(seen["bindings:left"].when, "gate", "a binding's gate is kept")
-  eq(seen["toggles:Safari"].leader, "hyper", "a toggle with no modifiers sits on the app leader")
-  eq(seen["toggles:Terminal"].leader, nil, "a toggle stating modifiers is a plain combo")
-  eq(seen["toggles:Terminal"].origin, "user", "a toggle is the person's own")
+  eq(seen["provided:Safari"].leader, "hyper", "a provided row naming the app role sits on the app leader")
+  eq(seen["provided:Safari"].anyMods, true, "a provided row on a leader stating no modifiers is a catch all")
+  eq(seen["provided:Terminal"].leader, nil, "a provided row stating modifiers is a plain combo")
+  eq(seen["provided:Terminal"].origin, "user", "a provided row is the person's own")
   eq(seen["command:pasteNext"].leader, nil, "a global command is a plain combo")
   eq(seen["command:pasteNext"].origin, "user", "a command takes the lookup's origin")
+end
+
+-- Every global row carries the function it calls, and the bound list holds the global rows in
+-- the binding order, the order the paths before the binder bound in, plugin bindings in plan
+-- order, then shortcuts in registration order, then hosts, then special rows. A binding whose action was refused is
+-- marked so the binder stays quiet about it, and a binding's own repeat wins over the
+-- descriptor's.
+do
+  local openA, cmd, show, lock = function() end, function() end, function() end, function() end
+  local leftRun, rightRun = function() end, function() end
+  local plan = {
+    effective = {
+      zeta = { leader = "app", bindings = { { action = "go", key = "g" }, { action = "bad", key = "b" } } },
+      alpha = { leader = "window", bindings = { { action = "left", key = "left", repeats = false },
+        { action = "right", key = "right" } } },
+      tool = { leader = "app", key = "t" },
+      host = { leader = "app", key = "h", specialRows = { { name = "lock", key = "l" } } },
+    },
+    identity = {}, contexts = { list = { bindings = { { action = "close", key = "x" } } } },
+    order = { "zeta", "alpha", "tool", "host" },
+  }
+  local result = keymap.build({
+    plan = plan, roles = ROLES, keycodes = KEYCODES,
+    shortcuts = { { name = "tool", kind = "leader", fn = openA }, { name = "go", kind = "global", fn = cmd } },
+    actions = {
+      zeta = { go = { run = function() end } },
+      alpha = { left = { run = leftRun, repeats = true }, right = { run = rightRun, repeats = true } },
+    },
+    refusedActions = { zeta = { bad = true } },
+    hostRun = function(directory) return directory == "host" and show or nil end,
+    specialRun = function(owner, name) return name == "lock" and lock or nil end,
+  })
+  local by = {}
+  for _, row in ipairs(result.rows) do by[row.source .. ":" .. tostring(row.action)] = row end
+  eq(by["tool:open"].run, openA, "a tool row runs its shortcut's function")
+  eq(by["host:open"].run, show, "a host row runs what the root answers for it")
+  eq(by["special:lock"].run, lock, "a special row runs what the root answers for it")
+  eq(by["bindings:left"].run, leftRun, "a binding runs the descriptor its action names")
+  eq(by["bindings:left"].repeats, false, "a binding's own repeat wins over the descriptor's")
+  eq(by["bindings:right"].repeats, true, "the descriptor's repeat answers where the binding is silent")
+  eq(by["bindings:bad"].run, nil, "a refused action leaves its binding with no function")
+  eq(by["bindings:bad"].refused, true, "and marks the row refused")
+  eq(by["context:close"].run, nil, "a list's own key carries no function, the contexts bind it")
+  local place = {}
+  for i, row in ipairs(result.bound) do place[row.source .. ":" .. tostring(row.action)] = i end
+  eq(place["context:close"], nil, "a list's own key is not in the bound list")
+  eq(#result.bound, #result.rows - 1, "every global row is in the bound list")
+  eq(place["bindings:go"] < place["bindings:bad"], true, "each plugin's bindings keep their own order")
+  eq(place["bindings:bad"] < place["bindings:left"], true, "bindings follow plan order")
+  eq(place["bindings:left"] < place["bindings:right"], true, "and the next plugin's own order")
+  eq(place["bindings:right"] < place["tool:open"], true, "every binding comes before every shortcut")
+  eq(place["tool:open"] < place["host:open"], true, "shortcuts come before hosts")
+  eq(place["host:open"] < place["special:lock"], true, "and hosts before special rows")
+end
+
+-- Descriptor validation, the registrar's half. A table or a function answering one, a bad field
+-- refused with one problem naming the plugin, the action and the field, and the rest kept.
+do
+  local registrar = assert(loadfile(here .. "../lib/registrar.lua"))()
+  local ok, field = registrar.validateDescriptor({ run = function() end, description = "x", repeats = true,
+    keywords = { "a", "b" }, icon = { emoji = "x" }, group = function() end, listed = false })
+  eq(ok, true, "a descriptor with every optional field in its type passes")
+  ok, field = registrar.validateDescriptor({ description = "no run" })
+  eq(ok, false, "a descriptor with no run is refused")
+  eq(field, "run", "and run is named")
+  ok, field = registrar.validateDescriptor({ run = function() end, repeat_ = true })
+  eq(field, "repeat_", "an unknown field is refused by name")
+  ok, field = registrar.validateDescriptor({ run = function() end, repeats = "yes" })
+  eq(field, "repeats", "a field of the wrong type is refused by name")
+  ok, field = registrar.validateDescriptor({ run = function() end, keywords = { "a", 3 } })
+  eq(field, "keywords", "a keyword list holding a number is refused")
+  eq((registrar.validateDescriptor("run")), false, "a descriptor that is not a table is refused")
+
+  local module = { built = nil }
+  function module:actions() return self.built end
+  module.built = {
+    good = { run = function() end },
+    broken = { run = "notAFunction" },
+  }
+  local actions, refused, problems = registrar.validateActions("demo", { provides = { actions = "actions" } }, module)
+  eq(actions.good ~= nil, true, "the function form is called on its module and a good action kept")
+  eq(actions.broken, nil, "a broken action is not kept")
+  eq(refused.broken, true, "and is named as refused")
+  eq(#problems, 1, "one problem for the one broken action")
+  local why = problems[1] and (problems[1].where .. " " .. problems[1].why) or ""
+  eq(why:find("demo action broken", 1, true) ~= nil, true, "the problem names the plugin and the action")
+  eq(why:find("field run", 1, true) ~= nil, true, "the problem names the field")
+
+  actions = registrar.validateActions("demo", { provides = { actions = "table" } }, { table = { x = { run = function() end } } })
+  eq(actions.x ~= nil, true, "the table form is read as it sits")
+  local _, _, missing = registrar.validateActions("demo", { provides = { actions = "nothing" } }, {})
+  eq(#missing, 1, "a member that names nothing is one problem")
+  local none = registrar.validateActions("demo", {}, {})
+  eq(next(none), nil, "a plugin declaring no actions answers an empty table")
+
+  local rows, rowProblems = registrar.providedBindings("demo", { provides = { bindings = "rows" } }, {
+    rows = function() return {
+      { action = "a", key = "a", leader = "app", fn = function() end },
+      { action = "b", key = "b", mods = { "alt" }, fn = function() end },
+      { action = "c", key = "c", leader = "app" },
+      { action = "d", key = "d", fn = function() end },
+    } end,
+  })
+  eq(#rows, 2, "provided rows with a key, a function and a leader or modifiers are kept")
+  eq(#rowProblems, 2, "a row with no function and a row with neither leader nor modifiers are refused")
 end
 
 -- A build given no plan raises, which is the failure the root catches so a defect here cannot

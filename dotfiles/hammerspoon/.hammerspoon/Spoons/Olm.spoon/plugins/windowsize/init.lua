@@ -36,7 +36,7 @@ obj.license = "MIT"
 
 -- Injected via configure
 obj._plan = nil          -- the window manager's own answer for what a request would do
-obj._windowActions = nil -- the window manager's action map, for running a chosen row
+obj._windowActions = nil -- the window manager's action descriptors, for running a chosen row
 obj._coveredApp = nil    -- function() -> the app the launcher opened over, which the row acts on
 obj._icon = nil          -- the row icon, a key into this plugin's manifest icons, drawn by Olm
 obj._smallestEdge = nil  -- the shortest edge a row will size a window to
@@ -187,8 +187,8 @@ end
 --- manager's exact size action trims the size as typed against the screen that window is on.
 function obj:launcherRun(item)
   if not (item and self._windowActions) then return end
-  local fn = self._windowActions()[item.name]
-  if fn then fn(item.size) end
+  local action = self._windowActions()[item.name]
+  if action and type(action.run) == "function" then action.run(item.size) end
 end
 
 return obj

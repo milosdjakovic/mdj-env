@@ -27,10 +27,8 @@ return {
 
   needs = {
     -- Dispatch waits for the Hyper key to release before running, so a synthetic keystroke
-    -- is not swallowed by the same tap that is holding the leader down, and bindHotkeys binds
-    -- into HyperKey's modal rather than a literal combo. Optional, matching AppToggler,
-    -- because bindHotkeys already falls back to the literal modifiers combo when this is
-    -- absent.
+    -- is not swallowed by the same tap that is holding the leader down. Optional, since without
+    -- it a capture simply starts at once.
     lib = {
       hyperKey = { from = "hyperkey", policy = "optional" },
     },
@@ -74,17 +72,17 @@ return {
     },
   },
 
-  -- What this plugin proposes for its own four actions, each on the app leader's Hyper
-  -- modal. Short and specific to this plugin's own action names, unlike windowmanager's
-  -- much larger table, so it is stated here rather than pointed at as user configuration.
-  -- This plugin has no picker and no registration of its own, so it would appear in the
-  -- launcher's list nowhere at all, yet its four actions are exactly the kind of thing a
-  -- person looks for by typing screenshot. Declaring launcherRows is how it says that each of
-  -- its own keyed actions deserves a row, which the launcher asks the set for rather than
-  -- naming this plugin, and launcherRun is how a chosen row comes back here to run. The rows
-  -- are built from the bindings below, so a key moved here moves in the list too and no copy
-  -- of it exists anywhere else.
+  -- What this plugin can run is its actions, one descriptor per capture action, and Olm binds
+  -- the keys the bindings below suggest to those descriptors, so this plugin binds nothing. It
+  -- has no picker and no registration of its own, so it would appear in the launcher's list
+  -- nowhere at all, yet its four actions are exactly the kind of thing a person looks for by
+  -- typing screenshot. Declaring launcherRows is how it says that each of its own keyed actions
+  -- deserves a row, which the launcher asks the set for rather than naming this plugin, and
+  -- launcherRun is how a chosen row comes back here to run. The rows are built from the
+  -- bindings below, so a key moved here moves in the list too and no copy of it exists anywhere
+  -- else.
   provides = {
+    actions = "actions",
     launcherRows = "launcherRows",
     launcherRun = "launcherRun",
   },
@@ -102,13 +100,5 @@ return {
       { action = "captureArea", key = "4", mods = { "shift" }, description = "Screenshot", icon = "screenshot" },
       { action = "recordArea", key = "5", description = "Record screen", icon = "record" },
     },
-  },
-
-  -- configure alone never binds a key. bindHotkeys is a separate call the composition
-  -- root makes with the effective bindings table above, after any user override has been
-  -- merged into it, so it is named here as a step beyond configure rather than left for
-  -- someone to notice the four capture keys do nothing.
-  wiring = {
-    { method = "bindHotkeys", args = { "self.bindings" } },
   },
 }

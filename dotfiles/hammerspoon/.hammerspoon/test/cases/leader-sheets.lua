@@ -7,15 +7,16 @@
 -- what the shipped declarations produce.
 --
 -- What is bound is found by running the code that binds, with a recorder standing in for each
--- leader engine. The registry's leader keys go through lib/registrar.lua's own bind, over a real
--- lib/registry.lua instance holding one registration per manifest that declares a registry
--- block, and its commands get their keys through the registrar's own command lookup. A plugin
--- that binds its own keys in a wiring step is driven through that step on a fresh copy of its
--- module. Every wiring step whose method starts with bind must be one this case drives, so a
--- plugin that starts binding keys a new way fails here until the case learns it. Two rules live
--- inline in root/compose.lua, which no unit case can load. A host that declares a key and a
--- leader and registers nothing binds that key through lib/hints.lua's own rule, which the case
--- calls rather than restates, and the launcher's lock and sleep rows bind theirs, restated.
+-- leader engine. Every global key is bound by lib/binder.lua from the rows lib/keymap.lua builds,
+-- the same two modules the root runs, over a real lib/registry.lua instance holding one
+-- registration per manifest that declares a registry block, with its commands keyed through the
+-- registrar's own command lookup. What a plugin can run comes from the registrar's own
+-- validateActions and providedBindings, asked of a fresh copy of each plugin that declares
+-- provides.actions or provides.bindings. No wiring step may bind a key any more, so a step whose
+-- method starts with bind fails the case. Two inputs the root builds inline, which no unit case
+-- can load, are restated small. A host's key calls its show through lib/hints.lua's own rule,
+-- which the case calls rather than restates, and the launcher's lock and sleep rows call a
+-- system function, here a stand in.
 --
 -- What the sheet shows is read off the real hosts. The Hyper sheet is configured with the list
 -- lib/contributions.lua assembles from lib/hints.lua's sections and every supplier answering the
@@ -30,15 +31,15 @@
 -- shipped command sits on a leader today, the clipboard's two are global, so a probe command is
 -- added to a copy of one manifest and must reach both the binding and the sheet.
 --
--- Last, a registry tool declaring the window leader with a leader shortcut. The registrar binds
--- a tool's open key only on the app leader's engine, so such a key used to land on Hyper and on
--- neither sheet. It is refused at wiring now, and a copy of one shipped tool moved to the window
--- leader must be refused by name, bound nowhere and shown nowhere.
+-- Last, a registry tool declaring the window leader with a leader shortcut. It was refused at
+-- wiring while the registrar bound a tool's key on the app leader alone. The keymap binds every
+-- row on its own leader, so such a key now lands on the window leader and nowhere else. The
+-- window sheet lists only plugins' bindings until its rows are built from the keymap, so the
+-- open key is missing there, which the case states rather than hides.
 --
 -- Under a plain lua interpreter with no Hammerspoon at all, a small stub stands in. Inside the
 -- running Hammerspoon nothing here touches the live config, every module is a fresh copy loaded
--- with loadfile, and the one global binding call a toggle with its own modifiers would make is
--- swapped for a recorder for the length of that one call.
+-- with loadfile, and no key is handed to hs.hotkey, since the binder is given a recorder.
 
 local source = debug.getinfo(1, "S").source
 local herePath = source:match("^@(.*)$") or source
@@ -136,6 +137,8 @@ local resolver = load("lib/resolve.lua").new({ plugins = plugins, defaults = loa
   surface = load("lib/surface.lua") })
 local hints = load("lib/hints.lua")
 local registrar = load("lib/registrar.lua")
+local keymapLib = load("lib/keymap.lua")
+local binderLib = load("lib/binder.lua")
 local contributions = load("lib/contributions.lua")
 local leaders = load("lib/leaders.lua")
 
@@ -146,13 +149,6 @@ for _, name in ipairs({ "windowleader", "hyperkey", "appfocus", "recency", "stor
   libNames[name] = true
 end
 
--- The binding steps this case knows how to drive, by identity and method. Anything else whose
--- method starts with bind fails the case, since its keys would go unchecked.
-local DRIVEN = {
-  ["apptoggler.bindHotkeys"] = true,
-  ["capture.bindHotkeys"] = true,
-  ["windowmanager.bindToLeader"] = true,
-}
 
 -- The module a host key rule asks whether it can be shown. compose.lua hands the rule the real
 -- loaded module, so this loads the same file without calling it, and a file that cannot load
@@ -177,7 +173,7 @@ local function run(manifests, person)
     present = function() return true end,
     libNames = libNames })
   local result = { plan = plan, bound = { app = {}, window = {}, global = {} },
-    sheet = { app = {}, window = {} }, undriven = {}, problems = plan.problems, refused = {} }
+    sheet = { app = {}, window = {} }, undriven = {}, problems = plan.problems, bindProblems = {} }
 
   local function bindOn(leader)
     return function(key, mods) tally(result.bound[leader], mark(key, mods)) end
@@ -206,77 +202,80 @@ local function run(manifests, person)
   local names = {}
   for _, entry in ipairs(registry.all()) do names[#names + 1] = entry.name end
   registry.activate(names)
-
   local function commandKey(name) return registrar.commandKey(manifests, {}, name) end
-  local claimed = {}
-  for _, entry in ipairs(registry.shortcuts()) do
-    claimed[entry.name] = true
-    -- A refusal raises, which the wiring stage turns into a problem line, so it is caught and
-    -- kept here the way that stage keeps it.
-    local ok, err = pcall(registrar.bind, entry, plan, {
-      log = noop,
-      bindLeader = bindOn("app"),
-      leaderRole = "app",
-      bindGlobal = function(mods, key) bindOn("global")(key, mods) end,
-      rootKey = commandKey,
-    })
-    if not ok then result.refused[entry.name] = tostring(err) end
-  end
 
-  -- The two rules root/compose.lua binds by itself. A host's own key goes through the same
-  -- lib/hints.lua rule the root calls, so nothing is restated, and the launcher's lock and sleep
-  -- rows bind theirs, the only special rows the root has a system call for.
-  for _, directory in ipairs(plan.order) do
-    local identity = plan.identity[directory] or directory
-    local eff = plan.effective[directory] or {}
-    local role, key, mods = hints.hostKeyBinding(eff, hostModule(directory), claimed[identity])
-    if role == "app" then bindOn("app")(key, mods) end
-  end
-  local systemCalls = { lock = true, sleep = true }
-  for _, row in ipairs((plan.effective[plan.identity.launcher or "launcher"] or {}).specialRows or {}) do
-    if systemCalls[row.name] and row.key then bindOn("app")(row.key) end
-  end
-
-  -- Every wiring step that binds keys, driven on a fresh copy of its plugin.
-  local modules = {}
+  -- No wiring step binds a key. Olm binds every one from the keymap.
   for _, directory in ipairs(plan.order) do
     local identity = plan.identity[directory] or directory
     for _, step in ipairs((manifests[identity] or {}).wiring or {}) do
       if type(step.method) == "string" and step.method:match("^bind") then
-        local tag = identity .. "." .. step.method
-        local eff = plan.effective[directory] or {}
-        if not DRIVEN[tag] then
-          result.undriven[#result.undriven + 1] = tag
-        elseif identity == "apptoggler" then
-          local toggler = load("plugins/apptoggler/init.lua")
-          toggler:init()
-          -- The person's roster and toggles, handed over by field name, win over the shipped
-          -- defaults the way init.lua's shared table does for the running config.
-          local given = (person.data or {}).apptoggler or {}
-          local apps, shipped = given.apps or eff.apps, given.toggles or eff.toggles
-          toggler:configure({ apps = apps, hyperKey = appLeader, appFocus = {} })
-          -- A toggle stating its own modifiers is a global combo, so one is added to prove it
-          -- stays off every sheet. The global binding call is swapped for a recorder for this
-          -- one call only, so the live config is never handed a hotkey.
-          local toggles = {}
-          for _, t in ipairs(shipped or {}) do toggles[#toggles + 1] = t end
-          toggles[#toggles + 1] = { app = "Finder", key = "8", modifiers = { "ctrl", "alt" } }
-          local realHotkey = hs.hotkey
-          hs.hotkey = { bind = function(mods, key) bindOn("global")(key, mods) end }
-          local ok, err = pcall(toggler.bindHotkeys, toggler, toggles)
-          hs.hotkey = realHotkey
-          if not ok then error(err) end
-          modules[identity] = toggler
-        elseif identity == "capture" then
-          local capture = load("plugins/capture/engine.lua")
-          capture._hyperKey = appLeader
-          capture:bindHotkeys(eff.bindings)
-        elseif identity == "windowmanager" then
-          local windows = load("plugins/windowmanager/init.lua")
-          windows:bindToLeader(windowLeader, eff.bindings)
-        end
+        result.undriven[#result.undriven + 1] = identity .. "." .. step.method
       end
     end
+  end
+
+  -- What each plugin can run and the rows it provides, asked of a fresh copy of its module the
+  -- way the root asks after wiring. The toggler is configured first, since its rows are built
+  -- from its toggles in configure. The window manager and capture answer their actions with
+  -- nothing configured.
+  local modules, actions, refused, provided = {}, {}, {}, {}
+  for _, directory in ipairs(plan.order) do
+    local identity = plan.identity[directory] or directory
+    local manifest = manifests[identity] or {}
+    local provides = manifest.provides or {}
+    if provides.actions ~= nil or provides.bindings ~= nil then
+      local eff = plan.effective[directory] or {}
+      local module
+      if identity == "apptoggler" then
+        module = load("plugins/apptoggler/init.lua")
+        module:init()
+        -- The person's roster and toggles, handed over by field name, win over the shipped
+        -- defaults the way init.lua's shared table does for the running config.
+        local given = (person.data or {}).apptoggler or {}
+        local apps, shipped = given.apps or eff.apps, given.toggles or eff.toggles
+        -- A toggle stating its own modifiers is a global combo, so one is added to prove it
+        -- stays off every sheet.
+        local toggles = {}
+        for _, t in ipairs(shipped or {}) do toggles[#toggles + 1] = t end
+        toggles[#toggles + 1] = { app = "Finder", key = "8", modifiers = { "ctrl", "alt" } }
+        module:configure({ apps = apps, toggles = toggles, appFocus = {} })
+      elseif identity == "capture" then
+        module = load("plugins/capture/engine.lua")
+      else
+        module = load("plugins/" .. directory .. "/init.lua")
+      end
+      modules[identity] = module
+      local answered, refusedNames, problems = registrar.validateActions(identity, manifest, module)
+      actions[directory], refused[directory] = answered, refusedNames
+      for _, pr in ipairs(problems) do result.bindProblems[#result.bindProblems + 1] = pr end
+      local rows, rowProblems = registrar.providedBindings(identity, manifest, module)
+      if provides.bindings ~= nil then provided[directory] = rows end
+      for _, pr in ipairs(rowProblems) do result.bindProblems[#result.bindProblems + 1] = pr end
+    end
+  end
+
+  local claimed = {}
+  for _, entry in ipairs(registry.shortcuts()) do claimed[entry.name] = true end
+  local keymap = keymapLib.build({
+    plan = plan, roles = { app = "HYPER", window = "META" },
+    shortcuts = registry.shortcuts(), manifests = manifests, commandKey = commandKey,
+    actions = actions, refusedActions = refused, provided = provided,
+    hostRun = function(directory)
+      local identity = plan.identity[directory] or directory
+      return hints.hostKeyBinding(plan.effective[directory], hostModule(directory), claimed[identity])
+        and noop or nil
+    end,
+    specialRun = function(owner, name)
+      if owner == (plan.identity.launcher or "launcher") and (name == "lock" or name == "sleep") then return noop end
+      return nil
+    end,
+  })
+  for _, pr in ipairs(keymap.problems) do result.bindProblems[#result.bindProblems + 1] = pr end
+  for _, pr in ipairs(binderLib.bind(keymap.bound, {
+    engines = { hyper = appLeader, meta = windowLeader },
+    hotkey = function(mods, key) bindOn("global")(key, mods) end,
+  })) do
+    result.bindProblems[#result.bindProblems + 1] = pr
   end
 
   -- The Hyper sheet, configured the way step K configures it and shown into a recorder.
@@ -329,8 +328,10 @@ local real = run(realManifests)
 
 check("the plan over the real manifests has no problems", #real.problems == 0,
   #real.problems > 0 and (tostring(real.problems[1].kind) .. " at " .. tostring(real.problems[1].where)) or nil)
-check("every wiring step that binds keys is one this case drives", #real.undriven == 0,
-  "not driven, " .. table.concat(real.undriven, ", "))
+check("no wiring step binds a key, the keymap binds every one", #real.undriven == 0,
+  "binding steps, " .. table.concat(real.undriven, ", "))
+check("the keymap and the binder report nothing over the shipped set", #real.bindProblems == 0,
+  real.bindProblems[1] and (tostring(real.bindProblems[1].where) .. ", " .. tostring(real.bindProblems[1].why)) or nil)
 
 for _, leader in ipairs({ "app", "window" }) do
   local bound, shown = real.bound[leader], real.sheet[leader]
@@ -472,15 +473,11 @@ check("without the command lookup the sheet drops it, the defect this case guard
 check("the command stays off the window sheet", not withCommand.sheet.window["9"])
 
 --------------------------------------------------------------------------------
--- A registry tool declaring the window leader with a leader shortcut. The registrar binds a
--- tool's open key on the app leader's engine alone, and each sheet lists only its own leader's
--- tools, so such a key was bound on Hyper and listed nowhere. It is refused at wiring now with a
--- problem line naming the tool. No shipped tool does this, so a copy of one leader tool is moved
--- to the window leader.
+-- A registry tool declaring the window leader with a leader shortcut. It was refused while the
+-- registrar bound a tool's key on the app leader alone. The keymap row for its open key names
+-- the window leader, and the binder binds it there. No shipped tool does this, so a copy of one
+-- leader tool is moved to the window leader.
 --------------------------------------------------------------------------------
-
-check("no shipped registry tool is refused", next(real.refused) == nil,
-  next(real.refused) and (next(real.refused) .. ", " .. real.refused[next(real.refused)]) or nil)
 
 local moved = {}
 for identity, m in pairs(realManifests) do moved[identity] = m end
@@ -494,18 +491,20 @@ moved.caffeinate = caffeinate
 local movedKey = mark(caffeinateDefaults.key)
 
 local onWindow = run(moved)
-local refusal = onWindow.refused.caffeinate
-check("a registry tool on the window leader is refused at wiring", refusal ~= nil)
-check("the refusal names the tool and the leader it asked for",
-  refusal ~= nil and refusal:find("'caffeinate'", 1, true) ~= nil and refusal:find("leader = 'window'", 1, true) ~= nil,
-  refusal)
-check("the refused key is bound on neither leader",
-  not onWindow.bound.app[movedKey] and not onWindow.bound.window[movedKey])
-check("the refused key is on neither sheet",
-  not onWindow.sheet.app[movedKey] and not onWindow.sheet.window[movedKey])
-check("with the tool refused every other key still matches its sheet on both leaders",
+check("a registry tool on the window leader is bound without a problem", #onWindow.bindProblems == 0,
+  onWindow.bindProblems[1] and tostring(onWindow.bindProblems[1].why) or nil)
+check("its open key is bound on the window leader", onWindow.bound.window[movedKey] == 1)
+check("and not on the app leader", not onWindow.bound.app[movedKey])
+check("and not on the Hyper sheet", not onWindow.sheet.app[movedKey])
+-- The window sheet's rows are every plugin's bindings on that leader and not yet the keymap's
+-- rows, so a tool's open key is missing from it. Stated here so the gap shows, and the line is
+-- expected to flip when the sheet reads the keymap.
+check("the window sheet does not list it yet, its rows are bindings only", not onWindow.sheet.window[movedKey])
+local windowBound = {}
+for k, n in pairs(onWindow.bound.window) do if k ~= movedKey then windowBound[k] = n end end
+check("with the tool moved every other key still matches its sheet on both leaders",
   #missing(onWindow.bound.app, onWindow.sheet.app) == 0 and #missing(onWindow.sheet.app, onWindow.bound.app) == 0
-    and #missing(onWindow.bound.window, onWindow.sheet.window) == 0
-    and #missing(onWindow.sheet.window, onWindow.bound.window) == 0)
+    and #missing(windowBound, onWindow.sheet.window) == 0
+    and #missing(onWindow.sheet.window, windowBound) == 0)
 check("the same tool on the app leader is bound and shown", real.bound.app[movedKey] == 1
   and real.sheet.app[movedKey] == 1)

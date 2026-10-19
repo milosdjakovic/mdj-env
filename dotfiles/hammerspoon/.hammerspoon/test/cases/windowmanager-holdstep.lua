@@ -116,7 +116,7 @@ end
 local function pressGrowth(canvas)
   local wm, frameNow = freshModule(canvas)
   local before = { w = frameNow().w, h = frameNow().h }
-  wm:actions().increaseSize(0)
+  wm:actions().increaseSize.run(0)
   return frameNow().w - before.w, frameNow().h - before.h
 end
 
@@ -163,7 +163,7 @@ do
   -- window that has run out of room on one side gets only half its step on that axis and the
   -- shape stops tracking the canvas, which is the right behaviour at an edge and simply not
   -- what this block is about. The claim here is about a window with room around it.
-  actions.center()
+  actions.center.run()
   local function drift()
     local f = frameNow()
     return math.abs((f.h / f.w) - canvasRatio)
@@ -173,7 +173,7 @@ do
   local grewApart = false
   local previous = started
   for _ = 1, 30 do
-    actions.increaseSize(9)
+    actions.increaseSize.run(9)
     local now = drift()
     if now > previous + 1e-9 then grewApart = true end
     previous = now
@@ -196,7 +196,7 @@ do
   local actions = wm:actions()
   local fractional = false
   for _ = 1, 20 do
-    actions.increaseSize(9)
+    actions.increaseSize.run(9)
     local f = frameNow()
     for _, v in ipairs({ f.x, f.y, f.w, f.h }) do
       if v ~= math.floor(v) then fractional = true end
@@ -211,23 +211,23 @@ do
   local wm, frameNow = freshModule()
   local actions = wm:actions()
   local startX = frameNow().x
-  actions.moveRight(0)
+  actions.moveRight.run(0)
   local pressed = frameNow().x - startX
   local mid = frameNow().x
-  actions.moveRight(9)
+  actions.moveRight.run(9)
   local held = frameNow().x - mid
   check("the action map carries the depth into the step",
     pressed == 20 and held == SIZING.movePixelsHeld,
     "press " .. tostring(pressed) .. ", held " .. tostring(held))
 
   local before = frameNow().x
-  actions.moveLeft(9)
+  actions.moveLeft.run(9)
   check("a move the other way travels the same held amount",
     before - frameNow().x == SIZING.movePixelsHeld,
     "moved " .. tostring(before - frameNow().x))
 
   local widthBefore = frameNow().w
-  actions.increaseSize(9)
+  actions.increaseSize.run(9)
   check("the resize action carries the depth too, into its long edge",
     frameNow().w - widthBefore == SIZING.resizePixelsHeld,
     "grew " .. tostring(frameNow().w - widthBefore))
@@ -239,7 +239,7 @@ do
   local wm, frameNow = freshModule()
   local actions = wm:actions()
   local before = frameNow().y
-  actions.moveDown()
+  actions.moveDown.run()
   check("an action reached with no depth moves the press amount",
     frameNow().y - before == 20, "moved " .. tostring(frameNow().y - before))
 end

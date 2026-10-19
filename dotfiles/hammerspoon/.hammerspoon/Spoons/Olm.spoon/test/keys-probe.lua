@@ -28,8 +28,8 @@
 --
 -- Owners. The engines keep only functions, so an owner is worked out by crossing each stored
 -- binding with what the live plan declares. The declarations are read by lib/keymap.lua, a
--- tool's open key, a plugin's own bindings, the context bindings of every list, the person's
--- toggles, a launcher special row and a registered command's key, and this probe indexes the
+-- tool's open key, a plugin's own bindings, the context bindings of every list, the rows a
+-- plugin provides, a launcher special row and a registered command's key, and this probe indexes the
 -- rows it returns rather than reading the plan a second time. A registered tool's function is also matched by identity against what the
 -- registry holds, which is exact where a key match could be ambiguous. Two declarations that
 -- claim one chord are both named, joined with a bar, since that is a collision worth seeing
