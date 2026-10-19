@@ -55,6 +55,9 @@ local leadersLib = load("lib/leaders.lua")
 local overlayDisplayLib = load("lib/overlaydisplay.lua")
 local hintsLib = load("lib/hints.lua")
 local registrarLib = load("lib/registrar.lua")
+-- The read model of every chord that gets bound, built once from declarations. A pure module
+-- like the registrar, so the unit case drives the same code this file runs.
+local keymapLib = load("lib/keymap.lua")
 -- How rows other plugins contribute reach the launcher and how a chosen one runs, assembled
 -- from the plan's set answers. A pure module like the registrar, so the unit case drives the
 -- same code this file runs.
@@ -2025,6 +2028,30 @@ function obj.run(olm, cfg)
   local forWire = registrarLib.forWire(wiredRegistry)
   w.register(forWire, describeForRegistry, bindShortcut)
 
+  -- The keymap, every chord Olm binds as one list of rows, built once now that the plan and the
+  -- registry both exist. It reads declarations only and binds nothing, so who binds each key
+  -- and in what order is exactly what it was. Anything it finds goes into the wiring report
+  -- through the same problem channel the stages use, and the whole list is kept on the record
+  -- so a probe can read it from a running config.
+  -- It is a read model that binds nothing, so a defect inside it must never take down the load.
+  -- A raise is reported as one problem and the keymap is left empty, and composing carries on.
+  local built, keymap = pcall(keymapLib.build, {
+    plan = plan,
+    roles = leaderRoles,
+    keycodes = hs.keycodes.map,
+    shortcuts = wiredRegistry.shortcuts(),
+    manifests = manifests,
+    commandKey = commandKey,
+    data = wireData,
+  })
+  if not built then
+    w.problem("keymap", "build", tostring(keymap))
+    keymap = { rows = {}, problems = {} }
+  end
+  for _, problem in ipairs(keymap.problems) do
+    w.problem("keymap", problem.where, problem.why)
+  end
+
   -- The two system actions that belong to no plugin and therefore to no registration, so the
   -- one loop that binds every registered tool's key never sees them. Locking and sleeping are
   -- plain macOS calls with nothing behind them worth a plugin, and inventing one just to give
@@ -2569,9 +2596,10 @@ function obj.run(olm, cfg)
   -- files again and hoping the two agree, which is exactly the self agreement that let a
   -- manifest naming a deleted capability pass for weeks.
   --
-  -- All five are the tables themselves rather than copies. Nothing here should be written to,
+  -- Every one of these is the table itself rather than a copy. Nothing here should be written to,
   -- and a defensive copy would only make an inspector disagree with the config it is inspecting.
   record.plan = plan
+  record.keymap = keymap
   record.manifests = manifests
   record.dispatch = dispatchTable
   -- The dependency door's own scope, so anything inspecting this config asks IT whether a tool

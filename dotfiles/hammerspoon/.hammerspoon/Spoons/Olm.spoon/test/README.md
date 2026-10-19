@@ -95,6 +95,16 @@ test lock first and giving it back after. `keys-probe.lua` carries the line form
 is worked out, and what the probe cannot see. A `?` in the owner column is a chord nothing in
 the plan declares.
 
+The keymap is proven complete by projecting its own rows into the golden's line format and
+comparing. `keys.sh --keymap` does that against the live config once the config holding the
+keymap is the live one, and `keys.sh --offline` does it with no Hammerspoon, by running the
+composition root under the dry gate's stub. The stub cannot know the real keycode table, so a key
+is only lowercased unless `DRYGATE_KEYCODES` names a Lua file returning one dumped from a live
+session, and it cannot tell which tools are installed, so the offline run reports every one
+present. Both runs matched the golden byte for byte when the keymap landed. `keymap.lua` is plain
+Lua cases for the read model itself, collisions by layer, leader, key and modifiers, the one
+exemption, and the spelling, and `suite.sh dry` runs it.
+
 `leaders.lua` is the other half, plain Lua with no Hammerspoon, run by `suite.sh dry`. It pins
 `HyperKey:_resolve` and the window leader's resolver as they stand, including the places they
 disagree, a false `when` skipping on one and swallowing on the other, and an unknown predicate

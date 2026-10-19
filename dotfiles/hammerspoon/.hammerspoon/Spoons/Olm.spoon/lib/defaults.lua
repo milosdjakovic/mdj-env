@@ -165,11 +165,17 @@ function obj.provenance(defaults, user)
   return out
 end
 
--- Two different plugins reaching for the same leader and key, or for the same alias word.
+-- Two different plugins reaching for the same alias word.
+--
+-- Key slots are not checked here any more. lib/keymap.lua reads every chord from every path
+-- that binds one and reports two on the same layer, leader, key and modifiers, which this check
+-- never could, since it compared only the top level key and leader and ignored modifiers, case,
+-- bindings, toggles, commands and list keys. What stays is the alias half, since an alias is a
+-- typed word and not a key, and it stays here until the keymap plan moves aliases too.
 --
 -- `byPlugin` is `{ [pluginName] = effectiveDefaults }`. Called with only that argument, every
 -- entry is read as a plugin's own shipped proposal, and any two different plugins landing on
--- the same slot is reported, since two defaults colliding is a fact about the repository
+-- the same alias is reported, since two defaults colliding is a fact about the repository
 -- itself, identical on every machine it runs on, and exactly why it must be reported rather
 -- than silently decided one way. This never picks a winner. Whichever plugin's directory
 -- happens to sort first is not a resolution, it is a coin flip wearing an ordering, so the
@@ -182,10 +188,9 @@ end
 -- so it is excluded, and it is excluded only there. Two untouched defaults colliding is
 -- still reported, and two of the person's own choices colliding with each other is still
 -- reported too, since neither of those is the one named exception, only a default meeting a
--- user override is. Bucketing each slot and each alias by this class, rather than checking
--- one exemption rule against a single earliest claimant, is what keeps a third late arrival
--- comparing against the right kind of claim instead of whichever name happened to be seen
--- first.
+-- user override is. Bucketing each alias by this class, rather than checking one exemption
+-- rule against a single earliest claimant, is what keeps a third late arrival comparing
+-- against the right kind of claim instead of whichever name happened to be seen first.
 function obj.collisions(byPlugin, provenanceByPlugin)
   provenanceByPlugin = provenanceByPlugin or {}
 
@@ -194,37 +199,16 @@ function obj.collisions(byPlugin, provenanceByPlugin)
     return (prov and prov[path]) or "default"
   end
 
-  -- A slot is the person's own doing the moment either half of it is, since touching just
-  -- the key and leaving the leader untouched is still a deliberate claim on the pair.
-  local function slotClass(name)
-    if sourceOf(name, "leader") == "user" or sourceOf(name, "key") == "user" then
-      return "user"
-    end
-    return "default"
-  end
-
   local names = {}
   for name in pairs(byPlugin) do names[#names + 1] = name end
   table.sort(names)
 
   local out = {}
-  local slotOwners, aliasOwners = {}, {}
+  local aliasOwners = {}
 
   for _, name in ipairs(names) do
     local proposal = byPlugin[name]
     if proposal and proposal ~= false then
-      if proposal.leader and proposal.key then
-        local slot = tostring(proposal.leader) .. "+" .. tostring(proposal.key)
-        local class = slotClass(name)
-        slotOwners[slot] = slotOwners[slot] or {}
-        local owner = slotOwners[slot][class]
-        if not owner then
-          slotOwners[slot][class] = name
-        else
-          table.insert(out, "'" .. owner .. "' and '" .. name .. "' both propose leader '" ..
-            tostring(proposal.leader) .. "' with key '" .. tostring(proposal.key) .. "'")
-        end
-      end
       for _, alias in ipairs(proposal.aliases or {}) do
         local class = sourceOf(name, "aliases")
         aliasOwners[alias] = aliasOwners[alias] or {}

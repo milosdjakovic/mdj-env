@@ -932,7 +932,7 @@ function obj.bind(entry, plan, deps)
   end
 end
 
---- obj.commandKey(manifests, meta, name) -> { key, mods, description } or nil
+--- obj.commandKey(manifests, meta, name) -> { key, mods, description, origin } or nil
 --- The key a registered command binds on, the answer obj.bind's deps.rootKey gives for a name
 --- the plan has no directory for. A person's override for the command's own name in meta wins,
 --- the same way it does for a tool, otherwise whichever manifest declares a command by this
@@ -944,7 +944,8 @@ end
 --- because the cheat sheet has to ask the same question binding asks. While only the root knew
 --- it, the sheet looked a command up through the plan, found no directory and no key, and
 --- dropped every command bound on a leader without a word. The description rides along so the
---- sheet labels the row with the words its launcher row already wears.
+--- sheet labels the row with the words its launcher row already wears. The origin says whether
+--- the key is the person's override or the manifest's own, which the keymap records per row.
 function obj.commandKey(manifests, meta, name)
   local info = (meta or {})[name]
   local declared = nil
@@ -954,10 +955,10 @@ function obj.commandKey(manifests, meta, name)
   end
   local description = declared and type(declared.row) == "table" and declared.row.description or nil
   if info and info.key then
-    return { key = info.key, mods = info.mods, description = description }
+    return { key = info.key, mods = info.mods, description = description, origin = "user" }
   end
   if declared and declared.key then
-    return { key = declared.key, mods = declared.mods, description = description }
+    return { key = declared.key, mods = declared.mods, description = description, origin = "default" }
   end
   return nil
 end

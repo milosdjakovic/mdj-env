@@ -78,6 +78,13 @@ function obj.new(deps)
     log("e", "wire, " .. stage .. ", " .. where .. ", " .. why)
   end
 
+  -- The same channel for a problem a caller found outside the eight stages, so it reaches the
+  -- same report and the same console line. The root uses it for what the keymap read model
+  -- finds, which is a fact about the declarations and belongs to no stage of its own.
+  function self.problem(stage, where, why)
+    fail(stage, where, why)
+  end
+
   -- The options table a plugin receives. Its own effective declarations, plus exactly the
   -- ambient services its declarations earned, plus the data the root and the user supplied.
   --

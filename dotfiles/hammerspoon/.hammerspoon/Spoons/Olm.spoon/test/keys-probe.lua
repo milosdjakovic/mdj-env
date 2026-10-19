@@ -27,13 +27,19 @@
 --   owner    who declared the chord, or a question mark where nothing declares it.
 --
 -- Owners. The engines keep only functions, so an owner is worked out by crossing each stored
--- binding with what the live plan declares, a tool's open key, a plugin's own bindings, the
--- context bindings of every list, the person's toggles, a launcher special row and a registered
--- command's key. A registered tool's function is also matched by identity against what the
+-- binding with what the live plan declares. The declarations are read by lib/keymap.lua, a
+-- tool's open key, a plugin's own bindings, the context bindings of every list, the person's
+-- toggles, a launcher special row and a registered command's key, and this probe indexes the
+-- rows it returns rather than reading the plan a second time. A registered tool's function is also matched by identity against what the
 -- registry holds, which is exact where a key match could be ambiguous. Two declarations that
 -- claim one chord are both named, joined with a bar, since that is a collision worth seeing
 -- rather than hiding. The probe reads declarations by their field names and never by a
 -- plugin's name, so a plugin added later is covered without an edit here.
+--
+-- A second mode, with the global OLM_KEYS_MODE set to keymap, writes the keymap's own rows in this
+-- same line format and never looks at an engine. The two outputs are expected to be identical,
+-- byte for byte, which proves the read model holds every chord the engines do. keys.sh asks
+-- for it with the keymap flag, and it only answers on a config whose root built a keymap.
 --
 -- What it cannot see. The bound handler of a plain hs.hotkey is not exposed, so those owners
 -- come from the declarations alone. A key a plugin binds that the plan does not declare, or
@@ -43,50 +49,27 @@
 local OUT = OLM_KEYS_OUT
 assert(type(OUT) == "string" and OUT ~= "", "set OLM_KEYS_OUT to the output path before dofile")
 
+local here = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
+local keymapLib = assert(loadfile(here .. "../lib/keymap.lua"))()
+local project = assert(loadfile(here .. "keys-project.lua"))()
+
 local olm = spoon.Olm
 local composed = assert(olm and olm._composed, "the live Olm has no composed plan")
-local plan = composed.plan
 local hyper = olm.lib.hyperkey
 local windowLeader = olm.lib.windowleader
 
 local DASH = "-"
-
---------------------------------------------------------------------------------
--- Spelling, one way to write a key and a set of modifiers
---------------------------------------------------------------------------------
-
-local function codeOf(key)
-  if type(key) == "number" then return key end
-  if type(key) ~= "string" then return nil end
-  return hs.keycodes.map[key:lower()]
-end
+local KEYCODES = hs.keycodes.map
 
 local function nameOf(code)
-  local name = hs.keycodes.map[code]
+  local name = KEYCODES[code]
   if type(name) == "string" then return name end
   return "code" .. tostring(code)
 end
 
-local ALIASES = {
-  shift = "shift", ctrl = "ctrl", control = "ctrl", alt = "alt", option = "alt", opt = "alt",
-  cmd = "cmd", command = "cmd",
-}
-
 -- nil means a catch all. An empty list means no modifier at all, which is a different binding.
-local function modsKey(mods)
-  if mods == nil then return "any" end
-  local seen, list = {}, {}
-  for _, m in ipairs(mods) do
-    local canon = ALIASES[tostring(m):lower()] or tostring(m):lower()
-    if not seen[canon] then
-      seen[canon] = true
-      list[#list + 1] = canon
-    end
-  end
-  if #list == 0 then return "none" end
-  table.sort(list)
-  return table.concat(list, "+")
-end
+local modsKey = keymapLib.modsText
+local codeOf = function(key) return keymapLib.keyCode(key, KEYCODES) end
 
 --------------------------------------------------------------------------------
 -- The engines' own names
@@ -106,6 +89,18 @@ local WINDOW = windowLeaderName()
 local HYPER = "hyper"
 local HOTKEY = "hotkey"
 
+-- The other mode writes the keymap's own rows in the golden's line format and stops, which is
+-- the proof the read model is complete. keys.sh asks for it with the global OLM_KEYS_MODE. It
+-- needs the keymap the root built, so it only answers on a config that has one.
+if OLM_KEYS_MODE == "keymap" then
+  local keymap = assert(composed.keymap, "the live Olm has no keymap, is the worktree the live config")
+  local lines = project.project(keymap.rows, WINDOW)
+  local f = assert(io.open(OUT, "w"))
+  f:write(table.concat(lines, "\n"), "\n")
+  f:close()
+  return "wrote " .. #lines .. " lines from the keymap"
+end
+
 --------------------------------------------------------------------------------
 -- Declarations, indexed by engine, keycode, modifiers and context
 --------------------------------------------------------------------------------
@@ -119,92 +114,40 @@ local function declare(engine, key, mods, when, owner)
   declared[id][owner] = true
 end
 
--- The engine a declared leader role binds on. Only the window role is the window engine, any
--- other word, or none, is the app leader, which is where the root binds a tool's own key.
-local function engineFor(role)
-  if role == "window" then return WINDOW end
-  return HYPER
+-- The declarations are the keymap's rows. A config that built its own is read as it is, and one
+-- that did not, main before the keymap landed, has the same module fed from the same live plan,
+-- so this probe still describes it. The roles come from the person's own key file, and a
+-- command's key is read as its manifest ships it, which is why an override held only in the
+-- root's registry table shows as a question mark, as it always did.
+local keymap = composed.keymap
+if not keymap then
+  local ok, keys = pcall(dofile, hs.configdir .. "/config/keys.lua")
+  keys = ok and type(keys) == "table" and keys or {}
+  keymap = keymapLib.build({
+    plan = composed.plan,
+    roles = { app = keys.appLeader or "HYPER", window = keys.windowLeader or "META" },
+    keycodes = KEYCODES,
+    shortcuts = olm.registry.shortcuts(),
+    manifests = composed.manifests,
+    data = composed.data,
+  })
 end
 
-local directories = {}
-for directory in pairs(plan.effective or {}) do directories[#directories + 1] = directory end
-table.sort(directories)
-
-for _, directory in ipairs(directories) do
-  local eff = plan.effective[directory]
-  local owner = (plan.identity or {})[directory] or directory
-
-  -- A tool's open key, and a host's, both a key on a leader.
-  if eff.key then declare(engineFor(eff.leader), eff.key, eff.mods, nil, owner) end
-
-  -- A plugin's own bindings, each carrying a key and optionally its own gate.
-  for _, b in ipairs(eff.bindings or {}) do
-    declare(engineFor(eff.leader), b.key, b.mods, b.when, owner)
-  end
-
-  -- The special rows of a host that carry a key, which the root binds on the app leader.
-  for _, row in ipairs(eff.specialRows or {}) do
-    if row.key then declare(HYPER, row.key, nil, nil, owner) end
-  end
+-- Every row of the keymap is a declaration of one chord. A row states catch all with a flag, and
+-- the index here wants nil for it, which is how the engines hold one.
+for _, row in ipairs(keymap.rows) do
+  local mods = row.mods
+  if row.anyMods then mods = nil end
+  declare(project.engineLabel(row.leader, WINDOW), row.key, mods, row.when, row.owner)
 end
 
--- Every list's context bindings, bound on the app leader under the context's own gate.
-local contexts = {}
-for name in pairs(plan.contexts or {}) do contexts[#contexts + 1] = name end
-table.sort(contexts)
-for _, name in ipairs(contexts) do
-  local block = plan.contexts[name]
-  for _, b in ipairs(block.bindings or {}) do
-    if b.chord ~= false then declare(HYPER, b.key, b.mods, block.when, name) end
-  end
-end
-
--- The person's toggles. An entry stating its own modifiers is a plain combo, any other is a
--- key on the app leader. The list is the one the plugin was configured with.
-local dataKeys = {}
-for directory in pairs(composed.data or {}) do dataKeys[#dataKeys + 1] = directory end
-table.sort(dataKeys)
-for _, directory in ipairs(dataKeys) do
-  local data = composed.data[directory]
-  local owner = (plan.identity or {})[directory] or directory
-  if type(data) == "table" and type(data.toggles) == "table" then
-    for _, t in ipairs(data.toggles) do
-      if t.modifiers then
-        declare(HOTKEY, t.key, t.modifiers, nil, owner)
-      else
-        declare(HYPER, t.key, nil, nil, owner)
-      end
-    end
-  end
-end
-
--- A registered command's own key. The command belongs to the manifest declaring it, and a
--- global one is a plain combo, a leader one a key on the app leader. A person's override of
--- the key lives in the root's registry table and is not carried by the plan, so a command moved
--- that way shows as a question mark, which is the point of reporting one.
-local kindOf = {}
+-- A registered tool's own function, matched by identity against what the engines hold, which
+-- is exact where a key match could be ambiguous. A person's override of a command's key lives
+-- in the root's registry table and not in the plan, so the keymap reads it through the same
+-- lookup the binder uses, and this match is the second opinion.
 local fnOwner = {}
-for _, entry in ipairs((function()
-  local list = {}
-  for _, e in pairs(olm.registry.shortcuts() or {}) do list[#list + 1] = e end
-  table.sort(list, function(a, b) return tostring(a.name) < tostring(b.name) end)
-  return list
-end)()) do
-  kindOf[entry.name] = entry.kind
+for _, entry in pairs(olm.registry.shortcuts() or {}) do
   if type(entry.fn) == "function" then fnOwner[entry.fn] = entry.name end
-end
-
-local manifestNames = {}
-for directory in pairs(composed.manifests or {}) do manifestNames[#manifestNames + 1] = directory end
-table.sort(manifestNames)
-for _, directory in ipairs(manifestNames) do
-  local commands = ((composed.manifests[directory] or {}).registry or {}).commands or {}
-  for name, spec in pairs(commands) do
-    if spec.key and kindOf[name] then
-      local engine = kindOf[name] == "global" and HOTKEY or HYPER
-      declare(engine, spec.key, spec.mods, nil, (plan.identity or {})[directory] or directory)
-    end
-  end
 end
 
 --------------------------------------------------------------------------------

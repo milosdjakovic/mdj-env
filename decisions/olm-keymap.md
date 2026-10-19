@@ -129,3 +129,17 @@ aliases live only in `config/keymap.lua`.
   literal Hyper fallback, and Hyper's chord trigger, none of which binds anything on this machine,
   and all of which phase 2 removes. It also found that the window leader folds key case at bind,
   so META and C is center with no shift tier, which the merge in phase 3 must keep.
+- 2026-10-19 19:05. Phase 1 built, awaiting review and a live load. `lib/keymap.lua` is a pure
+  read model, one row per chord with layer, leader, key, mods, owner, action, source, when,
+  priority, description and origin, built in the root right after the registry registers and
+  kept on the record as `keymap`. It reads the plan, the registry's shortcuts, the manifests'
+  commands, the data each plugin was handed and the roles, and names no plugin and no leader.
+  Toggles are found by the shape of the data, a list under `toggles`. Collisions are layer,
+  leader, key and mods, reported through the wiring report's own problem channel, with the one
+  exemption the old check kept. The key slot half of `defaults.collisions` is retired and its
+  alias half stays. The offline projection of the keymap into the golden's format matched
+  `keys.golden` byte for byte, 159 lines and no collision on this config. The stub cannot know
+  the real keycode table, so it matched with a table dumped from the live session and also
+  without one, and it cannot tell which tools are installed, so the offline run reports every
+  one present, without which tmux sessions is left out of the plan and 6 lines go missing. The
+  live `--keymap` projection is still owed, it needs the worktree made live under the test lock.

@@ -62,7 +62,17 @@
 -- a key handler, a timer callback or a chooser's own callbacks, which run only once a person
 -- acts.
 
+-- THE KEYMAP MODE, used by the key inventory rather than by the rename proof. With the
+-- environment variable DRYGATE_KEYMAP set to 1, the run stops after the root finishes and
+-- writes the keymap the root built in the format of test/keys.golden, which is the offline
+-- proof that the read model holds every chord the live engines do. DRYGATE_KEYCODES may name a
+-- Lua file returning a real Hammerspoon keycode table, dumped from a live session, and the
+-- stub then answers it, otherwise a key is only lowercased. Every tool a plugin declares is
+-- reported present, so no plugin is left out for a missing program. The snapshot is not written.
+
 local spoonDir, hsRoot, sandbox, mapPath = arg[1], arg[2], arg[3], arg[4]
+local keycodesPath = os.getenv("DRYGATE_KEYCODES")
+local realKeycodes = keycodesPath and keycodesPath ~= "" and dofile(keycodesPath) or nil
 if not (spoonDir and hsRoot and sandbox) then
   io.stderr:write("usage: lua drygate-composerun.lua <spoon dir> <config dir> <sandbox dir> [rename map]\n")
   os.exit(2)
@@ -242,6 +252,7 @@ end
 hs = stub("hs")
 spoon = {}
 hs.configdir = hsRoot
+if realKeycodes then hs.keycodes = { map = realKeycodes } end
 local fs = stub("hs.fs")
 fs.dir = recorded("hs.fs.dir", function(path)
   local names = children[clean(path)]
@@ -277,6 +288,19 @@ styledtext.fontInfo = function(font)
 end
 hs.styledtext = styledtext
 hs.execute = recorded("hs.execute", function() return "", true, "exit", 0 end)
+-- The keymap mode answers the dependency door's one probe as if every tool were installed, the
+-- way they are on the machine the golden was taken on. Otherwise a plugin whose required tool
+-- is absent here is left out of the plan, and its keys with it, which says nothing about the
+-- read model. The probe is one command v call naming every locator, so each name is answered.
+if os.getenv("DRYGATE_KEYMAP") == "1" then
+  hs.execute = function(command)
+    local out = {}
+    for name in tostring(command):gmatch("%S+") do
+      if name ~= "command" and name ~= "-v" then out[#out + 1] = "/usr/bin/" .. name end
+    end
+    return table.concat(out, "\n") .. "\n", true, "exit", 0
+  end
+end
 hs.json = { read = recorded("hs.json.read", none), write = recorded("hs.json.write", function() return false end),
   decode = recorded("hs.json.decode", none), encode = recorded("hs.json.encode", function() return "{}" end) }
 local function logger(name)
@@ -467,6 +491,24 @@ end, "", 1000)
 recording = true
 local ok, err = pcall(dofile, hsRoot .. "/init.lua")
 if not ok then add("raised " .. tostring(err)) end
+
+if os.getenv("DRYGATE_KEYMAP") == "1" then
+  debug.sethook()
+  recording = false
+  local record = olm and olm._composed
+  local keymap = type(record) == "table" and record.keymap
+  if not keymap then
+    io.stderr:write("the composition root recorded no keymap\n")
+    os.exit(1)
+  end
+  local project = assert(loadfile(spoonDir .. "test/keys-project.lua"))()
+  local keys = dofile(hsRoot .. "/config/keys.lua")
+  for _, line in ipairs(lines) do
+    if line:match("^log %S+ e ") or line:match("^log %S+ w ") then io.stderr:write(line, "\n") end
+  end
+  io.stdout:write(table.concat(project.project(keymap.rows, keys.windowLeader), "\n"), "\n")
+  os.exit(0)
+end
 
 -- The probe. Each content strategy is asked what it would show, at one fixed size, each call
 -- on its own so one that raises costs only its own line.

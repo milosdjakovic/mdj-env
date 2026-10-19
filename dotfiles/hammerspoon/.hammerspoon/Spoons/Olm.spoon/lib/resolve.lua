@@ -299,9 +299,10 @@ function obj.new(deps)
       out.provenance[name] = D.provenance(proposed, mine)
     end
 
-    -- 7. Collisions between what two plugins proposed. Reported, never resolved. Two defaults
-    -- wanting one key is a defect identical on every machine, and picking a winner by load
-    -- order would make it a different defect on every reload instead.
+    -- 7. Collisions between what two plugins proposed, which is the alias half only now. Keys
+    -- are checked by lib/keymap.lua once every path that binds one has been read. Reported,
+    -- never resolved. Two defaults wanting one alias is a defect identical on every machine, and
+    -- picking a winner by load order would make it a different defect on every reload instead.
     for _, hit in ipairs(D.collisions(out.effective, out.provenance) or {}) do
       problem("collision", "defaults", type(hit) == "string" and hit or (hit.why or "two declarations claim one slot"))
     end
