@@ -212,6 +212,42 @@ do
   eq(place["host:open"] < place["special:lock"], true, "and hosts before special rows")
 end
 
+-- One source that raises drops its own rows with one problem naming it, and every other source
+-- still builds. A plugin whose whole actions member failed marks every binding refused, so the
+-- binder stays quiet about them, and a host with nothing to show is a quiet row.
+do
+  local plan = {
+    effective = {
+      host = { leader = "app", key = "h" },
+      mover = { leader = "app", bindings = { { action = "go", key = "g" } } },
+    },
+    identity = {}, contexts = {}, order = { "host", "mover" },
+  }
+  local result = keymap.build({ plan = plan, roles = ROLES, keycodes = KEYCODES,
+    hostRun = function() error("boom") end, refusedActions = { mover = true } })
+  local by, raised = {}, nil
+  for _, row in ipairs(result.rows) do by[row.source .. ":" .. tostring(row.action)] = row end
+  for _, pr in ipairs(result.problems) do if pr.where == "the open keys source" then raised = pr end end
+  eq(by["host:open"], nil, "a raising source leaves its rows out")
+  eq(raised ~= nil, true, "and is one problem naming the source")
+  eq(by["bindings:go"] ~= nil, true, "every other source still builds")
+  eq(by["bindings:go"].refused, true, "a failed actions member marks every binding of the plugin refused")
+
+  local quiet = keymap.build({ plan = plan, roles = ROLES, keycodes = KEYCODES,
+    hostRun = function() return nil end })
+  local host
+  for _, row in ipairs(quiet.rows) do if row.source == "host" then host = row end end
+  eq(host and host.quiet, true, "a host with nothing to show is a quiet row")
+  local binder = assert(loadfile(here .. "../lib/binder.lua"))()
+  local problems = binder.bind({ host }, { engines = { hyper = { bind = function() end } } })
+  eq(#problems, 0, "and the binder leaves it unbound without a line")
+
+  local registrar = assert(loadfile(here .. "../lib/registrar.lua"))()
+  local _, refused = registrar.validateActions("demo", { provides = { actions = "actions" } },
+    { actions = function() error("raised") end })
+  eq(refused, true, "an actions member that raises answers refused as true")
+end
+
 -- Descriptor validation, the registrar's half. A table or a function answering one, a bad field
 -- refused with one problem naming the plugin, the action and the field, and the rest kept.
 do

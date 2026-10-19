@@ -178,7 +178,10 @@ end
 -- The app leader's engine, every stored binding, base and contextual alike.
 for code, list in pairs(hyper._bindings or {}) do
   for _, b in ipairs(list) do
-    emit(HYPER, code, b.mods, b.when, b.priority, ownerOf(HYPER, code, b.mods, b.when, b.fn))
+    -- A global row's predicate is stored as a gate, a list key's as when, and both are the
+    -- golden's when column.
+    local when = b.when or b.gate
+    emit(HYPER, code, b.mods, when, b.priority, ownerOf(HYPER, code, b.mods, when, b.fn))
   end
 end
 

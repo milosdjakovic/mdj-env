@@ -188,3 +188,15 @@ aliases live only in `config/keymap.lua`.
   it byte for byte too, 159 lines, as main's own recording did. `keys.sh --bound-order` against
   a copy of main shows every engine receives its bindings in the same order on every key. The
   wiring report under the stub says no problems.
+- 2026-10-19 19:51. A review of the 2a commit found no blocker and seven fixes, applied on top. A global row's
+  predicate now reaches an engine as `gate` rather than `when`, since on Hyper every `when`
+  was recorded as a context, so a gated global row such as a window binding moved to the app
+  leader would have made Hyper modal and silenced every base key while it held. HyperKey treats a
+  gate as eligibility alone, the window leader reads it as its `when`, and list keys keep
+  `when`. Each keymap source now reads under its own pcall, so one raise costs that source's
+  keys with one problem line and the root's pcall is the last defence. A failed actions member
+  marks every binding of its plugin refused, so it reports once. A host with a key and nothing to
+  show is a quiet row again, unbound in silence as on main. Two roles naming one catalog leader
+  are a problem line rather than one engine silently replacing the other. The binding scan now
+  sees `hs.hotkey.modal` and skips block comments. `olm-core-split.md` Now no longer says a
+  window tool is refused. The golden, the bound recording and the order against main still match.

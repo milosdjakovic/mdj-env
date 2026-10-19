@@ -38,8 +38,11 @@
 --   repeats     whether the action keeps firing while its key is held, where the source says.
 --   run         the function the chord calls, or nil where the source answers none. A list's
 --               own keys carry none, since the root binds those through its contexts.
---   refused     true when the action behind a binding was declared and refused, so the binder
---               leaves the row unbound without a second line about it.
+--   refused     true when the action behind a binding was declared and refused, or the plugin's
+--               whole actions member failed, so the binder leaves the row unbound without a
+--               second line about it.
+--   quiet       true for a host whose key has nothing to show, which is left unbound in silence
+--               the way it always was.
 --
 -- The lines this module can name are problems. A problem is a table with where, the chord, and
 -- why, one sentence, so the root can hand each straight to the wiring report.
@@ -158,7 +161,8 @@ end
 ---   commandKey  a function from a command name to its key, mods and origin, or nil, in which
 ---               case the key the declaring manifest ships is read and the origin is default.
 ---   actions     the action descriptors each plugin answered, by directory, already validated.
----   refusedActions the action names each plugin declared and had refused, by directory.
+---   refusedActions the action names each plugin declared and had refused, by directory, or
+---               true for a plugin whose whole actions member failed.
 ---   provided    the rows a plugin answered through provides.bindings, by directory, each with
 ---               its own action, key, mods, leader role or none, description and fn.
 ---   hostRun     a function from a host's directory to the function its key calls, or nil.
@@ -212,6 +216,7 @@ function obj.build(inputs)
       repeats = spec.repeats,
       run = spec.run,
       refused = spec.refused,
+      quiet = spec.quiet,
     }
     rows[#rows + 1] = row
     placeOf[row] = { order = spec.order or math.huge, index = #rows }
@@ -229,124 +234,172 @@ function obj.build(inputs)
     end
   end
 
-  for hostIndex, directory in ipairs(sortedKeys(plan.effective)) do
-    local eff = plan.effective[directory]
-    local owner = identityOf[directory] or directory
-    local prov = (plan.provenance or {})[directory] or {}
-
-    -- The open key of a tool, or of a host that is not a tool. A tool's key sits on whatever
-    -- leader its own defaults name, the window leader included, and a tool registered with a
-    -- global shortcut is a plain combo. A host's key calls whatever the root answers for it.
-    if eff.key then
-      local entry = shortcutOf[owner]
-      if entry then
-        add({
-          leader = kindOf[owner] ~= "global" and leaderOf(eff.leader) or nil,
-          key = eff.key, mods = eff.mods, owner = owner,
-          action = "open", source = "tool",
-          description = eff.description, origin = originOf(prov, "key", "mods", "leader"),
-          run = entry.fn, order = orderOf(2, shortcutAt[owner]),
-        })
-      else
-        add({
-          leader = leaderOf(eff.leader), key = eff.key, mods = eff.mods, owner = owner,
-          action = "open", source = "host",
-          description = eff.description, origin = originOf(prov, "key", "mods", "leader"),
-          run = inputs.hostRun and inputs.hostRun(directory) or nil,
-          order = orderOf(3, hostIndex),
-        })
+  -- Each source is read on its own. A raise inside one drops the rows that source added, with
+  -- one problem naming it, and every other source still builds and binds, so one defect costs
+  -- its own keys rather than every global key. The root's pcall around the whole build stays as
+  -- the last line of defence.
+  local sourceProblems = {}
+  local function source(name, read)
+    local mark = #rows
+    local ok, err = pcall(read)
+    if not ok then
+      for i = #rows, mark + 1, -1 do
+        placeOf[rows[i]] = nil
+        rows[i] = nil
       end
-    end
-
-    -- A plugin's own bindings, each with its own key, modifiers and gate, each running the
-    -- descriptor its action names. The binding's own gate and repeat win, and the descriptor's
-    -- answer them where the binding is silent.
-    local answered = actions[directory] or {}
-    for i, b in ipairs(eff.bindings or {}) do
-      local descriptor = answered[b.action]
-      local repeats = b.repeats
-      if repeats == nil and descriptor then repeats = descriptor.repeats end
-      add({
-        leader = leaderOf(eff.leader), key = b.key, mods = b.mods, owner = owner,
-        action = b.action, source = "bindings", when = b.when or (descriptor and descriptor.when),
-        priority = b.priority,
-        description = b.description, origin = originOf(prov, "bindings"),
-        repeats = repeats, run = descriptor and descriptor.run or nil,
-        refused = (refusedActions[directory] or {})[b.action] == true,
-        order = orderOf(1, position[directory], i),
-      })
-    end
-
-    -- The special rows of a host that carry a key, which bind on the app leader.
-    for i, row in ipairs(eff.specialRows or {}) do
-      if row.key then
-        add({
-          leader = leaderOf("app"), key = row.key, owner = owner, action = row.name,
-          source = "special", description = row.description,
-          origin = originOf(prov, "specialRows"),
-          run = inputs.specialRun and inputs.specialRun(owner, row.name) or nil,
-          order = orderOf(4, i),
-        })
-      end
+      sourceProblems[#sourceProblems + 1] = { where = "the " .. name .. " source",
+        why = "reading it raised, " .. tostring(err) .. ", so its keys are left out and every other source still binds" }
     end
   end
+
+  source("open keys", function()
+    for hostIndex, directory in ipairs(sortedKeys(plan.effective)) do
+      local eff = plan.effective[directory]
+      local owner = identityOf[directory] or directory
+      local prov = (plan.provenance or {})[directory] or {}
+
+      -- The open key of a tool, or of a host that is not a tool. A tool's key sits on whatever
+      -- leader its own defaults name, the window leader included, and a tool registered with a
+      -- global shortcut is a plain combo. A host's key calls whatever the root answers for it.
+      if eff.key then
+        local entry = shortcutOf[owner]
+        if entry then
+          add({
+            leader = kindOf[owner] ~= "global" and leaderOf(eff.leader) or nil,
+            key = eff.key, mods = eff.mods, owner = owner,
+            action = "open", source = "tool",
+            description = eff.description, origin = originOf(prov, "key", "mods", "leader"),
+            run = entry.fn, order = orderOf(2, shortcutAt[owner]),
+          })
+        else
+          -- A host with a key and no way to be shown, or no leader, was skipped in silence before
+          -- the binder existed, so its row is kept for the collision check and left unbound
+          -- without a line.
+          local run = inputs.hostRun and inputs.hostRun(directory) or nil
+          add({
+            leader = leaderOf(eff.leader), key = eff.key, mods = eff.mods, owner = owner,
+            action = "open", source = "host",
+            description = eff.description, origin = originOf(prov, "key", "mods", "leader"),
+            run = run, quiet = run == nil,
+            order = orderOf(3, hostIndex),
+          })
+        end
+      end
+    end
+  end)
+
+  source("bindings", function()
+    for _, directory in ipairs(sortedKeys(plan.effective)) do
+      local eff = plan.effective[directory]
+      local owner = identityOf[directory] or directory
+      local prov = (plan.provenance or {})[directory] or {}
+      -- A plugin's own bindings, each with its own key, modifiers and gate, each running the
+      -- descriptor its action names. The binding's own gate and repeat win, and the descriptor's
+      -- answer them where the binding is silent.
+      local answered = actions[directory] or {}
+      -- true when the plugin's whole provides.actions member failed, which that failure has
+      -- already said once, otherwise the set of action names that were refused one by one.
+      local refusedHere = refusedActions[directory]
+      for i, b in ipairs(eff.bindings or {}) do
+        local descriptor = answered[b.action]
+        local repeats = b.repeats
+        if repeats == nil and descriptor then repeats = descriptor.repeats end
+        add({
+          leader = leaderOf(eff.leader), key = b.key, mods = b.mods, owner = owner,
+          action = b.action, source = "bindings", when = b.when or (descriptor and descriptor.when),
+          priority = b.priority,
+          description = b.description, origin = originOf(prov, "bindings"),
+          repeats = repeats, run = descriptor and descriptor.run or nil,
+          refused = refusedHere == true
+            or (type(refusedHere) == "table" and refusedHere[b.action] == true),
+          order = orderOf(1, position[directory], i),
+        })
+      end
+    end
+  end)
+
+  source("special rows", function()
+    for _, directory in ipairs(sortedKeys(plan.effective)) do
+      local eff = plan.effective[directory]
+      local owner = identityOf[directory] or directory
+      local prov = (plan.provenance or {})[directory] or {}
+      -- The special rows of a host that carry a key, which bind on the app leader.
+      for i, row in ipairs(eff.specialRows or {}) do
+        if row.key then
+          add({
+            leader = leaderOf("app"), key = row.key, owner = owner, action = row.name,
+            source = "special", description = row.description,
+            origin = originOf(prov, "specialRows"),
+            run = inputs.specialRun and inputs.specialRun(owner, row.name) or nil,
+            order = orderOf(4, i),
+          })
+        end
+      end
+    end
+  end)
 
   -- Every list's context bindings, live only while that list is open. They bind on the app
   -- leader under the context's own gate and priority. A binding that says chord is false is
   -- listed for reading and never bound as a key.
-  for _, name in ipairs(sortedKeys(plan.contexts)) do
-    local block = plan.contexts[name]
-    for _, b in ipairs(block.bindings or {}) do
-      if b.chord ~= false then
-        add({
-          layer = name, leader = leaderOf("app"), key = b.key, mods = b.mods, owner = name,
-          action = b.action, source = "context", when = block.when, priority = block.priority,
-          description = b.description, origin = "default",
-        })
+  source("list keys", function()
+    for _, name in ipairs(sortedKeys(plan.contexts)) do
+      local block = plan.contexts[name]
+      for _, b in ipairs(block.bindings or {}) do
+        if b.chord ~= false then
+          add({
+            layer = name, leader = leaderOf("app"), key = b.key, mods = b.mods, owner = name,
+            action = b.action, source = "context", when = block.when, priority = block.priority,
+            description = b.description, origin = "default",
+          })
+        end
       end
     end
-  end
+  end)
 
   -- The rows a plugin answered through provides.bindings, each complete with its own function.
   -- A row naming a leader role sits on that role's leader and one naming none is a plain combo.
   -- This is a bridge for a plugin whose keys are still built from the person's own data, so
   -- every row of it is the person's, which is how the collision check has always classed them.
-  for _, directory in ipairs(sortedKeys(inputs.provided)) do
-    local owner = identityOf[directory] or directory
-    for i, r in ipairs(inputs.provided[directory] or {}) do
-      -- A key on a leader stating no modifiers is a catch all, as it is everywhere, while a plain
-      -- combo always states its own.
-      local mods = r.mods
-      if not r.leader and mods == nil then mods = {} end
-      add({
-        leader = r.leader and leaderOf(r.leader) or nil,
-        key = r.key, mods = mods, owner = owner,
-        action = r.action, source = "provided", when = r.when, description = r.description,
-        origin = "user", repeats = r.repeats, run = r.fn,
-        order = orderOf(1, position[directory], i),
-      })
+  source("provided rows", function()
+    for _, directory in ipairs(sortedKeys(inputs.provided)) do
+      local owner = identityOf[directory] or directory
+      for i, r in ipairs(inputs.provided[directory] or {}) do
+        -- A key on a leader stating no modifiers is a catch all, as it is everywhere, while a plain
+        -- combo always states its own.
+        local mods = r.mods
+        if not r.leader and mods == nil then mods = {} end
+        add({
+          leader = r.leader and leaderOf(r.leader) or nil,
+          key = r.key, mods = mods, owner = owner,
+          action = r.action, source = "provided", when = r.when, description = r.description,
+          origin = "user", repeats = r.repeats, run = r.fn,
+          order = orderOf(1, position[directory], i),
+        })
+      end
     end
-  end
+  end)
 
   -- A registered command's own key. The command belongs to the manifest declaring it. A
   -- global one is a plain combo and a leader one a key on the app leader. The person's
   -- override of the key is applied by the lookup, which says so in its origin.
-  for _, directory in ipairs(sortedKeys(inputs.manifests)) do
-    local commands = ((inputs.manifests[directory] or {}).registry or {}).commands or {}
-    for _, name in ipairs(sortedKeys(commands)) do
-      local info = kindOf[name] and (inputs.commandKey and inputs.commandKey(name) or commands[name])
-      if info and info.key then
-        local description = info.description
-        if description == nil and type(info.row) == "table" then description = info.row.description end
-        add({
-          leader = kindOf[name] ~= "global" and leaderOf("app") or nil,
-          key = info.key, mods = info.mods, owner = identityOf[directory] or directory,
-          action = name, source = "command", description = description,
-          origin = info.origin, run = shortcutOf[name].fn, order = orderOf(2, shortcutAt[name]),
-        })
+  source("commands", function()
+    for _, directory in ipairs(sortedKeys(inputs.manifests)) do
+      local commands = ((inputs.manifests[directory] or {}).registry or {}).commands or {}
+      for _, name in ipairs(sortedKeys(commands)) do
+        local info = kindOf[name] and (inputs.commandKey and inputs.commandKey(name) or commands[name])
+        if info and info.key then
+          local description = info.description
+          if description == nil and type(info.row) == "table" then description = info.row.description end
+          add({
+            leader = kindOf[name] ~= "global" and leaderOf("app") or nil,
+            key = info.key, mods = info.mods, owner = identityOf[directory] or directory,
+            action = name, source = "command", description = description,
+            origin = info.origin, run = shortcutOf[name].fn, order = orderOf(2, shortcutAt[name]),
+          })
+        end
       end
     end
-  end
+  end)
 
   local bound = {}
   for _, row in ipairs(rows) do
@@ -364,7 +417,9 @@ function obj.build(inputs)
     return ka < kb
   end)
 
-  return { rows = rows, bound = bound, problems = obj.collisions(rows) }
+  local problems = obj.collisions(rows)
+  for _, problem in ipairs(sourceProblems) do problems[#problems + 1] = problem end
+  return { rows = rows, bound = bound, problems = problems }
 end
 
 --------------------------------------------------------------------------------

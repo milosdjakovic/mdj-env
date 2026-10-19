@@ -2096,10 +2096,19 @@ function obj.run(olm, cfg)
   -- its catalog entry has, the way a keymap row spells it, and a row with no leader is a plain
   -- combo. The order the engines receive the rows in is the order the paths it replaced bound
   -- them in, which is the order of the keymap's bound list.
-  local leaderEngines = {
-    [tostring(leaderRoles.app):lower()] = hyperKeyAtom,
-    [tostring(leaderRoles.window):lower()] = windowLeaderAtom,
-  }
+  -- Two roles mapped to one catalog name would key two engines under one name and the second
+  -- would replace the first in silence, so that is said out loud and the app leader keeps it.
+  local leaderEngines = {}
+  for _, pair in ipairs({ { role = "app", engine = hyperKeyAtom }, { role = "window", engine = windowLeaderAtom } }) do
+    local name = tostring(leaderRoles[pair.role]):lower()
+    if leaderEngines[name] then
+      w.problem("keymap", "leaders", "the " .. pair.role .. " role names the catalog leader '"
+        .. tostring(leaderRoles[pair.role]) .. "', which another role already names, so the "
+        .. pair.role .. " leader's engine binds nothing this load")
+    else
+      leaderEngines[name] = pair.engine
+    end
+  end
   for _, problem in ipairs(binderLib.bind(keymap.bound, {
     engines = leaderEngines,
     hotkey = function(mods, key, fn) hs.hotkey.bind(mods, key, fn) end,

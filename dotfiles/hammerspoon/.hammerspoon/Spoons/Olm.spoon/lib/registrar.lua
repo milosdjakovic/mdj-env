@@ -931,7 +931,8 @@ end
 --- registration, so one bad action costs that action and the rest of the plugin is still wired.
 --- Each refusal is one problem naming the plugin, the action and the field. actions holds only
 --- the descriptors that passed, refused names the ones that did not, and a plugin declaring no
---- provides.actions answers three empty tables.
+--- provides.actions answers three empty tables. When the member itself names nothing or raises,
+--- refused is true, so every binding of that plugin is covered by the one problem line.
 function obj.validateActions(identity, manifest, module)
   local actions, refused, problems = {}, {}, {}
   local spec = ((manifest or {}).provides or {}).actions
@@ -940,7 +941,7 @@ function obj.validateActions(identity, manifest, module)
   if not answer then
     problems[#problems + 1] = { where = tostring(identity),
       why = "provides.actions " .. why .. ", so none of its actions can run" }
-    return actions, refused, problems
+    return actions, true, problems
   end
   for _, name in ipairs(sortedNames(answer)) do
     local ok, field, fieldWhy = obj.validateDescriptor(answer[name])

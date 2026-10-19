@@ -33,7 +33,7 @@ local GLOBAL = "global"
 --- and repeat in the options. A row whose source answered no function, or whose leader has no
 --- engine, is not bound and comes back as a problem, the where and the why the wiring report
 --- takes. A row whose action was refused at validation is left unbound in silence, since the
---- refusal already said so. A raise from one engine costs that row and is reported, and every
+--- refusal already said so, and so is a row marked quiet, a host with nothing to show. A raise from one engine costs that row and is reported, and every
 --- other row still binds.
 function obj.bind(rows, deps)
   deps = deps or {}
@@ -52,7 +52,7 @@ function obj.bind(rows, deps)
     if row.layer ~= GLOBAL then
       -- A list's own key, which the contexts bind.
     elseif type(row.run) ~= "function" then
-      if not row.refused then
+      if not row.refused and not row.quiet then
         problem(row, "the " .. tostring(row.source) .. " row answers no function to run")
       end
     elseif row.leader == nil then
@@ -67,8 +67,11 @@ function obj.bind(rows, deps)
       if not engine then
         problem(row, "no engine binds on the leader " .. tostring(row.leader))
       else
+        -- A global row's predicate travels as a gate, never as when, since on Hyper a when
+        -- makes a context and a context makes the leader modal, which would silence every
+        -- other global key while the predicate holds.
         local ok, err = pcall(engine.bind, engine, row.key, row.run, mods, {
-          when = row.when, priority = row.priority, repeats = row.repeats,
+          gate = row.when, priority = row.priority, repeats = row.repeats,
         })
         if not ok then problem(row, "binding it raised, " .. tostring(err)) end
       end

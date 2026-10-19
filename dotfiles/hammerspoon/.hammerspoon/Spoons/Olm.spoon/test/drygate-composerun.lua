@@ -512,7 +512,7 @@ hs.loadSpoon = function(name)
         local inner = atom.bind
         atom.bind = function(self, key, fn, mods, opts)
           bindCalls[#bindCalls + 1] = { engine = label, key = key, mods = mods, fn = fn,
-            when = type(opts) == "table" and opts.when or nil,
+            when = type(opts) == "table" and (opts.when or opts.gate) or nil,
             priority = type(opts) == "table" and opts.priority or nil }
           return inner(self, key, fn, mods, opts)
         end

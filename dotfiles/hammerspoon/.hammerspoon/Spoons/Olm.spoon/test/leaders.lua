@@ -272,6 +272,21 @@ do
   eq(text:find("no engine binds on the leader super", 1, true) ~= nil, true, "binder: the missing engine is named")
   eq(text:find("answers no function", 1, true) ~= nil, true, "binder: the missing function is named")
 
+  -- A gated global row on Hyper is plain eligibility. It is skipped while its predicate is false,
+  -- and while it is true it never makes Hyper modal, so every other base binding still answers.
+  local g = newHyper(predicates)
+  live.ctxA = true
+  binder.bind({
+    row({ leader = "hyper", key = "a", run = handler("gated"), when = "ctxA" }),
+    row({ leader = "hyper", key = "b", run = handler("plain") }),
+  }, { engines = { hyper = g } })
+  eq(next(g._contextWhens), nil, "binder: a gated global row is not recorded as a context")
+  eq(g:_modal(), false, "binder: with its predicate true Hyper is not modal")
+  eq(nameOf((g:_resolve(listOf(g, "b"), {}))), "plain", "binder: so another base key still answers")
+  eq(nameOf((g:_resolve(listOf(g, "a"), {}))), "gated", "binder: and the gated key answers while true")
+  live.ctxA = false
+  eq(g:_resolve(listOf(g, "a"), {}), nil, "binder: and is skipped while false")
+
   -- A raise inside one engine costs that row and every other row still binds.
   local raising = { bind = function() error("boom") end }
   local h2 = newHyper(predicates)

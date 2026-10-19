@@ -115,6 +115,12 @@ end
 --- true the handler re-fires on each OS key autorepeat while the key is held,
 --- for nav like a chooser's j/k; omit it for toggles, which must fire once). A
 --- binding with none of these behaves exactly as a plain bind.
+---
+--- `gate` is a predicate name too, and a different thing from `when`. A `when` makes the
+--- binding a context binding, so while its predicate holds Hyper is modal and every base
+--- binding is dropped. A `gate` only says whether this one global binding is eligible right
+--- now, skipped while false exactly as an ineligible binding is, and it never makes Hyper
+--- modal. The binder hands a global row's gate here, and a list's own keys keep `when`.
 function obj:bind(key, fn, mods, opts)
   opts = opts or {}
   local name = type(key) == "string" and key:lower() or key
@@ -125,6 +131,7 @@ function obj:bind(key, fn, mods, opts)
       mods = mods,
       fn = fn,
       when = opts.when,
+      gate = opts.gate,
       priority = opts.priority,
       repeats = opts.repeats,
     })
@@ -154,11 +161,15 @@ local REAL_MODS = { "shift", "ctrl", "alt", "cmd" }
 --- Whether a binding's optional `when` predicate allows it right now. A binding
 --- with no `when` always passes. An unknown predicate name is treated as active,
 --- so a typo fails visibly (the key stays live) rather than silently dying.
-function obj:_passes(binding)
-  if not binding.when then return true end
-  local pred = self._predicates and self._predicates[binding.when]
+local function predicatePasses(self, name)
+  if not name then return true end
+  local pred = self._predicates and self._predicates[name]
   if pred == nil then return true end
   return pred() and true or false
+end
+
+function obj:_passes(binding)
+  return predicatePasses(self, binding.when) and predicatePasses(self, binding.gate)
 end
 
 --- HyperKey:_modal()

@@ -167,7 +167,9 @@ function obj:bind(key, fn, mods, opts)
   end
 
   leader.bindings[code] = leader.bindings[code] or {}
-  table.insert(leader.bindings[code], { mods = mods, fn = fn, repeats = opts.repeats, when = opts.when })
+  -- A gate is the binder's word for a global row's predicate. The window leader has no
+  -- contexts, so a gate and a when mean the same thing here, a swallowed no op while false.
+  table.insert(leader.bindings[code], { mods = mods, fn = fn, repeats = opts.repeats, when = opts.when or opts.gate })
   return self
 end
 
