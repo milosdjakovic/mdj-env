@@ -123,6 +123,14 @@ so rounds still opened a tab and still passed. They were passing on the top row 
 list. The URL is gone now and the targeting stays, because posting at whatever holds focus was
 never right, it only stopped being obviously wrong.
 
+That trap flipped on 2026-10-14. The default chooser became a hand drawn canvas whose surface never
+becomes the key window, and its field reads keys only through a session level event tap. A
+keystroke posted at a process id is delivered to that process directly and never passes a session
+tap, so the targeting that had been right for the native list now reached nothing at all, and the
+query never arrived. Typing is posted untargeted now, the same way Return always was, and the
+field's own tap claims the characters while the list is up. The comment above `commands.type` in
+`agent.lua` says the same, and `decisions/olm-browsertabs.md` has the measurement.
+
 That URL channel is worth one more line, because it disturbed the very thing it was measuring for
 as long as it existed. It is the likeliest explanation for the single failure of the last full run
 before it was replaced, where both witnesses agreed the tool had done its job and the terminal held
@@ -305,6 +313,35 @@ rounds failed and the failures were not in the same place twice. The full witnes
 everything ruled out is in the spoon's own `AGENTS.md`, under the open defect. Safari
 reports the window restored and the right tab selected while the window server reports Safari
 having no windows at all, and it holds that way for the whole settle.
+
+A quick run on main on 2026-10-17 at about 21:26 passed eight, failed twenty nine and reported
+nine not covered, with the witness log in `results/last-run.log`. A run on a feature branch that
+day had failed the same way, so main was run as the baseline and failed the same way too, which
+put the fault in the harness and on this machine rather than in any change under test. Every
+failing case types a query. The only full raise cases that passed were `no_query` on Chrome and on
+Safari, the one case that types nothing. In every Safari round the browser ended on tab one, a
+Google Drive page, and in most Chrome rounds the same Safari window ended frontmost, the same
+remembered tab winning every time. That is what a Return pressed on an unfiltered list looks like,
+since the top row of the resting order is the tab the tool opened most recently.
+
+The `top` precondition could not catch it. It is a ranking the agent recomputes from the plugin's
+rows through `rank.apply`, never a reading of the live list, so it said the right tab was on top
+while the list on screen was not filtered at all. That is the same family as the earlier trap about
+asking the open chooser what it has highlighted, a check that reads something other than what
+Return will take.
+
+The first belief, written into the decision log that evening, was focus changes after synthetic
+key presses on macOS 27 or a lapsed Automation grant. That was wrong. On 2026-10-19 at about 08:12
+a short script armed a temporary session key down tap for a second and a half and posted one
+character with exactly the call `commands.type` made, targeted at Hammerspoon. In two runs the tap
+saw none of the posted keystrokes. It did see the real keys Milos pressed in the same window, two
+in the first run and one in the second, which is the control that the tap itself was working. So the
+query had been going to a place the field does not listen. The fix is in this change. The rerun
+after it is still owed, and it is also where the one real tool concern gets its first reading. The
+canvas never holds the front, so a raise that selects the right tab and leaves the browser behind
+would be the discretionary cross application raise in the spoon's own `AGENTS.md`, now met on the
+real path for the first time. It is to be watched in that rerun and not fixed before it has been
+seen.
 
 ## What is deliberately not covered
 

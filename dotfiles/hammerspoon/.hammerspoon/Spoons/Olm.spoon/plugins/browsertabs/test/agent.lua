@@ -183,14 +183,17 @@ function commands.chord(p, done)
   end)
 end
 
--- Typing is posted at Hammerspoon itself rather than at whatever holds focus. Every command in this
--- harness arrives by opening a URL, and opening one while the list is up is enough to take key
--- focus off it, so freely posted characters went to the app underneath while the list sat there
--- unfiltered. Return still worked throughout, because the chooser catches Return with an event tap
--- of its own rather than through focus, which is what made this look like typing working.
+-- Typing is posted untargeted, the same route Return takes. It was posted at the Hammerspoon process
+-- by name while every command arrived by opening a URL, since opening one took key focus off the
+-- native list and freely posted characters then landed in the application underneath. That stopped
+-- reaching anything on 2026-10-14, when the default chooser became a canvas that never holds key
+-- focus and whose field reads keys only through a session level event tap. A keystroke posted at a
+-- process goes to that process directly and never passes a session tap, which was measured on
+-- 2026-10-19, so the field saw none of the query and every round took the top row of an unfiltered
+-- list. Untargeted is right now because the field's own tap claims the characters while the list is
+-- up, so they land in the list and never in the app underneath, the way Return already arrives.
 function commands.type(p, done)
-  local hammerspoon = hs.application.get("org.hammerspoon.Hammerspoon")
-  hs.eventtap.keyStrokes(p.text or "", hammerspoon)
+  hs.eventtap.keyStrokes(p.text or "")
   after(0.15, function() done({ ok = true }) end)
 end
 

@@ -316,6 +316,12 @@ the real path, where the chooser held the front a moment earlier, it held every 
 There was no retry for a long time, because a second raise is only worth adding against a failure
 that can be reproduced, and that one could not be.
 
+Since 2026-10-14 the default chooser is a canvas that never holds the front, so the condition under
+which a raise was always honoured, the chooser having held the front a moment earlier, no longer
+holds on the real path. Whether macOS still honours the raise from there is open. It is recorded in
+`decisions/olm-browsertabs.md`, and the harness fix that went with it will give it its first
+reading.
+
 A failure of this family can be reproduced now, on Safari, and the section below records exactly
 what it looks like. It is the open defect in this spoon and the next thing to work on.
 
