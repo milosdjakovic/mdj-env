@@ -829,6 +829,9 @@ local DESCRIPTOR_FIELDS = {
   icon = { "string", "table" },
   keywords = { "string", "table" },
   repeats = { "boolean" },
+  -- The action posts a keystroke a held leader would stand in front of, so its key runs it only
+  -- once the leader that fired it is released. Capture's actions are the case.
+  afterRelease = { "boolean" },
   when = { "string" },
   group = { "string", "function" },
   kind = { "string" },

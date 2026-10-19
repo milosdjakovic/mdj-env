@@ -167,12 +167,13 @@ matched its offline projection byte for byte on six runs in a row once the plan'
 made stable, see `decisions/olm-keymap.md`.
 
 `leaders.lua` is the other half, plain Lua with no Hammerspoon, run by `suite.sh dry`. It pins
-`HyperKey:_resolve` and the window leader's resolver as they stand, including the places they
-disagree, a false `when` skipping on one and swallowing on the other, and an unknown predicate
-passing silently on one and warning once on the other. A line there records current behaviour,
-not a judgement that it is right. It also drives `lib/binder.lua` into both real engines, a row
-landing on the engine its leader names with its gate and repeat, a plain combo reaching the combo
-binder, the order kept, and a missing engine or function reported.
+the resolver of `lib/leader.lua` under both shipped policies, HYPER's with contexts and META's
+without, every case the two old adapters had and with the two behaviours phase 3 of the keymap
+plan changed marked FLIPPED in the case name, a gated key swallowed on every leader and an
+unknown predicate warning once on every leader. It also drives `lib/binder.lua` into real leaders,
+a row landing on the leader its name names with its gate, repeat and release wait, a plain combo
+reaching the plain leader, the order kept, and a missing engine or function reported, and it
+covers what the merge added, the two triggers, the quiet rule, the reveal and the release wait.
 
 ## The idea
 

@@ -294,16 +294,16 @@ function obj.new(deps)
 
   -- STAGE 1. Leaders.
   --
-  -- Every chord engine receives its leader keycodes before anything is configured or started.
-  -- This is first because it cannot be anywhere else. The engines only register keycodes that
-  -- are already present when start runs, so a leader added later is silently never wired no
-  -- matter what its configure call received afterwards.
-  function self.leaders(engines, codes)
-    for _, engine in ipairs(engines or {}) do
-      for _, code in ipairs(codes or {}) do
-        local ok, e = pcall(engine.addLeader, engine, code)
-        if not ok then fail("leaders", tostring(code), tostring(e)) else note("leaders", tostring(code)) end
-      end
+  -- Which leaders are in use, recorded before anything is configured or started. Each leader is
+  -- built whole by the root, its keycode and its trigger included, since phase 3 of the keymap
+  -- plan, so there is nothing left to hand one here. Until then the window leader had to receive
+  -- its keycode at this point, because the engine registered only keycodes present when start ran
+  -- and a leader added later was silently never wired. The stage stays first so the record names
+  -- every leader before any key is bound on one.
+  function self.leaders(leaders)
+    for _, leader in ipairs(leaders or {}) do
+      local name = type(leader.leaderName) == "function" and leader:leaderName() or nil
+      note("leaders", tostring(name or "plain"))
     end
     return self
   end
@@ -375,8 +375,9 @@ function obj.new(deps)
   --
   -- `own` is the root's own predicates, which exist because a few gates are not any plugin's
   -- business. They merge with the generated ones rather than replacing them, and a name
-  -- claimed twice is reported instead of one quietly winning.
-  function self.predicates(engine, own)
+  -- claimed twice is reported instead of one quietly winning. The one merged table is installed
+  -- into every leader, so a gate reads the same on whichever leader its key sits.
+  function self.predicates(engines, own)
     local table_ = {}
     for name, contextName in pairs(plan.predicates) do
       table_[name] = function() return self.isShowing(contextName) end
@@ -387,8 +388,10 @@ function obj.new(deps)
       end
       table_[name] = fn
     end
-    local ok, e = pcall(engine.configure, engine, { predicates = table_ })
-    if not ok then fail("predicates", "engine", tostring(e)) end
+    for _, engine in ipairs(engines or {}) do
+      local ok, e = pcall(engine.configure, engine, { predicates = table_ })
+      if not ok then fail("predicates", "engine", tostring(e)) end
+    end
     local n = 0
     for _ in pairs(table_) do n = n + 1 end
     note("predicates", n .. " installed")

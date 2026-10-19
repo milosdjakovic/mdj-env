@@ -143,6 +143,9 @@ end
 --- opts.keymap      optional, the built keymap, read for the chord each action row shows
 --- opts.stampIcons  optional, function(rows, owner) stamping iconOwner on rows naming an icon
 --- opts.log         optional, function(message) for a member that resolves to nothing
+--- opts.afterRelease optional, function(fn) running fn once no held leader is down, which a
+---                  chosen row whose descriptor says afterRelease is run through, so a row picked
+---                  with a leader chord waits the way that action's own key does
 ---
 --- One supplier per plugin answering the launcherRows set, in the set's own order, each a
 --- function calling that plugin's declared member when the launcher builds its rows and
@@ -210,7 +213,12 @@ function M.assemble(opts)
       runners[identity] = function(item)
         local name = type(item) == "table" and item.name or nil
         if name and isListed[name] and item.kind == (answered[name].kind or identity) then
-          answered[name].run()
+          local descriptor = answered[name]
+          if descriptor.afterRelease and opts.afterRelease then
+            opts.afterRelease(function() descriptor.run() end)
+          else
+            descriptor.run()
+          end
         elseif ownRun then
           ownRun(item)
         end

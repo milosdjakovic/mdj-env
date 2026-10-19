@@ -155,11 +155,17 @@ source and target Fn key, and the core `lib/keyremap.lua` turns the active rows
 into one `hidutil` `UserKeyMapping` and applies it on load, clearing on quit. A single `--set` replaces the whole table,
 so each apply is idempotent and frees any dropped key.
 
-| Key | Fn | Name | Spoon | Role |
+| Key | Fn | Name | Policy | Role |
 |-----|-------|------|-------|------|
-| Right Option | F16 | META | `lib/windowleader.lua` | the active window leader: bare arrow = **resize** (halves + full-height + reasonable), `WASD` = **move** (W up, A left, S down, D right); return = maximize; `C` = center; `,`/`.` = prev/next display; letters = presets + grow/shrink |
-| Right Command | F17 | SUPER | `lib/windowleader.lua` | in the catalog but **unreferenced**, so it is not remapped and Right Command is a normal key; point `windowLeader` at it to swap |
-| Caps Lock | F18 | HYPER | `lib/hyperkey.lua` | hold + letter = app toggles; quick tap = `hs.hid.capslock.toggle()` |
+| Right Option | F16 | META | driven repeat, quiet over lists, window sheet | the active window leader: bare arrow = **resize** (halves + full-height + reasonable), `WASD` = **move** (W up, A left, S down, D right); return = maximize; `C` = center; `,`/`.` = prev/next display; letters = presets + grow/shrink |
+| Right Command | F17 | SUPER | the same as META | in the catalog but **unreferenced**, so it is not remapped and Right Command is a normal key; point `windowLeader` at it to swap |
+| Caps Lock | F18 | HYPER | Caps Lock tap, list contexts, Hyper sheet | hold + letter = app toggles; quick tap = `hs.hid.capslock.toggle()` |
+
+Every leader is an instance of one adapter, `Spoons/Olm.spoon/lib/leader.lua`, and what differs
+between them is its policy, `policy.leaderPolicy` in `root/compose.lua`, keyed by catalog name
+beside the catalog and overridable through `cfg.policy`. The root builds one instance per leader
+in use and loops over them naming none. `Spoons/Olm.spoon/AGENTS.md` has the policy fields and
+what the merge of the two old adapters found.
 
 A catalog key is "active" only by being **referenced**. The catalog names no
 consumer, so the dependency points one way, apps and windows name their leader
@@ -167,9 +173,9 @@ and the catalog stays ignorant of both. `config/keys.lua` sets `appLeader =
 "HYPER"` and `windowLeader = "META"`. `root/compose.lua`
 computes exactly that referenced set and applies the remap itself through
 `lib/keyremap.lua`, then resolves each `fkey` to a keycode via
-`hs.keycodes.map`, configures the window leader with the chosen keycode and
-stamps it onto the (leaderless) window bindings so no plugin ever learns the
-catalog. So moving all of window management to another physical key is one edit,
+`hs.keycodes.map`, builds each leader in use with its keycode and policy, and
+stamps the keycode onto the rows of each leader whose policy reveals the window
+sheet so no plugin ever learns the catalog. So moving all of window management to another physical key is one edit,
 `windowLeader = "SUPER"`, which also frees Right Option and claims Right Command
 automatically. An unreferenced key is neither remapped nor tapped, so it stays a
 normal key with no extra step. `src/setup-capslock-hyper.sh` no longer installs
@@ -188,13 +194,16 @@ overridable hold/tap defaults), so N leaders cost one tap, not N. Today that is
 Caps Lock and Right Option; Right Command is defined but not registered. It owns only
 the state machine — swallow other keys while held, fire `onTap` on a quick
 release (Caps Lock's real toggle), fire `onHold(keyCode)` once ~0.6s pass with
-no other key. `lib/hyperkey.lua` and `lib/windowleader.lua` are thin domain adapters
-over it, both core and both published under `Olm.lib`. They keep their public
-contracts (`HyperKey:bind`/`isActive`, `WindowLeader:bind(key, fn, mods, opts)`)
-and supply the per-key lookup, but only the core calls `bind`. Olm's keymap,
-`lib/keymap.lua`, holds every global key as one row, and `lib/binder.lua` binds each
-row on the engine its leader names, in the order the old binding paths used. A plugin
-reaches the window leader the way it reaches Hyper, by declaring `leader = "window"`
+no other key. `lib/leader.lua` is the one thin adapter over it, core and published under
+`Olm.lib` as `leader`, and each held leader is an instance whose trigger,
+`lib/leader/triggers/held.lua`, registers its key into the engine. The adapter keeps the
+`bind(key, fn, mods, opts)`, `isActive` and `owns` contract and supplies the per-key
+lookup, but only the core calls `bind`. Olm's keymap, `lib/keymap.lua`, holds every global
+key as one row, and `lib/binder.lua` binds each row on the leader its name names, in the
+order the old binding paths used, and a row with no leader on the plain leader, whose
+trigger, `lib/leader/triggers/modifier.lua`, claims each combo through `hs.hotkey` on an
+empty base set. A plugin reaches the window leader the way it reaches Hyper, by declaring
+`leader = "window"`
 with a `bindings` list in its manifest defaults and answering the actions those
 bindings name through `provides.actions`, a list of descriptors, which is what
 `windowmanager` does, and the dry gate refuses a bind call under `plugins/` and `host/`.
@@ -203,8 +212,8 @@ whose action is `open`, a row may name its own role or `leader = false` for a pl
 combination with its modifiers, and `defaults.leader` is the role a row naming none inherits.
 Every listed action descriptor is also a launcher row Olm builds, so a plugin builds no row
 for what it can run. The window leader binds
-onto the one keycode the root configured it with, so a plugin never sees a keycode. Both now share one mods-aware resolver (Hyper and
-the leaders): optional per-binding `mods`, exact-match on shift/ctrl/alt/cmd,
+onto the one keycode the root configured it with, so a plugin never sees a keycode. Every
+leader shares one resolver that knows modifiers, with optional per binding `mods`, an exact match on shift, ctrl, alt and cmd,
 ignoring the `fn` flag macOS stamps on arrow keys, then a catch-all fallback. A
 binding with no `mods` is the catch-all, so most keys stay a single press. Hyper
 uses it for capture, where Hyper+4 saves an area screenshot to a file and
@@ -217,8 +226,7 @@ leader (overridable per key), a held leader that resolves to no handler leaks th
 combo downstream as leader+key, so other apps can bind whatever we leave free.
 This is the point of exposing the leaders, a recorder in another app sees F18+G
 and can bind it, while a combo we do bind still runs here and never leaks. The
-mechanism lives entirely in `ChordKey`, so `HyperKey` and `WindowLeader` stay
-ignorant of it. Because the tap already swallowed the leader's own key-down, the
+mechanism lives entirely in `ChordKey`, so the leader adapter stays ignorant of it. Because the tap already swallowed the leader's own key-down, the
 engine synthesizes it once on the first unbound press, then synthesizes the
 pressed key carrying its live modifiers, swallowing the real events so the order
 is the engine's, and emits the leader key-up on release (plus an up for any key
@@ -229,11 +237,14 @@ Karabiner, another Hammerspoon tap) can bind a function key held as a modifier,
 since F16/F17/F18 are not real modifiers and macOS's standard shortcut fields
 reject them; the trade is that the three leaders stay distinct, which one shared
 Hyper modifier combo could not give.
+A key whose bindings are all gated off at that moment is bound rather than unbound, so it is
+swallowed on every leader and never leaks, since a key reserved for a situation is never
+reused for anything else. Only a key nothing binds leaks. Inside an open list the rule reaches further. The modal rule drops every base binding, and a key whose base binding is dropped that way is swallowed too when some other list binds it, since that list's binding matches and is gated off, so with the launcher open Hyper and A, D, F, L, M, R, S, X, H, Q and Y are swallowed while B, C and E, which no other list binds, still pass through.
 
 A bound key may also REPEAT while it stays held, and how it repeats is the leader's choice
 rather than the binding's. A binding says only that it repeats, which is a fact about the
 action, since a step is worth doing several times and a placement is not. The mode says how,
-and it is set per registered key in `ChordKey`. `system` leans on the OS autorepeat events
+and it is set per registered key in `ChordKey` from the leader's `drivenRepeat` policy. `system` leans on the OS autorepeat events
 themselves, so the feel matches every other held key on the machine, which is what a list nav
 key wants and what every existing one already used. `driven` ignores those events and
 schedules the repeats itself, on the same two beats the OS uses, which it READS off the
@@ -289,17 +300,16 @@ Per-overlay layout (columns, badge width, icons) stays in the builders,
 where it legitimately differs. Holding F18 shows `HyperCheatSheet`, the
 app bindings split into open vs not-running (uninstalled/unresolvable apps
 filtered out; names+icons cached at load, only the running split recomputed per
-show). Holding a leader shows `WindowCheatSheet` — just that leader's bindings
-(META's resizes on the bare arrows and moves on WASD);
+show). Holding a leader whose policy names the window sheet shows `WindowCheatSheet`, just
+that leader's bindings (META's resizes on the bare arrows and moves on WASD);
 pressing any bound key cancels it. While any Olm list is open, the launcher or
-any plugin picker, both holds go quiet and the window leader's bound keys are
-inert though still swallowed, so neither sheet appears over an open list and no
-window action fires underneath one. One gate answers it, `anyListShowing` in
-`root/compose.lua`, walking the same `contextOwners` table the predicates route
-through, consulted by the hyper hold reveal directly and injected into
-`WindowLeader` as `suppressWhen`. Its rows are every row the keymap holds on the window
-leader, read by `lib/hints.lua` and stamped with the window keycode once in `root/compose.lua`
-after the keymap is built, so it never drifts and names no plugin, and the launcher's window
+any plugin picker, no hold reveals a sheet on any leader, and a leader whose policy says
+`quietOverLists`, META's, has its bound keys inert though still swallowed, so no sheet appears
+over an open list and no window action fires underneath one. One gate answers it,
+`anyListShowing` in `root/compose.lua`, walking the same `contextOwners` table the predicates
+route through, handed to every leader as `listOpen`. Its rows are every row the keymap holds on
+each leader revealing that sheet, read by `lib/hints.lua` and stamped with that leader's keycode
+once in `root/compose.lua` after the keymap is built, so it never drifts and names no plugin, and the launcher's window
 rows are built by Olm from the window manager's action descriptors and the same keymap.
 Each row's label is the binding's or the descriptor's `description`, and the action name
 humanized (`nextDisplay` → "Next Display") where neither states one.
@@ -310,12 +320,12 @@ swallowed by the held leader, so no raw character leaks) and its cheat-sheet row
 is hidden. The predicate registry, `ownPredicates` merged in `root/compose.lua` and
 fanned out under the field name `predicates`, is the one
 place the logic lives, injected into both the dispatch gate
-(the window leader engine, handed each binding's `when` by the binder) and the overlay
+(every leader, handed each binding's `when` as a gate by the binder) and the overlay
 filter (the window cheat sheet host), so
 the key and the overlay never disagree, and `config/keys.lua` stays pure data.
 Predicates are evaluated live (at dispatch and at each overlay show), so they
-track runtime state; an unknown name is treated as always active so a typo fails
-visibly rather than silently disabling a binding. Today the only predicate is
+track runtime state. An unknown name is treated as always active and warned about once per
+leader, so a typo fails visibly rather than silently disabling a binding. Today the only predicate is
 `multipleDisplays`, which hides `previousDisplay`/`nextDisplay` when a single
 display is attached.
 
@@ -358,14 +368,11 @@ key and its listings can never drift. A binding whose `when` predicate is false
 drops out of both together, so the rule still reads the same. A shortcut that
 reaches neither surface is considered unfinished.
 
-Coupling is contained: `HyperKey` is an optional injected dependency of
-`AppToggler` only. If HyperKey is not granted, an optional `needs.lib` entry on
-AppToggler's own manifest resolved by `root/compose.lua`, `AppToggler` falls back
-to binding the literal `HYPER` (⇧⌃⌥⌘) combo it holds as its own internal constant,
-so removing the Hyper key degrades gracefully, it does not break other spoons. A
-toggle that states its own `modifiers` skips this fallback question entirely,
-since it was never headed into the modal to begin with. Window management
-has no such fallback: it goes only through the window leader lib, so its leader must be
+Coupling is contained, since no plugin holds a leader. Olm binds every key from the keymap onto
+the leader its row names, so a plugin needs nothing to fall back on, and a leader whose
+catalog row is not referenced is simply not built. The one plugin that still asks about a
+leader, the clipboard, asks Olm's `leader` view only whether any held leader is down, so a
+provider that posts a keystroke waits for release. Window management's leader must be
 referenced in `config/keys.lua` as `windowLeader` (which is what applies its remap). Trade-offs:
 the remaps are machine-wide, so each referenced physical key loses its normal
 function in every app (today Caps Lock is F18 and Right Option is F16; the left
@@ -787,11 +794,12 @@ Load sibling files by absolute path with debug.getinfo plus loadfile, since a
 spoon directory is not on package.path. Resolve and validate providers once at
 load, but check liveness at dispatch when the underlying state can change while
 Hammerspoon runs, as Capture does for macshot being quit. Keep a spoon's public
-contract stable, HyperKey exposes bind and isActive, WindowLeader exposes bind
-and addLeader, so adapters over the shared ChordKey engine degrade gracefully.
-When two adapters need the same behavior, share it rather than duplicating.
-HyperKey and WindowLeader use one resolver that matches optional modifiers, so
-Hyper plus Shift plus a key can differ from Hyper plus that key.
+contract stable, the leader adapter exposes bind, isActive and owns on every
+instance, so a leader over the shared ChordKey engine degrades gracefully.
+When two adapters need the same behavior, share it rather than duplicating, and
+when they differ only in policy, merge them into one with the policy as data, which is
+how HyperKey and WindowLeader became `lib/leader.lua`. Every leader uses one resolver that
+matches optional modifiers, so Hyper plus Shift plus a key can differ from Hyper plus that key.
 
 **Never start a timer without keeping its handle.** A Hammerspoon timer is
 userdata whose finalizer stops it, so a pending timer nothing refers to can be
@@ -834,7 +842,8 @@ decisions, the tradeoffs it made, and why, what it deliberately does not do, wha
 it degrades to, and what would break if the shape changed. That file answers why
 the spoon is shaped this way and never narrates the code line by line, since the
 code sits right there. Olm's Launcher host is the worked example, and `ChordKey` and
-`HyperKey` document the hold, tap, chord engine and its adapter.
+the leader adapter document the hold, tap, chord engine and its adapter, the second in its
+section of `Spoons/Olm.spoon/AGENTS.md`.
 
 Create one only when the spoon earns it, a thin mechanism like `KeyRemap`
 or `Eyedropper` stays covered by its paragraph here, which is the same reject
@@ -879,7 +888,7 @@ once had a second webview backend built on a `Surface.spoon`, selectable per
 consumer, plus a `Panel.spoon` for short fixed lists, but every consumer settled
 on native so the web backend, Surface, and Panel were all removed. Routing the
 Hyper keys to a picker and drawing the hold overlay is not part of the atom,
-because the atom deliberately knows nothing about HyperKey. It is opt in wiring done per consumer in the composition root.
+because the atom deliberately knows nothing about any leader. It is opt in wiring done per consumer in the composition root.
 Forgetting it does not break the tool, it just leaves it without the Hyper
 shortcuts, which is exactly how the VPN location picker started before it was
 brought in line with the clipboard. The checklist to plug a new picker in, each
@@ -1904,7 +1913,7 @@ queries, all live in `Spoons/Olm.spoon/plugins/filesearch/AGENTS.md`. Adding it 
 eyedropper. It is deliberately not a chooser, so the picker checklist above does
 not apply. It is a lone mechanism like lock and sleep in that it needs no Hyper
 context, predicate, or `choosers` entry, but unlike them it is a registered tool,
-`colorPicker`, so its base HyperKey binding is wired through the tool registry's
+`colorPicker`, so its base Hyper binding is wired through the tool registry's
 `shortcuts()` rather than through `bindHyper`, which still binds only lock and
 sleep, phase seven's fifth packet. It is surfaced as the color picker launcher row
 through the same special action dispatcher every registered tool's row goes

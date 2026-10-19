@@ -203,3 +203,64 @@ An earlier version of this section was the phase by phase build log of the regis
 manifest pipeline existed, hand written registration calls, a hand kept predicate list, and a
 launcher whose row order was a list of add calls. That architecture is gone, replaced by the
 registrar and the wiring pipeline, and the log remains readable in this file's git history.
+
+## Leader, one adapter per leader in use
+
+`lib/leader.lua` is the one leader adapter since phase 3 of the keymap plan, replacing
+`lib/hyperkey.lua` and `lib/windowleader.lua`, which were near copies differing in policy. The
+root builds one instance per catalog name a role references, HYPER and META on this machine,
+plus one plain leader for a keymap row with no leader, and loops over them naming none. What
+physically means a leader is a trigger, a Strategy behind four functions, start, bound, isActive
+and owns. `lib/leader/triggers/held.lua` registers one function key into the shared ChordKey
+engine, and `lib/leader/triggers/modifier.lua` claims each binding as an `hs.hotkey` on a base
+set of real modifiers plus the binding's own. The plain leader is the modifier trigger with an
+empty base set, so a plain combo such as Option and backtick is claimed exactly as the binder
+used to claim it, with three arguments and no repeat callback unless the binding repeats. The root
+is the only place a trigger is named, so a third kind is a file plus a line there.
+
+How a leader behaves is its policy, `policy.leaderPolicy` in `root/compose.lua`, keyed by catalog
+name beside `policy.leaderCatalog` and overridable through `cfg.policy`. Every field is a boolean
+or a number apart from `sheet`, the host whose sheet a hold reveals, so there is no closed set of
+words to publish. `tapTogglesCapsLock` and `contexts` are HYPER's, `drivenRepeat` and
+`quietOverLists` are META's, and SUPER ships META's policy because it is the documented other
+home of the window role. `checkPolicy` names a field of the wrong type or one no leader reads in
+one problem line and leaves it at its default.
+
+Four findings from the merge are worth keeping.
+
+**The two tier rules stayed different, on purpose.** On the leader with contexts the best
+priority wins within a tier and a gated binding drops out of its tier, so Shift and J gated off
+for a list leaves the plain J to answer. On every other leader the first matching exact binding
+answers and a gated one is swallowed there, and among catch alls the last bound wins. Both are
+pinned by `test/leaders.lua`, and unifying them would have changed which binding answers a press
+on one of the two leaders for no gain, since the keymap refuses two global rows on one chord.
+
+**Exactly two behaviours changed.** A key whose matching bindings are all gated off is swallowed
+as a bound no op on every leader, where Hyper left it unbound and with passthrough on leaked it
+to the app in front as F18 and the key. And an unknown predicate name warns once per leader. A
+binding dropped by the modal rule is outranked rather than gated, so a key whose only binding is
+a base one still passes through while a list is open, as before. On this machine the keys that
+flip outside a list are Hyper and H, Q and Y, file search's own list keys. Inside an open list
+the base binding of every key is dropped by the modal rule, and a key some other list binds is
+then swallowed through that list's gated binding, so with the launcher open Hyper and A, D, F, L,
+M, R, S, X, H, Q and Y are swallowed while B, C and E still pass through.
+
+**No hold reveals a sheet over an open list, on any leader.** Hyper's reveal lived in the root
+and checked for an open list itself, and the window leader's went quiet through its gate, so
+both already held back there. The adapter keeps that one rule for every leader, and
+`quietOverLists` decides only whether the keys go inert too.
+
+**A plain combo resolves against the combination it was claimed on.** The modifier shape inside
+the old hyperkey read the hardware modifiers when the callback ran, so a finger lifted a moment
+early could turn a press into nothing. `hs.hotkey` fires only on exactly the claimed
+combination, so the claimed set is the truth and the trigger resolves against it.
+
+A descriptor saying `afterRelease = true` runs only once the leader that fired it is released,
+through the leader's own `afterRelease`, and a launcher row for it waits until no held leader is
+down. Capture's actions say it, which retired capture's own wait on Hyper and its `hyperKey`
+lib. The clipboard still asks a lib, because whether its open waits is the chosen provider's
+answer at the moment of the press, and the lib it asks for, `leader`, is a view answering only
+whether any held leader is down. The composed record publishes the held leaders as
+`_composed.leaders`, keyed by the name a keymap row spells each with, for the key probe and the
+inventory, and the dry gate's bound recording taps the adapter's own `bind`, which every
+instance reaches through its metatable.

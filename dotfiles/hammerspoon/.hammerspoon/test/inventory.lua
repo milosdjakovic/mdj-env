@@ -83,7 +83,14 @@ local actionPanel = must(olm:module("actionpanel"), "the action panel host throu
 local queryScope = must(olm:module("queryscope"), "the query scope host through spoon.Olm module")
 local appToggler = must(olm:module("apptoggler"), "the app toggler plugin through spoon.Olm module")
 local chordKey = must(olm.lib and olm.lib.chordkey, "the chord key atom at spoon.Olm.lib.chordkey")
-local hyperKey = must(olm.lib and olm.lib.hyperkey, "the hyper key atom at spoon.Olm.lib.hyperkey")
+-- The leader every list key binds on, the one whose policy turns contexts on, found by asking each
+-- leader the composed record publishes rather than by its name. It was the hyperkey atom until
+-- phase 3 of the keymap plan merged the two leader adapters into lib/leader.lua.
+local hyperKey = must((function()
+  for _, leader in pairs((olm._composed or {}).leaders or {}) do
+    if leader:policy().contexts then return leader end
+  end
+end)(), "the leader with contexts in spoon.Olm._composed.leaders")
 local registry = must(olm.registry, "spoon.Olm.registry, the tool registry the composition root published")
 
 -- The loaded spoon table.
@@ -410,7 +417,7 @@ table.sort(rowLines)
 add("registry launcherrows count=" .. #launcherRows)
 for _, l in ipairs(rowLines) do add(l) end
 
--- The hyper key atom's own _bindings field, reached through spoon.Olm.lib.hyperkey,
+-- The hyper leader's own _bindings field, reached through spoon.Olm._composed.leaders,
 -- phase seven's fifth packet. Nothing before this measured a binding at all, so the
 -- snapshot recorded the two physical leader keys and never which letter reaches which
 -- tool, and a deleted bind line would have passed every gate this repository had. Read
@@ -422,7 +429,7 @@ for _, l in ipairs(rowLines) do add(l) end
 -- carrying no `when`, since a base binding is what a plain Hyper press to that key
 -- resolves to while no modal context owns Hyper, and a base binding vanishing is exactly
 -- the shape a deleted chord would take.
-local hyperKeyBindings = must(hyperKey._bindings, "hyperkey._bindings, the binding table the hyper key atom was configured with")
+local hyperKeyBindings = must(hyperKey._bindings, "the leader's _bindings, the binding table the hyper leader was configured with")
 local hyperKeyCodes = {}
 for code in pairs(hyperKeyBindings) do
   hyperKeyCodes[#hyperKeyCodes + 1] = code

@@ -151,7 +151,7 @@
 -- reasons that are not defects. An inactive tool answers nil and false to every read
 -- except all(). An inactive tool's chord is never bound in the first place, since
 -- phase seven's fifth and last packet, rather than bound and then torn down. Nothing in
--- this config ever unbinds a key, HyperKey has no removal and hs.hotkey is never asked
+-- this config ever unbinds a key, a leader has no removal and hs.hotkey is never asked
 -- for one, so inventing teardown here would be the single caller ceremony with a silent
 -- failure mode the design principles reject. The composition root binds only what
 -- shortcuts() below hands it, and that list already answers nil for anything inactive,

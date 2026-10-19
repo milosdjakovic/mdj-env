@@ -14,9 +14,9 @@
 -- One line per bound chord, six fields separated by tabs, sorted as plain strings so two runs
 -- on an unchanged configuration are byte identical.
 --
---   engine   the binding engine. hyper is the app leader's engine, the window leader appears
---            under the name its catalog entry has in config/keys.lua, and hotkey is a plain
---            hs.hotkey combo with no leader at all.
+--   engine   the leader. hyper is the app leader, the window leader appears under the name its
+--            catalog entry has in config/keys.lua, and hotkey is a plain hs.hotkey combo with no
+--            leader at all.
 --   key      the key as Hammerspoon's own keycode table spells it, whatever case or alias the
 --            declaration used.
 --   mods     the required modifiers, sorted and joined with a plus. any is a catch all binding
@@ -55,8 +55,6 @@ local project = assert(loadfile(here .. "keys-project.lua"))()
 
 local olm = spoon.Olm
 local composed = assert(olm and olm._composed, "the live Olm has no composed plan")
-local hyper = olm.lib.hyperkey
-local windowLeader = olm.lib.windowleader
 
 local DASH = "-"
 local KEYCODES = hs.keycodes.map
@@ -171,23 +169,45 @@ local function emit(engine, code, mods, when, priority, owner)
   }, "\t")
 end
 
--- The app leader's engine, every stored binding, base and contextual alike.
-for code, list in pairs(hyper._bindings or {}) do
-  for _, b in ipairs(list) do
-    -- A global row's predicate is stored as a gate, a list key's as when, and both are the
-    -- golden's when column.
-    local when = b.when or b.gate
-    emit(HYPER, code, b.mods, when, b.priority, ownerOf(HYPER, code, b.mods, when, b.fn))
+-- Every held leader, each stored binding, base and contextual alike. A global row's predicate
+-- is stored as a gate, a list key's as when, and both are the golden's when column.
+--
+-- A config from phase 3 of the keymap plan on publishes its leaders on the composed record, one
+-- instance of lib/leader.lua each, keyed by the name a keymap row spells it with, and each wears
+-- the engine word the projection gives that name. The plain leader is not among them, since its
+-- combos are read below from hs.hotkey like every plain combo. A config from before has the two
+-- adapters under Olm.lib, read the way they always were, so this probe still describes main
+-- before the merge.
+if composed.leaders then
+  local names = {}
+  for name in pairs(composed.leaders) do names[#names + 1] = name end
+  table.sort(names)
+  for _, name in ipairs(names) do
+    local engine = project.engineLabel(name, WINDOW)
+    for code, list in pairs(composed.leaders[name]._bindings or {}) do
+      for _, b in ipairs(list) do
+        local when = b.when or b.gate
+        emit(engine, code, b.mods, when, b.priority, ownerOf(engine, code, b.mods, when, b.fn))
+      end
+    end
   end
-end
-
--- The window leader, one table per leader keycode. The leader that is the configured window
--- keycode wears its catalog name, any other is named by its keycode.
-for leaderCode, leader in pairs(windowLeader._leaders or {}) do
-  local engine = leaderCode == windowLeader._keyCode and WINDOW or ("leader" .. tostring(leaderCode))
-  for code, list in pairs(leader.bindings or {}) do
+else
+  local hyper = olm.lib.hyperkey
+  local windowLeader = olm.lib.windowleader
+  for code, list in pairs(hyper._bindings or {}) do
     for _, b in ipairs(list) do
-      emit(engine, code, b.mods, b.when, b.priority, ownerOf(engine, code, b.mods, b.when, b.fn))
+      local when = b.when or b.gate
+      emit(HYPER, code, b.mods, when, b.priority, ownerOf(HYPER, code, b.mods, when, b.fn))
+    end
+  end
+  -- One table per leader keycode. The leader that is the configured window keycode wears its
+  -- catalog name, any other is named by its keycode.
+  for leaderCode, leader in pairs(windowLeader._leaders or {}) do
+    local engine = leaderCode == windowLeader._keyCode and WINDOW or ("leader" .. tostring(leaderCode))
+    for code, list in pairs(leader.bindings or {}) do
+      for _, b in ipairs(list) do
+        emit(engine, code, b.mods, b.when, b.priority, ownerOf(engine, code, b.mods, b.when, b.fn))
+      end
     end
   end
 end

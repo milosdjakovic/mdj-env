@@ -1,6 +1,6 @@
 -- Unit case for the one key the canvas field's tap does not claim, a key down the injected
--- yields predicate gives away, and for HyperKey:owns, the answer the composition root builds
--- that predicate over. Both are driven with event shaped tables and fakes, so nothing here
+-- yields predicate gives away, and for Leader:owns, the answer the composition root builds
+-- that predicate over, asked of the leader whose policy turns contexts on. Both are driven with event shaped tables and fakes, so nothing here
 -- touches the running Hammerspoon or installs a tap.
 --
 -- Each check prints one line, PASS or FAIL followed by a plain description, and the runner
@@ -74,9 +74,13 @@ do
 end
 
 --------------------------------------------------------------------------------
--- HyperKey:owns
+-- Leader:owns
 --------------------------------------------------------------------------------
 
+-- The leader adapter answers owns through its trigger, so each trigger is loaded into the same
+-- environment and handed to a fresh leader. The held trigger owns its own key and every key while
+-- that key is held. The modifier trigger, which the person's named sets of modifiers will use and
+-- which owned keys under Hyper's old chord shape, owns a key exactly while its whole base set is held.
 do
   local mods = {}
   local env = setmetatable({
@@ -85,29 +89,31 @@ do
       eventtap = { checkKeyboardModifiers = function() return mods end },
     },
   }, { __index = _G })
-  local chunk = loadfile(olm .. "lib/hyperkey.lua", "t", env)
-  local function fresh(trigger, held)
-    local hk = setmetatable({}, { __index = chunk() })
-    hk:init()
-    hk:configure({ chord = { isActive = function() return held.value end }, trigger = trigger })
-    return hk
+  local leaderChunk = loadfile(olm .. "lib/leader.lua", "t", env)
+  local heldChunk = loadfile(olm .. "lib/leader/triggers/held.lua", "t", env)
+  local modifierChunk = loadfile(olm .. "lib/leader/triggers/modifier.lua", "t", env)
+  local function fresh(trigger)
+    return leaderChunk().new({ name = "hyper", policy = { contexts = true }, trigger = trigger })
   end
 
   local held = { value = false }
-  local leader = fresh({ kind = "leader", keyCode = 79 }, held)
-  check("under the leader shape the leader key itself is owned even when not yet held",
+  local leader = fresh(heldChunk().new({ chord = { isActive = function() return held.value end }, keyCode = 79 }))
+  check("under the held trigger the leader key itself is owned even when not yet held",
     leader:owns(ev(79)) == true)
-  check("under the leader shape another key is not owned while the leader is up",
+  check("under the held trigger another key is not owned while the leader is up",
     leader:owns(ev(34)) == false)
   held.value = true
-  check("under the leader shape any key is owned while the leader is held",
+  check("under the held trigger any key is owned while the leader is held",
     leader:owns(ev(34)) == true)
 
   mods = {}
-  local chord = fresh({ kind = "chord", mods = { "ctrl", "alt" } }, { value = false })
-  check("under the chord shape a key is not owned with no modifier held", chord:owns(ev(34)) == false)
+  local chord = fresh(modifierChunk().new({ mods = { "ctrl", "alt" } }))
+  check("under the modifier trigger a key is not owned with no modifier held", chord:owns(ev(34)) == false)
   mods = { ctrl = true }
-  check("under the chord shape a partial chord does not own a key", chord:owns(ev(34)) == false)
+  check("under the modifier trigger a partial base set does not own a key", chord:owns(ev(34)) == false)
   mods = { ctrl = true, alt = true }
-  check("under the chord shape the full chord owns any key", chord:owns(ev(34)) == true)
+  check("under the modifier trigger the whole base set owns any key", chord:owns(ev(34)) == true)
+
+  local plain = fresh(modifierChunk().new({ mods = {} }))
+  check("an empty base set, the plain leader, owns nothing whatever is held", plain:owns(ev(34)) == false)
 end

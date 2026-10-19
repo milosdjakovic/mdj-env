@@ -76,8 +76,8 @@
 -- the same projections the live probes use, so the offline answer and the live one compare byte
 -- for byte. It answers tools the way the keymap mode does.
 --
--- THE BOUND MODE, the second half of the same proof. With DRYGATE_BINDS set, every call into the
--- two leader engines' bind and into hs.hotkey.bind is recorded as it happens, and the run writes
+-- THE BOUND MODE, the second half of the same proof. With DRYGATE_BINDS set, every call into a
+-- leader's bind and into hs.hotkey.bind is recorded as it happens, and the run writes
 -- what was actually bound rather than what the keymap declares. DRYGATE_BINDS=golden writes one
 -- line per bind call in the format of test/keys.golden, sorted, with each owner found from the
 -- keymap's rows the way the live probe finds it. DRYGATE_BINDS=order writes the same lines
@@ -520,17 +520,34 @@ hs.loadSpoon = function(name)
     opaque[atom] = true
     instrument(atom, "lib." .. atomName, 2)
   end
-  -- The bound mode taps the two leader engines' bind on the very tables the root binds through,
-  -- after instrumenting, so a call is recorded once whichever path made it.
+  -- The bound mode taps every leader's bind on the very table the root binds through, after
+  -- instrumenting, so a call is recorded once whichever path made it. A spoon from phase 3 of the
+  -- keymap plan on has one adapter, lib/leader.lua, whose instances all bind through the
+  -- module's own bind, so the tap there sees every leader and labels each call with the name the
+  -- instance answers. The plain leader answers none, and its calls are left to the hs.hotkey.bind
+  -- recording below, which is where they land. A spoon from before has the two adapters, each
+  -- labelled as it always was, so a copy of an older spoon still records the same lines.
   if bindMode then
+    local function record(label, key, fn, mods, opts)
+      bindCalls[#bindCalls + 1] = { engine = label, key = key, mods = mods, fn = fn,
+        when = type(opts) == "table" and (opts.when or opts.gate) or nil,
+        priority = type(opts) == "table" and opts.priority or nil }
+    end
+    local leader = olm.lib and olm.lib.leader
+    if type(leader) == "table" and type(leader.bind) == "function" then
+      local inner = leader.bind
+      leader.bind = function(self, key, fn, mods, opts)
+        local name = type(self.leaderName) == "function" and self:leaderName() or nil
+        if name then record(name, key, fn, mods, opts) end
+        return inner(self, key, fn, mods, opts)
+      end
+    end
     for atomName, label in pairs({ hyperkey = "hyper", windowleader = "window" }) do
       local atom = olm.lib and olm.lib[atomName]
       if type(atom) == "table" and type(atom.bind) == "function" then
         local inner = atom.bind
         atom.bind = function(self, key, fn, mods, opts)
-          bindCalls[#bindCalls + 1] = { engine = label, key = key, mods = mods, fn = fn,
-            when = type(opts) == "table" and (opts.when or opts.gate) or nil,
-            priority = type(opts) == "table" and opts.priority or nil }
+          record(label, key, fn, mods, opts)
           return inner(self, key, fn, mods, opts)
         end
       end

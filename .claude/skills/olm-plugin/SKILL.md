@@ -224,8 +224,9 @@ plugin grant shaped by the plugin's own stated declaration, and the contract hol
 Declaring
 `needs.tools` earns `deps`. Declaring `needs.lib` earns the named lib instance, and the set in
 real use is small, paste for insertion, recency for lift to front ordering, storage for cache
-and data paths, plus a leader engine for a plugin that must know whether its leader is still
-held, never to bind on it, and the cheatsheet renderer for the hosts that draw a sheet. Declaring `needs.data` with `source = "root"` earns a stage word or a root
+and data paths, plus `leader`, a view answering only whether any held leader is down, for a
+plugin whose wait for release is decided at the press, never to bind on, and the cheatsheet
+renderer for the hosts that draw a sheet. Declaring `needs.data` with `source = "root"` earns a stage word or a root
 value, and the vocabulary is deliberately shared, so grep the other manifests and reuse an
 existing word before minting a new one, since a vocabulary of one word per plugin is a
 vocabulary nobody can pay. Siblings exist and are rare, prefer not needing one, and a sibling
@@ -240,8 +241,10 @@ gate and kind, with the chord the keymap binds, run through the descriptor when 
 malformed descriptor is refused by name and the rest is still wired. The list's order is the
 rows' order, and a descriptor states `kind` exactly when its rows must keep a memory key they had
 before, since kind and name are what the launcher remembers. A fact about the action, that it
-repeats or that a predicate gates it, goes on the descriptor, so a binding is an action and a
-key. `provides.launcherRows` and `provides.launcherRun` remain only for rows that are not actions,
+repeats, that a predicate gates it, or that it posts a keystroke and must wait for the leader
+that fired it to be released, `afterRelease = true`, goes on the descriptor, so a binding is an
+action and a key and no plugin holds a leader to wait on. A key gated off is swallowed on every
+leader rather than passed to the app in front. `provides.launcherRows` and `provides.launcherRun` remain only for rows that are not actions,
 a pane list or a row computed from typing, and the contract has that row shape.
 
 `defaults.bindings` is the only way a plugin suggests a key. A tool's or a host's own open key is

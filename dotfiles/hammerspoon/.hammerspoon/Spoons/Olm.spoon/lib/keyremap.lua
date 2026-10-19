@@ -15,8 +15,9 @@
 --- idempotent and also frees any key dropped since the last apply. No sudo is needed,
 --- UserKeyMapping is per user.
 ---
---- This was a plugin until phase two of the core split, and it is core now beside hyperkey and
---- windowleader, since the leaders are the root's own business and a plugin may only name core.
+--- This was a plugin until phase two of the core split, and it is core now beside the leader
+--- adapter, lib/leader.lua, since the leaders are the root's own business and a plugin may only
+--- name core.
 --- The catalog it reads is root policy, policy.leaderCatalog in root/compose.lua, and the path
 --- of the binary arrives from the root's own declaration of hidutil in root/manifest.lua.
 

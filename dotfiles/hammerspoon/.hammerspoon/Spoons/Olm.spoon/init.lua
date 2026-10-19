@@ -52,7 +52,7 @@ end
 --- site alone. Chooser is the picker facade, a directory rather than a file because
 --- it loads a matcher and a backend of its own. Panel is the shared canvas surface,
 --- cheatsheet the overlay renderer that draws through it, chordkey the hold and tap
---- engine under every leader, hyperkey the leader modal every context binds into,
+--- engine under every leader, leader the one adapter every leader is an instance of,
 --- and deps the declaration reader. Each is loaded here and named nowhere else in
 --- this file, so the root decides what becomes of it.
 ---
@@ -86,13 +86,11 @@ obj.lib = {
   panel = load("lib/panel.lua"),
   cheatsheet = load("lib/cheatsheet.lua"),
   chordkey = load("lib/chordkey.lua"),
-  hyperkey = load("lib/hyperkey.lua"),
-  -- The window leader and the HID remap under every leader, core since phase two of the core
-  -- split. windowleader is the window role's twin of hyperkey, configured once by the root
-  -- and reached by a plugin through needs.lib.windowLeader, and keyremap is the root's alone,
-  -- applied from the catalog in policy. Both are loaded here for the same one instance reason
-  -- as every atom above.
-  windowleader = load("lib/windowleader.lua"),
+  -- The one leader adapter, which the root builds one instance of per leader in use since phase 3
+  -- of the keymap plan, replacing hyperkey and windowleader, and the HID remap under every leader,
+  -- the root's alone, applied from the catalog in policy. Both are loaded here for the same one
+  -- instance reason as every atom above, so a harness that taps the adapter taps every leader.
+  leader = load("lib/leader.lua"),
   keyremap = load("lib/keyremap.lua"),
   -- Bringing an application forward, focus or cycle and toggle by url, core since phase three
   -- of the core split so the launcher's app rows reach it without naming the app toggler,

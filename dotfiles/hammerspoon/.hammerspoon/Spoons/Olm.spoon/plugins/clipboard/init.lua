@@ -28,10 +28,10 @@
 --- backend (e.g. Raycast) is used when present and a built-in one takes over
 --- when it is not, logging every skip.
 ---
---- When a HyperKey spoon is provided, a provider fires while the Hyper key is
---- still held unless it sets deferUntilHyperRelease. Keystroke providers set it,
---- because HyperKey's event tap swallows every key while held and would eat
---- their synthetic keystrokes, so they must wait for release. A provider that
+--- When Olm's leader view is provided, a provider fires while a held leader is
+--- still down unless it sets deferUntilHyperRelease. Keystroke providers set it,
+--- because the shared event tap swallows every key while a leader is held and would
+--- eat their synthetic keystrokes, so they must wait for release. A provider that
 --- triggers without a keystroke (Raycast opens a URL and hides the app) leaves
 --- it false and fires at once, so holding Caps Lock and tapping the key shows
 --- the UI immediately and tapping again, still holding, toggles it away.
@@ -50,7 +50,7 @@ obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
 -- Configuration
-obj._hyperKey = nil
+obj._leader = nil
 obj._provider = nil
 
 local log = hs.logger.new("ClipboardHistory", "info")
@@ -185,12 +185,13 @@ end
 --- Method
 --- opts.provider - table implementing :isShowing() and :show(); defaults to
 ---                 ClipboardHistory.providers.spotlightTahoe
---- opts.hyperKey - optional HyperKey lib; when present each provider decides via
----                 deferUntilHyperRelease whether to wait for the Hyper key to
----                 be released before firing
+--- opts.leader   optional, Olm's leader view, whose isActive answers whether any held
+---                 leader is down. When present each provider decides through
+---                 deferUntilHyperRelease whether to wait for the leader to be
+---                 released before firing
 function obj:configure(opts)
   opts = opts or {}
-  self._hyperKey = opts.hyperKey
+  self._leader = opts.leader
   -- This plugin's OWN manager is the default, not the operating system's clipboard. That reads
   -- as obvious and was the other way round, which meant a configuration saying nothing about
   -- providers got the native macOS history instead of this one, silently, with the key opening
@@ -259,8 +260,8 @@ function obj:open()
     chosen:show()
   end
 
-  if defer and self._hyperKey and self._hyperKey:isActive() then
-    -- Wait for release so HyperKey's tap stops swallowing synthetic keystrokes.
+  if defer and self._leader and self._leader:isActive() then
+    -- Wait for release so the shared tap stops swallowing synthetic keystrokes.
     --
     -- Held in a field, since a Hammerspoon timer is userdata whose finalizer stops it and
     -- one nothing refers to can be collected before it fires, which here would mean the
@@ -268,7 +269,7 @@ function obj:open()
     -- down replaces this one, because opening the same picker twice is meaningless.
     if self._releaseWait then self._releaseWait:stop() end
     self._releaseWait = hs.timer.waitUntil(function()
-      return not self._hyperKey:isActive()
+      return not self._leader:isActive()
     end, fire, 0.02)
   else
     fire()

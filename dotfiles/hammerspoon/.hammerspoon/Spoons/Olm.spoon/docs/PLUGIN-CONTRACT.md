@@ -252,7 +252,7 @@ lib = { recency = { from = "recency", policy = "optional" } },
 A lib name that does not exist is a repository defect and is reported, never ignored.
 
 Validation admits any name that is the basename of a `.lua` file in the spoon's `lib` directory, but only the keys of the root's `libs` table are delivered, so asking for another lib basename passes validation and arrives as nil. The delivered names are `paste`, `cheatsheet`,
-`registry`, `glyphicon`, `chordkey`, `hyperkey`, `windowleader`, `recency`, `queryassoc`, `storage` and `ui`.
+`registry`, `glyphicon`, `chordkey`, `leader`, `recency`, `queryassoc`, `storage` and `ui`.
 `ui` is the UI kit, one style and one set of drawing primitives, and arrives as one table
 holding the primitives, `layout`, `tokens()` for the current light or dark half, and
 `measure`. Ask for it whole, with no member.
@@ -264,21 +264,28 @@ lib = { ui = { from = "ui" } },
 docs/DESIGN-UI-KIT.md is the design and docs/PLUGIN-AUTHORING.md has a worked example under
 "Drawing with the kit".
 
-`hyperkey` and `windowleader` are the two leader engines, both core. A plugin never binds a key
-on either, so it never asks for one in order to bind. It answers its actions through
-`provides.actions` and suggests keys in `defaults.bindings` on the leader its `defaults.leader`
-names by role, and Olm binds every one, see `provides` below. A plugin asks for a leader engine
-only to read it, capture and the clipboard asking Hyper whether it is still held so a synthetic
-keystroke waits for its release.
+`leader` is not a leader. Every leader is an instance of the core adapter `lib/leader.lua`, which
+the root builds and binds on, and a plugin never binds a key, so it never needs one. It answers
+its actions through `provides.actions` and suggests keys in `defaults.bindings` on the leader its
+`defaults.leader` names by role, and Olm binds every one, see `provides` below. What `leader`
+delivers is a view with one method, `isActive`, answering whether any held leader is down right
+now, for a plugin that posts a synthetic keystroke and must decide at the press whether to wait
+for release, which is the clipboard, since its chosen provider decides. An action that always
+waits says `afterRelease = true` on its descriptor instead and asks for nothing, which is
+capture. The `hyperkey` and `windowleader` grants this replaced were retired in phase 3 of the
+keymap plan.
 
-The root reads every row the keymap holds on the window leader, whichever plugin declared it,
-stamps the leader keycode onto them once and hands the list to the window cheat sheet, so a key
+The root reads every row the keymap holds on each leader whose policy reveals the window cheat
+sheet, META on this machine, whichever plugin declared it, stamps that leader's keycode onto them
+once and hands the list to the window cheat sheet, so a key
 declared this way appears in the held sheet with no other step, a tool's open key moved to that
 leader included. A row's `when` gates the key and its sheet row together, its `repeats` marks a
 step worth repeating while the key is held, and its label is its `description`, each the
 binding's own where it states one and its action descriptor's otherwise, the sheet humanizing the
 action name when neither says. A false predicate makes a window key a swallowed no op and an
-unknown name stays active.
+unknown name stays active and is warned about once. On every leader a key whose matching bindings
+are all gated off is swallowed rather than passed to the app in front, and only a key nothing
+binds passes through. Inside an open list the rule reaches further. The modal rule drops every base binding, and a key whose base binding is dropped that way is swallowed too when some other list binds it, since that list's binding matches and is gated off, so with the launcher open Hyper and A, D, F, L, M, R, S, X, H, Q and Y are swallowed while B, C and E, which no other list binds, still pass through.
 
 The value is delivered on `opts` under the field name you chose, and a member defined as a
 method arrives already bound to its own module, so you can call it plainly. Both halves
@@ -421,10 +428,11 @@ The composition root builds one table of these values, keyed by field name, and 
 publishes the following words. `coveredApp`, the application the launcher opened over and the
 id of that open, and `refreshLauncher`, asking the launcher to draw again, both closures over
 the launcher for a plugin that works in the app underneath it, MenuSearch, TextCase and WindowSize today. `predicates`, the shared when name to
-predicate table every gated binding is resolved against. `leaders`, what the window
-leader's own overlay section is called, since the leader's own name says nothing to
-somebody reading a list of window actions. `windowBindings` is not in that table. It is every
-row the keymap holds on the window leader, stamped with the window keycode, so it exists only once
+predicate table every gated binding is resolved against. `leaders`, what the window sheet's
+section is called, keyed by the keycode of each leader whose policy reveals that sheet, since the
+leader's own name says nothing to somebody reading a list of window actions. `windowBindings` is
+not in that table. It is every row the keymap holds on those leaders, each stamped with its
+leader's keycode, so it exists only once
 the keymap is built after register, and the root hands it to the window cheat sheet in its second
 configure, step K, as it hands the Hyper sheet its sections. `redraw`, repaint whichever list is on screen,
 for a plugin whose own answer lands after the keystroke that asked for it. `notify`,
@@ -603,8 +611,10 @@ a launcher row. A caller that is neither may hand its own argument, the window m
 `exactSize` taking the size Window Size parsed, so an action that reads its argument says what it
 expects. Every other field is optional and checked by type where present, `description`,
 `subtitle`, `kind` and `app` strings, `icon` a string or a table, `keywords` a string or a list
-of strings, `repeats` and `listed` booleans, `when` a predicate name, and `group` a string or a
-function. A field outside that list, or one of the wrong type, refuses that one action with a
+of strings, `repeats`, `afterRelease` and `listed` booleans, `when` a predicate name, and `group`
+a string or a function. `afterRelease = true` says the action posts a keystroke a held leader
+would stand in front of, so a key runs it only once the leader that fired it is released and its
+launcher row only once no held leader is down, which is capture's case. A field outside that list, or one of the wrong type, refuses that one action with a
 problem line naming the plugin, the action and the field, and the rest of the plugin is still
 wired. A descriptor with no name is refused by its place in the list, a second one taking a name
 already taken is refused while the first keeps it, and a table keyed by name rather than a list,
@@ -1484,12 +1494,13 @@ slots into the stages its declarations earn. The order is not arbitrary and not
 derivable, it is a property of the leader engines and the registry, so it is written
 once in Olm's root and never computed.
 
-1. **leaders**, every chord engine receives its leader keycodes. A leader not added
-   here is silently never wired no matter what `configure` later receives.
+1. **leaders**, every leader in use is named in the record. Each one arrives built whole,
+   its keycode and trigger included, since phase 3 of the keymap plan, where the window
+   leader once had to receive its keycode here or be silently never wired.
 2. **configure**, each plugin in dependency order.
 3. **wiring**, the declared non configure steps.
-4. **predicates**, the table is built and installed into HyperKey. This must land
-   before stage 7, because HyperKey treats an unknown `when` as always active, so an
+4. **predicates**, the table is built and installed into every leader. This must land
+   before stage 7, because a leader treats an unknown `when` as always active, so an
    uninstalled table leaves every navigation key live at all times.
 5. **register**, a registry descriptor per tool. It carries `apiVersion` and a
    `category`, and its `surface` is a function. The registry refuses anything else.
@@ -1498,8 +1509,9 @@ once in Olm's root and never computed.
    declaration, and binds every global row through the one binder, in the order the paths it
    replaced bound them, plugin bindings in plan order, then the registry's tools, then the hosts'
    keys, then the special rows.
-7. **contexts**, the navigation bind loop over every surface.
-8. **start**, engines last, and the one shared event tap last of all, since it must
+7. **contexts**, the navigation bind loop over every surface, onto the one leader whose
+   policy turns contexts on.
+8. **start**, leaders last, and the one shared event tap last of all, since it must
    see a complete key set.
 
 Ordering within stage 2 comes from the graph. A sibling need is an edge. **A satisfied

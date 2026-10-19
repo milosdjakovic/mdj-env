@@ -56,12 +56,15 @@ return {
     -- because without it there is no insertion mechanism left to fall back to, the
     -- whole manager is built on this one primitive rather than merely helped by it.
     --
-    -- hyperKey is optional, read by this plugin's own outer configure rather than by
-    -- the manager below. Without it a reveal falls back to the literal combo, so a
-    -- provider that must wait for Hyper to release before firing simply never waits.
+    -- leader is optional, read by this plugin's own outer configure rather than by the
+    -- manager below. It is Olm's view of every held leader, answering only whether one is
+    -- down, so a provider that must wait for release waits for whichever leader its key sits
+    -- on. Without it such a provider simply never waits. It stays a lib rather than the
+    -- afterRelease descriptor field capture uses, because whether to wait is the chosen
+    -- provider's answer at the moment of the press, and Raycast's is to fire while held.
     lib = {
       paste = { from = "paste", policy = "required" },
-      hyperKey = { from = "hyperkey", policy = "optional" },
+      leader = { from = "leader", policy = "optional" },
       -- Where the history, the frozen files, and the thumbnails live, lib/storage.lua's own
       -- durable root, so this plugin no longer names a directory under HOME of its own. It
       -- did for a long time, ~/.cache/hs-clipboard, which predated the storage lib and put

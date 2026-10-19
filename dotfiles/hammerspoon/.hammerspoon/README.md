@@ -52,7 +52,7 @@ An entry with no `modifiers` binds into the Hyper modal:
 ```
 App toggles fire by holding the Hyper key (**Caps Lock**, remapped to **F18** at the
 HID level by Olm's core `lib/keyremap.lua` from the root's own shipped leader catalog,
-and driven by Olm's HyperKey engine) plus the letter.
+and held through Olm's leader adapter) plus the letter.
 A quick Caps Lock **tap** toggles real Caps Lock (via `hs.hid.capslock`).
 Holding Caps Lock ~0.6s with no key shows `HyperCheatSheet`: an overlay of the
 bindings, split into open vs not-running apps. Uninstalled apps (no resolvable

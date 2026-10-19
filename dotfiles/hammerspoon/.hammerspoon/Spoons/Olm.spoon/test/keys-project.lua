@@ -113,9 +113,11 @@ function obj.boundLines(calls, rows, windowName, keycodes, fnOwner, ordered)
 
   local entries = {}
   for i, call in ipairs(calls or {}) do
+    -- An older spoon labels its two adapters hyper and window, and a spoon from phase 3 on labels
+    -- each leader by the name a keymap row spells it with, which engineLabel answers.
     local engine = HOTKEY
-    if call.engine == "hyper" then engine = HYPER
-    elseif call.engine == "window" then engine = windowName or "window" end
+    if call.engine == "window" then engine = windowName or "window"
+    elseif call.engine ~= "hotkey" then engine = obj.engineLabel(call.engine, windowName) end
     local key, mods = keyName(call.key, keycodes), modsText(call.mods)
     local names = {}
     for owner in pairs(declared[id(engine, key, mods, call.when)] or {}) do names[owner] = true end

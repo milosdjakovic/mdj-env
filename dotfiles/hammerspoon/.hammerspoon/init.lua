@@ -51,7 +51,6 @@ local olm = spoon.Olm:start({
     chooserProvider = settings.chooser.provider,
     cheatSheet     = settings.cheatSheet,
     overlayDisplay = settings.overlayDisplay,
-    hyperTrigger   = settings.hyperTrigger,
     storage        = { cacheRoot = settings.paths.cacheRoot, olmRoot = settings.paths.olmRoot },
     -- The colour theme files, one per theme, which hold every colour the surfaces draw with.
     themes         = { dir = settings.paths.themes },

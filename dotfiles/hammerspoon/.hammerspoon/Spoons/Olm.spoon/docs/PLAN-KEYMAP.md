@@ -107,6 +107,7 @@ actions and suggests keys, and is reachable, listed and labelled with nothing el
   kind        = nil,                  -- the launcher catalog kind a scope narrows by, else the identity
   app         = nil,                  -- a bundle id this action stands for, see below
   listed      = true,                 -- false keeps an internal action off the launcher
+  afterRelease = nil,                 -- true runs only once the leader that fired it is released, phase 3
 },
 ```
 
@@ -357,11 +358,32 @@ the collision check and the hint bar spelling.
 
 Merge hyperkey and windowleader into `lib/leader.lua` with the policy fields above, and the two
 triggers into `lib/leader/triggers/held.lua` and `modifier.lua`. The root loops over the leaders in
-use instead of naming two, so `appKeycode`, `windowKeycode`, the host key check at 2046 and the
-two element lists at 2019 and 2143 go. The shipped defaults reproduce today exactly. A gated key is
-swallowed on every leader, which changes Hyper and is the one difference the golden is allowed to
-show, and an unknown predicate name warns once on every leader. `hints.chordFor` takes the leader
-of each row, so the hint bar can spell any leader.
+use instead of naming two, so `appKeycode`, `windowKeycode` and the two element lists at 2019 and
+2143 go. The shipped defaults reproduce today exactly. A gated key is swallowed on every leader,
+which changes Hyper, and an unknown predicate name warns once on every leader. `hints.chordFor`
+takes the leader of each row, so the hint bar can spell any leader.
+
+- Found in 3. The keys golden records what is bound and never how a press resolves, so the gated
+  key change does not show there at all, and all three goldens stayed byte identical. The change is
+  pinned in `test/leaders.lua` instead, where the flipped cases say so in their names.
+- Found in 3. The host key check this phase was to remove had already gone in 2b, when a host's
+  open key became an ordinary bindings row.
+- Found in 3. Hyper's own hold reveal already held back over an open list, through the root's
+  closures, so going quiet over lists was never META's alone. Every held leader now holds its
+  reveal back over a list, and `quietOverLists` decides only whether its keys go inert too.
+- Found in 3. The policy is `policy.leaderPolicy` in the root, keyed by catalog name, and every
+  field is a boolean or a number apart from the sheet host's identity, `tapTogglesCapsLock`,
+  `drivenRepeat`, `contexts`, `quietOverLists`, `sheet` and `holdDelay`. SUPER ships META's policy,
+  since it is the documented other home of the window role.
+- Found in 3. `policy.hyperTrigger`, which could make Hyper a modifier chord with a hold reveal, is
+  retired and named as a problem when set, since a held leader is its catalog row and a named set
+  of modifiers is a leader of its own from phase 5, with no sheet.
+- Found in 3. The two tier rules stay as they were per leader, best priority with a gated binding
+  dropping out of its tier where contexts are on, first exact match and last catch all elsewhere.
+- Found in 3. Capture's wait for Hyper's release became the descriptor field `afterRelease`, which
+  the leader that fired the key honours and a launcher row honours for every held leader, so
+  capture asks for no lib. The clipboard keeps a lib, `leader`, a view answering whether any held
+  leader is down, because whether it waits is its chosen provider's answer at the press.
 
 ### Phase 4, one sheet host
 

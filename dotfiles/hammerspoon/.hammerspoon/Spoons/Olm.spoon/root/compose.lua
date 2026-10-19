@@ -83,6 +83,12 @@ local iconsConfigLib = load("lib/icons/config.lua")
 local iconRowsLib = load("lib/icons/rows.lua")
 local emojiSourceLib = load("lib/icons/sources/emoji.lua")
 local sfSourceLib = load("lib/icons/sources/sf.lua")
+-- The two leader triggers, the concrete strategies lib/leader.lua runs behind its contract and
+-- never names. Each answers new(spec) and holds nothing at file level, so loading them here
+-- beside the published leader atom builds no second copy of anything shared. A third kind of
+-- trigger is a file beside these and a line here.
+local heldTriggerLib = load("lib/leader/triggers/held.lua")
+local modifierTriggerLib = load("lib/leader/triggers/modifier.lua")
 
 local log = hs.logger.new("Olm.compose", "info")
 
@@ -134,7 +140,6 @@ local function logFn(level, message) log[level](message) end
 -- had simply never fired, because no profile has ever been captured on this machine.
 local SHIPPED_POLICY = {
   chord = { holdDelay = 0.6, tapThreshold = 0.2, passthrough = true },
-  hyperTrigger = { kind = "leader" },
   storage = { cacheRoot = "~/.olm/cache", olmRoot = "~/.olm/data" },
   -- Where the colour theme files live, handed in from the person's config. Nothing ships
   -- here, since a theme is a file and the default one belongs beside the config that names it.
@@ -189,6 +194,22 @@ local SHIPPED_POLICY = {
     SUPER = { source = "rightCommand", fkey = "f17" },
   },
 
+  -- How each held leader behaves, keyed by catalog name like the catalog just above, and read
+  -- by lib/leader.lua, whose FIELDS says what each field means. These reproduce the two adapters
+  -- the merge in phase 3 of the keymap plan replaced. HYPER toggles real Caps Lock on a tap, rides
+  -- the OS autorepeat, hosts every list's keys and reveals the Hyper sheet. META drives its own
+  -- repeats so a window step knows how deep into a hold it is, goes quiet while a list is open so
+  -- no window moves underneath one, and reveals the window sheet. SUPER binds nothing on this
+  -- machine, and it ships META's policy because it is the documented other home of the window
+  -- role, so pointing that role at it moves window management whole. A catalog row with no
+  -- entry here gets a leader with every field off, no tap, no contexts and no sheet. A person
+  -- overrides one field through cfg.policy like any other entry.
+  leaderPolicy = {
+    HYPER = { tapTogglesCapsLock = true, contexts = true, sheet = "hypercheatsheet" },
+    META  = { drivenRepeat = true, quietOverLists = true, sheet = "windowcheatsheet" },
+    SUPER = { drivenRepeat = true, quietOverLists = true, sheet = "windowcheatsheet" },
+  },
+
   -- The heading drawn over the window leader's rows on the hold overlay. What the leader does
   -- rather than what it is called, since the leader's own name, META, says nothing to anybody
   -- reading a list of window actions.
@@ -232,6 +253,12 @@ function obj.run(olm, cfg)
 
   local policy = defaultsLib.merge(SHIPPED_POLICY, cfg.policy)
   local leaderRoles = defaultsLib.merge({ app = "HYPER", window = "META" }, cfg.leaders)
+  -- The leaders in use, built in step H, every held one in catalog name order and the plain
+  -- combo leader last, and the one whose policy turns contexts on. Declared this early because
+  -- closures handed out long before step H, the chooser field's yield, the leader view a plugin
+  -- may ask for and the stage word the BrowserTabs harness reads, all read them late.
+  local leaderList = {}
+  local contextLeader = nil
   local decorate = defaultsLib.merge({ installedBy = "actionpanel" }, cfg.decorate)
   -- The person's per plugin entries, keyed by plugin identity, from config/plugins.lua. One entry
   -- holds that plugin's overrides, its person supplied data and its spoon global, or false to
@@ -442,16 +469,16 @@ function obj.run(olm, cfg)
   -- colours from the kit's tokens, and refuses to build until it is handed both, so the root
   -- gives it the ones already configured above.
   if chooserAtom.providers and chooserAtom.providers.default then
-    -- The default chooser's field tap claims every key down, which would swallow Hyper before its
-    -- dispatch ran, so the field is handed a predicate and told nothing else. The closure
-    -- reads the live HyperKey late, since it is not configured until further down.
+    -- The default chooser's field tap claims every key down, which would swallow a list key
+    -- before its dispatch ran, so the field is handed a predicate and told nothing else. It asks
+    -- the leader the list keys bind on, the one whose policy turns contexts on, and reads it late,
+    -- since no leader is built until further down.
     chooserAtom.providers.default.configure({
       panel = canvasPanel,
       ui = uiAtom,
       icon = paintIcon,
       yields = function(ev)
-        local hyper = atoms.hyperkey
-        return hyper ~= nil and hyper:owns(ev)
+        return contextLeader ~= nil and contextLeader:owns(ev)
       end,
     })
   end
@@ -468,15 +495,10 @@ function obj.run(olm, cfg)
   chordKeyAtom:init()
   chordKeyAtom:configure(policy.chord)
 
-  -- Loaded here, ahead of step H's own init and configure, purely so the libs table two
-  -- sections down can name it as a lib capability. Existence checking in step F's plan runs
-  -- before step H does, so a lib module a plugin may declare needs.lib against has to exist
-  -- as a loaded module this early even though it is not actually configured until later.
-  local hyperKeyAtom = atoms.hyperkey
-  -- The window leader and the remap, core like hyperkey and published the same way. The
-  -- window leader joins the libs table below so a plugin on leader = "window" can ask for it,
-  -- and the remap is the root's alone, applied once from the leaders section further down.
-  local windowLeaderAtom = atoms.windowleader
+  -- The leader adapter and the remap, both core and published under Olm.lib. Step H builds one
+  -- leader instance per leader in use from the adapter, and the remap is the root's alone,
+  -- applied once from the leaders section further down.
+  local leaderLib = atoms.leader
   local keyRemapAtom = atoms.keyremap
 
   ------------------------------------------------------------------------------
@@ -681,8 +703,19 @@ function obj.run(olm, cfg)
     registry = registryLib,
     glyphicon = glyphIcon,
     chordkey = chordKeyAtom,
-    hyperkey = hyperKeyAtom,
-    windowleader = windowLeaderAtom,
+    -- Not the adapter itself. A plugin asking for leader gets a view answering only whether any
+    -- held leader is down right now, which is the one question a plugin that posts a keystroke
+    -- has to ask, and it is answered for whichever leader that plugin's key sits on, so no plugin
+    -- learns a leader's name or holds one to bind on. It replaced the hyperkey and windowleader
+    -- grants in phase 3 of the keymap plan.
+    leader = {
+      isActive = function()
+        for _, leader in ipairs(leaderList) do
+          if leader:isActive() then return true end
+        end
+        return false
+      end,
+    },
     appfocus = appFocusAtom,
     recency = atoms.recency,
     queryassoc = atoms.queryassoc,
@@ -781,19 +814,75 @@ function obj.run(olm, cfg)
   -- than rebuilt, so the second pass, the register stage, and the wiring args below can
   -- never disagree about what they hold.
   local keymapCatalog = policy.leaderCatalog
-  local appKeycode = leadersLib.keycode(keymapCatalog, leaderRoles.app)
-  local windowKeycode = leadersLib.keycode(keymapCatalog, leaderRoles.window)
   local activeLeaderNames = leadersLib.activeNames(keymapCatalog, leaderRoles)
+
+  -- Every held leader in use, one per catalog name a role references, each with the name a keymap
+  -- row spells it with, the keycode its catalog row resolves to and its policy checked once. This
+  -- is the one list everything below loops over, so nothing here knows how many leaders there
+  -- are or which one is which. A policy field that is not one a leader reads, or is of the wrong
+  -- type, is a problem line once the wiring report exists, kept here until then.
+  local leaderSpecs, leaderProblems = {}, {}
+  do
+    local names = {}
+    for _, catalogName in ipairs(activeLeaderNames) do names[#names + 1] = catalogName end
+    table.sort(names)
+    for _, catalogName in ipairs(names) do
+      local leaderPolicy, problems = leaderLib.checkPolicy(catalogName, (policy.leaderPolicy or {})[catalogName])
+      for _, problem in ipairs(problems) do leaderProblems[#leaderProblems + 1] = problem end
+      leaderSpecs[#leaderSpecs + 1] = {
+        name = tostring(catalogName):lower(),
+        catalogName = catalogName,
+        keyCode = leadersLib.keycode(keymapCatalog, catalogName),
+        policy = leaderPolicy,
+      }
+    end
+  end
+  -- The held leaders whose policy names one sheet host, in the order above. Two hosts until phase
+  -- 4 of the keymap plan, each still built its own way, so step K asks which leaders reveal each.
+  local function leadersRevealing(directory)
+    local out = {}
+    for _, spec in ipairs(leaderSpecs) do
+      if spec.policy.sheet == directory then out[#out + 1] = spec end
+    end
+    return out
+  end
 
   -- What each leader role is CALLED where a person reads it, a row subtitle or a hint. The
   -- role is the word a manifest uses, app or window, and the catalog name is what that role
   -- resolves to on this machine, so a tool moved to the other leader is described correctly
   -- with no second place to edit. Title cased because these are read as words in a sentence
   -- rather than as the shouted constants the catalog spells them with.
+  local function displayName(catalogName)
+    local word = tostring(catalogName)
+    return word:sub(1, 1):upper() .. word:sub(2):lower()
+  end
   local leaderDisplayNames = {}
   for role, catalogName in pairs(leaderRoles) do
-    local word = tostring(catalogName)
-    leaderDisplayNames[role] = word:sub(1, 1):upper() .. word:sub(2):lower()
+    leaderDisplayNames[role] = displayName(catalogName)
+  end
+  -- The same words keyed by the name a keymap row spells its leader with, so a surface spelling a
+  -- row's chord spells that row's own leader rather than whichever leader it assumed.
+  local leaderNamesByLeader = {}
+  for _, spec in ipairs(leaderSpecs) do
+    leaderNamesByLeader[spec.name] = displayName(spec.catalogName)
+  end
+  -- The leader every list key binds on, the one held leader whose policy turns contexts on, as
+  -- a spec, so the hint bar can name it before any leader is built. Exactly one is expected. None
+  -- leaves every list without its keys and two leave the second without them, and each case is a
+  -- problem line rather than a silent choice, the first in name order winning.
+  local contextSpec = nil
+  for _, spec in ipairs(leaderSpecs) do
+    if spec.policy.contexts then
+      if contextSpec then
+        leaderProblems[#leaderProblems + 1] = { where = spec.catalogName, why = "the leader policy turns contexts on, which "
+          .. contextSpec.catalogName .. " already does, so list keys bind on " .. contextSpec.catalogName .. " alone" }
+      else
+        contextSpec = spec
+      end
+    end
+  end
+  if not contextSpec then
+    leaderProblems[#leaderProblems + 1] = { where = "leaders", why = "no leader in use turns contexts on, so no list key is bound this load" }
   end
 
   -- The one spelling of a chord, a leader's name then a space then the key glyph. Human
@@ -1116,10 +1205,21 @@ function obj.run(olm, cfg)
     -- The shared when name to predicate table every gated binding is resolved against.
     predicates = ownPredicates,
 
-    -- What the window leader's own overlay section is CALLED. Policy rather than anything
-    -- derivable, since the leader's own name, META, says nothing to somebody reading a list of
-    -- window actions, so it ships as a default a person may override.
-    leaders = windowKeycode and { [windowKeycode] = policy.windowSectionTitle } or nil,
+    -- What the window sheet's section is CALLED, keyed by the keycode of each leader whose policy
+    -- reveals that sheet, META on this machine. Policy rather than anything derivable, since the
+    -- leader's own name says nothing to somebody reading a list of window actions, so it ships as
+    -- a default a person may override.
+    leaders = (function()
+      local titles = nil
+      -- THE SEAM. WindowCheatSheet is one of the host modules this file may name.
+      for _, spec in ipairs(leadersRevealing("windowcheatsheet")) do
+        if spec.keyCode ~= nil then
+          titles = titles or {}
+          titles[spec.keyCode] = policy.windowSectionTitle
+        end
+      end
+      return titles
+    end)(),
 
     -- Repaint, under one name, for every plugin whose answer lands after the keystroke.
     redraw = redrawSurface,
@@ -1259,12 +1359,12 @@ function obj.run(olm, cfg)
       return stageModule and stageModule:query() or ""
     end,
 
-    -- leaderHeld, whether the Hyper leader is currently believed held, false when there is no
-    -- atom. The BrowserTabs harness reads it to trace the leader through a round's typing and to
-    -- refuse typing while it is held, since the default chooser's field yields every key to
-    -- Hyper then, and no plugin reads it for behaviour.
+    -- leaderHeld, whether the leader every list key binds on is currently believed held, false
+    -- when there is none. The BrowserTabs harness reads it to trace the leader through a round's
+    -- typing and to refuse typing while it is held, since the default chooser's field yields every
+    -- key to that leader then, and no plugin reads it for behaviour.
     leaderHeld = function()
-      return hyperKeyAtom ~= nil and hyperKeyAtom:isActive() == true
+      return contextLeader ~= nil and contextLeader:isActive() == true
     end,
 
     -- stageTextBudget and stageTextWidth, the trickle migration's own addition, FileSearch's
@@ -1421,13 +1521,11 @@ function obj.run(olm, cfg)
   end
 
   ------------------------------------------------------------------------------
-  -- STEP G. Leaders, continued. The app and window keycodes above are reused
-  -- here for the two engines rather than resolved a second time.
+  -- STEP G. Leaders, continued. The leader specs above, keycodes and policies, are
+  -- reused here for the leaders rather than resolved a second time.
   ------------------------------------------------------------------------------
 
-  -- The window cheat sheet host, named outright since both it and the window leader are core.
-  -- The leader is handed it in its own configure below and builds its hold and release
-  -- closures itself. Nil where the host did not load, which only costs the reveal.
+  -- The window cheat sheet host, named outright since it is core. Step K hands it its rows.
   local windowCheatSheetModule = modules[plan.identity.windowcheatsheet or "windowcheatsheet"]
 
   -- The flat root argument namespace, deps.args, the only channel a non configure wiring
@@ -1525,9 +1623,10 @@ function obj.run(olm, cfg)
 
   -- Whether any list is open right now, the launcher and every plugin picker alike, asked by
   -- walking the same contextOwners table the predicates already route through, so this gate
-  -- and the modal suppression inside the hyper engine can never disagree about what an open
-  -- list is. Built once here because two leaders consult it, the hyper hold reveal below and
-  -- the window leader's own suppression, and two separate walks would be two answers.
+  -- and the modal rule on the leader with contexts can never disagree about what an open list
+  -- is. Built once here and handed to every leader, since no hold reveals a sheet over an open
+  -- list and a leader whose policy goes quiet over lists reads the same answer, and two separate
+  -- walks would be two answers.
   local function anyListShowing()
     for contextName in pairs(contextOwners) do
       if isShowingFor(contextName) then return true end
@@ -1536,76 +1635,75 @@ function obj.run(olm, cfg)
   end
 
   ------------------------------------------------------------------------------
-  -- STEP H. The engines.
+  -- STEP H. The leaders.
   ------------------------------------------------------------------------------
 
-  -- Ported from the live root's onHold and onHoldEnd. contextOverlays stays the same empty
-  -- seam the live root still carries, a modal context reveals nothing of its own here, its
-  -- hints already live on the docked panel, and the base layer alone reveals the apps sheet.
+  -- One leader per held leader in use, from the specs built in step F, plus the plain leader a
+  -- keymap row with no leader binds on. Each gets its trigger, its policy and the module its hold
+  -- reveals, and this loop is the only place a trigger is chosen, so nothing below knows how many
+  -- leaders there are. A held leader whose catalog row resolves to no keycode is left out with a
+  -- problem line, since its trigger would have nothing to register.
   --
-  -- The open list test is anyListShowing above. It used to be hintsLib.activeContext handed
-  -- isShowingFor, which was a shape mismatch, activeContext feeds its test when names like
-  -- launcherOpen while isShowingFor answers context names like launcher, so the test never
-  -- matched anything, no context ever read as live, and the apps sheet revealed over every
-  -- open list.
-  local heldHyperLayer = nil
-  local function revealHyperLayer()
-    if anyListShowing() then
-      heldHyperLayer = "none"
+  -- The open list test is anyListShowing above. The hold reveal used to be the root's own pair of
+  -- closures for Hyper and the window leader's own pair for itself. It is the adapter's now, which
+  -- keeps the one rule both pairs followed, nothing is revealed over an open list.
+  local leadersByName = {}
+  for _, spec in ipairs(leaderSpecs) do
+    if spec.keyCode == nil then
+      leaderProblems[#leaderProblems + 1] = { where = spec.catalogName, why = "its catalog row resolves to no keycode, so the leader is not built and none of its keys is bound" }
     else
-      -- THE SEAM. HyperCheatSheet is one of the five host modules this file may name.
-      local sheet = modules[plan.identity.hypercheatsheet or "hypercheatsheet"]
-      if sheet then sheet:show() end
-      heldHyperLayer = "apps"
+      local sheet = nil
+      if spec.policy.sheet then
+        -- THE SEAM. A sheet word names one of the host modules this file may name.
+        sheet = modules[plan.identity[spec.policy.sheet] or spec.policy.sheet]
+        if not sheet then
+          log.w("Olm compose, the " .. spec.catalogName .. " leader reveals the sheet '"
+            .. tostring(spec.policy.sheet) .. "', which did not load, so a hold reveals nothing")
+        end
+      end
+      local leader = leaderLib.new({
+        name = spec.name,
+        trigger = heldTriggerLib.new({ chord = chordKeyAtom, keyCode = spec.keyCode }),
+        policy = spec.policy,
+        sheet = sheet,
+        keyCode = spec.keyCode,
+        listOpen = anyListShowing,
+        predicates = ownPredicates,
+        holdDelay = policy.chord.holdDelay,
+        tapThreshold = policy.chord.tapThreshold,
+      })
+      leaderList[#leaderList + 1] = leader
+      leadersByName[spec.name] = leader
+      if spec == contextSpec then contextLeader = leader end
     end
   end
-  local function hideHyperLayer()
-    if heldHyperLayer == "apps" then
-      local sheet = modules[plan.identity.hypercheatsheet or "hypercheatsheet"]
-      if sheet then sheet:hide() end
-    end
-    heldHyperLayer = nil
-  end
-
-  -- hyperKeyAtom itself was already loaded in step B, purely so the libs table could name it
-  -- early. Loading it a second time here would build a second, separate module table, the
-  -- one every needs.lib.hyperKey grant already points at staying forever uninitialized while
-  -- this second copy alone received init and configure, which is not a hidden defect this
-  -- comment papers over, it is the reason there is only one load site and this is not it.
-  hyperKeyAtom:init()
-  local trigger = leadersLib.mergeTrigger(policy.hyperTrigger, appKeycode)
-  hyperKeyAtom:configure({
-    chord = chordKeyAtom,
-    trigger = trigger,
-    tapThreshold = policy.chord.tapThreshold,
-    holdDelay = policy.chord.holdDelay,
-    onTap = function() hs.hid.capslock.toggle() end,
-    onHold = revealHyperLayer,
-    onHoldEnd = hideHyperLayer,
-  })
-
-  -- Initialized and configured here like hyperKeyAtom just above, since a lib is not walked
-  -- by lib/loader.lua the way a plugin is. The keycode is the window role's own, so a row on
-  -- the window leader binds with no keycode in sight. suppressWhen is anyListShowing, the
-  -- same gate the hyper hold reveal reads, so while any list is open the window leader
-  -- neither reveals its sheet nor moves a window, and the two leaders go quiet on the same
-  -- evidence.
-  windowLeaderAtom:init()
-  windowLeaderAtom:configure({
-    chord = chordKeyAtom,
-    keyCode = windowKeycode,
+  -- The plain leader, a modifier trigger with an empty base set, so a keymap row with no leader is
+  -- claimed through hs.hotkey on its own modifiers exactly as the binder used to claim it itself.
+  -- Its policy is empty, no tap, no contexts, no sheet, and it is never held, so a waiting action
+  -- on a plain combo runs at once.
+  local plainLeader = leaderLib.new({
+    trigger = modifierTriggerLib.new({ mods = {} }),
+    policy = {},
+    listOpen = anyListShowing,
     predicates = ownPredicates,
-    holdDelay = policy.chord.holdDelay,
-    windowCheatSheet = windowCheatSheetModule,
-    suppressWhen = anyListShowing,
   })
+  leaderList[#leaderList + 1] = plainLeader
+
+  -- Runs fn once no held leader is down, for a launcher row whose action waits for release.
+  local function afterLeadersRelease(fn)
+    return leaderLib.afterAllReleased(leaderList, fn)
+  end
 
   ------------------------------------------------------------------------------
   -- Presentation deps, one shared table for every lib/hints.lua call this file
   -- makes directly or hands to services.perPlugin to make on its behalf.
   ------------------------------------------------------------------------------
 
-  local function hideSharedOverlay() hideHyperLayer() end
+  -- Takes down whichever leader's sheet a hold put up, which each leader answers only for its
+  -- own, so an action that runs while a sheet shows clears it whichever leader revealed it.
+  local function hideSharedOverlay()
+    for _, leader in ipairs(leaderList) do leader:conceal() end
+  end
 
   -- The kind derivation reads a binding's position and the fixed generic navigation set,
   -- and gets these four wrong on that evidence alone, since each sits below the first
@@ -1637,10 +1735,13 @@ function obj.run(olm, cfg)
     policy = policy,
     hideShortcuts = hideSharedOverlay,
     chordLabel = chordLabel,
-    -- leaderName hands over this leader's already resolved word rather than the catalog
-    -- itself, since deciding what a leader is called belongs to this file and lib/hints.lua
-    -- must not learn it by name any more than it learns any other plugin's name.
-    leaderName = leaderDisplayNames.app,
+    -- leaderNames hands over each leader's already resolved word rather than the catalog
+    -- itself, keyed by the name a row spells its leader with, since deciding what a leader is
+    -- called belongs to this file and lib/hints.lua must not learn it by name any more than it
+    -- learns any other plugin's name. leaderName is the word for a binding that names no leader,
+    -- a list key, which binds on the leader whose policy turns contexts on.
+    leaderNames = leaderNamesByLeader,
+    leaderName = contextSpec and leaderNamesByLeader[contextSpec.name] or nil,
     -- kinds carries the same action kind overrides the actionKinds call below is given,
     -- since rowsFor derives kinds a second time inside hints.lua, and it must see the same
     -- overrides the panel's own kindOf uses or the panel rows and verbsIn drift apart.
@@ -1990,10 +2091,21 @@ function obj.run(olm, cfg)
     isShowing = isShowingFor,
   })
 
-  w.leaders({ windowLeaderAtom }, { windowKeycode })
+  -- What step F and step H found wrong with a leader, said now that the wiring report exists.
+  for _, problem in ipairs(leaderProblems) do w.problem("leaders", problem.where, problem.why) end
+  -- policy.hyperTrigger was how a person made Hyper a modifier chord. A held leader's trigger is
+  -- its catalog row now, and a named set of modifiers becomes a leader of its own with the
+  -- person's keymap in phase 5 of the keymap plan, so the field is read by nothing and a value
+  -- left in a config would otherwise be ignored in silence.
+  if type(cfg.policy) == "table" and cfg.policy.hyperTrigger ~= nil then
+    w.problem("leaders", "policy.hyperTrigger", "is retired, a held leader is its catalog row and its "
+      .. "behaviour is policy.leaderPolicy, so the field is ignored")
+  end
+
+  w.leaders(leaderList)
   w.configure(modules, manifests)
   w.steps(modules, manifests)
-  w.predicates(hyperKeyAtom, ownPredicates)
+  w.predicates(leaderList, ownPredicates)
   -- Every tool that registered is activated, since the plan already left out every plugin that
   -- is switched off and there is no second switch.
   local forWire = registrarLib.forWire(wiredRegistry)
@@ -2091,26 +2203,14 @@ function obj.run(olm, cfg)
     w.problem("keymap", problem.where, problem.why)
   end
 
-  -- The binder, the one place a global key is bound. Each leader's engine is found by the name
-  -- its catalog entry has, the way a keymap row spells it, and a row with no leader is a plain
-  -- combo. The order the engines receive the rows in is the order the paths it replaced bound
-  -- them in, which is the order of the keymap's bound list.
-  -- Two roles mapped to one catalog name would key two engines under one name and the second
-  -- would replace the first in silence, so that is said out loud and the app leader keeps it.
-  local leaderEngines = {}
-  for _, pair in ipairs({ { role = "app", engine = hyperKeyAtom }, { role = "window", engine = windowLeaderAtom } }) do
-    local name = tostring(leaderRoles[pair.role]):lower()
-    if leaderEngines[name] then
-      w.problem("keymap", "leaders", "the " .. pair.role .. " role names the catalog leader '"
-        .. tostring(leaderRoles[pair.role]) .. "', which another role already names, so the "
-        .. pair.role .. " leader's engine binds nothing this load")
-    else
-      leaderEngines[name] = pair.engine
-    end
-  end
+  -- The binder, the one place a global key is bound. Each row lands on the leader named the way
+  -- the row spells it, the catalog name lowercased, and a row with no leader lands on the plain
+  -- leader. The order the leaders receive the rows in is the order the paths it replaced bound
+  -- them in, which is the order of the keymap's bound list. Two roles naming one catalog leader
+  -- share that one leader and its policy, which a keymap collision would name if two rows met.
   for _, problem in ipairs(binderLib.bind(keymap.bound, {
-    engines = leaderEngines,
-    hotkey = function(mods, key, fn) hs.hotkey.bind(mods, key, fn) end,
+    engines = leadersByName,
+    plain = plainLeader,
   })) do
     w.problem("keymap", problem.where, problem.why)
   end
@@ -2171,7 +2271,9 @@ function obj.run(olm, cfg)
     },
   })
 
-  w.contexts(hyperKeyAtom, bindOneInContext)
+  -- Every list's keys bind on the leader whose policy turns contexts on. With none, step F has
+  -- already said so, and the lists keep only the keys their field reads for itself.
+  if contextLeader then w.contexts(contextLeader, bindOneInContext) end
 
   -- The remap is applied here, after every binding has been stored and immediately before the
   -- engines start listening, and that placement is the point. The remap is machine wide and
@@ -2184,7 +2286,7 @@ function obj.run(olm, cfg)
   -- unresolved path is passed on as nil, and the engine answers by remapping nothing and
   -- saying so, which leaves every leader its own native key.
   keyRemapAtom:apply(keymapCatalog, activeLeaderNames, sharedDepsScope.path("hidutil"))
-  w.start({ hyperKeyAtom, windowLeaderAtom }, chordKeyAtom)
+  w.start(leaderList, chordKeyAtom)
 
   ------------------------------------------------------------------------------
   -- ActionPanel's own configure. Deferred to here for the identical reason step
@@ -2211,13 +2313,16 @@ function obj.run(olm, cfg)
     -- here rather than the zero argument wire adapter, since sections reads rowFor and
     -- shortcuts, neither of which the wire adapter promises to carry.
     local opts = { cheatSheet = hyperCheatSheetOpts.cheatSheet }
-    -- Every chord the keymap holds on the app leader, read from the one table that binds them,
-    -- so a tool's open key, a plugin's bindings and the special rows reach the sheet by being
-    -- bound and a key moved to the window leader leaves it. The registry lends a tool row with
-    -- no description the detail its launcher row wears.
+    -- Every chord the keymap holds on the leader whose policy reveals this sheet, HYPER on this
+    -- machine, read from the one table that binds them, so a tool's open key, a plugin's
+    -- bindings and the special rows reach the sheet by being bound and a key moved to another
+    -- leader leaves it. The sheet draws one model whichever leader holds it, so the first such
+    -- leader's rows are the ones it draws, and with none it draws its supplied sections alone.
+    -- The registry lends a tool row with no description the detail its launcher row wears.
     local hyperIdentity = plan.identity.hypercheatsheet or "hypercheatsheet"
+    local revealer = leadersRevealing("hypercheatsheet")[1]
     local own = hintsLib.sections(keymap, plan, {
-      leader = tostring(leaderRoles.app):lower(), registry = wiredRegistry })
+      leader = revealer and revealer.name, registry = wiredRegistry })
     -- The sections plugins supply for the app leader's sheet, the app toggles today, ordered
     -- with the sheet's own block by each one's declared number. lib/contributions.lua asks the
     -- set the sheet declared, so this names none of them.
@@ -2240,14 +2345,20 @@ function obj.run(olm, cfg)
     lateData.hypercheatsheet = opts
   end
 
-  -- The window cheat sheet's rows, every global chord the keymap holds on the window leader, each
-  -- stamped with the leader keycode the sheet groups by. Its leaders and predicates are the same
-  -- root values the fan out handed it, given again because the host resets what configure gave
-  -- it on every call, and keyed by directory for the delivery check, as the Hyper sheet's are.
+  -- The window cheat sheet's rows, every global chord the keymap holds on each leader whose policy
+  -- reveals this sheet, META on this machine, each stamped with that leader's keycode, which the
+  -- sheet groups by, so holding one leader shows only its own rows. Its leaders and predicates are
+  -- the same root values the fan out handed it, given again because the host resets what configure
+  -- gave it on every call, and keyed by directory for the delivery check, as the Hyper sheet's are.
   if windowCheatSheetModule then
+    local windowBindings = {}
+    for _, spec in ipairs(leadersRevealing("windowcheatsheet")) do
+      for _, entry in ipairs(leadersLib.stampBindings(hintsLib.leaderRows(keymap, spec.name), spec.keyCode)) do
+        windowBindings[#windowBindings + 1] = entry
+      end
+    end
     local windowCheatSheetLate = {
-      windowBindings = leadersLib.stampBindings(
-        hintsLib.leaderRows(keymap, tostring(leaderRoles.window):lower()), windowKeycode),
+      windowBindings = windowBindings,
       leaders = rootValues.leaders,
       predicates = rootValues.predicates,
       cheatSheet = cheatSheetAtom,
@@ -2408,6 +2519,7 @@ function obj.run(olm, cfg)
       keymap = keymap,
       stampIcons = iconRows.stampAll,
       log = function(message) log.e("Olm compose, " .. message) end,
+      afterRelease = afterLeadersRelease,
     })
 
     -- What an app row shows beyond the app, the chord and the url, merged from every plugin
@@ -2648,6 +2760,10 @@ function obj.run(olm, cfg)
   -- and a defensive copy would only make an inspector disagree with the config it is inspecting.
   record.plan = plan
   record.keymap = keymap
+  -- Every held leader in use by the name a keymap row spells it with, so the key probe and the
+  -- inventory read what each one holds. The plain leader is left out, since what it claims is
+  -- every plain combo and hs.hotkey.getHotkeys already answers those.
+  record.leaders = leadersByName
   record.manifests = manifests
   record.dispatch = dispatchTable
   -- The dependency door's own scope, so anything inspecting this config asks IT whether a tool

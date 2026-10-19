@@ -44,6 +44,8 @@
 --               row the plugin's own description.
 --   origin      default when the plugin shipped the chord and user when the person set it.
 --   repeats     whether the action keeps firing while its key is held, where the source says.
+--   afterRelease true when the descriptor behind the chord asks to run only once the leader that
+--               fired it is released, which the leader honours.
 --   run         the function the chord calls, or nil where the source answers none. A list's
 --               own keys carry none, since the root binds those through its contexts.
 --   refused     true when the action behind a binding was declared and refused, or the plugin's
@@ -238,6 +240,7 @@ function obj.build(inputs)
       description = spec.description,
       origin = spec.origin or "default",
       repeats = spec.repeats,
+      afterRelease = spec.afterRelease,
       run = spec.run,
       refused = spec.refused,
       quiet = spec.quiet,
@@ -384,6 +387,7 @@ function obj.build(inputs)
               description = b.description or (descriptor and descriptor.description),
               origin = originOf(prov, "bindings"),
               repeats = repeats, run = descriptor and descriptor.run or nil,
+              afterRelease = descriptor and descriptor.afterRelease or nil,
               refused = refusedHere == true
                 or (type(refusedHere) == "table" and refusedHere[b.action] == true),
               order = orderOf(1, position[directory], i),

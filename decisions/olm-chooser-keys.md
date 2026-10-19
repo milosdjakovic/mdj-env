@@ -8,9 +8,10 @@ the action panel opens on Hyper and o in every list, with file search reveal on 
 The default chooser's field event tap claims every key down so nothing reaches the app underneath, with
 Escape answered first. The one exception is Hyper. The field takes an injected predicate,
 `yields`, and a key it answers true for is passed on unclaimed. The composition root builds
-that predicate over `HyperKey:owns`, which each trigger shape answers. Under the leader shape a
-key is Hyper's when it is the leader key or the leader is held, under the chord shape when
-every chord modifier is held. The field and the default provider know only that it is a
+that predicate over `owns` on the leader whose policy turns contexts on, Hyper here, which its
+trigger answers, since phase 3 of `olm-keymap.md`. Under the held trigger a key is the leader's
+when it is the leader key or the leader is held, under the modifier trigger when its whole base
+set is held. The field and the default provider know only that it is a
 predicate, and the legacy provider needs nothing since its keys already reach Hyper.
 
 The action panel is on Hyper and o in every list, declared once in `lib/surface.lua` and in

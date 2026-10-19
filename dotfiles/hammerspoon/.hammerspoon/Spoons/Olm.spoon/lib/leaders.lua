@@ -89,19 +89,4 @@ function obj.stampBindings(bindings, code)
   return out
 end
 
--- HyperKey's trigger table is the caller's own settings block plus two things the resolved
--- catalog decides, a kind that defaults to leader when the caller has no opinion, and the
--- keycode itself. The live root once also passed that same keycode a second time as a plain
--- keyCode option alongside the trigger table, because the spoon behind an atom toggle read
--- only that second copy while the trigger table's own copy fed the other side of the toggle.
--- That toggle is retired, so there is only one consumer left and it reads the trigger table,
--- which is why this answers one descriptor rather than a pair that could drift apart.
-function obj.mergeTrigger(trigger, code)
-  local merged = {}
-  for k, v in pairs(trigger or {}) do merged[k] = v end
-  merged.kind = merged.kind or "leader"
-  merged.keyCode = code
-  return merged
-end
-
 return obj

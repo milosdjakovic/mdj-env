@@ -28,7 +28,7 @@ local SHAPE = {
 
 -- A dotted name splits into a plugin or lib module and, when there is a second part, the
 -- member wanted from it. No second part means the module itself was named, which used to
--- be inexpressible and is exactly what WindowManager needs from WindowLeader.
+-- be inexpressible and is exactly what a plugin asking for a whole lib module needs.
 local function splitDotted(value)
   if not value then return nil, nil end
   local first, rest = value:match("^([^.]+)%.(.+)$")

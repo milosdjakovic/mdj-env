@@ -145,7 +145,7 @@ local leaders = load("lib/leaders.lua")
 
 local realManifests = plugins.readAll({ spoonDir .. "plugins", spoonDir .. "host" }, nil)
 local libNames = {}
-for _, name in ipairs({ "windowleader", "hyperkey", "appfocus", "recency", "storage", "paste",
+for _, name in ipairs({ "leader", "appfocus", "recency", "storage", "paste",
   "cheatsheet", "registry", "glyphicon", "chordkey", "queryassoc", "ui" }) do
   libNames[name] = true
 end
@@ -266,7 +266,7 @@ local function run(manifests, person)
   for _, pr in ipairs(keymap.problems) do result.bindProblems[#result.bindProblems + 1] = pr end
   for _, pr in ipairs(binderLib.bind(keymap.bound, {
     engines = { hyper = appLeader, meta = windowLeader },
-    hotkey = function(mods, key) bindOn("global")(key, mods) end,
+    plain = { bind = function(_, key, _, mods) bindOn("global")(key, mods) end },
   })) do
     result.bindProblems[#result.bindProblems + 1] = pr
   end

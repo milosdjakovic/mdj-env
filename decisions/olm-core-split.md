@@ -14,8 +14,8 @@ and core is everything plugins consume, which the composition root may name. Cor
 a plugin. `config/plugins.lua` holds one entry per plugin identity, the person's overrides of
 that plugin's own defaults, its person supplied `data`, its spoon `global`, or `false`, and
 `config/keys.lua` holds only the two leaders and the app toggles. KeyRemap is `lib/keyremap.lua`,
-the window leader is `lib/windowleader.lua` beside `lib/hyperkey.lua`, and the window cheat
-sheet is a host. A plugin reaches the window leader the way it reaches Hyper, by declaring
+every leader is an instance of `lib/leader.lua` since phase 3 of `olm-keymap.md`, and the window
+cheat sheet is a host. A plugin reaches the window leader the way it reaches Hyper, by declaring
 `defaults.leader = "window"` with `defaults.bindings` and answering their actions through
 `provides.actions`, the core binds every key from its keymap since phase 2a of `olm-keymap.md`,
 and the window sheet reads the keymap's rows on that leader rather than any plugin. Every listed

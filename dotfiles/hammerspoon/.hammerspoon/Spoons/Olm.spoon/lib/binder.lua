@@ -2,22 +2,25 @@
 --
 -- lib/keymap.lua writes every chord down as a row, each global row carrying the function its
 -- source answers, and hands the global rows over a second time as a list in the order the
--- engines receive them. This walks that list as it stands and hands each row to the engine its
--- leader resolves to, or to the plain combo binder for a row with no leader. Nothing else binds a global key, so a plugin never calls a bind
--- function and the keymap is the whole answer to what is bound.
+-- engines receive them. This walks that list as it stands and hands each row to the leader its
+-- name resolves to, or to the plain leader for a row with no leader, which since phase 3 of the
+-- keymap plan is a leader like any other, the modifier trigger with an empty base set. Nothing
+-- else binds a global key, so a plugin never calls a bind function and the keymap is the whole
+-- answer to what is bound.
 --
 -- The order is the part that matters. An engine keeps every binding on a key in the order it
--- received them, and both leaders resolve a press by walking that list, the window leader taking
--- the first exact match and the last passing catch all, Hyper the best priority within a tier.
+-- received them, and every leader resolves a press by walking that list, a leader without contexts
+-- taking the first exact match and the last passing catch all, the one with contexts the best
+-- priority within a tier.
 -- So two rows on one key must arrive in the order the paths this replaced bound them in, which is
 -- the order the keymap's bound list is in, and this never reorders it.
 --
 -- A list's own keys are not bound here. They are live only while their list is open and the
 -- root binds them through its contexts, so a row outside the global layer is skipped.
 --
--- It is pure Lua. The engines and the plain combo binder arrive through its inputs, which is
--- what lets a plain test record every call, and it names no plugin and no leader. A leader is
--- whatever name the engines table is keyed by.
+-- It is pure Lua. The engines arrive through its inputs, which is what lets a plain test record
+-- every call, and it names no plugin and no leader. A leader is whatever name the engines table is
+-- keyed by.
 
 local obj = {}
 
@@ -27,10 +30,11 @@ local GLOBAL = "global"
 ---   rows     the keymap's bound list, bound in the order given.
 ---   engines  a table from a leader name, as a row spells it, to the engine binding on that
 ---            leader. An engine answers bind(self, key, fn, mods, opts).
----   hotkey   function(mods, key, fn), the plain combo binder, for a row with no leader.
+---   plain    the engine for a row with no leader, answering the same bind. A plain combo is
+---            bound with its own modifiers, an empty list where it states none.
 ---
---- Each row is bound with its key, its modifiers, nil for a catch all, and its gate, priority
---- and repeat in the options. A row whose source answered no function, or whose leader has no
+--- Each row is bound with its key, its modifiers, nil for a catch all, and its gate, priority,
+--- repeat and release wait in the options. A row whose source answered no function, or whose leader has no
 --- engine, is not bound and comes back as a problem, the where and the why the wiring report
 --- takes. A row whose action was refused at validation is left unbound in silence, since the
 --- refusal already said so, and so is a row marked quiet, a host with nothing to show. A raise from one engine costs that row and is reported, and every
@@ -55,23 +59,27 @@ function obj.bind(rows, deps)
       if not row.refused and not row.quiet then
         problem(row, "the " .. tostring(row.source) .. " row answers no function to run")
       end
-    elseif row.leader == nil then
-      if type(deps.hotkey) ~= "function" then
-        problem(row, "no plain combo binder was handed over")
-      else
-        local ok, err = pcall(deps.hotkey, mods or {}, row.key, row.run)
-        if not ok then problem(row, "binding it raised, " .. tostring(err)) end
-      end
     else
-      local engine = engines[row.leader]
-      if not engine then
-        problem(row, "no engine binds on the leader " .. tostring(row.leader))
+      local engine
+      if row.leader == nil then
+        engine = deps.plain
+        mods = mods or {}
       else
-        -- A global row's predicate travels as a gate, never as when, since on Hyper a when
-        -- makes a context and a context makes the leader modal, which would silence every
-        -- other global key while the predicate holds.
+        engine = engines[row.leader]
+      end
+      if not engine then
+        if row.leader == nil then
+          problem(row, "no plain leader was handed over")
+        else
+          problem(row, "no engine binds on the leader " .. tostring(row.leader))
+        end
+      else
+        -- A global row's predicate travels as a gate, never as when, since on the leader with
+        -- contexts a when makes a context and a context makes the leader modal, which would
+        -- silence every other global key while the predicate holds.
         local ok, err = pcall(engine.bind, engine, row.key, row.run, mods, {
           gate = row.when, priority = row.priority, repeats = row.repeats,
+          afterRelease = row.afterRelease,
         })
         if not ok then problem(row, "binding it raised, " .. tostring(err)) end
       end

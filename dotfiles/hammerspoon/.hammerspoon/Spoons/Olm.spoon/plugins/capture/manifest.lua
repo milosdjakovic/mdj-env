@@ -26,12 +26,10 @@ return {
   },
 
   needs = {
-    -- Dispatch waits for the Hyper key to release before running, so a synthetic keystroke
-    -- is not swallowed by the same tap that is holding the leader down. Optional, since without
-    -- it a capture simply starts at once.
-    lib = {
-      hyperKey = { from = "hyperkey", policy = "optional" },
-    },
+    -- No lib. A key waits for its leader to be released before a capture runs, so a synthetic
+    -- keystroke is not swallowed by the tap still holding the leader down, and that wait is Olm's,
+    -- asked for by afterRelease on each action descriptor rather than by this plugin holding a
+    -- leader of its own.
     tools = {
       { name = "ocr", kind = "path", locator = "ocr", policy = "optional", unit = "macocr",
         reason = "the OCR backend, the sole handler of text capture",

@@ -629,11 +629,14 @@ end
 is held, and an action that does not repeat ignores it. The member is asked once, after your
 `configure` and wiring have run, so a list built in `configure` is there, and the list's order is
 the order your rows take. A descriptor may also carry `description`, `subtitle`, `icon`,
-`keywords`, `repeats`, `when`, `group`, `kind`, `app` and `listed`, each checked by type. A field
+`keywords`, `repeats`, `afterRelease`, `when`, `group`, `kind`, `app` and `listed`, each checked by type. A field
 that is not one of these, or one of the wrong type, refuses that action with one problem line
 naming your plugin, the action and the field, and the rest of the plugin is still wired. A fact
 about the action belongs on the descriptor, `repeats` for a step worth repeating while its key is
-held and `when` for a predicate that gates it live, so a binding is only an action and a key.
+held, `when` for a predicate that gates it live and `afterRelease` for an action that posts a
+keystroke and must wait for the leader that fired it to be released, so a binding is only an
+action and a key. Never ask for a leader to wait on it yourself. Capture did, through a
+`hyperKey` lib, and it waited on Hyper whichever leader its key had moved to.
 
 The keys you suggest are your `bindings`, each naming an action, a key and optional `mods`, on
 the leader your `defaults.leader` names by role, `app` or `window`. A row may name its own role in
@@ -644,7 +647,8 @@ is the role every row stating none inherits. Olm builds one keymap row per bindi
 on its leader to the descriptor its action names, the descriptor's `when` and `repeats`
 travelling with it, so a binding never names a keycode. A binding whose action you do not answer
 is reported and left unbound. Windowmanager is the worked example on the window leader and capture
-on the app leader. A false `when` makes the key a swallowed no op on the window leader.
+on the app leader. A false `when` makes the key a swallowed no op on every leader, so it never
+leaks to the app in front, and an unknown predicate name stays active and is warned about once.
 
 Your tool's open row, with `registry.shortcut = "leader"`, sits on whichever leader the row
 names, the window leader included. It is not refused there, since the keymap binds every row on

@@ -1,15 +1,17 @@
 # Olm keymap, and leaders as data
 
-Status. Phases 0, 1 and 2a landed 2026-10-19, and phase 2b, launcher rows from descriptors and
-the retirement of `registry.commands` and the `defaults.key` shorthand, was built the same evening
-and awaits review and a live load. The plan is
+Status. Phases 0, 1, 2a and 2b landed 2026-10-19, and phase 3, one leader adapter, was built the
+same evening and awaits review and a live load. The plan is
 `dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/docs/PLAN-KEYMAP.md`.
 
 ## Now
 
-Olm has exactly two leaders, Hyper on the app role and META on the window role, each with its own
-adapter in `lib/hyperkey.lua` and `lib/windowleader.lua` and its own cheat sheet host, and the
-composition root names both. With phase 2a every global key is a row of the keymap,
+Olm builds one leader per catalog name a role references, Hyper on the app role and META on the
+window role here, each an instance of the one adapter `lib/leader.lua` with a held trigger and a
+policy from `policy.leaderPolicy`, plus a plain leader on an empty set of modifiers for a combo
+with no leader, and the composition root loops over them naming none. A key gated off is swallowed
+on every leader and an unknown predicate name warns once on every leader. The two cheat sheet
+hosts remain until phase 4. With phase 2a every global key is a row of the keymap,
 `lib/keymap.lua`, carrying the function it calls, and `lib/binder.lua` binds the keymap's bound
 list on the engine each row's leader names, or as a plain combo, in the order the five old paths
 used. A plugin answers what it can run as a list of descriptors through `provides.actions` and
@@ -118,6 +120,28 @@ aliases live only in `config/keymap.lua`.
   the descriptor, so either the gate was written twice or the sheet moved. The sheet now reads the
   keymap's rows on its leader, a step phase 4 had planned, and the gate and the repeat live once,
   on the action.
+
+- **Unifying the two tier rules in the merged resolver.** 2026-10-19 21:53. One rule for every
+  leader was the obvious shape for one adapter. But Hyper picks the best priority and lets a gated
+  binding drop out of its tier, while the window leader takes the first exact match, swallows a
+  gated one there and lets the last catch all win, and `test/leaders.lua` pins both. Either rule on
+  the other leader changes which binding answers some press, so the rule follows the `contexts`
+  policy and priority stays a property of a leader that hosts lists.
+- **Keeping `policy.hyperTrigger`, Hyper as a modifier chord with a hold reveal.** 2026-10-19
+  21:53. It was the chord shape inside the old hyperkey and still worked. The plan makes a named
+  set of modifiers a leader of its own and rejects a sheet on one, so keeping it would have meant a
+  modifier trigger with a reveal for one case nobody here uses. It is retired and named as a
+  problem line when a config sets it.
+- **Capture keeping a leader lib to wait on.** 2026-10-19 21:53. Generically it would ask the
+  leader adapter whether it is held. But capture's wait is unconditional, every action of it posts
+  a keystroke, and it waited on Hyper whichever leader its key sat on, so the fact belongs on the
+  descriptor as `afterRelease` and the core waits on the leader that actually fired. The clipboard
+  is the case where a lib stays, since its wait is the chosen provider's answer at the press.
+- **A plain combo resolved against the hardware modifiers when its callback runs.** 2026-10-19
+  21:53. That is what the chord shape did. `hs.hotkey` fires only on exactly the combination it
+  claimed, so the claimed set is the truth, and reading the hardware a moment later could turn a
+  press made with a finger lifted early into nothing, where the binder's own `hs.hotkey.bind`
+  always ran.
 
 ## Log
 
@@ -295,3 +319,56 @@ aliases live only in `config/keymap.lua`.
   paste next row with its chord, pasted with Ctrl, Option and V, started an area capture on Hyper
   and 4 and opened the VPN list, and called all of them good. The branch was squashed to one
   commit before merging so the machine specific app fixture never reached history.
+- 2026-10-19 21:53. Phase 3 built, awaiting review and a live load. `lib/leader.lua` replaces
+  `lib/hyperkey.lua` and `lib/windowleader.lua`, which are deleted, with the trigger a Strategy in
+  `lib/leader/triggers/held.lua`, one function key through ChordKey, and
+  `lib/leader/triggers/modifier.lua`, combos claimed through `hs.hotkey` on a base set, named only
+  in the root. The policy is `policy.leaderPolicy` beside `policy.leaderCatalog`, keyed by catalog
+  name, every field a boolean or a number apart from the sheet host, HYPER `tapTogglesCapsLock`,
+  `contexts` and the Hyper sheet, META and SUPER `drivenRepeat`, `quietOverLists` and the window
+  sheet, checked once with a problem line for a typo. The root builds the leaders in one loop over
+  the referenced catalog names and a plain leader on an empty base set, which the binder now hands
+  every row with no leader instead of calling `hs.hotkey.bind` itself, and it names no leader
+  anywhere. `appKeycode`, `windowKeycode`, both atoms, both two element lists, the role pair the
+  binder's engines were keyed by and the Hyper reveal closures are gone. The leader that hosts
+  list keys, the chooser field's yield, `leaderHeld` and the contexts stage are all the one leader
+  whose policy turns contexts on, a missing or second one a problem line. `hints.chordFor` spells
+  a binding's own leader through `leaderNames`, and the hint bar's default word is the context
+  leader's. The predicate table installs into every leader. Capture's wait for Hyper became the
+  descriptor field `afterRelease`, honoured by the leader that fired the key and by a launcher row
+  for every held leader, so capture lost `needs.lib.hyperKey`. The clipboard's `hyperKey` became
+  `leader`, a view answering whether any held leader is down. Every reader moved, the key probe and
+  the inventory to the new `_composed.leaders`, the bound recording to a tap on the adapter's own
+  `bind` that still labels an older spoon's two adapters, and the unit cases. Exactly two
+  behaviours changed as agreed, a key whose matching bindings are all gated off is swallowed on
+  every leader, and an unknown predicate name warns once on every leader. On this machine the keys
+  that flip outside a list from leaking to swallowed are Hyper and H, Q and Y, the file search
+  list's own keys, and inside any open list every Hyper key another list binds and this one does
+  not. A key dropped by the modal rule still passes through. The plan was wrong that the gated key
+  change would show in the keys golden, since that golden records bindings and not resolution, and
+  the host key check it listed had already gone in 2b. Proof, offline unless said. All three
+  goldens byte identical, `keys.sh --bound` matching and `--bound-order` against a copy of main the
+  same order on every key, the old probe against live main identical to the golden, the new probe
+  identical to it both against live main through its fallback and against the stubbed new root
+  through `_composed.leaders`, `test/leaders.lua` 116 checks with every old case held but the
+  named flips, the dry gate at 0 findings and 0 unknown with a clean rename proof and its binding
+  rule still refusing a bind under `plugins/` and `host/`, and the dependency check clean.
+- 2026-10-19 22:05. An adversarial review of the phase 3 commit found no blocker and six fixes, applied on top.
+  The swallow rule was described as narrower than it is. Inside an open list the modal rule drops
+  every base binding, and a key some other list binds is then swallowed through that list's gated
+  binding, so with the launcher open Hyper and A, D, F, L, M, R, S, X, H, Q and Y are swallowed while
+  B, C and E still pass through. The behaviour stays, it is the agreed rule, and `lib/leader.lua`,
+  the hammerspoon `AGENTS.md`, `Spoons/Olm.spoon/AGENTS.md` and `PLUGIN-CONTRACT.md` now state both
+  halves. The modifier trigger claims each combo under its own pcall, so one raise costs that combo
+  alone with one line naming its key and modifiers, the per row isolation the binder gave before.
+  It installs the repeat callback when any binding on a combo repeats rather than only the first,
+  resolving at each repeat, and reclaims a combo when a repeating binding arrives after start. It
+  passes a declared fn through to `hs.hotkey`, as main did. A launcher row that waits for release
+  now waits until no held leader is down, through `afterAllReleased` in the adapter, where it waited
+  on the first held leader alone. Two changes the phase 3 entry did not list are recorded here. META
+  now receives the merged predicate table every leader gets, every surface gate plus the root's own,
+  where it had the root's own alone, which changes nothing a binding on it names today. And the
+  overlay hide every action calls now takes down any leader's revealed sheet, the window sheet
+  included, where it hid the Hyper sheet alone, which matters only if an action runs while a window
+  sheet is up. The goldens, the bound recording and its order against main, the plain Lua cases at
+  130 checks, the dry suite, the dry gate and the dependency check all pass.

@@ -21,13 +21,11 @@ local M = {
   -- Uses app names from config/apps.lua. Reaches the plugin through the apptoggler entry in
   -- config/plugins.lua, which points at this list rather than copying it.
   -- An entry with no `modifiers` field binds into the Hyper modal, fired by holding the
-  -- Hyper key (Caps Lock, remapped to F18 and driven by HyperKey, now Olm's
-  -- lib/hyperkey.lua) plus the letter. A quick Caps Lock tap toggles real Caps Lock
-  -- instead. When HyperKey is not wired up in init.lua, AppToggler falls back to
-  -- binding such an entry to the literal ⇧⌃⌥⌘ combo it holds internally, so losing
-  -- HyperKey degrades the chord rather than the toggle.
+  -- Hyper key (Caps Lock, remapped to F18 and held through Olm's one leader adapter,
+  -- lib/leader.lua) plus the letter. A quick Caps Lock tap toggles real Caps Lock
+  -- instead. Olm binds every key, so there is no fallback combo any more.
   --
-  -- An entry that DOES state `modifiers` means the opposite of that fallback. It asks
+  -- An entry that DOES state `modifiers` binds outside the Hyper modal. It asks
   -- for a literal global combo through hs.hotkey.bind, live all the time rather than
   -- only while Hyper is held, which is what a placement toggle like the terminal's
   -- below needs, since it is pressed mid work rather than reached through a leader.

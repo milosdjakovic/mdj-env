@@ -46,7 +46,6 @@ obj._defaultProviders = nil  -- chain used when configure is given no providers
 
 -- Configured state
 obj._providers = nil     -- active chain, in priority order, contract-checked
-obj._hyperKey = nil
 obj._lastReason = nil    -- name -> last failing reason, for deduped live logging
 obj._deps = nil          -- injected per consumer dependency adapter, handed to each available()
 
@@ -66,8 +65,6 @@ end
 ---                  priority list is a list of words in their config, and turning a word into a
 ---                  backend has to happen inside this plugin, the only place that knows which
 ---                  file answers to which word.
---- opts.hyperKey  - optional HyperKey lib; when present, dispatch waits for its
----                  release, since Olm binds this plugin's keys on that leader
 --- opts.deps      - the per consumer dependency adapter, injected by the composition root
 ---                  and handed to each provider's available(). A provider backed by an
 ---                  external tool asks it rather than probing, so the probing happens once
@@ -76,7 +73,6 @@ end
 ---                  its own reason for standing aside.
 function obj:configure(opts)
   opts = opts or {}
-  self._hyperKey = opts.hyperKey
   self._deps = opts.deps
   self._providers = self:_validate(self:_named(opts.providers) or self._defaultProviders or {})
   self:_logAvailability()
@@ -177,52 +173,35 @@ end
 --- handles it; unavailable providers are skipped so a closed macshot falls
 --- through to native. A provider's reason is logged only when it changed since
 --- the last check (recovering to available logs once too), so holding the key
---- while macshot stays shut does not spam. Deferred until the Hyper key is
---- released so synthetic keystrokes are not swallowed.
+--- while macshot stays shut does not spam. It runs at once. A key that starts a capture waits for
+--- its leader to be released first, which Olm does because every descriptor below says
+--- afterRelease, so the native provider's synthetic chord is not swallowed by the tap still holding
+--- the leader down, and an overlay it opens still hears Escape.
 function obj:capture(action)
-  local function dispatch()
-    -- Every provider here fulfilled the contract at load, so supports/available/
-    -- trigger are guaranteed present.
-    for _, provider in ipairs(self._providers or {}) do
-      if provider:supports(action) then
-        local name = provider.name or "?"
-        local ok, reason = provider:available(self._deps)
-        if ok then
-          if self._lastReason[name] then
-            log.i(name .. " available")
-            self._lastReason[name] = nil
-          end
-          if provider:trigger(action) ~= false then
-            return
-          end
-        else
-          reason = reason or "unavailable"
-          if self._lastReason[name] ~= reason then
-            log.w(name .. " unavailable, " .. reason)
-            self._lastReason[name] = reason
-          end
+  -- Every provider here fulfilled the contract at load, so supports/available/
+  -- trigger are guaranteed present.
+  for _, provider in ipairs(self._providers or {}) do
+    if provider:supports(action) then
+      local name = provider.name or "?"
+      local ok, reason = provider:available(self._deps)
+      if ok then
+        if self._lastReason[name] then
+          log.i(name .. " available")
+          self._lastReason[name] = nil
+        end
+        if provider:trigger(action) ~= false then
+          return
+        end
+      else
+        reason = reason or "unavailable"
+        if self._lastReason[name] ~= reason then
+          log.w(name .. " unavailable, " .. reason)
+          self._lastReason[name] = reason
         end
       end
     end
-    log.w("no provider handled action '" .. tostring(action) .. "'")
   end
-
-  if self._hyperKey and self._hyperKey:isActive() then
-    -- Wait for release so the shared tap stops swallowing keys; otherwise the
-    -- native provider's synthetic chord is eaten and overlays ignore Escape.
-    --
-    -- The waiter is held in a field, because a Hammerspoon timer is userdata whose
-    -- finalizer stops it and one nothing refers to can be collected before it fires, which
-    -- here would lose the capture entirely with nothing said. A second capture requested
-    -- while the leader is still down replaces this one rather than queueing behind it,
-    -- since two capture overlays arriving together on release is not a usable outcome.
-    if self._releaseWait then self._releaseWait:stop() end
-    self._releaseWait = hs.timer.waitUntil(function()
-      return not self._hyperKey:isActive()
-    end, dispatch, 0.02)
-  else
-    dispatch()
-  end
+  log.w("no provider handled action '" .. tostring(action) .. "'")
 end
 
 -- The actions this plugin can run, the vocabulary the provider chain speaks, in the order their
@@ -242,14 +221,15 @@ local ACTIONS = {
 --- Method
 --- One action descriptor per capture action, declared as provides.actions. Olm binds whatever
 --- key a binding names to the descriptor's run and lists each in the launcher's catalog, so this
---- plugin never binds a key and builds no row of its own. A run starts the capture through the
---- chain, which waits for the leader to be released first.
+--- plugin never binds a key and builds no row of its own. Each says afterRelease, so a key runs it
+--- only once the leader that fired it is released, which used to be this plugin's own wait on
+--- Hyper and now follows the key to whichever leader it sits on.
 function obj:actions()
   local out = {}
   for _, a in ipairs(ACTIONS) do
     out[#out + 1] = {
       name = a.name, description = a.description, icon = a.icon,
-      subtitle = "Capture", kind = "capture",
+      subtitle = "Capture", kind = "capture", afterRelease = true,
       run = function() self:capture(a.name) end,
     }
   end

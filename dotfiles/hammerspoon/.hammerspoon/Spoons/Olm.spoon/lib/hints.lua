@@ -120,15 +120,20 @@ end
 
 -- A binding's chord label, shared by footerFor and rowsFor rather than each building its own
 -- copy, which is the whole reason the panel and the docked hint bar cannot print two
--- different words for the same chord. The spelling itself is asked of deps.chordLabel and
--- deps.leaderName rather than done here, so this file never learns how a leader's name or a
--- chord's words are put together, only that something answers both. Either missing degrades
--- to the bare glyph, the same shape footerFor already renders for a binding declaring
--- chord = false, so a missing collaborator lands on a shape this file already knows rather
--- than an invented one.
+-- different words for the same chord. The spelling itself is asked of deps.chordLabel and of
+-- the leader's word rather than done here, so this file never learns how a leader's name or a
+-- chord's words are put together, only that something answers both. The word is the binding's
+-- own leader's, deps.leaderNames keyed by the name the binding spells its leader with, and
+-- deps.leaderName for a binding that names none, a list key, which binds on the one leader
+-- hosting lists. Either missing degrades to the bare glyph, the same shape footerFor already
+-- renders for a binding declaring chord = false, so a missing collaborator lands on a shape
+-- this file already knows rather than an invented one.
 function obj.chordFor(binding, deps)
   local chordLabel = deps and deps.chordLabel
   local leaderName = deps and deps.leaderName
+  if binding.leader ~= nil and deps and deps.leaderNames then
+    leaderName = deps.leaderNames[binding.leader] or leaderName
+  end
   if chordLabel and leaderName then
     return chordLabel(leaderName, binding.key, binding.mods)
   end
