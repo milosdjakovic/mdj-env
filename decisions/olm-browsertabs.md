@@ -1,11 +1,12 @@
 # Olm BrowserTabs, the harness and the raise
 
-Status. The harness types untargeted and reads the live list before Return. The quick run of 10:14 on
-2026-10-19 passed 43, failed 1 and skipped 2, with every multi window case green. Two things are
-open. The reproducible first round reading of `frontmost on chrome` has no explained cause, since the
-leader theory was refuted on 2026-10-19. The open reading is that the list closes between the typing and
-the live read, by a closer not yet identified, and the measurement that names it is built and not yet
-run. The unexplained Chrome witness anomaly of 2026-10-17 has not recurred.
+Status. The harness types untargeted and reads the live list before Return. The quick run of 12:00 on
+2026-10-19 passed 44, failed 1 and skipped 1. The one failure, `no_query on chrome`, was the cross
+application raise declined by macOS, reproduced for the first time with evidence, and the engine now
+confirms a raise once and repeats it once. Two things are open. The first round close, `frontmost on
+chrome`, did not reproduce in two runs with the trace armed, and the trace stays armed. The Chrome witness
+anomaly of 2026-10-17 is unchanged. Whether the repeated raise is honoured where the first was declined
+has not been read.
 
 ## Now
 
@@ -32,21 +33,16 @@ The second quick run, from main at cb2d4da after the branch merged, ended at 10:
 passed 43, failed 1 and skipped 2, and all eight multi window cases ran and passed. The two skips are
 machine facts, no window in a tab group on Safari and no ordinary tab to pick on Chrome.
 
-Two things are open. The first is the reproducible first round reading. `frontmost on chrome`, the
-very first round of a quick run, failed at 08:39 and again at 10:14 with the same signature, typing
-not refused, the recomputed top row right, and the live read answering that no list is showing for its
-whole four second poll. Being first alone does not fail, since the Safari round was first in the
-rerun of 10:01 and passed, and Chrome frontmost alone does not fail, since `background_window on
-chrome` passed. The leader theory, that the token ran as Hyper chords and its last letter closed the list, was
-refuted on 2026-10-19 11:32, see the log. The open reading is simply that the list closes between the typing and
-the live read, by a closer not yet identified. The measurement is built and not yet run. The agent
-records the closing handler's own traceback, the field text, the frontmost application and every key
-down with its source stamp, so one run of the single case names the closer.
+The quick run of 12:00 on 2026-10-19 passed 44, failed 1 and skipped 1, and the engine now confirms a
+raise once and repeats it once, see the log. Two things are open. The first is the first round close.
+`frontmost on chrome` failed at 08:39 and 10:14 with the list closed before the live read, and it passed in
+the 11:50 and 12:00 runs, so it has not reproduced in two runs with the trace armed. The agent records the
+closing handler's traceback, the field text, the frontmost application and every key down with its source
+stamp, so a run that reproduces it names the closer. The trace stays armed.
 
-The second is the Chrome witness anomaly from 2026-10-17, which did not recur in any raise round of
-either quick run and is not explained. There the browser's dictionary, `hs.application:allWindows` and
-System Events disagreed about Chrome's windows, and a second Chrome process or profile sharing the
-bundle id is a plausible cause and unverified. It has nothing to do with typing.
+The second is the Chrome witness anomaly from 2026-10-17, unchanged. There the browser's dictionary,
+`hs.application:allWindows` and System Events disagreed about Chrome's windows, and a second Chrome
+process or profile sharing the bundle id is a plausible cause and unverified.
 
 ## Rejected
 
@@ -66,6 +62,10 @@ bundle id is a plausible cause and unverified. It has nothing to do with typing.
 - **Treating the first round failure as a flake to run again.** Rejected 2026-10-19. It reproduced on
   the first round of both quick runs with the same signature, so it is a reading with a most likely
   cause and a named measurement, recorded in the log entry of 2026-10-19 10:30.
+
+- **A raise retried in a loop or without a bound.** Rejected 2026-10-19. A loop keeps asking while the
+  person has moved on, and fights their own next activation. One confirmed repeat answers the reading,
+  since the failure is a single declined request and not a slow one.
 
 ## Log
 
@@ -295,3 +295,32 @@ runner prints a `closer` line per traceback line on failure, and prints the chor
 that reposted or released after a wait. The leader wiring is also checked, since a missing
 `leaderHeld` word read as never held. The ping answers `leaderWired`, the chord reply carries
 `wired`, and the run fails at the start when it is false. Nothing here was run against Hammerspoon.
+
+### 2026-10-19 12:26, the declined raise is reproduced and the engine repeats it once
+
+Two runs from the worktree that day, both before this entry. At about 11:50 `suite.sh --only frontmost`
+passed both rounds, the first round included, with the chord released at once and no repost, so the chord
+line never printed. At about 12:00 `suite.sh --quick`, with two windows in each browser opened on blank
+pages by id and closed after, passed 44, failed 1 and skipped 1, the skip being `tab_group on safari`.
+The first round, `frontmost on chrome`, passed. So the close between the typing and the live read did not
+reproduce under the trace in two runs, and the trace stays armed.
+
+The one failure was `no_query on chrome`, with com.apple.finder frontmost. The witnesses were these. The
+browser's own dictionary reported window 1206251595 on active tab 38, the fixture. System Events reported
+Finder frontmost. Chrome's own front window was the fixture window, named bttag58587x41, with a real
+position. The live read before Return held the fixture under the highlight with an empty query. So the
+provider selected the tab, the engine's `w:focus()` raised the window among Chrome's windows, and macOS
+declined the application activation. This is the discretionary cross application raise that
+`plugins/browsertabs/AGENTS.md` describes, seen for the first time under the harness with evidence, and
+the first time on the real path since the canvas became the default on 2026-10-14. The same case passed
+in the three quick runs before it that day, so it is intermittent. The console was clean after the
+restore.
+
+The plugin's note said a second raise is only worth adding against a failure that can be reproduced, and
+this one now is. The decision is that `focusTabWindow` in `plugins/browsertabs/engine.lua` arms one timer
+after any of its three raise calls, `RAISE_CONFIRM_SECONDS` of 0.15, kept as `M._raiseConfirm` and re armed
+by stopping the previous one. If the browser is not frontmost when it fires, it calls `app:activate(true)`
+once and logs one info line. The value is long enough for an honoured activation to have landed, since
+measured activations land within a few tens of milliseconds, and short enough that nobody sees a pause.
+The provider and the order of the activation are unchanged. Not run against Hammerspoon, and whether the
+repeat is honoured where the first was declined is unread.

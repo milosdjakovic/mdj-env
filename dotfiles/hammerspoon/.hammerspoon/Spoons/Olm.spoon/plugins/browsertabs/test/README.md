@@ -425,3 +425,18 @@ as a suite that checked it.
 It means the four known faults are still fixed and that a change did not reintroduce them. It does
 not prove an intermittent fault is gone, because some of these depend on timing and on what else
 the machine is doing. Regression protection, not proof.
+
+On 2026-10-19 at about 11:50 `suite.sh --only frontmost` from the worktree passed both rounds, the first
+round included, with the chord released at once and no repost, so the chord line never printed. The close
+between the typing and the live read did not reproduce, and the trace stays armed.
+
+At about 12:00 `suite.sh --quick` from the worktree, with two windows in each browser opened on blank
+pages by id and closed after, passed 44, failed 1 and skipped 1, the skip being `tab_group on safari`.
+The first round, `frontmost on chrome`, passed, so the first round reading has not reproduced in two
+runs with the trace armed. The one failure was `no_query on chrome`, with com.apple.finder frontmost.
+The browser's dictionary reported the fixture window on its fixture tab, System Events reported Finder
+frontmost, Chrome's own front window was the fixture window with a real position, and the live read
+before Return held the fixture under the highlight with an empty query. That round is the raise reading
+the notes predicted, the tab selected, the window raised among Chrome's windows, and the application
+activation declined. The same case passed in the three quick runs before it that day, so it is
+intermittent. The console was clean after the restore.

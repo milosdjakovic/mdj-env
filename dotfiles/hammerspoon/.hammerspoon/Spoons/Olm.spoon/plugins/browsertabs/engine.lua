@@ -130,6 +130,30 @@ function M.listTabs(cb)
   end
 end
 
+-- How long the raise is given to land before it is checked. Measured activations land within a few
+-- tens of milliseconds, so a tenth and a half of a second is long enough for an honoured one to have
+-- arrived, and short enough that a person never sees a pause before the repeat.
+local RAISE_CONFIRM_SECONDS = 0.15
+
+-- The raise is confirmed once and repeated once if it was declined. On 2026-10-19 the harness met the
+-- failure this guards against, `no_query on chrome` selected the right tab and raised the right
+-- window among Chrome's own windows while macOS declined to make Chrome frontmost, and Finder stayed
+-- in front. The canvas never holds the front, so the raise is a request from an application that
+-- never had it, and macOS honours that at its discretion. Asking again once is the answer to that
+-- reading, and it is never a loop, since a loop would fight the person's own next activation. The
+-- handle is kept on M and the previous one is stopped, so a pending check is never collected before it
+-- fires and a second activation never leaves two of them running.
+local function confirmRaise(app)
+  if M._raiseConfirm then M._raiseConfirm:stop() end
+  M._raiseConfirm = hs.timer.doAfter(RAISE_CONFIRM_SECONDS, function()
+    M._raiseConfirm = nil
+    if not app:isFrontmost() then
+      log.i("macOS declined the first raise of " .. tostring(app:name()) .. " and a second was sent")
+      app:activate(true)
+    end
+  end)
+end
+
 -- Bring the tab's own window forward, rather than the application it belongs to. Raising an
 -- application asks macOS to restore whichever window that application last had focused, which is
 -- very often not the one the tab lives in, so the browser arrives showing something else. Measured
@@ -164,6 +188,7 @@ local function focusTabWindow(app, windowID, windowName, tabTitle)
   for _, w in ipairs(windows) do
     if tostring(w:id()) == wid then
       w:focus()
+      confirmRaise(app)
       return nil
     end
   end
@@ -178,12 +203,14 @@ local function focusTabWindow(app, windowID, windowName, tabTitle)
       end
       if #matches == 1 then
         matches[1]:focus()
+        confirmRaise(app)
         return nil
       end
     end
   end
 
   app:activate()
+  confirmRaise(app)
   if tried == 0 then return "no id, no name and no title to match on" end
   return "no single window matched the name or the title"
 end

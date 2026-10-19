@@ -323,6 +323,21 @@ holds on the real path. Whether macOS still honours the raise from there is open
 harness reading. Milos's own hand test of the tabs list passed on 2026-10-17, which is a reading of
 a raise honoured from a canvas that never held the front, recorded in `decisions/olm-unified-search.md`.
 
+The failure was reproduced under the harness on 2026-10-19, on the real path, the first time since the
+canvas became the default. In a quick run at about 12:00, `no_query on chrome` failed with Finder
+frontmost. The witnesses were the browser's own dictionary reporting the fixture window on its fixture
+tab, System Events reporting Finder in front, and Chrome's own front window being the fixture window
+with a real position. The live read before Return held the fixture under the highlight with an empty
+query. So the provider selected the tab, `w:focus()` raised the window among Chrome's windows, and macOS
+declined the application activation. The same case passed in the three quick runs before it that day, so
+it is intermittent. That is a failure that can be reproduced, which is what the paragraph above said a
+second raise was waiting for. So the engine now confirms the raise once, 0.15 seconds after any of the
+three raise calls, and if the browser is still not frontmost it activates it a second time and logs the
+decline at info level. It repeats once and never loops, since a loop would fight the person's own next
+activation. The one confirmation timer is kept on the module and re armed, so a second activation never
+leaves two pending. Whether the repeat is honoured where the first was declined is not yet read, and it
+is the thing to look for in the next runs.
+
 A failure of this family can be reproduced now, on Safari, and the section below records exactly
 what it looks like. It is the open defect in this spoon and the next thing to work on.
 
