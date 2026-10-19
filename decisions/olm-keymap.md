@@ -289,3 +289,9 @@ aliases live only in `config/keymap.lua`.
   unbound rather than moved to the app leader. All three goldens match offline and live, the bound
   recording and the order against main match, and the dry suite, the dry gate and the dependency
   check are clean.
+- 2026-10-19 21:18. Phase 2b landed after a live load of the branch under a manual hold. The
+  console was clean, the wiring report said no problems, and keys, launcher rows and sheet
+  headers all matched their goldens live. Milos ran a window action from its launcher row, saw the
+  paste next row with its chord, pasted with Ctrl, Option and V, started an area capture on Hyper
+  and 4 and opened the VPN list, and called all of them good. The branch was squashed to one
+  commit before merging so the machine specific app fixture never reached history.
