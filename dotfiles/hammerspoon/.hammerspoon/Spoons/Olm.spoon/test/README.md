@@ -7,6 +7,8 @@ Spoons/Olm.spoon/test/suite.sh              # everything
 Spoons/Olm.spoon/test/suite.sh dry          # plain lua, no Hammerspoon, no lock, see below
 Spoons/Olm.spoon/test/ranking.lua           # one of the three dry runs, standalone, see below
 Spoons/Olm.spoon/test/icons.lua             # the icon engine, the config file, the row resolver and the two sources
+Spoons/Olm.spoon/test/leaders.lua           # the two leader adapters' resolvers as they stand, see below
+Spoons/Olm.spoon/test/keys.sh               # every bound chord in the live config, diffed against keys.golden
 Spoons/Olm.spoon/test/suite.sh structure    # no screen needed, fast, safe any time
 Spoons/Olm.spoon/test/suite.sh surface      # opens and closes every picker
 Spoons/Olm.spoon/test/suite.sh behaviour    # the hand written per plugin scenarios
@@ -74,6 +76,30 @@ still says by then. An accepted line a migration makes true again for a differen
 than the one written beside it is still worth a person's own second look, exact text
 matching alone cannot tell the difference, only catch the ones where the words no longer
 match at all.
+
+## The key inventory
+
+`keys.golden` is every chord the running configuration has bound, one line each, and every
+phase of the keymap plan must reproduce it exactly unless that phase says what changes. One
+command dumps the live config and diffs it against the golden, exit zero when identical.
+
+```
+Spoons/Olm.spoon/test/keys.sh            # dump and diff, exit 1 on a difference
+Spoons/Olm.spoon/test/keys.sh --update   # overwrite keys.golden, only when a change is intended
+```
+
+It only reads. It takes no lock, reloads nothing and posts no key, and it bounds its `hs` call
+and writes to a file rather than answering over the port. The live config is whichever checkout
+is stowed, so a worktree that is not live describes main, and checking a branch means taking the
+test lock first and giving it back after. `keys-probe.lua` carries the line format, how an owner
+is worked out, and what the probe cannot see. A `?` in the owner column is a chord nothing in
+the plan declares.
+
+`leaders.lua` is the other half, plain Lua with no Hammerspoon, run by `suite.sh dry`. It pins
+`HyperKey:_resolve` and the window leader's resolver as they stand, including the places they
+disagree, a false `when` skipping on one and swallowing on the other, and an unknown predicate
+passing silently on one and warning once on the other. A line there records current behaviour,
+not a judgement that it is right.
 
 ## The idea
 

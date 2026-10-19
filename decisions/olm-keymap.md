@@ -119,3 +119,13 @@ aliases live only in `config/keymap.lua`.
   folded in, aliases into `config/keymap.lua`, commands and special rows into descriptors, and the
   shorthand into `bindings` rows for `open`, and the plan now carries a table of each concern and
   its one way.
+- 2026-10-19 18:14. Phase 0 landed. `test/keys-probe.lua` reads every chord the live config has
+  bound, through the two leader engines and `hs.hotkey.getHotkeys`, and `test/keys.sh` diffs it
+  against `test/keys.golden`, 159 lines on main, 140 on Hyper, 16 on META and 3 plain combos, with
+  every owner resolved from declarations and none guessed. Two runs are byte identical.
+  `test/leaders.lua` pins both adapters' resolvers as they stand, 44 checks, the gated key
+  difference included. The read found three dormant binding paths the plan's list did not name,
+  capture's and the clipboard's `hs.hotkey.bind` for a binding stating `modifiers`, apptoggler's
+  literal Hyper fallback, and Hyper's chord trigger, none of which binds anything on this machine,
+  and all of which phase 2 removes. It also found that the window leader folds key case at bind,
+  so META and C is center with no shift tier, which the merge in phase 3 must keep.
