@@ -440,3 +440,8 @@ before Return held the fixture under the highlight with an empty query. That rou
 the notes predicted, the tab selected, the window raised among Chrome's windows, and the application
 activation declined. The same case passed in the three quick runs before it that day, so it is
 intermittent. The console was clean after the restore.
+
+A pass of `no_query` after the repeat was added says nothing about the repeat until the console is read.
+The harness cannot see the repeat. An info line saying the browser was not frontmost after the raise
+means the repeat was exercised, and the case result then says whether it was honoured. No line means it
+was not exercised.

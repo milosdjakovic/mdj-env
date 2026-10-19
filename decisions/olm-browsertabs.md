@@ -1,12 +1,13 @@
 # Olm BrowserTabs, the harness and the raise
 
 Status. The harness types untargeted and reads the live list before Return. The quick run of 12:00 on
-2026-10-19 passed 44, failed 1 and skipped 1. The one failure, `no_query on chrome`, was the cross
-application raise declined by macOS, reproduced for the first time with evidence, and the engine now
-confirms a raise once and repeats it once. Two things are open. The first round close, `frontmost on
-chrome`, did not reproduce in two runs with the trace armed, and the trace stays armed. The Chrome witness
-anomaly of 2026-10-17 is unchanged. Whether the repeated raise is honoured where the first was declined
-has not been read.
+2026-10-19 passed 44, failed 1 and skipped 1. The one failure, `no_query on chrome`, was a cross
+application raise after which the browser was not frontmost, observed once in four quick runs that day
+with witnesses, and the engine now confirms a raise once and repeats the same request once. Two things
+are open. The first round close, `frontmost on chrome`, did not reproduce in two runs with the trace
+armed, and the trace stays armed. The Chrome witness anomaly of 2026-10-17 is unchanged. Whether the
+repeat is honoured where the first was not has not been read, and only the console tells, since a passing
+run cannot.
 
 ## Now
 
@@ -34,7 +35,9 @@ passed 43, failed 1 and skipped 2, and all eight multi window cases ran and pass
 machine facts, no window in a tab group on Safari and no ordinary tab to pick on Chrome.
 
 The quick run of 12:00 on 2026-10-19 passed 44, failed 1 and skipped 1, and the engine now confirms a
-raise once and repeats it once, see the log. Two things are open. The first is the first round close.
+raise once and repeats the same request once, see the log. The console must be read after a run for the
+info line. No line means the repeat was not exercised, a line then a pass means it was honoured, and a
+line then a failure means it was declined too. Two things are open. The first is the first round close.
 `frontmost on chrome` failed at 08:39 and 10:14 with the list closed before the live read, and it passed in
 the 11:50 and 12:00 runs, so it has not reproduced in two runs with the trace armed. The agent records the
 closing handler's traceback, the field text, the frontmost application and every key down with its source
@@ -324,3 +327,33 @@ once and logs one info line. The value is long enough for an honoured activation
 measured activations land within a few tens of milliseconds, and short enough that nobody sees a pause.
 The provider and the order of the activation are unchanged. Not run against Hammerspoon, and whether the
 repeat is honoured where the first was declined is unread.
+Corrected 2026-10-19 12:32, see below.
+
+### 2026-10-19 12:32, four corrections to the entry of 12:26
+
+Four things in the entry of 12:26 and its commit were wrong or overstated, found in an adversarial
+review the same day. The first is that the repeat was not the same request as the first raise. The first
+raise on a window is `hs.window:focus()`, which makes the window main and brings only its application
+forward. The repeat was `app:activate(true)`, which brings every window of the application forward and
+re mains whatever window is focused at that moment, so it could undo the window choice that
+`focusTabWindow` exists to make. The repeat is now `w:focus()` when a window was focused and
+`app:activate()` otherwise, never `activate(true)`, and a repeat on a window already in front is
+idempotent, so an unneeded one after a Space change costs nothing.
+
+The second is that the log line stated an inference as fact, saying macOS declined the first raise. It
+now says what was read, that the application was not frontmost 0.15 s after the raise and is being
+raised again. The third is that the entry said measured activations land within a few tens of
+milliseconds, and no measurement backs that. The 0.15 seconds was chosen and not measured, long enough
+for an honoured raise to show as frontmost and short enough that nobody sees a pause, and the fullscreen
+case, a raise that crosses a Space, is where it would be too short if anywhere.
+
+The fourth is the word reproduced. The failure was observed once in four quick runs that day, with
+witnesses. The bar of a reproduced failure was taken as met by one witnessed occurrence, since the
+witnesses cannot tell a request macOS never honoured from a front held for under half a second and then
+lost. The commit subject, the plugin AGENTS.md and the Status line said reproduced and now say observed
+once.
+
+How to read the next run. A plain passing run proves nothing about the repeat, since the harness cannot
+see it. The console must be read after a run for the info line. No line means the repeat was not
+exercised. A line followed by a pass means it was honoured. A line followed by a failure means it was
+declined too. Not run against Hammerspoon.

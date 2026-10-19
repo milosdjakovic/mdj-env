@@ -130,26 +130,32 @@ function M.listTabs(cb)
   end
 end
 
--- How long the raise is given to land before it is checked. Measured activations land within a few
--- tens of milliseconds, so a tenth and a half of a second is long enough for an honoured one to have
--- arrived, and short enough that a person never sees a pause before the repeat.
+-- How long the raise is given to land before it is checked. The value was chosen and not measured.
+-- It is meant to be long enough for an honoured raise to show as frontmost and short enough that a
+-- person sees no pause before the repeat. The fullscreen case, a raise that crosses a Space, is where
+-- it would be too short if it is anywhere.
 local RAISE_CONFIRM_SECONDS = 0.15
 
--- The raise is confirmed once and repeated once if it was declined. On 2026-10-19 the harness met the
--- failure this guards against, `no_query on chrome` selected the right tab and raised the right
--- window among Chrome's own windows while macOS declined to make Chrome frontmost, and Finder stayed
--- in front. The canvas never holds the front, so the raise is a request from an application that
--- never had it, and macOS honours that at its discretion. Asking again once is the answer to that
--- reading, and it is never a loop, since a loop would fight the person's own next activation. The
--- handle is kept on M and the previous one is stopped, so a pending check is never collected before it
--- fires and a second activation never leaves two of them running.
-local function confirmRaise(app)
+-- The raise is confirmed once and repeated once if the browser is not frontmost. On 2026-10-19 the
+-- harness met the failure this guards against, `no_query on chrome` selected the right tab and raised
+-- the right window among Chrome's own windows while Finder stayed in front. The canvas never holds the
+-- front, so the raise is a request from an application that never had it, and macOS honours that at
+-- its discretion. The repeat is the same request as the first. When a window was focused, `w` is given
+-- and the repeat is `w:focus()`, which makes that window main and brings only its application forward.
+-- With no window the repeat is `app:activate()`. It is never `app:activate(true)`, since that brings
+-- every window of the application forward and re mains whatever window is focused at that moment,
+-- which can undo the window choice `focusTabWindow` exists to make. A repeat on a window already in
+-- front is idempotent, so an unneeded repeat after a Space change costs nothing. It repeats once and
+-- never loops, since a loop would fight the person's own next activation. The handle is kept on M and
+-- the previous one is stopped, so a pending check is never collected before it fires and a second
+-- activation never leaves two of them running.
+local function confirmRaise(app, w)
   if M._raiseConfirm then M._raiseConfirm:stop() end
   M._raiseConfirm = hs.timer.doAfter(RAISE_CONFIRM_SECONDS, function()
     M._raiseConfirm = nil
     if not app:isFrontmost() then
-      log.i("macOS declined the first raise of " .. tostring(app:name()) .. " and a second was sent")
-      app:activate(true)
+      log.i(tostring(app:name()) .. " was not frontmost " .. RAISE_CONFIRM_SECONDS .. " s after the raise, raising it again")
+      if w then w:focus() else app:activate() end
     end
   end)
 end
@@ -188,7 +194,7 @@ local function focusTabWindow(app, windowID, windowName, tabTitle)
   for _, w in ipairs(windows) do
     if tostring(w:id()) == wid then
       w:focus()
-      confirmRaise(app)
+      confirmRaise(app, w)
       return nil
     end
   end
@@ -203,14 +209,14 @@ local function focusTabWindow(app, windowID, windowName, tabTitle)
       end
       if #matches == 1 then
         matches[1]:focus()
-        confirmRaise(app)
+        confirmRaise(app, matches[1])
         return nil
       end
     end
   end
 
   app:activate()
-  confirmRaise(app)
+  confirmRaise(app, nil)
   if tried == 0 then return "no id, no name and no title to match on" end
   return "no single window matched the name or the title"
 end
