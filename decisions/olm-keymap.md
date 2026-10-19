@@ -143,3 +143,7 @@ aliases live only in `config/keymap.lua`.
   without one, and it cannot tell which tools are installed, so the offline run reports every
   one present, without which tmux sessions is left out of the plan and 6 lines go missing. The
   live `--keymap` projection is still owed, it needs the worktree made live under the test lock.
+- 2026-10-19 19:12. Phase 1 landed after a live load of the branch under the test lock. The
+  console was clean, the wiring report said no problems, the live root built 159 keymap rows, and
+  both `keys.sh --keymap` and `keys.sh` matched `keys.golden`. A review before the load put the
+  build under pcall, since a read model that binds nothing must never stop the keys after it.
