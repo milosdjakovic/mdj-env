@@ -115,13 +115,13 @@ inert there, since nothing loads without the marker and the marker is not commit
 Worth reading before changing anything here, because every one of them made the suite report
 success while testing nothing, which is the only failure mode of a test suite that really matters.
 
-Typed characters have to be posted at Hammerspoon by name rather than at whatever holds focus. This
-was found when every command still arrived by opening a URL, which took key focus off the list, so
-the characters landed in the application underneath and the list stayed unfiltered. Return kept
-working throughout, because the chooser catches Return with an event tap rather than through focus,
-so rounds still opened a tab and still passed. They were passing on the top row of an unfiltered
-list. The URL is gone now and the targeting stays, because posting at whatever holds focus was
-never right, it only stopped being obviously wrong.
+Typed characters had to be posted at Hammerspoon by name rather than at whatever held focus, for
+the native list. This was found when every command still arrived by opening a URL, which took key
+focus off the list, so the characters landed in the application underneath and the list stayed
+unfiltered. Return kept working throughout, because the chooser catches Return with an event tap
+rather than through focus, so rounds still opened a tab and still passed. They were passing on the
+top row of an unfiltered list. The targeting stayed after the URL went, because posting at whatever
+held focus was never right for the native list, it only stopped being obviously wrong.
 
 That trap flipped on 2026-10-14. The default chooser became a hand drawn canvas whose surface never
 becomes the key window, and its field reads keys only through a session level event tap. A
@@ -143,8 +143,10 @@ passed without ever causing any drift. The unique token counter had the same pro
 two browsers pages with the same name and made a round open the first browser's tab, reading
 exactly like the real fault this suite exists to catch.
 
-Asking the open chooser what it has highlighted does not work. Its selected row is only meaningful
-inside its own Return handler, and read from outside it reports the first row of the unfiltered
+Asking the open chooser what it has highlighted does not work on the legacy native provider. That
+is a fact about the native `hs.chooser` only, since the canvas provider's `selectedItem` and
+`query` read live state. The native chooser's selected row is only meaningful inside its own Return
+handler, and read from outside it reports the first row of the unfiltered
 list however the list is actually filtered. That reading was believed briefly and it accused the
 tool of opening tabs it had never been asked for, while a real Return in the same state opened the
 right one every time. The ranking is recomputed here instead, and the check that counts is the one
@@ -322,7 +324,21 @@ failing case types a query. The only full raise cases that passed were `no_query
 Safari, the one case that types nothing. In every Safari round the browser ended on tab one, a
 Google Drive page, and in most Chrome rounds the same Safari window ended frontmost, the same
 remembered tab winning every time. That is what a Return pressed on an unfiltered list looks like,
-since the top row of the resting order is the tab the tool opened most recently.
+since the top row of the resting order is the tab the tool opened most recently. It holds for every
+Safari round and most Chrome rounds, and not for all of them. In `duplicate_in_window on chrome`
+the typed round passed, with Chrome frontmost on the fixture's first copy and the accessibility
+witness seeing its window, where an unfiltered Return would have taken Safari's Drive tab as the
+rounds around it did. In the Chrome rounds the arrange already leaves the target tab active, so
+the selected tab witness proves little on Chrome.
+
+One more thing is open and is named the Chrome witness anomaly. In `hidden_app on chrome` Chrome
+ended frontmost with the target window focused per `hs.window.focusedWindow`, yet System Events
+reported no Chrome window for the whole settle and `allWindows` was empty. Across the Chrome rounds
+`allWindows` on Chrome returns an empty list while `focusedWindow` returns a Chrome window, and in
+`frontmost on chrome` the front window was a "Vicert One-Pager" window that the browser's own
+dictionary does not list. The browser's dictionary, `hs.application:allWindows` and System Events
+disagree. A second Chrome process or profile with the same bundle id is a plausible cause and is
+unverified. It has nothing to do with typing, and the rerun is where it will be read.
 
 The `top` precondition could not catch it. It is a ranking the agent recomputes from the plugin's
 rows through `rank.apply`, never a reading of the live list, so it said the right tab was on top
@@ -332,15 +348,17 @@ Return will take.
 
 The first belief, written into the decision log that evening, was focus changes after synthetic
 key presses on macOS 27 or a lapsed Automation grant. That was wrong. On 2026-10-19 at about 08:12
-a short script armed a temporary session key down tap for a second and a half and posted one
+a short script armed a temporary session key down tap for 1.6 seconds and posted one
 character with exactly the call `commands.type` made, targeted at Hammerspoon. In two runs the tap
 saw none of the posted keystrokes. It did see the real keys Milos pressed in the same window, two
 in the first run and one in the second, which is the control that the tap itself was working. So the
 query had been going to a place the field does not listen. The fix is in this change. The rerun
 after it is still owed, and it is also where the one real tool concern gets its first reading. The
 canvas never holds the front, so a raise that selects the right tab and leaves the browser behind
-would be the discretionary cross application raise in the spoon's own `AGENTS.md`, now met on the
-real path for the first time. It is to be watched in that rerun and not fixed before it has been
+would be the discretionary cross application raise in the spoon's own `AGENTS.md`, now met by the
+harness on the real path for the first time. Milos's own hand test of the tabs list passed on
+2026-10-17, which is a reading of a raise honoured from a canvas that never held the front, so
+this is the concern's first harness reading and not its first reading. It is to be watched in that rerun and not fixed before it has been
 seen.
 
 ## What is deliberately not covered

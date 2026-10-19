@@ -320,7 +320,8 @@ Since 2026-10-14 the default chooser is a canvas that never holds the front, so 
 which a raise was always honoured, the chooser having held the front a moment earlier, no longer
 holds on the real path. Whether macOS still honours the raise from there is open. It is recorded in
 `decisions/olm-browsertabs.md`, and the harness fix that went with it will give it its first
-reading.
+harness reading. Milos's own hand test of the tabs list passed on 2026-10-17, which is a reading of
+a raise honoured from a canvas that never held the front, recorded in `decisions/olm-unified-search.md`.
 
 A failure of this family can be reproduced now, on Safari, and the section below records exactly
 what it looks like. It is the open defect in this spoon and the next thing to work on.

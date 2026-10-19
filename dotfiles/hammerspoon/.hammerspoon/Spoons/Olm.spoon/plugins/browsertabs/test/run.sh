@@ -290,12 +290,14 @@ round() {
   # matches many and requiring uniqueness made an earlier version abort every round.
   #
   # This asks for the ranking rather than asking the open chooser what it has highlighted, which was
-  # tried and does not work. The chooser's selected row is only meaningful inside its own Return
-  # handler, and read from outside it reports the first row of the unfiltered list however the list
-  # is actually filtered. That reading was believed for one round of changes and it accused the tool
-  # of opening tabs it had never been asked for, while a real Return in the same state opened the
-  # right one every time. So the ranking is recomputed here, and the check that matters stays the
-  # one after Return, where what actually opened is compared against what was asked for.
+  # tried on the legacy native provider and does not work there. The native chooser's selected row
+  # is only meaningful inside its own Return handler, and read from outside it reports the first row
+  # of the unfiltered list however the list is actually filtered. That reading was believed for one
+  # round of changes and it accused the tool of opening tabs it had never been asked for, while a
+  # real Return in the same state opened the right one every time. The canvas provider reads live
+  # state and does not have that limit. So the ranking is recomputed here, and the check that
+  # matters stays the one after Return, where what actually opened is compared against what was
+  # asked for.
   note "    top  $(jq -c '[.rows[] | {title, url}]' <<<"$rows" 2>/dev/null)"
   if [ "$top" != "$url" ]; then
     hs_cmd key "name=escape" > /dev/null

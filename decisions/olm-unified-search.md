@@ -946,7 +946,7 @@ machine independently of search, most likely focus changes after synthetic key p
 27 or a lapsed Automation grant, and Milos's own hand test of the tabs list passed. Phase three
 merged on his word with the harness recorded as a broken check on main, to be investigated as its
 own item.
-Corrected 2026-10-19, see decisions/olm-browsertabs.md
+Corrected 2026-10-19 08:13, see below.
 
 ### 2026-10-17 21:45, phase four, the launcher on the engine and the search check
 
@@ -1030,9 +1030,13 @@ module reached through a parameter, a call's result or a variable index, a self 
 `:match(`, `:gmatch(`, a byte loop or a pattern variable of any other name, a position from find
 tested later, and any other rule a supplier drops rows by. `lib/ui` is not in the scanned set.
 
-### 2026-10-19 08:13, the harness failure was the harness typing at a window that no longer existed
+### 2026-10-19 08:13, the harness failure was the harness posting typing at a process whose window no longer listened
 
 Estimated, anchored to the probe of that morning. The BrowserTabs harness failure of 2026-10-17
 21:30 was the harness posting its typed query at the Hammerspoon process by name, which the canvas
-field, listening on a session event tap, never receives. The tool was not at fault and neither was
-search. The measurement, the fix and what is still open are in `decisions/olm-browsertabs.md`.
+field, listening on a session event tap, never receives. Search was not at fault. Whether the tool
+is, the rerun will say. The harness failure holds for every Safari round and most Chrome rounds,
+and not for all of them, so it is narrower than it first read. The 21:30 entry's sentence that the
+harness ranked the right tab to the top on every round, so the ranking under test held, rested on
+`top`, which the agent recomputes from the plugin's rows, so it said nothing about the live list.
+The measurement, the fix and what is still open are in `decisions/olm-browsertabs.md`.
