@@ -85,6 +85,17 @@ There is a precondition as well. The tab the case means to open has to be the to
 is pressed, since the top row is what Return takes. It is deliberately not required that the query
 match one row only, because a fuzzy match over a hundred tabs always matches many.
 
+That precondition is read from the live list since 2026-10-19. After the query is typed and before
+Return, the agent's `live` command asks the stage for the field text and the highlighted row, which
+are the default chooser provider's own live state, and the round requires that the field holds
+exactly what was typed and that the highlighted row is the intended tab. A round that types nothing
+still reads it, with an empty field. The `top` line stays as the ranking the agent computes from the
+plugin's rows, and it stays useful for diagnosis, but it is a ranking for a query it is handed and
+so it cannot see a query that never landed. The live read can, which is why it matters. A round now
+fails on the query not landing, with the field text in the reason, rather than on a wrong tab
+opening after Return. `commands.type` also refuses unless the tab list is showing, so a token is
+never typed into a browser page if the list closed between the showing check and the typing.
+
 ## Where things live
 
 `run.sh` is the mechanism. It knows how to put the tool through one round and how to judge the

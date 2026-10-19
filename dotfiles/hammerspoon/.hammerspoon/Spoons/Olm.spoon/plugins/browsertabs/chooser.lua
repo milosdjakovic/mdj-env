@@ -706,6 +706,16 @@ end
 -- completion path, intercept asked first exactly as every other row on every level already
 -- is.
 
+--- M.live() - what the shared stage holds right now, the field text and the item under the
+--- highlight, both read live through the root's own words. Present for the integration harness,
+--- which needs the one reading that sees a query that never landed. Nothing in the tool calls it.
+function M.live()
+  return {
+    query = cfg.stageQuery and cfg.stageQuery() or "",
+    item = cfg.stageSelectedItem and cfg.stageSelectedItem() or nil,
+  }
+end
+
 --- M:configure(opts) - merge injected deps across two callers. The spoon composition root
 --- injects `api`, its merged view over the engine, the recency memory and the permission
 --- probe. The main root injects stagePresent, stagePop, and redrawPresented, the root

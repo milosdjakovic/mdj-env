@@ -125,6 +125,12 @@ return {
         breaks = "an async tab listing, or a permission read, lands with nothing on screen following it, since neither has any other way to reach whatever is on screen" },
       stagePop = { source = "root", policy = "optional",
         breaks = "every child level's own Back row stands on the level it meant to leave rather than returning to its parent" },
+      -- Two live reads for the integration harness's `live` command only, the field text and the
+      -- highlighted row on the shared stage. Nothing in the tool reads them while it runs.
+      stageQuery = { source = "root", policy = "optional",
+        breaks = "the integration harness can no longer read the live field before Return, so a query that never landed goes unseen until the wrong tab opens" },
+      stageSelectedItem = { source = "root", policy = "optional",
+        breaks = "the integration harness can no longer read the live highlighted row before Return, so a wrong top row goes unseen until the wrong tab opens" },
     },
   },
 

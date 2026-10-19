@@ -13,7 +13,11 @@ never becomes the key window, and its field reads keys only through a session le
 untargeted events are the only kind it can receive. A round is judged by two witnesses that share
 no implementation, the browser's own dictionary and System Events. Its `top` precondition is a
 ranking the agent recomputes from the plugin's rows, so it proves what the ranking would put first
-and says nothing about what the live list shows. The Chrome witness anomaly is open. Across the
+and says nothing about what the live list shows, so since 2026-10-19 08:28 a round also reads the
+live field text and the live highlighted row through the stage before Return and requires the
+typed query and the intended tab, and `commands.type` refuses unless the list is showing. The
+read goes through the root words `stageQuery` and `stageSelectedItem` that the BrowserTabs surface
+exposes as `live()`. The Chrome witness anomaly is open. Across the
 Chrome rounds of the run of 2026-10-17, `hs.application:allWindows` on Chrome returned an empty
 list while `hs.window.focusedWindow` returned a Chrome window, and in `hidden_app on chrome`
 System Events reported no Chrome window for the whole settle although Chrome ended frontmost with
@@ -122,3 +126,19 @@ assumes the surface hands focus back to the app on hide, while the canvas never 
 macOS honours a cross application raise at its discretion for an application that never held it. A
 rerun that selects the right tab and leaves the browser behind would be the first real reading of
 that. It is to be watched and not fixed now, and `engine.lua` is not changed by this entry.
+
+### 2026-10-19 08:28, a round reads the live list before Return
+
+The harness had no reading of the live list. Its `top` precondition was a ranking the agent
+recomputes, so a query that never landed stayed invisible until the wrong tab opened. A new `live`
+command in `test/agent.lua` answers the field text, and the url and kind of the highlighted row,
+read from the stage, and `run.sh` requires after the ranking loop that the field equals the typed
+text and that the highlighted row is the intended tab, failing with the reason in each case. The
+`top` line stays for diagnosis. `commands.type` now refuses with a reason unless the tab list is
+showing, so a token is never typed into a browser page after the list closed. The stage could not
+be reached as `spoon.Olm._composed.modules.stage` from the agent, since the dependency check
+forbids any file under the plugins folder from naming that spoon. The lawful door is the root's
+published words, so the root gained `stageQuery` beside the existing `stageSelectedItem`, the
+BrowserTabs manifest declares both as optional, and the tool's surface answers them through a small
+`live()` the agent calls. Nothing in the tool reads it while it runs. Nothing was run here, since
+the rerun is still owed, and the first rerun will show the `live` line for the first time.

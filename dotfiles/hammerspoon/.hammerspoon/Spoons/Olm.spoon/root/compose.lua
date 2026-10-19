@@ -1256,6 +1256,13 @@ function obj.run(olm, cfg)
       return stageModule and stageModule:selectedItem() or nil
     end,
 
+    -- stageQuery, the live field text on the stage, "" when nothing is up. The BrowserTabs
+    -- harness reads it beside stageSelectedItem so a round can tell a query that never landed
+    -- from a ranking that was wrong, and no plugin reads it for behaviour.
+    stageQuery = function()
+      return stageModule and stageModule:query() or ""
+    end,
+
     -- stageTextBudget and stageTextWidth, the trickle migration's own addition, FileSearch's
     -- own fitDir, which used to measure a row's own room straight off the picker instance it
     -- held and now has no instance left to ask. Both proxy host/stage's own public methods,

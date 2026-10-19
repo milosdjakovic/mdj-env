@@ -271,12 +271,19 @@ round() {
     return 1
   fi
 
-  [ -n "$query" ] && hs_cmd type "text=$query" > /dev/null
+  if [ -n "$query" ]; then
+    typed=$(hs_cmd type "text=$query")
+    if [ "$(jq -r '.ok' <<<"$typed")" != "true" ]; then
+      hs_cmd key "name=escape" > /dev/null
+      printf 'typing was refused, %s' "$(jq -r '.err // "no reason given"' <<<"$typed")"
+      return 1
+    fi
+  fi
 
   # Wait for the intended tab to actually reach the top of the ranking, rather than sleeping a
   # guessed interval and hoping. The chooser reloads again when it opens, so the ranking can change
   # under a round for a second after the query is typed.
-  local waited=0 rows top
+  local waited=0 rows top typed live liveQuery liveURL
   while [ "$waited" -lt 40 ]; do
     rows=$(hs_cmd rows "query=$query" "n=3")
     top=$(jq -r '.rows[0].url // ""' <<<"$rows")
@@ -302,6 +309,38 @@ round() {
   if [ "$top" != "$url" ]; then
     hs_cmd key "name=escape" > /dev/null
     printf 'the intended tab was not the top row, the top row was %s' "$top"
+    return 1
+  fi
+
+  # The live list is read before Return, since Return takes whatever the list holds and not what
+  # this harness ranked. Two things are required, that the field holds exactly what was typed and
+  # that the highlighted row is the intended tab. The first catches a query that never landed, which
+  # the ranking above cannot see because it is computed here for a query it is handed. It is waited
+  # for like the ranking is, since the list reloads again just after it opens. A round that types
+  # nothing still reads it, with an empty query, and still requires the url.
+  waited=0
+  while [ "$waited" -lt 40 ]; do
+    live=$(hs_cmd live)
+    liveQuery=$(jq -r '.query // ""' <<<"$live")
+    liveURL=$(jq -r '.url // ""' <<<"$live")
+    [ "$(jq -r '.ok' <<<"$live")" = "true" ] && [ "$liveQuery" = "$query" ] && [ "$liveURL" = "$url" ] && break
+    sleep 0.1
+    waited=$(( waited + 1 ))
+  done
+  note "    live $(jq -c '{query, url, kind}' <<<"$live" 2>/dev/null)"
+  if [ "$(jq -r '.ok' <<<"$live")" != "true" ]; then
+    hs_cmd key "name=escape" > /dev/null
+    printf 'the live list could not be read, %s' "$(jq -r '.err // "no reason given"' <<<"$live")"
+    return 1
+  fi
+  if [ "$liveQuery" != "$query" ]; then
+    hs_cmd key "name=escape" > /dev/null
+    printf 'the query did not land, the field holds %s' "$liveQuery"
+    return 1
+  fi
+  if [ "$liveURL" != "$url" ]; then
+    hs_cmd key "name=escape" > /dev/null
+    printf 'the live top row is %s, not the intended tab' "$liveURL"
     return 1
   fi
 

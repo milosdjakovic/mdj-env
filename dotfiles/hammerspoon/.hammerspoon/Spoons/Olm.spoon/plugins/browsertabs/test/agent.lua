@@ -193,7 +193,16 @@ end
 -- Chrome rounds took the top row of an unfiltered list. Untargeted is right now because the field's
 -- own tap claims the characters while the list is up, so they land in the list and never in the app
 -- underneath, the way Return already arrives.
+--
+-- It refuses unless the tab list is showing, so a token is never typed into a browser page when the
+-- list closed between the runner's showing check and this command. Characters posted untargeted go
+-- to whatever holds the keyboard when nothing claims them.
 function commands.type(p, done)
+  local ui = spoon.BrowserTabs and spoon.BrowserTabs.chooser
+  if not (ui and ui.isShowing()) then
+    done({ ok = false, err = "the tab list is not showing, so nothing was typed" })
+    return
+  end
   hs.eventtap.keyStrokes(p.text or "")
   after(0.15, function() done({ ok = true }) end)
 end
@@ -214,6 +223,29 @@ end
 
 function commands.rows(p, done)
   done({ ok = true, rows = topRows(p.query, tonumber(p.n)) })
+end
+
+-- What the live list holds right now, read from the stage rather than recomputed. The field text
+-- and the highlighted row come from the default chooser provider's own state, which is live, so
+-- this is what a Return pressed this instant would take. It is the only reading here that sees a
+-- query that never landed, since `rows` ranks the plugin's rows for a query it is handed and would
+-- say the right tab is on top over a list that was never filtered. The stage is reached through
+-- the two root words the tool's surface is handed, never by opening the spoon, which the plugin
+-- boundary check forbids.
+function commands.live(_, done)
+  local ui = spoon.BrowserTabs and spoon.BrowserTabs.chooser
+  if not (ui and ui.isShowing()) then
+    done({ ok = false, err = "no list is showing" })
+    return
+  end
+  local live = ui.live()
+  local item = live.item
+  done({
+    ok = true,
+    query = live.query or "",
+    url = item and item.tab and item.tab.url or nil,
+    kind = item and item.kind or nil,
+  })
 end
 
 -- Which Space is current, and which Space each of a browser's windows is on. Both accessibility
