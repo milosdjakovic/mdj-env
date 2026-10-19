@@ -227,6 +227,8 @@ local function parseRelays(output)
           label = city .. ", " .. country,
           country = country, countryCode = ccode,
           city = city, cityCode = code,
+          detail = ccode .. " " .. code,
+          terms = { code, ccode },
         }
       end
     else

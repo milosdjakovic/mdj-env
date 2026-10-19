@@ -6,7 +6,8 @@
 --- load. It returns (ok, gap) rather than throwing, a soft shape the composition root
 --- in init.lua acts on to decide what a gap means. There a gap is a hard load time failure,
 --- since a provider that cannot answer the five required methods is not a backend this
---- engine can drive at all.
+--- engine can drive at all. The shape of a location is checked later, as each listing lands,
+--- by validateLocation and validateLocations below, since only a listing carries one.
 ---
 --- The methods a provider must implement.
 ---   available()                     returns whether the backend is installed, checked
@@ -25,12 +26,23 @@
 ---                                   only thing left for a backend whose caller has never
 ---                                   named a place.
 ---   disconnect(cb)                  take the tunnel down, then cb(ok, err).
----   listLocations(cb)               fetch the relays and call cb(list), each entry
----                                   { id, label, countryCode, cityCode } required, and
----                                   { country, city, detail } optional. detail is the
----                                   row's own subtitle text when the provider wants to
----                                   describe a location in its own terms rather than let
----                                   the caller assume every backend spells one the same way.
+---   listLocations(cb)               fetch the relays and call cb(list), each entry one
+---                                   location in the shape below.
+---
+--- The location shape. Every adapter owes all of these, and validateLocation checks them.
+---   id           string, a stable unique key for the place within this provider.
+---   label        string, the row title.
+---   detail       string, the row subtitle in the adapter's own spelling.
+---   countryCode  string, the country the flag is drawn from.
+---   cityCode     string, the adapter's own key for the city, which connect reads back off a
+---                target and which this plugin treats as opaque.
+---   terms        a table of strings, what the place also answers to, each a code or a name a
+---                person would type as the place's own name, never prose. It may be empty, and
+---                it is mandatory all the same, so an adapter states its answer on purpose.
+---   country, city  strings, optional.
+--- The shared layer holds no special case for any provider. The vocabulary of a provider, a
+--- city code or a gateway host, reaches the search only through terms and the subtitle only
+--- through detail, never through anything the row builder spells out for one backend.
 ---
 --- Optional methods, each probed for by name before it is called, so a provider that has
 --- no honest answer simply omits it and the caller degrades.
@@ -116,6 +128,43 @@ function M.validate(provider)
                                     name, wanted, info.nparams or 0)
       end
     end
+  end
+  return true
+end
+
+-- The fields a location must carry as strings.
+M.requiredLocationStrings = { "id", "label", "detail", "countryCode", "cityCode" }
+
+--- contract.validateLocation(loc) -> ok, gap
+--- True when loc is a table carrying every required field with the right type, or false and a
+--- phrase naming the first gap, written to read as the tail of a sentence the caller opens.
+--- Never throws.
+function M.validateLocation(loc)
+  if type(loc) ~= "table" then return false, "the location is not a table" end
+  for _, name in ipairs(M.requiredLocationStrings) do
+    if type(loc[name]) ~= "string" then
+      return false, name .. " is not a string"
+    end
+  end
+  if type(loc.terms) ~= "table" then return false, "terms is not a table of strings" end
+  for _, term in ipairs(loc.terms) do
+    if type(term) ~= "string" then return false, "terms is not a table of strings" end
+  end
+  for key in pairs(loc.terms) do
+    if type(key) ~= "number" then return false, "terms is not a table of strings" end
+  end
+  return true
+end
+
+--- contract.validateLocations(list) -> ok, index, gap
+--- True when list is a table whose every entry passes validateLocation, or false with the
+--- index of the first entry that does not and its gap. A list that is not a table answers
+--- index 0.
+function M.validateLocations(list)
+  if type(list) ~= "table" then return false, 0, "the listing is not a table" end
+  for index, loc in ipairs(list) do
+    local ok, gap = M.validateLocation(loc)
+    if not ok then return false, index, gap end
   end
   return true
 end

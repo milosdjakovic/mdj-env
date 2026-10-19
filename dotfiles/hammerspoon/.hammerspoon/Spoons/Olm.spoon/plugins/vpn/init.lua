@@ -273,13 +273,13 @@ end
 -- The target resolved to a human label, from three sources in that order. The loaded city
 -- list first, since a live match is the freshest wording and a country only target resolves
 -- there to the country name. Then a label the target carries, which a remembered one does,
--- since it was taken off the very row that was chosen. Then the raw codes, so the title is
--- never blank. Nil only when there is no target at all.
+-- since it was taken off the very row that was chosen. Then the codes as the provider gave
+-- them, never upper cased or re spelled here, so the title is never blank. Nil only when there is no target at all.
 --
 -- The carried label is what makes this read properly before the city list has landed, which
 -- is exactly when the action row is first drawn. Without it a backend whose cityCode is a
--- gateway host would spell that host into the title for the first moment of every open, and
--- upper cased at that, so the row would read as gibberish and then quietly correct itself.
+-- gateway host would spell that host into the title for the first moment of every open, so
+-- the row would read as gibberish and then quietly correct itself.
 local function targetLabel(t)
   if not t then return nil end
   for _, loc in ipairs(cache) do
@@ -288,8 +288,8 @@ local function targetLabel(t)
     end
   end
   if t.label then return t.label end
-  if t.cityCode then return t.cityCode:upper() .. ", " .. t.countryCode:upper() end
-  return t.countryCode:upper()
+  if t.cityCode then return t.cityCode end
+  return t.countryCode
 end
 
 --------------------------------------------------------------------------------
@@ -482,7 +482,8 @@ end
 -- self explaining install row, pinned so it shows under any query. Otherwise the action
 -- row leads only on the empty query, then every city follows, and the atom's shared
 -- matcher filters and ranks the cities against the query. Each city carries filterText
--- of its label plus country code, so typing London, USA, or gb all narrow it. The action
+-- of its label with the adapter's terms as names, so typing London or a code the adapter
+-- declared narrows it. The action
 -- row appears only when the field is empty, so a query never has to filter it out. Each
 -- city row carries its country flag as the icon.
 local function rows(query)
@@ -491,16 +492,16 @@ local function rows(query)
   if (query or "") == "" then out[#out + 1] = actionRow() end
   if #cache == 0 then out[#out + 1] = waitingRow() end
   for _, loc in ipairs(cache) do
+    -- The builder reads only the contract. The subtitle is the adapter's own detail, and
+    -- the search sees the label plus the adapter's declared terms as further names, so a
+    -- code spelled whole leads the list the way an emoji shortcode does.
     out[#out + 1] = {
       title = loc.label,
-      -- The provider's own description of the location when it offers one, since the two
-      -- backends do not spell a place the same way and neither spelling is the general
-      -- case. One names a country and a city code, the other a gateway host, so a caller
-      -- assuming either shape would be reading one backend's vocabulary into every other.
-      subTitle = loc.detail or (loc.countryCode .. " " .. loc.cityCode),
+      subTitle = loc.detail,
       icon = flagIcon(loc.countryCode),
       item = loc,
-      filterText = loc.label .. " " .. loc.countryCode,
+      filterText = loc.label,
+      names = loc.terms,
     }
   end
   out[#out + 1] = settingsRow()
@@ -750,6 +751,13 @@ function M.prepare(onReady)
   local onStatus, statusTimeout = landedGate(function(status) current = status end)
   local onTarget, targetTimeout = landedGate(function(loc) target = targetFrom(loc) end)
   local onList, listTimeout = landedGate(function(list)
+    -- A listing that breaks the location contract is refused whole and read as empty, so
+    -- the page shows its waiting row rather than a half contract.
+    local good, at, gap = contract.validateLocations(list or {})
+    if not good then
+      log.w(string.format("Vpn: the %s provider listed a location that breaks the contract, entry %d, %s", tostring(activeId), at, tostring(gap)))
+      list = {}
+    end
     cache = cfg.recency.order(list or {}, function(loc) return loc.id end)
     -- The recency rung of the target can only answer once the list is here, since it recovers a
     -- place by matching a remembered id against this backend's own locations. The target leg

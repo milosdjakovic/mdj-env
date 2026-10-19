@@ -19,15 +19,38 @@ A new file in `providers/`, one line in `PROVIDER_FILES` in `init.lua`, one entr
 half, a `DEPENDENCIES.map` line and a `Brewfile` entry. Nothing else in the plugin is
 touched, and the page picks the new backend up on its own.
 
-The five required methods are the ones every VPN genuinely has, and a new backend owes nothing
-beyond them. `selectedLocation` is worth adding only when the backend really does publish a
-readable selection, and leaving it out costs the tool nothing it cannot recover, since the
-target it would have answered is remembered here anyway.
+The five required methods are the ones every VPN genuinely has, and a new backend owes them and
+the location shape below. `selectedLocation` is worth adding only when the backend really does
+publish a readable selection, and leaving it out costs the tool nothing it cannot recover, since
+the target it would have answered is remembered here anyway.
 
-Nothing about naming a place is the new backend's job. It implements `connect(target, cb)` like
-the others and the row names where it is going, because the target comes from this plugin's own
-policy rather than from anything the provider reports. No file here names a backend except the
-roster line above, so there is no per backend wording to write and no branch to add.
+A location is one shape for every backend, and the backend fills in its own vocabulary. The
+required fields are these.
+
+- `id`, a stable unique key for the place.
+- `label`, the row title.
+- `detail`, the subtitle in the backend's own spelling (Mullvad, the country and city code, `al tia`) (IVPN, the gateway host, `us-ca-sjc`).
+- `countryCode`, which the flag is drawn from.
+- `cityCode`, the backend's own key for the city, which `connect` reads back off a target and
+  which this plugin treats as opaque (Mullvad, `tia`) (IVPN, the gateway host).
+- `terms`, the list of what the place also answers to, each a code or a name a person would
+  type as the place's own name and never prose, mandatory even when empty (Mullvad, the city
+  code and the country code, `tia` and `al`) (IVPN, the gateway host and the country code,
+  `us-ca-sjc` and `us`).
+
+`country` and `city` are optional. The row builder reads only these fields, the title from
+`label`, the subtitle from `detail`, the search names from `terms`, so no file here holds a
+special case for one backend and a code the person types is found only because the backend
+declared it. When a listing carries an entry that breaks this shape, `contract.validateLocations`
+names the entry and the gap, the whole listing is refused with one console line naming the
+backend, and the page shows its waiting row instead of a half contract.
+
+Naming where a connect goes is not the new backend's job. It implements `connect(target, cb)`
+like the others and the row names where it is going, because the target comes from this plugin's
+own policy rather than from anything the provider reports. Spelling the subtitle and declaring
+the terms of a location is the backend's job, since only it knows its own vocabulary. No file
+here names a backend except the roster line above, so there is no per backend wording to write
+and no branch to add.
 
 `contract.validate` checks arity as well as existence, and that is there for one specific
 mistake. `connect` used to take the callback first, so a provider written that way, or a new one
@@ -79,10 +102,12 @@ CLI exposes no reader for it. A method only one backend can answer is not a cont
 an interface extracted from a single implementation, so requiring it would force every future
 provider to invent an answer it does not have.
 
-The other shape change is `detail` on a location entry, optional, the provider's own subtitle
-text for a location. The two backends do not spell a place the same way, one naming a country
-and a city code and the other a gateway host, and neither spelling is the general case, so a
-caller assuming either would be reading one backend's vocabulary into every other.
+The other shape change was `detail` on a location entry, first optional and now required. It is
+the provider's own subtitle text for a location. The two backends do not spell a place the same
+way, one naming a country and a city code and the other a gateway host, and neither spelling is
+the general case, so a caller assuming either would be reading one backend's vocabulary into
+every other. It was made required on 2026-10-19 together with `terms`, since a fallback spelled
+in the row builder had been exactly that assumption. `decisions/olm-vpn.md` has the reasoning.
 
 ## Where a connect goes is stated, not read back
 
