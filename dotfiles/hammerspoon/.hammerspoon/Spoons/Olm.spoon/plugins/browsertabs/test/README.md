@@ -96,13 +96,14 @@ fails on the query not landing, with the field text in the reason, rather than o
 opening after Return. `commands.type` also refuses unless the tab list is showing, so a token is
 never typed into a browser page if the list closed between the showing check and the typing.
 
-The leader is traced as well, as a measurement of one suspected fault. The chord answers only once
-the tool's own word says the leader is no longer believed held, posting the leader's key up again
-with the same stamp up to three times when it is not, and a round fails with that reason if it
-never lets go. `commands.type` refuses with the reason that the leader is still believed held. The
-agent's `watch` and `watched` commands record the leader state and the showing flag every twenty
-milliseconds, only when either changes, and the runner prints them as a `trace` line, with the
-chord's reply as a `chord` line, only for a round that fails.
+The leader is traced as well, as hygiene and as a measurement. The chord answers only once the
+tool's own word says the leader is no longer believed held, posting the leader's key up again with the
+same stamp up to three times when it is not, and a round fails with that reason if it never lets go.
+`commands.type` refuses while the leader is believed held. The agent's `watch` and `watched` commands
+record the leader state, the showing flag, the field text, the frontmost application and every key down
+with its source stamp, and answer the closing handler's own time and traceback. The runner prints them
+as `trace`, `closer` and `chord` lines for a round that fails, and the chord line also for any round
+that reposted or waited. The run fails at the start when the `leaderHeld` word is not wired.
 
 ## Where things live
 
@@ -182,9 +183,10 @@ The chooser keeps the previous listing on screen while a new one is in flight, w
 person and a trap here, since rows read just after opening do not contain what the case arranged.
 Rounds wait for the intended tab to actually reach the top rather than sleeping a guessed interval.
 
-A token typed while the leader is believed held runs as Hyper chords instead of reaching the field,
-and its final x closes the list. This is the theory under test for the first round of a quick run,
-not an established fact, and the leader trace and the two refusals above exist to settle it.
+The theory that a token typed while the leader is believed held runs as Hyper chords and closes the
+list on its final x is refuted. Typed characters carry keycode 0 and no source stamp, so they never
+reach the chord path, and the token ends in a digit. The closer of the first round is not yet
+identified, and the trace records what closed the list, the field, the frontmost application and every key down.
 
 A locked screen produces failures that look exactly like the fault this suite is for. The
 accessibility layer keeps answering questions about processes while returning no windows for any of

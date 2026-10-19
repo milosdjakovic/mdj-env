@@ -230,14 +230,22 @@ screen_locked() {
   [ "$(ioreg -n Root -d1 -a 2>/dev/null | grep -c CGSSessionScreenIsLocked)" -gt 0 ]
 }
 
-# The two lines a failing round adds beside its other witnesses, the chord's reply and the leader
-# trace the agent recorded since the typing began. Asking for the trace stops the timer, so a round
-# that passes never prints it and the next round's watch starts clean.
+# The lines a failing round adds beside its other witnesses, the chord's reply, the trace the agent
+# recorded since the typing began, and the traceback of whatever closed the list. Asking for the trace
+# stops the timer, so a round that passes never prints it and the next round's watch starts clean.
 round_witness() {
-  local chord_reply=$1 trace
-  note "    chord $(jq -c '{ok, reposted, releasedAfter}' <<<"$chord_reply" 2>/dev/null)"
+  local chord_reply=$1 trace line
+  note "    chord $(chord_line "$chord_reply")"
   trace=$(hs_cmd watched)
   note "    trace $(jq -c '.samples // []' <<<"$trace" 2>/dev/null)"
+  note "    closer at $(jq -r '.closedAt // "none inside the watch"' <<<"$trace" 2>/dev/null) ms"
+  while IFS= read -r line; do
+    [ -n "$line" ] && note "    closer $line"
+  done < <(jq -r '.trace // empty' <<<"$trace" 2>/dev/null)
+}
+
+chord_line() {
+  jq -c '{ok, reposted, releasedAfter, wired, err}' <<<"$1" 2>/dev/null
 }
 
 # A round is always the whole path. A second driver that skipped the chord and the typing and
@@ -278,10 +286,15 @@ round() {
   local chorded
   chorded=$(hs_cmd chord "key=w" "hold=$hold")
   if [ "$(jq -r '.ok' <<<"$chorded")" != "true" ]; then
-    note "    chord $(jq -c '{ok, reposted, releasedAfter, err}' <<<"$chorded" 2>/dev/null)"
+    note "    chord $(chord_line "$chorded")"
     hs_cmd key "name=escape" > /dev/null
     printf 'the chord did not finish, %s' "$(jq -r '.err // "no reason given"' <<<"$chorded")"
     return 1
+  fi
+  # A chord that reposted or waited is worth seeing on a pass too, since it is the only sign of a
+  # lost key up that a passing round leaves.
+  if [ "$(jq -r '(.reposted // 0) + (.releasedAfter // 0)' <<<"$chorded" 2>/dev/null)" != "0" ]; then
+    note "    chord $(chord_line "$chorded")"
   fi
   if ! hs_wait_showing true; then
     printf 'the shortcut did not open the list'
@@ -509,6 +522,10 @@ if [ "$(hs_cmd ping | jq -r '.ok')" != "true" ]; then
   exit 1
 fi
 say "  config $(hs_cmd ping | jq -r '.config')"
+if [ "$(hs_cmd ping | jq -r '.leaderWired')" != "true" ]; then
+  say "the leaderHeld word is not wired"
+  exit 1
+fi
 
 # One chord that counts for nothing, because the first one after a config load has been seen to
 # arrive before the tool is ready and a suite whose first case fails for that reason reports a

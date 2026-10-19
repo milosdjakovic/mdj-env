@@ -668,6 +668,9 @@ end
 --- presentation block, told once whenever the stage hides the whole stack this tool's own
 --- levels sit on, never on a swap between them. Clears showing for M.isShowing below.
 function M.onClose()
+  -- The integration harness reads this to learn what closed the list, so it is recorded before
+  -- the showing flag clears.
+  M.lastClose = { at = hs.timer.secondsSinceEpoch(), trace = debug.traceback("", 2) }
   showing = false
 end
 
@@ -717,10 +720,16 @@ function M.live()
   }
 end
 
---- M.leaderHeld() - whether the Hyper leader is believed held right now, read through the root's
---- own word. Present for the integration harness only. False when the root hands no word.
+--- M.leaderHeld() answers whether the Hyper leader is believed held right now, read through the
+--- root's own word. Present for the integration harness only. False when the root hands no word.
 function M.leaderHeld()
   return cfg.leaderHeld ~= nil and cfg.leaderHeld() == true
+end
+
+--- M.leaderWired() answers whether the root handed the word at all, so a missing wire is told
+--- apart from a leader that is never held. Present for the integration harness only.
+function M.leaderWired()
+  return cfg.leaderHeld ~= nil
 end
 
 --- M:configure(opts) - merge injected deps across two callers. The spoon composition root

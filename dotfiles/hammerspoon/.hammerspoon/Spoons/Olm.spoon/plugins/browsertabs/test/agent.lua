@@ -174,7 +174,12 @@ end
 local commands = {}
 
 function commands.ping(_, done)
-  done({ ok = true, config = hs.configdir })
+  local ui = spoon.BrowserTabs and spoon.BrowserTabs.chooser
+  done({
+    ok = true,
+    config = hs.configdir,
+    leaderWired = ui ~= nil and ui.leaderWired ~= nil and ui.leaderWired() == true,
+  })
 end
 
 -- The chord answers only once the leader is believed released. The leader's key up can be lost,
@@ -187,6 +192,11 @@ end
 local RELEASE_POLL = 0.02
 local RELEASE_WINDOW_MS = 300
 local RELEASE_RETRIES = 3
+
+local function leaderWired()
+  local ui = spoon.BrowserTabs and spoon.BrowserTabs.chooser
+  return ui ~= nil and ui.leaderWired ~= nil and ui.leaderWired() == true
+end
 
 local function leaderHeld()
   local ui = spoon.BrowserTabs and spoon.BrowserTabs.chooser
@@ -201,7 +211,7 @@ function commands.chord(p, done)
     local function elapsed() return math.floor((hs.timer.secondsSinceEpoch() - started) * 1000) end
     local function poll(since)
       if not leaderHeld() then
-        done({ ok = true, releasedAfter = elapsed(), reposted = reposted })
+        done({ ok = true, releasedAfter = elapsed(), reposted = reposted, wired = leaderWired() })
         return
       end
       if elapsed() - since >= RELEASE_WINDOW_MS then
@@ -210,6 +220,7 @@ function commands.chord(p, done)
             ok = false,
             err = "the leader is still believed held after " .. reposted .. " repeated key ups",
             reposted = reposted,
+            wired = leaderWired(),
           })
           return
         end
@@ -293,27 +304,37 @@ function commands.live(_, done)
   })
 end
 
--- The leader trace. `watch` starts a timer sampling every twenty milliseconds for the given seconds,
--- six by default, and records a compact line only when the leader held state or the showing flag
--- differs from the sample before, plus the first one. `watched` stops it and answers the lines.
--- Both live on the module, since a timer nothing refers to is collected and the buffer is read
--- from a later command. The point is to see, when a round's typed token fails to land, whether the
--- leader was believed held while it was typed and when the list closed relative to that.
+-- The trace. `watch` starts a timer sampling every twenty milliseconds for the given seconds, six
+-- by default, and records a compact line only when the leader held state, the showing flag, the field
+-- text or the frontmost application differs from the sample before, plus the first one. It also runs
+-- a passive key down tap that records each event's keycode, source stamp, characters and leader
+-- state, and swallows nothing. `watched` stops both and answers the lines, with the closing
+-- handler's own time relative to the watch start when it falls inside the window, and its traceback.
+-- Everything lives on the module, since a timer or a tap nothing refers to is collected and the
+-- buffer is read from a later command. The point is to learn what closed the list when a round's
+-- typed token fails to land.
 local WATCH_POLL = 0.02
+local WATCH_SECONDS = 6
 
 local function stopWatch()
   if M.watcher then
     M.watcher:stop()
     M.watcher = nil
   end
+  if M.keyTap then
+    M.keyTap:stop()
+    M.keyTap = nil
+  end
 end
 
 function commands.watch(p, done)
   stopWatch()
   M.samples = {}
-  local seconds = tonumber(p.seconds) or 6
+  local seconds = tonumber(p.seconds) or WATCH_SECONDS
   local started = hs.timer.secondsSinceEpoch()
-  local lastHeld, lastShowing
+  M.watchStarted = started
+  local function stamp() return math.floor((hs.timer.secondsSinceEpoch() - started) * 1000) end
+  local lastHeld, lastShowing, lastField, lastFront
   M.watcher = hs.timer.new(WATCH_POLL, function()
     local elapsed = hs.timer.secondsSinceEpoch() - started
     if elapsed > seconds then
@@ -323,18 +344,49 @@ function commands.watch(p, done)
     local ui = spoon.BrowserTabs and spoon.BrowserTabs.chooser
     local held = leaderHeld()
     local showing = ui ~= nil and ui.isShowing() == true
+    local live = ui ~= nil and ui.live and ui.live() or nil
+    local field = live and live.query or ""
+    local app = hs.application.frontmostApplication()
+    local front = app and app:bundleID() or ""
+    local ms = stamp()
     if lastHeld == nil or held ~= lastHeld or showing ~= lastShowing then
-      M.samples[#M.samples + 1] = string.format("%dms held=%s showing=%s", math.floor(elapsed * 1000), tostring(held), tostring(showing))
+      M.samples[#M.samples + 1] = string.format("%dms held=%s showing=%s", ms, tostring(held), tostring(showing))
       lastHeld, lastShowing = held, showing
+    end
+    if lastField == nil or field ~= lastField then
+      M.samples[#M.samples + 1] = string.format("%dms field=%s", ms, field)
+      lastField = field
+    end
+    if lastFront == nil or front ~= lastFront then
+      M.samples[#M.samples + 1] = string.format("%dms front=%s", ms, front)
+      lastFront = front
     end
   end)
   M.watcher:start()
+  local props = hs.eventtap.event.properties
+  M.keyTap = hs.eventtap.new({ hs.eventtap.event.types.keyDown }, function(ev)
+    M.samples[#M.samples + 1] = string.format("key %dms code=%s source=%s chars=%s held=%s",
+      stamp(),
+      tostring(ev:getKeyCode()),
+      tostring(ev:getProperty(props.eventSourceStateID)),
+      tostring(ev:getCharacters()),
+      tostring(leaderHeld()))
+    return false
+  end)
+  M.keyTap:start()
   done({ ok = true })
 end
 
 function commands.watched(_, done)
   stopWatch()
-  done({ ok = true, samples = M.samples or {} })
+  local ui = spoon.BrowserTabs and spoon.BrowserTabs.chooser
+  local last = ui and ui.lastClose or nil
+  local closedAt, trace
+  if last and M.watchStarted and last.at >= M.watchStarted then
+    closedAt = math.floor((last.at - M.watchStarted) * 1000)
+    trace = last.trace
+  end
+  done({ ok = true, samples = M.samples or {}, closedAt = closedAt, trace = trace })
 end
 
 -- Which Space is current, and which Space each of a browser's windows is on. Both accessibility

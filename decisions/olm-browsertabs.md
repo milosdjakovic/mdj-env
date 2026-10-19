@@ -2,9 +2,10 @@
 
 Status. The harness types untargeted and reads the live list before Return. The quick run of 10:14 on
 2026-10-19 passed 43, failed 1 and skipped 2, with every multi window case green. Two things are
-open. The reproducible first round reading of `frontmost on chrome` now has its settling measurement
-built, a leader trace and a guard that refuse to type while the leader is believed held, and it has
-not yet been run. The unexplained Chrome witness anomaly of 2026-10-17 has not recurred.
+open. The reproducible first round reading of `frontmost on chrome` has no explained cause, since the
+leader theory was refuted on 2026-10-19. The open reading is that the list closes between the typing and
+the live read, by a closer not yet identified, and the measurement that names it is built and not yet
+run. The unexplained Chrome witness anomaly of 2026-10-17 has not recurred.
 
 ## Now
 
@@ -36,11 +37,11 @@ very first round of a quick run, failed at 08:39 and again at 10:14 with the sam
 not refused, the recomputed top row right, and the live read answering that no list is showing for its
 whole four second poll. Being first alone does not fail, since the Safari round was first in the
 rerun of 10:01 and passed, and Chrome frontmost alone does not fail, since `background_window on
-chrome` passed. The most likely cause is that the leader was still believed held after the round's
-chord, so the field yielded every key to Hyper and the token's last letter, x, which closes every
-list context, closed the list. That is unproven. The measurement is built as of the log entry of
-2026-10-19 11:22 and has not been run. A leader trace and a guard that refuses to type while the leader is held
-now ship together, so one run of the single case both measures and tests.
+chrome` passed. The leader theory, that the token ran as Hyper chords and its last letter closed the list, was
+refuted on 2026-10-19 11:32, see the log. The open reading is simply that the list closes between the typing and
+the live read, by a closer not yet identified. The measurement is built and not yet run. The agent
+records the closing handler's own traceback, the field text, the frontmost application and every key
+down with its source stamp, so one run of the single case names the closer.
 
 The second is the Chrome witness anomaly from 2026-10-17, which did not recur in any raise round of
 either quick run and is not explained. There the browser's dictionary, `hs.application:allWindows` and
@@ -234,6 +235,8 @@ together with the console for a ChordKey lost key up line, a reload banner, or a
 listening line. That measurement was not taken, so the item is recorded and left here. The Status and
 Now above were rewritten from this entry, and the multi window cases are no longer open.
 
+Corrected 2026-10-19 11:32, see below.
+
 ### 2026-10-19 11:22, the harness traces the leader through the typing and refuses to type while it is held
 
 Built from the theory of the entry of 2026-10-19 10:30, and not yet run. The root gained a word,
@@ -259,3 +262,36 @@ typing, the showing flag going false shortly after it, and the chord reply showi
 `reposted` or a failure. A trace with the leader never held and the list closing anyway would mean
 the theory is wrong and something else closed the list. The run is owed, and nothing here was run
 against Hammerspoon.
+
+Corrected 2026-10-19 11:32, see below.
+
+### 2026-10-19 11:32, the leader theory is refuted and the trace is rebuilt to name the closer
+
+The theory of the entry of 2026-10-19 10:30 and the guard of 11:22 rest on a mechanism that does not
+exist. It was refuted on three grounds, read from the code and the library without running anything
+against Hammerspoon. First, `hs.eventtap.keyStrokes` builds every character with keycode 0 and a
+unicode string, verified by disassembling libeventtap.dylib, so a typed letter can never resolve to
+the x binding. Second, `lib/chordkey.lua` at line 452 drops every event whose eventSourceStateID is
+not 1, and typed characters carry no stamp, so they never reach the chord path at all. Third, the
+token from `bt_uniq` in `test/cases.sh` is bttag, the process id, x, then a counter, so it ends in a
+digit and not in x. The sentence of the 10:30 entry about the token's final x was wrong, and so was
+the claim in the 11:22 entry that a token could run as chords.
+
+Two further statements of the 11:22 entry were also wrong. The refusal in `commands.type` only keeps a
+token from being typed while Hyper owns the keys. It does not ensure a token is never dispatched as
+Hyper chords, since typed characters cannot reach the chord path. And the chord reply does not report
+a repair either way. It reports a repair only when `reposted` is nonzero, and a clean release shows
+`reposted` as zero.
+
+What survives is hygiene. The chord's wait for the release and its repeated key up are sound
+practice against a lost key up, but they are no longer the test of the first round reading.
+
+The trace is rebuilt to name the closer. The `onClose` handler in `plugins/browsertabs/chooser.lua`
+records the time and a traceback in `M.lastClose`. The agent's `watch` also records the field text
+and the frontmost application's bundle id on change, and runs a passive key down tap recording each
+event's keycode, source stamp, characters and leader state. `watched` answers the samples, and the
+close time relative to the watch start when it falls inside the window, with the traceback. The
+runner prints a `closer` line per traceback line on failure, and prints the chord line on any round
+that reposted or released after a wait. The leader wiring is also checked, since a missing
+`leaderHeld` word read as never held. The ping answers `leaderWired`, the chord reply carries
+`wired`, and the run fails at the start when it is false. Nothing here was run against Hammerspoon.
