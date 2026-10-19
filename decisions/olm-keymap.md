@@ -200,7 +200,7 @@ aliases live only in `config/keymap.lua`.
   are a problem line rather than one engine silently replacing the other. The binding scan now
   sees `hs.hotkey.modal` and skips block comments. `olm-core-split.md` Now no longer says a
   window tool is refused. The golden, the bound recording and the order against main still match.
-- 2026-10-19 19:58. Phase 2a landed after a live load of the branch under a manual hold. The
+- 2026-10-19 19:54. Phase 2a landed after a live load of the branch under a manual hold. The
   console was clean, the wiring report said no problems, the live keys matched `keys.golden`, and
   Milos pressed one key from each binding path, the launcher on Hyper and space, a toggle, a
   window action on META, the placed terminal on Option and backtick, a tool's open key and Caps
