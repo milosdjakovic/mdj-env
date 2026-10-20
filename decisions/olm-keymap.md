@@ -433,3 +433,9 @@ aliases live only in `config/keymap.lua`.
   chord. And a supplied section no longer accepts `bindings`, only `rows`, a shape no supplier used
   and the contract never documented. Plain Lua cases cover each fix, 93 checks in
   `test/leadersheet.lua`.
+- 2026-10-20 08:45. Phase 4 landed after a live load of the branch under a manual hold. The console was
+  clean, the wiring report said no problems, and all three goldens matched live. Milos held Caps
+  Lock and Right Option and judged both sheets the same as before, the Hyper sheet's four columns
+  with its action rows and app sections, and the window sheet's two columns of wide badges. The
+  squashed commit was first built on main's moved tip and would have reverted another session's
+  handoff skill, which a diff caught before the merge, and it was rebuilt on its merge base.
