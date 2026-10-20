@@ -1,8 +1,8 @@
 # Olm keymap, and leaders as data
 
-Status. Phases 0, 1, 2a and 2b landed 2026-10-19, phase 3, one leader adapter, and phase 4, one
-sheet host, landed 2026-10-20, and phase 5, the person's keymap, was built the same morning and
-awaits review and a live load. The plan is
+Status. Phases 0 to 5 landed and live, 0 to 2b on 2026-10-19 and 3 to 5 on 2026-10-20, so a
+person sets any key in `config/keymap.lua`. Phases 6 and 7 are agreed and not started, held by
+Milos on 2026-10-20 to be picked up later. The plan is
 `dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/docs/PLAN-KEYMAP.md`.
 
 ## Now
@@ -533,3 +533,10 @@ aliases live only in `config/keymap.lua`.
   for META and E, and Milos confirmed META and E opened the VPN list, Hyper and P did nothing, VPN
   appeared on the window sheet, and the launcher row read META E. The entry was removed before
   merging, so main ships the file empty.
+- 2026-10-20 09:46. Milos agreed phases 6 and 7 and asked that they be noted rather than started. Phase 6 turns
+  app toggles and settings panes into actions built from data and deletes `config/keys.lua`,
+  phase 7 moves list keys into the keymap and makes `config/plugins.lua` refuse key fields. Until
+  then three transitional facts stand, recorded in the config header and the hammerspoon
+  AGENTS.md. A moved toggle shows its old chord on the Hyper sheet's app section and the launcher
+  app row, an entry naming `apptoggler.Ghostty` is refused because two toggles share that id, and
+  false frees global chords only.
