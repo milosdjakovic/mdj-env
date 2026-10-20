@@ -372,3 +372,10 @@ aliases live only in `config/keymap.lua`.
   included, where it hid the Hyper sheet alone, which matters only if an action runs while a window
   sheet is up. The goldens, the bound recording and its order against main, the plain Lua cases at
   130 checks, the dry suite, the dry gate and the dependency check all pass.
+- 2026-10-20 08:11. Phase 3 landed after a live load of the branch under a manual hold. The console was
+  clean, the wiring report said no problems, and all three goldens matched live. Milos checked
+  Caps Lock's tap, both cheat sheets on hold, a held window move on META, a list key inside the
+  launcher, a toggle, a capture after release, a plain combo paste and the placed terminal, all
+  good. He noticed a held move does not speed up the longer it is held, which is the recorded
+  design, a press moves movePixels and every repeat movePixelsHeld at the machine's steady rate,
+  nothing ramps. The test instruction that said it would speed up was wrong, not the code.
