@@ -1,7 +1,6 @@
 --- === contributions ===
 ---
---- How what other plugins contribute reaches a host. Two hosts ask today, the launcher with two
---- questions and a leader's cheat sheet with one.
+--- How what other plugins contribute reaches the launcher, with two questions.
 ---
 --- The launcher. Every action a plugin answers in provides.actions that is listed becomes a row
 --- of the launcher's own catalog, built here from the descriptor, its title, its subtitle, its
@@ -13,16 +12,12 @@
 --- what the launcher receives, one supplier per contributor and one runner per owner identity,
 --- and wraps a query row source so the rows it computes carry their owner too.
 ---
---- A leader's cheat sheet. A plugin declares provides.cheatSheetSections, a member answering
---- the sections it adds to the sheet of the leader its defaults.leader names, asked on every
---- show so a section may read live state. The sheet asks the set and names no plugin, and this
---- module hands it one ordered list mixing those suppliers with the sheet's own sections, placed
---- by defaults.cheatSheetOrder the way launcher rows are placed by defaults.launcherOrder.
----
---- The launcher's app rows. A plugin declares provides.launcherAppDetails, a member answering
---- what the launcher's row for an installed app shows beyond the app itself, keyed by bundle id,
---- the chord that brings it forward and the url the row opens. The launcher asks the set and
---- names no plugin, and this module hands it one function merging every supplier's answer.
+--- The launcher's app rows. An action whose descriptor names an app in app is not a row of its
+--- own. It merges into the launcher's row for that app, which shows the action's chord, so an
+--- app toggled by a key is listed once. This module answers that chord per bundle id, built from
+--- the descriptors and the keymap, and no plugin answers anything for it. That replaced
+--- provides.launcherAppDetails in phase 6 of the keymap plan, as a descriptor's group replaced
+--- provides.cheatSheetSections, which the leader sheet host now files by itself.
 ---
 --- It lives here rather than inline in the composition root since phase three of the core
 --- split, so the unit case can drive the very code the root runs instead of restating it.
@@ -154,7 +149,8 @@ end
 --- answering them owned, icon stamped and ordered. Then one supplier per plugin in plan order
 --- with an action that is listed, answering one row per such action in the plugin's own order,
 --- owned, stamped and ordered the same way, so a descriptor's row and a declared row are one
---- shape to the launcher. A descriptor whose listed is false gets no row.
+--- shape to the launcher. A descriptor whose listed is false gets no row, and neither does one
+--- naming an app in app, whose chord the app's own row shows instead, see appChords.
 ---
 --- One runner per owner identity. A plugin answering the launcherRun set runs its own rows. A
 --- plugin with listed actions has a chosen action row, its kind and name, run by that
@@ -195,7 +191,7 @@ function M.assemble(opts)
     local listed = {}
     for _, name in ipairs(actionOrder[directory] or {}) do
       local descriptor = answered[name]
-      if descriptor and descriptor.listed ~= false then
+      if descriptor and descriptor.listed ~= false and descriptor.app == nil then
         listed[#listed + 1] = name
       end
     end
@@ -230,153 +226,48 @@ function M.assemble(opts)
   return rowSuppliers, runners
 end
 
---- contributions.appDetails(opts) -> function() -> { [bundleID] = details }
---- opts.host        the identity of the host whose set answer is read, the launcher
---- opts.plan        the load plan and its sets
---- opts.manifests   every manifest by identity
---- opts.modules     every loaded module by identity
---- opts.registrar   lib/registrar.lua, for memberSpec, memberResolves and action
---- opts.log         optional, function(message) for a member that resolves to nothing or raises
+--- contributions.appChords(opts) -> function() -> { [bundleID] = details }
+--- opts.plan        the load plan, its order and its identities
+--- opts.actions     the validated action descriptors by plugin directory
+--- opts.actionOrder each plugin's action names in its own order, by directory
+--- opts.keymap      the built keymap, read for the chords the actions are bound to
 ---
---- One function the launcher calls whenever it builds its app rows, answering every supplier of
---- the launcherAppDetails set merged into one table keyed by bundle id. Asked then rather than at
---- load, because a supplier knows what it bound only after its own wiring step has run. Where two
---- suppliers answer one bundle id the earlier in the set's order wins the whole entry, since a
---- chord taken from one and a url from another would describe a row neither of them built. Each
---- supplier is wrapped so one that raises or answers something other than a table costs its own
---- details and nothing else. With no supplier the function answers an empty table, which is an
---- app row carrying no chord.
-function M.appDetails(opts)
-  local plan, modules = opts.plan or {}, opts.modules or {}
-  local say = opts.log or function() end
-  local sets = (plan.sets or {})[opts.host] or {}
-  local suppliers = {}
-  for _, identity in ipairs(sets.launcherAppDetails or {}) do
-    local call = modules[identity] and resolveMember(opts, identity, "launcherAppDetails", "the launcher")
-    if call then suppliers[#suppliers + 1] = { identity = identity, call = call } end
-  end
-  return function()
-    local out = {}
-    for _, s in ipairs(suppliers) do
-      local ok, details = pcall(s.call)
-      if not ok then
-        say("'" .. tostring(s.identity) .. "' failed answering its launcher app details, "
-          .. tostring(details))
-      elseif type(details) == "table" then
-        for bundleID, entry in pairs(details) do
-          if out[bundleID] == nil and type(entry) == "table" then out[bundleID] = entry end
+--- One function the launcher calls whenever it builds its app rows, answering, for every app some
+--- action names in its descriptor's app, the chord the app's row shows and the description beside
+--- it, { chord = { leader, key, mods }, description }. leader is the role the chord's leader
+--- answers, else the leader's own name, or nil for a plain combination. Walked in plan order and
+--- each plugin's own action order, so the first action of an app that has a chord gives the row
+--- its chord, except that a plain combination wins over a chord on a leader, since a combination
+--- appears on no cheat sheet and the row is the only place it can be found, while a leader chord
+--- keeps its sheet. The description is the one of the action whose chord is shown. An app whose
+--- actions have no chord answers nothing, which is an app row carrying no chord. Built once, since
+--- the keymap is built once per load.
+function M.appChords(opts)
+  local plan, actions, actionOrder = opts.plan or {}, opts.actions or {}, opts.actionOrder or {}
+  local out = {}
+  local bound = (opts.keymap or {}).bound or {}
+  for _, directory in ipairs(plan.order or {}) do
+    local identity = (plan.identity or {})[directory] or directory
+    local answered = actions[directory] or {}
+    for _, name in ipairs(actionOrder[directory] or {}) do
+      local descriptor = answered[name]
+      if descriptor and type(descriptor.app) == "string" then
+        for _, row in ipairs(bound) do
+          if row.owner == identity and row.action == name and row.key ~= nil then
+            local existing = out[descriptor.app]
+            local plain = row.leader == nil
+            if not existing or (plain and existing.chord.leader ~= nil) then
+              out[descriptor.app] = {
+                chord = { leader = not plain and (row.role or row.leader) or nil, key = row.key, mods = row.shownMods },
+                description = row.description,
+              }
+            end
+          end
         end
       end
     end
-    return out
   end
-end
-
---- contributions.sheetSections(opts) -> entries
---- opts.host        the identity of the cheat sheet host whose set answer is read
---- opts.role        the leader role word the sheet reveals, app or window, or opts.roles, a list of
----                  them for a leader answering more than one
---- opts.plan        the load plan, its sets and its effective defaults
---- opts.manifests   every manifest by identity
---- opts.modules     every loaded module by identity
---- opts.registrar   lib/registrar.lua, for memberSpec, memberResolves and action
---- opts.own         optional, the sheet's own sections, a list, placed as one block
---- opts.ownOrder    optional, the number the sheet's own block sits at
---- opts.log         optional, function(message) for a member that resolves to nothing
----
---- One ordered list for the sheet, each entry either one of its own sections, a plain table,
---- or a supplier, a function answering a list of sections when the sheet is shown. A supplier
---- is one plugin answering the cheatSheetSections set whose effective leader is the role this
---- sheet reveals, so a plugin on another leader never reaches this sheet, and one stating no
---- leader is left out rather than guessed at. Placed by the plugin's effective
---- cheatSheetOrder, the sheet's own block by ownOrder. A tie keeps the set's order of
---- suppliers and puts the sheet's own block after them, and an entry with no number sorts after
---- every numbered one, the rules launcher rows already follow.
----
---- A supplier on another role is skipped without a word, see unreachedSheetSections for the one
---- that reaches no sheet at all.
----
---- A supplier is wrapped so a member that raises or answers something other than a list costs
---- its own sections and nothing else. The sheet draws on a key hold, and one plugin's fault
---- must not leave the person holding a leader over an empty screen.
-function M.sheetSections(opts)
-  local plan = opts.plan or {}
-  local say = opts.log or function() end
-  local sets = (plan.sets or {})[opts.host] or {}
-  local blocks = {}
-
-  for position, identity in ipairs(sets.cheatSheetSections or {}) do
-    local eff = (plan.effective or {})[identity] or {}
-    -- A supplier on another role is another sheet's and is skipped here without a word. One host
-    -- draws every leader's sheet and each asks in turn, and the supplier that reaches no sheet
-    -- at all is named once by unreachedSheetSections.
-    local mine = eff.leader == opts.role
-    for _, role in ipairs(opts.roles or {}) do
-      if eff.leader == role then mine = true end
-    end
-    if mine and eff.leader ~= nil then
-      local call = (opts.modules or {})[identity]
-        and resolveMember(opts, identity, "cheatSheetSections", "the cheat sheet")
-      if call then
-        blocks[#blocks + 1] = { order = eff.cheatSheetOrder, position = position,
-          entries = { function()
-            local ok, sections = pcall(call)
-            if not ok then
-              say("'" .. tostring(identity) .. "' failed answering its cheat sheet sections, "
-                .. tostring(sections))
-              return {}
-            end
-            return type(sections) == "table" and sections or {}
-          end } }
-      end
-    end
-  end
-  if opts.own and #opts.own > 0 then
-    blocks[#blocks + 1] = { order = opts.ownOrder, position = math.huge, entries = opts.own }
-  end
-
-  table.sort(blocks, function(a, b)
-    if a.order ~= b.order then
-      if a.order == nil then return false end
-      if b.order == nil then return true end
-      return a.order < b.order
-    end
-    return a.position < b.position
-  end)
-
-  local out = {}
-  for _, block in ipairs(blocks) do
-    for _, entry in ipairs(block.entries) do out[#out + 1] = entry end
-  end
-  return out
-end
-
---- contributions.unreachedSheetSections(opts)
---- opts.host    the identity of the cheat sheet host whose set answer is read
---- opts.roles   the leader role words some sheet reveals, a list
---- opts.plan    the load plan, its sets and its effective defaults
---- opts.log     function(message), told once for each supplier no sheet reaches
----
---- Names every plugin that supplies cheat sheet sections and reaches no sheet, one that states no
---- defaults.leader or one whose leader answers a role no sheet reveals, since a supplier whose
---- sections reach nothing is otherwise indistinguishable from one that has nothing to show. It
---- replaced the line sheetSections said for each sheet it was asked, which with one host drawing
---- every leader would have named a supplier of the Hyper sheet as unreached while asking for the
---- window one.
-function M.unreachedSheetSections(opts)
-  local plan = opts.plan or {}
-  local say = opts.log or function() end
-  local revealed = {}
-  for _, role in ipairs(opts.roles or {}) do revealed[role] = true end
-  local sets = (plan.sets or {})[opts.host] or {}
-  for _, identity in ipairs(sets.cheatSheetSections or {}) do
-    local eff = (plan.effective or {})[identity] or {}
-    if not revealed[eff.leader] then
-      say("'" .. tostring(identity) .. "' supplies cheat sheet sections but reached no sheet, "
-        .. (eff.leader == nil and "it states no defaults.leader"
-          or ("its leader is '" .. tostring(eff.leader) .. "' and no sheet reveals that role")))
-    end
-  end
+  return function() return out end
 end
 
 return M

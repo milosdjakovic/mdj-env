@@ -9,9 +9,15 @@
 --- Placement and the show and hide toggle form both used to live in TerminalHandler.spoon,
 --- a whole spoon kept outside Olm for the one behaviour the terminal wanted, hide when
 --- frontmost instead of cycle, and land centered at a fixed size on whichever display it
---- was already on. Both turned out to be plain fields any appToggles entry can ask for,
---- `hides` and `placement`, rather than a tool of their own, so the spoon is gone and every
---- app this plugin already serves may now ask for the same thing.
+--- was already on. Both turned out to be plain fields any variant can ask for, `hides` and
+--- `placement`, rather than a tool of their own, so the spoon is gone and every app this
+--- plugin already serves may now ask for the same thing.
+---
+--- Since phase 6 of the keymap plan this plugin holds no key. It answers one action per app in
+--- its apps catalog, apptoggler.Safari, which focuses or cycles, and one per named variant,
+--- apptoggler.GhosttyPlaced, which carries the behaviour an app needs beyond that. Every
+--- descriptor names its app and a group answering whether the app is running, and Olm binds,
+--- lists and draws the rest, so a key moved in config/keymap.lua shows its new chord everywhere.
 
 local obj = {}
 obj.__index = obj
@@ -26,11 +32,8 @@ local log = hs.logger.new("AppToggler", "info")
 
 -- Configuration
 obj._apps = nil
-obj._appFocus = nil   -- lib/appfocus.lua, dot called, focus or cycle and toggle by url
-obj._toggles = nil    -- the toggle list the rows were built from
-obj._rows = nil       -- one complete binding row per toggle that resolved, see bindings
-obj._sheetItems = nil -- the leader toggles as cheat sheet rows, { key, name, bundleID, icon }
-obj._appDetails = nil -- bundle id to what the launcher's row for that app shows, see launcherAppDetails
+obj._appFocus = nil   -- lib/appfocus.lua, dot called, focus or cycle
+obj._actions = nil    -- the descriptors this plugin answers through provides.actions, see actions
 
 -- The async ready wait's own timing, ported unchanged from TerminalHandler, which is where
 -- it was tuned. A window a fresh launch or a fresh focus produces is not necessarily ready
@@ -145,23 +148,17 @@ end
 
 --- AppToggler:configure(opts)
 --- Method
---- Configure the spoon
+--- Configure the spoon. opts.apps is the bundle id catalog and opts.variants the named variants,
+--- both this plugin's own data, and the descriptors are built from them here, once per load.
 function obj:configure(opts)
   opts = opts or {}
   self._apps = opts.apps or {}
-  -- Focus or cycle and toggle by url, the core lib the manifest asks for through needs.lib.
-  -- Both used to be methods here, and the launcher reached them as siblings on this plugin.
-  -- Phase three of the core split moved them into lib/appfocus.lua so the launcher's app rows
-  -- name no plugin, and this plugin calls the same module rather than keeping a copy.
+  -- Focus or cycle, the core lib the manifest asks for through needs.lib. It used to be a
+  -- method here, and the launcher reached it as a sibling on this plugin. Phase three of the
+  -- core split moved it into lib/appfocus.lua so the launcher's app rows name no plugin, and
+  -- this plugin calls the same module rather than keeping a copy.
   self._appFocus = opts.appFocus
-  -- The leader default only routes which sheet receives the app sections, while every row
-  -- names the app role, so any other word would bind the keys on one leader and list them on
-  -- another's sheet, or on none. It is refused here, loudly.
-  if opts.leader ~= nil and opts.leader ~= "app" then
-    error("AppToggler binds its keys on the app leader only, so leader must be \"app\" and not "
-      .. tostring(opts.leader), 2)
-  end
-  self:_build(opts.toggles or {})
+  self:_build(self._apps, opts.variants or {})
   return self
 end
 
@@ -292,205 +289,147 @@ function obj:_setupPlacement(bundleID, placement)
   end)
 end
 
---- AppToggler:_buildAction(toggle, bundleID)
+--- AppToggler:_buildAction(variant, bundleID)
 --- Method
---- Builds one entry's key action, the show-and-hide or focus-or-cycle call its `hides`
---- field asks for (or the URL form when `url` is stated, untouched by either), then
---- placement when the entry declared one and the outcome was showing, launching, or
+--- Builds one variant's run, the show and hide or focus or cycle call its `hides` field asks
+--- for, then placement when the variant declared one and the outcome was showing, launching, or
 --- focusing rather than a plain cycle.
-function obj:_buildAction(toggle, bundleID)
+function obj:_buildAction(variant, bundleID)
   local self_ref = self
   return function()
     local outcome
-    if toggle.url then
-      outcome = self_ref._appFocus.toggleURL(bundleID, toggle.url)
-    elseif toggle.hides then
+    if variant.hides then
       outcome = self_ref:toggle(bundleID)
     else
       outcome = self_ref._appFocus.focusOrCycle(bundleID)
     end
-    if toggle.placement and PLACING_OUTCOMES[outcome] then
-      self_ref:_setupPlacement(bundleID, toggle.placement)
+    if variant.placement and PLACING_OUTCOMES[outcome] then
+      self_ref:_setupPlacement(bundleID, variant.placement)
     end
   end
 end
 
---- AppToggler:_build(toggles)
+--------------------------------------------------------------------------------
+-- Which apps are running, the group every descriptor answers at each show of a sheet.
+--------------------------------------------------------------------------------
+
+-- The two groups an app's row is filed under, the apps running now and the ones that are not,
+-- the second drawn faded with its title kept bright. One table each, so every descriptor
+-- answers the same two and the sheet gathers them into two sections.
+local RUNNING = { title = "RUNNING" }
+local DORMANT = { title = "DORMANT", faded = true }
+
+-- How long one answer about which apps run is kept. A sheet asks every app's group in the same
+-- show, and running apps are enumerated once, a single NSWorkspace call, rather than asked per
+-- app, which cost about twenty milliseconds an app and dominated the overlay's show latency. A
+-- quarter of a second covers one show and never a second one a person could make.
+local RUNNING_TTL = 0.25
+
+--- AppToggler:_isRunning(bundleID) -> boolean
 --- Method
---- One complete binding row per toggle whose app resolves, built once from the effective toggle
---- list when the plugin is configured. An entry with no `modifiers` field is a key on the app
---- leader, named by its role so this plugin never learns which physical key that is. An entry
---- that states `modifiers` is a plain combo, live all the time rather than only while the
---- leader is held, since stating a combo is asking to skip the leader entirely. Olm binds every
---- row, so this plugin binds nothing.
----
---- The sheet items and the launcher's app details are built here too, from exactly the entries
---- that became rows, the leader entries for the sheet and every one for the launcher, so neither
---- can list an app that has no key.
-function obj:_build(toggles)
-  -- Kept as given, the list the rows were built from, so the key inventory reads the toggles
-  -- where they are used rather than from a copy somewhere else.
-  self._toggles = toggles
-  local onLeader, built = {}, {}
-  self._rows, self._sheetItems, self._appDetails = {}, {}, {}
-  for _, toggle in ipairs(toggles) do
-    local ok, err = pcall(function()
-      local bundleID = self._apps[toggle.app]
-      if not bundleID then
-        log.w("Unknown app '" .. tostring(toggle.app) .. "' in config")
-        return
-      end
-      local row = {
-        action = toggle.app, key = toggle.key, description = toggle.description,
-        fn = self:_buildAction(toggle, bundleID),
-      }
-      if toggle.modifiers then row.mods = toggle.modifiers else row.leader = "app" end
-      -- Each entry is built on its own, so a lookup that raises for one app costs that app's row
-      -- and nothing else.
-      local entry = { toggle = toggle, bundleID = bundleID }
-      self._rows[#self._rows + 1] = row
-      built[#built + 1] = entry
-      if not toggle.modifiers then onLeader[#onLeader + 1] = entry end
-    end)
-    if not ok then
-      log.w("Toggle for '" .. tostring(type(toggle) == "table" and toggle.app or toggle)
-        .. "' failed to build, " .. tostring(err))
+--- Whether an app is running now, read from one enumeration of every running app shared by every
+--- question asked within RUNNING_TTL of it.
+function obj:_isRunning(bundleID)
+  local now = hs.timer.secondsSinceEpoch()
+  local fresh = type(now) == "number" and type(self._runningAt) == "number"
+    and now - self._runningAt < RUNNING_TTL
+  if not fresh or not self._running then
+    local running = {}
+    for _, app in ipairs(hs.application.runningApplications()) do
+      local bid = app:bundleID()
+      if bid then running[bid] = true end
     end
+    self._running, self._runningAt = running, now
   end
-  self._sheetItems = self:_sheetItemsFor(onLeader)
-  self._appDetails = self:_appDetailsFor(built)
-  return self
-end
-
---- AppToggler:bindings() -> rows
---- Method
---- The toggles as complete binding rows, declared as provides.bindings. Each row carries the
---- action name, the key, either the app leader role or the modifiers of a plain combo, the
---- description and the function the key calls. This is a bridge for keys still built from the
---- person's own data, which a later phase replaces with one action per app. Empty before
---- configure has run.
-function obj:bindings()
-  return self._rows or {}
+  return self._running[bundleID] == true
 end
 
 --------------------------------------------------------------------------------
--- What the launcher's row for a bound app shows, supplied through provides.launcherAppDetails.
--- The launcher read the person's toggles and app registry itself until the core split finished,
--- the same leak phase four removed from the Hyper sheet, so a core host knew this plugin's data
--- and its shape. It is built here now, from exactly the entries that became binding rows.
+-- The descriptors, one per app and one per variant
 --------------------------------------------------------------------------------
 
---- AppToggler:_appDetailsFor(bound)
---- Method
---- One entry per bundle id. Two toggles may name the same app, one on the app leader for the
---- ordinary focus and cycle and one stating its own modifiers for something like a placed
---- summon. The one with modifiers wins the chord the row shows, since a literal combo appears on
---- no cheat sheet and the row is the only place it can be found, while the leader entry keeps the
---- Hyper sheet as its own. A url from either belongs to the row whichever chord is shown, since
---- choosing the row always opens it. A leader entry names its leader by role, so the launcher
---- spells the leader's name and this plugin never writes the word Hyper.
-function obj:_appDetailsFor(bound)
+-- The fields a variant may carry beyond its app. A key or a modifiers field is the person's key
+-- choice, which config/keymap.lua holds, and a url a pane's, which System Settings answers as an
+-- action of its own, so each is named rather than ignored in silence.
+local VARIANT_FIELDS = { app = true, hides = true, placement = true, description = true }
+local MOVED = {
+  key = "a key belongs in config/keymap.lua, naming this variant as apptoggler.<name>",
+  modifiers = "modifiers belong in config/keymap.lua, written into the chord",
+  url = "a pane is opened by its System Settings action, systemsettings.<pane>, named in config/keymap.lua",
+}
+
+local function sortedNames(t)
   local out = {}
-  local function chordOf(toggle)
-    if toggle.modifiers then return { key = toggle.key, mods = toggle.modifiers } end
-    return { leader = "app", key = toggle.key }
-  end
-  for _, b in ipairs(bound) do
-    local t = b.toggle
-    local existing = out[b.bundleID]
-    if not existing then
-      out[b.bundleID] = { chord = chordOf(t), description = t.description, url = t.url }
-    else
-      if t.modifiers and not existing.chord.mods then
-        existing.chord = chordOf(t)
-        existing.description = t.description
-      end
-      existing.url = existing.url or t.url
-    end
-  end
+  for k in pairs(t or {}) do out[#out + 1] = k end
+  table.sort(out, function(a, b) return tostring(a) < tostring(b) end)
   return out
 end
 
---- AppToggler:launcherAppDetails()
+--- AppToggler:_build(apps, variants)
 --- Method
---- Bundle id to { chord, description, url } for every app this plugin bound, asked by the
---- launcher whenever it builds its app rows. chord is { leader, key } for a key on a leader, or
---- { key, mods } for a literal combo on no leader. Empty before configure has run.
-function obj:launcherAppDetails()
-  return self._appDetails or {}
-end
-
---------------------------------------------------------------------------------
--- The Hyper cheat sheet's app sections, supplied through provides.cheatSheetSections. They were
--- built by the sheet itself until phase four of the core split, from the same person data this
--- plugin binds, which made a core host know this plugin's data and its shape. They are built
--- here now, from exactly the entries that became rows on the app leader, so the sheet cannot
--- list a toggle that is not bound there.
---------------------------------------------------------------------------------
-
--- Order by key, alphanumeric first (0 to 9, a to z), then symbols such as ` and / at the end,
--- ignoring case. The running and dormant split keeps this order, so each group ends up sorted
--- the same way.
-local function keyRank(k)
-  return k:match("^%w$") and 0 or 1
-end
-
---- AppToggler:_sheetItemsFor(onLeader)
---- Method
---- Resolve each leader toggle's name and icon once, since both are disk work and the sheet is
---- shown on a key hold that must feel instant. An app that is not installed is dropped, so the
---- sheet never shows a row for something that is not on this machine. pathForBundleID answers
---- an empty string rather than nil for such an app, and an empty string is truthy in Lua, so
---- the test is for a non empty path.
-function obj:_sheetItemsFor(onLeader)
-  local items = {}
-  for _, m in ipairs(onLeader) do
-    -- Each lookup is guarded on its own, so one app whose name or icon raises is logged and
-    -- skipped while every other row stays.
-    local ok, err = pcall(function()
-      local path = hs.application.pathForBundleID(m.bundleID)
-      if path and path ~= "" then
-        items[#items + 1] = {
-          key = tostring(m.toggle.key),
-          name = hs.application.nameForBundleID(m.bundleID) or m.toggle.app,
-          bundleID = m.bundleID,
-          icon = hs.image.imageFromAppBundle(m.bundleID),
-        }
-      end
-    end)
-    if not ok then
-      log.w("Sheet row for '" .. tostring(m.toggle.app) .. "' failed, " .. tostring(err))
+--- One descriptor per app in the catalog, named by its catalog name, focusing or cycling it,
+--- then one per variant, named by the variant's own name, running the behaviour it asks for.
+--- Apps come first and each list is sorted by name, so the order is the same on every load.
+--- Every descriptor carries the bundle id in app, so the launcher shows its chord on that app's
+--- own row rather than listing it twice, and a group answering whether the app runs, so the sheet
+--- splits the apps into running and not running. A variant naming an app the catalog does not
+--- hold, or carrying a field that is not a variant's, is logged and the field or the variant left
+--- out, and every other descriptor is still built.
+function obj:_build(apps, variants)
+  local self_ref = self
+  local actions = {}
+  local function groupFor(bundleID)
+    return function() return self_ref:_isRunning(bundleID) and RUNNING or DORMANT end
+  end
+  for _, name in ipairs(sortedNames(apps)) do
+    local bundleID = apps[name]
+    if type(name) == "string" and type(bundleID) == "string" then
+      local appFocus = self._appFocus
+      actions[#actions + 1] = {
+        name = name, app = bundleID, group = groupFor(bundleID),
+        run = function() appFocus.focusOrCycle(bundleID) end,
+      }
     end
   end
-  table.sort(items, function(a, b)
-    local ra, rb = keyRank(a.key), keyRank(b.key)
-    if ra ~= rb then return ra < rb end
-    return a.key:lower() < b.key:lower()
-  end)
-  return items
+  for _, name in ipairs(sortedNames(variants)) do
+    local variant = variants[name]
+    local ok, err = pcall(function()
+      if type(variant) ~= "table" then
+        log.w("Variant '" .. tostring(name) .. "' is not a table, so it is left out")
+        return
+      end
+      for _, field in ipairs(sortedNames(variant)) do
+        if not VARIANT_FIELDS[field] then
+          log.w("Variant '" .. tostring(name) .. "' field '" .. tostring(field) .. "' is not read, "
+            .. (MOVED[field] or "a variant takes app, hides, placement and description"))
+        end
+      end
+      local bundleID = apps[variant.app]
+      if not bundleID then
+        log.w("Variant '" .. tostring(name) .. "' names the app '" .. tostring(variant.app)
+          .. "', which config/apps.lua does not hold, so it is left out")
+        return
+      end
+      actions[#actions + 1] = {
+        name = name, app = bundleID, group = groupFor(bundleID),
+        description = type(variant.description) == "string" and variant.description or nil,
+        run = self:_buildAction(variant, bundleID),
+      }
+    end)
+    if not ok then
+      log.w("Variant '" .. tostring(name) .. "' failed to build, " .. tostring(err))
+    end
+  end
+  self._actions = actions
+  return self
 end
 
---- AppToggler:cheatSheetSections()
+--- AppToggler:actions() -> descriptors
 --- Method
---- The app toggles as two sheet sections, the apps running now and the ones that are not,
---- dormant ones faded with their title kept bright. Running apps are enumerated once, a single
---- NSWorkspace call, rather than asked per item, which cost about twenty milliseconds an app
---- and dominated the overlay's show latency. The badge is the toggle's key exactly as written.
-function obj:cheatSheetSections()
-  local running = {}
-  for _, app in ipairs(hs.application.runningApplications()) do
-    local bid = app:bundleID()
-    if bid then running[bid] = true end
-  end
-  local open, closed = {}, {}
-  for _, item in ipairs(self._sheetItems or {}) do
-    local row = { badge = item.key, label = item.name, icon = item.icon }
-    if running[item.bundleID] then open[#open + 1] = row else closed[#closed + 1] = row end
-  end
-  return {
-    { title = "RUNNING", icons = true, alpha = 1.0, rows = open },
-    { title = "DORMANT", icons = true, alpha = 0.55, titleAlpha = 1.0, rows = closed },
-  }
+--- The descriptors built in configure, declared as provides.actions. Empty before configure has
+--- run.
+function obj:actions()
+  return self._actions or {}
 end
 
 return obj

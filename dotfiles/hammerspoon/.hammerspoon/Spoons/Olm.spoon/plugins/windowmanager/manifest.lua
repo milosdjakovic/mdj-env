@@ -14,9 +14,9 @@
 -- Its sixteen bindings hang off the WINDOW leader rather than the app leader, and every one
 -- of them, resize, move, center, maximize, and the display switch pair, depends on nothing
 -- local, they behave identically on every Mac. That is the test a default has to pass, and
--- it is why they belong here even though AppToggler's per app toggles do not, those need to
+-- it is why they belong here even though AppToggler's per app keys do not, those need to
 -- know which apps are installed and these need nothing. The order below is copied exactly
--- as config/keys.lua once had it, since it matches the cheat sheet grid, two switch display rows
+-- as the retired config/keys.lua once had it, since it matches the cheat sheet grid, two switch display rows
 -- gated on multiple displays, then resize, then move and center, then hide all last, and the
 -- descriptor list in init.lua keeps the same order for the launcher's rows.
 return {

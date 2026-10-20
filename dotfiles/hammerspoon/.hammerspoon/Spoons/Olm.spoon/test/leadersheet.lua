@@ -106,7 +106,7 @@ do
   eq(badges(entries[2]), "B,D", "groups: rows of one group share a section")
 end
 
--- A group that is a function makes the whole block one supplier, asked again on every show.
+-- A group that is a function makes the whole block one live entry, asked again on every show.
 do
   local host = fresh()
   local word = "First"
@@ -117,7 +117,7 @@ do
     { key = "d", description = "D", group = function() return 7 end },
   }, { glyphFor = glyphFor, layout = LAYOUT })
   eq(#entries, 1, "dynamic groups: the block is one entry")
-  eq(type(entries[1]), "function", "dynamic groups: and it is a supplier")
+  eq(type(entries[1]), "function", "dynamic groups: and it is a function")
   eq(titles(entries[1]()), "First,ACTIONS", "dynamic groups: a failure or a non word files the row under the title")
   word = "Second"
   eq(titles(entries[1]()), "Second,ACTIONS", "dynamic groups: the answer is asked again on every call")
@@ -168,7 +168,7 @@ do
   eq(#warnings, 1, "gate: once per name, not on every show")
 end
 
--- What the renderer is handed, and what a supplier's sections are checked against.
+-- What the renderer is handed, and what a live block's sections are checked against.
 do
   local host = fresh()
   local r = renderer()
@@ -301,56 +301,141 @@ do
   eq(merged.title, "ACTIONS", "defaults: the title included")
 end
 
--- Which suppliers reach which sheet. Each leader's sheet asks for its own role, and a supplier no
--- sheet reaches is named once, not once for every sheet that did not take it.
+-- Blocks. A row's owner places it by the number its orderOf answers, every other row sits at
+-- ownOrder, and blocks run in ascending order with a row of no number last, which is how the app
+-- toggler's rows lead the Hyper sheet at ten ahead of the sheet's own fifty.
 do
-  local contributions = assert(loadfile(here .. "../lib/contributions.lua"))()
-  local plan = {
-    sets = { leadersheet = { cheatSheetSections = { "toggler", "mover", "drifter", "nowhere" } } },
-    effective = {
-      toggler = { leader = "app" }, mover = { leader = "window" }, drifter = { leader = "extra" }, nowhere = {},
-    },
-  }
-  local function ask(role)
-    return contributions.sheetSections({
-      host = "leadersheet", role = role, plan = plan, manifests = {},
-      modules = {}, registrar = {}, own = { { title = "OWN", rows = {} } }, ownOrder = 50,
-    })
-  end
-  local both = contributions.sheetSections({ host = "leadersheet", roles = { "app", "window" }, plan = plan,
-    manifests = {}, modules = {}, registrar = {}, own = { { title = "OWN", rows = {} } }, ownOrder = 50 })
-  eq(#both, 1, "suppliers: a leader answering two roles asks for both, and an absent module adds nothing")
-  local reached = {}
-  contributions.unreachedSheetSections({ host = "leadersheet", roles = { "app", "window" }, plan = plan,
-    log = function(m) reached[#reached + 1] = m end })
-  eq(#reached, 2, "suppliers: every role a leader answers counts as revealed")
-  eq(#ask("app"), 1, "suppliers: a supplier whose module is absent adds nothing and the leader's own block stays")
-  local said = {}
-  contributions.unreachedSheetSections({ host = "leadersheet", roles = { "app", "window" }, plan = plan,
-    log = function(message) said[#said + 1] = message end })
-  eq(#said, 2, "suppliers: a supplier on a role no sheet reveals is named, and so is one stating none")
-  eq(said[1]:match("'drifter'") ~= nil and said[2]:match("'nowhere'") ~= nil, true, "suppliers: each by its identity")
+  local host = fresh()
+  local orders = { toggler = 10, late = 90 }
+  local entries = host.ownSections({
+    { key = "a", description = "Own A", owner = "tool" },
+    { key = "l", description = "Late", owner = "late", group = "LATE" },
+    { key = "s", description = "Safari", owner = "toggler", group = "APPS" },
+    { key = "b", description = "Own B", owner = "tool" },
+  }, { glyphFor = glyphFor, layout = LAYOUT, ownOrder = 50, orderOf = function(owner) return orders[owner] end })
+  eq(titles(entries), "APPS,ACTIONS,LATE", "blocks: each owner's rows sit at its own number")
+  eq(badges(entries[2]), "A,B", "blocks: the rows of no number of their own share the sheet's block")
+  local unordered = host.ownSections({
+    { key = "a", owner = "x" }, { key = "s", owner = "toggler", group = "APPS" },
+  }, { glyphFor = glyphFor, layout = LAYOUT, orderOf = function(owner) return orders[owner] end })
+  eq(titles(unordered), "APPS,ACTIONS", "blocks: with no number for the sheet's own rows they sort last")
 end
 
--- Provided rows, provides.bindings, reach a sheet unless their plugin supplies sections for it.
+-- Faded groups. A group table asking to be faded is drawn dimmed with its title bright, and a
+-- faded section always follows every section in full colour of its block, whichever came first.
+do
+  local host = fresh()
+  local DORMANT = { title = "DORMANT", faded = true }
+  local entries = host.ownSections({
+    { key = "a", description = "A", group = DORMANT },
+    { key = "b", description = "B", group = { title = "RUNNING" } },
+  }, { glyphFor = glyphFor, layout = LAYOUT })
+  eq(titles(entries), "RUNNING,DORMANT", "faded: a faded section follows one in full colour")
+  eq(entries[2].alpha, 0.55, "faded: the whole section is dimmed")
+  eq(entries[2].titleAlpha, 1.0, "faded: and its title is kept bright")
+  eq(entries[1].alpha, 1.0, "faded: a section in full colour is opaque")
+  eq(entries[1].titleAlpha, nil, "faded: with no title alpha of its own")
+end
+
+-- App rows. A row standing for an app wears the app's icon and name, resolved once, an app not on
+-- this machine is left off, and a section of app rows is an icon grid ordered by key, letters and
+-- digits before symbols, the way the app sections have always been drawn.
+do
+  local host = fresh()
+  local asked = {}
+  local installed = {
+    ["com.s"] = { name = "Safari", icon = "safariIcon" },
+    ["com.g"] = { name = "Ghostty", icon = "ghosttyIcon" },
+    ["com.f"] = { name = "Finder", icon = "finderIcon" },
+    ["com.v"] = { icon = "codeIcon" },
+  }
+  local function appInfo(bundleID)
+    asked[#asked + 1] = bundleID
+    return installed[bundleID]
+  end
+  local entries = host.ownSections({
+    { key = "`", app = "com.g", owner = "toggler", group = "APPS" },
+    { key = "s", app = "com.s", owner = "toggler", group = "APPS" },
+    { key = "x", app = "com.missing", owner = "toggler", group = "APPS" },
+    { key = "f", app = "com.f", owner = "toggler", group = "APPS", description = "Files" },
+    { key = "v", app = "com.v", owner = "toggler", group = "APPS", action = "VisualStudioCode" },
+    { key = "o", description = "Other", owner = "tool" },
+  }, { glyphFor = glyphFor, layout = LAYOUT, appInfo = appInfo, ownOrder = 50,
+       orderOf = function(owner) return owner == "toggler" and 10 or nil end })
+  eq(#asked, 5, "apps: each app is resolved once, at build")
+  eq(titles(entries), "APPS,ACTIONS", "apps: the app rows keep their own block")
+  eq(badges(entries[1]), "F,S,V,`", "apps: an app not installed is left off and the rest run by key, symbols last")
+  eq(entries[1].rows[3].label, "VisualStudioCode", "apps: an app with no name from macOS wears its catalog name")
+  eq(entries[1].icons, true, "apps: a section of app rows is an icon grid")
+  eq(entries[1].iconSize, nil, "apps: keeping the renderer's icon gutter")
+  eq(entries[1].rows[2].label, "Safari", "apps: a row stating no description wears the app's name")
+  eq(entries[1].rows[2].icon, "safariIcon", "apps: and the app's icon")
+  eq(entries[1].rows[1].label, "Files", "apps: a description the descriptor states wins over the app's name")
+  eq(entries[2].iconSize, 0, "apps: a section of other rows stays a plain grid")
+  eq(entries[2].rows[1].icon, nil, "apps: and draws no icon")
+  local mixed = host.ownSections({
+    { key = "s", app = "com.s" }, { key = "o", description = "Other" },
+  }, { glyphFor = glyphFor, layout = LAYOUT, appInfo = appInfo })
+  eq(mixed[1].icons, nil, "apps: a section mixing app rows and others is a plain grid")
+  eq(mixed[1].rows[1].icon, nil, "apps: and an app row in it draws no icon")
+end
+
+-- The gaps phase 6 of the keymap plan closes, proved through the code a live load runs. An app
+-- toggle is an action built from data, so a toggle the person moves in config/keymap.lua binds its
+-- new chord, shows it on the Hyper sheet's app section, which splits running from not running at
+-- every show, and on the app's own launcher row, and the plain toggle and the placed variant of
+-- one app are two ids, so naming the plain one is accepted.
 do
   local hints = assert(loadfile(here .. "../lib/hints.lua"))()
   local keymapLib = assert(loadfile(here .. "../lib/keymap.lua"))()
+  local contributions = assert(loadfile(here .. "../lib/contributions.lua"))()
   local plan = {
-    effective = { toggler = { leader = "app" }, other = { leader = "app" } },
-    identity = {}, contexts = {}, order = { "toggler", "other" },
+    effective = { toggler = { leader = "app", cheatSheetOrder = 10 }, tool = { leader = "app" } },
+    identity = {}, provenance = {}, contexts = {}, order = { "toggler", "tool" },
   }
+  local running = { ["com.s"] = true }
+  local RUNNING, DORMANT = { title = "RUNNING" }, { title = "DORMANT", faded = true }
+  local function group(bundleID) return function() return running[bundleID] and RUNNING or DORMANT end end
   local fn = function() end
+  local actions = { toggler = {
+    Safari = { name = "Safari", run = fn, app = "com.s", group = group("com.s") },
+    Mail = { name = "Mail", run = fn, app = "com.m", group = group("com.m") },
+    Ghostty = { name = "Ghostty", run = fn, app = "com.g", group = group("com.g") },
+    GhosttyPlaced = { name = "GhosttyPlaced", run = function() end, app = "com.g", group = group("com.g"),
+      description = "Terminal placed" },
+  } }
+  local actionOrder = { toggler = { "Ghostty", "Mail", "Safari", "GhosttyPlaced" } }
+  local keys = keymapLib.readConfig({ keys = {
+    ["hyper+Q"] = "toggler.Safari", ["hyper+M"] = "toggler.Mail",
+    ["hyper+G"] = "toggler.Ghostty", ["alt+`"] = "toggler.GhosttyPlaced",
+  } }, { catalog = { HYPER = true, META = true }, roleWords = { "app", "window" } })
+  eq(#keys.problems, 0, "gaps: the keymap reads")
   local result = keymapLib.build({ plan = plan, roles = { app = "HYPER", window = "META" },
-    provided = { toggler = { { action = "Safari", key = "s", leader = "app", fn = fn } },
-      other = { { action = "openMail", key = "m", leader = "app", fn = fn, description = "Mail" } } } })
+    actions = actions, personKeys = keys.keys })
+  eq(#result.problems, 0, "gaps: an entry naming the plain toggle of an app with a variant is accepted")
+
   local rows = hints.sheetRows(result, plan, "hyper", {})
-  eq(#rows, 2, "provided: a provided row reaches the sheet")
-  eq(rows[1].description, "Safari", "provided: wearing its action when it states no description")
-  eq(rows[2].description, "Mail", "provided: or its own description")
-  rows = hints.sheetRows(result, plan, "hyper", { supplied = { toggler = true } })
-  eq(#rows, 1, "provided: a plugin supplying sections for the leader is not listed twice")
-  eq(rows[1].action, "openMail", "provided: and another plugin's row stays")
+  local host = fresh()
+  local infos = { ["com.s"] = { name = "Safari" }, ["com.m"] = { name = "Mail" }, ["com.g"] = { name = "Ghostty" } }
+  local entries = host.ownSections(rows, { glyphFor = glyphFor, layout = LAYOUT, ownOrder = 50,
+    appInfo = function(b) return infos[b] end,
+    orderOf = function(owner) return ((plan.effective[owner] or {}).cheatSheetOrder) end })
+  eq(#entries, 1, "gaps: the app rows are one live entry")
+  eq(type(entries[1]), "function", "gaps: asked at every show")
+  local shown = entries[1]()
+  eq(titles(shown), "RUNNING,DORMANT", "gaps: the sheet splits running from not running")
+  eq(badges(shown[1]), "Q", "gaps: the moved toggle shows its new chord in the running section")
+  eq(shown[1].rows[1].label, "Safari", "gaps: named by its app")
+  eq(badges(shown[2]), "G,M", "gaps: the rest are not running, by key, the variant off the Hyper sheet")
+  running["com.m"] = true
+  eq(badges(entries[1]()[1]), "M,Q", "gaps: and the split follows which apps run at the next show")
+
+  local chords = contributions.appChords({ plan = plan, actions = actions, actionOrder = actionOrder, keymap = result })()
+  eq(chords["com.s"] and chords["com.s"].chord.key, "q", "gaps: the app's launcher row shows the moved chord")
+  eq(chords["com.s"] and chords["com.s"].chord.leader, "app", "gaps: on the app role")
+  eq(chords["com.g"] and chords["com.g"].chord.leader, nil, "gaps: of two actions for one app the plain combination wins the row")
+  eq(chords["com.g"] and chords["com.g"].description, "Terminal placed", "gaps: with its own description")
+  eq(chords["com.m"] and chords["com.m"].chord.key, "m", "gaps: every app with a chord has its row's chord")
 end
 
 print(string.format("leadersheet: %d checks, %d failed", checks, failures))

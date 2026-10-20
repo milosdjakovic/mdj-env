@@ -492,6 +492,48 @@ skill rather than assumed. The golden is unchanged apart from owner names on tog
 entries naming the same app, Hyper and backtick plain and Option and backtick placed, are the case
 to check by hand, and the Hyper sheet's open and not running split is checked by eye.
 
+Landed on 2026-10-20 after review, a fix round and a live load with Milos pressing the keys.
+
+- Found in 6. A descriptor has one run, and the pane rows could not be it. Hyper and comma hides
+  System Settings when it is already in front, while a pane picked from the launcher must
+  navigate, and the launcher hands focus back to the covered app before it runs a row, so a row
+  running the toggle would hide System Settings when used from inside it. Each pane is an action,
+  `systemsettings.General`, named by the pane with everything not a letter or a digit taken out,
+  and the pane rows stay `launcherRows` with the url they are remembered by. The search row stays
+  a row too, since its place, twenty, is its own `order`, which a descriptor cannot state.
+- Found in 6, after review. A pane action hiding System Settings whenever it was in front was right
+  for General alone. A key on another pane would hide the app showing General rather than go to
+  its own pane. A pane action hides only when System Settings is in front and the pane the plugin
+  last opened, by a key or a row, is its own, and otherwise goes, decided in one place,
+  `SystemSettings:paneToggle`, with `appfocus.openURL` only opening. Hyper and comma pressed twice
+  still opens General and then hides it. `test/systemsettings.lua` pins it.
+- Found in 6. With the toggle gone the System Settings app row in the launcher focuses or cycles
+  the app rather than landing on General, since no app row carries a url. The chord it shows is
+  still Hyper and comma, from the General action naming the app. The General pane's own row opens
+  General as before.
+- Found in 6. Hyper and comma moved from the app section to the Hyper sheet's actions, as General
+  settings, since a pane action is a command and System Settings answers no running group. That
+  is the one line `sheets.golden` gained.
+- Found in 6. The sheet needed more than a group to draw the app section as it was. A group may be
+  a table, `{ title, faded = true }`, drawn dimmed after every section in full colour, rows sit in
+  blocks by each owner's `defaults.cheatSheetOrder`, which stays as the place of a plugin's rows,
+  and a row naming an app wears its icon and name, is left off when the app is not installed and
+  is ordered by key in a section of app rows. All of it is decided from `app` and `group`.
+- Found in 6. Moving the toggle keys into `config/keymap.lua` means a keymap fixture, which
+  replaces the whole person keymap, no longer carries them, so both fixture key goldens lost every
+  toggle but the shipped Finder and the fixture sheet golden its DORMANT header.
+- Found in 6. The rename proof renamed `config/plugins.lua` keys and not the identities named in
+  `config/keymap.lua`, which held none until now. It renames both.
+- Found in 6. Every global row of one action runs its descriptor now, so the refusal of an id over
+  rows running different functions can no longer happen and was removed.
+- Found in 6. `test/cases/leader-sheets.lua` had stopped at loading the launcher's module from
+  `plugins/` since phase 5 gave the launcher host actions, and loads a host from `host/` again.
+- Found in 6. Workspaces and display profiles stay as they are. A layout is a snapshot taken while
+  Hammerspoon runs and reached through its scope, so an action per layout would bind only after a
+  reload and list every layout twice, and nobody has asked for a key on one. A display profile is
+  applied by the engine on every screen change and its picker deliberately does not apply, so an
+  action per profile would offer a switch that can never take effect.
+
 ### Phase 7, list keys in the keymap
 
 Read `lists`, `all` first and each context over it, and move the shared j, k, i, x and o out of

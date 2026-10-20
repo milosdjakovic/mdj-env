@@ -26,8 +26,8 @@ local olm = spoon.Olm:start({
   -- Everything about one plugin in particular, keyed by the name that plugin is known by
   -- everywhere outside its own folder. Its overrides of its own defaults, the values only this
   -- machine knows, the spoon global it is mirrored onto, or false to switch it off, all in
-  -- config/plugins.lua, which is also where the app catalog and the app toggles reach the app
-  -- toggler. Per plugin rather than shared because these field names are not unique
+  -- config/plugins.lua, which is also where the app catalog and its variants reach the app
+  -- toggler, whose keys are in config/keymap.lua. Per plugin rather than shared because these field names are not unique
   -- across the set and two plugins wanting a bundleID or a settings block mean different things
   -- by it. Olm names any key there that matches no plugin, so a slip in a name says so.
   plugins = require("config.plugins"),

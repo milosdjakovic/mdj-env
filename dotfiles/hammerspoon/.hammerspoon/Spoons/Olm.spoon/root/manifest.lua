@@ -31,15 +31,14 @@ return {
         reason = "applying the one HID mapping every leader key depends on, and clearing it " ..
                  "again on quit",
         origin = { macos = "ships with the system" } },
-      -- Optional, because only the url form of bringing an app forward runs it, an app toggle
-      -- or a launcher app row whose target is a settings pane rather than an application.
-      -- Declared here since phase three of the core split moved that behaviour out of the app
-      -- toggler into lib/appfocus.lua, which the root configures with this door, so the unit
-      -- is named for the lib that runs it.
+      -- Optional, because only the url form of bringing an app forward runs it, which since
+      -- phase 6 of the keymap plan is a System Settings pane action reached by a key, Hyper and
+      -- comma among them. Declared here since phase three of the core split moved that
+      -- behaviour out of the app toggler into lib/appfocus.lua, which the root configures with
+      -- this door, so the unit is named for the lib that runs it.
       { name = "open", kind = "system", locator = "/usr/bin/open", policy = "optional",
         unit = "appfocus",
-        reason = "opening a pane url for an app toggle or a launcher app row whose target is " ..
-                 "a settings pane rather than an application",
+        reason = "opening a System Settings pane by its url when a pane action's key is pressed",
         origin = { macos = "ships with the system" } },
     },
   },

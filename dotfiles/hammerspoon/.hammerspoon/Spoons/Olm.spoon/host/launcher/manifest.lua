@@ -66,11 +66,6 @@ return {
       -- descriptors is what lets this host list all of it while naming none of the plugins.
       launcherRows = { provides = { "launcherRows" } },
       launcherRun = { provides = { "launcherRun" } },
-      -- Every plugin that knows something about an installed app's row, the chord that brings
-      -- the app forward and the url the row opens, keyed by bundle id. The app rows themselves
-      -- come from this host's own disk scan, which is the catalog it searches and is launcher
-      -- policy, so a supplier only adds to a row and never adds one.
-      launcherAppDetails = { provides = { "launcherAppDetails" } },
     },
 
     lib = {
@@ -99,7 +94,7 @@ return {
     },
 
     -- No siblings, since phase three of the core split. Seven used to sit here, the window
-    -- manager's action map, the app toggler's focus or cycle and toggle by url, capture's run,
+    -- manager's action map, the app toggler's focus or cycle and its toggle by url, capture's run,
     -- and System Settings' rows, open and search focus, every one a leaf this catalog's
     -- dispatcher reached by naming a plugin. The rows and the runs now arrive through the two
     -- set questions above and the root data below, keyed by whoever owns a row, and bringing
@@ -118,14 +113,14 @@ return {
       -- plugin's leaf actions call into.
       stage = { source = "root", policy = "optional",
         breaks = "this plugin builds no presentation and no navigation surface, so its list never opens at all, no window, no rows, and no way for the shared list keys to reach it" },
-      -- One function answering every launcherAppDetails supplier above merged into one table
-      -- keyed by bundle id, asked whenever the app rows are built. Root assembled because only
-      -- the root may resolve a member on another plugin's module. This replaced the person's
-      -- toggles and app registry, which this host read itself to put a chord on an app row,
-      -- the same leak phase four of the core split removed from the Hyper sheet. The app rows
-      -- need neither, they come from a disk scan.
+      -- One function answering, keyed by bundle id, the chord of an action whose descriptor names
+      -- that app, asked whenever the app rows are built. Root assembled from the descriptors and
+      -- the keymap, since only the root holds both, so no plugin answers anything for an app row.
+      -- This replaced the person's toggles and app registry, which this host read itself until
+      -- the core split, and a plugin's own app details, until phase 6 of the keymap plan. The app
+      -- rows need neither, they come from a disk scan.
       appDetails = { source = "root", policy = "optional",
-        breaks = "no app row names the chord that brings its app forward, and an app row a toggle points at a pane opens the app instead" },
+        breaks = "no app row names the chord that brings its app forward" },
       -- One supplier per plugin answering the launcherRows set above, in the set's order, then
       -- one per plugin with a listed action descriptor, in plan order, each a function answering
       -- that plugin's rows with the plugin's identity already stamped as the owner on every
@@ -278,7 +273,7 @@ return {
       { name = "windowActions", kind = "window",
         description = "Window actions", icon = "windows", aliases = { "w", "window" } },
       { name = "settingsPanes", kind = "settingsPane",
-        description = "System Settings", icon = "settingsPanes", aliases = { "s", "system" } },
+        description = "System Settings", icon = "settingsPanes" },
     },
   },
 

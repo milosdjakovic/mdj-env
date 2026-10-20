@@ -14,8 +14,9 @@ when it is the leader key or the leader is held, under the modifier trigger when
 set is held. The field and the default provider know only that it is a
 predicate, and the legacy provider needs nothing since its keys already reach Hyper.
 
-The action panel is on Hyper and o in every list, declared once in `lib/surface.lua` and in
-the loop at the bottom of `config/keys.lua`. File search reveal in Finder is on Hyper and f.
+The action panel is on Hyper and o in every list, declared once in `lib/surface.lua`, the loop
+that once sat at the bottom of `config/keys.lua` having gone with that file. File search reveal in
+Finder is on Hyper and f.
 
 The docked shortcut hint pane shows after 800 ms with no key, and every key restarts that
 countdown, Hyper moves included, since the default provider counts activity in selectNext,

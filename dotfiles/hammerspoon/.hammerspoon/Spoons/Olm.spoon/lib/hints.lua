@@ -569,7 +569,7 @@ end
 
 --- hints.sheetRows(keymap, plan, leader, deps) -> entries
 --- Every global chord the keymap holds on one leader, in the order a leader's cheat sheet draws
---- them, as plain entries { key, mods, action, description, when, group, owner }. Since phase 4 of
+--- them, as plain entries { key, mods, action, description, when, group, app, owner }. Since phase 4 of
 --- the keymap plan one sheet host draws every held leader, so this one rule serves them all. It
 --- reads the keymap rather than the registry and the plan, so a tool's open key, a host's, a
 --- plugin's bindings, a host's own actions among them, all reach a sheet through the one table that binds
@@ -582,21 +582,19 @@ end
 --- walking the plan order, each plugin's host key and then its own bindings in their declared
 --- order. A chord already listed is not listed twice, identity being the key and the
 --- modifiers, since two rows may share a key with different modifiers, screenshot and screenshot
---- to the clipboard. The lists' own keys are left out, since they are not global keys. The rows a
---- plugin provides from its own data, provides.bindings, come last in plan order, unless that
---- plugin supplies cheat sheet sections for the leader, named in deps.supplied by identity, since
---- then its sections already list them and a second listing would repeat them.
+--- to the clipboard. The lists' own keys are left out, since they are not global keys.
 ---
 --- A row's label is the binding's own description, else the descriptor's, which the keymap
 --- already merged into row.description, else a tool's registry detail or its name, a host's
---- directory, or the action name spelled out as words. deps.registry, optional, lends a tool row
+--- directory, or the action name spelled out as words. A row standing for an app and stating no
+--- description is left without one, since the sheet names it by the app's own name, which only
+--- the sheet resolves. deps.registry, optional, lends a tool row
 --- with no description the detail its launcher row wears. Entries are copies, so a caller
 --- stamping something onto one cannot reach back into the keymap. Must be called once the keymap
 --- is built, after register, or this answers an empty list.
 function obj.sheetRows(keymap, plan, leader, deps)
   deps = deps or {}
   local registry = deps.registry
-  local supplied = deps.supplied or {}
   local out, seen = {}, {}
 
   local function add(row, label)
@@ -606,7 +604,7 @@ function obj.sheetRows(keymap, plan, leader, deps)
     if seen[mark] then return end
     seen[mark] = true
     out[#out + 1] = { key = row.key, mods = mods, action = row.action, description = label,
-      when = row.when, group = row.group, owner = row.owner }
+      when = row.when, group = row.group, app = row.app, owner = row.owner }
   end
 
   local rows = {}
@@ -633,16 +631,9 @@ function obj.sheetRows(keymap, plan, leader, deps)
       for _, row in ipairs(rows) do
         if row.source == source and directoryOf[row.owner] == directory then
           local fallback = source == "host" and directory or humanize(row.action)
+          if row.app ~= nil and source == "bindings" then fallback = nil end
           add(row, row.description or fallback)
         end
-      end
-    end
-  end
-
-  for _, directory in ipairs((plan or {}).order or {}) do
-    for _, row in ipairs(rows) do
-      if row.source == "provided" and directoryOf[row.owner] == directory and not supplied[row.owner] then
-        add(row, row.description or humanize(row.action))
       end
     end
   end

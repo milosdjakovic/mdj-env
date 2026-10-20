@@ -286,11 +286,11 @@ exactly its listed chords and loses every row it had, copying its gate, label, r
 from the first row it had, so a moved action behaves as it did. A row the person set wins a slot a
 default holds, and the default is dropped with one routine `Olm keymap` console line, never bound
 beside it and never a problem, which replaced the one exemption the collision check kept. That
-covers every row of the person's, the keymap's and still the toggles and any `bindings` override
-in `config/plugins.lua`, and a keymap entry ranks above the others, so it drops a toggle on its
-slot with the same line. And `false` frees a global chord, dropping whatever holds it. An id over
-several rows running different functions, the toggler's two Ghostty toggles until phase 6, is a
-problem and both stay bound. `fn` is refused on a held leader, which compares only the other four
+covers every row of the person's, the keymap's and any `bindings` override still in
+`config/plugins.lua`, and a keymap entry ranks above the others, so it drops such a binding on its
+slot with the same line. And `false` frees a global chord, dropping whatever holds it. Since phase
+6 an app toggle is an action like any other, one per app and one per variant, so the plain and the
+placed Ghostty are two ids and each moves alone. `fn` is refused on a held leader, which compares only the other four
 modifiers, the keypad plus is `pad+` and the main row plus `shift+=`. A named leader no chord uses
 is a routine note. A keymap that fails to build keeps the roles' leaders and the list leader in
 use, `keymap.fallbackLeaders`. Two of the

@@ -48,7 +48,7 @@ obj._stage = nil            -- host/stage, the one host owning the live chooser 
 obj._placeholder = nil
 obj._placeholderExamples = nil  -- example field hints, one per computed row source that proposes one
 obj._keys = nil
-obj._appDetails = nil       -- function() -> bundle id to { chord, description, url }, see _buildConfiguredApps
+obj._appDetails = nil       -- function() -> bundle id to { chord, description }, see _buildConfiguredApps
 obj._glyphFor = nil         -- function(key, mods) -> chord glyph string
 obj._rowSuppliers = nil     -- functions answering contributed rows, owner already stamped
 obj._runners = nil          -- owner identity -> function(item), runs a chosen contributed row
@@ -200,12 +200,13 @@ function obj:configure(opts)
   -- chord speller below already documents, this host is configured twice and only the root's
   -- own call can compute this.
   self._placeholderExamples = opts.placeholderExamples or self._placeholderExamples
-  -- What an app row shows beyond the app, its chord and the url it opens, answered by whichever
-  -- plugins supply launcher app details and merged by the root. This host read the person's
-  -- toggle list and app registry itself until the core split finished, which made a core host
-  -- know one plugin's data and its shape. It shows what it is given now and never learns where
-  -- it came from. Kept rather than overwritten when a later call arrives without one, for the
-  -- reason the chord speller below documents, this host is configured twice.
+  -- What an app row shows beyond the app, the chord of an action standing for that app, built by
+  -- the root from the descriptors that name the app and the keymap. This host read the person's
+  -- toggle list and app registry itself until the core split finished, and a plugin's own app
+  -- details until phase 6 of the keymap plan, which made a row know where a chord came from. It
+  -- shows what it is given now and never learns where it came from. Kept rather than overwritten
+  -- when a later call arrives without one, for the reason the chord speller below documents,
+  -- this host is configured twice.
   self._appDetails = opts.appDetails or self._appDetails
   -- The display name for each leader role, so a row's subtitle can say which physical key
   -- opens it without this file deciding what any leader is called. The word Hyper used to be
@@ -676,11 +677,11 @@ end
 --- Launcher:_buildConfiguredApps()
 --- Method
 --- What each app row shows beyond the app, keyed by bundle id, so a row can name the chord that
---- brings the app forward and open the url its supplier states. Asked of the injected answer
---- every time the app rows are built rather than once at configure, since a supplier knows what
---- it bound only after its own wiring step, and the rows are rebuilt only when the running set
---- changes. Which chord wins when two bindings name one app is the supplier's business, this
---- host shows the one entry it is handed. With nothing injected every row carries no chord.
+--- brings the app forward. Asked of the injected answer every time the app rows are built rather
+--- than once at configure, since the root injects it only once the keymap exists, and the rows
+--- are rebuilt only when the running set changes. Which chord wins when two actions name one app
+--- is the root's business, this host shows the one entry it is handed. With nothing injected
+--- every row carries no chord.
 function obj:_buildConfiguredApps()
   if type(self._appDetails) ~= "function" then return {} end
   local ok, details = pcall(self._appDetails)
@@ -780,7 +781,9 @@ function obj:_appRows()
       local glyphs = self._glyphFor and self._glyphFor(chord.key, chord.mods) or chord.key
       subTitle = status .. " · " .. glyphs .. (cfg.description and (" " .. cfg.description) or "")
     elseif chord then
-      subTitle = status .. " · " .. self:_leaderName(chord.leader) .. " " .. tostring(chord.key)
+      -- Spelled by the shared chord speller every other row's chord goes through, the leader's
+      -- name then the key with its modifiers, so Hyper, Shift and S reads as the hint bar reads it.
+      subTitle = self:_chordSuffix(status, self:_leaderName(chord.leader), chord.key, chord.mods)
     end
     rows[#rows + 1] = {
       title = e.name,
@@ -788,7 +791,7 @@ function obj:_appRows()
       image = e.icon,
       -- A stable key so the atom encodes each app icon once and reuses it across opens.
       iconKey = "app:" .. e.bundleID,
-      item = { kind = "app", bundleID = e.bundleID, url = cfg and cfg.url },
+      item = { kind = "app", bundleID = e.bundleID },
     }
   end
   self._appRowsCache = rows
@@ -1200,7 +1203,7 @@ function obj:_runItem(it)
   if it.owner ~= nil and (it.kind == "special" or it.kind == "scope") then return end
   if it.kind == "app" then
     self._runTimer = hs.timer.doAfter(0.1, function()
-      if a.app then a.app(it.bundleID, it.url) end
+      if a.app then a.app(it.bundleID) end
     end)
   elseif it.kind == "special" then
     -- Two sources, not a leak. A name the registry answers is a tool, and everything left

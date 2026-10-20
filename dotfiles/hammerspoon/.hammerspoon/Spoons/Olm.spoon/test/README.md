@@ -8,6 +8,7 @@ Spoons/Olm.spoon/test/suite.sh dry          # plain lua, no Hammerspoon, no lock
 Spoons/Olm.spoon/test/ranking.lua           # one of the three dry runs, standalone, see below
 Spoons/Olm.spoon/test/icons.lua             # the icon engine, the config file, the row resolver and the two sources
 Spoons/Olm.spoon/test/leaders.lua           # the two leader adapters' resolvers as they stand, see below
+Spoons/Olm.spoon/test/systemsettings.lua    # when a System Settings pane action hides the app and when it goes to its pane
 Spoons/Olm.spoon/test/keys.sh               # every bound chord in the live config, diffed against keys.golden
 Spoons/Olm.spoon/test/keys.sh --bound       # what the binder bound under the stub, diffed against keys.golden
 Spoons/Olm.spoon/test/views.sh --offline    # the launcher's catalog and every leader's cheat sheet under the stub, against their goldens
@@ -54,7 +55,7 @@ runs without a live Hammerspoon, and it adds about a second.
 It enforces the binding rule too, `drygate-binding.lua`. Olm binds every key from its keymap, so
 a call of `hs.hotkey.bind`, of `hs.hotkey.new` or of any bind function in a file under `plugins/`
 or `host/` is a finding naming the file and the line. And it checks each plugin's
-`provides.actions` and `provides.bindings` through the registrar's own validation, against the
+`provides.actions` through the registrar's own validation, against the
 module it configured, so a malformed descriptor is refused here in the words a live load uses.
 
 Run it standalone too, straight from the shell, no suite.sh, no lock, no Hammerspoon:
@@ -150,11 +151,13 @@ scan and the running set a stubbed run cannot see. `sheets.golden` is the conten
 leader's sheet would draw, the Hyper sheet's sections and rows and the window sheet's rows, with
 badge, label, section and fade, everything except pixels. One sheet host draws every leader since
 phase 4, and the golden kept the two line families the old hosts wrote, so it proved the merge by
-staying byte identical. A section a plugin supplies, the app
-toggler's running and dormant apps, is written as its headers alone, title, fade and layout, and
-nothing about its rows, since which apps are installed and running is a fact about one machine
-and the goldens are the same on every machine. Those rows are checked by eye, holding Hyper and
-reading the app sections against the toggles. `launcher-project.lua` and `sheets-project.lua` are the one place each format
+staying byte identical. A live block, the app
+toggler's running and dormant apps, is written as the headers of the sections it answers, title,
+fade and layout, and nothing about its rows, since which apps are installed and running is a fact
+about one machine and the goldens are the same on every machine. The offline run answers Finder
+as the one running app, which every Mac runs, so both halves are drawn offline as they are live.
+Those rows are checked by eye, holding Hyper and reading the app section against the app keys in
+`config/keymap.lua`. `launcher-project.lua` and `sheets-project.lua` are the one place each format
 is spelled.
 
 ```

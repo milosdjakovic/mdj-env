@@ -2,65 +2,58 @@
 
 Brings an application forward, and cycles through its windows when it is already
 the frontmost app, so pressing the chord repeatedly walks the app's windows and
-wraps to the first. An entry may instead ask for show and hide, where a second
-press while the app is frontmost really does hide it, or for a url rather than a
-plain focus, so the app lands on one settings pane instead of wherever it was
-last, which is how the System Settings toggle lands on General. An entry may
-also ask to be centered and sized once it actually shows, launches, or focuses,
-never on a press that only cycled to another window of an app already in front.
+wraps to the first. A variant may instead ask for show and hide, where a second
+press while the app is frontmost really does hide it, or ask to be centered and
+sized once it actually shows, launches, or focuses, never on a press that only
+cycled to another window of an app already in front.
 
-Each app is bound to its own chord on the Hyper leader by default, holding Caps
-Lock and pressing the app's own letter. An entry may instead state its own
-`modifiers` and bind as a literal global combo, live all the time rather than
-only while Hyper is held, which is what a toggle pressed mid work, rather than
-reached through a leader, wants.
+The plugin holds no key. It answers one action per app in its catalog,
+`apptoggler.Safari`, which focuses or cycles that app, and one per named variant
+in its data, `apptoggler.GhosttyPlaced`, which runs the behaviour that variant
+asks for. Both are built once in `configure` and answered through
+`provides.actions`, and a person reaches any of them from `config/keymap.lua`,
+`["hyper+S"] = "apptoggler.Safari"`, on Hyper or on a plain combination such as
+Option and backtick, which is live all the time rather than only while Hyper is
+held. The one key it suggests is Finder on Hyper and F, so a fresh install has a
+working toggle.
 
-The plugin binds none of these itself. It answers one complete row per toggle
-whose app resolves through `provides.bindings`, each with its key, either the
-app leader role or its own modifiers, its description and the function the key
-calls, and Olm's keymap binds every row. The rows are built once in `configure`
-from the effective toggle list. This is a bridge while the keys are still the
-person's own data, and a later phase of the keymap plan replaces it with one
-action per app. The whole set
-also appears as rows in the launcher's application list, reached by typing a or
-app to narrow to only those rows, and a literal combo entry carries its own
-`description` there, since it never reaches the Hyper cheat sheet the way a
-leader entry does and the launcher row is its only discoverability surface.
-
-The launcher learns those chords from this plugin through `provides.launcherAppDetails`, a
-table keyed by bundle id built in `configure` from exactly the entries that became rows, each with its
-chord, its description and its url. Where two entries name one app the one with its own
-`modifiers` wins the chord the row shows, and a url from either stays with the row. The launcher
-asks the set for it and never names this plugin, and until the core split finished it read the
-person's toggles and app registry itself. Switched off, the launcher's app rows carry no chord.
+Every action names its app in `app`, so Olm merges it into the launcher's own row
+for that app, which then shows the chord, rather than listing the app twice.
+Where two actions name one app and both have keys, a plain combination wins the
+row, since it appears on no cheat sheet and the row is its only discoverability
+surface, and the row shows that action's description beside it. Reached by
+typing a or app to narrow the launcher to the application rows. Choosing an app
+row always focuses or cycles the app.
 
 There are no other keys.
 
 ## On the Hyper cheat sheet
 
-Holding Hyper shows every leader entry, the apps running now first and the rest faded below
-them, each with its key and its icon. This plugin supplies those two sections itself through
-`provides.cheatSheetSections`, with `defaults.leader = "app"` naming the sheet and
-`defaults.cheatSheetOrder = 10` keeping them ahead of the other chords. The sheet asks the set
-for them and never names this plugin, so switched off, the sheet simply has no app section.
+Holding Hyper shows every app whose action has a key on Hyper, the apps running now first and the
+rest faded below them, each with its key and its icon. The plugin supplies no section for this.
+Each descriptor carries a group function answering a `RUNNING` table or a `DORMANT` table with
+`faded = true`, which the sheet asks at every show, and `defaults.cheatSheetOrder = 10` keeps the
+block of this plugin's rows ahead of the sheet's own at fifty. Which apps run is read in one
+enumeration shared by every app's question within a quarter of a second, since asking per app cost
+about twenty milliseconds each and dominated the overlay's show latency.
 
-The sheet rows are built from exactly the entries that became rows on the app leader, so the sheet
-cannot list an app that has no key there. An entry with its own `modifiers` is a
-global combo on no leader and is never listed. An app that is not installed is dropped. Each
-name and icon is resolved once, when the rows are built, since that is disk work and the sheet
-opens on a key hold, and only which apps are running is read again on every show, in one call
-for all of them. The order is by key, letters and digits first, then symbols, ignoring case.
+The sheet draws an app row with the app's own icon and name, resolved once when the sheet is built,
+leaves off an app that is not installed, and orders the apps by key, letters and digits first, then
+symbols, ignoring case. All of that is Olm's, decided from `app`, so the plugin knows nothing about
+the sheet. A variant's description is its row's label in place of the app's name.
 
-Until phase four of the core split the sheet did all of this itself from the person's raw
-toggle list, which made a core host know this plugin's data and its shape.
+Until phase 6 of the keymap plan this plugin answered complete key rows through
+`provides.bindings`, its own sheet sections through `provides.cheatSheetSections` and the
+launcher's app row details through `provides.launcherAppDetails`, all built from a toggle list in
+`config/keys.lua` that held the keys. All three are retired, and so is that file.
 
-## The per entry fields
+## The variant fields
 
-Every field beyond `app` and `key` is optional.
-
-`modifiers` opts an entry out of the Hyper leader and into a literal combo.
-Absent means a key on the app leader, fired by holding the physical Hyper key.
-Stated, it asks for that literal combo outright and skips the leader.
+A variant is keyed by its name, which is its action's name, and names its `app`
+from the catalog. Every other field is optional. A variant naming an app the
+catalog does not hold is logged and left out, and a field a variant does not
+read is logged with where it belongs now, a key or modifiers in
+`config/keymap.lua`, a url in System Settings' own pane action.
 
 `hides` swaps the default focus-or-cycle behaviour for show and hide. Focused
 hides, visible but unfocused focuses, hidden or not running launches or shows.
@@ -68,9 +61,10 @@ Absent means focus-or-cycle, first press showing the last focused window and
 each press after walking to the next one, wrapping to the first, and never
 hiding anything.
 
-`description` labels the entry's launcher row. Already meaningful for any
-toggle, it matters most for a literal combo entry, the one case with no other
-discoverability surface.
+`description` labels the action wherever Olm lists it, the app's launcher row
+when the variant's key wins it and the sheet row when its key is on a leader.
+It matters most for a variant on a plain combination, the one case with no
+other discoverability surface.
 
 `placement` centers and sizes the window once the press actually showed,
 launched, or focused the app. It never fires on a press that only cycled
@@ -106,18 +100,18 @@ time it is summoned loses the one thing a person relies on, knowing where it
 is without looking. Choosing a display at all is the workspaces plugin's job,
 never this one's.
 
-## Where the lists come from
+## Where the data comes from
 
-The catalog of bundle ids is config/apps.lua and the toggle list is appToggles in
-config/keys.lua. Neither is shared with another plugin, so config/plugins.lua hands both over
-as this plugin's own data, in its apptoggler entry, rather than through the flat shared
-channel in init.lua.
+The catalog of bundle ids is config/apps.lua and the variants are written in this plugin's own
+apptoggler entry in config/plugins.lua, which hands both over as this plugin's own data rather
+than through the flat shared channel in init.lua. Neither holds a key, every key is in
+config/keymap.lua.
 
 ## History
 
 A show and hide behaviour and a placement engine both used to live in
 TerminalHandler.spoon, a whole spoon kept outside Olm for the one app that
-wanted them. Both turned out to be plain fields any entry here can ask for
+wanted them. Both turned out to be plain fields any variant here can ask for
 rather than a tool of their own, so the spoon is gone and the terminal's own
-toggle is now one entry in config/keys.lua's appToggles, alongside the plain
-focus-or-cycle entry the same app already had.
+summon is now one variant, GhosttyPlaced, beside the plain focus or cycle
+action the same app already had.

@@ -75,15 +75,11 @@ local codeOf = function(key) return keymapLib.keyCode(key, KEYCODES) end
 --------------------------------------------------------------------------------
 
 -- The window leader's catalog name. From phase 5 of the keymap plan the live keymap carries the
--- roles it was built with, and before that the person's config/keys.lua said it, plain data and
--- safe to read. A config with neither falls back to META, what every such spoon shipped.
+-- roles it was built with. A config whose keymap carries none falls back to META, what every
+-- such spoon shipped. config/keys.lua, which older configs read it from, is gone since phase 6.
 local function windowLeaderName()
   local roles = composed.keymap and composed.keymap.roles
   if type(roles) == "table" and type(roles.window) == "string" then return roles.window end
-  local ok, keys = pcall(dofile, hs.configdir .. "/config/keys.lua")
-  if ok and type(keys) == "table" and type(keys.windowLeader) == "string" then
-    return keys.windowLeader
-  end
   return "META"
 end
 
@@ -120,14 +116,12 @@ end
 
 -- The declarations are the keymap's rows. A config that built its own is read as it is, and one
 -- that did not, main before the keymap landed, has the same module fed from the same live plan,
--- so this probe still describes it. The roles come from the person's own key file.
+-- so this probe still describes it, on the roles every such config shipped.
 local keymap = composed.keymap
 if not keymap then
-  local ok, keys = pcall(dofile, hs.configdir .. "/config/keys.lua")
-  keys = ok and type(keys) == "table" and keys or {}
   keymap = keymapLib.build({
     plan = composed.plan,
-    roles = { app = keys.appLeader or "HYPER", window = keys.windowLeader or "META" },
+    roles = { app = "HYPER", window = "META" },
     keycodes = KEYCODES,
     shortcuts = olm.registry.shortcuts(),
     manifests = composed.manifests,

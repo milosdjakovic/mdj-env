@@ -22,9 +22,10 @@
 -- the same module the composition root calls, handed a plan shaped like the real one, so the
 -- owner stamping, the order stamping and the member resolution here are the code that runs.
 --
--- Last, the app rows. A bound app's chord and url reach its row through the app toggler's
--- provides.launcherAppDetails, merged by lib/contributions.lua, and the launcher reads no person
--- data. The expected subtitles are the ones the launcher wrote when it read the toggles itself.
+-- Last, the app rows. Since phase 6 of the keymap plan an action whose descriptor names an app
+-- merges into that app's row, and lib/contributions.lua answers the chord the keymap binds it to,
+-- so the launcher reads no person data and no plugin answers anything for an app row. The
+-- expected subtitles are the ones the launcher wrote when it read the toggles itself.
 --
 -- Then one row per kind is run through the launcher's own dispatcher and must reach the right
 -- runner with the right argument. Every plugin method that would act on the world, take a
@@ -441,37 +442,44 @@ eq("an owned special row whose owner runs nothing reaches no tool",
   run({ kind = "special", name = "searchSettings", owner = "arithmetic" }), nil)
 
 --------------------------------------------------------------------------------
--- The app rows. The app toggler builds its rows from a toggle list and supplies what each app
--- with a row shows, and the launcher shows it. The subtitles are the ones the launcher wrote when it read
--- the person's toggles and app registry itself, a modal key spelled with the app leader's name,
--- a literal combo spelled by the glyph function with its description, and a second toggle on
--- one app winning the chord only when it states modifiers while a url from either stays.
+-- The app rows. The app toggler answers one action per app and per variant, each naming its app,
+-- and a person's keymap puts keys on them. The subtitles are the ones the launcher wrote when it
+-- read the person's toggles and app registry itself, a key on a leader spelled with the leader's
+-- name, a plain combination spelled by the glyph function with its description, and of two
+-- actions on one app the plain combination winning the row. No app row carries a url any more,
+-- since a pane is System Settings' own action.
 --------------------------------------------------------------------------------
 
 local toggler = load("plugins/apptoggler/init.lua")
 toggler:init()
--- The toggler binds nothing, it builds a row per toggle in configure and Olm binds them, so no
--- hotkey reaches the live config here.
-local bindOk, bindErr = pcall(toggler.configure, toggler, {
-  apps = { Alpha = "olm.test.alpha", Beta = "olm.test.beta", Gamma = "olm.test.gamma" },
+local togglerManifest = load("plugins/apptoggler/manifest.lua")
+local buildOk, buildErr = pcall(toggler.configure, toggler, {
+  apps = { Alpha = "olm.test.alpha", Beta = "olm.test.beta", Gamma = "olm.test.gamma", Delta = "olm.test.delta" },
   appFocus = {},
-  toggles = {
-    { app = "Alpha", key = "A" },
-    { app = "Beta", key = "B", url = "x-test:beta-first" },
-    { app = "Beta", key = "8", modifiers = { "ctrl", "alt" }, description = "Placed", url = "x-test:beta" },
-    { app = "Gamma", key = "G", modifiers = { "cmd" }, description = "First" },
-    { app = "Gamma", key = "H", url = "x-test:gamma" },
+  variants = {
+    BetaPlaced = { app = "Beta", hides = true, description = "Placed" },
+    GammaFirst = { app = "Gamma", description = "First" },
+    Stray = { app = "Nowhere" },
   },
 })
-check("the app toggler builds the probe toggles", bindOk, tostring(bindErr))
-check("the app toggler answers one binding row per toggle", bindOk and #toggler:bindings() == 5)
+check("the app toggler builds its actions", buildOk, tostring(buildErr))
+local togglerActions, _, togglerProblems, togglerOrder = registrar.validateActions("apptoggler", togglerManifest, toggler)
+eq("the app toggler answers one action per app and per known variant", #togglerOrder, 6)
+eq("every one of them passes the registrar", #togglerProblems, 0)
+eq("apps come first, by name", table.concat(togglerOrder, ","), "Alpha,Beta,Delta,Gamma,BetaPlaced,GammaFirst")
+eq("a variant naming no app in the catalog is left out", togglerActions.Stray, nil)
+eq("every action names its app", togglerActions.BetaPlaced.app, "olm.test.beta")
+eq("and a group function", type(togglerActions.Alpha.group), "function")
 
 local function appLauncher(details)
   local l = load("host/launcher/init.lua")
   l:init()
   l:configure({
     leaderNames = { app = "Hyper", window = "Meta" },
-    glyphFor = function(key, mods) return table.concat(mods or {}, "+") .. " " .. tostring(key) end,
+    glyphFor = function(key, mods) return table.concat(mods or {}, "+") .. " " .. tostring(key):upper() end,
+    chordLabel = function(leader, key, mods)
+      return leader .. " " .. table.concat(mods or {}, "+") .. " " .. tostring(key):upper()
+    end,
     appDetails = details,
   })
   l._installedApps = {
@@ -479,43 +487,45 @@ local function appLauncher(details)
     ["olm.test.beta"] = { name = "Beta", bundleID = "olm.test.beta" },
     ["olm.test.gamma"] = { name = "Gamma", bundleID = "olm.test.gamma" },
     ["olm.test.delta"] = { name = "Delta", bundleID = "olm.test.delta" },
+    ["olm.test.epsilon"] = { name = "Epsilon", bundleID = "olm.test.epsilon" },
   }
   local byId = {}
   for _, row in ipairs(l:_appRows()) do byId[row.item.bundleID] = row end
   return byId
 end
 
-local appDetails = contributions.appDetails({
-  host = "launcher",
-  plan = { sets = { launcher = { launcherAppDetails = { "apptoggler" } } } },
-  manifests = { apptoggler = load("plugins/apptoggler/manifest.lua") },
-  modules = { apptoggler = toggler },
-  registrar = registrar,
-})
+local appPlan = {
+  effective = { apptoggler = { leader = "app" } }, identity = {}, provenance = {}, contexts = {},
+  order = { "apptoggler" },
+}
+local appKeys = keymapLib.readConfig({ keys = {
+  ["hyper+A"] = "apptoggler.Alpha", ["hyper+B"] = "apptoggler.Beta", ["ctrl+alt+8"] = "apptoggler.BetaPlaced",
+  ["cmd+G"] = "apptoggler.GammaFirst", ["hyper+H"] = "apptoggler.Gamma", ["hyper+shift+D"] = "apptoggler.Delta",
+} }, { catalog = { HYPER = true, META = true }, roleWords = { "app", "window" } })
+local appKeymap = keymapLib.build({ plan = appPlan, roles = { app = "HYPER", window = "META" },
+  actions = { apptoggler = togglerActions }, personKeys = appKeys.keys })
+eq("the keymap binds every app action the person named", #appKeymap.problems, 0)
+local appDetails = contributions.appChords({ plan = appPlan, actions = { apptoggler = togglerActions },
+  actionOrder = { apptoggler = togglerOrder }, keymap = appKeymap })
 local apps = appLauncher(appDetails)
-eq("a modal toggle's row names the app leader and the key", (apps["olm.test.alpha"] or {}).subTitle,
-  "Not running · Hyper A")
-eq("a literal combo wins the chord and shows its description", (apps["olm.test.beta"] or {}).subTitle,
+eq("an app action's row names the app leader and the key", (apps["olm.test.alpha"] or {}).subTitle,
+  "Not running · Hyper  A")
+eq("a leader chord with modifiers spells them through the shared speller", (apps["olm.test.delta"] or {}).subTitle,
+  "Not running · Hyper shift D")
+eq("a plain combination wins the chord and shows its description", (apps["olm.test.beta"] or {}).subTitle,
   "Not running · ctrl+alt 8 Placed")
-eq("the first toggle's url stays when the combo wins the chord", (apps["olm.test.beta"] or {}).item.url,
-  "x-test:beta-first")
-eq("a later modal toggle does not take the chord from a combo", (apps["olm.test.gamma"] or {}).subTitle,
+eq("an app row carries no url", (apps["olm.test.beta"] or {}).item.url, nil)
+eq("a later leader chord does not take the row from a combination", (apps["olm.test.gamma"] or {}).subTitle,
   "Not running · cmd G First")
-eq("a later toggle's url fills an entry that had none", (apps["olm.test.gamma"] or {}).item.url,
-  "x-test:gamma")
-eq("an app no toggle names carries no chord", (apps["olm.test.delta"] or {}).subTitle, "Not running")
+eq("an app no action names carries no chord", (apps["olm.test.epsilon"] or {}).subTitle, "Not running")
 
 local bare = appLauncher(nil)
-eq("with no supplier an app row carries no chord", (bare["olm.test.alpha"] or {}).subTitle, "Not running")
-eq("with no supplier an app row opens no url", (bare["olm.test.beta"] or {}).item.url, nil)
+eq("with nothing injected an app row carries no chord", (bare["olm.test.alpha"] or {}).subTitle, "Not running")
 
-local broken = contributions.appDetails({
-  host = "launcher",
-  plan = { sets = { launcher = { launcherAppDetails = { "broken", "apptoggler" } } } },
-  manifests = { apptoggler = load("plugins/apptoggler/manifest.lua"),
-    broken = { provides = { launcherAppDetails = "launcherAppDetails" } } },
-  modules = { apptoggler = toggler, broken = { launcherAppDetails = function() error("probe") end } },
-  registrar = registrar,
+-- The launcher lists an app once. An action naming an app is no catalog row of its own.
+local listedSuppliers = contributions.assemble({
+  host = "launcher", plan = { order = { "apptoggler" }, identity = {}, effective = {}, sets = {} },
+  manifests = {}, modules = {}, registrar = registrar,
+  actions = { apptoggler = togglerActions }, actionOrder = { apptoggler = togglerOrder }, keymap = appKeymap,
 })
-eq("a supplier that raises costs only its own details", (appLauncher(broken)["olm.test.alpha"] or {}).subTitle,
-  "Not running · Hyper A")
+eq("an action naming an app adds no row of its own to the catalog", #listedSuppliers, 0)

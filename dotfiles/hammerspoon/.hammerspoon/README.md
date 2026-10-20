@@ -7,7 +7,8 @@
 ├── init.lua                      # Main orchestrator (loads and wires everything)
 ├── config/                       # Configuration (pure data, edit these)
 │   ├── apps.lua                  # App bundle ID registry
-│   ├── keys.lua                  # The two leaders and the app toggles
+│   ├── keymap.lua                # Every key a person sets, app toggles included
+│   ├── plugins.lua               # Per plugin data and switches, no keys
 │   └── settings.lua              # Global settings (margins, timing, etc.)
 └── Spoons/                       # Hammerspoon Spoons (reusable logic)
 ```
@@ -39,25 +40,29 @@ newly linked Spoon.
 
 ## Adding New Apps
 
-Edit `config/apps.lua`. The `apptoggler` entry in `config/plugins.lua` hands this catalog and
-the toggle list below to the app toggler as its own data:
+Edit `config/apps.lua`. The `apptoggler` entry in `config/plugins.lua` hands this catalog to
+the app toggler as its own data, and every app in it becomes an action named after it,
+`apptoggler.NewApp`:
 ```lua
 NewApp = "com.example.newapp",
 ```
 
-Edit `appToggles` in `config/keys.lua`, using the same name as in `config/apps.lua`.
-An entry with no `modifiers` binds into the Hyper modal:
+Give it a key in the `keys` section of `config/keymap.lua`:
 ```lua
-{ app = "NewApp", key = "W" },
+["hyper+W"] = "apptoggler.NewApp",
 ```
+An app that needs more than focus or cycle, show and hide or a placement, is a named variant
+in the `apptoggler` entry of `config/plugins.lua`, and its key names the variant,
+`apptoggler.GhosttyPlaced`.
+
 App toggles fire by holding the Hyper key (**Caps Lock**, remapped to **F18** at the
 HID level by Olm's core `lib/keyremap.lua` from the root's own shipped leader catalog,
 and held through Olm's leader adapter) plus the letter.
 A quick Caps Lock **tap** toggles real Caps Lock (via `hs.hid.capslock`).
-Holding Caps Lock ~0.6s with no key shows the Hyper sheet of `LeaderSheet`: an overlay of the
-bindings, split into open vs not-running apps. Uninstalled apps (no resolvable
-bundle path) are filtered out; names/icons are cached at load, only the
-running-state split is recomputed per show.
+Holding Caps Lock about 0.6s with no key shows the Hyper sheet of `LeaderSheet`, an overlay of the
+bindings, with the apps split into open and not running. Uninstalled apps (no resolvable
+bundle path) are filtered out, names and icons are resolved at load, and only the
+running state split is recomputed per show.
 
 ## Useful Commands
 

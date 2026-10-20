@@ -4,8 +4,7 @@ Configuration in `dotfiles/hammerspoon/.hammerspoon/`:
 - `init.lua` - Entry point, holding this machine's own data and preferences plus the one call into Olm
 - `config/` - User-editable configuration (pure data)
   - `apps.lua` - App bundle ID registry
-  - `keymap.lua` - Every key and alias this person sets, one file Olm owns and reads as `cfg.keymap`, never a plugin. `keys` maps a chord, a leader or modifiers joined by `+` with the key last, to an action id such as `vpn.open`, or to `false` to free it. `leaders` names a set of real modifiers as a leader of its own, `roles` moves a role to another held leader, and `aliases` replaces a plugin's launcher words. Empty means the shipped keys exactly, see the file's own header and `Spoons/Olm.spoon/lib/keymap.lua`
-  - `keys.lua` - The app toggle list alone, until phase 6 of the keymap plan moves each toggle's key into `keymap.lua`
+  - `keymap.lua` - Every key and alias this person sets, one file Olm owns and reads as `cfg.keymap`, never a plugin. `keys` maps a chord, a leader or modifiers joined by `+` with the key last, to an action id such as `vpn.open`, `apptoggler.Safari` or `systemsettings.General`, or to `false` to free it, and the app toggles live there. `leaders` names a set of real modifiers as a leader of its own, `roles` moves a role to another held leader, and `aliases` replaces a plugin's launcher words. Empty means the shipped keys exactly, see the file's own header and `Spoons/Olm.spoon/lib/keymap.lua`
   - `plugins.lua` - One entry per plugin identity, holding that plugin's overrides of its manifest defaults, its person supplied data and its spoon global, or `false` to switch it off. Only a plugin under `plugins/` can be switched off, a host written `false` is refused with a console line, and a switch saved by the OLM settings page under `Olm.disabledPlugins` joins these, see `Spoons/Olm.spoon/lib/pluginswitch.lua`
   - `settings.lua` - Global settings (margins, timing)
   - `workspaces/` - Workspace definitions (dev.lua, vicert.lua)
@@ -216,16 +215,16 @@ whose action is `open`, a row may name its own role or `leader = false` for a pl
 combination with its modifiers, and `defaults.leader` is the role a row naming none inherits.
 Every listed action descriptor is also a launcher row Olm builds, so a plugin builds no row
 for what it can run. Where a person's keys live today, every action's in `config/keymap.lua`, the
-app toggles still in `config/keys.lua` until phase 6 of the keymap plan, and a `key` override
-still honoured in `config/plugins.lua` until phase 7, never in a plugin. An action id is the
-identity, a dot and the action, `vpn.open`, `windowmanager.leftHalf`, `apptoggler.Safari`,
-`launcher.lock`. An action named there takes exactly its listed chords and loses its defaults. A
-person's chord on a slot a default holds drops that one row of the default, with one routine
-`Olm keymap` console line naming it, and a keymap entry ranks above every other source of the
-person's, so it drops a toggle on its slot the same way. `false` frees a global chord, and list
-keys are reached by neither until phase 7. A toggle moved there binds its new chord, while the
-Hyper sheet's app sections and the app's launcher row still show the old one until phase 6, and
-an id naming an app with two toggles, `apptoggler.Ghostty`, is refused rather than moving both.
+app toggles included since phase 6 of the keymap plan, and a `key` override still honoured in
+`config/plugins.lua` until phase 7, never in a plugin. An action id is the identity, a dot and
+the action, `vpn.open`, `windowmanager.leftHalf`, `apptoggler.Safari`,
+`apptoggler.GhosttyPlaced`, `systemsettings.General`, `launcher.lock`. An action named there takes
+exactly its listed chords and loses its defaults. A person's chord on a slot a default holds
+drops that one row of the default, with one routine `Olm keymap` console line naming it, and a
+keymap entry ranks above every other source of the person's, so it drops a binding written in
+`config/plugins.lua` on its slot the same way. `false` frees a global chord, and list keys are
+reached by neither until phase 7. A toggle moved there shows its new chord wherever the app is
+listed, the Hyper sheet's app section and the app's launcher row, since both read the keymap.
 `fn` is refused on a held leader, the keypad plus is `pad+` and the main row plus is `shift+=`. A name under `leaders`, `nav = { "shift", "ctrl" }`, is a leader of its own on the
 modifier trigger with that base set, read as Nav on a launcher row the way Hyper is, with no
 sheet and no tap, and its slot is the whole combination, so it collides with the same plain
@@ -344,32 +343,33 @@ fanned out under the field name `predicates`, is the one
 place the logic lives, injected into both the dispatch gate
 (every leader, handed each binding's `when` as a gate by the binder) and the overlay
 filter (the leader sheet host, for every leader), so
-the key and the overlay never disagree, and `config/keys.lua` stays pure data.
+the key and the overlay never disagree, and `config/keymap.lua` stays pure data.
 Predicates are evaluated live (at dispatch and at each overlay show), so they
 track runtime state. An unknown name is treated as always active and warned about once per
 leader, so a typo fails visibly rather than silently disabling a binding. Today the only predicate is
 `multipleDisplays`, which hides `previousDisplay`/`nextDisplay` when a single
 display is attached.
 
-Most toggles focus or cycle their app. A toggle in `keys.lua` may instead carry
-an optional `url`, and `AppToggler` opens it with `open` so the app lands on a
-specific pane rather than wherever it was last. Hyper+, uses this to open System
-Settings on the General pane, and pressing it again while frontmost hides it.
-These toggles still show in the cheat sheet like any other app. AppToggler supplies the
-sheet's app sections itself through `provides.cheatSheetSections`, built from the entries it
-bound into the Hyper modal, so the sheet names no plugin and the overlay stays complete without
-extra wiring. The launcher's app rows name each toggle's chord the same way, through
-`provides.launcherAppDetails`, so the launcher reads neither the toggles nor the app registry.
+App toggles are actions built from data since phase 6 of the keymap plan. `AppToggler` answers
+one action per app in `config/apps.lua`, `apptoggler.Safari`, which focuses or cycles it, and one
+per named variant in its entry in `config/plugins.lua`, `apptoggler.GhosttyPlaced`, and every key
+reaching one is a line in `config/keymap.lua`. Each descriptor names its app in `app` and a group
+function answering RUNNING or DORMANT, so the Hyper sheet draws the apps running now first and the
+rest faded below them with no section of the plugin's own, and the launcher shows each chord on the
+app's own row, merging the action into it rather than listing the app twice. The sheet draws an
+app row with the app's icon and name and leaves off an app not installed, both decided by Olm from
+`app`. Hyper+, is System Settings' own action, `systemsettings.General`, which opens the General
+pane and hides the app when it is already in front showing General, the toggle by url that used
+to be a toggler field. A pane key pressed while System Settings shows another pane goes to its own. A System Settings pane action lands among the Hyper sheet's actions, not the app section.
 
-A toggle may also carry `modifiers` of its own, `hides`, and `placement`, three fields
-AppToggler's own README documents in full. `modifiers` opts a toggle out of the Hyper modal
-entirely and into a literal global combo, live all the time rather than only while Hyper is
-held, which is what the terminal's own placed summon on Option+\` wants, since it is pressed
-mid work rather than reached through a leader, and such a toggle never reaches the cheat
-sheet above, which lists only the toggles AppToggler bound into the modal. `hides` swaps
-focus-or-cycle for show and hide. `placement` centers and sizes the window once the press
-actually showed, launched, or focused the app, and is where the retired TerminalHandler
-spoon's own behaviour lives now.
+A variant may carry `hides` and `placement`, two fields AppToggler's own README documents in full,
+and a `description`. Its key may be a plain combination, live all the time rather than only while
+Hyper is held, which is what the terminal's own placed summon on Option+\` wants, since it is
+pressed mid work rather than reached through a leader, and such a key never reaches a cheat sheet,
+so the app's launcher row shows it instead, a plain combination winning that row over a Hyper
+chord. `hides` swaps focus or cycle for show and hide. `placement` centers and sizes the window
+once the press actually showed, launched, or focused the app, and is where the retired
+TerminalHandler spoon's own behaviour lives now.
 
 **Two discoverability mandates, and a binding is not finished until both hold.**
 Every shortcut must be reachable two ways. First, a shortcut bound on a leader
@@ -381,9 +381,9 @@ and an app toggle counts because its app row carries the shortcut. The only
 things exempt from the launcher rule are the surfaces used to reach the launcher
 itself, the launcher open key and the other discovery openers, since listing a
 finder inside the finder earns nothing. Both surfaces read the same
-manifest data, the cheat sheet through the sections the root assembles, plus the sections a
-plugin binding keys from its own data supplies through `provides.cheatSheetSections`,
-and the launcher through its action rows, so a new binding is added to that data
+manifest data, the cheat sheet through the keymap's rows filed under each descriptor's group,
+and the launcher through its action rows and the app rows an action naming an app merges into,
+so a new binding is added to that data
 and surfaced in both places rather than in code only one of them reads, and the
 key and its listings can never drift. A binding whose `when` predicate is false
 drops out of both together, so the rule still reads the same. A shortcut that
@@ -586,10 +586,10 @@ needed a restow, but the new sibling files inside it did not, they resolve throu
 the existing symlink.
 
 **Terminal placement.** Option+\` toggles the terminal, and the centering and sizing that
-follows lives inside `AppToggler` now, a `placement` field any `appToggles` entry in
-`config/keys.lua` may declare, the Ghostty entry stating the same width, height, and padding
-a retired `TerminalHandler.spoon` used to hold. That whole spoon is gone, absorbed
-into AppToggler as one entry among the app toggles it already served rather than a tool kept
+follows lives inside `AppToggler` now, a `placement` field any variant in its entry in
+`config/plugins.lua` may declare, the GhosttyPlaced variant stating the same width, height, and
+padding a retired `TerminalHandler.spoon` used to hold. That whole spoon is gone, absorbed
+into AppToggler as one variant beside the app toggles it already served rather than a tool kept
 outside Olm for one app's sake. It operates on the display the window is already on,
 `win:screen()`, and never chooses one, the decision TerminalHandler recorded before the
 absorption and this engine kept rather than revisited, since the shared overlay display

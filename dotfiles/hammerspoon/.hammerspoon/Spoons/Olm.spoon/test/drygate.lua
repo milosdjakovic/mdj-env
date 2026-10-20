@@ -473,7 +473,9 @@ local function checkLauncherMembers(dir, identity, manifest, mod)
   checkMember(dir, identity, "provides.launcherRun", provides.launcherRun, mod)
 end
 
---- The retired manifest fields, registry.commands, defaults.key and defaults.mods, through
+--- The retired manifest fields, registry.commands, defaults.key, defaults.mods, and since phase 6
+--- of the keymap plan provides.bindings, provides.cheatSheetSections and
+--- provides.launcherAppDetails, through
 --- lib/registrar.lua's own retiredFields, the rule the root applies at every load, so a manifest
 --- written to the old contract is named here before a reload rather than losing a key in silence.
 --- Needs no module, since it reads manifest data alone.
@@ -483,21 +485,15 @@ local function checkRetired(dir, identity, manifest)
   end
 end
 
---- provides.actions and provides.bindings, what a plugin can run and the rows it provides from
---- its own data. Both go through lib/registrar.lua's own validateActions and providedBindings,
---- the identical rule the root applies once wiring has run, asked here against the module this
---- gate configured, so a malformed descriptor is refused here in the words a live load uses.
+--- provides.actions, what a plugin can run, fixed in code or built from its own data. It goes
+--- through lib/registrar.lua's own validateActions, the identical rule the root applies once
+--- wiring has run, asked here against the module this gate configured, so a malformed descriptor
+--- is refused here in the words a live load uses.
 local function checkActions(dir, identity, manifest, mod)
   local provides = manifest.provides
   if type(provides) ~= "table" then return end
   if provides.actions ~= nil then
     local _, _, problems = registrarLib.validateActions(identity, manifest, mod)
-    for _, problem in ipairs(problems) do
-      finding(string.format("dry gate refused '%s', %s, %s", identity, problem.where, problem.why))
-    end
-  end
-  if provides.bindings ~= nil then
-    local _, problems = registrarLib.providedBindings(identity, manifest, mod)
     for _, problem in ipairs(problems) do
       finding(string.format("dry gate refused '%s', %s, %s", identity, problem.where, problem.why))
     end
@@ -567,7 +563,7 @@ for dir, manifest in pairs(manifestsByDir) do
   local launcherMembers = type(manifest.provides) == "table"
     and (manifest.provides.launcherRows ~= nil or manifest.provides.launcherRun ~= nil)
   local actionMembers = type(manifest.provides) == "table"
-    and (manifest.provides.actions ~= nil or manifest.provides.bindings ~= nil)
+    and manifest.provides.actions ~= nil
   local needsModule = (manifest.registry ~= nil) or (manifest.presentation ~= nil)
     or (type(manifest.wiring) == "table" and #manifest.wiring > 0) or launcherMembers
     or actionMembers

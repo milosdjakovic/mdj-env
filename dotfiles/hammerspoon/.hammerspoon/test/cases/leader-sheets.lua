@@ -12,8 +12,10 @@
 -- the same two modules the root runs, over a real lib/registry.lua instance holding one
 -- registration per manifest that declares a registry block. What a plugin can run comes from the
 -- registrar's own
--- validateActions and providedBindings, asked of a fresh copy of each plugin that declares
--- provides.actions or provides.bindings. No wiring step may bind a key any more, so a step whose
+-- validateActions, asked of a fresh copy of each plugin that declares provides.actions, the app
+-- toggler's and System Settings' configured first since theirs are built from data. A person's
+-- keys reach the keymap from a config/keymap.lua shaped table, read by lib/keymap.lua's own
+-- readConfig. No wiring step may bind a key any more, so a step whose
 -- method starts with bind fails the case. Two inputs the root builds inline, which no unit case
 -- can load, are restated small. A host's key calls its show through lib/hints.lua's own rule,
 -- which the case calls rather than restates, and the launcher's lock and sleep rows call a
@@ -21,9 +23,9 @@
 --
 -- What the sheet shows is read off the real host. Since phase 4 of the keymap plan one host draws
 -- every leader, so it is configured once with a record per leader, each holding that leader's
--- layout and the entries the root assembles, the leader's own block built by the host from
--- lib/hints.lua's sheetRows over the keymap and every supplier answering the cheatSheetSections
--- set, and then shown for each leader into a recorder. A badge is spelled by a glyph function
+-- layout and the entries the host builds from lib/hints.lua's sheetRows over the keymap, in
+-- blocks by each owner's cheatSheetOrder with the app toggler's apps split by whether they run,
+-- and then shown for each leader into a recorder. A badge is spelled by a glyph function
 -- that keeps the key and its modifiers readable, so a bound chord and a sheet row compare as one
 -- plain string.
 --
@@ -74,8 +76,12 @@ if hs == nil then
     application = {
       pathForBundleID = function() return "/Applications/stub.app" end,
       nameForBundleID = function() return nil end,
-      runningApplications = function() return {} end,
+      -- Finder, the one app every Mac always runs, so the sheet's running section has a row.
+      runningApplications = function()
+        return { { bundleID = function() return "com.apple.finder" end } }
+      end,
     },
+    timer = { secondsSinceEpoch = function() return os.time() end },
     image = { imageFromAppBundle = function() return "icon" end },
     hotkey = { bind = function() end },
     keycodes = { map = {} },
@@ -208,52 +214,66 @@ local function run(manifests, person)
     end
   end
 
-  -- What each plugin can run and the rows it provides, asked of a fresh copy of its module the
-  -- way the root asks after wiring. The toggler is configured first, since its rows are built
-  -- from its toggles in configure. The window manager and capture answer their actions with
+  -- What each plugin can run, asked of a fresh copy of its module the way the root asks after
+  -- wiring. The toggler and System Settings are configured first, since their actions are built
+  -- from their data in configure. The window manager and capture answer their actions with
   -- nothing configured.
-  local modules, actions, refused, provided = {}, {}, {}, {}
+  local modules, actions, refused = {}, {}, {}
   for _, directory in ipairs(plan.order) do
     local identity = plan.identity[directory] or directory
     local manifest = manifests[identity] or {}
     local provides = manifest.provides or {}
-    if provides.actions ~= nil or provides.bindings ~= nil then
+    if provides.actions ~= nil then
       local eff = plan.effective[directory] or {}
       local module
       if identity == "apptoggler" then
         module = load("plugins/apptoggler/init.lua")
         module:init()
-        -- The person's roster and toggles, handed over by field name, win over the shipped
-        -- defaults the way init.lua's shared table does for the running config.
+        -- The person's catalog and variants, handed over as that plugin's data, win over the
+        -- shipped defaults the way config/plugins.lua's entry does for the running config.
         local given = (person.data or {}).apptoggler or {}
-        local apps, shipped = given.apps or eff.apps, given.toggles or eff.toggles
-        -- A toggle stating its own modifiers is a global combo, so one is added to prove it
-        -- stays off every sheet.
-        local toggles = {}
-        for _, t in ipairs(shipped or {}) do toggles[#toggles + 1] = t end
-        toggles[#toggles + 1] = { app = "Finder", key = "8", modifiers = { "ctrl", "alt" } }
-        module:configure({ apps = apps, toggles = toggles, appFocus = {} })
+        local apps = given.apps or eff.apps
+        -- A variant bound as a plain combination, so one is added to prove it stays off every
+        -- sheet, with its key in the keys below.
+        local variants = {}
+        for name, v in pairs(given.variants or eff.variants or {}) do variants[name] = v end
+        variants.ProbePlaced = { app = "Finder", hides = true }
+        module:configure({ apps = apps, variants = variants, appFocus = {} })
+      elseif identity == "systemsettings" then
+        module = load("plugins/systemsettings/init.lua")
+        module:init()
+        module:configure({ panes = eff.panes, appFocus = {} })
       elseif identity == "capture" then
         module = load("plugins/capture/engine.lua")
-      else
+      elseif loadfile(spoonDir .. "plugins/" .. directory .. "/init.lua") then
         module = load("plugins/" .. directory .. "/init.lua")
+      else
+        -- A host answering actions of its own, the launcher's lock and sleep since phase 5 of the
+        -- keymap plan, lives under host rather than plugins.
+        module = load("host/" .. directory .. "/init.lua")
       end
       modules[identity] = module
       local answered, refusedNames, problems = registrar.validateActions(identity, manifest, module)
       actions[directory], refused[directory] = answered, refusedNames
       for _, pr in ipairs(problems) do result.bindProblems[#result.bindProblems + 1] = pr end
-      local rows, rowProblems = registrar.providedBindings(identity, manifest, module)
-      if provides.bindings ~= nil then provided[directory] = rows end
-      for _, pr in ipairs(rowProblems) do result.bindProblems[#result.bindProblems + 1] = pr end
     end
   end
+
+  -- The person's keys, read the way the root reads config/keymap.lua, plus the probe variant's
+  -- plain combination when the app toggler is in the plan.
+  local keys = {}
+  for chord, id in pairs((person.keymap or {}).keys or {}) do keys[chord] = id end
+  if manifests.apptoggler then keys["ctrl+alt+8"] = "apptoggler.ProbePlaced" end
+  local personKeys = keymapLib.readConfig({ keys = keys },
+    { catalog = { HYPER = true, META = true, SUPER = true }, roleWords = { "app", "window" } })
+  for _, pr in ipairs(personKeys.problems) do result.bindProblems[#result.bindProblems + 1] = pr end
 
   local claimed = {}
   for _, entry in ipairs(registry.shortcuts()) do claimed[entry.name] = true end
   local keymap = keymapLib.build({
     plan = plan, roles = { app = "HYPER", window = "META" },
     shortcuts = registry.shortcuts(),
-    actions = actions, refusedActions = refused, provided = provided,
+    actions = actions, refusedActions = refused, personKeys = personKeys.keys,
     hostRun = function(directory)
       local identity = plan.identity[directory] or directory
       return hints.hostKeyBinding(plan.effective[directory], hostModule(directory), claimed[identity])
@@ -297,23 +317,26 @@ local function run(manifests, person)
     meta = { role = "window", code = 106, policy = { sheet = true,
       sheetLayout = { title = "WINDOW", columns = 2, colWidth = 250, badgeWidth = 44, gap = 12 } } },
   }
+  -- The two answers the root hands the host, restated small since the root builds them inline.
+  local directoryOf = {}
+  for _, directory in ipairs(plan.order) do directoryOf[plan.identity[directory] or directory] = directory end
+  local function orderOf(owner)
+    local directory = directoryOf[owner]
+    return directory and (plan.effective[directory] or {}).cheatSheetOrder or nil
+  end
+  local function appInfo(bundleID)
+    local path = hs.application.pathForBundleID(bundleID)
+    if not path or path == "" then return nil end
+    return { name = hs.application.nameForBundleID(bundleID), icon = hs.image.imageFromAppBundle(bundleID) }
+  end
   local sheets = {}
   for _, name in ipairs({ "hyper", "meta" }) do
     local spec = policies[name]
     local layout = leaderLib.sheetLayout(spec.policy)
-    -- The plugins supplying sections for this leader's role, so their provided rows are not
-    -- listed twice, the way the root works it out.
-    local supplied = {}
-    for _, identity in ipairs(((plan.sets or {})[sheetIdentity] or {}).cheatSheetSections or {}) do
-      if ((plan.effective or {})[identity] or {}).leader == spec.role then supplied[identity] = true end
-    end
-    local rows = hints.sheetRows(keymap, plan, name, { registry = registry, supplied = supplied })
+    local rows = hints.sheetRows(keymap, plan, name, { registry = registry })
     sheets[#sheets + 1] = { name = name, keyCode = spec.code, layout = layout,
-      entries = contributions.sheetSections({
-        host = sheetIdentity, role = spec.role, plan = plan, manifests = manifests, modules = modules,
-        registrar = registrar, own = host.ownSections(rows, { glyphFor = mark, layout = layout }),
-        ownOrder = (plan.effective[sheetIdentity] or {}).cheatSheetOrder,
-      }) }
+      entries = host.ownSections(rows, { glyphFor = mark, layout = layout, appInfo = appInfo,
+        orderOf = orderOf, ownOrder = (plan.effective[sheetIdentity] or {}).cheatSheetOrder }) }
   end
   host:configure({ cheatSheet = recorder(), predicates = predicates, sheets = sheets })
   for _, name in ipairs({ "hyper", "meta" }) do
@@ -355,25 +378,24 @@ for _, k in ipairs(sorted(real.bound.global)) do
   check("the global combo " .. k .. " is on no leader's sheet",
     not real.sheet.app[k] and not real.sheet.window[k])
 end
-check("the toggle with its own modifiers was bound as a global combo", real.bound.global["8+alt+ctrl"])
+check("the variant bound as a plain combination was bound as a global combo", real.bound.global["8+alt+ctrl"])
 
--- The app toggles come first, as they always have, through the supplier the plugin declared.
-check("the Hyper sheet's first entry is a supplier", type(real.entries[1]) == "function")
+-- The app toggles come first, as they always have, a block of the toggler's own rows asked at
+-- every show, since each row's group answers whether its app runs.
+check("the Hyper sheet's first entry is a live block", type(real.entries[1]) == "function")
 local drawn = real.host:sections(real.hyperCode)
-check("the app sections lead the sheet, running then dormant",
-  drawn[1] ~= nil and drawn[1].title == "RUNNING" and drawn[2] ~= nil and drawn[2].title == "DORMANT")
-check("the app sections keep the icon grid and the bound chords drop it",
+check("the app section leads the sheet, the running Finder first",
+  drawn[1] ~= nil and drawn[1].title == "RUNNING")
+check("the app section keeps the icon grid and the bound chords drop it",
   drawn[1].iconSize == nil and drawn[#drawn].iconSize == 0)
-check("dormant apps are faded with their title kept bright",
-  drawn[2].alpha == 0.55 and drawn[2].titleAlpha == 1.0)
 check("the shipped Finder toggle is on the sheet", real.sheet.app["f"] == 1)
 
 --------------------------------------------------------------------------------
 -- The person's own configuration. Every run above has an empty user, which is a machine that
--- configured nothing, so one run is made with the real config/plugins.lua as the user, and the
--- app roster and toggles from config/apps.lua and config/keys.lua handed over the way init.lua
--- hands them, in its own entry in config/plugins.lua. Loaded by path from this checkout, since a
--- require inside the live Hammerspoon would return the running config's cached modules.
+-- configured nothing, so one run is made with the real config/plugins.lua as the user, its
+-- entries' data handed over as each plugin's own, and the real config/keymap.lua as the person's
+-- keys. Loaded by path from this checkout, since a require inside the live Hammerspoon would
+-- return the running config's cached modules.
 --------------------------------------------------------------------------------
 
 do
@@ -391,11 +413,12 @@ do
     end
   end
   package.path = configRoot .. "?.lua;" .. configRoot .. "?/init.lua;" .. package.path
-  -- config/plugins.lua pulls in config/keys.lua and config/apps.lua itself, since its apptoggler
-  -- entry carries both lists as that plugin's data.
+  -- config/plugins.lua pulls in config/apps.lua itself, since its apptoggler entry carries the
+  -- catalog as that plugin's data.
   local loaded, personPlugins = pcall(function()
     return dofile(configRoot .. "config/plugins.lua")
   end)
+  local keymapLoaded, personKeymap = pcall(dofile, configRoot .. "config/keymap.lua")
   package.path = savedPath
   for name in pairs(package.loaded) do
     if type(name) == "string" and name:match("^config%.") then package.loaded[name] = nil end
@@ -408,7 +431,8 @@ do
     for name, entry in pairs(personPlugins) do
       if type(entry) == "table" and entry.data then data[name] = entry.data end
     end
-    local person = run(realManifests, { user = personPlugins, data = data })
+    check("the person's config/keymap.lua loads", keymapLoaded, not keymapLoaded and tostring(personKeymap) or nil)
+    local person = run(realManifests, { user = personPlugins, data = data, keymap = keymapLoaded and personKeymap or nil })
     check("with the person's config the plan has no problems", #person.problems == 0,
       #person.problems > 0 and (tostring(person.problems[1].kind) .. " at " .. tostring(person.problems[1].where)) or nil)
     for _, leader in ipairs({ "app", "window" }) do
@@ -422,6 +446,14 @@ do
     check("the person's toggles reach the app sheet", person.sheet.app["b"] == 1 and person.sheet.app["`"] == 1)
     check("the person's placed terminal toggle is a global combo on no sheet",
       person.bound.global["`+alt"] == 1 and not person.sheet.app["`+alt"])
+    check("Hyper and comma is bound on the app leader and on its sheet",
+      person.bound.app[","] == 1 and person.sheet.app[","] == 1)
+    local personDrawn = person.host:sections(person.hyperCode)
+    check("with the person's apps the sheet splits running then dormant",
+      personDrawn[1] ~= nil and personDrawn[1].title == "RUNNING" and personDrawn[2] ~= nil
+        and personDrawn[2].title == "DORMANT")
+    check("dormant apps are faded with their title kept bright",
+      personDrawn[2] ~= nil and personDrawn[2].alpha == 0.55 and personDrawn[2].titleAlpha == 1.0)
   end
 end
 

@@ -1,5 +1,4 @@
 hyper	supplied	1	RUNNING	1.0	-	icons
-hyper	supplied	1	DORMANT	0.55	1.0	icons
 hyper	section	2	ACTIONS	1.0	-	plain columns=4 colWidth=215 iconSize=0
 hyper	row	2	W	Browser tabs	-
 hyper	row	2	K	Keep awake	-

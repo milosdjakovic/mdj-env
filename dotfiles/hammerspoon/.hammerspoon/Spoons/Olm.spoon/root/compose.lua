@@ -1829,7 +1829,7 @@ function obj.run(olm, cfg)
   -- the post register second call in step K, instead of being recomputed and risking two
   -- slightly different tables answering for the same plugin in the same run.
   -- The sheet reads no person data since phase four of the core split. The app toggles reach
-  -- it as sections the toggling plugin supplies, assembled in step K with everything else.
+  -- it as keymap rows like every other key, assembled in step K with everything else.
   local leaderSheetOpts = {
     cheatSheet = cheatSheetAtom,
   }
@@ -2181,17 +2181,18 @@ function obj.run(olm, cfg)
   local forWire = registrarLib.forWire(wiredRegistry)
   w.register(forWire, describeForRegistry)
 
-  -- What every plugin can run, its provides.actions descriptors, and the rows a plugin provides
-  -- from its own data through provides.bindings. Both are asked once, here, after every plugin's
-  -- configure and wiring have run and every tool has registered, so a table built in configure
-  -- is already there. A malformed descriptor or row is refused with one problem line and costs
-  -- only itself.
+  -- What every plugin can run, its provides.actions descriptors, fixed in code or built from the
+  -- plugin's own data, an app the toggler serves or a System Settings pane. They are asked once,
+  -- here, after every plugin's configure and wiring have run and every tool has registered, so a
+  -- list built in configure is already there. A malformed descriptor is refused with one problem
+  -- line and costs only itself.
   --
   -- The same walk names every retired field a manifest still declares, registry.commands,
-  -- defaults.key and defaults.mods, with what replaced each. Nothing reads a retired field, so
-  -- without the line a manifest written to the old contract would lose that key or that row in
-  -- silence.
-  local pluginActions, refusedActions, actionOrder, providedRows = {}, {}, {}, {}
+  -- defaults.key, defaults.mods, provides.bindings, provides.cheatSheetSections and
+  -- provides.launcherAppDetails, with what replaced each. Nothing reads a retired field, so
+  -- without the line a manifest written to the old contract would lose that key, that row or
+  -- that section in silence.
+  local pluginActions, refusedActions, actionOrder = {}, {}, {}
   -- The kinds the launcher keys specially, asked of the launcher itself, and the registered tool
   -- names, so a descriptor cannot claim a row the launcher would remember or route as its own.
   -- THE SEAM. The launcher is one of the host modules this file may name.
@@ -2210,11 +2211,6 @@ function obj.run(olm, cfg)
     if (manifest.provides or {}).actions ~= nil then
       local answered, refused, problems, order = registrarLib.validateActions(identity, manifest, module, actionOpts)
       pluginActions[directory], refusedActions[directory], actionOrder[directory] = answered, refused, order
-      for _, problem in ipairs(problems) do w.problem("actions", problem.where, problem.why) end
-    end
-    if (manifest.provides or {}).bindings ~= nil then
-      local rows, problems = registrarLib.providedBindings(identity, manifest, module)
-      providedRows[directory] = rows
       for _, problem in ipairs(problems) do w.problem("actions", problem.where, problem.why) end
     end
   end
@@ -2251,7 +2247,6 @@ function obj.run(olm, cfg)
     shortcuts = wiredRegistry.shortcuts(),
     actions = pluginActions,
     refusedActions = refusedActions,
-    provided = providedRows,
     hostRun = hostRun,
     personKeys = keymapConfig.keys,
     modifierLeaders = modifierLeaderSets,
@@ -2405,54 +2400,49 @@ function obj.run(olm, cfg)
   -- only once stage five has already run.
   ------------------------------------------------------------------------------
 
-  -- Every leader whose policy states a sheet, one record each for the sheet host. A leader's own
-  -- block is the global chords the keymap holds on it, read by lib/hints.lua's sheetRows, filed
-  -- into sections by the host, and placed among the sections plugins supply for the leader's
-  -- role, the app toggles on the Hyper sheet today, by each one's declared number.
-  -- lib/contributions.lua asks the set the host declared, so this names no plugin. A tool row
-  -- with no description borrows the detail its launcher row wears, from the registry handed over
-  -- here, the raw instance rather than the zero argument wire adapter, since rowFor is the one
-  -- call that needs it. The sheet draws by the leader's own keycode, which the adapter hands it.
+  -- Every leader whose policy states a sheet, one record each for the sheet host. A leader's rows
+  -- are the global chords the keymap holds on it, read by lib/hints.lua's sheetRows and filed into
+  -- sections by the host under each descriptor's group, in blocks placed by each owner's declared
+  -- cheatSheetOrder, the app toggles first on the Hyper sheet today. A tool row with no
+  -- description borrows the detail its launcher row wears, from the registry handed over here,
+  -- the raw instance rather than the zero argument wire adapter, since rowFor is the one call that
+  -- needs it. A row standing for an app wears that app's name and icon, resolved here once, and
+  -- an app not on this machine is left off. The sheet draws by the leader's own keycode, which the
+  -- adapter hands it.
   if leaderSheetModule then
     local sheetIdentity = plan.identity.leadersheet or "leadersheet"
-    local sheets, revealedRoles = {}, {}
+    local directoryOfIdentity = {}
+    for _, directory in ipairs(plan.order or {}) do
+      directoryOfIdentity[plan.identity[directory] or directory] = directory
+    end
+    local function sheetOrderOf(owner)
+      local directory = directoryOfIdentity[owner]
+      return directory and ((plan.effective or {})[directory] or {}).cheatSheetOrder or nil
+    end
+    local function appInfo(bundleID)
+      local path = hs.application.pathForBundleID(bundleID)
+      if not path or path == "" then return nil end
+      return { name = hs.application.nameForBundleID(bundleID), icon = hs.image.imageFromAppBundle(bundleID) }
+    end
+    local sheets = {}
     for _, spec in ipairs(leaderSpecs) do
       if spec.policy.sheet and spec.inUse then
         local layout = leaderLib.sheetLayout(spec.policy, cheatSheetAtom.DEFAULTS)
-        for _, role in ipairs(spec.roles) do revealedRoles[#revealedRoles + 1] = role end
-        -- Plugins that supply sections for this leader's roles, whose provided rows the sheet
-        -- would otherwise list a second time.
-        local supplied = {}
-        for _, identity in ipairs(((plan.sets or {})[sheetIdentity] or {}).cheatSheetSections or {}) do
-          local leaderRole = ((plan.effective or {})[identity] or {}).leader
-          for _, role in ipairs(spec.roles) do
-            if leaderRole == role then supplied[identity] = true end
-          end
-        end
-        local rows = hintsLib.sheetRows(keymap, plan, spec.name, { registry = wiredRegistry, supplied = supplied })
+        local rows = hintsLib.sheetRows(keymap, plan, spec.name, { registry = wiredRegistry })
         sheets[#sheets + 1] = {
           name = spec.name,
           keyCode = spec.keyCode,
           layout = layout,
-          entries = contributionsLib.sheetSections({
-            host = sheetIdentity,
-            roles = spec.roles,
-            plan = plan,
-            manifests = manifests,
-            modules = modules,
-            registrar = registrarLib,
-            own = leaderSheetModule.ownSections(rows, { glyphFor = cheatSheetAtom.glyphFor, layout = layout }),
+          entries = leaderSheetModule.ownSections(rows, {
+            glyphFor = cheatSheetAtom.glyphFor,
+            layout = layout,
+            appInfo = appInfo,
+            orderOf = sheetOrderOf,
             ownOrder = ((plan.effective or {})[sheetIdentity] or {}).cheatSheetOrder,
-            log = function(message) log.e("Olm compose, " .. message) end,
           }),
         }
       end
     end
-    -- A supplier whose role no sheet reveals is named once, here, rather than by each sheet asking.
-    contributionsLib.unreachedSheetSections({
-      host = sheetIdentity, roles = revealedRoles, plan = plan,
-      log = function(message) log.e("Olm compose, " .. message) end,
-    })
     -- The renderer and the predicates are given again beside the sheets, and the table is keyed
     -- by DIRECTORY in lateData rather than by identity, since that is how a manifest is keyed and
     -- the delivery check reads the two side by side.
@@ -2620,16 +2610,14 @@ function obj.run(olm, cfg)
       afterRelease = afterLeadersRelease,
     })
 
-    -- What an app row shows beyond the app, the chord and the url, merged from every plugin
-    -- answering the launcherAppDetails set, so the launcher reads no person data and names
-    -- none of them. Asked when the launcher builds its app rows, after every wiring step.
-    local appDetails = contributionsLib.appDetails({
-      host = plan.identity.launcher or "launcher",
+    -- What an app row shows beyond the app, the chord of an action whose descriptor names that
+    -- app, built from the descriptors and the keymap, so the launcher reads no person data, names
+    -- no plugin, and no plugin answers anything for an app row.
+    local appDetails = contributionsLib.appChords({
       plan = plan,
-      manifests = manifests,
-      modules = modules,
-      registrar = registrarLib,
-      log = function(message) log.e("Olm compose, " .. message) end,
+      actions = pluginActions,
+      actionOrder = actionOrder,
+      keymap = keymap,
     })
 
     -- The launcher's own Aliases row is root policy with no tool behind it, a catalog row of kind
@@ -2706,16 +2694,10 @@ function obj.run(olm, cfg)
       -- call, so none of them names a plugin. A row a plugin contributed runs through that
       -- plugin's own runner above instead.
       actions = {
-        -- An app row, core naming core. A url is the toggle form a person's app toggle may
-        -- declare, landing the app on one pane of itself, and every other app row focuses or
-        -- cycles, the same two calls the app toggler's own keys make.
-        app = function(bundleID, url)
-          if url then
-            appFocusAtom.toggleURL(bundleID, url)
-          else
-            appFocusAtom.focusOrCycle(bundleID)
-          end
-        end,
+        -- An app row, core naming core. It focuses or cycles, the same call the app toggler's
+        -- plain toggles make. A row landing an app on a pane through a url went with the toggler's
+        -- url field in phase 6 of the keymap plan, since a pane is System Settings' own action.
+        app = function(bundleID) appFocusAtom.focusOrCycle(bundleID) end,
         -- A computed result lands on the pasteboard plainly, so it joins clipboard history
         -- like any other copy, unlike the hidden writes the insertion paths use.
         copy = function(value) hs.pasteboard.setContents(value) end,

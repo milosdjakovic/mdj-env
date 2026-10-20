@@ -15,18 +15,18 @@
 --   four, and stays legal in a chord of modifiers alone or on a named leader. The plus on the
 --   main row is written as its unshifted key, shift+=, and the keypad plus is pad+, hyper+pad+.
 --   An action is the plugin or host identity, a dot and the action name, vpn.open,
---   windowmanager.leftHalf, clipboard.appendCopy, apptoggler.Safari for an app toggle, and
---   launcher.open, launcher.lock and launcher.sleep for Olm's own.
+--   windowmanager.leftHalf, clipboard.appendCopy, apptoggler.Safari for an app in
+--   config/apps.lua, apptoggler.GhosttyPlaced for a variant of one in config/plugins.lua,
+--   systemsettings.General for a System Settings pane, and launcher.open, launcher.lock and
+--   launcher.sleep for Olm's own.
 --   An action named here takes exactly the chords listed for it here and loses its defaults, and
 --   every action not named keeps its own. A chord a default holds is taken from that default, and
 --   that one row of the default is not bound, said in one routine console line, while the action
---   keeps every other chord it has. A chord here beats an app toggle in config/keys.lua the same
---   way. false frees a global chord, so whatever held it is not bound and nothing takes its place.
---   List keys, the ones live while a list is open, are not reached by false or by any entry
---   until phase 7 of the keymap plan brings them here.
---   An app toggle moved here binds its new chord, while the Hyper sheet's app sections and the
---   app's own launcher row still show the old one until phase 6 makes toggles actions. Until then
---   an id naming an app with two toggles, apptoggler.Ghostty, is refused, since it would move both.
+--   keeps every other chord it has. false frees a global chord, so whatever held it is not bound
+--   and nothing takes its place. List keys, the ones live while a list is open, are not reached
+--   by false or by any entry until phase 7 of the keymap plan brings them here.
+--   An app's key shows wherever Olm lists the app, on the sheet of the leader it sits on and on
+--   the app's own launcher row, so moving one here moves it everywhere.
 --     ["meta+E"] = "vpn.open",
 --     ["meta+Y"] = "clipboard.open",
 --
@@ -52,6 +52,45 @@ return {
   keys = {
     -- ["meta+E"] = "vpn.open",
     -- ["meta+Y"] = "clipboard.open",
+
+    -- App toggles, each app named as in config/apps.lua. Holding Hyper and the key focuses the
+    -- app, or walks its windows when it is already in front.
+    -- First character
+    ["hyper+B"] = "apptoggler.Books",
+    ["hyper+C"] = "apptoggler.GoogleChrome",
+    ["hyper+D"] = "apptoggler.Docker",
+    ["hyper+F"] = "apptoggler.Finder",
+    ["hyper+M"] = "apptoggler.Mail",
+    ["hyper+O"] = "apptoggler.Obsidian",
+    ["hyper+S"] = "apptoggler.Safari",
+    ["hyper+V"] = "apptoggler.VisualStudioCode",
+    ["hyper+N"] = "apptoggler.Notes",
+    ["hyper+I"] = "apptoggler.iPhoneMirroring",
+    ["hyper+Z"] = "apptoggler.Zed",
+    ["hyper+R"] = "apptoggler.Preview",
+    -- Second character
+    ["hyper+T"] = "apptoggler.Stickies",
+    ["hyper+L"] = "apptoggler.Slack",
+    -- Third character
+    ["hyper+A"] = "apptoggler.Claude",
+    -- The default terminal, plain focus or cycle.
+    ["hyper+`"] = "apptoggler.Ghostty",
+    -- The terminal's own placed summon, the GhosttyPlaced variant in config/plugins.lua, a plain
+    -- combination rather than a Hyper chord since it is pressed mid work, live all the time
+    -- rather than only while Hyper is held.
+    ["alt+`"] = "apptoggler.GhosttyPlaced",
+    -- Activity Monitor. On backslash rather than slash, because slash opens file search, and the
+    -- two read as a pair on adjacent keys, one for what the machine is doing and one for what is
+    -- on it.
+    ["hyper+\\"] = "apptoggler.ActivityMonitor",
+    -- System Settings, opened straight to the General pane, a hide when it is already in front.
+    ["hyper+,"] = "systemsettings.General",
+    -- Disabled, uncomment to enable.
+    -- ["hyper+A"] = "apptoggler.ChatGPTAtlas",
+    -- ["hyper+A"] = "apptoggler.AndroidStudio",
+    -- ["hyper+H"] = "apptoggler.Hammerspoon",
+    -- ["hyper+P"] = "apptoggler.TablePlus",
+    -- ["hyper+X"] = "apptoggler.Xcode",
   },
 
   leaders = {

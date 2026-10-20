@@ -14,23 +14,15 @@ SUPER	s	any	-	-	windowmanager
 SUPER	up	any	-	-	windowmanager
 SUPER	w	any	-	-	windowmanager
 SUPER	z	any	-	-	windowmanager
-hotkey	`	alt	-	-	apptoggler
 hotkey	c	alt+ctrl	-	-	clipboard
 hotkey	v	alt+ctrl	-	-	clipboard
-hyper	,	any	-	-	apptoggler
 hyper	/	any	-	-	fileSearch
 hyper	2	any	-	-	colorPicker
 hyper	3	any	-	-	capture
 hyper	4	any	-	-	capture
 hyper	4	shift	-	-	capture
 hyper	5	any	-	-	capture
-hyper	\	any	-	-	apptoggler
-hyper	`	any	-	-	apptoggler
-hyper	a	any	-	-	apptoggler
 hyper	a	any	clipboardOpen	100	clipboard
-hyper	b	any	-	-	apptoggler
-hyper	c	any	-	-	apptoggler
-hyper	d	any	-	-	apptoggler
 hyper	d	any	clipboardOpen	100	clipboard
 hyper	e	any	-	-	menuSearch
 hyper	escape	any	-	-	launcher
@@ -38,7 +30,6 @@ hyper	f	any	-	-	apptoggler
 hyper	f	any	fileSearchOpen	100	fileSearch
 hyper	f	any	processesOpen	100	processes
 hyper	h	any	fileSearchOpen	100	fileSearch
-hyper	i	any	-	-	apptoggler
 hyper	i	any	audioOpen	100	audio
 hyper	i	any	browserTabsOpen	100	browserTabs
 hyper	i	any	caffeinateOpen	100	caffeinate
@@ -98,12 +89,8 @@ hyper	k	any	wifiOpen	100	wifi
 hyper	k	any	workspacesOpen	100	workspaces
 hyper	k	cmd	clipboardOpen	100	clipboard
 hyper	k	cmd	fileSearchOpen	100	fileSearch
-hyper	l	any	-	-	apptoggler
 hyper	l	any	fileSearchOpen	100	fileSearch
-hyper	m	any	-	-	apptoggler
 hyper	m	any	clipboardOpen	100	clipboard
-hyper	n	any	-	-	apptoggler
-hyper	o	any	-	-	apptoggler
 hyper	o	any	audioOpen	100	audio
 hyper	o	any	browserTabsOpen	100	browserTabs
 hyper	o	any	caffeinateOpen	100	caffeinate
@@ -125,15 +112,11 @@ hyper	o	any	wifiOpen	100	wifi
 hyper	o	any	workspacesOpen	100	workspaces
 hyper	p	any	-	-	vpn
 hyper	q	any	fileSearchOpen	100	fileSearch
-hyper	r	any	-	-	apptoggler
 hyper	r	any	processesOpen	100	processes
-hyper	s	any	-	-	apptoggler
 hyper	s	any	processesOpen	100	processes
 hyper	space	any	-	-	launcher
 hyper	space	any	launcherOpen	100	launcher
-hyper	t	any	-	-	apptoggler
 hyper	u	any	-	-	tmuxSessions
-hyper	v	any	-	-	apptoggler
 hyper	w	any	-	-	browserTabs
 hyper	x	any	-	-	clipboard
 hyper	x	any	audioOpen	100	audio
@@ -155,6 +138,5 @@ hyper	x	any	vpnOpen	100	vpn
 hyper	x	any	wifiOpen	100	wifi
 hyper	x	any	workspacesOpen	100	workspaces
 hyper	y	any	fileSearchOpen	100	fileSearch
-hyper	z	any	-	-	apptoggler
 hyper	§	any	-	-	launcher
 remap	HYPER+SUPER

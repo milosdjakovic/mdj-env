@@ -254,13 +254,16 @@ which stays as that default role. `defaults.key`, `defaults.mods` and `registry.
 retired and refused by name with what replaced them. A registry tool's open row binds on whichever
 leader it names, the window leader included, and every leader's sheet, drawn by the one leader
 sheet host, reads the keymap, so a key is listed where it is bound, filed under the descriptor's
-`group` where it names one. A plugin whose keys are built from the person's data rather than declared answers complete rows
-through `provides.bindings`, a bridge the app toggler alone uses until its actions are built from
-data, and declares `provides.cheatSheetSections` so those keys reach its leader's sheet, which
-otherwise lists only what the manifests declare. Its `defaults.leader` decides which sheet
-receives the sections, a supplier with none, or on a role no leader's sheet answers, reaches no
-sheet and is logged, and one that has an app's chord declares `provides.launcherAppDetails` so
-the launcher's row for that app names it.
+`group` where it names one, a word, a table with a `title` and `faded = true`, or a function
+asked at every show, in a block placed by the plugin's `defaults.cheatSheetOrder`. An action list
+may be built from the plugin's own data in `configure`, one action per item, which is how the app
+toggler answers one action per app and per variant and System Settings one per pane, so a person
+reaches any item from `config/keymap.lua` and the plugin's data holds no key. A descriptor
+standing for an application names its bundle id in `app`, so Olm merges it into that app's launcher
+row with its chord instead of listing it twice and draws its sheet row with the app's icon and
+name. A plugin never supplies a sheet section, a key row or an app row's details of its own,
+`provides.bindings`, `provides.cheatSheetSections` and `provides.launcherAppDetails` are retired
+and refused by name.
 
 Configuration splits three ways. The plugin proposes its own `defaults`, a leader role, its
 `bindings`, aliases, an icon, and a person overrides them outside the plugin. Every key and alias
@@ -268,8 +271,8 @@ a person sets is written in `config/keymap.lua`, a chord to `identity.action`, a
 another held leader, a set of modifiers named as a leader, and replacement aliases, read by Olm's
 root alone, so a plugin never reads it, never learns a person's keys and never assumes its action
 sits on the key it suggested. Where keys live today, every action's in `config/keymap.lua`, the
-app toggles still in `config/keys.lua` until phase 6 of the keymap plan, and a `key` or alias
-override still honoured in `config/plugins.lua` until phase 7 refuses them. Every other default is
+app toggles included, and a `key` or alias override still honoured in `config/plugins.lua` until
+phase 7 of the keymap plan refuses them. Every other default is
 overridden in the plugin's entry in `config/plugins.lua`. A plugin action is reachable from the keymap by its descriptor's `name`, its
 tool's open row is `open`, so name actions as a person would write them. Person supplied policy
 arrives as `needs.data` with `source = "user"`, always optional, always with a `breaks` sentence

@@ -20,31 +20,32 @@ answers what it draws for a keycode.
 
 ## Where a leader's sections come from
 
-Three things, all assembled by the composition root in step K and handed over in the one second
-configure, as `opts.sheets`, a list with one record per leader whose policy states a sheet.
+One thing, the keymap, assembled by the composition root in step K and handed over in the one
+second configure, as `opts.sheets`, a list with one record per leader whose policy states a sheet.
 
-The leader's own rows are every global chord the keymap holds on that leader, read by
+The leader's rows are every global chord the keymap holds on that leader, read by
 `lib/hints.lua`'s `sheetRows`. Registered tools come first in registration order, then each
-plugin in plan order with its host key, its other bindings and its keyed special rows, one row per
-chord. The list keys are left out, since they are not global keys. The provided rows, which the app
-toggler's bridge answers, come last, unless their plugin supplies sections for the leader's role,
-as the toggler does, since its sections already list them. A row
-wears the binding's description, else the descriptor's, else a tool's detail, else words made of
-the action name.
+plugin in plan order with its host key and its other bindings, one row per chord. The list keys
+are left out, since they are not global keys. A row wears the binding's description, else the
+descriptor's, else a tool's detail, else words made of the action name, and a row standing for an
+app with no description of its own wears the app's name.
 
-`LeaderSheet.ownSections` turns those rows into sections. A descriptor's `group`, a word, files
-its row under a section of that name, and a row with none goes under the layout's `title`.
-Sections appear in the order their title first appears. A `group` that is a function is asked at
-every show with nothing, a failure or an answer that is not a word files the row under the title,
-and when any row has one the whole block is one function instead of a built list.
+`LeaderSheet.ownSections` turns those rows into sections, in blocks. A row sits in the block of
+its owner's `defaults.cheatSheetOrder`, every other row in the block of this host's own fifty, and
+blocks run in ascending order, which is how the app toggler's apps, at ten, lead the Hyper sheet.
+A descriptor's `group` files its row under a section of that name, a word, or a table with a
+`title` and `faded = true` for a section drawn dimmed with its title bright, and a row with none
+goes under the layout's `title`. Sections appear in the order their title first appears, every
+faded one after every one in full colour. A `group` that is a function is asked at every show
+with nothing, a failure or an answer that is neither files the row under the title, and a block
+holding one is a function instead of a built list, which is how the toggler splits running from
+dormant apps. A row naming an app in `app` is resolved once, at build, to the app's name and icon,
+and left off when the app is not installed, and a section of such rows is an icon grid ordered by
+key, letters and digits before symbols.
 
-The rest come from plugins that declare `provides.cheatSheetSections` and state the role the
-leader answers as `defaults.leader`, found by the set this host declares. Each arrives as a
-function the host calls on every show, so a section may read live state, which is how the toggler
-splits running from dormant apps. `lib/contributions.lua` resolves each member, wraps it so one
-that raises costs only its own sections, and orders everything by `defaults.cheatSheetOrder`, the
-toggler at ten and a leader's own block at fifty. That channel stays until phase 6 of the keymap
-plan, when the toggler's apps become descriptors with a running group.
+No plugin supplies a section of its own since phase 6 of the keymap plan.
+`provides.cheatSheetSections`, which the toggler answered until then, is retired and refused by
+name, and the host declares no set.
 
 ## The gate
 

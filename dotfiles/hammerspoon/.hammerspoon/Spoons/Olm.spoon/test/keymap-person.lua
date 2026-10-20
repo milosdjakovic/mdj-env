@@ -189,7 +189,9 @@ local ROLES = { app = "HYPER", window = "META" }
 
 -- A small plan. vpn and clipboard are registered tools, windows a plugin of two window actions
 -- with a gate on one, capture a plugin of two actions and a descriptor with no default key, a
--- list with one key, and a toggler providing one row from its data.
+-- list with one key, and a toggler whose actions are built from its data, one per app and one per
+-- variant, the way the app toggler's are since phase 6 of the keymap plan. Its one key, Safari on
+-- a, is a bindings override the person wrote in config/plugins.lua, so it is the person's own.
 local function plan()
   return {
     effective = {
@@ -198,9 +200,9 @@ local function plan()
       windows = { leader = "window", bindings = {
         { action = "left", key = "left" }, { action = "next", key = "e", when = "multipleDisplays" } } },
       capture = { leader = "app", bindings = { { action = "ocr", key = "3" }, { action = "shot", key = "4" } } },
-      toggler = { leader = "app" },
+      toggler = { leader = "app", bindings = { { action = "Safari", key = "a" } } },
     },
-    identity = {}, provenance = {},
+    identity = {}, provenance = { toggler = { bindings = "user" } },
     contexts = { list = { when = "listOpen", bindings = { { action = "close", key = "x" } } } },
     order = { "vpn", "clipboard", "windows", "capture", "toggler" },
   }
@@ -214,12 +216,16 @@ local function build(config, extra)
   local inputs = {
     plan = plan(), roles = ROLES, keycodes = KEYCODES,
     shortcuts = { { name = "vpn", kind = "leader", fn = fn("vpn") }, { name = "clipboard", kind = "leader", fn = fn("clipboard") } },
+    refusedActions = { capture = { broken = true } },
     actions = {
       windows = { left = { run = fn("left"), description = "Left" }, next = { run = fn("next"), description = "Next" } },
       capture = { ocr = { run = fn("ocr") }, shot = { run = fn("shot") }, record = { run = fn("record"), description = "Record" } },
+      toggler = {
+        Safari = { run = fn("Safari"), app = "com.apple.Safari" },
+        Ghostty = { run = fn("Ghostty"), app = "com.mitchellh.ghostty" },
+        GhosttyPlaced = { run = fn("GhosttyPlaced"), app = "com.mitchellh.ghostty", description = "Terminal placed" },
+      },
     },
-    refusedActions = { capture = { broken = true } },
-    provided = { toggler = { { action = "Safari", key = "a", leader = "app", fn = fn("Safari") } } },
     personKeys = cfg.keys,
     modifierLeaders = (function()
       local out = {}
@@ -312,10 +318,11 @@ do
   local freed = build({ keys = { ["hyper+E"] = "vpn.open", ["Hyper+e"] = false } })
   eq(has(whys(freed.problems), "frees a chord the entry 'hyper+E' takes"), true, "false on an entry's own slot is a problem")
   eq(chordsOf(freed, "vpn", "open"), "hyper+e with any modifiers", "and the entry keeps the chord")
-  -- A keymap entry ranks above every other source of the person's, so it takes a toggle's slot.
+  -- A keymap entry ranks above every other source of the person's, so it takes the slot of a
+  -- binding the person wrote in config/plugins.lua.
   local toggle = build({ keys = { ["hyper+A"] = "vpn.open" } })
-  eq(#toggle.problems, 0, "an entry on a slot a toggle holds is no problem")
-  eq(chordsOf(toggle, "toggler", "Safari"), "", "the toggle's row there is dropped")
+  eq(#toggle.problems, 0, "an entry on a slot the person's own binding holds is no problem")
+  eq(chordsOf(toggle, "toggler", "Safari"), "", "that binding's row there is dropped")
   eq(chordsOf(toggle, "vpn", "open"), "hyper+a with any modifiers", "and the entry takes the slot")
   eq(has(noteText(toggle), "takes hyper+a with any modifiers, so the person's own toggler.Safari is not bound there"), true,
     "said in the same routine line a displaced default gets")
@@ -333,8 +340,8 @@ do
   eq(#result.problems, 2, "and is no problem")
 end
 
--- An action with no default chord gets one, a refused one is left unbound in silence, and a row
--- the plugin provides moves like any other.
+-- An action with no default chord gets one, a refused one is left unbound in silence, and an
+-- action built from data moves like any other.
 do
   local result = build({ keys = {
     ["hyper+shift+4"] = "capture.record", ["hyper+shift+3"] = "capture.broken", ["ctrl+alt+A"] = "toggler.Safari",
@@ -345,8 +352,9 @@ do
   eq(record and record.description, "Record", "labelled by its descriptor")
   local broken = rowsOf(result, "capture", "broken")[1]
   eq(broken and broken.refused, true, "a refused action's chord is marked refused")
-  eq(chordsOf(result, "toggler", "Safari"), "alt+ctrl+a", "a provided row moves to a plain combo")
+  eq(chordsOf(result, "toggler", "Safari"), "alt+ctrl+a", "an action built from data moves to a plain combo")
   eq(rowsOf(result, "toggler", "Safari")[1].run, runs.Safari, "running its own function")
+  eq(rowsOf(result, "toggler", "Safari")[1].app, "com.apple.Safari", "and carrying the app it stands for")
   eq(#result.problems, 0, "none of it is a problem")
 end
 
@@ -389,27 +397,22 @@ do
   eq(table.concat(lists, ","), "hyper", "a list key puts its leader in use and a quiet row does not")
 end
 
--- One id over several rows running different functions, the toggler's two toggles of one app, is
--- refused naming the rows, and both stay bound. One id over rows sharing a function moves whole.
+-- Two actions for one app, a plain toggle and a placed variant, are two ids since phase 6 of the
+-- keymap plan, so each takes its own chord and moving one leaves the other where it is. Until
+-- then the two were rows of one id, toggler.Ghostty, and an entry naming it was refused.
 do
-  local plain, placed = function() end, function() end
-  local two = { toggler = {
-    { action = "Ghostty", key = "`", leader = "app", fn = plain },
-    { action = "Ghostty", key = "`", mods = { "alt" }, fn = placed },
-  } }
-  local result = build({ keys = { ["hyper+G"] = "toggler.Ghostty" } }, { provided = two })
-  local text = whys(result.problems)
-  eq(has(text, "keys hyper+G | the entry names toggler.Ghostty, which answers 2 rows running different functions"), true,
-    "an id over two different rows is refused")
-  eq(has(text, "alt+`") and has(text, "hyper+` with any modifiers"), true, "naming both rows")
-  eq(chordsOf(result, "toggler", "Ghostty"), "alt+`,hyper+` with any modifiers", "and both stay bound")
-  local same = { toggler = {
-    { action = "Ghostty", key = "`", leader = "app", fn = plain },
-    { action = "Ghostty", key = "`", mods = { "alt" }, fn = plain },
-  } }
-  local moved = build({ keys = { ["hyper+G"] = "toggler.Ghostty" } }, { provided = same })
-  eq(#moved.problems, 0, "rows sharing one function are one action")
-  eq(chordsOf(moved, "toggler", "Ghostty"), "hyper+g with any modifiers", "and move whole")
+  local both = build({ keys = { ["hyper+`"] = "toggler.Ghostty", ["alt+`"] = "toggler.GhosttyPlaced" } })
+  eq(#both.problems, 0, "a plain toggle and a variant of one app are no problem")
+  eq(chordsOf(both, "toggler", "Ghostty"), "hyper+` with any modifiers", "the plain toggle on Hyper and backtick")
+  eq(chordsOf(both, "toggler", "GhosttyPlaced"), "alt+`", "the variant on Option and backtick")
+  eq(rowsOf(both, "toggler", "Ghostty")[1].run, runs.Ghostty, "each running its own function")
+  eq(rowsOf(both, "toggler", "GhosttyPlaced")[1].run, runs.GhosttyPlaced, "the variant included")
+  eq(rowsOf(both, "toggler", "GhosttyPlaced")[1].app, rowsOf(both, "toggler", "Ghostty")[1].app,
+    "and both stand for the same app")
+  local moved = build({ keys = { ["hyper+G"] = "toggler.Ghostty", ["alt+`"] = "toggler.GhosttyPlaced" } })
+  eq(#moved.problems, 0, "an entry naming toggler.Ghostty is accepted")
+  eq(chordsOf(moved, "toggler", "Ghostty"), "hyper+g with any modifiers", "and moves the plain toggle alone")
+  eq(chordsOf(moved, "toggler", "GhosttyPlaced"), "alt+`", "leaving the variant where it is")
 end
 
 -- A leader the person named that no chord uses is one routine note, and one in use is not.

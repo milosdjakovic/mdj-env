@@ -389,6 +389,9 @@ Each is one line in the wiring report, and costs only the action, the row or the
 - `wire, retired, <plugin>, registry.commands is retired, replaced by an action descriptor in provides.actions, with its key in a defaults.bindings row, so it is refused and nothing it declares is bound or listed`
 - `wire, retired, <plugin>, defaults.key is retired, replaced by a defaults.bindings row whose action is open, so it is refused and nothing it declares is bound or listed`
 - `wire, retired, <plugin>, defaults.mods is retired, replaced by the mods of a defaults.bindings row whose action is open, so it is refused and nothing it declares is bound or listed`
+- `wire, retired, <plugin>, provides.bindings is retired, replaced by an action descriptor in provides.actions, built from the plugin's data where it must be, with its key in a defaults.bindings row or in config/keymap.lua, so it is refused and nothing it declares is bound or listed`
+- `wire, retired, <plugin>, provides.cheatSheetSections is retired, replaced by the group of an action descriptor, a word, a table or a function answering one, which files the action's row on the sheet of the leader its key is on, so it is refused and nothing it declares is bound or listed`
+- `wire, retired, <plugin>, provides.launcherAppDetails is retired, replaced by the app of an action descriptor, which merges the action into that app's own launcher row with its chord, so it is refused and nothing it declares is bound or listed`
 - `wire, retired, <plugin> special row <name>, a key on a special row is retired, replaced by an action descriptor in provides.actions with its key in a defaults.bindings row, so the key is not bound`
 - `wire, actions, <plugin>, provides.actions names no member, so none of its actions can run`
 - `wire, actions, <plugin>, provides.actions answers a table keyed by string rather than a list of descriptors each naming itself in name, so none of its actions can run`
@@ -397,7 +400,6 @@ Each is one line in the wiring report, and costs only the action, the row or the
 - `wire, actions, <plugin> action <name>, the descriptor's field <field> is not a descriptor field, so the action is refused and the rest of the plugin is still wired`
 - `wire, actions, <plugin> action <name>, the descriptor's field <field> is a <type> where a descriptor takes <types>, so the action is refused and the rest of the plugin is still wired`
 - `wire, actions, <plugin> action <name>, the descriptor's field run is missing, and run is the one required field, so the action is refused and the rest of the plugin is still wired`
-- `wire, actions, <plugin> provided row <n>, the row has no function in fn, so it is not bound`
 - `wire, keymap, <plugin> <action>, the bindings row answers no function to run, so <leader> <key> is not bound`
 - `wire, keymap, <plugin> <action>, the bindings row states leader false and no mods, and a key with neither a leader nor a modifier would be taken from every app, so it is not bound`
 - `wire, keymap, <plugin> <action>, the bindings row names a leader that is a <type>, where a row takes a role word or false, so it is not bound`
@@ -773,48 +775,37 @@ apart from the rest of yours.
 A query row source owns the rows it computes too, so one that wants a chosen row run by itself
 declares `launcherRun` alone and leaves `launcherRows` out. Window Size is that case.
 
-## Sections on a leader's cheat sheet
+## Rows on a leader's cheat sheet
 
-Holding a leader shows every key bound on it. A key your manifest declares, your open row and
-every other row of your `bindings`, is read from the keymap and listed without you doing
-anything. Only a plugin that builds keys from data the manifest does not spell as bindings needs
-more, and it supplies its own sections.
+Holding a leader shows every key bound on it. Every key reaching one of your actions, a default in
+your `bindings` or a line a person wrote in `config/keymap.lua`, is read from the keymap and listed
+without you doing anything, labelled by your descriptor's `description`. A descriptor's `group`
+files its row under a section of that name, and a table `{ title = "DORMANT", faded = true }`
+draws that section dimmed after the ones in full colour. A group that changes with live state is a
+function, asked at every show, so keep it cheap, since the sheet opens on a key hold. Where your
+rows sit on the sheet is `defaults.cheatSheetOrder`, compared with the sheet's own fifty. No
+plugin supplies a section of its own, `provides.cheatSheetSections` is retired.
 
-```lua
-provides = { cheatSheetSections = "cheatSheetSections" },
-defaults = { leader = "app", cheatSheetOrder = 10 },
-```
+## Actions built from your data
 
-The member answers a list of sections, each a title and rows of badge, label and an optional
-icon, and it is asked on every show. Build the expensive part once, where you build your keys,
-and keep the member to what changes while Hammerspoon runs. List exactly what has a key on that
-leader. A key that does nothing on the sheet is the dishonesty the sheet exists to prevent, and a
-global combo belongs to no leader. The app toggler is the worked example, it resolves names and
-icons in `configure` and splits running from dormant in `cheatSheetSections`. The contract has
-the section shape and the shipped numbers.
-
-The keys such a plugin builds from data reach Olm through `provides.bindings`, a member
-answering complete rows, each with an `action`, a `key`, the function in `fn`, either a
-`leader` role or the `mods` of a plain combo, and an optional `description`. Olm binds every row.
-It is a bridge for keys that are still the person's data rather than actions, the app toggler
-is its one user, and a later phase of the keymap plan replaces it with one action per app.
-
-## Chords on the launcher's app rows
-
-The launcher lists every installed app from its own disk scan. A plugin that has a chord for an
-app tells the launcher so, and the app's row then names the chord and opens the url the plugin
-states.
+An action list may be built from your plugin's data in `configure` rather than fixed in code, one
+action per item, which is how a person reaches any item from `config/keymap.lua` with no key in
+your data at all. The app toggler is the worked example, one action per app in its catalog and one
+per named variant, each built in `configure`.
 
 ```lua
-provides = { launcherAppDetails = "launcherAppDetails" },
+provides = { actions = "actions" },
+defaults = { leader = "app", cheatSheetOrder = 10, bindings = { { action = "Finder", key = "F" } } },
 ```
 
-The member answers a table keyed by bundle id, asked whenever the launcher builds its app rows,
-which is after your wiring has run. Each entry is `{ chord = { leader = "app", key = "f" } }`
-for a key on a leader, or `{ chord = { key = "8", mods = { "ctrl", "alt" } }, description =
-"Placed" }` for a literal combo, with an optional `url`. List only what has a key. The app
-toggler is the worked example, it builds the table in `configure` from exactly the entries that
-became binding rows.
+A descriptor standing for an application names its bundle id in `app`. Olm then lists no launcher
+row for it and merges it into the launcher's own row for that app, which shows the chord, and the
+sheet draws its row with the app's icon and name and leaves it off when the app is not installed.
+The toggler's descriptors also answer a group function, a `RUNNING` table or a faded `DORMANT`
+table, so the Hyper sheet splits running apps from the rest. Keys bind at load, so an item added
+while Hammerspoon runs is bindable after the next reload. `provides.bindings` and
+`provides.launcherAppDetails`, the toggler's side channels until phase 6 of the keymap plan, are
+retired and refused by name.
 
 ## Tools your plugin needs
 

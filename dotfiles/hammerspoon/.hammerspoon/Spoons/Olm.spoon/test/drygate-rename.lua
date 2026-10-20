@@ -18,7 +18,8 @@
 -- only by case afterwards, and every name keeps its length, so a report that pads a column by
 -- name length pads it the same. A plugin is renamed where its identity lives, its directory on
 -- disk, which drygate.sh copied for this, and through test/drygate-composerun.lua its manifest
--- name, its surface context, every sibling need that names it, and the person's config keys.
+-- name, its surface context, every sibling need that names it, the person's config keys, and
+-- the identity in every keymap entry and alias list of config/keymap.lua.
 -- Nothing inside a plugin's own code is touched, so a plugin that spells its own name keeps
 -- spelling it the old way, which is the plugin's business, and only a difference in what core
 -- decided is reported.

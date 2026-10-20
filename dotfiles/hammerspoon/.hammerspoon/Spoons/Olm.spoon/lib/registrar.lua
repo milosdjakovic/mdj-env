@@ -5,8 +5,7 @@
 -- and exactly why something else has to build the descriptor it is handed. That something is
 -- this file. It turns one plugin's own effective declarations, plus that plugin's own
 -- manifest.registry block and whatever a person overrode on top of it, into the well formed
--- table register wants, validates the actions and the provided rows a plugin answers so the
--- keymap can bind them, assembles the one list whose order decides who wins an alias collision,
+-- table register wants, validates the actions a plugin answers so the keymap can bind them, assembles the one list whose order decides who wins an alias collision,
 -- and adapts the registry instance to the exact no argument contract lib/wire.lua's fifth stage
 -- already calls it with. It binds no key, the keymap does that through lib/binder.lua.
 --
@@ -814,7 +813,7 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
 end
 
 --------------------------------------------------------------------------------
--- Actions, what a plugin can run, and the rows a plugin provides from its own data
+-- Actions, what a plugin can run, fixed in code or built from its own data
 --------------------------------------------------------------------------------
 
 -- The fields an action descriptor may carry, each with the types it may take. run is required,
@@ -833,8 +832,13 @@ local DESCRIPTOR_FIELDS = {
   -- once the leader that fired it is released. Capture's actions are the case.
   afterRelease = { "boolean" },
   when = { "string" },
-  group = { "string", "function" },
+  -- The section a sheet files the row under, a word, a table { title, faded } for a section
+  -- drawn faded, or a function answering either, asked at every show so the section may follow
+  -- live state. The app toggler's running and not running split is the case for both.
+  group = { "string", "table", "function" },
   kind = { "string" },
+  -- The bundle id the action stands for. Its launcher row merges into that app's own row, which
+  -- then shows the action's chord, and its sheet row wears the app's icon and name.
   app = { "string" },
   listed = { "boolean" },
 }
@@ -892,6 +896,15 @@ function obj.validateDescriptor(descriptor)
   if type(descriptor.keywords) == "table" then
     for _, word in ipairs(descriptor.keywords) do
       if type(word) ~= "string" then return false, "keywords", "holds a " .. type(word) .. " where it takes words" end
+    end
+  end
+  if type(descriptor.group) == "table" then
+    local g = descriptor.group
+    if type(g.title) ~= "string" or g.title == "" then
+      return false, "group", "is a table with no title word, where a group table names its section in title"
+    end
+    if g.faded ~= nil and type(g.faded) ~= "boolean" then
+      return false, "group", "has a faded that is a " .. type(g.faded) .. " where it takes a boolean"
     end
   end
   return true
@@ -973,49 +986,17 @@ function obj.validateActions(identity, manifest, module, opts)
   return actions, refused, problems, order
 end
 
---- obj.providedBindings(identity, manifest, module) -> rows, problems
---- The rows a plugin answers through provides.bindings, for a plugin whose keys are still built
---- from the person's own data rather than declared, the app toggler's toggles being the case it
---- exists for. Each row is complete, an action name, a key, a function in fn, and either a leader
---- role in leader or the modifiers of a plain combo in mods, plus an optional description. The
---- member is called once, after wiring. A row missing its key or its function is refused with
---- one problem and every other row is kept.
-function obj.providedBindings(identity, manifest, module)
-  local rows, problems = {}, {}
-  local spec = ((manifest or {}).provides or {}).bindings
-  if spec == nil then return rows, problems end
-  local answer, why = provided(module, spec)
-  if not answer then
-    problems[#problems + 1] = { where = tostring(identity),
-      why = "provides.bindings " .. why .. ", so none of its rows is bound" }
-    return rows, problems
-  end
-  for i, row in ipairs(answer) do
-    local bad
-    if type(row) ~= "table" then bad = "is a " .. type(row) .. " rather than a row"
-    elseif type(row.fn) ~= "function" then bad = "has no function in fn"
-    elseif type(row.key) ~= "string" and type(row.key) ~= "number" then bad = "has no key"
-    elseif row.leader ~= nil and type(row.leader) ~= "string" then bad = "names a leader that is not a role word"
-    elseif row.mods ~= nil and type(row.mods) ~= "table" then bad = "has mods that are not a list"
-    elseif row.leader == nil and row.mods == nil then bad = "names neither a leader role nor the modifiers of a plain combo"
-    end
-    if bad then
-      problems[#problems + 1] = { where = tostring(identity) .. " provided row " .. i,
-        why = "the row " .. bad .. ", so it is not bound" }
-    else
-      rows[#rows + 1] = row
-    end
-  end
-  return rows, problems
-end
-
 --- obj.retiredFields(identity, manifest) -> problems
---- The manifest fields that were a second way to declare something runnable or to suggest a
---- key, each named with what replaced it. Phase 2b of the keymap plan retired three. A command
---- in registry.commands became an action descriptor, and a tool's or a host's own open key,
---- defaults.key and defaults.mods, became a defaults.bindings row whose action is open. Nothing
---- reads a retired field any more, so a manifest still declaring one would lose that key or that
---- row in silence, and this is what says so, one problem per field, the root's wiring report
+--- The manifest fields that were a second way to declare something runnable, to suggest a key or
+--- to present an action, each named with what replaced it. Phase 2b of the keymap plan retired
+--- three. A command in registry.commands became an action descriptor, and a tool's or a host's
+--- own open key, defaults.key and defaults.mods, became a defaults.bindings row whose action is
+--- open. Phase 6 retired three more, the side channels the app toggler alone spoke.
+--- provides.bindings, complete key rows built from a person's data, became descriptors built from
+--- that data with their keys in config/keymap.lua. provides.cheatSheetSections became the
+--- descriptor's group, and provides.launcherAppDetails the descriptor's app. Nothing reads a
+--- retired field any more, so a manifest still declaring one would lose that key, that row or that
+--- section in silence, and this is what says so, one problem per field, the root's wiring report
 --- printing each. The plugin is still wired, and only what the retired field declared is refused.
 --- defaults.leader is not one of them. It stays, the role every bindings row of the plugin
 --- inherits when the row names none, which is a default for a field rather than a key.
@@ -1026,6 +1007,14 @@ local RETIRED = {
     now = "a defaults.bindings row whose action is open" },
   { section = "defaults", field = "mods",
     now = "the mods of a defaults.bindings row whose action is open" },
+  { section = "provides", field = "bindings",
+    now = "an action descriptor in provides.actions, built from the plugin's data where it must be, "
+      .. "with its key in a defaults.bindings row or in config/keymap.lua" },
+  { section = "provides", field = "cheatSheetSections",
+    now = "the group of an action descriptor, a word, a table or a function answering one, which "
+      .. "files the action's row on the sheet of the leader its key is on" },
+  { section = "provides", field = "launcherAppDetails",
+    now = "the app of an action descriptor, which merges the action into that app's own launcher row with its chord" },
 }
 
 function obj.retiredFields(identity, manifest)

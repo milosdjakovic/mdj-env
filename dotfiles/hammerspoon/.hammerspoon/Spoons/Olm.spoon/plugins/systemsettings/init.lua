@@ -6,12 +6,13 @@
 --- split apps.lua already uses, pure data on one side, the mechanism
 --- on the other, wired together only in the composition root.
 ---
---- It does three things. It turns an injected pane catalog into serializable row
+--- It does four things. It turns an injected pane catalog into serializable row
 --- descriptors the launcher can render, and runs the ones a person chooses there. It
---- opens a pane by building the x-apple.systempreferences URL for that pane's id. And it
---- focuses the System Settings search field through Accessibility, so a single row can
---- drop the user into Apple's own per setting search for everything the pane list does
---- not reach.
+--- opens a pane by building the x-apple.systempreferences URL for that pane's id. It
+--- answers one action per pane, systemsettings.General, which a person puts on a key in
+--- config/keymap.lua, the way Hyper and comma reaches General. And it focuses the System
+--- Settings search field through Accessibility, so a single row can drop the user into
+--- Apple's own per setting search for everything the pane list does not reach.
 ---
 --- The catalog is injected, never read from disk here, so the spoon names no config
 --- file and stays reusable. init.lua names config/settingsPanes and passes it in.
@@ -55,7 +56,75 @@ function obj:configure(opts)
   self.panes = opts.panes or {}
   self._deps = opts.deps
   self._searchRow = opts.searchRow
+  self._appFocus = opts.appFocus
+  self._actions = self:_buildActions()
   return self
+end
+
+--- SystemSettings.actionName(paneName) -> string
+--- The name a pane's action is reached by, its catalog name with every character that is not a
+--- letter or a digit taken out, so General is systemsettings.General and Wi-Fi is
+--- systemsettings.WiFi, a word a person writes in config/keymap.lua without quoting trouble.
+function obj.actionName(paneName)
+  return (tostring(paneName):gsub("[^%w]", ""))
+end
+
+--- SystemSettings:_buildActions() -> descriptors
+--- Method
+--- One action per pane, declared through provides.actions. Running one toggles System Settings
+--- onto that pane, see paneToggle. A second press of a pane's key while System Settings shows
+--- that pane hides the app, which is what Hyper and comma did as an app toggle before phase 6 of
+--- the keymap plan, and a press while it shows another pane goes to this one instead.
+---
+--- Every descriptor names System Settings in app, so its chord shows on the launcher's System
+--- Settings row and it is never a launcher row of its own. The pane rows the launcher lists are
+--- launcherRows below, which open a pane and never hide the app, since a row picked from the
+--- launcher while System Settings is in front must still navigate, and the toggle would hide it.
+--- Same pane, two behaviours, so the row is not the action. A pane whose name leaves no word is
+--- skipped.
+function obj:_buildActions()
+  local out = {}
+  local self_ref = self
+  for _, p in ipairs(self.panes or {}) do
+    local name = obj.actionName(p.name)
+    if name ~= "" and type(p.id) == "string" then
+      local url = SCHEME .. p.id
+      out[#out + 1] = {
+        name = name,
+        description = tostring(p.name) .. " settings",
+        app = SETTINGS_BUNDLE,
+        run = function() self_ref:paneToggle(url) end,
+      }
+    end
+  end
+  return out
+end
+
+--- SystemSettings:paneToggle(url) -> outcome
+--- Method
+--- The one place a pane action decides between hiding and going. System Settings is hidden only
+--- when it is in front with a window and the pane this plugin last opened is this url, so a
+--- second press of one pane's key hides it, and a press while another pane shows goes to this
+--- one. Otherwise the pane is opened through lib/appfocus.lua and remembered. What a person
+--- clicks inside System Settings is not seen, so a press after clicking to another pane by hand
+--- may hide rather than go, the one case the rule cannot know. Answers "hidden", or the outcome
+--- appfocus answers, or nil with no appfocus to open through.
+function obj:paneToggle(url)
+  local app = hs.application.get(SETTINGS_BUNDLE)
+  if app and app:isFrontmost() and #app:allWindows() > 0 and self._lastPaneURL == url then
+    app:hide()
+    return "hidden"
+  end
+  if not self._appFocus then return nil end
+  self._lastPaneURL = url
+  return self._appFocus.openURL(SETTINGS_BUNDLE, url)
+end
+
+--- SystemSettings:actions() -> descriptors
+--- Method
+--- The descriptors built in configure, declared as provides.actions.
+function obj:actions()
+  return self._actions or {}
 end
 
 --- SystemSettings:rows()
@@ -92,6 +161,9 @@ end
 --- row that quietly does nothing reads as the launcher itself being broken.
 function obj:open(url)
   if not (url and url ~= "") then return end
+  -- Remembered for paneToggle, so a pane key pressed after a pane row was picked goes to its own
+  -- pane rather than hiding the one the row opened.
+  self._lastPaneURL = url
   local openPath = self._deps and self._deps.path("open")
   if not openPath then
     log.w("no open, could not open the System Settings pane at " .. url)
@@ -166,7 +238,9 @@ local SEARCH_ROW = "searchSettings"
 --- SystemSettings:launcherRows() -> rows
 --- Method
 --- The rows this plugin adds to the launcher's own catalog, declared as
---- provides.launcherRows. The search row first, then one row per pane.
+--- provides.launcherRows. The search row first, then one row per pane. Each pane row opens its
+--- pane and never hides the app, which is why it is a row here rather than the pane's action, see
+--- _buildActions.
 ---
 --- Every row is plain data and never a function, because the launcher hands each row to
 --- hs.chooser and a row holding a function is silently dropped. Each item keeps the kind and

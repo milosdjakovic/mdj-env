@@ -2,7 +2,8 @@
 --
 -- No external tool, it only turns an injected pane catalog into launcher rows and
 -- opens a pane by url. And no surface, unlike every other plugin in this set, it owns no
--- chooser of its own and no hyperContext names it.
+-- chooser of its own and no hyperContext names it. Every pane is also an action,
+-- systemsettings.General, which config/keymap.lua puts on a key.
 --
 -- The pane catalog is macOS knowledge, not this person's own, every pane id below ships
 -- with the operating system rather than with anything only this machine's owner could name,
@@ -75,6 +76,14 @@ return {
   },
 
   needs = {
+    lib = {
+      -- Opening a pane by url, which a pane's action runs unless the press hides System Settings,
+      -- a decision this plugin makes itself in paneToggle. Required,
+      -- since every pane action calls it, and a core lib is always present, so requiring it
+      -- costs nothing on any install. The pane rows the launcher lists open through `open` below.
+      appFocus = { from = "appfocus", policy = "required" },
+    },
+
     tools = {
       -- open is what turns a pane's x-apple.systempreferences url into a real navigation,
       -- the whole of what this plugin does past building the url itself. Optional, and an
@@ -98,12 +107,19 @@ return {
     -- answers above, so the scoped list and the catalog can never disagree about a pane.
     launcherRows = "launcherRows",
     launcherRun = "launcherRun",
+    -- One action per pane, named by the pane with every character that is not a letter or a
+    -- digit taken out, systemsettings.General, built in configure from the pane catalog below.
+    -- Each toggles System Settings onto its pane and names the app, so its chord shows on the
+    -- launcher's System Settings row. The pane rows above stay rows rather than these actions,
+    -- since a row opens its pane and never hides the app, which a toggle would.
+    actions = "actions",
   },
 
   defaults = {
     description = "System Settings",
     icon = "systemsettings",
-    aliases = { "s", "system" },
+    -- No alias on purpose. A "system" alias searched the panes for "settings" when a person typed
+    -- the app's own name, so the panes are found by name in the main launcher instead.
 
     -- The one row that is not a pane. It drops a person into Apple's own per setting search
     -- for everything the pane list does not reach, and it was the launcher's own row, listed

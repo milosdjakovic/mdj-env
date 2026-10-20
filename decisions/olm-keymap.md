@@ -1,8 +1,9 @@
 # Olm keymap, and leaders as data
 
 Status. Phases 0 to 5 landed and live, 0 to 2b on 2026-10-19 and 3 to 5 on 2026-10-20, so a
-person sets any key in `config/keymap.lua`. Phases 6 and 7 are agreed and not started, held by
-Milos on 2026-10-20 to be picked up later. The plan is
+person sets any key in `config/keymap.lua`. Phase 6 landed and live on 2026-10-20, so app
+toggles and System Settings panes are actions built from data and `config/keys.lua` is gone.
+Phase 7 is agreed and not started. The plan is
 `dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/docs/PLAN-KEYMAP.md`.
 
 ## Now
@@ -27,20 +28,27 @@ with the chord the keymap binds, so capture, the window manager and the clipboar
 `defaults.bindings` is the one place a plugin suggests a key, a tool's open key being the row
 whose action is `open`, a row naming its own role or `leader = false` for a plain combination,
 and `defaults.leader` the role a row naming none inherits. `registry.commands`, `defaults.key`
-and `defaults.mods` are retired and refused by name. Every leader's sheet reads the keymap. The app
-toggler's keys arrive as complete rows through `provides.bindings`, a bridge phase 6 removes. A list's own keys are still bound through the root's contexts. The collision
+and `defaults.mods` are retired and refused by name. Every leader's sheet reads the keymap. Since
+phase 6 the app toggler answers one action per app in `config/apps.lua` and one per named variant
+in its data, built in configure, each naming its app and a group function answering a RUNNING
+table or a faded DORMANT table, and every toggle key is a line of `config/keymap.lua`, so
+`config/keys.lua` is gone. Hyper and comma is `systemsettings.General`, one action per pane that
+toggles System Settings onto it, while the pane rows the launcher lists stay rows, since a row
+must navigate and never hide the app. The sheet files rows in blocks by each owner's
+`defaults.cheatSheetOrder`, draws a row naming an app with that app's icon and name and leaves an
+uninstalled one off, and the launcher merges an action naming an app into that app's own row
+with its chord. `provides.bindings`, `provides.cheatSheetSections` and
+`provides.launcherAppDetails` are retired and refused by name. A list's own keys are still bound through the root's contexts. The collision
 check covers every row, modifiers, case, bindings, toggles, commands, list keys and plain combos.
 The plan replaces the rest of this with one keymap the core builds from
 actions plugins export and bindings they propose, overridden by the person in one file Olm owns,
 `config/keymap.lua`, where a chord string maps to a `plugin.action` name and a person may name a
 set of modifiers as a leader of their own. The three held leaders are built in from the catalog
 and carry a cheat sheet, a modifier leader carries none, and a key switched off for the moment is
-swallowed on every leader. The plan ends with one place a person sets a key. App toggles become
-actions derived from `config/apps.lua` with behaviour as named variants in apptoggler's data, list
-keys get a `lists` layer, Olm's own keys and global commands become actions, `config/keys.lua` is
-deleted, and `config/plugins.lua` refuses every key field. A plugin's action is a descriptor, run plus description, icon,
+swallowed on every leader. The plan ends with one place a person sets a key. List keys get a
+`lists` layer in phase 7 and `config/plugins.lua` then refuses every key field. A plugin's action is a descriptor, run plus description, icon,
 group, kind, app and the rest, answered fixed or built from its data, and Olm derives the key, the
-cheat sheet row, the launcher row and the chord label from it, which retires
+cheat sheet row, the launcher row and the chord label from it, which retired
 `cheatSheetSections`, `launcherAppDetails`, `provides.bindings`, and `launcherRows` for anything
 that is an action. Each concern then has one way. Actions are declared only as
 descriptors, keys are suggested only in `defaults.bindings`, and a person's keys, list keys and
@@ -182,6 +190,24 @@ aliases live only in `config/keymap.lua`.
   takes its keys with it, which is what the person asked for, so a keymap entry for it binds
   nothing and says so in a routine line, and only an identity naming no plugin at all is a
   problem.
+
+- **The System Settings pane rows as the pane actions' launcher rows.** 2026-10-20 10:20. It was
+  the plan's shape, panes as descriptors in place of `launcherRows`. But Hyper and comma hid
+  System Settings when it was already in front and had to keep doing so, while a pane picked from
+  the launcher must navigate, and the launcher hands focus back to the app it covered before it
+  runs a row, so a row running the toggle would hide System Settings whenever a person used the
+  launcher from inside it. A descriptor has one run, and the row's memory key was the pane's url,
+  which a descriptor row cannot state. So each pane is an action for keys and the rows stay rows.
+- **A running group of System Settings' own, so Hyper and comma stayed in the app section.**
+  2026-10-20 10:20. It would have kept the gear icon among the apps exactly as before. It meant a
+  second plugin answering the same RUNNING and DORMANT words and its own running check, a
+  vocabulary repeated across plugins with only equal strings joining the sections. The pane action
+  is a command, so its row sits among the Hyper sheet's actions as General settings.
+- **Olm splitting app rows into running and not running by itself.** 2026-10-20 10:20. Olm knows
+  `app` and could ask which apps run, which would have needed no group from the plugin. The plan
+  gives the split to the descriptor's group, which keeps what a section means the plugin's choice,
+  and Olm owns only how an app row is drawn, its icon, its name, an uninstalled app left off and
+  the order by key.
 
 ## Log
 
@@ -540,3 +566,83 @@ aliases live only in `config/keymap.lua`.
   AGENTS.md. A moved toggle shows its old chord on the Hyper sheet's app section and the launcher
   app row, an entry naming `apptoggler.Ghostty` is refused because two toggles share that id, and
   false frees global chords only.
+- 2026-10-20 10:20. Phase 6 built on `olm/keymap-phase6`, awaiting review and a live load. The app
+  toggler answers one action per app in `config/apps.lua`, `apptoggler.Safari`, focusing or
+  cycling it, and one per named variant in its data in `config/plugins.lua`,
+  `apptoggler.GhosttyPlaced` with hides, a description and the placement, each built in configure,
+  naming its app and a group function answering a RUNNING table or a DORMANT table with
+  `faded = true`, read from one enumeration of running apps shared for a quarter of a second. It
+  dropped `provides.bindings`, `bindHotkeys`, its leader check, the url field and its own sheet
+  sections and app details, and suggests one key, Finder on Hyper and F. Every toggle key is a line
+  of `config/keymap.lua`, and `config/keys.lua` is deleted. Hyper and comma is
+  `systemsettings.General`, one action per pane named by the pane with everything not a letter or a
+  digit taken out, running the toggle by url Hyper and comma always ran, each naming System
+  Settings as its app. The descriptor field `group` takes a table with a title and faded too. The
+  leader sheet host files the keymap's rows in blocks by each owner's `defaults.cheatSheetOrder`,
+  a block holding a group function asked at every show, a faded section after every section in
+  full colour, a row naming an app drawn with that app's icon and name resolved once at build and
+  left off when the app is not installed, and a section of app rows an icon grid ordered by key.
+  The launcher lists no row for an action naming an app and shows its chord on the app's own row,
+  through `contributions.appChords`, a plain combination winning the row with its description, and
+  an app row always focuses or cycles. `provides.bindings`, `provides.cheatSheetSections` and
+  `provides.launcherAppDetails` are refused by name, the keymap's provided rows source, the
+  registrar's `providedBindings`, `contributions.sheetSections`, `contributions.appDetails` and the
+  leader sheet's set are gone, and so is the refusal of one id over rows running different
+  functions, which nothing can produce now that every row of an action runs its descriptor.
+  Workspaces and display profiles were read through the olm-plugin skill and left as they are.
+  A layout is a snapshot a person takes while Hammerspoon runs, reached by its scope and applied
+  only when its displays are attached, so an action per layout would bind only after a reload,
+  list every layout twice in the launcher unless hidden, and nobody has asked for a key on one. A
+  display profile is applied by the engine on every screen change and the picker deliberately
+  does not apply, so an action per profile would offer a switch that can never take effect.
+  Proof, offline. `keys.golden` changed in one line, the owner of Hyper and comma from apptoggler
+  to systemsettings, and `keys.sh --bound` matched it, with the binding order on every engine and
+  key the same as main's when each runs its own config. `launcher.golden` is byte identical.
+  `sheets.golden` gained one line, General settings on comma among the Hyper sheet's actions,
+  and keeps the RUNNING and DORMANT headers, which the offline run now produces as the live one
+  does by answering Finder as running. The two fixture key goldens lost every toggle but Finder's
+  and Hyper and comma, and the fixture sheet golden its DORMANT header, since a fixture replaces
+  the whole person keymap the toggles now live in. `test/keymap-person.lua` pins
+  `apptoggler.Ghostty` and `apptoggler.GhosttyPlaced` as two ids, each moving alone, and
+  `test/leadersheet.lua` proves offline that a moved toggle shows its new chord in the sheet's
+  running section and on the app's launcher row. The rename proof renames the identity in every
+  keymap entry and alias list now that the person's keymap names plugins, the dry gate is at 0
+  findings and 0 unknown, the dependency check passes, and the unit cases
+  `test/cases/leader-sheets.lua`, which had stopped at the launcher's host module since phase 5 and
+  runs to the end again, and `test/cases/launcher-contributions.lua`, whose 35 failures under
+  plain Lua are the same as main's, pass their phase 6 checks.
+- 2026-10-20 10:30. An adversarial review of acf3ef97 found no blocker and seven fixes, applied
+  on top. Every pane action hid System Settings whenever it was in front, which was right for
+  General alone, so a key on Wi-Fi would have hidden the app showing General. A pane action now
+  hides only when System Settings is in front and the pane the plugin last opened, by a key or a
+  launcher row, is its own, decided in `SystemSettings:paneToggle`, and `appfocus.toggleURL`
+  became `appfocus.openURL`, which only opens. Hyper and comma pressed twice still opens General
+  and hides it, and `test/systemsettings.lua`, run by the dry suite, pins both. A click inside
+  System Settings to another pane is not seen, so a key pressed after it may hide rather than go.
+  The root's `open` reason named an app toggle and an app row, and says a pane action's key now,
+  regenerated through the collector. An app row's chord on a leader spells its modifiers through
+  the shared chord speller, so Hyper, Shift and S no longer reads Hyper S. A sheet row for an app
+  macOS names nothing for wears its catalog name again rather than its bundle id. The key probe's
+  fallback to `config/keys.lua` is gone, the pane descriptors lost an icon nothing read, and the
+  launcher record no longer says an app row carries no chord with the toggler off, since
+  `systemsettings.General` names System Settings. Two side effects were accepted. Finder's shipped
+  key, Hyper and F, now survives a person keymap that never names Finder, since it is the
+  toggler's own default rather than a line of the person's toggle list. And with the toggler
+  switched off every keymap entry naming it prints a routine note that it binds nothing, the rule
+  phase 5 set for an entry naming a plugin switched off.
+
+- 2026-10-20 11:30. The System Settings panes carry no launcher alias at all, neither `s` nor
+  `system`, in the plugin manifest and in the launcher's catalog scope for settings panes. Typing
+  "system settings" in the launcher claimed the `system ` alias and searched the panes for
+  "settings", which matches none, so the System Settings app could not be found by its own name.
+  Milos decided that System Settings carries no alias, so typing system settings finds the app by
+  name, and the pane rows stay findable by name in the main launcher, such as appearance or wifi.
+  The registrar already treats a scope with no aliases as valid, so the field is simply omitted and
+  the scope line stays. `test/inventory.golden` follows with an empty alias list, and its emoji line
+  was brought in line with the emoji manifest, `e+em+emoji`, which it had gone stale against.
+- 2026-10-20 11:50. Phase 6 landed on main after its live load. Milos pressed Hyper and
+  backtick, Option and backtick and Hyper and comma, checked the Hyper sheet's running and not
+  running split and the Ghostty and System Settings launcher rows, and found system settings by
+  name. The live inventory corrected the 11:30 entry. A scope with no alias is not counted in the
+  live registry, so `test/inventory.golden` drops the settings panes scope line and counts 17
+  scopes rather than keeping it with an empty alias list.

@@ -1,15 +1,18 @@
 --- === appfocus ===
 ---
 --- Bringing an application forward, the two ways Olm does it. Focus or cycle reaches an app
---- by bundle id and walks its windows on a second press, and toggle by url lands an app on
---- one pane of itself through a url and hides it when it is already in front.
+--- by bundle id and walks its windows on a second press, and open by url lands an app on one
+--- pane of itself through a url. Whether a press should hide the app instead is the caller's
+--- decision, since only the caller knows which pane it last opened.
 ---
 --- Core since phase three of the core split. Both behaviours used to live in the app toggler
 --- plugin, and the launcher reached them as two siblings on that plugin, which meant a host in
 --- core named a plugin and an app row did nothing at all on an install without the toggler.
 --- Choosing an application is the launcher's own first job, so the behaviour belongs beside
 --- the launcher rather than inside one plugin, and the toggler now asks for it through
---- needs.lib the way it asks for the Hyper engine.
+--- needs.lib. Since phase 6 of the keymap plan the url form is System Settings' pane actions,
+--- which ask for it the same way and decide themselves when a press hides the app, and the
+--- launcher's app rows focus or cycle only.
 ---
 --- One shared module with no instance, dot called, configured once by the composition root
 --- with the dependency door's path resolver. The url form runs the launcher binary declared by
@@ -87,20 +90,13 @@ function M.focusOrCycle(bundleID)
   end
 end
 
---- appfocus.toggleURL(bundleID, url) -> outcome
---- Toggle an app that should land on a specific pane. Opens the url when the app is not
---- frontmost, launching it or navigating an already open window to that pane, and hides the
---- app when it is frontmost. Used for apps like System Settings whose panes are reachable
---- through a url scheme. Answers "hidden", "focused", or "launched", the same outcome words
---- focus or cycle uses, for the same reason.
-function M.toggleURL(bundleID, url)
+--- appfocus.openURL(bundleID, url) -> outcome
+--- Land an app on a specific pane, launching it or navigating an already open window to that
+--- pane, for apps like System Settings whose panes are reachable through a url scheme. It never
+--- hides, a caller that wants a second press to hide decides that itself. Answers "focused" or
+--- "launched", the same outcome words focus or cycle uses, for the same reason.
+function M.openURL(bundleID, url)
   local app = hs.application.get(bundleID)
-
-  if app and app:isFrontmost() and #app:allWindows() > 0 then
-    app:hide()
-    return "hidden"
-  end
-
   local wasRunning = app ~= nil
   -- The launcher binary rather than hs.urlevent.openURL, because a pane url scheme such as
   -- x-apple.systempreferences carries a single colon and openURL rejects any url without a

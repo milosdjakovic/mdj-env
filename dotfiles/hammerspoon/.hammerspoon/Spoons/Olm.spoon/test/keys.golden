@@ -17,7 +17,7 @@ META	z	any	-	-	windowmanager
 hotkey	`	alt	-	-	apptoggler
 hotkey	c	alt+ctrl	-	-	clipboard
 hotkey	v	alt+ctrl	-	-	clipboard
-hyper	,	any	-	-	apptoggler
+hyper	,	any	-	-	systemsettings
 hyper	/	any	-	-	fileSearch
 hyper	2	any	-	-	colorPicker
 hyper	3	any	-	-	capture

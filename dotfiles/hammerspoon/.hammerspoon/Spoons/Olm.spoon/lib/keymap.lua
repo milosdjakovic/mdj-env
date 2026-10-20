@@ -1,9 +1,10 @@
 -- The keymap, one read model of every chord Olm binds.
 --
--- Every key Olm binds comes from one of four sources, a tool's or a host's open row, a plugin's
--- own bindings, a host's included, rows a plugin provides from its own data, and every list's
--- context bindings, and then the person's own keymap, config/keymap.lua, is laid over them. A
--- tool's open key is not a field of its own
+-- Every key Olm binds comes from one of three sources, a tool's or a host's open row, a plugin's
+-- own bindings, a host's included, and every list's context bindings, and then the person's own
+-- keymap, config/keymap.lua, is laid over them. An action a plugin builds from its own data, an
+-- app the toggler serves, is an ordinary descriptor reached the same way. A tool's open key is
+-- not a field of its own
 -- any more. It is the bindings row whose action is open, so one list in the manifest suggests
 -- every key a plugin has, and this module tells an open row of a tool from one of a host. This module reads
 -- the declarations behind all of them and writes them down as one list of rows in one spelling,
@@ -44,17 +45,20 @@
 --               list, which demands no modifier, and the two never collide with each other.
 --   owner       the identity of the plugin or host that declared the chord. For a list's own
 --               keys it is the list's name.
---   action      what the chord does, open for a tool's or a host's open row, the app name for a
---               toggle, and the binding's own action name for everything else.
---   source      one word naming the path, tool, host, bindings, provided or context. A row the
+--   action      what the chord does, open for a tool's or a host's open row, and the binding's
+--               own action name for everything else.
+--   source      one word naming the path, tool, host, bindings or context. A row the
 --               person's keymap set keeps the source of the action it runs, so every reader
 --               treats it as it treats that action's own default.
 --   when        the predicate gating the chord, where there is one.
 --   priority    the context priority, where there is one.
 --   description the declared label, the binding's own, else the descriptor's, else for an open
 --               row the plugin's own description.
---   group       the section a cheat sheet files the row under, the descriptor's own group, a word or a
---               function answering one, or nil for the sheet's default section.
+--   group       the section a cheat sheet files the row under, the descriptor's own group, a word,
+--               a table with a title, or a function answering either, or nil for the sheet's
+--               default section.
+--   app         the bundle id the descriptor behind the row stands for, which a sheet draws the
+--               row with, or nil.
 --   origin      default when the plugin shipped the chord and user when the person set it.
 --   entry       the chord as the person wrote it in config/keymap.lua, for a row that file set,
 --               so a problem or a note about the row names the entry to look at.
@@ -460,8 +464,6 @@ end
 ---   actions     the action descriptors each plugin answered, by directory, already validated.
 ---   refusedActions the action names each plugin declared and had refused, by directory, or
 ---               true for a plugin whose whole actions member failed.
----   provided    the rows a plugin answered through provides.bindings, by directory, each with
----               its own action, key, mods, leader role or none, description and fn.
 ---   hostRun     a function from a host's directory to the function its key calls, or nil.
 ---   personKeys  the keys section readConfig read from config/keymap.lua, or nil.
 ---   modifierLeaders the leaders the person named, name to its sorted set of modifiers, or nil.
@@ -528,6 +530,7 @@ function obj.build(inputs)
       priority = spec.priority,
       description = spec.description,
       group = spec.group,
+      app = spec.app,
       origin = spec.origin or "default",
       repeats = spec.repeats,
       afterRelease = spec.afterRelease,
@@ -677,6 +680,7 @@ function obj.build(inputs)
               priority = b.priority,
               description = b.description or (descriptor and descriptor.description),
               group = descriptor and descriptor.group or nil,
+              app = descriptor and descriptor.app or nil,
               origin = originOf(prov, "bindings"),
               repeats = repeats, run = descriptor and descriptor.run or nil,
               afterRelease = descriptor and descriptor.afterRelease or nil,
@@ -705,30 +709,6 @@ function obj.build(inputs)
             description = b.description, origin = "default",
           })
         end
-      end
-    end
-  end)
-
-  -- The rows a plugin answered through provides.bindings, each complete with its own function.
-  -- A row naming a leader role sits on that role's leader and one naming none is a plain combo.
-  -- This is a bridge for a plugin whose keys are still built from the person's own data, so
-  -- every row of it is the person's, which is how the collision check has always classed them.
-  source("provided rows", function()
-    for _, directory in ipairs(sortedKeys(inputs.provided)) do
-      local owner = identityOf[directory] or directory
-      for i, r in ipairs(inputs.provided[directory] or {}) do
-        -- A key on a leader stating no modifiers is a catch all, as it is everywhere, while a plain
-        -- combo always states its own.
-        local mods = r.mods
-        if not r.leader and mods == nil then mods = {} end
-        add({
-          leader = r.leader and leaderOf(r.leader) or nil,
-          role = r.leader and (roles[r.leader] and r.leader or "app") or nil,
-          key = r.key, mods = mods, owner = owner,
-          action = r.action, source = "provided", when = r.when, description = r.description,
-          origin = "user", repeats = r.repeats, run = r.fn,
-          order = orderOf(1, position[directory], i),
-        })
       end
     end
   end)
@@ -765,19 +745,17 @@ function obj.build(inputs)
     end
     -- The first global row each action holds before the person's keys, in binding order, which a
     -- moved action copies everything but its chord from.
-    local template, rowsOfId = {}, {}
+    local template = {}
     for _, row in ipairs(rows) do
       if row.layer == GLOBAL then
         local id = idOf(row)
         local held = template[id]
         if not held or placeOf[row].order < placeOf[held].order then template[id] = row end
-        rowsOfId[id] = rowsOfId[id] or {}
-        table.insert(rowsOfId[id], row)
       end
     end
 
-    -- What one action id names, the row it had, else a descriptor, a refused descriptor, a
-    -- tool's or a host's open, or a row the plugin provides, each with the place in binding order
+    -- What one action id names, the row it had, else a descriptor, a refused descriptor, or a
+    -- tool's or a host's open, each with the place in binding order
     -- that action's own rows would take, or nil and why for an id naming nothing.
     local function resolveTarget(entry)
       local directory = dirOf[entry.owner]
@@ -792,23 +770,6 @@ function obj.build(inputs)
         return nil, "names '" .. entry.owner .. "', which is no plugin or host in this load"
       end
       local id = entry.owner .. "." .. entry.action
-      -- One id over several rows running different functions is two actions sharing a name, the
-      -- app toggler's two toggles of one app until phase 6 gives a variant an id of its own. Moving
-      -- one would move both and keep only the first's behaviour in silence, so the entry is refused
-      -- and both rows stay bound where they are.
-      local runsSeen, distinct, chords = {}, 0, {}
-      for _, row in ipairs(rowsOfId[id] or {}) do
-        if row.run ~= nil and not runsSeen[row.run] then
-          runsSeen[row.run] = true
-          distinct = distinct + 1
-        end
-        chords[#chords + 1] = obj.chordText(row)
-      end
-      if distinct > 1 then
-        table.sort(chords)
-        return nil, "names " .. id .. ", which answers " .. #chords .. " rows running different functions, "
-          .. table.concat(chords, " and ") .. ", so both stay bound where they are"
-      end
       local held = template[id]
       if held then
         local copy = {}
@@ -822,7 +783,7 @@ function obj.build(inputs)
       local tail = orderOf(1, position[directory], 900)
       if descriptor then
         return { source = "bindings", run = descriptor.run, when = descriptor.when,
-          description = descriptor.description, group = descriptor.group,
+          description = descriptor.description, group = descriptor.group, app = descriptor.app,
           repeats = descriptor.repeats, afterRelease = descriptor.afterRelease, order = tail }
       end
       if refusedHere == true or (type(refusedHere) == "table" and refusedHere[entry.action]) then
@@ -838,12 +799,6 @@ function obj.build(inputs)
         if run then
           return { source = "host", run = run, description = eff.description,
             order = orderOf(3, hostIndexOf[directory]) }
-        end
-      end
-      for i, r in ipairs((inputs.provided or {})[directory] or {}) do
-        if r.action == entry.action then
-          return { source = "provided", run = r.fn, when = r.when, description = r.description,
-            repeats = r.repeats, order = orderOf(1, position[directory], i) }
         end
       end
       return nil, "names the action '" .. entry.action .. "', which '" .. entry.owner .. "' does not answer"
@@ -875,7 +830,7 @@ function obj.build(inputs)
         leader = e.leader, role = e.leader and roleOfLeader(e.leader) or nil,
         key = e.key, mods = e.mods, owner = e.owner, action = e.action, source = t.source,
         when = t.when, priority = t.priority, description = t.description, group = t.group,
-        origin = "user", repeats = t.repeats, afterRelease = t.afterRelease, run = t.run,
+        app = t.app, origin = "user", repeats = t.repeats, afterRelease = t.afterRelease, run = t.run,
         refused = t.refused, quiet = t.quiet, order = t.order, entry = e.text,
       })
     end
@@ -908,11 +863,11 @@ function obj.build(inputs)
 
   -- A row the person set wins its slot over a shipped default, which is dropped rather than bound
   -- beside it, with one routine line naming what was displaced. The person's own rows are the
-  -- keymap's entries and also the rows still built from the person's other files, a toggle or a
-  -- binding written in config/plugins.lua, so one rule answers every one of them, and a default
-  -- never meets a person's row in the collision check below. A keymap entry ranks above every
-  -- other source of the person's, since it is the one file a person writes keys in, so it drops a
-  -- toggle on its slot first, the same way and with the same line.
+  -- keymap's entries and also any binding still written in config/plugins.lua, so one rule
+  -- answers every one of them, and a default never meets a person's row in the collision check
+  -- below. A keymap entry ranks above every other source of the person's, since it is the one
+  -- file a person writes keys in, so it drops such a binding on its slot first, the same way and
+  -- with the same line.
   local entrySlot = {}
   for _, row in ipairs(rows) do
     if row.layer == GLOBAL and row.entry then

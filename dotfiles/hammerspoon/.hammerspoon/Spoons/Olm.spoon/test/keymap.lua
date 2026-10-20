@@ -131,8 +131,9 @@ do
   eq(#result.problems, 1, "case and modifier order do not hide a collision")
 end
 
--- The sources and their provenance. A provided row comes from the rows a plugin answered, a
--- plain combo has no leader, and a tool's open row is told from a host's. A special row is not a
+-- The sources and their provenance. A plain combo has no leader, and a tool's open row is told
+-- from a host's. Rows a plugin provided from its own data are no source since phase 6 of the
+-- keymap plan, the app toggles being descriptors built from data. A special row is not a
 -- source since phase 5 of the keymap plan, a host's runnable rows being its descriptors. A bindings row stating leader false is a plain combo, and one
 -- naming its own role sits on that role whatever the plugin's default says.
 do
@@ -150,7 +151,6 @@ do
     shortcuts = { { name = "tool", kind = "leader" } },
     provided = { toggler = {
       { action = "Safari", key = "S", leader = "app", fn = function() end },
-      { action = "Terminal", key = "S", mods = { "alt" }, fn = function() end },
     } },
   })
   eq(#result.problems, 0, "the sources raise no collision between themselves")
@@ -171,10 +171,7 @@ do
   eq(table.concat(seen["bindings:paste"].mods, "+"), "alt+ctrl", "its modifiers are sorted to compare")
   eq(table.concat(seen["bindings:paste"].shownMods, "+"), "ctrl+alt", "and kept in the order a Mac spells them to show")
   eq(seen["bindings:raise"].leader, "hyper", "a row naming its own role leaves the plugin's default")
-  eq(seen["provided:Safari"].leader, "hyper", "a provided row naming the app role sits on the app leader")
-  eq(seen["provided:Safari"].anyMods, true, "a provided row on a leader stating no modifiers is a catch all")
-  eq(seen["provided:Terminal"].leader, nil, "a provided row stating modifiers is a plain combo")
-  eq(seen["provided:Terminal"].origin, "user", "a provided row is the person's own")
+  eq(seen["provided:Safari"], nil, "a provided row is no source any more, even handed in")
 end
 
 -- A bindings row with leader false and no modifiers would take a bare key from every app, and a
@@ -342,29 +339,32 @@ do
   eq(#missing, 1, "a member that names nothing is one problem")
   local none = registrar.validateActions("demo", {}, {})
   eq(next(none), nil, "a plugin declaring no actions answers an empty table")
+  eq(registrar.providedBindings, nil, "provided rows have no validation, since provides.bindings retired")
 
-  local rows, rowProblems = registrar.providedBindings("demo", { provides = { bindings = "rows" } }, {
-    rows = function() return {
-      { action = "a", key = "a", leader = "app", fn = function() end },
-      { action = "b", key = "b", mods = { "alt" }, fn = function() end },
-      { action = "c", key = "c", leader = "app" },
-      { action = "d", key = "d", fn = function() end },
-    } end,
-  })
-  eq(#rows, 2, "provided rows with a key, a function and a leader or modifiers are kept")
-  eq(#rowProblems, 2, "a row with no function and a row with neither leader nor modifiers are refused")
+  -- A group is a word, a table naming its section in title with an optional faded, or a function.
+  local okGroup = registrar.validateDescriptor({ run = function() end, group = { title = "RUNNING" } })
+  eq(okGroup, true, "a group table with a title is a group")
+  okGroup = registrar.validateDescriptor({ run = function() end, group = { title = "DORMANT", faded = true } })
+  eq(okGroup, true, "and may ask to be faded")
+  local badGroup, groupField = registrar.validateDescriptor({ run = function() end, group = { faded = true } })
+  eq(badGroup == false and groupField, "group", "a group table with no title is refused by its field")
+  badGroup, groupField = registrar.validateDescriptor({ run = function() end, group = { title = "X", faded = "yes" } })
+  eq(badGroup == false and groupField, "group", "and so is a faded that is not a boolean")
 end
 
--- The retired fields. registry.commands, defaults.key and defaults.mods are each refused with one
--- problem naming what replaced it, and defaults.leader is not, since it stays as the role every
--- bindings row of a plugin inherits.
+-- The retired fields. registry.commands, defaults.key and defaults.mods, and since phase 6
+-- provides.bindings, provides.cheatSheetSections and provides.launcherAppDetails, are each
+-- refused with one problem naming what replaced it, and defaults.leader is not, since it stays
+-- as the role every bindings row of a plugin inherits.
 do
   local registrar = assert(loadfile(here .. "../lib/registrar.lua"))()
   local problems = registrar.retiredFields("old", {
     registry = { commands = { x = {} } },
     defaults = { leader = "app", key = "K", mods = { "cmd" } },
+    provides = { bindings = "rows", cheatSheetSections = "sections", launcherAppDetails = "details",
+      actions = "actions" },
   })
-  eq(#problems, 3, "each retired field is one problem")
+  eq(#problems, 6, "each retired field is one problem, and provides.actions is not one")
   local text = ""
   for _, pr in ipairs(problems) do text = text .. pr.where .. " " .. pr.why .. "\n" end
   eq(text:find("registry.commands is retired, replaced by an action descriptor", 1, true) ~= nil, true,
@@ -372,6 +372,12 @@ do
   eq(text:find("defaults.key is retired, replaced by a defaults.bindings row whose action is open", 1, true) ~= nil,
     true, "a key names the open row that replaced it")
   eq(text:find("defaults.mods is retired", 1, true) ~= nil, true, "and so does a modifier list")
+  eq(text:find("provides.bindings is retired, replaced by an action descriptor in provides.actions", 1, true) ~= nil,
+    true, "provided rows name the descriptors built from data that replaced them")
+  eq(text:find("provides.cheatSheetSections is retired, replaced by the group of an action descriptor", 1, true) ~= nil,
+    true, "a sheet section names the descriptor's group")
+  eq(text:find("provides.launcherAppDetails is retired, replaced by the app of an action descriptor", 1, true) ~= nil,
+    true, "app details name the descriptor's app")
   eq(#registrar.retiredFields("new", { defaults = { leader = "window", bindings = {} } }), 0,
     "defaults.leader and bindings are not retired")
 

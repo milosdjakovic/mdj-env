@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # The leader/Hyper key remap used to be installed here as a hidutil LaunchAgent.
-# It now lives inside Hammerspoon (KeyRemap.spoon, driven by the leaderKeys
-# catalog in config/keys.lua), so the remap is applied on launch and cleared on
+# It now lives inside Hammerspoon (Olm's lib/keyremap.lua, driven by the leader
+# catalog Olm ships), so the remap is applied on launch and cleared on
 # quit, from the same single source of truth as everything else. See the
 # Hammerspoon section of AGENTS.md.
 #

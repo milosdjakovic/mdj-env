@@ -40,45 +40,43 @@ apptoggler.app name=Xcode bundleID=com.apple.dt.Xcode
 apptoggler.app name=Yomu bundleID=net.cecinestpasparis.yomu
 apptoggler.app name=Zed bundleID=dev.zed.Zed
 apptoggler.app name=iPhoneMirroring bundleID=com.apple.ScreenContinuity
-registry apptoggler.toggles count=19
-apptoggler.toggle app=ActivityMonitor key=\ mods=- url=-
-apptoggler.toggle app=Books key=B mods=- url=-
-apptoggler.toggle app=Claude key=A mods=- url=-
-apptoggler.toggle app=Docker key=D mods=- url=-
-apptoggler.toggle app=Finder key=F mods=- url=-
-apptoggler.toggle app=Ghostty key=` mods=- url=-
-apptoggler.toggle app=Ghostty key=` mods=alt url=-
-apptoggler.toggle app=GoogleChrome key=C mods=- url=-
-apptoggler.toggle app=Mail key=M mods=- url=-
-apptoggler.toggle app=Notes key=N mods=- url=-
-apptoggler.toggle app=Obsidian key=O mods=- url=-
-apptoggler.toggle app=Preview key=R mods=- url=-
-apptoggler.toggle app=Safari key=S mods=- url=-
-apptoggler.toggle app=Slack key=L mods=- url=-
-apptoggler.toggle app=Stickies key=T mods=- url=-
-apptoggler.toggle app=SystemSettings key=, mods=- url=x-apple.systempreferences:com.apple.systempreferences.GeneralSettings
-apptoggler.toggle app=VisualStudioCode key=V mods=- url=-
-apptoggler.toggle app=Zed key=Z mods=- url=-
-apptoggler.toggle app=iPhoneMirroring key=I mods=- url=-
-registry apptoggler.items count=18
-apptoggler.item key=, name=System Settings bundleID=com.apple.systempreferences
-apptoggler.item key=A name=Claude bundleID=com.anthropic.claudefordesktop
-apptoggler.item key=B name=Books bundleID=com.apple.iBooksX
-apptoggler.item key=C name=Chrome bundleID=com.google.Chrome
-apptoggler.item key=D name=Docker Desktop bundleID=com.electron.dockerdesktop
-apptoggler.item key=F name=Finder bundleID=com.apple.finder
-apptoggler.item key=I name=iPhone Mirroring bundleID=com.apple.ScreenContinuity
-apptoggler.item key=L name=Slack bundleID=com.tinyspeck.slackmacgap
-apptoggler.item key=M name=Mail bundleID=com.apple.mail
-apptoggler.item key=N name=Notes bundleID=com.apple.Notes
-apptoggler.item key=O name=Obsidian bundleID=md.obsidian
-apptoggler.item key=R name=Preview bundleID=com.apple.Preview
-apptoggler.item key=S name=Safari bundleID=com.apple.Safari
-apptoggler.item key=T name=Stickies bundleID=com.apple.Stickies
-apptoggler.item key=V name=Code bundleID=com.microsoft.VSCode
-apptoggler.item key=Z name=Zed bundleID=dev.zed.Zed
-apptoggler.item key=\ name=Activity Monitor bundleID=com.apple.ActivityMonitor
-apptoggler.item key=` name=Ghostty bundleID=com.mitchellh.ghostty
+registry apptoggler.actions count=36
+apptoggler.action name=ActivityMonitor app=com.apple.ActivityMonitor description=- group=true
+apptoggler.action name=Alacritty app=org.alacritty description=- group=true
+apptoggler.action name=AndroidStudio app=com.google.android.studio description=- group=true
+apptoggler.action name=Arc app=company.thebrowser.Browser description=- group=true
+apptoggler.action name=Books app=com.apple.iBooksX description=- group=true
+apptoggler.action name=Bruno app=com.usebruno.app description=- group=true
+apptoggler.action name=ChatGPT app=com.openai.chat description=- group=true
+apptoggler.action name=ChatGPTAtlas app=com.openai.atlas.web description=- group=true
+apptoggler.action name=Claude app=com.anthropic.claudefordesktop description=- group=true
+apptoggler.action name=Cursor app=com.todesktop.230313mzl4w4u92 description=- group=true
+apptoggler.action name=Docker app=com.electron.dockerdesktop description=- group=true
+apptoggler.action name=Finder app=com.apple.finder description=- group=true
+apptoggler.action name=Ghostty app=com.mitchellh.ghostty description=- group=true
+apptoggler.action name=GhosttyPlaced app=com.mitchellh.ghostty description=Terminal placed group=true
+apptoggler.action name=GoogleChat app=com.google.Chrome.app.mdpkiolbdkhdjpekfbkbmhigcaggjagi description=- group=true
+apptoggler.action name=GoogleChrome app=com.google.Chrome description=- group=true
+apptoggler.action name=Hammerspoon app=org.hammerspoon.Hammerspoon description=- group=true
+apptoggler.action name=Kitty app=net.kovidgoyal.kitty description=- group=true
+apptoggler.action name=Mail app=com.apple.mail description=- group=true
+apptoggler.action name=Notes app=com.apple.Notes description=- group=true
+apptoggler.action name=Obsidian app=md.obsidian description=- group=true
+apptoggler.action name=Preview app=com.apple.Preview description=- group=true
+apptoggler.action name=PyCharm app=com.jetbrains.pycharm description=- group=true
+apptoggler.action name=Safari app=com.apple.Safari description=- group=true
+apptoggler.action name=Slack app=com.tinyspeck.slackmacgap description=- group=true
+apptoggler.action name=Stickies app=com.apple.Stickies description=- group=true
+apptoggler.action name=SystemSettings app=com.apple.systempreferences description=- group=true
+apptoggler.action name=TablePlus app=com.tinyapp.TablePlus description=- group=true
+apptoggler.action name=Terminal app=com.apple.Terminal description=- group=true
+apptoggler.action name=VisualStudioCode app=com.microsoft.VSCode description=- group=true
+apptoggler.action name=Warp app=dev.warp.Warp-Stable description=- group=true
+apptoggler.action name=WezTerm app=com.github.wez.wezterm description=- group=true
+apptoggler.action name=Xcode app=com.apple.dt.Xcode description=- group=true
+apptoggler.action name=Yomu app=net.cecinestpasparis.yomu description=- group=true
+apptoggler.action name=Zed app=dev.zed.Zed description=- group=true
+apptoggler.action name=iPhoneMirroring app=com.apple.ScreenContinuity description=- group=true
 registry hypercontexts count=19
 hypercontexts.context name=audio when=audioOpen priority=100 bindingCount=5
 hypercontexts.context name=browserTabs when=browserTabsOpen priority=100 bindingCount=5
@@ -350,18 +348,17 @@ tools.entry name=volume active=true surface=false hosted=true scope=true
 tools.entry name=vpn active=true surface=false hosted=true scope=true
 tools.entry name=wifi active=true surface=false hosted=true scope=true
 tools.entry name=workspaces active=true surface=false hosted=false scope=true
-registry scopes count=18
+registry scopes count=17
 scopes.entry name=aliasDirectory aliases=?
 scopes.entry name=apps aliases=a+app
 scopes.entry name=audio aliases=au+audio
 scopes.entry name=browserTabs aliases=t+tabs
 scopes.entry name=caffeinate aliases=k+awake
 scopes.entry name=dockAutoHide aliases=d+dock
-scopes.entry name=emoji aliases=e+emoji
+scopes.entry name=emoji aliases=e+em+emoji
 scopes.entry name=fileSearch aliases=/
 scopes.entry name=menuSearch aliases=m+menu
 scopes.entry name=obsidian aliases=ob+obsidian
-scopes.entry name=settingsPanes aliases=s+system
 scopes.entry name=speedtest aliases=st+speed
 scopes.entry name=tmuxSessions aliases=u+tmux
 scopes.entry name=volume aliases=vol

@@ -430,7 +430,7 @@ id of that open, and `refreshLauncher`, asking the launcher to draw again, both 
 the launcher for a plugin that works in the app underneath it, MenuSearch, TextCase and WindowSize today. `predicates`, the shared when name to
 predicate table every gated binding is resolved against. The leader sheet's `sheets` is not in that
 table. It is one record per leader whose policy states a sheet, its keycode, its layout and its
-entries, the leader's own rows from the keymap and every plugin's sections for the leader's role,
+entries, the leader's rows from the keymap in blocks by each plugin's cheatSheetOrder,
 so it exists only once the keymap is built after register, and the root hands it to the leader
 sheet in its second configure, step K. What a sheet's heading is called is the leader's own
 policy, `sheetLayout.title`, and no longer a root word. `redraw`, repaint whichever list is on screen,
@@ -550,8 +550,6 @@ set = {
   queryRows    = { provides = { "queryRows" } },
   launcherRows = { provides = { "launcherRows" } },   -- rows that are not actions
   launcherRun  = { provides = { "launcherRun" } },
-  launcherAppDetails = { provides = { "launcherAppDetails" } },
-  cheatSheetSections = { provides = { "cheatSheetSections" } },   -- host/leadersheet
 },
 ```
 
@@ -611,7 +609,7 @@ a launcher row. A caller that is neither may hand its own argument, the window m
 expects. Every other field is optional and checked by type where present, `description`,
 `subtitle`, `kind` and `app` strings, `icon` a string or a table, `keywords` a string or a list
 of strings, `repeats`, `afterRelease` and `listed` booleans, `when` a predicate name, and `group`
-a string or a function. `afterRelease = true` says the action posts a keystroke a held leader
+a string, a table with a `title` string and an optional `faded` boolean, or a function. `afterRelease = true` says the action posts a keystroke a held leader
 would stand in front of, so a key runs it only once the leader that fired it is released and its
 launcher row only once no held leader is down, which is capture's case. A field outside that list, or one of the wrong type, refuses that one action with a
 problem line naming the plugin, the action and the field, and the rest of the plugin is still
@@ -632,25 +630,39 @@ descriptor states `kind` exactly when its rows must keep a key the launcher reme
 before they were descriptors, and the launcher's catalog scopes narrow by it. Choosing the row runs
 the descriptor. A plugin with actions therefore builds no launcher row and declares no
 `launcherRows` or `launcherRun` for them. `group` is the section a cheat sheet files the row under, since phase 4 of the keymap plan, a
-word, or a function asked with nothing at every show and answering one, and a row with none goes
-under the leader's default section, headed by the leader's `sheetLayout.title`. `app` is read by a later phase of
-the keymap plan. Capture, the window manager and the clipboard are the shipped cases, and Window Size reads
-the window manager's list as a sibling, finding `exactSize` by its name and calling `run`.
+word, a table `{ title = word, faded = true }` for a section drawn dimmed with its title bright
+and placed after every section in full colour, or a function asked with nothing at every show and
+answering either, and a row with none goes under the leader's default section, headed by the
+leader's `sheetLayout.title`. A plugin's rows sit on a sheet in a block placed by its
+`defaults.cheatSheetOrder`, compared with the sheet host's own fifty. `app` is a bundle id the
+action stands for, since phase 6. The action is then no launcher row of its own, it merges into
+the launcher's row for that app, which shows the action's chord, a plain combination winning that
+row over a leader chord, and its sheet row wears the app's icon and name, resolved by Olm, and is
+left off a sheet when the app is not installed. Capture, the window manager and the clipboard are
+the shipped cases of fixed actions, and Window Size reads the window manager's list as a sibling,
+finding `exactSize` by its name and calling `run`.
 
-`bindings` is a bridge for a plugin whose keys are still built from the person's own data rather
-than declared, the app toggler's toggles being its one user. It names a member answering a list
-of complete rows, each an `action` name, a `key`, the function in `fn`, either a `leader` role or
-the `mods` of a plain combo, and an optional `description`. The member is asked once at the same
-moment as `actions`, and Olm binds every row. A row missing its function, its key, or both a
-leader and modifiers is refused with one problem line and every other row is kept. A later phase
-of the keymap plan, docs/PLAN-KEYMAP.md, replaces it with one action per app.
+A list may be built from the plugin's own data rather than fixed in code, answered by a member
+that builds it in `configure`, once per load, which is an ordinary case rather than a trick. The
+app toggler answers one action per app in its catalog and one per named variant, each naming its
+app and a group function answering a `RUNNING` table or a `DORMANT` table with `faded = true`, and
+System Settings one per pane. A person's keys reach them from `config/keymap.lua`,
+`["hyper+S"] = "apptoggler.Safari"`. Keys bind at load, so an action added while Hammerspoon runs
+is bindable after the next reload.
 
 ```lua
-provides = { bindings = "bindings" },
--- answers
-{ { action = "Finder", key = "f", leader = "app", fn = focusFinder },
-  { action = "Ghostty", key = "`", mods = { "alt" }, description = "Terminal", fn = placeTerminal } }
+provides = { actions = "actions" },
+-- answers, built in configure from data.apps and data.variants
+{ { name = "Safari", app = "com.apple.Safari", group = runningGroup, run = focusSafari },
+  { name = "GhosttyPlaced", app = "com.mitchellh.ghostty", group = runningGroup,
+    description = "Terminal placed", run = placeTerminal } }
 ```
+
+`bindings`, `cheatSheetSections` and `launcherAppDetails` were provides fields until phase 6, the
+side channels the app toggler alone spoke, complete key rows built from the person's data, sheet
+sections of its own and the launcher's app row details. Each is retired and refused by name with
+what replaced it, an action built from data, the descriptor's `group`, and the descriptor's
+`app`.
 
 `profile` means this plugin can say which display arrangement is current, which the overlay
 resolver asks for without knowing any plugin manages arrangements at all. A value may be
@@ -661,7 +673,9 @@ resolver asks for without knowing any plugin manages arrangements at all. A valu
 launcher's own catalog and runs the one a person chooses, the launcher asking the set for each
 and naming no plugin. An action is never declared this way, since Olm lists every action
 descriptor itself, see `actions` above. System Settings declares both for its panes and its
-search row until a later phase makes each pane an action. Window Size declares `launcherRun`
+search row. Each pane is also an action, but the row is not, since a row opens its pane and never
+hides the app while the action a key runs hides System Settings when it is in front, so the pane
+rows stay rows and keep the url they are remembered by. Window Size declares `launcherRun`
 alone, since its one row is computed from a typed size and reaches the list as a query row.
 
 ```lua
@@ -744,79 +758,28 @@ always had.
 Leave gaps when choosing a number, so a plugin added later can sit between two without anybody
 renumbering.
 
-`cheatSheetSections` is how a plugin adds sections of its own to a leader's held cheat sheet,
-the sheet asking the set and naming no plugin. Every key a plugin declares through its manifest,
-its open key and every other row of its `bindings`, already reaches the sheet without this, since
-the sheet reads the keymap. This is for keys a plugin builds from data the manifest does not
-spell as bindings, the app toggler's person supplied toggle list being the shipped case.
+A plugin's rows on a leader's held cheat sheet are the keymap's rows on that leader, each filed
+under its descriptor's `group`, see `actions` above. No plugin supplies a section of its own since
+phase 6 of the keymap plan. Where a plugin's rows sit on a sheet is `defaults.cheatSheetOrder`,
+compared with the sheet host's own number for every row whose plugin states none, the blocks in
+ascending order and a plugin with no number among the host's.
 
 ```lua
-provides = { cheatSheetSections = "cheatSheetSections" },
 defaults = { leader = "app", cheatSheetOrder = 10 },
 ```
 
-The member answers a list of sections and is asked every time the sheet is shown, so a section
-may read live state, which apps are running for instance. Keep it cheap, since the sheet opens on
-a key hold, and resolve anything that touches the disk once, where you build your keys.
-
-```lua
-{ title = "RUNNING",
-  icons = true,                -- the icon grid, otherwise a plain grid with no icon gutter
-  alpha = nil,                 -- fades the whole group, optional
-  titleAlpha = nil,            -- fades the title alone, optional
-  rows = {
-    { badge = "f",             -- the badge as written, or key and mods spelled by the sheet
-      key = nil, mods = nil,
-      label = "Finder",
-      icon = image },          -- drawn only in an icon grid
-  } }
-```
-
-Which sheet the sections reach is the plugin's `defaults.leader`, a plugin stating none reaches
-no sheet, and every leader's sheet asks for the sections of the role that leader answers, the
-Hyper sheet being the one with a supplier today. List only keys you actually bound on
-that leader, never a global combo, since the promise of a sheet is that it shows everything its
-leader does and nothing else. Where the sections sit is `defaults.cheatSheetOrder`, compared
-with a leader's own block of bound chords, which takes the sheet host's
-`defaults.cheatSheetOrder`. A tie puts contributors in the set's order ahead of the sheet's own
-block, and a contributor with no number sits after every numbered one. The root wraps each
-member so one that raises costs its own sections and is named on the console.
-
-| Sections | Number | Declared in |
+| Rows | Number | Declared in |
 |---|---|---|
 | The app toggles, running then dormant | 10 | `plugins/apptoggler`, `defaults.cheatSheetOrder` |
-| Every chord bound on a leader | 50 | `host/leadersheet`, `defaults.cheatSheetOrder` |
+| Every other chord bound on a leader | 50 | `host/leadersheet`, `defaults.cheatSheetOrder` |
 
-`launcherAppDetails` is how a plugin tells the launcher what an installed app's row shows beyond
-the app itself, the chord that brings it forward and the url the row opens, the launcher asking
-the set and naming no plugin. The app rows come from the launcher's own disk scan, which is the
-catalog it searches, so a supplier only adds to a row and never adds one. The app toggler is the
-shipped case, and switched off, every app row simply carries no chord.
-
-```lua
-provides = { launcherAppDetails = "launcherAppDetails" },
-```
-
-The member answers a table keyed by bundle id and is asked whenever the launcher builds its app
-rows, which happens when the running set changes, after every wiring step, so a table built in the
-plugin's `configure` is ready.
-
-```lua
-{ ["com.apple.finder"] = {
-    chord = { leader = "app", key = "F" },      -- a key on a leader, named by role
-    description = nil,                          -- read only beside a literal combo
-    url = nil },                                -- what choosing the row opens, optional
-  ["com.mitchellh.ghostty"] = {
-    chord = { key = "`", mods = { "alt" } },    -- a literal combo on no leader
-    description = "Terminal" } }
-```
-
-A chord on a leader reads as the leader's name and the key, `Open · Hyper F`. A chord with no
-leader is spelled by the glyph renderer and followed by its description, since a literal combo is
-on no cheat sheet and the row is the only place it is found. Where one plugin has two bindings for
-one app it decides which chord the row shows, the app toggler preferring the combo. The root merges
-every supplier into one table, the earlier in the set's order winning a bundle id whole, and wraps
-each so one that raises costs only its own details and is named on the console.
+What an installed app's launcher row shows beyond the app is the chord of an action whose
+descriptor names that app in `app`, which Olm works out from the descriptors and the keymap, so no
+plugin answers anything for an app row. A chord on a leader reads as the leader's name and the
+key, `Open · Hyper F`. A plain combination is spelled by the glyph renderer and followed by its
+action's description, ``Open · ⌥` Terminal placed``, and wins the row over a leader chord on the
+same app, since it is on no cheat sheet and the row is the only place it is found. Choosing an app
+row focuses or cycles the app, whatever action's chord it shows.
 
 ### registry
 
@@ -928,9 +891,9 @@ reads it, so nothing here changes for a plugin. It has four sections.
   catalog row, and any name in `leaders`. The modifiers are `shift`, `ctrl`, `alt`, `cmd` and
   `fn`, and `fn` is refused on a held leader, which compares only the other four. The keypad plus
   is `pad+`, and the main row plus is written as its unshifted key, `shift+=`. An action id is the plugin or host identity, a dot,
-  and the action, the descriptor's `name`, `open` for a tool's or a host's open row, or a
-  provided row's action, `vpn.open`, `windowmanager.leftHalf`, `apptoggler.Safari`,
-  `launcher.lock`. An action named there takes exactly the chords listed for it and loses its
+  and the action, the descriptor's `name` or `open` for a tool's or a host's open row,
+  `vpn.open`, `windowmanager.leftHalf`, `apptoggler.Safari`, `apptoggler.GhosttyPlaced`,
+  `systemsettings.General`, `launcher.lock`. An action named there takes exactly the chords listed for it and loses its
   defaults, and its new rows copy the gate, label, repeat and function of the row it had.
 - `leaders`, a name to a list of real modifiers, `nav = { "shift", "ctrl" }`, a leader of its own
   on the modifier trigger, with no sheet and no tap, named on a launcher row by its name.
@@ -1536,7 +1499,7 @@ once in Olm's root and never computed.
 5. **register**, a registry descriptor per tool. It carries `apiVersion` and a
    `category`, and its `surface` is a function. The registry refuses anything else.
 6. **activate**. Then the root names every retired field a manifest still declares, asks every
-   plugin for its `provides.actions` and `provides.bindings`, builds the keymap from every
+   plugin for its `provides.actions`, builds the keymap from every
    declaration, and binds every global row through the one binder, in the order the paths it
    replaced bound them, plugin bindings in plan order, a host's own actions among them, then the
    registry's tools, then the hosts' open keys. The person's keymap is laid over the defaults in

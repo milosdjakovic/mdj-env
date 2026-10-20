@@ -122,14 +122,13 @@ for _, code in ipairs(chordCodes) do
     field(k.onTap ~= nil), field(k.onHold ~= nil), field(k.onHoldEnd ~= nil), field(k.onKey ~= nil)))
 end
 
--- The app toggle models, the pure data the app toggler was configured with, apps and toggles,
--- plus items, the rows it precomputed for the Hyper cheat sheet's app sections. They were read
--- off the cheat sheet host until phase four of the core split, when the sheet stopped reading
--- the toggles and the plugin began supplying its own sections. Icons are left out of the item
--- line on purpose, since an hs.image carries no stable text form of its own, only an address.
+-- The app toggle models, the app catalog the app toggler was configured with, and the actions it
+-- built from it, one per app and one per variant. Since phase 6 of the keymap plan the toggler
+-- holds no key and no sheet row of its own, so its toggles and its precomputed sheet items are
+-- gone from this snapshot, and which key reaches each action is in the keymap the key inventory
+-- reads. A group is a function and is written only as whether one is there.
 local hcsApps = must(appToggler._apps, "apptoggler._apps, the app roster the app toggler was configured with")
-local hcsToggles = must(appToggler._toggles, "apptoggler._toggles, the toggle list the app toggler built its rows from")
-local hcsItems = must(appToggler._sheetItems, "apptoggler._sheetItems, the cheat sheet rows the app toggler precomputed")
+local hcsActions = must(appToggler._actions, "apptoggler._actions, the descriptors the app toggler built from its data")
 
 local appNames = {}
 for name in pairs(hcsApps) do
@@ -141,28 +140,15 @@ for _, name in ipairs(appNames) do
   add("apptoggler.app name=" .. name .. " bundleID=" .. field(hcsApps[name]))
 end
 
-local toggleLines = {}
-for _, t in ipairs(hcsToggles) do
-  local mods = {}
-  for _, m in ipairs(t.modifiers or {}) do mods[#mods + 1] = m end
-  table.sort(mods)
-  toggleLines[#toggleLines + 1] = string.format(
-    "apptoggler.toggle app=%s key=%s mods=%s url=%s",
-    field(t.app), field(t.key), join(mods), field(t.url))
+local actionLines = {}
+for _, a in ipairs(hcsActions) do
+  actionLines[#actionLines + 1] = string.format(
+    "apptoggler.action name=%s app=%s description=%s group=%s",
+    field(a.name), field(a.app), field(a.description), field(a.group ~= nil))
 end
-table.sort(toggleLines)
-add("registry apptoggler.toggles count=" .. #toggleLines)
-for _, l in ipairs(toggleLines) do add(l) end
-
-local itemLines = {}
-for _, it in ipairs(hcsItems) do
-  itemLines[#itemLines + 1] = string.format(
-    "apptoggler.item key=%s name=%s bundleID=%s",
-    field(it.key), field(it.name), field(it.bundleID))
-end
-table.sort(itemLines)
-add("registry apptoggler.items count=" .. #itemLines)
-for _, l in ipairs(itemLines) do add(l) end
+table.sort(actionLines)
+add("registry apptoggler.actions count=" .. #actionLines)
+for _, l in ipairs(actionLines) do add(l) end
 
 -- The context blocks, read from the load plan the composition root published on the loaded
 -- spoon, which is what the plugin manifests actually produced rather than a table kept by hand.

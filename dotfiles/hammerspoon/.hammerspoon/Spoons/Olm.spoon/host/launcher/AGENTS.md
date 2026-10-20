@@ -43,13 +43,20 @@ record.
 
 The app rows read person data until the split finished. The person's toggle list
 and app registry reached this host so it could put a Hyper chord on an app row's
-subtitle, the same leak phase four removed from the Hyper sheet. A plugin that
-binds an app's chord now declares `provides.launcherAppDetails`, the host asks the
-set `launcherAppDetails`, and the root hands it one function, `appDetails`,
-merging every supplier by bundle id. It is asked each time the app rows are
-built. The app catalog itself is the host's own disk scan, which is launcher
-policy and needs no person data, so the host declares neither `toggles` nor
-`apps`. With the app toggler switched off an app row carries no chord.
+subtitle, the same leak phase four removed from the Hyper sheet. Since phase 6
+of the keymap plan an action whose descriptor names an app in `app` is not a row
+of its own, it merges into that app's row, and the root hands the host one
+function, `appDetails`, answering by bundle id the chord such an action is bound
+to, built from the descriptors and the keymap. A plain combination wins over a
+chord on a leader, since it appears on no sheet. No plugin answers anything for
+an app row, and `provides.launcherAppDetails`, which the app toggler answered
+until then, is retired. It is asked each time the app rows are built. The app
+catalog itself is the host's own disk scan, which is launcher policy and needs no
+person data, so the host declares neither `toggles` nor `apps`. With the app
+toggler switched off an app row carries a chord only where another plugin's action
+names that app, System Settings through `systemsettings.General` today, and
+choosing an app row always focuses or cycles the app, never a pane, since no row
+carries a url any more.
 
 ## Rows are data, never functions
 

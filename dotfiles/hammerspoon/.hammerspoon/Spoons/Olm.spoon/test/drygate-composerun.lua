@@ -15,7 +15,9 @@
 -- The rename map is a file of lines "<original> <scrambled>", one per plugin directory and one
 -- per identity. Given one, every manifest under plugins/ is handed to core with its identity
 -- spelled the scrambled way, its name, its surface context and any sibling need naming another
--- plugin, and the person's plugins config is handed over with its keys renamed to match. The
+-- plugin, and the person's plugins config is handed over with its keys renamed to match, as is
+-- the person's keymap, the identity half of every action a key names and every identity an alias
+-- list is keyed by, since a keymap entry names a plugin the way a plugins entry does. The
 -- directories themselves were already renamed on disk by the caller.
 --
 -- THE PERSON'S OWN init.lua RUNS, unchanged, so the cfg core receives is exactly the one a
@@ -361,6 +363,19 @@ if os.getenv("DRYGATE_KEYMAP") == "1" or bindMode or viewsMode then
     return table.concat(out, "\n") .. "\n", true, "exit", 0
   end
 end
+-- The views mode answers one running app, Finder, the one app every Mac always runs, so a sheet
+-- that splits its rows by whether an app runs draws both halves offline, as it does on any live
+-- machine, and the offline sheet projection and the live one agree. Every other app reads as
+-- not running, which says nothing about this machine.
+if viewsMode then
+  local application = stub("hs.application")
+  local finder = setmetatable({}, { __index = function(_, k)
+    if k == "bundleID" then return function() return "com.apple.finder" end end
+    return stub("hs.application.runningApplications()[1]." .. tostring(k))
+  end })
+  application.runningApplications = recorded("hs.application.runningApplications", function() return { finder } end)
+  hs.application = application
+end
 -- The bound mode records every plain combo the run binds. The real call hands back a hotkey
 -- object, so a stand in is answered for whatever the caller does with it next.
 -- Above zero while a named leader binds or starts, so the combos its trigger claims through
@@ -604,6 +619,25 @@ hs.loadSpoon = function(name)
       local renamed = {}
       for k, v in pairs(cfg.plugins) do renamed[scramble[k] or k] = v end
       cfg.plugins = renamed
+    end
+    if renaming and type(cfg.keymap) == "table" then
+      local keymap = {}
+      for section, value in pairs(cfg.keymap) do keymap[section] = value end
+      if type(cfg.keymap.keys) == "table" then
+        local keys = {}
+        for chord, id in pairs(cfg.keymap.keys) do
+          local owner, action
+          if type(id) == "string" then owner, action = id:match("^([^.]+)%.(.+)$") end
+          keys[chord] = (owner and scramble[owner]) and (scramble[owner] .. "." .. action) or id
+        end
+        keymap.keys = keys
+      end
+      if type(cfg.keymap.aliases) == "table" then
+        local aliases = {}
+        for identity, words in pairs(cfg.keymap.aliases) do aliases[scramble[identity] or identity] = words end
+        keymap.aliases = aliases
+      end
+      cfg.keymap = keymap
     end
     return start(self, cfg)
   end

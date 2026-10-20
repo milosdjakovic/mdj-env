@@ -12,8 +12,9 @@ of their own. Phase 6, the dry gate's layer rule, fails the gate now.
 A plugin is a self contained directory whose manifest names what it needs and what it offers,
 and core is everything plugins consume, which the composition root may name. Core never names
 a plugin. `config/plugins.lua` holds one entry per plugin identity, the person's overrides of
-that plugin's own defaults, its person supplied `data`, its spoon `global`, or `false`, and
-`config/keys.lua` holds only the two leaders and the app toggles. KeyRemap is `lib/keyremap.lua`,
+that plugin's own defaults, its person supplied `data`, its spoon `global`, or `false`, and every
+key a person sets is in `config/keymap.lua`, `config/keys.lua` having gone in phase 6 of
+`olm-keymap.md`. KeyRemap is `lib/keyremap.lua`,
 every leader is an instance of `lib/leader.lua` since phase 3 of `olm-keymap.md`, and the window
 cheat sheet is a host. A plugin reaches the window leader the way it reaches Hyper, by declaring
 `defaults.leader = "window"` with `defaults.bindings` and answering their actions through
@@ -29,13 +30,13 @@ is its own kind joined to its item's `key` or name.
 Bringing an app forward is `lib/appfocus.lua`, and `coveredApp` and `refreshLauncher` are words
 the root publishes over the launcher.
 A leader's cheat sheet lists what the keymap holds on that leader, a plugin's open key and its
-other `bindings` and the keyed special rows, registry commands having retired in phase 2b of
-`olm-keymap.md`, plus the sections a plugin
-supplies by declaring `provides.cheatSheetSections`, placed by `defaults.cheatSheetOrder` and
-routed by `defaults.leader`. The app toggler supplies the app sections, so the Hyper sheet reads
-no person data and names no plugin. The launcher's app rows learn each bound app's chord and url
-the same way, from `provides.launcherAppDetails`, so the launcher reads neither the toggles nor
-the app registry. A registry tool's open key binds on whichever leader its defaults name, the
+other `bindings`, registry commands having retired in phase 2b of `olm-keymap.md`, filed under
+each descriptor's `group` in blocks placed by `defaults.cheatSheetOrder`. Since phase 6 of
+`olm-keymap.md` the app toggler's apps are descriptors with a running group, so the Hyper sheet
+reads no person data, names no plugin and takes no section from one, and the launcher's app rows
+show the chord of an action whose descriptor names the app, worked out by the root from the
+descriptors and the keymap. `provides.cheatSheetSections` and `provides.launcherAppDetails`, which
+this record introduced, are retired. A registry tool's open key binds on whichever leader its defaults name, the
 window leader included, since the refusal at wiring was reopened and removed in phase 2a of
 `olm-keymap.md`, and the window sheet lists such a key since phase 2b, when its rows became the
 keymap's. The dry gate
@@ -562,3 +563,10 @@ surface and empty state, the scroll and the teardown, `pane = true` on a surface
   so a raising rows function escaped `Stage:refresh` and could stop a background tick such as live
   process sampling. Both now run under pcall, a failure is logged and the row number stands, and
   `test/cases/stage-holdkey.lua` proves it with rows that raise on the lookup's call.
+- 2026-10-20 10:17. Phase 6 of `olm-keymap.md` retired the two contribution channels this record
+  introduced for the app toggler, `provides.cheatSheetSections` and `provides.launcherAppDetails`.
+  The toggler's apps are action descriptors built from its data, each naming its app and a group
+  answering whether the app runs, so the leader sheet files them itself and the root works out an
+  app row's chord from the descriptors and the keymap. The goal this record set, a sheet and a
+  launcher that read no person data and name no plugin, holds without either channel. Both fields
+  are refused by name.
