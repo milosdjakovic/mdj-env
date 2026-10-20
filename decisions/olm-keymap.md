@@ -525,3 +525,11 @@ aliases live only in `config/keymap.lua`.
   where keys live today, that a moved toggle's sheet section and app row lag until phase 6, that
   false frees global chords only until phase 7, and that a displaced default loses that one row.
   `test/keymap-person.lua` is at 129 checks.
+- 2026-10-20 09:41. Phase 5 landed after a live load in two steps under a manual hold. With the shipped empty
+  config/keymap.lua the console was clean, the wiring report said no problems, all three goldens
+  matched live, remap line included, and Milos confirmed the launcher, the VPN key and a window
+  action unchanged. Then his own example, `["meta+E"] = "vpn.open"`, was written into the
+  branch's file and the branch reloaded. The live key diff showed exactly VPN leaving Hyper and P
+  for META and E, and Milos confirmed META and E opened the VPN list, Hyper and P did nothing, VPN
+  appeared on the window sheet, and the launcher row read META E. The entry was removed before
+  merging, so main ships the file empty.
