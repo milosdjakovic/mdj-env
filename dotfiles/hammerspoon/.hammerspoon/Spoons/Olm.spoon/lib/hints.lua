@@ -572,13 +572,15 @@ end
 --- them, as plain entries { key, mods, action, description, when, group, owner }. Since phase 4 of
 --- the keymap plan one sheet host draws every held leader, so this one rule serves them all. It
 --- reads the keymap rather than the registry and the plan, so a tool's open key, a host's, a
---- plugin's bindings and the special rows all reach a sheet through the one table that binds
---- them, and nothing here reads a key off a manifest field.
+--- plugin's bindings, a host's own actions among them, all reach a sheet through the one table that binds
+--- them, and nothing here reads a key off a manifest field. A row the person's keymap set is one
+--- of these sources too, the source of the action it runs, so it is ordered where that action's
+--- own default would be.
 ---
 --- The order is the one the Hyper sheet has always drawn. Every registered tool first, in
 --- registration order, which is the order the keymap's bound list holds tool rows in. Then,
---- walking the plan order, each plugin's host key, its own bindings in their declared order, and
---- its special rows. A chord already listed is not listed twice, identity being the key and the
+--- walking the plan order, each plugin's host key and then its own bindings in their declared
+--- order. A chord already listed is not listed twice, identity being the key and the
 --- modifiers, since two rows may share a key with different modifiers, screenshot and screenshot
 --- to the clipboard. The lists' own keys are left out, since they are not global keys. The rows a
 --- plugin provides from its own data, provides.bindings, come last in plan order, unless that
@@ -627,7 +629,7 @@ function obj.sheetRows(keymap, plan, leader, deps)
     directoryOf[(plan.identity or {})[directory] or directory] = directory
   end
   for _, directory in ipairs((plan or {}).order or {}) do
-    for _, source in ipairs({ "host", "bindings", "special" }) do
+    for _, source in ipairs({ "host", "bindings" }) do
       for _, row in ipairs(rows) do
         if row.source == source and directoryOf[row.owner] == directory then
           local fallback = source == "host" and directory or humanize(row.action)

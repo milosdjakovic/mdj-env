@@ -31,6 +31,12 @@
 #                      decides two bindings on one key. Given another spoon directory, a copy of
 #                      main for instance, both are recorded against this config and diffed, and
 #                      with none the recording is printed.
+#   keys.sh --fixture NAME [--update]
+#                      the bound recording again, with the keymap test/NAME.lua handed to Olm in
+#                      place of config/keymap.lua, followed by one line naming the catalog leaders
+#                      the remap was applied with, diffed against test/NAME.keys.golden, or written
+#                      to it with --update. This is the offline proof of a person's keymap, which
+#                      keys moved, which were freed and which held leaders it puts in use.
 #   keys.sh --keymap   write the keymap's own rows in the golden's format and diff those against
 #                      keys.golden. It reads the keymap the live root built, so it needs the
 #                      config that contains the keymap to be the live one, which for a worktree
@@ -44,6 +50,8 @@ mode="diff"
 out=""
 other=""
 probe_mode=""
+fixture=""
+fixture_update=""
 
 case "${1:-}" in
   --update) mode="update" ;;
@@ -52,20 +60,47 @@ case "${1:-}" in
   --offline) mode="offline" ;;
   --bound) mode="bound" ;;
   --bound-order) mode="boundorder"; other="${2:-}" ;;
+  --fixture) mode="fixture"; fixture="${2:?--fixture needs a fixture name}"; fixture_update="${3:-}" ;;
   "") ;;
   *) echo "keys.sh: unknown argument $1" >&2; exit 2 ;;
 esac
 
 # The bound modes, see drygate-composerun.lua's own header. Each run needs a sandbox of its own.
 record_bound() {
-  local spoonDir="$1" what="$2" into="$3" config sb
+  local spoonDir="$1" what="$2" into="$3" keymapFixture="${4:-}" config sb
   config="$(cd "$here/../../.." && pwd)"
   sb="$(mktemp -d)"
-  DRYGATE_BINDS="$what" lua "$here/drygate-composerun.lua" "$spoonDir/" "$config" "$sb" >"$into" 2>"$into.err"
+  DRYGATE_BINDS="$what" DRYGATE_KEYMAP_FIXTURE="$keymapFixture" lua "$here/drygate-composerun.lua" "$spoonDir/" "$config" "$sb" >"$into" 2>"$into.err"
   local status=$?
   rm -rf "$sb"
   return $status
 }
+
+if [ "$mode" = "fixture" ]; then
+  spoon="$(cd "$here/.." && pwd)"
+  source_file="$here/$fixture.lua"
+  fixture_golden="$here/$fixture.keys.golden"
+  [ -f "$source_file" ] || { echo "keys.sh: no fixture at test/$fixture.lua" >&2; exit 2; }
+  work="$(mktemp -d)"
+  trap 'rm -rf "$work"' EXIT
+  record_bound "$spoon" fixture "$work/fixture.txt" "$source_file"
+  if [ ! -s "$work/fixture.txt" ]; then
+    echo "keys.sh: the fixture recording wrote nothing" >&2
+    tail -5 "$work/fixture.txt.err" >&2
+    exit 2
+  fi
+  if [ "$fixture_update" = "--update" ]; then
+    cp "$work/fixture.txt" "$fixture_golden"
+    echo "keys.sh: wrote test/$fixture.keys.golden, $(wc -l < "$fixture_golden" | tr -d ' ') lines"
+    exit 0
+  fi
+  if diff -u "$fixture_golden" "$work/fixture.txt"; then
+    echo "keys.sh: what the binder bound under test/$fixture.lua matches its golden, $(wc -l < "$fixture_golden" | tr -d ' ') lines"
+    exit 0
+  fi
+  echo "keys.sh: what the binder bound under test/$fixture.lua differs from its golden" >&2
+  exit 1
+fi
 
 if [ "$mode" = "bound" ] || [ "$mode" = "boundorder" ]; then
   spoon="$(cd "$here/.." && pwd)"

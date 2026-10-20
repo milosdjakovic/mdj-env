@@ -117,6 +117,19 @@ local SELF_BUNDLE = hs.processInfo and hs.processInfo.bundleID
 -- registrar refuses it only on a tool's name. Keep this in step with the two functions.
 obj.reservedKinds = { app = true, calc = true, scope = true }
 
+-- What this host runs beside opening itself, answered through provides.actions like any plugin's
+-- descriptors, so Olm binds their keys, builds their rows and runs a chosen one, and a person
+-- moves either in config/keymap.lua as launcher.lock and launcher.sleep. Both are plain macOS
+-- calls. Their kind is special so the rows keep the keys special:lock and special:sleep the
+-- launcher's recency and query memory have always remembered them by, from when they were this
+-- host's special rows.
+obj.actions = {
+  { name = "lock", description = "Lock Screen", subtitle = "System", icon = "lock", kind = "special",
+    run = function() hs.caffeinate.lockScreen() end },
+  { name = "sleep", description = "Sleep", subtitle = "System", icon = "sleep", kind = "special",
+    run = function() hs.caffeinate.systemSleep() end },
+}
+
 -- The recency key for a row's serializable descriptor, qualified by kind so an app
 -- and a command never collide. Returns nil for a missing item, which sorts as unused.
 local function recencyKey(item)
@@ -371,7 +384,9 @@ end
 --- Method
 --- What to call one leader role in a row subtitle. A role is a word like app or window that a
 --- manifest uses to say which leader a tool opens on, and what that role is called on this
---- machine is the composition root's answer since it owns the catalog. No role at all means
+--- machine is the composition root's answer since it owns the catalog. A row the person's keymap
+--- put on a leader no role answers names that leader instead, by the name a keymap row spells it
+--- with, and the root's table answers those names too. No role at all means
 --- the app leader, so this reads the catalog's own name for that role too rather than a
 --- literal word kept here, which is what let this file keep saying Hyper after the app leader
 --- itself moved to another physical key. The literal is the answer only when the catalog has
@@ -573,6 +588,11 @@ function obj:_buildActionRows()
     entry.seq = #entries + 1
     entries[#entries + 1] = entry
   end
+  -- This host's own rows lead its own number, so the alias directory sits before the lock and
+  -- sleep rows its own descriptors answer, which share that number and arrive from a supplier.
+  for _, r in ipairs(self._specialRows or {}) do
+    push({ own = r, order = self._launcherOrder })
+  end
   for _, supplier in ipairs(self._rowSuppliers or {}) do
     local ok, answered = pcall(supplier)
     if not ok then
@@ -602,9 +622,6 @@ function obj:_buildActionRows()
         end
       end
     end
-  end
-  for _, r in ipairs(self._specialRows or {}) do
-    push({ own = r, order = self._launcherOrder })
   end
   table.sort(entries, function(a, b)
     if (a.order ~= nil) ~= (b.order ~= nil) then return a.order ~= nil end

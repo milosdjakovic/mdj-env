@@ -11,7 +11,6 @@
 -- Everything below is either a value only this machine could know or a preference that
 -- differs from what Olm ships. Delete any of it and Olm still comes up working.
 
-local keys       = require("config.keys")
 local settings   = require("config.settings")
 
 hs.loadSpoon("Olm")
@@ -33,9 +32,11 @@ local olm = spoon.Olm:start({
   -- by it. Olm names any key there that matches no plugin, so a slip in a name says so.
   plugins = require("config.plugins"),
 
-  -- Which physical key drives each domain. The only two facts about this keyboard that Olm
-  -- cannot guess, and moving either one moves everything on it.
-  leaders = { app = keys.appLeader, window = keys.windowLeader },
+  -- Every key choice this person makes, the one file Olm owns. A chord to an action or false,
+  -- a set of modifiers named as a leader, a role moved to another held leader, and the words
+  -- that scope the launcher to a plugin, all in config/keymap.lua. Olm reads it and no plugin
+  -- does, and an empty file is the keys Olm and its plugins ship.
+  keymap = require("config.keymap"),
 
   -- Global policy that differs from what Olm ships. Absent means Olm's own default stands.
   policy = {

@@ -1038,6 +1038,18 @@ function obj.retiredFields(identity, manifest)
           .. ", so it is refused and nothing it declares is bound or listed" }
     end
   end
+  -- A key on a special row, which is how lock and sleep were bound until phase 5 of the keymap
+  -- plan. A row that runs something is an action descriptor now and its key a bindings row, and
+  -- nothing reads a special row's key, so one left there would lose its chord in silence.
+  local defaults = type(manifest) == "table" and manifest.defaults or nil
+  local special = type(defaults) == "table" and defaults.specialRows or nil
+  for _, row in ipairs(type(special) == "table" and special or {}) do
+    if type(row) == "table" and row.key ~= nil then
+      problems[#problems + 1] = { where = tostring(identity) .. " special row " .. tostring(row.name),
+        why = "a key on a special row is retired, replaced by an action descriptor in provides.actions "
+          .. "with its key in a defaults.bindings row, so the key is not bound" }
+    end
+  end
   return problems
 end
 

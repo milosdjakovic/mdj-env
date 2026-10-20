@@ -66,16 +66,26 @@ data, its category, its icon, its detail and its keywords, lives on that tool's 
 registration, and `_buildActionRows` asks the registry for every row it holds, in the registry's
 own order, through `listing` and `rowFor`. The chord a tool's row names is not on the row. It is
 the tool's open row in the keymap, asked of the root through the injected `chordOf` by the tool's
-name, a leader role or false for a plain combination, so the subtitle names the key the binder
-bound. The one `addTool` line per tool this paragraph used to describe is gone, and those
+name, a leader role, else the leader's own name for a row the person's keymap put on a leader no
+role answers, or false for a plain combination, so the subtitle names the key the binder bound,
+and a tool moved in `config/keymap.lua` reads its new chord here, Meta E or Nav T, and its old one
+nowhere. The injected `leaderNames` answer both a role word and a leader name. The one `addTool` line per tool this paragraph used to describe is gone, and those
 registry rows lead the catalog ahead of every contributed and declared row. The registry held a
 tool's commands too, the clipboard's append copy, paste next and manage history, until phase 2b
 of the keymap plan made them action descriptors, and their rows now arrive as contributed rows
 that follow the clipboard's own row, see below.
-The three rows belonging to no registered tool and no plugin, `lock`, `sleep`, and the
-alias directory, are declared in this host's own manifest as `specialRows`, since none of
-those names anything the registry has ever heard of. The System Settings search row was a
-fourth until phase three of the core split, and it is that plugin's own contributed row now.
+The one row belonging to no registered tool and no plugin and running nothing, the alias
+directory, is declared in this host's own manifest as `specialRows`. Lock and sleep sat there too
+until phase 5 of the keymap plan. They are this host's own action descriptors now, `obj.actions`
+answered through `provides.actions`, `launcher.lock` and `launcher.sleep`, with bindings rows for
+their keys beside the open row, `launcher.open`, so their rows come from descriptors like any
+action, owned by this host and run by its runner, and a person moves either in
+`config/keymap.lua`. Each states kind special, so both keep the keys `special:lock` and
+`special:sleep` they were always remembered by, and `test/launcher.golden` stayed byte identical.
+This host's own declared rows are pushed ahead of every supplier's, so the alias directory still
+leads lock and sleep inside their shared number. A key left on a special row is named by the
+registrar as retired. The System Settings search row was another until phase three of the core
+split, and it is that plugin's own contributed row now.
 
 ## Rows other plugins contribute, and the owner that runs them
 
@@ -121,7 +131,8 @@ action name, `window` and the action name, `settingsPane` and the url stated as 
 `special` and `searchSettings`, and a typed window size states `remember = false` where this host
 used to recognise one by its size field. The rows built from descriptors keep theirs the same way,
 each descriptor stating the kind its rows were remembered by, capture, window, and special for the
-clipboard's three, which were registry command rows keyed `special` and the command name.
+clipboard's three, which were registry command rows keyed `special` and the command name, and for
+this host's own lock and sleep, which were its special rows.
 Two contributed rows answering one kind and one key are
 named at build with both owners, since they would share a memory and nothing would say so. A row
 names its chord as parts rather than as words, `group` the word before it and `chord = {
@@ -139,9 +150,8 @@ that does not state its own `order`, a descriptor's row included. This host's ow
 take its own `defaults.launcherOrder`. `_buildActionRows` puts the registry's rows first, each
 followed directly by the contributed rows its own tool owns, the clipboard's three actions after
 Clipboard history where they sat as commands, and then sorts the rest by that number,
-a row with none after every numbered one, a tie keeping the suppliers in
-the set's own order, each supplier's rows in the order it answered them, and this host's own rows
-last. The shipped numbers are capture 10, the settings search row 20 by its own `order`, this
+a row with none after every numbered one, a tie keeping this host's own declared rows first and
+then the suppliers in the set's own order, each supplier's rows in the order it answered them. The shipped numbers are capture 10, the settings search row 20 by its own `order`, this
 host's alias directory, lock and sleep 30, the window manager 40 and the System Settings panes
 50, which is exactly the order the list had before. Nothing reads a kind word or a plugin name
 to decide a place. A first attempt grouped rows by kind with the groups in the order the kind
@@ -626,7 +636,7 @@ App rows show the real app icon. The action rows have none of their own, so each
 names an icon and Olm draws it in the active set. A registered tool's row names a key into
 that plugin's own manifest icons, with the owner taken from the registry listing, so a
 command's row reads its owning plugin's icons. The rows this host states itself, its special
-rows and the three catalog scopes, name keys of the launcher's own manifest icons, `lock`,
+row, its two descriptors and the three catalog scopes, name keys of the launcher's own manifest icons, `lock`,
 `sleep`, `aliases`, `apps`, `windows` and `settingsPanes`, the last named for its scope rather
 than `settings`, which is also a plugin's identity. A contributed row reads against its
 owner, stamped by the root. Window actions share the window manager's own `windows` icon, the

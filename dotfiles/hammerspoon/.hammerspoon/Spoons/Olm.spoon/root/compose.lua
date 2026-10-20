@@ -181,9 +181,9 @@ local SHIPPED_POLICY = {
   autoReload = { ignore = { "/config/[^/]+%.json[^/]*$" } },
 
   -- Which physical key each leader name is, and the spare function key it is remapped to. A
-  -- name is live only by being referenced, by a role in cfg.leaders, so shipping all three
-  -- here costs nothing and moving a domain to another physical key is one edit in the person's
-  -- own config. Caps Lock to F18, Right Option to F16 and Right Command to F17 are the exact
+  -- name is live only while some bound row of the keymap uses it, so shipping all three here
+  -- costs nothing and moving a domain to another physical key is one edit in the roles section
+  -- of config/keymap.lua. Caps Lock to F18, Right Option to F16 and Right Command to F17 are the exact
   -- three rows the owner already wants HYPER, META and SUPER to be, and they work on any
   -- keyboard. This was keyremap's own default while that was a plugin, and it is root policy
   -- now because the root is the one reader of it, the keycodes below come from it and so
@@ -256,7 +256,30 @@ function obj.run(olm, cfg)
   local glyphIconLib = atoms.glyphicon
 
   local policy = defaultsLib.merge(SHIPPED_POLICY, cfg.policy)
-  local leaderRoles = defaultsLib.merge({ app = "HYPER", window = "META" }, cfg.leaders)
+  -- The person's keymap, config/keymap.lua, handed in as cfg.keymap beside cfg.plugins and read by
+  -- nothing but this root, so no plugin ever learns a person's keys. lib/keymap.lua reads it into
+  -- its four sections here, keys, leaders, roles and aliases, every entry it cannot read a problem
+  -- line said once the wiring report exists. Read this early because the roles decide which leader
+  -- a default lands on and the aliases are merged before the plan is resolved.
+  local keymapConfig = keymapLib.readConfig(cfg.keymap, {
+    catalog = policy.leaderCatalog,
+    roleWords = { "app", "window" },
+    keycodes = hs.keycodes.map,
+  })
+  local keymapProblems = {}
+  for _, problem in ipairs(keymapConfig.problems) do keymapProblems[#keymapProblems + 1] = problem end
+  -- Which held leader each role lands on, app on HYPER and window on META unless the keymap's
+  -- roles section moves one. cfg.leaders carried this from config/keys.lua until phase 5 of the
+  -- keymap plan and is read by nothing now, so a value still passed is a problem line rather than
+  -- a second way to say it.
+  -- Merged by hand rather than through lib/defaults.lua, whose merge reads an empty table as a
+  -- list and a list replaces outright, so an empty roles section would leave no role at all.
+  local leaderRoles = { app = "HYPER", window = "META" }
+  for role, catalogName in pairs(keymapConfig.roles) do leaderRoles[role] = catalogName end
+  if cfg.leaders ~= nil then
+    keymapProblems[#keymapProblems + 1] = { where = "cfg.leaders", why = "is retired, a role moves "
+      .. "to another held leader in the roles section of config/keymap.lua, so the field is ignored" }
+  end
   -- The leaders in use, built in step H, every held one in catalog name order and the plain
   -- combo leader last, and the one whose policy turns contexts on. Declared this early because
   -- closures handed out long before step H, the chooser field's yield, the leader view a plugin
@@ -802,6 +825,29 @@ function obj.run(olm, cfg)
     end
   end
 
+  -- The keymap's aliases, merged over the person's overrides as that plugin's aliases, so the
+  -- resolver, the registrar's collision check, the alias directory and every row hint read the one
+  -- merged answer, marked as the person's like any override. A plugin named there takes exactly
+  -- those words in place of its defaults.aliases. An alias override still written in
+  -- config/plugins.lua keeps working until phase 7 of the keymap plan, and where both state one
+  -- the keymap wins. An identity naming no plugin or host is a problem line and merges nothing.
+  for _, identity in ipairs((function()
+    local names = {}
+    for name in pairs(keymapConfig.aliases) do names[#names + 1] = name end
+    table.sort(names)
+    return names
+  end)()) do
+    if allManifests[identity] == nil then
+      keymapProblems[#keymapProblems + 1] = { where = "config/keymap.lua aliases " .. identity,
+        why = "names no plugin or host in this load, so its words scope nothing" }
+    else
+      local entry = {}
+      for k, v in pairs(pluginOverrides[identity] or {}) do entry[k] = v end
+      entry.aliases = keymapConfig.aliases[identity]
+      pluginOverrides[identity] = entry
+    end
+  end
+
   local firstPass = resolver.plan({
     manifests = allManifests,
     user = pluginOverrides,
@@ -818,17 +864,21 @@ function obj.run(olm, cfg)
   -- than rebuilt, so the second pass, the register stage, and the wiring args below can
   -- never disagree about what they hold.
   local keymapCatalog = policy.leaderCatalog
-  local activeLeaderNames = leadersLib.activeNames(keymapCatalog, leaderRoles)
+  -- The catalog names remapped this load, filled once the keymap is built in step J, since a held
+  -- leader is remapped exactly while some bound row uses it.
+  local activeLeaderNames = {}
 
-  -- Every held leader in use, one per catalog name a role references, each with the name a keymap
-  -- row spells it with, the keycode its catalog row resolves to and its policy checked once. This
-  -- is the one list everything below loops over, so nothing here knows how many leaders there
-  -- are or which one is which. A policy field that is not one a leader reads, or is of the wrong
-  -- type, is a problem line once the wiring report exists, kept here until then.
+  -- Every held leader the catalog carries, each with the name a keymap row spells it with, the
+  -- keycode its catalog row resolves to and its policy checked once. Which of them are in use is
+  -- known only once the keymap is built, after register, so every one is described here and step
+  -- J keeps the ones some row binds on. This is the one list everything below loops over, so
+  -- nothing here knows how many leaders there are or which one is which. A policy field that is
+  -- not one a leader reads, or is of the wrong type, is a problem line once the wiring report
+  -- exists, kept here until then.
   local leaderSpecs, leaderProblems = {}, {}
   do
     local names = {}
-    for _, catalogName in ipairs(activeLeaderNames) do names[#names + 1] = catalogName end
+    for catalogName in pairs(keymapCatalog or {}) do names[#names + 1] = catalogName end
     table.sort(names)
     for _, catalogName in ipairs(names) do
       local leaderPolicy, problems = leaderLib.checkPolicy(catalogName, (policy.leaderPolicy or {})[catalogName])
@@ -860,20 +910,36 @@ function obj.run(olm, cfg)
     local word = tostring(catalogName)
     return word:sub(1, 1):upper() .. word:sub(2):lower()
   end
-  local leaderDisplayNames = {}
-  for role, catalogName in pairs(leaderRoles) do
-    leaderDisplayNames[role] = displayName(catalogName)
+  -- The leaders the person named in the keymap's leaders section, each a set of real modifiers
+  -- claimed through hs.hotkey, with no sheet and no tap, a name to its set, sorted by name.
+  local modifierLeaderSpecs, modifierLeaderSets = {}, {}
+  for _, named in ipairs(keymapConfig.leaders) do
+    modifierLeaderSpecs[#modifierLeaderSpecs + 1] = named
+    modifierLeaderSets[named.name] = named.mods
   end
   -- The same words keyed by the name a keymap row spells its leader with, so a surface spelling a
-  -- row's chord spells that row's own leader rather than whichever leader it assumed.
+  -- row's chord spells that row's own leader rather than whichever leader it assumed. A leader the
+  -- person named reads as its own name, title cased the way Hyper is.
   local leaderNamesByLeader = {}
   for _, spec in ipairs(leaderSpecs) do
     leaderNamesByLeader[spec.name] = displayName(spec.catalogName)
   end
-  -- The leader every list key binds on, the one held leader whose policy turns contexts on, as
-  -- a spec, so the hint bar can name it before any leader is built. Exactly one is expected. None
-  -- leaves every list without its keys and two leave the second without them, and each case is a
-  -- problem line rather than a silent choice, the first in name order winning.
+  for _, named in ipairs(modifierLeaderSpecs) do
+    leaderNamesByLeader[named.name] = displayName(named.name)
+  end
+  -- The launcher's words, every role and every leader by the name a row spells it with, since a
+  -- row the person's keymap put on a leader no role answers names that leader directly. A role
+  -- word and a leader name never meet, the keymap refuses a leader named like a role.
+  local leaderDisplayNames = {}
+  for role, catalogName in pairs(leaderRoles) do
+    leaderDisplayNames[role] = displayName(catalogName)
+  end
+  for name, word in pairs(leaderNamesByLeader) do leaderDisplayNames[name] = word end
+  -- The leader every list key binds on, the one held leader in the catalog whose policy turns
+  -- contexts on, as a spec, so the hint bar can name it before any leader is built and the keymap
+  -- can put every list key on it. Exactly one is expected. None leaves every list without its keys
+  -- and two leave the second without them, and each case is a problem line rather than a silent
+  -- choice, the first in name order winning.
   local contextSpec = nil
   for _, spec in ipairs(leaderSpecs) do
     if spec.policy.contexts then
@@ -886,7 +952,7 @@ function obj.run(olm, cfg)
     end
   end
   if not contextSpec then
-    leaderProblems[#leaderProblems + 1] = { where = "leaders", why = "no leader in use turns contexts on, so no list key is bound this load" }
+    leaderProblems[#leaderProblems + 1] = { where = "leaders", why = "no leader in the catalog turns contexts on, so no list key is bound this load" }
   end
 
   -- The one spelling of a chord, a leader's name then a space then the key glyph. Human
@@ -1626,20 +1692,21 @@ function obj.run(olm, cfg)
   -- STEP H. The leaders.
   ------------------------------------------------------------------------------
 
-  -- One leader per held leader in use, from the specs built in step F, plus the plain leader a
-  -- keymap row with no leader binds on. Each gets its trigger, its policy and the module its hold
-  -- reveals, and this loop is the only place a trigger is chosen, so nothing below knows how many
-  -- leaders there are. A held leader whose catalog row resolves to no keycode is left out with a
-  -- problem line, since its trigger would have nothing to register.
+  -- One leader per held leader in the catalog, from the specs built in step F, one per leader the
+  -- person named, and the plain leader a keymap row with no leader binds on. Each gets its
+  -- trigger, its policy and the module its hold reveals, and this loop is the only place a trigger
+  -- is chosen, so nothing below knows how many leaders there are. They are built here and kept as
+  -- candidates, and step J keeps only those some bound row uses, once the keymap says which, so a
+  -- leader nothing uses is never bound, started or remapped. A held leader whose catalog row
+  -- resolves to no keycode is not built, and step J names it when a row needs it.
   --
   -- The open list test is anyListShowing above. The hold reveal used to be the root's own pair of
   -- closures for Hyper and the window leader's own pair for itself. It is the adapter's now, which
   -- keeps the one rule both pairs followed, nothing is revealed over an open list.
   local leadersByName = {}
+  local candidateLeaders, candidateList = {}, {}
   for _, spec in ipairs(leaderSpecs) do
-    if spec.keyCode == nil then
-      leaderProblems[#leaderProblems + 1] = { where = spec.catalogName, why = "its catalog row resolves to no keycode, so the leader is not built and none of its keys is bound" }
-    else
+    if spec.keyCode ~= nil then
       local sheet = nil
       if spec.policy.sheet then
         -- THE SEAM. LeaderSheet is one of the host modules this file may name.
@@ -1660,10 +1727,22 @@ function obj.run(olm, cfg)
         holdDelay = policy.chord.holdDelay,
         tapThreshold = policy.chord.tapThreshold,
       })
-      leaderList[#leaderList + 1] = leader
-      leadersByName[spec.name] = leader
-      if spec == contextSpec then contextLeader = leader end
+      candidateLeaders[spec.name] = leader
+      candidateList[#candidateList + 1] = leader
     end
+  end
+  -- A leader the person named is the modifier trigger handed that set as its base, with an empty
+  -- policy, so no tap, no contexts and no sheet, since holding real modifiers is ordinary typing.
+  for _, named in ipairs(modifierLeaderSpecs) do
+    local leader = leaderLib.new({
+      name = named.name,
+      trigger = modifierTriggerLib.new({ mods = named.mods }),
+      policy = {},
+      listOpen = anyListShowing,
+      predicates = ownPredicates,
+    })
+    candidateLeaders[named.name] = leader
+    candidateList[#candidateList + 1] = leader
   end
   -- The plain leader, a modifier trigger with an empty base set, so a keymap row with no leader is
   -- claimed through hs.hotkey on its own modifiers exactly as the binder used to claim it itself.
@@ -1675,7 +1754,7 @@ function obj.run(olm, cfg)
     listOpen = anyListShowing,
     predicates = ownPredicates,
   })
-  leaderList[#leaderList + 1] = plainLeader
+  candidateList[#candidateList + 1] = plainLeader
 
   -- Runs fn once no held leader is down, for a launcher row whose action waits for release.
   local function afterLeadersRelease(fn)
@@ -2089,10 +2168,14 @@ function obj.run(olm, cfg)
       .. "behaviour is policy.leaderPolicy, so the field is ignored")
   end
 
-  w.leaders(leaderList)
+  -- What the keymap's own file got wrong, said now too, each naming the entry.
+  for _, problem in ipairs(keymapProblems) do w.problem("keymap", problem.where, problem.why) end
+
   w.configure(modules, manifests)
   w.steps(modules, manifests)
-  w.predicates(leaderList, ownPredicates)
+  -- Every candidate leader gets the predicate table, since which of them are in use is known only
+  -- once the keymap is built below, and configuring one nothing uses costs nothing.
+  w.predicates(candidateList, ownPredicates)
   -- Every tool that registered is activated, since the plan already left out every plugin that
   -- is switched off and there is no second switch.
   local forWire = registrarLib.forWire(wiredRegistry)
@@ -2136,9 +2219,9 @@ function obj.run(olm, cfg)
     end
   end
 
-  -- What a host's key and a special row call. A host is shown, by the one rule lib/hints.lua
-  -- keeps for a host that carries a key, and locking and sleeping are plain macOS calls with
-  -- nothing behind them worth a plugin, read from the launcher's own special rows.
+  -- What a host's key calls. A host is shown, by the one rule lib/hints.lua keeps for a host that
+  -- carries a key. Locking and sleeping were special rows the root ran here until phase 5 of the
+  -- keymap plan, and they are the launcher's own descriptors now, run like any action.
   local claimedShortcuts = {}
   for _, entry in ipairs(wiredRegistry.shortcuts() or {}) do claimedShortcuts[entry.name] = true end
   local function hostRun(directory)
@@ -2147,16 +2230,6 @@ function obj.run(olm, cfg)
     local role = hintsLib.hostKeyBinding((plan.effective or {})[directory], module, claimedShortcuts[identity])
     if not role then return nil end
     return function() module:show() end
-  end
-  local systemCalls = {
-    lock = function() hs.caffeinate.lockScreen() end,
-    sleep = function() hs.caffeinate.systemSleep() end,
-  }
-  local function specialRun(owner, name)
-    -- THE SEAM. The launcher is one of the five host modules this file may name, and its special
-    -- rows are the only ones with a system call behind them.
-    if owner ~= (plan.identity.launcher or "launcher") then return nil end
-    return systemCalls[name]
   end
 
   -- The keymap, every chord Olm binds as one list of rows, built once now that the plan, the
@@ -2180,15 +2253,55 @@ function obj.run(olm, cfg)
     refusedActions = refusedActions,
     provided = providedRows,
     hostRun = hostRun,
-    specialRun = specialRun,
+    personKeys = keymapConfig.keys,
+    modifierLeaders = modifierLeaderSets,
+    listLeader = contextSpec and contextSpec.name or nil,
+    known = function(identity) return allManifests[identity] ~= nil end,
   })
   if not built then
     w.problem("keymap", "build", tostring(keymap) .. ", so no global key is bound this load")
-    keymap = { rows = {}, bound = {}, problems = {} }
+    keymap = { rows = {}, bound = {}, problems = {}, notes = {} }
   end
   for _, problem in ipairs(keymap.problems) do
     w.problem("keymap", problem.where, problem.why)
   end
+  -- A default the person's chord displaced, or a chord false freed, is the person's own call, said
+  -- once as a routine line and never as a problem.
+  for _, note in ipairs(keymap.notes or {}) do log.i("Olm keymap, " .. note) end
+
+  -- The leaders in use, every one some bound row of the keymap uses, so a held leader is remapped
+  -- and started exactly while a chord needs it. Writing super and V is what claims Right Command,
+  -- and moving every window default onto super frees Right Option. A keymap that failed to build
+  -- binds no global key, so the leaders in use fall back to the ones its roles name plus the
+  -- leader hosting lists, which the contexts still bind on, so every list keeps its keys and Caps
+  -- Lock its tap even where a role moved off it. The leader list, the engines the binder reaches,
+  -- the sheets and the leader that hosts lists all follow this one answer.
+  local inUse = {}
+  local names = built and keymapLib.leadersInUse(keymap)
+    or keymapLib.fallbackLeaders(leaderRoles, contextSpec and contextSpec.name or nil)
+  for _, name in ipairs(names) do inUse[name] = true end
+  for _, spec in ipairs(leaderSpecs) do
+    if inUse[spec.name] then
+      local leader = candidateLeaders[spec.name]
+      if not leader then
+        w.problem("leaders", spec.catalogName, "its catalog row resolves to no keycode, so the leader is not built and none of its keys is bound")
+      else
+        spec.inUse = true
+        leaderList[#leaderList + 1] = leader
+        leadersByName[spec.name] = leader
+        activeLeaderNames[#activeLeaderNames + 1] = spec.catalogName
+        if spec == contextSpec then contextLeader = leader end
+      end
+    end
+  end
+  for _, named in ipairs(modifierLeaderSpecs) do
+    if inUse[named.name] then
+      leaderList[#leaderList + 1] = candidateLeaders[named.name]
+      leadersByName[named.name] = candidateLeaders[named.name]
+    end
+  end
+  leaderList[#leaderList + 1] = plainLeader
+  w.leaders(leaderList)
 
   -- The binder, the one place a global key is bound. Each row lands on the leader named the way
   -- the row spells it, the catalog name lowercased, and a row with no leader lands on the plain
@@ -2304,7 +2417,7 @@ function obj.run(olm, cfg)
     local sheetIdentity = plan.identity.leadersheet or "leadersheet"
     local sheets, revealedRoles = {}, {}
     for _, spec in ipairs(leaderSpecs) do
-      if spec.policy.sheet and spec.keyCode ~= nil then
+      if spec.policy.sheet and spec.inUse then
         local layout = leaderLib.sheetLayout(spec.policy, cheatSheetAtom.DEFAULTS)
         for _, role in ipairs(spec.roles) do revealedRoles[#revealedRoles + 1] = role end
         -- Plugins that supply sections for this leader's roles, whose provided rows the sheet
@@ -2554,17 +2667,19 @@ function obj.run(olm, cfg)
       registry = wiredRegistry,
       glyphFor = cheatSheetAtom and cheatSheetAtom.glyphFor,
       -- What every leader role is called, app and window alike, so a contributed row that names
-      -- its leader by role reads the same word the docked hint bar prints.
+      -- its leader by role reads the same word the docked hint bar prints, and every leader by the
+      -- name a keymap row spells it with, for a row the person put on a leader no role answers.
       leaderNames = leaderDisplayNames,
       -- The shared speller rather than one the launcher owns for itself, so a row states the
       -- same chord the docked hint bar already agreed on.
       chordLabel = chordLabel,
-      -- The chord a registered tool's row names, its open row in the keymap, a leader role or
-      -- false for a plain combination, a key and the modifiers as a person reads them.
+      -- The chord a registered tool's row names, its open row in the keymap, a leader role, else
+      -- the leader's own name for a leader no role answers, or false for a plain combination, a key
+      -- and the modifiers as a person reads them.
       chordOf = function(name)
         for _, row in ipairs(keymap.bound or {}) do
           if row.owner == name and row.source == "tool" then
-            return { leader = row.role or false, key = row.key, mods = row.shownMods }
+            return { leader = row.role or row.leader or false, key = row.key, mods = row.shownMods }
           end
         end
         return nil
@@ -2649,13 +2764,12 @@ function obj.run(olm, cfg)
           if not query then return nil end
           return function() launcherModule:seedQuery(query) end
         end,
-        -- The three names with no tool behind them. Reached only when the registry does not
-        -- already run the name, which registration itself makes safe since one name cannot
-        -- belong to both. The System Settings search row was a fourth until phase three of
-        -- the core split, and it is owned and run by that plugin now.
+        -- The one name with no tool behind it. Reached only when the registry does not already
+        -- run the name, which registration itself makes safe since one name cannot belong to
+        -- both. The System Settings search row was another until phase three of the core split,
+        -- and it is owned and run by that plugin now, and lock and sleep were two more until
+        -- phase 5 of the keymap plan, the launcher's own descriptors since, run by its runner.
         special = {
-          lock = function() hs.caffeinate.lockScreen() end,
-          sleep = function() hs.caffeinate.systemSleep() end,
           -- Reached only when the stage has already closed, so seeding the field would write to
           -- a hidden one that show then clears. The directory scope's own run opens the launcher
           -- with the word typed, which is what an unresolved click needs.
@@ -2749,6 +2863,9 @@ function obj.run(olm, cfg)
   -- inventory read what each one holds. The plain leader is left out, since what it claims is
   -- every plain combo and hs.hotkey.getHotkeys already answers those.
   record.leaders = leadersByName
+  -- The catalog names the remap was applied with, so the key inventory's last line can say which
+  -- held leaders this load claimed without reading the hardware.
+  record.remap = activeLeaderNames
   record.manifests = manifests
   record.dispatch = dispatchTable
   -- The dependency door's own scope, so anything inspecting this config asks IT whether a tool

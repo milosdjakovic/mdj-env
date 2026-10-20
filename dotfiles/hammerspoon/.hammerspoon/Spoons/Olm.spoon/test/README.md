@@ -111,9 +111,12 @@ composition root under the dry gate's stub. The stub cannot know the real keycod
 is only lowercased unless `DRYGATE_KEYCODES` names a Lua file returning one dumped from a live
 session, and it cannot tell which tools are installed, so the offline run reports every one
 present. Both runs matched the golden byte for byte when the keymap landed. `keymap.lua` is plain
-Lua cases for the read model itself, collisions by layer, leader, key and modifiers, the one
-exemption, the spelling, the function each row runs and the binding order, and the registrar's
-descriptor validation, and `suite.sh dry` runs it.
+Lua cases for the read model itself, collisions by layer, leader, key and modifiers, a person's
+row displacing a default, the spelling, the function each row runs and the binding order, and the
+registrar's descriptor validation, and `keymap-person.lua` is the person's own file,
+`config/keymap.lua`, its chord grammar, every problem an entry can raise, displacement, false,
+the leaders, roles and aliases sections and which leaders a keymap puts in use. `suite.sh dry`
+runs both.
 
 Since the keymap binds, a projection of its rows is not the whole proof, so a second offline
 check records what was actually bound. `keys.sh --bound` runs the composition root under the
@@ -158,9 +161,19 @@ is spelled.
 Spoons/Olm.spoon/test/views.sh             # both, live and read only, against the goldens
 Spoons/Olm.spoon/test/views.sh --offline   # both, from a stubbed run of the root
 Spoons/Olm.spoon/test/views.sh --update    # rewrite both goldens from the live config
-Spoons/Olm.spoon/test/goldens.sh           # keys.sh --offline, keys.sh --bound and views.sh --offline
+Spoons/Olm.spoon/test/goldens.sh           # keys.sh --offline, keys.sh --bound and views.sh --offline, then the fixtures
 Spoons/Olm.spoon/test/goldens.sh --live    # keys.sh and views.sh against the running config
+Spoons/Olm.spoon/test/keys.sh --fixture keymap-fixture [--update]   # the bound keys under a fixture keymap
+Spoons/Olm.spoon/test/views.sh --fixture keymap-fixture [--update]  # the launcher rows and sheets under it
 ```
+
+A person's keymap is proved offline through fixtures, a Lua file under `test/` returning a keymap
+table, which the stubbed run hands to Olm as `cfg.keymap` in place of `config/keymap.lua`.
+`keymap-fixture.lua` is the person's own case, `keymap-fixture-roles.lua` the window role moved
+alone, and each golden beside them is named for its fixture, `keymap-fixture.keys.golden` the
+bound keys followed by one remap line naming the held leaders put in use, and
+`keymap-fixture.launcher.golden` and `keymap-fixture.sheets.golden` the two views. `goldens.sh`
+diffs all of them.
 
 The live probes, `launcher-probe.lua` and `sheets-probe.lua`, read the running config only. Each
 asks a host to build its rows afresh without touching the caches an open uses, shows nothing,

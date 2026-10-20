@@ -389,6 +389,7 @@ Each is one line in the wiring report, and costs only the action, the row or the
 - `wire, retired, <plugin>, registry.commands is retired, replaced by an action descriptor in provides.actions, with its key in a defaults.bindings row, so it is refused and nothing it declares is bound or listed`
 - `wire, retired, <plugin>, defaults.key is retired, replaced by a defaults.bindings row whose action is open, so it is refused and nothing it declares is bound or listed`
 - `wire, retired, <plugin>, defaults.mods is retired, replaced by the mods of a defaults.bindings row whose action is open, so it is refused and nothing it declares is bound or listed`
+- `wire, retired, <plugin> special row <name>, a key on a special row is retired, replaced by an action descriptor in provides.actions with its key in a defaults.bindings row, so the key is not bound`
 - `wire, actions, <plugin>, provides.actions names no member, so none of its actions can run`
 - `wire, actions, <plugin>, provides.actions answers a table keyed by string rather than a list of descriptors each naming itself in name, so none of its actions can run`
 - `wire, actions, <plugin> action <n>, the descriptor's field name is missing, and an action in the list names itself, so it is refused`
@@ -404,6 +405,20 @@ Each is one line in the wiring report, and costs only the action, the row or the
 One more comes from the resolver while the plan is drawn, about the person's own file.
 
 - `override, <plugin>, config/plugins.lua sets key or mods for '<plugin>', which has no bindings row whose action is open, so the key is not bound`
+
+And the person's keymap, `config/keymap.lua`, says these, each naming the entry. None is about
+your plugin's code, but an id naming your action is checked against what you answer.
+
+- `wire, keymap, config/keymap.lua keys <chord>, <why the chord does not parse>, so the entry is ignored`
+- `wire, keymap, config/keymap.lua keys <chord>, the entry names '<identity>', which is no plugin or host in this load, so the entry is ignored`
+- `wire, keymap, config/keymap.lua keys <chord>, the entry names the action '<action>', which '<identity>' does not answer, so the entry is ignored`
+- `wire, keymap, config/keymap.lua keys <chord>, '<owner>' action '<action>' from the keymap entry '<chord>' and ... both bind <chord> in the global layer, so one of them can never be reached by it`
+- `wire, keymap, config/keymap.lua leaders <name>, <why the name or its set is refused>, so it is ignored`
+- `wire, keymap, config/keymap.lua roles <role>, <why the role or its leader is refused>`
+- `wire, keymap, config/keymap.lua aliases <identity>, names no plugin or host in this load, so its words scope nothing`
+
+A default a person's chord displaced, a chord false freed and an entry naming a plugin switched off
+this load are each one routine `Olm keymap` console line, never a problem.
 - `wire, keymap, <plugin> <action>, no engine binds on the leader <leader>, so <leader> <key> is not bound`
 
 `lib/services.lua` answers one more question separately, `owed`, every `source = "root"` need
@@ -645,7 +660,12 @@ the clipboard's append copy and paste next on Control and Option being the case.
 open key is the row whose action is `open`, there is no other field for it, and `defaults.leader`
 is the role every row stating none inherits. Olm builds one keymap row per binding and binds it
 on its leader to the descriptor its action names, the descriptor's `when` and `repeats`
-travelling with it, so a binding never names a keycode. A binding whose action you do not answer
+travelling with it, so a binding never names a keycode. Your bindings are suggestions. A person
+moves any of your actions to any chord in `config/keymap.lua` as your identity, a dot and the
+action name, `yourplugin.open` or `yourplugin.someAction`, and the action then takes exactly the
+chords written there and keeps its gate, label and repeat, with nothing in your plugin changed
+and nothing in it able to tell. Never read that file or a person's keys, and never assume your
+action sits on the key you suggested. A binding whose action you do not answer
 is reported and left unbound. Windowmanager is the worked example on the window leader and capture
 on the app leader. A false `when` makes the key a swallowed no op on every leader, so it never
 leaks to the app in front, and an unknown predicate name stays active and is warned about once.
@@ -660,7 +680,8 @@ by the one `host/leadersheet`, with `when` hiding the row and the key together a
 name. A descriptor's `group` files its row under a section of that name, and a row with none goes
 under the leader's default section. How a leader's sheet is laid out is that leader's policy and
 no plugin's business. A person moves
-the whole leader to another physical key in `config/keys.lua`, and no plugin changes. The sheet
+every default on a role to another held leader with `roles` in `config/keymap.lua`, and no plugin
+changes. The sheet
 is one of the two places every key must be found. The launcher is the other, and you write nothing
 there either, as the next section says.
 

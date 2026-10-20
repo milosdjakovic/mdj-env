@@ -1,13 +1,19 @@
 # Olm keymap, and leaders as data
 
-Status. Phases 0, 1, 2a and 2b landed 2026-10-19, phase 3, one leader adapter, landed 2026-10-20,
-and phase 4, one sheet host, was built the same morning and awaits review and a live load. The plan is
+Status. Phases 0, 1, 2a and 2b landed 2026-10-19, phase 3, one leader adapter, and phase 4, one
+sheet host, landed 2026-10-20, and phase 5, the person's keymap, was built the same morning and
+awaits review and a live load. The plan is
 `dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/docs/PLAN-KEYMAP.md`.
 
 ## Now
 
-Olm builds one leader per catalog name a role references, Hyper on the app role and META on the
-window role here, each an instance of the one adapter `lib/leader.lua` with a held trigger and a
+A person's keys and aliases are written in `config/keymap.lua`, read by the root alone as
+`cfg.keymap`, a chord to `identity.action` or false, a set of modifiers named as a leader, a role
+moved to another held leader, and replacement aliases. An action named there takes exactly its
+listed chords, a person's chord on a default's slot drops that default with a routine line, and a
+held leader is remapped exactly while some bound row uses it. Olm builds a candidate leader per
+catalog row and per named leader and keeps the ones the keymap's rows use, Hyper on the app role
+and META on the window role here, each an instance of the one adapter `lib/leader.lua` with a held trigger and a
 policy from `policy.leaderPolicy`, plus a plain leader on an empty set of modifiers for a combo
 with no leader, and the composition root loops over them naming none. A key gated off is swallowed
 on every leader and an unknown predicate name warns once on every leader. One cheat sheet host,
@@ -157,6 +163,25 @@ aliases live only in `config/keymap.lua`.
 - **`sheet` staying the identity of the host and a second field for the layout.** 2026-10-20 08:30.
   With one host there is nothing to name, and a word that names a directory is the kind of quoted
   value the policy otherwise avoids. `sheet` is a boolean and `sheetLayout` a table.
+
+- **Binding a person's chord beside the default it lands on.** 2026-10-20 09:19. It is what the
+  collision check's one exemption allowed, both rows bound and the binding order deciding which
+  answers. A default the person wrote over can never be wanted on that chord, and two rows on one
+  slot read as one on the sheet and two to the engine, so the default is dropped and said once as
+  a routine line.
+- **Keeping the leaders in use as the ones a role names.** 2026-10-20 09:19. It was the rule since
+  the catalog moved into the root, and it was cheap because the roles are known before anything
+  loads. But it remapped Right Option for a role whose every row the person moved, and it could
+  never claim Right Command for one chord written on super. The bound rows decide, so the root
+  builds every catalog leader as a candidate and keeps the used ones after the keymap.
+- **The slot of a named modifier leader's chord by its leader name.** 2026-10-20 09:19. That is the
+  slot shape every held leader has. A named leader is claimed as the whole combination through
+  `hs.hotkey`, so `nav+T` and `ctrl+shift+T` are one physical chord, and naming them apart would
+  let both claim it with nothing reported.
+- **An entry naming a plugin switched off as a problem.** 2026-10-20 09:19. Switching a plugin off
+  takes its keys with it, which is what the person asked for, so a keymap entry for it binds
+  nothing and says so in a routine line, and only an identity naming no plugin at all is a
+  problem.
 
 ## Log
 
@@ -439,3 +464,64 @@ aliases live only in `config/keymap.lua`.
   with its action rows and app sections, and the window sheet's two columns of wide badges. The
   squashed commit was first built on main's moved tip and would have reverted another session's
   handoff skill, which a diff caught before the merge, and it was rebuilt on its merge base.
+- 2026-10-20 09:19. Phase 5 built, awaiting review and a live load. `config/keymap.lua` is new,
+  every section present and empty with a header in the house style, and init.lua hands it to Olm
+  as `cfg.keymap`, no plugin reading it. `lib/keymap.lua` gained `readConfig`, which reads the four
+  sections and names every entry it cannot read, `parseChord`, the grammar, a leader or modifiers
+  joined by a plus with the key last, a trailing pair of plus signs being the plus key, a leader
+  chord with no modifiers a catch all like every default, and `leadersInUse`. `build` lays the keys
+  over the defaults. An action named there takes exactly its chords and loses every row it had,
+  its new rows copying the gate, label, repeat and function of the first row it had, or built from
+  the descriptor, the tool, the host or the provided row its id names. A person's row on a default's
+  slot drops the default with one routine `Olm keymap` line, every row of the person's included,
+  which replaced the collision check's exemption, and false frees a slot. Two of the person's own
+  on one slot are a collision named by entry, and an entry for a plugin switched off is a note.
+  A named leader's slot is its whole combination. `roles` replaced `appLeader` and `windowLeader`,
+  both removed from `config/keys.lua` since they equalled the defaults, and is merged by hand, since
+  `lib/defaults.lua`'s merge read the empty section as a list and left no role at all, which the
+  first offline run caught. `cfg.leaders` is retired and named. `aliases` merges over the person's
+  overrides before the plan resolves, the keymap winning, and this machine's `config/plugins.lua`
+  had no alias override to move. The root builds a candidate leader per catalog row and per named
+  leader, keeps the ones `leadersInUse` answers after the keymap is built, and the leader list, the
+  binder's engines, the sheets, the remap and the leader hosting lists follow it, the last chosen
+  from the catalog by policy since list keys always use it. A keymap that fails to build falls
+  back to the leaders the roles name. Lock and sleep are the launcher's own descriptors through
+  `provides.actions` with bindings rows, kind special so their rows keep `special:lock` and
+  `special:sleep`, the launcher pushes its declared rows ahead of its suppliers so the alias
+  directory still leads them, the keymap's special rows source, the root's lock and sleep calls
+  and the launcher's own special fallbacks for them went, and a key left on a special row is named
+  retired. A launcher row and a tool's chord name a leader no role answers by its own name, Nav T.
+  Proof, offline. All three goldens byte identical, `keys.sh --bound` matching and `--bound-order`
+  against an archive of the merge base the same order on every key. `test/keymap-fixture.lua`,
+  the person's case with the window role on super, `hyper+3` freed and a vpn alias override,
+  has three goldens, the bound keys with vpn on Meta E and off Hyper P, the clipboard on Meta Y
+  and off Hyper X, Tmux Manager on Nav T, nothing on Hyper 3, every window binding on SUPER and a
+  remap line of HYPER, META and SUPER, the launcher rows reading Meta E, Meta Y, Nav T, Super for
+  every window row, OCR with no chord and the vpn row with its three words, and the sheets with the
+  window rows on Super's sheet and the two moved tools on Meta's. The task asked that remap to
+  leave META out, which cannot hold while Meta E and Meta Y are bound, so
+  `test/keymap-fixture-roles.lua`, the roles alone, carries the proof that META is freed, its remap
+  line HYPER and SUPER. `test/keymap-person.lua` holds 108 plain Lua checks of the grammar, every
+  problem, displacement, false, leaders, roles, aliases and activation, and `test/keymap.lua` was
+  updated for the exemption's end and the special rows' end. The dry suite, the dry gate at 0
+  findings and 0 unknown, the rename proof at 0 differences and the dependency check pass. One gap
+  is known and left for phase 6, a moved app toggle binds its new chord while the toggler's own
+  sheet sections and launcher app details, built from its data, still read the old one.
+- 2026-10-20 09:35. An adversarial review of e1b442bb found no blocker and eight fixes, applied on
+  top. fn on a chord opening with a held leader is refused, since the leader compares only shift,
+  ctrl, alt and cmd and bound `hyper+fn+4` as a chord stating no modifier that beat Hyper 4. The
+  trailing `++` rule was wrong, the live keycode table has no `+`, so it went, a chord ending in
+  `pad+` is the keypad plus and the main row plus is written `shift+=`, and the test stub now
+  carries the live codes of `=` and `pad+`. An id over several rows running different functions,
+  `apptoggler.Ghostty` today, is a problem naming the rows and both stay bound, where it had moved
+  both and kept the first in silence. A keymap entry ranks above every other source of the
+  person's, so it displaces a toggle on its slot with the routine line, where the toggle won the
+  tie. The key inventory gained a last line, the held leaders the remap was applied with, recorded
+  as `_composed.remap`, written by the bound recording, the offline projection and the live probe,
+  and `keys.golden` was retaken offline and changed by exactly that line, `remap HYPER+META`, which
+  the live probe against main agreed with. The fallback for a keymap that fails to build keeps the
+  list leader in use beside the roles' leaders, `keymap.fallbackLeaders`. A named leader no chord
+  uses is a routine note. The config header, both AGENTS files, the contract and the skill now say
+  where keys live today, that a moved toggle's sheet section and app row lag until phase 6, that
+  false frees global chords only until phase 7, and that a displaced default loses that one row.
+  `test/keymap-person.lua` is at 129 checks.

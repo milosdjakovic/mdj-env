@@ -1,0 +1,35 @@
+hyper	supplied	1	RUNNING	1.0	-	icons
+hyper	supplied	1	DORMANT	0.55	1.0	icons
+hyper	section	2	ACTIONS	1.0	-	plain columns=4 colWidth=215 iconSize=0
+hyper	row	2	W	Browser tabs	-
+hyper	row	2	K	Keep awake	-
+hyper	row	2	2	Color picker	-
+hyper	row	2	J	Emoji picker	-
+hyper	row	2	/	File search	-
+hyper	row	2	E	Menu search	-
+hyper	row	2	4	Screenshot (copy)	-
+hyper	row	2	⇧4	Screenshot	-
+hyper	row	2	5	Record screen	-
+hyper	row	2	␣	Launcher	-
+hyper	row	2	§	Lock Screen	-
+hyper	row	2	esc	Sleep	-
+window	group	WINDOW MANAGEMENT
+window	row	1	Y	Clipboard history	-
+window	row	2	E	VPN	-
+super	section	1	WINDOW MANAGEMENT	1.0	-	plain columns=2 colWidth=250 iconSize=0
+super	row	1	,	Previous Display	-
+super	row	1	.	Next Display	-
+super	row	1	←	Left Half	-
+super	row	1	→	Right Half	-
+super	row	1	↑	Full Height	-
+super	row	1	↓	Reasonable Size	-
+super	row	1	↩	Maximize	-
+super	row	1	Z	Small Size	-
+super	row	1	=	Increase Size	-
+super	row	1	-	Decrease Size	-
+super	row	1	A	Move Left	-
+super	row	1	D	Move Right	-
+super	row	1	W	Move Up	-
+super	row	1	S	Move Down	-
+super	row	1	C	Center	-
+super	row	1	H	Hide All Except Focused	-

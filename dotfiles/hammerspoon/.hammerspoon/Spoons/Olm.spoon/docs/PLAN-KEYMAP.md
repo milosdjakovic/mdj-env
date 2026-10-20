@@ -449,6 +449,35 @@ parse, or a leader name that clashes is a problem line naming the entry. Prove M
 test fixture holding `meta+E` and `meta+Y` on two plugins and a `nav` modifier leader, and leave the
 live keys alone until he writes his own. The golden is unchanged.
 
+- Found in 5. The shape above said what an entry does to its own action and nothing about the
+  slot it lands on. A person's chord on a slot a default holds wins it, and the default row is
+  dropped with one routine console line, never bound beside it and never a problem. That replaced
+  the one exemption the collision check kept, and it covers every row of the person's, the
+  keymap's, the toggles and a `bindings` override still in `config/plugins.lua`. `false` drops
+  whatever holds its slot.
+- Found in 5. "A held leader is remapped only while some chord uses it, the rule the catalog
+  already follows" was wrong about today. The catalog followed the roles, a leader was remapped
+  when a role named it whatever was bound on it. It follows the bound rows now,
+  `keymap.leadersInUse`, and the root builds a candidate leader per catalog row and keeps the
+  used ones after the keymap is built, so the leader list, the binder's engines, the sheets and
+  the remap read one answer. The leader hosting lists is chosen from the catalog by policy alone,
+  since list keys always put it in use.
+- Found in 5. A leader named from modifiers claims the whole combination through `hs.hotkey`, so
+  its slot is that combination with no leader, and `nav+T` collides with `ctrl+shift+T`.
+- Found in 5. `actionpanel.open` was listed among the host descriptors. The action panel has no
+  global key, it opens on a list key, so it answers nothing until phase 7. Only the launcher
+  answers descriptors, `launcher.lock` and `launcher.sleep`, its open key being `launcher.open`.
+  The keymap's special rows source and the root's lock and sleep calls went with them, and a key
+  left on a special row is named as retired.
+- Found in 5. The app toggler's own sheet sections and its launcher app details are built from
+  its own data, so an app toggle moved in `config/keymap.lua` binds its new chord while the Hyper
+  sheet's RUNNING and DORMANT sections and the app's launcher row still read the old one. Phase 6
+  closes it when toggles become descriptors.
+- Found in 5. The proof asked the remap to name SUPER and HYPER and not META with `meta+E` and
+  `meta+Y` bound, which cannot both hold, since a bound row on META keeps META in use. The
+  person's fixture shows HYPER, META and SUPER, and a second fixture holding only
+  `roles = { window = "super" }` shows HYPER and SUPER.
+
 ### Phase 6, actions built from data
 
 apptoggler answers a descriptor per app in `config/apps.lua` and per variant in its data, each

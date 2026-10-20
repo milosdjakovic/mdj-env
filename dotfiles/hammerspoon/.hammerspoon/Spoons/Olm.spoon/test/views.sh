@@ -17,6 +17,11 @@
 #   views.sh            live, diff both against launcher.golden and sheets.golden
 #   views.sh --update   live, overwrite both goldens
 #   views.sh --offline  the offline projections of both, diffed against the goldens
+#   views.sh --fixture NAME [--update]
+#                       the offline projections again with the keymap test/NAME.lua handed to Olm
+#                       in place of config/keymap.lua, diffed against test/NAME.launcher.golden and
+#                       test/NAME.sheets.golden, or written to them with --update, which proves the
+#                       launcher rows and the sheets spell the chords that keymap moved
 
 set -uo pipefail
 
@@ -24,10 +29,13 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 spoon="$(cd "$here/.." && pwd)"
 config="$(cd "$spoon/../.." && pwd)"
 mode="diff"
+fixture=""
+fixture_update=""
 
 case "${1:-}" in
   --update) mode="update" ;;
   --offline) mode="offline" ;;
+  --fixture) mode="fixture"; fixture="${2:?--fixture needs a fixture name}"; fixture_update="${3:-}" ;;
   "") ;;
   *) echo "views.sh: unknown argument $1" >&2; exit 2 ;;
 esac
@@ -46,16 +54,26 @@ compare() {
   fi
 }
 
-if [ "$mode" = "offline" ]; then
+if [ "$mode" = "offline" ] || [ "$mode" = "fixture" ]; then
+  keymapFixture=""
+  prefix=""
+  if [ "$mode" = "fixture" ]; then
+    keymapFixture="$here/$fixture.lua"
+    prefix="$fixture."
+    [ -f "$keymapFixture" ] || { echo "views.sh: no fixture at test/$fixture.lua" >&2; exit 2; }
+  fi
   for view in launcher sheets; do
     mkdir -p "$work/sb-$view"
-    DRYGATE_VIEWS="$view" lua "$here/drygate-composerun.lua" "$spoon/" "$config" "$work/sb-$view" >"$work/$view.txt" 2>"$work/$view.err"
+    DRYGATE_VIEWS="$view" DRYGATE_KEYMAP_FIXTURE="$keymapFixture" lua "$here/drygate-composerun.lua" "$spoon/" "$config" "$work/sb-$view" >"$work/$view.txt" 2>"$work/$view.err"
     if [ ! -s "$work/$view.txt" ]; then
       echo "views.sh: the offline $view run wrote nothing" >&2
       grep -v '^log ' "$work/$view.err" | tail -5 >&2
       status=2
+    elif [ "$fixture_update" = "--update" ]; then
+      cp "$work/$view.txt" "$here/$prefix$view.golden"
+      echo "views.sh: wrote test/$prefix$view.golden"
     else
-      compare "$view" "$work/$view.txt" "offline"
+      compare "$prefix$view" "$work/$view.txt" "offline"
     fi
   done
   exit $status

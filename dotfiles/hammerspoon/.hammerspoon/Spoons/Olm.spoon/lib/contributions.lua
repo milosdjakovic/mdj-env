@@ -124,7 +124,9 @@ function M.actionRow(identity, name, descriptor, keymap)
   return {
     title = descriptor.description or name,
     group = descriptor.subtitle,
-    chord = row and { leader = row.role or false, key = row.key, mods = row.shownMods } or nil,
+    -- The leader by its role where one answers it, else by its own name for a row the person's
+    -- keymap put on a leader no role names, else false for a plain combination.
+    chord = row and { leader = row.role or row.leader or false, key = row.key, mods = row.shownMods } or nil,
     icon = descriptor.icon,
     keywords = descriptor.keywords,
     when = (row and row.when) or descriptor.when,

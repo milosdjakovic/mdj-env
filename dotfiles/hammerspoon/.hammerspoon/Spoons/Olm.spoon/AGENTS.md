@@ -192,10 +192,10 @@ plugin runs earlier, in `lib/plugins.lua` as the manifests are read, against the
 each manifest declares, and both compare against the spoon's own `obj.apiVersion`, the one copy
 of the number. `decisions/olm-manifest-header.md` at the repository root has why.
 
-**Identity stays off the descriptor.** The physical key, whether a plugin is switched off, and
-the alias words live above this spoon in the config tree, `config/plugins.lua` and
-`config/keys.lua` under `.hammerspoon`, or in the saved set the OLM settings page writes, never
-on the descriptor, so a tool knows what it does and the person's config knows how it is reached.
+**Identity stays off the descriptor.** The keys, the leader each role lands on, whether a plugin
+is switched off, and the alias words live above this spoon in the config tree, `config/keymap.lua`
+for every key and alias and `config/plugins.lua` for a plugin's data and its switch under
+`.hammerspoon`, or in the saved set the OLM settings page writes, never on the descriptor, so a tool knows what it does and the person's config knows how it is reached.
 That split is why a rebind, a rename, or switching a plugin off never touches a plugin. Switching
 off is one switch, `lib/pluginswitch.lua`, and the registry activates every tool that registered.
 
@@ -208,8 +208,14 @@ registrar and the wiring pipeline, and the log remains readable in this file's g
 
 `lib/leader.lua` is the one leader adapter since phase 3 of the keymap plan, replacing
 `lib/hyperkey.lua` and `lib/windowleader.lua`, which were near copies differing in policy. The
-root builds one instance per catalog name a role references, HYPER and META on this machine,
-plus one plain leader for a keymap row with no leader, and loops over them naming none. What
+root builds one instance per catalog row and one per leader the person names in the `leaders`
+section of `config/keymap.lua`, keeps those some bound row of the keymap uses, HYPER and META on
+this machine, plus one plain leader for a keymap row with no leader, and loops over them naming
+none. Which held leaders are in use is `lib/keymap.lua`'s `leadersInUse`, every leader a bound
+global row or a list key sits on, and the remap, the engines the binder reaches, the sheets and
+the leader hosting lists all read that one answer, so a chord on `super` claims Right Command and
+moving every window default off META frees Right Option. A leader the person names is the
+modifier trigger handed that set as its base, with an empty policy, no sheet and no tap. What
 physically means a leader is a trigger, a Strategy behind four functions, start, bound, isActive
 and owns. `lib/leader/triggers/held.lua` registers one function key into the shared ChordKey
 engine, and `lib/leader/triggers/modifier.lua` claims each binding as an `hs.hotkey` on a base
@@ -265,7 +271,36 @@ through the leader's own `afterRelease`, and a launcher row for it waits until n
 down. Capture's actions say it, which retired capture's own wait on Hyper and its `hyperKey`
 lib. The clipboard still asks a lib, because whether its open waits is the chosen provider's
 answer at the moment of the press, and the lib it asks for, `leader`, is a view answering only
-whether any held leader is down. The composed record publishes the held leaders as
+whether any held leader is down. The composed record publishes the leaders in use as
 `_composed.leaders`, keyed by the name a keymap row spells each with, for the key probe and the
 inventory, and the dry gate's bound recording taps the adapter's own `bind`, which every
-instance reaches through its metatable.
+instance reaches through its metatable, and its `start`, so a combo a named leader claims through
+`hs.hotkey` is recorded once under that leader's name.
+
+## The person's keymap
+
+`config/keymap.lua` reaches the root as `cfg.keymap`, and no plugin ever reads it. `lib/keymap.lua`
+reads it in `readConfig`, every entry it cannot read a problem line naming the entry, and lays the
+keys over the defaults inside `build`. The rules are three. An action named in `keys` takes
+exactly its listed chords and loses every row it had, copying its gate, label, repeat and function
+from the first row it had, so a moved action behaves as it did. A row the person set wins a slot a
+default holds, and the default is dropped with one routine `Olm keymap` console line, never bound
+beside it and never a problem, which replaced the one exemption the collision check kept. That
+covers every row of the person's, the keymap's and still the toggles and any `bindings` override
+in `config/plugins.lua`, and a keymap entry ranks above the others, so it drops a toggle on its
+slot with the same line. And `false` frees a global chord, dropping whatever holds it. An id over
+several rows running different functions, the toggler's two Ghostty toggles until phase 6, is a
+problem and both stay bound. `fn` is refused on a held leader, which compares only the other four
+modifiers, the keypad plus is `pad+` and the main row plus `shift+=`. A named leader no chord uses
+is a routine note. A keymap that fails to build keeps the roles' leaders and the list leader in
+use, `keymap.fallbackLeaders`. Two of the
+person's own on one slot are a collision named by entry. An entry naming a plugin that exists and
+is switched off this load is a note rather than a problem, since switching a plugin off takes its
+keys with it. The slot of a row on a named modifier leader is the whole combination with no
+leader, so `nav+T` and `ctrl+shift+T` are one slot. `roles` is merged over app on HYPER and window
+on META by hand, since `lib/defaults.lua`'s merge reads an empty table as a list that replaces. The
+`aliases` section is merged over the person's overrides before the plan resolves, so the
+resolver, the registrar's collision check and every row hint read one answer, the keymap winning
+over an alias override still written in `config/plugins.lua`. `cfg.leaders` is retired and named.
+`test/keymap-person.lua` pins every rule in plain Lua, and `test/keymap-fixture.lua` and
+`test/keymap-fixture-roles.lua` with their goldens prove the person's case through the real root.

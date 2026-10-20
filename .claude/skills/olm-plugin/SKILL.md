@@ -263,10 +263,17 @@ sheet and is logged, and one that has an app's chord declares `provides.launcher
 the launcher's row for that app names it.
 
 Configuration splits three ways. The plugin proposes its own `defaults`, a leader role, its
-`bindings`, aliases, an icon, and a person overrides them outside the plugin, rebinding a key only
-in that plugin's entry in `config/plugins.lua`, so no other file ever names one. A person's `key`
-there still moves the plugin's open row until the keymap plan's own person file arrives. Person supplied policy arrives as `needs.data` with `source = "user"`,
-always optional, always with a `breaks` sentence and a working fallback.
+`bindings`, aliases, an icon, and a person overrides them outside the plugin. Every key and alias
+a person sets is written in `config/keymap.lua`, a chord to `identity.action`, a role moved to
+another held leader, a set of modifiers named as a leader, and replacement aliases, read by Olm's
+root alone, so a plugin never reads it, never learns a person's keys and never assumes its action
+sits on the key it suggested. Where keys live today, every action's in `config/keymap.lua`, the
+app toggles still in `config/keys.lua` until phase 6 of the keymap plan, and a `key` or alias
+override still honoured in `config/plugins.lua` until phase 7 refuses them. Every other default is
+overridden in the plugin's entry in `config/plugins.lua`. A plugin action is reachable from the keymap by its descriptor's `name`, its
+tool's open row is `open`, so name actions as a person would write them. Person supplied policy
+arrives as `needs.data` with `source = "user"`, always optional, always with a `breaks` sentence
+and a working fallback.
 
 A field on that configuration surface prefers a structural value over a loose quoted word, a
 number, a boolean, a table, or a function rather than a string a plugin then matches against a

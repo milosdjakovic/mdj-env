@@ -14,9 +14,10 @@
 -- One line per bound chord, six fields separated by tabs, sorted as plain strings so two runs
 -- on an unchanged configuration are byte identical.
 --
---   engine   the leader. hyper is the app leader, the window leader appears under the name its
---            catalog entry has in config/keys.lua, and hotkey is a plain hs.hotkey combo with no
---            leader at all.
+--   engine   the leader. hyper is the app leader, the window leader appears under the catalog
+--            name the window role lands on, META unless config/keymap.lua moves it, any other
+--            leader under the name a keymap row spells it with, and hotkey is a plain hs.hotkey
+--            combo with no leader at all.
 --   key      the key as Hammerspoon's own keycode table spells it, whatever case or alias the
 --            declaration used.
 --   mods     the required modifiers, sorted and joined with a plus. any is a catch all binding
@@ -73,14 +74,17 @@ local codeOf = function(key) return keymapLib.keyCode(key, KEYCODES) end
 -- The engines' own names
 --------------------------------------------------------------------------------
 
--- The window leader's catalog name lives in the person's config, which is plain data and safe
--- to read. A missing file or field falls back to a neutral word rather than failing the probe.
+-- The window leader's catalog name. From phase 5 of the keymap plan the live keymap carries the
+-- roles it was built with, and before that the person's config/keys.lua said it, plain data and
+-- safe to read. A config with neither falls back to META, what every such spoon shipped.
 local function windowLeaderName()
+  local roles = composed.keymap and composed.keymap.roles
+  if type(roles) == "table" and type(roles.window) == "string" then return roles.window end
   local ok, keys = pcall(dofile, hs.configdir .. "/config/keys.lua")
   if ok and type(keys) == "table" and type(keys.windowLeader) == "string" then
     return keys.windowLeader
   end
-  return "window"
+  return "META"
 end
 
 local WINDOW = windowLeaderName()
@@ -93,6 +97,8 @@ local HOTKEY = "hotkey"
 if OLM_KEYS_MODE == "keymap" then
   local keymap = assert(composed.keymap, "the live Olm has no keymap, is the worktree the live config")
   local lines = project.project(keymap.rows, WINDOW)
+  lines[#lines + 1] = project.remapLine(project.remapOf(composed, (composed.policy or {}).leaderCatalog
+    or { HYPER = true, META = true, SUPER = true }))
   local f = assert(io.open(OUT, "w"))
   f:write(table.concat(lines, "\n"), "\n")
   f:close()
@@ -252,6 +258,9 @@ for _, h in ipairs(hs.hotkey.getHotkeys() or {}) do
 end
 
 table.sort(lines)
+-- The held leaders the remap was applied with, the inventory's last line.
+lines[#lines + 1] = project.remapLine(project.remapOf(composed, (composed.policy or {}).leaderCatalog
+  or { HYPER = true, META = true, SUPER = true }))
 
 local f = assert(io.open(OUT, "w"))
 f:write(table.concat(lines, "\n"), "\n")

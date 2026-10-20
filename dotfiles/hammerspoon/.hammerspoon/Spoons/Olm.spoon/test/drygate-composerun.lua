@@ -83,7 +83,16 @@
 -- keymap's rows the way the live probe finds it. DRYGATE_BINDS=order writes the same lines
 -- grouped by engine and key and kept in call order inside each group, since the order an engine
 -- receives two bindings on one key is what decides which of them wins. It answers tools and
--- keycodes the way the keymap mode does, and it writes nothing else.
+-- keycodes the way the keymap mode does, and it writes nothing else. A leader the person named
+-- claims its combos through hs.hotkey.bind, so a call made inside that leader's own bind or start
+-- is recorded once, under the leader's name, and not again as a plain combo. With DRYGATE_BINDS
+-- set to golden or to fixture the lines are followed by one remap line, the catalog names the
+-- remap was applied with, which is the proof of which held leaders a keymap puts in use. The
+-- keymap mode writes the same line from what the root recorded.
+--
+-- THE FIXTURE. With DRYGATE_KEYMAP_FIXTURE naming a Lua file under the spoon that returns a
+-- keymap table, that table is handed to Olm as cfg.keymap in place of the person's own, in every
+-- mode, so a keymap can be proved offline without editing config/keymap.lua.
 
 local spoonDir, hsRoot, sandbox, mapPath = arg[1], arg[2], arg[3], arg[4]
 local scriptDir = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
@@ -92,6 +101,9 @@ if bindMode == "" then bindMode = nil end
 local bindCalls = {}
 local viewsMode = os.getenv("DRYGATE_VIEWS")
 if viewsMode == "" then viewsMode = nil end
+local fixturePath = os.getenv("DRYGATE_KEYMAP_FIXTURE")
+if fixturePath == "" then fixturePath = nil end
+local remapNames = nil
 local keycodesPath = os.getenv("DRYGATE_KEYCODES")
 local realKeycodes = keycodesPath and keycodesPath ~= "" and dofile(keycodesPath) or nil
 if not (spoonDir and hsRoot and sandbox) then
@@ -351,10 +363,15 @@ if os.getenv("DRYGATE_KEYMAP") == "1" or bindMode or viewsMode then
 end
 -- The bound mode records every plain combo the run binds. The real call hands back a hotkey
 -- object, so a stand in is answered for whatever the caller does with it next.
+-- Above zero while a named leader binds or starts, so the combos its trigger claims through
+-- hs.hotkey are not recorded a second time as plain combos.
+local insideNamedLeader = 0
 if bindMode then
   local hotkey = stub("hs.hotkey")
   hotkey.bind = function(mods, key, fn)
-    bindCalls[#bindCalls + 1] = { engine = "hotkey", key = key, mods = mods or {}, fn = fn }
+    if insideNamedLeader == 0 then
+      bindCalls[#bindCalls + 1] = { engine = "hotkey", key = key, mods = mods or {}, fn = fn }
+    end
     return stub("hs.hotkey.bind()")
   end
   hs.hotkey = hotkey
@@ -539,7 +556,31 @@ hs.loadSpoon = function(name)
       leader.bind = function(self, key, fn, mods, opts)
         local name = type(self.leaderName) == "function" and self:leaderName() or nil
         if name then record(name, key, fn, mods, opts) end
-        return inner(self, key, fn, mods, opts)
+        if name then insideNamedLeader = insideNamedLeader + 1 end
+        local results = table.pack(pcall(inner, self, key, fn, mods, opts))
+        if name then insideNamedLeader = insideNamedLeader - 1 end
+        if not results[1] then error(results[2], 0) end
+        return table.unpack(results, 2, results.n)
+      end
+      if type(leader.start) == "function" then
+        local innerStart = leader.start
+        leader.start = function(self, ...)
+          local name = type(self.leaderName) == "function" and self:leaderName() or nil
+          if name then insideNamedLeader = insideNamedLeader + 1 end
+          local results = table.pack(pcall(innerStart, self, ...))
+          if name then insideNamedLeader = insideNamedLeader - 1 end
+          if not results[1] then error(results[2], 0) end
+          return table.unpack(results, 2, results.n)
+        end
+      end
+    end
+    local remap = olm.lib and olm.lib.keyremap
+    if type(remap) == "table" and type(remap.apply) == "function" then
+      local innerApply = remap.apply
+      remap.apply = function(self, catalog, names, ...)
+        remapNames = {}
+        for _, n in ipairs(names or {}) do remapNames[#remapNames + 1] = tostring(n) end
+        return innerApply(self, catalog, names, ...)
       end
     end
     for atomName, label in pairs({ hyperkey = "hyper", windowleader = "window" }) do
@@ -558,6 +599,7 @@ hs.loadSpoon = function(name)
     cfg = cfg or {}
     cfg.policy = cfg.policy or {}
     cfg.policy.storage = { cacheRoot = sandbox .. "/cache", olmRoot = sandbox .. "/data" }
+    if fixturePath then cfg.keymap = dofile(fixturePath) end
     if renaming and type(cfg.plugins) == "table" then
       local renamed = {}
       for k, v in pairs(cfg.plugins) do renamed[scramble[k] or k] = v end
@@ -593,11 +635,12 @@ if os.getenv("DRYGATE_KEYMAP") == "1" then
     os.exit(1)
   end
   local project = assert(loadfile(spoonDir .. "test/keys-project.lua"))()
-  local keys = dofile(hsRoot .. "/config/keys.lua")
   for _, line in ipairs(lines) do
     if line:match("^log %S+ e ") or line:match("^log %S+ w ") then io.stderr:write(line, "\n") end
   end
-  io.stdout:write(table.concat(project.project(keymap.rows, keys.windowLeader), "\n"), "\n")
+  local out = project.project(keymap.rows, project.windowName(keymap))
+  out[#out + 1] = project.remapLine(record.remap)
+  io.stdout:write(table.concat(out, "\n"), "\n")
   os.exit(0)
 end
 
@@ -644,7 +687,6 @@ if bindMode then
   -- Loaded from beside this file rather than from the spoon under test, so a copy of an older
   -- spoon can be recorded with the same projection and the two outputs compared.
   local project = assert(loadfile(scriptDir .. "keys-project.lua"))()
-  local keys = dofile(hsRoot .. "/config/keys.lua")
   local fnOwner = {}
   local registry = olm.registry
   if type(registry) == "table" and type(registry.shortcuts) == "function" then
@@ -652,8 +694,9 @@ if bindMode then
       if type(entry.fn) == "function" then fnOwner[entry.fn] = entry.name end
     end
   end
-  local out = project.boundLines(bindCalls, keymap.rows, keys.windowLeader, realKeycodes, fnOwner,
+  local out = project.boundLines(bindCalls, keymap.rows, project.windowName(keymap), realKeycodes, fnOwner,
     bindMode == "order")
+  if bindMode ~= "order" then out[#out + 1] = project.remapLine(remapNames) end
   io.stdout:write(table.concat(out, "\n"), "\n")
   os.exit(0)
 end

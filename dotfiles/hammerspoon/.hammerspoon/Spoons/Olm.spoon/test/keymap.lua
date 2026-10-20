@@ -2,7 +2,8 @@
 --
 -- lib/keymap.lua is pure, it takes the plan, the roles and the keycode table as inputs, so it
 -- needs no Hammerspoon and no stub. These cases drive it with small hand written plans and pin
--- the collision rule, the one exemption, and the spelling it normalises to. The proof that it
+-- the collision rule, how a person's row displaces a default, and the spelling it normalises to.
+-- The person's own keymap file, config/keymap.lua, has its cases in test/keymap-person.lua. The proof that it
 -- holds every live chord is a different check, see keys.sh and its offline mode.
 --
 -- Run it.
@@ -76,8 +77,10 @@ do
   eq(flags.none, false, "a row with an empty mods list is not")
 end
 
--- A default meeting the person's own override is not reported, two of the person's own are, and
--- two defaults beside an override are still reported once.
+-- A person's own row on a slot a default holds wins it, and the default is dropped with one
+-- routine note rather than reported or bound beside it. Two of the person's own are reported,
+-- and every default on a slot the person took is dropped, so none of them is reported either.
+-- This replaced the one exemption the collision check kept until phase 5 of the keymap plan.
 do
   local effective = {
     shipped = { leader = "app", bindings = { { action = "a", key = "a" } } },
@@ -85,6 +88,11 @@ do
   }
   local result = build(defaultPlan(effective, { mine = { key = "user" } }))
   eq(#result.problems, 0, "a default meeting a user override is not reported")
+  local owners = {}
+  for _, row in ipairs(result.rows) do owners[#owners + 1] = row.owner end
+  eq(table.concat(owners, ","), "mine", "and the default is dropped rather than bound beside it")
+  eq(#result.notes, 1, "said in one routine note")
+  eq((result.notes[1] or ""):find("shipped.a", 1, true) ~= nil, true, "which names the displaced action")
 
   effective.mine2 = { leader = "app", bindings = { { action = "open", key = "a" } } }
   result = build(defaultPlan(effective, { mine = { key = "user" }, mine2 = { key = "user" } }))
@@ -92,7 +100,7 @@ do
 
   effective.shipped2 = { leader = "app", bindings = { { action = "b", key = "a" } } }
   result = build(defaultPlan(effective, { mine = { key = "user" }, mine2 = { key = "user" } }))
-  eq(#result.problems, 2, "two defaults beside user overrides are still reported once each class")
+  eq(#result.problems, 1, "two defaults on a slot the person took are both dropped, so only the person's pair is reported")
 end
 
 -- Spelling. Case, modifier order, modifier aliases and keycode aliases all agree.
@@ -124,8 +132,8 @@ do
 end
 
 -- The sources and their provenance. A provided row comes from the rows a plugin answered, a
--- plain combo has no leader, a tool's open row is told from a host's, and a special row is read
--- from the host that declares it. A bindings row stating leader false is a plain combo, and one
+-- plain combo has no leader, and a tool's open row is told from a host's. A special row is not a
+-- source since phase 5 of the keymap plan, a host's runnable rows being its descriptors. A bindings row stating leader false is a plain combo, and one
 -- naming its own role sits on that role whatever the plugin's default says.
 do
   local plan = defaultPlan({
@@ -153,8 +161,8 @@ do
   eq(seen["tool:open"].role, "app", "an open row stating no leader inherits the plugin's role")
   eq(seen["host:open"] ~= nil, true, "an unregistered owner's open row is a host row")
   eq(seen["bindings:open"], nil, "an open row is never read a second time as a plain binding")
-  eq(seen["special:lock"] ~= nil, true, "a special row with a key is read")
-  eq(seen["special:nokey"], nil, "a special row with no key is not")
+  eq(seen["special:lock"], nil, "a special row is no source, even with a key")
+  eq(seen["special:nokey"], nil, "nor without one")
   eq(seen["bindings:left"].leader, "meta", "a window role resolves through the roles table")
   eq(seen["bindings:left"].role, "window", "and the row keeps the role it answers")
   eq(seen["bindings:left"].when, "gate", "a binding's gate is kept")
@@ -192,11 +200,11 @@ end
 
 -- Every global row carries the function it calls, and the bound list holds the global rows in
 -- the binding order, the order the paths before the binder bound in, plugin bindings in plan
--- order, then shortcuts in registration order, then hosts, then special rows. A binding whose action was refused is
+-- order, then shortcuts in registration order, then hosts. A binding whose action was refused is
 -- marked so the binder stays quiet about it, and a binding's own repeat wins over the
 -- descriptor's.
 do
-  local openA, cmd, show, lock = function() end, function() end, function() end, function() end
+  local openA, cmd, show = function() end, function() end, function() end
   local leftRun, rightRun = function() end, function() end
   local plan = {
     effective = {
@@ -204,8 +212,7 @@ do
       alpha = { leader = "window", bindings = { { action = "left", key = "left", repeats = false },
         { action = "right", key = "right" } } },
       tool = { leader = "app", bindings = { { action = "open", key = "t" } } },
-      host = { leader = "app", bindings = { { action = "open", key = "h" } },
-        specialRows = { { name = "lock", key = "l" } } },
+      host = { leader = "app", bindings = { { action = "open", key = "h" } } },
     },
     identity = {}, contexts = { list = { bindings = { { action = "close", key = "x" } } } },
     order = { "zeta", "alpha", "tool", "host" },
@@ -220,13 +227,11 @@ do
     },
     refusedActions = { zeta = { bad = true } },
     hostRun = function(directory) return directory == "host" and show or nil end,
-    specialRun = function(owner, name) return name == "lock" and lock or nil end,
   })
   local by = {}
   for _, row in ipairs(result.rows) do by[row.source .. ":" .. tostring(row.action)] = row end
   eq(by["tool:open"].run, openA, "a tool row runs its shortcut's function")
   eq(by["host:open"].run, show, "a host row runs what the root answers for it")
-  eq(by["special:lock"].run, lock, "a special row runs what the root answers for it")
   eq(by["bindings:left"].run, leftRun, "a binding runs the descriptor its action names")
   eq(by["bindings:left"].repeats, false, "a binding's own repeat wins over the descriptor's")
   eq(by["bindings:right"].repeats, true, "the descriptor's repeat answers where the binding is silent")
@@ -243,7 +248,6 @@ do
   eq(place["bindings:left"] < place["bindings:right"], true, "and the next plugin's own order")
   eq(place["bindings:right"] < place["tool:open"], true, "every binding comes before every shortcut")
   eq(place["tool:open"] < place["host:open"], true, "shortcuts come before hosts")
-  eq(place["host:open"] < place["special:lock"], true, "and hosts before special rows")
 end
 
 -- One source that raises drops its own rows with one problem naming it, and every other source
@@ -461,7 +465,7 @@ do
 end
 
 -- A leader sheet's rows read the keymap, registered tools first in registration order, then each
--- plugin in plan order with its host key, its bindings and its special rows, one row per chord,
+-- plugin in plan order with its host key and then its bindings, a host's own actions among them, one row per chord,
 -- and nothing on another leader or with no leader at all.
 do
   local hints = assert(loadfile(here .. "../lib/hints.lua"))()
@@ -470,8 +474,8 @@ do
       zed = { leader = "app", description = "Zed tool", bindings = { { action = "open", key = "z" } } },
       cap = { leader = "app", bindings = { { action = "shot", key = "4" },
         { action = "shot2", key = "4", mods = { "shift" } }, { action = "far", key = "f", leader = "window" } } },
-      host = { leader = "app", description = "Host", bindings = { { action = "open", key = "space" } },
-        specialRows = { { name = "lock", key = "l", description = "Lock" } } },
+      host = { leader = "app", description = "Host", bindings = { { action = "open", key = "space" },
+        { action = "lock", key = "l", description = "Lock" } } },
       clip = { leader = "app", bindings = { { action = "paste", key = "v", mods = { "ctrl" }, leader = false } } },
     },
     identity = {}, contexts = {}, order = { "cap", "host", "zed", "clip" },
@@ -485,7 +489,7 @@ do
   local labels = {}
   for _, b in ipairs(rows) do labels[#labels + 1] = b.description end
   eq(table.concat(labels, ","), "Zed tool,Shot,Shot2,Host,Lock",
-    "tools lead, then each plugin's host key, bindings and special rows, in plan order, a row with no label wearing its action in words")
+    "tools lead, then each plugin's host key and bindings, in plan order, a row with no label wearing its action in words")
   eq(rows[3].mods and rows[3].mods[1], "shift", "a row keeps its modifiers")
   eq(rows[2].group, "Capture", "a row carries the group its descriptor names")
 

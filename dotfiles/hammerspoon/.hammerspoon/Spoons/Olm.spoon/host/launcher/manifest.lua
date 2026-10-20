@@ -191,13 +191,28 @@ return {
     { method = "start" },
   },
 
+  -- What this host can run beside opening itself, its actions, the same descriptors a plugin
+  -- answers. Lock and sleep are plain macOS calls, launcher.lock and launcher.sleep, so Olm binds
+  -- the keys the bindings below suggest, builds their rows in this catalog from the descriptors
+  -- and runs a chosen one through them, and a person moves either in config/keymap.lua like any
+  -- action. Both were special rows of this manifest until phase 5 of the keymap plan, which was a
+  -- second way to declare something runnable.
+  provides = {
+    actions = "actions",
+  },
+
   -- Hyper and Space, and it is the one tool exempt from its own rule about every command
   -- being findable as a launcher row, since listing the finder inside the finder earns
   -- nothing.
   defaults = {
     leader = "app",
-    -- The open key, a bindings row whose action is open, on the leader above.
-    bindings = { { action = "open", key = "space" } },
+    -- The open key, a bindings row whose action is open, on the leader above, launcher.open in
+    -- config/keymap.lua, and the keys of the two actions this host answers.
+    bindings = {
+      { action = "open", key = "space" },
+      { action = "lock", key = "§" },
+      { action = "sleep", key = "escape" },
+    },
     description = "Launcher",
     icon = "launcher",
 
@@ -212,16 +227,12 @@ return {
     -- empty list rather than needing to be removed. Losing them cost nothing visibly, which is
     -- why they went missing quietly, they are advertised only in the alias directory and each
     -- is reachable by typing a word nothing tells you about anywhere else.
-    -- Rows for the handful of actions that answer to no registration and belong to no plugin.
-    -- Each is a bare command with nothing behind it that a descriptor could describe, so each
-    -- is stated here as plain data rather than written into the row builder, which is what
-    -- keeps that builder naming nothing. lock and sleep are system calls and aliasDirectory is
-    -- a scope about scopes. The System Settings search row sat here too until phase three of
-    -- the core split, and it is that plugin's own now, since it calls that plugin's method.
-    --
-    -- A key here is a default this person may move. Where one is given the subtitle names the
-    -- chord, and where none is the subtitle says what the row is for instead, which is right
-    -- for the two that open from this list and nowhere else.
+    -- Rows that are not actions and belong to no plugin, stated here as plain data rather than
+    -- written into the row builder, which is what keeps that builder naming nothing. The alias
+    -- directory is a scope about scopes and is the one left. The System Settings search row sat
+    -- here until phase three of the core split, and lock and sleep until phase 5 of the keymap
+    -- plan, when they became this host's own descriptors. A special row carries no key, a key is
+    -- a bindings row, and the registrar names a key left on one as retired.
     -- How this list learns from what is picked in it. Both are plain numbers because both
     -- mean something arguable rather than naming a behaviour from a set, and both were
     -- chosen against a measurement rather than by feel.
@@ -243,7 +254,7 @@ return {
     -- What the memory decides is fixed by the shared search rather than by a number here. A
     -- remembered row carries a bonus, which orders only rows matching equally well, so a pick
     -- made at a short spelling never outranks a better match, docs/PLAN-UNIFIED-SEARCH.md.
-    -- Where this host's own special rows, the alias directory, lock and sleep, sit among the rows
+    -- Where this host's own rows, the alias directory and then lock and sleep, sit among the rows
     -- other plugins contribute, a number compared with each contributor's own launcherOrder.
     -- Thirty puts them after the screenshot actions and the settings search and before the
     -- window actions, where they have always been. docs/PLUGIN-CONTRACT.md lists every
@@ -259,8 +270,6 @@ return {
       { name = "aliasDirectory", description = "Aliases",
         subTitle = "Tools · every word that scopes this list", icon = "aliases",
         keywords = "alias, scope, shortcut, prefix" },
-      { name = "lock", description = "Lock Screen", category = "System", key = "§", icon = "lock" },
-      { name = "sleep", description = "Sleep", category = "System", key = "escape", icon = "sleep" },
     },
 
     catalogScopes = {

@@ -17,16 +17,17 @@
 --           hs.settings and cannot undo a line in this file.
 --   table   any of the following, all optional.
 --             override fields, merged over that plugin's manifest defaults the way Olm always
---                has, so naming one key leaves its siblings alone. This is where a plugin's key
---                is rebound.
+--                has, so naming one key leaves its siblings alone. A key or an alias is not
+--                one of them any more, config/keymap.lua holds every key and alias a person
+--                sets, and the key fields still read here retire in phase 7 of the keymap plan.
 --             data    values only this machine knows, handed to the plugin as its own declared
 --                needs, never merged into its defaults.
 --             global  the name a spoon global mirrors the plugin onto, for a test suite that
 --                reaches it that way. Nothing else here uses globals.
 --
--- To rebind a key, name the plugin and write only the field that changes, for example
---   vpn = { key = "Q" },
--- and to switch one off, write
+-- To rebind a key, write the chord in config/keymap.lua, for example
+--   ["hyper+Q"] = "vpn.open",
+-- and to switch a plugin off, write
 --   tmuxSessions = false,
 -- Olm hands this whole table to its composition root as cfg.plugins, and that root is the only
 -- thing that merges it with the manifests.
@@ -51,8 +52,8 @@ return {
   },
 
   -- The app toggler's two lists. The catalog of bundle ids lives in config/apps.lua and the
-  -- toggle list lives in config/keys.lua beside the leader keys, since that file is where a
-  -- person rebinds a physical key. Both files stay where they are and this entry points at them
+  -- toggle list lives in config/keys.lua, until phase 6 of the keymap plan moves each toggle's
+  -- key into config/keymap.lua. Both files stay where they are and this entry points at them
   -- rather than copying them in, so there is one copy of each list. They are this plugin's own
   -- values and no other plugin asks for either, which is why they travel here under its data
   -- and no longer through the flat shared channel in init.lua. The key is the plugin's

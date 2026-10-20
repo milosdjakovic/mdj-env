@@ -723,13 +723,14 @@ by the dry gate and on the console rather than failing in silence.
 Where a row sits is a number, `defaults.launcherOrder` in the contributing plugin's manifest,
 which a person overrides in `config/plugins.lua` like any default and which the root stamps on
 every row of that plugin that states no `order` of its own, the rows Olm builds from its action
-descriptors included. The launcher's own special rows take its own `defaults.launcherOrder`. The
+descriptors included. The launcher's own declared rows and the rows of its own descriptors, lock
+and sleep, take its own `defaults.launcherOrder`, its declared alias directory first. The
 registry's rows lead the catalog, and a row whose owner is a registered tool with a row of its own
 follows that tool's row directly, which is where the clipboard's three action rows sit, beside
 Clipboard history, as they did when they were registry commands. Every other row follows sorted by
-its number, a row with none after every numbered one, a tie keeping the suppliers' own order, the
-set's suppliers first and then the plugins with actions in plan order, then each supplier's own
-order of rows, then the launcher's rows. The shipped numbers reproduce the order the list has
+its number, a row with none after every numbered one, a tie keeping the launcher's own declared
+rows first and then the suppliers' own order, the set's suppliers first and then the plugins with
+actions in plan order, then each supplier's own order of rows. The shipped numbers reproduce the order the list has
 always had.
 
 | Rows | Number | Declared in |
@@ -892,10 +893,12 @@ registered by that alone.
 
 ### defaults
 
-What this plugin proposes, which the user's own file may override.
+What this plugin proposes, which the person may override. A key and an alias are overridden in
+`config/keymap.lua` and nowhere else since phase 5 of the keymap plan, see The person's keymap
+below, and every other default in the plugin's entry in `config/plugins.lua`.
 
 A default names a leader **role** and never a physical key, so a person who moves the
-app leader to SUPER carries every default with it.
+app role to SUPER with `roles = { app = "super" }` carries every default with it.
 
 ```lua
 defaults = {
@@ -914,7 +917,31 @@ row of the plugin takes, and a person who overrides it moves every such row at o
 `defaults.key` and `defaults.mods` retired in phase 2b of the keymap plan, each a second way to
 suggest the open key, and a manifest still declaring either is named on the console with the
 open row that replaced it. A person's own `key` and `mods` for a plugin in `config/plugins.lua`
-are carried onto its open row until phase 5 brings `config/keymap.lua`.
+are still carried onto its open row until phase 7 of the keymap plan refuses every key field
+there, and `config/keymap.lua` is where a person writes a key now.
+
+**The person's keymap.** `config/keymap.lua` reaches Olm as `cfg.keymap` and no plugin ever
+reads it, so nothing here changes for a plugin. It has four sections.
+
+- `keys`, a chord to an action id or `false`. A chord is a leader or modifiers joined by `+`, the
+  key last, compared without case. The leaders are `hyper`, `meta` and `super`, one per leader
+  catalog row, and any name in `leaders`. The modifiers are `shift`, `ctrl`, `alt`, `cmd` and
+  `fn`, and `fn` is refused on a held leader, which compares only the other four. The keypad plus
+  is `pad+`, and the main row plus is written as its unshifted key, `shift+=`. An action id is the plugin or host identity, a dot,
+  and the action, the descriptor's `name`, `open` for a tool's or a host's open row, or a
+  provided row's action, `vpn.open`, `windowmanager.leftHalf`, `apptoggler.Safari`,
+  `launcher.lock`. An action named there takes exactly the chords listed for it and loses its
+  defaults, and its new rows copy the gate, label, repeat and function of the row it had.
+- `leaders`, a name to a list of real modifiers, `nav = { "shift", "ctrl" }`, a leader of its own
+  on the modifier trigger, with no sheet and no tap, named on a launcher row by its name.
+- `roles`, a role word to a held leader, `{ window = "super" }`, moving every default on the role.
+- `aliases`, a plugin identity to its words, replacing its `defaults.aliases` exactly.
+
+A person's chord on a slot a default holds wins it and the default row is dropped, said in one
+routine console line and never a problem, and `false` frees a chord. Every entry Olm cannot read,
+a chord that does not parse, an id naming nothing, a leader name that clashes, a role naming no
+held leader, an alias for no plugin, and two of the person's own chords on one slot, is a problem
+line naming the entry. A held leader is remapped only while some bound row uses it.
 
 A default is admissible only if it works on a fresh macOS install with nothing
 configured. Two things disqualify one, and they are different. A missing binary
@@ -1498,7 +1525,9 @@ once in Olm's root and never computed.
 
 1. **leaders**, every leader in use is named in the record. Each one arrives built whole,
    its keycode and trigger included, since phase 3 of the keymap plan, where the window
-   leader once had to receive its keycode here or be silently never wired.
+   leader once had to receive its keycode here or be silently never wired. Since phase 5 which
+   leaders are in use is known only once the keymap is built, so the record names them after
+   stage 6 though the report still lists the stage first.
 2. **configure**, each plugin in dependency order.
 3. **wiring**, the declared non configure steps.
 4. **predicates**, the table is built and installed into every leader. This must land
@@ -1509,8 +1538,9 @@ once in Olm's root and never computed.
 6. **activate**. Then the root names every retired field a manifest still declares, asks every
    plugin for its `provides.actions` and `provides.bindings`, builds the keymap from every
    declaration, and binds every global row through the one binder, in the order the paths it
-   replaced bound them, plugin bindings in plan order, then the registry's tools, then the hosts'
-   keys, then the special rows.
+   replaced bound them, plugin bindings in plan order, a host's own actions among them, then the
+   registry's tools, then the hosts' open keys. The person's keymap is laid over the defaults in
+   that build, and the leaders its bound rows use are the leaders in use.
 7. **contexts**, the navigation bind loop over every surface, onto the one leader whose
    policy turns contexts on.
 8. **start**, leaders last, and the one shared event tap last of all, since it must

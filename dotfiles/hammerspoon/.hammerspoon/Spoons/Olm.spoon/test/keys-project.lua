@@ -25,6 +25,44 @@ function obj.engineLabel(leader, windowName)
   return leader
 end
 
+--- obj.windowName(keymap) -> string
+--- The catalog name the window role lands on, which the window leader's lines wear. Read from the
+--- roles the keymap was built with, from phase 5 of the keymap plan on, since config/keys.lua no
+--- longer says it, and META for a keymap from an older spoon that carries no roles, which is
+--- what every such spoon shipped.
+function obj.windowName(keymap)
+  local roles = type(keymap) == "table" and keymap.roles or nil
+  if type(roles) == "table" and type(roles.window) == "string" then return roles.window end
+  return "META"
+end
+
+--- obj.remapLine(names) -> string
+--- The last line of the key inventory, the held leaders the remap was applied with, catalog names
+--- sorted and joined with a plus, or none. It is written after the sorted chord lines rather than
+--- among them, so it is always the file's last line.
+function obj.remapLine(names)
+  local list = {}
+  for _, n in ipairs(names or {}) do list[#list + 1] = tostring(n) end
+  table.sort(list)
+  return "remap\t" .. (#list > 0 and table.concat(list, "+") or "none")
+end
+
+--- obj.remapOf(composed, catalog) -> list of catalog names
+--- What a running config remapped. A config from phase 5 of the keymap plan on records it as
+--- remap. An older one remapped exactly the held leaders it built, which it records by the name a
+--- row spells each with, so those are read back against the catalog's own names.
+function obj.remapOf(composed, catalog)
+  if type(composed) ~= "table" then return {} end
+  if type(composed.remap) == "table" then return composed.remap end
+  local byLower = {}
+  for name in pairs(catalog or {}) do byLower[tostring(name):lower()] = name end
+  local out = {}
+  for name in pairs(composed.leaders or {}) do
+    if byLower[name] then out[#out + 1] = byLower[name] end
+  end
+  return out
+end
+
 local function modsWord(row)
   if row.anyMods then return "any" end
   if #row.mods == 0 then return "none" end

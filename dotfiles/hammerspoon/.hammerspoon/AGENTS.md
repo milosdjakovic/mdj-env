@@ -4,7 +4,8 @@ Configuration in `dotfiles/hammerspoon/.hammerspoon/`:
 - `init.lua` - Entry point, holding this machine's own data and preferences plus the one call into Olm
 - `config/` - User-editable configuration (pure data)
   - `apps.lua` - App bundle ID registry
-  - `keys.lua` - The two leader keys and the app toggle list, nothing that belongs to one plugin
+  - `keymap.lua` - Every key and alias this person sets, one file Olm owns and reads as `cfg.keymap`, never a plugin. `keys` maps a chord, a leader or modifiers joined by `+` with the key last, to an action id such as `vpn.open`, or to `false` to free it. `leaders` names a set of real modifiers as a leader of its own, `roles` moves a role to another held leader, and `aliases` replaces a plugin's launcher words. Empty means the shipped keys exactly, see the file's own header and `Spoons/Olm.spoon/lib/keymap.lua`
+  - `keys.lua` - The app toggle list alone, until phase 6 of the keymap plan moves each toggle's key into `keymap.lua`
   - `plugins.lua` - One entry per plugin identity, holding that plugin's overrides of its manifest defaults, its person supplied data and its spoon global, or `false` to switch it off. Only a plugin under `plugins/` can be switched off, a host written `false` is refused with a console line, and a switch saved by the OLM settings page under `Olm.disabledPlugins` joins these, see `Spoons/Olm.spoon/lib/pluginswitch.lua`
   - `settings.lua` - Global settings (margins, timing)
   - `workspaces/` - Workspace definitions (dev.lua, vicert.lua)
@@ -158,27 +159,30 @@ so each apply is idempotent and frees any dropped key.
 | Key | Fn | Name | Policy | Role |
 |-----|-------|------|-------|------|
 | Right Option | F16 | META | driven repeat, quiet over lists, window sheet | the active window leader: bare arrow = **resize** (halves + full-height + reasonable), `WASD` = **move** (W up, A left, S down, D right); return = maximize; `C` = center; `,`/`.` = prev/next display; letters = presets + grow/shrink |
-| Right Command | F17 | SUPER | the same as META | in the catalog but **unreferenced**, so it is not remapped and Right Command is a normal key; point `windowLeader` at it to swap |
+| Right Command | F17 | SUPER | the same as META | in the catalog but **unused**, so it is not remapped and Right Command is a normal key; `roles = { window = "super" }` in `config/keymap.lua` swaps it in |
 | Caps Lock | F18 | HYPER | Caps Lock tap, list contexts, Hyper sheet | hold + letter = app toggles; quick tap = `hs.hid.capslock.toggle()` |
 
 Every leader is an instance of one adapter, `Spoons/Olm.spoon/lib/leader.lua`, and what differs
 between them is its policy, `policy.leaderPolicy` in `root/compose.lua`, keyed by catalog name
-beside the catalog and overridable through `cfg.policy`. The root builds one instance per leader
-in use and loops over them naming none. `Spoons/Olm.spoon/AGENTS.md` has the policy fields and
+beside the catalog and overridable through `cfg.policy`. The root builds one instance per catalog
+row and per leader the person names, keeps those some bound row uses, and loops over them naming
+none. `Spoons/Olm.spoon/AGENTS.md` has the policy fields and
 what the merge of the two old adapters found.
 
-A catalog key is "active" only by being **referenced**. The catalog names no
-consumer, so the dependency points one way, apps and windows name their leader
-and the catalog stays ignorant of both. `config/keys.lua` sets `appLeader =
-"HYPER"` and `windowLeader = "META"`. `root/compose.lua`
-computes exactly that referenced set and applies the remap itself through
-`lib/keyremap.lua`, then resolves each `fkey` to a keycode via
-`hs.keycodes.map`, builds each leader in use with its keycode and policy, and
-stamps the keycode onto the rows of each leader whose policy reveals the window
-sheet so no plugin ever learns the catalog. So moving all of window management to another physical key is one edit,
-`windowLeader = "SUPER"`, which also frees Right Option and claims Right Command
-automatically. An unreferenced key is neither remapped nor tapped, so it stays a
-normal key with no extra step. `src/setup-capslock-hyper.sh` no longer installs
+A catalog key is "active" only while some **bound row uses it**. The catalog names no
+consumer, so the dependency points one way. A plugin's defaults name a role, `app` or
+`window`, the app role lands on HYPER and the window role on META, and the `roles` section of
+`config/keymap.lua` moves either to another held leader. `root/compose.lua` builds the keymap,
+asks it which leaders its bound rows and list keys use, `lib/keymap.lua`'s `leadersInUse`, and
+applies the remap for exactly those through `lib/keyremap.lua`, so the leader list, the engines
+the binder reaches, the sheets and the leader hosting lists all follow one answer. So moving all
+of window management to another physical key is one edit, `roles = { window = "super" }`, which
+frees Right Option and claims Right Command, and a single chord written on `super` claims Right
+Command too. An unused key is neither remapped nor tapped, so it stays a normal key with no extra
+step. Moving the app role off hyper still keeps Caps Lock remapped, since every list's keys live
+on the leader whose policy turns contexts on, HYPER. A keymap that fails to build falls back to
+the leaders the roles name plus that list leader, so Caps Lock keeps its tap and every list its
+keys even where a role moved off it. `src/setup-capslock-hyper.sh` no longer installs
 anything, it only removes the legacy LaunchAgent on older machines.
 
 Why remap at all? Raw Caps Lock is a toggle key and emits no usable key
@@ -211,7 +215,22 @@ bindings name through `provides.actions`, a list of descriptors, which is what
 whose action is `open`, a row may name its own role or `leader = false` for a plain
 combination with its modifiers, and `defaults.leader` is the role a row naming none inherits.
 Every listed action descriptor is also a launcher row Olm builds, so a plugin builds no row
-for what it can run. The window leader binds
+for what it can run. Where a person's keys live today, every action's in `config/keymap.lua`, the
+app toggles still in `config/keys.lua` until phase 6 of the keymap plan, and a `key` override
+still honoured in `config/plugins.lua` until phase 7, never in a plugin. An action id is the
+identity, a dot and the action, `vpn.open`, `windowmanager.leftHalf`, `apptoggler.Safari`,
+`launcher.lock`. An action named there takes exactly its listed chords and loses its defaults. A
+person's chord on a slot a default holds drops that one row of the default, with one routine
+`Olm keymap` console line naming it, and a keymap entry ranks above every other source of the
+person's, so it drops a toggle on its slot the same way. `false` frees a global chord, and list
+keys are reached by neither until phase 7. A toggle moved there binds its new chord, while the
+Hyper sheet's app sections and the app's launcher row still show the old one until phase 6, and
+an id naming an app with two toggles, `apptoggler.Ghostty`, is refused rather than moving both.
+`fn` is refused on a held leader, the keypad plus is `pad+` and the main row plus is `shift+=`. A name under `leaders`, `nav = { "shift", "ctrl" }`, is a leader of its own on the
+modifier trigger with that base set, read as Nav on a launcher row the way Hyper is, with no
+sheet and no tap, and its slot is the whole combination, so it collides with the same plain
+combo. Every entry Olm cannot read is a problem line naming it, and
+`Spoons/Olm.spoon/test/keymap-fixture.lua` with its goldens proves a whole keymap offline. The window leader binds
 onto the one keycode the root configured it with, so a plugin never sees a keycode. Every
 leader shares one resolver that knows modifiers, with optional per binding `mods`, an exact match on shift, ctrl, alt and cmd,
 ignoring the `fn` flag macOS stamps on arrow keys, then a catch-all fallback. A
@@ -372,16 +391,17 @@ reaches neither surface is considered unfinished.
 
 Coupling is contained, since no plugin holds a leader. Olm binds every key from the keymap onto
 the leader its row names, so a plugin needs nothing to fall back on, and a leader whose
-catalog row is not referenced is simply not built. The one plugin that still asks about a
+catalog row no bound row uses is never started or remapped. The one plugin that still asks about a
 leader, the clipboard, asks Olm's `leader` view only whether any held leader is down, so a
-provider that posts a keystroke waits for release. Window management's leader must be
-referenced in `config/keys.lua` as `windowLeader` (which is what applies its remap). Trade-offs:
-the remaps are machine-wide, so each referenced physical key loses its normal
+provider that posts a keystroke waits for release. Window management sits on whichever held
+leader the window role lands on, META unless `config/keymap.lua` moves it, and its rows using
+that leader is what applies its remap. Trade-offs:
+the remaps are machine-wide, so each used physical key loses its normal
 function in every app (today Caps Lock is F18 and Right Option is F16; the left
-modifiers still work, and Right Command is unreferenced so it stays a normal
+modifiers still work, and Right Command is unused so it stays a normal
 key). The remapped keys only do anything while Hammerspoon runs, and now the
 remap itself is applied only while it runs, `lib/keyremap.lua` sets it on load and clears
-it on quit. To free a key, stop referencing it; to disable everything, quit
+it on quit. To free a key, stop using it in any chord, and to disable everything, quit
 Hammerspoon.
 
 Config auto-reloads when files change. Get app bundle ID: `osascript -e 'id of app "APP_NAME"'`
@@ -903,7 +923,8 @@ step mirroring what the clipboard already does.
    plugin does for its location picker.
 2. Declare the context in the plugin's own manifest `surface`, with a name, a `when`
    predicate name, a priority, and the bindings by action name. This stays pure data, and
-   a person changes a binding in `config/plugins.lua`, never in the plugin.
+   a person changes a list binding under `surface` in `config/plugins.lua` until phase 7 of
+   the keymap plan moves list keys into `config/keymap.lua`, never in the plugin.
 3. Add the predicate, the `when` name mapped to a function returning whether that
    surface is open, either on the plugin's own `predicates` table or, for a root owned
    gate, straight into `ownPredicates` in `root/compose.lua`.
@@ -1571,7 +1592,7 @@ claims, and it names no tool. This root names the concrete scopes, each a thin a
 a tool that already answers a rows and a select, so a tool never learns it can be scoped.
 
 Adding one is two edits and there is no third. The `aliases` field goes on that
-tool's manifest `defaults`, a person's own words go in its `config/plugins.lua` entry, and its icon is the `defaults.icon` its manifest already declares, and one `scope(name, policy)` line goes in the list
+tool's manifest `defaults`, a person's own words go under `aliases` in `config/keymap.lua`, and its icon is the `defaults.icon` its manifest already declares, and one `scope(name, policy)` line goes in the list
 here, where the policy is only where the rows come from, what choosing one does, what
 previewing one does, and whether the shared matcher applies. Everything a scope says about
 itself is read from that one entry by that helper, and one identity ties it together, the

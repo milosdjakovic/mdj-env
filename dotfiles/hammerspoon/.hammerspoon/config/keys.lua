@@ -1,22 +1,15 @@
--- Keybinding definitions that belong to no plugin.
+-- The app toggle list, the one key list left outside config/keymap.lua.
 --
--- Pure data, no logic. This file holds two things only, the physical key each leader domain
--- uses, and the app toggle list the AppToggler plugin reads. config/plugins.lua hands it over as that
--- plugin's own data, next to the bundle id catalog in config/apps.lua. That plugin then
--- tells the Hyper cheat sheet and the launcher's app rows what it bound. Everything else about
--- a key lives with the plugin that owns it. A plugin's own key, its aliases and the Hyper
--- contexts it joins are declared in that plugin's manifest, and a person's change to any of
--- them, or to a plugin's data, goes in config/plugins.lua, keyed by plugin identity.
+-- Pure data, no logic. This file holds the app toggle list the AppToggler plugin reads, which
+-- config/plugins.lua hands over as that plugin's own data, next to the bundle id catalog in
+-- config/apps.lua. That plugin then tells the Hyper cheat sheet and the launcher's app rows what
+-- it bound. Every other key choice a person makes is written in config/keymap.lua, a chord to
+-- any plugin's action, a leader of their own, a role moved to another held leader, and a
+-- plugin's aliases. Which held leader each role lands on lived here as appLeader and windowLeader
+-- until phase 5 of the keymap plan, and is the roles section of that file now. Phase 6 moves
+-- these toggles there too, each key into its keys section, and this file goes.
 
 local M = {
-  -- Which catalog key each domain uses. This single reference is the domain
-  -- naming its leader, the only place the app or window to physical key link
-  -- lives. Change a name to move that domain onto another key; leave a catalog
-  -- key unreferenced and it stays a normal key. HYPER is the app leader and the
-  -- window leader drives the window layout keys.
-  appLeader    = "HYPER",
-  windowLeader = "META",
-
   -- App toggle bindings (for Olm's AppToggler plugin)
   -- Uses app names from config/apps.lua. Reaches the plugin through the apptoggler entry in
   -- config/plugins.lua, which points at this list rather than copying it.

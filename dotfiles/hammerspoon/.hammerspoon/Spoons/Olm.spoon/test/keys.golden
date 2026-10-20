@@ -157,3 +157,4 @@ hyper	x	any	workspacesOpen	100	workspaces
 hyper	y	any	fileSearchOpen	100	fileSearch
 hyper	z	any	-	-	apptoggler
 hyper	§	any	-	-	launcher
+remap	HYPER+META
