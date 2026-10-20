@@ -230,7 +230,7 @@ a number or a table, so there is no closed set of words to publish. `sheet` says
 the leader's cheat sheet, drawn by the one `host/leadersheet`, and `sheetLayout` is the table beside it
 that lays it out, `title`, `columns`, `colWidth`, `iconSize`, `gap`, `groupGap` and `badgeWidth`,
 with `lib/leader.lua`'s `sheetLayout` filling a leader that states none with the renderer's own
-two columns under a plain heading. `tapTogglesCapsLock` and `contexts` are HYPER's,
+two columns under a plain heading. `tapTogglesCapsLock`, `contexts` and `sealedOverLists` are HYPER's,
 `drivenRepeat` and `quietOverLists` are META's, and SUPER ships META's policy because it is the
 documented other home of the window role. `checkPolicy` names a field of the wrong type or one no
 leader reads in one problem line and leaves it at its default, a layout field out of range or a
@@ -248,13 +248,13 @@ on one of the two leaders for no gain, since the keymap refuses two global rows 
 
 **Exactly two behaviours changed.** A key whose matching bindings are all gated off is swallowed
 as a bound no op on every leader, where Hyper left it unbound and with passthrough on leaked it
-to the app in front as F18 and the key. And an unknown predicate name warns once per leader. A
-binding dropped by the modal rule is outranked rather than gated, so a key whose only binding is
-a base one still passes through while a list is open, as before. On this machine the keys that
-flip outside a list are Hyper and H, Q and Y, file search's own list keys. Inside an open list
-the base binding of every key is dropped by the modal rule, and a key some other list binds is
-then swallowed through that list's gated binding, so with the launcher open Hyper and A, D, F, L,
-M, R, S, X, H, Q and Y are swallowed while B, C and E still pass through.
+to the app in front as F18 and the key. And an unknown predicate name warns once per leader. On
+this machine the keys that flip outside a list are Hyper and H, Q and Y, file search's own list
+keys. Inside an open list the modal rule drops the base binding of every key, and Hyper's
+`sealedOverLists` policy then swallows whatever resolves to no live binding, so with the launcher
+open Hyper and A, B, C or E are all swallowed while list keys act as ever. META and SUPER swallow
+every key over an open list through `quietOverLists`, and outside lists an unbound Hyper key still
+passes through.
 
 **No hold reveals a sheet over an open list, on any leader.** Hyper's reveal lived in the root
 and checked for an open list itself, and the window leader's went quiet through its gate, so
@@ -285,10 +285,11 @@ keys over the defaults inside `build`. The rules are three. An action named in `
 exactly its listed chords and loses every row it had, copying its gate, label, repeat and function
 from the first row it had, so a moved action behaves as it did. A row the person set wins a slot a
 default holds, and the default is dropped with one routine `Olm keymap` console line, never bound
-beside it and never a problem, which replaced the one exemption the collision check kept. That
-covers every row of the person's, the keymap's and any `bindings` override still in
-`config/plugins.lua`, and a keymap entry ranks above the others, so it drops such a binding on its
-slot with the same line. And `false` frees a global chord, dropping whatever holds it. Since phase
+beside it and never a problem, which replaced the one exemption the collision check kept. And
+`false` frees a global chord, dropping whatever holds it. Since phase 7 `config/plugins.lua` holds
+no key, its `key`, `mods`, `leader`, `bindings`, `surface` and `aliases` each refused by
+`keymap.refusePluginKeys` with a problem line naming `config/keymap.lua`, so a keymap entry is the
+only row of the person's. Since phase
 6 an app toggle is an action like any other, one per app and one per variant, so the plain and the
 placed Ghostty are two ids and each moves alone. `fn` is refused on a held leader, which compares only the other four
 modifiers, the keypad plus is `pad+` and the main row plus `shift+=`. A named leader no chord uses
@@ -300,7 +301,27 @@ keys with it. The slot of a row on a named modifier leader is the whole combinat
 leader, so `nav+T` and `ctrl+shift+T` are one slot. `roles` is merged over app on HYPER and window
 on META by hand, since `lib/defaults.lua`'s merge reads an empty table as a list that replaces. The
 `aliases` section is merged over the person's overrides before the plan resolves, so the
-resolver, the registrar's collision check and every row hint read one answer, the keymap winning
-over an alias override still written in `config/plugins.lua`. `cfg.leaders` is retired and named.
+resolver, the registrar's collision check and every row hint read one answer. `cfg.leaders` is
+retired and named.
+
+The `lists` section holds the keys live while a list is open, read by `readConfig` into one entry
+list per list name and `all`, and laid over the built lists by `keymap.applyLists` in the root,
+right after the plan resolves and before the hint bar, the action panel, the keymap and the
+contexts read them, so all of them read one answer. The shared verbs carry `shared` on their
+binding, `primary`, `selectNext`, `selectPrev`, `close` and `openActionPanel`, and `lib/surface.lua`
+builds them on the keys of Olm's own `all` layer, `keymap.listDefaults`, handed in through the
+resolver's `listKeys`, so that file holds no key and the dry gate refuses one written there. A
+manifest's own key, an `extra` row's or a `close.key`, is that list's default, and `all` moves and
+frees only a binding marked `layerKey`, one whose key came from Olm's own layer, so such a key
+moves only when the person names that list. `all` is laid first and each list's own table over
+it, a list's own table deciding every binding its entries resolve to, by action or shared verb,
+and every slot it names. An entry naming an action a need this machine lacks left out, the block's
+`unmet`, is a routine note. Inside one list the keys section's rules hold, an action named takes exactly its chords, a chord
+on a default's slot drops that default with a routine line, and `false` frees a slot. Two entries
+of one table on one slot are refused together. A list chord sits on the leader hosting lists only,
+it may shadow a global chord, since the keymap checks collisions per layer, and a binding listed
+with `chord = false` is no person setting. A moved binding names its entry, and its keymap row is
+the person's. `test/keymap-person.lua` pins the layer and `test/keymap-fixture-lists.lua` with its
+golden proves it through the real root.
 `test/keymap-person.lua` pins every rule in plain Lua, and `test/keymap-fixture.lua` and
 `test/keymap-fixture-roles.lua` with their goldens prove the person's case through the real root.

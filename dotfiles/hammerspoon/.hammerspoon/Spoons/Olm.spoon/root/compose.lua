@@ -211,7 +211,7 @@ local SHIPPED_POLICY = {
   -- called, since the leader's own name, META, says nothing to anybody reading a list of window
   -- actions.
   leaderPolicy = {
-    HYPER = { tapTogglesCapsLock = true, contexts = true, sheet = true,
+    HYPER = { tapTogglesCapsLock = true, contexts = true, sealedOverLists = true, sheet = true,
       sheetLayout = { title = "ACTIONS", columns = 4, colWidth = 215, iconSize = 32, gap = 10, groupGap = 20 } },
     META  = { drivenRepeat = true, quietOverLists = true, sheet = true,
       sheetLayout = { title = "WINDOW MANAGEMENT", columns = 2, colWidth = 250, badgeWidth = 44, gap = 12 } },
@@ -297,8 +297,13 @@ function obj.run(olm, cfg)
   -- live under plugins, since only those may be switched off.
   local savedDisabled = hs.settings.get(switchLib.SETTINGS_KEY)
   -- What the resolver merges over each plugin's defaults. A false entry travels in the disabled
-  -- set instead, so a false the merge refuses, one written for a host, switches nothing off.
-  local pluginOverrides = switchLib.overrides(pluginEntries)
+  -- set instead, so a false the merge refuses, one written for a host, switches nothing off. Every
+  -- key field a person could once write per plugin, key, mods, leader, bindings, surface and
+  -- aliases, is refused here with one problem line naming config/keymap.lua, which holds every key,
+  -- list key and alias since phase 7 of the keymap plan, so a field left in config/plugins.lua is
+  -- said out loud rather than merged or dropped in silence.
+  local pluginOverrides, refusedKeyFields = keymapLib.refusePluginKeys(switchLib.overrides(pluginEntries))
+  for _, problem in ipairs(refusedKeyFields) do keymapProblems[#keymapProblems + 1] = problem end
   local globals = {}
   for name, entry in pairs(pluginEntries) do
     if type(entry) == "table" and entry.global ~= nil then globals[name] = entry.global end
@@ -828,9 +833,8 @@ function obj.run(olm, cfg)
   -- The keymap's aliases, merged over the person's overrides as that plugin's aliases, so the
   -- resolver, the registrar's collision check, the alias directory and every row hint read the one
   -- merged answer, marked as the person's like any override. A plugin named there takes exactly
-  -- those words in place of its defaults.aliases. An alias override still written in
-  -- config/plugins.lua keeps working until phase 7 of the keymap plan, and where both state one
-  -- the keymap wins. An identity naming no plugin or host is a problem line and merges nothing.
+  -- those words in place of its defaults.aliases, and config/plugins.lua holds no alias, its field
+  -- refused above. An identity naming no plugin or host is a problem line and merges nothing.
   for _, identity in ipairs((function()
     local names = {}
     for name in pairs(keymapConfig.aliases) do names[#names + 1] = name end
@@ -851,6 +855,7 @@ function obj.run(olm, cfg)
   local firstPass = resolver.plan({
     manifests = allManifests,
     user = pluginOverrides,
+    listKeys = keymapLib.listDefaults,
     disabled = disabled,
     switchable = isSwitchable,
     present = presentTool,
@@ -1548,7 +1553,34 @@ function obj.run(olm, cfg)
     modules = modules,
     libs = libs,
     data = servicesLib.merge(fannedData, rootFanned),
+    -- Olm's own all layer, the key each list's shared verbs sit on, a core default the person
+    -- moves in the lists section of config/keymap.lua and never here.
+    listKeys = keymapLib.listDefaults,
   })
+
+  -- The person's lists section, laid over every list's bindings once, here, before the hint bar,
+  -- the action panel, the keymap and the contexts read any of them, so a list key moved there
+  -- shows its new chord everywhere it is bound. The keys live on the leader whose policy turns
+  -- contexts on, and a chord on any other is a problem line. A section naming the list of a
+  -- plugin that exists and is not loaded this time is a routine line, the rule a keys entry for a
+  -- plugin switched off follows.
+  do
+    -- Keyed the way the resolver keys plan.contexts, the declared context or else the identity,
+    -- which is the key allManifests is keyed by.
+    local listNames = {}
+    for identity, manifest in pairs(allManifests) do
+      if type(manifest.surface) == "table" then
+        listNames[manifest.surface.context or identity] = true
+      end
+    end
+    local listProblems, listNotes = keymapLib.applyLists(plan.contexts, keymapConfig.lists, {
+      listLeader = contextSpec and contextSpec.name or nil,
+      keycodes = hs.keycodes.map,
+      known = function(name) return listNames[name] == true end,
+    })
+    for _, problem in ipairs(listProblems) do keymapProblems[#keymapProblems + 1] = problem end
+    for _, note in ipairs(listNotes) do log.i("Olm keymap, " .. note) end
+  end
 
   for _, p in ipairs(plan.problems or {}) do
     log.e("Olm compose, plan problem, " .. tostring(p.kind) .. " at " .. tostring(p.where) .. ", " .. tostring(p.why))

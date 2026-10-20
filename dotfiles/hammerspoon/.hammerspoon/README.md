@@ -7,7 +7,7 @@
 ├── init.lua                      # Main orchestrator (loads and wires everything)
 ├── config/                       # Configuration (pure data, edit these)
 │   ├── apps.lua                  # App bundle ID registry
-│   ├── keymap.lua                # Every key a person sets, app toggles included
+│   ├── keymap.lua                # Every key, list key and alias a person sets, app toggles included
 │   ├── plugins.lua               # Per plugin data and switches, no keys
 │   └── settings.lua              # Global settings (margins, timing, etc.)
 └── Spoons/                       # Hammerspoon Spoons (reusable logic)

@@ -166,9 +166,8 @@ return {
     actions = "actions",
   },
 
-  -- Hyper plus X opens the native manager. No icon and no aliases are set on this
-  -- entry in config/plugins.lua, unlike most of the other pickers, so none are stated
-  -- here either. Append copy and paste next sit on global combinations, Control and Option
+  -- Hyper plus X opens the native manager. No icon and no aliases are stated for this
+  -- tool, here or in config/keymap.lua, unlike most of the other pickers. Append copy and paste next sit on global combinations, Control and Option
   -- with C and V, rather than on a Hyper chord, because both act on whatever was frontmost a
   -- moment ago rather than on a list that is already open, a different gesture that wants a
   -- plain combination, and it is the only place either has ever lived. leader false is how a

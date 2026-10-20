@@ -265,16 +265,32 @@ name. A plugin never supplies a sheet section, a key row or an app row's details
 `provides.bindings`, `provides.cheatSheetSections` and `provides.launcherAppDetails` are retired
 and refused by name.
 
+Each concern has one way, and a plugin declares each thing in exactly one place.
+
+| Concern | The one way |
+|---|---|
+| What a plugin can run | `provides.actions` descriptors |
+| Which keys a plugin suggests | `defaults.bindings` |
+| Which words a plugin suggests | `defaults.aliases` |
+| A plugin's lists and their verbs | its `surface` block |
+| A person's keys, list keys and aliases | `config/keymap.lua` |
+| A plugin's data and its switch | `config/plugins.lua` |
+| Which physical key is remapped | Olm's leader catalog |
+
 Configuration splits three ways. The plugin proposes its own `defaults`, a leader role, its
-`bindings`, aliases, an icon, and a person overrides them outside the plugin. Every key and alias
-a person sets is written in `config/keymap.lua`, a chord to `identity.action`, a role moved to
-another held leader, a set of modifiers named as a leader, and replacement aliases, read by Olm's
-root alone, so a plugin never reads it, never learns a person's keys and never assumes its action
-sits on the key it suggested. Where keys live today, every action's in `config/keymap.lua`, the
-app toggles included, and a `key` or alias override still honoured in `config/plugins.lua` until
-phase 7 of the keymap plan refuses them. Every other default is
-overridden in the plugin's entry in `config/plugins.lua`. A plugin action is reachable from the keymap by its descriptor's `name`, its
-tool's open row is `open`, so name actions as a person would write them. Person supplied policy
+`bindings`, aliases, an icon, and its `surface` with the keys of its own list verbs, and a person
+overrides them outside the plugin. Every key, list key and alias a person sets is written in one
+place, `config/keymap.lua`, a chord to `identity.action`, a role moved to another held leader, a
+set of modifiers named as a leader, replacement aliases, and the `lists` section for the keys live
+while a list is open, read by Olm's root alone, so a plugin never reads it, never learns a person's
+keys and never assumes its action sits on the key it suggested. `config/plugins.lua` refuses
+`key`, `mods`, `leader`, `bindings`, `surface` and `aliases` with a problem line naming
+`config/keymap.lua`, and every other default is overridden in the plugin's entry there. A plugin
+action is reachable from the keymap by its descriptor's `name`, its tool's open row is `open`, and
+a list verb by the action name its `surface` gives it, so name actions as a person would write
+them. The keys every list shares, the primary, the two move keys, close and the action panel, are
+Olm's own `all` layer and never a plugin's, so a `surface` names only its primary action and the
+`extra` rows it adds, and a key listed with `chord = false` stays the plugin's own fact. Person supplied policy
 arrives as `needs.data` with `source = "user"`, always optional, always with a `breaks` sentence
 and a working fallback.
 

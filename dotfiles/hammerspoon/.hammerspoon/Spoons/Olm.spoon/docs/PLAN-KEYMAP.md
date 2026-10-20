@@ -544,6 +544,54 @@ The golden is unchanged. Update `docs/PLUGIN-CONTRACT.md`, `docs/PLUGIN-AUTHORIN
 `AGENTS.md` leader section and the `olm-plugin` skill, which from here carry the one way table
 above, one place a person sets a key or an alias and one way a plugin declares each thing.
 
+Landed on 2026-10-20 after review, a fix round and a live load with Milos pressing the keys.
+
+- Found in 7. The plan wrote `all` as chords to action names, `hyper+x` to `close`. Every list's
+  primary is `insertSelected` and every close `closeChooser` today, but both are a list's own
+  choice, so a shared verb is named by what it does. A binding `lib/surface.lua` builds for one
+  carries `shared`, `primary`, `selectNext`, `selectPrev`, `close` or `openActionPanel`, and an
+  entry names a binding by its action or its shared verb, so `close` reaches the launcher's close
+  on space and `closeChooser` reaches it too.
+- Found in 7. Olm's own `all` layer is `lib/keymap.lua`'s `listDefaults`, a shared verb to its key
+  with no leader, since every list key binds on the leader whose policy turns contexts on. It is
+  handed to the resolver as `listKeys`, and `lib/surface.lua` builds each verb on its key and drops
+  a verb with none, so that file holds no key and the dry gate's twelfth check refuses one written
+  there. It is not in `policy`, since `cfg.policy` would then be a second place a person sets a key.
+- Found in 7. The order is Olm's `all` layer, then a manifest's own key, an `extra` row's or the
+  launcher's `close.key`, then the person's `all`, then the person's table for that list. A list's
+  own table decides every binding its entries resolve to, by action or by shared verb, and every
+  slot it names, so an `all` entry on either does not reach that list.
+- Found in 7, after review. The person's `all` moves and frees only keys that came from Olm's own
+  layer, marked `layerKey` on the binding, so a key a manifest states for a shared verb, the
+  launcher's space close that doubles as its open key, and an `extra` row's key move only in that
+  list's own table. Milos decided it. The first build let `all` move the launcher's close too.
+- Found in 7, after review. An entry naming an action left out for a need this machine lacks is
+  a routine note, read from the block's `unmet`, and a `config/plugins.lua` entry left with
+  nothing once its key fields are refused is left out rather than merged as an empty table, which
+  the merge reads as an empty list replacing every default.
+- Found in 7. The person's layer is laid by `keymap.applyLists` in the root right after the plan
+  resolves, rather than inside the resolver, which keeps the person's keys out of the plan
+  builder the way the keys section is. Every reader comes after it, the hint bar, the action
+  panel, the keymap's rows and the contexts the root binds, so all of them read one answer, and a
+  moved binding names its entry so its keymap row is the person's.
+- Found in 7. Two entries of one table on one slot, `hyper+n` and `hyper+N`, are refused together
+  with one problem and neither applied, where the keys section binds both and reports the pair.
+  A list clash would otherwise be reported once per list `all` reaches, and refusing both picks
+  no winner. Two defaults on one slot of a list are still the keymap's collision check, per layer.
+- Found in 7. The refusal retires more than the two key paths. `lib/defaults.lua`'s
+  `splitOpenKey`, `keepOpenRow`, `applyOpenKey` and `unbindsOpenKey` went, with `key = NONE` or
+  `false` unbinding an open row, and `lib/keymap.lua` lost the tier that let a keymap entry drop a
+  binding written in `config/plugins.lua`, since a keymap entry is now the person's only row. A
+  manifest row's origin is always default. `config/plugins.lua` on this machine held no `key`,
+  `mods`, `leader`, `bindings`, `surface` or `aliases`, so nothing moved into `lists` or `keys`.
+- Found in 7. `hints.actionKinds` took a context's first binding as its primary, which a person
+  freeing the primary key would have turned into an extra read as navigation. It reads `shared`
+  now and keeps the first binding rule for a block built by hand that marks no shared verb.
+- Found in 7. `keys.golden`, `launcher.golden`, `sheets.golden` and the existing fixture goldens
+  are byte identical and every engine receives its bindings in main's order. The layer is proved
+  by `test/keymap-fixture-lists.lua` and its golden, run by `goldens.sh`, and by the lists cases in
+  `test/keymap-person.lua`.
+
 ## Not in this plan
 
 List keys on a leader other than `hyper`. A keys page in the OLM settings, which the keymap makes

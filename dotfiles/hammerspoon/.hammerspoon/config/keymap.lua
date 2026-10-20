@@ -23,8 +23,8 @@
 --   every action not named keeps its own. A chord a default holds is taken from that default, and
 --   that one row of the default is not bound, said in one routine console line, while the action
 --   keeps every other chord it has. false frees a global chord, so whatever held it is not bound
---   and nothing takes its place. List keys, the ones live while a list is open, are not reached
---   by false or by any entry until phase 7 of the keymap plan brings them here.
+--   and nothing takes its place. The keys live while a list is open are the lists section below,
+--   never this one.
 --   An app's key shows wherever Olm lists the app, on the sheet of the leader it sits on and on
 --   the app's own launcher row, so moving one here moves it everywhere.
 --     ["meta+E"] = "vpn.open",
@@ -47,6 +47,24 @@
 -- aliases maps a plugin identity to the words that scope the launcher to it, in place of the words
 -- the plugin ships. Every plugin not named keeps its own.
 --     vpn = { "v", "vpn", "tunnel" },
+--
+-- lists holds the keys live only while a list is open, one table per list keyed by its context
+-- name, clipboard, fileSearch, emoji, launcher and the rest, and all for the keys every list
+-- shares. Each maps a chord to the action it runs in that list, or to false to free it. The
+-- shared verbs are primary, the list's own main action, selectNext, selectPrev, close and
+-- openActionPanel, which Olm puts on hyper and i, j, k, x and o unless a list states its own, the
+-- launcher closing on space. Any other action a list lists, deleteSelected in the clipboard, is
+-- named the same way. all is read first and each list's own table over it, so a list's own entry
+-- decides every action and chord it names there. all moves only the keys Olm gave, so the
+-- launcher's space close, which is also its open key, moves only in a launcher table, and a key a
+-- list adds of its own, deleteSelected's d, moves only in that list's table. The rules are the keys section's inside one list.
+-- An action named takes exactly the chords listed for it, a chord a default holds is taken from it
+-- with one routine console line, and false frees the chord. A list key lives on hyper only, and it
+-- may shadow a global chord while its list is open, the way hyper+j opens emoji outside a list and
+-- moves down inside one. A key a list reads for itself, Backspace leaving a hosted list, is the
+-- list's own and is not set here.
+--     all       = { ["hyper+n"] = "selectNext" },
+--     clipboard = { ["hyper+e"] = "deleteSelected", ["hyper+o"] = false },
 
 return {
   keys = {
@@ -103,5 +121,10 @@ return {
 
   aliases = {
     -- vpn = { "v", "vpn", "tunnel" },
+  },
+
+  lists = {
+    -- all       = { ["hyper+n"] = "selectNext" },
+    -- clipboard = { ["hyper+e"] = "deleteSelected" },
   },
 }

@@ -58,6 +58,12 @@ or `host/` is a finding naming the file and the line. And it checks each plugin'
 `provides.actions` through the registrar's own validation, against the
 module it configured, so a malformed descriptor is refused here in the words a live load uses.
 
+It refuses a key literal in `lib/surface.lua` as well, since the keys every list shares are Olm's
+own all layer in `lib/keymap.lua` and a person moves them in the `lists` section of
+`config/keymap.lua`. A field named key whose value holds a quoted string or a bare number is a
+finding, a string inside a log message and an index such as `keys[1]` are not, and a key reached
+through a local or a value starting on the next line is a blind spot a review reads for.
+
 Run it standalone too, straight from the shell, no suite.sh, no lock, no Hammerspoon:
 
 ```
@@ -116,8 +122,10 @@ Lua cases for the read model itself, collisions by layer, leader, key and modifi
 row displacing a default, the spelling, the function each row runs and the binding order, and the
 registrar's descriptor validation, and `keymap-person.lua` is the person's own file,
 `config/keymap.lua`, its chord grammar, every problem an entry can raise, displacement, false,
-the leaders, roles and aliases sections and which leaders a keymap puts in use. `suite.sh dry`
-runs both.
+the leaders, roles and aliases sections, which leaders a keymap puts in use, and the lists
+section, Olm's own all layer under every list, a person's all and per list entries, false, a
+refused clash within one list, a list chord shadowing a global one and the hint bar and action
+panel reading the moved key. `suite.sh dry` runs both.
 
 Since the keymap binds, a projection of its rows is not the whole proof, so a second offline
 check records what was actually bound. `keys.sh --bound` runs the composition root under the
@@ -173,7 +181,8 @@ Spoons/Olm.spoon/test/views.sh --fixture keymap-fixture [--update]  # the launch
 A person's keymap is proved offline through fixtures, a Lua file under `test/` returning a keymap
 table, which the stubbed run hands to Olm as `cfg.keymap` in place of `config/keymap.lua`.
 `keymap-fixture.lua` is the person's own case, `keymap-fixture-roles.lua` the window role moved
-alone, and each golden beside them is named for its fixture, `keymap-fixture.keys.golden` the
+alone, `keymap-fixture-lists.lua` a lists section moving and freeing keys inside lists, and each
+golden beside them is named for its fixture, `keymap-fixture.keys.golden` the
 bound keys followed by one remap line naming the held leaders put in use, and
 `keymap-fixture.launcher.golden` and `keymap-fixture.sheets.golden` the two views. `goldens.sh`
 diffs all of them.

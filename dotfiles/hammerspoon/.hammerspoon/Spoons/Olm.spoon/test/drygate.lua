@@ -946,6 +946,36 @@ do
 end
 
 ----------------------------------------------------------------------------------------
+-- Twelve, no key in lib/surface.lua, see test/drygate-binding.lua's keyLiterals. The keys a
+-- list's shared verbs sit on are Olm's own all layer and the person's lists section since phase 7
+-- of the keymap plan, so a key literal written back into the builder is a finding naming its
+-- line. Read straight from the spoon, since the rule names one file. A quoted string is set aside
+-- first, so a log message is not a field. It cannot see a key reached through a local, or a value
+-- that starts on the line after key =, and a review reads for those.
+----------------------------------------------------------------------------------------
+
+do
+  local scanner = dofile(scriptDir .. "drygate-binding.lua")
+  local rels = {}
+  for rel in pairs(scanner.keyLiteralFiles) do rels[#rels + 1] = rel end
+  table.sort(rels)
+  for _, rel in ipairs(rels) do
+    local f = io.open(spoonDir .. rel, "r")
+    if not f then
+      warning(string.format("dry gate could not read '%s' for the key literal check", rel))
+    else
+      local text = f:read("a")
+      f:close()
+      for _, hit in ipairs(scanner.keyLiterals(text)) do
+        finding(string.format(
+          "dry gate refused '%s', line %d, %s, '%s', a shared list verb's key is Olm's all layer in lib/keymap.lua and a person moves it in the lists section of config/keymap.lua",
+          rel, hit.line, hit.what, hit.source))
+      end
+    end
+  end
+end
+
+----------------------------------------------------------------------------------------
 -- An accepted line that no longer matches anything this run is itself a finding, appended
 -- straight to the real list rather than through finding() above, so it is never itself
 -- eligible to be accepted away, the one rule that keeps this file from rotting.

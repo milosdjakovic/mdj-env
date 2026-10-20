@@ -366,6 +366,26 @@ do
   eq(nameOf((h:_onKey(code, {}))), "toggle", "quiet: a leader that does not go quiet stays live over a list")
 end
 
+-- The sealed rule. Over an open list a key that resolves to nothing is swallowed, a key that
+-- resolves still acts, and with no list open an unbound key answers nil so it leaks as before.
+do
+  local open = false
+  local h = newLeader({ contexts = true, sealedOverLists = true }, predicates, { listOpen = function() return open end })
+  h:bind("a", handler("toggle"))
+  local bound, free = hs.keycodes.map.a, hs.keycodes.map.b
+  eq(h:_onKey(free, {}), nil, "sealed: with no list open an unbound key still passes through")
+  eq(nameOf((h:_onKey(bound, {}))), "toggle", "sealed: with no list open a bound key acts")
+  open = true
+  local s = h:_onKey(free, {})
+  eq(type(s), "function", "sealed: over an open list an unbound key is swallowed")
+  eq(nameOf(s), nil, "sealed: and runs nothing")
+  eq(nameOf((h:_onKey(bound, {}))), "toggle", "sealed: over an open list a live key still acts")
+  local p = newLeader(HYPER_POLICY, predicates, { listOpen = function() return open end })
+  eq(p:_onKey(free, {}), nil, "sealed: a leader without the field still leaks over a list")
+  local _, problems = assert(loadfile(lib .. "leader.lua"))().checkPolicy("HYPER", { sealedOverLists = "yes" })
+  eq(#problems, 1, "sealed: a non boolean is refused")
+end
+
 -- The held trigger registers the key with what the policy decided.
 do
   local held = assert(loadfile(lib .. "leader/triggers/held.lua"))()

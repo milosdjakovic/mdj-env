@@ -3,7 +3,9 @@
 Status. Phases 0 to 5 landed and live, 0 to 2b on 2026-10-19 and 3 to 5 on 2026-10-20, so a
 person sets any key in `config/keymap.lua`. Phase 6 landed and live on 2026-10-20, so app
 toggles and System Settings panes are actions built from data and `config/keys.lua` is gone.
-Phase 7 is agreed and not started. The plan is
+Phase 7 landed and live on 2026-10-20, so the plan is complete. The keys
+live while a list is open are the `lists` section of `config/keymap.lua` and `config/plugins.lua`
+holds no key. The plan is
 `dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/docs/PLAN-KEYMAP.md`.
 
 ## Now
@@ -17,7 +19,7 @@ catalog row and per named leader and keeps the ones the keymap's rows use, Hyper
 and META on the window role here, each an instance of the one adapter `lib/leader.lua` with a held trigger and a
 policy from `policy.leaderPolicy`, plus a plain leader on an empty set of modifiers for a combo
 with no leader, and the composition root loops over them naming none. A key gated off is swallowed
-on every leader and an unknown predicate name warns once on every leader. One cheat sheet host,
+on every leader and an unknown predicate name warns once on every leader. Over an open list every Hyper key that is not a live list key is swallowed too, through `sealedOverLists`, and outside lists an unbound key still passes through. One cheat sheet host,
 `host/leadersheet`, draws whichever held leader is down, its layout a table beside `sheet = true`
 in that leader's policy, and a descriptor's `group` files a row under a section. With phase 2a every global key is a row of the keymap,
 `lib/keymap.lua`, carrying the function it calls, and `lib/binder.lua` binds the keymap's bound
@@ -38,15 +40,19 @@ must navigate and never hide the app. The sheet files rows in blocks by each own
 `defaults.cheatSheetOrder`, draws a row naming an app with that app's icon and name and leaves an
 uninstalled one off, and the launcher merges an action naming an app into that app's own row
 with its chord. `provides.bindings`, `provides.cheatSheetSections` and
-`provides.launcherAppDetails` are retired and refused by name. A list's own keys are still bound through the root's contexts. The collision
+`provides.launcherAppDetails` are retired and refused by name. A list's own keys are bound through
+the root's contexts, built by `lib/surface.lua` on Olm's own `all` layer, `keymap.listDefaults`,
+and laid over by the person's `lists` section through `keymap.applyLists` before the hint bar, the
+action panel, the keymap and the contexts read them. `config/plugins.lua` refuses `key`, `mods`,
+`leader`, `bindings`, `surface` and `aliases` with a problem line naming `config/keymap.lua`. The collision
 check covers every row, modifiers, case, bindings, toggles, commands, list keys and plain combos.
 The plan replaces the rest of this with one keymap the core builds from
 actions plugins export and bindings they propose, overridden by the person in one file Olm owns,
 `config/keymap.lua`, where a chord string maps to a `plugin.action` name and a person may name a
 set of modifiers as a leader of their own. The three held leaders are built in from the catalog
 and carry a cheat sheet, a modifier leader carries none, and a key switched off for the moment is
-swallowed on every leader. The plan ends with one place a person sets a key. List keys get a
-`lists` layer in phase 7 and `config/plugins.lua` then refuses every key field. A plugin's action is a descriptor, run plus description, icon,
+swallowed on every leader. The plan ends with one place a person sets a key, which phase 7 made
+true. A plugin's action is a descriptor, run plus description, icon,
 group, kind, app and the rest, answered fixed or built from its data, and Olm derives the key, the
 cheat sheet row, the launcher row and the chord label from it, which retired
 `cheatSheetSections`, `launcherAppDetails`, `provides.bindings`, and `launcherRows` for anything
@@ -56,6 +62,9 @@ aliases live only in `config/keymap.lua`.
 
 ## Rejected
 
+- **Keeping global keys live over an open list.** 2026-10-20. Leaving an unbound Hyper key to
+  pass through while a list is open would let a global toggle fire underneath the list, acting on
+  whatever sits behind it. Milos chose to swallow instead, see the log.
 - **A plugin naming a leader rather than a role.** 2026-10-19 16:44. It would let a binding say
   `option` directly, but a shipped plugin would then know the person's own leader names. A binding
   names a role and a leader answers roles, so a plugin travels and the person decides where.
@@ -208,6 +217,30 @@ aliases live only in `config/keymap.lua`.
   gives the split to the descriptor's group, which keeps what a section means the plugin's choice,
   and Olm owns only how an app row is drawn, its icon, its name, an uninstalled app left off and
   the order by key.
+
+- **Olm's `all` layer in `policy` beside the leader catalog.** 2026-10-20 12:10. It is where the
+  core's other defaults live, which made it the first place considered. But `cfg.policy` merges
+  over it, so a person could move a list key there as well as in `config/keymap.lua`, a second
+  place to set a key. It is `keymap.listDefaults`, read by nothing a person writes.
+- **An `all` layer keyed only by action names.** 2026-10-20 12:10. It is how the plan wrote it,
+  and every list's primary and close happen to share one name today. But each list names its own
+  primary action and may name its own close, so moving the primary in every list would have named
+  an action some list does not answer. A shared verb is named by what it does and every other
+  action by its name.
+- **Laying the person's lists inside `lib/surface.lua` or the resolver.** 2026-10-20 12:10. Both
+  already touch the bindings, and the resolver once merged a person's `surface` fragment there.
+  The builder would then learn the person's keys, and the resolver hold a second copy of the
+  keymap's three rules. The root lays the section with `keymap.applyLists` beside the keys
+  section's rules, and the builder takes only Olm's own layer.
+- **Binding both of two entries on one slot of a list and reporting the pair.** 2026-10-20 12:10.
+  It is the keys section's rule. In a list an `all` clash would be reported once for every list it
+  reaches, and binding both leaves the engine's order to pick. Both are refused with one problem.
+- **The person's `all` moving every list's shared verb, a key a manifest states included.**
+  2026-10-20 12:23. It was the first build, so `all` with `close` on C moved the launcher's close off
+  space. The launcher's space close doubles as its open toggle, and a manifest states its own key
+  for a shared verb exactly when that list needs it to differ, so `all` would undo the one
+  decision the list made. Milos decided that `all` moves and frees only keys Olm's own layer gave,
+  and a list's own key moves when the person names that list.
 
 ## Log
 
@@ -646,3 +679,47 @@ aliases live only in `config/keymap.lua`.
   name. The live inventory corrected the 11:30 entry. A scope with no alias is not counted in the
   live registry, so `test/inventory.golden` drops the settings panes scope line and counts 17
   scopes rather than keeping it with an empty alias list.
+- 2026-10-20 12:10. Phase 7 built on `olm/keymap-phase7` from main at 24a647db, pending its live
+  load. `config/keymap.lua` gains a `lists` section, `all` and one table per list keyed by its
+  context name, a chord on `hyper` to a surface action or `false`, read by `keymap.readConfig` and
+  laid over the built lists by `keymap.applyLists` in the root before anything reads them. The
+  shared j, k, i, x and o left `lib/surface.lua` for `keymap.listDefaults`, Olm's own `all` layer,
+  handed to the resolver as `listKeys`, and each shared binding names its verb in `shared`, which
+  is how `close` reaches a list whose close sits on another key. The dry gate refuses a key
+  literal in `lib/surface.lua`. `config/plugins.lua` refuses `key`, `mods`, `leader`, `bindings`,
+  `surface` and `aliases`, and held none of them on this machine, so nothing moved and
+  `config/keymap.lua` ships no list entry. The open key translation of phase 2b, `key = NONE` or
+  `false` unbinding an open row, the resolver's `surface` fragment merge and the keymap's tier for
+  a binding written in `config/plugins.lua` are gone with them. `hints.actionKinds` reads `shared`
+  so a freed primary key cannot turn an extra into navigation. `keys.golden`, `launcher.golden`,
+  `sheets.golden` and the two earlier fixture goldens are byte identical, the binding order per
+  engine matches main, and `test/keymap-fixture-lists.lua` with its golden shows `all` moving
+  selectNext to N, the clipboard moving Delete onto E, a chord the global layer gives menu search,
+  and selectPrev onto A over Append, file search freeing Y and the launcher's close moving to C by
+  the verb's name. `test/keymap-person.lua` pins the same in plain Lua, with the hint bar and the
+  action panel reading the moved chord.
+- 2026-10-20 12:23. An adversarial review of 3f7dde02 found seven fixes, applied on top. A
+  `config/plugins.lua` entry left with nothing once its key fields were refused came back as an
+  empty table, which the merge reads as an empty list replacing every default, so a leftover
+  `vpn = { key = "Q" }` would have left the VPN with no open row, leader, aliases or
+  description, and it is now left out, with fields inside `data` never read. A list's own table
+  overrode an `all` entry only when both spelled the action alike, so `primary` in `all` and
+  `insertSelected` in a list left both chords bound, and the override now goes by the bindings an
+  entry resolves to. An entry naming an action a missing need left out is a routine note through
+  the block's `unmet`. `all` moves only keys Olm's own layer gave, see Rejected. The dry gate's key
+  literal check sets quoted strings aside first, so a log message is not a field and an index such
+  as `keys[1]` is not a literal, and its blind spots are written beside it. The root keys the list
+  names it knows by identity, the way the resolver keys the lists, and the query scope notes no
+  longer say aliases join from `config/plugins.lua`. Every golden is byte identical to main.
+- 2026-10-20 21:28. Milos found the swallow split over an open list inconsistent. With the launcher
+  open Hyper and A was swallowed through the clipboard's gated list binding while Hyper and B
+  leaked to the app in front, since nothing binds B once the modal rule drops the base bindings.
+  He chose to swallow. Hyper's policy gains `sealedOverLists`, which makes `_onKey` answer the
+  bound no op when a list is open and nothing resolves, so every Hyper key that is not a live list
+  key is swallowed over a list, and outside lists an unbound key still passes through. META and
+  SUPER already swallowed every key over an open list through `quietOverLists`, so they did not
+  change. `test/leaders.lua` pins both halves and the policy check refusing a non boolean.
+- 2026-10-20 13:05. Phase 7 landed on main after its live load, which completes the plan. Milos
+  pressed the list keys in the launcher, the clipboard, file search and emoji, checked the hint
+  bar against them, and confirmed that every Hyper key that is not a live list key does nothing
+  while a list is open, while Hyper and B still toggles Books with no list open.

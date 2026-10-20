@@ -1,12 +1,13 @@
 -- One plugin's shared shape for a Hyper context, factored out once the twelve hand written
 -- blocks in the old config/keys.lua were read side by side. Every one of them opens with a primary
--- verb on i, closes on x, and settles ties at the same priority, and ten of the twelve also
--- move the highlight on j and k, so a plugin should only ever have to say what its primary
--- verb does and what else it needs, never retype the keys every list already agrees on.
+-- verb, closes, and settles ties at the same priority, and ten of the twelve also move the
+-- highlight, so a plugin should only ever have to say what its primary verb does and what else
+-- it needs, never retype the verbs every list already agrees on. The keys those shared verbs sit
+-- on are Olm's own all layer since phase 7 of the keymap plan, handed in, and this file names none.
 --
 -- Two of the twelve broke the shared pattern once it was checked rather than assumed. The
 -- keep awake field is a single morphing row with nothing to move between, so it drops the
--- shared move keys entirely, and the launcher closes on space rather than x because space is
+-- shared move keys entirely, and the launcher closes on a key of its own because that key is
 -- also its own open key. Both are expressed here as fields on the declaration rather than as
 -- a plugin name this module recognises, since a name check here would be exactly the special
 -- casing the twelve were read side by side to avoid.
@@ -23,30 +24,47 @@ else
   log = { e = function() end, w = function() end, i = function() end }
 end
 
--- The two bindings every list with anything to move between agrees on, named once so a
--- wording change is one edit here rather than a hunt through twelve blocks that used to
--- repeat it by hand.
-local MOVE_NEXT = { key = "j", action = "selectNext", description = "Move down" }
-local MOVE_PREV = { key = "k", action = "selectPrev", description = "Move up" }
+-- The shared verbs every list agrees on, named once by what they do and never by the key they
+-- sit on. Which key each one sits on is not this module's business. It is Olm's own all layer,
+-- lib/keymap.lua's listDefaults, which the caller hands to context() as keys, and a person moves
+-- one in the lists section of config/keymap.lua, so this file holds no key at all and the dry
+-- gate refuses one written here. Each binding a shared verb builds carries the verb as shared,
+-- which is how the keymap's lists layer finds the primary and the close of a list whose action
+-- names differ from another's.
+--
+-- The action panel's own verb is one of them, named here as plain data with no reference to
+-- what the action panel is or does. Every real context carried its chord once a loop at the
+-- bottom of the old config/keys.lua added it, and this module carries it now, so a context built
+-- here is honest about the whole set of keys live while it is open and no plugin has to declare
+-- a surface of its own to earn a place in every list.
+local MOVE_NEXT = { shared = "selectNext", action = "selectNext", description = "Move down" }
+local MOVE_PREV = { shared = "selectPrev", action = "selectPrev", description = "Move up" }
+local ACTION_PANEL = { shared = "openActionPanel", action = "openActionPanel", description = "Actions" }
 
--- The action panel's own chord, named here as plain data with no reference to what the
--- action panel is or does, the same way every other binding this module builds names only a
--- key and an action. Every real context carries this chord today, once added by a loop at the
--- bottom of the old config/keys.lua, and this module now carries it too, so a context built here is
--- honest about the whole set of keys live while it is open and the chord no longer depends on
--- a loop somewhere else remembering to add it, or on the action panel plugin declaring a
--- surface of its own to earn a place in every list.
-local ACTION_PANEL_BINDING = { key = "o", action = "openActionPanel", description = "Actions" }
+-- One shared verb as a binding of its own, a fresh table for every context, on the key the all
+-- layer gives it, or nil where the layer gives it none, since a verb with no key is not bound.
+local function sharedBinding(verb, keys)
+  local key = (keys or {})[verb.shared]
+  if key == nil then return nil end
+  return { shared = verb.shared, key = key, layerKey = true, action = verb.action, description = verb.description }
+end
 
 -- The close binding a context gets unless it says otherwise. A plugin overrides only the
--- field that differs for it, the launcher's key of space standing in for x, rather than
--- restating the action and the description every other context already shares.
-local function closeBinding(decl)
+-- field that differs for it, the launcher's own key standing in for the shared one, rather than
+-- restating the action and the description every other context already shares. A key the
+-- manifest states is that list's default, laid over the all layer's, and a close with no key
+-- from either is not bound.
+local function closeBinding(decl, keys)
   local close = decl.close
   if close == false then return nil end
   close = close or {}
+  local key, layerKey = close.key, nil
+  if key == nil then key, layerKey = (keys or {}).close, true end
+  if key == nil then return nil end
   return {
-    key = close.key or "x",
+    shared = "close",
+    key = key,
+    layerKey = layerKey,
     action = close.action or "closeChooser",
     description = close.description or "Close",
     -- Carried through rather than left behind, the same as the primary binding does below,
@@ -112,7 +130,7 @@ function obj.validate(name, decl)
     return false, "primary is a " .. type(decl.primary) .. " rather than a table naming an action"
   end
   if type(decl.primary.action) ~= "string" or decl.primary.action == "" then
-    return false, "primary names no action for the i key to run"
+    return false, "primary names no action for the primary key to run"
   end
   if decl.primary.description ~= nil and type(decl.primary.description) ~= "string" then
     return false, "primary.description is a " .. type(decl.primary.description) .. " rather than a string"
@@ -169,11 +187,18 @@ end
 -- says so by passing priority through decl rather than this module growing a name based
 -- exception for it.
 --
--- The action panel's own binding, Hyper and o, is appended to every block this module
--- builds. Every real context carries that chord today, once added by a loop at the bottom of
--- the old config/keys.lua, and stating it here once, as plain data naming no plugin, keeps a context
--- built here honest about the whole set of keys live while it is open with no dependence on a
--- loop elsewhere remembering it or on the action panel plugin declaring a surface to earn it.
+-- The action panel's own binding is appended to every block this module builds, as plain data
+-- naming no plugin, see ACTION_PANEL above.
+--
+-- keys is Olm's own all layer, a shared verb to the key it sits on, primary, selectNext,
+-- selectPrev, close and openActionPanel, lib/keymap.lua's listDefaults in a real load. A verb the
+-- layer gives no key is left out of the block, and a close key the manifest states wins over the
+-- layer's, since it is that list's own default. The person's lists section is laid over the built
+-- block afterwards by lib/keymap.lua's applyLists, never here. A binding whose key came from the
+-- all layer says so in layerKey, since a person's all moves only those, and a manifest that states
+-- its own key for a shared verb, the launcher's close, keeps it unless the person names that list.
+-- A binding dropped for a need this machine lacks is remembered in the block's unmet, its action to
+-- the need, so an entry naming it is answered as a routine note rather than a typo.
 --
 -- available is optional, and it is how a binding's needs is honoured without this module ever
 -- learning what any name means. Passing nothing here leaves every needs gated binding in
@@ -181,7 +206,7 @@ end
 -- carries such a binding needs in order to round trip. A caller that has resolved which names
 -- are present passes them here, and a binding naming one that is absent is dropped from the
 -- built block entirely rather than landing as a key that does nothing.
-function obj.context(name, decl, available)
+function obj.context(name, decl, available, keys)
   local ok, err = obj.validate(name, decl)
   if not ok then
     log.e("plugin '" .. tostring(name) .. "' surface declaration is unusable, " .. err)
@@ -189,19 +214,28 @@ function obj.context(name, decl, available)
   end
 
   local bindings = {}
+  -- A binding dropped for an unmet need, by action, to the need it named.
+  local unmet = {}
+  local function take(binding)
+    if keep(binding, available) then return true end
+    unmet[binding.action] = binding.needs
+    return false
+  end
 
   -- chord, needs and repeats are carried through from decl.primary rather than left behind
   -- the way only action and description used to be, so a primary binding is subject to the
   -- same gates as any other one this module builds.
   local primary = {
-    key = "i",
+    shared = "primary",
+    key = (keys or {}).primary,
+    layerKey = true,
     action = decl.primary.action,
     description = decl.primary.description,
     chord = decl.primary.chord,
     needs = decl.primary.needs,
     repeats = decl.primary.repeats,
   }
-  if keep(primary, available) then
+  if primary.key ~= nil and take(primary) then
     bindings[#bindings + 1] = primary
   end
 
@@ -210,31 +244,35 @@ function obj.context(name, decl, available)
   -- nothing to move between, sets nav to false rather than this module trying to infer it
   -- from whether decl.extra looks a certain way.
   if decl.nav ~= false then
-    if keep(MOVE_NEXT, available) then bindings[#bindings + 1] = MOVE_NEXT end
-    if keep(MOVE_PREV, available) then bindings[#bindings + 1] = MOVE_PREV end
+    for _, verb in ipairs({ MOVE_NEXT, MOVE_PREV }) do
+      local b = sharedBinding(verb, keys)
+      if b and take(b) then bindings[#bindings + 1] = b end
+    end
   end
 
   -- Extra bindings sit between the move keys and close because that is where every context
   -- that has any puts them, scrolling a preview, appending to a batch, walking a folder,
   -- never after the key that closes the list.
   for _, row in ipairs(decl.extra or {}) do
-    if keep(row, available) then
+    if take(row) then
       bindings[#bindings + 1] = row
     end
   end
 
-  local close = closeBinding(decl)
-  if close and keep(close, available) then
+  local close = closeBinding(decl, keys)
+  if close and take(close) then
     bindings[#bindings + 1] = close
   end
 
-  bindings[#bindings + 1] = ACTION_PANEL_BINDING
+  local panel = sharedBinding(ACTION_PANEL, keys)
+  if panel then bindings[#bindings + 1] = panel end
 
   return {
     name = name,
     when = obj.whenFor(name, decl),
     priority = decl.priority or 100,
     bindings = bindings,
+    unmet = next(unmet) and unmet or nil,
   }
 end
 

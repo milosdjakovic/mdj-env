@@ -109,8 +109,8 @@ do
   eq(#sections.problems, 0, "every section present and empty is no problem")
 
   eq(has(whys(read("nope").problems), "rather than a table"), true, "a file that is not a table is named")
-  local odd = read({ lists = {}, keys = 3 })
-  eq(has(whys(odd.problems), "lists | is not a section"), true, "a section Olm does not read is named")
+  local odd = read({ chords = {}, keys = 3 })
+  eq(has(whys(odd.problems), "chords | is not a section"), true, "a section Olm does not read is named")
   eq(has(whys(odd.problems), "keys | is a number"), true, "a section that is not a table is named")
 end
 
@@ -191,7 +191,7 @@ local ROLES = { app = "HYPER", window = "META" }
 -- with a gate on one, capture a plugin of two actions and a descriptor with no default key, a
 -- list with one key, and a toggler whose actions are built from its data, one per app and one per
 -- variant, the way the app toggler's are since phase 6 of the keymap plan. Its one key, Safari on
--- a, is a bindings override the person wrote in config/plugins.lua, so it is the person's own.
+-- a, is its own default.
 local function plan()
   return {
     effective = {
@@ -202,7 +202,7 @@ local function plan()
       capture = { leader = "app", bindings = { { action = "ocr", key = "3" }, { action = "shot", key = "4" } } },
       toggler = { leader = "app", bindings = { { action = "Safari", key = "a" } } },
     },
-    identity = {}, provenance = { toggler = { bindings = "user" } },
+    identity = {},
     contexts = { list = { when = "listOpen", bindings = { { action = "close", key = "x" } } } },
     order = { "vpn", "clipboard", "windows", "capture", "toggler" },
   }
@@ -318,14 +318,14 @@ do
   local freed = build({ keys = { ["hyper+E"] = "vpn.open", ["Hyper+e"] = false } })
   eq(has(whys(freed.problems), "frees a chord the entry 'hyper+E' takes"), true, "false on an entry's own slot is a problem")
   eq(chordsOf(freed, "vpn", "open"), "hyper+e with any modifiers", "and the entry keeps the chord")
-  -- A keymap entry ranks above every other source of the person's, so it takes the slot of a
-  -- binding the person wrote in config/plugins.lua.
+  -- An action built from data holds its default slot like any other, so an entry takes it the
+  -- same way. config/plugins.lua holds no binding of the person's since phase 7 of the keymap plan.
   local toggle = build({ keys = { ["hyper+A"] = "vpn.open" } })
-  eq(#toggle.problems, 0, "an entry on a slot the person's own binding holds is no problem")
-  eq(chordsOf(toggle, "toggler", "Safari"), "", "that binding's row there is dropped")
+  eq(#toggle.problems, 0, "an entry on a slot the toggler's default holds is no problem")
+  eq(chordsOf(toggle, "toggler", "Safari"), "", "that default's row there is dropped")
   eq(chordsOf(toggle, "vpn", "open"), "hyper+a with any modifiers", "and the entry takes the slot")
-  eq(has(noteText(toggle), "takes hyper+a with any modifiers, so the person's own toggler.Safari is not bound there"), true,
-    "said in the same routine line a displaced default gets")
+  eq(has(noteText(toggle), "takes hyper+a with any modifiers, so the default toggler.Safari is not bound there"), true,
+    "said in the routine line a displaced default gets")
 end
 
 -- An id naming nothing is a problem, and one naming a plugin not running this load is a note.
@@ -431,6 +431,260 @@ do
   eq(table.concat(keymap.fallbackLeaders({ app = "SUPER", window = "META" }, "hyper"), ","), "hyper,meta,super",
     "the leader hosting lists stays in use after the app role moved off it")
   eq(table.concat(keymap.fallbackLeaders({ app = "HYPER" }, nil), ","), "hyper", "with no list leader the roles alone")
+end
+
+--------------------------------------------------------------------------------
+-- The lists section, the keys live while a list is open, since phase 7 of the keymap plan
+--------------------------------------------------------------------------------
+
+-- Two lists built by the real lib/surface.lua on Olm's own all layer, the way the resolver builds
+-- them, so every case reads blocks of the true shape. clip has a primary, the move keys, an extra
+-- on d, a Command and j extra beside the bare j, a key it lists with chord false, close and the
+-- action panel. pane has no move keys and closes on its own key, the way the launcher does.
+local surface = assert(loadfile(here .. "../lib/surface.lua"))()
+local hints = assert(loadfile(here .. "../lib/hints.lua"))()
+local LIST_KEYCODES = {}
+do
+  local names = { "a", "c", "d", "e", "i", "j", "k", "n", "o", "space", "x", "y", "delete", "p" }
+  for i, name in ipairs(names) do LIST_KEYCODES[name] = i LIST_KEYCODES[i] = name end
+end
+
+local function lists()
+  return {
+    clip = assert(surface.context("clip", {
+      primary = { action = "insertSelected", description = "Paste" },
+      extra = {
+        { key = "j", mods = { "cmd" }, action = "scrollDown", description = "Scroll down" },
+        { key = "d", action = "deleteSelected", description = "Delete" },
+        { key = "delete", action = "leavePage", chord = false, description = "Back" },
+      },
+    }, nil, keymap.listDefaults)),
+    pane = assert(surface.context("pane", {
+      primary = { action = "insertSelected", description = "Run" },
+      nav = false,
+      close = { key = "space" },
+    }, nil, keymap.listDefaults)),
+  }
+end
+
+local function readLists(section)
+  return keymap.readConfig({ lists = section },
+    { catalog = CATALOG, roleWords = ROLE_WORDS, keycodes = LIST_KEYCODES })
+end
+
+local function applied(section, extra)
+  local cfg = readLists(section)
+  local contexts = lists()
+  local opts = { listLeader = "hyper", keycodes = LIST_KEYCODES }
+  for k, v in pairs(extra or {}) do opts[k] = v end
+  local problems, notes = keymap.applyLists(contexts, cfg.lists, opts)
+  for _, p in ipairs(cfg.problems) do problems[#problems + 1] = p end
+  return contexts, problems, notes
+end
+
+-- The chords a list binds for an action, sorted, the way a person reads them.
+local function listKeys(contexts, list, action)
+  local out = {}
+  for _, b in ipairs(contexts[list].bindings) do
+    if b.action == action and b.chord ~= false then
+      out[#out + 1] = (b.mods and #b.mods > 0 and (table.concat(b.mods, "+") .. "+") or "") .. b.key
+    end
+  end
+  table.sort(out)
+  return table.concat(out, ",")
+end
+
+-- Olm's own all layer is what the builder puts the shared verbs on, and lib/surface.lua holds no key.
+do
+  local contexts = lists()
+  eq(listKeys(contexts, "clip", "insertSelected"), "i", "the primary sits on the all layer's key")
+  eq(listKeys(contexts, "clip", "selectNext") .. "|" .. listKeys(contexts, "clip", "selectPrev"), "j|k", "the move keys too")
+  eq(listKeys(contexts, "clip", "closeChooser") .. "|" .. listKeys(contexts, "clip", "openActionPanel"), "x|o",
+    "and close and the action panel")
+  eq(listKeys(contexts, "pane", "closeChooser"), "space", "a close key the manifest states wins over the layer's")
+  local bare = surface.context("bare", { primary = { action = "insertSelected" } })
+  eq(#bare.bindings, 0, "with no all layer handed in no shared verb is bound")
+  local scanner = dofile(here .. "drygate-binding.lua")
+  eq(#scanner.keyLiterals(assert(io.open(here .. "../lib/surface.lua")):read("a")), 0, "lib/surface.lua writes no key")
+  eq(#scanner.keyLiterals('local MOVE = { key = "j", action = "selectNext" }'), 1, "and the dry gate would see one written back")
+  eq(#scanner.keyLiterals('local d = { key = close.key or "x" }'), 1, "a literal as a fallback is seen too")
+  eq(#scanner.keyLiterals('t["key"] = 4'), 1, "and a number through a quoted field name")
+  eq(#scanner.keyLiterals([[log.e("bad, key = 'x' was written")]]), 0, "a key written inside a log message is text")
+  eq(#scanner.keyLiterals('local b = { key = keys[1], action = "go" }'), 0, "an index is not a literal")
+end
+
+-- An empty section changes nothing.
+do
+  local contexts, problems, notes = applied({})
+  eq(#problems + #notes, 0, "no lists entry is no problem and no note")
+  eq(listKeys(contexts, "clip", "selectNext"), "j", "and every key stays where Olm puts it")
+end
+
+-- all moves selectNext in every list that answers it, and a list with no move keys is left alone.
+do
+  local contexts, problems = applied({ all = { ["hyper+n"] = "selectNext" } })
+  eq(#problems, 0, "moving a shared verb in all is no problem")
+  eq(listKeys(contexts, "clip", "selectNext"), "n", "selectNext takes exactly its new chord")
+  eq(listKeys(contexts, "clip", "scrollDown"), "cmd+j", "while Command and j, another slot, stays")
+  eq(listKeys(contexts, "pane", "selectNext"), "", "and a list with no move keys gains none")
+  local moved
+  for _, b in ipairs(contexts.clip.bindings) do if b.action == "selectNext" then moved = b end end
+  eq(moved and moved.description, "Move down", "the moved binding keeps its label")
+  eq(moved and moved.entry, "all hyper+n", "and names the entry it came from")
+  local order = {}
+  for _, b in ipairs(contexts.clip.bindings) do order[#order + 1] = b.action end
+  eq(table.concat(order, ","), "insertSelected,selectNext,selectPrev,scrollDown,deleteSelected,leavePage,closeChooser,openActionPanel",
+    "and the list keeps its order")
+  local closed = applied({ all = { ["hyper+c"] = "close" } })
+  eq(listKeys(closed, "clip", "closeChooser") .. "|" .. listKeys(closed, "pane", "closeChooser"), "c|space",
+    "close in all moves every close on Olm's own key and leaves one the manifest states")
+  local named = applied({ pane = { ["hyper+c"] = "close" } })
+  eq(listKeys(named, "pane", "closeChooser"), "c", "which moves when the person names that list")
+  local freed = applied({ all = { ["hyper+space"] = false } })
+  eq(listKeys(freed, "pane", "closeChooser"), "space", "and false in all does not free it either")
+  local extra, extraProblems = applied({ all = { ["hyper+e"] = "deleteSelected" } })
+  eq(listKeys(extra, "clip", "deleteSelected"), "d", "all does not move a key a manifest states for its own verb")
+  eq(has(whys(extraProblems), "which no list answers on a key of Olm's own all layer"), true, "and says so")
+end
+
+-- A list's own table goes over all, deciding every action and every slot it names.
+do
+  local contexts, problems, notes = applied({
+    all = { ["hyper+n"] = "selectNext", ["hyper+e"] = "openActionPanel" },
+    clip = { ["hyper+p"] = "selectNext", ["hyper+a"] = "selectPrev" },
+  })
+  eq(#problems, 0, "a per list override is no problem")
+  eq(listKeys(contexts, "clip", "selectNext"), "p", "the list's own chord wins over all's for the same action")
+  eq(listKeys(contexts, "clip", "selectPrev"), "a", "and its own action moves")
+  eq(listKeys(contexts, "clip", "openActionPanel"), "e", "while all still reaches what the list leaves alone")
+  eq(#notes, 0, "nothing was displaced")
+  local displaced, _, said = applied({ clip = { ["hyper+d"] = "selectPrev" } })
+  eq(listKeys(displaced, "clip", "selectPrev"), "d", "a chord on a slot a default holds is the person's")
+  eq(listKeys(displaced, "clip", "deleteSelected"), "", "and the default there is dropped, not bound beside it")
+  eq(has(table.concat(said, "\n"), "the keymap entry 'lists clip hyper+d' takes d in clip, so the default clip.deleteSelected is not bound there"),
+    true, "said in one routine note")
+end
+
+-- A list's own table overrides an all entry resolving to the same binding however either names
+-- it, a shared verb or the action it runs, so no binding keeps an all chord beside the list's own.
+do
+  local contexts, problems = applied({ all = { ["hyper+p"] = "primary" }, clip = { ["hyper+y"] = "insertSelected" } })
+  eq(#problems, 0, "primary in all and insertSelected in a list are no problem")
+  eq(listKeys(contexts, "clip", "insertSelected"), "y", "the list's own chord alone, not all's beside it")
+  eq(listKeys(contexts, "pane", "insertSelected"), "p", "while every other list takes all's")
+  local closes = applied({ all = { ["hyper+c"] = "closeChooser" }, clip = { ["hyper+y"] = "close" } })
+  eq(listKeys(closes, "clip", "closeChooser"), "y", "close in a list overrides closeChooser in all the same way")
+end
+
+-- An entry naming an action the list left out for a need this machine lacks is a routine note,
+-- since the key is real on a machine that meets it.
+do
+  local block = assert(surface.context("clip", {
+    primary = { action = "insertSelected" },
+    extra = { { key = "q", action = "peek", needs = "askedPreview" } },
+  }, {}, keymap.listDefaults))
+  eq(block.unmet and block.unmet.peek, "askedPreview", "the builder remembers the binding a need dropped")
+  local cfg = readLists({ clip = { ["hyper+p"] = "peek" } })
+  local problems, notes = keymap.applyLists({ clip = block }, cfg.lists, { listLeader = "hyper", keycodes = LIST_KEYCODES })
+  eq(#problems, 0, "naming it is no problem")
+  eq(has(table.concat(notes, "\n"), "names peek, which needs askedPreview and this machine lacks it"), true, "but a note")
+end
+
+-- false frees a list key, in one list or in all of them.
+do
+  local contexts, problems, notes = applied({ clip = { ["hyper+o"] = false } })
+  eq(#problems, 0, "freeing a list key is no problem")
+  eq(listKeys(contexts, "clip", "openActionPanel"), "", "the freed key is not bound in that list")
+  eq(listKeys(contexts, "pane", "openActionPanel"), "o", "and stays in every other")
+  eq(has(table.concat(notes, "\n"), "frees the chord in clip, so clip.openActionPanel is not bound there"), true, "said in a note")
+  local all = applied({ all = { ["hyper+o"] = false } })
+  eq(listKeys(all, "clip", "openActionPanel") .. listKeys(all, "pane", "openActionPanel"), "", "false in all frees it in every list")
+  local _, _, nothing = applied({ clip = { ["hyper+y"] = false } })
+  eq(has(table.concat(nothing, "\n"), "frees a chord no key of the list holds"), true, "freeing an empty slot is a note")
+end
+
+-- Two of the person's own chords on one slot of one table are refused together, one problem and
+-- neither applied, and two defaults on one slot of a list are named by the keymap's collision check.
+do
+  local contexts, problems = applied({ clip = { ["hyper+n"] = "selectNext", ["hyper+N"] = "selectPrev" } })
+  eq(#problems, 1, "two entries on one slot of a list are one problem")
+  eq(has(whys(problems), "'hyper+N' and 'hyper+n' are two of the person's own chords on one slot of clip"), true,
+    "naming both entries")
+  eq(listKeys(contexts, "clip", "selectNext") .. "|" .. listKeys(contexts, "clip", "selectPrev"), "j|k", "and neither is applied")
+
+  local clash = lists()
+  table.insert(clash.clip.bindings, 2, { key = "d", action = "other", description = "Other" })
+  local result = keymap.build({ plan = { effective = {}, identity = {}, contexts = clash }, roles = ROLES,
+    keycodes = LIST_KEYCODES, listLeader = "hyper" })
+  eq(#result.problems, 1, "two defaults on one slot of a list are reported")
+  eq(has(whys(result.problems), "in the clip layer"), true, "in that list's own layer")
+end
+
+-- A list chord may shadow a global chord while its list is open, since the layers never meet.
+do
+  local contexts, problems = applied({ clip = { ["hyper+e"] = "deleteSelected" } })
+  local result = keymap.build({
+    plan = { effective = { finder = { leader = "app", bindings = { { action = "go", key = "e" } } } },
+      identity = {}, contexts = contexts, order = { "finder" } },
+    roles = ROLES, keycodes = LIST_KEYCODES, listLeader = "hyper",
+    actions = { finder = { go = { run = function() end } } },
+  })
+  eq(#problems + #result.problems, 0, "a list chord on a global chord's slot is accepted")
+  local layers = {}
+  for _, row in ipairs(result.rows) do
+    if row.key == "e" then layers[#layers + 1] = row.layer .. ":" .. tostring(row.origin) end
+  end
+  table.sort(layers)
+  eq(table.concat(layers, ","), "clip:user,global:default", "both bind, the list's marked the person's")
+end
+
+-- Problems an entry can raise, each named, with every other entry still read.
+do
+  local _, problems, notes = applied({
+    all = { ["hyper+y"] = "nothing" },
+    clip = { ["meta+n"] = "selectNext", ["ctrl+alt+n"] = "selectNext", ["hyper+c"] = "leavePage", ["hyper+e"] = "missing" },
+    gone = { ["hyper+n"] = "selectNext" },
+    away = { ["hyper+n"] = "selectNext" },
+    [3] = {},
+  }, { known = function(name) return name == "away" end })
+  local text = whys(problems)
+  eq(has(text, "lists all hyper+y | the entry names the action 'nothing', which no list answers"), false,
+    "an all entry is worded as the section it sits in")
+  eq(has(text, "lists all hyper+y | names the action 'nothing', which no list answers"), true, "an all action no list answers is named")
+  eq(has(text, "lists clip meta+n | opens with meta, and a list key lives on hyper"), true, "a chord on another leader is named")
+  eq(has(text, "lists clip ctrl+alt+n | opens with no leader"), true, "and so is a chord of modifiers alone")
+  eq(has(text, "lists clip hyper+c | names leavePage, which the list lists with chord false"), true,
+    "a key the list reads for itself is no person setting")
+  eq(has(text, "lists clip hyper+e | names the action 'missing', which the list clip does not answer"), true,
+    "an action the list does not answer is named")
+  eq(has(text, "lists gone | names no list in this load"), true, "a section naming no list is named")
+  eq(has(text, "lists away"), false, "and one naming a list not loaded this time is not a problem")
+  eq(has(table.concat(notes, "\n"), "the keymap lists section 'away' names a list that is not loaded this time"), true,
+    "but a routine note")
+  eq(has(text, "lists 3 | is not a list name"), true, "a section key that is not a name is named")
+  local bad = readLists({ clip = { ["hyper+n"] = 3, ["hyper+zz"] = "selectNext" } })
+  eq(has(whys(bad.problems), "lists clip hyper+n | answers a number"), true, "a value that is no action name is named")
+  eq(#bad.lists.clip, 0, "and neither unreadable entry is kept")
+end
+
+-- The hint bar and the action panel read the bindings the lists section left, so a moved key shows
+-- its new chord there too.
+do
+  local contexts = applied({ clip = { ["hyper+e"] = "deleteSelected" }, all = { ["hyper+n"] = "selectNext" } })
+  local plan = { contexts = contexts, effective = {}, order = {}, identity = {} }
+  local deps = { chordLabel = function(leader, key, mods)
+    return leader .. " " .. ((mods and #mods > 0) and (table.concat(mods, "+") .. "+") or "") .. key
+  end, leaderName = "Hyper" }
+  local bar = {}
+  for _, h in ipairs(hints.footerFor("clip", plan, deps)) do bar[h.action] = h.badges[1] end
+  eq(bar.deleteSelected, "Hyper e", "the hint bar spells the moved verb on its new chord")
+  eq(bar.selectNext, "Hyper n", "and the moved shared verb too")
+  local panel = {}
+  for _, row in ipairs(hints.rowsFor("clip", plan, deps)) do panel[row.action or row.title] = row.chord end
+  eq(panel.deleteSelected, "Hyper e", "the action panel shows the same chord")
+  eq(panel.selectNext, nil, "and lists no navigation verb")
+  local kinds = hints.actionKinds({ contexts = applied({ clip = { ["hyper+i"] = false } }) })
+  eq(kinds.scrollDown, "verb", "a freed primary leaves an extra a verb")
 end
 
 if failures > 0 then

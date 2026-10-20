@@ -307,7 +307,7 @@ return {
     },
     expect = function(w)
       if not w._key then
-        return false, "no key is bound for the clipboard in its manifest or config/plugins.lua"
+        return false, "no key is bound for the clipboard in its manifest or config/keymap.lua"
       end
       local manager = (w.role("clipboard") or {}).manager or w.role("clipboard")
       if not manager or type(manager.isShowing) ~= "function" then

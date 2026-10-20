@@ -404,9 +404,10 @@ Each is one line in the wiring report, and costs only the action, the row or the
 - `wire, keymap, <plugin> <action>, the bindings row states leader false and no mods, and a key with neither a leader nor a modifier would be taken from every app, so it is not bound`
 - `wire, keymap, <plugin> <action>, the bindings row names a leader that is a <type>, where a row takes a role word or false, so it is not bound`
 
-One more comes from the resolver while the plan is drawn, about the person's own file.
+One more comes from the root about the person's own config/plugins.lua, once per field, since
+every key, list key and alias is written in config/keymap.lua.
 
-- `override, <plugin>, config/plugins.lua sets key or mods for '<plugin>', which has no bindings row whose action is open, so the key is not bound`
+- `wire, keymap, config/plugins.lua <plugin> <field>, is retired, every key, list key and alias a person sets is written in config/keymap.lua, so the field is ignored`, for `key`, `mods`, `leader`, `bindings`, `surface` and `aliases`
 
 And the person's keymap, `config/keymap.lua`, says these, each naming the entry. None is about
 your plugin's code, but an id naming your action is checked against what you answer.
@@ -418,9 +419,16 @@ your plugin's code, but an id naming your action is checked against what you ans
 - `wire, keymap, config/keymap.lua leaders <name>, <why the name or its set is refused>, so it is ignored`
 - `wire, keymap, config/keymap.lua roles <role>, <why the role or its leader is refused>`
 - `wire, keymap, config/keymap.lua aliases <identity>, names no plugin or host in this load, so its words scope nothing`
+- `wire, keymap, config/keymap.lua lists <list> <chord>, opens with <leader>, and a list key lives on hyper, the leader hosting lists, so the entry is ignored`
+- `wire, keymap, config/keymap.lua lists <list> <chord>, names the action '<action>', which the list <list> does not answer, so the entry is ignored`
+- `wire, keymap, config/keymap.lua lists <list> <chord>, names <action>, which the list lists with chord false, a key it reads for itself, so it is no person setting and the entry is ignored`
+- `wire, keymap, config/keymap.lua lists all <chord>, names the action '<action>', which no list answers, so the entry is ignored`
+- `wire, keymap, config/keymap.lua lists <list> <chord>, the entries '<chord>' and '<chord>' are two of the person's own chords on one slot of <list>, so neither is applied`
+- `wire, keymap, config/keymap.lua lists <list>, names no list in this load, a list is named by its manifest's surface context, so the section is ignored`
 
-A default a person's chord displaced, a chord false freed and an entry naming a plugin switched off
-this load are each one routine `Olm keymap` console line, never a problem.
+A default a person's chord displaced, a chord false freed, an entry naming a plugin switched off
+this load and a lists section naming a list not loaded this time are each one routine `Olm keymap`
+console line, never a problem.
 - `wire, keymap, <plugin> <action>, no engine binds on the leader <leader>, so <leader> <key> is not bound`
 
 `lib/services.lua` answers one more question separately, `owed`, every `source = "root"` need
@@ -615,6 +623,18 @@ a thumbnail is content and is the one kind of drawing that may stay in a plugin,
 `plugins` that creates a canvas and snapshots it into an image.
 
 ## Keys on a leader
+
+Each concern has one way, and a plugin declares each thing in exactly one place.
+
+| Concern | The one way |
+|---|---|
+| What a plugin can run | `provides.actions` descriptors |
+| Which keys a plugin suggests | `defaults.bindings` |
+| Which words a plugin suggests | `defaults.aliases` |
+| A plugin's lists and their verbs | its `surface` block |
+| A person's keys, list keys and aliases | `config/keymap.lua` |
+| A plugin's data and its switch | `config/plugins.lua` |
+| Which physical key is remapped | Olm's leader catalog |
 
 A plugin never binds a key. It says what it can run and which keys it would like, and Olm binds
 them. What it can run is `provides.actions`, a member answering a list of descriptors, or a list
@@ -835,7 +855,9 @@ disagreement between your declaration and the map. The full rule is in the repos
 4. `defaults`, its `bindings` holding a row whose action is `open` with the key you suggest,
    then `registry` with a row `category`, an `open` and a `shortcut`, which earns the launcher
    row, the word, and the key.
-5. `surface` with a `context` spelled exactly as your identity, and the primary key.
+5. `surface` with a `context` spelled exactly as your identity, and the primary action. The keys
+   the shared verbs sit on are Olm's, and a key you state on an `extra` row is a suggestion a
+   person moves in the `lists` section of `config/keymap.lua`, like every other key you suggest.
 6. `presentation` with `rows` and `select` only, table form, `call` stated, nothing else yet.
 7. Add one optional field at a time, each because something was actually wrong without it.
 8. `src/check-dependencies.sh` clean, no error and no new warning naming you.

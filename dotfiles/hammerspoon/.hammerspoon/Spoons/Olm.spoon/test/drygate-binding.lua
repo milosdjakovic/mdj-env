@@ -19,6 +19,12 @@
 -- What it cannot see. A bind reached through a local alias, local b = hs.hotkey.bind, is seen
 -- only at the alias, and a call built from a string is not seen at all. A review reads for those.
 --
+-- A second rule lives here because it is the same kind of scan. lib/surface.lua builds every
+-- list's shared verbs and holds no key since phase 7 of the keymap plan, the keys being Olm's own
+-- all layer in lib/keymap.lua and the person's lists section in config/keymap.lua. A key written
+-- there again, key = "j" or a number, would be a second place a list key is set, so a key literal
+-- in that file is a finding too, M.keyLiterals below.
+--
 -- Pure Lua with no hs, so test/drygate.lua and a unit case both load it.
 
 local M = {}
@@ -90,6 +96,72 @@ function M.scan(text)
           break
         end
       end
+    end
+  end
+  return hits
+end
+
+--- M.keyLiteralFiles, the spoon relative files that must hold no key literal.
+M.keyLiteralFiles = { ["lib/surface.lua"] = true }
+
+--- M.keyLiterals(text) -> list of { line, what, source }, one per line that writes a key as a
+--- literal, a field named key, key = or ["key"] =, whose value holds a quoted string or a bare
+--- number at its own level up to the next comma or brace, so a fallback such as close.key or "x"
+--- is caught as well as "x" alone. Every quoted string is set aside before the line is read, so
+--- key = 'x' inside a log message is text and not a field, and an index such as keys[1] or a call
+--- such as pick(2) is not a literal. Comments are not counted.
+---
+--- What it cannot see. A key reached through a local, local k = "j" and then key = k, and a value
+--- that starts on the next line after key =, are both read as no literal. A review reads for those.
+
+-- The line with every quoted string replaced by a marker holding its index, and the strings.
+local function maskStrings(code)
+  local out, strings = {}, {}
+  local i, n = 1, #code
+  while i <= n do
+    local ch = code:sub(i, i)
+    if ch == "\"" or ch == "'" then
+      local j, buf = i + 1, {}
+      while j <= n and code:sub(j, j) ~= ch do
+        if code:sub(j, j) == "\\" then buf[#buf + 1] = code:sub(j, j + 1) j = j + 2
+        else buf[#buf + 1] = code:sub(j, j) j = j + 1 end
+      end
+      strings[#strings + 1] = table.concat(buf)
+      out[#out + 1] = "\1" .. #strings .. "\2"
+      i = j + 1
+    else
+      out[#out + 1] = ch
+      i = i + 1
+    end
+  end
+  return table.concat(out), strings
+end
+
+local function literalValue(value)
+  value = value:gsub("%b[]", ""):gsub("%b()", "")
+  value = value:match("^[^,}]*") or ""
+  return value:find("\1") ~= nil or value:find("%f[%w_.]%d+%f[^%w_.]") ~= nil
+end
+
+function M.keyLiterals(text)
+  text = blankBlockComments(text)
+  local hits = {}
+  local n = 0
+  for l in (text .. "\n"):gmatch("(.-)\n") do
+    n = n + 1
+    local code = codeOf(l)
+    local hit = false
+    if code then
+      local masked, strings = maskStrings(code)
+      for value in masked:gmatch("%f[%w_]key%s*=%f[^=](.*)") do
+        if literalValue(value) then hit = true end
+      end
+      for index, value in masked:gmatch("%[%s*\1(%d+)\2%s*%]%s*=%f[^=](.*)") do
+        if strings[tonumber(index)] == "key" and literalValue(value) then hit = true end
+      end
+    end
+    if hit then
+      hits[#hits + 1] = { line = n, what = "writes a key as a literal", source = code:match("^%s*(.-)%s*$") }
     end
   end
   return hits

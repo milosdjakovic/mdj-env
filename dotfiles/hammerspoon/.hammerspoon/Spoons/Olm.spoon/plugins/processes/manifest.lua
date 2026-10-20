@@ -162,7 +162,7 @@ return {
     },
   },
 
-  -- No provides. This tool has no alias in config/plugins.lua, so it is reached only by
+  -- No provides. This tool has no alias, in its defaults or in config/keymap.lua, so it is reached only by
   -- opening the picker itself, never by a typed scope.
 
   -- Opened from the launcher only, so it proposes no key at all. Named Local Servers

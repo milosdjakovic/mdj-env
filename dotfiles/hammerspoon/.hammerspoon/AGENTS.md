@@ -214,17 +214,36 @@ bindings name through `provides.actions`, a list of descriptors, which is what
 whose action is `open`, a row may name its own role or `leader = false` for a plain
 combination with its modifiers, and `defaults.leader` is the role a row naming none inherits.
 Every listed action descriptor is also a launcher row Olm builds, so a plugin builds no row
-for what it can run. Where a person's keys live today, every action's in `config/keymap.lua`, the
-app toggles included since phase 6 of the keymap plan, and a `key` override still honoured in
-`config/plugins.lua` until phase 7, never in a plugin. An action id is the identity, a dot and
+for what it can run. A person sets every key, every list key and every alias in one place,
+`config/keymap.lua`, the app toggles included, never in a plugin and never in
+`config/plugins.lua`, which refuses `key`, `mods`, `leader`, `bindings`, `surface` and `aliases`
+with one problem line each naming `config/keymap.lua`. Each concern has one way. A plugin declares
+what it can run in `provides.actions`, the keys it suggests in `defaults.bindings`, the words it
+suggests in `defaults.aliases` and its lists and their verbs in its `surface` block, a person's
+keys, list keys and aliases are `config/keymap.lua`, a plugin's data and its switch are
+`config/plugins.lua`, and which physical key is remapped is Olm's leader catalog. An action id is the identity, a dot and
 the action, `vpn.open`, `windowmanager.leftHalf`, `apptoggler.Safari`,
 `apptoggler.GhosttyPlaced`, `systemsettings.General`, `launcher.lock`. An action named there takes
 exactly its listed chords and loses its defaults. A person's chord on a slot a default holds
-drops that one row of the default, with one routine `Olm keymap` console line naming it, and a
-keymap entry ranks above every other source of the person's, so it drops a binding written in
-`config/plugins.lua` on its slot the same way. `false` frees a global chord, and list keys are
-reached by neither until phase 7. A toggle moved there shows its new chord wherever the app is
+drops that one row of the default, with one routine `Olm keymap` console line naming it. `false`
+frees a global chord. A toggle moved there shows its new chord wherever the app is
 listed, the Hyper sheet's app section and the app's launcher row, since both read the keymap.
+The keys live while a list is open are the `lists` section, one table per list keyed by its
+context name and `all` for every list, a chord on `hyper` to a surface action or `false`. The
+shared verbs, `primary`, `selectNext`, `selectPrev`, `close` and `openActionPanel`, sit on i, j,
+k, x and o by Olm's own `all` layer, `listDefaults` in `lib/keymap.lua`, unless a manifest states
+its own, the launcher closing on space, and `lib/surface.lua` holds no key, which the dry gate
+checks. `all` is read first and each list's table over it, with the keys section's three rules
+inside one list. `all` moves and frees only keys Olm's own layer gave, so a list whose manifest
+states its own key for a shared verb, the launcher's space close that doubles as its open key,
+keeps it unless the person names that list, and a list's own entry overrides an `all` entry that
+resolves to the same binding, by verb or by action. `keymap.applyLists` lays the section over
+the built lists before the hint bar, the action panel, the keymap and the contexts read them, so a moved list key shows its new chord in
+all of them. A list chord may shadow a global one while its list is open, since collisions are
+checked within the global layer and within each list's layer, never across. A key a list lists
+with `chord = false`, Backspace leaving a hosted list, is a manifest fact and not a person
+setting. `config/keymap.lua` ships no list entry, and `Spoons/Olm.spoon/test/keymap-fixture-lists.lua`
+with its golden proves the layer offline.
 `fn` is refused on a held leader, the keypad plus is `pad+` and the main row plus is `shift+=`. A name under `leaders`, `nav = { "shift", "ctrl" }`, is a leader of its own on the
 modifier trigger with that base set, read as Nav on a launcher row the way Hyper is, with no
 sheet and no tap, and its slot is the whole combination, so it collides with the same plain
@@ -257,7 +276,7 @@ reject them; the trade is that the three leaders stay distinct, which one shared
 Hyper modifier combo could not give.
 A key whose bindings are all gated off at that moment is bound rather than unbound, so it is
 swallowed on every leader and never leaks, since a key reserved for a situation is never
-reused for anything else. Only a key nothing binds leaks. Inside an open list the rule reaches further. The modal rule drops every base binding, and a key whose base binding is dropped that way is swallowed too when some other list binds it, since that list's binding matches and is gated off, so with the launcher open Hyper and A, D, F, L, M, R, S, X, H, Q and Y are swallowed while B, C and E, which no other list binds, still pass through.
+reused for anything else. Only a key nothing binds leaks. Inside an open list the rule reaches further. Every Hyper key that is not a live list key is swallowed, through the leader's `sealedOverLists` policy, so with the launcher open Hyper and A or B or C or E is swallowed alike, while list keys act as ever. META and SUPER already swallow every key over an open list through `quietOverLists`. Outside lists an unbound Hyper key still passes through.
 
 A bound key may also REPEAT while it stays held, and how it repeats is the leader's choice
 rather than the binding's. A binding says only that it repeats, which is a fact about the
@@ -922,9 +941,10 @@ step mirroring what the clipboard already does.
    uses colon methods, so wrap it in a thin dot called adapter, as Olm's Vpn
    plugin does for its location picker.
 2. Declare the context in the plugin's own manifest `surface`, with a name, a `when`
-   predicate name, a priority, and the bindings by action name. This stays pure data, and
-   a person changes a list binding under `surface` in `config/plugins.lua` until phase 7 of
-   the keymap plan moves list keys into `config/keymap.lua`, never in the plugin.
+   predicate name, a priority, and the bindings by action name. This stays pure data. The
+   shared verbs take Olm's own keys, a key on an `extra` row is that list's default, and a
+   person moves or frees any of them in the `lists` section of `config/keymap.lua`, never in
+   the plugin and never in `config/plugins.lua`.
 3. Add the predicate, the `when` name mapped to a function returning whether that
    surface is open, either on the plugin's own `predicates` table or, for a root owned
    gate, straight into `ownPredicates` in `root/compose.lua`.

@@ -25,7 +25,7 @@ names into `{ name, opts }` pairs, warning by name for a spec entry naming a too
 registry has never heard of and staying silent for one that is merely inactive or, for
 emoji, active but carrying no scope this run. The root's own loop then passes each pair
 through the same `scope(name, opts)` helper it always used, which is what still joins
-`name`, `title`, `icon`, and `aliases` from the plugin's defaults and `config/plugins.lua` before handing the finished
+`name`, `title` and `icon` from the plugin's defaults and its overrides, and `aliases` from its defaults and the `aliases` section of `config/keymap.lua`, before handing the finished
 table to this spoon's own `configure`. So the contract this file enforces, four verbs plus
 a matcher plus the identity fields, is unchanged, only the place those fields are
 assembled from moved one step further from where they are consumed.
@@ -344,14 +344,14 @@ that has to be argued each time something else looks reflexive enough to qualify
 Root policy costs nothing to reach that way. The contract asks for two functions and never
 asks where they came from, which is already how menu search works with no spoon behind it, so
 a directory built from a public method is the same shape. Its alias then lives in
-its manifest defaults, or `config/plugins.lua` for a person's own, beside every other alias rather than as a constant in here, so it is changed
+its manifest defaults, or the `aliases` section of `config/keymap.lua` for a person's own, beside every other alias rather than as a constant in here, so it is changed
 the same way and a tool that ever wants `?` collides with it loudly instead of quietly losing
 to a built in.
 
 ## Where the aliases live, and why not here
 
-In the plugin's manifest defaults, or `config/plugins.lua` for a person's own change, on the same entry that already holds the tool's key and
-description. The row that advertises an alias and the resolver that answers it read
+In the plugin's manifest defaults, on the same entry that already holds the tool's suggested key and
+description, or the `aliases` section of `config/keymap.lua` for a person's own change, beside every key a person sets. The row that advertises an alias and the resolver that answers it read
 one piece of data, so the hint and the behaviour cannot drift, which is the same
 reason the chord label on a row is derived rather than written. A tool with no
 `aliases` field is simply not scopable, so nothing is switched on by accident.

@@ -20,12 +20,14 @@
 -- is whatever the plan's identity table calls its directory.
 --
 -- THE PERSON'S KEYMAP. readConfig reads config/keymap.lua, which reaches Olm as cfg.keymap and no
--- plugin ever reads, into its four sections, and build lays the keys section over the defaults by
--- three rules. An action the person names takes exactly the chords listed for it and loses every
--- row it had. A row the person set wins a slot a default holds, and the default row on that slot
--- is dropped with one routine note naming it, never bound beside it. And false frees a chord,
--- dropping whatever default holds it with nothing bound there. The notes come back beside the
--- problems for the root to log.
+-- plugin ever reads, into its five sections, keys, leaders, roles, aliases and lists. applyLists
+-- lays the lists section over every list's bindings before anything reads them, and build lays
+-- the keys section over the defaults by three rules. An action the person names takes exactly the
+-- chords listed for it and loses every row it had. A row the person set wins a slot a default
+-- holds, and the default row on that slot is dropped with one routine note naming it, never bound
+-- beside it. And false frees a chord, dropping whatever default holds it with nothing bound there.
+-- The notes come back beside the problems for the root to log. applyLists follows the same three
+-- rules inside each list.
 --
 -- The row.
 --
@@ -200,21 +202,12 @@ local function sortedKeys(t)
   return out
 end
 
--- user when any of the named paths came from the person, otherwise default. A provenance
--- table is keyed by dotted path and a list is one entry, so bindings is a single path.
-local function originOf(prov, ...)
-  for i = 1, select("#", ...) do
-    if (prov or {})[(select(i, ...))] == "user" then return "user" end
-  end
-  return "default"
-end
-
 --------------------------------------------------------------------------------
 -- The person's keymap, config/keymap.lua, read into one shape
 --------------------------------------------------------------------------------
 
--- The sections the file may hold. lists joins them in phase 7 of the keymap plan.
-local SECTIONS = { "keys", "leaders", "roles", "aliases" }
+-- The sections the file may hold.
+local SECTIONS = { "keys", "leaders", "roles", "aliases", "lists" }
 local SECTION = {}
 for _, name in ipairs(SECTIONS) do SECTION[name] = true end
 
@@ -317,7 +310,7 @@ local function isWordList(t)
   return true
 end
 
---- obj.readConfig(config, opts) -> { keys, leaders, roles, aliases, problems }
+--- obj.readConfig(config, opts) -> { keys, leaders, roles, aliases, lists, problems }
 --- config/keymap.lua as one shape, every entry checked here so the rest of Olm reads clean data.
 ---   opts.catalog    the leader catalog, whose names lowercased are the built in held leaders.
 ---   opts.roleWords  the role words a default may name, app and window.
@@ -327,11 +320,15 @@ end
 --- name. roles maps a role word to the catalog name of the held leader it moves to. aliases maps a
 --- plugin or host identity to its words, the identity checked by the caller, which knows the
 --- plugins. keys is a list, sorted by the chord as written, of { text, leader, mods, key, free,
---- owner, action }, free true for an entry answering false. Every entry that cannot be read is one
---- problem naming the entry and is left out, and every other entry is still read.
+--- owner, action }, free true for an entry answering false. lists maps a list's context name, or
+--- all, to a list sorted by the chord as written of { text, leader, mods, key, free, action }, the
+--- action a surface action name rather than an id, since a list key acts on whichever list is
+--- open, and every list section is read whether or not a list of that name loads, applyLists
+--- answering that. Every entry that cannot be read is one problem naming the entry and is left
+--- out, and every other entry is still read.
 function obj.readConfig(config, opts)
   opts = opts or {}
-  local out = { keys = {}, leaders = {}, roles = {}, aliases = {}, problems = {} }
+  local out = { keys = {}, leaders = {}, roles = {}, aliases = {}, lists = {}, problems = {} }
   local function problem(where, why)
     out.problems[#out.problems + 1] = { where = "config/keymap.lua " .. where, why = why }
   end
@@ -445,7 +442,351 @@ function obj.readConfig(config, opts)
       end
     end
   end
+
+  -- The lists section, one table per list keyed by its context name and all for every list, each a
+  -- chord to the surface action it runs there or false. Whether the chord sits on the leader that
+  -- hosts lists, and whether the list and the action exist, is applyLists' question, since only
+  -- the root knows the leader and the lists, so this reads the grammar alone.
+  local lists = section("lists")
+  for _, name in ipairs(sortedKeys(lists)) do
+    local layer = lists[name]
+    if type(name) ~= "string" or name == "" then
+      problem("lists " .. tostring(name), "is not a list name, so the section is ignored")
+    elseif type(layer) ~= "table" then
+      problem("lists " .. name, "is a " .. type(layer) .. " rather than a table of chords, so it is ignored")
+    else
+      local entries = {}
+      for _, text in ipairs(sortedKeys(layer)) do
+        local where = "lists " .. name .. " " .. tostring(text)
+        local value = layer[text]
+        if value ~= false and (type(value) ~= "string" or value == "") then
+          problem(where, "answers a " .. type(value) .. ", where a list chord takes the name of a surface action such as selectNext, or false to free it, so the entry is ignored")
+        else
+          local chord, why = obj.parseChord(text, chordLeaders, opts.keycodes)
+          if not chord then
+            problem(where, why .. ", so the entry is ignored")
+          else
+            entries[#entries + 1] = { text = text, leader = chord.leader, mods = chord.mods, key = chord.key,
+              free = value == false, action = value ~= false and value or nil }
+          end
+        end
+      end
+      out.lists[name] = entries
+    end
+  end
   return out
+end
+
+--------------------------------------------------------------------------------
+-- Keys inside a list, Olm's own all layer and the person's lists section
+--------------------------------------------------------------------------------
+
+--- obj.listDefaults
+--- Olm's own all layer, the key every list's shared verbs sit on unless that list's manifest
+--- states its own, the launcher's close for one, or the person moves it in the lists section of
+--- config/keymap.lua. A shared verb is named by what it does, primary for the list's own primary
+--- action, close for its close, and the action names of the other three, and lib/surface.lua
+--- builds each on the key named here. Every list key binds on the leader whose policy turns
+--- contexts on, so a key here names no leader. This is a core default rather than a plugin's,
+--- and the one place these five keys are written.
+obj.listDefaults = { primary = "i", selectNext = "j", selectPrev = "k", close = "x", openActionPanel = "o" }
+
+-- The slot one list key claims inside its list, its key and its modifiers, a catch all apart from
+-- an exact set, the same comparison collisions makes, with no layer and no leader since both are
+-- the list's.
+local function listSlot(key, mods, keycodes)
+  local text
+  if mods == nil then text = "any"
+  else
+    local list = obj.mods(mods)
+    text = #list == 0 and "none" or table.concat(list, "+")
+  end
+  return obj.keyName(key, keycodes) .. "\0" .. text
+end
+
+-- Whether a binding answers a name a list entry gives, its own action or the shared verb it was
+-- built for, so close reaches the launcher's close and closeChooser reaches it too.
+local function answers(b, name)
+  return b.action == name or (b.shared ~= nil and b.shared == name)
+end
+
+-- Whether an entry reaches a binding at all. An entry of the list's own table reaches every binding
+-- answering its name. An all entry reaches only a binding whose key came from Olm's own all layer,
+-- layerKey, so a list whose manifest states its own key for a shared verb, the launcher closing
+-- on the key that also opens it, keeps that key unless the person names that list.
+local function reaches(held, b)
+  if held.section == "all" and not b.layerKey then return false end
+  return true
+end
+
+--- obj.applyLists(contexts, lists, opts) -> problems, notes
+--- The person's lists section laid over every list's built bindings, in place, so the hint bar,
+--- the action panel, the keymap's rows and the contexts the root binds all read the one answer.
+--- all is laid first and each list's own table over it. A list's own table decides every binding
+--- its entries resolve to and every slot it names, so an all entry resolving to one of the same
+--- bindings, by action or by shared verb, or on one of those slots, is not applied in that list.
+--- all moves and frees only keys that came from Olm's own all layer, so a key a manifest states
+--- for a shared verb stays unless the list's own table names it. The
+--- rules are the keys section's, inside one list. An action named takes exactly the chords
+--- listed for it and loses its default key, copying its gate, label and repeat from the binding
+--- it had. A chord landing on a slot a default holds drops that default, one routine note. false
+--- frees a slot. Two entries of one table on one slot are refused together, one problem, so no
+--- winner is picked, and two defaults on one slot stay for the keymap's collision check to name.
+--- A binding listed with chord false is a key the list reads for itself, a manifest fact, so an
+--- entry naming it is a problem and it is never a slot.
+---   opts.listLeader  the leader hosting lists, the name a chord spells it with, hyper here. A list
+---                    chord on any other leader, or on none, is a problem and is not applied.
+---   opts.keycodes    the keycode table a key is spelled with, or nil.
+---   opts.known       optional, answering whether a list name belongs to a plugin that exists and
+---                    is not loaded this time, so its section is a note rather than a problem.
+--- An entry naming an action the list left out for a need this machine lacks, the block's unmet,
+--- is a routine note, since the key exists on a machine that meets the need.
+--- Every problem is a table with where and why, and every note a line, the same shapes build gives.
+function obj.applyLists(contexts, lists, opts)
+  opts = opts or {}
+  contexts = contexts or {}
+  local keycodes = opts.keycodes
+  local problems, notes = {}, {}
+  local function problem(where, why)
+    problems[#problems + 1] = { where = "config/keymap.lua lists " .. where, why = why }
+  end
+
+  -- Each section's readable entries, with a chord on another leader and two entries of the one
+  -- table on one slot refused here, once, rather than once per list they would reach.
+  local sections = {}
+  for _, name in ipairs(sortedKeys(lists or {})) do
+    local valid, bySlot = {}, {}
+    for _, e in ipairs(lists[name]) do
+      local where = name .. " " .. tostring(e.text)
+      if e.leader == nil or e.leader ~= opts.listLeader then
+        problem(where, "opens with " .. tostring(e.leader or "no leader") .. ", and a list key lives on "
+          .. tostring(opts.listLeader or "the leader hosting lists") .. ", the leader hosting lists, so the entry is ignored")
+      else
+        local slot = listSlot(e.key, e.mods, keycodes)
+        local held = { entry = e, slot = slot, section = name, where = where }
+        if bySlot[slot] then
+          bySlot[slot].clash = bySlot[slot].clash or {}
+          table.insert(bySlot[slot].clash, held)
+        else
+          bySlot[slot] = held
+          valid[#valid + 1] = held
+        end
+      end
+    end
+    local kept = {}
+    for _, held in ipairs(valid) do
+      if held.clash then
+        local texts = { "'" .. tostring(held.entry.text) .. "'" }
+        for _, other in ipairs(held.clash) do texts[#texts + 1] = "'" .. tostring(other.entry.text) .. "'" end
+        problem(held.where, "the entries " .. table.concat(texts, " and ") .. " are two of the person's own chords on one slot of "
+          .. name .. ", so neither is applied")
+      else
+        kept[#kept + 1] = held
+      end
+    end
+    sections[name] = kept
+  end
+
+  for _, name in ipairs(sortedKeys(sections)) do
+    if name ~= "all" and contexts[name] == nil then
+      if opts.known and opts.known(name) then
+        notes[#notes + 1] = "the keymap lists section '" .. name .. "' names a list that is not loaded this time, so it binds nothing"
+      else
+        problem(name, "names no list in this load, a list is named by its manifest's surface context, so the section is ignored")
+      end
+    end
+  end
+
+  -- Which all entries some list answered or freed something in, so an entry that reached nothing
+  -- anywhere is said once rather than once per list.
+  local reached = {}
+
+  for _, listName in ipairs(sortedKeys(contexts)) do
+    local block = contexts[listName]
+    local own = sections[listName] or {}
+    local bindings = block.bindings or {}
+    -- The bindings the list's own table resolves to, by action or by shared verb, so an all entry
+    -- naming the same binding another way, primary for insertSelected or close for closeChooser,
+    -- is overridden just as one spelling it the same way is.
+    local ownSlot, ownBinding = {}, {}
+    for _, held in ipairs(own) do
+      ownSlot[held.slot] = true
+      if not held.entry.free then
+        for _, b in ipairs(bindings) do
+          if answers(b, held.entry.action) then ownBinding[b] = true end
+        end
+      end
+    end
+    local function overridden(held)
+      if ownSlot[held.slot] then return true end
+      if held.entry.free then return false end
+      for _, b in ipairs(bindings) do
+        if ownBinding[b] and answers(b, held.entry.action) then return true end
+      end
+      return false
+    end
+    local layer = {}
+    for _, held in ipairs(sections.all or {}) do
+      if not overridden(held) then
+        layer[#layer + 1] = held
+      else
+        -- The list's own table overrode the entry here, which is still a list the entry reached,
+        -- so it is not said to reach none below.
+        reached[held] = true
+      end
+    end
+    for _, held in ipairs(own) do layer[#layer + 1] = held end
+
+    -- What each entry moves, the first binding answering its action and every one answering it,
+    -- which all lose their key and give way to the entry's chords.
+    local moved, chordsFor, template = {}, {}, {}
+    for _, held in ipairs(layer) do
+      local e = held.entry
+      if not e.free then
+        local first, listedOnly = nil, false
+        for _, b in ipairs(bindings) do
+          if answers(b, e.action) and reaches(held, b) then
+            if b.chord == false then listedOnly = true
+            else
+              first = first or b
+              moved[b] = true
+            end
+          end
+        end
+        if first then
+          reached[held] = true
+          template[first] = template[first] or first
+          chordsFor[first] = chordsFor[first] or {}
+          table.insert(chordsFor[first], held)
+        elseif held.section ~= "all" then
+          local need = (block.unmet or {})[e.action]
+          if need ~= nil then
+            notes[#notes + 1] = "the keymap entry 'lists " .. listName .. " " .. tostring(e.text) .. "' names "
+              .. e.action .. ", which needs " .. tostring(need) .. " and this machine lacks it, so it binds nothing"
+          elseif listedOnly then
+            problem(held.where, "names " .. e.action .. ", which the list lists with chord false, a key it reads for itself, so it is no person setting and the entry is ignored")
+          else
+            problem(held.where, "names the action '" .. e.action .. "', which the list " .. listName .. " does not answer, so the entry is ignored")
+          end
+        end
+      end
+    end
+
+    -- The moved bindings give way, in place, to one copy per chord, so the order a list's keys
+    -- are listed in stays its manifest's. A binding answering an action named that is not the
+    -- first is dropped, since the action takes exactly the chords listed.
+    local rebuilt = {}
+    for _, b in ipairs(bindings) do
+      if not moved[b] then
+        rebuilt[#rebuilt + 1] = b
+      elseif chordsFor[b] then
+        for _, held in ipairs(chordsFor[b]) do
+          local copy = {}
+          for k, v in pairs(b) do copy[k] = v end
+          copy.key, copy.mods = held.entry.key, held.entry.mods
+          copy.fn, copy.layerKey = nil, nil
+          copy.entry = held.section .. " " .. tostring(held.entry.text)
+          rebuilt[#rebuilt + 1] = copy
+        end
+      end
+    end
+
+    -- false frees a slot, and a person's chord takes a slot from the default holding it. Both drop
+    -- default bindings only, the bound ones, since a key listed with chord false holds no slot.
+    local function slotOfBinding(b) return listSlot(b.key, b.mods, keycodes) end
+    local takenBy = {}
+    for _, b in ipairs(rebuilt) do
+      if b.entry then takenBy[slotOfBinding(b)] = takenBy[slotOfBinding(b)] or b end
+    end
+    local frees = {}
+    for _, held in ipairs(layer) do
+      if held.entry.free then frees[held.slot] = held end
+    end
+    local final = {}
+    for _, b in ipairs(rebuilt) do
+      local slot = (not b.entry and b.chord ~= false) and slotOfBinding(b) or nil
+      local free = slot and frees[slot]
+      if free and not reaches(free, b) then free = nil end
+      local winner = slot and takenBy[slot]
+      if free then
+        reached[free] = true
+        notes[#notes + 1] = "the keymap entry 'lists " .. free.section .. " " .. tostring(free.entry.text)
+          .. "' frees the chord in " .. listName .. ", so " .. listName .. "." .. tostring(b.action) .. " is not bound there"
+      elseif winner then
+        notes[#notes + 1] = "the keymap entry 'lists " .. winner.entry .. "' takes " .. tostring(b.key) .. " in "
+          .. listName .. ", so the default " .. listName .. "." .. tostring(b.action) .. " is not bound there"
+      else
+        final[#final + 1] = b
+      end
+    end
+    -- false on a slot one of the person's own chords in this list takes is two of the person's on
+    -- one slot, which the section check above already refused within one table, so here it is
+    -- only ever an all entry the list's own table overrode, and the list's own wins in silence.
+    block.bindings = final
+  end
+
+  for _, held in ipairs(sections.all or {}) do
+    if not reached[held] then
+      if held.entry.free then
+        notes[#notes + 1] = "the keymap entry 'lists all " .. tostring(held.entry.text) .. "' frees a chord no list holds"
+      else
+        problem(held.where, "names the action '" .. tostring(held.entry.action) .. "', which no list answers on a key of Olm's own all layer, and all moves only those, so the entry is ignored, a list's own key is moved in that list's table")
+      end
+    end
+  end
+  for _, name in ipairs(sortedKeys(sections)) do
+    if name ~= "all" and contexts[name] then
+      for _, held in ipairs(sections[name]) do
+        if held.entry.free and not reached[held] then
+          notes[#notes + 1] = "the keymap entry 'lists " .. name .. " " .. tostring(held.entry.text) .. "' frees a chord no key of the list holds"
+        end
+      end
+    end
+  end
+  return problems, notes
+end
+
+--- obj.retiredPluginFields
+--- The fields config/plugins.lua refuses since phase 7 of the keymap plan, each a key, a list key
+--- or an alias a person once set per plugin, all of which config/keymap.lua holds now.
+obj.retiredPluginFields = { "key", "mods", "leader", "bindings", "surface", "aliases" }
+
+--- obj.refusePluginKeys(entries) -> entries, problems
+--- The person's config/plugins.lua entries with every retired key field taken out, and one
+--- problem per field naming config/keymap.lua. The entries are copied where a field is taken, so
+--- the person's own table is untouched, and every other field, data and global among them, is
+--- kept as it was. Only an entry's own top level fields are read, so a key or an aliases field
+--- inside its data is the plugin's data and never refused. A false entry and an entry holding none
+--- of the fields come back as they were. An entry left with nothing comes back nil, since an empty
+--- table is read by lib/defaults.lua's merge as an empty list replacing every default, which would
+--- leave a plugin with no open row, leader, aliases or description.
+function obj.refusePluginKeys(entries)
+  local out, problems = {}, {}
+  local retired = {}
+  for _, field in ipairs(obj.retiredPluginFields) do retired[field] = true end
+  for _, identity in ipairs(sortedKeys(entries or {})) do
+    local entry = entries[identity]
+    if type(entry) == "table" then
+      local copy, refused = {}, false
+      for field, value in pairs(entry) do
+        if retired[field] then refused = true else copy[field] = value end
+      end
+      if refused then
+        for _, field in ipairs(obj.retiredPluginFields) do
+          if entry[field] ~= nil then
+            problems[#problems + 1] = { where = "config/plugins.lua " .. tostring(identity) .. " " .. field,
+              why = "is retired, every key, list key and alias a person sets is written in config/keymap.lua, so the field is ignored" }
+          end
+        end
+        if next(copy) ~= nil then out[identity] = copy end
+      else
+        out[identity] = entry
+      end
+    else
+      out[identity] = entry
+    end
+  end
+  return out, problems
 end
 
 --- obj.build(inputs) -> { rows = list, bound = list, problems = list, notes = list, roles = table }
@@ -456,7 +797,7 @@ end
 --- the root logs and never reports as problems. roles is the roles table it was built with.
 --- Reads declarations and nothing else.
 ---
----   plan        the root's plan, its effective, provenance, contexts, identity and order.
+---   plan        the root's plan, its effective, contexts, identity and order.
 ---   roles       the role word to leader catalog name table, app and window at least.
 ---   keycodes    Hammerspoon's keycode table, or nil, in which case a key is only lowercased.
 ---   shortcuts   what the registry holds as shortcuts, in registration order, entries with a
@@ -612,18 +953,17 @@ function obj.build(inputs)
     for hostIndex, directory in ipairs(sortedKeys(plan.effective)) do
       local eff = plan.effective[directory]
       local owner = identityOf[directory] or directory
-      local prov = (plan.provenance or {})[directory] or {}
 
       -- The open row of a tool, or of a host that is not a tool. A tool's key sits on whatever
       -- leader its row names, the window leader included, and a tool registered with a global
-      -- shortcut is a plain combo. A host's key calls whatever the root answers for it. The
-      -- person's key override arrives on this row too, see lib/defaults.lua, so its origin
-      -- also reads the key and mods paths.
+      -- shortcut is a plain combo. A host's key calls whatever the root answers for it. Every row
+      -- here is the manifest's, since config/plugins.lua holds no key since phase 7 of the keymap
+      -- plan, so a row is the person's only when config/keymap.lua set it, below.
       for _, b in ipairs(eff.bindings or {}) do
         if isOpenRow(directory, b) then
           local place, why = placeOfRow(b, eff)
           local entry = shortcutOf[owner]
-          local origin = originOf(prov, "bindings", "key", "mods", "leader")
+          local origin = "default"
           if not place then
             badRow(owner, b, why)
           elseif entry then
@@ -657,7 +997,6 @@ function obj.build(inputs)
     for _, directory in ipairs(sortedKeys(plan.effective)) do
       local eff = plan.effective[directory]
       local owner = identityOf[directory] or directory
-      local prov = (plan.provenance or {})[directory] or {}
       -- A plugin's own bindings, each with its own key, modifiers and gate, each running the
       -- descriptor its action names. The binding's own gate, repeat and label win, and the
       -- descriptor's answer them where the binding is silent.
@@ -681,7 +1020,7 @@ function obj.build(inputs)
               description = b.description or (descriptor and descriptor.description),
               group = descriptor and descriptor.group or nil,
               app = descriptor and descriptor.app or nil,
-              origin = originOf(prov, "bindings"),
+              origin = "default",
               repeats = repeats, run = descriptor and descriptor.run or nil,
               afterRelease = descriptor and descriptor.afterRelease or nil,
               refused = refusedHere == true
@@ -697,7 +1036,8 @@ function obj.build(inputs)
   -- Every list's context bindings, live only while that list is open. They bind on the leader
   -- whose policy turns contexts on, the app role's leader unless the root says otherwise, under
   -- the context's own gate and priority. A binding that says chord is false is listed for
-  -- reading and never bound as a key.
+  -- reading and never bound as a key. The person's lists section is already laid over them by
+  -- applyLists, so a binding it moved names its entry and is the person's.
   source("list keys", function()
     for _, name in ipairs(sortedKeys(plan.contexts)) do
       local block = plan.contexts[name]
@@ -706,7 +1046,7 @@ function obj.build(inputs)
           add({
             layer = name, leader = listLeader, role = roleOfLeader(listLeader), key = b.key, mods = b.mods, owner = name,
             action = b.action, source = "context", when = block.when, priority = block.priority,
-            description = b.description, origin = "default",
+            description = b.description, origin = b.entry and "user" or "default", entry = b.entry,
           })
         end
       end
@@ -862,27 +1202,9 @@ function obj.build(inputs)
   end
 
   -- A row the person set wins its slot over a shipped default, which is dropped rather than bound
-  -- beside it, with one routine line naming what was displaced. The person's own rows are the
-  -- keymap's entries and also any binding still written in config/plugins.lua, so one rule
-  -- answers every one of them, and a default never meets a person's row in the collision check
-  -- below. A keymap entry ranks above every other source of the person's, since it is the one
-  -- file a person writes keys in, so it drops such a binding on its slot first, the same way and
-  -- with the same line.
-  local entrySlot = {}
-  for _, row in ipairs(rows) do
-    if row.layer == GLOBAL and row.entry then
-      local slot = slotOf(row, modifierLeaders)
-      entrySlot[slot] = entrySlot[slot] or row
-    end
-  end
-  for _, row in ipairs(drop(function(row)
-    return row.layer == GLOBAL and not row.entry and row.origin == "user"
-      and entrySlot[slotOf(row, modifierLeaders)] ~= nil
-  end)) do
-    local winner = entrySlot[slotOf(row, modifierLeaders)]
-    notes[#notes + 1] = "the keymap entry '" .. tostring(winner.entry) .. "' takes " .. obj.chordText(row)
-      .. ", so the person's own " .. idOf(row) .. " is not bound there"
-  end
+  -- beside it, with one routine line naming what was displaced, so a default never meets a
+  -- person's row in the collision check below. The person's rows are the keymap's entries, the one
+  -- file a person writes keys in, since config/plugins.lua refuses every key field.
   local userSlot = {}
   for _, row in ipairs(rows) do
     if row.layer == GLOBAL and row.origin == "user" then
@@ -894,9 +1216,7 @@ function obj.build(inputs)
     return row.layer == GLOBAL and row.origin ~= "user" and userSlot[slotOf(row, modifierLeaders)] ~= nil
   end)) do
     local winner = userSlot[slotOf(row, modifierLeaders)]
-    local by = winner.entry and ("the keymap entry '" .. tostring(winner.entry) .. "'")
-      or ("the person's own " .. idOf(winner))
-    notes[#notes + 1] = by .. " takes " .. obj.chordText(row) .. ", so the default "
+    notes[#notes + 1] = "the keymap entry '" .. tostring(winner.entry) .. "' takes " .. obj.chordText(row) .. ", so the default "
       .. idOf(row) .. " is not bound there"
   end
 
@@ -912,23 +1232,17 @@ function obj.build(inputs)
     end
   end
 
-  -- A registered tool with a leader shortcut and no open row has no key, which the person's own
-  -- key NONE or false asks for and anything else, a bindings override that dropped the row or a
-  -- manifest without one, does not. Said once per tool, and quiet where the person unbound it.
+  -- A registered tool with a leader shortcut and no open row has no key, which a manifest without
+  -- one never means. Said once per tool, and quiet where the person's keymap moved, freed or
+  -- displaced its open row, since the person asked for that.
   local hasOpen = {}
   for _, row in ipairs(rows) do
     if row.source == "tool" then hasOpen[row.owner] = true end
   end
-  local directoryOf = {}
-  for directory in pairs(plan.effective or {}) do directoryOf[identityOf[directory] or directory] = directory end
   for _, entry in ipairs(inputs.shortcuts or {}) do
     if type(entry) == "table" and entry.kind == "leader" and not hasOpen[entry.name] and not touchedOpen[entry.name] then
-      local directory = directoryOf[entry.name]
-      local prov = directory and (plan.provenance or {})[directory] or {}
-      if prov.key ~= "user" then
-        rowProblems[#rowProblems + 1] = { where = tostring(entry.name) .. " open",
-          why = "the registered tool has a leader shortcut and no bindings row whose action is open, so it has no key" }
-      end
+      rowProblems[#rowProblems + 1] = { where = tostring(entry.name) .. " open",
+        why = "the registered tool has a leader shortcut and no bindings row whose action is open, so it has no key" }
     end
   end
 
@@ -1007,7 +1321,9 @@ function obj.collisions(rows, modifierLeaders)
     local a = first[id]
     for _, b in ipairs(extra[id] or {}) do
       local where = obj.chordText(b) .. " in " .. b.layer
-      if b.entry then where = "config/keymap.lua keys " .. tostring(b.entry) end
+      if b.entry then
+        where = "config/keymap.lua " .. (b.layer == GLOBAL and "keys " or "lists ") .. tostring(b.entry)
+      end
       problems[#problems + 1] = {
         where = where,
         why = named(a) .. " and " .. named(b) .. " both bind "

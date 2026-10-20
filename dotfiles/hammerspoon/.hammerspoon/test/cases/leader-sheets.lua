@@ -179,7 +179,7 @@ local function run(manifests, person)
   person = person or {}
   local plan = resolver.plan({ manifests = manifests, user = person.user or {}, data = person.data,
     present = function() return true end,
-    libNames = libNames })
+    libNames = libNames, listKeys = keymapLib.listDefaults })
   local result = { plan = plan, bound = { app = {}, window = {}, global = {} },
     sheet = { app = {}, window = {} }, undriven = {}, problems = plan.problems, bindProblems = {} }
 

@@ -5,10 +5,10 @@
 -- browserTabs and eyedropper is colorPicker, and a key spelled the directory way matches nothing,
 -- which Olm says out loud in the console rather than dropping in silence.
 --
--- A plugin's defaults, its key, its aliases, its icon and its place in a leader, live in its
--- own manifest. This file holds only what this person changes, so a plugin with no entry here
--- runs exactly as shipped and deleting an entry returns that plugin to its defaults. An entry is
--- one of two things.
+-- A plugin's defaults, its suggested keys, its aliases, its icon and its place on a sheet, live in
+-- its own manifest. This file holds only what this person changes about a plugin other than how it
+-- is reached, so a plugin with no entry here runs exactly as shipped and deleting an entry returns
+-- that plugin to its defaults. An entry is one of two things.
 --
 --   false   the plugin is switched off. Its code never runs, it is taken out of every list and
 --           claims no key, and a plugin that requires it goes off with it. Only a plugin under
@@ -17,9 +17,10 @@
 --           hs.settings and cannot undo a line in this file.
 --   table   any of the following, all optional.
 --             override fields, merged over that plugin's manifest defaults the way Olm always
---                has, so naming one key leaves its siblings alone. A key or an alias is not
---                one of them any more, config/keymap.lua holds every key and alias a person
---                sets, and the key fields still read here retire in phase 7 of the keymap plan.
+--                has, so naming one field leaves its siblings alone. A key, a list key or an
+--                alias is never one of them. config/keymap.lua holds every key, list key and
+--                alias a person sets, and key, mods, leader, bindings, surface and aliases
+--                written here are each refused with a console line naming that file.
 --             data    values only this machine knows, handed to the plugin as its own declared
 --                needs, never merged into its defaults.
 --             global  the name a spoon global mirrors the plugin onto, for a test suite that

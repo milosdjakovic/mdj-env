@@ -218,7 +218,7 @@ function obj.new()
 
   --- The key a plugin is on, read the way Olm reads it. Since phase 2b of the keymap plan a
   --- plugin's open key is the open row of the keymap the live root built, which already carries
-  --- any override the person wrote in config/plugins.lua, so it is asked there and nowhere else,
+  --- any key the person wrote in config/keymap.lua, so it is asked there and nowhere else,
   --- and a rebind moves the scenarios that ask with it. The name is the plugin's identity.
   function w.keyFor(name)
     local olm = spoon and spoon.Olm

@@ -55,6 +55,8 @@ function obj.new(deps)
   --   data,      the data values the root and the user can actually supply, OPTIONAL
   --   available, the wiring time choices a binding may name through `needs`, OPTIONAL
   --   disabled,  identities switched off from anywhere other than user, OPTIONAL, a set
+  --   listKeys,  Olm's own all layer, a shared list verb to its key, OPTIONAL, and a shared verb
+  --              with no key here is left out of every list
   function self.plan(input)
     input = input or {}
     local manifests = input.manifests or {}
@@ -291,25 +293,15 @@ function obj.new(deps)
     out.order = order
 
     -- 6. Merge each plugin's proposed defaults under the user's own configuration, keeping the
-    -- provenance so every effective value can say where it came from.
-    --
-    -- A person's key and mods for a plugin are carried onto its open bindings row rather than
-    -- merged as fields of their own, since defaults.key retired in phase 2b of the keymap plan.
-    -- lib/defaults.lua's splitOpenKey says why, and phase 7 retires the translation. The
-    -- provenance is taken from the override as the person wrote it, so the key still reads as
-    -- theirs.
+    -- provenance so every effective value can say where it came from. A person's keys, list keys
+    -- and aliases are not among the overrides since phase 7 of the keymap plan. The root refuses
+    -- those fields in config/plugins.lua, keys and list keys reach lib/keymap.lua from
+    -- config/keymap.lua, and the keymap's aliases arrive here as an ordinary override.
     for _, name in ipairs(order) do
       local proposed = (live[name].defaults) or {}
       local mine = userConfig[name]
-      local rest, openKey = D.splitOpenKey(mine)
-      out.effective[name] = D.merge(proposed, rest)
-      -- A person's bindings list that states no open row keeps the plugin's own, see keepOpenRow.
-      D.keepOpenRow(proposed, mine, out.effective[name])
+      out.effective[name] = D.merge(proposed, mine)
       out.provenance[name] = D.provenance(proposed, mine)
-      if openKey and not D.applyOpenKey(out.effective[name], openKey) then
-        problem("override", name, "config/plugins.lua sets key or mods for '" .. tostring(name)
-          .. "', which has no bindings row whose action is open, so the key is not bound")
-      end
     end
 
     -- 7. Collisions between what two plugins proposed, which is the alias half only now. Keys
@@ -335,22 +327,18 @@ function obj.new(deps)
 
     -- 9. Surfaces.
     --
-    -- A surface declaration is NOT one of the proposed defaults and must not be merged as if
-    -- it were. It sits at manifest.surface, so there is nothing under manifest.defaults for a
-    -- user fragment to land on, and merging the two axes together meant a user who changed one
-    -- key handed the builder a table holding only that key. The context name, the extra
-    -- bindings and the navigation flag all vanished with it, and the plugin lost its whole
-    -- block. The earlier version of this comment claimed the opposite of what the code did,
-    -- which is worse than no comment, and the test that passed only ever checked that the
-    -- changed key had changed.
-    --
-    -- So the user's surface fragment merges over the DECLARED surface, on its own axis.
+    -- A surface declaration is NOT one of the proposed defaults and is not merged with anything.
+    -- It sits at manifest.surface, and the keys its shared verbs sit on are Olm's own all layer,
+    -- input.listKeys, which the builder lays them on. A person's list keys are not read here at
+    -- all. They are the lists section of config/keymap.lua, which the root lays over the built
+    -- blocks through lib/keymap.lua's applyLists, since phase 7 of the keymap plan retired the
+    -- surface fragment a person could merge in config/plugins.lua. An earlier merge of that
+    -- fragment handed the builder a table holding only the changed key, and the plugin lost its
+    -- whole block, which is the reason a declaration is never merged in place.
     for _, name in ipairs(order) do
       local decl = live[name].surface
       if decl then
-        local mine = userConfig[name]
-        local fragment = type(mine) == "table" and mine.surface or nil
-        local effectiveDecl = fragment and D.merge(decl, fragment) or decl
+        local effectiveDecl = decl
 
         local ok, err = S.validate(name, effectiveDecl)
         if ok then
@@ -362,7 +350,7 @@ function obj.new(deps)
           -- everything else in this config still expects, with no error anywhere, since an
           -- unresolvable when is treated as always active by design.
           local contextName = effectiveDecl.context or out.identity[name] or name
-          local block = S.context(contextName, effectiveDecl, available)
+          local block = S.context(contextName, effectiveDecl, available, input.listKeys)
           out.contexts[contextName] = block
 
           -- Every predicate name the built contexts depend on, collected in one place the

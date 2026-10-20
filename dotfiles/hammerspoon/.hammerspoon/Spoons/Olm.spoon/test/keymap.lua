@@ -80,26 +80,36 @@ end
 -- A person's own row on a slot a default holds wins it, and the default is dropped with one
 -- routine note rather than reported or bound beside it. Two of the person's own are reported,
 -- and every default on a slot the person took is dropped, so none of them is reported either.
--- This replaced the one exemption the collision check kept until phase 5 of the keymap plan.
+-- This replaced the one exemption the collision check kept until phase 5 of the keymap plan. The
+-- person's rows are keymap entries alone since phase 7, config/plugins.lua holding no key.
 do
   local effective = {
     shipped = { leader = "app", bindings = { { action = "a", key = "a" } } },
-    mine = { leader = "app", bindings = { { action = "open", key = "a" } } },
+    mine = { leader = "app", bindings = { { action = "open", key = "m" } } },
+    mine2 = { leader = "app", bindings = { { action = "open", key = "n" } } },
   }
-  local result = build(defaultPlan(effective, { mine = { key = "user" } }))
+  local function entry(text, owner)
+    return { text = text, leader = "hyper", key = "a", owner = owner, action = "open" }
+  end
+  local function ownersOnA(result)
+    local owners = {}
+    for _, row in ipairs(result.rows) do
+      if row.key == "a" then owners[#owners + 1] = row.owner end
+    end
+    return table.concat(owners, ",")
+  end
+  local result = build(defaultPlan(effective), { personKeys = { entry("hyper+a", "mine") } })
   eq(#result.problems, 0, "a default meeting a user override is not reported")
-  local owners = {}
-  for _, row in ipairs(result.rows) do owners[#owners + 1] = row.owner end
-  eq(table.concat(owners, ","), "mine", "and the default is dropped rather than bound beside it")
+  eq(ownersOnA(result), "mine", "and the default is dropped rather than bound beside it")
   eq(#result.notes, 1, "said in one routine note")
   eq((result.notes[1] or ""):find("shipped.a", 1, true) ~= nil, true, "which names the displaced action")
 
-  effective.mine2 = { leader = "app", bindings = { { action = "open", key = "a" } } }
-  result = build(defaultPlan(effective, { mine = { key = "user" }, mine2 = { key = "user" } }))
+  local pair = { entry("hyper+a", "mine"), entry("Hyper+A", "mine2") }
+  result = build(defaultPlan(effective), { personKeys = pair })
   eq(#result.problems, 1, "two user overrides on one chord are reported")
 
   effective.shipped2 = { leader = "app", bindings = { { action = "b", key = "a" } } }
-  result = build(defaultPlan(effective, { mine = { key = "user" }, mine2 = { key = "user" } }))
+  result = build(defaultPlan(effective), { personKeys = pair })
   eq(#result.problems, 1, "two defaults on a slot the person took are both dropped, so only the person's pair is reported")
 end
 
@@ -146,7 +156,7 @@ do
       { action = "paste", key = "v", mods = { "ctrl", "alt" }, leader = false },
       { action = "raise", key = "r", leader = "app" },
     } },
-  }, { tool = { key = "user" } })
+  })
   local result = build(plan, {
     shortcuts = { { name = "tool", kind = "leader" } },
     provided = { toggler = {
@@ -157,7 +167,7 @@ do
   local seen = {}
   for _, row in ipairs(result.rows) do seen[row.source .. ":" .. row.action] = row end
   eq(seen["tool:open"] ~= nil, true, "a registered tool's open row is a tool row")
-  eq(seen["tool:open"].origin, "user", "a key the person set marks the open row as theirs")
+  eq(seen["tool:open"].origin, "default", "a manifest's open row is a default, config/plugins.lua setting no key")
   eq(seen["tool:open"].role, "app", "an open row stating no leader inherits the plugin's role")
   eq(seen["host:open"] ~= nil, true, "an unregistered owner's open row is a host row")
   eq(seen["bindings:open"], nil, "an open row is never read a second time as a plain binding")
@@ -390,34 +400,45 @@ do
   eq((said[1] or ""):find("carries commands, which retired", 1, true) ~= nil, true, "and says what replaced them")
 end
 
--- A person's key override in config/plugins.lua, vpn = { key = "Q" }, still moves the open key until
--- phase 5. It is split off the override, the rest merges as ever, and it lands on the open row of
--- the effective table the merge copied, so no manifest table is touched, and the provenance taken
--- from the override as written marks that row the person's.
+-- config/plugins.lua refuses every key field since phase 7 of the keymap plan, each one problem
+-- naming config/keymap.lua, and keeps every other field, data and global among them, as it was.
 do
-  local defaults = assert(loadfile(here .. "../lib/defaults.lua"))()
-  local shipped = { leader = "app", description = "VPN", bindings = { { action = "open", key = "P" } } }
-  local mine = { key = "Q", mods = { "shift" }, description = "Tunnel" }
-  local rest, openKey = defaults.splitOpenKey(mine)
-  eq(rest.key, nil, "the key is taken out of the override")
-  eq(rest.description, "Tunnel", "and every other field stays in it")
-  local eff = defaults.merge(shipped, rest)
-  eq(defaults.applyOpenKey(eff, openKey), true, "the key lands on a plugin with an open row")
-  eq(eff.bindings[1].key, "Q", "the open row takes the person's key")
-  eq(table.concat(eff.bindings[1].mods, "+"), "shift", "and their modifiers")
-  eq(eff.key, nil, "and no key field reaches the effective table")
-  eq(shipped.bindings[1].key, "P", "the manifest's own row is untouched")
-  eq(defaults.applyOpenKey({ bindings = { { action = "go", key = "g" } } }, openKey), false,
-    "a plugin with no open row answers false for the caller to report")
-  local same, none = defaults.splitOpenKey({ leader = "window" })
-  eq(none, nil, "an override with no key or mods is left as it is")
-  eq(same.leader, "window", "a leader override merges as an ordinary default")
+  local entries = {
+    vpn = { key = "Q", mods = { "shift" }, description = "Tunnel", data = { x = 1 } },
+    clipboard = { surface = { extra = {} }, bindings = {}, leader = "window", aliases = { "c" } },
+    plain = { data = { y = 2 }, global = "Plain" },
+    off = false,
+  }
+  local out, problems = keymap.refusePluginKeys(entries)
+  eq(#problems, 6, "every retired field is one problem")
+  local text = ""
+  for _, p in ipairs(problems) do text = text .. p.where .. " | " .. p.why .. "\n" end
+  eq(text:find("config/plugins.lua vpn key | is retired", 1, true) ~= nil, true, "the problem names the entry and the field")
+  eq(text:find("config/plugins.lua clipboard surface |", 1, true) ~= nil, true, "a surface override is refused")
+  eq(text:find("written in config/keymap.lua", 1, true) ~= nil, true, "and says where a key is set now")
+  eq(out.vpn.key, nil, "the key is taken out")
+  eq(out.vpn.description, "Tunnel", "and every other override stays")
+  eq(out.vpn.data.x, 1, "data stays")
+  eq(entries.vpn.key, "Q", "the person's own table is untouched")
+  eq(out.clipboard, nil, "an entry holding only key fields is left out rather than empty")
+  eq(out.plain, entries.plain, "an entry with no key field comes back as it was")
+  eq(out.off, false, "and so does a false entry")
 
-  local prov = defaults.provenance(shipped, mine)
-  local result = build(defaultPlan({ vpn = eff }, { vpn = prov }), { shortcuts = { { name = "vpn", kind = "leader" } } })
-  local open = result.rows[1]
-  eq(open and open.key, "q", "the keymap binds the translated key")
-  eq(open and open.origin, "user", "and marks it the person's")
+  local nested = { tool = { data = { key = "k", aliases = { "a" }, bindings = {} } } }
+  local kept, none = keymap.refusePluginKeys(nested)
+  eq(#none, 0, "a key or aliases field inside data is never refused")
+  eq(kept.tool.data.key, "k", "and reaches the plugin as its data")
+
+  -- A leftover vpn = { key = "Q" } is one problem, and the plugin keeps every default, since the
+  -- entry is left out rather than merged as an empty table, which replaces every default.
+  local defaults = assert(loadfile(here .. "../lib/defaults.lua"))()
+  local shipped = { leader = "app", description = "VPN", aliases = { "v" }, bindings = { { action = "open", key = "P" } } }
+  local left, said = keymap.refusePluginKeys({ vpn = { key = "Q" } })
+  eq(#said, 1, "the leftover key is one problem line")
+  local eff = defaults.merge(shipped, left.vpn)
+  eq(eff.description .. eff.leader .. eff.aliases[1] .. eff.bindings[1].key, "VPNappvP", "and the plugin keeps every default")
+  eq(next(defaults.merge(shipped, {})) == nil or #defaults.merge(shipped, {}) == 0, true,
+    "where an empty table would have replaced them all")
 end
 
 -- Launcher rows from descriptors. Olm builds one row per listed action in the plugin's own order,
@@ -504,42 +525,13 @@ do
   eq(windowRows[1].action, "far", "including a row a plugin on another leader moved there")
 end
 
--- Review fixes of phase 2b. key NONE or false unbinds the open row, a person's bindings that state
--- no open row keep the default one unless the key was declined, and a registered leader tool left
--- with no open row is named, quietly where the person unbound it.
+-- A registered leader tool left with no open row is named, from phase 2b, and is quiet where the
+-- person's keymap moved its open row away.
 do
-  local defaults = assert(loadfile(here .. "../lib/defaults.lua"))()
-  local shipped = { leader = "app", bindings = { { action = "open", key = "P" }, { action = "go", key = "g" } } }
-  for _, declined in ipairs({ defaults.NONE, false }) do
-    local mine = { key = declined }
-    local rest, openKey = defaults.splitOpenKey(mine)
-    local eff = defaults.merge(shipped, rest)
-    defaults.keepOpenRow(shipped, mine, eff)
-    eq(defaults.applyOpenKey(eff, openKey), true, "a declined key lands on the open row")
-    local open = false
-    for _, b in ipairs(eff.bindings) do if b.action == "open" then open = true end end
-    eq(open, false, "key " .. tostring(declined == false and "false" or "NONE") .. " removes the open row")
-    eq(#eff.bindings, 1, "and keeps every other row")
-  end
-
-  local mine = { bindings = { { action = "go", key = "h" } } }
-  local eff = defaults.merge(shipped, mine)
-  defaults.keepOpenRow(shipped, mine, eff)
-  eq(eff.bindings[1].action .. eff.bindings[1].key, "openP", "a bindings override with no open row keeps the default one")
-  eq(#eff.bindings, 2, "and replaces the other rows wholesale")
-  local alone = defaults.merge(shipped, (defaults.splitOpenKey({ key = "Q" })))
-  eq(alone.leader, "app", "an override holding only a key keeps every other default")
-  local declined = { key = defaults.NONE, bindings = { { action = "go", key = "h" } } }
-  local eff2 = defaults.merge(shipped, defaults.splitOpenKey(declined))
-  defaults.keepOpenRow(shipped, declined, eff2)
-  eq(#eff2.bindings, 1, "unless the person declined the open key")
-  local own = { bindings = { { action = "open", key = "Q" } } }
-  local eff3 = defaults.merge(shipped, own)
-  defaults.keepOpenRow(shipped, own, eff3)
-  eq(#eff3.bindings == 1 and eff3.bindings[1].key, "Q", "a person's own open row is kept as written")
-
-  local function openProblems(effective, provenance)
-    local result = build(defaultPlan(effective, provenance), { shortcuts = { { name = "tool", kind = "leader" } } })
+  local function openProblems(effective, extra)
+    local inputs = { shortcuts = { { name = "tool", kind = "leader" } } }
+    for k, v in pairs(extra or {}) do inputs[k] = v end
+    local result = build(defaultPlan(effective), inputs)
     local n = 0
     for _, pr in ipairs(result.problems) do
       if pr.why:find("no bindings row whose action is open", 1, true) then n = n + 1 end
@@ -548,10 +540,11 @@ do
   end
   eq(openProblems({ tool = { leader = "app", bindings = {} } }), 1,
     "a registered leader tool with no open row is one problem")
-  eq(openProblems({ tool = { leader = "app", bindings = {} } }, { tool = { key = "user" } }), 0,
-    "and none where the person unbound it")
   eq(openProblems({ tool = { leader = "app", bindings = { { action = "open", key = "t" } } } }), 0,
     "a tool with its open row is not named")
+  eq(openProblems({ tool = { leader = "app", bindings = { { action = "open", key = "t" } } } },
+    { personKeys = { { text = "hyper+t", leader = "hyper", key = "t", free = true } } }), 0,
+    "and none where the person's keymap freed its key")
 end
 
 -- A role word no leader answers is a problem naming the plugin, the action and the word, and the

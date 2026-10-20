@@ -13,10 +13,8 @@
 --- the app in front, and an unknown predicate name warns once on every leader, where Hyper passed
 --- it in silence. A key with no binding at all still passes through as it always did. Outside a
 --- list that swallows only a key every binding of which is a list key, Hyper and H, Q and Y here.
---- Inside an open list it reaches further. The modal rule drops every base binding, and a key whose
---- base binding is dropped that way is still swallowed when some other list binds it, since that
---- list's binding matches and is gated off, so with the launcher open Hyper and A, D, F, L, M, R,
---- S, X, H, Q and Y are swallowed while B, C and E, which no other list binds, pass through.
+--- Inside an open list Hyper's sealedOverLists policy swallows every key that resolves to no live
+--- binding, so no Hyper key leaks past a list, and META and SUPER do so through quietOverLists.
 ---
 --- THE TRIGGER IS A STRATEGY, and the seam is the four functions a trigger answers, start, bound,
 --- isActive and owns. This file never names a concrete trigger. lib/leader/triggers/held.lua is
@@ -72,6 +70,9 @@ obj.noop = noop
 --   quietOverLists      while any Olm list is open every bound key is inert though still
 --                       swallowed, since a window action fired over a list moves whatever sits
 --                       underneath it.
+--   sealedOverLists     while any Olm list is open a key that resolves to no live binding is
+--                       swallowed rather than leaked to the app in front. Keys that do resolve act
+--                       as ever, and outside lists an unbound key still passes through.
 --   sheet               a hold reveals this leader's cheat sheet, drawn by the one sheet host. Absent
 --                       means a hold reveals nothing.
 --   sheetLayout         how that sheet is laid out, a table of the SHEET_FIELDS below. Absent means
@@ -82,6 +83,7 @@ local FIELDS = {
   drivenRepeat = "boolean",
   contexts = "boolean",
   quietOverLists = "boolean",
+  sealedOverLists = "boolean",
   sheet = "boolean",
   sheetLayout = "table",
   holdDelay = "number",
@@ -466,10 +468,14 @@ function obj:_resolve(list, flags)
   return nil
 end
 
--- What a trigger asks of a pressed key, the quiet rule first and then the resolver.
+-- What a trigger asks of a pressed key, the quiet rule first and then the resolver. The sealed rule
+-- turns an unbound answer into the noop while a list is open, so nothing leaks past a list.
 function obj:_onKey(code, flags)
-  if self._policy.quietOverLists and self._listOpen and self._listOpen() then return noop end
-  return self:_resolve(self._bindings[code], flags)
+  local over = self._listOpen and self._listOpen()
+  if self._policy.quietOverLists and over then return noop end
+  local handler, repeats = self:_resolve(self._bindings[code], flags)
+  if handler == nil and self._policy.sealedOverLists and over then return noop, false end
+  return handler, repeats
 end
 
 -- The engine's word for the repeat mode, nil leaving the engine's own default.

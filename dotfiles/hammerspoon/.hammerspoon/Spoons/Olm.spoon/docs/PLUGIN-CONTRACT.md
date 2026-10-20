@@ -285,7 +285,7 @@ binding's own where it states one and its action descriptor's otherwise, the she
 action name when neither says. A false predicate makes a window key a swallowed no op and an
 unknown name stays active and is warned about once. On every leader a key whose matching bindings
 are all gated off is swallowed rather than passed to the app in front, and only a key nothing
-binds passes through. Inside an open list the rule reaches further. The modal rule drops every base binding, and a key whose base binding is dropped that way is swallowed too when some other list binds it, since that list's binding matches and is gated off, so with the launcher open Hyper and A, D, F, L, M, R, S, X, H, Q and Y are swallowed while B, C and E, which no other list binds, still pass through.
+binds passes through. Inside an open list the rule reaches further. Every Hyper key that is not a live list key is swallowed, through the leader's `sealedOverLists` policy, so with the launcher open Hyper and A or B or C or E is swallowed alike, while list keys act as ever. META and SUPER already swallow every key over an open list through `quietOverLists`. Outside lists an unbound Hyper key still passes through.
 
 The value is delivered on `opts` under the field name you chose, and a member defined as a
 method arrives already bound to its own module, so you can call it plainly. Both halves
@@ -856,9 +856,21 @@ registered by that alone.
 
 ### defaults
 
-What this plugin proposes, which the person may override. A key and an alias are overridden in
-`config/keymap.lua` and nowhere else since phase 5 of the keymap plan, see The person's keymap
-below, and every other default in the plugin's entry in `config/plugins.lua`.
+What this plugin proposes, which the person may override. A key, a list key and an alias are
+overridden in `config/keymap.lua` and nowhere else, see The person's keymap below, and every other
+default in the plugin's entry in `config/plugins.lua`.
+
+Each concern has one way, and this table is the whole of it.
+
+| Concern | The one way |
+|---|---|
+| What a plugin can run | `provides.actions` descriptors |
+| Which keys a plugin suggests | `defaults.bindings` |
+| Which words a plugin suggests | `defaults.aliases` |
+| A plugin's lists and their verbs | its `surface` block |
+| A person's keys, list keys and aliases | `config/keymap.lua` |
+| A plugin's data and its switch | `config/plugins.lua` |
+| Which physical key is remapped | Olm's leader catalog |
 
 A default names a leader **role** and never a physical key, so a person who moves the
 app role to SUPER with `roles = { app = "super" }` carries every default with it.
@@ -879,12 +891,12 @@ naming no leader inherits `defaults.leader`, which is what that field is, the de
 row of the plugin takes, and a person who overrides it moves every such row at once.
 `defaults.key` and `defaults.mods` retired in phase 2b of the keymap plan, each a second way to
 suggest the open key, and a manifest still declaring either is named on the console with the
-open row that replaced it. A person's own `key` and `mods` for a plugin in `config/plugins.lua`
-are still carried onto its open row until phase 7 of the keymap plan refuses every key field
-there, and `config/keymap.lua` is where a person writes a key now.
+open row that replaced it. `config/plugins.lua` refuses `key`, `mods`, `leader`, `bindings`,
+`surface` and `aliases` since phase 7 of the keymap plan, each with one problem line naming
+`config/keymap.lua`, which is where a person writes every key, list key and alias.
 
 **The person's keymap.** `config/keymap.lua` reaches Olm as `cfg.keymap` and no plugin ever
-reads it, so nothing here changes for a plugin. It has four sections.
+reads it, so nothing here changes for a plugin. It has five sections.
 
 - `keys`, a chord to an action id or `false`. A chord is a leader or modifiers joined by `+`, the
   key last, compared without case. The leaders are `hyper`, `meta` and `super`, one per leader
@@ -899,6 +911,15 @@ reads it, so nothing here changes for a plugin. It has four sections.
   on the modifier trigger, with no sheet and no tap, named on a launcher row by its name.
 - `roles`, a role word to a held leader, `{ window = "super" }`, moving every default on the role.
 - `aliases`, a plugin identity to its words, replacing its `defaults.aliases` exactly.
+- `lists`, the keys live while a list is open, one table per list keyed by its `surface.context`
+  and `all` for every list, each a chord on `hyper` to a surface action name or `false`. A shared
+  verb is named `primary`, `selectNext`, `selectPrev`, `close` or `openActionPanel`, and any other
+  action by the name its `surface` gives it. `all` is laid first and each list's own table over it,
+  and `all` moves and frees only keys from Olm's own layer, so a key a manifest states for a shared
+  verb, the launcher's `close.key`, moves only in that list's own table.
+  A list chord may shadow a global chord while its list is open, since collisions are checked within
+  the global layer and within each list's layer, never across them. A binding listed with
+  `chord = false` is the list's own and no person setting.
 
 A person's chord on a slot a default holds wins it and the default row is dropped, said in one
 routine console line and never a problem, and `false` frees a chord. Every entry Olm cannot read,
@@ -916,13 +937,11 @@ level `false` switches the whole plugin off, see Switching a plugin off below. `
 exists because overloading boolean `false` made a meaningful `false` impossible to
 express, which silently broke `matcher = false`.
 
-`bindings` has one exception to the list rule, the open row. A person's `bindings` that states no
-row whose action is `open` keeps the plugin's own open row, put back at the front, since the open
-key was a field of its own until phase 2b of the keymap plan and rewriting a plugin's other keys
-never meant taking it away. Every other row is replaced wholesale as any list is. A person
-unbinds the open key with `key = defaults.NONE` or `key = false`, which removes the open row, and
-`key` and `mods` otherwise move it. A registered tool with a leader shortcut left with no open
-row for any other reason is named in the wiring report, since it would have no key.
+`bindings` is not overridden here at all since phase 7 of the keymap plan. A person moves or frees
+any row in `config/keymap.lua`, `["hyper+Q"] = "vpn.open"` or `["hyper+P"] = false`, so the open
+row's old exception to the list rule, and `key = defaults.NONE` or `key = false` unbinding it, went
+with the field. A registered tool with a leader shortcut left with no open row is named in the
+wiring report, since it would have no key, unless the person's keymap moved or freed it.
 
 #### Switching a plugin off
 
@@ -996,12 +1015,19 @@ choices that are this plugin's own rather than global policy.
 surface = {
   context = "browserTabs",         -- defaults to name
   primary = { action = "enter", description = "Select" },
-  nav     = true,                  -- j, k, i, x, defaults to true
+  nav     = true,                  -- the two move keys, defaults to true
   extra   = { { key = "d", action = "close", description = "Close tab" } },
   pane    = true,                  -- the docked companion preview
   when    = nil,                   -- defaults to <context>Open
 }
 ```
+
+The keys of the shared verbs, the primary, the two move keys, close and the action panel, are not
+the plugin's. They are Olm's own `all` layer, `lib/keymap.lua`'s `listDefaults`, `i`, `j`, `k`, `x`
+and `o` on the leader that hosts lists, and `lib/surface.lua` builds each verb on its key and holds
+no key itself, which the dry gate checks. A key a manifest states, an `extra` row's or a `close.key`
+such as the launcher's, is that list's default, laid over the `all` layer. A person moves any of
+them in the `lists` section of `config/keymap.lua`, never here and never in `config/plugins.lua`.
 
 `matcher` and `pane` live here rather than being ambient because they are per plugin
 choices. Since phase three of the unified search on 2026-10-17 no plugin names a matcher, and

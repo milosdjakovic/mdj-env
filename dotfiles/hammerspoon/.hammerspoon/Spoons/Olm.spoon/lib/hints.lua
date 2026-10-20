@@ -251,10 +251,12 @@ end
 
 -- The kind every action carries, derived from the plan rather than hand kept, since a hand
 -- kept table is exactly what went stale in the live root, missing one plugin's chord by its
--- own admission. The primary action, whichever binding a context lists first, is navigation.
--- The two move keys, close, and the action panel chord are navigation too, recognised by
--- the fixed names lib/surface.lua itself always gives them, GENERIC_NAV above. Every other
--- binding a context carries came from that plugin's own surface.extra, so it is a verb.
+-- own admission. The primary action is navigation, and so are the two move keys, close and the
+-- action panel chord, each a binding lib/surface.lua built for a shared verb and marked with it
+-- as shared, and recognised by the fixed names GENERIC_NAV above too. A block built by hand that
+-- marks no shared verb has its first binding taken as the primary, which is where lib/surface.lua
+-- puts it, since the person's lists section may free the primary key and leave an extra first.
+-- Every other binding a context carries came from that plugin's own surface.extra, so it is a verb.
 --
 -- kinds, when given, is a caller supplied table merged in last, an override rather than
 -- another vote, for the rare action this derivation could not classify correctly on its own.
@@ -266,11 +268,15 @@ end
 function obj.actionKinds(plan, kinds)
   local out, conflicts = {}, {}
   for _, ctx in pairs(plan.contexts or {}) do
+    local marked = false
+    for _, b in ipairs(ctx.bindings) do
+      if b.shared ~= nil then marked = true break end
+    end
     for i, b in ipairs(ctx.bindings) do
       local kind
-      if GENERIC_NAV[b.action] then
+      if GENERIC_NAV[b.action] or b.shared ~= nil then
         kind = "navigation"
-      elseif i == 1 then
+      elseif i == 1 and not marked then
         kind = "navigation"
       else
         kind = "verb"
