@@ -1,6 +1,9 @@
 # Repo only files at this package root, kept out of the home directory. The manifest is this
 # module's contract with the layer above, so it belongs to the repository rather than to the
-# running configuration.
+# running configuration. The rules files are read by agents working in this checkout, never by
+# Claude Code at run time, so they stay here too.
+AGENTS.md
+CLAUDE.md
 DEPENDENCIES
 # The fold declaration is read by the stow step one layer up, before anything is linked, so it
 # belongs to the repository rather than to the running configuration.

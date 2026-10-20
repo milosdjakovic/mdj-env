@@ -76,6 +76,7 @@ than discovered.
 - [herdr-theme](herdr-theme.md), Aura in herdr's own tokens on both appearances, and the faint agent line that was never a colour
 - [ghostty-aura-theme](ghostty-aura-theme.md), how the terminal palette settled on Aura for both halves after three other pairings
 - [claude-code-theme](claude-code-theme.md), Claude Code draws hex colours per theme and only `auto` asks the terminal, so setup merges it
+- [claude-handoff](claude-handoff.md), `/handoff` is a manual only skill that writes a fresh session prompt to `~/.claude/handoffs/` and the clipboard, the consuming session deletes it and each write prunes the folder, after a command file, a mod pane and a session end hook were turned down
 - [homebrew-upgrades](homebrew-upgrades.md), the Brewfile step installs what is missing, upgrades nothing and never adopts an app it did not install, since a version bump is a deliberate act rather than something a setup run does on the way past
 - [neovim-lockfile-pin](neovim-lockfile-pin.md), the lockfile is the pin and the bootstrap restores it rather than updating past it
 - [olm-workspaces](olm-workspaces.md), window layouts are snapshots a person takes and applies, keyed by display role, after the automatic version was pulled out

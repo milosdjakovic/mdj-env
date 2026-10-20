@@ -486,9 +486,14 @@ short of trying to connect.
 
 ### Claude Code
 
+Before changing anything in this package, read `dotfiles/claude/AGENTS.md`. It holds the restow
+step a new skill needs, since the skills folder is kept real rather than folded, the frontmatter
+rules for a manual only skill, and the handoff skill.
+
 Configuration in `dotfiles/claude/.claude/` (stow managed):
 - `commands/` - Custom slash commands (e.g., `/commit`)
-- `skills/` - Skills scoped to this package
+- `skills/` - Skills this repository ships, `/handoff` among them, which writes a prompt that
+  carries a session into a fresh one. `decisions/claude-handoff.md` has it.
 - `statusline-command.sh` - Custom status line script
 
 `settings.json` is not tracked in the repo because Claude Code modifies it
