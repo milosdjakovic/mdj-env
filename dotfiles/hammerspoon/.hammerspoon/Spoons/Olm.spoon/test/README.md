@@ -10,7 +10,7 @@ Spoons/Olm.spoon/test/icons.lua             # the icon engine, the config file, 
 Spoons/Olm.spoon/test/leaders.lua           # the two leader adapters' resolvers as they stand, see below
 Spoons/Olm.spoon/test/keys.sh               # every bound chord in the live config, diffed against keys.golden
 Spoons/Olm.spoon/test/keys.sh --bound       # what the binder bound under the stub, diffed against keys.golden
-Spoons/Olm.spoon/test/views.sh --offline    # the launcher's catalog and both cheat sheets under the stub, against their goldens
+Spoons/Olm.spoon/test/views.sh --offline    # the launcher's catalog and every leader's cheat sheet under the stub, against their goldens
 Spoons/Olm.spoon/test/goldens.sh            # every golden the keymap plan holds a phase to, offline, in one command
 Spoons/Olm.spoon/test/suite.sh structure    # no screen needed, fast, safe any time
 Spoons/Olm.spoon/test/suite.sh surface      # opens and closes every picker
@@ -145,7 +145,9 @@ launcher order number it was placed by. The remembered key is the field that mus
 since a change makes the launcher forget every pick a person made. App rows are left out, a disk
 scan and the running set a stubbed run cannot see. `sheets.golden` is the content model each held
 leader's sheet would draw, the Hyper sheet's sections and rows and the window sheet's rows, with
-badge, label, section and fade, everything except pixels. A section a plugin supplies, the app
+badge, label, section and fade, everything except pixels. One sheet host draws every leader since
+phase 4, and the golden kept the two line families the old hosts wrote, so it proved the merge by
+staying byte identical. A section a plugin supplies, the app
 toggler's running and dormant apps, is written as its headers alone, title, fade and layout, and
 nothing about its rows, since which apps are installed and running is a fact about one machine
 and the goldens are the same on every machine. Those rows are checked by eye, holding Hyper and
@@ -165,6 +167,10 @@ asks a host to build its rows afresh without touching the caches an open uses, s
 posts no key and writes to a file. Every golden
 matched its offline projection byte for byte on six runs in a row once the plan's own order was
 made stable, see `decisions/olm-keymap.md`.
+
+`leadersheet.lua` is plain Lua too, run by `suite.sh dry`, and pins the one sheet host, the model it
+builds from a leader's rows, a descriptor's group, the gate on `when`, what it hands the renderer
+and the validation of a leader's sheet layout.
 
 `leaders.lua` is the other half, plain Lua with no Hammerspoon, run by `suite.sh dry`. It pins
 the resolver of `lib/leader.lua` under both shipped policies, HYPER's with contexts and META's

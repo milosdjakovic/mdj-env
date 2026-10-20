@@ -219,12 +219,17 @@ used to claim it, with three arguments and no repeat callback unless the binding
 is the only place a trigger is named, so a third kind is a file plus a line there.
 
 How a leader behaves is its policy, `policy.leaderPolicy` in `root/compose.lua`, keyed by catalog
-name beside `policy.leaderCatalog` and overridable through `cfg.policy`. Every field is a boolean
-or a number apart from `sheet`, the host whose sheet a hold reveals, so there is no closed set of
-words to publish. `tapTogglesCapsLock` and `contexts` are HYPER's, `drivenRepeat` and
-`quietOverLists` are META's, and SUPER ships META's policy because it is the documented other
-home of the window role. `checkPolicy` names a field of the wrong type or one no leader reads in
-one problem line and leaves it at its default.
+name beside `policy.leaderCatalog` and overridable through `cfg.policy`. Every field is a boolean,
+a number or a table, so there is no closed set of words to publish. `sheet` says a hold reveals
+the leader's cheat sheet, drawn by the one `host/leadersheet`, and `sheetLayout` is the table beside it
+that lays it out, `title`, `columns`, `colWidth`, `iconSize`, `gap`, `groupGap` and `badgeWidth`,
+with `lib/leader.lua`'s `sheetLayout` filling a leader that states none with the renderer's own
+two columns under a plain heading. `tapTogglesCapsLock` and `contexts` are HYPER's,
+`drivenRepeat` and `quietOverLists` are META's, and SUPER ships META's policy because it is the
+documented other home of the window role. `checkPolicy` names a field of the wrong type or one no
+leader reads in one problem line and leaves it at its default, a layout field out of range or a
+layout with no sheet included. A leader that states a sheet gets one with no edit to any host, and
+`test/leadersheet.lua` pins the host and the validation.
 
 Four findings from the merge are worth keeping.
 

@@ -622,10 +622,8 @@ if viewsMode then
     end
     out = assert(loadfile(scriptDir .. "launcher-project.lua"))().lines(launcher)
   else
-    local glyphFor = olm.lib and olm.lib.cheatsheet and olm.lib.cheatsheet.glyphFor
     out = assert(loadfile(scriptDir .. "sheets-project.lua"))().lines(
-      record.modules[identity.hypercheatsheet or "hypercheatsheet"],
-      record.modules[identity.windowcheatsheet or "windowcheatsheet"], glyphFor)
+      record.modules[identity.leadersheet or "leadersheet"])
   end
   io.stdout:write(table.concat(out, "\n"), "\n")
   os.exit(0)

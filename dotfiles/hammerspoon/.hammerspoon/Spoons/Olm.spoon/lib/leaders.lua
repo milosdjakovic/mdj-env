@@ -1,20 +1,10 @@
--- Turning a catalog entry into a real keycode, and the one place the window binding stamp
--- is produced.
+-- Turning a catalog entry into a real keycode.
 --
 -- The root's leader catalog names a physical key and an unused function key it maps
 -- to. Nothing else here needs to know a physical key exists, it only needs the keycode that
 -- key resolves to once lib/keyremap.lua has applied the mapping, and that resolution has to happen
 -- in exactly one place, because two call sites resolving the same catalog entry separately
 -- can drift the moment one of them is edited and the other is not.
---
--- The window leader stamp lives here for the same reason. The window cheat sheet and the
--- launcher's window rows both describe the window bindings, one to draw an overlay of what a
--- key does and one to list it, and both have to be reading the SAME table, not two tables
--- that merely agree today. Stamping the leader keycode onto one list and handing that one
--- list to both closes that gap, which the audit recorded as the first of three facts a
--- manifest cannot express. This module produces that one stamped list. It is the composition
--- root's job to call it once and hand the result to both destinations by reference, never to
--- call it twice.
 --
 -- This module names no plugin, no engine, and no physical key. It reads a catalog and a
 -- roles table the composition root already built from what the user's own config
@@ -69,24 +59,6 @@ function obj.activeNames(catalog, roles)
     end
   end
   return names
-end
-
--- The window bindings a plugin declares carry no leader, because the leader is a runtime
--- choice, so the composition root stamps one resolved keycode onto every entry before
--- handing the list to the two consumers that describe it. The copy is shallow
--- per entry rather than a deep copy of the whole list, because each entry also carries a
--- `when` predicate name and a `description` string that have to ride along completely
--- unchanged, and the input list itself must never be mutated, since it may still be read
--- elsewhere as the plain data it started as.
-function obj.stampBindings(bindings, code)
-  local out = {}
-  for i, binding in ipairs(bindings or {}) do
-    local copy = {}
-    for k, v in pairs(binding) do copy[k] = v end
-    copy.leader = code
-    out[i] = copy
-  end
-  return out
 end
 
 return obj

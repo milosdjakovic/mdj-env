@@ -20,7 +20,7 @@
 -- anything a plugin set could answer for itself. The five modules under host are the one
 -- exception, and it is a considered one rather than an oversight. They are Olm's own fixed
 -- apparatus, shipped with the spoon itself rather than installed per person the way a
--- plugin is, so naming ActionPanel, HyperCheatSheet, Launcher, QueryScope, or Stage here is
+-- plugin is, so naming ActionPanel, LeaderSheet, Launcher, QueryScope, or Stage here is
 -- not the leak naming a swappable plugin would be. Every such seam below is commented as one
 -- and says why, and nowhere else in this file may a plugin's own identity appear as a literal.
 
@@ -197,23 +197,27 @@ local SHIPPED_POLICY = {
   -- How each held leader behaves, keyed by catalog name like the catalog just above, and read
   -- by lib/leader.lua, whose FIELDS says what each field means. These reproduce the two adapters
   -- the merge in phase 3 of the keymap plan replaced. HYPER toggles real Caps Lock on a tap, rides
-  -- the OS autorepeat, hosts every list's keys and reveals the Hyper sheet. META drives its own
-  -- repeats so a window step knows how deep into a hold it is, goes quiet while a list is open so
-  -- no window moves underneath one, and reveals the window sheet. SUPER binds nothing on this
+  -- the OS autorepeat, hosts every list's keys and reveals a sheet laid out for its apps. META
+  -- drives its own repeats so a window step knows how deep into a hold it is, goes quiet while a
+  -- list is open so no window moves underneath one, and reveals a sheet laid out for its actions.
+  -- A sheet is a boolean and its layout a table beside it, see lib/leader.lua's SHEET_FIELDS, and
+  -- a leader that states a sheet and no layout draws the defaults. SUPER binds nothing on this
   -- machine, and it ships META's policy because it is the documented other home of the window
   -- role, so pointing that role at it moves window management whole. A catalog row with no
   -- entry here gets a leader with every field off, no tap, no contexts and no sheet. A person
   -- overrides one field through cfg.policy like any other entry.
+  --
+  -- The title of a sheet's default section is what the leader does rather than what it is
+  -- called, since the leader's own name, META, says nothing to anybody reading a list of window
+  -- actions.
   leaderPolicy = {
-    HYPER = { tapTogglesCapsLock = true, contexts = true, sheet = "hypercheatsheet" },
-    META  = { drivenRepeat = true, quietOverLists = true, sheet = "windowcheatsheet" },
-    SUPER = { drivenRepeat = true, quietOverLists = true, sheet = "windowcheatsheet" },
+    HYPER = { tapTogglesCapsLock = true, contexts = true, sheet = true,
+      sheetLayout = { title = "ACTIONS", columns = 4, colWidth = 215, iconSize = 32, gap = 10, groupGap = 20 } },
+    META  = { drivenRepeat = true, quietOverLists = true, sheet = true,
+      sheetLayout = { title = "WINDOW MANAGEMENT", columns = 2, colWidth = 250, badgeWidth = 44, gap = 12 } },
+    SUPER = { drivenRepeat = true, quietOverLists = true, sheet = true,
+      sheetLayout = { title = "WINDOW MANAGEMENT", columns = 2, colWidth = 250, badgeWidth = 44, gap = 12 } },
   },
-
-  -- The heading drawn over the window leader's rows on the hold overlay. What the leader does
-  -- rather than what it is called, since the leader's own name, META, says nothing to anybody
-  -- reading a list of window actions.
-  windowSectionTitle = "WINDOW MANAGEMENT",
 
   -- The alias directory is the one scope Olm itself owns rather than any plugin, a list of
   -- every other scope, so its own presentation has nowhere else to be declared and ships from
@@ -837,14 +841,14 @@ function obj.run(olm, cfg)
       }
     end
   end
-  -- The held leaders whose policy names one sheet host, in the order above. Two hosts until phase
-  -- 4 of the keymap plan, each still built its own way, so step K asks which leaders reveal each.
-  local function leadersRevealing(directory)
-    local out = {}
-    for _, spec in ipairs(leaderSpecs) do
-      if spec.policy.sheet == directory then out[#out + 1] = spec end
+  -- The role words each held leader answers, sorted, so a leader's sheet is asked for the
+  -- sections plugins contribute for its role. A leader answering two roles takes the first.
+  for _, spec in ipairs(leaderSpecs) do
+    spec.roles = {}
+    for role, catalogName in pairs(leaderRoles) do
+      if catalogName == spec.catalogName then spec.roles[#spec.roles + 1] = role end
     end
-    return out
+    table.sort(spec.roles)
   end
 
   -- What each leader role is CALLED where a person reads it, a row subtitle or a hint. The
@@ -902,11 +906,10 @@ function obj.run(olm, cfg)
     return "(" .. table.concat(aliases, ", ") .. ")"
   end
 
-  -- The window cheat sheet's rows are not built here any more. Since phase 2b of the keymap plan
-  -- they are the keymap's rows on the window leader, so they can only be built once the keymap
-  -- is, after register, and step K hands them over with the keycode stamped. The launcher's
-  -- window rows come from the same keymap, through the window manager's action descriptors, so
-  -- a row and the sheet still read one answer.
+  -- A leader's cheat sheet rows are not built here. They are the keymap's rows on the leader, so
+  -- they can only be built once the keymap is, after register, and step K hands them to the one
+  -- sheet host. The launcher's window rows come from the same keymap, through the window manager's
+  -- action descriptors, so a row and the sheet still read one answer.
 
   ------------------------------------------------------------------------------
   -- STEP I. Everything the root itself owes its plugins, in one table, keyed by
@@ -1204,22 +1207,6 @@ function obj.run(olm, cfg)
 
     -- The shared when name to predicate table every gated binding is resolved against.
     predicates = ownPredicates,
-
-    -- What the window sheet's section is CALLED, keyed by the keycode of each leader whose policy
-    -- reveals that sheet, META on this machine. Policy rather than anything derivable, since the
-    -- leader's own name says nothing to somebody reading a list of window actions, so it ships as
-    -- a default a person may override.
-    leaders = (function()
-      local titles = nil
-      -- THE SEAM. WindowCheatSheet is one of the host modules this file may name.
-      for _, spec in ipairs(leadersRevealing("windowcheatsheet")) do
-        if spec.keyCode ~= nil then
-          titles = titles or {}
-          titles[spec.keyCode] = policy.windowSectionTitle
-        end
-      end
-      return titles
-    end)(),
 
     -- Repaint, under one name, for every plugin whose answer lands after the keystroke.
     redraw = redrawSurface,
@@ -1525,8 +1512,9 @@ function obj.run(olm, cfg)
   -- reused here for the leaders rather than resolved a second time.
   ------------------------------------------------------------------------------
 
-  -- The window cheat sheet host, named outright since it is core. Step K hands it its rows.
-  local windowCheatSheetModule = modules[plan.identity.windowcheatsheet or "windowcheatsheet"]
+  -- The one cheat sheet host, named outright since it is core. Every leader whose policy states a
+  -- sheet reveals it, and step K hands it each leader's rows and layout.
+  local leaderSheetModule = modules[plan.identity.leadersheet or "leadersheet"]
 
   -- The flat root argument namespace, deps.args, the only channel a non configure wiring
   -- step can read a value through when that step's own signature is not opts shaped. Nothing
@@ -1654,11 +1642,11 @@ function obj.run(olm, cfg)
     else
       local sheet = nil
       if spec.policy.sheet then
-        -- THE SEAM. A sheet word names one of the host modules this file may name.
-        sheet = modules[plan.identity[spec.policy.sheet] or spec.policy.sheet]
+        -- THE SEAM. LeaderSheet is one of the host modules this file may name.
+        sheet = leaderSheetModule
         if not sheet then
-          log.w("Olm compose, the " .. spec.catalogName .. " leader reveals the sheet '"
-            .. tostring(spec.policy.sheet) .. "', which did not load, so a hold reveals nothing")
+          log.w("Olm compose, the " .. spec.catalogName .. " leader states a sheet, and the leader sheet "
+            .. "host did not load, so a hold reveals nothing")
         end
       end
       local leader = leaderLib.new({
@@ -1757,22 +1745,21 @@ function obj.run(olm, cfg)
     liveLabels = ownLiveLabels,
   }
 
-  -- HyperCheatSheet and QueryScope both reset the whole of what configure gave them on
-  -- every call rather than merging, so the base opts built here are reused verbatim for
-  -- their post register second call in step K, instead of being recomputed and risking two
+  -- LeaderSheet and QueryScope both keep what configure gave them across calls, and the sheet
+  -- takes the renderer from this first one, so the base opts built here are reused verbatim for
+  -- the post register second call in step K, instead of being recomputed and risking two
   -- slightly different tables answering for the same plugin in the same run.
   -- The sheet reads no person data since phase four of the core split. The app toggles reach
   -- it as sections the toggling plugin supplies, assembled in step K with everything else.
-  local hyperCheatSheetOpts = {
+  local leaderSheetOpts = {
     cheatSheet = cheatSheetAtom,
   }
 
-  -- The window overlay's root owned values are NOT built here. It declares windowBindings,
-  -- leaders and predicates. leaders and predicates reach it through the root fan out above, root
-  -- values other plugins ask for by the same names. windowBindings is the keymap's rows on the
-  -- window leader, which exist only once the keymap is built after register, so step K builds
-  -- it and configures the host a second time with all three, the way the Hyper sheet gets its
-  -- sections there.
+  -- The leader sheet's root owned values are NOT all built here. It declares sheets and
+  -- predicates. predicates reaches it through the root fan out above, a root value other plugins
+  -- ask for by the same name. sheets is each leader's own rows from the keymap, which exist only
+  -- once the keymap is built after register, so step K builds it and configures the host a second
+  -- time with both.
   local queryScopeOpts = {
     matcher = chooserAtom.matchers and chooserAtom.matchers[policy.matcher],
     rank = chooserAtom.rank,
@@ -1883,7 +1870,7 @@ function obj.run(olm, cfg)
   -- barely overlap, since a root computed field is one nobody is asked to supply, and where they
   -- do overlap the person said it on purpose.
   local wireData = servicesLib.merge(perPluginData, rootFanned, {
-    hypercheatsheet = hyperCheatSheetOpts,
+    leadersheet = leaderSheetOpts,
     queryscope = queryScopeOpts,
     actionpanel = actionPanelOpts,
     stage = stageOpts,
@@ -2300,71 +2287,69 @@ function obj.run(olm, cfg)
   -- the kind of step that later drifts from the first one.
 
   ------------------------------------------------------------------------------
-  -- STEP K. The post register pass. Three second configure calls the fixed
+  -- STEP K. The post register pass. A few second configure calls the fixed
   -- pipeline genuinely cannot express, since each needs a value that exists
   -- only once stage five has already run.
   ------------------------------------------------------------------------------
 
-  local hyperCheatSheetModule = modules[plan.identity.hypercheatsheet or "hypercheatsheet"]
-  if hyperCheatSheetModule then
-    -- Closes Fact 3. sections enumerates every tool that actually owns a Hyper chord by
-    -- reading the registry hints.sections was handed, rather than a hand kept list that is
-    -- already stale by the live root's own admission. The raw registry instance is handed
-    -- here rather than the zero argument wire adapter, since sections reads rowFor and
-    -- shortcuts, neither of which the wire adapter promises to carry.
-    local opts = { cheatSheet = hyperCheatSheetOpts.cheatSheet }
-    -- Every chord the keymap holds on the leader whose policy reveals this sheet, HYPER on this
-    -- machine, read from the one table that binds them, so a tool's open key, a plugin's
-    -- bindings and the special rows reach the sheet by being bound and a key moved to another
-    -- leader leaves it. The sheet draws one model whichever leader holds it, so the first such
-    -- leader's rows are the ones it draws, and with none it draws its supplied sections alone.
-    -- The registry lends a tool row with no description the detail its launcher row wears.
-    local hyperIdentity = plan.identity.hypercheatsheet or "hypercheatsheet"
-    local revealer = leadersRevealing("hypercheatsheet")[1]
-    local own = hintsLib.sections(keymap, plan, {
-      leader = revealer and revealer.name, registry = wiredRegistry })
-    -- The sections plugins supply for the app leader's sheet, the app toggles today, ordered
-    -- with the sheet's own block by each one's declared number. lib/contributions.lua asks the
-    -- set the sheet declared, so this names none of them.
-    opts.sections = contributionsLib.sheetSections({
-      host = hyperIdentity,
-      role = "app",
-      plan = plan,
-      manifests = manifests,
-      modules = modules,
-      registrar = registrarLib,
-      own = own,
-      ownOrder = ((plan.effective or {})[hyperIdentity] or {}).cheatSheetOrder,
-      log = function(message) log.e("Olm compose, " .. message) end,
-    })
-    hyperCheatSheetModule:configure(opts)
-    -- Keyed by DIRECTORY rather than by identity, since that is how a manifest is keyed and the
-    -- delivery check reads the two side by side. This host spells the two the same way, and four
-    -- others in this set do not, so using the identity here would quietly stop matching the day
-    -- one of them was renamed.
-    lateData.hypercheatsheet = opts
-  end
-
-  -- The window cheat sheet's rows, every global chord the keymap holds on each leader whose policy
-  -- reveals this sheet, META on this machine, each stamped with that leader's keycode, which the
-  -- sheet groups by, so holding one leader shows only its own rows. Its leaders and predicates are
-  -- the same root values the fan out handed it, given again because the host resets what configure
-  -- gave it on every call, and keyed by directory for the delivery check, as the Hyper sheet's are.
-  if windowCheatSheetModule then
-    local windowBindings = {}
-    for _, spec in ipairs(leadersRevealing("windowcheatsheet")) do
-      for _, entry in ipairs(leadersLib.stampBindings(hintsLib.leaderRows(keymap, spec.name), spec.keyCode)) do
-        windowBindings[#windowBindings + 1] = entry
+  -- Every leader whose policy states a sheet, one record each for the sheet host. A leader's own
+  -- block is the global chords the keymap holds on it, read by lib/hints.lua's sheetRows, filed
+  -- into sections by the host, and placed among the sections plugins supply for the leader's
+  -- role, the app toggles on the Hyper sheet today, by each one's declared number.
+  -- lib/contributions.lua asks the set the host declared, so this names no plugin. A tool row
+  -- with no description borrows the detail its launcher row wears, from the registry handed over
+  -- here, the raw instance rather than the zero argument wire adapter, since rowFor is the one
+  -- call that needs it. The sheet draws by the leader's own keycode, which the adapter hands it.
+  if leaderSheetModule then
+    local sheetIdentity = plan.identity.leadersheet or "leadersheet"
+    local sheets, revealedRoles = {}, {}
+    for _, spec in ipairs(leaderSpecs) do
+      if spec.policy.sheet and spec.keyCode ~= nil then
+        local layout = leaderLib.sheetLayout(spec.policy, cheatSheetAtom.DEFAULTS)
+        for _, role in ipairs(spec.roles) do revealedRoles[#revealedRoles + 1] = role end
+        -- Plugins that supply sections for this leader's roles, whose provided rows the sheet
+        -- would otherwise list a second time.
+        local supplied = {}
+        for _, identity in ipairs(((plan.sets or {})[sheetIdentity] or {}).cheatSheetSections or {}) do
+          local leaderRole = ((plan.effective or {})[identity] or {}).leader
+          for _, role in ipairs(spec.roles) do
+            if leaderRole == role then supplied[identity] = true end
+          end
+        end
+        local rows = hintsLib.sheetRows(keymap, plan, spec.name, { registry = wiredRegistry, supplied = supplied })
+        sheets[#sheets + 1] = {
+          name = spec.name,
+          keyCode = spec.keyCode,
+          layout = layout,
+          entries = contributionsLib.sheetSections({
+            host = sheetIdentity,
+            roles = spec.roles,
+            plan = plan,
+            manifests = manifests,
+            modules = modules,
+            registrar = registrarLib,
+            own = leaderSheetModule.ownSections(rows, { glyphFor = cheatSheetAtom.glyphFor, layout = layout }),
+            ownOrder = ((plan.effective or {})[sheetIdentity] or {}).cheatSheetOrder,
+            log = function(message) log.e("Olm compose, " .. message) end,
+          }),
+        }
       end
     end
-    local windowCheatSheetLate = {
-      windowBindings = windowBindings,
-      leaders = rootValues.leaders,
+    -- A supplier whose role no sheet reveals is named once, here, rather than by each sheet asking.
+    contributionsLib.unreachedSheetSections({
+      host = sheetIdentity, roles = revealedRoles, plan = plan,
+      log = function(message) log.e("Olm compose, " .. message) end,
+    })
+    -- The renderer and the predicates are given again beside the sheets, and the table is keyed
+    -- by DIRECTORY in lateData rather than by identity, since that is how a manifest is keyed and
+    -- the delivery check reads the two side by side.
+    local leaderSheetLate = {
+      sheets = sheets,
       predicates = rootValues.predicates,
       cheatSheet = cheatSheetAtom,
     }
-    windowCheatSheetModule:configure(windowCheatSheetLate)
-    lateData.windowcheatsheet = windowCheatSheetLate
+    leaderSheetModule:configure(leaderSheetLate)
+    lateData.leadersheet = leaderSheetLate
   end
 
   local queryScopeModule = modules[plan.identity.queryscope or "queryscope"]

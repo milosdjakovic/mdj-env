@@ -275,9 +275,9 @@ waits says `afterRelease = true` on its descriptor instead and asks for nothing,
 capture. The `hyperkey` and `windowleader` grants this replaced were retired in phase 3 of the
 keymap plan.
 
-The root reads every row the keymap holds on each leader whose policy reveals the window cheat
-sheet, META on this machine, whichever plugin declared it, stamps that leader's keycode onto them
-once and hands the list to the window cheat sheet, so a key
+The root reads every global row the keymap holds on each leader whose policy states a cheat sheet,
+HYPER and META on this machine, whichever plugin declared it, and hands each leader's rows to the
+one sheet host, `host/leadersheet`, so a key
 declared this way appears in the held sheet with no other step, a tool's open key moved to that
 leader included. A row's `when` gates the key and its sheet row together, its `repeats` marks a
 step worth repeating while the key is held, and its label is its `description`, each the
@@ -428,13 +428,12 @@ The composition root builds one table of these values, keyed by field name, and 
 publishes the following words. `coveredApp`, the application the launcher opened over and the
 id of that open, and `refreshLauncher`, asking the launcher to draw again, both closures over
 the launcher for a plugin that works in the app underneath it, MenuSearch, TextCase and WindowSize today. `predicates`, the shared when name to
-predicate table every gated binding is resolved against. `leaders`, what the window sheet's
-section is called, keyed by the keycode of each leader whose policy reveals that sheet, since the
-leader's own name says nothing to somebody reading a list of window actions. `windowBindings` is
-not in that table. It is every row the keymap holds on those leaders, each stamped with its
-leader's keycode, so it exists only once
-the keymap is built after register, and the root hands it to the window cheat sheet in its second
-configure, step K, as it hands the Hyper sheet its sections. `redraw`, repaint whichever list is on screen,
+predicate table every gated binding is resolved against. The leader sheet's `sheets` is not in that
+table. It is one record per leader whose policy states a sheet, its keycode, its layout and its
+entries, the leader's own rows from the keymap and every plugin's sections for the leader's role,
+so it exists only once the keymap is built after register, and the root hands it to the leader
+sheet in its second configure, step K. What a sheet's heading is called is the leader's own
+policy, `sheetLayout.title`, and no longer a root word. `redraw`, repaint whichever list is on screen,
 for a plugin whose own answer lands after the keystroke that asked for it. `notify`,
 `showColor`, and `report`, one line of feedback, one sampled colour, and one titled list of
 rows each with an icon, a label, and a detail, all drawn on the shared overlay so they read
@@ -552,7 +551,7 @@ set = {
   launcherRows = { provides = { "launcherRows" } },   -- rows that are not actions
   launcherRun  = { provides = { "launcherRun" } },
   launcherAppDetails = { provides = { "launcherAppDetails" } },
-  cheatSheetSections = { provides = { "cheatSheetSections" } },   -- host/hypercheatsheet
+  cheatSheetSections = { provides = { "cheatSheetSections" } },   -- host/leadersheet
 },
 ```
 
@@ -632,8 +631,10 @@ The row's memory key is the `kind`, else the plugin's identity, joined to the na
 descriptor states `kind` exactly when its rows must keep a key the launcher remembered them by
 before they were descriptors, and the launcher's catalog scopes narrow by it. Choosing the row runs
 the descriptor. A plugin with actions therefore builds no launcher row and declares no
-`launcherRows` or `launcherRun` for them. `group` and `app` are read by later phases of the keymap
-plan. Capture, the window manager and the clipboard are the shipped cases, and Window Size reads
+`launcherRows` or `launcherRun` for them. `group` is the section a cheat sheet files the row under, since phase 4 of the keymap plan, a
+word, or a function asked with nothing at every show and answering one, and a row with none goes
+under the leader's default section, headed by the leader's `sheetLayout.title`. `app` is read by a later phase of
+the keymap plan. Capture, the window manager and the clipboard are the shipped cases, and Window Size reads
 the window manager's list as a sibling, finding `exactSize` by its name and calling `run`.
 
 `bindings` is a bridge for a plugin whose keys are still built from the person's own data rather
@@ -771,10 +772,11 @@ a key hold, and resolve anything that touches the disk once, where you build you
 ```
 
 Which sheet the sections reach is the plugin's `defaults.leader`, a plugin stating none reaches
-no sheet, and the Hyper sheet is the one that asks today. List only keys you actually bound on
+no sheet, and every leader's sheet asks for the sections of the role that leader answers, the
+Hyper sheet being the one with a supplier today. List only keys you actually bound on
 that leader, never a global combo, since the promise of a sheet is that it shows everything its
 leader does and nothing else. Where the sections sit is `defaults.cheatSheetOrder`, compared
-with the sheet's own block of bound chords, which takes the sheet's own
+with a leader's own block of bound chords, which takes the sheet host's
 `defaults.cheatSheetOrder`. A tie puts contributors in the set's order ahead of the sheet's own
 block, and a contributor with no number sits after every numbered one. The root wraps each
 member so one that raises costs its own sections and is named on the console.
@@ -782,7 +784,7 @@ member so one that raises costs its own sections and is named on the console.
 | Sections | Number | Declared in |
 |---|---|---|
 | The app toggles, running then dormant | 10 | `plugins/apptoggler`, `defaults.cheatSheetOrder` |
-| Every chord bound on the app leader | 50 | `host/hypercheatsheet`, `defaults.cheatSheetOrder` |
+| Every chord bound on a leader | 50 | `host/leadersheet`, `defaults.cheatSheetOrder` |
 
 `launcherAppDetails` is how a plugin tells the launcher what an installed app's row shows beyond
 the app itself, the chord that brings it forward and the url the row opens, the launcher asking

@@ -8,7 +8,6 @@
 # becomes a finding of its own rather than being silently trusted forever. Edit or remove a
 # stale line the same way any other finding gets fixed.
 
-dry gate found 'hypercheatsheet' declaring needs.data.sections with source root, and 'sections' does not appear in this gate's structural scan of root/compose.lua, verify by hand before treating this as settled, see test/drygate-composewords.lua's own header for what that scan can and cannot see | verified by hand 2026-10-16, root/compose.lua publishes it as `opts.sections = contributionsLib.sheetSections({ ... })`, the list lib/contributions.lua assembles from hintsLib.sections and every cheatSheetSections supplier, a later field assignment onto the hypercheatsheet host's own opts table rather than a key written inside one of the named table literals test/drygate-composewords.lua's own scan reads, exactly the gap that file's own header names
 
 # The icon drawing rule, see test/drygate-drawing.lua. A file listed here draws onto a canvas to
 # produce an image and is declared on purpose, one line per file with its reason. A plugin that

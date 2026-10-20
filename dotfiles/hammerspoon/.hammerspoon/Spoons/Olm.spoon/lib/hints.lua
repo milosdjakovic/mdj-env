@@ -560,27 +560,42 @@ function obj.toast(deps)
   return toast
 end
 
--- The Hyper hold overlay's ACTIONS section, every chord the keymap holds on one leader. Since
--- phase 2b of the keymap plan this reads the keymap rather than the registry and the plan, so a
--- tool's open key, a host's, a plugin's bindings and the special rows all reach the sheet through
--- the one table that binds them, and nothing here reads a key off a manifest field.
---
--- The order is the one the sheet has always drawn. Every registered tool first, in registration
--- order, which is the order the keymap's bound list holds tool rows in. Then, walking the plan
--- order, each plugin's host key, its own bindings in their declared order, and its special rows.
--- A chord already listed is not listed twice, identity being the key and the modifiers, since two
--- rows may share a key with different modifiers, screenshot and screenshot to the clipboard. The
--- rows a plugin provides from its own data and the lists' own keys are left out, the first reach
--- the sheet through the plugin's own sections and the second are not global keys.
---
--- deps.leader is the catalog leader the sheet reveals, as a keymap row spells it. deps.registry,
--- optional, lends a tool row with no description of its own the detail its launcher row wears.
--- Must be called once the keymap is built, after register, or this answers an empty section.
-function obj.sections(keymap, plan, deps)
+-- camelCase action name to a Title Case label, the words a row wears when nothing else names it.
+local function humanize(name)
+  local s = tostring(name):gsub("(%l)(%u)", "%1 %2")
+  s = s:gsub("^%l", string.upper)
+  return s
+end
+
+--- hints.sheetRows(keymap, plan, leader, deps) -> entries
+--- Every global chord the keymap holds on one leader, in the order a leader's cheat sheet draws
+--- them, as plain entries { key, mods, action, description, when, group, owner }. Since phase 4 of
+--- the keymap plan one sheet host draws every held leader, so this one rule serves them all. It
+--- reads the keymap rather than the registry and the plan, so a tool's open key, a host's, a
+--- plugin's bindings and the special rows all reach a sheet through the one table that binds
+--- them, and nothing here reads a key off a manifest field.
+---
+--- The order is the one the Hyper sheet has always drawn. Every registered tool first, in
+--- registration order, which is the order the keymap's bound list holds tool rows in. Then,
+--- walking the plan order, each plugin's host key, its own bindings in their declared order, and
+--- its special rows. A chord already listed is not listed twice, identity being the key and the
+--- modifiers, since two rows may share a key with different modifiers, screenshot and screenshot
+--- to the clipboard. The lists' own keys are left out, since they are not global keys. The rows a
+--- plugin provides from its own data, provides.bindings, come last in plan order, unless that
+--- plugin supplies cheat sheet sections for the leader, named in deps.supplied by identity, since
+--- then its sections already list them and a second listing would repeat them.
+---
+--- A row's label is the binding's own description, else the descriptor's, which the keymap
+--- already merged into row.description, else a tool's registry detail or its name, a host's
+--- directory, or the action name spelled out as words. deps.registry, optional, lends a tool row
+--- with no description the detail its launcher row wears. Entries are copies, so a caller
+--- stamping something onto one cannot reach back into the keymap. Must be called once the keymap
+--- is built, after register, or this answers an empty list.
+function obj.sheetRows(keymap, plan, leader, deps)
   deps = deps or {}
-  local leader = deps.leader
   local registry = deps.registry
-  local bindings, seen = {}, {}
+  local supplied = deps.supplied or {}
+  local out, seen = {}, {}
 
   local function add(row, label)
     if row.key == nil then return end
@@ -588,12 +603,13 @@ function obj.sections(keymap, plan, deps)
     local mark = tostring(row.key) .. "/" .. table.concat(mods or {}, "+")
     if seen[mark] then return end
     seen[mark] = true
-    bindings[#bindings + 1] = { key = row.key, mods = mods, action = row.action, description = label }
+    out[#out + 1] = { key = row.key, mods = mods, action = row.action, description = label,
+      when = row.when, group = row.group, owner = row.owner }
   end
 
   local rows = {}
   for _, row in ipairs((keymap or {}).bound or {}) do
-    if row.leader ~= nil and row.leader == leader then rows[#rows + 1] = row end
+    if row.leader ~= nil and row.leader == leader and row.layer == "global" then rows[#rows + 1] = row end
   end
 
   for _, row in ipairs(rows) do
@@ -614,33 +630,21 @@ function obj.sections(keymap, plan, deps)
     for _, source in ipairs({ "host", "bindings", "special" }) do
       for _, row in ipairs(rows) do
         if row.source == source and directoryOf[row.owner] == directory then
-          local fallback = source == "host" and directory or row.action
+          local fallback = source == "host" and directory or humanize(row.action)
           add(row, row.description or fallback)
         end
       end
     end
   end
 
-  return { { title = "ACTIONS", bindings = bindings } }
-end
-
---- hints.leaderRows(keymap, leader) -> entries
---- Every global chord the keymap holds on one leader, as plain entries in the keymap's binding
---- order, a plugin's bindings in plan order and then each plugin's own order, then tools, hosts
---- and special rows. The window cheat sheet draws these, its `when` hiding a row exactly while the
---- key is gated and its label the description the row carries, which is the binding's own, else
---- the descriptor's. Since phase 2b of the keymap plan this reads the keymap rather than walking
---- every plugin's bindings, so a row's leader is the one it binds on, a tool's open key on the
---- window leader reaches the sheet too, and a row moved off the leader leaves it. Entries are
---- copies, so a caller stamping a keycode onto one cannot reach back into the keymap.
-function obj.leaderRows(keymap, leader)
-  local out = {}
-  for _, row in ipairs((keymap or {}).bound or {}) do
-    if row.leader ~= nil and row.leader == leader then
-      out[#out + 1] = { key = row.key, mods = row.shownMods, action = row.action,
-        description = row.description, when = row.when, owner = row.owner }
+  for _, directory in ipairs((plan or {}).order or {}) do
+    for _, row in ipairs(rows) do
+      if row.source == "provided" and directoryOf[row.owner] == directory and not supplied[row.owner] then
+        add(row, row.description or humanize(row.action))
+      end
     end
   end
+
   return out
 end
 

@@ -97,8 +97,8 @@ local strict = os.getenv("DRYGATE_STRICT") == "1"
 ----------------------------------------------------------------------------------------
 -- Findings, and the accepted findings file beside this one.
 --
--- A finding verified by hand and genuinely not worth blocking on, hypercheatsheet's own
--- needs.data.sections against test/drygate-composewords.lua's own documented blind spot
+-- A finding verified by hand and genuinely not worth blocking on, a host's own
+-- needs.data word against test/drygate-composewords.lua's own documented blind spot
 -- being the seed case, is named in test/drygate-accepted.txt rather than silenced by
 -- editing this file, one line per accepted finding, the exact text this gate would
 -- otherwise print, then " | " then the reason a person checked it by hand. An accepted

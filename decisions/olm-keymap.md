@@ -1,7 +1,7 @@
 # Olm keymap, and leaders as data
 
-Status. Phases 0, 1, 2a and 2b landed 2026-10-19, and phase 3, one leader adapter, was built the
-same evening and awaits review and a live load. The plan is
+Status. Phases 0, 1, 2a and 2b landed 2026-10-19, phase 3, one leader adapter, landed 2026-10-20,
+and phase 4, one sheet host, was built the same morning and awaits review and a live load. The plan is
 `dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/docs/PLAN-KEYMAP.md`.
 
 ## Now
@@ -10,8 +10,9 @@ Olm builds one leader per catalog name a role references, Hyper on the app role 
 window role here, each an instance of the one adapter `lib/leader.lua` with a held trigger and a
 policy from `policy.leaderPolicy`, plus a plain leader on an empty set of modifiers for a combo
 with no leader, and the composition root loops over them naming none. A key gated off is swallowed
-on every leader and an unknown predicate name warns once on every leader. The two cheat sheet
-hosts remain until phase 4. With phase 2a every global key is a row of the keymap,
+on every leader and an unknown predicate name warns once on every leader. One cheat sheet host,
+`host/leadersheet`, draws whichever held leader is down, its layout a table beside `sheet = true`
+in that leader's policy, and a descriptor's `group` files a row under a section. With phase 2a every global key is a row of the keymap,
 `lib/keymap.lua`, carrying the function it calls, and `lib/binder.lua` binds the keymap's bound
 list on the engine each row's leader names, or as a plain combo, in the order the five old paths
 used. A plugin answers what it can run as a list of descriptors through `provides.actions` and
@@ -20,7 +21,7 @@ with the chord the keymap binds, so capture, the window manager and the clipboar
 `defaults.bindings` is the one place a plugin suggests a key, a tool's open key being the row
 whose action is `open`, a row naming its own role or `leader = false` for a plain combination,
 and `defaults.leader` the role a row naming none inherits. `registry.commands`, `defaults.key`
-and `defaults.mods` are retired and refused by name. Both cheat sheets read the keymap. The app
+and `defaults.mods` are retired and refused by name. Every leader's sheet reads the keymap. The app
 toggler's keys arrive as complete rows through `provides.bindings`, a bridge phase 6 removes. A list's own keys are still bound through the root's contexts. The collision
 check covers every row, modifiers, case, bindings, toggles, commands, list keys and plain combos.
 The plan replaces the rest of this with one keymap the core builds from
@@ -142,6 +143,20 @@ aliases live only in `config/keymap.lua`.
   claimed, so the claimed set is the truth, and reading the hardware a moment later could turn a
   press made with a finger lifted early into nothing, where the binder's own `hs.hotkey.bind`
   always ran.
+
+- **Two sheet hosts sharing a row builder.** 2026-10-20 08:30. It would have been the smaller edit,
+  since only the sources of the rows had been unified and the two hosts differed in layout, but
+  the layout was the whole difference and it belongs to the leader. A new leader would still have
+  needed a host written for it, and a rule such as gating a row on `when` had already lived in one
+  host and been missed in the other. One host with the layout in policy needs no new file for a
+  new leader.
+- **The layout in the host, keyed by leader name.** 2026-10-20 08:30. It was the first shape
+  considered, a table inside the host mapping hyper and meta to their columns. It names the
+  leaders, which is the roster the sheet host exists to stop holding, and a new leader would have
+  edited the host. The layout is policy, validated with the rest of the policy.
+- **`sheet` staying the identity of the host and a second field for the layout.** 2026-10-20 08:30.
+  With one host there is nothing to name, and a word that names a directory is the kind of quoted
+  value the policy otherwise avoids. `sheet` is a boolean and `sheetLayout` a table.
 
 ## Log
 
@@ -379,3 +394,42 @@ aliases live only in `config/keymap.lua`.
   good. He noticed a held move does not speed up the longer it is held, which is the recorded
   design, a press moves movePixels and every repeat movePixelsHeld at the machine's steady rate,
   nothing ramps. The test instruction that said it would speed up was wrong, not the code.
+- 2026-10-20 08:30. Phase 4 built, awaiting review and a live load. `host/leadersheet` replaces
+  `host/hypercheatsheet` and `host/windowcheatsheet`, both deleted. The adapter hands it the
+  leader's own keycode on a hold and it draws that leader's record, built by the root in step K.
+  A record is the leader's keycode, its layout and an ordered entries list, which is the leader's
+  own block, `LeaderSheet.ownSections` over `hints.sheetRows`, placed among the sections plugins
+  supply by `lib/contributions.lua` as before. Policy changed shape. `sheet` is a boolean and
+  `sheetLayout` is a table of `title`, `columns`, `colWidth`, `iconSize`, `gap`, `groupGap` and
+  `badgeWidth`, checked by `leader.checkPolicy` and defaulted by `leader.sheetLayout`, to two columns
+  of 250 under SHORTCUTS. HYPER ships four columns of 215 with a 32 point icon, a gap of 10 and a group
+  gap of 20 under ACTIONS, META and SUPER ship two columns of 250 with a badge of 44 and a gap of 12
+  under WINDOW MANAGEMENT. `windowSectionTitle`, the root value `leaders`, `windowBindings`,
+  `leaders.stampBindings`, `hints.sections` and `hints.leaderRows` are retired, the manifest needs
+  became `sheets`, required, and `predicates`, optional. Five things the plan did not say. The two
+  sheets ordered rows differently, so `hints.sheetRows` is the one rule, the Hyper order, and only a
+  tool's open key moved onto the window leader would show a difference. The Hyper sheet had ignored
+  `when`, so now it gates like the window sheet, which no Hyper row on this machine exercises. A row
+  with no description now wears its action in words on every leader. The keymap row gained
+  `group`, from the descriptor, a function being asked with nothing at every show. The line
+  `sheetSections` said for a supplier on another role would have named the toggler unreached while
+  the window sheet asked, so it moved to `unreachedSheetSections`, said once. The old sheets probe
+  was run against live main and matched `sheets.golden` at 36 lines, then the new projection run
+  offline over the new host matched the same golden byte for byte, with the two line families the old
+  hosts wrote kept on purpose. All three goldens, the bound recording and its order against an
+  archive of main, the plain Lua cases at 81 checks in `test/leadersheet.lua` and the unit case
+  over the real manifests, the dry suite, the dry gate at 0 findings and 0 unknown, the rename
+  proof at 0 differences and the dependency check pass. What none of them can see is the drawing,
+  so holding each leader under the test lock with the sheet beside the old one is owed.
+- 2026-10-20 08:39. Review fixes of phase 4 applied on top of 57e4fbd4, which found no blocker. `sheet = false`
+  in a person's policy no longer reports the shipped layout merged beside it, and only a layout
+  stated with no sheet is a problem. `hints.sheetRows` lists provided rows, `provides.bindings`,
+  unless their plugin supplies sections for the leader's role, so a provided row reaches a sheet
+  without the toggler being listed twice. The sheet's default sizes are read from the renderer,
+  which exports `DEFAULTS`, instead of copied. The unknown predicate warning is said once per name.
+  A leader answering two roles asks for the suppliers of both, and neither is reported unreached.
+  Two behaviours of the phase 4 entry are stated here since it did not. Duplicate chords on one
+  sheet collapse to the first, now on every leader, though the keymap already refuses two rows on a
+  chord. And a supplied section no longer accepts `bindings`, only `rows`, a shape no supplier used
+  and the contract never documented. Plain Lua cases cover each fix, 93 checks in
+  `test/leadersheet.lua`.

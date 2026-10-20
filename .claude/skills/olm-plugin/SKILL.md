@@ -252,12 +252,13 @@ the row whose action is `open`, a row may name its own role or `leader = false` 
 combination that then states its modifiers, and a row naming none inherits `defaults.leader`,
 which stays as that default role. `defaults.key`, `defaults.mods` and `registry.commands` are
 retired and refused by name with what replaced them. A registry tool's open row binds on whichever
-leader it names, the window leader included, and both sheets read the keymap, so a key is listed
-where it is bound. A plugin whose keys are built from the person's data rather than declared answers complete rows
+leader it names, the window leader included, and every leader's sheet, drawn by the one leader
+sheet host, reads the keymap, so a key is listed where it is bound, filed under the descriptor's
+`group` where it names one. A plugin whose keys are built from the person's data rather than declared answers complete rows
 through `provides.bindings`, a bridge the app toggler alone uses until its actions are built from
 data, and declares `provides.cheatSheetSections` so those keys reach its leader's sheet, which
 otherwise lists only what the manifests declare. Its `defaults.leader` decides which sheet
-receives the sections, a supplier with none, or on a leader whose sheet does not ask, reaches no
+receives the sections, a supplier with none, or on a role no leader's sheet answers, reaches no
 sheet and is logged, and one that has an app's chord declares `provides.launcherAppDetails` so
 the launcher's row for that app names it.
 

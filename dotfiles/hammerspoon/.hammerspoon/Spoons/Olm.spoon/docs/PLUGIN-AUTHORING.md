@@ -654,9 +654,12 @@ Your tool's open row, with `registry.shortcut = "leader"`, sits on whichever lea
 names, the window leader included. It is not refused there, since the keymap binds every row on
 its own leader.
 
-You write nothing for either sheet. Holding a leader shows every row the keymap holds on it, the
-window sheet with `when` hiding the row and the key together and the `description`, the
-binding's or the descriptor's, replacing the label humanized from the action name. A person moves
+You write nothing for the sheet. Holding a leader shows every row the keymap holds on it, drawn
+by the one `host/leadersheet`, with `when` hiding the row and the key together and the
+`description`, the binding's or the descriptor's, replacing the label humanized from the action
+name. A descriptor's `group` files its row under a section of that name, and a row with none goes
+under the leader's default section. How a leader's sheet is laid out is that leader's policy and
+no plugin's business. A person moves
 the whole leader to another physical key in `config/keys.lua`, and no plugin changes. The sheet
 is one of the two places every key must be found. The launcher is the other, and you write nothing
 there either, as the next section says.

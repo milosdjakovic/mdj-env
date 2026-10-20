@@ -462,4 +462,7 @@ function obj:isShowing()
   return self._panel ~= nil and self._panel:isShowing() == true
 end
 
+-- The renderer's own layout defaults, for a host that wants the same numbers by default.
+obj.DEFAULTS = DEFAULTS
+
 return obj

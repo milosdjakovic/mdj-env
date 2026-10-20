@@ -40,8 +40,7 @@ local HOLD = 1.0
 --- root exposes, and this table is the ONLY place either spelling appears.
 local ROLES = {
   launcher        = "Launcher",
-  hypercheatsheet = "HyperCheatSheet",
-  windowcheatsheet = "WindowCheatSheet",
+  leadersheet     = "LeaderSheet",
   apptoggler      = "AppToggler",
   windowmanager   = "WindowManager",
   clipboard       = "ClipboardHistory",
@@ -212,7 +211,7 @@ function obj.new()
         if ok and adapter and adapter.hide then pcall(adapter.hide) end
       end
     end
-    for _, role in ipairs({ "launcher", "hypercheatsheet", "windowcheatsheet" }) do
+    for _, role in ipairs({ "launcher", "leadersheet" }) do
       w.hideThrough(w.role(role))
     end
   end

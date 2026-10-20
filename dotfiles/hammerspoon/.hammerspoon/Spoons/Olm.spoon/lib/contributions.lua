@@ -118,7 +118,7 @@ end
 --- when its rows must keep a key they were remembered by before they were descriptors.
 ---
 --- The row's gate is the one its key carries, the binding's own when, else the descriptor's, the
---- rule the keymap and both sheets follow, so a row and its key are never gated apart.
+--- rule the keymap and every leader's sheet follow, so a row and its key are never gated apart.
 function M.actionRow(identity, name, descriptor, keymap)
   local row = keymapRowFor(keymap, identity, name)
   return {
@@ -272,7 +272,8 @@ end
 
 --- contributions.sheetSections(opts) -> entries
 --- opts.host        the identity of the cheat sheet host whose set answer is read
---- opts.role        the leader role word the sheet reveals, app or window
+--- opts.role        the leader role word the sheet reveals, app or window, or opts.roles, a list of
+---                  them for a leader answering more than one
 --- opts.plan        the load plan, its sets and its effective defaults
 --- opts.manifests   every manifest by identity
 --- opts.modules     every loaded module by identity
@@ -290,6 +291,9 @@ end
 --- suppliers and puts the sheet's own block after them, and an entry with no number sorts after
 --- every numbered one, the rules launcher rows already follow.
 ---
+--- A supplier on another role is skipped without a word, see unreachedSheetSections for the one
+--- that reaches no sheet at all.
+---
 --- A supplier is wrapped so a member that raises or answers something other than a list costs
 --- its own sections and nothing else. The sheet draws on a key hold, and one plugin's fault
 --- must not leave the person holding a leader over an empty screen.
@@ -301,15 +305,14 @@ function M.sheetSections(opts)
 
   for position, identity in ipairs(sets.cheatSheetSections or {}) do
     local eff = (plan.effective or {})[identity] or {}
-    if eff.leader ~= opts.role then
-      -- Dropped on purpose, and said once, since a supplier whose sections reach no sheet is
-      -- otherwise indistinguishable from one that has nothing to show. A leader whose sheet
-      -- never asks this set, the window one today, lands here as well.
-      say("'" .. tostring(identity) .. "' supplies cheat sheet sections but reached no sheet, "
-        .. (eff.leader == nil and "it states no defaults.leader"
-          or ("its leader is '" .. tostring(eff.leader) .. "' and the sheet asking reveals '"
-            .. tostring(opts.role) .. "'")))
-    else
+    -- A supplier on another role is another sheet's and is skipped here without a word. One host
+    -- draws every leader's sheet and each asks in turn, and the supplier that reaches no sheet
+    -- at all is named once by unreachedSheetSections.
+    local mine = eff.leader == opts.role
+    for _, role in ipairs(opts.roles or {}) do
+      if eff.leader == role then mine = true end
+    end
+    if mine and eff.leader ~= nil then
       local call = (opts.modules or {})[identity]
         and resolveMember(opts, identity, "cheatSheetSections", "the cheat sheet")
       if call then
@@ -344,6 +347,34 @@ function M.sheetSections(opts)
     for _, entry in ipairs(block.entries) do out[#out + 1] = entry end
   end
   return out
+end
+
+--- contributions.unreachedSheetSections(opts)
+--- opts.host    the identity of the cheat sheet host whose set answer is read
+--- opts.roles   the leader role words some sheet reveals, a list
+--- opts.plan    the load plan, its sets and its effective defaults
+--- opts.log     function(message), told once for each supplier no sheet reaches
+---
+--- Names every plugin that supplies cheat sheet sections and reaches no sheet, one that states no
+--- defaults.leader or one whose leader answers a role no sheet reveals, since a supplier whose
+--- sections reach nothing is otherwise indistinguishable from one that has nothing to show. It
+--- replaced the line sheetSections said for each sheet it was asked, which with one host drawing
+--- every leader would have named a supplier of the Hyper sheet as unreached while asking for the
+--- window one.
+function M.unreachedSheetSections(opts)
+  local plan = opts.plan or {}
+  local say = opts.log or function() end
+  local revealed = {}
+  for _, role in ipairs(opts.roles or {}) do revealed[role] = true end
+  local sets = (plan.sets or {})[opts.host] or {}
+  for _, identity in ipairs(sets.cheatSheetSections or {}) do
+    local eff = (plan.effective or {})[identity] or {}
+    if not revealed[eff.leader] then
+      say("'" .. tostring(identity) .. "' supplies cheat sheet sections but reached no sheet, "
+        .. (eff.leader == nil and "it states no defaults.leader"
+          or ("its leader is '" .. tostring(eff.leader) .. "' and no sheet reveals that role")))
+    end
+  end
 end
 
 return M

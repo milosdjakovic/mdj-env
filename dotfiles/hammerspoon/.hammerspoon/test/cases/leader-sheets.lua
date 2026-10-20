@@ -1,4 +1,5 @@
--- Unit case for the two leader cheat sheets, phase four of the core split. The promise is that
+-- Unit case for the leader cheat sheets, phase four of the core split, one host since phase 4 of
+-- the keymap plan. The promise is that
 -- every key bound on a leader appears on that leader's sheet and that nothing appears there
 -- which is not bound.
 --
@@ -18,11 +19,11 @@
 -- which the case calls rather than restates, and the launcher's lock and sleep rows call a
 -- system function, here a stand in.
 --
--- What the sheet shows is read off the real hosts. The Hyper sheet is configured with the list
--- lib/contributions.lua assembles from lib/hints.lua's sections, read off the keymap since phase
--- 2b of the keymap plan, and every supplier answering the cheatSheetSections set, then shown into
--- a recorder. The window sheet is configured with the keymap's rows on the window leader, stamped
--- the way the root stamps them, and shown the same way. A badge is spelled by a glyph function
+-- What the sheet shows is read off the real host. Since phase 4 of the keymap plan one host draws
+-- every leader, so it is configured once with a record per leader, each holding that leader's
+-- layout and the entries the root assembles, the leader's own block built by the host from
+-- lib/hints.lua's sheetRows over the keymap and every supplier answering the cheatSheetSections
+-- set, and then shown for each leader into a recorder. A badge is spelled by a glyph function
 -- that keeps the key and its modifiers readable, so a bound chord and a sheet row compare as one
 -- plain string.
 --
@@ -35,7 +36,7 @@
 -- Last, a registry tool declaring the window leader with a leader shortcut. It was refused at
 -- wiring while the registrar bound a tool's key on the app leader alone. The keymap binds every
 -- row on its own leader, so such a key lands on the window leader and nowhere else, and since the
--- window sheet reads the keymap's rows the open key is on that sheet too.
+-- leader sheet reads the keymap's rows the open key is on that sheet too.
 --
 -- Under a plain lua interpreter with no Hammerspoon at all, a small stub stands in. Inside the
 -- running Hammerspoon nothing here touches the live config, every module is a fresh copy loaded
@@ -141,7 +142,7 @@ local registrar = load("lib/registrar.lua")
 local keymapLib = load("lib/keymap.lua")
 local binderLib = load("lib/binder.lua")
 local contributions = load("lib/contributions.lua")
-local leaders = load("lib/leaders.lua")
+local leaderLib = load("lib/leader.lua")
 
 local realManifests = plugins.readAll({ spoonDir .. "plugins", spoonDir .. "host" }, nil)
 local libNames = {}
@@ -271,45 +272,57 @@ local function run(manifests, person)
     result.bindProblems[#result.bindProblems + 1] = pr
   end
 
-  -- The Hyper sheet, configured the way step K configures it and shown into a recorder.
-  local function recorder(into)
+  -- The one sheet host, configured the way step K configures it, one record per leader, and shown
+  -- for each leader into a recorder that tallies what the renderer was handed. Every predicate is
+  -- open, so a gated row is shown.
+  local target = "app"
+  local function recorder()
     return {
       glyphFor = mark,
       show = function(_, model)
         for _, section in ipairs(model.sections or {}) do
-          for _, row in ipairs(section.rows or {}) do tally(into, tostring(row.badge):lower()) end
+          for _, row in ipairs(section.rows or {}) do tally(result.sheet[target], tostring(row.badge):lower()) end
         end
       end,
       hide = noop,
     }
   end
-  local hyperIdentity = plan.identity.hypercheatsheet or "hypercheatsheet"
-  local own = hints.sections(keymap, plan, { leader = "hyper", registry = registry })
-  local entries = contributions.sheetSections({
-    host = hyperIdentity, role = "app", plan = plan, manifests = manifests, modules = modules,
-    registrar = registrar, own = own,
-    ownOrder = (plan.effective[hyperIdentity] or {}).cheatSheetOrder,
-  })
-  result.entries = entries
-  local hyper = load("host/hypercheatsheet/init.lua")
-  hyper:init()
-  hyper:configure({ cheatSheet = recorder(result.sheet.app), sections = entries })
-  hyper:show()
-  result.hyper = hyper
-
-  -- The window sheet, handed the keymap's rows on the window leader stamped the way the root
-  -- stamps them, every predicate open.
-  local code = 106
   local predicates = setmetatable({}, { __index = function() return function() return true end end })
-  local windowSheet = load("host/windowcheatsheet/init.lua")
-  windowSheet:init()
-  windowSheet:configure({
-    windowBindings = leaders.stampBindings(hints.leaderRows(keymap, "meta"), code),
-    leaders = { [code] = "WINDOW" },
-    cheatSheet = recorder(result.sheet.window),
-    predicates = predicates,
-  })
-  windowSheet:show(code)
+  local sheetIdentity = plan.identity.leadersheet or "leadersheet"
+  local host = load("host/leadersheet/init.lua")
+  host:init()
+  local policies = {
+    hyper = { role = "app", code = 101, policy = { sheet = true,
+      sheetLayout = { title = "ACTIONS", columns = 4, colWidth = 215, iconSize = 32, gap = 10, groupGap = 20 } } },
+    meta = { role = "window", code = 106, policy = { sheet = true,
+      sheetLayout = { title = "WINDOW", columns = 2, colWidth = 250, badgeWidth = 44, gap = 12 } } },
+  }
+  local sheets = {}
+  for _, name in ipairs({ "hyper", "meta" }) do
+    local spec = policies[name]
+    local layout = leaderLib.sheetLayout(spec.policy)
+    -- The plugins supplying sections for this leader's role, so their provided rows are not
+    -- listed twice, the way the root works it out.
+    local supplied = {}
+    for _, identity in ipairs(((plan.sets or {})[sheetIdentity] or {}).cheatSheetSections or {}) do
+      if ((plan.effective or {})[identity] or {}).leader == spec.role then supplied[identity] = true end
+    end
+    local rows = hints.sheetRows(keymap, plan, name, { registry = registry, supplied = supplied })
+    sheets[#sheets + 1] = { name = name, keyCode = spec.code, layout = layout,
+      entries = contributions.sheetSections({
+        host = sheetIdentity, role = spec.role, plan = plan, manifests = manifests, modules = modules,
+        registrar = registrar, own = host.ownSections(rows, { glyphFor = mark, layout = layout }),
+        ownOrder = (plan.effective[sheetIdentity] or {}).cheatSheetOrder,
+      }) }
+  end
+  host:configure({ cheatSheet = recorder(), predicates = predicates, sheets = sheets })
+  for _, name in ipairs({ "hyper", "meta" }) do
+    target = policies[name].role
+    host:show(policies[name].code)
+  end
+  result.host = host
+  result.hyperCode = policies.hyper.code
+  result.entries = host:model(policies.hyper.code).entries
   return result
 end
 
@@ -346,7 +359,7 @@ check("the toggle with its own modifiers was bound as a global combo", real.boun
 
 -- The app toggles come first, as they always have, through the supplier the plugin declared.
 check("the Hyper sheet's first entry is a supplier", type(real.entries[1]) == "function")
-local drawn = real.hyper:_sections()
+local drawn = real.host:sections(real.hyperCode)
 check("the app sections lead the sheet, running then dormant",
   drawn[1] ~= nil and drawn[1].title == "RUNNING" and drawn[2] ~= nil and drawn[2].title == "DORMANT")
 check("the app sections keep the icon grid and the bound chords drop it",
@@ -450,7 +463,7 @@ local withAction = run(probe)
 check("an action bound on the leader is bound there", withAction.bound.app["9"] == 1)
 check("an action bound on the leader is on that leader's sheet", withAction.sheet.app["9"] == 1)
 local labelled = false
-for _, section in ipairs(withAction.hyper:_sections()) do
+for _, section in ipairs(withAction.host:sections(withAction.hyperCode)) do
   for _, row in ipairs(section.rows or {}) do
     if row.badge == "9" and row.label == "Manage clipboard history" then labelled = true end
   end

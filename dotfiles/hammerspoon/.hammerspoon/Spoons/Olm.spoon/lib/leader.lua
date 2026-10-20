@@ -26,8 +26,9 @@
 ---
 --- THE POLICY is data, shipped by the root per catalog name beside its leader catalog and
 --- overridable through cfg.policy the same way. Every choice with two answers is a boolean, so
---- there is no closed set of words to spell, and the one word a policy holds is the identity of
---- the host whose sheet a hold reveals, which the root reads. See FIELDS below.
+--- there is no closed set of words to spell. Whether a hold reveals a sheet is a boolean and how
+--- that sheet is laid out is a table beside it, so a new leader gets a sheet by policy alone. See
+--- FIELDS and SHEET_FIELDS below.
 ---
 --- Only the core calls bind. lib/binder.lua binds every global row of the keymap, and the root
 --- binds every list key through its contexts onto the one leader whose policy turns contexts on.
@@ -71,17 +72,50 @@ obj.noop = noop
 --   quietOverLists      while any Olm list is open every bound key is inert though still
 --                       swallowed, since a window action fired over a list moves whatever sits
 --                       underneath it.
---   sheet               the host identity whose sheet a hold reveals, read by the root, which
---                       hands the module over. Absent means a hold reveals nothing.
+--   sheet               a hold reveals this leader's cheat sheet, drawn by the one sheet host. Absent
+--                       means a hold reveals nothing.
+--   sheetLayout         how that sheet is laid out, a table of the SHEET_FIELDS below. Absent means
+--                       the defaults, and it means nothing on a leader with no sheet.
 --   holdDelay           seconds a hold waits before it reveals, else the engine's own.
 local FIELDS = {
   tapTogglesCapsLock = "boolean",
   drivenRepeat = "boolean",
   contexts = "boolean",
   quietOverLists = "boolean",
-  sheet = "string",
+  sheet = "boolean",
+  sheetLayout = "table",
   holdDelay = "number",
 }
+
+-- What a sheet layout may carry, with the type each takes. Every field is absent unless stated,
+-- and an absent size is the shared renderer's own.
+--
+--   title       the heading over rows that name no group, what the leader does rather than what it
+--               is called, since the leader's own name says nothing to somebody reading a list.
+--   columns     how many columns the rows fill, row major, a whole number of one or more.
+--   colWidth    the width of one column.
+--   iconSize    the side of an application icon, the icon grid of a section that asks for icons.
+--   gap         the space around a badge or an icon.
+--   groupGap    the vertical space between sections.
+--   badgeWidth  a fixed badge width, for a leader whose chords carry modifiers, else the badge is
+--               square.
+local SHEET_FIELDS = {
+  title = "string",
+  columns = "number",
+  colWidth = "number",
+  iconSize = "number",
+  gap = "number",
+  groupGap = "number",
+  badgeWidth = "number",
+}
+
+-- The heading of a leader's sheet when its layout states none. The sizes come from the renderer,
+-- handed to sheetLayout, so they cannot drift from it.
+local SHEET_TITLE = "SHORTCUTS"
+
+local function isCount(v)
+  return type(v) == "number" and v == v and v >= 0 and v ~= math.huge
+end
 
 --- obj.checkPolicy(name, policy) -> policy, problems
 --- A policy as a leader reads it, every field of the wrong type or not a field at all named in
@@ -106,11 +140,67 @@ function obj.checkPolicy(name, policy)
       problems[#problems + 1] = { where = tostring(name), why = "the leader policy field '"
         .. field .. "' is a " .. type(value) .. " where a leader takes a " .. want
         .. ", so it is left at its default" }
+    elseif field == "sheetLayout" and value ~= false then
+      local layout, layoutProblems = obj._checkSheetLayout(name, value)
+      for _, problem in ipairs(layoutProblems) do problems[#problems + 1] = problem end
+      clean.sheetLayout = layout
     elseif value ~= false then
       clean[field] = value
     end
   end
+  -- A person turning a sheet off with sheet = false leaves the shipped layout merged beside it,
+  -- which is a legitimate config and drops the layout in silence. Only a layout stated with no
+  -- sheet stated at all is a problem.
+  if clean.sheetLayout and policy and policy.sheet == false then
+    clean.sheetLayout = nil
+  elseif clean.sheetLayout and not clean.sheet then
+    problems[#problems + 1] = { where = tostring(name), why = "the leader policy states a sheet layout and no sheet, so "
+      .. "the layout is ignored and a hold reveals nothing" }
+    clean.sheetLayout = nil
+  end
   return clean, problems
+end
+
+-- A sheet layout as the sheet reads it, every field of the wrong type, out of range or not a
+-- field at all named in one problem line and left out.
+function obj._checkSheetLayout(name, layout)
+  local clean, problems = {}, {}
+  local fields = {}
+  for field in pairs(layout) do fields[#fields + 1] = field end
+  table.sort(fields, function(a, b) return tostring(a) < tostring(b) end)
+  for _, field in ipairs(fields) do
+    local value, want = layout[field], SHEET_FIELDS[field]
+    if not want then
+      problems[#problems + 1] = { where = tostring(name), why = "the sheet layout field '" .. tostring(field)
+        .. "' is not one a sheet reads, so it is ignored" }
+    elseif type(value) ~= want then
+      problems[#problems + 1] = { where = tostring(name), why = "the sheet layout field '" .. field .. "' is a "
+        .. type(value) .. " where a sheet takes a " .. want .. ", so it is left at its default" }
+    elseif want == "number" and not isCount(value) then
+      problems[#problems + 1] = { where = tostring(name), why = "the sheet layout field '" .. field
+        .. "' is not a size of zero or more, so it is left at its default" }
+    elseif field == "columns" and (value < 1 or value ~= math.floor(value)) then
+      problems[#problems + 1] = { where = tostring(name), why = "the sheet layout field 'columns' is not a whole "
+        .. "number of one or more, so it is left at its default" }
+    else
+      clean[field] = value
+    end
+  end
+  return clean, problems
+end
+
+--- obj.sheetLayout(policy, renderer) -> layout
+--- The layout a leader's sheet is drawn with, the policy's own fields over the defaults. The
+--- policy is one already through checkPolicy, so every field is the type it takes. renderer is the
+--- shared renderer's own defaults table, the source of columns, colWidth and gap where the policy
+--- states none, and a sheet's heading defaults to a plain one.
+function obj.sheetLayout(policy, renderer)
+  local out = { title = SHEET_TITLE }
+  for _, field in ipairs({ "columns", "colWidth", "gap" }) do
+    out[field] = (renderer or {})[field]
+  end
+  for field, value in pairs((policy or {}).sheetLayout or {}) do out[field] = value end
+  return out
 end
 
 --------------------------------------------------------------------------------
@@ -122,7 +212,8 @@ end
 ---               plain combo leader
 ---   trigger     the trigger strategy, required
 ---   policy      the leader's policy, already through checkPolicy
----   sheet       the module a hold reveals, show(keyCode) and hide(), nil for none
+---   sheet       the module a hold reveals, show(keyCode) and hide(), nil for none. The root hands the
+---               one sheet host to every leader whose policy states a sheet.
 ---   keyCode     the keycode the sheet is shown for, the held key's own
 ---   listOpen    function answering true while any Olm list is open. A hold never reveals over an
 ---               open list, on every leader, and a leader whose policy goes quiet over lists is

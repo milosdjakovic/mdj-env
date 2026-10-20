@@ -460,9 +460,9 @@ do
   eq(own[1], "computed", "any other row of the plugin reaches its own launcherRun")
 end
 
--- The Hyper sheet's own section reads the keymap, registered tools first in registration order,
--- then each plugin in plan order with its host key, its bindings and its special rows, one row per
--- chord, and nothing on another leader or with no leader at all.
+-- A leader sheet's rows read the keymap, registered tools first in registration order, then each
+-- plugin in plan order with its host key, its bindings and its special rows, one row per chord,
+-- and nothing on another leader or with no leader at all.
 do
   local hints = assert(loadfile(here .. "../lib/hints.lua"))()
   local plan = {
@@ -478,18 +478,19 @@ do
   }
   local result = keymap.build({ plan = plan, roles = ROLES, keycodes = KEYCODES,
     shortcuts = { { name = "zed", kind = "leader", fn = function() end } },
-    actions = { cap = { shot = { description = "Shot" } } },
+    actions = { cap = { shot = { description = "Shot", group = "Capture" } } },
     hostRun = function() return function() end end,
   })
-  local section = hints.sections(result, plan, { leader = "hyper" })[1]
+  local rows = hints.sheetRows(result, plan, "hyper")
   local labels = {}
-  for _, b in ipairs(section.bindings) do labels[#labels + 1] = b.description end
-  eq(table.concat(labels, ","), "Zed tool,Shot,shot2,Host,Lock",
-    "tools lead, then each plugin's host key, bindings and special rows, in plan order")
-  eq(section.bindings[3].mods and section.bindings[3].mods[1], "shift", "a row keeps its modifiers")
+  for _, b in ipairs(rows) do labels[#labels + 1] = b.description end
+  eq(table.concat(labels, ","), "Zed tool,Shot,Shot2,Host,Lock",
+    "tools lead, then each plugin's host key, bindings and special rows, in plan order, a row with no label wearing its action in words")
+  eq(rows[3].mods and rows[3].mods[1], "shift", "a row keeps its modifiers")
+  eq(rows[2].group, "Capture", "a row carries the group its descriptor names")
 
-  local windowRows = hints.leaderRows(result, "meta")
-  eq(#windowRows, 1, "the window sheet reads the keymap's rows on its own leader")
+  local windowRows = hints.sheetRows(result, plan, "meta")
+  eq(#windowRows, 1, "a leader's sheet reads the keymap's rows on its own leader")
   eq(windowRows[1].action, "far", "including a row a plugin on another leader moved there")
 end
 
@@ -583,7 +584,7 @@ do
 end
 
 -- A launcher row built from a descriptor takes its key's gate, the binding's own when before the
--- descriptor's, the rule the keymap and both sheets follow.
+-- descriptor's, the rule the keymap and every leader's sheet follow.
 do
   local contributions = assert(loadfile(here .. "../lib/contributions.lua"))()
   local result = build(defaultPlan({

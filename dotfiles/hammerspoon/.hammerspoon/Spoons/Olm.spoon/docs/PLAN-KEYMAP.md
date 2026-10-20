@@ -373,7 +373,9 @@ takes the leader of each row, so the hint bar can spell any leader.
   reveal back over a list, and `quietOverLists` decides only whether its keys go inert too.
 - Found in 3. The policy is `policy.leaderPolicy` in the root, keyed by catalog name, and every
   field is a boolean or a number apart from the sheet host's identity, `tapTogglesCapsLock`,
-  `drivenRepeat`, `contexts`, `quietOverLists`, `sheet` and `holdDelay`. SUPER ships META's policy,
+  `drivenRepeat`, `contexts`, `quietOverLists`, `sheet` and `holdDelay`. Corrected in phase 4,
+  there is one sheet host, so `sheet` is a boolean and the layout is a table beside it,
+  `sheetLayout`. SUPER ships META's policy,
   since it is the documented other home of the window role.
 - Found in 3. `policy.hyperTrigger`, which could make Hyper a modifier chord with a hold reveal, is
   retired and named as a problem when set, since a held leader is its catalog row and a named set
@@ -393,6 +395,45 @@ the held leader and the descriptor behind each chord, which both sheets already 
 columns with icons for `hyper` and two for `meta`. The toggler's app section is the first group
 answered by a function, until phase 6 still supplied as a section, after it as descriptors. Parity is checked by holding each leader under
 the devlock with Milos watching, since a drawn sheet is what a test cannot see.
+
+- Found in 4. The layout lives in the leader policy and not in the host, so a new leader gets a
+  sheet by policy alone. `sheet` becomes a boolean and `sheetLayout` a table beside it, `title`,
+  `columns`, `colWidth`, `iconSize`, `gap`, `groupGap` and `badgeWidth`, validated by
+  `leader.checkPolicy`, with defaults of two columns of 250 under the heading SHORTCUTS for a
+  leader that states none. The window sheet's heading moved from the root's
+  `windowSectionTitle` into META's layout.
+- Found in 4. The two sheets did not order their rows the same way. The Hyper sheet drew tools
+  first and then each plugin in plan order, where the keymap's bound list holds a plugin's own
+  bindings first, so the plan's "rows from the keymap filtered by leader" was not one rule yet.
+  `hints.sheetRows` is that one rule now, the Hyper order for every leader, and it replaced both
+  `hints.sections` and `hints.leaderRows`. On this machine the window sheet's order is unchanged.
+  With a tool's open key on the window leader that tool now leads the window sheet, which is the
+  only case that moved.
+- Found in 4. The Hyper sheet never read `when`, so a gated Hyper key still showed. One host
+  gates every leader the way the window sheet did, and no Hyper row carries a `when` on this
+  machine, so nothing visible changes today.
+- Found in 4. A row with no description took its raw action name on the Hyper sheet and the action
+  in words on the window sheet. Every leader takes the words now, which only shows for a row that
+  states no description anywhere.
+- Found in 4. The sheet is keyed by the leader's keycode, which the adapter already hands it, so
+  the root's stamping of window bindings with a keycode, `leaders.stampBindings`, and the root
+  value `leaders` that carried the heading are retired.
+- Found in 4. With one host asked once per leader, the line `contributions.sheetSections` said for a
+  supplier on another role named the toggler as unreached while asking for the window sheet. That
+  report moved to `contributions.unreachedSheetSections`, said once.
+- Found in 4. Duplicate chords on one sheet collapse to the first, the Hyper sheet's old rule, now
+  for every leader, though the keymap refuses two rows on one chord so it only guards the sheet.
+  `buildSupplied` no longer accepts `section.bindings`, the shape only the old own block used, which
+  no supplier used and the contract never documented.
+- Found in 4, after review. `sheet = false` in a person's policy drops the merged shipped layout in
+  silence and only a layout stated with no sheet is a problem. Provided rows reach a sheet unless
+  their plugin supplies sections for the role. The renderer exports its layout defaults and
+  `leader.sheetLayout` reads them. An unknown predicate is warned once per name. A leader answering
+  several roles asks for the suppliers of every one.
+- Found in 4. The keymap row gained `group`, the descriptor's, since the sheet is the first reader
+  of it. A `group` function is asked with nothing at every show, and a block holding one is a
+  supplier instead of a built list. No shipped descriptor states a group yet, so only plain Lua
+  cases exercise it.
 
 ### Phase 5, the person's keymap
 

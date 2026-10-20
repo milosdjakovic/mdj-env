@@ -33,7 +33,7 @@
 -- still slip through undetected. A computed key, `[expr] = value`, is never seen either,
 -- since the pattern only matches a bare identifier. And a word delivered by a later
 -- assignment statement rather than written inside the literal itself, `opts.sections = ...`
--- for host/hypercheatsheet's own sections, found while this file was being built and left
+-- for a host's own sections, found while this file was being built and left
 -- unfixed on purpose rather than patched with one more hand named exception, since a hand
 -- kept exception list is the exact roster this whole configuration's own design principles
 -- exist to remove, is not seen either. A finding this check raises is therefore a strong
@@ -44,13 +44,13 @@ local M = {}
 -- The named local table literals in root/compose.lua this scan reads. rootValues is the
 -- generic fan out every ordinary plugin's own root sourced need is answered from. The other
 -- five are root/compose.lua's own hand built option tables for the host modules that bypass
--- that fan out entirely, hypercheatsheet, queryscope, actionpanel, and stage, plus
--- queryScopeLate, launcherOpts and windowCheatSheetLate, built later and folded into lateData
--- rather than wireData, for queryscope's own second pass, the launcher and the window sheet,
+-- that fan out entirely, leadersheet, queryscope, actionpanel, and stage, plus
+-- queryScopeLate, launcherOpts and leaderSheetLate, built later and folded into lateData
+-- rather than wireData, for queryscope's own second pass, the launcher and the leader sheet,
 -- whose rows are the keymap's and exist only once it is built.
 M.TABLE_NAMES = {
-  "rootValues", "hyperCheatSheetOpts", "queryScopeOpts", "queryScopeLate",
-  "actionPanelOpts", "stageOpts", "launcherOpts", "windowCheatSheetLate",
+  "rootValues", "leaderSheetOpts", "queryScopeOpts", "queryScopeLate",
+  "actionPanelOpts", "stageOpts", "launcherOpts", "leaderSheetLate",
 }
 
 local function stripCommentsAndStrings(src)

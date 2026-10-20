@@ -37,10 +37,10 @@ return {
       { fn = function(w) w.down("hyper") end, wait = 1.1 },
       { fn = function(w) w.up("hyper") end, wait = 0.8 },
       { fn = function(w) w._seen = nil w.down("hyper") end, wait = 1.1 },
-      { fn = function(w) w._seen = w.showing("hypercheatsheet") w.up("hyper") end, wait = 0.6 },
+      { fn = function(w) w._seen = w.showing("leadersheet") w.up("hyper") end, wait = 0.6 },
     },
     expect = function(w)
-      local sheet = w.role("hypercheatsheet")
+      local sheet = w.role("leadersheet")
       if not sheet then return false, "no Hyper cheat sheet in this config at all" end
       if type(sheet.isShowing) ~= "function" then
         return false, "it cannot be observed, so nothing can tell whether it appears"
@@ -48,7 +48,7 @@ return {
       if not w._seen then
         return false, "the leader was held past its hold delay and no sheet appeared"
       end
-      if w.showing("hypercheatsheet") then
+      if w.showing("leadersheet") then
         return false, "it appeared but stayed on screen after the leader was released"
       end
       return true
@@ -70,10 +70,10 @@ return {
       { fn = function(w) w.down("meta") end, wait = 1.2 },
       { fn = function(w) w.up("meta") end, wait = 0.8 },
       { fn = function(w) w.down("meta") end, wait = 1.2 },
-      { fn = function(w) w._seen = w.showing("windowcheatsheet") w.up("meta") end, wait = 0.6 },
+      { fn = function(w) w._seen = w.showing("leadersheet") w.up("meta") end, wait = 0.6 },
     },
     expect = function(w)
-      local sheet = w.role("windowcheatsheet")
+      local sheet = w.role("leadersheet")
       if not sheet then return false, "no window cheat sheet in this config at all" end
       if type(sheet.isShowing) ~= "function" then
         return false, "it cannot be observed, so nothing can tell whether it appears"
@@ -81,7 +81,7 @@ return {
       if not w._seen then
         return false, "the leader was held past its hold delay and no sheet appeared"
       end
-      if w.showing("windowcheatsheet") then
+      if w.showing("leadersheet") then
         return false, "it appeared but stayed on screen after the leader was released"
       end
       return true
@@ -102,13 +102,15 @@ return {
     scenario = "the Hyper overlay lists the applications its leader switches between",
     tier = "behaviour",
     expect = function(w)
-      local sheet = w.role("hypercheatsheet")
+      local sheet = w.role("leadersheet")
       if not sheet then return false, "no Hyper cheat sheet in this config at all" end
       -- The sheet holds no app data of its own since phase four of the core split, a plugin
       -- supplies the app sections on every show, so the rows it would draw now are asked for
       -- and an app row is told apart by the icon it carries.
+      local hyper = sheet.modelNamed and sheet:modelNamed("hyper")
+      if not hyper then return false, "the sheet host holds no sheet for the Hyper leader" end
       local apps = 0
-      for _, section in ipairs(sheet:_sections() or {}) do
+      for _, section in ipairs(sheet:sections(hyper.keyCode) or {}) do
         for _, row in ipairs(section.rows or {}) do
           if row.icon ~= nil then apps = apps + 1 end
         end
@@ -125,12 +127,14 @@ return {
     scenario = "the Hyper overlay lists the actions bound to its leader",
     tier = "behaviour",
     expect = function(w)
-      local sheet = w.role("hypercheatsheet")
+      local sheet = w.role("leadersheet")
       if not sheet then return false, "no Hyper cheat sheet in this config at all" end
       local rows = 0
+      local hyper = sheet.modelNamed and sheet:modelNamed("hyper")
+      if not hyper then return false, "the sheet host holds no sheet for the Hyper leader" end
       -- Its own sections are the plain tables among its entries, built once at configure, and
       -- a supplier a plugin handed in is a function, which is not this scenario's subject.
-      for _, entry in ipairs(sheet._entries or {}) do
+      for _, entry in ipairs(hyper.entries or {}) do
         if type(entry) == "table" then rows = rows + #(entry.rows or {}) end
       end
       if rows == 0 then
@@ -153,18 +157,20 @@ return {
     scenario = "the window overlay names what its leader does",
     tier = "behaviour",
     expect = function(w)
-      local sheet = w.role("windowcheatsheet")
+      local sheet = w.role("leadersheet")
       if not sheet then return false, "no window cheat sheet in this config at all" end
-      local groups = sheet._byLeader or {}
+      local meta = sheet.modelNamed and sheet:modelNamed("meta")
       local found = nil
-      for _, group in pairs(groups) do found = group break end
+      for _, entry in ipairs(meta and meta.entries or {}) do
+        if type(entry) == "table" then found = entry break end
+      end
       if not found then
-        return false, "it has no rows for any leader, so holding one shows an empty overlay"
+        return false, "it has no rows for the window leader, so holding one shows an empty overlay"
       end
       if #(found.rows or {}) == 0 then
         return false, "its leader group has no rows in it"
       end
-      if found.name == nil or found.name == "" then
+      if found.title == nil or found.title == "" then
         return false, "its rows have no heading, so the overlay draws a blank title over them"
       end
       return true

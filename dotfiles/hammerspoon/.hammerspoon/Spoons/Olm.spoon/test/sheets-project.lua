@@ -2,23 +2,28 @@
 -- test/sheets.golden. Everything a sheet decides except pixels, its sections in order, each
 -- section's title, fade and layout, and its rows with badge, label and whether an icon is drawn.
 --
--- Two sheets exist while the keymap plan runs, one per held leader, and this reads each host's
--- own fields rather than drawing anything. It is the one place the format is spelled, shared by
--- the live probe and by the offline run, so the two cannot drift.
+-- One sheet host draws every held leader since phase 4 of the keymap plan, and this reads that
+-- host's own records rather than drawing anything. It is the one place the format is spelled,
+-- shared by the live probe and by the offline run, so the two cannot drift.
 --
--- The Hyper sheet. Its own sections are built once at configure and written as they stand. A
--- section a plugin supplies is asked again on every show, and its rows are the person's data on
--- this machine, the app toggler's apps that are installed here, split by which are running. Any
--- line about them would make the golden describe one machine, so a supplier is written as the
--- headers of the sections it answers, each title, fade and layout, and nothing about its rows.
--- Those are checked by eye, see test/README.md.
+-- The format is the one the two hosts it replaced wrote, kept byte for byte so the golden proves
+-- the merge changed nothing. Two line families survive, chosen by the leader's name. The hyper
+-- family is the section shape, used for any leader this file has no family for under its own name.
+-- The window family is the group shape, which META keeps.
+--
+-- The section family. A leader's own sections are built once at configure and written as they
+-- stand. A section a plugin supplies is asked again on every show, and its rows are the person's
+-- data on this machine, the app toggler's apps that are installed here, split by which are
+-- running. Any line about them would make the golden describe one machine, so a supplier is
+-- written as the headers of the sections it answers, each title, fade and layout, and nothing
+-- about its rows. Those are checked by eye, see test/README.md.
 --
 --   hyper  section  n  title  alpha  titleAlpha  layout
 --   hyper  row      n  badge  label  icon
 --   hyper  supplied n  title  alpha  titleAlpha  layout
 --
--- The window sheet. One group per leader it reveals, named as the host names it, and its rows in
--- the order the host keeps them, each with the predicate gating it.
+-- The group family. One group per section, named as the host names it, and its rows in the order
+-- the host keeps them, each with the predicate gating it.
 --
 --   window group   name
 --   window row     n  badge  label  when
@@ -54,23 +59,27 @@ local function iconText(v)
   return "image"
 end
 
---- obj.hyper(sheet, glyphFor) -> list of lines
---- sheet is the Hyper cheat sheet host module, its entries built at configure.
-function obj.hyper(sheet, glyphFor)
+-- The family word each leader's lines are spelled with, and the shape that family takes.
+local FAMILY = {
+  hyper = { word = "hyper", shape = "section" },
+  meta = { word = "window", shape = "group" },
+}
+
+local function sectionLines(word, record)
   local lines = {}
-  for n, entry in ipairs(sheet._entries or {}) do
+  for n, entry in ipairs(record.entries or {}) do
     if type(entry) == "table" then
-      lines[#lines + 1] = table.concat({ "hyper", "section", tostring(n), clean(entry.title),
+      lines[#lines + 1] = table.concat({ word, "section", tostring(n), clean(entry.title),
         num(entry.alpha), num(entry.titleAlpha), layout(entry) }, "\t")
       for _, r in ipairs(entry.rows or {}) do
-        lines[#lines + 1] = table.concat({ "hyper", "row", tostring(n), clean(r.badge),
+        lines[#lines + 1] = table.concat({ word, "row", tostring(n), clean(r.badge),
           clean(r.label), iconText(r.icon) }, "\t")
       end
     elseif type(entry) == "function" then
       local ok, supplied = pcall(entry)
       for _, section in ipairs(ok and type(supplied) == "table" and supplied or {}) do
         if type(section) == "table" then
-          lines[#lines + 1] = table.concat({ "hyper", "supplied", tostring(n), clean(section.title),
+          lines[#lines + 1] = table.concat({ word, "supplied", tostring(n), clean(section.title),
             num(section.alpha), num(section.titleAlpha), layout(section) }, "\t")
         end
       end
@@ -79,29 +88,33 @@ function obj.hyper(sheet, glyphFor)
   return lines
 end
 
---- obj.window(sheet) -> list of lines
---- sheet is the window cheat sheet host module, its groups keyed by leader keycode. Groups are
---- written sorted by name, since a keycode is a machine fact and the name is what is drawn.
-function obj.window(sheet)
-  local groups = {}
-  for _, group in pairs(sheet._byLeader or {}) do groups[#groups + 1] = group end
-  table.sort(groups, function(a, b) return tostring(a.name) < tostring(b.name) end)
+local function groupLines(word, record)
   local lines = {}
-  for _, group in ipairs(groups) do
-    lines[#lines + 1] = table.concat({ "window", "group", clean(group.name) }, "\t")
-    for n, r in ipairs(group.rows or {}) do
-      lines[#lines + 1] = table.concat({ "window", "row", tostring(n), clean(r.badge),
-        clean(r.label), clean(r.when) }, "\t")
+  for _, entry in ipairs(record.entries or {}) do
+    if type(entry) == "table" then
+      lines[#lines + 1] = table.concat({ word, "group", clean(entry.title) }, "\t")
+      for n, r in ipairs(entry.rows or {}) do
+        lines[#lines + 1] = table.concat({ word, "row", tostring(n), clean(r.badge),
+          clean(r.label), clean(r.when) }, "\t")
+      end
     end
   end
   return lines
 end
 
---- obj.lines(hyperSheet, windowSheet, glyphFor) -> list of lines
-function obj.lines(hyperSheet, windowSheet, glyphFor)
+--- obj.lines(host) -> list of lines
+--- host is the leader sheet host module, one record per leader that shows a sheet. Records are
+--- written sorted by leader name, since a keycode is a machine fact and the name is not.
+function obj.lines(host)
+  local records = {}
+  for _, record in ipairs(host:models()) do records[#records + 1] = record end
+  table.sort(records, function(a, b) return tostring(a.name) < tostring(b.name) end)
   local lines = {}
-  if hyperSheet then for _, l in ipairs(obj.hyper(hyperSheet, glyphFor)) do lines[#lines + 1] = l end end
-  if windowSheet then for _, l in ipairs(obj.window(windowSheet)) do lines[#lines + 1] = l end end
+  for _, record in ipairs(records) do
+    local family = FAMILY[record.name] or { word = tostring(record.name), shape = "section" }
+    local these = family.shape == "group" and groupLines(family.word, record) or sectionLines(family.word, record)
+    for _, l in ipairs(these) do lines[#lines + 1] = l end
+  end
   return lines
 end
 

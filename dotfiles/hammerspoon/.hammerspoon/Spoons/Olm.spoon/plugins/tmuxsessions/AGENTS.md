@@ -130,8 +130,9 @@ level listed iTerm, Alacritty and WezTerm as Installed on a machine holding none
 `currentProviderName` would accept a stored choice naming one of them and then fail at the attach.
 Measured rather than reasoned about, all three answered an empty path and all three answered
 available. The test is `path ~= nil and path ~= ""`, which is exactly what
-`browsertabs/providers/chromium.lua` and `host/hypercheatsheet/init.lua` both already wrote, the
-second with a comment naming this trap, so this plugin was the outlier rather than the discoverer.
+`browsertabs/providers/chromium.lua` already wrote, and the Hyper cheat sheet host did too before the
+core split moved the app registry out of it, with a comment naming this trap, so this plugin was the
+outlier rather than the discoverer.
 
 The same trap sits in three more places this plugin does not own, `lib/deps.lua` resolving a
 declaration of kind `app`, and the clipboard's `raycast.lua` and `shortcut.lua` providers, all

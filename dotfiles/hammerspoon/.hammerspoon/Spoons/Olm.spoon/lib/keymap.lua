@@ -42,6 +42,8 @@
 --   priority    the context priority, where there is one.
 --   description the declared label, the binding's own, else the descriptor's, else for an open
 --               row the plugin's own description.
+--   group       the section a cheat sheet files the row under, the descriptor's own group, a word or a
+--               function answering one, or nil for the sheet's default section.
 --   origin      default when the plugin shipped the chord and user when the person set it.
 --   repeats     whether the action keeps firing while its key is held, where the source says.
 --   afterRelease true when the descriptor behind the chord asks to run only once the leader that
@@ -238,6 +240,7 @@ function obj.build(inputs)
       when = spec.when,
       priority = spec.priority,
       description = spec.description,
+      group = spec.group,
       origin = spec.origin or "default",
       repeats = spec.repeats,
       afterRelease = spec.afterRelease,
@@ -385,6 +388,7 @@ function obj.build(inputs)
               action = b.action, source = "bindings", when = b.when or (descriptor and descriptor.when),
               priority = b.priority,
               description = b.description or (descriptor and descriptor.description),
+              group = descriptor and descriptor.group or nil,
               origin = originOf(prov, "bindings"),
               repeats = repeats, run = descriptor and descriptor.run or nil,
               afterRelease = descriptor and descriptor.afterRelease or nil,

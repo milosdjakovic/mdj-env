@@ -9,7 +9,7 @@
 -- What it actually reads, now that the config folded from many separate spoons
 -- into one bundled Olm spoon, is the loaded spoon table, the chord key and hyper
 -- key atoms reached through spoon.Olm.lib, the launcher, action panel, query
--- scope, and hyper cheat sheet hosts each reached through spoon.Olm module, the
+-- scope hosts each reached through spoon.Olm module, the
 -- context blocks the load plan built from the plugin manifests, the tool registry published at
 -- spoon.Olm.registry, the assembled scope catalog the query scope host actually
 -- built from it, and hs.hotkey.getHotkeys, the global hotkey table Hammerspoon
@@ -423,7 +423,7 @@ for _, l in ipairs(rowLines) do add(l) end
 -- tool, and a deleted bind line would have passed every gate this repository had. Read
 -- live, keyed by key code, which is the private field the atom itself keeps its whole
 -- binding table in, the same kind of reach this file already makes into the chord key
--- atom's own _keys field and the hyper cheat sheet host's own models above. Sorted by
+-- atom's own _keys field. Sorted by
 -- key code since the table carries no order of its own. Per key this records how many
 -- bindings sit on it in total and how many of those are base bindings, meaning the ones
 -- carrying no `when`, since a base binding is what a plain Hyper press to that key

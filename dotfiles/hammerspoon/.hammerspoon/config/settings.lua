@@ -72,7 +72,7 @@ return {
   },
 
   -- Overlay display policy. Decides which display every transient overlay appears
-  -- on, every chooser, its docked shortcut panel, both cheat sheets, and the colour
+  -- on, every chooser, its docked shortcut panel, every cheat sheet, and the colour
   -- toast. init.lua reads this into a small strategy registry and injects the chosen
   -- resolver into the Chooser atom and the CanvasPanel, so one choice moves every
   -- overlay together. Two modes.
