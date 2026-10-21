@@ -723,3 +723,14 @@ aliases live only in `config/keymap.lua`.
   pressed the list keys in the launcher, the clipboard, file search and emoji, checked the hint
   bar against them, and confirmed that every Hyper key that is not a live list key does nothing
   while a list is open, while Hyper and B still toggles Books with no list open.
+- 2026-10-21 14:30. The Olm unit cases were made green again, thirty six failing checks of 1957, all
+  stale tests and no code defect. `launcher-contributions` still expected lock and sleep as special
+  rows the launcher's manifest declared, and the case never loaded the launcher as a module, so once
+  phase 5 made them its own actions no row for them was built and every later row sat two places
+  early, which is why the first pane read Network and the last window row read Bluetooth. The case
+  now loads the launcher module with recorders for its two runs, expects the owner `launcher` the
+  rows are stamped with, and checks that a chosen lock row reaches that descriptor. The
+  `windowmanager-holdstep` case indexed `actions()` by name, which was true until the descriptors
+  became a list in the order of the launcher's rows, so it indexes the list once by name. Phase 6
+  and phase 7 caused none of them. `chooserprovider` fails six checks under a plain interpreter
+  only, since it needs `hs`, and passes in the live run, so it was left alone.

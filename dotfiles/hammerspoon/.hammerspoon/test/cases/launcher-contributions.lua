@@ -114,8 +114,17 @@ local windowSize = load("plugins/windowsize/init.lua")
 windowSize:init()
 windowSize:configure({ plan = function(w, h) return { width = w, height = h, clamped = false } end })
 
+-- The launcher's own two actions, lock and sleep, answered through its provides.actions like any
+-- plugin's. The module is a fresh copy and only its descriptor table is read for the rows, so
+-- the descriptors' runs are replaced by recorders before the registrar copies them, which keeps
+-- the case from locking the screen.
+local launcherModule = load("host/launcher/init.lua")
+local runCalls = {}
+launcherModule.actions[1].run = function() runCalls[#runCalls + 1] = "lock" end
+launcherModule.actions[2].run = function() runCalls[#runCalls + 1] = "sleep" end
+
 local modules = { capture = capture, systemsettings = settings, windowmanager = windows,
-  windowsize = windowSize }
+  windowsize = windowSize, launcher = launcherModule }
 
 -- What the icon door does to a row naming an icon, set its owner when it has none. The icon
 -- engine itself is not this case's subject.
@@ -205,7 +214,6 @@ local function buildLauncher(plan, extraSuppliers)
       app = function(bundleID, url) leafCalls[#leafCalls + 1] = "app " .. bundleID .. " " .. tostring(url) end,
       copy = function(value) leafCalls[#leafCalls + 1] = "copy " .. tostring(value) end,
       special = {
-        lock = function() leafCalls[#leafCalls + 1] = "lock" end,
         searchSettings = function() leafCalls[#leafCalls + 1] = "special searchSettings" end,
       },
     },
@@ -264,7 +272,7 @@ expectRow("search settings row", actionRows[5], {
   owner = "systemsettings" })
 expectRow("own special row", actionRows[7], {
   title = "Lock Screen", subTitle = "System · Hyper §", icon = "lock", iconOwner = "launcher",
-  kind = "special", id = "lock" })
+  kind = "special", id = "lock", owner = "launcher" })
 expectRow("gated window row", actionRows[9], {
   title = "Previous Display", subTitle = "Window · Meta ,", icon = "windows",
   iconOwner = "windowmanager", kind = "window", id = "previousDisplay", owner = "windowmanager",
@@ -407,7 +415,7 @@ windowSize._windowActions = function()
 end
 
 local function run(item)
-  calls, leafCalls = {}, {}
+  calls, leafCalls, runCalls = {}, {}, {}
   launcher._runTimer = nil
   launcher:runItem(item)
   local timer = launcher._runTimer
@@ -415,7 +423,7 @@ local function run(item)
     timer:fire()
     timer:stop()
   end
-  return calls[1] or leafCalls[1]
+  return calls[1] or leafCalls[1] or runCalls[1]
 end
 
 local function itemOf(rows, value)
@@ -433,7 +441,8 @@ eq("a pane row opens its pane", run(actionRows[lastWindow + 2].item),
   "open x-apple.systempreferences:com.apple.BluetoothSettings")
 eq("a typed size reaches the window size plugin through its query row", run(sized.item),
   "exactSize 1920x1080")
-eq("an own special row stays the launcher's", run(itemOf(actionRows, "lock")), "lock")
+-- The launcher answers lock itself since phase 5 of the keymap plan, so its own descriptor runs.
+eq("an own special row runs the launcher's own action", run(itemOf(actionRows, "lock")), "lock")
 eq("an app row reaches the app action", run({ kind = "app", bundleID = "com.apple.finder" }),
   "app com.apple.finder nil")
 eq("a computed row whose owner runs nothing falls through to its kind",

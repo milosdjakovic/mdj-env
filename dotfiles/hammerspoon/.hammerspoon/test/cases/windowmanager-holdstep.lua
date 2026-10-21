@@ -110,13 +110,21 @@ do
     "got " .. tostring(wm:_moveStep(3)))
 end
 
+-- The module answers its actions as a list of descriptors, in the launcher's row order, so a
+-- case that presses one by name indexes the list once here.
+local function actionsByName(wm)
+  local byName = {}
+  for _, descriptor in ipairs(wm:actions()) do byName[descriptor.name] = descriptor end
+  return byName
+end
+
 -- Resizing spends its step across two axes in the proportions of the canvas, the long edge
 -- taking the step whole and the short edge its share. On a 2.5 to 1 canvas a 30 pixel press
 -- grows the long edge by 30 and the short one by 12.
 local function pressGrowth(canvas)
   local wm, frameNow = freshModule(canvas)
   local before = { w = frameNow().w, h = frameNow().h }
-  wm:actions().increaseSize.run(0)
+  actionsByName(wm).increaseSize.run(0)
   return frameNow().w - before.w, frameNow().h - before.h
 end
 
@@ -157,7 +165,7 @@ end
 -- started nothing like the screen still stops being a column instead of becoming more of one.
 do
   local wm, frameNow = freshModule(WIDE)
-  local actions = wm:actions()
+  local actions = actionsByName(wm)
   local canvasRatio = WIDE.h / WIDE.w
   -- Centered first, and deliberately so. Growth is split between the two opposing edges, so a
   -- window that has run out of room on one side gets only half its step on that axis and the
@@ -193,7 +201,7 @@ end
 -- beside it, and the height share is the one number here that does not divide evenly.
 do
   local wm, frameNow = freshModule()
-  local actions = wm:actions()
+  local actions = actionsByName(wm)
   local fractional = false
   for _ = 1, 20 do
     actions.increaseSize.run(9)
@@ -209,7 +217,7 @@ end
 -- what is checked here is that a repeat actually travels further than a press.
 do
   local wm, frameNow = freshModule()
-  local actions = wm:actions()
+  local actions = actionsByName(wm)
   local startX = frameNow().x
   actions.moveRight.run(0)
   local pressed = frameNow().x - startX
@@ -237,7 +245,7 @@ end
 -- has to keep behaving exactly as it did.
 do
   local wm, frameNow = freshModule()
-  local actions = wm:actions()
+  local actions = actionsByName(wm)
   local before = frameNow().y
   actions.moveDown.run()
   check("an action reached with no depth moves the press amount",
