@@ -68,8 +68,6 @@ obj.noop = noop
 
 -- Every field a leader's policy may carry, with the type it takes. Absent is false or nothing.
 --
---   tapTogglesCapsLock  a quick tap of the leader alone toggles real Caps Lock, which is what Caps
---                       Lock remapped to HYPER loses otherwise.
 --   drivenRepeat        a repeating binding repeats on the engine's own schedule and its run is
 --                       handed how deep into the hold it is, rather than riding the OS autorepeat.
 --   ranked              the global bindings on one key compete by priority, the best answering and
@@ -83,7 +81,6 @@ obj.noop = noop
 --                       the defaults, and it means nothing on a leader with no sheet.
 --   holdDelay           seconds a hold waits before it reveals, else the engine's own.
 local FIELDS = {
-  tapTogglesCapsLock = "boolean",
   drivenRepeat = "boolean",
   ranked = "boolean",
   sheet = "boolean",
@@ -96,6 +93,8 @@ local FIELDS = {
 -- phase A of the list keys addendum to the keymap plan, when list keys left the one leader that
 -- hosted them.
 local RETIRED = {
+  tapTogglesCapsLock = "a quick tap toggles Caps Lock when the leader's key is capsLock and does "
+    .. "nothing for any other key, the held trigger decides it from the key",
   contexts = "list keys bind on the leader each chord names and the list role in the roles "
     .. "section of config/keymap.lua places the defaults, and the tier rule it also chose is ranked",
   quietOverLists = "every held leader over an open list answers only its bindings for that list "
@@ -304,7 +303,6 @@ function obj.new(opts)
   self._predicates = opts.predicates
   self._holdDelay = self._policy.holdDelay or opts.holdDelay
   self._tapThreshold = opts.tapThreshold
-  self._tap = self._policy.tapTogglesCapsLock and function() hs.hid.capslock.toggle() end or nil
   -- keycode to the bindings on it, in the order they arrived, and every binding once more in that
   -- order, which a trigger that claims combos walks so it claims them in a fixed order.
   self._bindings = {}

@@ -11,6 +11,10 @@
 
 local here = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local keymap = assert(loadfile(here .. "../lib/keymap.lua"))()
+-- The allow list and the allocation are lib/keyremap.lua's, handed to the reader the way the root
+-- hands them, so this file keeps no list of keys of its own. The remap needs only a logger.
+hs = { logger = { new = function() return setmetatable({}, { __index = function() return function() end end }) end } }
+local KeyRemap = assert(loadfile(here .. "../lib/keyremap.lua"))()
 
 local failures, checks = 0, 0
 local function eq(got, want, what)
@@ -21,15 +25,15 @@ local function eq(got, want, what)
   end
 end
 
--- The leaders Olm ships, in the shape root/compose.lua's SHIPPED_LEADERS has, and the source keys
--- lib/keyremap.lua knows.
+-- The leaders Olm ships, in the shape root/compose.lua's SHIPPED_LEADERS has, and the keys
+-- lib/keyremap.lua allows.
 local SHIPPED = {
-  hyper = { key = "capsLock", tapTogglesCapsLock = true, ranked = true, sheet = true,
+  hyper = { key = "capsLock", ranked = true, sheet = true,
     sheetLayout = { columns = 4, colWidth = 215 } },
   meta = { key = "rightOption", drivenRepeat = true, sheet = true, sheetLayout = { columns = 2 } },
   super = { key = "rightCommand", drivenRepeat = true },
 }
-local SOURCES = { capsLock = true, rightOption = true, rightCommand = true }
+local SOURCES = KeyRemap.sources()
 local ROLE_WORDS = { "app", "window" }
 -- A fake of Hammerspoon's keycode table, name to code and code to name. The three keys the plus
 -- sign touches carry the live table's own answers, = on 24, pad+ on 69 and no + at all.
@@ -42,7 +46,8 @@ do
 end
 
 local function read(config)
-  return keymap.readConfig(config, { leaders = SHIPPED, sources = SOURCES, roleWords = ROLE_WORDS, keycodes = KEYCODES })
+  return keymap.readConfig(config, { leaders = SHIPPED, sources = SOURCES, allocate = KeyRemap.allocate,
+    roleWords = ROLE_WORDS, keycodes = KEYCODES })
 end
 
 local function whys(problems)
@@ -166,7 +171,6 @@ do
     eq(by.hyper.key, "capsLock", "shipped: hyper is Caps Lock")
     eq(by.hyper.mods, nil, "shipped: a held leader has no mods")
     eq(by.hyper.policy.ranked, true, "shipped: hyper keeps its behaviour")
-    eq(by.hyper.policy.tapTogglesCapsLock, true, "shipped: and its tap")
     eq(by.hyper.policy.sheetLayout.columns, 4, "shipped: and its sheet layout")
     eq(by.meta.policy.drivenRepeat, true, "shipped: meta drives its repeats")
     eq(by.super.key, "rightCommand", "shipped: super is Right Command")
@@ -181,7 +185,6 @@ do
   eq(by.hyper.key, "capsLock", "merge: the trigger stays the shipped one")
   eq(by.hyper.policy.ranked, false, "merge: a stated field wins")
   eq(by.hyper.policy.sheet, true, "merge: an unstated field keeps the shipped value")
-  eq(by.hyper.policy.tapTogglesCapsLock, true, "merge: and so does the tap")
   eq(by.hyper.policy.sheetLayout.columns, 3, "merge: a layout field is laid over")
   eq(by.hyper.policy.sheetLayout.colWidth, 215, "merge: and the other layout fields are kept")
   eq(by.meta.policy.sheet, false, "merge: a sheet is switched off by stating false")
@@ -189,19 +192,19 @@ do
   eq(SHIPPED.hyper.sheetLayout.columns, 4, "merge: the shipped layout is not shared with the result")
 
   -- A key replaces the trigger as one and keeps the behaviour.
-  r = read({ leaders = { hyper = { key = "rightCommand" }, meta = { key = "capsLock", drivenRepeat = false } } })
+  r = read({ leaders = { hyper = { key = "rightControl" }, meta = { key = "f13", drivenRepeat = false } } })
   by = byName(r)
   eq(#r.problems, 0, "key: a known source is no problem")
-  eq(by.hyper.key, "rightCommand", "key: the trigger is replaced")
+  eq(by.hyper.key, "rightControl", "key: the trigger is replaced")
   eq(by.hyper.policy.ranked, true, "key: the behaviour stays")
-  eq(by.meta.key, "capsLock", "key: another leader likewise")
+  eq(by.meta.key, "f13", "key: another leader likewise")
   eq(by.meta.policy.drivenRepeat, false, "key: with its own field stated")
 
   -- A new name starts with every behaviour off, whichever kind.
-  r = read({ leaders = { pedal = { key = "rightOption", sheet = true }, nav = { mods = { "shift", "ctrl" } } } })
+  r = read({ leaders = { pedal = { key = "rightControl", sheet = true }, nav = { mods = { "shift", "ctrl" } } } })
   by = byName(r)
   eq(#r.problems, 0, "new: a held and a modifier leader read")
-  eq(by.pedal.key, "rightOption", "new: a held leader names its key")
+  eq(by.pedal.key, "rightControl", "new: a held leader names its key")
   eq(by.pedal.policy.sheet, true, "new: and states its own behaviour")
   eq(by.pedal.policy.ranked, nil, "new: every other behaviour is off")
   eq(by.pedal.shipped, nil, "new: and it is not a shipped leader")
@@ -209,7 +212,7 @@ do
   eq(next(by.nav.policy), nil, "new: with no behaviour")
   eq(table.concat({ r.leaders[1].name, r.leaders[2].name, r.leaders[3].name, r.leaders[4].name, r.leaders[5].name }, ","),
     "hyper,meta,pedal,super,nav", "new: held leaders come first and then the modifier ones")
-  r = read({ roles = { window = "pedal" }, leaders = { pedal = { key = "rightOption" } } })
+  r = read({ roles = { window = "pedal" }, leaders = { pedal = { key = "rightControl" } } })
   eq(r.roles.window, "PEDAL", "new: a role may land on a new held leader")
 
   -- Today's form, a bare list, is read as mods with a routine note and no problem.
@@ -242,15 +245,107 @@ do
   r = read({ leaders = { hyper = { mods = { "shift" } } } })
   eq(byName(r).hyper.mods, nil, "kind: a bare list on a shipped name is refused the same way")
 
-  -- A key the remap does not know is a problem line.
-  r = read({ leaders = { hyper = { key = "f13" }, pedal = { key = "space" }, odd = { key = 3 } } })
+  -- A key off the allow list is a problem line naming the keys it allows.
+  r = read({ leaders = { hyper = { key = "space" }, pedal = { key = "a" }, odd = { key = 3 }, low = { key = "f12" },
+    left = { key = "leftCommand" } } })
   by = byName(r)
   text = whys(r.problems)
-  eq(has(text, "leaders hyper | has a key of 'f13', which is not a key Olm can make a leader"), true, "source: an unknown key is named")
-  eq(has(text, "capsLock, rightCommand, rightOption"), true, "source: with the keys it knows")
-  eq(by.hyper.key, "capsLock", "source: a shipped leader keeps its key")
-  eq(by.pedal, nil, "source: a new name is ignored")
-  eq(by.odd, nil, "source: a key that is no word is ignored")
+  eq(has(text, "leaders hyper | has a key of 'space', which is not a key Olm can make a leader"), true, "allow: a key off the list is named")
+  eq(has(text, "capsLock, f13, f14, f15, f16, f17, f18, f19, f20, rightCommand, rightControl, rightOption"), true,
+    "allow: with the keys it allows, from keyremap")
+  eq(has(text, "leaders low | has a key of 'f12'"), true, "allow: F12 carries brightness and is refused")
+  eq(has(text, "leaders left | has a key of 'leftCommand'"), true, "allow: a left modifier is refused")
+  eq(by.hyper.key, "capsLock", "allow: a shipped leader keeps its key")
+  eq(by.pedal, nil, "allow: a new name is ignored")
+  eq(by.odd, nil, "allow: a key that is no word is ignored")
+  eq(by.low, nil, "allow: F12 is ignored")
+  for _, name in ipairs({ "capsLock", "rightCommand", "rightOption", "rightControl", "f13", "f14", "f15", "f16",
+    "f17", "f18", "f19", "f20" }) do
+    r = read({ leaders = { pedal = { key = name } } })
+    if name == "capsLock" or name == "rightCommand" or name == "rightOption" then
+      eq(byName(r).pedal, nil, "allow: " .. name .. " is a shipped leader's key, so a new one on it is refused")
+    else
+      eq(byName(r).pedal ~= nil and #r.problems == 0, true, "allow: " .. name .. " is admitted")
+    end
+  end
+
+  -- remapTo is a trigger field, read beside key.
+  r = read({ leaders = { hyper = { key = "capsLock", remapTo = "f19" } } })
+  by = byName(r)
+  eq(#r.problems, 0, "remapTo: a pin on a remapped key is no problem")
+  eq(by.hyper.remapTo, "f19", "remapTo: it is kept on the entry")
+  eq(r.allocation.leaders.hyper.fkey, "f19", "remapTo: and the allocation honours it")
+  eq(r.allocation.leaders.meta.fkey, "f16", "remapTo: the others keep their keys")
+  -- It replaces together with key, so a later key on the entry drops it, and behaviour alone keeps the shipped one.
+  r = read({ leaders = { hyper = { key = "rightControl" } } })
+  eq(byName(r).hyper.remapTo, nil, "remapTo: a key stated without it states none")
+  r = read({ leaders = { hyper = { remapTo = "f19" } } })
+  text = whys(r.problems)
+  eq(has(text, "leaders hyper | states remapTo without a key"), true, "remapTo: alone it is refused")
+  eq(has(text, "so the shipped default is kept"), true, "remapTo: and the shipped default is kept")
+  eq(byName(r).hyper.remapTo, nil, "remapTo: so it is not set")
+  r = read({ leaders = { nav = { mods = { "ctrl" }, remapTo = "f19" } } })
+  eq(has(whys(r.problems), "leaders nav | states remapTo beside mods"), true, "remapTo: beside mods is refused")
+  eq(byName(r).nav, nil, "remapTo: and the new leader is ignored")
+  r = read({ leaders = { hyper = { key = "capsLock", remapTo = "f12" }, pedal = { key = "f13", remapTo = "f14" } } })
+  by = byName(r)
+  text = whys(r.problems)
+  eq(has(text, "leaders hyper | has a remapTo of 'f12', which is not one of f13 to f20, so the shipped default is kept"), true,
+    "remapTo: a key off F13 to F20 is refused and the shipped default kept")
+  eq(by.hyper.key, "capsLock", "remapTo: Hyper is back on Caps Lock")
+  eq(by.hyper.remapTo, nil, "remapTo: with no pin")
+  eq(has(text, "leaders pedal | has a remapTo beside the key f13, which is a function key already and is not remapped, so it is ignored"), true,
+    "remapTo: beside a function key is refused and the new leader ignored")
+  eq(by.pedal, nil, "remapTo: so the pedal is not read")
+  eq(r.allocation.leaders.hyper.fkey, "f18", "remapTo: and the allocation is the shipped one")
+
+  -- Two leaders on one physical key, or one function key, drop both person entries.
+  r = read({ leaders = { pedal = { key = "f13" }, foot = { key = "f13" } } })
+  by = byName(r)
+  text = whys(r.problems)
+  eq(has(text, "leaders foot | shares the key f13 with foot, pedal"), true, "conflict: two pedals on F13, the first named")
+  eq(has(text, "leaders pedal | shares the key f13 with foot, pedal"), true, "conflict: and the second")
+  eq(by.pedal == nil and by.foot == nil, true, "conflict: both new leaders are dropped")
+  r = read({ leaders = { hyper = { key = "rightOption" } } })
+  by = byName(r)
+  eq(has(whys(r.problems), "leaders hyper | shares the key rightOption with hyper, meta, and a key is one leader's, so the shipped default is kept"), true,
+    "conflict: Hyper on the key Meta ships on is refused")
+  eq(by.hyper.key, "capsLock", "conflict: Hyper keeps Caps Lock")
+  eq(by.meta.key, "rightOption", "conflict: and Meta keeps what it ships")
+  eq(has(whys(r.problems), "leaders meta"), false, "conflict: the shipped leader gets no line of its own")
+  r = read({ leaders = { hyper = { key = "rightControl" }, meta = { key = "rightControl" } } })
+  by = byName(r)
+  eq(by.hyper.key .. "," .. by.meta.key, "capsLock,rightOption", "conflict: both shipped leaders go back to their defaults")
+  eq(#r.problems, 2, "conflict: one line each")
+  r = read({ leaders = { hyper = { key = "capsLock", remapTo = "f19" }, meta = { key = "rightOption", remapTo = "f19" } } })
+  eq(has(whys(r.problems), "leaders hyper | has a remapTo of f19, which hyper, meta all name"), true, "conflict: two pins on F19")
+  eq(byName(r).hyper.remapTo == nil and byName(r).meta.remapTo == nil, true, "conflict: both pins dropped")
+  r = read({ leaders = { pedal = { key = "f13" }, hyper = { key = "capsLock", remapTo = "f13" } } })
+  by = byName(r)
+  text = whys(r.problems)
+  eq(has(text, "leaders hyper | has a remapTo of f13, which leader pedal uses directly"), true, "conflict: a pin on a direct key, the pin")
+  eq(has(text, "leaders pedal | uses f13 directly, which leader hyper names as its remapTo"), true, "conflict: and the pedal")
+  eq(by.pedal == nil and by.hyper.remapTo == nil, true, "conflict: both entries dropped")
+  -- A dropped entry can bring a shipped default back onto another person's key, which is dropped in turn.
+  r = read({ leaders = { hyper = { key = "f13" }, meta = { key = "f13" }, extra = { key = "capsLock" } } })
+  by = byName(r)
+  eq(by.hyper.key .. "," .. by.meta.key, "capsLock,rightOption", "chain: the shipped defaults come back")
+  eq(by.extra, nil, "chain: and a new leader on a key that came back is dropped")
+  eq(#r.problems, 3, "chain: one line each")
+
+  -- The allocation notes reach the reader's notes, and the tap field is retired.
+  r = read({ leaders = { hyper = { key = "capsLock", remapTo = "f16" } } })
+  eq(#r.notes, 1, "note: a taken preferred target is one note")
+  eq(has(r.notes[1], "leader meta on rightOption prefers f16, which is in use, so it takes f13"), true, "note: it names the fallback")
+  r = read({ leaders = { hyper = { tapTogglesCapsLock = true, ranked = false }, pedal = { key = "f13", tapTogglesCapsLock = true } } })
+  by = byName(r)
+  text = whys(r.problems)
+  eq(has(text, "leaders hyper | has tapTogglesCapsLock, which is retired"), true, "tap: the retired field is one problem line")
+  eq(has(text, "a quick tap toggles Caps Lock when the key is capsLock"), true, "tap: saying the tap follows the key")
+  eq(#r.problems, 2, "tap: one line per entry stating it")
+  eq(by.hyper.policy.tapTogglesCapsLock, nil, "tap: the field is ignored")
+  eq(by.hyper.policy.ranked, false, "tap: and the rest of the entry is read")
+  eq(by.pedal.policy.tapTogglesCapsLock, nil, "tap: on a new leader too")
 
   -- No name is reserved, a built in name is only a name when it is not shipped.
   r = keymap.readConfig({ leaders = { hyper = { key = "capsLock" }, super = { mods = { "ctrl" } }, Nav = { mods = { "ctrl" } },

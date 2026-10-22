@@ -31,6 +31,7 @@ case "${1:-}" in
     run "$here/keys.sh" --fixture keymap-fixture-lists
     run "$here/keys.sh" --fixture keymap-fixture-listrole
     run "$here/keys.sh" --fixture keymap-fixture-listleaders
+    run "$here/keys.sh" --fixture keymap-fixture-heldkeys
     run "$here/views.sh" --fixture keymap-fixture ;;
   *) echo "goldens.sh: unknown argument $1" >&2; exit 2 ;;
 esac

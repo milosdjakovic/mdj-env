@@ -23,6 +23,7 @@ local here = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local lib = here .. "../lib/"
 
 local warnings = {}
+local toggles = 0
 local hotkeysBound = {}
 local heldMods = {}
 local waits = {}
@@ -50,7 +51,7 @@ hs = {
       return w
     end,
   },
-  hid = { capslock = { toggle = function() end } },
+  hid = { capslock = { toggle = function() toggles = toggles + 1 end } },
 }
 
 local failures, checks = 0, 0
@@ -63,7 +64,7 @@ local function eq(got, want, what)
 end
 
 -- Every case gets a fresh copy of the adapter, so nothing one case leaves behind reaches another.
-local HYPER_POLICY = { ranked = true, tapTogglesCapsLock = true }
+local HYPER_POLICY = { ranked = true }
 local WINDOW_POLICY = { drivenRepeat = true }
 local function newLeader(policy, predicates, extra)
   local L = assert(loadfile(lib .. "leader.lua"))()
@@ -418,7 +419,7 @@ do
 
   -- The retired fields are refused by name, each saying what replaced it.
   local L = assert(loadfile(lib .. "leader.lua"))()
-  for _, field in ipairs({ "contexts", "quietOverLists", "sealedOverLists" }) do
+  for _, field in ipairs({ "contexts", "quietOverLists", "sealedOverLists", "tapTogglesCapsLock" }) do
     local clean, problems = L.checkPolicy("HYPER", { [field] = true })
     eq(clean[field], nil, "retired: " .. field .. " is not kept")
     eq(#problems, 1, "retired: " .. field .. " is one problem")
@@ -435,17 +436,35 @@ do
   local engine = { addKey = function(_, code, opts) registered[code] = opts end,
     isActive = function() return false end }
   local sheet = { show = function() end, hide = function() end }
-  local h = newLeader(HYPER_POLICY, predicates, { trigger = held.new({ chord = engine, keyCode = 79 }),
+  local h = newLeader(HYPER_POLICY, predicates, { trigger = held.new({ chord = engine, keyCode = 79, key = "capsLock" }),
     sheet = sheet, keyCode = 79, holdDelay = 0.6, tapThreshold = 0.2 })
   h:start()
   local o = registered[79]
   eq(o ~= nil, true, "held: the key is registered into the engine")
-  eq(type(o and o.onTap), "function", "held: a policy that toggles Caps Lock gives the key a tap")
+  eq(type(o and o.onTap), "function", "held: a Caps Lock leader gives the key a tap")
+  toggles = 0
+  o.onTap()
+  eq(toggles, 1, "held: and the tap toggles Caps Lock")
   eq(o and o.repeatMode, nil, "held: a leader that does not drive its repeats leaves the engine's own mode")
   eq(type(o and o.onHold), "function", "held: a leader with a sheet arms a hold")
   eq(o and o.holdDelay, 0.6, "held: with the engine's hold delay")
 
+  -- The tap follows the key and nothing else, so no other key on the allow list has one, whatever
+  -- the policy says.
+  for _, key in ipairs({ "rightControl", "rightOption", "rightCommand", "f13", "f20" }) do
+    registered = {}
+    local other = newLeader(HYPER_POLICY, predicates, { trigger = held.new({ chord = engine, keyCode = 80, key = key }),
+      keyCode = 80 })
+    other:start()
+    eq(registered[80] and registered[80].onTap, nil, "held: a leader on " .. key .. " has no tap")
+  end
+  registered = {}
+  local noKey = newLeader(HYPER_POLICY, predicates, { trigger = held.new({ chord = engine, keyCode = 80 }), keyCode = 80 })
+  noKey:start()
+  eq(registered[80] and registered[80].onTap, nil, "held: a trigger told no key has no tap")
+
   local w = newLeader(WINDOW_POLICY, predicates, { trigger = held.new({ chord = engine, keyCode = 106 }), keyCode = 106 })
+  registered = {}
   w:bind("a", handler("step"), nil, { repeats = true })
   w:start()
   local wo = registered[106]

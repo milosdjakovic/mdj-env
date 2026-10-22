@@ -160,7 +160,26 @@ so each apply is idempotent and frees any dropped key.
 |-----|-------|------|-------|------|
 | Right Option | F16 | META | driven repeat, quiet over lists, window sheet | the active window leader: bare arrow = **resize** (halves + full-height + reasonable), `WASD` = **move** (W up, A left, S down, D right); return = maximize; `C` = center; `,`/`.` = prev/next display; letters = presets + grow/shrink |
 | Right Command | F17 | SUPER | the same as META | shipped but **unused**, so it is not remapped and Right Command is a normal key; `roles = { window = "super" }` in `config/keymap.lua` swaps it in |
-| Caps Lock | F18 | HYPER | Caps Lock tap, list contexts, Hyper sheet | hold + letter = app toggles; quick tap = `hs.hid.capslock.toggle()` |
+| Caps Lock | F18 | HYPER | ranked, Hyper sheet | hold + letter = app toggles; quick tap = `hs.hid.capslock.toggle()` |
+
+A held leader is not limited to those three keys. Its `key` may be any key on the allow list,
+which is the `USAGE` table in `lib/keyremap.lua`, Caps Lock, Right Command, Right Option, Right
+Control and F13 to F20. Anything else, a letter, a left modifier or F1 to F12, which carry
+brightness and media, is a problem line naming the allowed keys, and the leader keeps its shipped
+default. F13 to F20 are heard as they are and need no remap, which is how a foot pedal, a macro
+pad or a programmable keyboard becomes a leader, by being set in its own firmware to send one of
+them. Caps Lock and the right modifiers are remapped to a function key, `remapTo` in the entry when
+it states one, otherwise the preferred key, Caps Lock F18, Right Option F16 and Right Command F17,
+otherwise the first free key from F13 to F20. A key is not free when another leader uses it
+directly or already holds it as its target, and a preferred key that is taken sends the leader to
+the first free one with one routine console line. `KeyRemap.allocate` decides all of it as one pure
+function over every held leader in the table, in use or not, so the same config gives the same keys
+on every load. Two leaders on one physical key, two on one function key, and a `remapTo` that is not
+F13 to F20, sits beside a function key or `mods`, or names a key another leader uses directly are
+each a problem line, and every conflicting entry of the person's is dropped. A quick tap of the key
+alone toggles Caps Lock only when the key is Caps Lock and does nothing for any other key, since
+the held trigger decides it from the key. `tapTogglesCapsLock` is retired and a config still
+setting it gets one problem line.
 
 Every leader is an instance of one adapter, `Spoons/Olm.spoon/lib/leader.lua`, and what differs
 between them is its policy, the behaviour fields of its entry in the leaders table, `SHIPPED_LEADERS`

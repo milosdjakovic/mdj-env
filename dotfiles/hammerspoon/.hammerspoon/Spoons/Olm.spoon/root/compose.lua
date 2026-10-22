@@ -213,8 +213,9 @@ local SHIPPED_POLICY = {
 --
 -- The rest of an entry is how the leader behaves, read by lib/leader.lua, whose FIELDS says what
 -- each field means. These reproduce the two adapters the merge in phase 3 of the keymap plan
--- replaced. HYPER toggles real Caps Lock on a tap, rides the OS autorepeat, ranks the bindings on
--- one key and reveals a sheet laid out for its apps. META drives its own repeats so a window step
+-- replaced. HYPER rides the OS autorepeat, ranks the bindings on one key and reveals a sheet laid
+-- out for its apps. Whether a tap toggles real Caps Lock is not a field, the held trigger does it
+-- for the key capsLock and for no other. META drives its own repeats so a window step
 -- knows how deep into a hold it is, and reveals a sheet laid out for its actions. What a leader
 -- does over an open list is one rule for every held leader rather than a field, and which leader a
 -- list key sits on is its chord's, its defaults riding the list role, so neither is policy since
@@ -222,7 +223,7 @@ local SHIPPED_POLICY = {
 -- lib/leader.lua's SHEET_FIELDS, and a leader that states a sheet and no layout draws the
 -- defaults. SUPER binds nothing on this machine, and it ships META's behaviour because it is the
 -- documented other home of the window role, so pointing that role at it moves window management
--- whole. A leader with no behaviour fields has every field off, no tap, no ranking and no sheet.
+-- whole. A leader with no behaviour fields has every field off, no ranking and no sheet.
 --
 -- No layout here states a title. The heading of a sheet's default section is what the leader
 -- does, which is the role it holds, so it is keyed by role in roleTitles in the policy above and
@@ -231,7 +232,7 @@ local SHIPPED_POLICY = {
 -- there. These lived in policy.leaderCatalog and policy.leaderPolicy until the leaders table
 -- replaced both, and the root says so when a config still sets either.
 local SHIPPED_LEADERS = {
-  hyper = { key = "capsLock", tapTogglesCapsLock = true, ranked = true, sheet = true,
+  hyper = { key = "capsLock", ranked = true, sheet = true,
     sheetLayout = { columns = 4, colWidth = 215, iconSize = 32, gap = 10, groupGap = 20 } },
   meta  = { key = "rightOption", drivenRepeat = true, sheet = true,
     sheetLayout = { columns = 2, colWidth = 250, badgeWidth = 44, gap = 12 } },
@@ -276,6 +277,7 @@ function obj.run(olm, cfg)
   local keymapConfig = keymapLib.readConfig(cfg.keymap, {
     leaders = SHIPPED_LEADERS,
     sources = keyRemapAtom.sources(),
+    allocate = keyRemapAtom.allocate,
     roleWords = { "app", "window", keymapLib.LIST_ROLE },
     keycodes = hs.keycodes.map,
   })
@@ -939,8 +941,12 @@ function obj.run(olm, cfg)
     for _, problem in ipairs(problems) do leaderProblems[#leaderProblems + 1] = problem end
     local spec = { name = entry.name, catalogName = catalogName, held = held, policy = leaderPolicy }
     if held then
+      -- The function key the engine listens on and, for a key that is remapped, the target, both
+      -- from the one allocation the keymap reader made over every held leader.
+      local slot = keymapConfig.allocation.leaders[entry.name]
       spec.key = entry.key
-      spec.keyCode = leadersLib.keycode(keyRemapAtom.targetFor(entry.key))
+      spec.keyCode = slot and leadersLib.keycode(slot.fkey)
+      spec.remapTarget = slot and slot.target
     else
       spec.mods = entry.mods
       -- Holding real modifiers is ordinary typing, so a modifier leader has no tap, no ranking and
@@ -1725,7 +1731,7 @@ function obj.run(olm, cfg)
         end
         leader = leaderLib.new({
           name = spec.name,
-          trigger = heldTriggerLib.new({ chord = chordKeyAtom, keyCode = spec.keyCode }),
+          trigger = heldTriggerLib.new({ chord = chordKeyAtom, keyCode = spec.keyCode, key = spec.key }),
           policy = spec.policy,
           sheet = sheet,
           keyCode = spec.keyCode,
@@ -2310,7 +2316,10 @@ function obj.run(olm, cfg)
         leadersByName[spec.name] = leader
         if spec.held then
           activeLeaderNames[#activeLeaderNames + 1] = spec.catalogName
-          remapRows[#remapRows + 1] = { name = spec.catalogName, key = spec.key }
+          -- A leader on a function key is heard as it is and has no target, so it is no row.
+          if spec.remapTarget then
+            remapRows[#remapRows + 1] = { name = spec.catalogName, key = spec.key, target = spec.remapTarget }
+          end
         end
       end
     end

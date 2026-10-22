@@ -344,7 +344,8 @@ local function shippedLeaders(shipped)
     end
     local mods = nil
     if entry.mods ~= nil then mods = obj.mods(entry.mods) end
-    merged[lower] = { name = lower, key = entry.key, mods = mods, policy = policy, shipped = true }
+    merged[lower] = { name = lower, key = entry.key, mods = mods, policy = policy, shipped = true,
+      shippedKey = entry.key }
   end
   return merged
 end
@@ -372,20 +373,27 @@ local function listLeaders(merged, out)
   return held, chordLeaders
 end
 
---- obj.readConfig(config, opts) -> { keys, leaders, roles, aliases, lists, problems, notes }
+--- obj.readConfig(config, opts) -> { keys, leaders, roles, aliases, lists, allocation, problems, notes }
 --- config/keymap.lua as one shape, every entry checked here so the rest of Olm reads clean data.
 ---   opts.leaders    the leaders Olm ships, lowercase name to an entry in the shape of the leaders
 ---                   section, a key or mods beside any behaviour fields. The person's section is
 ---                   laid over it, so an empty section answers exactly these.
----   opts.sources    the set of source key names a held leader may name, or nil to take any name.
+---   opts.sources    the set of key names a held leader may name, the allow list lib/keyremap.lua
+---                   keeps, or nil to take any name. This file holds no list of its own.
+---   opts.allocate   function taking the held leaders as a list of { name, key, remapTo } and
+---                   answering { leaders, remaps, issues, notes }, lib/keyremap.lua's allocate. It
+---                   decides which function key each held leader listens on and which leaders
+---                   cannot be placed, and the person's trigger of each of those is dropped here,
+---                   so the leaders returned are the ones it could place. Nil skips the check.
 ---   opts.roleWords  the role words a default may name, app and window.
 ---   opts.keycodes   the keycode table a key is spelled with, or nil.
 ---
---- leaders is every leader in use, shipped and named, as a list of { name, key or mods, policy,
---- shipped }, the held ones first and then the modifier ones, each sorted by name. policy is the
+--- leaders is every leader in use, shipped and named, as a list of { name, key or mods, remapTo,
+--- policy, shipped }, the held ones first and then the modifier ones, each sorted by name. policy is the
 --- leader's behaviour fields as written, laid over the shipped entry's field by field, and the
 --- root checks their types. roles maps a role word to the name, upper cased, of the held leader it
---- moves to. notes are routine lines for the root to log. aliases maps a
+--- moves to. allocation is the last answer opts.allocate gave, nil when none was handed. notes are
+--- routine lines for the root to log. aliases maps a
 --- plugin or host identity to its words, the identity checked by the caller, which knows the
 --- plugins. keys is a list, sorted by the chord as written, of { text, leader, mods, key, free,
 --- owner, action }, free true for an entry answering false. lists maps a list's context name, or
@@ -458,11 +466,15 @@ function obj.readConfig(config, opts)
         out.notes[#out.notes + 1] = "leaders " .. name .. " is a bare list of modifiers, read as mods, "
           .. "so write mods = { ... } instead"
       end
-      local mods, key, bad = nil, nil, nil
+      local mods, key, remapTo, bad = nil, nil, nil, nil
       if type(fields) ~= "table" then
         bad = "is a " .. type(set) .. " rather than a table of mods or key and behaviour fields"
       elseif fields.mods ~= nil and fields.key ~= nil then
         bad = "states both mods and key, and a leader is one or the other"
+      elseif fields.mods ~= nil and fields.remapTo ~= nil then
+        bad = "states remapTo beside mods, and only a held key is remapped"
+      elseif fields.mods == nil and fields.key == nil and fields.remapTo ~= nil then
+        bad = "states remapTo without a key, and the two replace together, so write the key beside it"
       elseif fields.mods == nil and fields.key == nil then
         -- A shipped leader written with behaviour fields alone keeps the kind it ships, a new name
         -- has none to keep.
@@ -483,7 +495,7 @@ function obj.readConfig(config, opts)
           if not bad then mods = obj.mods(list) end
         end
       else
-        key = fields.key
+        key, remapTo = fields.key, fields.remapTo
         if type(key) ~= "string" or (opts.sources and not opts.sources[key]) then
           local known = {}
           for source in pairs(opts.sources or {}) do known[#known + 1] = source end
@@ -501,9 +513,14 @@ function obj.readConfig(config, opts)
       else
         local entry = merged[lower] or { name = lower, policy = {} }
         merged[lower] = entry
-        if mods or key then entry.mods, entry.key = mods, key end
+        if mods or key then
+          entry.mods, entry.key, entry.remapTo, entry.person = mods, key, remapTo, true
+        end
         for _, field in ipairs(sortedKeys(fields)) do
-          if field ~= "mods" and field ~= "key" and type(field) ~= "number" then
+          if field == "tapTogglesCapsLock" then
+            problem(where, "has tapTogglesCapsLock, which is retired, a quick tap toggles Caps Lock when the key is "
+              .. "capsLock and does nothing for any other key, so the field is ignored")
+          elseif field ~= "mods" and field ~= "key" and field ~= "remapTo" and type(field) ~= "number" then
             local value, was = fields[field], entry.policy[field]
             if type(value) == "table" and type(was) == "table" then
               local both = copyValue(was)
@@ -515,6 +532,40 @@ function obj.readConfig(config, opts)
         end
       end
     end
+  end
+  -- The held leaders placed on function keys, and the check the allocation makes across leaders,
+  -- which no single entry can make. A leader it cannot place loses the trigger the person wrote,
+  -- every one of the conflicting entries together, and goes back to the shipped one or, for a new
+  -- name, is dropped. The check runs again on what is left, since a shipped default coming back may
+  -- meet another entry, and it ends because each pass drops at least one person entry.
+  if opts.allocate then
+    local result
+    repeat
+      local rows = {}
+      for _, lower in ipairs(sortedKeys(merged)) do
+        local entry = merged[lower]
+        if entry.key ~= nil then rows[#rows + 1] = { name = lower, key = entry.key, remapTo = entry.remapTo } end
+      end
+      result = opts.allocate(rows)
+      local dropped = false
+      for _, issue in ipairs(result.issues) do
+        local entry = merged[issue.name]
+        if entry and entry.person then
+          problem("leaders " .. issue.name, issue.why .. ", so "
+            .. (entry.shipped and "the shipped default is kept" or "it is ignored"))
+          if entry.shipped then
+            entry.key, entry.remapTo, entry.person = entry.shippedKey, nil, nil
+          else
+            merged[issue.name] = nil
+          end
+          dropped = true
+        end
+      end
+    until not dropped
+    -- What is left is shipped entries alone, a defect in what Olm ships and not in the person's file.
+    for _, issue in ipairs(result.issues) do problem("leaders " .. issue.name, issue.why) end
+    for _, note in ipairs(result.notes) do out.notes[#out.notes + 1] = note end
+    out.allocation = result
   end
   local held, chordLeaders = listLeaders(merged, out)
 

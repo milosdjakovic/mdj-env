@@ -224,8 +224,20 @@ reserves no name. A bare list is read as `mods` with a routine note. For now a s
 its kind, so giving `hyper` mods is a problem line, and roles and the list role still land on held
 leaders only, both later phases of `docs/PLAN-LEADERS.md`. A held leader's identity is its name
 upper cased inside the root, `HYPER`, which is what the roles and the remap record spell, while a
-chord spells it lowercase. The physical key stays in the entry and `lib/keyremap.lua` says which
-spare function key it goes to, `targetFor`, so the leaders table names no function key. What
+chord spells it lowercase. The physical key stays in the entry, and `lib/keyremap.lua` says which
+function key the engine listens on for each held leader, `KeyRemap.allocate`. That file keeps the
+allow list of keys a held leader may name, `USAGE`, which is Caps Lock, Right Command, Right Option,
+Right Control and F13 to F20, so admitting another key is one row there and the reader in
+`lib/keymap.lua` holds no list of its own. The reader is handed the allow list and `allocate` as
+options, since only the root names the remap, and it drops the person's trigger of every entry the
+allocation cannot place, the shipped one coming back or a new name being ignored, and asks again
+until nothing is left to drop. F13 to F20 are used directly, the other keys are remapped to the
+entry's `remapTo`, else their preferred key, else the first free one, and a leader's function key
+is a fact of the whole table and never of the leaders in use on a load. The root gets the final
+allocation from the reader, remaps only the leaders that have a target, and hands the held trigger
+the physical key. A quick tap toggles Caps Lock only when that key is `capsLock`, decided in
+`lib/leader/triggers/held.lua`, the one place the adapter names Caps Lock, and `tapTogglesCapsLock`
+is retired with a problem line. What
 physically means a leader is a trigger, a Strategy behind four functions, start, bound, isActive
 and owns. `lib/leader/triggers/held.lua` registers one function key into the shared ChordKey
 engine, and `lib/leader/triggers/modifier.lua` claims each binding as an `hs.hotkey` on a base
@@ -248,7 +260,7 @@ follows the role the leader holds, `policy.roleTitles` keyed by role and read by
 the app role reads ACTIONS, and a held leader holding no role reads as its own name, SUPER or META.
 A title a person states in one leader's layout still wins there. A person's `roleTitles` is merged
 by role through `leader.roleTitles` rather than the defaults merge, which would read an empty table
-as a list replacing the shipped titles. `tapTogglesCapsLock` and `ranked` are HYPER's,
+as a list replacing the shipped titles. `ranked` is HYPER's,
 `drivenRepeat` is META's, and SUPER ships META's policy because it is the documented other home
 of the window role. `ranked` is the global tier rule below. What a leader does over an open list
 and which leader a list key sits on are not policy since phase A of the list keys addendum in

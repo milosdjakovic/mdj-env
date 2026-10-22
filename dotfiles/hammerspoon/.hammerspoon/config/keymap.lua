@@ -32,21 +32,37 @@
 --
 -- leaders is the one place a leader is defined, the key or modifiers it is and how it behaves, in
 -- one entry. An entry states its kind with mods, a list of shift, ctrl, alt and cmd, which makes a
--- leader of real modifiers, or with key, one key Olm makes act as a modifier, capsLock,
--- rightOption or rightCommand. Both or neither is a problem line, and the leader keeps its shipped
--- default, a new name is ignored. Beside it an entry may state behaviour, ranked, drivenRepeat,
--- sheet, sheetLayout and tapTogglesCapsLock. Olm ships hyper on capsLock, meta on rightOption and
--- super on rightCommand with their behaviour already written, and an entry here is laid over the
--- shipped one of the same name. The trigger, mods or key, is replaced as one, and each behaviour
--- field is merged over the shipped one, so naming one field keeps the rest. A new name starts
--- with every behaviour off. No name is reserved, a name is refused only when it is not one word of
--- letters and digits, is a modifier or role word, or repeats another in a different case. A leader
--- of modifiers reads like hyper in a chord and on a launcher row, it has no cheat sheet and no
--- tap, since holding real modifiers is ordinary typing, and its chords are taken from every app,
--- so it suits combinations the apps here leave free. A leader no chord uses is said in one routine
--- console line. A bare list, nav = { "shift", "ctrl" }, is still read as mods with a routine
--- console line saying to write mods. For now a shipped name keeps the kind it ships, so giving
--- hyper mods is refused with a problem line, a modifier Hyper lands in a later phase.
+-- leader of real modifiers, or with key, one key Olm makes act as a modifier. Both or neither is a
+-- problem line, and the leader keeps its shipped default, a new name is ignored. Only these keys
+-- may be a held leader, capsLock, rightCommand, rightOption, rightControl and f13 to f20. Anything
+-- else is a problem line naming them, since a letter as a leader taxes every word typed with it
+-- and the left modifiers and F1 to F12 are what ordinary shortcuts and the media keys need. f13 to
+-- f20 are how extra hardware becomes a leader, since a foot pedal, a macro pad or a programmable
+-- keyboard can be set in its own firmware to send one of them, and Olm hears it as it is.
+-- capsLock and the right modifiers are remapped to a function key instead. remapTo, beside key,
+-- pins which one, one of f13 to f20, and without it Olm uses the key's preferred one, capsLock f18,
+-- rightOption f16 and rightCommand f17, and rightControl or a taken preference gets the first free
+-- one. A taken preference is said in one routine console line. remapTo is a problem line beside
+-- mods, beside a key that is f13 to f20 already, when it is not one of f13 to f20, and when another
+-- leader uses that key. Two leaders on one key, or on one function key, are problem lines too and
+-- every entry here that conflicts is dropped. A quick tap of the key alone toggles Caps Lock when
+-- the key is capsLock and does nothing for any other key, so there is no field for it, and
+-- tapTogglesCapsLock is retired, a problem line saying so, and ignored. Beside its trigger an entry
+-- may state behaviour, ranked, drivenRepeat, sheet and sheetLayout. Olm ships hyper on capsLock,
+-- meta on rightOption and super on rightCommand with their behaviour already written, and an entry
+-- here is laid over the shipped one of the same name. The trigger, mods or key and remapTo, is
+-- replaced as one, and each behaviour field is merged over the shipped one, so naming one field
+-- keeps the rest. A new name starts with every behaviour off. No name is reserved, a name is
+-- refused only when it is not one word of letters and digits, is a modifier or role word, or
+-- repeats another in a different case. A leader of modifiers reads like hyper in a chord and on a
+-- launcher row, it has no cheat sheet and no tap, since holding real modifiers is ordinary typing,
+-- and its chords are taken from every app, so it suits combinations the apps here leave free. A
+-- leader no chord uses is said in one routine console line. A bare list, nav = { "shift", "ctrl" },
+-- is still read as mods with a routine console line saying to write mods. For now a shipped name
+-- keeps the kind it ships, so giving hyper mods is refused with a problem line, a modifier Hyper
+-- lands in a later phase.
+--     pedal = { key = "f13", sheet = true },
+--     hyper = { key = "capsLock", remapTo = "f19" },
 --     nav = { mods = { "shift", "ctrl" } },
 --     meta = { drivenRepeat = false },
 --     super = { key = "rightCommand", sheet = false },

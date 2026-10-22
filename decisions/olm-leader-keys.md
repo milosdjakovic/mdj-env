@@ -114,3 +114,17 @@ on a new modifier leader is ignored with a problem line until phase 3. A renamed
 nothing, and every offline gate stubs that call. It was caught in review, and `test/keyremap.lua`
 now pins the command. The live load on the worktree was clean, hidutil held Caps Lock to F18 and
 Right Option to F16, and Milos confirmed the launcher, the sheet and the Caps Lock tap.
+
+### 2026-10-22 15:09
+
+Phase 2 landed. A held leader's `key` comes from an allow list, Caps Lock, the three right
+modifiers and F13 to F20, which is `USAGE` in `lib/keyremap.lua`, and anything else is a problem
+line. F13 to F20 are heard as they are. The others are remapped to `remapTo`, then their preferred
+key, then the first free one, by a pure `allocate` in the same file, with a note when a preference
+is taken. `remapTo` must sit beside `key`, since the two replace together. In a conflict the
+person's entry is dropped and the leader keeps its shipped trigger, and a pin wins over another
+leader's preference. A lone tap toggles Caps Lock only when the key is Caps Lock, decided in the
+held trigger, and `tapTogglesCapsLock` is retired with a problem line. Every existing golden is
+unchanged, `keymap-fixture-heldkeys` is new, and `test/keyremap.lua` tests the allocation and
+the real command. The live load was clean, hidutil held only Caps Lock to F18 and Right Option to
+F16, and Milos confirmed the launcher, the sheet and the tap.
