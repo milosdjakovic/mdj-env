@@ -35,10 +35,12 @@ code at this layer changes that.
   way to make a key a modifier. It does offer fn and side specific modifiers on its tap hotkeys,
   and the secure input query this fix uses, and it is scripted in JavaScript, so moving would be
   a rewrite.
-- **Asking the keyboard whether F18 is down through a compiled helper.** 2026-10-22, deferred
-  rather than turned down. It would be ground truth for every cause, but it needs a process to
-  answer during the tap. The two causes the check sees cover the reported case, and the console
-  line will say if a third cause shows up.
+- **Asking the keyboard whether F18 is down through a compiled helper.** 2026-10-22, measured
+  and turned down. `CGEventSource.keyState(.hidSystemState, key: 79)` sees the remapped key as
+  F18 in an ordinary hold, but it saw nothing for a whole hold while secure input was on, and it
+  also missed a hold made seconds after secure input turned off with the browser in front. A
+  helper that can miss a held key could also release one a finger is still on, so it is not the
+  ground truth it was meant to be. The log below has the runs.
 
 ## Log
 
@@ -64,3 +66,14 @@ secure input is on or the tap was disabled, without toggling Caps Lock, and `tes
 pins it, failing ten of its twenty three checks against the engine before the change. The live
 reload was clean. The cause of the reported sticking is not yet known, and the console line names
 it the next time it happens.
+
+### 2026-10-22 13:54
+
+The key state helper was measured before being built, with a probe printing F18, Caps Lock and
+`IsSecureEventInputEnabled()` ten times a second while Milos held Caps Lock. With the terminal in
+front it reported F18 down at 1.3s and up at 5.9s, and Caps Lock never, so the remap is visible.
+In a browser password field secure input was on from 1.8s to 19.8s and a two second hold inside
+that span never showed, and a second hold made after clicking out of the field, while secure input
+read off, never showed either. Which of a lingering blindness after secure input or the app in
+front explains the second miss was not settled, since either way the helper cannot be trusted and
+it was dropped. The probe source was a scratch file and is not kept.
