@@ -26,6 +26,15 @@ local obj = {}
 
 local GLOBAL = "global"
 
+--- obj.bindable(row) -> boolean
+--- Whether bind would bind this row on some engine, a global row whose source answered a function.
+--- Anything listing what is bound asks this rather than restating it, so a list and the binder agree.
+--- A list key is not, since the contexts bind those, and a row with no function is not, refused,
+--- quiet or reported.
+function obj.bindable(row)
+  return row.layer == GLOBAL and type(row.run) == "function"
+end
+
 --- obj.bind(rows, deps) -> problems
 ---   rows     the keymap's bound list, bound in the order given.
 ---   engines  a table from a leader name, as a row spells it, to the engine binding on that
@@ -55,7 +64,7 @@ function obj.bind(rows, deps)
     local mods = (not row.anyMods) and row.mods or nil
     if row.layer ~= GLOBAL then
       -- A list's own key, which the contexts bind.
-    elseif type(row.run) ~= "function" then
+    elseif not obj.bindable(row) then
       if not row.refused and not row.quiet then
         problem(row, "the " .. tostring(row.source) .. " row answers no function to run")
       end

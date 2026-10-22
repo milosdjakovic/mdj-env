@@ -12,7 +12,7 @@ hyper	row	2	5	Record screen	-
 hyper	row	2	␣	Launcher	-
 hyper	row	2	§	Lock Screen	-
 hyper	row	2	esc	Sleep	-
-window	group	WINDOW MANAGEMENT
+window	group	META
 window	row	1	Y	Clipboard history	-
 window	row	2	E	VPN	-
 super	section	1	WINDOW MANAGEMENT	1.0	-	plain columns=2 colWidth=250 iconSize=0

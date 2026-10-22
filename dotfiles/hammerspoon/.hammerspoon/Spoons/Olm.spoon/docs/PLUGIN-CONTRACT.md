@@ -432,8 +432,8 @@ predicate table every gated binding is resolved against. The leader sheet's `she
 table. It is one record per leader whose policy states a sheet, its keycode, its layout and its
 entries, the leader's rows from the keymap in blocks by each plugin's cheatSheetOrder,
 so it exists only once the keymap is built after register, and the root hands it to the leader
-sheet in its second configure, step K. What a sheet's heading is called is the leader's own
-policy, `sheetLayout.title`, and no longer a root word. `redraw`, repaint whichever list is on screen,
+sheet in its second configure, step K. What a sheet's heading is called follows the role the
+leader holds, `policy.roleTitles` read by `lib/leader.lua`'s `sheetHeading`, and no longer a root word. `redraw`, repaint whichever list is on screen,
 for a plugin whose own answer lands after the keystroke that asked for it. `notify`,
 `showColor`, and `report`, one line of feedback, one sampled colour, and one titled list of
 rows each with an icon, a label, and a detail, all drawn on the shared overlay so they read
@@ -633,7 +633,7 @@ the descriptor. A plugin with actions therefore builds no launcher row and decla
 word, a table `{ title = word, faded = true }` for a section drawn dimmed with its title bright
 and placed after every section in full colour, or a function asked with nothing at every show and
 answering either, and a row with none goes under the leader's default section, headed by the
-leader's `sheetLayout.title`. A plugin's rows sit on a sheet in a block placed by its
+role the leader holds, WINDOW MANAGEMENT wherever the window role sits. A plugin's rows sit on a sheet in a block placed by its
 `defaults.cheatSheetOrder`, compared with the sheet host's own fifty. `app` is a bundle id the
 action stands for, since phase 6. The action is then no launcher row of its own, it merges into
 the launcher's row for that app, which shows the action's chord, a plain combination winning that

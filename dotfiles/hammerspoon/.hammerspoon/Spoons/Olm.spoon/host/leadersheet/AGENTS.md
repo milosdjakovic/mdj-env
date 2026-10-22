@@ -60,7 +60,9 @@ changes there today, but a gated Hyper row now hides like a gated window row.
 
 The layout is the leader's, in its policy beside `sheet`, as `sheetLayout`, and the host copies
 the renderer fields it states into each show. `lib/leader.lua` validates the table and fills the
-defaults. A section with `icons = true` renders in the panel's icon grid. Any other section takes
+defaults. The layout's `title` heads the rows that name no group, and the root fills it from the
+role the leader holds through `lib/leader.lua`'s `sheetHeading`, so the host never knows which
+leader carries which role. A section with `icons = true` renders in the panel's icon grid. Any other section takes
 the leader's own columns and column width with no icon gutter, so a long label such as Screenshot
 to clipboard is not cut. A row that states its own `badge` keeps it, any other row is spelled by
 the shared glyph helper, so Hyper+Shift+4 reads as shift 4. A sheet whose rows are all hidden is

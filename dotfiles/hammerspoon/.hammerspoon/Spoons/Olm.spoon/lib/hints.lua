@@ -1,6 +1,6 @@
 -- Presentation, and only presentation. What the docked hint bar shows for a live context,
 -- what the action panel shows when it borrows one, which context is live, how an action is
--- classified, and which tools carry a Hyper chord.
+-- classified, which tools carry a Hyper chord, and every bound chord as words for a keys page.
 --
 -- This file names no plugin. Every question it answers is asked of the plan a resolved run
 -- already produced, plus a small deps table the composition root assembles once. Where the
@@ -644,6 +644,124 @@ function obj.sheetRows(keymap, plan, leader, deps)
     end
   end
 
+  return out
+end
+
+--- hints.keyEntries(keymap, plan, deps) -> entries
+--- Every chord the keymap binds, as a person reads it, for a page listing a person's keys. Each
+--- entry is { chord, description, owner, list }, every field a string but list, which names the
+--- list a list key is live in and is nil for a global key. It reads the keymap the root built and
+--- never the person's file, and it answers words only, so whatever shows them learns no key to bind.
+---
+--- The global keys come first, a leader at a time in deps.leaders order, each in the order its
+--- cheat sheet draws them and labelled the way the sheet labels them, since sheetRows answers both,
+--- then the plain combinations with no leader. A row the binder leaves unbound, refused or quiet, is
+--- left out, which is whatever deps.bindable refuses, lib/binder.lua's own test. Then every list's own keys, a list at a time in plan order, each in the order its
+--- bindings are declared, which is the order the hint bar shows them.
+---
+--- A chord is a leader's word and the glyph through deps.chordLabel, the spelling the launcher and
+--- the hint bar use, and a plain combination is the glyph alone, as the launcher spells one. A row
+--- standing for an app with no description of its own is named by deps.appName, else its action
+--- spelled out as words, where a sheet would draw the app instead. An owner is named by its own
+--- description, else its manifest's about title, else its identity.
+---
+---   leaders       held and named leaders in the order their keys are listed, by the name a row
+---                 spells its leader with. A leader not listed has its keys left out.
+---   leaderNames   that name to the word a person reads, Hyper or Meta.
+---   bindable      required, a row to whether the binder binds it, lib/binder.lua's bindable.
+---   chordLabel    the shared speller, glyphFor the shared glyph helper.
+---   manifests     directory to manifest, for the owner's about title and which plugin owns a list.
+---   registry      optional, lends a tool row with no description its launcher detail.
+---   appName       optional, a bundle id to the app's own name.
+function obj.keyEntries(keymap, plan, deps)
+  deps = deps or {}
+  plan = plan or {}
+  local leaderNames = deps.leaderNames or {}
+  local manifests = deps.manifests or {}
+  local directoryOf = {}
+  for _, directory in ipairs(plan.order or {}) do
+    directoryOf[(plan.identity or {})[directory] or directory] = directory
+  end
+  local function ownerName(identity)
+    local directory = directoryOf[identity] or identity
+    local description = ((plan.effective or {})[directory] or {}).description
+    if type(description) == "string" and description ~= "" then return description end
+    local title = ((manifests[directory] or {}).about or {}).title
+    if type(title) == "string" and title ~= "" then return title end
+    return tostring(identity)
+  end
+  local function chordOf(leader, key, mods)
+    local word = leader and leaderNames[leader]
+    if word and deps.chordLabel then return deps.chordLabel(word, key, mods) end
+    if deps.glyphFor then return deps.glyphFor(key, mods) end
+    return tostring(key)
+  end
+
+  local out = {}
+  local live = {}
+  local bindable = assert(deps.bindable, "keyEntries needs deps.bindable, the binder's own test")
+  for _, row in ipairs((keymap or {}).bound or {}) do
+    if bindable(row) then live[#live + 1] = row end
+  end
+  local liveKeymap = { bound = live }
+  local leaders = {}
+  for _, name in ipairs(deps.leaders or {}) do leaders[#leaders + 1] = name end
+  leaders[#leaders + 1] = false
+  for _, leader in ipairs(leaders) do
+    local entries
+    if leader then
+      entries = obj.sheetRows(liveKeymap, plan, leader, { registry = deps.registry })
+    else
+      -- The plain combinations, which no sheet draws, in the order the binder binds them, labelled
+      -- by the same rule.
+      entries = {}
+      for _, row in ipairs(live) do
+        if row.leader == nil and row.layer == "global" then
+          entries[#entries + 1] = { key = row.key, mods = row.shownMods, action = row.action,
+            description = row.description, app = row.app, owner = row.owner }
+        end
+      end
+    end
+    for _, e in ipairs(entries) do
+      local description = e.description
+      if description == nil and e.app ~= nil and deps.appName then
+        local name = deps.appName(e.app)
+        if type(name) == "string" and name ~= "" then description = name end
+      end
+      out[#out + 1] = { chord = chordOf(leader or nil, e.key, e.mods),
+        description = description or humanize(e.action), owner = ownerName(e.owner) }
+    end
+  end
+
+  local listOwners = obj.contextOwners(plan, manifests)
+  local listsByDirectory = {}
+  for listName, directory in pairs(listOwners) do listsByDirectory[directory] = listName end
+  for _, directory in ipairs(plan.order or {}) do
+    local listName = listsByDirectory[directory]
+    local block = listName and (plan.contexts or {})[listName]
+    if block then
+      -- Each list key at the place its action is first declared, one action's two keys by key.
+      local place = {}
+      for i, b in ipairs(block.bindings or {}) do
+        if b.action ~= nil and place[b.action] == nil then place[b.action] = i end
+      end
+      local rows = {}
+      for _, row in ipairs((keymap or {}).rows or {}) do
+        if row.layer == listName then rows[#rows + 1] = row end
+      end
+      local function placeOf(row) return place[row.action] or math.huge end
+      table.sort(rows, function(a, b)
+        local pa, pb = placeOf(a), placeOf(b)
+        if pa ~= pb then return pa < pb end
+        return tostring(a.key) < tostring(b.key)
+      end)
+      local name = ownerName(directory)
+      for _, row in ipairs(rows) do
+        out[#out + 1] = { chord = chordOf(row.leader, row.key, row.shownMods),
+          description = row.description or humanize(row.action), owner = name, list = name }
+      end
+    end
+  end
   return out
 end
 

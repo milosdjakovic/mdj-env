@@ -65,6 +65,14 @@ local binderLib = load("lib/binder.lua")
 -- from the plan's set answers. A pure module like the registrar, so the unit case drives the
 -- same code this file runs.
 local contributionsLib = load("lib/contributions.lua")
+-- The one spelling of a chord and of a set of aliases, whether a list is open, and what choosing a
+-- launcher row does in place of closing it. Pure, every collaborator handed in from here.
+local labelsLib = load("lib/labels.lua")
+local listOpenLib = load("lib/listopen.lua")
+local rowInterceptLib = load("lib/rowintercept.lua")
+-- The OLM keys page, every bound chord listed read only, a presentation the launcher's own row
+-- pushes. Pure, the catalog and the stage's pop handed in from here.
+local keyPageLib = load("lib/keypage.lua")
 -- Which plugins are switched off, merged from the person's config and the saved set, and the
 -- one switch a settings page writes through. Pure, every hs call is handed in from here.
 local switchLib = load("lib/pluginswitch.lua")
@@ -207,17 +215,22 @@ local SHIPPED_POLICY = {
   -- entry here gets a leader with every field off, no tap, no contexts and no sheet. A person
   -- overrides one field through cfg.policy like any other entry.
   --
-  -- The title of a sheet's default section is what the leader does rather than what it is
-  -- called, since the leader's own name, META, says nothing to anybody reading a list of window
-  -- actions.
+  -- No layout here states a title. The heading of a sheet's default section is what the leader
+  -- does, which is the role it holds, so it is keyed by role in roleTitles below and follows the
+  -- role to whichever leader the keymap puts it on. A layout titled per leader read WINDOW
+  -- MANAGEMENT on META after the window role had moved to SUPER, over rows a person had put there.
   leaderPolicy = {
     HYPER = { tapTogglesCapsLock = true, contexts = true, sealedOverLists = true, sheet = true,
-      sheetLayout = { title = "ACTIONS", columns = 4, colWidth = 215, iconSize = 32, gap = 10, groupGap = 20 } },
+      sheetLayout = { columns = 4, colWidth = 215, iconSize = 32, gap = 10, groupGap = 20 } },
     META  = { drivenRepeat = true, quietOverLists = true, sheet = true,
-      sheetLayout = { title = "WINDOW MANAGEMENT", columns = 2, colWidth = 250, badgeWidth = 44, gap = 12 } },
+      sheetLayout = { columns = 2, colWidth = 250, badgeWidth = 44, gap = 12 } },
     SUPER = { drivenRepeat = true, quietOverLists = true, sheet = true,
-      sheetLayout = { title = "WINDOW MANAGEMENT", columns = 2, colWidth = 250, badgeWidth = 44, gap = 12 } },
+      sheetLayout = { columns = 2, colWidth = 250, badgeWidth = 44, gap = 12 } },
   },
+
+  -- The heading over a sheet's rows that name no group, per role, read by lib/leader.lua's
+  -- sheetHeading. A held leader holding no role reads as its own name.
+  roleTitles = { app = "ACTIONS", window = "WINDOW MANAGEMENT" },
 
   -- The alias directory is the one scope Olm itself owns rather than any plugin, a list of
   -- every other scope, so its own presentation has nowhere else to be declared and ships from
@@ -347,6 +360,8 @@ function obj.run(olm, cfg)
   -- already made sense before this phase existed.
   local wiredRegistry
   local stageModule
+  -- The keymap built in step J, joining this set for the keys page's word in rootValues, which
+  -- answers only when asked, long after the keymap exists.
 
   atoms.storage.configure(policy.storage)
 
@@ -896,14 +911,13 @@ function obj.run(olm, cfg)
       }
     end
   end
-  -- The role words each held leader answers, sorted, so a leader's sheet is asked for the
-  -- sections plugins contribute for its role. A leader answering two roles takes the first.
+  -- The heading each held leader's sheet wears over rows that name no group, which follows the
+  -- role the leader holds on this load, so the window role moved to SUPER takes its heading along.
+  -- The titles are merged by role here rather than taken from the merged policy, see roleTitles.
+  local roleTitles, roleTitleProblems = leaderLib.roleTitles(SHIPPED_POLICY.roleTitles, (cfg.policy or {}).roleTitles)
+  for _, problem in ipairs(roleTitleProblems) do leaderProblems[#leaderProblems + 1] = problem end
   for _, spec in ipairs(leaderSpecs) do
-    spec.roles = {}
-    for role, catalogName in pairs(leaderRoles) do
-      if catalogName == spec.catalogName then spec.roles[#spec.roles + 1] = role end
-    end
-    table.sort(spec.roles)
+    spec.heading = leaderLib.sheetHeading(spec.catalogName, leaderRoles, roleTitles)
   end
 
   -- What each leader role is CALLED where a person reads it, a row subtitle or a hint. The
@@ -960,22 +974,11 @@ function obj.run(olm, cfg)
     leaderProblems[#leaderProblems + 1] = { where = "leaders", why = "no leader in the catalog turns contexts on, so no list key is bound this load" }
   end
 
-  -- The one spelling of a chord, a leader's name then a space then the key glyph. Human
-  -- wording is this file's answer, and two surfaces state the same chord, every launcher row
-  -- and the docked hint bar, so spelling it in each is how one key comes to read two ways
-  -- depending on where you met it. It did, one writing a plus where the other wrote a space.
-  local function chordLabel(leader, key, mods)
-    return leader .. " " .. cheatSheetAtom.glyphFor(key, mods)
-  end
-
-  -- The one spelling of a set of aliases, the words alone. Two surfaces state these as well,
-  -- a launcher row and the alias directory's own rows, and each had written its own copy
-  -- differing by a leading space. That space is the joiner rather than part of the wording,
-  -- so it belongs to whichever caller is joining and not to this.
-  local function aliasLabel(aliases)
-    if not aliases or #aliases == 0 then return "" end
-    return "(" .. table.concat(aliases, ", ") .. ")"
-  end
+  -- The one spelling of a chord and of a set of aliases, lib/labels.lua, handed to every surface
+  -- that states one so no surface spells its own. A chord is spelled with the shared renderer's
+  -- glyph helper, reached when a chord is spelled rather than now, as it always was.
+  local chordLabel = labelsLib.chordLabel(function(key, mods) return cheatSheetAtom.glyphFor(key, mods) end)
+  local aliasLabel = labelsLib.aliasLabel
 
   -- A leader's cheat sheet rows are not built here. They are the keymap's rows on the leader, so
   -- they can only be built once the keymap is, after register, and step K hands them to the one
@@ -1640,85 +1643,25 @@ function obj.run(olm, cfg)
 
   local contextOwners = hintsLib.contextOwners(plan, manifests)
 
-  -- Walk to wherever a plugin actually keeps its picker, which is what its manifest already
-  -- says through registry.surface. Five plugins keep it on a submodule, the clipboard on
-  -- manager and four more on chooser, and asking their root alone answered nothing.
-  local function surfaceOf(module, spec)
-    if spec == nil or spec == true then return module end
-    local owner, value = module, module
-    for part in tostring(spec):gmatch("[^.]+") do
-      if type(value) ~= "table" then return nil end
-      owner, value = value, value[part]
-    end
-    -- A surface may be a member that ANSWERS the adapter rather than being it, which is how
-    -- three of these are written, so the value is called when it is a function. Both calling
-    -- conventions are tried for the same reason the caller below tries both.
-    if type(value) == "function" then
-      local ok, answer = pcall(value, owner)
-      if ok and type(answer) == "table" then return answer end
-      local dotOk, dotAnswer = pcall(value)
-      if dotOk and type(dotAnswer) == "table" then return dotAnswer end
-      return nil
-    end
-    return value
-  end
-
-  -- Whether a named context's surface is currently open, tried both calling conventions a
-  -- surface's own isShowing might use, since no manifest field states which one a plugin
-  -- picked and getting it wrong resolves to something that fails on arity rather than
-  -- cleanly, the exact defect the first attempt shipped for three surfaces at once.
-  --
-  -- This asked the plugin ROOT and stopped there, and for five of the twelve pickers the root
-  -- has no isShowing at all, so the answer was a flat false forever. Every chord inside those
-  -- five was bound, gated on this, and therefore dead, and because the gate failed rather than
-  -- errored the plain Hyper binding on the same key fired instead. So pressing j in the
-  -- clipboard to move down opened the emoji picker, which is the behaviour a person reports as
-  -- the shortcut not working, and nothing anywhere logged a thing.
-  --
-  -- A presenting plugin, phase three of the chooser stage build, is asked a third way, ahead
-  -- of both of the above, since its own module may no longer carry an isShowing at all, VPN's
-  -- own surface adapter having been deleted in favour of the shared stage. wiredRegistry
-  -- already knows which plugins present, presentationFor answers nil for one that does not,
-  -- so this asks the registry rather than probing the module for a method that used to be
-  -- there. Routes through stage:current() plus stage:isShowing(), decision seven of the
-  -- handoff brief, exactly what host/stage's own surfaceFor already answers for the nav
-  -- registry, so a context's predicate and its navigation adapter can never disagree about
-  -- whether it is open.
-  local function isShowingFor(contextName)
-    local owner = contextOwners[contextName]
-    if not owner then return false end
-    local ownerIdentity = plan.identity[owner] or owner
-    if stageModule and wiredRegistry and wiredRegistry.presentationFor
-      and wiredRegistry.presentationFor(ownerIdentity) then
-      return stageModule:current() == ownerIdentity and stageModule:isShowing() == true
-    end
-    local module = modules[owner]
-    if not module then return false end
-    local manifest = manifests[owner] or {}
-    local spec = (manifest.surface or {}).member or (manifest.registry or {}).surface
-    local holder = module
-    if type(module.isShowing) ~= "function" then
-      holder = surfaceOf(module, spec)
-    end
-    if type(holder) ~= "table" or type(holder.isShowing) ~= "function" then return false end
-    local ok, answer = pcall(holder.isShowing, holder)
-    if ok then return answer == true end
-    local dotOk, dotAnswer = pcall(holder.isShowing)
-    return dotOk and dotAnswer == true
-  end
-
-  -- Whether any list is open right now, the launcher and every plugin picker alike, asked by
-  -- walking the same contextOwners table the predicates already route through, so this gate
-  -- and the modal rule on the leader with contexts can never disagree about what an open list
-  -- is. Built once here and handed to every leader, since no hold reveals a sheet over an open
-  -- list and a leader whose policy goes quiet over lists reads the same answer, and two separate
-  -- walks would be two answers.
-  local function anyListShowing()
-    for contextName in pairs(contextOwners) do
-      if isShowingFor(contextName) then return true end
-    end
-    return false
-  end
+  -- Whether a list is open, lib/listopen.lua, one named list for the wiring, the action panel and
+  -- the surface adapters, and any list for every leader, since no hold reveals a sheet over an
+  -- open list and a leader whose policy goes quiet over lists reads the same answer. Both walk the
+  -- contextOwners table the predicates route through, so this gate and the modal rule on the
+  -- leader with contexts can never disagree about what an open list is. The registry is built
+  -- after the leaders that close over this, so the presentation is asked through it at each call.
+  local surfaceOf = listOpenLib.surfaceOf
+  local listOpenDeps = {
+    owners = contextOwners,
+    identity = plan.identity,
+    presentationFor = function(identity)
+      return wiredRegistry and wiredRegistry.presentationFor and wiredRegistry.presentationFor(identity)
+    end,
+    stage = stageModule,
+    modules = modules,
+    manifests = manifests,
+  }
+  local function isShowingFor(contextName) return listOpenLib.isShowing(contextName, listOpenDeps) end
+  local function anyListShowing() return listOpenLib.anyShowing(listOpenDeps) end
 
   ------------------------------------------------------------------------------
   -- STEP H. The leaders.
@@ -2459,7 +2402,7 @@ function obj.run(olm, cfg)
     local sheets = {}
     for _, spec in ipairs(leaderSpecs) do
       if spec.policy.sheet and spec.inUse then
-        local layout = leaderLib.sheetLayout(spec.policy, cheatSheetAtom.DEFAULTS)
+        local layout = leaderLib.sheetLayout(spec.policy, cheatSheetAtom.DEFAULTS, spec.heading)
         local rows = hintsLib.sheetRows(keymap, plan, spec.name, { registry = wiredRegistry })
         sheets[#sheets + 1] = {
           name = spec.name,
@@ -2658,6 +2601,45 @@ function obj.run(olm, cfg)
     -- when the item is that row, and nil for every other, so rowIntercept can replace the open
     -- list with it and the special fallback can name the same row.
     local aliasRowName = "aliasDirectory"
+
+    -- The launcher's own OLM keys row, root policy with no tool behind it like the Aliases row, and
+    -- the one place its name is written. Choosing it pushes the keys page over the open launcher,
+    -- answered below where a registered tool's presentation is, so the launcher's list becomes the
+    -- keys list in place and Back or Backspace on an empty field brings the launcher back. The
+    -- page is a level of the launcher, so it carries the launcher's name, the stage's own rule for
+    -- a child, and its icons are the launcher's.
+    --
+    -- Its rows are every chord the keymap binds as words, lib/hints.lua's keyEntries, held leaders
+    -- in catalog order then the leaders the person named, then plain combinations and list keys.
+    -- The keymap is fixed for the load, so the words are built on the first open and kept. Only
+    -- words leave the root, so nothing the page holds could bind a key, and the person's file stays
+    -- read by this root alone.
+    local keysRowName = "keys"
+    local keyCatalogCache = nil
+    local function keyCatalog()
+      if keyCatalogCache then return keyCatalogCache end
+      local leaders = {}
+      for _, spec in ipairs(leaderSpecs) do leaders[#leaders + 1] = spec.name end
+      for _, named in ipairs(modifierLeaderSpecs) do leaders[#leaders + 1] = named.name end
+      keyCatalogCache = hintsLib.keyEntries(keymap, plan, {
+        bindable = binderLib.bindable,
+        leaders = leaders,
+        leaderNames = leaderNamesByLeader,
+        chordLabel = chordLabel,
+        glyphFor = cheatSheetAtom and cheatSheetAtom.glyphFor,
+        manifests = manifests,
+        registry = wiredRegistry,
+        appName = function(bundleID) return hs.application.nameForBundleID(bundleID) end,
+      })
+      return keyCatalogCache
+    end
+    local function keysPresentation()
+      return keyPageLib.presentation({
+        name = plan.identity.launcher or "launcher",
+        catalog = keyCatalog,
+        pop = function() stageModule:pop() end,
+      })
+    end
     local function aliasRowQuery(item)
       if not queryScopeModule then return nil end
       if type(item) ~= "table" or item.owner ~= nil then return nil end
@@ -2738,45 +2720,23 @@ function obj.run(olm, cfg)
         scopeCanPeek = function(item)
           return queryScopeModule ~= nil and queryScopeModule:canPeek(item) == true
         end,
-        -- Decision two of the handoff brief, the first branch added in phase three. A
-        -- special row names a registered tool, and wiredRegistry.presentationFor answers a
-        -- presentation for one that has migrated onto the stage, nil for every one that has
-        -- not, which is the whole of what lets an unmigrated tool fall through to the second
-        -- branch below completely untouched. The callable itself does nothing but push, no
-        -- hide, no deferral, decision two's own words, since Stage:push already does the
-        -- query clear and the refresh(true) that redraw means. It is genuinely two rebuilds
-        -- rather than the one decision two names, phase three review finding seven, since
-        -- Chooser:_intercept in lib/chooser/providers/legacy.lua calls refresh(true) itself,
-        -- by its own documented contract, the moment push's own answer of true comes back to
-        -- it, on top of the refresh push already ran. Harmless, a rebuild is idempotent and
-        -- cheap for the launcher, left as is rather than reworked to save five milliseconds
-        -- nothing can see, but the code should not be described as doing what the intercept
-        -- path itself always adds a second pass of regardless of what this callable does.
-        -- Promoting the row to recency still happens the ordinary way, one level up in
-        -- host/launcher/init.lua's own intercept, which promotes anything this function hands
-        -- back a callable for, so this file learns nothing new about recency to make VPN's row
-        -- remember itself.
+        -- What choosing a row does in place of closing the launcher, lib/rowintercept.lua, with
+        -- the calls only this file can make handed in. Decision two of the handoff brief, a
+        -- special row naming a tool on the stage pushes its presentation, and the alias row and
+        -- scope rows seed or act. The push is followed by a second rebuild, since the provider's
+        -- own intercept refreshes once more when the callable is answered, harmless and left.
         rowIntercept = function(item)
-          -- A row a plugin contributed belongs to that plugin alone. It is never taken for a
-          -- registered tool of the same name nor for a scope, so only its owner's runner can
-          -- act on it.
-          if item.owner ~= nil then return nil end
-          -- The Aliases row never has a presentation in the registry, so it is answered here,
-          -- which makes choosing it replace the open list instead of closing the launcher first.
-          local aliasQuery = aliasRowQuery(item)
-          if aliasQuery then return function() launcherModule:seedQuery(aliasQuery) end end
-          if item.kind == "special" and wiredRegistry.presentationFor then
-            local presentation = wiredRegistry.presentationFor(item.name)
-            if presentation then
-              return function() stageModule:push(presentation) end
-            end
-          end
-          if item.kind ~= "scope" or not queryScopeModule then return nil end
-          local act = queryScopeModule:actFor(item)
-          if act then return act end
-          local query = queryScopeModule:redirectFor(item)
-          if not query then return nil end
-          return function() launcherModule:seedQuery(query) end
+          return rowInterceptLib.forRow(item, {
+            aliasQuery = aliasRowQuery,
+            seed = function(query) launcherModule:seedQuery(query) end,
+            presentationFor = function(name)
+              if name == keysRowName then return keysPresentation() end
+              return wiredRegistry.presentationFor and wiredRegistry.presentationFor(name)
+            end,
+            push = function(presentation) stageModule:push(presentation) end,
+            actFor = queryScopeModule and function(row) return queryScopeModule:actFor(row) end or nil,
+            redirectFor = queryScopeModule and function(row) return queryScopeModule:redirectFor(row) end or nil,
+          })
         end,
         -- The one name with no tool behind it. Reached only when the registry does not already
         -- run the name, which registration itself makes safe since one name cannot belong to
@@ -2790,6 +2750,9 @@ function obj.run(olm, cfg)
           [aliasRowName] = function()
             if aliasDirectoryRun then aliasDirectoryRun(aliasRowName) end
           end,
+          -- The same fallback for the OLM keys row. A push that finds the stage hidden opens the
+          -- page on a fresh stack, so the keys still come up after the launcher has gone.
+          [keysRowName] = function() stageModule:push(keysPresentation()) end,
         },
       },
     }

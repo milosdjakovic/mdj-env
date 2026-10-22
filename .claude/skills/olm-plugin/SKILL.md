@@ -133,9 +133,11 @@ abbreviation, an old or an Apple name, a closely related task. Keep them to a fe
 separated phrases, each what a person types as one thing. Never a title word, never a generic word
 that would match half a list, never a sentence and never the description. They match at a word
 start or as a phrase typed run together, below any title match, and the words of a query match on
-their own with a bonus for staying in one phrase. The authoring guide carries the detail. A subtitle that is a category, a status or a chord is
-taken out of search by setting `filterText` to the title. `lib/chooser/rank.lua` states the
-vocabulary. No list matches or ranks its own rows, the launcher included, whose learned query
+their own with a bonus for staying in one phrase. The authoring guide carries the detail. A
+subtitle that is a category, a status or a chord is taken out of search by setting `filterText` to
+the title, except on a page whose rows are the chords themselves, where a chord is what a person
+looks a key up by, which the Rejected section of `decisions/olm-keymap.md` records. `lib/chooser/rank.lua`
+states the vocabulary. No list matches or ranks its own rows, the launcher included, whose learned query
 memory is a `bonus` like every other list's recency. `matcher` is absent or `false`, never a
 strategy name, and `false` only declares a field that is not a search, an input page where the
 typed text is a name, a duration or a level, or a confirm, with a `-- search-exempt, <reason>`

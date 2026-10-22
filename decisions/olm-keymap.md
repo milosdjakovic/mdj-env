@@ -5,7 +5,9 @@ person sets any key in `config/keymap.lua`. Phase 6 landed and live on 2026-10-2
 toggles and System Settings panes are actions built from data and `config/keys.lua` is gone.
 Phase 7 landed and live on 2026-10-20, so the plan is complete. The keys
 live while a list is open are the `lists` section of `config/keymap.lua` and `config/plugins.lua`
-holds no key. The plan is
+holds no key. On 2026-10-21 three follow ups were built on `olm/keymap-followups`, pending a live
+load, a sheet's heading following the role its leader holds, the root's generic helpers moved into
+`lib/`, and a read only OLM keys page on its own launcher row. The plan is
 `dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/docs/PLAN-KEYMAP.md`.
 
 ## Now
@@ -21,7 +23,9 @@ policy from `policy.leaderPolicy`, plus a plain leader on an empty set of modifi
 with no leader, and the composition root loops over them naming none. A key gated off is swallowed
 on every leader and an unknown predicate name warns once on every leader. Over an open list every Hyper key that is not a live list key is swallowed too, through `sealedOverLists`, and outside lists an unbound key still passes through. One cheat sheet host,
 `host/leadersheet`, draws whichever held leader is down, its layout a table beside `sheet = true`
-in that leader's policy, and a descriptor's `group` files a row under a section. With phase 2a every global key is a row of the keymap,
+in that leader's policy, and a descriptor's `group` files a row under a section. The heading over a sheet's rows
+that name no group follows the role the leader holds, `policy.roleTitles` through
+`leader.sheetHeading`, and a held leader holding no role reads as its own name. With phase 2a every global key is a row of the keymap,
 `lib/keymap.lua`, carrying the function it calls, and `lib/binder.lua` binds the keymap's bound
 list on the engine each row's leader names, or as a plain combo, in the order the five old paths
 used. A plugin answers what it can run as a list of descriptors through `provides.actions` and
@@ -241,6 +245,65 @@ aliases live only in `config/keymap.lua`.
   for a shared verb exactly when that list needs it to differ, so `all` would undo the one
   decision the list made. Milos decided that `all` moves and frees only keys Olm's own layer gave,
   and a list's own key moves when the person names that list.
+- **The sheet heading fixed per leader in `sheetLayout.title`.** 2026-10-21 09:49. It was the shape phase 4
+  shipped, and SUPER copied META's policy whole so the window role could move there. But a
+  leader's rows are whatever the keymap puts on it, so META kept WINDOW MANAGEMENT over a clipboard
+  and a VPN row once the window role had moved to SUPER, which `keymap-fixture.sheets.golden` had
+  recorded as correct. The heading is what the leader does, which is its role.
+- **A role's heading kept in the layout of whichever leader holds the role.** 2026-10-21 09:49. The root could
+  have copied a title between leader policies after reading the roles section. It mixes a role fact
+  into a per leader table and leaves two places a heading can come from with an order between them
+  to remember. `policy.roleTitles` keyed by role is read in one place.
+- **SHORTCUTS for a held leader holding no role.** 2026-10-21 09:49. It is `lib/leader.lua`'s plain heading
+  for a sheet given none. A leader holding no role carries only chords a person put on it by name,
+  and its own name is the one thing true of every row there, so it reads META or SUPER. SHORTCUTS
+  stays the heading of a sheet the root gives no heading at all.
+- **One lib for all four root helpers.** 2026-10-21 09:53. It would have been one new file instead of three. But
+  a chord's spelling, whether a list is open and what a launcher row does on choosing answer three
+  unrelated questions with three unrelated sets of collaborators, so one file would have been a
+  bag named for where its contents used to live.
+- **Moving `anyListShowing` alone and leaving `isShowingFor` and `surfaceOf` in the root.**
+  2026-10-21 09:53. It is the name the plan wrote. But `anyListShowing` is a loop over `isShowingFor`, which is
+  where the mechanism is, the stage first and then the surface by its manifest path in both calling
+  conventions, so moving the loop alone would have moved nothing worth a file.
+- **Folding `chordLabel` into `lib/hints.lua`.** 2026-10-21 09:53. hints already asks for the spelling through
+  `deps.chordLabel`. Making it its own source would leave the launcher asking hints for a chord,
+  and hints is a consumer of the spelling rather than its owner, so both read `lib/labels.lua`.
+- **The Keys page as a level per leader and per list.** 2026-10-21 10:01. The top of the page would list Hyper,
+  Meta, plain combinations and each list, and each would open its keys. It reads like the cheat
+  sheets, but a key could no longer be found by typing from one place, which is the point of a
+  searchable list, and the Plugins page beside it is one flat list too. One flat list ordered by
+  leader and then by list, each row's subtitle naming its chord and owner.
+- **The Keys page's subtitle out of search, as every other chord subtitle is.** 2026-10-21 10:01. A launcher
+  row's chord is a fact about the row, so typing a chord there should not match it. On this page the
+  chord is what a person looks up, Hyper K or meta, so the subtitle stays searchable and the owner
+  joins as a keyword.
+- **Handing the settings plugin the keymap's rows.** 2026-10-21 10:01. It would have let the page spell and
+  order them itself. The rows carry the functions they call and every field the binder reads, and
+  a plugin holding them could act on a key. The root answers words, `keyCatalog`, built by
+  `hints.keyEntries`, so the page learns nothing it could bind.
+- **Building the key catalog afresh at every ask.** 2026-10-21 10:09. It was the first build, and every
+  keystroke on the Keys page rebuilt it, about seventeen app name lookups each time, and the top
+  level rebuilt it just to count. The keymap is fixed for the load, so the root builds it once and
+  keeps it, and the page keeps its rows for the time it is shown.
+- **The Keys page restating which rows are bound.** 2026-10-21 10:09. `keyEntries` first kept a row that was
+  neither refused nor quiet, while the binder also needs a function to run, so a row it reports and
+  leaves unbound would have been listed. `binder.bindable` is the one test, the binder's loop and
+  the page both ask it.
+- **The Keys page as a level inside the OLM settings.** 2026-10-21 10:58. It was the plan's wording and the
+  first build, a fourth row under OLM settings. Milos found it buried in his live check, since
+  nobody looks for their keys under a preferences tool, so the page is its own launcher row, OLM
+  keys, found by keys, shortcuts, hotkeys, keybindings or chords, and the settings row lost the
+  keys and shortcuts keywords so there is one way in.
+- **A second launcher row from the settings plugin.** 2026-10-21 10:58. A plugin registers one tool and so one
+  launcher row with one presentation, and a row a plugin contributes through `launcherRows` is
+  never intercepted, so hosting a second list in place from a plugin needed a new mechanism or a
+  new plugin. The page is Olm's own list, like the alias directory, so it follows that shape, a row
+  in the launcher's `specialRows` the root answers in `rowIntercept`.
+- **The keys page as a typed scope beside the alias directory.** 2026-10-21 10:58. It would have reused
+  QueryScope and given a typed word. A scope is entered by seeding its word into the field, so
+  Backspace deletes letters rather than returning, and the word claims a query. Pushing a
+  presentation gives Back and Backspace on an empty field the stage's own pop.
 
 ## Log
 
@@ -723,7 +786,7 @@ aliases live only in `config/keymap.lua`.
   pressed the list keys in the launcher, the clipboard, file search and emoji, checked the hint
   bar against them, and confirmed that every Hyper key that is not a live list key does nothing
   while a list is open, while Hyper and B still toggles Books with no list open.
-- 2026-10-21 14:30. The Olm unit cases were made green again, thirty six failing checks of 1957, all
+- 2026-10-21 09:46. The Olm unit cases were made green again, thirty six failing checks of 1957, all
   stale tests and no code defect. `launcher-contributions` still expected lock and sleep as special
   rows the launcher's manifest declared, and the case never loaded the launcher as a module, so once
   phase 5 made them its own actions no row for them was built and every later row sat two places
@@ -734,3 +797,65 @@ aliases live only in `config/keymap.lua`.
   became a list in the order of the launcher's rows, so it indexes the list once by name. Phase 6
   and phase 7 caused none of them. `chooserprovider` fails six checks under a plain interpreter
   only, since it needs `hs`, and passes in the live run, so it was left alone.
+- 2026-10-21 09:49. On `olm/keymap-followups` from main at 839c094e. SUPER's cheat sheet heading was a copy
+  of META's `sheetLayout.title`, WINDOW MANAGEMENT, so a sheet read WINDOW MANAGEMENT whatever its
+  rows were. No shipped layout states a title now. `policy.roleTitles` maps app to ACTIONS and
+  window to WINDOW MANAGEMENT, `leader.sheetHeading` answers the first role by name the leader holds
+  that has a heading, else the leader's own catalog name, and `leader.sheetLayout` takes that as
+  the title where the policy states none, so a title a person states on one leader still wins.
+  `sheets.golden`, `keys.golden`, `launcher.golden` and the lists and roles fixtures are byte
+  identical. `keymap-fixture.sheets.golden` changes one line, META's group heading from WINDOW
+  MANAGEMENT to META, since that fixture moves the window role to SUPER and leaves META the
+  clipboard and the VPN, which is the defect itself recorded as expected. `test/leadersheet.lua`
+  pins `roles = { window = "super" }` heading SUPER and not META. Corrected 2026-10-21 10:09, the branch
+  was rebased onto main at bc0d5864 before review, so these commits sit on that base, not 839c094e.
+- 2026-10-21 09:53. The mechanism still inside `root/compose.lua` left for `lib/`, the item the plan's "Not
+  in this plan" named. `lib/labels.lua` holds `chordLabel`, handed the shared renderer's glyph
+  helper, and `aliasLabel`. `lib/listopen.lua` holds `surfaceOf`, `isShowing` and `anyShowing`, the
+  root's `isShowingFor` and `anyListShowing` now one line wrappers over a deps table naming the
+  context owners, the identities, the stage, the modules, the manifests and a `presentationFor`
+  asked at each call since the registry is built after the leaders. `lib/rowintercept.lua` holds
+  `forRow`, the root's `actions.rowIntercept` handing it the alias row query, the seed, the push,
+  the presentation and the scope host's two calls. `aliasHint` and the Aliases row's query stay
+  in the root as policy. Every golden is byte identical, the dry gate has 0 findings and the rename
+  proof 0 differences, and `test/rootmechanism.lua` pins each lib over fakes.
+- 2026-10-21 10:01. A read only Keys page in the OLM settings, the item "Not in this plan" named. The root
+  publishes `keyCatalog`, every bound chord as `{ chord, description, owner, list }` built at each
+  ask by `hints.keyEntries` from the keymap step J built, the global keys a leader at a time in
+  each sheet's order through `sheetRows`, then the plain combinations, then every list's keys in
+  plan order, a refused or quiet row left out. The settings plugin declares it optional, shows a
+  Keys row counting the keys only when it arrives, and builds the page in `keyspage.lua`, Back then
+  one row per key titled by what it does with the chord and its owner as subtitle, every choice
+  answering stay. `launcher.golden` and `keymap-fixture.launcher.golden` change one line each, the
+  OLM settings row's keywords gaining shortcuts and keys so a person typing either finds the page.
+  Every other golden is byte identical. Offline under the stub the catalog lists 159 keys, the 159
+  chord lines of `keys.golden`. `test/keyspage.lua` pins both halves. Corrected 2026-10-21 10:58, see below, the
+  page moved out of the OLM settings onto its own launcher row.
+- 2026-10-21 10:09. A fix round on `olm/keymap-followups` from an adversarial review. The olm-plugin skill names
+  the class, a page whose rows are the chords themselves, and points here rather than naming the
+  page. The key catalog is built once per load on its first ask after the keymap exists, and the
+  Keys page keeps its rows per show, see Rejected. `lib/binder.lua` gains `bindable`, the one test
+  for whether a row is bound, and `keyEntries` requires it. `cfg.policy.roleTitles` is merged by
+  role through `leader.roleTitles`, since `lib/defaults.lua` reads an empty table as a list that
+  replaces, so `roleTitles = {}` would have headed every sheet by its leader's name, and an entry
+  that is no word is a problem line. `test/leadersheet.lua` and `test/keyspage.lua` pin both. Every
+  golden is byte identical to the previous build.
+- 2026-10-21 10:58. The OLM keys page moved out of the OLM settings to the top of the launcher, after
+  Milos's live check found it buried. The launcher declares an OLM keys row in its `specialRows`
+  beside Aliases, with the keys icon and a back icon, and keywords shortcuts, hotkeys, keybindings
+  and chords, the title answering keys. The root answers that row in `rowIntercept` as it answers
+  a registered tool, pushing `lib/keypage.lua`'s presentation over the open launcher, named for
+  the launcher so its icons resolve there, and the special fallback pushes the same page. The
+  catalog is a local of the root now, built once per load, and `keyCatalog` is no root word any
+  more. The settings plugin is back to its three pages, its Keys child, `keyspage.lua`, the
+  `keyCatalog` need, the keys icon and the shortcuts and keys keywords removed. `launcher.golden`
+  and `keymap-fixture.launcher.golden` gain the OLM keys row at 29, which renumbers every row after
+  it, and the OLM settings row is back to its keywords from main. The two icon lines in the
+  launcher manifest join `test/drygate-accepted.txt` beside their siblings. `test/keypage.lua`
+  replaces `test/keyspage.lua`. `test/cases/launcher-contributions.lua` counts the launcher's own
+  rows as four and expects OLM keys after Aliases, so `units.sh` runs 1980 assertions with none
+  failing.
+- 2026-10-22 08:52. The follow ups landed on main after a live check. Milos held both leaders and
+  saw ACTIONS and WINDOW MANAGEMENT, found OLM keys by typing keys, shortcuts and hotkeys, opened it
+  in place, narrowed it by meta and clipboard, and left it by Backspace, and OLM settings shows its
+  three pages again.

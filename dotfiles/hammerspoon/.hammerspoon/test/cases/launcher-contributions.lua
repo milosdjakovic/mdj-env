@@ -234,15 +234,17 @@ local actionRows = launcher._actionRows
 local nWindows = #windowManifest.defaults.bindings
 local nCapture = #captureManifest.defaults.bindings
 local nPanes = #settingsManifest.defaults.panes
-eq("every catalog row is listed", #actionRows, nCapture + 1 + 3 + nWindows + nPanes)
+-- The launcher's own rows, Aliases, OLM keys, Lock Screen and Sleep.
+local nOwn = 4
+eq("every catalog row is listed", #actionRows, nCapture + 1 + nOwn + nWindows + nPanes)
 
 -- The untouched order, which is the order the list has always had, the panes last.
 local wantOrder = { "OCR", "Screenshot (copy)", "Screenshot", "Record screen", "Search Settings",
-  "Aliases", "Lock Screen", "Sleep", "Previous Display", "Next Display", "Left Half" }
+  "Aliases", "OLM keys", "Lock Screen", "Sleep", "Previous Display", "Next Display", "Left Half" }
 for i, title in ipairs(wantOrder) do
   eq("row " .. i .. " is " .. title, (actionRows[i] or {}).title, title)
 end
-local lastWindow = nCapture + 1 + 3 + nWindows
+local lastWindow = nCapture + 1 + nOwn + nWindows
 eq("the last window action precedes the panes", actionRows[lastWindow].title, "Hide All Except Focused")
 eq("the first pane follows every command", actionRows[lastWindow + 1].title, "Wi-Fi")
 eq("the last row is the last pane", actionRows[#actionRows].title, "Device Management")
@@ -270,10 +272,10 @@ expectRow("search settings row", actionRows[5], {
   title = "Search Settings", subTitle = "System · opens the System Settings search field",
   icon = "search", iconOwner = "systemsettings", kind = "special", id = "searchSettings",
   owner = "systemsettings" })
-expectRow("own special row", actionRows[7], {
+expectRow("own special row", actionRows[8], {
   title = "Lock Screen", subTitle = "System · Hyper §", icon = "lock", iconOwner = "launcher",
   kind = "special", id = "lock", owner = "launcher" })
-expectRow("gated window row", actionRows[9], {
+expectRow("gated window row", actionRows[10], {
   title = "Previous Display", subTitle = "Window · Meta ,", icon = "windows",
   iconOwner = "windowmanager", kind = "window", id = "previousDisplay", owner = "windowmanager",
   when = "multipleDisplays" })

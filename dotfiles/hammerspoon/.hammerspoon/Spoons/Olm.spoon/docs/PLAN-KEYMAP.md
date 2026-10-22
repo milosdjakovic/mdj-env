@@ -595,6 +595,9 @@ Landed on 2026-10-20 after review, a fix round and a live load with Milos pressi
 ## Not in this plan
 
 List keys on a leader other than `hyper`. A keys page in the OLM settings, which the keymap makes
-cheap later as a read only list.
+cheap later as a read only list, done on 2026-10-21 as the OLM keys row of the launcher, which
+hosts `lib/keypage.lua` in place, rather than as a level inside the OLM settings.
 Moving the generic mechanism still inside `root/compose.lua`, `chordLabel`, `aliasLabel`,
-`rowIntercept` and `anyListShowing`, into `lib/`, which is worth its own plan.
+`rowIntercept` and `anyListShowing`, into `lib/`, which is worth its own plan. Done on 2026-10-21, as
+`lib/labels.lua`, `lib/listopen.lua` and `lib/rowintercept.lua`, with the root handing each its
+collaborators.

@@ -92,8 +92,9 @@ local FIELDS = {
 -- What a sheet layout may carry, with the type each takes. Every field is absent unless stated,
 -- and an absent size is the shared renderer's own.
 --
---   title       the heading over rows that name no group, what the leader does rather than what it
---               is called, since the leader's own name says nothing to somebody reading a list.
+--   title       the heading over rows that name no group. Absent, which is how every leader ships,
+--               it follows the role the leader holds, see sheetHeading below, so a person states
+--               one only to pin a heading on one leader whatever it holds.
 --   columns     how many columns the rows fill, row major, a whole number of one or more.
 --   colWidth    the width of one column.
 --   iconSize    the side of an application icon, the icon grid of a section that asks for icons.
@@ -191,13 +192,62 @@ function obj._checkSheetLayout(name, layout)
   return clean, problems
 end
 
---- obj.sheetLayout(policy, renderer) -> layout
+--- obj.sheetHeading(catalogName, roles, roleTitles) -> string
+--- The heading over a leader's rows that name no group, which is what the leader does rather than
+--- what it is called, since the leader's own name says nothing to somebody reading a list of
+--- window actions. What a leader does is the role it holds, so the heading follows the role. roles
+--- maps each role word to the catalog name holding it, the keymap's roles over the shipped ones,
+--- and roleTitles maps a role word to its heading. A leader holding two roles takes the first in
+--- name order that has a heading, and a leader holding none, which carries only chords a person
+--- put on it by name, reads as its own name, since nothing else is true of every row on it.
+function obj.sheetHeading(catalogName, roles, roleTitles)
+  local held = {}
+  for role, holder in pairs(roles or {}) do
+    if holder == catalogName then held[#held + 1] = role end
+  end
+  table.sort(held)
+  for _, role in ipairs(held) do
+    local title = (roleTitles or {})[role]
+    if type(title) == "string" and title ~= "" then return title end
+  end
+  return tostring(catalogName)
+end
+
+--- obj.roleTitles(shipped, person) -> titles, problems
+--- The role titles the sheets read, the person's entries laid over the shipped ones by role. Merged
+--- here by key rather than through lib/defaults.lua, whose merge reads an empty table as a list
+--- that replaces, so roleTitles = {} would have left every sheet headed by its leader's name. A
+--- person's value that is no table, or an entry that is no word, is a problem line and ignored.
+function obj.roleTitles(shipped, person)
+  local out, problems = {}, {}
+  for role, title in pairs(shipped or {}) do out[role] = title end
+  if person == nil then return out, problems end
+  if type(person) ~= "table" then
+    problems[1] = { where = "roleTitles", why = "is a " .. type(person) .. " rather than a table of role to title, so the shipped titles stand" }
+    return out, problems
+  end
+  local roles = {}
+  for role in pairs(person) do roles[#roles + 1] = role end
+  table.sort(roles, function(a, b) return tostring(a) < tostring(b) end)
+  for _, role in ipairs(roles) do
+    local title = person[role]
+    if type(role) ~= "string" or type(title) ~= "string" or title == "" then
+      problems[#problems + 1] = { where = "roleTitles " .. tostring(role), why = "is not a role word with a title, so it is ignored" }
+    else
+      out[role] = title
+    end
+  end
+  return out, problems
+end
+
+--- obj.sheetLayout(policy, renderer, heading) -> layout
 --- The layout a leader's sheet is drawn with, the policy's own fields over the defaults. The
 --- policy is one already through checkPolicy, so every field is the type it takes. renderer is the
 --- shared renderer's own defaults table, the source of columns, colWidth and gap where the policy
---- states none, and a sheet's heading defaults to a plain one.
-function obj.sheetLayout(policy, renderer)
-  local out = { title = SHEET_TITLE }
+--- states none. heading is the title where the policy states none, sheetHeading's answer as the
+--- root passes it, and a sheet given neither is headed plainly.
+function obj.sheetLayout(policy, renderer, heading)
+  local out = { title = heading or SHEET_TITLE }
   for _, field in ipairs({ "columns", "colWidth", "gap" }) do
     out[field] = (renderer or {})[field]
   end

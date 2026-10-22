@@ -301,6 +301,61 @@ do
   eq(merged.title, "ACTIONS", "defaults: the title included")
 end
 
+-- The heading follows the role. A sheet's default section is headed by what the leader does, the
+-- role it holds on this load, so the keymap's roles section moving the window role to SUPER moves
+-- WINDOW MANAGEMENT with it, and META, left with chords a person put on it by name, reads as its
+-- own name. A title a person states in a leader's layout still wins on that leader.
+do
+  local keymapLib = assert(loadfile(here .. "../lib/keymap.lua"))()
+  local read = keymapLib.readConfig({ roles = { window = "super" } },
+    { catalog = { HYPER = true, META = true, SUPER = true }, roleWords = { "app", "window" } })
+  eq(#read.problems, 0, "heading: the roles section reads")
+  -- Merged over the shipped roles the way the root merges them.
+  local roles = { app = "HYPER", window = "META" }
+  for role, catalogName in pairs(read.roles) do roles[role] = catalogName end
+  local TITLES = { app = "ACTIONS", window = "WINDOW MANAGEMENT" }
+  eq(leader.sheetHeading("SUPER", roles, TITLES), "WINDOW MANAGEMENT", "heading: the window role moved to SUPER heads its sheet")
+  eq(leader.sheetHeading("META", roles, TITLES), "META", "heading: META holding no role reads as its own name")
+  eq(leader.sheetHeading("HYPER", roles, TITLES), "ACTIONS", "heading: HYPER keeps the app role's heading")
+
+  local shipped = { app = "HYPER", window = "META" }
+  eq(leader.sheetHeading("META", shipped, TITLES), "WINDOW MANAGEMENT", "heading: with no roles section META heads the window sheet")
+  eq(leader.sheetHeading("SUPER", shipped, TITLES), "SUPER", "heading: and SUPER reads as its own name")
+
+  local both = { app = "META", window = "META" }
+  eq(leader.sheetHeading("META", both, TITLES), "ACTIONS", "heading: a leader holding two roles takes the first by name")
+  eq(leader.sheetHeading("META", both, { window = "WINDOW MANAGEMENT" }), "WINDOW MANAGEMENT",
+    "heading: the first that has a heading")
+
+  local renderer = { columns = 2, colWidth = 250, gap = 12 }
+  local heading = leader.sheetHeading("SUPER", roles, TITLES)
+  eq(leader.sheetLayout({ sheet = true, sheetLayout = { columns = 2 } }, renderer, heading).title, "WINDOW MANAGEMENT",
+    "heading: is the layout's title where the layout states none")
+  eq(leader.sheetLayout({ sheet = true, sheetLayout = { title = "MINE" } }, renderer, heading).title, "MINE",
+    "heading: a title the person states on the leader wins")
+
+  -- The titles a person sets merge by role. An empty table keeps every shipped title, where the
+  -- defaults merge would have read it as a list replacing them, and a bad entry is a problem line.
+  local merged, problems = leader.roleTitles(TITLES, {})
+  eq(merged.window, "WINDOW MANAGEMENT", "titles: an empty table keeps the shipped window title")
+  eq(merged.app, "ACTIONS", "titles: and the app title")
+  eq(#problems, 0, "titles: and says nothing")
+  merged, problems = leader.roleTitles(TITLES, { window = "WINDOWS", app = 3 })
+  eq(merged.window, "WINDOWS", "titles: a person's title wins for its role")
+  eq(merged.app, "ACTIONS", "titles: a title that is no word is ignored")
+  eq(#problems, 1, "titles: and named once")
+  merged, problems = leader.roleTitles(TITLES, "WINDOWS")
+  eq(merged.window, "WINDOW MANAGEMENT", "titles: a value that is no table keeps the shipped titles")
+  eq(#problems, 1, "titles: and is named")
+  eq(leader.roleTitles(TITLES, nil).app, "ACTIONS", "titles: no person value is the shipped titles")
+
+  -- What the host draws, so the heading reaches the section and not only the layout.
+  local host = fresh()
+  local layout = leader.sheetLayout({ sheet = true }, renderer, leader.sheetHeading("META", roles, TITLES))
+  local entries = host.ownSections({ { key = "e", description = "VPN" } }, { glyphFor = glyphFor, layout = layout })
+  eq(titles(entries), "META", "heading: the host heads META's own rows with its name")
+end
+
 -- Blocks. A row's owner places it by the number its orderOf answers, every other row sits at
 -- ownOrder, and blocks run in ascending order with a row of no number last, which is how the app
 -- toggler's rows lead the Hyper sheet at ten ahead of the sheet's own fifty.

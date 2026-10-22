@@ -230,7 +230,13 @@ a number or a table, so there is no closed set of words to publish. `sheet` says
 the leader's cheat sheet, drawn by the one `host/leadersheet`, and `sheetLayout` is the table beside it
 that lays it out, `title`, `columns`, `colWidth`, `iconSize`, `gap`, `groupGap` and `badgeWidth`,
 with `lib/leader.lua`'s `sheetLayout` filling a leader that states none with the renderer's own
-two columns under a plain heading. `tapTogglesCapsLock`, `contexts` and `sealedOverLists` are HYPER's,
+two columns. No shipped layout states a title. The heading over a sheet's rows that name no group
+follows the role the leader holds, `policy.roleTitles` keyed by role and read by `lib/leader.lua`'s
+`sheetHeading`, so whichever leader holds the window role reads WINDOW MANAGEMENT, HYPER holding
+the app role reads ACTIONS, and a held leader holding no role reads as its own name, SUPER or META.
+A title a person states in one leader's layout still wins there. A person's `roleTitles` is merged
+by role through `leader.roleTitles` rather than the defaults merge, which would read an empty table
+as a list replacing the shipped titles. `tapTogglesCapsLock`, `contexts` and `sealedOverLists` are HYPER's,
 `drivenRepeat` and `quietOverLists` are META's, and SUPER ships META's policy because it is the
 documented other home of the window role. `checkPolicy` names a field of the wrong type or one no
 leader reads in one problem line and leaves it at its default, a layout field out of range or a
@@ -325,3 +331,40 @@ the person's. `test/keymap-person.lua` pins the layer and `test/keymap-fixture-l
 golden proves it through the real root.
 `test/keymap-person.lua` pins every rule in plain Lua, and `test/keymap-fixture.lua` and
 `test/keymap-fixture-roles.lua` with their goldens prove the person's case through the real root.
+
+## Labels, open lists and the row intercept, the mechanism that left the root
+
+Three small libs were closures inside `root/compose.lua` until 2026-10-21, and moved out because
+each is mechanism rather than wiring, as the keymap plan's last section named. Each is pure, takes
+no hs, and knows only the collaborators its caller hands it, so the root keeps the concrete calls
+and the libs keep the rules. `test/rootmechanism.lua` pins all three over fakes.
+
+`lib/labels.lua` is the one spelling of a chord, a leader's name, a space and the key glyph, and of
+a set of aliases, the words in brackets. `chordLabel(glyphFor)` answers the speller every surface is
+handed, and the glyph helper is the shared cheat sheet renderer's, handed in rather than loaded
+because the spoon publishes that renderer once. The launcher and the hint bar both spell a chord
+through it, and a launcher row and the alias directory both spell aliases through it, which is
+what ended one key reading two ways.
+
+`lib/listopen.lua` answers whether a list is open, `isShowing(contextName, deps)` for one and
+`anyShowing(deps)` for any, walking the context owners the predicates route through. An owner that
+presents on the shared stage is asked of the stage first, and any other through the surface its
+manifest names, both calling conventions tried. The registry it asks for a presentation is built
+after the leaders that close over the answer, so `presentationFor` is a function asked at each
+call rather than a table taken at build.
+
+`lib/rowintercept.lua` answers what choosing a launcher row does in place of closing the launcher,
+a contributed row left to its owner, the Aliases row seeding its word, a tool on the stage pushed,
+and a scope row acting or seeding its word. Its contract is six functions, and the scope pair is
+absent when no scope host loaded. The query the Aliases row stands for stays in the root, since the
+row's name is root policy, and so does `aliasHint`, which asks the scope host for a tool's aliases.
+
+`lib/keypage.lua` is the OLM keys page, every chord Olm binds listed read only. It is Olm's own list
+and no plugin's, reached by the launcher's own OLM keys row, declared beside the Aliases row in the
+launcher's `specialRows`. The root answers that row in `rowIntercept` where a registered tool's
+presentation is answered, pushing the page onto the stage over the open launcher, so the list
+becomes the keys list in place and Back or Backspace on an empty field pops back. The page carries
+the launcher's name, the stage's rule for a level pushed over a list, so its icons are the
+launcher's. Its rows are `lib/hints.lua`'s `keyEntries`, words only, built on the first open and
+kept for the load, a row listed exactly when `lib/binder.lua`'s `bindable` says it is bound. A key
+row answers stay and does nothing. `test/keypage.lua` pins it.

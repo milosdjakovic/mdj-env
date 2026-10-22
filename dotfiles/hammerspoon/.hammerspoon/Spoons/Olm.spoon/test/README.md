@@ -9,6 +9,8 @@ Spoons/Olm.spoon/test/ranking.lua           # one of the three dry runs, standal
 Spoons/Olm.spoon/test/icons.lua             # the icon engine, the config file, the row resolver and the two sources
 Spoons/Olm.spoon/test/leaders.lua           # the two leader adapters' resolvers as they stand, see below
 Spoons/Olm.spoon/test/systemsettings.lua    # when a System Settings pane action hides the app and when it goes to its pane
+Spoons/Olm.spoon/test/rootmechanism.lua     # the chord and alias spelling, the open list test and the launcher row intercept
+Spoons/Olm.spoon/test/keypage.lua           # the OLM keys page, the keymap as words and the presentation built from them
 Spoons/Olm.spoon/test/keys.sh               # every bound chord in the live config, diffed against keys.golden
 Spoons/Olm.spoon/test/keys.sh --bound       # what the binder bound under the stub, diffed against keys.golden
 Spoons/Olm.spoon/test/views.sh --offline    # the launcher's catalog and every leader's cheat sheet under the stub, against their goldens
@@ -195,7 +197,19 @@ made stable, see `decisions/olm-keymap.md`.
 
 `leadersheet.lua` is plain Lua too, run by `suite.sh dry`, and pins the one sheet host, the model it
 builds from a leader's rows, a descriptor's group, the gate on `when`, what it hands the renderer
-and the validation of a leader's sheet layout.
+and the validation of a leader's sheet layout, and the sheet heading following the role a leader
+holds.
+
+`rootmechanism.lua` is plain Lua as well, run by `suite.sh dry`. It pins the three libs that left
+`root/compose.lua` on 2026-10-21, the chord and alias spelling of `lib/labels.lua`, the open list
+test of `lib/listopen.lua` and the launcher row intercept of `lib/rowintercept.lua`, each over
+fakes, since none of them answers anything a golden can see.
+
+`keypage.lua` is plain Lua too, run by `suite.sh dry`. It builds a small keymap through the real
+`lib/keymap.lua`, a person's moved and freed key among it, and pins `lib/hints.lua`'s `keyEntries`,
+which keys the OLM keys page lists and in what order, and `lib/keypage.lua`, how each row spells
+its chord, description and owner, that a key row stays and Back pops, and that rows are built once
+per show.
 
 `leaders.lua` is the other half, plain Lua with no Hammerspoon, run by `suite.sh dry`. It pins
 the resolver of `lib/leader.lua` under both shipped policies, HYPER's with contexts and META's

@@ -10,7 +10,7 @@
 --   A leader named from Shift and Control takes Tmux Manager on T, claimed as that combination.
 --   Hyper and 3 is freed, so OCR keeps its launcher row and loses its chord.
 --   The window role moves to Super, so every window binding sits on Super and the window sheet is
---   Super's. Meta stays remapped, since Meta and E and Meta and Y still use it, which
+--   Super's, headed WINDOW MANAGEMENT, while Meta's sheet, holding no role, reads META. Meta stays remapped, since Meta and E and Meta and Y still use it, which
 --   keymap-fixture-roles.lua, the roles alone, shows freeing it.
 --   The VPN's aliases are the three words below in place of its own.
 return {

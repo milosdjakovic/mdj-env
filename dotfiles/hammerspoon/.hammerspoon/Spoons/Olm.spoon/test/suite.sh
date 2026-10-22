@@ -51,6 +51,8 @@ if [ "$tiers" = "dry" ]; then
   lua "$here/keymap-person.lua" || exit 1
   lua "$here/leadersheet.lua" || exit 1
   lua "$here/systemsettings.lua" || exit 1
+  lua "$here/rootmechanism.lua" || exit 1
+  lua "$here/keypage.lua" || exit 1
   echo
   exec "$here/drygate.sh" "$@"
 fi
