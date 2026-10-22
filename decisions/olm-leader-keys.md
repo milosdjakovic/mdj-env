@@ -178,3 +178,24 @@ and by name for a modifier one. The live load was clean apart from the five over
 released modifier and on an app letter, staying away for Shift and Control or Command and Option
 and over the open launcher, and no flash on a quick shortcut. The plan is complete. A macOS tap
 disabled by a timeout is not re enabled here, since this tap only observes and returns at once.
+
+### 2026-10-22 23:44
+
+Phase 0 of `docs/PLAN-MACHINES.md`, measuring kanata 1.12.0 against Olm's hidutil remap with the
+stowed main config live. Kanata's debug log and a Hammerspoon tap logging key codes and flags
+were read side by side while Milos pressed each key by hand. Kanata reads the physical keyboard
+before hidutil, since it saw `KEY_CAPSLOCK` and `KEY_RIGHTALT` while hidutil mapped them to F18
+and F16. What kanata sent back was not remapped either. A Caps Lock tap reached macOS as Caps
+Lock itself and toggled it directly, with no F18 and no part for Olm, and a hold reached it as
+the four modifiers alone. Right Option held arrived as shift, ctrl and alt with no F16. No press
+produced both forms, so one press cannot fire a leader twice. Phase 1 can keep the remap on every
+machine, and the Composite needs no guard against a double fire.
+
+The first attempt measured nothing. The Karabiner driver daemon had stopped since the trial, so
+kanata waited ten seconds for the virtual keyboard, then released the keyboard and ran without
+remapping, and Caps Lock arrived as F18 through Olm the whole time. That is the fallback the
+Composite is chosen for, observed rather than argued, and it is why phase 3 runs the daemon under
+launchd. Hammerspoon was loaded before kanata started in the run that counted. Whether a reload
+while kanata runs lays the remap over the virtual keyboard was not checked. If it does, a tap
+arrives as F18 and Olm's held engine toggles Caps Lock itself, which is still one toggle, and the
+phase 1 live check confirms it.
