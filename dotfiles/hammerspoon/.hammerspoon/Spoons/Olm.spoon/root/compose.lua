@@ -69,6 +69,7 @@ local contributionsLib = load("lib/contributions.lua")
 -- launcher row does in place of closing it. Pure, every collaborator handed in from here.
 local labelsLib = load("lib/labels.lua")
 local listOpenLib = load("lib/listopen.lua")
+local secureFocusLib = load("lib/securefocus.lua")
 local rowInterceptLib = load("lib/rowintercept.lua")
 -- The OLM keys page, every bound chord listed read only, a presentation the launcher's own row
 -- pushes. Pure, the catalog and the stage's pop handed in from here.
@@ -561,6 +562,9 @@ function obj.run(olm, cfg)
       panel = canvasPanel,
       ui = uiAtom,
       icon = paintIcon,
+      -- A list opened over a password field takes focus for as long as it is open, see
+      -- lib/securefocus.lua. The provider only asks and never names the mechanism.
+      focusHold = secureFocusLib.hold,
       yields = function(ev)
         return anyHeldLeader(function(leader) return leader:owns(ev) end)
       end,

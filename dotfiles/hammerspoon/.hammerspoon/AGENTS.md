@@ -27,6 +27,10 @@ and it is made live and tested there. The legacy chooser, `providers/legacy.lua`
 and kept only as a fallback. It is touched only when a request names it. Stated by the person on
 2026-10-14, see `decisions/olm-chooser-keys.md`.
 
+A list opened over a password field takes focus for as long as it is open, through the injected
+`focusHold` and `Spoons/Olm.spoon/lib/securefocus.lua`, see the secure focus section of
+`Spoons/Olm.spoon/AGENTS.md`.
+
 Any work that creates or changes an Olm plugin goes through the `olm-plugin` skill, at
 `.claude/skills/olm-plugin/SKILL.md` in this repository, rather than through this file. The
 skill routes to `Spoons/Olm.spoon/docs/PLUGIN-AUTHORING.md` as the recipe to follow and to

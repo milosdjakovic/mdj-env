@@ -142,3 +142,19 @@ hiding it and activating Safari again put the focus and secure input back. So a 
 password field can hear keys only if it opens as a key window for that time. Not built yet, since
 never taking focus is the reason the canvas chooser exists, see `lib/chooser/providers/default/surface.lua`,
 and taking it only while secure input is on is a design change of its own.
+
+### 2026-10-22 22:37
+
+Built. `lib/securefocus.lua` holds focus while secure input is on. It shows an empty native
+`hs.chooser`, moves its window off screen, and answers a release that hides and deletes it and
+activates the app that had focus. The default provider takes it as an injected `focusHold`, asked
+after the surface shows and released after it hides and before `onClose`, so an insert on close
+lands in that app, and a second show over a list already up keeps the hold it has. The root is the
+only file naming it, and the provider names no mechanism. Normal opens are untouched, since the
+hold answers nothing while secure input is off. The cost is stated in the lib's header. While a
+list is open over a password field secure input is off, so any event tap on the machine could read
+what is typed into that list, for as long as it is open. A borderless webview and `hs.focus()`
+were both measured unable to take focus from Safari, so the native chooser is the one mechanism
+proven, and a titled webview was never tried. With Hyper from kanata, Milos confirmed typing, list
+keys, Escape, picking an app and inserting an emoji over a Safari password field, focus returning
+to the field each time, and no change over an ordinary field.

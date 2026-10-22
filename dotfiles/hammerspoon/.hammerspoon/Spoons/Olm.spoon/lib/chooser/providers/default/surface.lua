@@ -20,6 +20,10 @@
 --- reason in its own comment, plugins/clipboard/manager/ui.lua among them, so this is the
 --- established way rather than a new one.
 ---
+--- The surface itself still never takes focus. The one exception lives outside it, the focus
+--- hold the composition root injects into the provider, which takes focus only while secure
+--- input is on and gives it back on close, see lib/securefocus.lua.
+---
 --- The canvas setup mirrors lib/panel.lua, the shared surface atom, rather than inventing
 --- a second way to make a canvas in this configuration. CanvasPanel.surfaceElements is
 --- the one routine that paints the chrome, a filled rounded rectangle plus a rounded

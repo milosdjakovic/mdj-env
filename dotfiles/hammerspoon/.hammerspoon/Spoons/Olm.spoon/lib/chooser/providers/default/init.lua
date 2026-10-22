@@ -125,6 +125,11 @@ local YIELDS = nil
 -- and nil means the field reads no such key. This file knows only that it is a watcher.
 local LIST_KEYS = nil
 
+-- An optional function answering a release function or nil, asked once per open right after the
+-- surface shows. It is the seam for whatever must give this canvas keys a tap cannot otherwise
+-- hear, and the release it answers runs on teardown. Nil until M.configure runs.
+local FOCUS_HOLD = nil
+
 -- The injected CanvasPanel module, nil until M.configure runs. Held at module level rather than
 -- per instance, the same shape lib/panel.lua's own configure already takes for its shared
 -- style, since every instance this file ever builds draws through the identical shared chrome
@@ -852,6 +857,17 @@ function Provider:_teardown()
   self._pressedRowIndex = nil
   if self.surface then self.surface:hide() end
 
+  -- After the surface is down and before onClose, so an insert a consumer makes on close lands
+  -- in the application that had focus. A raise is printed and never abandons the teardown.
+  local release = self._focusRelease
+  self._focusRelease = nil
+  if release then
+    local ok, err = pcall(release)
+    if not ok then
+      print("Olm canvas provider, the focus release failed, " .. tostring(err))
+    end
+  end
+
   if self.config.onClose then
     local ok, err = pcall(self.config.onClose)
     if not ok then
@@ -893,6 +909,10 @@ function Provider:show()
 
   self:_redraw()
   self.surface:show()
+  -- A show over a list already up keeps the hold it has, since a second would strand the first.
+  if not self._focusRelease then
+    self._focusRelease = FOCUS_HOLD and safeCall(FOCUS_HOLD) or nil
+  end
 
   self.field:start()
   self.mouse:start()
@@ -1243,7 +1263,8 @@ local M = {}
 --- M.configure(opts) takes opts.panel, the CanvasPanel module, and opts.ui, the UI kit, and
 --- optionally opts.icon, the icon resolver function(icon, owner) -> hs.image or nil, and opts.yields, a function(event) answering true for a key down the field's tap
 --- must let through instead of claiming, and opts.listKeys, a function(event) that runs a list key
---- the open list binds with no held leader and answers true when it took the key. Callable more than once, a nil field left unchanged, matching CanvasPanel.configure's
+--- the open list binds with no held leader and answers true when it took the key, and opts.focusHold, a function
+--- answering a release function or nil, asked once per open after the surface shows and released on teardown. Callable more than once, a nil field left unchanged, matching CanvasPanel.configure's
 --- own idiom. Whatever calls M.new is expected to have called this first.
 function M.configure(opts)
   opts = opts or {}
@@ -1251,6 +1272,7 @@ function M.configure(opts)
   if opts.ui ~= nil then UI = opts.ui end
   if opts.yields ~= nil then YIELDS = opts.yields end
   if opts.listKeys ~= nil then LIST_KEYS = opts.listKeys end
+  if opts.focusHold ~= nil then FOCUS_HOLD = opts.focusHold end
   if opts.icon ~= nil then ICON = opts.icon end
   return M
 end

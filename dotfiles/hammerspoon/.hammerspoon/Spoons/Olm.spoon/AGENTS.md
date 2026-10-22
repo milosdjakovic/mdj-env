@@ -437,3 +437,15 @@ the launcher's name, the stage's rule for a level pushed over a list, so its ico
 launcher's. Its rows are `lib/hints.lua`'s `keyEntries`, words only, built on the first open and
 kept for the load, a row listed exactly when `lib/binder.lua`'s `bindable` says it is bound. A key
 row answers stay and does nothing. `test/keypage.lua` pins it.
+
+## Secure focus, a list opened over a password field
+
+A password field turns on macOS secure input, which hides every key from every event tap, and the
+default chooser reads keys through a tap, so a list opened then would be drawn and deaf. The
+default provider takes an optional `focusHold` in its configure, asked once per open after the
+surface shows and released on teardown after the surface hides and before `onClose`. The root
+passes `lib/securefocus.lua`, the one file that knows the mechanism, a native `hs.chooser` with no
+rows moved off screen, which is the only thing measured to take focus from Safari. While such a
+list is open secure input is off, so any tap on the machine could read what is typed into it, and
+that lasts only while the list is open. `test/securefocus.lua` pins the lib over fakes. The
+provider has no plain test harness, only the live probe, so the call order is checked live.
