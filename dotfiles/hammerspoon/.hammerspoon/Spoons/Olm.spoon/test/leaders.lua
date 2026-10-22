@@ -417,6 +417,76 @@ do
   local heldTrigger = assert(loadfile(lib .. "leader/triggers/held.lua"))().new({})
   eq(heldTrigger.sealsOverLists, true, "over lists: the held trigger is the one that seals")
 
+  -- A modifier leader hosting a list key seals over an open list, the root saying so through the
+  -- trigger once it knows which leaders host one. A key it resolves there that is no list key is the
+  -- bound no op, and a leader hosting none still fires.
+  local FOUR = { "shift", "ctrl", "alt", "cmd" }
+  eq(modifier.new({ mods = FOUR }).sealsOverLists, false, "sealing: a modifier trigger says nothing by default")
+  local listUp = true
+  local sealing = newLeader({ ranked = true }, predicates, { name = "hyper", listOpen = function() return listUp end,
+    trigger = modifier.new({ mods = FOUR, sealsOverLists = true }) })
+  sealing:bind("a", handler("toggle"))
+  sealing:bind("b", handler("listB"), nil, { when = "ctxA", priority = 100 })
+  live.ctxA = true
+  local sealedKey = sealing:_onKey(hs.keycodes.map.a, {})
+  eq(type(sealedKey), "function", "sealing: a modifier leader hosting a list key resolves a global key over a list")
+  eq(nameOf(sealedKey), nil, "sealing: to the bound no op")
+  eq(nameOf((sealing:_onKey(hs.keycodes.map.b, {}))), "listB", "sealing: and its list key still acts")
+  local unbound = sealing:_onKey(hs.keycodes.map.c, {})
+  eq(type(unbound), "function", "sealing: even a key nothing binds is the no op over a list")
+  live.ctxA = false
+  local open = true
+  local firing = newLeader({ ranked = true }, predicates, { name = "hyper", listOpen = function() return open end,
+    trigger = modifier.new({ mods = FOUR, sealsOverLists = false }) })
+  firing:bind("a", handler("toggle"))
+  eq(nameOf((firing:_onKey(hs.keycodes.map.a, {}))), "toggle", "sealing: a modifier leader hosting no list key still fires over a list")
+  listUp = false
+  eq(nameOf((sealing:_onKey(hs.keycodes.map.a, {}))), "toggle", "sealing: with no list open the sealing leader fires as ever")
+
+  -- The default chooser's field tap sees a chord before the hotkey, so the root asks the leader whether
+  -- an event is its own, by the flags the event carries rather than the live keyboard.
+  local function event(flags) return { getFlags = function() return flags end } end
+  local owner = newLeader({}, predicates, { name = "hyper", trigger = modifier.new({ mods = FOUR, sealsOverLists = true }) })
+  heldMods = {}
+  eq(owner:owns(event({ shift = true, ctrl = true, alt = true, cmd = true })), true,
+    "owns: an event holding the whole set is the leader's, whatever the keyboard says")
+  eq(owner:owns(event({ shift = true, ctrl = true, alt = true, cmd = true, fn = true })), true,
+    "owns: and fn beside it changes nothing")
+  eq(owner:owns(event({ shift = true, ctrl = true, alt = true })), false, "owns: part of the set is not")
+  eq(owner:owns(event({})), false, "owns: no modifiers is not")
+  heldMods = { shift = true, ctrl = true, alt = true, cmd = true }
+  eq(owner:owns(event({ cmd = true })), false, "owns: the event's own flags decide, not the live keyboard")
+  eq(owner:owns(), true, "owns: handed no event it reads the live keyboard as isActive does")
+  heldMods = {}
+  local plainOwner = newLeader({}, predicates, { trigger = modifier.new({ mods = {} }) })
+  eq(plainOwner:owns(event({ cmd = true })), false, "owns: the plain leader owns no event")
+
+  -- A leader driving its repeats hands a repeating handler how deep into the hold it is, 0 on the
+  -- press and one more per OS autorepeat of the hotkey, reset on each press.
+  hotkeysBound = {}
+  local depths = {}
+  local driven = newLeader({ drivenRepeat = true }, predicates, { name = "hyper",
+    trigger = modifier.new({ mods = FOUR }) })
+  driven:bind("a", function(...) depths[#depths + 1] = select("#", ...) == 0 and "none" or select(1, ...) end,
+    nil, { repeats = true })
+  driven:start()
+  local hk = hotkeysBound[1]
+  hk.press()
+  hk.rep()
+  hk.rep()
+  hk.press()
+  hk.rep()
+  eq(table.concat(depths, ","), "0,1,2,0,1", "driven repeat: the depth is 0 on a press, counts each repeat and resets on a press")
+  hotkeysBound = {}
+  depths = {}
+  local system = newLeader({}, predicates, { name = "hyper", trigger = modifier.new({ mods = FOUR }) })
+  system:bind("a", function(...) depths[#depths + 1] = select("#", ...) == 0 and "none" or select(1, ...) end,
+    nil, { repeats = true })
+  system:start()
+  hotkeysBound[1].press()
+  hotkeysBound[1].rep()
+  eq(table.concat(depths, ","), "none,none", "driven repeat: a leader not stating it calls its handler as before")
+
   -- The retired fields are refused by name, each saying what replaced it.
   local L = assert(loadfile(lib .. "leader.lua"))()
   for _, field in ipairs({ "contexts", "quietOverLists", "sealedOverLists", "tapTogglesCapsLock" }) do

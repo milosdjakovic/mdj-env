@@ -185,7 +185,9 @@ Spoons/Olm.spoon/test/views.sh --fixture keymap-fixture [--update]  # the launch
 A person's keymap is proved offline through fixtures, a Lua file under `test/` returning a keymap
 table, which the stubbed run hands to Olm as `cfg.keymap` in place of `config/keymap.lua`.
 `keymap-fixture.lua` is the person's own case, `keymap-fixture-roles.lua` the window role moved
-alone, `keymap-fixture-lists.lua` a lists section moving and freeing keys inside lists, and each
+alone, `keymap-fixture-lists.lua` a lists section moving and freeing keys inside lists,
+`keymap-fixture-modhyper.lua` Hyper written as the four real modifiers, with its launcher and sheet
+goldens too, and each
 golden beside them is named for its fixture, `keymap-fixture.keys.golden` the
 bound keys followed by one remap line naming the held leaders put in use, and
 `keymap-fixture.launcher.golden` and `keymap-fixture.sheets.golden` the two views. `goldens.sh`

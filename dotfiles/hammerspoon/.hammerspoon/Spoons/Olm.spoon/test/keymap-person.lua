@@ -235,15 +235,37 @@ do
   eq(has(text, "leaders bare | states neither mods nor key"), true, "neither: said, and the entry ignored")
   eq(by.bare, nil, "neither: a new name is ignored")
 
-  -- A different kind on a shipped name waits for a later phase.
+  -- A shipped name may change kind. Hyper written as the four modifiers leaves the held leaders,
+  -- the trigger replaces whole and the shipped behaviour stays unless the entry says otherwise.
   r = read({ leaders = { hyper = { mods = { "shift", "ctrl", "alt", "cmd" }, sheet = false } } })
   by = byName(r)
-  eq(has(whys(r.problems), "leaders hyper | gives the built in leader hyper a different kind than it ships, and a modifier Hyper lands in a later phase"),
-    true, "kind: a modifier Hyper is refused for now")
-  eq(by.hyper.key, "capsLock", "kind: the shipped key is kept")
-  eq(by.hyper.policy.sheet, true, "kind: and the shipped behaviour")
+  eq(#r.problems, 0, "kind: a modifier Hyper is no problem")
+  eq(table.concat(by.hyper.mods, "+"), "alt+cmd+ctrl+shift", "kind: hyper holds the four modifiers")
+  eq(by.hyper.key, nil, "kind: the shipped key is dropped with the trigger")
+  eq(by.hyper.remapTo, nil, "kind: and no remap is asked for")
+  eq(by.hyper.policy.ranked, true, "kind: the shipped behaviour merges")
+  eq(by.hyper.policy.sheet, false, "kind: and the entry's own field wins")
+  eq(by.hyper.policy.sheetLayout.columns, 4, "kind: the layout stays")
+  eq(r.allocation.leaders.hyper, nil, "kind: a leader of modifiers takes no function key")
+  eq(r.leaders[#r.leaders].name, "hyper", "kind: it is listed among the modifier leaders, after the held ones")
   r = read({ leaders = { hyper = { mods = { "shift" } } } })
-  eq(byName(r).hyper.mods, nil, "kind: a bare list on a shipped name is refused the same way")
+  eq(table.concat(byName(r).hyper.mods, "+"), "shift", "kind: a bare list on a shipped name is read as mods")
+  -- The other way round, a name that ships mods may take a key.
+  local MODS_SHIPPED = { hyper = { mods = { "ctrl", "alt" }, ranked = true }, meta = SHIPPED.meta }
+  r = keymap.readConfig({ leaders = { hyper = { key = "capsLock" } } }, { leaders = MODS_SHIPPED, sources = SOURCES,
+    allocate = KeyRemap.allocate, roleWords = ROLE_WORDS, keycodes = KEYCODES })
+  by = byName(r)
+  eq(#r.problems, 0, "kind: a shipped modifier leader may take a key")
+  eq(by.hyper.key, "capsLock", "kind: the key replaces the mods")
+  eq(by.hyper.mods, nil, "kind: and the mods are dropped")
+  eq(by.hyper.policy.ranked, true, "kind: with the behaviour kept")
+  -- A conflict the allocation refuses restores the shipped trigger of whichever kind it was.
+  r = keymap.readConfig({ leaders = { hyper = { key = "rightOption" } } }, { leaders = MODS_SHIPPED, sources = SOURCES,
+    allocate = KeyRemap.allocate, roleWords = ROLE_WORDS, keycodes = KEYCODES })
+  by = byName(r)
+  eq(has(whys(r.problems), "leaders hyper"), true, "kind: two leaders on one key are said")
+  eq(table.concat(by.hyper.mods or {}, "+"), "alt+ctrl", "kind: the shipped mods come back")
+  eq(by.hyper.key, nil, "kind: and no key stays")
 
   -- A key off the allow list is a problem line naming the keys it allows.
   r = read({ leaders = { hyper = { key = "space" }, pedal = { key = "a" }, odd = { key = 3 }, low = { key = "f12" },
@@ -366,9 +388,15 @@ do
   local text = whys(r.problems)
   eq(has(text, "roles foo | is not a role"), true, "a role word no default names is refused")
   eq(has(text, "roles bar | is not a role"), true, "and so is any other key")
-  local bad = read({ roles = { window = "nav" }, leaders = { nav = { mods = { "ctrl" } } } })
-  eq(bad.roles.window, nil, "a role naming a leader of modifiers is refused")
-  eq(has(whys(bad.problems), "which is no held leader"), true, "since a role moves to a held leader only")
+  local ok = keymap.readConfig({ roles = { window = "nav", list = "hyper" }, leaders = { nav = { mods = { "ctrl" } },
+    hyper = { mods = { "shift", "ctrl", "alt", "cmd" } } } }, { leaders = SHIPPED, sources = SOURCES,
+    allocate = KeyRemap.allocate, roleWords = { "app", "window", "list" }, keycodes = KEYCODES })
+  eq(ok.roles.window, "NAV", "a role may name a leader of modifiers, by the same upper cased name")
+  eq(ok.roles.list, "HYPER", "the list role lands on a modifier Hyper, known by the name a held one has")
+  eq(#ok.problems, 0, "and that is no problem")
+  local bad = read({ roles = { window = "nobody" } })
+  eq(bad.roles.window, nil, "a role naming no leader is refused")
+  eq(has(whys(bad.problems), "which is no leader"), true, "since a role moves to a leader that exists")
 end
 
 do

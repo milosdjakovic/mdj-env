@@ -7,10 +7,10 @@
 #
 # Usage
 #   goldens.sh          keys.sh --offline, keys.sh --bound and views.sh --offline, then the
-#                       keymap fixtures, keys.sh --fixture for each, the lists, list role and list
-#                       leaders fixtures among them,
-#                       and views.sh --fixture for the person's case, every one against its own
-#                       committed golden
+#                       keymap fixtures, keys.sh --fixture for each, the lists, list role, list
+#                       leaders and modifier Hyper fixtures among them,
+#                       and views.sh --fixture for the person's case and the modifier Hyper one,
+#                       every one against its own committed golden
 #   goldens.sh --live   keys.sh and views.sh against the running config, read only
 
 set -uo pipefail
@@ -32,7 +32,9 @@ case "${1:-}" in
     run "$here/keys.sh" --fixture keymap-fixture-listrole
     run "$here/keys.sh" --fixture keymap-fixture-listleaders
     run "$here/keys.sh" --fixture keymap-fixture-heldkeys
-    run "$here/views.sh" --fixture keymap-fixture ;;
+    run "$here/keys.sh" --fixture keymap-fixture-modhyper
+    run "$here/views.sh" --fixture keymap-fixture
+    run "$here/views.sh" --fixture keymap-fixture-modhyper ;;
   *) echo "goldens.sh: unknown argument $1" >&2; exit 2 ;;
 esac
 exit $status

@@ -293,8 +293,10 @@ function obj.run(olm, cfg)
         .. "its behaviour are written in the leaders section of config/keymap.lua, so the field is ignored" }
     end
   end
-  -- Which held leader each role lands on, app on HYPER and window on META unless the keymap's
-  -- roles section moves one. cfg.leaders carried this from config/keys.lua until phase 5 of the
+  -- Which leader each role lands on, app on HYPER and window on META unless the keymap's roles
+  -- section moves one. A leader's identity, here and in every reader of a role, is its name upper
+  -- cased whichever kind it is, so a role names the same leader whether Hyper is Caps Lock or the
+  -- four modifiers. cfg.leaders carried this from config/keys.lua until phase 5 of the
   -- keymap plan and is read by nothing now, so a value still passed is a problem line rather than
   -- a second way to say it.
   -- Merged by hand rather than through lib/defaults.lua, whose merge reads an empty table as a
@@ -319,6 +321,9 @@ function obj.run(olm, cfg)
   -- may ask for and the stage word the BrowserTabs harness reads, all read them late.
   local leaderList = {}
   local heldLeaders = {}
+  -- The modifier leaders in use that host a list key, which seal over an open list, read by the
+  -- chooser field's claim below and filled once the leaders in use are known.
+  local sealingModifierLeaders = {}
   -- The watcher for list keys the open list's own field answers, built once the dispatch table is,
   -- and read by the default chooser's field at each press.
   local fieldWatch = nil
@@ -562,7 +567,14 @@ function obj.run(olm, cfg)
       -- A list key with no held leader, Ctrl and J, is answered by the field itself while its list
       -- is up, so nothing global claims the chord. Read late, built after the dispatch table.
       listKeys = function(ev)
-        return fieldWatch ~= nil and fieldWatch(ev) == true
+        if fieldWatch ~= nil and fieldWatch(ev) == true then return true end
+        -- A modifier leader hosting list keys seals over this list. Its hotkey cannot fire
+        -- beneath this field's tap, which sees a chord first, so the chord is claimed here as the
+        -- no op the leader would have resolved it to, Hyper and a digit moving no row.
+        for _, leader in ipairs(sealingModifierLeaders) do
+          if leader:owns(ev) then return true end
+        end
+        return false
       end,
     })
   end
@@ -936,7 +948,7 @@ function obj.run(olm, cfg)
   local leaderSpecs, leaderProblems = {}, {}
   for _, entry in ipairs(keymapConfig.leaders) do
     local held = entry.key ~= nil
-    local catalogName = held and entry.name:upper() or entry.name
+    local catalogName = entry.name:upper()
     local leaderPolicy, problems = leaderLib.checkPolicy(catalogName, entry.policy)
     for _, problem in ipairs(problems) do leaderProblems[#leaderProblems + 1] = problem end
     local spec = { name = entry.name, catalogName = catalogName, held = held, policy = leaderPolicy }
@@ -948,14 +960,9 @@ function obj.run(olm, cfg)
       spec.keyCode = slot and leadersLib.keycode(slot.fkey)
       spec.remapTarget = slot and slot.target
     else
+      -- Behaviour is the leader's own whichever kind it is, so the policy stays as checked. A
+      -- modifier leader has no tap, and a sheet on one is not drawn yet, said in step H.
       spec.mods = entry.mods
-      -- Holding real modifiers is ordinary typing, so a modifier leader has no tap, no ranking and
-      -- no sheet yet, and a field stating one is said once and left out.
-      if next(leaderPolicy) ~= nil then
-        leaderProblems[#leaderProblems + 1] = { where = catalogName, why = "the leader policy states behaviour on "
-          .. "a leader of modifiers, which lands in a later phase, so it is ignored" }
-      end
-      spec.policy = {}
     end
     leaderSpecs[#leaderSpecs + 1] = spec
   end
@@ -965,7 +972,7 @@ function obj.run(olm, cfg)
   local roleTitles, roleTitleProblems = leaderLib.roleTitles(SHIPPED_POLICY.roleTitles, (cfg.policy or {}).roleTitles)
   for _, problem in ipairs(roleTitleProblems) do leaderProblems[#leaderProblems + 1] = problem end
   for _, spec in ipairs(leaderSpecs) do
-    if spec.held then spec.heading = leaderLib.sheetHeading(spec.catalogName, leaderRoles, roleTitles) end
+    spec.heading = leaderLib.sheetHeading(spec.catalogName, leaderRoles, roleTitles)
   end
 
   -- What each leader role is CALLED where a person reads it, a row subtitle or a hint. The
@@ -1715,6 +1722,15 @@ function obj.run(olm, cfg)
   -- closures for Hyper and the window leader's own pair for itself. It is the adapter's now, which
   -- keeps the one rule both pairs followed, nothing is revealed over an open list.
   local leadersByName = {}
+  -- The leaders hosting at least one list key, by name, read off the lists as applyLists left them.
+  -- A chord opening with no leader is false there and names none. A modifier leader in this set
+  -- seals over an open list, which is only known here, once the lists are laid out.
+  local hostsListKey = {}
+  for _, block in pairs(plan.contexts or {}) do
+    for _, b in ipairs(block.bindings or {}) do
+      if b.chord ~= false and type(b.leader) == "string" then hostsListKey[b.leader] = true end
+    end
+  end
   local candidateLeaders, candidateList = {}, {}
   for _, spec in ipairs(leaderSpecs) do
     local leader = nil
@@ -1742,11 +1758,17 @@ function obj.run(olm, cfg)
         })
       end
     else
-      -- A leader of modifiers is the modifier trigger handed its set as the base, with an empty
-      -- policy, so no tap, no contexts and no sheet, since holding real modifiers is ordinary typing.
+      -- A leader of modifiers is the modifier trigger handed its set as the base, with the policy
+      -- its entry states, and it seals over an open list when it hosts a list key. It has no tap,
+      -- since holding real modifiers is ordinary typing, and no sheet yet, said once here as a
+      -- routine line.
+      if spec.policy.sheet then
+        log.i("Olm leaders, the " .. spec.catalogName .. " leader states a sheet, and a sheet on a leader of "
+          .. "modifiers is not drawn yet, so a hold reveals nothing")
+      end
       leader = leaderLib.new({
         name = spec.name,
-        trigger = modifierTriggerLib.new({ mods = spec.mods }),
+        trigger = modifierTriggerLib.new({ mods = spec.mods, sealsOverLists = hostsListKey[spec.name] == true }),
         policy = spec.policy,
         listOpen = anyListShowing,
         predicates = ownPredicates,
@@ -1759,7 +1781,7 @@ function obj.run(olm, cfg)
   end
   -- The plain leader, a modifier trigger with an empty base set, so a keymap row with no leader is
   -- claimed through hs.hotkey on its own modifiers exactly as the binder used to claim it itself.
-  -- Its policy is empty, no tap, no contexts, no sheet, and it is never held, so a waiting action
+  -- Its policy is empty, no tap, no sheet, and it is never held, so a waiting action
   -- on a plain combo runs at once.
   local plainLeader = leaderLib.new({
     trigger = modifierTriggerLib.new({ mods = {} }),
@@ -2287,13 +2309,11 @@ function obj.run(olm, cfg)
   local listLeaderNames = {}
   do
     local seen = {}
-    local held = {}
-    for _, spec in ipairs(leaderSpecs) do
-      if spec.held then held[spec.name] = true end
-    end
+    local known = {}
+    for _, spec in ipairs(leaderSpecs) do known[spec.name] = true end
     for _, block in pairs(plan.contexts or {}) do
       for _, b in ipairs(block.bindings or {}) do
-        if b.chord ~= false and b.leader and held[b.leader] and not seen[b.leader] then
+        if b.chord ~= false and b.leader and known[b.leader] and not seen[b.leader] then
           seen[b.leader] = true
           listLeaderNames[#listLeaderNames + 1] = b.leader
         end
@@ -2314,6 +2334,9 @@ function obj.run(olm, cfg)
         spec.inUse = true
         leaderList[#leaderList + 1] = leader
         leadersByName[spec.name] = leader
+        if not spec.held and hostsListKey[spec.name] then
+          sealingModifierLeaders[#sealingModifierLeaders + 1] = leader
+        end
         if spec.held then
           activeLeaderNames[#activeLeaderNames + 1] = spec.catalogName
           -- A leader on a function key is heard as it is and has no target, so it is no row.
@@ -2487,7 +2510,8 @@ function obj.run(olm, cfg)
     end
     local sheets = {}
     for _, spec in ipairs(leaderSpecs) do
-      if spec.policy.sheet and spec.inUse then
+      -- A held leader alone, since a sheet on a leader of modifiers is not drawn yet.
+      if spec.policy.sheet and spec.inUse and spec.held then
         local layout = leaderLib.sheetLayout(spec.policy, cheatSheetAtom.DEFAULTS, spec.heading)
         local rows = hintsLib.sheetRows(keymap, plan, spec.name, { registry = wiredRegistry })
         sheets[#sheets + 1] = {

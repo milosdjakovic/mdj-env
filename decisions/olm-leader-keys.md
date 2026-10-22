@@ -13,7 +13,9 @@ memory honest. A thirty second staleness window releases a hold that has gone si
 second once `hs.eventtap.isSecureInputEnabled()` answers true or the tap is no longer enabled,
 starting the tap again in the second case. Each recovery writes one ChordKey console line naming
 its cause. Hyper does nothing in a password field, since secure input hides every tap, and no
-code at this layer changes that.
+code at this layer changes that. Since phase 3 of `docs/PLAN-LEADERS.md` a person may instead
+write Hyper as the four real modifiers, the form Karabiner produces, and it keeps its roles, its
+list keys and its behaviour, with Caps Lock then left unremapped.
 
 ## Rejected
 
@@ -128,3 +130,23 @@ held trigger, and `tapTogglesCapsLock` is retired with a problem line. Every exi
 unchanged, `keymap-fixture-heldkeys` is new, and `test/keyremap.lua` tests the allocation and
 the real command. The live load was clean, hidutil held only Caps Lock to F18 and Right Option to
 F16, and Milos confirmed the launcher, the sheet and the tap.
+
+### 2026-10-22 15:40
+
+Phase 3 landed. A shipped name may change kind, so `hyper = { mods = { "shift", "ctrl", "alt",
+"cmd" } }` is a modifier Hyper that keeps its shipped behaviour and leaves the remap. Every leader
+is now known inside the root by its name upper cased whatever its kind, which is what kept every
+existing golden identical, and roles and the list role land on any leader. Behaviour fields reach a
+modifier leader, and under `drivenRepeat` its hotkey hands a repeating handler its depth. A sheet on
+one is a routine note until phase 4. Before building the seal, a probe in the live config posted one
+synthetic chord with a key down tap and an `hs.hotkey` both on it. The tap saw the chord first, and
+when it swallowed the chord the hotkey never fired. So no open and close signal was needed. A
+modifier leader hosting a list key says `sealsOverLists`, which covers the legacy chooser where its
+hotkey still fires, and over the default chooser the root's field watcher claims any other chord
+under it, so Hyper and a digit or an arrow no longer picks or moves a row. Milos accepted one limit
+of a four modifier Hyper. A binding that adds a modifier Hyper already holds is the same press as
+the plain one, which on this keymap is Hyper Shift 4 and the Hyper Command j and k preview scroll in
+the clipboard and file search, so the existing warning names each and a person moves them in
+`config/keymap.lua`. `keymap-fixture-modhyper` and its goldens are new, the live load was clean,
+hidutil held only Caps Lock to F18 and Right Option to F16, and Milos confirmed the launcher, the
+sheet and the tap.

@@ -4,7 +4,7 @@ Configuration in `dotfiles/hammerspoon/.hammerspoon/`:
 - `init.lua` - Entry point, holding this machine's own data and preferences plus the one call into Olm
 - `config/` - User-editable configuration (pure data)
   - `apps.lua` - App bundle ID registry
-  - `keymap.lua` - Every key and alias this person sets, one file Olm owns and reads as `cfg.keymap`, never a plugin. `keys` maps a chord, a leader or modifiers joined by `+` with the key last, to an action id such as `vpn.open`, `apptoggler.Safari` or `systemsettings.General`, or to `false` to free it, and the app toggles live there. `leaders` names a set of real modifiers as a leader of its own, `roles` moves a role to another held leader, and `aliases` replaces a plugin's launcher words. Empty means the shipped keys exactly, see the file's own header and `Spoons/Olm.spoon/lib/keymap.lua`
+  - `keymap.lua` - Every key and alias this person sets, one file Olm owns and reads as `cfg.keymap`, never a plugin. `keys` maps a chord, a leader or modifiers joined by `+` with the key last, to an action id such as `vpn.open`, `apptoggler.Safari` or `systemsettings.General`, or to `false` to free it, and the app toggles live there. `leaders` names a set of real modifiers as a leader of its own, `roles` moves a role to another leader, and `aliases` replaces a plugin's launcher words. Empty means the shipped keys exactly, see the file's own header and `Spoons/Olm.spoon/lib/keymap.lua`
   - `plugins.lua` - One entry per plugin identity, holding that plugin's overrides of its manifest defaults, its person supplied data and its spoon global, or `false` to switch it off. Only a plugin under `plugins/` can be switched off, a host written `false` is refused with a console line, and a switch saved by the OLM settings page under `Olm.disabledPlugins` joins these, see `Spoons/Olm.spoon/lib/pluginswitch.lua`
   - `settings.lua` - Global settings (margins, timing)
   - `workspaces/` - Workspace definitions (dev.lua, vicert.lua)
@@ -193,7 +193,8 @@ A held leader is "active" only while some **bound row uses it**. The leaders tab
 consumer, so the dependency points one way. A plugin's defaults name a role, `app` or
 `window`, and every default list key rides the `list` role. The app and list roles land on
 HYPER and the window role on META, and the `roles` section of `config/keymap.lua` moves any of
-them to another held leader. `root/compose.lua` builds the keymap,
+them to another leader, held or modifier. Every leader is known by its name upper cased whichever
+kind it is. `root/compose.lua` builds the keymap,
 asks it which leaders its bound rows and list keys use, `lib/keymap.lua`'s `leadersInUse`, and
 applies the remap for exactly those through `lib/keyremap.lua`, so the leader list, the engines
 the binder reaches, the sheets and the leaders hosting list keys all follow one answer. So moving all
@@ -280,10 +281,14 @@ with `chord = false`, Backspace leaving a hosted list, is a manifest fact and no
 setting. `config/keymap.lua` ships no list entry, and `Spoons/Olm.spoon/test/keymap-fixture-lists.lua`
 with its golden proves the layer offline, `keymap-fixture-listrole.lua` the list role moved and
 `keymap-fixture-listleaders.lua` explicit list chords on several leaders.
-`fn` is refused on a held leader, the keypad plus is `pad+` and the main row plus is `shift+=`. A name under `leaders`, `nav = { "shift", "ctrl" }`, is a leader of its own on the
-modifier trigger with that base set, read as Nav on a launcher row the way Hyper is, with no
-sheet and no tap, and its slot is the whole combination, so it collides with the same plain
-combo. Every entry Olm cannot read is a problem line naming it, and
+`fn` is refused on a held leader, the keypad plus is `pad+` and the main row plus is `shift+=`. A name under `leaders`, `nav = { mods = { "shift", "ctrl" } }`, is a leader of its own on the
+modifier trigger with that base set, read as Nav on a launcher row the way Hyper is, with no tap,
+and its slot is the whole combination, so it collides with the same plain combo. A shipped name
+may take `mods` too, `hyper = { mods = { "shift", "ctrl", "alt", "cmd" } }` being Hyper arriving as
+four real modifiers from Karabiner or a hand, which leaves Caps Lock unremapped and keeps the
+ranking and the sheet fields Hyper ships. Every default list key then rides that Hyper as a field
+key, and `Spoons/Olm.spoon/test/keymap-fixture-modhyper.lua` with its goldens proves it offline.
+A sheet on a leader of modifiers is not drawn yet. Every entry Olm cannot read is a problem line naming it, and
 `Spoons/Olm.spoon/test/keymap-fixture.lua` with its goldens proves a whole keymap offline. The window leader binds
 onto the one keycode the root configured it with, so a plugin never sees a keycode. Every
 leader shares one resolver that knows modifiers, with optional per binding `mods`, an exact match on shift, ctrl, alt and cmd,
@@ -318,8 +323,10 @@ only its bindings for the open list and swallows every other key, so with the la
 Hyper and A or B or C or E is swallowed alike while the launcher's own Hyper keys act, and META,
 which binds no list key here, is inert. The default chooser's field yields every key pressed under
 a held leader to that leader, so META and a letter over a list is swallowed rather than typed. The
-rule is a held leader's only, the held trigger's `sealsOverLists`, so a plain combination such as
-Option and backtick, or a chord on a named modifier leader, fires over a list as it does anywhere.
+rule is a leader whose trigger answers `sealsOverLists`, a held leader always and a modifier leader
+when it hosts a list key, so Hyper as four modifiers and a digit over a list does nothing. A plain
+combination such as Option and backtick, or a chord on a modifier leader hosting no list key,
+fires over a list as it does anywhere.
 Outside lists an unbound key still passes through. That
 rule replaced two policy fields, `sealedOverLists` on HYPER and `quietOverLists` on META and
 SUPER, which are refused by name now with `contexts`, the field that once made HYPER the one

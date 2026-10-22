@@ -87,7 +87,7 @@ local GLOBAL = "global"
 
 --- obj.LIST_ROLE
 --- The role every default list key rides, Olm's own all layer and every manifest's surface keys,
---- which the roles section of config/keymap.lua may move to another held leader as it moves app
+--- which the roles section of config/keymap.lua may move to any leader as it moves app
 --- and window. A list key the person writes names its own leader and rides no role.
 obj.LIST_ROLE = "list"
 
@@ -345,20 +345,21 @@ local function shippedLeaders(shipped)
     local mods = nil
     if entry.mods ~= nil then mods = obj.mods(entry.mods) end
     merged[lower] = { name = lower, key = entry.key, mods = mods, policy = policy, shipped = true,
-      shippedKey = entry.key }
+      shippedKey = entry.key, shippedMods = mods }
   end
   return merged
 end
 
 -- Puts the merged leaders into out.leaders, the held ones first and then the modifier ones, each
--- in name order, and answers which names are held, to the name they are known by upper cased, and
--- what a chord may open with, true for a held leader or the modifiers a named one holds.
+-- in name order, and answers every leader's name, to the name it is known by upper cased, held or
+-- modifier alike, which is the one identity a role resolves to, and what a chord may open with,
+-- true for a held leader or the modifiers a named one holds.
 local function listLeaders(merged, out)
-  local held, chordLeaders = {}, {}
+  local identities, chordLeaders = {}, {}
   for _, lower in ipairs(sortedKeys(merged)) do
     local entry = merged[lower]
+    identities[lower] = lower:upper()
     if entry.key ~= nil then
-      held[lower] = lower:upper()
       chordLeaders[lower] = true
       out.leaders[#out.leaders + 1] = entry
     end
@@ -370,7 +371,7 @@ local function listLeaders(merged, out)
       out.leaders[#out.leaders + 1] = entry
     end
   end
-  return held, chordLeaders
+  return identities, chordLeaders
 end
 
 --- obj.readConfig(config, opts) -> { keys, leaders, roles, aliases, lists, allocation, problems, notes }
@@ -391,11 +392,11 @@ end
 --- leaders is every leader in use, shipped and named, as a list of { name, key or mods, remapTo,
 --- policy, shipped }, the held ones first and then the modifier ones, each sorted by name. policy is the
 --- leader's behaviour fields as written, laid over the shipped entry's field by field, and the
---- root checks their types. roles maps a role word to the name, upper cased, of the held leader it
---- moves to. allocation is the last answer opts.allocate gave, nil when none was handed. notes are
---- routine lines for the root to log. aliases maps a
---- plugin or host identity to its words, the identity checked by the caller, which knows the
---- plugins. keys is a list, sorted by the chord as written, of { text, leader, mods, key, free,
+--- root checks their types. roles maps a role word to the name, upper cased, of the leader it
+--- moves to, held or modifier, which is the one identity every reader of a role compares.
+--- allocation is the last answer opts.allocate gave, nil when none was handed. notes are routine
+--- lines for the root to log. aliases maps a plugin or host identity to its words, the identity
+--- checked by the caller, which knows the plugins. keys is a list, sorted by the chord as written, of { text, leader, mods, key, free,
 --- owner, action }, free true for an entry answering false. lists maps a list's context name, or
 --- all, to a list sorted by the chord as written of { text, leader, mods, key, free, action }, the
 --- action a surface action name rather than an id, since a list key acts on whichever list is
@@ -440,8 +441,9 @@ function obj.readConfig(config, opts)
   -- other. The behaviour fields merge one by one over the shipped entry of the same name, so a
   -- person changing one keeps the rest. A name the person adds starts with every behaviour off.
   -- No name is reserved, a name is refused only when a chord could not tell it from a modifier or
-  -- a role, or when it is not a word at all. This phase lets a shipped name keep its kind, a
-  -- modifier Hyper lands in a later phase.
+  -- a role, or when it is not a word at all. A shipped name may change kind, hyper written
+  -- with mods is a modifier leader and leaves the held allocation, and the behaviour fields it
+  -- ships stay unless the entry says otherwise.
   local leaders = section("leaders")
   local named = {}
   for _, name in ipairs(sortedKeys(leaders)) do
@@ -504,10 +506,6 @@ function obj.readConfig(config, opts)
             .. (#known > 0 and ", the keys it knows are " .. table.concat(known, ", ") or "")
         end
       end
-      if not bad and not isNew and (mods or key) and (merged[lower].key ~= nil) ~= (key ~= nil) then
-        bad = "gives the built in leader " .. lower .. " a different kind than it ships, and a modifier "
-          .. "Hyper lands in a later phase"
-      end
       if bad then
         problem(where, bad .. ", so " .. (isNew and "it is ignored" or "the shipped default is kept"))
       else
@@ -554,7 +552,8 @@ function obj.readConfig(config, opts)
           problem("leaders " .. issue.name, issue.why .. ", so "
             .. (entry.shipped and "the shipped default is kept" or "it is ignored"))
           if entry.shipped then
-            entry.key, entry.remapTo, entry.person = entry.shippedKey, nil, nil
+            -- Both halves go back, since the person's entry may have changed the kind.
+            entry.key, entry.mods, entry.remapTo, entry.person = entry.shippedKey, entry.shippedMods, nil, nil
           else
             merged[issue.name] = nil
           end
@@ -567,7 +566,7 @@ function obj.readConfig(config, opts)
     for _, note in ipairs(result.notes) do out.notes[#out.notes + 1] = note end
     out.allocation = result
   end
-  local held, chordLeaders = listLeaders(merged, out)
+  local identities, chordLeaders = listLeaders(merged, out)
 
   local roles = section("roles")
   for _, role in ipairs(sortedKeys(roles)) do
@@ -576,10 +575,10 @@ function obj.readConfig(config, opts)
     if not roleWord[role] then
       problem(where, "is not a role the roles section moves, which are "
         .. table.concat(opts.roleWords or {}, ", ") .. ", so it is ignored")
-    elseif type(value) ~= "string" or not held[value:lower()] then
-      problem(where, "names '" .. tostring(value) .. "', which is no held leader, so the role keeps its default")
+    elseif type(value) ~= "string" or not identities[value:lower()] then
+      problem(where, "names '" .. tostring(value) .. "', which is no leader, so the role keeps its default")
     else
-      out.roles[role] = held[value:lower()]
+      out.roles[role] = identities[value:lower()]
     end
   end
 

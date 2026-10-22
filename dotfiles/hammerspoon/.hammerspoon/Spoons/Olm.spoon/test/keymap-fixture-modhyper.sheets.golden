@@ -1,0 +1,17 @@
+window	group	WINDOW MANAGEMENT
+window	row	1	,	Previous Display	multipleDisplays
+window	row	2	.	Next Display	multipleDisplays
+window	row	3	←	Left Half	-
+window	row	4	→	Right Half	-
+window	row	5	↑	Full Height	-
+window	row	6	↓	Reasonable Size	-
+window	row	7	↩	Maximize	-
+window	row	8	Z	Small Size	-
+window	row	9	=	Increase Size	-
+window	row	10	-	Decrease Size	-
+window	row	11	A	Move Left	-
+window	row	12	D	Move Right	-
+window	row	13	W	Move Up	-
+window	row	14	S	Move Down	-
+window	row	15	C	Center	-
+window	row	16	H	Hide All Except Focused	-

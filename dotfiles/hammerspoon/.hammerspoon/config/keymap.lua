@@ -11,8 +11,8 @@
 --   sheet reads it. The leaders are hyper, meta and super, the three held keys, and any name in
 --   the leaders section below. The modifiers are shift, ctrl, alt, cmd and fn. A chord may hold a
 --   leader and modifiers, hyper+shift+4, or modifiers alone, ctrl+alt+C. Words and the key are
---   compared without case. fn is refused on hyper, meta and super, which compare only the other
---   four, and stays legal in a chord of modifiers alone or on a named leader. The plus on the
+--   compared without case. fn is refused on a held leader, which compares only the other
+--   four, and stays legal in a chord of modifiers alone or on a leader of modifiers. The plus on the
 --   main row is written as its unshifted key, shift+=, and the keypad plus is pad+, hyper+pad+.
 --   An action is the plugin or host identity, a dot and the action name, vpn.open,
 --   windowmanager.leftHalf, clipboard.appendCopy, apptoggler.Safari for an app in
@@ -55,19 +55,25 @@
 -- keeps the rest. A new name starts with every behaviour off. No name is reserved, a name is
 -- refused only when it is not one word of letters and digits, is a modifier or role word, or
 -- repeats another in a different case. A leader of modifiers reads like hyper in a chord and on a
--- launcher row, it has no cheat sheet and no tap, since holding real modifiers is ordinary typing,
--- and its chords are taken from every app, so it suits combinations the apps here leave free. A
--- leader no chord uses is said in one routine console line. A bare list, nav = { "shift", "ctrl" },
--- is still read as mods with a routine console line saying to write mods. For now a shipped name
--- keeps the kind it ships, so giving hyper mods is refused with a problem line, a modifier Hyper
--- lands in a later phase.
+-- launcher row. It has no tap, since holding real modifiers is ordinary typing, a sheet on one is
+-- not drawn yet, and its chords are taken from every app, so it suits combinations the apps here
+-- leave free. Its behaviour fields work, ranked as anywhere and drivenRepeat counting the
+-- hotkey's own repeats. A modifier leader that hosts a list key seals over an open list, so none
+-- of its chords acts beneath one. A leader no chord uses is said in one routine console line. A
+-- bare list, nav = { "shift", "ctrl" }, is still read as mods with a routine console line saying
+-- to write mods. A shipped name may take the other kind. hyper written with mods stops being
+-- Caps Lock, which is then not remapped, and keeps the behaviour it ships, so a person whose
+-- Karabiner sends Hyper as the four modifiers writes the first line below. A role and the list
+-- role land on any leader, held or modifier. With the four modifiers, a chord asking for shift,
+-- ctrl, alt or cmd beside hyper cannot be told from the plain one, and is said in the console.
+--     hyper = { mods = { "shift", "ctrl", "alt", "cmd" } },
 --     pedal = { key = "f13", sheet = true },
 --     hyper = { key = "capsLock", remapTo = "f19" },
 --     nav = { mods = { "shift", "ctrl" } },
 --     meta = { drivenRepeat = false },
 --     super = { key = "rightCommand", sheet = false },
 --
--- roles moves every default on a role to another held leader at once. A plugin's defaults name a
+-- roles moves every default on a role to another leader at once. A plugin's defaults name a
 -- role, app or window, never a leader, and every default list key rides the list role. app and
 -- list land on hyper and window on meta unless this says otherwise. A held leader is remapped
 -- only while some chord uses it, so moving the window role to super claims Right Command and frees

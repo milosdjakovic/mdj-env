@@ -7,15 +7,16 @@
 -- wanted it and there is no passthrough to write, and a combination that is claimed is claimed
 -- machine wide.
 --
--- The base set may be empty, and today it always is. A keymap row with no leader, a plain combo
--- such as Option and backtick, is a binding on the unnamed modifier leader whose base set is
--- empty, so the combo is the binding's own modifiers and nothing more. A person naming a set of
--- modifiers as a leader of their own, phase 5 of the keymap plan, is the same trigger handed a
--- base set, with no edit here and none in lib/leader.lua.
+-- The base set is empty for the plain leader. A keymap row with no leader, a plain combo such as
+-- Option and backtick, is a binding on the unnamed modifier leader whose base set is empty, so the
+-- combo is the binding's own modifiers and nothing more. A leader of modifiers a person names, or
+-- Hyper written as the four modifiers, is the same trigger handed a base set, with no edit in
+-- lib/leader.lua.
 --
 -- This was the chord shape of lib/hyperkey.lua until phase 3, carved out with two things left
--- behind. The hold reveal is gone, since holding Shift and Control is ordinary typing and a
--- sheet there would flash in use, which decisions/olm-keymap.md rejected. And a claimed combo
+-- behind. The hold reveal is gone for now, since holding Shift and Control is ordinary typing and
+-- a sheet there would flash in use, which decisions/olm-keymap.md rejected, and a leader that
+-- states one will get it opt in. And a claimed combo
 -- resolves against the modifiers it was claimed on rather than against what the hardware reports
 -- by the time the callback runs, since hs.hotkey fires only on exactly that combination and a
 -- finger lifted a moment early must not turn a press into nothing.
@@ -34,6 +35,8 @@ local log = hs.logger.new("Leader", "info")
 
 --- obj.new(spec) -> trigger
 ---   spec.mods  the base set of real modifiers, empty or absent for a plain combo
+---   spec.sealsOverLists  true when this leader hosts a list key, which the root knows once the
+---              lists are laid out, so a key it resolves over an open list is the bound no op
 function obj.new(spec)
   spec = spec or {}
   local baseMods = spec.mods or {}
@@ -97,9 +100,17 @@ function obj.new(spec)
 
   local function bindCombo(host, binding, combo, id, repeats)
     local flags, code = flagsFor(combo), binding.code
+    -- A leader stating drivenRepeat hands a repeating handler how deep into the hold it is, 0 on
+    -- the press and one more per OS autorepeat, the same argument the held path gives. Here the
+    -- hotkey's own repeat callback is the schedule, so the depth counts those, reset on each press.
+    local driven = host:_repeatMode() == "driven"
+    local depth = 0
     local function press()
+      depth = 0
       local fn = host:_onKey(code, flags)
-      if fn then fn() end
+      if fn then
+        if driven then fn(0) else fn() end
+      end
     end
     -- A combo no binding repeats is claimed with exactly the three arguments a plain hs.hotkey
     -- always had. The repeat callback resolves at each repeat, so it runs whichever binding answers
@@ -107,7 +118,14 @@ function obj.new(spec)
     if repeats then
       return hs.hotkey.bind(combo, binding.key, press, nil, function()
         local fn, rep = host:_onKey(code, flags)
-        if fn and rep then fn() end
+        if fn and rep then
+          if driven then
+            depth = depth + 1
+            fn(depth)
+          else
+            fn()
+          end
+        end
       end)
     end
     return hs.hotkey.bind(combo, binding.key, press)
@@ -149,7 +167,23 @@ function obj.new(spec)
     return true
   end
 
-  function trigger.owns() return trigger.isActive() end
+  -- Whether a key down belongs to this leader. Handed an event it reads the flags the event itself
+  -- carries, which is the answer for a key already in flight, since the live keyboard is read a
+  -- moment later than the event and a tap asking about a chord needs what that chord held. Handed
+  -- none it reads the live keyboard, as isActive does.
+  function trigger.owns(ev)
+    if ev == nil or type(ev.getFlags) ~= "function" then return trigger.isActive() end
+    if #baseMods == 0 then return false end
+    local flags = ev:getFlags() or {}
+    for _, m in ipairs(baseMods) do
+      if not flags[m] then return false end
+    end
+    return true
+  end
+
+  -- A leader hosting a list key seals over an open list, so a key it resolves there is the bound
+  -- no op and nothing global fires beneath the list, the rule a held leader has always had.
+  trigger.sealsOverLists = spec.sealsOverLists == true
 
   function trigger.bound(host, binding)
     if started then claim(host, binding) end

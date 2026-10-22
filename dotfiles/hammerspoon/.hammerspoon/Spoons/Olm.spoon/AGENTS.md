@@ -216,15 +216,18 @@ none. Which held leaders are in use is `lib/keymap.lua`'s `leadersInUse`, every 
 global row or a list key sits on, and the remap, the engines the binder reaches, the sheets and
 the leaders hosting list keys all read that one answer, so a chord on `super` claims Right Command and
 moving every window default off META frees Right Option. An entry stating `mods` is
-the modifier trigger handed that set as its base, with an empty policy, no sheet and no tap, and an
-entry stating `key` is the held trigger. The reader in `lib/keymap.lua` tells the two apart by the
+the modifier trigger handed that set as its base, with the policy its entry states and no tap, and
+an entry stating `key` is the held trigger. The reader in `lib/keymap.lua` tells the two apart by the
 field, refuses both or neither, lays a person's entry over the shipped one of the same name in two
 halves, the trigger fields replacing together and the behaviour fields merging one by one, and
-reserves no name. A bare list is read as `mods` with a routine note. For now a shipped name keeps
-its kind, so giving `hyper` mods is a problem line, and roles and the list role still land on held
-leaders only, both later phases of `docs/PLAN-LEADERS.md`. A held leader's identity is its name
-upper cased inside the root, `HYPER`, which is what the roles and the remap record spell, while a
-chord spells it lowercase. The physical key stays in the entry, and `lib/keyremap.lua` says which
+reserves no name. A bare list is read as `mods` with a routine note. A shipped name may change
+kind, so `hyper = { mods = { "shift", "ctrl", "alt", "cmd" } }` makes Hyper a modifier leader, the
+Karabiner form. It then leaves the held allocation, so Caps Lock is not remapped, and keeps its
+shipped `ranked`, `sheet` and `sheetLayout`. A role and the list role may land on any leader, held
+or modifier. Every leader's identity is its name upper cased inside the root, `HYPER`, whichever
+kind it is, which is what the roles, the remap record and the sheet heading spell, while a chord
+spells it lowercase. One scheme for both kinds is what keeps a role naming the same leader when
+Hyper changes kind. The physical key stays in the entry, and `lib/keyremap.lua` says which
 function key the engine listens on for each held leader, `KeyRemap.allocate`. That file keeps the
 allow list of keys a held leader may name, `USAGE`, which is Caps Lock, Right Command, Right Option,
 Right Control and F13 to F20, so admitting another key is one row there and the reader in
@@ -257,10 +260,14 @@ with `lib/leader.lua`'s `sheetLayout` filling a leader that states none with the
 two columns. No shipped layout states a title. The heading over a sheet's rows that name no group
 follows the role the leader holds, `policy.roleTitles` keyed by role and read by `lib/leader.lua`'s
 `sheetHeading`, so whichever leader holds the window role reads WINDOW MANAGEMENT, HYPER holding
-the app role reads ACTIONS, and a held leader holding no role reads as its own name, SUPER or META.
+the app role reads ACTIONS, and a leader holding no role reads as its own name, SUPER or META.
 A title a person states in one leader's layout still wins there. A person's `roleTitles` is merged
 by role through `leader.roleTitles` rather than the defaults merge, which would read an empty table
-as a list replacing the shipped titles. `ranked` is HYPER's,
+as a list replacing the shipped titles. Behaviour is the leader's whichever kind it is. `ranked`
+is the resolver's and applies to a modifier leader unchanged. `drivenRepeat` on a modifier leader
+hands a repeating handler its depth, 0 on the press and one more per autorepeat of the hotkey,
+reset on each press. A `sheet` on a modifier leader is not drawn yet and is said once as a routine
+line, the reveal being a later phase of `docs/PLAN-LEADERS.md`. `ranked` is HYPER's,
 `drivenRepeat` is META's, and SUPER ships META's policy because it is the documented other home
 of the window role. `ranked` is the global tier rule below. What a leader does over an open list
 and which leader a list key sits on are not policy since phase A of the list keys addendum in
@@ -291,9 +298,16 @@ keys. Inside an open list one rule covers every held leader since phase A of the
 addendum. The leader answers only its bindings for the open list and swallows every other key, so
 with the launcher open Hyper and A, B, C or E are all swallowed while the launcher's keys act, and
 META, which binds no list key here, is inert, the chooser field yielding every key under a held
-leader in use so none is typed. The rule seals held leaders only, the held trigger answering
-`sealsOverLists`, so the plain leader and a named modifier leader fire over a list as anywhere.
-Outside lists an unbound key still passes through.
+leader in use so none is typed. The rule seals a leader whose trigger answers `sealsOverLists`,
+which the held trigger always does. The modifier trigger does when its leader hosts a list key, a
+fact the root knows only once `applyLists` has run and hands over at build. Over the legacy
+chooser a hotkey that fires then resolves to the bound no op. Over the default chooser the field's
+tap sees a chord before any hotkey and a claimed chord never reaches one, so the root's `listKeys`
+claims, as a no op, a key down the field watcher did not take whose own flags hold the whole set of
+a sealing modifier leader in use, through the leader's `owns`, which the modifier trigger answers
+from the event's flags when handed an event. So Hyper as four modifiers and a digit, an arrow or
+Return picks and moves nothing. The plain leader and a modifier leader hosting no list key fire
+over a list as anywhere. Outside lists an unbound key still passes through.
 It replaced HYPER's `sealedOverLists` and META's and SUPER's `quietOverLists`.
 
 **No hold reveals a sheet over an open list, on any leader.** Hyper's reveal lived in the root
@@ -337,8 +351,10 @@ key names in use, `keymap.fallbackLeaders`. Two of the
 person's own on one slot are a collision named by entry. An entry naming a plugin that exists and
 is switched off this load is a note rather than a problem, since switching a plugin off takes its
 keys with it. The slot of a row on a named modifier leader is the whole combination with no
-leader, so `nav+T` and `ctrl+shift+T` are one slot. `roles` is merged over app on HYPER and window
-on META by hand, since `lib/defaults.lua`'s merge reads an empty table as a list that replaces. The
+leader, so `nav+T` and `ctrl+shift+T` are one slot. A modifier Hyper has no sub modifiers to give,
+so a row asking for Shift or Command beside it, Hyper and Shift and 4 for one, cannot be told from
+the plain row, the modifier trigger says so once and the collision check names the pair. `roles`
+is merged over app on HYPER and window on META by hand, since `lib/defaults.lua`'s merge reads an empty table as a list that replaces. The
 `aliases` section is merged over the person's overrides before the plan resolves, so the
 resolver, the registrar's collision check and every row hint read one answer. `cfg.leaders` is
 retired and named.
@@ -349,7 +365,7 @@ right after the plan resolves and before the hint bar, the action panel, the key
 contexts read them, so all of them read one answer. It first places every default binding, one
 naming no leader, on the leader the `list` role lands on, `keymap.LIST_ROLE`, HYPER unless the
 `roles` section moves it, so every reader after it spells and binds a binding's own leader and
-`w.contexts` binds each on the held leader it names. The shared verbs carry `shared` on their
+`w.contexts` binds each on the held leader it names, a list key on a modifier leader being a field key. The shared verbs carry `shared` on their
 binding, `primary`, `selectNext`, `selectPrev`, `close` and `openActionPanel`, and `lib/surface.lua`
 builds them on the keys of Olm's own `all` layer, `keymap.listDefaults`, handed in through the
 resolver's `listKeys`, so that file holds no key and the dry gate refuses one written there. A

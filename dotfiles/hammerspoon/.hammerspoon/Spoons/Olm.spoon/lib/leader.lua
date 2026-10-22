@@ -76,7 +76,8 @@ obj.noop = noop
 --                       among catch alls the first bound answers rather than the last. List
 --                       bindings are ranked on every leader whatever this says, see _resolve.
 --   sheet               a hold reveals this leader's cheat sheet, drawn by the one sheet host. Absent
---                       means a hold reveals nothing.
+--                       means a hold reveals nothing. On a leader of modifiers it is accepted and
+--                       not drawn yet.
 --   sheetLayout         how that sheet is laid out, a table of the SHEET_FIELDS below. Absent means
 --                       the defaults, and it means nothing on a leader with no sheet.
 --   holdDelay           seconds a hold waits before it reveals, else the engine's own.
@@ -557,9 +558,11 @@ end
 -- anything they leave unresolved is the bound no op, so nothing fires underneath a list and nothing
 -- leaks past it, on every leader.
 --
--- The rule is for a held leader, one whose trigger says it seals over lists. A leader on real
--- modifiers, the plain leader or one the person named, is never sealed, so its combination fires
--- over a list exactly as it does anywhere else.
+-- The rule is for a leader whose trigger says it seals over lists. A held leader always does. A
+-- leader on real modifiers does when it hosts a list key, which the root knows once the lists are
+-- laid out and states to the trigger, so its other keys are the bound no op over a list. The plain
+-- leader and a modifier leader hosting no list key never seal, so their combination fires over a
+-- list exactly as it does anywhere else.
 function obj:_onKey(code, flags)
   local seals = self._trigger ~= nil and self._trigger.sealsOverLists == true
   local over = (seals and self._listOpen and self._listOpen()) and true or false
@@ -611,7 +614,8 @@ end
 
 --- Leader:isActive() -> bool
 --- Method
---- True while this leader is physically asserted, the key held or every base modifier held.
+--- True while this leader is physically asserted, the key held or every base modifier held, read
+--- from the live keyboard.
 --- A synthetic keystroke waits on it, since the shared tap swallows every key while a held leader
 --- is down.
 function obj:isActive()
@@ -622,7 +626,8 @@ end
 --- Method
 --- Whether a key down event belongs to this leader right now, so a consumer that claims every key
 --- for itself, the default chooser's field among them, can let this one through to the dispatch
---- downstream of it. The consumer is handed a predicate over this and never names the leader.
+--- downstream of it. The consumer is handed a predicate over this and never names the leader. A
+--- trigger on real modifiers reads the flags the event itself carries.
 function obj:owns(ev)
   return self._trigger ~= nil and self._trigger.owns(ev) and true or false
 end
