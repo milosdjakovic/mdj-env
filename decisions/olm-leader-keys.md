@@ -2,6 +2,8 @@
 
 Status. Caps Lock stays F18 through hidutil, and a held leader is released whenever secure input
 is on or the tap was disabled, because typing after a lost key-up used to keep it held forever.
+Every leader is configurable since `docs/PLAN-LEADERS.md` completed on 2026-10-22, so Hyper may
+also be the four real modifiers with its keys, list keys and sheet intact.
 
 ## Now
 
