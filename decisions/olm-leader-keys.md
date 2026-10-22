@@ -26,6 +26,8 @@ code at this layer changes that.
   2026-10-22. Its driver sits below secure input and is the only route to a real Hyper on one key,
   but Milos chose not to take on the driver, and a modifier leader has no cheat sheet, no tap and
   no role today. Reopening it means lifting those three limits of the modifier trigger first.
+  Reopened in part 2026-10-22 14:22. `docs/PLAN-LEADERS.md` lifts the three limits so a Hyper of
+  four real modifiers works in Olm, while installing Karabiner stays outside the plan.
 - **Adding Fn to a modifier Hyper.** 2026-10-22. `hs.hotkey` cannot claim fn, and macOS already
   answers fn with letters and arrows itself.
 - **Stamping the four modifiers onto every key while F18 is held.** 2026-10-22, discussed and not
@@ -41,6 +43,18 @@ code at this layer changes that.
   also missed a hold made seconds after secure input turned off with the browser in front. A
   helper that can miss a held key could also release one a finger is still on, so it is not the
   ground truth it was meant to be. The log below has the runs.
+- **Leader behaviour in a separate policy section.** 2026-10-22 14:22. It would keep the leaders
+  section about physical keys only, but one leader would then be read in two places, so behaviour
+  sits in the leader's own entry.
+- **Telling the two kinds of leader apart by the shape of the entry.** 2026-10-22 14:22. A bare
+  list for modifiers and a `key` field for a held key was the first draft, and it made Olm guess
+  from a shape. `mods` and `key` state the kind.
+- **`as`, `via` or `sends` for pinning the remapped function key.** 2026-10-22 14:22. `as` is vague
+  about what it does, and `via` and `sends` read less directly than `remapTo`.
+- **A letter, or any key, as a held leader, with only dangerous keys blocked.** 2026-10-22 14:22. A
+  block list has to guess every key that is dangerous, and a letter as a leader taxes every word
+  typed with it. An allow list of Caps Lock, the right modifiers and F13 to F20 only has to know
+  what is safe, and extra hardware reaches it by sending F13 to F20 from its own firmware.
 
 ## Log
 
@@ -77,3 +91,12 @@ that span never showed, and a second hold made after clicking out of the field, 
 read off, never showed either. Which of a lingering blindness after secure input or the app in
 front explains the second miss was not settled, since either way the helper cannot be trusted and
 it was dropped. The probe source was a scratch file and is not kept.
+
+### 2026-10-22 14:22
+
+`docs/PLAN-LEADERS.md` is written and agreed. Every leader becomes configurable in one leaders
+table with no reserved names, an entry naming its kind with `mods` or `key` and carrying its own
+behaviour, the shipped Hyper, Meta and Super as defaults in that table, `remapTo` to pin a remapped
+function key, and an allow list of Caps Lock, the three right modifiers and F13 to F20 for a held
+key. A Hyper of four real modifiers then keeps its roles, list keys, sealing over lists and sheet.
+Nothing is built yet, and the Now section changes as each phase lands.
