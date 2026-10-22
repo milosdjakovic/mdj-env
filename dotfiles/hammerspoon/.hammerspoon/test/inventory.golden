@@ -366,7 +366,7 @@ scopes.entry name=vpn aliases=v+vpn
 scopes.entry name=wifi aliases=wi+wifi
 scopes.entry name=windowActions aliases=w+window
 scopes.entry name=workspaces aliases=ws+layout
-registry launcherrows count=26
+registry launcherrows count=27
 launcherrows.entry name=aliasDirectory subTitle=Tools · every word that scopes this list (?)
 launcherrows.entry name=appendCopy subTitle=Clipboard · ⌃⌥C
 launcherrows.entry name=audio subTitle=System · switch the sound output or the microphone (au, audio)
@@ -378,6 +378,7 @@ launcherrows.entry name=displayProfiles subTitle=Displays · inspect and manage 
 launcherrows.entry name=dockAutoHide subTitle=System · hides or reveals the Dock (d, dock)
 launcherrows.entry name=emoji subTitle=Tools · Hyper J (e, em, emoji)
 launcherrows.entry name=fileSearch subTitle=Tools · Hyper / (/)
+launcherrows.entry name=keys subTitle=Tools · every key Olm binds
 launcherrows.entry name=lock subTitle=System · Hyper §
 launcherrows.entry name=manageHistory subTitle=Clipboard
 launcherrows.entry name=obsidian subTitle=Tools · search and open notes (ob, obsidian)
