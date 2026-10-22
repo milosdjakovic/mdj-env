@@ -91,3 +91,11 @@ found nothing, because capture reads the probe's answer with `IFS='|'` set and t
 `Miloss-MacBook-Pro` gained `mise` on and `tools` of `node,python,uv`, written by hand from the
 user saying that machine needs python and node only. Its capture had left every piece on its
 default.
+
+**2026-10-22 23:37.** A plan to replace this file's arrangement was written with the user and
+reviewed the same day, `docs/PLAN-MACHINES.md`. `MACHINES` becomes a `machines/` directory with a
+`pieces` file per machine, a module declares overlay seams a machine may fill, and no tool chooses
+its behaviour by the machine it runs on, with DisplayProfiles named as the one exception since it
+writes hardware state it captured itself. The trigger was kanata on this machine, which the user
+wants as a module of its own while Olm stays unaware of it. Nothing here changes until the phases
+land, and each one writes its own entry.
