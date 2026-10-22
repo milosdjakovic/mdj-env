@@ -44,7 +44,7 @@ local function load(rel)
 end
 
 -- A leader with META's shipped policy, on a held trigger over the given engine.
-local WINDOW_POLICY = { drivenRepeat = true, quietOverLists = true }
+local WINDOW_POLICY = { drivenRepeat = true }
 local function freshLeader(engine, policy, predicates)
   local held = load("lib/leader/triggers/held.lua")
   return load("lib/leader.lua").new({
@@ -118,7 +118,7 @@ end
 -- plain OS feel, and nothing else about the leader changes.
 do
   local engine = stubEngine()
-  local leader = freshLeader(engine, { quietOverLists = true })
+  local leader = freshLeader(engine, {})
   leader:start()
   check("a policy that does not drive repeats leaves the engine's own mode",
     engine.registered[KEYS.f16].repeatMode == nil,

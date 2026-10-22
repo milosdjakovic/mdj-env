@@ -292,7 +292,10 @@ action is reachable from the keymap by its descriptor's `name`, its tool's open 
 a list verb by the action name its `surface` gives it, so name actions as a person would write
 them. The keys every list shares, the primary, the two move keys, close and the action panel, are
 Olm's own `all` layer and never a plugin's, so a `surface` names only its primary action and the
-`extra` rows it adds, and a key listed with `chord = false` stays the plugin's own fact. Person supplied policy
+`extra` rows it adds, and a key listed with `chord = false` stays the plugin's own fact. A surface
+key names no leader. Every default list key rides the `list` role, which the person moves like
+any role, and a person's list chord names its own leader, or none at all for a key the open list's
+own field answers, so a plugin never assumes its list keys sit on Hyper. Person supplied policy
 arrives as `needs.data` with `source = "user"`, always optional, always with a `breaks` sentence
 and a working fallback.
 

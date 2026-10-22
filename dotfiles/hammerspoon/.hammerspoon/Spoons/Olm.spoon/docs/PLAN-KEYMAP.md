@@ -592,9 +592,121 @@ Landed on 2026-10-20 after review, a fix round and a live load with Milos pressi
   by `test/keymap-fixture-lists.lua` and its golden, run by `goldens.sh`, and by the lists cases in
   `test/keymap-person.lua`.
 
+## Phases A and B, list keys on any leader
+
+Written 2026-10-22 from the shape agreed with Milos that morning, after the plan above had landed.
+A list key is an ordinary chord that is live only while its list is open. Inside a list is a
+context and not a leader, and the leader is part of the chord exactly as it is for a global key,
+so `lists` accepts any chord `keys` accepts. The facts below were read off main at 5dffd388.
+
+### What is true today
+
+**One leader hosts every list key, chosen by policy.** `root/compose.lua` ships `contexts = true`
+on HYPER alone in `leaderPolicy` at 222 to 228, picks the one held leader whose policy says so as
+`contextSpec` at 958 to 975, and binds every list's keys on it alone at 2346 through
+`w.contexts(contextLeader, bindOneInContext)`. `lib/leader.lua` records a binding's `when` as a
+context at 355 only when the policy turns contexts on, and the modal rule at 476 runs on that
+leader alone.
+
+**Two rules say what a held leader does over a list.** `_onKey` at 523 to 529 reads
+`quietOverLists`, which answers every key with the no op while a list is open, META and SUPER, and
+`sealedOverLists`, which turns an unresolved key into the no op while a list is open, HYPER. The
+modal rule drops every base binding on Hyper while a list's context is live. Together they make the
+launcher's open swallow set, every Hyper key that is not a live list key swallowed, and META inert.
+
+**The person's lists section takes Hyper chords only.** `keymap.applyLists` refuses at 561 any
+entry whose leader is not `opts.listLeader`, the context leader's name. `keymap.listDefaults` at
+492 names no leader, and `keymap.build` gives every list row that one leader at 1047.
+
+**Spelling assumes the one leader.** `hints.chordFor` at 131 spells a binding with no leader by
+`deps.leaderName`, the context leader's word handed in at compose 1786, and no list binding names
+a leader. The action panel and the docked hint bar read `chordFor`. `hints.keyEntries`, which the
+OLM keys page lists, spells a list row by `row.leader`, which is always that leader.
+
+**The chooser field yields to that leader alone.** The default chooser's field tap claims every
+key down while it is up, `field/input.lua` at 196, and gives away only a key the injected
+`yields` answers true for, which the root answers at 518 to 531 from `contextLeader:owns(ev)`.
+The same leader answers the root word `leaderHeld` at 1427 for the BrowserTabs harness.
+
+**A bare key is refused everywhere.** `keymap.parseChord` refuses a chord with neither a leader
+nor a modifier, since a bare key bound globally would be taken from every app.
+
+### The shape
+
+**Phase A, a list chord on any held leader.**
+
+1. Every held leader resolves its own list bindings. A binding stating `when` is a list binding
+   on every leader, and the binder of the contexts, `w.contexts`, binds each one on the engine its
+   chord names. `contexts` stops being a policy field, since which leader a list key sits on is the
+   chord's to say.
+2. One rule over an open list, for every held leader. While any list is open a held leader answers
+   only its bindings for the open list and swallows every other key. It replaces `quietOverLists`
+   and `sealedOverLists`, and on this machine it reproduces both, the launcher's swallow set and
+   META inert. Outside lists nothing changes. A key bound only in a list is swallowed, a global key
+   acts, and an unbound key passes through.
+3. The tier rule stays a per leader fact, as the decision record keeps it, best priority with a
+   gated binding falling out of its tier on Hyper and first exact match on META. With `contexts`
+   gone it needs a name of its own, `ranked`, shipped on HYPER. List bindings are ranked on every
+   leader, since every list shares its move keys and a first match would let a closed list's gated
+   binding swallow the open list's.
+4. List defaults name a role. Olm's own `all` layer and every manifest's surface keys ride the
+   `list` role, which lands on HYPER unless `roles = { list = "meta" }` moves it, the root stamping
+   each default binding with that leader before the person's section is laid over it. An explicit
+   chord in `lists` moves only itself. `keymap.leadersInUse` already counts list rows, so Caps Lock
+   stays remapped only while some row uses hyper, and the tap toggle stays HYPER's policy.
+5. Collisions inside a list compare leader, modifiers and key, so `hyper+j` and `meta+j` in one
+   list are two slots. A list chord still shares a slot with a global chord on purpose.
+6. Every reader spells a list chord by its own leader. `chordFor` reads the stamped leader, so the
+   hint bar, the action panel and the OLM keys page say Meta J for a key on META. The cheat sheets
+   draw global rows only and are unchanged.
+7. The field yields to every leader that hosts a list key, and `leaderHeld` answers whether any of
+   them is held. On this machine that is Hyper alone, as before, so a key typed with Right Option
+   held over a list still reaches the field. Corrected 2026-10-22 10:46 in the fix round, the field
+   yields to every held leader in use, so META and a letter over a list is swallowed by the one
+   rule rather than typed, as Milos had asked. The rule also seals held leaders only, the plain
+   leader and a named modifier leader firing over a list as anywhere, through the held trigger's
+   `sealsOverLists`.
+8. A list chord opening with no held leader is refused in phase A, a named modifier leader or a
+   combination of modifiers alone, naming phase B.
+
+Files. `lib/leader.lua`, `lib/keymap.lua`, `lib/wire.lua`, `lib/hints.lua`, `root/compose.lua`,
+the inventory probe at the hammerspoon test root, `config/keymap.lua`'s header, and the tests.
+
+Proof. Every golden byte identical through `goldens.sh`. `test/inventory.golden` unchanged by
+reading, since the hyper engine holds the same bindings in the same table. Two new fixtures through
+the real root, `keymap-fixture-listrole.lua` holding `roles = { list = "meta" }` and
+`keymap-fixture-listleaders.lua` holding explicit list chords on meta, super, a named modifier
+leader and a plain combination, each with its keys golden. Plain Lua cases for each rule.
+
+**Phase B, a list chord with no held leader belongs to the open list.**
+
+9. A list chord with no held leader, `ctrl+j`, `alt+down` or `nav+k` on a leader the person named
+   from modifiers, is answered by the default chooser's own field while that chooser is up, the
+   seam that already reads Backspace for the `chord = false` listing. It never binds a global
+   hotkey. The field asks an injected watcher after Escape and the leader yield and before its own
+   editing keys, and the watcher, built by the root, runs the binding of the open list whose
+   context is live, best priority first, and answers whether it took the key.
+10. What the field already reads is refused. A chord with no modifier or Shift alone on a key that
+    types a character is a problem line, since it would type into the field. Any other chord the
+    field or the chooser already answers, its editing keys, Return, the two arrows, Escape and
+    Command with a digit, is a problem line naming what uses it. The provider publishes that answer
+    as `uses`, so the keymap lib learns it through an injected predicate and names no chooser. A
+    bare key the field does not read, Tab or Page Down, is accepted.
+11. The legacy chooser reads no such chord. With it chosen the root says once that the field keys
+    are not live, and every Hyper or other held leader key still works there.
+
+Files. `lib/keymap.lua`, `lib/nav.lua`, `lib/chooser/providers/default/init.lua` and
+`field/input.lua`, `root/compose.lua`, `test/keys-project.lua` and `drygate-composerun.lua` so a
+fixture records the field keys, and the tests.
+
+Proof. Every golden byte identical, the leaders fixture's golden gaining the field keys it now
+binds. Plain Lua cases for a printable bare key refused, a field key refused by what uses it, and
+the watcher dispatching a modifier chord only while its list's context is live, through
+`field/input.lua` itself.
+
 ## Not in this plan
 
-List keys on a leader other than `hyper`. A keys page in the OLM settings, which the keymap makes
+List keys on a leader other than `hyper`, done on 2026-10-22 as phases A and B above. A keys page in the OLM settings, which the keymap makes
 cheap later as a read only list, done on 2026-10-21 as the OLM keys row of the launcher, which
 hosts `lib/keypage.lua` in place, rather than as a level inside the OLM settings.
 Moving the generic mechanism still inside `root/compose.lua`, `chordLabel`, `aliasLabel`,

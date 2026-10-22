@@ -1,6 +1,6 @@
 -- Unit case for the one key the canvas field's tap does not claim, a key down the injected
 -- yields predicate gives away, and for Leader:owns, the answer the composition root builds
--- that predicate over, asked of the leader whose policy turns contexts on. Both are driven with event shaped tables and fakes, so nothing here
+-- that predicate over, asked of every held leader some list key binds on. Both are driven with event shaped tables and fakes, so nothing here
 -- touches the running Hammerspoon or installs a tap.
 --
 -- Each check prints one line, PASS or FAIL followed by a plain description, and the runner
@@ -74,6 +74,38 @@ do
 end
 
 --------------------------------------------------------------------------------
+-- The list keys the field answers, and what the default chooser already reads
+--------------------------------------------------------------------------------
+
+-- A list key with no held leader is asked of opts.listKeys after the yield and before the
+-- field's own keys, and a key it took is claimed and never typed. M.uses is how the keymap is
+-- told which chords the field and the chooser already read, so a person cannot take one.
+do
+  local input = loadfile(olm .. "lib/chooser/providers/default/field/input.lua")()
+  local KEY_J = 38
+  local took = 0
+  local f = input.Field.new({ listKeys = function(e)
+    if e:getKeyCode() == KEY_J and (e:getFlags() or {}).ctrl then took = took + 1 return true end
+    return false
+  end })
+  check("a key the list watcher takes is claimed and not typed",
+    f:_handle(ev(KEY_J, { ctrl = true }, "j")) == true and took == 1 and f:getState().text == "")
+  check("a key the list watcher leaves is typed as before",
+    f:_handle(ev(KEY_J, {}, "j")) == true and f:getState().text == "j")
+  local y = input.Field.new({ yields = function() return true end, listKeys = function() took = took + 1 return true end })
+  check("a key the leader yield gives away never reaches the list watcher",
+    y:_handle(ev(KEY_J, { ctrl = true }, "j")) == false and took == 1)
+
+  local provider = loadfile(olm .. "lib/chooser/providers/default/init.lua")()
+  check("the chooser reads the down arrow with any modifiers", provider.uses(125, { "alt" }) ~= nil)
+  check("the chooser reads Return", provider.uses(36, {}) ~= nil)
+  check("the chooser reads Command and a digit", provider.uses(18, { "cmd" }) ~= nil)
+  check("the field reads Ctrl and A", provider.uses(0, { "ctrl" }) ~= nil)
+  check("nothing reads Ctrl and J", provider.uses(KEY_J, { "ctrl" }) == nil)
+  check("nothing reads a bare Tab", provider.uses(48, {}) == nil)
+end
+
+--------------------------------------------------------------------------------
 -- Leader:owns
 --------------------------------------------------------------------------------
 
@@ -93,7 +125,7 @@ do
   local heldChunk = loadfile(olm .. "lib/leader/triggers/held.lua", "t", env)
   local modifierChunk = loadfile(olm .. "lib/leader/triggers/modifier.lua", "t", env)
   local function fresh(trigger)
-    return leaderChunk().new({ name = "hyper", policy = { contexts = true }, trigger = trigger })
+    return leaderChunk().new({ name = "hyper", policy = { ranked = true }, trigger = trigger })
   end
 
   local held = { value = false }

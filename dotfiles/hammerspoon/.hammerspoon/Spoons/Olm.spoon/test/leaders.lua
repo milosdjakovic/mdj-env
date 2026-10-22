@@ -3,9 +3,10 @@
 -- Until phase 3 of the keymap plan this pinned two adapters, lib/hyperkey.lua and
 -- lib/windowleader.lua, near copies that differed in policy, so the merge had a fixed target. Both
 -- are lib/leader.lua now, one adapter whose policy carries every difference, and every case below
--- is the old case asked of the merged adapter with the old adapter's policy. hyper is a leader with
--- contexts, as HYPER ships, and window is one that drives its repeats and goes quiet over lists,
--- as META ships. Every case still holds as it was except two, which the plan and Milos agreed and
+-- is the old case asked of the merged adapter with the old adapter's policy. hyper is a ranked
+-- leader, as HYPER ships, and window is one that drives its repeats, as META ships. Since phase A
+-- of the list keys addendum a binding stating when is a list binding on every leader, so a case
+-- that used when as a gate on the window leader states gate, which is what a global row carries. Every case still holds as it was except two, which the plan and Milos agreed and
 -- whose names say FLIPPED. A key whose matching bindings are all gated off is swallowed on every
 -- leader, where Hyper left it unbound, and an unknown predicate name warns once on every leader,
 -- where Hyper said nothing. The cases after those cover what the merge added, the triggers, the
@@ -62,8 +63,8 @@ local function eq(got, want, what)
 end
 
 -- Every case gets a fresh copy of the adapter, so nothing one case leaves behind reaches another.
-local HYPER_POLICY = { contexts = true, tapTogglesCapsLock = true }
-local WINDOW_POLICY = { drivenRepeat = true, quietOverLists = true }
+local HYPER_POLICY = { ranked = true, tapTogglesCapsLock = true }
+local WINDOW_POLICY = { drivenRepeat = true }
 local function newLeader(policy, predicates, extra)
   local L = assert(loadfile(lib .. "leader.lua"))()
   local opts = { name = "x", policy = policy, predicates = predicates }
@@ -72,7 +73,7 @@ local function newLeader(policy, predicates, extra)
 end
 local function newHyper(predicates) return (newLeader(HYPER_POLICY, predicates, { name = "hyper" })) end
 local function newWindow(predicates) return (newLeader(WINDOW_POLICY, predicates, { name = "meta" })) end
-local function isWindow(e) return e:policy().contexts ~= true end
+local function isWindow(e) return e:policy().ranked ~= true end
 
 local function listOf(engine, key)
   return engine._bindings[hs.keycodes.map[key]]
@@ -109,13 +110,13 @@ do
   eq(repeats, false, "window: the swallowing noop never repeats")
 
   local wx = newWindow(predicates)
-  wx:bind("a", handler("gated"), { "shift" }, { when = "off" })
+  wx:bind("a", handler("gated"), { "shift" }, { gate = "off" })
   wx:bind("a", handler("catch"))
   local fx = wx:_resolve(listOf(wx, "a"), { shift = true })
   eq(nameOf(fx), nil, "window: a false when on a matching exact binding is a noop, not a fall through to the catch all")
 
   local hx = newHyper(predicates)
-  hx:bind("a", handler("gated"), { "shift" }, { when = "off" })
+  hx:bind("a", handler("gated"), { "shift" }, { gate = "off" })
   hx:bind("a", handler("catch"))
   eq(nameOf((hx:_resolve(listOf(hx, "a"), { shift = true }))), "catch",
     "hyper: a false when on a matching exact binding falls through to the catch all")
@@ -349,41 +350,82 @@ end
 -- What the merge added
 --------------------------------------------------------------------------------
 
--- The quiet rule. A leader whose policy goes quiet over lists answers every key with the noop while
--- a list is open, and one whose policy does not stays live.
+-- The one rule over open lists, phase A of the list keys addendum. While a list is open a held
+-- leader answers only its bindings for the open list and swallows every other key, whatever its
+-- policy, and with no list open it is unchanged. It replaced quietOverLists and sealedOverLists.
+-- A held leader is one whose trigger seals over lists, which the held trigger says, so these use a
+-- trigger saying the same.
+local SEALED = { sealsOverLists = true, bound = function() end, isActive = function() return false end,
+  owns = function() return false end, start = function() return true end }
 do
-  local open = false
-  local w = newLeader(WINDOW_POLICY, predicates, { listOpen = function() return open end })
-  w:bind("a", handler("move"))
-  local code = hs.keycodes.map.a
-  eq(nameOf((w:_onKey(code, {}))), "move", "quiet: with no list open the key acts")
-  open = true
-  local q = w:_onKey(code, {})
-  eq(type(q), "function", "quiet: over an open list the key is still swallowed")
-  eq(nameOf(q), nil, "quiet: and runs nothing")
-  local h = newLeader(HYPER_POLICY, predicates, { listOpen = function() return open end })
-  h:bind("a", handler("toggle"))
-  eq(nameOf((h:_onKey(code, {}))), "toggle", "quiet: a leader that does not go quiet stays live over a list")
-end
+  for _, policy in ipairs({ HYPER_POLICY, WINDOW_POLICY }) do
+    local open = false
+    live.ctxA = false
+    local e = newLeader(policy, predicates, { listOpen = function() return open end, trigger = SEALED })
+    local which = policy.ranked and "hyper" or "window"
+    e:bind("a", handler("global"))
+    e:bind("c", handler("listKey"), nil, { when = "ctxA", priority = 100 })
+    e:bind("c", handler("globalC"))
+    local a, b, c = hs.keycodes.map.a, hs.keycodes.map.b, hs.keycodes.map.c
+    eq(nameOf((e:_onKey(a, {}))), "global", which .. " over lists: with no list open a global key acts")
+    eq(e:_onKey(b, {}), nil, which .. " over lists: with no list open an unbound key passes through")
+    eq(nameOf((e:_onKey(c, {}))), "globalC", which .. " over lists: with no list open the global key on a list key's chord acts")
+    open, live.ctxA = true, true
+    eq(nameOf((e:_onKey(c, {}))), "listKey", which .. " over lists: a bound list key of the open list acts")
+    local g = e:_onKey(a, {})
+    eq(type(g), "function", which .. " over lists: a global key is swallowed")
+    eq(nameOf(g), nil, which .. " over lists: and runs nothing")
+    local u = e:_onKey(b, {})
+    eq(type(u), "function", which .. " over lists: an unbound key is swallowed")
+    eq(nameOf(u), nil, which .. " over lists: and runs nothing")
+    live.ctxA = false
+    local other = e:_onKey(c, {})
+    eq(nameOf(other), nil, which .. " over lists: a list key of another list is swallowed, never the global key on its chord")
+    open = false
+  end
 
--- The sealed rule. Over an open list a key that resolves to nothing is swallowed, a key that
--- resolves still acts, and with no list open an unbound key answers nil so it leaks as before.
-do
-  local open = false
-  local h = newLeader({ contexts = true, sealedOverLists = true }, predicates, { listOpen = function() return open end })
-  h:bind("a", handler("toggle"))
-  local bound, free = hs.keycodes.map.a, hs.keycodes.map.b
-  eq(h:_onKey(free, {}), nil, "sealed: with no list open an unbound key still passes through")
-  eq(nameOf((h:_onKey(bound, {}))), "toggle", "sealed: with no list open a bound key acts")
-  open = true
-  local s = h:_onKey(free, {})
-  eq(type(s), "function", "sealed: over an open list an unbound key is swallowed")
-  eq(nameOf(s), nil, "sealed: and runs nothing")
-  eq(nameOf((h:_onKey(bound, {}))), "toggle", "sealed: over an open list a live key still acts")
-  local p = newLeader(HYPER_POLICY, predicates, { listOpen = function() return open end })
-  eq(p:_onKey(free, {}), nil, "sealed: a leader without the field still leaks over a list")
-  local _, problems = assert(loadfile(lib .. "leader.lua"))().checkPolicy("HYPER", { sealedOverLists = "yes" })
-  eq(#problems, 1, "sealed: a non boolean is refused")
+  -- A leader binding no list key is inert over a list, which is what META was through quietOverLists.
+  local open = true
+  local w = newLeader(WINDOW_POLICY, predicates, { listOpen = function() return open end, trigger = SEALED })
+  w:bind("a", handler("move"))
+  local q = w:_onKey(hs.keycodes.map.a, {})
+  eq(type(q), "function", "over lists: a leader with no list key swallows its keys over a list")
+  eq(nameOf(q), nil, "over lists: and runs none of them")
+
+  -- List bindings on a leader that is not ranked still rank, so a closed list's gated binding bound
+  -- first never swallows the open list's on the same key.
+  local m = newLeader(WINDOW_POLICY, predicates, { name = "meta", listOpen = function() return open end, trigger = SEALED })
+  m:bind("c", handler("listA"), nil, { when = "ctxA", priority = 100 })
+  m:bind("c", handler("listB"), nil, { when = "ctxB", priority = 100 })
+  live.ctxA, live.ctxB = false, true
+  eq(nameOf((m:_onKey(hs.keycodes.map.c, {}))), "listB", "over lists: on meta the open list's key answers past a closed list's")
+  live.ctxA, live.ctxB = false, false
+
+  -- A leader on real modifiers is never sealed. The plain leader's combination and a named
+  -- modifier leader's chord fire over an open list as they do anywhere, since the app beneath
+  -- would otherwise lose a key the hotkey still takes, the fix round's first blocker.
+  local modifier = assert(loadfile(lib .. "leader/triggers/modifier.lua"))()
+  local plain = newLeader({}, predicates, { listOpen = function() return true end, trigger = modifier.new({ mods = {} }) })
+  plain:bind("`", handler("summon"), { "alt" })
+  eq(nameOf((plain:_onKey(hs.keycodes.map["`"], { alt = true }))), "summon",
+    "over lists: the plain leader's combination fires over an open list")
+  local nav = newLeader({}, predicates, { listOpen = function() return true end,
+    trigger = modifier.new({ mods = { "shift", "ctrl" } }) })
+  nav:bind("a", handler("navA"))
+  eq(nameOf((nav:_onKey(hs.keycodes.map.a, {}))), "navA", "over lists: a named modifier leader's chord fires over an open list")
+  local heldTrigger = assert(loadfile(lib .. "leader/triggers/held.lua"))().new({})
+  eq(heldTrigger.sealsOverLists, true, "over lists: the held trigger is the one that seals")
+
+  -- The retired fields are refused by name, each saying what replaced it.
+  local L = assert(loadfile(lib .. "leader.lua"))()
+  for _, field in ipairs({ "contexts", "quietOverLists", "sealedOverLists" }) do
+    local clean, problems = L.checkPolicy("HYPER", { [field] = true })
+    eq(clean[field], nil, "retired: " .. field .. " is not kept")
+    eq(#problems, 1, "retired: " .. field .. " is one problem")
+    eq(problems[1] and problems[1].why:find("is retired", 1, true) ~= nil, true, "retired: " .. field .. " is named as retired")
+  end
+  local _, typed = L.checkPolicy("HYPER", { ranked = "yes" })
+  eq(#typed, 1, "ranked: a non boolean is refused")
 end
 
 -- The held trigger registers the key with what the policy decided.
@@ -513,8 +555,8 @@ do
     "isolation: naming its key and modifiers")
 
   hotkeysBound = {}
-  -- Contexts on, so the gated first binding drops out of its tier and the second answers.
-  local r = newLeader({ contexts = true }, predicates, { trigger = modifier.new({ mods = {} }) })
+  -- Ranked, so the gated first binding drops out of its tier and the second answers.
+  local r = newLeader({ ranked = true }, predicates, { trigger = modifier.new({ mods = {} }) })
   local steps = 0
   r:bind("a", function() end, { "alt" }, { gate = "off" })
   r:bind("a", function() steps = steps + 1 end, { "alt" }, { repeats = true })
@@ -562,8 +604,8 @@ end
 -- The policy is checked once and a typo is a problem line rather than read as absent.
 do
   local L = assert(loadfile(lib .. "leader.lua"))()
-  local clean, problems = L.checkPolicy("HYPER", { contexts = true, drivenRepeat = "yes", typo = true, sheet = false })
-  eq(clean.contexts, true, "policy: a well typed field is kept")
+  local clean, problems = L.checkPolicy("HYPER", { ranked = true, drivenRepeat = "yes", typo = true, sheet = false })
+  eq(clean.ranked, true, "policy: a well typed field is kept")
   eq(clean.drivenRepeat, nil, "policy: a field of the wrong type is left at its default")
   eq(clean.sheet, nil, "policy: false is the same as absent")
   eq(#problems, 2, "policy: the wrong type and the unknown field are each one problem")

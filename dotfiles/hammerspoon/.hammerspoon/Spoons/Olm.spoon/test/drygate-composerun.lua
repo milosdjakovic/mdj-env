@@ -730,6 +730,11 @@ if bindMode then
   end
   local out = project.boundLines(bindCalls, keymap.rows, project.windowName(keymap), realKeycodes, fnOwner,
     bindMode == "order")
+  -- The list keys the open list's own field answers, which no bind call made, listed after what the
+  -- engines bound, from a spoon that publishes them. A config with none adds no line.
+  if bindMode ~= "order" and type(project.fieldLines) == "function" then
+    for _, line in ipairs(project.fieldLines(record.fieldKeys)) do out[#out + 1] = line end
+  end
   if bindMode ~= "order" then out[#out + 1] = project.remapLine(remapNames) end
   io.stdout:write(table.concat(out, "\n"), "\n")
   os.exit(0)

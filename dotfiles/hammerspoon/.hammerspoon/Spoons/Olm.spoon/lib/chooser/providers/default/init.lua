@@ -120,6 +120,11 @@ local UI = nil
 -- and nil means the field claims everything. This file knows only that it is a predicate.
 local YIELDS = nil
 
+-- The injected watcher for list keys the open list binds with no held leader, a function(event)
+-- that runs the matching binding and answers true, or answers false. Nil until M.configure runs,
+-- and nil means the field reads no such key. This file knows only that it is a watcher.
+local LIST_KEYS = nil
+
 -- The injected CanvasPanel module, nil until M.configure runs. Held at module level rather than
 -- per instance, the same shape lib/panel.lua's own configure already takes for its shared
 -- style, since every instance this file ever builds draws through the identical shared chrome
@@ -1219,6 +1224,13 @@ local function buildField(self)
     -- Whatever predicate the composition root injected, read at the moment a key arrives
     -- so a configure after this instance was built still takes effect.
     yields = function(ev) return YIELDS ~= nil and YIELDS(ev) end,
+    -- Read at the press like yields. A key it took counts as activity, since it moved or acted on
+    -- the list the way a Hyper key does.
+    listKeys = function(ev)
+      if LIST_KEYS == nil or LIST_KEYS(ev) ~= true then return false end
+      self:_noteActivity()
+      return true
+    end,
   })
 end
 
@@ -1230,15 +1242,38 @@ local M = {}
 
 --- M.configure(opts) takes opts.panel, the CanvasPanel module, and opts.ui, the UI kit, and
 --- optionally opts.icon, the icon resolver function(icon, owner) -> hs.image or nil, and opts.yields, a function(event) answering true for a key down the field's tap
---- must let through instead of claiming. Callable more than once, a nil field left unchanged, matching CanvasPanel.configure's
+--- must let through instead of claiming, and opts.listKeys, a function(event) that runs a list key
+--- the open list binds with no held leader and answers true when it took the key. Callable more than once, a nil field left unchanged, matching CanvasPanel.configure's
 --- own idiom. Whatever calls M.new is expected to have called this first.
 function M.configure(opts)
   opts = opts or {}
   if opts.panel ~= nil then PANEL = opts.panel end
   if opts.ui ~= nil then UI = opts.ui end
   if opts.yields ~= nil then YIELDS = opts.yields end
+  if opts.listKeys ~= nil then LIST_KEYS = opts.listKeys end
   if opts.icon ~= nil then ICON = opts.icon end
   return M
+end
+
+--- M.uses(keyCode, mods) -> string or nil
+--- What the field or this provider already does with a chord, in a few words, or nil when neither
+--- reads it, so a list key the person binds with no held leader cannot take a key the field needs.
+--- mods is a list of shift, ctrl, alt and cmd. Escape always closes, Return and keypad Enter choose
+--- and the two vertical arrows move with any modifiers held, since _onFieldKey reads their keycode
+--- alone, Command with a digit chooses a visible row, and every entry of the field's own keymap
+--- is read on its exact modifiers. A printable key is the caller's to judge, since what it types
+--- depends on the keyboard and not on this file.
+function M.uses(keyCode, mods)
+  if type(keyCode) ~= "number" then return nil end
+  local flags = {}
+  for _, m in ipairs(mods or {}) do flags[m] = true end
+  if keyCode == 53 then return "Escape closes the list" end
+  if keyCode == KEYCODE_RETURN or keyCode == KEYCODE_KEYPAD_ENTER then return "Return chooses the row" end
+  if keyCode == KEYCODE_UP or keyCode == KEYCODE_DOWN then return "the arrow moves the highlight" end
+  if KEYCODE_DIGIT[keyCode] and flags.cmd then return "Command and a digit choose a visible row" end
+  local op = fieldInput.keymap.resolve(keyCode, flags)
+  if op then return "the field's own " .. op end
+  return nil
 end
 
 --- M.new(config) answers an instance satisfying lib/chooser/contract.lua exactly,

@@ -7,8 +7,9 @@ Phase 7 landed and live on 2026-10-20, so the plan is complete. The keys
 live while a list is open are the `lists` section of `config/keymap.lua` and `config/plugins.lua`
 holds no key. On 2026-10-21 three follow ups were built on `olm/keymap-followups`, pending a live
 load, a sheet's heading following the role its leader holds, the root's generic helpers moved into
-`lib/`, and a read only OLM keys page on its own launcher row. The plan is
-`dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/docs/PLAN-KEYMAP.md`.
+`lib/`, and a read only OLM keys page on its own launcher row. On 2026-10-22 an addendum to the plan,
+phases A and B, list keys on any leader, was agreed and built on `olm/list-contexts`, pending a live
+load. The plan is `dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/docs/PLAN-KEYMAP.md`.
 
 ## Now
 
@@ -21,7 +22,12 @@ catalog row and per named leader and keeps the ones the keymap's rows use, Hyper
 and META on the window role here, each an instance of the one adapter `lib/leader.lua` with a held trigger and a
 policy from `policy.leaderPolicy`, plus a plain leader on an empty set of modifiers for a combo
 with no leader, and the composition root loops over them naming none. A key gated off is swallowed
-on every leader and an unknown predicate name warns once on every leader. Over an open list every Hyper key that is not a live list key is swallowed too, through `sealedOverLists`, and outside lists an unbound key still passes through. One cheat sheet host,
+on every leader and an unknown predicate name warns once on every leader. Over an open list every
+held leader answers only its bindings for the open list and swallows every other key, one rule
+since phase A of the list keys addendum, so META, which binds no list key here, is inert there,
+and outside lists an unbound key still passes through. The bindings on one key are ranked by
+priority on HYPER, `ranked`, and taken first exact match on META and SUPER, and list bindings are
+ranked on every leader. One cheat sheet host,
 `host/leadersheet`, draws whichever held leader is down, its layout a table beside `sheet = true`
 in that leader's policy, and a descriptor's `group` files a row under a section. The heading over a sheet's rows
 that name no group follows the role the leader holds, `policy.roleTitles` through
@@ -47,7 +53,12 @@ with its chord. `provides.bindings`, `provides.cheatSheetSections` and
 `provides.launcherAppDetails` are retired and refused by name. A list's own keys are bound through
 the root's contexts, built by `lib/surface.lua` on Olm's own `all` layer, `keymap.listDefaults`,
 and laid over by the person's `lists` section through `keymap.applyLists` before the hint bar, the
-action panel, the keymap and the contexts read them. `config/plugins.lua` refuses `key`, `mods`,
+action panel, the keymap and the contexts read them. Every default list key rides the `list` role,
+HYPER unless the `roles` section moves it, and a person's list chord names its own held leader, so
+each list key binds on the leader it names and every reader spells that leader. A list chord with
+no held leader, modifiers alone, a named leader's chord or a bare key the field does not read, is
+answered by the default chooser's own field through the root's watcher while its list is up, and
+never bound as a hotkey. `config/plugins.lua` refuses `key`, `mods`,
 `leader`, `bindings`, `surface` and `aliases` with a problem line naming `config/keymap.lua`. The collision
 check covers every row, modifiers, case, bindings, toggles, commands, list keys and plain combos.
 The plan replaces the rest of this with one keymap the core builds from
@@ -304,6 +315,44 @@ aliases live only in `config/keymap.lua`.
   QueryScope and given a typed word. A scope is entered by seeding its word into the field, so
   Backspace deletes letters rather than returning, and the word claims a query. Pushing a
   presentation gives Back and Backspace on an empty field the stage's own pop.
+
+- **A single `list` leader setting constraining every list key to one leader.** 2026-10-22 10:31.
+  It was the obvious extension of the one leader whose policy turned contexts on, one word in the
+  person's file saying which leader hosts lists. Inside a list is a context and not a leader, and
+  the leader is only part of a chord, so a person writing `meta+j` in a list means that one key on
+  META and nothing about any other. A setting would have made the chord's own leader a second
+  thing to keep in agreement with it. The defaults ride a `list` role instead, moved like any role,
+  and every explicit chord names its own leader.
+- **Binding a list chord of modifiers alone as a global hotkey.** 2026-10-22 10:31. It is what a
+  plain combination in the keys section does, and it would have made `ctrl+j` in a list one more
+  `hs.hotkey`. A hotkey takes the chord from every app while it is enabled, and enabling it only
+  while a list is open still races the app in front for a chord the list does not own. The open
+  list's own chooser field already sees every key down while it is up, so it answers such a chord
+  there and nothing global is claimed, which is phase B.
+- **Keeping `contexts` as the name of the tier rule.** 2026-10-22 10:31. The field did two things,
+  it chose the one leader list keys bound on and it chose how the bindings on one key were ranked.
+  With list keys on any leader the first meaning went, and keeping the name for the second would
+  have told a reader that HYPER alone hosts lists. It is `ranked` now, and `contexts` is refused by
+  name with the other two fields phase A retired.
+- **Resolving list bindings by each leader's own tier rule.** 2026-10-22 10:31. It was the smaller
+  change, since the tier rule already existed per leader. But every list shares its move keys, so
+  META's first exact match would meet a closed list's gated binding before the open list's and
+  swallow the key. List bindings are ranked on every leader, and the tier rule decides only the
+  global bindings, which is where it was ever measured.
+- **Yielding the chooser field to every held leader.** 2026-10-22 10:31. It is the simplest
+  answer once a list key can sit on META. But a held leader that binds no list key then takes a
+  key from the field over a list, which changes what Right Option and a letter do in the launcher
+  today. The field yields to the held leaders some list key binds on, so nothing changes until a
+  person puts a list key on another leader. Corrected 2026-10-22 10:46, the coordinator decided for every held leader
+  in use, matching Milos's earlier ask that META be swallowed over lists, so the change to Right
+  Option and a letter in the launcher is wanted, see the log.
+
+- **Accepting a field chord the field already reads, and letting the list key win.** 2026-10-22
+  10:36. The watcher is asked before the field's own keys, so it could have taken Ctrl and A or the
+  down arrow from the field. A list key that silently stops the field moving its caret, or the
+  chooser moving its highlight, is a key that breaks the list it serves, and the person would find
+  out by pressing it. The default provider answers `uses`, and such a chord is a problem line
+  naming what reads it.
 
 ## Log
 
@@ -859,3 +908,69 @@ aliases live only in `config/keymap.lua`.
   saw ACTIONS and WINDOW MANAGEMENT, found OLM keys by typing keys, shortcuts and hotkeys, opened it
   in place, narrowed it by meta and clipboard, and left it by Backspace, and OLM settings shows its
   three pages again.
+- 2026-10-22 10:31. Phase A of the list keys addendum on `olm/list-contexts` from main at
+  5dffd388, agreed with Milos that morning. A list key is an ordinary chord live only while its
+  list is open, so a binding stating `when` is a list binding on every leader, `lib/leader.lua`
+  records its context on every leader, and `w.contexts` binds each one on the held leader it names.
+  One rule over an open list replaces `quietOverLists` and `sealedOverLists`, the leader answering
+  only its bindings for the open list and swallowing every other key, and with `contexts` they are
+  refused by name in `checkPolicy`, each saying what replaced it. The tier rule `contexts` also
+  chose is `ranked`, shipped on HYPER, see Rejected, and list bindings rank on every leader. Every
+  default list key rides the `list` role, `keymap.LIST_ROLE`, which `keymap.applyLists` turns into
+  a leader by placing every default binding on the role's leader before it lays the person's
+  section, so the hint bar, the action panel, the OLM keys page and the keymap all read a
+  binding's own leader. A list slot is leader, key and modifiers. A list chord on a named modifier
+  leader or on modifiers alone is refused until phase B. The chooser field yields to the held
+  leaders some list key binds on and `leaderHeld` asks the same set, see Rejected. The composed
+  record publishes `listLeaderName`, which the inventory probe reads its Hyper bindings off in
+  place of the leader whose policy turned contexts on. Every golden is byte identical,
+  `keys.sh --bound-order` against main reports the same order on every engine, the dry gate has 0
+  findings and `units.sh` 1980 of 1980. `test/inventory.golden` is unchanged by reading, since the
+  Hyper engine holds the same bindings in the same table and the context lines print no leader.
+  Two fixtures prove it through the real root, `keymap-fixture-listrole.lua`, every list key on
+  META with HYPER and META still remapped, and `keymap-fixture-listleaders.lua`, chords on meta and
+  super with SUPER joining the remap and the nav and ctrl chords refused. `test/leaders.lua` and
+  `test/keymap-person.lua` pin each rule in plain Lua. Two window cases in `test/leaders.lua` that
+  used `when` as a gate state `gate` now, since `when` means a list binding on every leader.
+- 2026-10-22 10:36. Phase B of the list keys addendum on top of phase A. A list chord opening with
+  no held leader, `ctrl+j`, a named leader's `nav+k` or a bare `tab`, belongs to the open list's
+  own field. `readConfig` reads a bare key in the lists section, and `applyLists` keeps such a chord
+  with leader `false` or the named leader's name, its slot the whole combination with no leader,
+  refusing one that would type into the field, no modifier or Shift alone on a key that types a
+  character, and one the default provider's `uses` says the field or the chooser already reads,
+  see Rejected. `w.contexts` binds it on no engine, `nav.fieldKeys` builds the watcher, and the
+  default chooser's field asks it after the leader yield and before its own keys, so it runs only
+  while that chooser is up and its list's predicate holds, and a key it took counts as activity
+  for the hint pane. The legacy chooser reads none, said once in a routine line when any exist.
+  `hints.chordFor` spells leader `false` as the glyph and its modifiers. The keymap marks such rows
+  `field`, which puts no leader in use, the composed record publishes `fieldKeys`, and a fixture
+  golden writes them as `field` lines, which `keymap-fixture-listleaders.keys.golden` gains, Ctrl
+  and J in the launcher and Ctrl, Shift and K in the clipboard, in place of the phase A refusals.
+  Every other golden is byte identical, the binding order matches main, the dry gate has 0
+  findings, and `units.sh` runs 1989 of 1989 with the new field cases in
+  `test/cases/canvasfield-yields.lua`. `test/keymap-person.lua` pins the refusals, the rows, the
+  spelling and the watcher through `field/input.lua` itself.
+- 2026-10-22 10:46. A fix round from two adversarial reviews of phases A and B. The one rule over
+  open lists sealed every leader, the plain leader and named modifier leaders included, so over an
+  open list Option and backtick and the clipboard's Ctrl and Option with C and V ran nothing while
+  their hotkey still took the key. The rule is a held leader's only now, the held trigger answering
+  `sealsOverLists`, and `test/leaders.lua` pins both modifier triggers firing over a list. The
+  chooser field yields to every held leader in use and `leaderHeld` asks the same set, see the
+  corrected Rejected entry, so META and a letter over a list is swallowed rather than typed, which
+  changes today's behaviour as Milos asked. In phase B `fn` in a field chord was accepted and the
+  watcher, comparing only the four real modifiers, ran it on a plain key, so it is refused with a
+  problem line. A held field key repeated every action, so the watcher reads the keyboard's
+  autorepeat and runs a repeat only for an action in the leaders' repeat table, swallowing it
+  otherwise, so a held delete deletes once and a held close leaks nothing. Option on a printable
+  key is accepted though it would have typed a character, so in that list it acts in its place,
+  said in one routine note per entry. A list whose predicate nothing answers warns once rather than
+  leaving its field keys dead in silence, and a binding that raises is reported and still claims the
+  key. The binder's comment, the role word wording in `readConfig`, the inventory fallback's
+  comment and the root's note on `fieldKeys` were corrected. Every golden is byte identical, the
+  plain Lua cases cover each fix, and the gates are in the report of this round.
+- 2026-10-22 11:49. Phases A and B landed on main at Milos's word, after two adversarial reviews
+  and a fix round, with the automated live load as the gate, a clean console, no wiring problem and
+  every live golden matching. No key was pressed by hand, so the one behaviour this changes on this
+  machine, Right Option or Right Command with a letter swallowed over an open list rather than
+  typed into the field, and the tap against hotkey order for a field key on a plain combo, were
+  not checked by hand.

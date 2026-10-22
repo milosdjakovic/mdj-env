@@ -32,7 +32,8 @@
 -- The row.
 --
 --   layer       the word global for a key live whenever its leader is held, or always for a plain
---               combo, otherwise the name of the list the key is live in while that list is open.
+--               combo, otherwise the name of the list the key is live in while that list is open,
+--               on whichever leader the row names.
 --   leader      the catalog name lowercased, or nil for a plain combo with no leader at all.
 --   role        the role word the leader answers, app or window, or nil for a plain combo. A
 --               surface that names a leader to a person asks the root what the role is called,
@@ -74,6 +75,8 @@
 --               second line about it.
 --   quiet       true for a host whose key has nothing to show, which is left unbound in silence
 --               the way it always was.
+--   field       true for a list key the open list's own field answers, one opening with no held
+--               leader, which binds on no leader and puts none in use.
 --
 -- The lines this module can name are problems. A problem is a table with where, the chord, and
 -- why, one sentence, so the root can hand each straight to the wiring report.
@@ -81,6 +84,12 @@
 local obj = {}
 
 local GLOBAL = "global"
+
+--- obj.LIST_ROLE
+--- The role every default list key rides, Olm's own all layer and every manifest's surface keys,
+--- which the roles section of config/keymap.lua may move to another held leader as it moves app
+--- and window. A list key the person writes names its own leader and rides no role.
+obj.LIST_ROLE = "list"
 
 --------------------------------------------------------------------------------
 -- Spelling, one way to write a key and a set of modifiers
@@ -248,7 +257,11 @@ end
 --- case and spelled the way the keycode table spells it. The answer is the leader, nil for a chord
 --- of modifiers alone, the modifiers, nil for a leader chord stating none, which is a catch all
 --- like every default row stating none, and the key. Anything else answers nil and the reason.
-function obj.parseChord(text, leaders, keycodes)
+---
+--- With allowBare true a chord of a key alone is read too, leader and modifiers both absent and the
+--- modifiers an empty list, which only a list chord asks for, since a list's own field decides
+--- whether a bare key is one it can answer without typing it.
+function obj.parseChord(text, leaders, keycodes, allowBare)
   if type(text) ~= "string" or text == "" then return nil, "is not a chord" end
   local parts, key
   local lower = text:lower()
@@ -279,7 +292,7 @@ function obj.parseChord(text, leaders, keycodes)
       return nil, "names '" .. part .. "', which is neither a leader nor a modifier"
     end
   end
-  if not leader and #mods == 0 then
+  if not leader and #mods == 0 and not allowBare then
     return nil, "has neither a leader nor a modifier, and a bare key would be taken from every app"
   end
   local base = leader and leaders[leader]
@@ -369,7 +382,7 @@ function obj.readConfig(config, opts)
     elseif CHORD_MODS[lower] then
       problem(where, "is a modifier word, so a chord could not tell the two apart, and it is ignored")
     elseif roleWord[lower] then
-      problem(where, "is a role word a plugin's defaults name, so it is ignored")
+      problem(where, "is a role word, " .. tostring(lower) .. ", which the roles section moves, so a chord could not tell the two apart and it is ignored")
     elseif chordLeaders[lower] ~= nil then
       problem(where, "names a leader already named in another case, so it is ignored")
     elseif type(set) ~= "table" or #set == 0 then
@@ -396,8 +409,8 @@ function obj.readConfig(config, opts)
     local where = "roles " .. tostring(role)
     local value = roles[role]
     if not roleWord[role] then
-      problem(where, "is not a role a plugin's defaults name, which are "
-        .. table.concat(opts.roleWords or {}, " and ") .. ", so it is ignored")
+      problem(where, "is not a role the roles section moves, which are "
+        .. table.concat(opts.roleWords or {}, ", ") .. ", so it is ignored")
     elseif type(value) ~= "string" or not held[value:lower()] then
       problem(where, "names '" .. tostring(value) .. "', which is no held leader, so the role keeps its default")
     else
@@ -462,7 +475,7 @@ function obj.readConfig(config, opts)
         if value ~= false and (type(value) ~= "string" or value == "") then
           problem(where, "answers a " .. type(value) .. ", where a list chord takes the name of a surface action such as selectNext, or false to free it, so the entry is ignored")
         else
-          local chord, why = obj.parseChord(text, chordLeaders, opts.keycodes)
+          local chord, why = obj.parseChord(text, chordLeaders, opts.keycodes, true)
           if not chord then
             problem(where, why .. ", so the entry is ignored")
           else
@@ -486,22 +499,50 @@ end
 --- states its own, the launcher's close for one, or the person moves it in the lists section of
 --- config/keymap.lua. A shared verb is named by what it does, primary for the list's own primary
 --- action, close for its close, and the action names of the other three, and lib/surface.lua
---- builds each on the key named here. Every list key binds on the leader whose policy turns
---- contexts on, so a key here names no leader. This is a core default rather than a plugin's,
---- and the one place these five keys are written.
+--- builds each on the key named here. A key here names no leader, since every default list key
+--- rides the list role, LIST_ROLE, which applyLists turns into a leader. This is a core default
+--- rather than a plugin's, and the one place these five keys are written.
 obj.listDefaults = { primary = "i", selectNext = "j", selectPrev = "k", close = "x", openActionPanel = "o" }
 
--- The slot one list key claims inside its list, its key and its modifiers, a catch all apart from
--- an exact set, the same comparison collisions makes, with no layer and no leader since both are
--- the list's.
-local function listSlot(key, mods, keycodes)
+-- Whether a key types a character into a text field when pressed with no modifier or with Shift
+-- alone, a key whose name is one character, space, or a keypad key that is not Enter or Clear.
+-- Read from the name alone, which is how the keycode table spells every such key.
+local function typesCharacter(key)
+  if type(key) ~= "string" then return false end
+  if #key == 1 or key == "space" then return true end
+  return key:match("^pad") ~= nil and key ~= "padenter" and key ~= "padclear"
+end
+obj.typesCharacter = typesCharacter
+
+-- Whether a list binding or entry belongs to the open list's own field rather than to a held
+-- leader, which is any that opens with no held leader, false or nil for modifiers alone and a
+-- leader the person named from modifiers. heldLeaders is the set of held leader names.
+local function isFieldLeader(leader, heldLeaders)
+  if leader == false or leader == nil then return true end
+  return not (heldLeaders or {})[leader]
+end
+
+--- obj.fieldMods(leader, mods, modifierLeaders) -> sorted list
+--- The modifiers a list key the field answers is pressed with, a named leader's own set joined
+--- with the chord's, sorted and spelled one way.
+function obj.fieldMods(leader, mods, modifierLeaders)
+  local union = {}
+  for _, m in ipairs((type(leader) == "string" and (modifierLeaders or {})[leader]) or {}) do union[#union + 1] = m end
+  for _, m in ipairs(mods or {}) do union[#union + 1] = m end
+  return (obj.mods(union))
+end
+
+-- The slot one list key claims inside its list, its leader, its key and its modifiers, a catch
+-- all apart from an exact set, the same comparison collisions makes, with no layer since that is
+-- the list's. hyper and J and meta and J are two slots of one list.
+local function listSlot(leader, key, mods, keycodes)
   local text
   if mods == nil then text = "any"
   else
     local list = obj.mods(mods)
     text = #list == 0 and "none" or table.concat(list, "+")
   end
-  return obj.keyName(key, keycodes) .. "\0" .. text
+  return tostring(leader or "") .. "\0" .. obj.keyName(key, keycodes) .. "\0" .. text
 end
 
 -- Whether a binding answers a name a list entry gives, its own action or the shared verb it was
@@ -522,7 +563,9 @@ end
 --- obj.applyLists(contexts, lists, opts) -> problems, notes
 --- The person's lists section laid over every list's built bindings, in place, so the hint bar,
 --- the action panel, the keymap's rows and the contexts the root binds all read the one answer.
---- all is laid first and each list's own table over it. A list's own table decides every binding
+--- First every default binding, one naming no leader, is placed on the leader the list role lands
+--- on, opts.listLeader, so every reader after this reads a binding's own leader. Then all is laid
+--- and each list's own table over it. A list's own table decides every binding
 --- its entries resolve to and every slot it names, so an all entry resolving to one of the same
 --- bindings, by action or by shared verb, or on one of those slots, is not applied in that list.
 --- all moves and frees only keys that came from Olm's own all layer, so a key a manifest states
@@ -534,8 +577,21 @@ end
 --- winner is picked, and two defaults on one slot stay for the keymap's collision check to name.
 --- A binding listed with chord false is a key the list reads for itself, a manifest fact, so an
 --- entry naming it is a problem and it is never a slot.
----   opts.listLeader  the leader hosting lists, the name a chord spells it with, hyper here. A list
----                    chord on any other leader, or on none, is a problem and is not applied.
+---   opts.listLeader  the leader the list role lands on, the name a chord spells it with, hyper
+---                    unless the roles section moves it, which every default binding is placed on.
+---   opts.heldLeaders optional, the held leaders a list chord may open with, a name to true, the
+---                    list role's leader alone when absent.
+---   opts.modifierLeaders optional, a leader the person named to its set of modifiers.
+---   opts.fieldUses   optional, a function from a key name and a sorted list of modifiers to a
+---                    word naming what the list's own field already does with that chord, or nil.
+---                    It is how a chord opening with no held leader is checked, since such a chord
+---                    belongs to the open list's field. Absent, every such chord is refused, so a
+---                    caller with no field to answer them binds none.
+--- A chord opening with no held leader, modifiers alone or a leader the person named, is a key the
+--- open list's own field answers while it is up, phase B of the list keys addendum. It is refused
+--- when it would type into the field, no modifier or Shift alone on a key that types a character,
+--- and when the field already reads it, and otherwise kept with leader false for modifiers alone or
+--- the named leader's name, its slot being the whole combination with no leader.
 ---   opts.keycodes    the keycode table a key is spelled with, or nil.
 ---   opts.known       optional, answering whether a list name belongs to a plugin that exists and
 ---                    is not loaded this time, so its section is a note rather than a problem.
@@ -550,6 +606,19 @@ function obj.applyLists(contexts, lists, opts)
   local function problem(where, why)
     problems[#problems + 1] = { where = "config/keymap.lua lists " .. where, why = why }
   end
+  local heldLeaders = opts.heldLeaders
+  if heldLeaders == nil then
+    heldLeaders = {}
+    if opts.listLeader then heldLeaders[opts.listLeader] = true end
+  end
+
+  -- Every default binding rides the list role, so it is placed on that role's leader before a
+  -- slot is compared, and a key a list reads for itself, chord false, binds on no leader at all.
+  for _, block in pairs(contexts) do
+    for _, b in ipairs(block.bindings or {}) do
+      if b.chord ~= false and b.leader == nil then b.leader = opts.listLeader end
+    end
+  end
 
   -- Each section's readable entries, with a chord on another leader and two entries of the one
   -- table on one slot refused here, once, rather than once per list they would reach.
@@ -558,11 +627,46 @@ function obj.applyLists(contexts, lists, opts)
     local valid, bySlot = {}, {}
     for _, e in ipairs(lists[name]) do
       local where = name .. " " .. tostring(e.text)
-      if e.leader == nil or e.leader ~= opts.listLeader then
-        problem(where, "opens with " .. tostring(e.leader or "no leader") .. ", and a list key lives on "
-          .. tostring(opts.listLeader or "the leader hosting lists") .. ", the leader hosting lists, so the entry is ignored")
+      local field = isFieldLeader(e.leader, heldLeaders)
+      local fieldMods = field and obj.fieldMods(e.leader, e.mods, opts.modifierLeaders) or nil
+      local refusal = nil
+      if field then
+        local onlyShift = #fieldMods == 0 or (#fieldMods == 1 and fieldMods[1] == "shift")
+        local hasFn = false
+        for _, m in ipairs(fieldMods) do if m == "fn" then hasFn = true end end
+        if not opts.fieldUses then
+          local names = {}
+          for name in pairs(heldLeaders) do names[#names + 1] = name end
+          table.sort(names)
+          refusal = "opens with " .. tostring(e.leader or "no leader") .. ", and a list key opens with a held leader, "
+            .. (#names > 0 and table.concat(names, ", ") or "of which this load has none") .. ", so the entry is ignored"
+        elseif hasFn then
+          refusal = "names fn, which the list's field does not compare, so the chord would act on the "
+            .. "key without it, and the entry is ignored"
+        elseif onlyShift and typesCharacter(e.key) then
+          refusal = "names a key that types a character into the list's field, so the entry is ignored, a key "
+            .. "the field answers needs a modifier other than shift"
+        else
+          local use = opts.fieldUses(e.key, fieldMods)
+          if use then
+            refusal = "names a chord the list's field already reads, " .. tostring(use) .. ", so the entry is ignored"
+          end
+        end
+      end
+      if refusal then
+        problem(where, refusal)
       else
-        local slot = listSlot(e.key, e.mods, keycodes)
+        if field and typesCharacter(e.key) then
+          local typing = true
+          for _, m in ipairs(fieldMods) do
+            if m == "ctrl" or m == "cmd" then typing = false end
+          end
+          if typing then
+            notes[#notes + 1] = "the keymap entry 'lists " .. where .. "' takes a chord that types a character "
+              .. "into the field, Option on a printable key, so in that list the chord acts and the character is not typed"
+          end
+        end
+        local slot = field and listSlot("", e.key, fieldMods, keycodes) or listSlot(e.leader, e.key, e.mods, keycodes)
         local held = { entry = e, slot = slot, section = name, where = where }
         if bySlot[slot] then
           bySlot[slot].clash = bySlot[slot].clash or {}
@@ -683,7 +787,7 @@ function obj.applyLists(contexts, lists, opts)
         for _, held in ipairs(chordsFor[b]) do
           local copy = {}
           for k, v in pairs(b) do copy[k] = v end
-          copy.key, copy.mods = held.entry.key, held.entry.mods
+          copy.leader, copy.key, copy.mods = held.entry.leader or false, held.entry.key, held.entry.mods
           copy.fn, copy.layerKey = nil, nil
           copy.entry = held.section .. " " .. tostring(held.entry.text)
           rebuilt[#rebuilt + 1] = copy
@@ -693,7 +797,12 @@ function obj.applyLists(contexts, lists, opts)
 
     -- false frees a slot, and a person's chord takes a slot from the default holding it. Both drop
     -- default bindings only, the bound ones, since a key listed with chord false holds no slot.
-    local function slotOfBinding(b) return listSlot(b.key, b.mods, keycodes) end
+    local function slotOfBinding(b)
+      if isFieldLeader(b.leader, heldLeaders) then
+        return listSlot("", b.key, obj.fieldMods(b.leader, b.mods, opts.modifierLeaders), keycodes)
+      end
+      return listSlot(b.leader, b.key, b.mods, keycodes)
+    end
     local takenBy = {}
     for _, b in ipairs(rebuilt) do
       if b.entry then takenBy[slotOfBinding(b)] = takenBy[slotOfBinding(b)] or b end
@@ -808,8 +917,8 @@ end
 ---   hostRun     a function from a host's directory to the function its key calls, or nil.
 ---   personKeys  the keys section readConfig read from config/keymap.lua, or nil.
 ---   modifierLeaders the leaders the person named, name to its sorted set of modifiers, or nil.
----   listLeader  the leader every list key binds on, the one whose policy turns contexts on, or
----               nil for the app role's leader.
+---   listLeader  the leader the list role lands on, which a list binding naming no leader binds
+---               on, or nil for the app role's leader.
 ---   known       optional, a function answering whether an identity is a plugin or host at all,
 ---               so an entry naming one that is switched off this load is a note, not a problem.
 ---
@@ -879,6 +988,7 @@ function obj.build(inputs)
       refused = spec.refused,
       quiet = spec.quiet,
       entry = spec.entry,
+      field = spec.field,
     }
     rows[#rows + 1] = row
     placeOf[row] = { order = spec.order or math.huge, index = #rows }
@@ -1033,18 +1143,26 @@ function obj.build(inputs)
     end
   end)
 
-  -- Every list's context bindings, live only while that list is open. They bind on the leader
-  -- whose policy turns contexts on, the app role's leader unless the root says otherwise, under
-  -- the context's own gate and priority. A binding that says chord is false is listed for
-  -- reading and never bound as a key. The person's lists section is already laid over them by
-  -- applyLists, so a binding it moved names its entry and is the person's.
+  -- Every list's context bindings, live only while that list is open. Each binds on the leader it
+  -- names, which applyLists placed every default on, the list role's leader, and falls back to
+  -- listLeader for a block that never went through it, under the context's own gate and priority.
+  -- A binding that says chord is false is listed for reading and never bound as a key. The
+  -- person's lists section is already laid over them by applyLists, so a binding it moved names
+  -- its entry and is the person's.
   source("list keys", function()
     for _, name in ipairs(sortedKeys(plan.contexts)) do
       local block = plan.contexts[name]
       for _, b in ipairs(block.bindings or {}) do
         if b.chord ~= false then
+          -- A binding the open list's field answers, leader false for modifiers alone or a leader
+          -- the person named, binds on no held leader, so its row names that named leader or none
+          -- and marks field.
+          local field = b.leader == false or (b.leader ~= nil and modifierLeaders[b.leader] ~= nil)
+          local leader
+          if b.leader == false then leader = nil else leader = b.leader or listLeader end
           add({
-            layer = name, leader = listLeader, role = roleOfLeader(listLeader), key = b.key, mods = b.mods, owner = name,
+            layer = name, leader = leader, role = not field and roleOfLeader(leader) or nil, key = b.key,
+            mods = (field and b.leader == false) and (b.mods or {}) or b.mods, owner = name, field = field or nil,
             action = b.action, source = "context", when = block.when, priority = block.priority,
             description = b.description, origin = b.entry and "user" or "default", entry = b.entry,
           })
@@ -1334,17 +1452,22 @@ function obj.collisions(rows, modifierLeaders)
   return problems
 end
 
---- obj.fallbackLeaders(roles, listLeader) -> sorted list of leader names
+--- obj.fallbackLeaders(roles, listLeaders) -> sorted list of leader names
 --- The leaders in use when the keymap failed to build and binds no global key. Every leader a role
---- names, lowercased the way a row spells it, and the leader hosting lists, which the contexts
---- still bind on, so every list keeps its keys even where the roles moved the app role off it.
-function obj.fallbackLeaders(roles, listLeader)
+--- names, lowercased the way a row spells it, and every leader a list key binds on, one name or a
+--- list of them, which the contexts still bind on, so every list keeps its keys even where the
+--- roles moved the app role off its leader.
+function obj.fallbackLeaders(roles, listLeaders)
   local seen, out = {}, {}
   local function add(name)
     if name and not seen[name] then seen[name] = true out[#out + 1] = name end
   end
   for _, catalogName in pairs(roles or {}) do add(tostring(catalogName):lower()) end
-  add(listLeader)
+  if type(listLeaders) == "table" then
+    for _, name in ipairs(listLeaders) do add(name) end
+  else
+    add(listLeaders)
+  end
   table.sort(out)
   return out
 end
@@ -1357,7 +1480,7 @@ end
 function obj.leadersInUse(built)
   local seen, out = {}, {}
   for _, row in ipairs((built or {}).rows or {}) do
-    local live = true
+    local live = not row.field
     if row.layer == GLOBAL then
       live = type(row.run) == "function" and not row.refused and not row.quiet
     end

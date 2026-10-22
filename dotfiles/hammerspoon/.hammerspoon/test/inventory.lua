@@ -83,14 +83,21 @@ local actionPanel = must(olm:module("actionpanel"), "the action panel host throu
 local queryScope = must(olm:module("queryscope"), "the query scope host through spoon.Olm module")
 local appToggler = must(olm:module("apptoggler"), "the app toggler plugin through spoon.Olm module")
 local chordKey = must(olm.lib and olm.lib.chordkey, "the chord key atom at spoon.Olm.lib.chordkey")
--- The leader every list key binds on, the one whose policy turns contexts on, found by asking each
--- leader the composed record publishes rather than by its name. It was the hyperkey atom until
--- phase 3 of the keymap plan merged the two leader adapters into lib/leader.lua.
+-- The leader every default list key binds on, the one the list role lands on, found through the
+-- name the composed record publishes for it rather than by writing that name here. It was the
+-- hyperkey atom until phase 3 of the keymap plan merged the two leader adapters into
+-- lib/leader.lua, and the one leader whose policy turned contexts on until phase A of the list
+-- keys addendum, which a config from before that still answers.
 local hyperKey = must((function()
-  for _, leader in pairs((olm._composed or {}).leaders or {}) do
+  local composedRecord = olm._composed or {}
+  local leaders = composedRecord.leaders or {}
+  if composedRecord.listLeaderName then return leaders[composedRecord.listLeaderName] end
+  -- Only a config from before phase A reaches here, since checkPolicy has refused contexts since
+  -- then and no leader's policy carries it.
+  for _, leader in pairs(leaders) do
     if leader:policy().contexts then return leader end
   end
-end)(), "the leader with contexts in spoon.Olm._composed.leaders")
+end)(), "the leader the list role lands on in spoon.Olm._composed.leaders")
 local registry = must(olm.registry, "spoon.Olm.registry, the tool registry the composition root published")
 
 -- The loaded spoon table.

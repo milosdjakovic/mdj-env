@@ -24,6 +24,12 @@
 --- owner injects opts.yields, a predicate over the event, and a key down it answers true
 --- for is passed on untouched. This file knows only that predicate, never what Hyper is.
 ---
+--- One more owner seam sits beside it, opts.listKeys, asked next. It answers true for a key
+--- down the open list binds for itself with no held leader, a chord such as Ctrl and J, and has
+--- already run it, so this file claims the key and does nothing else with it. Phase B of the list
+--- keys addendum to the keymap plan put it here, since this tap already sees every key down while
+--- the field is up and nothing global has to claim the chord.
+---
 --- The tap starts on start and is torn down completely on stop, never left armed a
 --- moment longer than the field is meant to be up. 1ccab6f is the record of what a
 --- leader believed held rather than checked costs on this machine, a stuck engine
@@ -103,6 +109,7 @@ function Field.new(opts)
     onKey = opts.onKey,
     onDismiss = opts.onDismiss,
     yields = opts.yields,
+    listKeys = opts.listKeys,
     onEmptyBackspace = opts.onEmptyBackspace,
     tap = nil,
     _retiredTap = nil,
@@ -194,6 +201,15 @@ function Field:_handle(ev)
   end
 
   if self:_yields(ev) then return false end
+
+  if self.listKeys then
+    local ok, took = pcall(self.listKeys, ev)
+    if not ok then
+      print("Olm canvas field, listKeys failed and the key went on to the field, " .. tostring(took))
+    elseif took == true then
+      return true
+    end
+  end
 
   local flags = ev:getFlags()
   local opName = keymap.resolve(code, flags)

@@ -12,6 +12,9 @@ local obj = {}
 
 local HYPER = "hyper"
 local HOTKEY = "hotkey"
+-- The engine word of a list key the open list's own field answers, which no leader and no hotkey
+-- holds, since phase B of the list keys addendum to the keymap plan.
+local FIELD = "field"
 local DASH = "-"
 
 --- obj.engineLabel(leader, windowName) -> string
@@ -70,9 +73,10 @@ local function modsWord(row)
 end
 
 --- obj.line(row, windowName) -> string
+--- A row the field answers wears field, its modifiers the whole combination it is pressed with.
 function obj.line(row, windowName)
   return table.concat({
-    obj.engineLabel(row.leader, windowName), row.key, modsWord(row), row.when or DASH,
+    row.field and FIELD or obj.engineLabel(row.leader, windowName), row.key, modsWord(row), row.when or DASH,
     row.priority ~= nil and tostring(row.priority) or DASH, tostring(row.owner),
   }, "\t")
 end
@@ -81,6 +85,21 @@ end
 function obj.project(rows, windowName)
   local lines = {}
   for _, row in ipairs(rows) do lines[#lines + 1] = obj.line(row, windowName) end
+  table.sort(lines)
+  return lines
+end
+
+--- obj.fieldLines(keys) -> sorted list of lines
+--- The list keys the open list's own field answers, the composed record's fieldKeys, one line each
+--- in the golden's format with field as the engine, so a fixture shows them beside what the leaders
+--- bound. Nothing at all for a config with none, so a golden without them is unchanged.
+function obj.fieldLines(keys)
+  local lines = {}
+  for _, k in ipairs(keys or {}) do
+    local mods = (#(k.mods or {}) == 0) and "none" or table.concat(k.mods, "+")
+    lines[#lines + 1] = table.concat({ FIELD, tostring(k.key), mods, k.when or DASH,
+      k.priority ~= nil and tostring(k.priority) or DASH, tostring(k.context) }, "\t")
+  end
   table.sort(lines)
   return lines
 end

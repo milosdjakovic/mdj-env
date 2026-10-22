@@ -38,11 +38,13 @@
 --     nav = { "shift", "ctrl" },
 --
 -- roles moves every default on a role to another held leader at once. A plugin's defaults name a
--- role, app or window, never a leader, and app lands on hyper and window on meta unless this says
--- otherwise. A held leader is remapped only while some chord uses it, so moving the window role
--- to super claims Right Command and frees Right Option. Moving the app role off hyper still keeps
--- Caps Lock remapped, since every list's keys live on hyper.
+-- role, app or window, never a leader, and every default list key rides the list role. app and
+-- list land on hyper and window on meta unless this says otherwise. A held leader is remapped
+-- only while some chord uses it, so moving the window role to super claims Right Command and frees
+-- Right Option. Moving the app role off hyper still keeps Caps Lock remapped while the list role
+-- or any chord sits there, and moving both frees it.
 --     window = "super",
+--     list = "meta",
 --
 -- aliases maps a plugin identity to the words that scope the launcher to it, in place of the words
 -- the plugin ships. Every plugin not named keeps its own.
@@ -59,12 +61,22 @@
 -- launcher's space close, which is also its open key, moves only in a launcher table, and a key a
 -- list adds of its own, deleteSelected's d, moves only in that list's table. The rules are the keys section's inside one list.
 -- An action named takes exactly the chords listed for it, a chord a default holds is taken from it
--- with one routine console line, and false frees the chord. A list key lives on hyper only, and it
--- may shadow a global chord while its list is open, the way hyper+j opens emoji outside a list and
+-- with one routine console line, and false frees the chord. A list chord names its leader the way
+-- a global chord does, hyper, meta or super, so meta+j in a list is live only while that list is
+-- open and moves only that key, while the list role above moves every default at once. A list
+-- chord with no held leader, ctrl+j, a leader named below such as nav+k, or a bare key such as tab,
+-- is answered by the list's own text field while the list is up and is never taken from another
+-- app. One that would type into the field, a key that types a character pressed alone or with
+-- shift, is refused, and so is one the field already reads, its editing keys, return, the up and
+-- down arrows, escape and cmd with a digit, and one naming fn. alt on a printable key is kept, and
+-- in that list it then acts rather than typing its character, said in one routine console line.
+-- The legacy chooser answers none of them. While a
+-- list is open a held leader answers only its keys for that list and swallows every other key, and
+-- a list key may shadow a global chord on purpose, the way hyper+j opens emoji outside a list and
 -- moves down inside one. A key a list reads for itself, Backspace leaving a hosted list, is the
 -- list's own and is not set here.
 --     all       = { ["hyper+n"] = "selectNext" },
---     clipboard = { ["hyper+e"] = "deleteSelected", ["hyper+o"] = false },
+--     clipboard = { ["meta+e"] = "deleteSelected", ["hyper+o"] = false },
 
 return {
   keys = {

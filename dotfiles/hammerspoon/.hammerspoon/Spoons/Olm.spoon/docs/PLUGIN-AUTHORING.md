@@ -419,7 +419,9 @@ your plugin's code, but an id naming your action is checked against what you ans
 - `wire, keymap, config/keymap.lua leaders <name>, <why the name or its set is refused>, so it is ignored`
 - `wire, keymap, config/keymap.lua roles <role>, <why the role or its leader is refused>`
 - `wire, keymap, config/keymap.lua aliases <identity>, names no plugin or host in this load, so its words scope nothing`
-- `wire, keymap, config/keymap.lua lists <list> <chord>, opens with <leader>, and a list key lives on hyper, the leader hosting lists, so the entry is ignored`
+- `wire, keymap, config/keymap.lua lists <list> <chord>, opens with <leader>, and a list key opens with a held leader, <held leaders>, so the entry is ignored`, said only when no chooser field can answer a key with no held leader
+- `wire, keymap, config/keymap.lua lists <list> <chord>, names a key that types a character into the list's field, so the entry is ignored, a key the field answers needs a modifier other than shift`
+- `wire, keymap, config/keymap.lua lists <list> <chord>, names a chord the list's field already reads, <what reads it>, so the entry is ignored`
 - `wire, keymap, config/keymap.lua lists <list> <chord>, names the action '<action>', which the list <list> does not answer, so the entry is ignored`
 - `wire, keymap, config/keymap.lua lists <list> <chord>, names <action>, which the list lists with chord false, a key it reads for itself, so it is no person setting and the entry is ignored`
 - `wire, keymap, config/keymap.lua lists all <chord>, names the action '<action>', which no list answers, so the entry is ignored`
@@ -858,6 +860,8 @@ disagreement between your declaration and the map. The full rule is in the repos
 5. `surface` with a `context` spelled exactly as your identity, and the primary action. The keys
    the shared verbs sit on are Olm's, and a key you state on an `extra` row is a suggestion a
    person moves in the `lists` section of `config/keymap.lua`, like every other key you suggest.
+   A surface key names no leader. It rides the `list` role, HYPER unless the person moves it, and
+   a person may put any one of them on another held leader by writing its chord.
 6. `presentation` with `rows` and `select` only, table form, `call` stated, nothing else yet.
 7. Add one optional field at a time, each because something was actually wrong without it.
 8. `src/check-dependencies.sh` clean, no error and no new warning naming you.

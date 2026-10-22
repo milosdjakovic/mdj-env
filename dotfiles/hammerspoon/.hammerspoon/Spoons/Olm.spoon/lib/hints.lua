@@ -123,12 +123,18 @@ end
 -- different words for the same chord. The spelling itself is asked of deps.chordLabel and of
 -- the leader's word rather than done here, so this file never learns how a leader's name or a
 -- chord's words are put together, only that something answers both. The word is the binding's
--- own leader's, deps.leaderNames keyed by the name the binding spells its leader with, and
--- deps.leaderName for a binding that names none, a list key, which binds on the one leader
--- hosting lists. Either missing degrades to the bare glyph, the same shape footerFor already
+-- own leader's, deps.leaderNames keyed by the name the binding spells its leader with, which a list
+-- key carries once the root has placed it, and deps.leaderName for a binding built by hand that
+-- names none, the list role's leader. Either missing degrades to the bare glyph, the same shape footerFor already
 -- renders for a binding declaring chord = false, so a missing collaborator lands on a shape
 -- this file already knows rather than an invented one.
 function obj.chordFor(binding, deps)
+  -- A list key the open list's own field answers with modifiers alone names no leader, leader
+  -- false, so it is its glyph and modifiers alone, the way a plain combination is spelled.
+  if binding.leader == false then
+    local glyphFor = deps and deps.glyphFor
+    return (glyphFor and glyphFor(binding.key, binding.mods)) or tostring(binding.key)
+  end
   local chordLabel = deps and deps.chordLabel
   local leaderName = deps and deps.leaderName
   if binding.leader ~= nil and deps and deps.leaderNames then

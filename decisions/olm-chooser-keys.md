@@ -8,8 +8,11 @@ the action panel opens on Hyper and o in every list, with file search reveal on 
 The default chooser's field event tap claims every key down so nothing reaches the app underneath, with
 Escape answered first. The one exception is Hyper. The field takes an injected predicate,
 `yields`, and a key it answers true for is passed on unclaimed. The composition root builds
-that predicate over `owns` on the leader whose policy turns contexts on, Hyper here, which its
-trigger answers, since phase 3 of `olm-keymap.md`. Under the held trigger a key is the leader's
+that predicate over `owns` on every held leader in use, Hyper and META here, which its trigger
+answers, since the phase A fix round of the list keys addendum in `olm-keymap.md`, so a key typed
+under a held leader over a list never reaches the field and falls to that leader's one rule over
+open lists. From phase 3 until then it asked only the one leader whose policy turned contexts on.
+Since phase B the field also asks a list key watcher next, for a list chord with no held leader. Under the held trigger a key is the leader's
 when it is the leader key or the leader is held, under the modifier trigger when its whole base
 set is held. The field and the default provider know only that it is a
 predicate, and the legacy provider needs nothing since its keys already reach Hyper.
@@ -110,3 +113,18 @@ only far enough to show that row at the edge it crossed. A highlight already ful
 leaves scrollTop exactly as it was. A wrap still jumps to its row under the same rule. No
 Rejected item or earlier decision owned the snap, it was only written into the model's comments
 and its offline case, both updated in this change.
+
+### 2026-10-22 10:31
+
+The field's yield followed list keys onto any leader, phase A of the list keys addendum in
+`olm-keymap.md`. The root builds the predicate over `owns` on every held leader some list key
+binds on, which is Hyper alone on this machine, so nothing a hand does here changes. A held leader
+binding no list key is not asked, so a key typed with Right Option held over a list still reaches
+the field. The harness word `leaderHeld` asks the same set.
+
+### 2026-10-22 10:46
+
+Corrected, the entry at 10:31 had the field yield only to held leaders some list key binds on, so
+Right Option and a letter over a list still typed into the field. The coordinator decided, matching
+what Milos asked of META over lists, that the field yields to every held leader in use, so META and
+SUPER over a list are swallowed by the one rule like any key the open list does not bind.

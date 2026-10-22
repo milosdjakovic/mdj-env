@@ -285,7 +285,13 @@ binding's own where it states one and its action descriptor's otherwise, the she
 action name when neither says. A false predicate makes a window key a swallowed no op and an
 unknown name stays active and is warned about once. On every leader a key whose matching bindings
 are all gated off is swallowed rather than passed to the app in front, and only a key nothing
-binds passes through. Inside an open list the rule reaches further. Every Hyper key that is not a live list key is swallowed, through the leader's `sealedOverLists` policy, so with the launcher open Hyper and A or B or C or E is swallowed alike, while list keys act as ever. META and SUPER already swallow every key over an open list through `quietOverLists`. Outside lists an unbound Hyper key still passes through.
+binds passes through. Inside an open list the rule reaches further, one rule for every held leader.
+While any list is open a held leader answers only its bindings for the open list and swallows
+every other key, so with the launcher open Hyper and A or B or C or E is swallowed alike while the
+launcher's own keys act, and a leader binding no list key, META here, is inert. Outside lists an
+unbound key still passes through. A leader policy no longer says any of this, so `contexts`,
+`quietOverLists` and `sealedOverLists`, the three fields that once did, are refused by name with
+what replaced each, and `ranked` is the one field left that shapes how a leader resolves a press.
 
 The value is delivered on `opts` under the field name you chose, and a member defined as a
 method arrives already bound to its own module, so you can call it plainly. Both halves
@@ -910,15 +916,23 @@ reads it, so nothing here changes for a plugin. It has five sections.
 - `leaders`, a name to a list of real modifiers, `nav = { "shift", "ctrl" }`, a leader of its own
   on the modifier trigger, with no sheet and no tap, named on a launcher row by its name.
 - `roles`, a role word to a held leader, `{ window = "super" }`, moving every default on the role.
+  The words are `app` and `window`, which a plugin's global defaults name, and `list`, which every
+  default list key rides, Olm's own `all` layer and every manifest's surface keys alike, so
+  `{ list = "meta" }` moves every default list key to META. A plugin never names the list role, its
+  surface keys ride it because they are surface keys.
 - `aliases`, a plugin identity to its words, replacing its `defaults.aliases` exactly.
 - `lists`, the keys live while a list is open, one table per list keyed by its `surface.context`
-  and `all` for every list, each a chord on `hyper` to a surface action name or `false`. A shared
+  and `all` for every list, each a chord to a surface action name or `false`. A list chord names
+  its leader as a global chord does, any held leader, and moves only itself. A chord with no held
+  leader, `ctrl+j`, a named leader's chord or a bare `tab`, is answered by the open list's own
+  default chooser field and never claimed from another app, and one that would type into the field
+  or that the field already reads is refused. A shared
   verb is named `primary`, `selectNext`, `selectPrev`, `close` or `openActionPanel`, and any other
   action by the name its `surface` gives it. `all` is laid first and each list's own table over it,
   and `all` moves and frees only keys from Olm's own layer, so a key a manifest states for a shared
   verb, the launcher's `close.key`, moves only in that list's own table.
   A list chord may shadow a global chord while its list is open, since collisions are checked within
-  the global layer and within each list's layer, never across them. A binding listed with
+  the global layer and within each list's layer by leader, modifiers and key, never across them. A binding listed with
   `chord = false` is the list's own and no person setting.
 
 A person's chord on a slot a default holds wins it and the default row is dropped, said in one
@@ -1024,9 +1038,11 @@ surface = {
 
 The keys of the shared verbs, the primary, the two move keys, close and the action panel, are not
 the plugin's. They are Olm's own `all` layer, `lib/keymap.lua`'s `listDefaults`, `i`, `j`, `k`, `x`
-and `o` on the leader that hosts lists, and `lib/surface.lua` builds each verb on its key and holds
+and `o` on the leader the `list` role lands on, HYPER unless the person's `roles` section moves it,
+and `lib/surface.lua` builds each verb on its key and holds
 no key itself, which the dry gate checks. A key a manifest states, an `extra` row's or a `close.key`
-such as the launcher's, is that list's default, laid over the `all` layer. A person moves any of
+such as the launcher's, is that list's default, laid over the `all` layer, and rides the same role,
+so a surface key names no leader. A person moves any of
 them in the `lists` section of `config/keymap.lua`, never here and never in `config/plugins.lua`.
 
 `matcher` and `pane` live here rather than being ambient because they are per plugin
@@ -1530,8 +1546,8 @@ once in Olm's root and never computed.
    replaced bound them, plugin bindings in plan order, a host's own actions among them, then the
    registry's tools, then the hosts' open keys. The person's keymap is laid over the defaults in
    that build, and the leaders its bound rows use are the leaders in use.
-7. **contexts**, the navigation bind loop over every surface, onto the one leader whose
-   policy turns contexts on.
+7. **contexts**, the navigation bind loop over every surface, each key onto the held leader it
+   names, a default on the leader the `list` role lands on.
 8. **start**, leaders last, and the one shared event tap last of all, since it must
    see a complete key set.
 

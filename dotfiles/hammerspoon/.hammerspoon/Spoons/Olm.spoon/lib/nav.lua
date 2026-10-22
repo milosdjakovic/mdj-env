@@ -145,4 +145,106 @@ function obj.bindOne(repeats)
   end
 end
 
+-- The four modifiers a field key compares, the same four every leader compares.
+local FIELD_MODS = { "shift", "ctrl", "alt", "cmd" }
+
+--- obj.fieldKeys(contexts, deps) -> watch, keys
+--- The list keys the open list's own field answers, phase B of the list keys addendum to the keymap
+--- plan, every binding of every context that opens with no held leader, leader false for modifiers
+--- alone or a leader the person named from modifiers. None is bound on a leader or as a hotkey.
+--- The default chooser's field asks watch(event) for each key down while it is up, and watch runs
+--- the binding whose chord matches exactly, whose context's predicate holds, the best priority
+--- first, and answers true, or answers false so the field goes on with the key itself.
+---   deps.keycodes         the keycode table, a key name to its code.
+---   deps.modifierLeaders  a leader the person named to its set of modifiers.
+---   deps.predicates       a predicate name to a function, asked at the press. An unknown or
+---                         missing name is not live, since a field key that acts in every list is
+---                         worse than one that acts in none, and it is warned about once, the way
+---                         the leaders warn about an unknown predicate.
+---   deps.repeats          an action name to true for an action worth repeating while held, the
+---                         table the leaders read.
+---   deps.isRepeat         a function from the event to whether it is the keyboard's autorepeat.
+---                         A repeat of a binding whose action does not repeat is swallowed, so a
+---                         held delete deletes once and a held close leaks nothing to the app
+---                         beneath.
+--- Once a binding matched, the key is the field's whatever the binding does, so one that raises is
+--- reported and the key is still claimed rather than typed.
+--- keys is the same set as plain records, context, key, mods, when and priority, for anything that
+--- lists what the field answers. binding.fn is read at the press, so this may be built before the
+--- dispatch table stamps it.
+function obj.fieldKeys(contexts, deps)
+  deps = deps or {}
+  local keycodes = deps.keycodes or {}
+  local named = deps.modifierLeaders or {}
+  local byCode, keys = {}, {}
+  local names = {}
+  for name in pairs(contexts or {}) do names[#names + 1] = name end
+  table.sort(names)
+  for _, name in ipairs(names) do
+    local block = contexts[name]
+    for _, b in ipairs(block.bindings or {}) do
+      local field = b.chord ~= false and (b.leader == false or (type(b.leader) == "string" and named[b.leader] ~= nil))
+      local code = field and keycodes[b.key] or nil
+      if field and type(code) == "number" then
+        local need = {}
+        for _, m in ipairs(b.leader and named[b.leader] or {}) do need[m] = true end
+        for _, m in ipairs(b.mods or {}) do need[m] = true end
+        byCode[code] = byCode[code] or {}
+        table.insert(byCode[code], { binding = b, block = block, need = need, context = name })
+        local list = {}
+        for _, m in ipairs(FIELD_MODS) do if need[m] then list[#list + 1] = m end end
+        table.sort(list)
+        keys[#keys + 1] = { context = name, key = b.key, mods = list, when = block.when, priority = block.priority }
+      elseif field then
+        log.w("context '" .. tostring(name) .. "' lists '" .. tostring(b.key) .. "' for its field, which the keyboard has no code for")
+      end
+    end
+  end
+
+  local warned = {}
+  local function live(name, context)
+    local pred = name and (deps.predicates or {})[name]
+    if type(pred) ~= "function" then
+      local what = tostring(name or "no predicate")
+      if not warned[what] then
+        warned[what] = true
+        log.w("the list " .. tostring(context) .. " names " .. what .. " for its field keys, which no predicate answers, so they never act")
+      end
+      return false
+    end
+    return pred() == true
+  end
+  local repeats = deps.repeats or {}
+
+  local function watch(ev)
+    local candidates = byCode[ev:getKeyCode()]
+    if not candidates then return false end
+    local flags = ev:getFlags() or {}
+    local best, bestP = nil, -math.huge
+    for _, c in ipairs(candidates) do
+      local exact = true
+      for _, m in ipairs(FIELD_MODS) do
+        if (flags[m] and true or false) ~= (c.need[m] or false) then exact = false break end
+      end
+      local p = c.block.priority or 0
+      if exact and p > bestP and type(c.binding.fn) == "function" and live(c.block.when, c.context) then
+        best, bestP = c, p
+      end
+    end
+    if not best then return false end
+    if deps.isRepeat and not repeats[best.binding.action] then
+      local ok, isRepeat = pcall(deps.isRepeat, ev)
+      if ok and isRepeat then return true end
+    end
+    local ok, err = pcall(best.binding.fn)
+    if not ok then
+      log.e("the field key " .. tostring(best.binding.key) .. " of the list " .. tostring(best.context)
+        .. " raised, so the key is claimed and did nothing, " .. tostring(err))
+    end
+    return true
+  end
+
+  return watch, keys
+end
+
 return obj

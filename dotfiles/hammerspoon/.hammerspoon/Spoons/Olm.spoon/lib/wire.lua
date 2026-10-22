@@ -452,7 +452,12 @@ function obj.new(deps)
   --
   -- Separate from the global keys the binder binds and must stay separate. Those open a tool or
   -- run an action from anywhere, these are live only while their list is open.
-  function self.contexts(engine, bindOne)
+  --
+  -- engineFor answers the engine one binding binds on, from the leader the binding names, since a
+  -- list key sits on whichever held leader its chord names. A binding it answers nil for names a
+  -- leader nothing built, which is reported and costs only that key, and one it answers false for
+  -- is a key the open list's own field answers, bound on no leader.
+  function self.contexts(engineFor, bindOne)
     for contextName, block in pairs(plan.contexts) do
       for _, binding in ipairs(block.bindings or {}) do
         -- chord equals false means listed in the hint panel but deliberately not bound. The
@@ -461,8 +466,17 @@ function obj.new(deps)
         if binding.chord == false then
           note("contexts", contextName .. " lists " .. tostring(binding.key) .. " without binding it")
         else
-          local ok, e = pcall(bindOne, engine, contextName, block, binding)
-          if not ok then fail("contexts", contextName .. " " .. tostring(binding.key), tostring(e)) end
+          local engine = engineFor(binding)
+          if engine == false then
+            -- A key the open list's own field answers, bound on no leader.
+            note("contexts", contextName .. " leaves " .. tostring(binding.key) .. " to its field")
+          elseif engine == nil then
+            fail("contexts", contextName .. " " .. tostring(binding.key), "no leader " .. tostring(binding.leader)
+              .. " was built this load, so the key is not bound")
+          else
+            local ok, e = pcall(bindOne, engine, contextName, block, binding)
+            if not ok then fail("contexts", contextName .. " " .. tostring(binding.key), tostring(e)) end
+          end
         end
       end
       note("contexts", contextName .. ", " .. #(block.bindings or {}) .. " binding(s)")

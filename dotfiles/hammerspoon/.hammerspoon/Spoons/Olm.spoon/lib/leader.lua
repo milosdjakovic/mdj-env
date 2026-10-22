@@ -13,8 +13,16 @@
 --- the app in front, and an unknown predicate name warns once on every leader, where Hyper passed
 --- it in silence. A key with no binding at all still passes through as it always did. Outside a
 --- list that swallows only a key every binding of which is a list key, Hyper and H, Q and Y here.
---- Inside an open list Hyper's sealedOverLists policy swallows every key that resolves to no live
---- binding, so no Hyper key leaks past a list, and META and SUPER do so through quietOverLists.
+---
+--- LIST KEYS ARE A LAYER ON EVERY LEADER, since phase A of the list keys addendum to the keymap
+--- plan. A binding stating when is a list binding on whichever leader it was bound on, live only
+--- while its list's predicate holds. One rule covers every held leader over an open list. While
+--- any Olm list is open the leader answers only its bindings for the open list and swallows every
+--- other key, so no global key fires underneath a list and nothing leaks past one. That replaced
+--- two policy fields, quietOverLists, which made META inert over a list, and sealedOverLists, which
+--- swallowed whatever Hyper left unresolved there, and a leader binding no list key is inert over
+--- a list exactly as META was. Outside lists a leader resolves its global bindings first, by its
+--- own tier rule, and a key bound only in a list is swallowed as a key switched off for the moment.
 ---
 --- THE TRIGGER IS A STRATEGY, and the seam is the four functions a trigger answers, start, bound,
 --- isActive and owns. This file never names a concrete trigger. lib/leader/triggers/held.lua is
@@ -29,7 +37,7 @@
 --- FIELDS and SHEET_FIELDS below.
 ---
 --- Only the core calls bind. lib/binder.lua binds every global row of the keymap, and the root
---- binds every list key through its contexts onto the one leader whose policy turns contexts on.
+--- binds every list key through its contexts onto the held leader its chord names.
 
 local obj = {}
 obj.__index = obj
@@ -64,15 +72,11 @@ obj.noop = noop
 --                       Lock remapped to HYPER loses otherwise.
 --   drivenRepeat        a repeating binding repeats on the engine's own schedule and its run is
 --                       handed how deep into the hold it is, rather than riding the OS autorepeat.
---   contexts            list keys bind here, with priority between them and the modal rule, so
---                       while a list's context is live every base binding is dropped and the list
---                       owns the leader. Exactly one leader in use turns it on.
---   quietOverLists      while any Olm list is open every bound key is inert though still
---                       swallowed, since a window action fired over a list moves whatever sits
---                       underneath it.
---   sealedOverLists     while any Olm list is open a key that resolves to no live binding is
---                       swallowed rather than leaked to the app in front. Keys that do resolve act
---                       as ever, and outside lists an unbound key still passes through.
+--   ranked              the global bindings on one key compete by priority, the best answering and
+--                       one gated off falling out of its tier so the next can answer, rather than
+--                       the first exact match answering and a gated one being swallowed there, and
+--                       among catch alls the first bound answers rather than the last. List
+--                       bindings are ranked on every leader whatever this says, see _resolve.
 --   sheet               a hold reveals this leader's cheat sheet, drawn by the one sheet host. Absent
 --                       means a hold reveals nothing.
 --   sheetLayout         how that sheet is laid out, a table of the SHEET_FIELDS below. Absent means
@@ -81,12 +85,23 @@ obj.noop = noop
 local FIELDS = {
   tapTogglesCapsLock = "boolean",
   drivenRepeat = "boolean",
-  contexts = "boolean",
-  quietOverLists = "boolean",
-  sealedOverLists = "boolean",
+  ranked = "boolean",
   sheet = "boolean",
   sheetLayout = "table",
   holdDelay = "number",
+}
+
+-- Fields a policy once carried and no leader reads now, each with what replaced it, so a config
+-- still setting one is told rather than having the value ignored in silence. All three went in
+-- phase A of the list keys addendum to the keymap plan, when list keys left the one leader that
+-- hosted them.
+local RETIRED = {
+  contexts = "list keys bind on the leader each chord names and the list role in the roles "
+    .. "section of config/keymap.lua places the defaults, and the tier rule it also chose is ranked",
+  quietOverLists = "every held leader over an open list answers only its bindings for that list "
+    .. "and swallows every other key",
+  sealedOverLists = "every held leader over an open list answers only its bindings for that list "
+    .. "and swallows every other key",
 }
 
 -- What a sheet layout may carry, with the type each takes. Every field is absent unless stated,
@@ -136,7 +151,10 @@ function obj.checkPolicy(name, policy)
   table.sort(fields, function(a, b) return tostring(a) < tostring(b) end)
   for _, field in ipairs(fields) do
     local value, want = policy[field], FIELDS[field]
-    if not want then
+    if RETIRED[field] then
+      problems[#problems + 1] = { where = tostring(name), why = "the leader policy field '"
+        .. field .. "' is retired, " .. RETIRED[field] .. ", so it is ignored" }
+    elseif not want then
       problems[#problems + 1] = { where = tostring(name), why = "the leader policy field '"
         .. tostring(field) .. "' is not one a leader reads, so it is ignored" }
     elseif value ~= false and type(value) ~= want then
@@ -268,8 +286,8 @@ end
 ---               one sheet host to every leader whose policy states a sheet.
 ---   keyCode     the keycode the sheet is shown for, the held key's own
 ---   listOpen    function answering true while any Olm list is open. A hold never reveals over an
----               open list, on every leader, and a leader whose policy goes quiet over lists is
----               inert while it answers true.
+---               open list, on every leader, and while it answers true the leader answers only
+---               its bindings for the open list and swallows every other key.
 ---   predicates  name to function answering a bool, what a binding's gate is resolved against
 ---   holdDelay, tapThreshold  the engine's timing, a policy holdDelay winning over the first
 function obj.new(opts)
@@ -291,8 +309,7 @@ function obj.new(opts)
   -- order, which a trigger that claims combos walks so it claims them in a fixed order.
   self._bindings = {}
   self._sequence = {}
-  -- The predicate names list keys carry, which drive the modal rule. Only filled on a leader whose
-  -- policy turns contexts on.
+  -- The predicate names list keys carry, which drive the modal rule, on every leader.
   self._contextWhens = {}
   -- Unknown predicate names already warned about, per leader, so each is said once per leader.
   self._unknownSeen = {}
@@ -319,7 +336,7 @@ end
 
 --- Leader:policy() -> table
 --- Method
---- The policy this leader was built with. The root asks which leader turns contexts on.
+--- The policy this leader was built with.
 function obj:policy()
   return self._policy
 end
@@ -328,11 +345,11 @@ end
 --- Method
 --- Register a handler for key under this leader. mods is an optional list of required modifier
 --- names, omitted for a catch all that fires when no exact binding matches. opts carries
----   when          a list key's predicate. On a leader with contexts it makes the binding a
----                 context binding, so while the predicate holds the leader is modal. On any other
----                 leader it gates the binding like a gate.
+---   when          a list key's predicate, which makes the binding a list binding on any leader, so
+---                 while the predicate holds the leader is modal.
 ---   gate          a global row's predicate, eligibility alone, never modal on any leader.
----   priority      higher wins between eligible bindings in one tier, on a leader with contexts.
+---   priority      higher wins between eligible bindings in one tier, among list bindings on every
+---                 leader and among global bindings on a ranked one.
 ---   repeats       the handler keeps firing while its key stays held.
 ---   afterRelease  the handler waits until this leader is released before it runs, for an action
 ---                 that posts a keystroke the held leader would otherwise stand in front of.
@@ -352,7 +369,7 @@ function obj:bind(key, fn, mods, opts)
   self._bindings[code] = self._bindings[code] or {}
   table.insert(self._bindings[code], binding)
   self._sequence[#self._sequence + 1] = binding
-  if opts.when and self._policy.contexts then
+  if opts.when then
     self._contextWhens[opts.when] = true
   end
   if self._trigger then self._trigger.bound(self, binding) end
@@ -381,10 +398,10 @@ end
 
 --- Leader:_modal() -> bool
 --- Method
---- Whether any context is live right now, which only a leader with contexts asks. While one is,
---- the leader belongs to that context, so bindings with no when are dropped and only context
---- bindings act. That is what makes a context modal rather than an overlay, so while the clipboard
---- is open Hyper and A does nothing instead of toggling an app.
+--- Whether any list binding's context on this leader is live right now. While one is, the leader
+--- belongs to that context, so bindings with no when are dropped and only list bindings act. That
+--- is what makes a context modal rather than an overlay, so while the clipboard is open Hyper and A
+--- does nothing instead of toggling an app.
 function obj:_modal()
   for name in pairs(self._contextWhens) do
     local pred = self._predicates and self._predicates[name]
@@ -450,81 +467,106 @@ function obj.afterAllReleased(leaders, fn)
   obj._allReleaseWait = hs.timer.waitUntil(function() return not anyHeld() end, fn, 0.02)
 end
 
---- Leader:_resolve(list, flags) -> handler, repeats
+--- Leader:_resolve(list, flags, overList) -> handler, repeats
 --- Method
 --- Pick the handler for the modifiers held. An exact match on the real modifiers beats a catch
 --- all, fn ignored. The chosen binding's repeats flag travels with it, the shape the shared
 --- engine's onKey contract asks for.
 ---
---- Within a tier the two policies differ, and each keeps exactly what its old adapter did. On a
---- leader with contexts every eligible binding competes and the best priority wins, the first
---- bound among equals, and a binding that is not eligible drops out of its tier, so a list key on
---- Shift and J gated off leaves the plain J binding to answer. While a context is live a binding
---- with no when is not eligible at all. On any other leader the first matching exact binding
+--- The list bindings and the global bindings are two layers. While a list is open, overList, or a
+--- list binding's context is live on this leader, only the list bindings are eligible, the modal
+--- rule. Otherwise the global bindings answer first and a list binding only where no global one
+--- does, which outside its list means a key bound only in a list is gated off and swallowed.
+---
+--- List bindings are ranked on every leader. Every eligible one competes and the best priority
+--- wins, the first bound among equals, and one that is not eligible drops out of its tier, since
+--- every list shares its move keys and a first match would let a closed list's gated binding
+--- swallow the open list's. Global bindings follow the leader's own tier rule, the two the old
+--- adapters kept. On a ranked leader they compete the same way, so a key on Shift and J gated off
+--- leaves the plain J binding to answer. On any other leader the first matching exact binding
 --- answers and a gated one is swallowed there rather than falling through, and among catch alls
 --- the last one bound answers.
 ---
 --- Either way, a key whose matching bindings are all gated off is swallowed as a no op rather than
 --- left unbound. A binding dropped by the modal rule is not gated off, it is outranked, so a key
---- whose only binding is a base one still passes through while a list is open, as before, but a key
---- that also carries another list's binding, gated off while that list is closed, is swallowed.
-function obj:_resolve(list, flags)
+--- whose only binding is a global one resolves to nothing here while a list's context is live, and
+--- _onKey decides what an open list does with that.
+function obj:_resolve(list, flags, overList)
   if not list then return nil end
   local present = heldSet(flags or {})
-  local gatedOff = false
 
-  if self._policy.contexts then
-    local modal = self:_modal()
+  -- One ranked pass over the bindings accept lets through, answering the binding chosen and whether
+  -- a matching one was gated off.
+  local function rankedPass(accept)
+    local gated = false
     local bestExact, bestExactP = nil, -math.huge
     local bestCatch, bestCatchP = nil, -math.huge
     for _, b in ipairs(list) do
-      if not (modal and not b.when) then
-        local matches = b.mods == nil or modsMatch(b, present)
-        if matches then
-          if not self:_passes(b) then
-            gatedOff = true
-          else
-            local p = b.priority or 0
-            if b.mods then
-              if p > bestExactP then bestExact, bestExactP = b, p end
-            elseif p > bestCatchP then
-              bestCatch, bestCatchP = b, p
-            end
+      if accept(b) and (b.mods == nil or modsMatch(b, present)) then
+        if not self:_passes(b) then
+          gated = true
+        else
+          local p = b.priority or 0
+          if b.mods then
+            if p > bestExactP then bestExact, bestExactP = b, p end
+          elseif p > bestCatchP then
+            bestCatch, bestCatchP = b, p
           end
         end
       end
     end
-    local chosen = bestExact or bestCatch
-    if chosen then return self:_handlerOf(chosen), chosen.repeats end
+    return bestExact or bestCatch, gated
+  end
+  local function isList(b) return b.when ~= nil end
+  local function isGlobal(b) return b.when == nil end
+
+  local chosen, gatedOff
+  if overList or self:_modal() then
+    chosen, gatedOff = rankedPass(isList)
   else
-    local catch, catchGated = nil, false
-    for _, b in ipairs(list) do
-      if b.mods then
-        if modsMatch(b, present) then
-          if not self:_passes(b) then return noop, false end
-          return self:_handlerOf(b), b.repeats
+    if self._policy.ranked then
+      chosen, gatedOff = rankedPass(isGlobal)
+    else
+      local catch, catchGated = nil, false
+      for _, b in ipairs(list) do
+        if isGlobal(b) then
+          if b.mods then
+            if modsMatch(b, present) then
+              if not self:_passes(b) then return noop, false end
+              return self:_handlerOf(b), b.repeats
+            end
+          elseif self:_passes(b) then
+            catch, catchGated = b, false
+          else
+            catch, catchGated = nil, true
+          end
         end
-      elseif self:_passes(b) then
-        catch, catchGated = b, false
-      else
-        catch, catchGated = nil, true
       end
+      chosen, gatedOff = catch, catchGated
     end
-    if catch then return self:_handlerOf(catch), catch.repeats end
-    gatedOff = catchGated
+    if not chosen then
+      local listChosen, listGated = rankedPass(isList)
+      chosen, gatedOff = listChosen, gatedOff or listGated
+    end
   end
 
+  if chosen then return self:_handlerOf(chosen), chosen.repeats end
   if gatedOff then return noop, false end
   return nil
 end
 
--- What a trigger asks of a pressed key, the quiet rule first and then the resolver. The sealed rule
--- turns an unbound answer into the noop while a list is open, so nothing leaks past a list.
+-- What a trigger asks of a pressed key. While a list is open only the open list's bindings act and
+-- anything they leave unresolved is the bound no op, so nothing fires underneath a list and nothing
+-- leaks past it, on every leader.
+--
+-- The rule is for a held leader, one whose trigger says it seals over lists. A leader on real
+-- modifiers, the plain leader or one the person named, is never sealed, so its combination fires
+-- over a list exactly as it does anywhere else.
 function obj:_onKey(code, flags)
-  local over = self._listOpen and self._listOpen()
-  if self._policy.quietOverLists and over then return noop end
-  local handler, repeats = self:_resolve(self._bindings[code], flags)
-  if handler == nil and self._policy.sealedOverLists and over then return noop, false end
+  local seals = self._trigger ~= nil and self._trigger.sealsOverLists == true
+  local over = (seals and self._listOpen and self._listOpen()) and true or false
+  local handler, repeats = self:_resolve(self._bindings[code], flags, over)
+  if handler == nil and over then return noop, false end
   return handler, repeats
 end
 

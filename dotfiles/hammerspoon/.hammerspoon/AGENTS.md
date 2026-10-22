@@ -170,18 +170,21 @@ what the merge of the two old adapters found.
 
 A catalog key is "active" only while some **bound row uses it**. The catalog names no
 consumer, so the dependency points one way. A plugin's defaults name a role, `app` or
-`window`, the app role lands on HYPER and the window role on META, and the `roles` section of
-`config/keymap.lua` moves either to another held leader. `root/compose.lua` builds the keymap,
+`window`, and every default list key rides the `list` role. The app and list roles land on
+HYPER and the window role on META, and the `roles` section of `config/keymap.lua` moves any of
+them to another held leader. `root/compose.lua` builds the keymap,
 asks it which leaders its bound rows and list keys use, `lib/keymap.lua`'s `leadersInUse`, and
 applies the remap for exactly those through `lib/keyremap.lua`, so the leader list, the engines
-the binder reaches, the sheets and the leader hosting lists all follow one answer. So moving all
+the binder reaches, the sheets and the leaders hosting list keys all follow one answer. So moving all
 of window management to another physical key is one edit, `roles = { window = "super" }`, which
 frees Right Option and claims Right Command, and a single chord written on `super` claims Right
 Command too. An unused key is neither remapped nor tapped, so it stays a normal key with no extra
-step. Moving the app role off hyper still keeps Caps Lock remapped, since every list's keys live
-on the leader whose policy turns contexts on, HYPER. A keymap that fails to build falls back to
-the leaders the roles name plus that list leader, so Caps Lock keeps its tap and every list its
-keys even where a role moved off it. `src/setup-capslock-hyper.sh` no longer installs
+step. Moving the app role off hyper still keeps Caps Lock remapped, since the list role still
+puts every default list key on HYPER, and moving the list role too, `roles = { list = "meta" }`,
+frees it once no chord uses hyper. A list chord names its own leader the way a global chord does,
+so `meta+j` in a list moves that one key onto META. A keymap that fails to build falls back to
+the leaders the roles name plus every leader a list key names, so Caps Lock keeps its tap and
+every list its keys even where a role moved off it. `src/setup-capslock-hyper.sh` no longer installs
 anything, it only removes the legacy LaunchAgent on older machines.
 
 Why remap at all? Raw Caps Lock is a toggle key and emits no usable key
@@ -229,7 +232,9 @@ drops that one row of the default, with one routine `Olm keymap` console line na
 frees a global chord. A toggle moved there shows its new chord wherever the app is
 listed, the Hyper sheet's app section and the app's launcher row, since both read the keymap.
 The keys live while a list is open are the `lists` section, one table per list keyed by its
-context name and `all` for every list, a chord on `hyper` to a surface action or `false`. The
+context name and `all` for every list, a chord to a surface action or `false`. A list chord
+names its leader the way a global chord does, `hyper`, `meta` or `super`, and every default list
+key rides the `list` role, HYPER unless `roles = { list = "meta" }` moves them all. The
 shared verbs, `primary`, `selectNext`, `selectPrev`, `close` and `openActionPanel`, sit on i, j,
 k, x and o by Olm's own `all` layer, `listDefaults` in `lib/keymap.lua`, unless a manifest states
 its own, the launcher closing on space, and `lib/surface.lua` holds no key, which the dry gate
@@ -240,10 +245,20 @@ keeps it unless the person names that list, and a list's own entry overrides an 
 resolves to the same binding, by verb or by action. `keymap.applyLists` lays the section over
 the built lists before the hint bar, the action panel, the keymap and the contexts read them, so a moved list key shows its new chord in
 all of them. A list chord may shadow a global one while its list is open, since collisions are
-checked within the global layer and within each list's layer, never across. A key a list lists
+checked within the global layer and within each list's layer by leader, modifiers and key, never
+across, so `hyper+j` and `meta+j` are two keys of one list. A list chord with no held leader,
+`ctrl+j`, a named leader's `nav+k` or a bare `tab`, binds no hotkey. The default chooser's field,
+which already sees every key down while it is up, asks the root's watcher, `nav.fieldKeys`, after
+the leader yield and before its own keys, and the watcher runs the open list's binding. A chord
+that would type into the field, or one the field or the chooser already reads, `uses` on the
+default provider, is refused with a problem line, and so is one naming `fn`, which the watcher does
+not compare. Option on a printable key is accepted though it would type a character, so in that
+list the chord acts and the character is not typed, said in one routine line. A held field key
+repeats only an action that repeats, and the legacy chooser reads none of them. A key a list lists
 with `chord = false`, Backspace leaving a hosted list, is a manifest fact and not a person
 setting. `config/keymap.lua` ships no list entry, and `Spoons/Olm.spoon/test/keymap-fixture-lists.lua`
-with its golden proves the layer offline.
+with its golden proves the layer offline, `keymap-fixture-listrole.lua` the list role moved and
+`keymap-fixture-listleaders.lua` explicit list chords on several leaders.
 `fn` is refused on a held leader, the keypad plus is `pad+` and the main row plus is `shift+=`. A name under `leaders`, `nav = { "shift", "ctrl" }`, is a leader of its own on the
 modifier trigger with that base set, read as Nav on a launcher row the way Hyper is, with no
 sheet and no tap, and its slot is the whole combination, so it collides with the same plain
@@ -276,7 +291,18 @@ reject them; the trade is that the three leaders stay distinct, which one shared
 Hyper modifier combo could not give.
 A key whose bindings are all gated off at that moment is bound rather than unbound, so it is
 swallowed on every leader and never leaks, since a key reserved for a situation is never
-reused for anything else. Only a key nothing binds leaks. Inside an open list the rule reaches further. Every Hyper key that is not a live list key is swallowed, through the leader's `sealedOverLists` policy, so with the launcher open Hyper and A or B or C or E is swallowed alike, while list keys act as ever. META and SUPER already swallow every key over an open list through `quietOverLists`. Outside lists an unbound Hyper key still passes through.
+reused for anything else. Only a key nothing binds leaks. Inside an open list the rule reaches
+further, and it is one rule for every held leader. While any list is open a held leader answers
+only its bindings for the open list and swallows every other key, so with the launcher open
+Hyper and A or B or C or E is swallowed alike while the launcher's own Hyper keys act, and META,
+which binds no list key here, is inert. The default chooser's field yields every key pressed under
+a held leader to that leader, so META and a letter over a list is swallowed rather than typed. The
+rule is a held leader's only, the held trigger's `sealsOverLists`, so a plain combination such as
+Option and backtick, or a chord on a named modifier leader, fires over a list as it does anywhere.
+Outside lists an unbound key still passes through. That
+rule replaced two policy fields, `sealedOverLists` on HYPER and `quietOverLists` on META and
+SUPER, which are refused by name now with `contexts`, the field that once made HYPER the one
+leader list keys could sit on.
 
 A bound key may also REPEAT while it stays held, and how it repeats is the leader's choice
 rather than the binding's. A binding says only that it repeats, which is a fact about the
@@ -344,9 +370,9 @@ filtered out; names+icons cached at load, only the running split recomputed per
 show). Holding a leader whose policy states a sheet shows that leader's sheet from the same host, just
 that leader's bindings (META's resizes on the bare arrows and moves on WASD);
 pressing any bound key cancels it. While any Olm list is open, the launcher or
-any plugin picker, no hold reveals a sheet on any leader, and a leader whose policy says
-`quietOverLists`, META's, has its bound keys inert though still swallowed, so no sheet appears
-over an open list and no window action fires underneath one. One gate answers it,
+any plugin picker, no hold reveals a sheet on any leader, and every held leader answers only its
+keys for the open list, META's window keys inert though still swallowed, so no sheet appears over
+an open list and no window action fires underneath one. One gate answers it,
 `lib/listopen.lua`'s `anyShowing`, walking the same `contextOwners` table the predicates
 route through, which the root wraps as `anyListShowing` and hands to every leader as `listOpen`. A leader's rows are every global row the keymap
 holds on it, read by `lib/hints.lua`'s `sheetRows` once in `root/compose.lua` after the keymap is

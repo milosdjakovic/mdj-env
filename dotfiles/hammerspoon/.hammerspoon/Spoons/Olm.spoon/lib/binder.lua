@@ -83,9 +83,9 @@ function obj.bind(rows, deps)
           problem(row, "no engine binds on the leader " .. tostring(row.leader))
         end
       else
-        -- A global row's predicate travels as a gate, never as when, since on the leader with
-        -- contexts a when makes a context and a context makes the leader modal, which would
-        -- silence every other global key while the predicate holds.
+        -- A global row's predicate travels as a gate, never as when, since on every leader a when
+        -- makes a list binding and a live one makes the leader modal, which would silence every
+        -- other global key while the predicate holds.
         local ok, err = pcall(engine.bind, engine, row.key, row.run, mods, {
           gate = row.when, priority = row.priority, repeats = row.repeats,
           afterRelease = row.afterRelease,

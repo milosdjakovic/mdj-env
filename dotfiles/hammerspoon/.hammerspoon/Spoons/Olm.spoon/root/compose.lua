@@ -205,9 +205,11 @@ local SHIPPED_POLICY = {
   -- How each held leader behaves, keyed by catalog name like the catalog just above, and read
   -- by lib/leader.lua, whose FIELDS says what each field means. These reproduce the two adapters
   -- the merge in phase 3 of the keymap plan replaced. HYPER toggles real Caps Lock on a tap, rides
-  -- the OS autorepeat, hosts every list's keys and reveals a sheet laid out for its apps. META
-  -- drives its own repeats so a window step knows how deep into a hold it is, goes quiet while a
-  -- list is open so no window moves underneath one, and reveals a sheet laid out for its actions.
+  -- the OS autorepeat, ranks the bindings on one key and reveals a sheet laid out for its apps.
+  -- META drives its own repeats so a window step knows how deep into a hold it is, and reveals a
+  -- sheet laid out for its actions. What a leader does over an open list is one rule for every
+  -- held leader rather than a field, and which leader a list key sits on is its chord's, its
+  -- defaults riding the list role, so neither is policy since phase A of the list keys addendum.
   -- A sheet is a boolean and its layout a table beside it, see lib/leader.lua's SHEET_FIELDS, and
   -- a leader that states a sheet and no layout draws the defaults. SUPER binds nothing on this
   -- machine, and it ships META's policy because it is the documented other home of the window
@@ -220,11 +222,11 @@ local SHIPPED_POLICY = {
   -- role to whichever leader the keymap puts it on. A layout titled per leader read WINDOW
   -- MANAGEMENT on META after the window role had moved to SUPER, over rows a person had put there.
   leaderPolicy = {
-    HYPER = { tapTogglesCapsLock = true, contexts = true, sealedOverLists = true, sheet = true,
+    HYPER = { tapTogglesCapsLock = true, ranked = true, sheet = true,
       sheetLayout = { columns = 4, colWidth = 215, iconSize = 32, gap = 10, groupGap = 20 } },
-    META  = { drivenRepeat = true, quietOverLists = true, sheet = true,
+    META  = { drivenRepeat = true, sheet = true,
       sheetLayout = { columns = 2, colWidth = 250, badgeWidth = 44, gap = 12 } },
-    SUPER = { drivenRepeat = true, quietOverLists = true, sheet = true,
+    SUPER = { drivenRepeat = true, sheet = true,
       sheetLayout = { columns = 2, colWidth = 250, badgeWidth = 44, gap = 12 } },
   },
 
@@ -276,7 +278,7 @@ function obj.run(olm, cfg)
   -- a default lands on and the aliases are merged before the plan is resolved.
   local keymapConfig = keymapLib.readConfig(cfg.keymap, {
     catalog = policy.leaderCatalog,
-    roleWords = { "app", "window" },
+    roleWords = { "app", "window", keymapLib.LIST_ROLE },
     keycodes = hs.keycodes.map,
   })
   local keymapProblems = {}
@@ -287,18 +289,36 @@ function obj.run(olm, cfg)
   -- a second way to say it.
   -- Merged by hand rather than through lib/defaults.lua, whose merge reads an empty table as a
   -- list and a list replaces outright, so an empty roles section would leave no role at all.
+  -- The list role is kept apart from the two a plugin's global defaults name, since it places list
+  -- keys and no global row, so a reader asking which role a global row's leader answers, or which
+  -- heading a sheet wears, never meets it.
   local leaderRoles = { app = "HYPER", window = "META" }
-  for role, catalogName in pairs(keymapConfig.roles) do leaderRoles[role] = catalogName end
+  local listRoleCatalog = "HYPER"
+  for role, catalogName in pairs(keymapConfig.roles) do
+    if role == keymapLib.LIST_ROLE then listRoleCatalog = catalogName else leaderRoles[role] = catalogName end
+  end
+  -- The name a chord spells the list role's leader with, which every default list key is placed on.
+  local listLeaderName = tostring(listRoleCatalog):lower()
   if cfg.leaders ~= nil then
     keymapProblems[#keymapProblems + 1] = { where = "cfg.leaders", why = "is retired, a role moves "
       .. "to another held leader in the roles section of config/keymap.lua, so the field is ignored" }
   end
   -- The leaders in use, built in step H, every held one in catalog name order and the plain
-  -- combo leader last, and the one whose policy turns contexts on. Declared this early because
+  -- combo leader last, and the held leaders among them. Declared this early because
   -- closures handed out long before step H, the chooser field's yield, the leader view a plugin
   -- may ask for and the stage word the BrowserTabs harness reads, all read them late.
   local leaderList = {}
-  local contextLeader = nil
+  local heldLeaders = {}
+  -- The watcher for list keys the open list's own field answers, built once the dispatch table is,
+  -- and read by the default chooser's field at each press.
+  local fieldWatch = nil
+  -- Whether any held leader in use answers fn, asked of each in turn.
+  local function anyHeldLeader(fn)
+    for _, leader in ipairs(heldLeaders) do
+      if fn(leader) then return true end
+    end
+    return false
+  end
   local decorate = defaultsLib.merge({ installedBy = "actionpanel" }, cfg.decorate)
   -- The person's per plugin entries, keyed by plugin identity, from config/plugins.lua. One entry
   -- holds that plugin's overrides, its person supplied data and its spoon global, or false to
@@ -518,14 +538,21 @@ function obj.run(olm, cfg)
   if chooserAtom.providers and chooserAtom.providers.default then
     -- The default chooser's field tap claims every key down, which would swallow a list key
     -- before its dispatch ran, so the field is handed a predicate and told nothing else. It asks
-    -- the leader the list keys bind on, the one whose policy turns contexts on, and reads it late,
-    -- since no leader is built until further down.
+    -- every held leader in use, Hyper and META here, and reads them late, since no leader is built
+    -- until further down. A key pressed under a held leader therefore never types into the field,
+    -- it falls to that leader's one rule over open lists, its list keys acting and every other key
+    -- swallowed, which is what Milos asked for META over a list.
     chooserAtom.providers.default.configure({
       panel = canvasPanel,
       ui = uiAtom,
       icon = paintIcon,
       yields = function(ev)
-        return contextLeader ~= nil and contextLeader:owns(ev)
+        return anyHeldLeader(function(leader) return leader:owns(ev) end)
+      end,
+      -- A list key with no held leader, Ctrl and J, is answered by the field itself while its list
+      -- is up, so nothing global claims the chord. Read late, built after the dispatch table.
+      listKeys = function(ev)
+        return fieldWatch ~= nil and fieldWatch(ev) == true
       end,
     })
   end
@@ -954,26 +981,6 @@ function obj.run(olm, cfg)
     leaderDisplayNames[role] = displayName(catalogName)
   end
   for name, word in pairs(leaderNamesByLeader) do leaderDisplayNames[name] = word end
-  -- The leader every list key binds on, the one held leader in the catalog whose policy turns
-  -- contexts on, as a spec, so the hint bar can name it before any leader is built and the keymap
-  -- can put every list key on it. Exactly one is expected. None leaves every list without its keys
-  -- and two leave the second without them, and each case is a problem line rather than a silent
-  -- choice, the first in name order winning.
-  local contextSpec = nil
-  for _, spec in ipairs(leaderSpecs) do
-    if spec.policy.contexts then
-      if contextSpec then
-        leaderProblems[#leaderProblems + 1] = { where = spec.catalogName, why = "the leader policy turns contexts on, which "
-          .. contextSpec.catalogName .. " already does, so list keys bind on " .. contextSpec.catalogName .. " alone" }
-      else
-        contextSpec = spec
-      end
-    end
-  end
-  if not contextSpec then
-    leaderProblems[#leaderProblems + 1] = { where = "leaders", why = "no leader in the catalog turns contexts on, so no list key is bound this load" }
-  end
-
   -- The one spelling of a chord and of a set of aliases, lib/labels.lua, handed to every surface
   -- that states one so no surface spells its own. A chord is spelled with the shared renderer's
   -- glyph helper, reached when a chord is spelled rather than now, as it always was.
@@ -1420,12 +1427,12 @@ function obj.run(olm, cfg)
       return stageModule and stageModule:query() or ""
     end,
 
-    -- leaderHeld, whether the leader every list key binds on is currently believed held, false
+    -- leaderHeld, whether any held leader in use is currently believed held, false
     -- when there is none. The BrowserTabs harness reads it to trace the leader through a round's
     -- typing and to refuse typing while it is held, since the default chooser's field yields every
     -- key to that leader then, and no plugin reads it for behaviour.
     leaderHeld = function()
-      return contextLeader ~= nil and contextLeader:isActive() == true
+      return anyHeldLeader(function(leader) return leader:isActive() == true end)
     end,
 
     -- stageTextBudget and stageTextWidth, the trickle migration's own addition, FileSearch's
@@ -1563,8 +1570,9 @@ function obj.run(olm, cfg)
 
   -- The person's lists section, laid over every list's bindings once, here, before the hint bar,
   -- the action panel, the keymap and the contexts read any of them, so a list key moved there
-  -- shows its new chord everywhere it is bound. The keys live on the leader whose policy turns
-  -- contexts on, and a chord on any other is a problem line. A section naming the list of a
+  -- shows its new chord everywhere it is bound. Every default is placed on the list role's leader
+  -- first, and a person's chord may open with any held leader in the catalog, a chord opening with
+  -- anything else being a problem line. A section naming the list of a
   -- plugin that exists and is not loaded this time is a routine line, the rule a keys entry for a
   -- plugin switched off follows.
   do
@@ -1576,8 +1584,18 @@ function obj.run(olm, cfg)
         listNames[manifest.surface.context or identity] = true
       end
     end
+    local heldLeaderNames = {}
+    for _, spec in ipairs(leaderSpecs) do heldLeaderNames[spec.name] = true end
+    -- A list chord opening with no held leader belongs to the open list's own field, which the
+    -- default chooser answers, so it is checked against what that field already reads.
+    local defaultProvider = chooserAtom.providers and chooserAtom.providers.default
     local listProblems, listNotes = keymapLib.applyLists(plan.contexts, keymapConfig.lists, {
-      listLeader = contextSpec and contextSpec.name or nil,
+      listLeader = listLeaderName,
+      heldLeaders = heldLeaderNames,
+      modifierLeaders = modifierLeaderSets,
+      fieldUses = defaultProvider and defaultProvider.uses and function(key, mods)
+        return defaultProvider.uses(hs.keycodes.map[key], mods)
+      end or nil,
       keycodes = hs.keycodes.map,
       known = function(name) return listNames[name] == true end,
     })
@@ -1780,10 +1798,10 @@ function obj.run(olm, cfg)
     -- leaderNames hands over each leader's already resolved word rather than the catalog
     -- itself, keyed by the name a row spells its leader with, since deciding what a leader is
     -- called belongs to this file and lib/hints.lua must not learn it by name any more than it
-    -- learns any other plugin's name. leaderName is the word for a binding that names no leader,
-    -- a list key, which binds on the leader whose policy turns contexts on.
+    -- learns any other plugin's name. leaderName is the word for a list binding that names no
+    -- leader, one built by hand rather than through applyLists, the list role's leader.
     leaderNames = leaderNamesByLeader,
-    leaderName = contextSpec and leaderNamesByLeader[contextSpec.name] or nil,
+    leaderName = leaderNamesByLeader[listLeaderName],
     -- kinds carries the same action kind overrides the actionKinds call below is given,
     -- since rowsFor derives kinds a second time inside hints.lua, and it must see the same
     -- overrides the panel's own kindOf uses or the panel rows and verbsIn drift apart.
@@ -2225,7 +2243,7 @@ function obj.run(olm, cfg)
     hostRun = hostRun,
     personKeys = keymapConfig.keys,
     modifierLeaders = modifierLeaderSets,
-    listLeader = contextSpec and contextSpec.name or nil,
+    listLeader = listLeaderName,
     known = function(identity) return allManifests[identity] ~= nil end,
   })
   if not built then
@@ -2242,13 +2260,28 @@ function obj.run(olm, cfg)
   -- The leaders in use, every one some bound row of the keymap uses, so a held leader is remapped
   -- and started exactly while a chord needs it. Writing super and V is what claims Right Command,
   -- and moving every window default onto super frees Right Option. A keymap that failed to build
-  -- binds no global key, so the leaders in use fall back to the ones its roles name plus the
-  -- leader hosting lists, which the contexts still bind on, so every list keeps its keys and Caps
-  -- Lock its tap even where a role moved off it. The leader list, the engines the binder reaches,
-  -- the sheets and the leader that hosts lists all follow this one answer.
+  -- binds no global key, so the leaders in use fall back to the ones its roles name plus every
+  -- leader a list key names, which the contexts still bind on, so every list keeps its keys and
+  -- Caps Lock its tap even where a role moved off it. The leader list, the engines the binder
+  -- reaches, the sheets and the leaders hosting list keys all follow this one answer.
+  local listLeaderNames = {}
+  do
+    local seen = {}
+    local held = {}
+    for _, spec in ipairs(leaderSpecs) do held[spec.name] = true end
+    for _, block in pairs(plan.contexts or {}) do
+      for _, b in ipairs(block.bindings or {}) do
+        if b.chord ~= false and b.leader and held[b.leader] and not seen[b.leader] then
+          seen[b.leader] = true
+          listLeaderNames[#listLeaderNames + 1] = b.leader
+        end
+      end
+    end
+    table.sort(listLeaderNames)
+  end
   local inUse = {}
   local names = built and keymapLib.leadersInUse(keymap)
-    or keymapLib.fallbackLeaders(leaderRoles, contextSpec and contextSpec.name or nil)
+    or keymapLib.fallbackLeaders(leaderRoles, listLeaderNames)
   for _, name in ipairs(names) do inUse[name] = true end
   for _, spec in ipairs(leaderSpecs) do
     if inUse[spec.name] then
@@ -2260,7 +2293,6 @@ function obj.run(olm, cfg)
         leaderList[#leaderList + 1] = leader
         leadersByName[spec.name] = leader
         activeLeaderNames[#activeLeaderNames + 1] = spec.catalogName
-        if spec == contextSpec then contextLeader = leader end
       end
     end
   end
@@ -2272,6 +2304,15 @@ function obj.run(olm, cfg)
   end
   leaderList[#leaderList + 1] = plainLeader
   w.leaders(leaderList)
+  -- The held leaders in use, by name for the contexts and in catalog name order for the chooser
+  -- field's yield and the harness word.
+  local heldInUse = {}
+  for _, spec in ipairs(leaderSpecs) do
+    if spec.inUse then
+      heldInUse[spec.name] = leadersByName[spec.name]
+      heldLeaders[#heldLeaders + 1] = leadersByName[spec.name]
+    end
+  end
 
   -- The binder, the one place a global key is bound. Each row lands on the leader named the way
   -- the row spells it, the catalog name lowercased, and a row with no leader lands on the plain
@@ -2341,9 +2382,32 @@ function obj.run(olm, cfg)
     },
   })
 
-  -- Every list's keys bind on the leader whose policy turns contexts on. With none, step F has
-  -- already said so, and the lists keep only the keys their field reads for itself.
-  if contextLeader then w.contexts(contextLeader, bindOneInContext) end
+  -- Every list key binds on the held leader its chord names, a default on the list role's leader.
+  -- One opening with no held leader binds on none, false here, since the open list's field answers
+  -- it through the watcher built below.
+  w.contexts(function(binding)
+    if binding.leader == false or modifierLeaderSets[binding.leader] ~= nil then return false end
+    return heldInUse[binding.leader]
+  end, bindOneInContext)
+  -- The list keys the open list's own field answers, phase B of the list keys addendum. The field
+  -- asks the watcher at each key down while it is up, and the watcher runs the open list's binding,
+  -- read off binding.fn, which the dispatch table above stamped. A held key's autorepeat runs only
+  -- a binding whose action repeats, the same table the leaders read. Only the default chooser has
+  -- such a field, so with the legacy chooser chosen the keys are said once as not live.
+  local fieldKeyList
+  fieldWatch, fieldKeyList = navLib.fieldKeys(plan.contexts, {
+    keycodes = hs.keycodes.map,
+    modifierLeaders = modifierLeaderSets,
+    predicates = w._predicates or ownPredicates,
+    repeats = repeatableActions,
+    isRepeat = function(ev)
+      return ev:getProperty(hs.eventtap.event.properties.keyboardEventAutorepeat) ~= 0
+    end,
+  })
+  if #fieldKeyList > 0 and chooserAtom.providers and chooserProvider == chooserAtom.providers.legacy then
+    log.i("Olm keymap, " .. #fieldKeyList .. " list key(s) with no held leader are answered by the default "
+      .. "chooser's field, and the legacy chooser is chosen, so none of them is live this load")
+  end
 
   -- The remap is applied here, after every binding has been stored and immediately before the
   -- engines start listening, and that placement is the point. The remap is machine wide and
@@ -2840,6 +2904,13 @@ function obj.run(olm, cfg)
   -- inventory read what each one holds. The plain leader is left out, since what it claims is
   -- every plain combo and hs.hotkey.getHotkeys already answers those.
   record.leaders = leadersByName
+  -- The name the list role's leader is spelled with, so the inventory finds the leader every
+  -- default list key binds on in leaders above without naming it.
+  record.listLeaderName = listLeaderName
+  -- The list keys the open list's field answers, context, key, modifiers, when and priority, which
+  -- no engine and no hotkey holds. The offline bound recording, drygate-composerun.lua, writes them
+  -- into a fixture's golden from here, and the live key probe does not read them yet.
+  record.fieldKeys = fieldKeyList
   -- The catalog names the remap was applied with, so the key inventory's last line can say which
   -- held leaders this load claimed without reading the hardware.
   record.remap = activeLeaderNames

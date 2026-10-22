@@ -651,7 +651,8 @@ do
   eq(has(text, "lists all hyper+y | the entry names the action 'nothing', which no list answers"), false,
     "an all entry is worded as the section it sits in")
   eq(has(text, "lists all hyper+y | names the action 'nothing', which no list answers"), true, "an all action no list answers is named")
-  eq(has(text, "lists clip meta+n | opens with meta, and a list key lives on hyper"), true, "a chord on another leader is named")
+  eq(has(text, "lists clip meta+n | opens with meta, and a list key opens with a held leader, hyper"), true,
+    "a chord on a leader that is not a held leader this load is named")
   eq(has(text, "lists clip ctrl+alt+n | opens with no leader"), true, "and so is a chord of modifiers alone")
   eq(has(text, "lists clip hyper+c | names leavePage, which the list lists with chord false"), true,
     "a key the list reads for itself is no person setting")
@@ -685,6 +686,259 @@ do
   eq(panel.selectNext, nil, "and lists no navigation verb")
   local kinds = hints.actionKinds({ contexts = applied({ clip = { ["hyper+i"] = false } }) })
   eq(kinds.scrollDown, "verb", "a freed primary leaves an extra a verb")
+end
+
+--------------------------------------------------------------------------------
+-- List keys on any leader, phase A of the list keys addendum
+--------------------------------------------------------------------------------
+
+local HELD = { hyper = true, meta = true, super = true }
+
+-- The list role moves every default list key at once. readConfig takes list as a role word, and
+-- applyLists places every default binding on the leader the role lands on, so the keymap's list
+-- rows, the leaders in use and the hint bar all read that leader.
+do
+  local cfg = keymap.readConfig({ roles = { list = "meta" } },
+    { catalog = CATALOG, roleWords = { "app", "window", keymap.LIST_ROLE }, keycodes = LIST_KEYCODES })
+  eq(#cfg.problems, 0, "list role: list is a role word")
+  eq(cfg.roles.list, "META", "list role: it names the held leader it moves to")
+  local contexts = lists()
+  local problems = keymap.applyLists(contexts, {}, { listLeader = "meta", heldLeaders = HELD, keycodes = LIST_KEYCODES })
+  eq(#problems, 0, "list role: placing the defaults is no problem")
+  local onMeta, listedOnly = 0, nil
+  for _, b in ipairs(contexts.clip.bindings) do
+    if b.chord == false then listedOnly = b.leader
+    elseif b.leader == "meta" then onMeta = onMeta + 1 end
+  end
+  eq(onMeta, #contexts.clip.bindings - 1, "list role: every bound default of the list sits on meta")
+  eq(listedOnly, nil, "list role: a key the list reads for itself is placed on no leader")
+  local result = keymap.build({ plan = { effective = {}, identity = {}, contexts = contexts, order = {} },
+    roles = ROLES, keycodes = LIST_KEYCODES, listLeader = "meta" })
+  local leaders = {}
+  for _, row in ipairs(result.rows) do if row.layer ~= "global" then leaders[row.leader] = true end end
+  eq(leaders.meta and not leaders.hyper, true, "list role: every list row names meta")
+  eq(table.concat(keymap.leadersInUse(result), ","), "meta", "list role: so meta is in use and hyper is not")
+  local deps = { chordLabel = function(leader, key) return leader .. " " .. key end,
+    leaderNames = { hyper = "Hyper", meta = "Meta" }, leaderName = "Hyper" }
+  local bar = {}
+  for _, h in ipairs(hints.footerFor("clip", { contexts = contexts }, deps)) do bar[h.action] = h.badges[1] end
+  eq(bar.selectNext, "Meta j", "list role: the hint bar spells the binding's own leader")
+end
+
+-- An explicit chord moves only itself, onto whichever held leader it names, and the rest stay on
+-- the list role's leader. Its slot carries its leader, so hyper and n and meta and n are two.
+do
+  local cfg = readLists({ clip = { ["meta+n"] = "selectNext", ["super+e"] = "deleteSelected", ["hyper+n"] = "selectPrev" } })
+  local contexts = lists()
+  local problems = keymap.applyLists(contexts, cfg.lists, { listLeader = "hyper", heldLeaders = HELD, keycodes = LIST_KEYCODES })
+  eq(#problems, 0, "explicit: chords on three held leaders are accepted")
+  local at = {}
+  for _, b in ipairs(contexts.clip.bindings) do at[b.action] = tostring(b.leader) .. "+" .. tostring(b.key) end
+  eq(at.selectNext, "meta+n", "explicit: selectNext lands on meta")
+  eq(at.deleteSelected, "super+e", "explicit: deleteSelected lands on super")
+  eq(at.selectPrev, "hyper+n", "explicit: hyper and n is a slot of its own beside meta and n")
+  eq(at.insertSelected, "hyper+i", "explicit: every other key stays on the list role's leader")
+  eq(at.closeChooser, "hyper+x", "explicit: close too")
+  local result = keymap.build({ plan = { effective = {}, identity = {}, contexts = contexts, order = {} },
+    roles = ROLES, keycodes = LIST_KEYCODES, listLeader = "hyper" })
+  eq(#result.problems, 0, "explicit: no collision between hyper and n and meta and n in one list")
+  eq(table.concat(keymap.leadersInUse(result), ","), "hyper,meta,super", "explicit: every leader a list row names is in use")
+end
+
+-- Two rows of one list on one slot of a leader that is not hyper are a collision, named with that
+-- leader, and the same pair of the person's own in one table is refused together.
+do
+  local contexts = { clash = { when = "clashOpen", priority = 100, bindings = {
+    { action = "selectNext", key = "j", leader = "meta" },
+    { action = "scrollDown", key = "j", leader = "meta" },
+    { action = "selectPrev", key = "j", leader = "super" },
+  } } }
+  local result = keymap.build({ plan = { effective = {}, identity = {}, contexts = contexts, order = {} },
+    roles = ROLES, keycodes = LIST_KEYCODES, listLeader = "hyper" })
+  eq(#result.problems, 1, "collision: two rows on meta and j in one list are one problem")
+  eq(has(whys(result.problems), "meta+j with any modifiers in clash"), true, "collision: named with its leader")
+  local _, problems = applied({ clip = { ["meta+n"] = "selectNext", ["META+N"] = "selectPrev" } },
+    { heldLeaders = HELD })
+  eq(has(whys(problems), "are two of the person's own chords on one slot of clip"), true,
+    "collision: two of the person's own on one meta slot are refused together")
+end
+
+--------------------------------------------------------------------------------
+-- List keys the open list's own field answers, phase B of the list keys addendum
+--------------------------------------------------------------------------------
+
+-- A fake of the default chooser's own answer, the field reading Ctrl and A and the down arrow.
+local function fieldUses(key, mods)
+  local text = table.concat(mods, "+")
+  if key == "a" and text == "ctrl" then return "the field's own moveToStart" end
+  if key == "down" then return "the arrow moves the highlight" end
+  return nil
+end
+local FIELD_KEYCODES = {}
+do
+  local names = { "a", "c", "d", "e", "i", "j", "k", "n", "o", "space", "x", "y", "delete", "p", "down", "tab", "pad1" }
+  for i, name in ipairs(names) do FIELD_KEYCODES[name] = i FIELD_KEYCODES[i] = name end
+end
+local NAMED = { nav = { "ctrl", "shift" } }
+
+local function fieldApplied(section)
+  local cfg = keymap.readConfig({ leaders = { nav = { "shift", "ctrl" } }, lists = section },
+    { catalog = CATALOG, roleWords = ROLE_WORDS, keycodes = FIELD_KEYCODES })
+  local contexts = lists()
+  local problems, notes = keymap.applyLists(contexts, cfg.lists, { listLeader = "hyper", heldLeaders = HELD,
+    modifierLeaders = NAMED, fieldUses = fieldUses, keycodes = FIELD_KEYCODES })
+  for _, p in ipairs(cfg.problems) do problems[#problems + 1] = p end
+  return contexts, problems, notes
+end
+
+-- What the field may answer and what it refuses, each refusal naming why.
+do
+  local contexts, problems = fieldApplied({ clip = {
+    ["ctrl+j"] = "selectNext", ["nav+k"] = "selectPrev", ["tab"] = "deleteSelected",
+    ["y"] = "insertSelected", ["shift+p"] = "insertSelected", ["pad1"] = "insertSelected",
+    ["ctrl+a"] = "insertSelected", ["alt+down"] = "insertSelected",
+  } })
+  local text = whys(problems)
+  eq(has(text, "lists clip y | names a key that types a character into the list's field"), true, "field: a printable bare key is refused")
+  eq(has(text, "lists clip shift+p | names a key that types a character"), true, "field: Shift alone on a printable key is refused")
+  eq(has(text, "lists clip pad1 | names a key that types a character"), true, "field: a keypad digit types too")
+  eq(has(text, "lists clip ctrl+a | names a chord the list's field already reads, the field's own moveToStart"), true,
+    "field: a chord the field already reads is refused naming what reads it")
+  eq(has(text, "lists clip alt+down | names a chord the list's field already reads, the arrow moves the highlight"), true,
+    "field: an arrow the chooser reads is refused with modifiers too")
+  eq(#problems, 5, "field: and nothing else is refused")
+  local at = {}
+  for _, b in ipairs(contexts.clip.bindings) do at[b.action] = b end
+  eq(at.selectNext.leader, false, "field: a chord of modifiers alone binds on no leader")
+  eq(table.concat(at.selectNext.mods, "+"), "ctrl", "field: with its own modifiers")
+  eq(at.selectPrev.leader, "nav", "field: a chord on a named leader keeps the leader's name")
+  eq(at.deleteSelected.leader, false, "field: a bare key the field does not read is accepted")
+  eq(at.insertSelected.leader, "hyper", "field: every refused entry leaves its default where it was")
+
+  -- The keymap's rows for field keys, which put no leader in use and collide by the whole
+  -- combination with no leader, so nav and k is ctrl and shift and k.
+  local result = keymap.build({ plan = { effective = {}, identity = {}, contexts = contexts, order = {} },
+    roles = ROLES, keycodes = FIELD_KEYCODES, listLeader = "hyper", modifierLeaders = NAMED })
+  local rows = {}
+  for _, row in ipairs(result.rows) do if row.layer == "clip" then rows[row.action] = row end end
+  eq(rows.selectNext.field, true, "field rows: a field key's row says field")
+  eq(rows.selectNext.leader, nil, "field rows: modifiers alone name no leader")
+  eq(rows.selectPrev.leader, "nav", "field rows: a named leader's chord names it")
+  eq(table.concat(keymap.leadersInUse(result), ","), "hyper", "field rows: no field key puts a leader in use")
+  local _, clash = fieldApplied({ clip = { ["nav+k"] = "selectPrev", ["ctrl+shift+k"] = "scrollDown" } })
+  eq(has(whys(clash), "are two of the person's own chords on one slot of clip"), true,
+    "field rows: nav and k and ctrl, shift and k are one slot")
+
+  -- Spelling, the glyph and modifiers alone for no leader, the leader's word for a named one.
+  local deps = { chordLabel = function(leader, key, mods) return leader .. " " .. key end,
+    glyphFor = function(key, mods) return table.concat(mods or {}, "+") .. "+" .. key end,
+    leaderNames = { hyper = "Hyper", nav = "Nav" }, leaderName = "Hyper" }
+  local bar = {}
+  for _, h in ipairs(hints.footerFor("clip", { contexts = contexts }, deps)) do bar[h.action] = h.badges[1] end
+  eq(bar.selectNext, "ctrl+j", "field spelling: modifiers alone read as the glyph and modifiers")
+  eq(bar.selectPrev, "Nav k", "field spelling: a named leader reads as its word")
+end
+
+-- The watcher the field asks, and the field asking it. It runs a field key only while its list's
+-- context is live and only on its exact modifiers, and the field claims the key it took and types
+-- nothing, while a key it did not take goes on to the field as before.
+do
+  local nav = assert(loadfile(here .. "../lib/nav.lua"))()
+  local input = assert(loadfile(here .. "../lib/chooser/providers/default/field/input.lua"))()
+  local contexts = fieldApplied({ clip = { ["ctrl+j"] = "selectNext", ["nav+k"] = "selectPrev" } })
+  local ran = {}
+  for _, b in ipairs(contexts.clip.bindings) do
+    local action = b.action
+    b.fn = function() ran[#ran + 1] = action end
+  end
+  local open = false
+  contexts.clip.when = "clipOpen"
+  local watch, keys = nav.fieldKeys(contexts, { keycodes = FIELD_KEYCODES, modifierLeaders = NAMED,
+    predicates = { clipOpen = function() return open end } })
+  eq(#keys, 2, "watcher: two field keys are listed")
+  local function ev(key, flags, chars)
+    return { getKeyCode = function() return FIELD_KEYCODES[key] end, getFlags = function() return flags end,
+      getCharacters = function() return chars end }
+  end
+  eq(watch(ev("j", { ctrl = true })), false, "watcher: with its list closed a field key is not taken")
+  open = true
+  eq(watch(ev("j", { ctrl = true })), true, "watcher: with its list open Ctrl and J is taken")
+  eq(ran[#ran], "selectNext", "watcher: and runs that list's binding")
+  eq(watch(ev("j", { ctrl = true, alt = true })), false, "watcher: other modifiers are not the chord")
+  eq(watch(ev("k", { ctrl = true, shift = true })), true, "watcher: a named leader's key is its whole set")
+  eq(ran[#ran], "selectPrev", "watcher: and runs selectPrev")
+
+  local f = input.Field.new({ listKeys = watch })
+  eq(f:_handle(ev("j", { ctrl = true }, "j")), true, "field: a key the watcher took is claimed")
+  eq(f:getState().text, "", "field: and nothing is typed")
+  local before = #ran
+  eq(f:_handle(ev("j", {}, "j")), true, "field: a plain J is not the watcher's")
+  eq(f:getState().text, "j", "field: so it types as before")
+  eq(#ran, before, "field: and runs nothing")
+  open = false
+  local g = input.Field.new({ listKeys = watch })
+  g:_handle(ev("j", { ctrl = true }, "j"))
+  eq(#ran, before, "field: with the list's context gone the chord runs nothing")
+end
+
+-- The fix round on phase B. fn is refused in a field chord, since the watcher compares only the
+-- four real modifiers and fn and J would act on a plain J. Option on a printable key is kept with a
+-- routine note. A held key's autorepeat runs only a repeating action and is swallowed otherwise, a
+-- binding that raises still claims the key, and a list naming no predicate the watcher can ask is
+-- warned about once.
+do
+  local contexts, problems, notes = fieldApplied({ clip = { ["fn+j"] = "selectNext", ["alt+d"] = "deleteSelected" } })
+  eq(has(whys(problems), "lists clip fn+j | names fn, which the list's field does not compare"), true, "fix: fn in a field chord is refused")
+  local noteText = table.concat(notes, "\n")
+  eq(has(noteText, "lists clip alt+d' takes a chord that types a character into the field"), true,
+    "fix: Option on a printable key is accepted with a routine note")
+  local at = {}
+  for _, b in ipairs(contexts.clip.bindings) do at[b.action] = b end
+  eq(at.deleteSelected.leader, false, "fix: and binds for the field")
+  eq(at.selectNext.leader, "hyper", "fix: the refused fn entry leaves selectNext where it was")
+
+  local warnings = {}
+  local saved = hs
+  hs = { logger = { new = function() return {
+    w = function(m) warnings[#warnings + 1] = m end, e = function(m) warnings[#warnings + 1] = m end,
+    i = function() end } end } }
+  local nav = assert(loadfile(here .. "../lib/nav.lua"))()
+  hs = saved
+  local held = fieldApplied({ clip = { ["ctrl+j"] = "selectNext", ["ctrl+d"] = "deleteSelected", ["ctrl+e"] = "scrollDown" } })
+  held.clip.when = "clipOpen"
+  local ran = {}
+  for _, b in ipairs(held.clip.bindings) do
+    local action = b.action
+    b.fn = function() ran[#ran + 1] = action end
+    if action == "scrollDown" then b.fn = function() error("boom") end end
+  end
+  local repeating = false
+  local watch = nav.fieldKeys(held, { keycodes = FIELD_KEYCODES, predicates = { clipOpen = function() return true end },
+    repeats = { selectNext = true }, isRepeat = function() return repeating end })
+  local function ev(key, flags)
+    return { getKeyCode = function() return FIELD_KEYCODES[key] end, getFlags = function() return flags end }
+  end
+  repeating = true
+  eq(watch(ev("j", { ctrl = true })), true, "repeat: a repeat of a repeating action is taken")
+  eq(ran[#ran], "selectNext", "repeat: and runs it")
+  local before = #ran
+  eq(watch(ev("d", { ctrl = true })), true, "repeat: a repeat of an action that does not repeat is still claimed")
+  eq(#ran, before, "repeat: and runs nothing, so a held delete deletes once")
+  repeating = false
+  eq(watch(ev("d", { ctrl = true })), true, "repeat: the first press runs it")
+  eq(ran[#ran], "deleteSelected", "repeat: as deleteSelected")
+  local warned = #warnings
+  eq(watch(ev("e", { ctrl = true })), true, "raise: a binding that raises still claims the key")
+  eq(#warnings, warned + 1, "raise: and is reported")
+
+  local blind = fieldApplied({ clip = { ["ctrl+j"] = "selectNext" } })
+  blind.clip.when = "nothingAnswers"
+  for _, b in ipairs(blind.clip.bindings) do b.fn = function() end end
+  local blindWatch = nav.fieldKeys(blind, { keycodes = FIELD_KEYCODES, predicates = {} })
+  warned = #warnings
+  eq(blindWatch(ev("j", { ctrl = true })), false, "predicate: a list no predicate answers takes no key")
+  blindWatch(ev("j", { ctrl = true }))
+  eq(#warnings, warned + 1, "predicate: and says so once")
 end
 
 if failures > 0 then
