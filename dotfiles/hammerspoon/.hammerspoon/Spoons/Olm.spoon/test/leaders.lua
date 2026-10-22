@@ -27,6 +27,7 @@ local toggles = 0
 local hotkeysBound = {}
 local heldMods = {}
 local waits = {}
+local taps, timers = {}, {}
 hs = {
   keycodes = { map = { a = 0, b = 11, c = 8, left = 123, ["`"] = 50 } },
   logger = {
@@ -42,8 +43,34 @@ hs = {
       return {}
     end,
   },
-  eventtap = { checkKeyboardModifiers = function() return heldMods end },
+  eventtap = {
+    checkKeyboardModifiers = function() return heldMods end,
+    -- A tap that records its types and callback, so a case can drive events through it by hand.
+    new = function(types, fn)
+      local tap = { types = types, fn = fn, running = false }
+      function tap:start() self.running = true return self end
+      function tap:stop() self.running = false return self end
+      taps[#taps + 1] = tap
+      return tap
+    end,
+    event = { types = { keyDown = 10, flagsChanged = 12 } },
+  },
   timer = {
+    -- Timers that never fire alone, a case runs one by hand, so every delay and every stop is seen.
+    doAfter = function(delay, fn)
+      local t = { delay = delay, stopped = false }
+      -- A one shot timer that has fired is spent, which counts as stopped.
+      t.fn = function() t.stopped = true fn() end
+      function t:stop() self.stopped = true end
+      timers[#timers + 1] = t
+      return t
+    end,
+    doEvery = function(delay, fn)
+      local t = { delay = delay, fn = fn, stopped = false, every = true }
+      function t:stop() self.stopped = true end
+      timers[#timers + 1] = t
+      return t
+    end,
     waitUntil = function(pred, fn)
       local w = { pred = pred, fn = fn, stopped = false }
       function w:stop() self.stopped = true end
@@ -698,6 +725,123 @@ do
   eq(clean.drivenRepeat, nil, "policy: a field of the wrong type is left at its default")
   eq(clean.sheet, nil, "policy: false is the same as absent")
   eq(#problems, 2, "policy: the wrong type and the unknown field are each one problem")
+end
+
+-- The reveal on the modifier trigger. A leader of modifiers that states a sheet runs one tap that
+-- only observes. The sheet shows once exactly the base set has been held for the hold delay, and
+-- any key or change of the set takes it down, with a poll of the live modifiers as the backstop.
+do
+  local modifier = assert(loadfile(lib .. "leader/triggers/modifier.lua"))()
+  local HYPER = { "shift", "ctrl", "alt", "cmd" }
+  local function allOf(list)
+    local out = {}
+    for _, m in ipairs(list) do out[m] = true end
+    return out
+  end
+  local function setup(mods, withSheet, extra)
+    taps, timers = {}, {}
+    local sheet = { shown = {}, hid = 0 }
+    function sheet:show(code) self.shown[#self.shown + 1] = code end
+    function sheet:hide() self.hid = self.hid + 1 end
+    local opts = { trigger = modifier.new({ mods = mods }), name = "hyper", holdDelay = 0.4 }
+    if withSheet then opts.sheet = sheet end
+    for k, v in pairs(extra or {}) do opts[k] = v end
+    local l = newLeader({}, predicates, opts)
+    l:start()
+    return l, sheet
+  end
+  local types = hs.eventtap.event.types
+  local function flags(tap, set)
+    local ev = { getType = function() return types.flagsChanged end, getFlags = function() return set end }
+    return tap.fn(ev)
+  end
+  local function key(tap)
+    return tap.fn({ getType = function() return types.keyDown end })
+  end
+  local function live() local n = 0 for _, t in ipairs(timers) do if not t.stopped then n = n + 1 end end return n end
+
+  local l, sheet = setup(HYPER, true)
+  local tap = taps[1]
+  eq(#taps, 1, "reveal: a leader of modifiers with a sheet runs one tap")
+  eq(tap.running, true, "reveal: and starts it")
+  eq(tap.types[1] == types.flagsChanged and tap.types[2] == types.keyDown, true, "reveal: over flags changes and key downs")
+  heldMods = allOf(HYPER)
+  eq(flags(tap, allOf(HYPER)), false, "reveal: the tap answers false on a flags change")
+  eq(#timers, 1, "reveal: exactly the base set arms a timer")
+  eq(timers[1].delay, 0.4, "reveal: for the leader's hold delay")
+  eq(#sheet.shown, 0, "reveal: and nothing shows before it passes")
+  timers[1].fn()
+  eq(#sheet.shown, 1, "reveal: the sheet shows when the delay passes with the set held")
+  eq(sheet.shown[1], "hyper", "reveal: found by the leader's name, since it has no keycode")
+  eq(timers[2] and timers[2].every, true, "reveal: a poll runs while the sheet is up")
+  eq(timers[2] and timers[2].delay, 0.25, "reveal: a quarter second apart")
+  -- A flags change after the reveal takes it down and stops the poll.
+  flags(tap, { shift = true, ctrl = true, alt = true })
+  eq(sheet.hid, 1, "reveal: a change of the set conceals")
+  eq(timers[2].stopped, true, "reveal: and stops the poll")
+  eq(live(), 0, "reveal: leaving the set holds no timer")
+  -- A key after the reveal.
+  flags(tap, allOf(HYPER))
+  timers[#timers].fn()
+  eq(#sheet.shown, 2, "reveal: held again, it shows again")
+  eq(key(tap), false, "reveal: the tap answers false on a key down")
+  eq(sheet.hid, 2, "reveal: a key down conceals")
+  eq(live(), 0, "reveal: and leaves no timer running")
+  -- A key before the delay.
+  flags(tap, { shift = true, ctrl = true, alt = true, cmd = true, fn = true })
+  eq(#sheet.shown, 2, "reveal: fn alone is no change and shows nothing early")
+  key(tap)
+  eq(live(), 0, "reveal: a key down before the delay disarms the timer")
+  -- A superset, a subset and fn or caps lock.
+  local before = #sheet.shown
+  flags(tap, { shift = true, ctrl = true })
+  flags(tap, { shift = true, ctrl = true, alt = true, cmd = true, fn = true, capsLock = true })
+  eq(live(), 1, "reveal: fn and caps lock are not counted against the set")
+  flags(tap, { shift = true, ctrl = true, alt = true, cmd = true, alt2 = true })
+  flags(tap, {})
+  eq(live(), 0, "reveal: releasing everything disarms")
+  eq(#sheet.shown, before, "reveal: a subset never reveals")
+  local l2, sheet2 = setup({ "shift", "ctrl" }, true)
+  flags(taps[1], { shift = true, ctrl = true, cmd = true })
+  eq(live(), 0, "reveal: a superset arms nothing")
+  flags(taps[1], { shift = true })
+  eq(live(), 0, "reveal: a subset arms nothing")
+  -- The poll conceals once the live modifiers no longer match, with the tap blind.
+  local l3, sheet3 = setup(HYPER, true)
+  heldMods = allOf(HYPER)
+  flags(taps[1], allOf(HYPER))
+  timers[1].fn()
+  eq(#sheet3.shown, 1, "poll: the sheet is up")
+  heldMods = { shift = true }
+  timers[2].fn()
+  eq(sheet3.hid, 1, "poll: it conceals when the live set no longer matches")
+  eq(timers[2].stopped, true, "poll: and stops")
+  -- The tap never saw the release, so the next press may arrive as one event naming the same set.
+  heldMods = allOf(HYPER)
+  local armed = #timers
+  flags(taps[1], allOf(HYPER))
+  eq(#timers, armed + 1, "poll: after it conceals, the same set in one event arms again")
+  timers[#timers].fn()
+  eq(#sheet3.shown, 2, "poll: and the sheet shows again")
+  -- The timer firing with the live set already gone shows nothing.
+  local l4, sheet4 = setup(HYPER, true)
+  flags(taps[1], allOf(HYPER))
+  heldMods = {}
+  timers[1].fn()
+  eq(#sheet4.shown, 0, "reveal: a timer firing after the set was lost shows nothing")
+  -- Over an open list the adapter refuses and no poll starts.
+  local l5, sheet5 = setup(HYPER, true, { listOpen = function() return true end })
+  heldMods = allOf(HYPER)
+  flags(taps[1], allOf(HYPER))
+  timers[1].fn()
+  eq(#sheet5.shown, 0, "reveal: nothing shows over an open list")
+  eq(#timers, 1, "reveal: and no poll runs for a sheet that is not up")
+  -- No tap without a sheet, or without a base set.
+  setup(HYPER, false)
+  eq(#taps, 0, "reveal: a leader with no sheet runs no tap")
+  setup({}, true)
+  eq(#taps, 0, "reveal: a plain leader never runs one")
+  heldMods = {}
 end
 
 print(string.format("leaders: %d checks, %d failed", checks, failures))

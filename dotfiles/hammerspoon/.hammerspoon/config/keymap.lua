@@ -55,9 +55,10 @@
 -- keeps the rest. A new name starts with every behaviour off. No name is reserved, a name is
 -- refused only when it is not one word of letters and digits, is a modifier or role word, or
 -- repeats another in a different case. A leader of modifiers reads like hyper in a chord and on a
--- launcher row. It has no tap, since holding real modifiers is ordinary typing, a sheet on one is
--- not drawn yet, and its chords are taken from every app, so it suits combinations the apps here
--- leave free. Its behaviour fields work, ranked as anywhere and drivenRepeat counting the
+-- launcher row. It has no tap, since holding real modifiers is ordinary typing, and a sheet on
+-- one is opt in, revealed once exactly that set has been held for the hold delay and taken down
+-- on any key or change of the set. Its chords are taken from every app, so it suits combinations
+-- the apps here leave free. Its behaviour fields work, ranked as anywhere and drivenRepeat counting the
 -- hotkey's own repeats. A modifier leader that hosts a list key seals over an open list, so none
 -- of its chords acts beneath one. A leader no chord uses is said in one routine console line. A
 -- bare list, nav = { "shift", "ctrl" }, is still read as mods with a routine console line saying

@@ -159,3 +159,20 @@ accepted at 15:40 and nothing else, and hidutil held Right Option to F16 alone. 
 Control, Option and Command by hand, Milos confirmed the launcher on Space, an app toggle, j and k
 moving the launcher's highlight, an app letter, a digit and an arrow doing nothing over the open
 launcher, and Caps Lock toggling as a plain key.
+
+### 2026-10-22 16:59
+
+Phase 4 landed, the last phase of `docs/PLAN-LEADERS.md`. A modifier leader whose entry states a
+sheet runs one event tap over flags changes and key downs that only observes, answering false to
+every event. Exactly its set of shift, ctrl, alt and cmd held for the hold delay with no key shows
+the sheet, fn and caps lock counting neither way, and any key or any change of the set hides it.
+While the sheet is up a poll asks the live modifiers four times a second and hides it once they no
+longer match, since a tap can miss a release under secure input and real modifiers can always be
+asked. Review found that the poll left the tap's memory of the last set stale, so a press arriving
+as one event naming the same set would never arm again, and the poll now forgets it, pinned by a
+test that fails without the line. The leader sheet host finds a sheet by keycode for a held leader
+and by name for a modifier one. The live load was clean apart from the five overlaps accepted at
+15:40, and holding the four modifiers by hand Milos confirmed the sheet appearing, hiding on a
+released modifier and on an app letter, staying away for Shift and Control or Command and Option
+and over the open launcher, and no flash on a quick shortcut. The plan is complete. A macOS tap
+disabled by a timeout is not re enabled here, since this tap only observes and returns at once.

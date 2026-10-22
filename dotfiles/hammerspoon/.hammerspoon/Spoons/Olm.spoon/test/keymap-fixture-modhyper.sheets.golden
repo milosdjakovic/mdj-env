@@ -1,3 +1,21 @@
+hyper	supplied	1	RUNNING	1.0	-	icons
+hyper	section	2	ACTIONS	1.0	-	plain columns=4 colWidth=215 iconSize=0
+hyper	row	2	W	Browser tabs	-
+hyper	row	2	K	Keep awake	-
+hyper	row	2	X	Clipboard history	-
+hyper	row	2	2	Color picker	-
+hyper	row	2	J	Emoji picker	-
+hyper	row	2	/	File search	-
+hyper	row	2	E	Menu search	-
+hyper	row	2	U	Tmux Manager	-
+hyper	row	2	P	VPN	-
+hyper	row	2	3	OCR	-
+hyper	row	2	4	Screenshot (copy)	-
+hyper	row	2	⇧4	Screenshot	-
+hyper	row	2	5	Record screen	-
+hyper	row	2	␣	Launcher	-
+hyper	row	2	§	Lock Screen	-
+hyper	row	2	esc	Sleep	-
 window	group	WINDOW MANAGEMENT
 window	row	1	,	Previous Display	multipleDisplays
 window	row	2	.	Next Display	multipleDisplays

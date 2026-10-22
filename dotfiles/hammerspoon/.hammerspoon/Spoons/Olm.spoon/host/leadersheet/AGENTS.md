@@ -14,9 +14,11 @@ global key bound on a leader is on that leader's sheet and nothing is on it that
 there, and that promise is kept by where the rows come from rather than by anything this host
 checks.
 
-The leader adapter calls `show(keyCode)` with the key it was built on and `hide()` on release, and
-holds the reveal back over an open list, so this host never decides when a sheet appears. It only
-answers what it draws for a keycode.
+The leader adapter calls `show(key)` with the keycode it was built on, or with its name for a leader
+of modifiers, which has no keycode, and `hide()` on release. It holds the reveal back over an open
+list, so this host never decides when a sheet appears. It only answers what it draws for a key. A
+record is held under its keycode when it has one and under its name when it has not, which cannot
+collide since a keycode is a number and a name is a word, and one record with neither is dropped.
 
 ## Where a leader's sections come from
 

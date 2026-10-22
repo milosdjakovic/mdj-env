@@ -30,7 +30,7 @@ obj.license = "MIT"
 
 local log = hs.logger.new("LeaderSheet", "info")
 
-obj._sheets = nil      -- keycode to { name, layout, entries }, and the same records in order below
+obj._sheets = nil      -- key to { name, layout, entries }, the key a keycode or, for a leader with none, its name, and the same records in order below
 obj._order = nil
 obj._cheatSheet = nil  -- shared CheatSheet renderer
 obj._predicates = nil  -- name to function answering a bool, for rows with a when
@@ -295,7 +295,8 @@ end
 --- opts.predicates  name to function answering a bool, for rows with a `when`
 --- opts.sheets      the leaders that show a sheet, a list, each { name, keyCode, layout, entries }.
 ---                  name is the leader as a keymap row spells it, keyCode the key a hold shows the
----                  sheet for, layout the leader's resolved layout and entries the ordered list
+---                  sheet for, absent on a leader of modifiers, which is shown by its name instead,
+---                  layout the leader's resolved layout and entries the ordered list
 ---                  ownSections answered, each a section table or a function answering a list of
 ---                  them at every show. Absent leaves the sheets as
 ---                  they were, so a first configure that holds only the renderer changes none.
@@ -306,7 +307,7 @@ function obj:configure(opts)
   if opts.sheets ~= nil then
     self._sheets, self._order = {}, {}
     for _, spec in ipairs(opts.sheets) do
-      if type(spec) == "table" and spec.keyCode ~= nil then
+      if type(spec) == "table" and (spec.keyCode ~= nil or spec.name ~= nil) then
         -- A plain section carries no live state, so it was built once before it got here and only
         -- a live block is asked again on every show. Anything else in the list is left out.
         local entries = {}
@@ -314,10 +315,12 @@ function obj:configure(opts)
           if type(entry) == "function" or type(entry) == "table" then entries[#entries + 1] = entry end
         end
         local record = { name = spec.name, keyCode = spec.keyCode, layout = spec.layout or {}, entries = entries }
-        self._sheets[spec.keyCode] = record
+        -- A held leader is found by its keycode and a leader of modifiers, which has none, by its
+        -- name. The two cannot meet, a keycode is a number and a name is a word.
+        self._sheets[spec.keyCode ~= nil and spec.keyCode or spec.name] = record
         self._order[#self._order + 1] = record
       else
-        drop("a leader", "it names no keycode")
+        drop("a leader", "it names neither a keycode nor a name")
       end
     end
   end

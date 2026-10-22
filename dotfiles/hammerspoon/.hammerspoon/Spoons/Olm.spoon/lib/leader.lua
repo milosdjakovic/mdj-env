@@ -76,8 +76,9 @@ obj.noop = noop
 --                       among catch alls the first bound answers rather than the last. List
 --                       bindings are ranked on every leader whatever this says, see _resolve.
 --   sheet               a hold reveals this leader's cheat sheet, drawn by the one sheet host. Absent
---                       means a hold reveals nothing. On a leader of modifiers it is accepted and
---                       not drawn yet.
+--                       means a hold reveals nothing. On a leader of modifiers the sheet is revealed
+--                       once exactly that set has been held for the hold delay, see the modifier
+--                       trigger.
 --   sheetLayout         how that sheet is laid out, a table of the SHEET_FIELDS below. Absent means
 --                       the defaults, and it means nothing on a leader with no sheet.
 --   holdDelay           seconds a hold waits before it reveals, else the engine's own.
@@ -284,7 +285,8 @@ end
 ---   policy      the leader's policy, already through checkPolicy
 ---   sheet       the module a hold reveals, show(keyCode) and hide(), nil for none. The root hands the
 ---               one sheet host to every leader whose policy states a sheet.
----   keyCode     the keycode the sheet is shown for, the held key's own
+---   keyCode     the keycode the sheet is shown for, the held key's own, nil on a leader of modifiers
+---               whose sheet is found by name
 ---   listOpen    function answering true while any Olm list is open. A hold never reveals over an
 ---               open list, on every leader, and while it answers true the leader answers only
 ---               its bindings for the open list and swallows every other key.
@@ -593,7 +595,8 @@ function obj:_reveal(code)
   if self._listOpen and self._listOpen() then return end
   local sheet = self._sheet
   if not sheet then return end
-  sheet:show(code or self._keyCode)
+  -- A held leader is shown by its keycode and a leader of modifiers, which has none, by its name.
+  sheet:show(code or self._keyCode or self._name)
   self._revealed = true
 end
 

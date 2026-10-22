@@ -961,7 +961,7 @@ function obj.run(olm, cfg)
       spec.remapTarget = slot and slot.target
     else
       -- Behaviour is the leader's own whichever kind it is, so the policy stays as checked. A
-      -- modifier leader has no tap, and a sheet on one is not drawn yet, said in step H.
+      -- modifier leader has no tap, and its sheet is revealed by the modifier trigger.
       spec.mods = entry.mods
     end
     leaderSpecs[#leaderSpecs + 1] = spec
@@ -1760,18 +1760,25 @@ function obj.run(olm, cfg)
     else
       -- A leader of modifiers is the modifier trigger handed its set as the base, with the policy
       -- its entry states, and it seals over an open list when it hosts a list key. It has no tap,
-      -- since holding real modifiers is ordinary typing, and no sheet yet, said once here as a
-      -- routine line.
+      -- since holding real modifiers is ordinary typing. A sheet is opt in, and it is revealed by
+      -- the trigger once exactly that set has been held for the hold delay.
+      local sheet = nil
       if spec.policy.sheet then
-        log.i("Olm leaders, the " .. spec.catalogName .. " leader states a sheet, and a sheet on a leader of "
-          .. "modifiers is not drawn yet, so a hold reveals nothing")
+        -- THE SEAM. LeaderSheet is one of the host modules this file may name.
+        sheet = leaderSheetModule
+        if not sheet then
+          log.w("Olm compose, the " .. spec.catalogName .. " leader states a sheet, and the leader sheet "
+            .. "host did not load, so holding it reveals nothing")
+        end
       end
       leader = leaderLib.new({
         name = spec.name,
         trigger = modifierTriggerLib.new({ mods = spec.mods, sealsOverLists = hostsListKey[spec.name] == true }),
         policy = spec.policy,
+        sheet = sheet,
         listOpen = anyListShowing,
         predicates = ownPredicates,
+        holdDelay = policy.chord.holdDelay,
       })
     end
     if leader then
@@ -2492,7 +2499,7 @@ function obj.run(olm, cfg)
   -- the raw instance rather than the zero argument wire adapter, since rowFor is the one call that
   -- needs it. A row standing for an app wears that app's name and icon, resolved here once, and
   -- an app not on this machine is left off. The sheet draws by the leader's own keycode, which the
-  -- adapter hands it.
+  -- adapter hands it, or by its name for a leader of modifiers.
   if leaderSheetModule then
     local sheetIdentity = plan.identity.leadersheet or "leadersheet"
     local directoryOfIdentity = {}
@@ -2510,12 +2517,12 @@ function obj.run(olm, cfg)
     end
     local sheets = {}
     for _, spec in ipairs(leaderSpecs) do
-      -- A held leader alone, since a sheet on a leader of modifiers is not drawn yet.
-      if spec.policy.sheet and spec.inUse and spec.held then
+      if spec.policy.sheet and spec.inUse then
         local layout = leaderLib.sheetLayout(spec.policy, cheatSheetAtom.DEFAULTS, spec.heading)
         local rows = hintsLib.sheetRows(keymap, plan, spec.name, { registry = wiredRegistry })
         sheets[#sheets + 1] = {
           name = spec.name,
+          -- Nil on a leader of modifiers, whose sheet the host finds by name.
           keyCode = spec.keyCode,
           layout = layout,
           entries = leaderSheetModule.ownSections(rows, {

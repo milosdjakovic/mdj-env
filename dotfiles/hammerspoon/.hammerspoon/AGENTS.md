@@ -288,7 +288,7 @@ may take `mods` too, `hyper = { mods = { "shift", "ctrl", "alt", "cmd" } }` bein
 four real modifiers from Karabiner or a hand, which leaves Caps Lock unremapped and keeps the
 ranking and the sheet fields Hyper ships. Every default list key then rides that Hyper as a field
 key, and `Spoons/Olm.spoon/test/keymap-fixture-modhyper.lua` with its goldens proves it offline.
-A sheet on a leader of modifiers is not drawn yet. Every entry Olm cannot read is a problem line naming it, and
+A sheet on a leader of modifiers is opt in and is revealed once exactly its set has been held for the hold delay. Every entry Olm cannot read is a problem line naming it, and
 `Spoons/Olm.spoon/test/keymap-fixture.lua` with its goldens proves a whole keymap offline. The window leader binds
 onto the one keycode the root configured it with, so a plugin never sees a keycode. Every
 leader shares one resolver that knows modifiers, with optional per binding `mods`, an exact match on shift, ctrl, alt and cmd,

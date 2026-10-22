@@ -493,5 +493,28 @@ do
   eq(chords["com.m"] and chords["com.m"].chord.key, "m", "gaps: every app with a chord has its row's chord")
 end
 
+-- A leader of modifiers has no keycode, so its sheet is found by name, through the adapter's own
+-- show, and a held leader beside it is still found by its keycode.
+do
+  local host = fresh()
+  local r = renderer()
+  local own = host.ownSections({ { key = "b", description = "B" } }, { glyphFor = glyphFor, layout = LAYOUT })
+  host:configure({ cheatSheet = r, sheets = {
+    { name = "hyper", layout = LAYOUT, entries = { own[1] } },
+    { name = "meta", keyCode = 79, layout = LAYOUT, entries = { own[1] } },
+    { layout = LAYOUT, entries = {} },
+  } })
+  eq(host:model("hyper") and host:model("hyper").name, "hyper", "named: a leader with no keycode is held under its name")
+  eq(host:model(79) and host:model(79).name, "meta", "named: a held leader is still held under its keycode")
+  eq(#host:models(), 2, "named: a record with neither is dropped")
+  local a = leader.new({ name = "hyper", policy = {}, sheet = host })
+  a:_reveal(nil)
+  eq(#r.shown, 1, "named: the adapter shows a leader of modifiers by its name")
+  eq(a._revealed, true, "named: and counts it as revealed")
+  local b = leader.new({ name = "meta", policy = {}, sheet = host, keyCode = 79 })
+  b:_reveal(79)
+  eq(#r.shown, 2, "named: a held leader is shown by its keycode as before")
+end
+
 print(string.format("leadersheet: %d checks, %d failed", checks, failures))
 os.exit(failures == 0 and 0 or 1)

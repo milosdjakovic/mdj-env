@@ -14,12 +14,20 @@
 -- lib/leader.lua.
 --
 -- This was the chord shape of lib/hyperkey.lua until phase 3, carved out with two things left
--- behind. The hold reveal is gone for now, since holding Shift and Control is ordinary typing and
--- a sheet there would flash in use, which decisions/olm-keymap.md rejected, and a leader that
--- states one will get it opt in. And a claimed combo
+-- behind. The hold reveal, which phase 4 gives back as opt in, since holding Shift and Control is
+-- ordinary typing and a sheet there would flash in use, which decisions/olm-keymap.md rejected, so
+-- only a leader whose entry states a sheet runs it. And a claimed combo
 -- resolves against the modifiers it was claimed on rather than against what the hardware reports
 -- by the time the callback runs, since hs.hotkey fires only on exactly that combination and a
 -- finger lifted a moment early must not turn a press into nothing.
+--
+-- The reveal is one hs.eventtap over flagsChanged and keyDown that only observes, every answer is
+-- false, so nothing is swallowed or rewritten. When the modifiers become exactly the base set it
+-- arms the leader's hold delay, and when that passes with the set unchanged and no key pressed it
+-- asks the adapter to show the sheet. Any key, or any change of the set, takes it down. Every
+-- flags event carries the true state, so the tap cannot stick the way a remembered key could, and
+-- a short poll of the live modifiers runs while the sheet is up as well, since a tap can miss
+-- events under secure input and the modifiers can always be asked.
 --
 -- A trigger is a Strategy behind the contract lib/leader.lua calls, start, bound, isActive and
 -- owns. Combos are claimed at start, every binding in the order it was bound, and a binding
@@ -30,6 +38,11 @@ local obj = {}
 -- The only modifiers a binding may require, in the one order a combination is spelled in, so one
 -- set always spells one string. fn is excluded for the reason the leader resolver gives.
 local REAL_MODS = { "shift", "ctrl", "alt", "cmd" }
+
+-- How long the sheet may outlive the modifiers when the tap missed the event that ended it.
+local POLL_INTERVAL = 0.25
+-- The hold delay when the leader states none and the root handed none, the engine's own.
+local DEFAULT_HOLD_DELAY = 0.6
 
 local log = hs.logger.new("Leader", "info")
 
@@ -156,6 +169,83 @@ function obj.new(spec)
 
   local trigger = {}
 
+  -- Whether a table of modifier flags is exactly the base set, compared on the four real
+  -- modifiers alone, so fn and caps lock count neither for nor against it.
+  local function exactly(flags)
+    flags = flags or {}
+    for _, m in ipairs(REAL_MODS) do
+      if (flags[m] == true) ~= (baseSet[m] == true) then return false end
+    end
+    return true
+  end
+
+  local function spelled(flags)
+    flags = flags or {}
+    local out = {}
+    for _, m in ipairs(REAL_MODS) do
+      if flags[m] then out[#out + 1] = m end
+    end
+    return table.concat(out, "+")
+  end
+
+  -- The reveal. Every handle sits in a field of the trigger, which owns the tap and both timers, and
+  -- starting one stops the one before it.
+  local function stopTimer(field)
+    local t = trigger[field]
+    if t then
+      t:stop()
+      trigger[field] = nil
+    end
+  end
+
+  local function conceal(host)
+    stopTimer("_pollTimer")
+    host:conceal()
+  end
+
+  local function startPoll(host)
+    stopTimer("_pollTimer")
+    trigger._pollTimer = hs.timer.doEvery(POLL_INTERVAL, function()
+      if not exactly(hs.eventtap.checkKeyboardModifiers()) then
+        -- The tap missed the change that ended the hold, so the set it last saw is stale, and
+        -- forgetting it lets the next press arm again even when it arrives as one event.
+        trigger._lastSet = nil
+        conceal(host)
+      end
+    end)
+  end
+
+  local function startReveal(host)
+    trigger._lastSet = nil
+    local function onFlags(flags)
+      local now = spelled(flags)
+      -- A change of fn or caps lock alone leaves the counted set as it was, which is no change.
+      if now == trigger._lastSet then return end
+      trigger._lastSet = now
+      stopTimer("_armTimer")
+      conceal(host)
+      if not exactly(flags) then return end
+      trigger._armTimer = hs.timer.doAfter(host._holdDelay or DEFAULT_HOLD_DELAY, function()
+        trigger._armTimer = nil
+        if not exactly(hs.eventtap.checkKeyboardModifiers()) then return end
+        host:_reveal(nil)
+        -- The adapter refuses over an open list, so only a sheet that went up is watched.
+        if host._revealed then startPoll(host) end
+      end)
+    end
+    local types = hs.eventtap.event.types
+    trigger._tap = hs.eventtap.new({ types.flagsChanged, types.keyDown }, function(ev)
+      if ev:getType() == types.flagsChanged then
+        onFlags(ev:getFlags())
+      else
+        stopTimer("_armTimer")
+        conceal(host)
+      end
+      return false
+    end)
+    trigger._tap:start()
+  end
+
   -- An empty base set is never held, there is nothing to hold, so a plain combo never makes a
   -- waiting action wait.
   function trigger.isActive()
@@ -192,6 +282,9 @@ function obj.new(spec)
   function trigger.start(host)
     started = true
     for _, binding in ipairs(host._sequence or {}) do claim(host, binding) end
+    -- Only a leader with a sheet and something to hold watches the modifiers, since a watcher that
+    -- reveals nothing is a tap for nothing.
+    if #baseMods > 0 and host:_reveals() and not trigger._tap then startReveal(host) end
     return true
   end
 

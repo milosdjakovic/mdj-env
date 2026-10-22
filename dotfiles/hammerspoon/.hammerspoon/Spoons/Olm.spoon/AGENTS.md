@@ -266,8 +266,13 @@ by role through `leader.roleTitles` rather than the defaults merge, which would 
 as a list replacing the shipped titles. Behaviour is the leader's whichever kind it is. `ranked`
 is the resolver's and applies to a modifier leader unchanged. `drivenRepeat` on a modifier leader
 hands a repeating handler its depth, 0 on the press and one more per autorepeat of the hotkey,
-reset on each press. A `sheet` on a modifier leader is not drawn yet and is said once as a routine
-line, the reveal being a later phase of `docs/PLAN-LEADERS.md`. `ranked` is HYPER's,
+reset on each press. A `sheet` on a modifier leader is opt in and is revealed by the modifier trigger, which
+runs one observing `hs.eventtap` over flags changes and key downs, always answering false. Once exactly the
+base set of shift, ctrl, alt and cmd has been held for the hold delay, with fn and caps lock not counted and no key
+pressed, it asks the adapter to show the sheet, and any key or change of the set takes it down. A short poll of
+the live modifiers runs while the sheet is up, since a tap can miss events under secure input. A leader with no
+sheet, or an empty base set, runs no tap. The sheet host finds that sheet by the leader's name, since it has no
+keycode. `ranked` is HYPER's,
 `drivenRepeat` is META's, and SUPER ships META's policy because it is the documented other home
 of the window role. `ranked` is the global tier rule below. What a leader does over an open list
 and which leader a list key sits on are not policy since phase A of the list keys addendum in
