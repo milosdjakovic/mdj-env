@@ -188,48 +188,6 @@ local SHIPPED_POLICY = {
   chooserProvider = "default",
   autoReload = { ignore = { "/config/[^/]+%.json[^/]*$" } },
 
-  -- Which physical key each leader name is, and the spare function key it is remapped to. A
-  -- name is live only while some bound row of the keymap uses it, so shipping all three here
-  -- costs nothing and moving a domain to another physical key is one edit in the roles section
-  -- of config/keymap.lua. Caps Lock to F18, Right Option to F16 and Right Command to F17 are the exact
-  -- three rows the owner already wants HYPER, META and SUPER to be, and they work on any
-  -- keyboard. This was keyremap's own default while that was a plugin, and it is root policy
-  -- now because the root is the one reader of it, the keycodes below come from it and so
-  -- does the remap. A person overrides one row through cfg.policy like any other entry.
-  leaderCatalog = {
-    HYPER = { source = "capsLock",     fkey = "f18" },
-    META  = { source = "rightOption",  fkey = "f16" },
-    SUPER = { source = "rightCommand", fkey = "f17" },
-  },
-
-  -- How each held leader behaves, keyed by catalog name like the catalog just above, and read
-  -- by lib/leader.lua, whose FIELDS says what each field means. These reproduce the two adapters
-  -- the merge in phase 3 of the keymap plan replaced. HYPER toggles real Caps Lock on a tap, rides
-  -- the OS autorepeat, ranks the bindings on one key and reveals a sheet laid out for its apps.
-  -- META drives its own repeats so a window step knows how deep into a hold it is, and reveals a
-  -- sheet laid out for its actions. What a leader does over an open list is one rule for every
-  -- held leader rather than a field, and which leader a list key sits on is its chord's, its
-  -- defaults riding the list role, so neither is policy since phase A of the list keys addendum.
-  -- A sheet is a boolean and its layout a table beside it, see lib/leader.lua's SHEET_FIELDS, and
-  -- a leader that states a sheet and no layout draws the defaults. SUPER binds nothing on this
-  -- machine, and it ships META's policy because it is the documented other home of the window
-  -- role, so pointing that role at it moves window management whole. A catalog row with no
-  -- entry here gets a leader with every field off, no tap, no contexts and no sheet. A person
-  -- overrides one field through cfg.policy like any other entry.
-  --
-  -- No layout here states a title. The heading of a sheet's default section is what the leader
-  -- does, which is the role it holds, so it is keyed by role in roleTitles below and follows the
-  -- role to whichever leader the keymap puts it on. A layout titled per leader read WINDOW
-  -- MANAGEMENT on META after the window role had moved to SUPER, over rows a person had put there.
-  leaderPolicy = {
-    HYPER = { tapTogglesCapsLock = true, ranked = true, sheet = true,
-      sheetLayout = { columns = 4, colWidth = 215, iconSize = 32, gap = 10, groupGap = 20 } },
-    META  = { drivenRepeat = true, sheet = true,
-      sheetLayout = { columns = 2, colWidth = 250, badgeWidth = 44, gap = 12 } },
-    SUPER = { drivenRepeat = true, sheet = true,
-      sheetLayout = { columns = 2, colWidth = 250, badgeWidth = 44, gap = 12 } },
-  },
-
   -- The heading over a sheet's rows that name no group, per role, read by lib/leader.lua's
   -- sheetHeading. A held leader holding no role reads as its own name.
   roleTitles = { app = "ACTIONS", window = "WINDOW MANAGEMENT" },
@@ -241,6 +199,44 @@ local SHIPPED_POLICY = {
   -- not optional decoration either, QueryScope refuses a scope that has none, so leaving it
   -- unset dropped the directory silently on every run with one warning line among many.
   aliasDirectory = { title = "Aliases", icon = "aliases", aliases = { "?" } },
+}
+
+-- The leaders Olm ships, keyed by lowercase name, in the same shape as an entry of the leaders
+-- section of config/keymap.lua, which is laid over this table by lib/keymap.lua's readConfig. An
+-- entry states its kind with key, a physical key Olm makes act as a modifier, or with mods, a set
+-- of real modifiers. A held key is remapped by lib/keyremap.lua, which says which spare function
+-- key each source goes to, so this table names only the physical key. A leader is live only while
+-- some bound row of the keymap uses it, so shipping all three costs nothing and moving a domain to
+-- another physical key is one edit in the roles section of config/keymap.lua. Caps Lock, Right
+-- Option and Right Command are the exact three keys the owner already wants HYPER, META and SUPER
+-- to be, and they work on any keyboard.
+--
+-- The rest of an entry is how the leader behaves, read by lib/leader.lua, whose FIELDS says what
+-- each field means. These reproduce the two adapters the merge in phase 3 of the keymap plan
+-- replaced. HYPER toggles real Caps Lock on a tap, rides the OS autorepeat, ranks the bindings on
+-- one key and reveals a sheet laid out for its apps. META drives its own repeats so a window step
+-- knows how deep into a hold it is, and reveals a sheet laid out for its actions. What a leader
+-- does over an open list is one rule for every held leader rather than a field, and which leader a
+-- list key sits on is its chord's, its defaults riding the list role, so neither is policy since
+-- phase A of the list keys addendum. A sheet is a boolean and its layout a table beside it, see
+-- lib/leader.lua's SHEET_FIELDS, and a leader that states a sheet and no layout draws the
+-- defaults. SUPER binds nothing on this machine, and it ships META's behaviour because it is the
+-- documented other home of the window role, so pointing that role at it moves window management
+-- whole. A leader with no behaviour fields has every field off, no tap, no ranking and no sheet.
+--
+-- No layout here states a title. The heading of a sheet's default section is what the leader
+-- does, which is the role it holds, so it is keyed by role in roleTitles in the policy above and
+-- follows the role to whichever leader the keymap puts it on. A layout titled per leader read
+-- WINDOW MANAGEMENT on META after the window role had moved to SUPER, over rows a person had put
+-- there. These lived in policy.leaderCatalog and policy.leaderPolicy until the leaders table
+-- replaced both, and the root says so when a config still sets either.
+local SHIPPED_LEADERS = {
+  hyper = { key = "capsLock", tapTogglesCapsLock = true, ranked = true, sheet = true,
+    sheetLayout = { columns = 4, colWidth = 215, iconSize = 32, gap = 10, groupGap = 20 } },
+  meta  = { key = "rightOption", drivenRepeat = true, sheet = true,
+    sheetLayout = { columns = 2, colWidth = 250, badgeWidth = 44, gap = 12 } },
+  super = { key = "rightCommand", drivenRepeat = true, sheet = true,
+    sheetLayout = { columns = 2, colWidth = 250, badgeWidth = 44, gap = 12 } },
 }
 
 --------------------------------------------------------------------------------
@@ -276,13 +272,25 @@ function obj.run(olm, cfg)
   -- its four sections here, keys, leaders, roles and aliases, every entry it cannot read a problem
   -- line said once the wiring report exists. Read this early because the roles decide which leader
   -- a default lands on and the aliases are merged before the plan is resolved.
+  local keyRemapAtom = atoms.keyremap
   local keymapConfig = keymapLib.readConfig(cfg.keymap, {
-    catalog = policy.leaderCatalog,
+    leaders = SHIPPED_LEADERS,
+    sources = keyRemapAtom.sources(),
     roleWords = { "app", "window", keymapLib.LIST_ROLE },
     keycodes = hs.keycodes.map,
   })
   local keymapProblems = {}
   for _, problem in ipairs(keymapConfig.problems) do keymapProblems[#keymapProblems + 1] = problem end
+  -- The routine lines the keymap reader has, said as notes rather than problems.
+  for _, note in ipairs(keymapConfig.notes) do log.i("Olm keymap, " .. note) end
+  -- The two policy fields the leaders section replaced. A value still set there would otherwise be
+  -- ignored in silence.
+  for _, field in ipairs({ "leaderCatalog", "leaderPolicy" }) do
+    if type(cfg.policy) == "table" and cfg.policy[field] ~= nil then
+      keymapProblems[#keymapProblems + 1] = { where = "policy." .. field, why = "is retired, a leader's key and "
+        .. "its behaviour are written in the leaders section of config/keymap.lua, so the field is ignored" }
+    end
+  end
   -- Which held leader each role lands on, app on HYPER and window on META unless the keymap's
   -- roles section moves one. cfg.leaders carried this from config/keys.lua until phase 5 of the
   -- keymap plan and is read by nothing now, so a value still passed is a problem line rather than
@@ -573,7 +581,6 @@ function obj.run(olm, cfg)
   -- leader instance per leader in use from the adapter, and the remap is the root's alone,
   -- applied once from the leaders section further down.
   local leaderLib = atoms.leader
-  local keyRemapAtom = atoms.keyremap
 
   ------------------------------------------------------------------------------
   -- STEP C. Manifests. Pure data, read before anything runs.
@@ -910,33 +917,41 @@ function obj.run(olm, cfg)
   -- The values only pass one's plan.effective can answer, computed once and reused rather
   -- than rebuilt, so the second pass, the register stage, and the wiring args below can
   -- never disagree about what they hold.
-  local keymapCatalog = policy.leaderCatalog
-  -- The catalog names remapped this load, filled once the keymap is built in step J, since a held
-  -- leader is remapped exactly while some bound row uses it.
+  -- The names remapped this load, filled once the keymap is built in step J, since a held leader
+  -- is remapped exactly while some bound row uses it.
   local activeLeaderNames = {}
+  -- The held leaders in use, each with the key it is remapped from, in the shape the remap takes.
+  local remapRows = {}
 
-  -- Every held leader the catalog carries, each with the name a keymap row spells it with, the
-  -- keycode its catalog row resolves to and its policy checked once. Which of them are in use is
-  -- known only once the keymap is built, after register, so every one is described here and step
-  -- J keeps the ones some row binds on. This is the one list everything below loops over, so
-  -- nothing here knows how many leaders there are or which one is which. A policy field that is
-  -- not one a leader reads, or is of the wrong type, is a problem line once the wiring report
-  -- exists, kept here until then.
+  -- Every leader the leaders table holds, each with the name a keymap row spells it with, its kind,
+  -- the keycode its key resolves to when it is held, and its policy checked once. Which of them are
+  -- in use is known only once the keymap is built, after register, so every one is described here
+  -- and step J keeps the ones some row binds on. This is the one list everything below loops over,
+  -- so nothing here knows how many leaders there are or which one is which. The reader hands them
+  -- over held first. A held leader's identity is its name upper cased, the shape the roles and the
+  -- remap record spell it in. A policy field that is not one a leader reads, or is of the wrong
+  -- type, is a problem line once the wiring report exists, kept here until then.
   local leaderSpecs, leaderProblems = {}, {}
-  do
-    local names = {}
-    for catalogName in pairs(keymapCatalog or {}) do names[#names + 1] = catalogName end
-    table.sort(names)
-    for _, catalogName in ipairs(names) do
-      local leaderPolicy, problems = leaderLib.checkPolicy(catalogName, (policy.leaderPolicy or {})[catalogName])
-      for _, problem in ipairs(problems) do leaderProblems[#leaderProblems + 1] = problem end
-      leaderSpecs[#leaderSpecs + 1] = {
-        name = tostring(catalogName):lower(),
-        catalogName = catalogName,
-        keyCode = leadersLib.keycode(keymapCatalog, catalogName),
-        policy = leaderPolicy,
-      }
+  for _, entry in ipairs(keymapConfig.leaders) do
+    local held = entry.key ~= nil
+    local catalogName = held and entry.name:upper() or entry.name
+    local leaderPolicy, problems = leaderLib.checkPolicy(catalogName, entry.policy)
+    for _, problem in ipairs(problems) do leaderProblems[#leaderProblems + 1] = problem end
+    local spec = { name = entry.name, catalogName = catalogName, held = held, policy = leaderPolicy }
+    if held then
+      spec.key = entry.key
+      spec.keyCode = leadersLib.keycode(keyRemapAtom.targetFor(entry.key))
+    else
+      spec.mods = entry.mods
+      -- Holding real modifiers is ordinary typing, so a modifier leader has no tap, no ranking and
+      -- no sheet yet, and a field stating one is said once and left out.
+      if next(leaderPolicy) ~= nil then
+        leaderProblems[#leaderProblems + 1] = { where = catalogName, why = "the leader policy states behaviour on "
+          .. "a leader of modifiers, which lands in a later phase, so it is ignored" }
+      end
+      spec.policy = {}
     end
+    leaderSpecs[#leaderSpecs + 1] = spec
   end
   -- The heading each held leader's sheet wears over rows that name no group, which follows the
   -- role the leader holds on this load, so the window role moved to SUPER takes its heading along.
@@ -944,7 +959,7 @@ function obj.run(olm, cfg)
   local roleTitles, roleTitleProblems = leaderLib.roleTitles(SHIPPED_POLICY.roleTitles, (cfg.policy or {}).roleTitles)
   for _, problem in ipairs(roleTitleProblems) do leaderProblems[#leaderProblems + 1] = problem end
   for _, spec in ipairs(leaderSpecs) do
-    spec.heading = leaderLib.sheetHeading(spec.catalogName, leaderRoles, roleTitles)
+    if spec.held then spec.heading = leaderLib.sheetHeading(spec.catalogName, leaderRoles, roleTitles) end
   end
 
   -- What each leader role is CALLED where a person reads it, a row subtitle or a hint. The
@@ -956,12 +971,10 @@ function obj.run(olm, cfg)
     local word = tostring(catalogName)
     return word:sub(1, 1):upper() .. word:sub(2):lower()
   end
-  -- The leaders the person named in the keymap's leaders section, each a set of real modifiers
-  -- claimed through hs.hotkey, with no sheet and no tap, a name to its set, sorted by name.
-  local modifierLeaderSpecs, modifierLeaderSets = {}, {}
-  for _, named in ipairs(keymapConfig.leaders) do
-    modifierLeaderSpecs[#modifierLeaderSpecs + 1] = named
-    modifierLeaderSets[named.name] = named.mods
+  -- The leaders of real modifiers, claimed through hs.hotkey, a name to its set.
+  local modifierLeaderSets = {}
+  for _, spec in ipairs(leaderSpecs) do
+    if not spec.held then modifierLeaderSets[spec.name] = spec.mods end
   end
   -- The same words keyed by the name a keymap row spells its leader with, so a surface spelling a
   -- row's chord spells that row's own leader rather than whichever leader it assumed. A leader the
@@ -969,9 +982,6 @@ function obj.run(olm, cfg)
   local leaderNamesByLeader = {}
   for _, spec in ipairs(leaderSpecs) do
     leaderNamesByLeader[spec.name] = displayName(spec.catalogName)
-  end
-  for _, named in ipairs(modifierLeaderSpecs) do
-    leaderNamesByLeader[named.name] = displayName(named.name)
   end
   -- The launcher's words, every role and every leader by the name a row spells it with, since a
   -- row the person's keymap put on a leader no role answers names that leader directly. A role
@@ -1585,7 +1595,9 @@ function obj.run(olm, cfg)
       end
     end
     local heldLeaderNames = {}
-    for _, spec in ipairs(leaderSpecs) do heldLeaderNames[spec.name] = true end
+    for _, spec in ipairs(leaderSpecs) do
+      if spec.held then heldLeaderNames[spec.name] = true end
+    end
     -- A list chord opening with no held leader belongs to the open list's own field, which the
     -- default chooser answers, so it is checked against what that field already reads.
     local defaultProvider = chooserAtom.providers and chooserAtom.providers.default
@@ -1685,12 +1697,12 @@ function obj.run(olm, cfg)
   -- STEP H. The leaders.
   ------------------------------------------------------------------------------
 
-  -- One leader per held leader in the catalog, from the specs built in step F, one per leader the
-  -- person named, and the plain leader a keymap row with no leader binds on. Each gets its
-  -- trigger, its policy and the module its hold reveals, and this loop is the only place a trigger
-  -- is chosen, so nothing below knows how many leaders there are. They are built here and kept as
+  -- One leader per entry of the leaders table, from the specs built in step F, and the plain
+  -- leader a keymap row with no leader binds on. Each gets its trigger, its policy and the module
+  -- its hold reveals, and this loop is the only place a trigger is chosen, a held one for an entry
+  -- stating a key and a modifier one for an entry stating mods, so nothing below knows how many leaders there are. They are built here and kept as
   -- candidates, and step J keeps only those some bound row uses, once the keymap says which, so a
-  -- leader nothing uses is never bound, started or remapped. A held leader whose catalog row
+  -- leader nothing uses is never bound, started or remapped. A held leader whose key
   -- resolves to no keycode is not built, and step J names it when a row needs it.
   --
   -- The open list test is anyListShowing above. The hold reveal used to be the root's own pair of
@@ -1699,43 +1711,45 @@ function obj.run(olm, cfg)
   local leadersByName = {}
   local candidateLeaders, candidateList = {}, {}
   for _, spec in ipairs(leaderSpecs) do
-    if spec.keyCode ~= nil then
-      local sheet = nil
-      if spec.policy.sheet then
-        -- THE SEAM. LeaderSheet is one of the host modules this file may name.
-        sheet = leaderSheetModule
-        if not sheet then
-          log.w("Olm compose, the " .. spec.catalogName .. " leader states a sheet, and the leader sheet "
-            .. "host did not load, so a hold reveals nothing")
+    local leader = nil
+    if spec.held then
+      if spec.keyCode ~= nil then
+        local sheet = nil
+        if spec.policy.sheet then
+          -- THE SEAM. LeaderSheet is one of the host modules this file may name.
+          sheet = leaderSheetModule
+          if not sheet then
+            log.w("Olm compose, the " .. spec.catalogName .. " leader states a sheet, and the leader sheet "
+              .. "host did not load, so a hold reveals nothing")
+          end
         end
+        leader = leaderLib.new({
+          name = spec.name,
+          trigger = heldTriggerLib.new({ chord = chordKeyAtom, keyCode = spec.keyCode }),
+          policy = spec.policy,
+          sheet = sheet,
+          keyCode = spec.keyCode,
+          listOpen = anyListShowing,
+          predicates = ownPredicates,
+          holdDelay = policy.chord.holdDelay,
+          tapThreshold = policy.chord.tapThreshold,
+        })
       end
-      local leader = leaderLib.new({
+    else
+      -- A leader of modifiers is the modifier trigger handed its set as the base, with an empty
+      -- policy, so no tap, no contexts and no sheet, since holding real modifiers is ordinary typing.
+      leader = leaderLib.new({
         name = spec.name,
-        trigger = heldTriggerLib.new({ chord = chordKeyAtom, keyCode = spec.keyCode }),
+        trigger = modifierTriggerLib.new({ mods = spec.mods }),
         policy = spec.policy,
-        sheet = sheet,
-        keyCode = spec.keyCode,
         listOpen = anyListShowing,
         predicates = ownPredicates,
-        holdDelay = policy.chord.holdDelay,
-        tapThreshold = policy.chord.tapThreshold,
       })
+    end
+    if leader then
       candidateLeaders[spec.name] = leader
       candidateList[#candidateList + 1] = leader
     end
-  end
-  -- A leader the person named is the modifier trigger handed that set as its base, with an empty
-  -- policy, so no tap, no contexts and no sheet, since holding real modifiers is ordinary typing.
-  for _, named in ipairs(modifierLeaderSpecs) do
-    local leader = leaderLib.new({
-      name = named.name,
-      trigger = modifierTriggerLib.new({ mods = named.mods }),
-      policy = {},
-      listOpen = anyListShowing,
-      predicates = ownPredicates,
-    })
-    candidateLeaders[named.name] = leader
-    candidateList[#candidateList + 1] = leader
   end
   -- The plain leader, a modifier trigger with an empty base set, so a keymap row with no leader is
   -- claimed through hs.hotkey on its own modifiers exactly as the binder used to claim it itself.
@@ -2153,12 +2167,12 @@ function obj.run(olm, cfg)
   -- What step F and step H found wrong with a leader, said now that the wiring report exists.
   for _, problem in ipairs(leaderProblems) do w.problem("leaders", problem.where, problem.why) end
   -- policy.hyperTrigger was how a person made Hyper a modifier chord. A held leader's trigger is
-  -- its catalog row now, and a named set of modifiers becomes a leader of its own with the
-  -- person's keymap in phase 5 of the keymap plan, so the field is read by nothing and a value
+  -- its key now, and a named set of modifiers becomes a leader of its own with the person's
+  -- keymap in phase 5 of the keymap plan, so the field is read by nothing and a value
   -- left in a config would otherwise be ignored in silence.
   if type(cfg.policy) == "table" and cfg.policy.hyperTrigger ~= nil then
-    w.problem("leaders", "policy.hyperTrigger", "is retired, a held leader is its catalog row and its "
-      .. "behaviour is policy.leaderPolicy, so the field is ignored")
+    w.problem("leaders", "policy.hyperTrigger", "is retired, a held leader is its key and its "
+      .. "behaviour in the leaders section of config/keymap.lua, so the field is ignored")
   end
 
   -- What the keymap's own file got wrong, said now too, each naming the entry.
@@ -2268,7 +2282,9 @@ function obj.run(olm, cfg)
   do
     local seen = {}
     local held = {}
-    for _, spec in ipairs(leaderSpecs) do held[spec.name] = true end
+    for _, spec in ipairs(leaderSpecs) do
+      if spec.held then held[spec.name] = true end
+    end
     for _, block in pairs(plan.contexts or {}) do
       for _, b in ipairs(block.bindings or {}) do
         if b.chord ~= false and b.leader and held[b.leader] and not seen[b.leader] then
@@ -2287,19 +2303,16 @@ function obj.run(olm, cfg)
     if inUse[spec.name] then
       local leader = candidateLeaders[spec.name]
       if not leader then
-        w.problem("leaders", spec.catalogName, "its catalog row resolves to no keycode, so the leader is not built and none of its keys is bound")
+        w.problem("leaders", spec.catalogName, "its key resolves to no keycode, so the leader is not built and none of its keys is bound")
       else
         spec.inUse = true
         leaderList[#leaderList + 1] = leader
         leadersByName[spec.name] = leader
-        activeLeaderNames[#activeLeaderNames + 1] = spec.catalogName
+        if spec.held then
+          activeLeaderNames[#activeLeaderNames + 1] = spec.catalogName
+          remapRows[#remapRows + 1] = { name = spec.catalogName, key = spec.key }
+        end
       end
-    end
-  end
-  for _, named in ipairs(modifierLeaderSpecs) do
-    if inUse[named.name] then
-      leaderList[#leaderList + 1] = candidateLeaders[named.name]
-      leadersByName[named.name] = candidateLeaders[named.name]
     end
   end
   leaderList[#leaderList + 1] = plainLeader
@@ -2308,7 +2321,7 @@ function obj.run(olm, cfg)
   -- field's yield and the harness word.
   local heldInUse = {}
   for _, spec in ipairs(leaderSpecs) do
-    if spec.inUse then
+    if spec.inUse and spec.held then
       heldInUse[spec.name] = leadersByName[spec.name]
       heldLeaders[#heldLeaders + 1] = leadersByName[spec.name]
     end
@@ -2419,7 +2432,7 @@ function obj.run(olm, cfg)
   -- declaration in root/manifest.lua, the same way scutil does, so this names no prefix. An
   -- unresolved path is passed on as nil, and the engine answers by remapping nothing and
   -- saying so, which leaves every leader its own native key.
-  keyRemapAtom:apply(keymapCatalog, activeLeaderNames, sharedDepsScope.path("hidutil"))
+  keyRemapAtom:apply(remapRows, sharedDepsScope.path("hidutil"))
   w.start(leaderList, chordKeyAtom)
 
   ------------------------------------------------------------------------------
@@ -2684,7 +2697,6 @@ function obj.run(olm, cfg)
       if keyCatalogCache then return keyCatalogCache end
       local leaders = {}
       for _, spec in ipairs(leaderSpecs) do leaders[#leaders + 1] = spec.name end
-      for _, named in ipairs(modifierLeaderSpecs) do leaders[#leaders + 1] = named.name end
       keyCatalogCache = hintsLib.keyEntries(keymap, plan, {
         bindable = binderLib.bindable,
         leaders = leaders,

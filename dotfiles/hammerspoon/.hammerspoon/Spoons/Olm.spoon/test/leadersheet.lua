@@ -308,7 +308,7 @@ end
 do
   local keymapLib = assert(loadfile(here .. "../lib/keymap.lua"))()
   local read = keymapLib.readConfig({ roles = { window = "super" } },
-    { catalog = { HYPER = true, META = true, SUPER = true }, roleWords = { "app", "window" } })
+    { leaders = { hyper = { key = "capsLock" }, meta = { key = "rightOption" }, super = { key = "rightCommand" } }, roleWords = { "app", "window" } })
   eq(#read.problems, 0, "heading: the roles section reads")
   -- Merged over the shipped roles the way the root merges them.
   local roles = { app = "HYPER", window = "META" }
@@ -463,7 +463,7 @@ do
   local keys = keymapLib.readConfig({ keys = {
     ["hyper+Q"] = "toggler.Safari", ["hyper+M"] = "toggler.Mail",
     ["hyper+G"] = "toggler.Ghostty", ["alt+`"] = "toggler.GhosttyPlaced",
-  } }, { catalog = { HYPER = true, META = true }, roleWords = { "app", "window" } })
+  } }, { leaders = { hyper = { key = "capsLock" }, meta = { key = "rightOption" } }, roleWords = { "app", "window" } })
   eq(#keys.problems, 0, "gaps: the keymap reads")
   local result = keymapLib.build({ plan = plan, roles = { app = "HYPER", window = "META" },
     actions = actions, personKeys = keys.keys })

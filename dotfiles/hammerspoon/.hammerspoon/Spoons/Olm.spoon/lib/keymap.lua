@@ -211,6 +211,14 @@ local function sortedKeys(t)
   return out
 end
 
+-- A value copied one level down, so a merged leader never shares a layout table with the shipped one.
+local function copyValue(value)
+  if type(value) ~= "table" then return value end
+  local copy = {}
+  for k, v in pairs(value) do copy[k] = v end
+  return copy
+end
+
 --------------------------------------------------------------------------------
 -- The person's keymap, config/keymap.lua, read into one shape
 --------------------------------------------------------------------------------
@@ -323,14 +331,61 @@ local function isWordList(t)
   return true
 end
 
---- obj.readConfig(config, opts) -> { keys, leaders, roles, aliases, lists, problems }
+-- The shipped leaders as the reader holds them, lowercase name to { name, key or mods, policy,
+-- shipped }, the trigger split from the behaviour fields so a person's entry can replace one half
+-- and merge over the other.
+local function shippedLeaders(shipped)
+  local merged = {}
+  for name, entry in pairs(shipped or {}) do
+    local lower = tostring(name):lower()
+    local policy = {}
+    for field, value in pairs(entry) do
+      if field ~= "key" and field ~= "mods" then policy[field] = copyValue(value) end
+    end
+    local mods = nil
+    if entry.mods ~= nil then mods = obj.mods(entry.mods) end
+    merged[lower] = { name = lower, key = entry.key, mods = mods, policy = policy, shipped = true }
+  end
+  return merged
+end
+
+-- Puts the merged leaders into out.leaders, the held ones first and then the modifier ones, each
+-- in name order, and answers which names are held, to the name they are known by upper cased, and
+-- what a chord may open with, true for a held leader or the modifiers a named one holds.
+local function listLeaders(merged, out)
+  local held, chordLeaders = {}, {}
+  for _, lower in ipairs(sortedKeys(merged)) do
+    local entry = merged[lower]
+    if entry.key ~= nil then
+      held[lower] = lower:upper()
+      chordLeaders[lower] = true
+      out.leaders[#out.leaders + 1] = entry
+    end
+  end
+  for _, lower in ipairs(sortedKeys(merged)) do
+    local entry = merged[lower]
+    if entry.key == nil then
+      chordLeaders[lower] = entry.mods
+      out.leaders[#out.leaders + 1] = entry
+    end
+  end
+  return held, chordLeaders
+end
+
+--- obj.readConfig(config, opts) -> { keys, leaders, roles, aliases, lists, problems, notes }
 --- config/keymap.lua as one shape, every entry checked here so the rest of Olm reads clean data.
----   opts.catalog    the leader catalog, whose names lowercased are the built in held leaders.
+---   opts.leaders    the leaders Olm ships, lowercase name to an entry in the shape of the leaders
+---                   section, a key or mods beside any behaviour fields. The person's section is
+---                   laid over it, so an empty section answers exactly these.
+---   opts.sources    the set of source key names a held leader may name, or nil to take any name.
 ---   opts.roleWords  the role words a default may name, app and window.
 ---   opts.keycodes   the keycode table a key is spelled with, or nil.
 ---
---- leaders is a list of { name, mods }, a name the person gave a set of real modifiers, sorted by
---- name. roles maps a role word to the catalog name of the held leader it moves to. aliases maps a
+--- leaders is every leader in use, shipped and named, as a list of { name, key or mods, policy,
+--- shipped }, the held ones first and then the modifier ones, each sorted by name. policy is the
+--- leader's behaviour fields as written, laid over the shipped entry's field by field, and the
+--- root checks their types. roles maps a role word to the name, upper cased, of the held leader it
+--- moves to. notes are routine lines for the root to log. aliases maps a
 --- plugin or host identity to its words, the identity checked by the caller, which knows the
 --- plugins. keys is a list, sorted by the chord as written, of { text, leader, mods, key, free,
 --- owner, action }, free true for an entry answering false. lists maps a list's context name, or
@@ -341,13 +396,20 @@ end
 --- out, and every other entry is still read.
 function obj.readConfig(config, opts)
   opts = opts or {}
-  local out = { keys = {}, leaders = {}, roles = {}, aliases = {}, lists = {}, problems = {} }
+  local out = { keys = {}, leaders = {}, roles = {}, aliases = {}, lists = {}, problems = {}, notes = {} }
   local function problem(where, why)
     out.problems[#out.problems + 1] = { where = "config/keymap.lua " .. where, why = why }
   end
-  if config == nil then return out end
+  -- The shipped leaders and the person's entries laid over them, built below. The two early
+  -- answers still hold the shipped leaders, since an empty file means exactly those.
+  local merged = shippedLeaders(opts.leaders)
+  if config == nil then
+    listLeaders(merged, out)
+    return out
+  end
   if type(config) ~= "table" then
     problem("itself", "answers a " .. type(config) .. " rather than a table, so every key keeps its default")
+    listLeaders(merged, out)
     return out
   end
   for _, name in ipairs(sortedKeys(config)) do
@@ -362,47 +424,99 @@ function obj.readConfig(config, opts)
     return type(config[name]) == "table" and config[name] or {}
   end
 
-  local held = {}
-  for name in pairs(opts.catalog or {}) do held[tostring(name):lower()] = name end
   local roleWord = {}
   for _, word in ipairs(opts.roleWords or {}) do roleWord[word] = true end
 
-  -- The leaders a chord may open with, the held ones and then every set the person named.
-  local chordLeaders = {}
-  for lower in pairs(held) do chordLeaders[lower] = true end
+  -- The leaders, the shipped ones first and then the person's entry for each name laid over them
+  -- in two halves. The trigger, mods or key, is replaced as one, since a leader is one or the
+  -- other. The behaviour fields merge one by one over the shipped entry of the same name, so a
+  -- person changing one keeps the rest. A name the person adds starts with every behaviour off.
+  -- No name is reserved, a name is refused only when a chord could not tell it from a modifier or
+  -- a role, or when it is not a word at all. This phase lets a shipped name keep its kind, a
+  -- modifier Hyper lands in a later phase.
   local leaders = section("leaders")
+  local named = {}
   for _, name in ipairs(sortedKeys(leaders)) do
     local where = "leaders " .. tostring(name)
     local set = leaders[name]
     local lower = type(name) == "string" and name:lower() or nil
     if not lower or not lower:match("^%a%w*$") then
       problem(where, "is not a name, a leader is one word of letters and digits, so it is ignored")
-    elseif held[lower] then
-      problem(where, "is the name of the built in held leader " .. held[lower] .. ", so it is ignored")
     elseif CHORD_MODS[lower] then
       problem(where, "is a modifier word, so a chord could not tell the two apart, and it is ignored")
     elseif roleWord[lower] then
       problem(where, "is a role word, " .. tostring(lower) .. ", which the roles section moves, so a chord could not tell the two apart and it is ignored")
-    elseif chordLeaders[lower] ~= nil then
+    elseif named[lower] then
       problem(where, "names a leader already named in another case, so it is ignored")
-    elseif type(set) ~= "table" or #set == 0 then
-      problem(where, "is not a list of modifiers, or an empty one, so it is ignored")
     else
-      local mods, bad = {}, nil
-      for _, m in ipairs(set) do
-        local word = tostring(m):lower()
-        if not LEADER_MODS[word] then bad = tostring(m) break end
-        mods[#mods + 1] = word
+      named[lower] = true
+      local isNew = merged[lower] == nil
+      local fields = set
+      if type(set) == "table" and set.mods == nil and set.key == nil and #set > 0 then
+        -- Today's form, a bare list of modifiers, is still read as mods for now.
+        fields = { mods = set }
+        out.notes[#out.notes + 1] = "leaders " .. name .. " is a bare list of modifiers, read as mods, "
+          .. "so write mods = { ... } instead"
+      end
+      local mods, key, bad = nil, nil, nil
+      if type(fields) ~= "table" then
+        bad = "is a " .. type(set) .. " rather than a table of mods or key and behaviour fields"
+      elseif fields.mods ~= nil and fields.key ~= nil then
+        bad = "states both mods and key, and a leader is one or the other"
+      elseif fields.mods == nil and fields.key == nil then
+        -- A shipped leader written with behaviour fields alone keeps the kind it ships, a new name
+        -- has none to keep.
+        if isNew then bad = "states neither mods nor key, and a leader is one or the other" end
+      elseif fields.mods ~= nil then
+        if type(fields.mods) ~= "table" or #fields.mods == 0 then
+          bad = "has mods that are not a list of modifiers, or an empty one"
+        else
+          local list = {}
+          for _, m in ipairs(fields.mods) do
+            local word = tostring(m):lower()
+            if not LEADER_MODS[word] then
+              bad = "has mods holding '" .. tostring(m) .. "', and a leader holds only shift, ctrl, alt and cmd"
+              break
+            end
+            list[#list + 1] = word
+          end
+          if not bad then mods = obj.mods(list) end
+        end
+      else
+        key = fields.key
+        if type(key) ~= "string" or (opts.sources and not opts.sources[key]) then
+          local known = {}
+          for source in pairs(opts.sources or {}) do known[#known + 1] = source end
+          table.sort(known)
+          bad = "has a key of '" .. tostring(key) .. "', which is not a key Olm can make a leader"
+            .. (#known > 0 and ", the keys it knows are " .. table.concat(known, ", ") or "")
+        end
+      end
+      if not bad and not isNew and (mods or key) and (merged[lower].key ~= nil) ~= (key ~= nil) then
+        bad = "gives the built in leader " .. lower .. " a different kind than it ships, and a modifier "
+          .. "Hyper lands in a later phase"
       end
       if bad then
-        problem(where, "holds '" .. bad .. "', and a leader holds only shift, ctrl, alt and cmd, so it is ignored")
+        problem(where, bad .. ", so " .. (isNew and "it is ignored" or "the shipped default is kept"))
       else
-        local list = obj.mods(mods)
-        chordLeaders[lower] = list
-        out.leaders[#out.leaders + 1] = { name = lower, mods = list }
+        local entry = merged[lower] or { name = lower, policy = {} }
+        merged[lower] = entry
+        if mods or key then entry.mods, entry.key = mods, key end
+        for _, field in ipairs(sortedKeys(fields)) do
+          if field ~= "mods" and field ~= "key" and type(field) ~= "number" then
+            local value, was = fields[field], entry.policy[field]
+            if type(value) == "table" and type(was) == "table" then
+              local both = copyValue(was)
+              for k, v in pairs(value) do both[k] = v end
+              value = both
+            end
+            entry.policy[field] = value
+          end
+        end
       end
     end
   end
+  local held, chordLeaders = listLeaders(merged, out)
 
   local roles = section("roles")
   for _, role in ipairs(sortedKeys(roles)) do

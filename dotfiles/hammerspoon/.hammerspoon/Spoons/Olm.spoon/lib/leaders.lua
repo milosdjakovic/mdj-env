@@ -1,64 +1,25 @@
--- Turning a catalog entry into a real keycode.
+-- Turning a held leader's function key into a real keycode.
 --
--- The root's leader catalog names a physical key and an unused function key it maps
--- to. Nothing else here needs to know a physical key exists, it only needs the keycode that
--- key resolves to once lib/keyremap.lua has applied the mapping, and that resolution has to happen
--- in exactly one place, because two call sites resolving the same catalog entry separately
--- can drift the moment one of them is edited and the other is not.
+-- A held leader names a physical key, and lib/keyremap.lua says which spare function key that key
+-- is remapped to. Nothing else here needs to know a physical key exists, it only needs the keycode
+-- that function key resolves to once the mapping is applied, and that resolution has to happen in
+-- exactly one place, because two call sites resolving the same key separately can drift the
+-- moment one of them is edited and the other is not.
 --
--- This module names no plugin, no engine, and no physical key. It reads a catalog and a
--- roles table the composition root already built from what the user's own config
--- references, and it never calls the remap, addLeader, or anything else that would make it a
--- second place deciding wiring order.
+-- This module names no plugin, no engine, and no physical key. It is handed the function key the
+-- root already asked the remap for, and it never calls the remap, addLeader, or anything else that
+-- would make it a second place deciding wiring order.
 
 local obj = {}
 
--- catalog[name] carries an fkey naming the target function key, and hs.keycodes.map turns
--- that friendly name into the numeric code hs.hotkey and hs.eventtap actually compare
--- against. Answering nil for a name or an fkey that is not there, rather than raising, is
--- what lets a caller ask "is this leader real" as a plain value check instead of wrapping
--- every call in a pcall, the same reason the remap's own apply logs and skips an unknown row
--- rather than aborting the whole remap over one bad entry.
-function obj.keycode(catalog, name)
-  local row = catalog and catalog[name]
-  local fkey = row and row.fkey
+-- hs.keycodes.map turns the friendly function key name into the numeric code hs.hotkey and
+-- hs.eventtap actually compare against. Answering nil for a name that is not there, rather than
+-- raising, is what lets a caller ask "is this leader real" as a plain value check instead of
+-- wrapping every call in a pcall, the same reason the remap's own apply logs and skips an unknown
+-- key rather than aborting the whole remap over one bad entry.
+function obj.keycode(fkey)
   if not fkey then return nil end
   return hs.keycodes.map[fkey]
-end
-
--- A catalog key is active only by being referenced. roles maps a role word, one per domain
--- that claims a leader, to the catalog name that domain actually uses, so the active set is
--- computed from what is referenced rather than written down as a fixed list that the day
--- someone adds a domain or moves one to another key quietly stops matching what is true.
---
--- catalog is accepted, and not read, for the same reason keycode above takes it, both
--- functions answer a question about one catalog and a caller building both from the same
--- root should not be passing two different shaped arguments to ask two related questions.
--- Dropping a role that names an entry the catalog does not carry is left to the remap's own
--- apply, which already logs and skips an unknown row, so checking it here as well would
--- either repeat that same log line or, worse, filter the bad entry out before apply ever
--- sees it and turn a visible warning into a silent one.
---
--- Two roles naming the same catalog entry collapse to one, since hidutil only needs to hear
--- about a physical key once, and the result is built in a fixed order, sorted by role word,
--- so the same roles table always answers with the same list rather than one that depends on
--- Lua's own unordered table iteration.
-function obj.activeNames(catalog, roles)
-  roles = roles or {}
-
-  local words = {}
-  for word in pairs(roles) do words[#words + 1] = word end
-  table.sort(words)
-
-  local seen, names = {}, {}
-  for _, word in ipairs(words) do
-    local name = roles[word]
-    if name and not seen[name] then
-      seen[name] = true
-      names[#names + 1] = name
-    end
-  end
-  return names
 end
 
 return obj

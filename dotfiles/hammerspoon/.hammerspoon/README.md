@@ -56,7 +56,7 @@ in the `apptoggler` entry of `config/plugins.lua`, and its key names the variant
 `apptoggler.GhosttyPlaced`.
 
 App toggles fire by holding the Hyper key (**Caps Lock**, remapped to **F18** at the
-HID level by Olm's core `lib/keyremap.lua` from the root's own shipped leader catalog,
+HID level by Olm's core `lib/keyremap.lua` from the key the root's own shipped leaders table gives Hyper,
 and held through Olm's leader adapter) plus the letter.
 A quick Caps Lock **tap** toggles real Caps Lock (via `hs.hid.capslock`).
 Holding Caps Lock about 0.6s with no key shows the Hyper sheet of `LeaderSheet`, an overlay of the

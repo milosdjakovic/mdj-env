@@ -21,7 +21,15 @@ local function eq(got, want, what)
   end
 end
 
-local CATALOG = { HYPER = {}, META = {}, SUPER = {} }
+-- The leaders Olm ships, in the shape root/compose.lua's SHIPPED_LEADERS has, and the source keys
+-- lib/keyremap.lua knows.
+local SHIPPED = {
+  hyper = { key = "capsLock", tapTogglesCapsLock = true, ranked = true, sheet = true,
+    sheetLayout = { columns = 4, colWidth = 215 } },
+  meta = { key = "rightOption", drivenRepeat = true, sheet = true, sheetLayout = { columns = 2 } },
+  super = { key = "rightCommand", drivenRepeat = true },
+}
+local SOURCES = { capsLock = true, rightOption = true, rightCommand = true }
 local ROLE_WORDS = { "app", "window" }
 -- A fake of Hammerspoon's keycode table, name to code and code to name. The three keys the plus
 -- sign touches carry the live table's own answers, = on 24, pad+ on 69 and no + at all.
@@ -34,7 +42,7 @@ do
 end
 
 local function read(config)
-  return keymap.readConfig(config, { catalog = CATALOG, roleWords = ROLE_WORDS, keycodes = KEYCODES })
+  return keymap.readConfig(config, { leaders = SHIPPED, sources = SOURCES, roleWords = ROLE_WORDS, keycodes = KEYCODES })
 end
 
 local function whys(problems)
@@ -104,7 +112,8 @@ end
 
 do
   local empty = read(nil)
-  eq(#empty.keys + #empty.leaders + #empty.problems, 0, "no file is no keys and no problems")
+  eq(#empty.keys + #empty.problems, 0, "no file is no keys and no problems")
+  eq(#empty.leaders, 3, "and the shipped leaders alone")
   local sections = read({ keys = {}, leaders = {}, roles = {}, aliases = {} })
   eq(#sections.problems, 0, "every section present and empty is no problem")
 
@@ -114,10 +123,16 @@ do
   eq(has(whys(odd.problems), "keys | is a number"), true, "a section that is not a table is named")
 end
 
+-- Every leader of a read, by name.
+local function byName(r)
+  local out = {}
+  for _, l in ipairs(r.leaders) do out[l.name] = l end
+  return out
+end
+
 do
   local r = read({ leaders = {
     nav = { "Shift", "ctrl" },
-    hyper = { "shift" },
     shift = { "ctrl" },
     app = { "ctrl" },
     empty = {},
@@ -125,17 +140,128 @@ do
     fnny = { "fn" },
     ["1x"] = { "ctrl" },
   } })
-  eq(#r.leaders, 1, "one leader of six is read")
-  eq(r.leaders[1].name, "nav", "the good one")
-  eq(table.concat(r.leaders[1].mods, "+"), "ctrl+shift", "its modifiers lowercased and sorted")
+  local by = byName(r)
+  eq(#r.leaders, 4, "the three shipped leaders and the one good one are read")
+  eq(table.concat(by.nav.mods, "+"), "ctrl+shift", "the good one, its modifiers lowercased and sorted")
   local text = whys(r.problems)
-  eq(has(text, "leaders hyper | is the name of the built in held leader HYPER"), true, "a held leader's name is refused")
   eq(has(text, "leaders shift | is a modifier word"), true, "a modifier word is refused")
   eq(has(text, "leaders app | is a role word"), true, "a role word is refused")
-  eq(has(text, "leaders empty | is not a list of modifiers, or an empty one"), true, "an empty list is refused")
-  eq(has(text, "leaders spacey | holds 'space'"), true, "a non modifier is refused")
-  eq(has(text, "leaders fnny | holds 'fn'"), true, "fn is no part of a leader's own set")
+  eq(has(text, "leaders empty | states neither mods nor key"), true, "an empty entry is refused")
+  eq(has(text, "leaders spacey | is a modifier word") or has(text, "leaders spacey | has mods holding 'space'"), true, "a non modifier is refused")
+  eq(has(text, "leaders fnny | has mods holding 'fn'"), true, "fn is no part of a leader's own set")
   eq(has(text, "leaders 1x | is not a name"), true, "a name that is not a word is refused")
+  eq(has(text, "hyper"), false, "no shipped name is refused as reserved")
+end
+
+-- The leaders section laid over the shipped table, phase 1 of the leaders plan.
+do
+  -- An empty section and no section answer the shipped leaders exactly, behaviour included.
+  for _, config in ipairs({ {}, { leaders = {} } }) do
+    local r = read(config)
+    local by = byName(r)
+    eq(#r.problems, 0, "shipped: an empty section is no problem")
+    eq(#r.notes, 0, "shipped: and no note")
+    eq(table.concat({ r.leaders[1].name, r.leaders[2].name, r.leaders[3].name }, ","), "hyper,meta,super",
+      "shipped: the held leaders come in name order")
+    eq(by.hyper.key, "capsLock", "shipped: hyper is Caps Lock")
+    eq(by.hyper.mods, nil, "shipped: a held leader has no mods")
+    eq(by.hyper.policy.ranked, true, "shipped: hyper keeps its behaviour")
+    eq(by.hyper.policy.tapTogglesCapsLock, true, "shipped: and its tap")
+    eq(by.hyper.policy.sheetLayout.columns, 4, "shipped: and its sheet layout")
+    eq(by.meta.policy.drivenRepeat, true, "shipped: meta drives its repeats")
+    eq(by.super.key, "rightCommand", "shipped: super is Right Command")
+  end
+  -- Shipping must not be edited by a read.
+  eq(SHIPPED.hyper.sheetLayout.columns, 4, "shipped: the shipped table is left as it was")
+
+  -- A behaviour field merges over the shipped entry, one field at a time.
+  local r = read({ leaders = { hyper = { ranked = false, sheetLayout = { columns = 3 } }, meta = { sheet = false } } })
+  local by = byName(r)
+  eq(#r.problems, 0, "merge: behaviour fields alone are no problem")
+  eq(by.hyper.key, "capsLock", "merge: the trigger stays the shipped one")
+  eq(by.hyper.policy.ranked, false, "merge: a stated field wins")
+  eq(by.hyper.policy.sheet, true, "merge: an unstated field keeps the shipped value")
+  eq(by.hyper.policy.tapTogglesCapsLock, true, "merge: and so does the tap")
+  eq(by.hyper.policy.sheetLayout.columns, 3, "merge: a layout field is laid over")
+  eq(by.hyper.policy.sheetLayout.colWidth, 215, "merge: and the other layout fields are kept")
+  eq(by.meta.policy.sheet, false, "merge: a sheet is switched off by stating false")
+  eq(by.meta.policy.drivenRepeat, true, "merge: beside the shipped repeat")
+  eq(SHIPPED.hyper.sheetLayout.columns, 4, "merge: the shipped layout is not shared with the result")
+
+  -- A key replaces the trigger as one and keeps the behaviour.
+  r = read({ leaders = { hyper = { key = "rightCommand" }, meta = { key = "capsLock", drivenRepeat = false } } })
+  by = byName(r)
+  eq(#r.problems, 0, "key: a known source is no problem")
+  eq(by.hyper.key, "rightCommand", "key: the trigger is replaced")
+  eq(by.hyper.policy.ranked, true, "key: the behaviour stays")
+  eq(by.meta.key, "capsLock", "key: another leader likewise")
+  eq(by.meta.policy.drivenRepeat, false, "key: with its own field stated")
+
+  -- A new name starts with every behaviour off, whichever kind.
+  r = read({ leaders = { pedal = { key = "rightOption", sheet = true }, nav = { mods = { "shift", "ctrl" } } } })
+  by = byName(r)
+  eq(#r.problems, 0, "new: a held and a modifier leader read")
+  eq(by.pedal.key, "rightOption", "new: a held leader names its key")
+  eq(by.pedal.policy.sheet, true, "new: and states its own behaviour")
+  eq(by.pedal.policy.ranked, nil, "new: every other behaviour is off")
+  eq(by.pedal.shipped, nil, "new: and it is not a shipped leader")
+  eq(table.concat(by.nav.mods, "+"), "ctrl+shift", "new: a modifier leader names its mods")
+  eq(next(by.nav.policy), nil, "new: with no behaviour")
+  eq(table.concat({ r.leaders[1].name, r.leaders[2].name, r.leaders[3].name, r.leaders[4].name, r.leaders[5].name }, ","),
+    "hyper,meta,pedal,super,nav", "new: held leaders come first and then the modifier ones")
+  r = read({ roles = { window = "pedal" }, leaders = { pedal = { key = "rightOption" } } })
+  eq(r.roles.window, "PEDAL", "new: a role may land on a new held leader")
+
+  -- Today's form, a bare list, is read as mods with a routine note and no problem.
+  r = read({ leaders = { nav = { "shift", "ctrl" } } })
+  eq(#r.problems, 0, "bare: a bare list is no problem")
+  eq(table.concat(byName(r).nav.mods, "+"), "ctrl+shift", "bare: it is read as mods")
+  eq(#r.notes, 1, "bare: and said once")
+  eq(has(r.notes[1], "write mods = { ... }") or has(r.notes[1], "mods = { ... }"), true, "bare: the note says what to write")
+  eq(has(r.notes[1], "leaders nav"), true, "bare: and names the entry")
+
+  -- Both fields or neither is a problem and the leader keeps its shipped default.
+  r = read({ leaders = { hyper = { mods = { "shift" }, key = "capsLock", ranked = false },
+    pedal = { mods = { "ctrl" }, key = "capsLock" }, bare = { sheet = true } } })
+  by = byName(r)
+  local text = whys(r.problems)
+  eq(has(text, "leaders hyper | states both mods and key"), true, "both: said for a shipped name")
+  eq(has(text, "so the shipped default is kept"), true, "both: the shipped default is kept")
+  eq(by.hyper.policy.ranked, true, "both: and none of its fields applied")
+  eq(by.pedal, nil, "both: a new name is ignored")
+  eq(has(text, "leaders bare | states neither mods nor key"), true, "neither: said, and the entry ignored")
+  eq(by.bare, nil, "neither: a new name is ignored")
+
+  -- A different kind on a shipped name waits for a later phase.
+  r = read({ leaders = { hyper = { mods = { "shift", "ctrl", "alt", "cmd" }, sheet = false } } })
+  by = byName(r)
+  eq(has(whys(r.problems), "leaders hyper | gives the built in leader hyper a different kind than it ships, and a modifier Hyper lands in a later phase"),
+    true, "kind: a modifier Hyper is refused for now")
+  eq(by.hyper.key, "capsLock", "kind: the shipped key is kept")
+  eq(by.hyper.policy.sheet, true, "kind: and the shipped behaviour")
+  r = read({ leaders = { hyper = { mods = { "shift" } } } })
+  eq(byName(r).hyper.mods, nil, "kind: a bare list on a shipped name is refused the same way")
+
+  -- A key the remap does not know is a problem line.
+  r = read({ leaders = { hyper = { key = "f13" }, pedal = { key = "space" }, odd = { key = 3 } } })
+  by = byName(r)
+  text = whys(r.problems)
+  eq(has(text, "leaders hyper | has a key of 'f13', which is not a key Olm can make a leader"), true, "source: an unknown key is named")
+  eq(has(text, "capsLock, rightCommand, rightOption"), true, "source: with the keys it knows")
+  eq(by.hyper.key, "capsLock", "source: a shipped leader keeps its key")
+  eq(by.pedal, nil, "source: a new name is ignored")
+  eq(by.odd, nil, "source: a key that is no word is ignored")
+
+  -- No name is reserved, a built in name is only a name when it is not shipped.
+  r = keymap.readConfig({ leaders = { hyper = { key = "capsLock" }, super = { mods = { "ctrl" } }, Nav = { mods = { "ctrl" } },
+    nav = { mods = { "alt" } } } }, { leaders = {}, sources = SOURCES, roleWords = ROLE_WORDS, keycodes = KEYCODES })
+  by = byName(r)
+  eq(by.hyper.key, "capsLock", "names: hyper is an ordinary name when nothing ships it")
+  eq(table.concat(by.super.mods, "+"), "ctrl", "names: so is super")
+  eq(has(whys(r.problems), "leaders nav | names a leader already named in another case"), true, "names: the same name in two cases is refused")
+  eq(by.Nav, nil, "names: and kept lowercase")
+  eq(by.nav ~= nil or by.Nav ~= nil, true, "names: one of the two is read")
+  eq(has(whys(r.problems), "reserved"), false, "names: nothing is reserved")
 end
 
 do
@@ -145,8 +271,8 @@ do
   local text = whys(r.problems)
   eq(has(text, "roles foo | is not a role"), true, "a role word no default names is refused")
   eq(has(text, "roles bar | is not a role"), true, "and so is any other key")
-  local bad = read({ roles = { window = "nav" }, leaders = { nav = { "ctrl" } } })
-  eq(bad.roles.window, nil, "a role naming a leader the person named is refused")
+  local bad = read({ roles = { window = "nav" }, leaders = { nav = { mods = { "ctrl" } } } })
+  eq(bad.roles.window, nil, "a role naming a leader of modifiers is refused")
   eq(has(whys(bad.problems), "which is no held leader"), true, "since a role moves to a held leader only")
 end
 
@@ -469,7 +595,7 @@ end
 
 local function readLists(section)
   return keymap.readConfig({ lists = section },
-    { catalog = CATALOG, roleWords = ROLE_WORDS, keycodes = LIST_KEYCODES })
+    { leaders = SHIPPED, sources = SOURCES, roleWords = ROLE_WORDS, keycodes = LIST_KEYCODES })
 end
 
 local function applied(section, extra)
@@ -699,7 +825,7 @@ local HELD = { hyper = true, meta = true, super = true }
 -- rows, the leaders in use and the hint bar all read that leader.
 do
   local cfg = keymap.readConfig({ roles = { list = "meta" } },
-    { catalog = CATALOG, roleWords = { "app", "window", keymap.LIST_ROLE }, keycodes = LIST_KEYCODES })
+    { leaders = SHIPPED, sources = SOURCES, roleWords = { "app", "window", keymap.LIST_ROLE }, keycodes = LIST_KEYCODES })
   eq(#cfg.problems, 0, "list role: list is a role word")
   eq(cfg.roles.list, "META", "list role: it names the held leader it moves to")
   local contexts = lists()
@@ -783,7 +909,7 @@ local NAMED = { nav = { "ctrl", "shift" } }
 
 local function fieldApplied(section)
   local cfg = keymap.readConfig({ leaders = { nav = { "shift", "ctrl" } }, lists = section },
-    { catalog = CATALOG, roleWords = ROLE_WORDS, keycodes = FIELD_KEYCODES })
+    { leaders = SHIPPED, sources = SOURCES, roleWords = ROLE_WORDS, keycodes = FIELD_KEYCODES })
   local contexts = lists()
   local problems, notes = keymap.applyLists(contexts, cfg.lists, { listLeader = "hyper", heldLeaders = HELD,
     modifierLeaders = NAMED, fieldUses = fieldUses, keycodes = FIELD_KEYCODES })

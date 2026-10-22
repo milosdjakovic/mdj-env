@@ -208,14 +208,24 @@ registrar and the wiring pipeline, and the log remains readable in this file's g
 
 `lib/leader.lua` is the one leader adapter since phase 3 of the keymap plan, replacing
 `lib/hyperkey.lua` and `lib/windowleader.lua`, which were near copies differing in policy. The
-root builds one instance per catalog row and one per leader the person names in the `leaders`
-section of `config/keymap.lua`, keeps those some bound row of the keymap uses, HYPER and META on
+root builds one instance per entry of one leaders table, `SHIPPED_LEADERS` in `root/compose.lua`
+with the person's `leaders` section of `config/keymap.lua` laid over it, keeps those some bound row
+of the keymap uses, HYPER and META on
 this machine, plus one plain leader for a keymap row with no leader, and loops over them naming
 none. Which held leaders are in use is `lib/keymap.lua`'s `leadersInUse`, every leader a bound
 global row or a list key sits on, and the remap, the engines the binder reaches, the sheets and
 the leaders hosting list keys all read that one answer, so a chord on `super` claims Right Command and
-moving every window default off META frees Right Option. A leader the person names is the
-modifier trigger handed that set as its base, with an empty policy, no sheet and no tap. What
+moving every window default off META frees Right Option. An entry stating `mods` is
+the modifier trigger handed that set as its base, with an empty policy, no sheet and no tap, and an
+entry stating `key` is the held trigger. The reader in `lib/keymap.lua` tells the two apart by the
+field, refuses both or neither, lays a person's entry over the shipped one of the same name in two
+halves, the trigger fields replacing together and the behaviour fields merging one by one, and
+reserves no name. A bare list is read as `mods` with a routine note. For now a shipped name keeps
+its kind, so giving `hyper` mods is a problem line, and roles and the list role still land on held
+leaders only, both later phases of `docs/PLAN-LEADERS.md`. A held leader's identity is its name
+upper cased inside the root, `HYPER`, which is what the roles and the remap record spell, while a
+chord spells it lowercase. The physical key stays in the entry and `lib/keyremap.lua` says which
+spare function key it goes to, `targetFor`, so the leaders table names no function key. What
 physically means a leader is a trigger, a Strategy behind four functions, start, bound, isActive
 and owns. `lib/leader/triggers/held.lua` registers one function key into the shared ChordKey
 engine, and `lib/leader/triggers/modifier.lua` claims each binding as an `hs.hotkey` on a base
@@ -224,8 +234,10 @@ empty base set, so a plain combo such as Option and backtick is claimed exactly 
 used to claim it, with three arguments and no repeat callback unless the binding repeats. The root
 is the only place a trigger is named, so a third kind is a file plus a line there.
 
-How a leader behaves is its policy, `policy.leaderPolicy` in `root/compose.lua`, keyed by catalog
-name beside `policy.leaderCatalog` and overridable through `cfg.policy`. Every field is a boolean,
+How a leader behaves is its policy, the behaviour fields written beside `mods` or `key` in its
+entry, `SHIPPED_LEADERS` in `root/compose.lua` and the person's section over it, checked by
+`lib/leader.lua`'s `checkPolicy`. `policy.leaderCatalog` and `policy.leaderPolicy` are retired and a
+config still setting either gets a problem line pointing at the leaders section. Every field is a boolean,
 a number or a table, so there is no closed set of words to publish. `sheet` says a hold reveals
 the leader's cheat sheet, drawn by the one `host/leadersheet`, and `sheetLayout` is the table beside it
 that lays it out, `title`, `columns`, `colWidth`, `iconSize`, `gap`, `groupGap` and `badgeWidth`,

@@ -100,3 +100,17 @@ behaviour, the shipped Hyper, Meta and Super as defaults in that table, `remapTo
 function key, and an allow list of Caps Lock, the three right modifiers and F13 to F20 for a held
 key. A Hyper of four real modifiers then keeps its roles, list keys, sealing over lists and sheet.
 Nothing is built yet, and the Now section changes as each phase lands.
+
+### 2026-10-22 14:43
+
+Phase 1 of `docs/PLAN-LEADERS.md` landed. `policy.leaderCatalog` and `policy.leaderPolicy` are
+one shipped leaders table, a person's entry is laid over it in two halves and no name is reserved,
+and the function key each source is remapped to lives in `lib/keyremap.lua`. Three choices were
+made while building. An entry carrying neither `mods` nor `key` on a shipped name keeps the
+shipped kind and merges its behaviour, since otherwise a behaviour only override would be
+impossible. A held leader's identity inside the root stays its name upper cased. A behaviour field
+on a new modifier leader is ignored with a problem line until phase 3. A renamed parameter in
+`KeyRemap:apply` left the loop reading a name never set, so a live load would have remapped
+nothing, and every offline gate stubs that call. It was caught in review, and `test/keyremap.lua`
+now pins the command. The live load on the worktree was clean, hidutil held Caps Lock to F18 and
+Right Option to F16, and Milos confirmed the launcher, the sheet and the Caps Lock tap.

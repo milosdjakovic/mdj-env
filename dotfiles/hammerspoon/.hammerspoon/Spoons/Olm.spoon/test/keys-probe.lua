@@ -93,8 +93,7 @@ local HOTKEY = "hotkey"
 if OLM_KEYS_MODE == "keymap" then
   local keymap = assert(composed.keymap, "the live Olm has no keymap, is the worktree the live config")
   local lines = project.project(keymap.rows, WINDOW)
-  lines[#lines + 1] = project.remapLine(project.remapOf(composed, (composed.policy or {}).leaderCatalog
-    or { HYPER = true, META = true, SUPER = true }))
+  lines[#lines + 1] = project.remapLine(project.remapOf(composed, { HYPER = true, META = true, SUPER = true }))
   local f = assert(io.open(OUT, "w"))
   f:write(table.concat(lines, "\n"), "\n")
   f:close()
@@ -253,8 +252,7 @@ end
 
 table.sort(lines)
 -- The held leaders the remap was applied with, the inventory's last line.
-lines[#lines + 1] = project.remapLine(project.remapOf(composed, (composed.policy or {}).leaderCatalog
-  or { HYPER = true, META = true, SUPER = true }))
+lines[#lines + 1] = project.remapLine(project.remapOf(composed, { HYPER = true, META = true, SUPER = true }))
 
 local f = assert(io.open(OUT, "w"))
 f:write(table.concat(lines, "\n"), "\n")

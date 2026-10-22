@@ -64,7 +64,7 @@ local manifests = {
   picker = { surface = { context = "pick" } },
 }
 local person = keymapLib.readConfig({ keys = { ["meta+B"] = "toggler.openSafari", ["hyper+G"] = false } },
-  { catalog = { HYPER = true, META = true }, roleWords = { "app", "window" }, keycodes = KEYCODES })
+  { leaders = { hyper = { key = "capsLock" }, meta = { key = "rightOption" } }, roleWords = { "app", "window" }, keycodes = KEYCODES })
 eq(#person.problems, 0, "setup: the person's keymap reads")
 local keymap = keymapLib.build({
   plan = plan, roles = { app = "HYPER", window = "META" }, keycodes = KEYCODES,

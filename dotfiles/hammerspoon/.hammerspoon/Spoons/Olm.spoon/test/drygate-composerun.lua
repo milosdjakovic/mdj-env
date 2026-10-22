@@ -592,10 +592,10 @@ hs.loadSpoon = function(name)
     local remap = olm.lib and olm.lib.keyremap
     if type(remap) == "table" and type(remap.apply) == "function" then
       local innerApply = remap.apply
-      remap.apply = function(self, catalog, names, ...)
+      remap.apply = function(self, held, ...)
         remapNames = {}
-        for _, n in ipairs(names or {}) do remapNames[#remapNames + 1] = tostring(n) end
-        return innerApply(self, catalog, names, ...)
+        for _, row in ipairs(held or {}) do remapNames[#remapNames + 1] = tostring(row.name) end
+        return innerApply(self, held, ...)
       end
     end
     for atomName, label in pairs({ hyperkey = "hyper", windowleader = "window" }) do

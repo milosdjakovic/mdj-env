@@ -30,12 +30,26 @@
 --     ["meta+E"] = "vpn.open",
 --     ["meta+Y"] = "clipboard.open",
 --
--- leaders names a set of real modifiers as a leader of its own, a name to a list of shift, ctrl,
--- alt and cmd. It reads like hyper in a chord and on a launcher row, it has no cheat sheet and
--- no tap, since holding real modifiers is ordinary typing, and its chords are taken from every
--- app, so it suits combinations the apps here leave free. A leader no chord uses is said in one
--- routine console line.
---     nav = { "shift", "ctrl" },
+-- leaders is the one place a leader is defined, the key or modifiers it is and how it behaves, in
+-- one entry. An entry states its kind with mods, a list of shift, ctrl, alt and cmd, which makes a
+-- leader of real modifiers, or with key, one key Olm makes act as a modifier, capsLock,
+-- rightOption or rightCommand. Both or neither is a problem line, and the leader keeps its shipped
+-- default, a new name is ignored. Beside it an entry may state behaviour, ranked, drivenRepeat,
+-- sheet, sheetLayout and tapTogglesCapsLock. Olm ships hyper on capsLock, meta on rightOption and
+-- super on rightCommand with their behaviour already written, and an entry here is laid over the
+-- shipped one of the same name. The trigger, mods or key, is replaced as one, and each behaviour
+-- field is merged over the shipped one, so naming one field keeps the rest. A new name starts
+-- with every behaviour off. No name is reserved, a name is refused only when it is not one word of
+-- letters and digits, is a modifier or role word, or repeats another in a different case. A leader
+-- of modifiers reads like hyper in a chord and on a launcher row, it has no cheat sheet and no
+-- tap, since holding real modifiers is ordinary typing, and its chords are taken from every app,
+-- so it suits combinations the apps here leave free. A leader no chord uses is said in one routine
+-- console line. A bare list, nav = { "shift", "ctrl" }, is still read as mods with a routine
+-- console line saying to write mods. For now a shipped name keeps the kind it ships, so giving
+-- hyper mods is refused with a problem line, a modifier Hyper lands in a later phase.
+--     nav = { mods = { "shift", "ctrl" } },
+--     meta = { drivenRepeat = false },
+--     super = { key = "rightCommand", sheet = false },
 --
 -- roles moves every default on a role to another held leader at once. A plugin's defaults name a
 -- role, app or window, never a leader, and every default list key rides the list role. app and
@@ -124,7 +138,7 @@ return {
   },
 
   leaders = {
-    -- nav = { "shift", "ctrl" },
+    -- nav = { mods = { "shift", "ctrl" } },
   },
 
   roles = {

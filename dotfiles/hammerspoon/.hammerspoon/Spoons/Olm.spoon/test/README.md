@@ -9,6 +9,7 @@ Spoons/Olm.spoon/test/ranking.lua           # one of the three dry runs, standal
 Spoons/Olm.spoon/test/icons.lua             # the icon engine, the config file, the row resolver and the two sources
 Spoons/Olm.spoon/test/leaders.lua           # the two leader adapters' resolvers as they stand, see below
 Spoons/Olm.spoon/test/chordkey.lua          # the hold engine, a lost key-up released by the blind stream check
+Spoons/Olm.spoon/test/keyremap.lua          # the one hidutil command the remap runs, never empty for a leader in use
 Spoons/Olm.spoon/test/systemsettings.lua    # when a System Settings pane action hides the app and when it goes to its pane
 Spoons/Olm.spoon/test/rootmechanism.lua     # the chord and alias spelling, the open list test and the launcher row intercept
 Spoons/Olm.spoon/test/keypage.lua           # the OLM keys page, the keymap as words and the presentation built from them
