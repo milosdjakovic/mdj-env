@@ -187,7 +187,9 @@ table, which the stubbed run hands to Olm as `cfg.keymap` in place of `config/ke
 `keymap-fixture.lua` is the person's own case, `keymap-fixture-roles.lua` the window role moved
 alone, `keymap-fixture-lists.lua` a lists section moving and freeing keys inside lists,
 `keymap-fixture-modhyper.lua` Hyper written as the four real modifiers, with its launcher and sheet
-goldens too, and each
+goldens too, `keymap-fixture-composite.lua` Hyper and META written on a held key and modifiers at
+once, the way they ship, recorded with `DRYGATE_CLAIMS=1` so its golden also carries one `claim`
+line per combination a modifier half took through `hs.hotkey`, which no other golden writes, and each
 golden beside them is named for its fixture, `keymap-fixture.keys.golden` the
 bound keys followed by one remap line naming the held leaders put in use, and
 `keymap-fixture.launcher.golden` and `keymap-fixture.sheets.golden` the two views. `goldens.sh`
@@ -222,7 +224,8 @@ plan changed marked FLIPPED in the case name, a gated key swallowed on every lea
 unknown predicate warning once on every leader. It also drives `lib/binder.lua` into real leaders,
 a row landing on the leader its name names with its gate, repeat and release wait, a plain combo
 reaching the plain leader, the order kept, and a missing engine or function reported, and it
-covers what the merge added, the two triggers, the quiet rule, the reveal and the release wait.
+covers what the merge added, the two triggers, the quiet rule, the reveal and the release wait,
+and the composite trigger that holds a held and a modifier trigger for one leader, per half.
 
 `chordkey.lua` is plain Lua, run by `suite.sh dry`. It drives `lib/chordkey.lua` through a stub
 tap and a clock the test moves by hand, and pins the recovery of a hold whose key-up never

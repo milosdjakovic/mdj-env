@@ -26,9 +26,12 @@
 ---
 --- THE TRIGGER IS A STRATEGY, and the seam is the four functions a trigger answers, start, bound,
 --- isActive and owns. This file never names a concrete trigger. lib/leader/triggers/held.lua is
---- one physical key held through the shared ChordKey engine, and lib/leader/triggers/modifier.lua
---- is a set of real modifiers claimed through hs.hotkey. The root names which one each leader
---- gets, so a third kind is a file there plus a line in the root.
+--- one physical key held through the shared ChordKey engine, lib/leader/triggers/modifier.lua
+--- is a set of real modifiers claimed through hs.hotkey, and lib/leader/triggers/composite.lua
+--- holds one of each for a leader that listens on both, Hyper and META as they ship. The root
+--- names which one each leader gets, so a third kind is a file there plus a line in the root.
+--- Whether a press seals over an open list is read off the trigger that heard it, which hands
+--- itself to _onKey, so a composite seals by the half that fired, see _onKey.
 ---
 --- THE POLICY is data, shipped by the root per catalog name beside its leader catalog and
 --- overridable through cfg.policy the same way. Every choice with two answers is a boolean, so
@@ -565,8 +568,16 @@ end
 -- laid out and states to the trigger, so its other keys are the bound no op over a list. The plain
 -- leader and a modifier leader hosting no list key never seal, so their combination fires over a
 -- list exactly as it does anywhere else.
-function obj:_onKey(code, flags)
-  local seals = self._trigger ~= nil and self._trigger.sealsOverLists == true
+--
+-- THE SEAM for a leader on more than one trigger. via is the trigger that heard the key, which every
+-- trigger hands over with the key, and sealing is read off it rather than off the leader's own
+-- trigger. A composite holds a held half and a modifier half and states no sealing of its own,
+-- since an F18 press must seal as a held leader does and a press of the modifiers only as a
+-- modifier leader does, and only the half that fired knows which press this is. A caller handing
+-- no via, a test or a single trigger reached some other way, falls back to the leader's trigger.
+function obj:_onKey(code, flags, via)
+  local trigger = via or self._trigger
+  local seals = trigger ~= nil and trigger.sealsOverLists == true
   local over = (seals and self._listOpen and self._listOpen()) and true or false
   local handler, repeats = self:_resolve(self._bindings[code], flags, over)
   if handler == nil and over then return noop, false end
@@ -593,6 +604,9 @@ end
 -- through its quiet gate.
 function obj:_reveal(code)
   if self._listOpen and self._listOpen() then return end
+  -- A sheet already up stays as it is, so a leader on two triggers whose second asks while the
+  -- first's sheet is showing never draws it twice.
+  if self._revealed then return end
   local sheet = self._sheet
   if not sheet then return end
   -- A held leader is shown by its keycode and a leader of modifiers, which has none, by its name.

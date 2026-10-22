@@ -331,21 +331,30 @@ local function isWordList(t)
   return true
 end
 
--- The shipped leaders as the reader holds them, lowercase name to { name, key or mods, policy,
+-- The fields of an entry that say what physically means the leader, every other field being
+-- behaviour.
+local TRIGGER_FIELDS = { key = true, mods = true, remapTo = true, triggers = true }
+
+-- The shipped leaders as the reader holds them, lowercase name to { name, key, mods, policy,
 -- shipped }, the trigger split from the behaviour fields so a person's entry can replace one half
--- and merge over the other.
+-- and merge over the other. A shipped entry states key, mods, or triggers holding one of each, and
+-- a leader on both holds both key and mods, which the root reads as a leader on two triggers.
 local function shippedLeaders(shipped)
   local merged = {}
   for name, entry in pairs(shipped or {}) do
     local lower = tostring(name):lower()
     local policy = {}
     for field, value in pairs(entry) do
-      if field ~= "key" and field ~= "mods" then policy[field] = copyValue(value) end
+      if not TRIGGER_FIELDS[field] then policy[field] = copyValue(value) end
     end
-    local mods = nil
-    if entry.mods ~= nil then mods = obj.mods(entry.mods) end
-    merged[lower] = { name = lower, key = entry.key, mods = mods, policy = policy, shipped = true,
-      shippedKey = entry.key, shippedMods = mods }
+    local key, mods = entry.key, entry.mods
+    for _, t in ipairs(entry.triggers or {}) do
+      if t.key ~= nil then key = t.key end
+      if t.mods ~= nil then mods = t.mods end
+    end
+    if mods ~= nil then mods = obj.mods(mods) end
+    merged[lower] = { name = lower, key = key, mods = mods, policy = policy, shipped = true,
+      shippedKey = key, shippedMods = mods }
   end
   return merged
 end
@@ -389,8 +398,9 @@ end
 ---   opts.roleWords  the role words a default may name, app and window.
 ---   opts.keycodes   the keycode table a key is spelled with, or nil.
 ---
---- leaders is every leader in use, shipped and named, as a list of { name, key or mods, remapTo,
---- policy, shipped }, the held ones first and then the modifier ones, each sorted by name. policy is the
+--- leaders is every leader in use, shipped and named, as a list of { name, key or mods or both,
+--- remapTo, policy, shipped }, the held ones first and then the modifier ones, each sorted by name.
+--- A leader holding both a key and mods listens on both, and counts among the held ones. policy is the
 --- leader's behaviour fields as written, laid over the shipped entry's field by field, and the
 --- root checks their types. roles maps a role word to the name, upper cased, of the leader it
 --- moves to, held or modifier, which is the one identity every reader of a role compares.
@@ -437,15 +447,86 @@ function obj.readConfig(config, opts)
   for _, word in ipairs(opts.roleWords or {}) do roleWord[word] = true end
 
   -- The leaders, the shipped ones first and then the person's entry for each name laid over them
-  -- in two halves. The trigger, mods or key, is replaced as one, since a leader is one or the
-  -- other. The behaviour fields merge one by one over the shipped entry of the same name, so a
-  -- person changing one keeps the rest. A name the person adds starts with every behaviour off.
+  -- in two halves. The trigger, mods, key or triggers, is replaced as one, so an entry writing key
+  -- alone on a leader that ships on a key and on modifiers leaves it on that key alone, and one
+  -- writing triggers replaces both with its list. triggers holds at most one key and one set of
+  -- mods, a held key and a set of modifiers being the only pair a leader listens on at once, so
+  -- three triggers or two of one kind are refused. The behaviour fields merge one by one over the
+  -- shipped entry of the same name, so a person changing one keeps the rest. A name the person
+  -- adds starts with every behaviour off.
   -- No name is reserved, a name is refused only when a chord could not tell it from a modifier or
   -- a role, or when it is not a word at all. A shipped name may change kind, hyper written
   -- with mods is a modifier leader and leaves the held allocation, and the behaviour fields it
   -- ships stay unless the entry says otherwise.
   local leaders = section("leaders")
   local named = {}
+  -- One set of modifiers as a leader holds it, sorted, or nil and why it is refused.
+  local function leaderMods(given)
+    if type(given) ~= "table" or #given == 0 then
+      return nil, "has mods that are not a list of modifiers, or an empty one"
+    end
+    local list = {}
+    for _, m in ipairs(given) do
+      local word = tostring(m):lower()
+      if not LEADER_MODS[word] then
+        return nil, "has mods holding '" .. tostring(m) .. "', and a leader holds only shift, ctrl, alt and cmd"
+      end
+      list[#list + 1] = word
+    end
+    return (obj.mods(list))
+  end
+  -- Why a held key is refused, or nil when it is one the allow list holds.
+  local function badKey(key)
+    if type(key) == "string" and not (opts.sources and not opts.sources[key]) then return nil end
+    local known = {}
+    for source in pairs(opts.sources or {}) do known[#known + 1] = source end
+    table.sort(known)
+    return "has a key of '" .. tostring(key) .. "', which is not a key Olm can make a leader"
+      .. (#known > 0 and ", the keys it knows are " .. table.concat(known, ", ") or "")
+  end
+  -- The triggers list, answering the key, its remapTo and the mods it holds, or the reason the
+  -- whole list is refused.
+  local function readTriggers(list)
+    if type(list) ~= "table" or #list == 0 or #list ~= #sortedKeys(list) then
+      return nil, nil, nil, "has triggers that are not a list of { key = ... } and { mods = ... } entries"
+    end
+    if #list > 2 then
+      return nil, nil, nil, "has more than two triggers, and a leader listens on at most one key and one set of modifiers"
+    end
+    local key, remapTo, mods = nil, nil, nil
+    for i, t in ipairs(list) do
+      local where = "has a trigger, number " .. i .. ", that "
+      if type(t) ~= "table" then
+        return nil, nil, nil, where .. "is a " .. type(t) .. " rather than a table of key or mods"
+      end
+      for field in pairs(t) do
+        if field ~= "key" and field ~= "mods" and field ~= "remapTo" then
+          return nil, nil, nil, where .. "states '" .. tostring(field) .. "', and a trigger holds only key, remapTo or mods"
+        end
+      end
+      if t.key ~= nil and t.mods ~= nil then
+        return nil, nil, nil, where .. "states both mods and key, and one trigger is one or the other"
+      elseif t.mods ~= nil then
+        if t.remapTo ~= nil then return nil, nil, nil, where .. "states remapTo beside mods, and only a held key is remapped" end
+        if mods ~= nil then
+          return nil, nil, nil, "has two triggers of mods, and a leader listens on at most one key and one set of modifiers"
+        end
+        local why
+        mods, why = leaderMods(t.mods)
+        if not mods then return nil, nil, nil, why end
+      elseif t.key ~= nil then
+        if key ~= nil then
+          return nil, nil, nil, "has two triggers of key, and a leader listens on at most one key and one set of modifiers"
+        end
+        local why = badKey(t.key)
+        if why then return nil, nil, nil, why end
+        key, remapTo = t.key, t.remapTo
+      else
+        return nil, nil, nil, where .. "states neither mods nor key"
+      end
+    end
+    return key, remapTo, mods
+  end
   for _, name in ipairs(sortedKeys(leaders)) do
     local where = "leaders " .. tostring(name)
     local set = leaders[name]
@@ -462,7 +543,7 @@ function obj.readConfig(config, opts)
       named[lower] = true
       local isNew = merged[lower] == nil
       local fields = set
-      if type(set) == "table" and set.mods == nil and set.key == nil and #set > 0 then
+      if type(set) == "table" and set.mods == nil and set.key == nil and set.triggers == nil and #set > 0 then
         -- Today's form, a bare list of modifiers, is still read as mods for now.
         fields = { mods = set }
         out.notes[#out.notes + 1] = "leaders " .. name .. " is a bare list of modifiers, read as mods, "
@@ -471,6 +552,10 @@ function obj.readConfig(config, opts)
       local mods, key, remapTo, bad = nil, nil, nil, nil
       if type(fields) ~= "table" then
         bad = "is a " .. type(set) .. " rather than a table of mods or key and behaviour fields"
+      elseif fields.triggers ~= nil and (fields.mods ~= nil or fields.key ~= nil or fields.remapTo ~= nil) then
+        bad = "states triggers beside mods, key or remapTo, and triggers holds them all, a remapTo inside its key trigger"
+      elseif fields.triggers ~= nil then
+        key, remapTo, mods, bad = readTriggers(fields.triggers)
       elseif fields.mods ~= nil and fields.key ~= nil then
         bad = "states both mods and key, and a leader is one or the other"
       elseif fields.mods ~= nil and fields.remapTo ~= nil then
@@ -482,29 +567,10 @@ function obj.readConfig(config, opts)
         -- has none to keep.
         if isNew then bad = "states neither mods nor key, and a leader is one or the other" end
       elseif fields.mods ~= nil then
-        if type(fields.mods) ~= "table" or #fields.mods == 0 then
-          bad = "has mods that are not a list of modifiers, or an empty one"
-        else
-          local list = {}
-          for _, m in ipairs(fields.mods) do
-            local word = tostring(m):lower()
-            if not LEADER_MODS[word] then
-              bad = "has mods holding '" .. tostring(m) .. "', and a leader holds only shift, ctrl, alt and cmd"
-              break
-            end
-            list[#list + 1] = word
-          end
-          if not bad then mods = obj.mods(list) end
-        end
+        mods, bad = leaderMods(fields.mods)
       else
         key, remapTo = fields.key, fields.remapTo
-        if type(key) ~= "string" or (opts.sources and not opts.sources[key]) then
-          local known = {}
-          for source in pairs(opts.sources or {}) do known[#known + 1] = source end
-          table.sort(known)
-          bad = "has a key of '" .. tostring(key) .. "', which is not a key Olm can make a leader"
-            .. (#known > 0 and ", the keys it knows are " .. table.concat(known, ", ") or "")
-        end
+        bad = badKey(key)
       end
       if bad then
         problem(where, bad .. ", so " .. (isNew and "it is ignored" or "the shipped default is kept"))
@@ -518,7 +584,7 @@ function obj.readConfig(config, opts)
           if field == "tapTogglesCapsLock" then
             problem(where, "has tapTogglesCapsLock, which is retired, a quick tap toggles Caps Lock when the key is "
               .. "capsLock and does nothing for any other key, so the field is ignored")
-          elseif field ~= "mods" and field ~= "key" and field ~= "remapTo" and type(field) ~= "number" then
+          elseif not TRIGGER_FIELDS[field] and type(field) ~= "number" then
             local value, was = fields[field], entry.policy[field]
             if type(value) == "table" and type(was) == "table" then
               local both = copyValue(was)
@@ -1081,6 +1147,9 @@ end
 ---   hostRun     a function from a host's directory to the function its key calls, or nil.
 ---   personKeys  the keys section readConfig read from config/keymap.lua, or nil.
 ---   modifierLeaders the leaders the person named, name to its sorted set of modifiers, or nil.
+---   compositeLeaders the held leaders that also listen on a set of modifiers, name to that sorted
+---               set, or nil. Their rows are checked against every other leader's once the set is
+---               counted, see collisions.
 ---   listLeader  the leader the list role lands on, which a list binding naming no leader binds
 ---               on, or nil for the app role's leader.
 ---   known       optional, a function answering whether an identity is a plugin or host at all,
@@ -1544,7 +1613,7 @@ function obj.build(inputs)
     return ka < kb
   end)
 
-  local problems = obj.collisions(rows, modifierLeaders)
+  local problems = obj.collisions(rows, modifierLeaders, inputs.compositeLeaders)
   for _, problem in ipairs(rowProblems) do problems[#problems + 1] = problem end
   for _, problem in ipairs(sourceProblems) do problems[#problems + 1] = problem end
   return { rows = rows, bound = bound, problems = problems, notes = notes, roles = roles }
@@ -1580,7 +1649,7 @@ end
 --- defaults, a fact about the repository the same on every machine, and two of the person's own,
 --- each named by the keymap entry where the keymap set it. Nothing here picks a winner, the pair is
 --- named and the fix is left to a person.
-function obj.collisions(rows, modifierLeaders)
+function obj.collisions(rows, modifierLeaders, compositeLeaders)
   local first, order, extra = {}, {}, {}
   for _, row in ipairs(rows) do
     local id = slotOf(row, modifierLeaders)
@@ -1611,6 +1680,71 @@ function obj.collisions(rows, modifierLeaders)
         why = named(a) .. " and " .. named(b) .. " both bind "
           .. obj.chordText(b) .. " in the " .. b.layer .. " layer, so one of them can never be reached by it",
       }
+    end
+  end
+
+  -- A held leader that also listens on a set of modifiers claims each of its global rows a second
+  -- time, as that set united with the row's own modifiers, except a row asking for a modifier the
+  -- set already holds, which its modifier half leaves to the held key. So a meta row adding cmd and
+  -- a hyper row on the same key, once both listen on modifiers, are one physical combination, and
+  -- so are such a row and a plain combo or a modifier leader's row on that same combination. Each
+  -- such pair on different leaders is one problem naming both. A pair two leaders of modifiers
+  -- alone would make is the check above, so only a pair holding a composite row is said here.
+  local physical, physicalOrder = {}, {}
+  local function claimPhysical(row, mods, composite)
+    local spelled = table.concat(mods, "+")
+    local slot = table.concat({ GLOBAL, row.key, spelled }, "\0")
+    if not physical[slot] then
+      physical[slot] = {}
+      physicalOrder[#physicalOrder + 1] = slot
+    end
+    table.insert(physical[slot], { row = row, composite = composite,
+      spelled = (spelled ~= "" and spelled .. "+" or "") .. tostring(row.key) })
+  end
+  for _, row in ipairs(rows) do
+    if row.layer == GLOBAL then
+      local base = row.leader and (compositeLeaders or {})[row.leader]
+      if base then
+        local held = {}
+        for _, m in ipairs(base) do held[m] = true end
+        local overlaps = false
+        for _, m in ipairs(row.mods or {}) do
+          if held[m] then overlaps = true end
+        end
+        if not overlaps then
+          local union = {}
+          for _, m in ipairs(base) do union[#union + 1] = m end
+          for _, m in ipairs(row.mods or {}) do union[#union + 1] = m end
+          claimPhysical(row, (obj.mods(union)), true)
+        end
+      elseif row.leader == nil or (modifierLeaders or {})[row.leader] then
+        local mods = row.mods or {}
+        if row.leader then
+          local union = {}
+          for _, m in ipairs(modifierLeaders[row.leader]) do union[#union + 1] = m end
+          for _, m in ipairs(mods) do union[#union + 1] = m end
+          mods = obj.mods(union)
+        end
+        claimPhysical(row, mods, false)
+      end
+    end
+  end
+  for _, slot in ipairs(physicalOrder) do
+    local claims = physical[slot]
+    for i = 1, #claims do
+      for j = i + 1, #claims do
+        local a, b = claims[i], claims[j]
+        if (a.composite or b.composite) and a.row.leader ~= b.row.leader then
+          local where = obj.chordText(b.row) .. " in " .. GLOBAL
+          if b.row.entry then where = "config/keymap.lua keys " .. tostring(b.row.entry) end
+          problems[#problems + 1] = {
+            where = where,
+            why = named(a.row) .. " on " .. obj.chordText(a.row) .. " and " .. named(b.row) .. " on "
+              .. obj.chordText(b.row) .. " both claim " .. b.spelled .. " once a leader's modifiers are counted, so on a "
+              .. "machine sending that leader as modifiers one of them can never be reached by it",
+          }
+        end
+      end
     end
   end
   return problems

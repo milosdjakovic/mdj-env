@@ -1190,6 +1190,117 @@ do
   eq(#warnings, warned + 1, "predicate: and says so once")
 end
 
+-- A leader on two triggers, phase 1 of docs/PLAN-MACHINES.md. Hyper and META ship on a held key and
+-- a set of modifiers at once, written as triggers, and the reader holds such a leader as one with
+-- both a key and mods, among the held leaders.
+do
+  local BOTH = {
+    hyper = { triggers = { { key = "capsLock" }, { mods = { "shift", "ctrl", "alt", "cmd" } } }, ranked = true },
+    meta = { triggers = { { key = "rightOption" }, { mods = { "shift", "ctrl", "alt" } } }, drivenRepeat = true },
+    super = { key = "rightCommand" },
+  }
+  local function readBoth(config)
+    return keymap.readConfig(config, { leaders = BOTH, sources = SOURCES, allocate = KeyRemap.allocate,
+      roleWords = ROLE_WORDS, keycodes = KEYCODES })
+  end
+  local r = readBoth({})
+  local by = byName(r)
+  eq(#r.problems, 0, "triggers: the shipped pair is no problem")
+  eq(by.hyper.key, "capsLock", "triggers: hyper keeps its key")
+  eq(table.concat(by.hyper.mods, "+"), "alt+cmd+ctrl+shift", "triggers: beside its four modifiers")
+  eq(table.concat(by.meta.mods, "+"), "alt+ctrl+shift", "triggers: and meta its three")
+  eq(by.hyper.policy.triggers, nil, "triggers: the list is no behaviour field")
+  eq(by.hyper.policy.ranked, true, "triggers: the behaviour stays beside it")
+  eq(r.allocation.leaders.hyper.fkey, "f18", "triggers: the held half is placed on its function key as before")
+  eq(r.allocation.leaders.meta.fkey, "f16", "triggers: meta's too")
+  eq(table.concat({ r.leaders[1].name, r.leaders[2].name, r.leaders[3].name }, ","), "hyper,meta,super",
+    "triggers: a leader on both is listed among the held leaders")
+  local chord = keymap.parseChord("hyper+shift+4", { hyper = true }, KEYCODES)
+  eq(chord and chord.leader, "hyper", "triggers: a chord on it still reads as a held leader's")
+
+  -- key or mods alone replaces both halves, and triggers replaces both with its list.
+  r = readBoth({ leaders = { hyper = { key = "capsLock" }, meta = { mods = { "shift", "ctrl", "alt" } } } })
+  by = byName(r)
+  eq(#r.problems, 0, "triggers: a single form is no problem")
+  eq(by.hyper.mods, nil, "triggers: key alone drops the modifier half")
+  eq(by.meta.key, nil, "triggers: mods alone drops the held half")
+  eq(r.allocation.leaders.meta, nil, "triggers: and leaves the allocation")
+  r = readBoth({ leaders = { super = { triggers = { { key = "rightCommand", remapTo = "f19" }, { mods = { "ctrl", "cmd" } } } },
+    hyper = { triggers = { { mods = { "shift", "ctrl", "alt", "cmd" } } } } } })
+  by = byName(r)
+  eq(#r.problems, 0, "triggers: a person's list is no problem")
+  eq(by.super.key, "rightCommand", "triggers: it states the held half")
+  eq(table.concat(by.super.mods, "+"), "cmd+ctrl", "triggers: and the modifier half")
+  eq(r.allocation.leaders.super.fkey, "f19", "triggers: a remapTo inside the key trigger is honoured")
+  eq(by.hyper.key, nil, "triggers: a list of one replaces both with that one")
+  eq(table.concat(by.hyper.mods, "+"), "alt+cmd+ctrl+shift", "triggers: the modifiers")
+
+  -- Malformed lists are refused and the shipped default is kept.
+  r = readBoth({ leaders = {
+    hyper = { triggers = { { key = "capsLock" }, { key = "rightControl" } } },
+    meta = { triggers = { { mods = { "shift" } }, { mods = { "ctrl" } } } },
+    super = { triggers = { { key = "rightCommand" }, { mods = { "ctrl" } }, { key = "f13" } } },
+    pedal = { triggers = { { key = "f13", mods = { "ctrl" } } } },
+    nav = { triggers = { mods = { "ctrl" } } },
+    odd = { triggers = "capsLock" },
+    side = { triggers = { { key = "f14" } }, key = "f14" },
+    far = { triggers = { { key = "f15" } }, remapTo = "f19" },
+    soft = { triggers = { { mods = { "ctrl" }, remapTo = "f19" } } },
+    typo = { triggers = { { keys = "f13" } } },
+    low = { triggers = { { key = "f12" }, { mods = { "fn" } } } },
+  } })
+  by = byName(r)
+  local text = whys(r.problems)
+  eq(has(text, "leaders hyper | has two triggers of key"), true, "malformed: two keys are refused")
+  eq(by.hyper.key, "capsLock", "malformed: and hyper keeps its shipped key")
+  eq(by.hyper.mods ~= nil, true, "malformed: and its shipped modifiers")
+  eq(has(text, "leaders meta | has two triggers of mods"), true, "malformed: two sets of mods are refused")
+  eq(has(text, "leaders super | has more than two triggers"), true, "malformed: three triggers are refused")
+  eq(has(text, "leaders pedal | has a trigger, number 1, that states both mods and key"), true,
+    "malformed: one trigger holding both is refused")
+  eq(by.pedal, nil, "malformed: and a new name is ignored")
+  eq(has(text, "leaders nav | has triggers that are not a list"), true, "malformed: a table that is no list is refused")
+  eq(has(text, "leaders odd | has triggers that are not a list"), true, "malformed: a string is refused")
+  eq(has(text, "leaders side | states triggers beside mods, key or remapTo"), true, "malformed: triggers beside key is refused")
+  eq(has(text, "leaders far | states triggers beside mods, key or remapTo"), true, "malformed: remapTo outside the list is refused")
+  eq(has(text, "leaders soft | has a trigger, number 1, that states remapTo beside mods"), true,
+    "malformed: remapTo inside a mods trigger is refused")
+  eq(has(text, "leaders typo | has a trigger, number 1, that states 'keys'"), true, "malformed: an unknown field is refused")
+  eq(has(text, "leaders low | has a key of 'f12'"), true, "malformed: a key off the allow list is refused inside the list")
+  eq(#r.problems, 11, "malformed: one problem per entry")
+end
+
+-- The collision check once a leader listens on modifiers too. A meta row adding cmd and a hyper row
+-- on the same key are one physical combination when both leaders listen on modifiers, and so are a
+-- hyper row and a plain combo of the four, while a row the modifier half leaves to the held key
+-- claims nothing there.
+do
+  local COMPOSITE = { hyper = { "alt", "cmd", "ctrl", "shift" }, meta = { "alt", "ctrl", "shift" } }
+  local function row(leader, key, mods, owner, extra)
+    local list, anyMods = keymap.mods(mods)
+    local r = { layer = "global", leader = leader, key = key, mods = list, anyMods = anyMods, owner = owner, action = "open" }
+    for k, v in pairs(extra or {}) do r[k] = v end
+    return r
+  end
+  local problems = keymap.collisions({ row("hyper", "k", nil, "kitty"), row("meta", "k", { "cmd" }, "keep") }, {}, COMPOSITE)
+  eq(#problems, 1, "physical: a meta row adding cmd and a hyper row on one key are one problem")
+  eq(has(whys(problems), "'kitty' action 'open' on hyper+k with any modifiers and 'keep' action 'open' on meta+cmd+k both claim alt+cmd+ctrl+shift+k"),
+    true, "physical: naming both rows and the combination")
+  eq(#keymap.collisions({ row("hyper", "k", nil, "kitty"), row("meta", "k", { "cmd" }, "keep") }, {}, {}), 0,
+    "physical: with no leader on modifiers the two never meet")
+  problems = keymap.collisions({ row("hyper", "k", {}, "kitty"), row(nil, "k", { "shift", "ctrl", "alt", "cmd" }, "plain") }, {}, COMPOSITE)
+  eq(#problems, 1, "physical: a hyper row and a plain combo of the four are one problem")
+  problems = keymap.collisions({ row("hyper", "k", { "cmd" }, "preview"), row("meta", "k", { "cmd" }, "keep") }, {}, COMPOSITE)
+  eq(#problems, 0, "physical: a hyper row asking for cmd is left to the held key and claims nothing on modifiers")
+  problems = keymap.collisions({ row("hyper", "k", nil, "kitty"), row("hyper", "k", {}, "other") }, {}, COMPOSITE)
+  eq(#problems, 0, "physical: a catch all and an exact row on one leader are no pair, the resolver picks between them")
+  problems = keymap.collisions({ row("hyper", "k", nil, "kitty"), row("nav", "k", { "cmd" }, "keep") },
+    { nav = { "alt", "ctrl", "shift" } }, COMPOSITE)
+  eq(#problems, 1, "physical: a modifier leader's row on the same combination is one problem")
+  problems = keymap.collisions({ row("hyper", "k", nil, "kitty", { entry = "hyper+k" }), row("meta", "k", { "cmd" }, "keep", { entry = "meta+cmd+k" }) }, {}, COMPOSITE)
+  eq(has(whys(problems), "config/keymap.lua keys meta+cmd+k |"), true, "physical: a person's row is named by its entry")
+end
+
 if failures > 0 then
   print(string.format("keymap person, %d check(s), %d failure(s)", checks, failures))
   os.exit(1)

@@ -50,17 +50,25 @@ local log = hs.logger.new("Leader", "info")
 ---   spec.mods  the base set of real modifiers, empty or absent for a plain combo
 ---   spec.sealsOverLists  true when this leader hosts a list key, which the root knows once the
 ---              lists are laid out, so a key it resolves over an open list is the bound no op
+---   spec.skipOverlap  true when this is the modifier half of a composite, so a binding asking for
+---              a modifier the base set already holds is left unclaimed and counted rather than
+---              warned about, since the held half still reaches it
 function obj.new(spec)
   spec = spec or {}
   local baseMods = spec.mods or {}
   local baseSet = {}
   for _, m in ipairs(baseMods) do baseSet[m] = true end
+  local skipOverlap = spec.skipOverlap == true
+  local skipped = 0
 
   -- One hs.hotkey per distinct pairing of a key with a modifier set. Held in a table so a bound
   -- combination is never collected, and claimed once so a second binding on the same combination
   -- adds no second hotkey competing for it.
   local hotkeys, claimed = {}, {}
   local started = false
+  -- Declared before the claims, since a claimed combo hands this trigger to the adapter with every
+  -- press, which is how the adapter knows which trigger fired, see _onKey in lib/leader.lua.
+  local trigger = {}
 
   -- The modifiers a binding is claimed on, the base set united with the binding's own. fn is not a
   -- modifier the resolver compares, but a row that declares it is claimed with it, as the binder
@@ -87,15 +95,20 @@ function obj.new(spec)
     return flags
   end
 
+  -- The sub modifiers of a binding that the base set already holds, empty for most bindings.
+  local function overlapOf(subMods)
+    local overlap = {}
+    for _, s in ipairs(subMods or {}) do
+      if baseSet[s] then overlap[#overlap + 1] = s end
+    end
+    return overlap
+  end
+
   -- A binding whose own sub modifiers overlap the base set cannot be reached, since the overlap is
   -- taken out before resolving and the plain binding on that key answers instead. The two really
   -- are one physical combination, so the only honest thing is to say it once at claim time.
   local function warnIfUnreachable(key, subMods)
-    if not subMods or #subMods == 0 then return end
-    local overlap = {}
-    for _, s in ipairs(subMods) do
-      if baseSet[s] then overlap[#overlap + 1] = s end
-    end
+    local overlap = overlapOf(subMods)
     if #overlap == 0 then return end
     log.w(string.format(
       "the %s binding asking for %s cannot be reached under this leader, %s is already part of the leader itself, so the plain %s binding answers that combination and this one never fires",
@@ -120,7 +133,7 @@ function obj.new(spec)
     local depth = 0
     local function press()
       depth = 0
-      local fn = host:_onKey(code, flags)
+      local fn = host:_onKey(code, flags, trigger)
       if fn then
         if driven then fn(0) else fn() end
       end
@@ -130,7 +143,7 @@ function obj.new(spec)
     -- then, and only when that binding repeats.
     if repeats then
       return hs.hotkey.bind(combo, binding.key, press, nil, function()
-        local fn, rep = host:_onKey(code, flags)
+        local fn, rep = host:_onKey(code, flags, trigger)
         if fn and rep then
           if driven then
             depth = depth + 1
@@ -148,6 +161,12 @@ function obj.new(spec)
   -- alone, said once with its key and modifiers, and every other one is still claimed, the per row
   -- isolation the binder gave plain combos before phase 3.
   local function claim(host, binding)
+    -- The modifier half of a composite leaves such a binding to the held half, which tells the two
+    -- apart, so it is neither claimed nor warned about here, only counted for the composite's note.
+    if skipOverlap and #overlapOf(binding.mods) > 0 then
+      skipped = skipped + 1
+      return
+    end
     warnIfUnreachable(binding.key, binding.mods)
     local combo = comboFor(binding.mods)
     local id = tostring(binding.code) .. "|" .. table.concat(combo, "+")
@@ -166,8 +185,6 @@ function obj.new(spec)
     claimed[id] = { hotkey = hotkey, repeats = repeats }
     hotkeys[#hotkeys + 1] = hotkey
   end
-
-  local trigger = {}
 
   -- Whether a table of modifier flags is exactly the base set, compared on the four real
   -- modifiers alone, so fn and caps lock count neither for nor against it.
@@ -198,8 +215,13 @@ function obj.new(spec)
     end
   end
 
+  -- Takes down only a sheet this trigger put up. Alone that is every sheet the leader shows, and as
+  -- the modifier half of a composite it leaves the held half's sheet alone, which a modifier pressed
+  -- under F18 or the autorepeat of F18 itself would otherwise take down the moment it went up.
   local function conceal(host)
     stopTimer("_pollTimer")
+    if not trigger._shown then return end
+    trigger._shown = false
     host:conceal()
   end
 
@@ -228,9 +250,14 @@ function obj.new(spec)
       trigger._armTimer = hs.timer.doAfter(host._holdDelay or DEFAULT_HOLD_DELAY, function()
         trigger._armTimer = nil
         if not exactly(hs.eventtap.checkKeyboardModifiers()) then return end
+        -- The adapter refuses over an open list, and over a sheet another trigger of the same
+        -- leader already put up, so only a sheet this trigger put up is watched and taken down.
+        local wasUp = host._revealed
         host:_reveal(nil)
-        -- The adapter refuses over an open list, so only a sheet that went up is watched.
-        if host._revealed then startPoll(host) end
+        if host._revealed and not wasUp then
+          trigger._shown = true
+          startPoll(host)
+        end
       end)
     end
     local types = hs.eventtap.event.types
@@ -277,6 +304,12 @@ function obj.new(spec)
 
   function trigger.bound(host, binding)
     if started then claim(host, binding) end
+  end
+
+  -- How many bindings the modifier half of a composite left to the held half, which the composite
+  -- says once at start. Always 0 on a leader of modifiers alone.
+  function trigger.skipped()
+    return skipped
   end
 
   function trigger.start(host)

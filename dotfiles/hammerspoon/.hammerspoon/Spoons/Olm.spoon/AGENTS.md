@@ -249,6 +249,38 @@ empty base set, so a plain combo such as Option and backtick is claimed exactly 
 used to claim it, with three arguments and no repeat callback unless the binding repeats. The root
 is the only place a trigger is named, so a third kind is a file plus a line there.
 
+A leader may listen on a held key and a set of modifiers at once, which is how HYPER and META ship
+since phase 1 of `docs/PLAN-MACHINES.md`. HYPER is Caps Lock and shift, ctrl, alt and cmd, META is
+Right Option and shift, ctrl and alt, so a machine without kanata reaches them through F18 and F16
+and a machine with kanata through the modifiers it sends, and Olm is told neither. The entry writes
+`triggers = { { key = ... }, { mods = ... } }`, and the reader holds it as an entry with both `key`
+and `mods`, listed and allocated among the held leaders, so its roles, list keys, remap and sheet by
+keycode are a held leader's. A person's entry writing `key` or `mods` alone replaces both halves
+with that one, and one writing `triggers` replaces both with its list. A list holds at most one key
+and one set of mods, with any `remapTo` inside the key trigger, and anything else is a problem line
+naming the entry, the shipped default kept. The root builds such a leader on
+`lib/leader/triggers/composite.lua`, handed a held trigger and a modifier trigger it built itself,
+and the composite answers the contract per method. `start` starts both, a half that fails says one
+line and the other keeps working, and the leader fails only when both do. `bound` hands every
+binding to both. The modifier half is built with `skipOverlap`, so a binding asking for a modifier
+its set already holds, Hyper and Shift and 4 for one, is neither claimed nor warned about, since the
+held half still reaches it, and the composite says the count once at start as a routine line.
+`isActive` and `owns` are either half, which is the half pressed, since phase 0 measured that one
+press never arrives as both. Sealing over an open list is per press, so every trigger hands itself
+to `_onKey` as `via` and the adapter reads `sealsOverLists` off the trigger that heard the key. An
+F18 press seals as a held leader always has, and a press of the modifiers seals only when its
+leader hosts a list key, as a modifier leader does. The composite states no sealing of its own. One
+sheet serves both halves, filed under the keycode, and two guards keep one press to one sheet. The
+adapter's reveal does nothing while its sheet is already up, and the modifier trigger takes down
+only a sheet it put up itself, so a modifier pressed under F18, or F18's own autorepeat, never
+hides the held half's sheet. Over the default chooser a composite is a held leader in use, so the
+field yields a key its modifier half owns and the claimed hotkey resolves it, a list key acting and
+a global key the bound no op. A combination its modifier half never claimed passes on to the app,
+where a modifier leader sealing over the same list would have swallowed it. The cost is that every
+machine, kanata or not, claims machine wide the four and three modifier combinations its HYPER and
+META rows add up to. `test/leaders.lua` pins the composite, `test/keymap-person.lua` the reader,
+and `test/keymap-fixture-composite.lua` with its golden shows both forms bound through the real root.
+
 How a leader behaves is its policy, the behaviour fields written beside `mods` or `key` in its
 entry, `SHIPPED_LEADERS` in `root/compose.lua` and the person's section over it, checked by
 `lib/leader.lua`'s `checkPolicy`. `policy.leaderCatalog` and `policy.leaderPolicy` are retired and a
@@ -358,7 +390,13 @@ is switched off this load is a note rather than a problem, since switching a plu
 keys with it. The slot of a row on a named modifier leader is the whole combination with no
 leader, so `nav+T` and `ctrl+shift+T` are one slot. A modifier Hyper has no sub modifiers to give,
 so a row asking for Shift or Command beside it, Hyper and Shift and 4 for one, cannot be told from
-the plain row, the modifier trigger says so once and the collision check names the pair. `roles`
+the plain row, the modifier trigger says so once and the collision check names the pair. A held
+leader that also listens on modifiers is checked a second way, since its modifier half claims each
+global row again as its set united with the row's own modifiers. Two such rows on different leaders
+that come to one physical combination, a META row adding cmd and a Hyper row on the same key, or one
+and a plain combo or a modifier leader's row on that combination, are one problem line naming both,
+`keymap.collisions` with the root's `compositeLeaders`. A row its modifier half leaves to the held
+key claims nothing there. The shipped manifests made no such pair when it landed. `roles`
 is merged over app on HYPER and window on META by hand, since `lib/defaults.lua`'s merge reads an empty table as a list that replaces. The
 `aliases` section is merged over the person's overrides before the plan resolves, so the
 resolver, the registrar's collision check and every row hint read one answer. `cfg.leaders` is

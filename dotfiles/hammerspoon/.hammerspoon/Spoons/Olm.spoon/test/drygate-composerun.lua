@@ -92,6 +92,12 @@
 -- remap was applied with, which is the proof of which held leaders a keymap puts in use. The
 -- keymap mode writes the same line from what the root recorded.
 --
+-- THE CLAIMS. With DRYGATE_CLAIMS=1 as well, the combos a named leader claims through hs.hotkey
+-- inside its own bind or start are written too, after the remap line, one claim line each with the
+-- leader's name, the key and the modifiers in the order the trigger spelled them, sorted. That is
+-- how a fixture shows a leader on a held key and on modifiers at once, both forms bound. It is opt
+-- in, so every golden written without it stays as it was.
+--
 -- THE FIXTURE. With DRYGATE_KEYMAP_FIXTURE naming a Lua file under the spoon that returns a
 -- keymap table, that table is handed to Olm as cfg.keymap in place of the person's own, in every
 -- mode, so a keymap can be proved offline without editing config/keymap.lua.
@@ -101,6 +107,10 @@ local scriptDir = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local bindMode = os.getenv("DRYGATE_BINDS")
 if bindMode == "" then bindMode = nil end
 local bindCalls = {}
+local claimsWanted = os.getenv("DRYGATE_CLAIMS") == "1"
+local claimCalls = {}
+-- The named leader whose bind or start is running, which a claim inside it is written under.
+local claimLeader = nil
 local viewsMode = os.getenv("DRYGATE_VIEWS")
 if viewsMode == "" then viewsMode = nil end
 local fixturePath = os.getenv("DRYGATE_KEYMAP_FIXTURE")
@@ -386,6 +396,9 @@ if bindMode then
   hotkey.bind = function(mods, key, fn)
     if insideNamedLeader == 0 then
       bindCalls[#bindCalls + 1] = { engine = "hotkey", key = key, mods = mods or {}, fn = fn }
+    elseif claimsWanted and claimLeader then
+      claimCalls[#claimCalls + 1] = table.concat({ "claim", claimLeader, tostring(key):lower(),
+        table.concat(mods or {}, "+") }, "\t")
     end
     return stub("hs.hotkey.bind()")
   end
@@ -572,7 +585,10 @@ hs.loadSpoon = function(name)
         local name = type(self.leaderName) == "function" and self:leaderName() or nil
         if name then record(name, key, fn, mods, opts) end
         if name then insideNamedLeader = insideNamedLeader + 1 end
+        local outer = claimLeader
+        if name then claimLeader = name end
         local results = table.pack(pcall(inner, self, key, fn, mods, opts))
+        claimLeader = outer
         if name then insideNamedLeader = insideNamedLeader - 1 end
         if not results[1] then error(results[2], 0) end
         return table.unpack(results, 2, results.n)
@@ -582,7 +598,10 @@ hs.loadSpoon = function(name)
         leader.start = function(self, ...)
           local name = type(self.leaderName) == "function" and self:leaderName() or nil
           if name then insideNamedLeader = insideNamedLeader + 1 end
+          local outer = claimLeader
+          if name then claimLeader = name end
           local results = table.pack(pcall(innerStart, self, ...))
+          claimLeader = outer
           if name then insideNamedLeader = insideNamedLeader - 1 end
           if not results[1] then error(results[2], 0) end
           return table.unpack(results, 2, results.n)
@@ -736,6 +755,10 @@ if bindMode then
     for _, line in ipairs(project.fieldLines(record.fieldKeys)) do out[#out + 1] = line end
   end
   if bindMode ~= "order" then out[#out + 1] = project.remapLine(remapNames) end
+  if claimsWanted then
+    table.sort(claimCalls)
+    for _, line in ipairs(claimCalls) do out[#out + 1] = line end
+  end
   io.stdout:write(table.concat(out, "\n"), "\n")
   os.exit(0)
 end

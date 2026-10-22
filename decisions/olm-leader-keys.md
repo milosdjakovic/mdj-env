@@ -3,7 +3,9 @@
 Status. Caps Lock stays F18 through hidutil, and a held leader is released whenever secure input
 is on or the tap was disabled, because typing after a lost key-up used to keep it held forever.
 Every leader is configurable since `docs/PLAN-LEADERS.md` completed on 2026-10-22, so Hyper may
-also be the four real modifiers with its keys, list keys and sheet intact.
+also be the four real modifiers with its keys, list keys and sheet intact. Since 2026-10-23 Hyper
+and META ship on both forms at once, their held key and a set of real modifiers, so a kanata
+machine and a plain one reach the same leaders.
 
 ## Now
 
@@ -18,6 +20,15 @@ its cause. Hyper does nothing in a password field, since secure input hides ever
 code at this layer changes that. Since phase 3 of `docs/PLAN-LEADERS.md` a person may instead
 write Hyper as the four real modifiers, the form Karabiner produces, and it keeps its roles, its
 list keys and its behaviour, with Caps Lock then left unremapped.
+
+Since phase 1 of `docs/PLAN-MACHINES.md` a leader is not one trigger by definition. Hyper ships on
+Caps Lock and on shift, ctrl, alt and cmd, META on Right Option and on shift, ctrl and alt, each
+built on `lib/leader/triggers/composite.lua` over a held and a modifier trigger, and SUPER stays
+one held key. An F18 press behaves exactly as a held leader, and a press of the modifiers exactly as
+a modifier leader, sealing over a list only when the leader hosts a list key, since each trigger
+hands itself to the adapter with every key. A row asking for a modifier the set already holds is
+answered by the held key alone. A person's entry writing `key` or `mods` alone puts the leader back
+on one trigger.
 
 ## Rejected
 
@@ -59,6 +70,13 @@ list keys and its behaviour, with Caps Lock then left unremapped.
   block list has to guess every key that is dangerous, and a letter as a leader taxes every word
   typed with it. An allow list of Caps Lock, the right modifiers and F13 to F20 only has to know
   what is safe, and extra hardware reaches it by sending F13 to F20 from its own firmware.
+- **A per machine leaders overlay instead of a composite trigger.** 2026-10-23. Phase 4 of
+  `docs/PLAN-MACHINES.md` would make it possible to write Hyper as the four modifiers on a kanata
+  machine and as Caps Lock everywhere else. On a kanata machine where kanata crashed, was stopped or
+  lost its Input Monitoring grant, Caps Lock still arrives as F18 through Olm's own remap and a
+  composite Hyper keeps working, while an overlay would leave that machine with no Hyper at all
+  until kanata came back. Phase 0 observed exactly that fallback on 2026-10-22, when the Karabiner
+  driver daemon had stopped and Caps Lock reached Olm as F18 for the whole run.
 
 ## Log
 
@@ -199,3 +217,36 @@ launchd. Hammerspoon was loaded before kanata started in the run that counted. W
 while kanata runs lays the remap over the virtual keyboard was not checked. If it does, a tap
 arrives as F18 and Olm's held engine toggles Caps Lock itself, which is still one toggle, and the
 phase 1 live check confirms it.
+
+### 2026-10-23 00:01
+
+Phase 1 of `docs/PLAN-MACHINES.md` landed on `olm/leader-composite`, offline gates only, the live
+load still owed. `lib/leader/triggers/composite.lua` holds the triggers the root hands it and
+answers the contract per method. Both halves start, a half that fails says one line and the other
+keeps working, and the leader fails only when both do. Every binding goes to both, and the
+modifier half, built with `skipOverlap`, leaves a binding asking for a modifier its set already
+holds to the held key without the unreachable warning, the composite saying the count once at
+start. On this repository that is five Hyper rows, Shift and 4 and the Command rows of the
+clipboard and file search previews. `isActive` and `owns` are either half, since phase 0 measured
+that one press is never both. Sealing could not be one static field any more, so `_onKey` in
+`lib/leader.lua` takes the trigger that heard the key as a third argument, which the held and
+modifier triggers now pass, and reads `sealsOverLists` off it. An F18 press seals as a held leader
+always did, and a modifier press seals only when its leader hosts a list key. One sheet serves both
+halves, and two guards keep a press to one sheet, the adapter refusing a second reveal while its
+sheet is up and the modifier trigger taking down only a sheet it put up, which F18's own
+autorepeat reaching its observing tap would otherwise have done at once. The reader accepts
+`triggers` beside `key` and `mods`, holds such a leader as one with both a key and mods among the
+held leaders, and refuses three triggers, two of one kind, and a `remapTo` outside the key trigger.
+The collision check now counts a composite's modifiers, so two rows on different leaders that come
+to one physical combination are one problem line, and the shipped manifests made none.
+
+Every existing golden stayed byte identical, since the bound recording counts what a named leader
+claims through `hs.hotkey` under that leader's own bind. A new fixture,
+`keymap-fixture-composite.lua`, writes the shipped pair explicitly and records the modifier claims
+through `DRYGATE_CLAIMS`, forty three of them, and without those lines its golden is what an empty
+keymap binds. The cost, said once here. A plain machine now also claims, machine wide, the four and
+three modifier combinations its Hyper and META rows add up to, so shift, ctrl and alt with a META
+key moves a window on every machine and holding the three shows META's sheet. Over the default
+chooser a composite is a held leader, so a combination of its modifiers nobody claimed passes on to
+the app beneath an open list, where a modifier Hyper sealing over the same list would have
+swallowed it.

@@ -180,8 +180,9 @@ per method, not by a blanket or.
 - `isActive` is true when either half is.
 - `owns` and sealing follow the half that is pressed. An F18 press behaves exactly as a held
   leader does today, owning every key and sealing over open lists. A four modifier press behaves
-  exactly as a modifier leader does, owning nothing beyond its claimed combinations and never
-  sealing. How `lib/leader.lua` reads that is settled in the phase, and a fixture pins both.
+  exactly as a modifier leader does, owning nothing beyond its claimed combinations and
+  sealing only when its leader hosts a list key, which Hyper does. How `lib/leader.lua` reads that
+  is settled in the phase, and a fixture pins both.
 
 The leaders reader accepts `triggers = { { key = ... }, { mods = ... } }` beside the two single
 forms, and `SHIPPED_LEADERS` gives Hyper and META both. A person's entry that writes `key` or

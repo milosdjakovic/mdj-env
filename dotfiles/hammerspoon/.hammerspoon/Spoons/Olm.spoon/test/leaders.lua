@@ -10,7 +10,8 @@
 -- whose names say FLIPPED. A key whose matching bindings are all gated off is swallowed on every
 -- leader, where Hyper left it unbound, and an unknown predicate name warns once on every leader,
 -- where Hyper said nothing. The cases after those cover what the merge added, the triggers, the
--- quiet rule, the reveal and the release wait.
+-- quiet rule, the reveal and the release wait, and the last block the composite trigger of phase 1
+-- of docs/PLAN-MACHINES.md, a leader on a held key and a set of modifiers at once.
 --
 -- It needs no Hammerspoon and no lock. The adapter touches hs only for a logger, the keycode table
 -- at bind time, a timer for the release wait and the modifiers for the modifier trigger, so a small
@@ -23,6 +24,7 @@ local here = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local lib = here .. "../lib/"
 
 local warnings = {}
+local notes = {}
 local toggles = 0
 local hotkeysBound = {}
 local heldMods = {}
@@ -34,6 +36,7 @@ hs = {
     new = function()
       return setmetatable({
         w = function(message) warnings[#warnings + 1] = message end,
+        i = function(message) notes[#notes + 1] = message end,
       }, { __index = function() return function() end end })
     end,
   },
@@ -841,6 +844,171 @@ do
   eq(#taps, 0, "reveal: a leader with no sheet runs no tap")
   setup({}, true)
   eq(#taps, 0, "reveal: a plain leader never runs one")
+  heldMods = {}
+end
+
+-- The composite trigger, phase 1 of docs/PLAN-MACHINES.md. Hyper ships on Caps Lock and on the four
+-- modifiers at once, so these drive the real held and modifier triggers inside one composite, the
+-- way the root builds it, and pin each method of the contract per half.
+do
+  local held = assert(loadfile(lib .. "leader/triggers/held.lua"))()
+  local modifier = assert(loadfile(lib .. "leader/triggers/modifier.lua"))()
+  local composite = assert(loadfile(lib .. "leader/triggers/composite.lua"))()
+  local FOUR = { "shift", "ctrl", "alt", "cmd" }
+  local function allOf(list)
+    local out = {}
+    for _, m in ipairs(list) do out[m] = true end
+    return out
+  end
+  local F18 = 79
+  local registered, engineDown = {}, false
+  local engine = { addKey = function(_, code, opts) registered[code] = opts end,
+    isActive = function() return engineDown end }
+  -- A leader the way the root builds HYPER, the held half first and the modifier half beside it.
+  local function build(opts)
+    opts = opts or {}
+    registered, engineDown, hotkeysBound, taps, timers, heldMods = {}, false, {}, {}, {}, {}
+    local halves = {
+      held.new({ chord = (not opts.noEngine) and engine or nil, keyCode = F18, key = "capsLock" }),
+      modifier.new({ mods = opts.mods or FOUR, sealsOverLists = opts.hostsListKey == true, skipOverlap = true }),
+    }
+    local leaderOpts = { name = "hyper", trigger = composite.new({ triggers = halves }), keyCode = F18,
+      listOpen = opts.listOpen, sheet = opts.sheet, holdDelay = 0.4 }
+    return (newLeader(HYPER_POLICY, predicates, leaderOpts)), halves
+  end
+  local function event(code, flags)
+    return { getKeyCode = function() return code end, getFlags = function() return flags or {} end }
+  end
+
+  -- start starts both halves.
+  local h = build()
+  h:bind("a", handler("toggle"))
+  h:start()
+  eq(registered[F18] ~= nil, true, "composite: start registers the held key into the engine")
+  eq(#hotkeysBound, 1, "composite: and claims the binding on the modifiers")
+  eq(hotkeysBound[1] and table.concat(hotkeysBound[1].mods, "+"), "shift+ctrl+alt+cmd", "composite: on the whole set")
+
+  -- One half failing leaves the other, and only both failing fails the leader.
+  local before = #warnings
+  local lone = build({ noEngine = true })
+  lone:bind("a", handler("toggle"))
+  lone:start()
+  eq(#hotkeysBound, 1, "composite: a held half that cannot start leaves the modifiers claimed")
+  eq(#warnings, before + 1, "composite: and says so once")
+  eq(warnings[#warnings] and warnings[#warnings]:find("first trigger did not start", 1, true) ~= nil, true,
+    "composite: naming the trigger that failed")
+  before = #warnings
+  local broken = { start = function() error("refused") end, bound = function() end,
+    isActive = function() return false end, owns = function() return false end }
+  local dead = newLeader(HYPER_POLICY, predicates, { name = "hyper", trigger = composite.new({ triggers = {
+    held.new({ keyCode = F18 }), broken } }) })
+  dead:start()
+  eq(#warnings, before + 3, "composite: both halves failing is a line for each and one for the leader")
+  eq(warnings[#warnings] and warnings[#warnings]:find("the hyper leader did not start, none of its triggers started", 1, true) ~= nil,
+    true, "composite: and the leader says none of its triggers started")
+
+  -- isActive is either half.
+  h = build()
+  h:start()
+  eq(h:isActive(), false, "composite: with neither half held it is not active")
+  engineDown = true
+  eq(h:isActive(), true, "composite: F18 held is active")
+  engineDown, heldMods = false, allOf(FOUR)
+  eq(h:isActive(), true, "composite: the four modifiers held are active")
+  heldMods = {}
+
+  -- owns follows the half that is pressed.
+  eq(h:owns(event(F18)), true, "owns: the F18 press itself is the leader's")
+  eq(h:owns(event(hs.keycodes.map.a)), false, "owns: a plain key with nothing held is not")
+  engineDown = true
+  eq(h:owns(event(hs.keycodes.map.a)), true, "owns: under a held F18 every key is the leader's")
+  engineDown = false
+  eq(h:owns(event(hs.keycodes.map.a, allOf(FOUR))), true, "owns: a key carrying the four modifiers is the leader's")
+  eq(h:owns(event(hs.keycodes.map.a, { shift = true, ctrl = true, alt = true })), false,
+    "owns: a key carrying part of the set is not")
+
+  -- Sealing follows the half that fired. Over an open list an F18 press seals as a held leader does,
+  -- and a press of the modifiers seals only when the leader hosts a list key.
+  for _, hosts in ipairs({ false, true }) do
+    local ran = 0
+    local s = build({ hostsListKey = hosts, listOpen = function() return true end })
+    s:bind("a", function() ran = ran + 1 end)
+    s:start()
+    local viaHeld = registered[F18].onKey(hs.keycodes.map.a, {})
+    eq(type(viaHeld), "function", "sealing: an F18 press over a list resolves to a function, hosting " .. tostring(hosts))
+    viaHeld()
+    eq(ran, 0, "sealing: and it is the no op, a held leader sealed, hosting " .. tostring(hosts))
+    hotkeysBound[1].press()
+    eq(ran, hosts and 0 or 1, "sealing: a press of the modifiers seals only when the leader hosts a list key, hosting "
+      .. tostring(hosts))
+  end
+
+  -- A binding asking for a modifier the set already holds is left to the held half, unclaimed and
+  -- unwarned, and one note counts them.
+  before = #warnings
+  local noteCount = #notes
+  local skip = build()
+  skip:bind("c", handler("shot"), { "shift" })
+  skip:bind("left", handler("preview"), { "cmd" })
+  skip:bind("b", handler("toggle"))
+  skip:start()
+  eq(#hotkeysBound, 1, "skip: only the binding with no overlap is claimed on the modifiers")
+  eq(hotkeysBound[1] and hotkeysBound[1].key, "b", "skip: the plain one")
+  eq(#warnings, before, "skip: the overlapping ones are not warned about")
+  eq(#notes, noteCount + 1, "skip: one note counts them")
+  eq(notes[#notes] and notes[#notes]:find("hyper leader leaves 2 chord", 1, true) ~= nil, true, "skip: with the count")
+  eq(nameOf((registered[F18].onKey(hs.keycodes.map.left, { cmd = true }))), "preview",
+    "skip: and the held half still reaches a skipped binding")
+  noteCount = #notes
+  local three = build({ mods = { "shift", "ctrl", "alt" } })
+  three:bind("c", handler("step"), { "cmd" })
+  three:start()
+  eq(hotkeysBound[1] and table.concat(hotkeysBound[1].mods, "+"), "shift+ctrl+alt+cmd",
+    "skip: on three modifiers a binding adding cmd has no overlap and is claimed")
+  eq(#notes, noteCount, "skip: and with nothing skipped no note is said")
+  -- A leader of modifiers alone still warns, the skip is the composite's alone.
+  before = #warnings
+  local plainFour = newLeader(HYPER_POLICY, predicates, { name = "hyper", trigger = modifier.new({ mods = FOUR }) })
+  plainFour:bind("c", handler("shot"), { "shift" })
+  plainFour:start()
+  eq(#warnings, before + 1, "skip: a modifier leader on its own still warns about the overlap")
+
+  -- The sheet. A held hold reveals by keycode and a modifier hold too, since the leader has one, and
+  -- one press never draws the sheet twice or has the other half take it down.
+  local sheet = { shown = {}, hid = 0 }
+  function sheet:show(code) self.shown[#self.shown + 1] = code end
+  function sheet:hide() self.hid = self.hid + 1 end
+  local sh = build({ sheet = sheet })
+  sh:start()
+  local tap = taps[1]
+  local types = hs.eventtap.event.types
+  local function flags(set)
+    return tap.fn({ getType = function() return types.flagsChanged end, getFlags = function() return set end })
+  end
+  local function keyDown()
+    return tap.fn({ getType = function() return types.keyDown end })
+  end
+  eq(type(registered[F18].onHold), "function", "sheet: the held half arms a hold")
+  eq(tap ~= nil, true, "sheet: and the modifier half watches the modifiers")
+  registered[F18].onHold(F18)
+  eq(#sheet.shown, 1, "sheet: an F18 hold shows the sheet")
+  eq(sheet.shown[1], F18, "sheet: by its keycode")
+  keyDown()
+  flags({ shift = true })
+  eq(sheet.hid, 0, "sheet: a key or modifier under F18 is not the modifier half's to take down")
+  heldMods = allOf(FOUR)
+  flags(allOf(FOUR))
+  timers[#timers].fn()
+  eq(#sheet.shown, 1, "sheet: the modifier half asking while it is up draws nothing twice")
+  registered[F18].onHoldEnd()
+  eq(sheet.hid, 1, "sheet: and releasing F18 takes it down once")
+  flags({})
+  flags(allOf(FOUR))
+  timers[#timers].fn()
+  eq(#sheet.shown, 2, "sheet: a hold of the modifiers alone shows it")
+  eq(sheet.shown[2], F18, "sheet: found by the leader's keycode, which the sheet host files it under")
+  flags({ shift = true })
+  eq(sheet.hid, 2, "sheet: and a change of the set takes it down")
   heldMods = {}
 end
 

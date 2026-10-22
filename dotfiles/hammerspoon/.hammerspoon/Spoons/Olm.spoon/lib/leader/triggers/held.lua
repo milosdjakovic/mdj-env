@@ -68,7 +68,9 @@ function obj.new(spec)
       -- nothing.
       onHold = host:_reveals() and function(code) host:_reveal(code) end or nil,
       onHoldEnd = host:_reveals() and function() host:conceal() end or nil,
-      onKey = function(code, flags) return host:_onKey(code, flags) end,
+      -- The trigger hands itself over with every key, so a leader listening on more than one
+      -- trigger seals by the one that fired, see _onKey in lib/leader.lua.
+      onKey = function(code, flags) return host:_onKey(code, flags, trigger) end,
     })
     return true
   end

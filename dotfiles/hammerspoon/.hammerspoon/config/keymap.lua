@@ -33,7 +33,9 @@
 -- leaders is the one place a leader is defined, the key or modifiers it is and how it behaves, in
 -- one entry. An entry states its kind with mods, a list of shift, ctrl, alt and cmd, which makes a
 -- leader of real modifiers, or with key, one key Olm makes act as a modifier. Both or neither is a
--- problem line, and the leader keeps its shipped default, a new name is ignored. Only these keys
+-- problem line, and the leader keeps its shipped default, a new name is ignored. A leader may
+-- listen on one of each at once, written triggers = { { key = ... }, { mods = ... } }, with a
+-- remapTo inside the key trigger. More than two, or two of one kind, is a problem line. Only these keys
 -- may be a held leader, capsLock, rightCommand, rightOption, rightControl and f13 to f20. Anything
 -- else is a problem line naming them, since a letter as a leader taxes every word typed with it
 -- and the left modifiers and F1 to F12 are what ordinary shortcuts and the media keys need. f13 to
@@ -48,11 +50,15 @@
 -- every entry here that conflicts is dropped. A quick tap of the key alone toggles Caps Lock when
 -- the key is capsLock and does nothing for any other key, so there is no field for it, and
 -- tapTogglesCapsLock is retired, a problem line saying so, and ignored. Beside its trigger an entry
--- may state behaviour, ranked, drivenRepeat, sheet and sheetLayout. Olm ships hyper on capsLock,
--- meta on rightOption and super on rightCommand with their behaviour already written, and an entry
--- here is laid over the shipped one of the same name. The trigger, mods or key and remapTo, is
--- replaced as one, and each behaviour field is merged over the shipped one, so naming one field
--- keeps the rest. A new name starts with every behaviour off. No name is reserved, a name is
+-- may state behaviour, ranked, drivenRepeat, sheet and sheetLayout. Olm ships hyper on capsLock
+-- and on shift, ctrl, alt and cmd, meta on rightOption and on shift, ctrl and alt, and super on
+-- rightCommand, with their behaviour already written, and an entry here is laid over the shipped
+-- one of the same name. hyper and meta answer whichever form arrives, so a machine where kanata
+-- sends the modifiers and one where Caps Lock arrives as f18 both reach them, and the cost is that
+-- the modifier combinations their chords add up to are taken from every app on every machine. The
+-- trigger, mods, key, remapTo or triggers, is replaced as one, so hyper = { key = "capsLock" } leaves
+-- hyper on Caps Lock alone, and each behaviour field is merged over the shipped one, so naming one
+-- field keeps the rest. A new name starts with every behaviour off. No name is reserved, a name is
 -- refused only when it is not one word of letters and digits, is a modifier or role word, or
 -- repeats another in a different case. A leader of modifiers reads like hyper in a chord and on a
 -- launcher row. It has no tap, since holding real modifiers is ordinary typing, and a sheet on
@@ -66,8 +72,12 @@
 -- Caps Lock, which is then not remapped, and keeps the behaviour it ships, so a person whose
 -- Karabiner sends Hyper as the four modifiers writes the first line below. A role and the list
 -- role land on any leader, held or modifier. With the four modifiers, a chord asking for shift,
--- ctrl, alt or cmd beside hyper cannot be told from the plain one, and is said in the console.
+-- ctrl, alt or cmd beside hyper cannot be told from the plain one, and is said in the console. On a
+-- hyper that listens on both, such a chord is answered by Caps Lock alone and the console counts
+-- them in one routine line. Two chords on different leaders that come to the same modifiers and key
+-- once those halves are counted, meta+cmd+K beside hyper+K, are one problem line naming both.
 --     hyper = { mods = { "shift", "ctrl", "alt", "cmd" } },
+--     meta = { triggers = { { key = "rightOption", remapTo = "f15" }, { mods = { "shift", "ctrl", "alt" } } } },
 --     pedal = { key = "f13", sheet = true },
 --     hyper = { key = "capsLock", remapTo = "f19" },
 --     nav = { mods = { "shift", "ctrl" } },

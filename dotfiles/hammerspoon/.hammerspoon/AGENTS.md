@@ -162,9 +162,9 @@ so each apply is idempotent and frees any dropped key.
 
 | Key | Fn | Name | Policy | Role |
 |-----|-------|------|-------|------|
-| Right Option | F16 | META | driven repeat, quiet over lists, window sheet | the active window leader: bare arrow = **resize** (halves + full-height + reasonable), `WASD` = **move** (W up, A left, S down, D right); return = maximize; `C` = center; `,`/`.` = prev/next display; letters = presets + grow/shrink |
+| Right Option, or shift ctrl alt | F16 | META | driven repeat, quiet over lists, window sheet | the active window leader: bare arrow = **resize** (halves + full-height + reasonable), `WASD` = **move** (W up, A left, S down, D right); return = maximize; `C` = center; `,`/`.` = prev/next display; letters = presets + grow/shrink |
 | Right Command | F17 | SUPER | the same as META | shipped but **unused**, so it is not remapped and Right Command is a normal key; `roles = { window = "super" }` in `config/keymap.lua` swaps it in |
-| Caps Lock | F18 | HYPER | ranked, Hyper sheet | hold + letter = app toggles; quick tap = `hs.hid.capslock.toggle()` |
+| Caps Lock, or shift ctrl alt cmd | F18 | HYPER | ranked, Hyper sheet | hold + letter = app toggles; quick tap = `hs.hid.capslock.toggle()` |
 
 A held leader is not limited to those three keys. Its `key` may be any key on the allow list,
 which is the `USAGE` table in `lib/keyremap.lua`, Caps Lock, Right Command, Right Option, Right
@@ -189,9 +189,21 @@ Every leader is an instance of one adapter, `Spoons/Olm.spoon/lib/leader.lua`, a
 between them is its policy, the behaviour fields of its entry in the leaders table, `SHIPPED_LEADERS`
 in `root/compose.lua` with the person's `leaders` section laid over it. `policy.leaderCatalog` and
 `policy.leaderPolicy` are retired and named in a problem line. The root builds one instance per
-entry, held for a `key` and modifier for `mods`, keeps those some bound row uses, and loops over
-them naming none. `Spoons/Olm.spoon/AGENTS.md` has the policy fields and
-what the merge of the two old adapters found.
+entry, held for a `key`, modifier for `mods` and a composite of the two for `triggers`, keeps those
+some bound row uses, and loops over them naming none. `Spoons/Olm.spoon/AGENTS.md` has the policy
+fields, the composite and what the merge of the two old adapters found.
+
+HYPER and META each listen on two triggers since phase 1 of `docs/PLAN-MACHINES.md`, their held key
+and a set of real modifiers, as the table says. A machine without kanata sends F18 and F16 through
+the remap and a machine with kanata sends the modifiers, and Olm reacts to whichever arrives without
+being told which machine it is on. A kanata machine whose kanata stopped still gets F18 from Caps
+Lock, so Hyper keeps working there, which a per machine leaders entry would not give. A person's
+entry writing `key` or `mods` alone leaves the leader on that one trigger. The cost is that every
+machine claims the four and three modifier combinations its Hyper and META rows add up to, so
+holding shift, ctrl and alt with a META key moves a window and a META sheet shows for that hold too.
+A Hyper row asking for Shift or Command beside the four, Hyper and Shift and 4 for one, is answered
+only by the held key, since on the modifiers it would be one combination with the plain row, and
+the load says how many such rows there are in one console line.
 
 A held leader is "active" only while some **bound row uses it**. The leaders table names no
 consumer, so the dependency points one way. A plugin's defaults name a role, `app` or

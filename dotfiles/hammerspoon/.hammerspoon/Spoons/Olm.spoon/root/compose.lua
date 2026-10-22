@@ -92,12 +92,14 @@ local iconsConfigLib = load("lib/icons/config.lua")
 local iconRowsLib = load("lib/icons/rows.lua")
 local emojiSourceLib = load("lib/icons/sources/emoji.lua")
 local sfSourceLib = load("lib/icons/sources/sf.lua")
--- The two leader triggers, the concrete strategies lib/leader.lua runs behind its contract and
--- never names. Each answers new(spec) and holds nothing at file level, so loading them here
--- beside the published leader atom builds no second copy of anything shared. A third kind of
--- trigger is a file beside these and a line here.
+-- The leader triggers, the concrete strategies lib/leader.lua runs behind its contract and never
+-- names. Each answers new(spec) and holds nothing at file level, so loading them here beside the
+-- published leader atom builds no second copy of anything shared. The composite holds a held and
+-- a modifier trigger built here, for a leader listening on both. A further kind of trigger is a
+-- file beside these and a line here.
 local heldTriggerLib = load("lib/leader/triggers/held.lua")
 local modifierTriggerLib = load("lib/leader/triggers/modifier.lua")
+local compositeTriggerLib = load("lib/leader/triggers/composite.lua")
 
 local log = hs.logger.new("Olm.compose", "info")
 
@@ -204,9 +206,17 @@ local SHIPPED_POLICY = {
 
 -- The leaders Olm ships, keyed by lowercase name, in the same shape as an entry of the leaders
 -- section of config/keymap.lua, which is laid over this table by lib/keymap.lua's readConfig. An
--- entry states its kind with key, a physical key Olm makes act as a modifier, or with mods, a set
--- of real modifiers. A held key is remapped by lib/keyremap.lua, which says which spare function
--- key each source goes to, so this table names only the physical key. A leader is live only while
+-- entry states its kind with key, a physical key Olm makes act as a modifier, with mods, a set of
+-- real modifiers, or with triggers, one of each. A held key is remapped by lib/keyremap.lua, which
+-- says which spare function key each source goes to, so this table names only the physical key.
+--
+-- HYPER and META listen on both since phase 1 of docs/PLAN-MACHINES.md, HYPER on Caps Lock and on
+-- shift, ctrl, alt and cmd, META on Right Option and on shift, ctrl and alt. A machine without
+-- kanata sends F18 for a Caps Lock hold and a machine with it sends the four modifiers, so each
+-- reaches the same leader with nothing told which machine this is, and a kanata machine whose
+-- kanata stopped still has Caps Lock as F18 through the remap. The cost is that every machine also
+-- claims, machine wide, the modifier combinations its HYPER and META rows add up to. SUPER binds
+-- nothing here and stays one held key. A leader is live only while
 -- some bound row of the keymap uses it, so shipping all three costs nothing and moving a domain to
 -- another physical key is one edit in the roles section of config/keymap.lua. Caps Lock, Right
 -- Option and Right Command are the exact three keys the owner already wants HYPER, META and SUPER
@@ -233,9 +243,11 @@ local SHIPPED_POLICY = {
 -- there. These lived in policy.leaderCatalog and policy.leaderPolicy until the leaders table
 -- replaced both, and the root says so when a config still sets either.
 local SHIPPED_LEADERS = {
-  hyper = { key = "capsLock", ranked = true, sheet = true,
+  hyper = { triggers = { { key = "capsLock" }, { mods = { "shift", "ctrl", "alt", "cmd" } } },
+    ranked = true, sheet = true,
     sheetLayout = { columns = 4, colWidth = 215, iconSize = 32, gap = 10, groupGap = 20 } },
-  meta  = { key = "rightOption", drivenRepeat = true, sheet = true,
+  meta  = { triggers = { { key = "rightOption" }, { mods = { "shift", "ctrl", "alt" } } },
+    drivenRepeat = true, sheet = true,
     sheetLayout = { columns = 2, colWidth = 250, badgeWidth = 44, gap = 12 } },
   super = { key = "rightCommand", drivenRepeat = true, sheet = true,
     sheetLayout = { columns = 2, colWidth = 250, badgeWidth = 44, gap = 12 } },
@@ -963,6 +975,10 @@ function obj.run(olm, cfg)
       spec.key = entry.key
       spec.keyCode = slot and leadersLib.keycode(slot.fkey)
       spec.remapTarget = slot and slot.target
+      -- A held leader that also listens on modifiers, HYPER and META as they ship. It stays a held
+      -- leader everywhere a leader's kind is read, the roles, the list keys and the sheet by
+      -- keycode, and only step H and the keymap's collision check read the set.
+      spec.mods = entry.mods
     else
       -- Behaviour is the leader's own whichever kind it is, so the policy stays as checked. A
       -- modifier leader has no tap, and its sheet is revealed by the modifier trigger.
@@ -990,8 +1006,12 @@ function obj.run(olm, cfg)
   end
   -- The leaders of real modifiers, claimed through hs.hotkey, a name to its set.
   local modifierLeaderSets = {}
+  -- The held leaders that also listen on a set of modifiers, a name to that set, which the keymap
+  -- checks every other leader's rows against.
+  local compositeLeaderSets = {}
   for _, spec in ipairs(leaderSpecs) do
     if not spec.held then modifierLeaderSets[spec.name] = spec.mods end
+    if spec.held and spec.mods then compositeLeaderSets[spec.name] = spec.mods end
   end
   -- The same words keyed by the name a keymap row spells its leader with, so a surface spelling a
   -- row's chord spells that row's own leader rather than whichever leader it assumed. A leader the
@@ -1717,7 +1737,8 @@ function obj.run(olm, cfg)
   -- One leader per entry of the leaders table, from the specs built in step F, and the plain
   -- leader a keymap row with no leader binds on. Each gets its trigger, its policy and the module
   -- its hold reveals, and this loop is the only place a trigger is chosen, a held one for an entry
-  -- stating a key and a modifier one for an entry stating mods, so nothing below knows how many leaders there are. They are built here and kept as
+  -- stating a key, a modifier one for an entry stating mods, and a composite of the two for an
+  -- entry stating both, so nothing below knows how many leaders there are. They are built here and kept as
   -- candidates, and step J keeps only those some bound row uses, once the keymap says which, so a
   -- leader nothing uses is never bound, started or remapped. A held leader whose key
   -- resolves to no keycode is not built, and step J names it when a row needs it.
@@ -1739,7 +1760,9 @@ function obj.run(olm, cfg)
   for _, spec in ipairs(leaderSpecs) do
     local leader = nil
     if spec.held then
-      if spec.keyCode ~= nil then
+      -- A leader on two triggers is built even when its key resolved to no keycode, since its
+      -- modifiers still work, and its held half then says once at start that it did not start.
+      if spec.keyCode ~= nil or spec.mods ~= nil then
         local sheet = nil
         if spec.policy.sheet then
           -- THE SEAM. LeaderSheet is one of the host modules this file may name.
@@ -1749,9 +1772,20 @@ function obj.run(olm, cfg)
               .. "host did not load, so a hold reveals nothing")
           end
         end
+        local trigger = heldTriggerLib.new({ chord = chordKeyAtom, keyCode = spec.keyCode, key = spec.key })
+        if spec.mods ~= nil then
+          -- The modifier half seals over an open list on the terms a modifier leader does, when its
+          -- leader hosts a list key, and leaves a row asking for a modifier its set already holds to
+          -- the held half, which tells the two apart. The held half seals as it always does.
+          trigger = compositeTriggerLib.new({ triggers = {
+            trigger,
+            modifierTriggerLib.new({ mods = spec.mods, sealsOverLists = hostsListKey[spec.name] == true,
+              skipOverlap = true }),
+          } })
+        end
         leader = leaderLib.new({
           name = spec.name,
-          trigger = heldTriggerLib.new({ chord = chordKeyAtom, keyCode = spec.keyCode, key = spec.key }),
+          trigger = trigger,
           policy = spec.policy,
           sheet = sheet,
           keyCode = spec.keyCode,
@@ -2296,6 +2330,7 @@ function obj.run(olm, cfg)
     hostRun = hostRun,
     personKeys = keymapConfig.keys,
     modifierLeaders = modifierLeaderSets,
+    compositeLeaders = compositeLeaderSets,
     listLeader = listLeaderName,
     known = function(identity) return allManifests[identity] ~= nil end,
   })
