@@ -128,3 +128,17 @@ Corrected, the entry at 10:31 had the field yield only to held leaders some list
 Right Option and a letter over a list still typed into the field. The coordinator decided, matching
 what Milos asked of META over lists, that the field yields to every held leader in use, so META and
 SUPER over a list are swallowed by the one rule like any key the open list does not bind.
+
+### 2026-10-22 19:45
+
+A list opened over a password field is deaf. With Hyper coming from kanata as real modifiers, the
+launcher opened from a Safari password field, but nothing typed or chorded reached it, because the
+default chooser never takes focus and reads keys through an event tap, and secure input hides every
+key from every tap while the password field has focus. Two probes were run with Milos, each
+triggered by a chord from inside the field. `hs.focus()` did nothing, Safari stayed in front and
+secure input stayed on. A native `hs.chooser`, a real window that becomes key, took focus from
+Safari, secure input went off within a tenth of a second, every letter typed reached its field, and
+hiding it and activating Safari again put the focus and secure input back. So a list over a
+password field can hear keys only if it opens as a key window for that time. Not built yet, since
+never taking focus is the reason the canvas chooser exists, see `lib/chooser/providers/default/surface.lua`,
+and taking it only while secure input is on is a design change of its own.
