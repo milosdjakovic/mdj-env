@@ -161,6 +161,7 @@ return {
 
   leaders = {
     -- nav = { mods = { "shift", "ctrl" } },
+    hyper = { mods = { "shift", "ctrl", "alt", "cmd" } },
   },
 
   roles = {

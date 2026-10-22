@@ -150,3 +150,12 @@ the clipboard and file search, so the existing warning names each and a person m
 `config/keymap.lua`. `keymap-fixture-modhyper` and its goldens are new, the live load was clean,
 hidutil held only Caps Lock to F18 and Right Option to F16, and Milos confirmed the launcher, the
 sheet and the tap.
+
+### 2026-10-22 16:10
+
+The four modifier Hyper was loaded live from the worktree, with the Hyper line set in its
+`config/keymap.lua` only and reverted afterwards. The console held the five overlap problems
+accepted at 15:40 and nothing else, and hidutil held Right Option to F16 alone. Holding Shift,
+Control, Option and Command by hand, Milos confirmed the launcher on Space, an app toggle, j and k
+moving the launcher's highlight, an app letter, a digit and an arrow doing nothing over the open
+launcher, and Caps Lock toggling as a plain key.
