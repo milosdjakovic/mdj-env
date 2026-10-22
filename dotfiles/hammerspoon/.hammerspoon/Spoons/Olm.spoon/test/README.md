@@ -8,6 +8,7 @@ Spoons/Olm.spoon/test/suite.sh dry          # plain lua, no Hammerspoon, no lock
 Spoons/Olm.spoon/test/ranking.lua           # one of the three dry runs, standalone, see below
 Spoons/Olm.spoon/test/icons.lua             # the icon engine, the config file, the row resolver and the two sources
 Spoons/Olm.spoon/test/leaders.lua           # the two leader adapters' resolvers as they stand, see below
+Spoons/Olm.spoon/test/chordkey.lua          # the hold engine, a lost key-up released by the blind stream check
 Spoons/Olm.spoon/test/systemsettings.lua    # when a System Settings pane action hides the app and when it goes to its pane
 Spoons/Olm.spoon/test/rootmechanism.lua     # the chord and alias spelling, the open list test and the launcher row intercept
 Spoons/Olm.spoon/test/keypage.lua           # the OLM keys page, the keymap as words and the presentation built from them
@@ -219,6 +220,13 @@ unknown predicate warning once on every leader. It also drives `lib/binder.lua` 
 a row landing on the leader its name names with its gate, repeat and release wait, a plain combo
 reaching the plain leader, the order kept, and a missing engine or function reported, and it
 covers what the merge added, the two triggers, the quiet rule, the reveal and the release wait.
+
+`chordkey.lua` is plain Lua, run by `suite.sh dry`. It drives `lib/chordkey.lua` through a stub
+tap and a clock the test moves by hand, and pins the recovery of a hold whose key-up never
+arrived. Secure input turning on, or the system disabling the tap, releases every held leader
+within a quarter of a second, says why in one console line, never toggles Caps Lock and closes a
+passthrough. It also pins that typing after a lost key-up no longer keeps the leader held, which
+is the stuck Caps Lock it was written for, and that a quiet hold over a list is still believed.
 
 ## The idea
 

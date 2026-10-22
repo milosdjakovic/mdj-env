@@ -44,6 +44,12 @@
 --- the held key itself, the one piece of positive evidence there is, and releases a leader that
 --- has gone silent for longer than a real hold ever could. See _armStale and _release.
 ---
+--- That watchdog alone could not end the commonest stuck hold, since every key typed while
+--- stuck reads as a chord press and pushes its window out again. So a second check watches the
+--- two causes that can be seen from here, and runs only while some leader is held. When secure
+--- input is on, or the tap has been disabled, the stream is known to be blind and a remembered
+--- hold is no longer believed. See _watchHolds.
+---
 --- This is only the MECHANISM. The domain policy -- which keys map to what, and
 --- how sub-modifiers resolve -- lives in the callers, which register their key(s)
 --- here via addKey() and supply an onKey() lookup.
@@ -68,6 +74,7 @@ obj.license = "MIT"
 obj._tap = nil
 obj._keys = nil        -- keyCode -> entry (config + runtime state)
 obj._deferred = nil    -- pending handler timers, held until they fire, see _defer
+obj._watch = nil       -- the blind stream check, alive only while some key is held, see _watchHolds
 
 -- Real hardware key events carry this event-source state id
 -- (kCGEventSourceStateHIDSystemState). Keystrokes Hammerspoon posts itself, like
@@ -75,8 +82,8 @@ obj._deferred = nil    -- pending handler timers, held until they fire, see _def
 -- tells the two apart. See start(), which ignores everything that is not physical.
 local HID_SYSTEM_STATE = 1
 
--- The one thing this engine says out loud, and only when the staleness watchdog releases a
--- leader whose key-up never arrived, which is a fault worth a line rather than a silence. It
+-- The one thing this engine says out loud, and only when it releases a leader whose key-up
+-- never arrived, naming why, which is a fault worth a line rather than a silence. It
 -- is guarded because the unit cases load this file into an environment carrying a fake hs
 -- with no logger in it, the same guard and the same reason as lib/nav.lua and lib/surface.lua.
 local log = nil
@@ -362,18 +369,74 @@ function obj:_armStale(k)
   k.staleTimer = hs.timer.doAfter(window, function()
     k.staleTimer = nil
     if not k.active then return end
-    if log then
-      log.w("leader " .. tostring(k.code) .. " saw no key-down for " .. tostring(window)
-        .. "s while still held, so its key-up was lost, releasing it")
-    end
-    self:_release(k, { stale = true })
+    self:_release(k, { lost = "it saw no key-down for " .. tostring(window) .. "s" })
   end)
+end
+
+--- How often the blind stream check looks, in seconds, while a key is held.
+---
+--- A quarter of a second is short enough that a lost key-up is put right before a person has
+--- typed more than a letter or two after it, and both questions it asks cost well under a
+--- microsecond, measured, so the poll costs nothing worth weighing.
+local WATCH_INTERVAL = 0.25
+
+--- ChordKey:_watchHolds()
+--- Method
+--- Make sure the blind stream check is running, which every hold that begins asks for.
+---
+--- The staleness window above cannot end a hold that is lost while a person keeps typing,
+--- because every key that reaches the tap reads as a chord pressed under the held leader and is
+--- counted as proof the leader is down. So this asks the two causes that can be asked directly.
+--- Secure input on means the tap sees nothing at all, which is how a password field, the lock
+--- screen, or a terminal with secure keyboard entry swallows a key-up. A tap no longer enabled
+--- means the system switched it off for overrunning its timeout, and everything that arrived while
+--- it was off is gone. Either one ends every hold, since a hold whose release could not have been
+--- seen is no longer believed, and a leader still physically down simply starts a new hold on its
+--- next autorepeat.
+---
+--- It runs only while some key is held, so the resting cost is nothing, and it stops itself on
+--- the first tick that finds every key at rest.
+function obj:_watchHolds()
+  if self._watch then return end
+  self._watch = hs.timer.doEvery(WATCH_INTERVAL, function()
+    local anyActive = false
+    for _, k in pairs(self._keys) do
+      if k.active then anyActive = true end
+    end
+    if not anyActive then
+      self:_stopWatch()
+      return
+    end
+    local why = nil
+    if hs.eventtap.isSecureInputEnabled() then
+      why = "secure input was turned on while it was held"
+    elseif self._tap and not self._tap:isEnabled() then
+      why = "the system disabled the event tap while it was held"
+      self._tap:start()
+    end
+    if not why then return end
+    for _, k in pairs(self._keys) do
+      if k.active then self:_release(k, { lost = why }) end
+    end
+    self:_stopWatch()
+  end)
+end
+
+--- ChordKey:_stopWatch()
+--- Method
+--- Stop the blind stream check, which its own tick and a stop both do.
+function obj:_stopWatch()
+  if self._watch then
+    self._watch:stop()
+    self._watch = nil
+  end
 end
 
 --- ChordKey:_release(k, opts)
 --- Method
---- End a hold and put the key back to rest. The real key-up runs this and so does the staleness
---- watchdog above when the real key-up never came, which is exactly why it is one method rather
+--- End a hold and put the key back to rest. The real key-up runs this and so do the staleness
+--- watchdog and the blind stream check above when the real key-up never came, which is exactly
+--- why it is one method rather
 --- than a branch inside the tap. A recovery that reset only part of what a release resets would
 --- leave the passthrough's synthesized leader held down across the whole machine, or a cheat
 --- sheet on screen with nothing left that could ever take it down.
@@ -384,13 +447,18 @@ end
 --- teardown, or the system disabling the tap for overrunning inside it, left `active` standing
 --- with the key already physically up. Nothing a consumer does can strand the engine now.
 ---
---- opts.stale says this is the watchdog's release rather than a real key-up, which suppresses
---- onTap. A tap is a deliberate quick press and release, so a hold nobody was seen to release is
---- by definition neither, and toggling Caps Lock off the back of a recovery would be inventing a
---- keystroke the person never made. The elapsed guard below already excludes it at any realistic
---- timing, and this states it rather than leaning on that.
+--- opts.lost says this is a recovery rather than a real key-up, and carries why the key-up is
+--- believed lost, which goes into the one console line. It suppresses onTap. A tap is a
+--- deliberate quick press and release, so a hold nobody was seen to release is by definition
+--- neither, and toggling Caps Lock off the back of a recovery would be inventing a keystroke the
+--- person never made. The elapsed guard below already excludes it at any realistic timing, and
+--- this states it rather than leaning on that.
 function obj:_release(k, opts)
   opts = opts or {}
+  if opts.lost and log then
+    log.w("leader " .. tostring(k.code) .. " was released without its key-up, because "
+      .. opts.lost)
+  end
   self:_cancelHold(k)
   self:_stopRepeat(k)
   self:_cancelStale(k)
@@ -402,7 +470,7 @@ function obj:_release(k, opts)
   k.active = false
   if k.passthrough then self:_endPassthrough(k) end
 
-  if not opts.stale and k.onTap and not wasUsed and heldFor < k.tapThreshold then
+  if not opts.lost and k.onTap and not wasUsed and heldFor < k.tapThreshold then
     self:_defer(0, k.onTap)
   end
   if wasShown and k.onHoldEnd then
@@ -477,6 +545,7 @@ function obj:start()
               end
             end)
           end
+          self:_watchHolds()
         end
         -- Every key-down for this leader refreshes the staleness window, and the OS autorepeats
         -- of a held key are deliberately included rather than filtered out here, since they are
@@ -596,6 +665,7 @@ function obj:stop()
   if self._tap then
     self._tap:stop()
   end
+  self:_stopWatch()
   for _, k in pairs(self._keys or {}) do
     self:_cancelHold(k)
     self:_stopRepeat(k)
