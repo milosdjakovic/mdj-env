@@ -138,20 +138,23 @@ function obj.chordFor(binding, deps)
     local glyphFor = deps and deps.glyphFor
     return (glyphFor and glyphFor(binding.key, binding.mods)) or tostring(binding.key)
   end
+  -- A binding bound with any modifiers may name the ones it is spelled with, showKeys on slash
+  -- read as Hyper and ?, see lib/keymap.lua's listDefaults.
+  local mods = binding.shownMods or binding.mods
   local chordLabel = deps and deps.chordLabel
   local leaderName = deps and deps.leaderName
   if binding.leader ~= nil and deps and deps.leaderNames then
     leaderName = deps.leaderNames[binding.leader] or leaderName
   end
   if chordLabel and leaderName then
-    return chordLabel(leaderName, binding.key, binding.mods)
+    return chordLabel(leaderName, binding.key, mods)
   end
   if log and not warnedNoChordLabel then
     warnedNoChordLabel = true
     log.w("hints, chordFor has no chordLabel or leaderName injected, so a chord prints as its bare glyph")
   end
   local glyphFor = deps and deps.glyphFor
-  return (glyphFor and glyphFor(binding.key, binding.mods)) or tostring(binding.key)
+  return (glyphFor and glyphFor(binding.key, mods)) or tostring(binding.key)
 end
 
 -- A binding's label, the one lookup the action bar, its key panel and the action panel share,

@@ -115,16 +115,21 @@ local KEY_GLYPH = {
   ["return"] = "↩", space = "␣", escape = "esc", tab = "⇥", delete = "⌫",
 }
 local MOD_GLYPH = { shift = "⇧", ctrl = "⌃", alt = "⌥", cmd = "⌘" }
+-- A key whose shifted character is what a person reads, spelled as that character with Shift
+-- folded into it, so slash with Shift reads as a question mark rather than as Shift and slash.
+local SHIFTED_GLYPH = { ["/"] = "?" }
 
 --- CheatSheet.glyphFor(key, mods) -> string
---- Render a binding as a badge glyph, so ("left", {"shift"}) becomes "⇧←". A
---- plain function with no state, called as CheatSheet.glyphFor(key, mods).
+--- Render a binding as a badge glyph, so ("left", {"shift"}) becomes "⇧←" and
+--- ("/", {"shift"}) becomes "?". A plain function with no state, called as
+--- CheatSheet.glyphFor(key, mods).
 function obj.glyphFor(key, mods)
   local k = tostring(key):lower()
   local g = KEY_GLYPH[k] or tostring(key):upper()
+  local shifted = SHIFTED_GLYPH[k]
   local prefix = ""
   for _, m in ipairs(mods or {}) do
-    prefix = prefix .. (MOD_GLYPH[m] or "")
+    if m == "shift" and shifted then g = shifted else prefix = prefix .. (MOD_GLYPH[m] or "") end
   end
   return prefix .. g
 end

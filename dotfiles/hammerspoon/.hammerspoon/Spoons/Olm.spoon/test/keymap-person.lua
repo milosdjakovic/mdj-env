@@ -692,9 +692,10 @@ end
 -- action panel. pane has no move keys and closes on its own key, the way the launcher does.
 local surface = assert(loadfile(here .. "../lib/surface.lua"))()
 local hints = assert(loadfile(here .. "../lib/hints.lua"))()
+local labelsLib = assert(loadfile(here .. "../lib/labels.lua"))()
 local LIST_KEYCODES = {}
 do
-  local names = { "a", "c", "d", "e", "i", "j", "k", "n", "o", "space", "x", "y", "delete", "p" }
+  local names = { "a", "c", "d", "e", "i", "j", "k", "n", "o", "space", "x", "y", "delete", "p", "/" }
   for i, name in ipairs(names) do LIST_KEYCODES[name] = i LIST_KEYCODES[i] = name end
 end
 
@@ -1548,6 +1549,46 @@ do
   told = {}
   stamped()
   eq(told[1], "selectNext", "dispatch: the handler stamped on a binding, what a key runs, tells it too")
+end
+
+-- showKeys is bound on slash with any modifiers, so Hyper and slash and Hyper, Shift and slash
+-- both open the key panel, since lib/leader.lua's resolver answers a binding with no mods for any
+-- modifiers held. It is spelled with Shift, which the shared glyph speller reads as a question
+-- mark. A person moving it replaces the binding and its spelling, and freeing it frees both keys.
+do
+  local glyph = assert(loadfile(here .. "../lib/cheatsheet.lua"))().glyphFor
+  eq(glyph("/", { "shift" }), "?", "showKeys: the speller reads Shift and slash as a question mark")
+  eq(glyph("/"), "/", "showKeys: and plain slash as itself")
+  local block = barList({ primary = { action = "insertSelected" } })
+  local show
+  for _, b in ipairs(block.bindings) do if b.shared == "showKeys" then show = b end end
+  eq(show and show.mods, nil, "showKeys: bound with no mods, a catch all that answers Shift too")
+  keymap.applyLists({ bar = block }, {}, { listLeader = "hyper", keycodes = LIST_KEYCODES })
+  local deps = { chordLabel = labelsLib.chordLabel(glyph), leaderNames = { hyper = "Hyper" }, leaderName = "Hyper", glyphFor = glyph }
+  eq(hints.chordFor(show, deps), "Hyper ?", "showKeys: spelled Hyper and ?")
+  local keyPanel
+  for _, k in ipairs(hints.footerModel("bar", { contexts = { bar = block } }, deps).keys) do
+    if k.action == "showKeys" then keyPanel = k.badges[1] end
+  end
+  eq(keyPanel, "Hyper ?", "showKeys: the key panel spells it the same way")
+  local result = keymap.build({ plan = { effective = {}, identity = {}, contexts = { bar = block }, order = {} },
+    roles = ROLES, keycodes = LIST_KEYCODES, listLeader = "hyper" })
+  local row
+  for _, r in ipairs(result.rows) do if r.layer == "bar" and r.action == "showKeys" then row = r end end
+  eq(row and row.anyMods, true, "showKeys: the keymap row matches any modifiers")
+  eq(row and table.concat(row.shownMods or {}, "+"), "shift", "showKeys: and is shown with Shift, so the keys page reads Hyper and ?")
+
+  local moved = { bar = barList({ primary = { action = "insertSelected" } }) }
+  keymap.applyLists(moved, readLists({ all = { ["hyper+y"] = "showKeys" } }).lists, { listLeader = "hyper", keycodes = LIST_KEYCODES })
+  local movedShow
+  for _, b in ipairs(moved.bar.bindings) do if b.action == "showKeys" then movedShow = b end end
+  eq(movedShow and movedShow.key, "y", "showKeys: a person's all moves it")
+  eq(movedShow and movedShow.shownMods, nil, "showKeys: and the moved key is spelled as written, not with Shift")
+  local freed = { bar = barList({ primary = { action = "insertSelected" } }) }
+  keymap.applyLists(freed, readLists({ all = { ["hyper+/"] = false } }).lists, { listLeader = "hyper", keycodes = LIST_KEYCODES })
+  local still = false
+  for _, b in ipairs(freed.bar.bindings) do if b.action == "showKeys" then still = true end end
+  eq(still, false, "showKeys: freeing slash frees the one catch all binding, so Hyper, Shift and slash goes too")
 end
 
 if failures > 0 then

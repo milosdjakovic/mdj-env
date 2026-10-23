@@ -257,3 +257,15 @@ Corrected 2026-10-23, see below.
 From Milos's second live check. The key panel spelled the primary as Return followed by its held
 chord, Hyper and I. It now reads Return alone, the key a person presses, which replaces what the
 entry at 14:24 said about putting Return in front of the held chord.
+
+### 2026-10-23 14:39
+
+At Milos's request the key panel's key is spelled Hyper and ? everywhere it is spelled, the key panel,
+the OLM keys page and any surface reading the keymap's rows, while both Hyper and slash and Hyper,
+Shift and slash open it. The leader's resolver already answers a list binding with no modifiers for
+any modifiers held, so `showKeys` stays one catch all binding on slash and only its spelling
+changed. Its place in `listDefaults` carries `shownMods` Shift, `hints.chordFor` and the keymap's
+rows read it, and the shared glyph speller in `lib/cheatsheet.lua` folds Shift and slash into a
+question mark, so no surface writes the character itself. A person moving `showKeys` replaces the
+binding and its spelling, and freeing slash frees both presses, since they are one binding. The
+action panel lists no row for it, being navigation, and no cheat sheet draws list keys.

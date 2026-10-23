@@ -1040,7 +1040,7 @@ surface = {
 
 The keys of the shared verbs, the primary, the secondary, the two move keys, close, the action
 panel and the key panel, are not the plugin's. They are Olm's own `all` layer, `lib/keymap.lua`'s
-`listDefaults`, `i`, `j`, `k`, `x`, `o` and `/` on the leader the `list` role lands on, HYPER unless
+`listDefaults`, `i`, `j`, `k`, `x`, `o` and `/`, spelled `?`, on the leader the `list` role lands on, HYPER unless
 the person's `roles` section moves it, and Command and Return for the secondary, a key the default
 chooser's field answers with no leader. `lib/surface.lua` builds each verb on its key and holds
 no key itself, which the dry gate checks. A key a manifest states, an `extra` row's or a `close.key`

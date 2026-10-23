@@ -1027,7 +1027,7 @@ step mirroring what the clipboard already does.
    bottom of its own canvas for every list on the stage, always visible, docs/PLAN-ACTION-BAR.md.
    Its right side reads the primary's label on Return, the secondary's on Command and Return
    when the surface declares a `secondary`, and Actions on the action panel's chord, and a
-   (?) button on its left, or the shared `showKeys` verb, Hyper and slash by default, opens a
+   (?) button on its left, or the shared `showKeys` verb, spelled Hyper and ? and answering Hyper and slash with or without Shift, opens a
    key panel over the bottom rows listing every other key the list answers. The words are
    `lib/hints.lua`'s `footerModel`, read from the same context bindings, gates and labels the
    action panel reads, and a presentation's own `labels` member words the primary and the
