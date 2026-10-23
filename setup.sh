@@ -193,6 +193,11 @@ step "$SRC_DIR/setup-dev-defaults.sh"
 # Remap Caps Lock -> F18 for the Hammerspoon Hyper key
 step_if hammerspoon on "$SRC_DIR/setup-capslock-hyper.sh"
 
+# Turn off the macOS shortcuts that take a chord Olm uses, Show Help menu on Command and ?, which
+# Olm's key panel answers inside every list. Changes only the one flag, says so, and does nothing
+# when it is already off. decisions/macos-shortcuts.md has why.
+step_if hammerspoon on "$SRC_DIR/setup-macos-shortcuts.sh"
+
 # Install the Karabiner driver kanata types through, at the version dotfiles/kanata/DRIVER pairs
 # with the installed kanata, and run both as launchd daemons. Needs root, which the run already
 # holds. Its grants are left to the grants step below, which is what MDJ_GRANTS_LATER says.

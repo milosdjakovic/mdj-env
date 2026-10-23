@@ -98,6 +98,8 @@ caffeinate               | macos     | ships with macOS
 curl                     | macos     | ships with macOS
 perl                     | macos     | ships with macOS
 defaults                 | macos     | ships with macOS
+plutil                   | macos     | ships with macOS
+activateSettings         | macos     | ships with macOS, inside the SystemAdministration private framework
 pbcopy                   | macos     | ships with macOS
 osascript                | macos     | ships with macOS
 ps                       | macos     | ships with macOS

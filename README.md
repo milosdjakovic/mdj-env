@@ -127,6 +127,7 @@ machine already has, that is always done by hand.
 | `set-dev-defaults.sh` | Sets default app for dev file types |
 | `setup-grants.sh` | Opens where each missing permission is given and waits for it, with a terminal, or leaves a closing note |
 | `setup-kanata.sh` | Installs the Karabiner driver kanata needs and runs both as root daemons, where the kanata piece is on, with `--dry-run` and `--upgrade` |
+| `setup-macos-shortcuts.sh` | Turns off the macOS keyboard shortcuts that take a chord Olm uses, Show Help menu on Command and ? today, where the hammerspoon piece is on |
 
 All scripts are idempotent (safe to re-run) and support both Apple Silicon and Intel Macs.
 

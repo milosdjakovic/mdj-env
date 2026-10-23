@@ -36,6 +36,7 @@ MDJ_EDITOR="Visual Studio Code" ./setup.sh   # the editor step's answer, for a r
 ./src/setup-dev-defaults.sh
 ./src/setup-dev-defaults.sh --list   # the apps that can open development files, one per line
 ./src/setup-capslock-hyper.sh
+./src/setup-macos-shortcuts.sh       # turns off the macOS shortcuts that take a chord Olm uses, Show Help menu today
 ./src/setup-ivpn-permissions.sh   # repairs bundle modes the ivpn cask leaves wrong; needs sudo only when repairing
 ./src/setup-claude-settings.sh
 ./src/setup-herdr-plugins.sh

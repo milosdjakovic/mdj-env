@@ -20,4 +20,7 @@ pkgutil      | system | /usr/sbin/pkgutil     | required | setup-kanata.sh | rea
 shasum       | system | /usr/bin/shasum       | required | setup-kanata.sh | checking the driver package against the hash pinned in dotfiles/kanata/DRIVER, and noticing a changed kanata config
 launchctl    | system | /bin/launchctl        | required | setup-kanata.sh | loading and restarting the kanata and driver daemons
 systemextensionsctl | system | /usr/bin/systemextensionsctl | required | setup-kanata.sh, machine.sh | reading whether the driver extension is activated, which needs no privilege
+defaults     | system | /usr/bin/defaults     | required | setup-macos-shortcuts.sh | reading and writing the system's keyboard shortcuts domain as the running session holds it
+plutil       | system | /usr/bin/plutil       | required | setup-macos-shortcuts.sh | reading and changing the one flag of a shortcut in the exported domain without touching any other
+activateSettings | system | /System/Library/PrivateFrameworks/SystemAdministration.framework/Resources/activateSettings | optional | setup-macos-shortcuts.sh | telling the running session to read the shortcuts again, without which a change waits for the next login
 open         | system | /usr/bin/open         | optional | setup-grants.sh | opening the pane where a grant is given, revealing the program to add, and opening an application so it can answer for its own grant, without which a grant is only a closing note
