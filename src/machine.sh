@@ -124,6 +124,16 @@ probe() {
         hammerspoon) [[ -d /Applications/Hammerspoon.app ]] && echo "on|Hammerspoon installed" || echo "off|no Hammerspoon" ;;
         herdr)  command -v herdr >/dev/null 2>&1 && echo "on|herdr installed" || echo "off|no herdr" ;;
         mole)   command -v mole >/dev/null 2>&1 && echo "on|mole installed" || echo "off|no mole" ;;
+        kanata)
+            # Both halves, since kanata without the active driver extension runs and remaps nothing.
+            if ! command -v kanata >/dev/null 2>&1; then
+                echo "off|no kanata"
+            elif systemextensionsctl list 2>/dev/null | grep -F org.pqrs.Karabiner-DriverKit-VirtualHIDDevice | grep -qF '[activated enabled]'; then
+                echo "on|kanata and the Karabiner driver extension active"
+            else
+                echo "off|kanata without an active Karabiner driver extension"
+            fi
+            ;;
         docker) [[ -d /Applications/Docker.app ]] && echo "on|Docker Desktop installed" || echo "off|no Docker Desktop" ;;
         vpn)
             if command -v mullvad >/dev/null 2>&1 || [[ -d "/Applications/Mullvad VPN.app" ]]; then

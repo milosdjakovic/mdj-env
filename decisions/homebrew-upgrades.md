@@ -11,6 +11,12 @@ whole of it, and it is what every later step depends on. Whether a thing present
 version of itself is a different question, and nothing in this repository is pinned to an
 answer to it, so a setup run has no reason to change one on the way past.
 
+One formula is the exception, by rule rather than by accident. A formula that must move in step
+with something Homebrew does not manage is held with `brew pin`, upgraded only through its
+module's own step, and named with its reason in its decisions file. kanata is the first, pinned
+by `src/setup-kanata.sh` because it has to stay paired with a driver Homebrew does not install,
+and moved only by `src/setup-kanata.sh --upgrade`. `decisions/kanata.md` has it.
+
 `brew bundle --no-upgrade` is the flag that separates the two. A missing formula or cask is
 installed, a present one is left at whatever version it is. Upgrading is `brew upgrade`, run
 when upgrading is the thing being done and when there is somebody at the keyboard for the
@@ -72,3 +78,8 @@ since holding back is safe and adopting blind is not.
   cask. Tested against a sample Brewfile on this machine, where Chrome and Slack, installed by
   hand, were skipped, Hammerspoon, installed by Homebrew, and IINA, absent, were passed through,
   and a simulated machine without jq held back every cask not yet installed.
+- **2026-10-23 09:59.** The pin exception was added with phase 3 of `docs/PLAN-MACHINES.md`.
+  kanata is held with `brew pin`, so a bulk `brew upgrade` skips it, and only its module's step
+  moves it, together with the Karabiner driver it talks to. The rule is that nothing is pinned
+  except a formula that must move in step with something Homebrew does not manage, named with its
+  reason in its decisions file. `decisions/kanata.md` has the reason and the upgrade command.

@@ -39,6 +39,9 @@ MDJ_EDITOR="Visual Studio Code" ./setup.sh   # the editor step's answer, for a r
 ./src/setup-ivpn-permissions.sh   # repairs bundle modes the ivpn cask leaves wrong; needs sudo only when repairing
 ./src/setup-claude-settings.sh
 ./src/setup-herdr-plugins.sh
+./src/setup-kanata.sh                 # the Karabiner driver and both root daemons, where the kanata piece is on
+./src/setup-kanata.sh --dry-run       # every change it would make, every sudo command and both plists, changing nothing
+./src/setup-kanata.sh --upgrade       # move kanata and its driver together, once dotfiles/kanata/DRIVER has the new row
 ./src/check-dependencies.sh
 ./src/machine.sh get mise            # what this machine takes for one optional piece, from machines/
 ./src/machine.sh capture             # look at this machine and bring its pieces file in line, safe to rerun
@@ -71,6 +74,11 @@ which the step reports in the closing notes.
 - `MDJ_SHADOWS`, `move` or `keep`, whether files that override a linked config go into the
   backup directory. The files come from `./src/setup-stow-dotfiles.sh --shadows`. Ask only
   when it prints something, and show the person every path and reason it printed.
+
+One step needs a password rather than an answer. Where the `kanata` piece is on,
+`src/setup-kanata.sh` asks sudo for the driver and the daemons, and with no terminal it stops
+with a closing note rather than failing the run. Run `./src/setup-kanata.sh --dry-run` and show
+the person what it would do, then let them run it from a terminal.
 
 ## Architecture
 
@@ -232,6 +240,12 @@ and a setup run has no reason to change one on the way past. Upgrading is a deli
 taken on its own, the same way the Neovim lockfile is. `decisions/homebrew-upgrades.md` has
 the reasoning and what it cost to learn.
 
+Nothing is pinned to a version except a formula that must move in step with something Homebrew
+does not manage. Such a formula is held with `brew pin`, upgraded only through its module's own
+step, and named with its reason in its decisions file. kanata is the first, paired with a driver
+Homebrew does not install, pinned by `src/setup-kanata.sh` and moved only by its `--upgrade`, and
+`decisions/kanata.md` has why.
+
 `src/check-dependencies.sh` reconciles all of it, and runs at the end of `setup.sh` or
 alone at any time. It regenerates every generated manifest so a stale one cannot be
 committed, then reports these as errors, since each is a repository defect and identical
@@ -283,7 +297,7 @@ to drift unnoticed.
 
 **Stowed on every machine:** ghostty, tmux, nvim, zsh, claude, lf, lazygit
 
-**Stowed where machines/ turns them on:** hammerspoon, herdr, mise
+**Stowed where machines/ turns them on:** hammerspoon, herdr, mise, kanata
 
 ### Rules for an agent working on machines and runtimes
 
@@ -527,7 +541,8 @@ hook announced. `decisions/iris.md` has the measurements.
 ### Upstream defects, and what this repository does about one
 
 Nothing here is built from a fork, pinned to a commit, or patched around a defect upstream has
-not fixed. That was tried in September 2026 for two tools at once and undone the same day,
+not fixed. The one `brew pin` above is not that, it holds a released version beside the driver it
+pairs with and takes upstream's releases through its own upgrade step. That was tried in September 2026 for two tools at once and undone the same day,
 because a pin stops taking upstream's releases the moment it is set and the price is a rebase
 every week for as long as upstream declines, which for a project that refuses outside pull
 requests is forever. `decisions/iris.md` is the record and the reason, and it is written so
@@ -586,6 +601,14 @@ Configuration in `dotfiles/tmux/`. See `dotfiles/tmux/AGENTS.md` for binding con
 ### lf
 
 Configuration in `dotfiles/lf/`. See `dotfiles/lf/AGENTS.md` for why lf was chosen over yazi, the tmux popup nesting limitation, command type differences, and custom keybinding details.
+
+### kanata
+
+Configuration in `dotfiles/kanata/`, stowed only where the `kanata` piece is on. Read
+`dotfiles/kanata/AGENTS.md` before changing anything there. It holds how a config change is
+applied, the two root daemons and where they log, the three grants only a person can give, the
+driver pairing in `DRIVER` and the upgrade procedure, and why the config must never enable
+commands.
 
 ### mise
 

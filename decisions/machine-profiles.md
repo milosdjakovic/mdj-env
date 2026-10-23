@@ -9,9 +9,10 @@ where one machine differs, the directory named by its `LocalHostName`. A row rea
 
 Three machines use this repository and they differ, one of them is not the user's and carries
 its own setup, so a piece like mise must be possible to leave off without leaving the
-repository. `machines/default/pieces` lists seven pieces, mise, hammerspoon, herdr, mole, docker, vpn and
-tools. The defaults keep what every machine got before the directory existed, except mise, which is off unless
-a machine asks, since mise acting on every `.nvmrc` would take over a machine's own pyenv or nvm.
+repository. `machines/default/pieces` lists eight pieces, mise, hammerspoon, herdr, mole, docker, vpn, tools
+and kanata. The defaults keep what every machine got before the directory existed, except mise, which is off unless
+a machine asks, since mise acting on every `.nvmrc` would take over a machine's own pyenv or nvm, and kanata,
+which came later and is off unless a machine asks, since it puts a driver and a root daemon on a machine.
 
 A piece reaches a machine through four consumers and each asks the reader. The stow step adds
 the optional packages that are on. `setup.sh` runs a piece's step through `step_if`, which
@@ -119,3 +120,13 @@ error on stderr, which now names `machines/default/pieces`. The Brewfile listing
 through `expect` on a pretend machine in a scratch copy, declining a proposal, rerunning, accepting
 the change, keeping a hand comment, and rerunning on an unchanged machine, which wrote nothing.
 The readers, their commands, their answers and their exit codes are unchanged.
+
+**2026-10-23 09:59.** Phase 3 of `docs/PLAN-MACHINES.md` added the `kanata` piece, off by default,
+covering the kanata package and formula and `src/setup-kanata.sh`, which installs the Karabiner
+driver and runs both as root daemons. `Miloss-MacBook-Pro-Vicert` takes it on, the row written in
+the shape `capture` writes, so a later capture there reports it unchanged, which a run without a
+terminal confirmed. The probe in `capture` suggests on only when kanata is on PATH and the
+Karabiner driver extension is activated and enabled, since kanata without the extension remaps
+nothing. The stow step adds the package where the piece is on, the Brewfile guards its line with
+`on?(:kanata)`, and `setup.sh` runs the step through `step_if kanata on`. `decisions/kanata.md`
+has the rest.

@@ -48,6 +48,7 @@ nvim          | brew      | neovim
 lf            | brew      | lf
 lazygit       | brew      | lazygit
 herdr         | brew      | herdr
+kanata        | brew      | kanata
 
 # Command line tools the configurations call.
 fzf           | brew      | fzf
@@ -85,6 +86,7 @@ zsh-autosuggestions      | manual    | installed by src/install-ohmyzsh-plugins.
 fast-syntax-highlighting | manual    | installed by src/install-ohmyzsh-plugins.sh
 fzf-tab                  | manual    | installed by src/install-ohmyzsh-plugins.sh
 brew                     | manual    | installed by src/install-homebrew.sh from the upstream installer
+karabiner-vhid-driver    | manual    | installed by src/setup-kanata.sh from the package pinned in dotfiles/kanata/DRIVER, verified by its sha256, its notarization and its developer team, then activated, which the person approves in System Settings
 swiftc                   | xcode-clt | installed by src/install-xcode-clt.sh, which makes sure the command line tools carry an SDK for the running macOS
 cc                       | xcode-clt | installed by src/install-xcode-clt.sh, which makes sure the command line tools carry an SDK for the running macOS
 xcode-select             | macos     | ships with macOS
@@ -116,6 +118,11 @@ nohup                    | macos     | ships with macOS
 nc                       | macos     | ships with macOS
 networkQuality           | macos     | ships with macOS
 script                   | macos     | ships with macOS
+installer                | macos     | ships with macOS
+pkgutil                  | macos     | ships with macOS
+launchctl                | macos     | ships with macOS
+systemextensionsctl      | macos     | ships with macOS
+shasum                   | macos     | ships with macOS
 
 # Opt in extras, deliberately absent from the Brewfile.
 #
@@ -151,6 +158,9 @@ ivpn          | manual    | the ivpn cask, wanted only on a machine that uses IV
 # since a gate that lives only in prose is one you find by watching a feature fail quietly.
 accessibility            | grant     | System Settings, Privacy and Security, Accessibility, turn Hammerspoon on
 location                 | grant     | System Settings, Privacy and Security, Location Services, turn Hammerspoon on
+kanata-driver-extension  | grant     | System Settings, General, Login Items and Extensions, Driver Extensions, turn on Karabiner DriverKit VirtualHIDDevice, which older macOS shows under Privacy and Security instead
+kanata-input-monitoring  | grant     | System Settings, Privacy and Security, Input Monitoring, add /Library/Application Support/mdj-env/bin/kanata, the root owned copy src/setup-kanata.sh makes, and turn it on, or off and on again after a new kanata binary
+kanata-accessibility     | grant     | System Settings, Privacy and Security, Accessibility, add /Library/Application Support/mdj-env/bin/kanata, the root owned copy src/setup-kanata.sh makes, and turn it on, or off and on again after a new kanata binary
 obsidian-vaults          | manual    | open a vault in Obsidian once, which is what writes the registry this plugin reads
 
 # Tools a module's own tooling needs rather than its running configuration. A generated

@@ -1,0 +1,38 @@
+;; Caps Lock held is Hyper, the four real modifiers, and a quick tap is Caps Lock itself. Right
+;; Option held is META, shift, control and option. Olm listens for both forms of each leader, so
+;; nothing here has to know about it, and a machine without kanata reaches the same leaders
+;; through Caps Lock as F18.
+;;
+;; The top row is the MacBook media row, brightness, Mission Control, Spotlight, Dictation, Do Not
+;; Disturb, media and volume, since the virtual keyboard kanata types through is not an Apple
+;; keyboard and macOS sends it plain F keys otherwise. Holding fn gives the plain F1 to F12.
+;; Upstream tracks that as jtroo/kanata issue 975. Every other key passes through untouched.
+;;
+;; A root daemon reads this file, so it must never be able to run a command. This Homebrew build
+;; cannot, and src/setup-kanata.sh proves that on every run before it starts the daemon. Never
+;; add danger-enable-cmd here. dotfiles/kanata/AGENTS.md has how to apply a change.
+(defcfg
+  process-unmapped-keys yes
+)
+
+(defsrc
+  f1   f2   f3   f4   f5   f6   f7   f8   f9   f10  f11  f12
+  caps ralt fn
+)
+
+(defalias
+  hyper (multi lsft lctl lalt lmet)
+  meta  (multi lsft lctl lalt)
+  hcap  (tap-hold-press 200 200 caps @hyper)
+  fnl   (multi fn (layer-while-held fkeys))
+)
+
+(deflayer base
+  brdn brup mctl sls  dtn  dnd  prev pp   next mute vold volu
+  @hcap @meta @fnl
+)
+
+(deflayer fkeys
+  f1   f2   f3   f4   f5   f6   f7   f8   f9   f10  f11  f12
+  _    _    _
+)

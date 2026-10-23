@@ -1,0 +1,116 @@
+#!/bin/bash
+set -uo pipefail
+
+# Answer for one permission this module needs, which no script can grant.
+#
+# The contract with the layer above is the one the root AGENTS.md gives and the Hammerspoon
+# module's prober follows. It takes one locator, prints one word, granted, notDetermined or
+# denied, and exits zero. Exit 2 means this machine cannot answer right now, a machine fact and a
+# warning above. Any other nonzero means the locator is not one this module understands, a
+# repository defect and an error above. Which pane gives the grant is DEPENDENCIES.map's answer,
+# not this file's.
+#
+# Nothing here asks for a permission of its own, and nothing here asks the terminal it runs in,
+# since macOS answers a permission question about the process that asks. The driver extension is
+# read from systemextensionsctl, which any user may run. Input Monitoring and Accessibility are
+# read from kanata itself, which checks both at startup and says what it found in its log, so
+# the answer is about the kanata binary the daemon runs and about nothing else.
+
+CANNOT_ANSWER_HERE=2
+
+# The seam with src/setup-kanata.sh, which installs the daemon under this label. Only the label is
+# shared. The log path is read from launchd rather than written twice.
+KANATA_LABEL="mdj-env.kanata"
+DRIVER_BUNDLE="org.pqrs.Karabiner-DriverKit-VirtualHIDDevice"
+
+locator="${1:-}"
+if [[ -z "$locator" ]]; then
+    echo "grants-probe: takes one locator, and was given none" >&2
+    exit 1
+fi
+
+# The lines kanata wrote since it last started, which is the only run that says anything about
+# the binary and the grants it has now. Kanata 1.12 begins every start with `kanata vX starting`,
+# and under KeepAlive a refused start repeats every ten seconds, so the log holds many runs and
+# only the last one counts.
+latest_run() {
+    local service log
+    if ! service="$(launchctl print "system/$KANATA_LABEL" 2>/dev/null)"; then
+        echo "grants-probe: the kanata daemon $KANATA_LABEL is not loaded, so kanata has not" >&2
+        echo "  said what it was granted. src/setup-kanata.sh installs it." >&2
+        return 1
+    fi
+    log="$(awk -F' = ' '$1 ~ /^[[:space:]]*stderr path$/ { print $2; exit }' <<< "$service")"
+    if [[ -z "$log" || ! -r "$log" ]]; then
+        echo "grants-probe: the kanata daemon has no log this user can read${log:+, $log}" >&2
+        return 1
+    fi
+    awk '/kanata v[0-9.]+ starting/ { n = 0; split("", run) } { run[++n] = $0 } END { for (i = 1; i <= n; i++) print run[i] }' "$log"
+}
+
+# What the last run says about one of the two grants kanata checks, in the order it checks them.
+# Input Monitoring comes first and a refusal there ends the start, so Accessibility is unknown
+# after one. Anything kanata logs once both checks passed counts as granted for both, the grab
+# itself, and the two ways a start can still fail later, at the driver.
+read_from_kanata() {
+    local which="$1" run
+    run="$(latest_run)" || exit $CANNOT_ANSWER_HERE
+    if grep -qE 'keyboard grabbed|no devices grabbed yet|driver is not activated|output backend' <<< "$run"; then
+        echo "granted"
+        return
+    fi
+    if grep -qF 'Input Monitoring permission is denied' <<< "$run"; then
+        [[ "$which" == input-monitoring ]] && { echo "denied"; return; }
+        echo "grants-probe: kanata stopped at Input Monitoring, so it never reached its" >&2
+        echo "  Accessibility check." >&2
+        exit $CANNOT_ANSWER_HERE
+    fi
+    if grep -qF 'needs macOS Input Monitoring permission' <<< "$run"; then
+        [[ "$which" == input-monitoring ]] && { echo "notDetermined"; return; }
+        echo "grants-probe: kanata stopped at Input Monitoring, so it never reached its" >&2
+        echo "  Accessibility check." >&2
+        exit $CANNOT_ANSWER_HERE
+    fi
+    # Accessibility has no permanent refusal, a person can switch it on at any time, so a
+    # missing grant reads as not yet given, the same two states the Hammerspoon prober reports.
+    if grep -qF 'needs macOS Accessibility permission' <<< "$run"; then
+        [[ "$which" == accessibility ]] && { echo "notDetermined"; return; }
+        echo "granted"
+        return
+    fi
+    echo "grants-probe: kanata's last start has not reached its permission checks yet, or" >&2
+    echo "  stopped before them for another reason, so its log answers neither." >&2
+    exit $CANNOT_ANSWER_HERE
+}
+
+case "$locator" in
+    driver-extension)
+        # One line per installed copy of the extension. An upgrade can leave the old one listed
+        # beside the new until a restart, so any copy activated and enabled is the answer.
+        lines="$(systemextensionsctl list 2>/dev/null | grep -F "$DRIVER_BUNDLE")"
+        if [[ -z "$lines" ]]; then
+            echo "grants-probe: no Karabiner driver extension is installed, so there is nothing" >&2
+            echo "  to approve yet. src/setup-kanata.sh installs it." >&2
+            exit $CANNOT_ANSWER_HERE
+        fi
+        if grep -qF '[activated enabled]' <<< "$lines"; then
+            echo "granted"
+        elif grep -qF 'waiting for user' <<< "$lines"; then
+            echo "notDetermined"
+        elif grep -qF '[activated disabled]' <<< "$lines"; then
+            # Switched off in System Settings, which only the same pane turns back on.
+            echo "denied"
+        else
+            echo "grants-probe: the driver extension is in a state this does not judge," >&2
+            echo "  $(sed -E 's/.*(\[[^]]*\])$/\1/' <<< "$lines" | paste -sd' ' -)" >&2
+            exit $CANNOT_ANSWER_HERE
+        fi
+        ;;
+    input-monitoring|accessibility)
+        read_from_kanata "$locator"
+        ;;
+    *)
+        echo "grants-probe: '$locator' is not a grant this module knows how to answer for" >&2
+        exit 1
+        ;;
+esac

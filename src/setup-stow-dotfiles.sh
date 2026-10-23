@@ -14,7 +14,7 @@ source "$SCRIPT_DIR/lib/backup.sh"
 # on. A package switched off is only not stowed here, never unstowed, since this step removes
 # nothing a machine already has.
 PACKAGES=(ghostty tmux nvim zsh claude lf lazygit)
-for optional in hammerspoon herdr mise; do
+for optional in hammerspoon herdr mise kanata; do
     "$SCRIPT_DIR/machine.sh" on "$optional" && PACKAGES+=("$optional")
 done
 

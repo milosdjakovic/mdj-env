@@ -1,3 +1,4 @@
 # Miloss-MacBook-Pro-Vicert, captured 2026-10-07
 mise           | on        # this repository's mise config is stowed
 tools          | canvas,go,node,pnpm,poetry,python,python3.11,python3.12,python3.13,python3.9,ruby,rust,uv,yarn # commands found for canvas,go,node,pnpm,poetry,python,python3.11,python3.12,python3.13,python3.9,ruby,rust,uv,yarn
+kanata         | on        # kanata and the Karabiner driver extension active

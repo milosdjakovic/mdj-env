@@ -13,6 +13,7 @@
 #
 # The defaults keep what every machine got before this directory existed, except mise, which
 # stays off unless a machine asks, since a machine with its own pyenv or nvm must not be taken over.
+# kanata came later and is off for the same reason, it puts a driver and a root daemon on a machine.
 
 # piece        | value      # reason
 mise           | off       # the mise package, its Homebrew line, the runtime install step, and the shell activation that follows the stowed config
@@ -22,3 +23,4 @@ mole           | on        # the mole formula, the package itself is not stowed 
 docker         | on        # the Docker Desktop cask
 vpn            | mullvad   # mullvad, ivpn or none, and only ivpn adds a setup step, the permission repair its daemon needs
 tools          | none      # the mise tools a machine takes, names from dotfiles/mise/TOOLS, comma separated, alphabetical, no spaces, or none
+kanata         | off       # the kanata package and formula, and the step that installs its Karabiner driver and runs both as root daemons, off since a driver extension and a root daemon are a lot to put on a machine unasked

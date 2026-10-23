@@ -18,8 +18,8 @@ machine takes. See [Capturing a machine](#capturing-a-machine).
 Machines differ, and the `machines/` directory at the repository root says how. Its `default`
 folder has one default row per optional piece, and each machine that differs has a folder of its
 own, named by the machine's local hostname, with a `pieces` file of the rows that differ. The
-pieces are `mise`, `hammerspoon`, `herdr`, `mole`, `docker`, `vpn` and `tools`. A machine
-with no rows gets every default, which keeps its own setup alone and leaves mise off.
+pieces are `mise`, `hammerspoon`, `herdr`, `mole`, `docker`, `vpn`, `tools` and `kanata`. A machine
+with no rows gets every default, which keeps its own setup alone and leaves mise and kanata off.
 
 Do this once on every machine, and again whenever a machine changes.
 
@@ -116,6 +116,7 @@ machine already has, that is always done by hand.
 | `setup-stow-dotfiles.sh` | Symlinks dotfiles to home directory |
 | `setup-zshrc.sh` | Configures .zshrc with Powerlevel10k |
 | `set-dev-defaults.sh` | Sets default app for dev file types |
+| `setup-kanata.sh` | Installs the Karabiner driver kanata needs and runs both as root daemons, where the kanata piece is on, with `--dry-run` and `--upgrade` |
 
 All scripts are idempotent (safe to re-run) and support both Apple Silicon and Intel Macs.
 
@@ -157,7 +158,7 @@ stow -t ~ alacritty # Alternative terminal
 
 ### Stowed Where The Machine Turns Them On
 
-- hammerspoon, herdr, mise
+- hammerspoon, herdr, mise, kanata
 
 ### Available but Not Stowed
 

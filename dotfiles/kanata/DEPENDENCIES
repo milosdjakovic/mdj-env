@@ -1,0 +1,19 @@
+# What this module needs on the machine, name | kind | locator | policy | consumer | reason.
+# The format and the kinds are documented in the repository root AGENTS.md. This file names
+# tools and never how to install one, since that mapping is DEPENDENCIES.map one layer up.
+# Written by hand, because this module has no sub units to fold declarations from.
+#
+# The driver is declared by the path of its daemon, the one file of the package something here
+# runs. Which version of it is wanted is not a declaration, it is the pin in DRIVER beside this.
+kanata | path | kanata | required | kanata | the remapper this module configures, run as a root daemon that reads the stowed config | brew | kanata
+karabiner-vhid-driver | system | /Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon | required | kanata | the virtual keyboard kanata types through, without it kanata waits ten seconds and then lets the keyboard go unremapped | manual | installed by src/setup-kanata.sh
+# Gates. Three things only a person can give, each answered by grants-probe at this root. The
+# driver extension is approved once per driver install. Input Monitoring and Accessibility are
+# given to the root owned copy of the kanata binary that src/setup-kanata.sh makes, and a new
+# build at that path may need them again, since the binary is ad hoc signed.
+kanata-driver-extension | grant | driver-extension | required | kanata | the virtual keyboard does not exist until macOS lets the driver extension load
+kanata-input-monitoring | grant | input-monitoring | required | kanata | kanata refuses to open the keyboard without it, and the keyboard then works unremapped
+kanata-accessibility | grant | accessibility | required | kanata | kanata 1.12 checks it right after Input Monitoring and refuses to open the keyboard without it as well
+# What the grants probe reads with, both of which ship with macOS.
+systemextensionsctl | system | /usr/bin/systemextensionsctl | optional | grants-probe | reading whether the driver extension is activated and enabled, which needs no privilege | macos | ships with the system
+launchctl | system | /bin/launchctl | optional | grants-probe | finding the kanata daemon and the log it writes to, which needs no privilege | macos | ships with the system

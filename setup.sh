@@ -150,6 +150,11 @@ step "$SRC_DIR/setup-dev-defaults.sh"
 # Remap Caps Lock -> F18 for the Hammerspoon Hyper key
 step_if hammerspoon on "$SRC_DIR/setup-capslock-hyper.sh"
 
+# Install the Karabiner driver kanata types through, at the version dotfiles/kanata/DRIVER pairs
+# with the installed kanata, and run both as launchd daemons. Asks for sudo, and says through the
+# closing notes what only a person can do, approving the driver and allowing kanata its grants.
+step_if kanata on "$SRC_DIR/setup-kanata.sh"
+
 # Restore the file modes IVPN's daemon requires inside its own bundle, which the Homebrew
 # cask does not set because it copies the app rather than running IVPN's installer. Without
 # this the daemon cannot start at all on a freshly bootstrapped machine. Prompts for sudo

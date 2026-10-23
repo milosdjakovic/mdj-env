@@ -30,6 +30,8 @@ brew "libqalculate"
 brew "lua"
 brew "mise" if on?(:mise)
 brew "mole" if on?(:mole)
+# Pinned by src/setup-kanata.sh, which is the only thing that moves it, together with its driver
+brew "kanata" if on?(:kanata)
 
 # Third party taps, for a tool with no formula in core
 tap "schappim/ocr"

@@ -1,0 +1,17 @@
+# Which Karabiner DriverKit VirtualHIDDevice package each kanata minor version needs, as
+# kanata minor | driver version | package URL | sha256.
+#
+# Kanata types through the virtual keyboard this driver provides, and the two speak one IPC
+# protocol that changes between driver majors, so a kanata built for one driver cannot talk to
+# the daemon of another. This table is the pin for both. It is the one place either version is
+# written, the way lazy-lock.json is for Neovim, and src/setup-kanata.sh reads it and nothing
+# else. The installed kanata picks its row by its minor version, and the step refuses to go on
+# when there is none.
+#
+# A new row is written before an upgrade, from kanata's own release notes, with the URL of the
+# package on the driver's GitHub release and the sha256 that release lists for it, and then
+# committed. `src/setup-kanata.sh --upgrade` stops until the row for Homebrew's stable kanata is
+# here. decisions/kanata.md has the pairing as measured and where each answer came from.
+
+# kanata | driver | package                                                                                                                     | sha256
+1.12     | 6.2.0  | https://github.com/pqrs-org/Karabiner-DriverKit-VirtualHIDDevice/releases/download/v6.2.0/Karabiner-DriverKit-VirtualHIDDevice-6.2.0.pkg | 9e8c46239f0748161241e42444857901224e5c82f5b58a1731df4c70bf0736a8
