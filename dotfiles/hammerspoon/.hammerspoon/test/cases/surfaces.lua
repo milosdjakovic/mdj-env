@@ -128,6 +128,15 @@ do
     #chipsOf(restEls) == #model.right, "chips " .. #chipsOf(restEls))
   check("and keeps the same rect, so the hit test does not move under the pointer",
     restRect ~= nil and restRect.x == keysRect.x and restRect.w == keysRect.w)
+  local withChord = { right = model.right, keys = model.keys, keysChord = "\u{2318}?" }
+  local chordEls, chordRect = footer.bar(ui, T, withChord, band, inset, true)
+  check("lit, the key button carries its chord as a second chip beside the glyph",
+    #chipsOf(chordEls) == 2 + #model.right, "chips " .. #chipsOf(chordEls))
+  check("and its rect covers both, so the hit test and the light take the whole button",
+    chordRect ~= nil and chordRect.x == keysRect.x and chordRect.w > keysRect.w + T.space.s)
+  local restChordEls = footer.bar(ui, T, withChord, band, inset, false)
+  check("at rest the glyph and the chord are both drawn without a chip",
+    #chipsOf(restChordEls) == #model.right, "chips " .. #chipsOf(restChordEls))
   check("the key button is one chip, centred in the bar and starting at the inset",
     keysRect ~= nil and keysRect.h == chipH and keysRect.x == band.x + inset
       and keysRect.y == band.y + T.space.s,

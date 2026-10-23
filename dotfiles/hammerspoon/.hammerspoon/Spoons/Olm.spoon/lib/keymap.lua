@@ -743,8 +743,9 @@ end
 --- before its own Return handling. A list declaring no secondary builds no binding there, so both
 --- keep choosing the row. A person naming secondary in the lists section moves both at once, since
 --- an action named takes exactly the chords listed for it. showKeys is Command and ?, slash with
---- Command and Shift, a field key on no leader like the secondary, which the shared glyph speller
---- spells as ⌘?. It is not a held list key because macOS takes Hyper and slash, and Hyper with other
+--- Command and Shift, and Command and slash beside it, so a press with or without Shift opens the
+--- key panel, two field keys on no leader like the secondary's. The first is the one spelled, ⌘?
+--- through the shared glyph speller. It is not a held list key because macOS takes Hyper and slash, and Hyper with other
 --- punctuation, before any event tap sees it, see decisions/olm-chooser-keys.md. It reaches a list
 --- only where the system's Show Help menu shortcut is off, which src/setup-macos-shortcuts.sh sees to. showKeys sits on slash
 --- on the list role, shadowing a global slash only while a list is open, which a list key may do
@@ -755,7 +756,10 @@ obj.listDefaults = {
     { key = "return", mods = { "cmd" }, leader = false },
     { key = "padenter", mods = { "cmd" }, leader = false },
   },
-  showKeys = { key = "/", mods = { "cmd", "shift" }, leader = false },
+  showKeys = {
+    { key = "/", mods = { "cmd", "shift" }, leader = false },
+    { key = "/", mods = { "cmd" }, leader = false },
+  },
 }
 
 -- Whether a key types a character into a text field when pressed with no modifier or with Shift

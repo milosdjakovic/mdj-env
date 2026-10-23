@@ -103,7 +103,7 @@
 -- shared verbs are primary, the list's own main action, selectNext, selectPrev, close and
 -- openActionPanel, which Olm puts on hyper and i, j, k, x and o unless a list states its own, the
 -- launcher closing on space, then secondary, a list's second action, which Olm puts on Command and
--- Return and Command and keypad Enter, and showKeys on Command and ?, all three with no leader. Any
+-- Return and Command and keypad Enter, and showKeys on Command and ? and Command and slash, all with no leader. Any
 -- other action a list lists, deleteSelected in the clipboard, is named the same way. all is read first and each list's own table over it, so a list's own entry
 -- decides every action and chord it names there. all moves only the keys Olm gave, so the
 -- launcher's space close, which is also its open key, moves only in a launcher table, and a key a

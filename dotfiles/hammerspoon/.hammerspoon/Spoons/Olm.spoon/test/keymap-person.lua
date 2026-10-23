@@ -783,7 +783,7 @@ do
   eq(moved and moved.entry, "all hyper+n", "and names the entry it came from")
   local order = {}
   for _, b in ipairs(contexts.clip.bindings) do order[#order + 1] = b.action end
-  eq(table.concat(order, ","), "insertSelected,selectNext,selectPrev,scrollDown,deleteSelected,leavePage,closeChooser,openActionPanel,showKeys",
+  eq(table.concat(order, ","), "insertSelected,selectNext,selectPrev,scrollDown,deleteSelected,leavePage,closeChooser,openActionPanel,showKeys,showKeys",
     "and the list keeps its order")
   local closed = applied({ all = { ["hyper+c"] = "close" } })
   eq(listKeys(closed, "clip", "closeChooser") .. "|" .. listKeys(closed, "pane", "closeChooser"), "c|space",
@@ -962,7 +962,7 @@ do
     elseif b.leader == "meta" then onMeta = onMeta + 1 end
   end
   eq(onMeta, #contexts.clip.bindings - 1 - onField, "list role: every bound default of the list sits on meta, the field's own keys apart")
-  eq(onField, 1, "list role: showKeys is the one default the field answers on no leader")
+  eq(onField, 2, "list role: showKeys on its two keys is the one default the field answers on no leader")
   eq(listedOnly, nil, "list role: a key the list reads for itself is placed on no leader")
   local result = keymap.build({ plan = { effective = {}, identity = {}, contexts = contexts, order = {} },
     roles = ROLES, keycodes = LIST_KEYCODES, listLeader = "meta" })
@@ -1322,14 +1322,14 @@ do
   })
   local order = {}
   for _, b in ipairs(block.bindings) do order[#order + 1] = b.action end
-  eq(table.concat(order, ","), "insertSelected,uninstall,uninstall,selectNext,selectPrev,deleteSelected,closeChooser,openActionPanel,showKeys",
-    "bar: the secondary sits right after the primary, on two keys, and showKeys comes last")
+  eq(table.concat(order, ","), "insertSelected,uninstall,uninstall,selectNext,selectPrev,deleteSelected,closeChooser,openActionPanel,showKeys,showKeys",
+    "bar: the secondary sits right after the primary, on two keys, and showKeys comes last, on two keys")
   local secondary, padSecondary, show
   for _, b in ipairs(block.bindings) do
     if b.shared == "secondary" then
       if secondary then padSecondary = b else secondary = b end
     end
-    if b.shared == "showKeys" then show = b end
+    if b.shared == "showKeys" then show = show or b end
   end
   eq(secondary and secondary.key, "return", "bar: the secondary sits on Return")
   eq(padSecondary and padSecondary.key, "padenter", "bar: and on keypad Enter, which chooses the row as Return does")
@@ -1566,7 +1566,7 @@ do
   eq(glyph("/"), "/", "showKeys: and plain slash as itself")
   local block = barList({ primary = { action = "insertSelected" } })
   local show
-  for _, b in ipairs(block.bindings) do if b.shared == "showKeys" then show = b end end
+  for _, b in ipairs(block.bindings) do if b.shared == "showKeys" then show = show or b end end
   keymap.applyLists({ bar = block }, {}, { listLeader = "hyper", keycodes = LIST_KEYCODES })
   local deps = { chordLabel = labelsLib.chordLabel(glyph), leaderNames = { hyper = "Hyper" }, leaderName = "Hyper", glyphFor = glyph }
   eq(hints.chordFor(show, deps), "\u{2318}?", "showKeys: spelled Command and ?")
@@ -1575,6 +1575,16 @@ do
     if k.action == "showKeys" then keyPanel = k.badges[1] end
   end
   eq(keyPanel, "\u{2318}?", "showKeys: the key panel row spells it the same way")
+  local model = hints.footerModel("bar", { contexts = { bar = block } }, deps)
+  local listed = 0
+  for _, k in ipairs(model.keys) do if k.action == "showKeys" then listed = listed + 1 end end
+  eq(listed, 1, "showKeys: its two keys are listed once, as Command and ?")
+  eq(model.keysChord, "\u{2318}?", "showKeys: and the key button carries Command and ? beside it")
+  local blockKeys = {}
+  for _, b in ipairs(block.bindings) do
+    if b.shared == "showKeys" then blockKeys[#blockKeys + 1] = table.concat(b.mods, "+") end
+  end
+  eq(table.concat(blockKeys, ","), "cmd+shift,cmd", "showKeys: on Command and ? and on Command and slash")
   local result = keymap.build({ plan = { effective = {}, identity = {}, contexts = { bar = block }, order = {} },
     roles = ROLES, keycodes = LIST_KEYCODES, listLeader = "hyper" })
   local row
@@ -1596,7 +1606,20 @@ do
   local freed = { bar = barList({ primary = { action = "insertSelected" } }) }
   keymap.applyLists(freed, readLists({ all = { ["cmd+shift+/"] = false } }).lists,
     { listLeader = "hyper", keycodes = LIST_KEYCODES, fieldUses = fieldUses })
-  eq(listKeys(freed, "bar", "showKeys"), "", "showKeys: and freeing Command and ? leaves it unbound")
+  eq(listKeys(freed, "bar", "showKeys"), "cmd+/", "showKeys: freeing Command and ? leaves Command and slash")
+  local freedModel = hints.footerModel("bar", { contexts = freed }, deps)
+  eq(freedModel.keysChord, "\u{2318}/", "showKeys: and the key button shows the key that is left")
+  local bothFreed = { bar = barList({ primary = { action = "insertSelected" } }) }
+  keymap.applyLists(bothFreed, readLists({ all = { ["cmd+shift+/"] = false, ["cmd+/"] = false } }).lists,
+    { listLeader = "hyper", keycodes = LIST_KEYCODES, fieldUses = fieldUses })
+  eq(listKeys(bothFreed, "bar", "showKeys"), "", "showKeys: freeing both leaves it unbound")
+  eq(hints.footerModel("bar", { contexts = bothFreed }, deps).keysChord, nil, "showKeys: and the key button shows no chord")
+  local slash = keymap.applyLists({ bar = barList({ primary = { action = "insertSelected" } }) },
+    readLists({ bar = { ["cmd+/"] = "showKeys" } }).lists,
+    { listLeader = "hyper", keycodes = LIST_KEYCODES, fieldUses = fieldUses })
+  eq(#slash, 0, "showKeys: applyLists accepts Command and slash as a field chord")
+  local movedModel = hints.footerModel("bar", { contexts = moved }, deps)
+  eq(movedModel.keysChord, "\u{2303}Y", "showKeys: a moved showKeys moves the key button's chord with it")
 end
 
 if failures > 0 then

@@ -529,9 +529,11 @@ in every other list. Every field key is inert while the action panel is open, si
 the field's watcher each list's predicate wrapped to answer false then, so Command and Return there
 chooses the panel row. A shared binding's kind is weak in `actionKinds`, filling only an action no
 other binding classified, so a secondary named like another list's verb never hides that verb.
-`showKeys` is Command and ?, slash with Command and Shift, a field key on no leader like the
-secondary, in every list, spelled ⌘? because the shared glyph speller folds Shift and slash into a
-question mark. It is not a Hyper key since macOS takes Hyper and slash before any event tap, and it
+`showKeys` is Command and ?, slash with Command and Shift, and Command and slash beside it, two
+field keys on no leader like the secondary's, in every list, listed once and spelled ⌘? because the
+shared glyph speller folds Shift and slash into a question mark. The bar draws that chord as a badge
+beside the (?) glyph, `footerModel`'s `keysChord`, which follows a person's move and is absent when
+both keys are freed, and the glyph and the badge light and hit as one button. It is not a Hyper key since macOS takes Hyper and slash before any event tap, and it
 reaches a list only where the Show Help menu shortcut is off, which `src/setup-macos-shortcuts.sh`
 sees to. Both move and free in the `lists` section like
 every shared verb. The action panel lists Back, the primary, the secondary and then the verbs.

@@ -223,6 +223,8 @@ end
 --- since a field key acts on the list rather than on a panel row, and the key panel lists only the
 --- keys that still mean something there, the shared ones and Back.
 ---
+--- keysChord is the key button's chord, shown beside it, nil when showKeys has no key.
+---
 --- state is the whole answer as one comparable string, so a surface polling this redraws only
 --- when something it would draw changed.
 function obj.footerModel(contextName, plan, deps)
@@ -233,9 +235,11 @@ function obj.footerModel(contextName, plan, deps)
   local labels = (not panelRow) and deps.labelsFor and deps.labelsFor(contextName) or nil
   local ctx = plan and plan.contexts and plan.contexts[contextName]
 
-  local primary, secondary, panel
+  local primary, secondary, panel, show
   local keys = {}
   local ownBack = false
+  -- A shared verb on two keys, the secondary or showKeys, is listed once, on its first key.
+  local sharedSeen = {}
   for _, b in ipairs(ctx and ctx.bindings or {}) do
     if b.shared == "primary" and not primary then primary = b end
     if bindingActive(b, deps) then
@@ -244,12 +248,16 @@ function obj.footerModel(contextName, plan, deps)
         secondary = secondary or b
       elseif b.shared == "openActionPanel" then
         panel = panel or b
+      elseif b.shared ~= nil and sharedSeen[b.shared] then
+        -- The second key of a shared verb already listed.
       -- Over the action panel only the shared keys a held leader answers stay listed, since the
       -- list's field keys, showKeys among them, are inert while the panel is open.
       elseif not panelRow or (b.shared ~= nil and b.shared ~= "primary" and b.leader ~= false) then
         keys[#keys + 1] = { badges = badgesFor(b, deps),
           label = obj.labelFor(b, contextName, deps.liveLabels, labels), action = b.action }
       end
+      if b.shared ~= nil then sharedSeen[b.shared] = true end
+      if b.shared == "showKeys" and not panelRow then show = show or b end
     end
   end
   if panelRow or (not ownBack and deps.backs and deps.backs(contextName)) then
@@ -278,11 +286,15 @@ function obj.footerModel(contextName, plan, deps)
       chord = obj.chordFor(panel, deps), action = panel.action }
   end
 
-  local parts = {}
+  -- The key button's own chord, drawn beside it the way Actions carries its chord, the first key
+  -- showKeys sits on, or nil when the person freed it or the action panel leaves it inert.
+  local keysChord = show and obj.chordFor(show, deps) or nil
+
+  local parts = { "keys " .. tostring(keysChord) }
   for _, r in ipairs(right) do parts[#parts + 1] = tostring(r.label) .. " " .. tostring(r.chord) end
   parts[#parts + 1] = "|"
   for _, k in ipairs(keys) do parts[#parts + 1] = table.concat(k.badges, "+") .. " " .. tostring(k.label) end
-  return { right = right, keys = keys, state = table.concat(parts, " | ") }
+  return { right = right, keys = keys, keysChord = keysChord, state = table.concat(parts, " | ") }
 end
 
 -- The ordered rows the action panel would show for one context, Back first, then the primary

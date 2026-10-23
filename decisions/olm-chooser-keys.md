@@ -28,8 +28,8 @@ always visible, since 2026-10-23, `Spoons/Olm.spoon/docs/PLAN-ACTION-BAR.md`. It
 docked shortcut hint pane that showed after 800 ms with no key. The right side reads the primary's
 label on Return, the secondary's on Command and Return when the list declares a `secondary`, and
 Actions on the action panel's chord, each label following the level shown, the presentation's
-`labels` first. A (?) button on the left, or the shared `showKeys` verb on Command and ?, a key the
-list's field answers on no leader and spells ⌘?, opens a
+`labels` first. A (?) button on the left carrying its key beside it, or the shared `showKeys` verb
+on Command and ? and Command and slash, keys the list's field answers on no leader, spelled ⌘?, opens a
 key panel over the bottom rows listing every other key, and any key that acts or a second click
 closes it, Escape closing the panel and leaving the list. Command and Return in a list with no
 secondary keeps choosing the row, and so does Command and keypad Enter, the secondary's second key.
@@ -299,3 +299,12 @@ which no press on this machine ever could. File search's open key moved from Hyp
 Hyper and semicolon, which nothing else claims, globally or in a list, and its typed alias in the
 launcher stays slash and a space. `src/setup-macos-shortcuts.sh` turns symbolic hotkey 98 off
 where the hammerspoon piece is on, `macos-shortcuts.md`.
+
+### 2026-10-23 17:13
+
+From Milos's live check. The (?) button now carries its key beside it as a badge, the way Actions
+carries Hyper and O, spelled by the shared speller from the first key `showKeys` sits on, moving
+with a person's chord and absent when both keys are freed, and the glyph and the badge light under
+the pointer and answer a click as one button. `showKeys` also answers Command and slash, a second
+field key place beside Command and ?, the way the secondary sits on Return and keypad Enter, and
+both are listed once as ⌘?. Freeing one key leaves the other bound and shown.

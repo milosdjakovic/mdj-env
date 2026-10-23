@@ -61,7 +61,8 @@ end
 --- The footer row inside rect, the canvas's own footer band, inset by inset points on the left
 --- and the right so its edges line up with the list's rows. A divider runs along its top, the key
 --- button sits on the left, and the model's right side runs flush against the right edge, each
---- entry its label beside its chord. keysRect is the key button's rect, for the hit test.
+--- entry its label beside its chord. The key button is the ? glyph and, beside it, the chord of
+--- showKeys, model.keysChord, when it has one. keysRect is the whole button's rect, for the hit test.
 ---
 --- lit says the key button is under the pointer or its panel is open. A lit button is the hint
 --- badge as the kit draws it, its glyph on the highlight colour role, which is the state a list row
@@ -74,8 +75,12 @@ function M.bar(ui, tokens, model, rect, inset, lit)
   local rowH = tokens.badge.hint.height
   local inner = { x = rect.x + inset, y = rect.y + (rect.h - rowH) / 2, w = rect.w - 2 * inset, h = rowH }
 
-  local keysEls = ui.layout(ui.badge(M.KEYS_GLYPH, "hint"), { x = inner.x, y = inner.y, w = inner.w, h = rowH },
-    { tokens = tokens })
+  -- The key button, its glyph and, when showKeys has a key, that key's chord beside it, both lit
+  -- and hit together as one button.
+  local buttonParts = { ui.badge(M.KEYS_GLYPH, "hint") }
+  if model and model.keysChord then buttonParts[#buttonParts + 1] = ui.badge(model.keysChord, "hint") end
+  local keysEls = ui.layout(ui.row(buttonParts, { gap = "s", fill = false, align = ui.rowAligns.center }),
+    { x = inner.x, y = inner.y, w = inner.w, h = rowH }, { tokens = tokens })
   local keysRect = bounds(keysEls)
   for _, el in ipairs(keysEls) do
     if lit or not (el.type == "rectangle" and el.action == "fill") then els[#els + 1] = el end
