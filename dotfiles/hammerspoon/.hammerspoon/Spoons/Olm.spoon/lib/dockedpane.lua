@@ -11,8 +11,8 @@
 --- exactly on the companion rect the chooser reserved and reported. Drawing anywhere else would
 --- put it outside the rect the chooser's click watcher treats as part of the picker, so a click
 --- on the pane would dismiss the list instead of passing through. What it does share with
---- CanvasPanel is the surface and the empty state, both injected, so a pane, the docked shortcut
---- panel and the cheat sheets are one component drawn in several places.
+--- CanvasPanel is the surface and the empty state, both injected, so a pane, the toasts and the
+--- cheat sheets are one component drawn in several places.
 ---
 --- THE PATTERN IS TEMPLATE METHOD, adapted to closures. This file is the fixed skeleton of a
 --- paint, the guards, the canvas, the surface first, the scroll clamp, the optional thumb, the

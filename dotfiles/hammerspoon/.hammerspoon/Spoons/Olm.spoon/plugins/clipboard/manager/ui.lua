@@ -986,9 +986,8 @@ end
 -- Migrated onto host/stage. Drops its own picker:setPlaceholder(PLACEHOLDER.history) call,
 -- since the next cold show already carries that exact string as this presentation's own
 -- static placeholder, resolved once at register, so there is nothing left to reset by hand.
--- Drops its own call to cfg.onClose too, the docked shortcut panel being atom level policy
--- host/stage owns for the life of its one instance now, and a plugin still calling it would
--- be a second, competing writer of the identical panel.
+-- Drops its own call to cfg.onClose too, which fed the docked shortcut panel the action bar
+-- inside the chooser's own canvas has since replaced.
 local function onClose()
   batch = {}
   -- Leave the page behind, so the next open is the history list. The same reason the launcher
@@ -1008,9 +1007,8 @@ end
 -- re-docking is expected and harmless.
 --
 -- Migrated onto host/stage. Drops its own call to cfg.onPositioned and the anchor
--- arithmetic that built it, since host/stage's own paneAnchor now re anchors the docked
--- shortcut panel itself, on every path that has real frames to report, and a plugin still
--- making that call would be a second, competing writer of the identical panel. Review
+-- arithmetic that built it, which fed the docked shortcut panel the action bar has since
+-- replaced. Review
 -- finding H6. Reads cfg.stageSelectedItem live, which answers correctly even at this exact
 -- moment, before the atom's own isVisible() would say true, host/stage/init.lua's own
 -- Stage:selectedItem() guarding on the stack rather than on that for precisely this call.

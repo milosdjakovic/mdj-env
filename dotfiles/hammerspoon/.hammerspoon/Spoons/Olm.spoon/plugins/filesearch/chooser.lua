@@ -472,10 +472,9 @@ local function onHighlight(item)
 end
 
 -- Migrated onto host/stage. Docks the pane into the companion rect the stage reserved and
--- seeds its first paint, exactly as before, and drops its own call to cfg.onPositioned and
--- the anchor arithmetic that built it, since host/stage's own paneAnchor now re anchors the
--- docked shortcut panel itself, on every path that has real frames to report, and a plugin
--- still making that call would be a second, competing writer of the identical panel.
+-- seeds its first paint, exactly as before. Its own call to cfg.onPositioned and the anchor
+-- arithmetic that built it went with the migration, and the docked shortcut panel that call
+-- fed is gone too, replaced by the action bar inside the chooser's own canvas.
 local function onPositioned(chooserFrame, companionFrame)
   -- Kept for the peek path below, which fires later on a key press rather than on this call, so
   -- it needs its own record of where the picker actually landed rather than the seed it opened

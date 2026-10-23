@@ -109,16 +109,8 @@ return {
   -- Unchanged by the migration, decision eight of the handoff brief kept for every presenting
   -- plugin since VPN. context, primary, and nav are still what plan.contexts is built from and
   -- what the navigation bind loop still binds this plugin's own keys against, only who answers
-  -- for them once fired now differs. panelAs is gone, the docked shortcut panel is atom level
-  -- policy host/stage owns for the life of its one instance rather than something a presenting
-  -- plugin's own configure reads any more.
-  --
-  -- This plugin still earns the docked panel triple regardless, review finding L7, since
-  -- lib/services.lua builds it for any plugin with a surface and a context that resolves, with
-  -- no way to ask for a surface's own navigation wiring without it. VPN carries the identical
-  -- residue for the identical reason. Both are deliberate, three unread fields on opts rather
-  -- than a special case in a shared function for the one or two plugins that no longer read
-  -- them.
+  -- for them once fired now differs. The action bar under the list is atom level policy
+  -- host/stage owns for the life of its one instance, so this plugin declares nothing for it.
   surface = {
     context = "menuSearch",
     primary = { action = "insertSelected", description = "Run" },

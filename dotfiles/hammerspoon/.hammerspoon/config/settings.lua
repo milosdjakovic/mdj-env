@@ -50,7 +50,7 @@ return {
   -- inside its engine, which is where a constant nobody has ever wanted to change belongs.
 
   -- The shared canvas surface. One source for how every canvas panel looks in
-  -- light and dark, the docked shortcut bars, the cheat sheet, the colour toast,
+  -- light and dark, the chooser and its action bar, the cheat sheet, the colour toast,
   -- and the clipboard preview pane. Only the shape lives here, the border width and the
   -- corner radius. The colours of the surface and of everything drawn on it come from the
   -- theme files under config/themes, one file per theme, chosen on the OLM settings page.
@@ -72,7 +72,7 @@ return {
   },
 
   -- Overlay display policy. Decides which display every transient overlay appears
-  -- on, every chooser, its docked shortcut panel, every cheat sheet, and the colour
+  -- on, every chooser with its action bar, every cheat sheet, and the colour
   -- toast. init.lua reads this into a small strategy registry and injects the chosen
   -- resolver into the Chooser atom and the CanvasPanel, so one choice moves every
   -- overlay together. Two modes.

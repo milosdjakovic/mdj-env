@@ -53,13 +53,13 @@
 ---                 half the UI kit's tokens name is used. Light falls back to dark when
 ---                 absent, and with no kit injected the dark side is drawn.
 ---
---- Reveal timing. By default the panel draws the instant show/arm is called. Give it a
---- delay and it becomes idle-timed instead: arm(anchor) starts a countdown rather than
---- drawing, poke() restarts that countdown (call it on each keypress), and when the
---- countdown expires the panel reveals and latches, staying up until hide() regardless of
---- later pokes. It was built for the deferred hint bar the action bar inside the chooser
---- replaced: hidden while the field is in active use, shown once the user pauses. The panel owns only the timing; it never learns where the
---- pokes come from, so a caller wires its own activity source to poke().
+--- Reveal timing. By default the panel draws the instant show or arm is called. Give it a
+--- delay and it becomes idle timed instead. arm(anchor) starts a countdown rather than
+--- drawing, poke() restarts that countdown on each keypress, and when the countdown expires
+--- the panel reveals and latches, staying up until hide() regardless of later pokes. It was
+--- built for the deferred hint bar the action bar inside the chooser replaced, hidden while the
+--- field is in active use and shown once the user pauses. The panel owns only the timing and
+--- never learns where the pokes come from, so a caller wires its own activity source to poke().
 ---
 --- config (all optional unless noted):
 ---   placement  "below" (default) | "above" | "left" | "right" | "center". The

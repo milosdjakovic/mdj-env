@@ -488,8 +488,11 @@ pane is left, no `shortcutsPanel` policy, no per plugin panel triple and no `sho
 The model and the paint stay apart. `lib/hints.lua`'s `footerModel(contextName, plan, deps)` is
 pure data, `right` the bar's right side, the primary's label on the Return glyph, the secondary's
 on its chord when the list declares one and its gate is open, and Actions on the action panel's
-chord, `keys` every other key the list answers in declaration order followed by Back and Command
-with a digit, which the field reads for itself, and `state` one comparable string. It reads the
+chord, `keys` every other key the list answers in declaration order followed by the keys the field
+reads for itself, Back only where Backspace leaves a pushed level and the list lists no Backspace
+binding of its own, and Command with a digit, and `state` one comparable string. While the action
+panel is open over the list the model describes the panel, Return labelled with the highlighted
+panel row's title or Run, no secondary, and only the shared keys and Back in the key panel. It reads the
 bindings, the live gates and the label lookup `rowsFor` reads, so the bar, its key panel and the
 action panel cannot disagree. A label is the level's own `labels` first, then `liveLabels`, then
 the binding's description, then Open for the primary and the action spelled as words otherwise.
@@ -501,8 +504,11 @@ the hint badge with the small space step above and below it, and geometry gives 
 under the list, subtracted from the rows a screen can hold. The provider asks the model on every
 show, after every highlight move and on a quarter second poll, the timer's handle kept, and owns
 the key panel's open state, the (?) hit test and the panel's rect. A press on the bar never hides
-the list, a press on (?) toggles the panel, the panel's rect is on no row, any key that acts closes
-it, and Escape over an open panel closes the panel and leaves the list. With no footer handed in
+the list, a press on (?) toggles the panel, and the panel's rect is on no row and takes no scroll.
+Every list key that acts closes it, through the dispatch table's `onAction`, which the root points at
+the stage's `closeKeys` for every action but `showKeys`, and so does every field key, a new query
+and a refresh from the top. Escape over an open panel closes the panel and leaves the list, and the
+autorepeat of that held Escape is swallowed so it never closes the list too. With no footer handed in
 the provider draws no bar and keeps every row, so it stays usable alone, and the legacy chooser
 draws none.
 
@@ -513,9 +519,13 @@ presentation's `labels` member asked with that item, and `toggleKeys()`, which t
 `showKeys` verb's dispatch exception calls. A presentation's `labels` is a registrar member like
 `searchText`, and a child presentation hands its own function.
 
-Two shared verbs came with it, both in `keymap.listDefaults`. `secondary` is a field key, Command
-and Return with leader false, the second listDefaults shape, built right after the primary only for
-a surface declaring `secondary`, so Command and Return keeps choosing the row in every other list.
+Two shared verbs came with it, both in `keymap.listDefaults`. `secondary` is a field key on
+Command and Return and Command and keypad Enter with leader false, the list listDefaults shape,
+built right after the primary only for a surface declaring `secondary`, so both keep choosing the row
+in every other list. Every field key is inert while the action panel is open, since the root hands
+the field's watcher each list's predicate wrapped to answer false then, so Command and Return there
+chooses the panel row. A shared binding's kind is weak in `actionKinds`, filling only an action no
+other binding classified, so a secondary named like another list's verb never hides that verb.
 `showKeys` is slash on the list role in every list. Both move and free in the `lists` section like
 every shared verb. The action panel lists Back, the primary, the secondary and then the verbs.
 

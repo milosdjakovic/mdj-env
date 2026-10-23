@@ -244,8 +244,8 @@ description, and a level declaring nothing reads the descriptions. A child prese
 its own words hands its own `labels` function, since it inherits only its parent's name.
 
 `surface.secondary`, `{ action = "...", description = "..." }`, is the second thing Return can
-mean, on Command and Return, the same shape as `primary` with `needs`, `chord` and `repeats`
-allowed and no key, since the key is Olm's. Your surface adapter answers its action like any
+mean, on Command and Return and Command and keypad Enter, the same shape as `primary` with
+`needs` and `repeats` allowed and no key and no `chord`, since the key is Olm's. Your surface adapter answers its action like any
 `extra` row's. A list declaring none keeps Command and Return choosing the row.
 
 Three more exist and are used by exactly the plugins that needed them, `peekPreview`,

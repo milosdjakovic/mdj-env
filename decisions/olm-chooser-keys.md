@@ -31,7 +31,11 @@ Actions on the action panel's chord, each label following the level shown, the p
 `labels` first. A (?) button on the left, or the shared `showKeys` verb on Hyper and slash, opens a
 key panel over the bottom rows listing every other key, and any key that acts or a second click
 closes it, Escape closing the panel and leaving the list. Command and Return in a list with no
-secondary keeps choosing the row. The action panel lists Back, the primary, the secondary and then
+secondary keeps choosing the row, and so does Command and keypad Enter, the secondary's second key.
+Hyper and slash inside an open list toggles the key panel rather than opening file search, which it
+still opens everywhere else, and over the legacy chooser, which draws no bar and has no key panel,
+it does nothing inside a list. While the action panel is open the bar describes the panel, and
+every field key of the list is inert there. The action panel lists Back, the primary, the secondary and then
 the verbs. The legacy chooser draws no bar.
 
 The default chooser is the shipped default and the word chooser means it unless legacy is
@@ -207,3 +211,30 @@ key names, and `showKeys` on slash. The `shortcutsPanel` policy, its commented s
 `lib/wire.lua`, and the stage's three panel callbacks are removed. One reading of the plan was
 chosen here rather than stated there, Escape over an open key panel closes the panel and leaves the
 list, the way a popover answers it, and a second Escape closes the list.
+
+### 2026-10-23 14:01
+
+A review round on the action bar. While the action panel is open over a list the bar described the
+list, its primary on Return, though Return then ran the highlighted panel verb, and Command and
+Return would have run the list's secondary from inside the panel. Now `footerModel` takes the panel
+row under the highlight from the root and labels Return with its title, or Run, offers no secondary,
+and lists only the shared keys and Back. The list's field keys go inert while the panel is open,
+through the watcher's own gate, each list predicate handed to `nav.fieldKeys` wrapped to answer
+false while the panel is open, so the key falls through to the field and chooses the panel row.
+
+The key panel closed only on the provider's own keys. It now closes before every handler in the
+dispatch table through a new `onAction` hook on `nav.actions`, every action but `showKeys`, and on
+a new query and a refresh from the top. A refresh that holds the row, a background answer arriving,
+leaves it open. The held Escape that closes the panel no longer closes the list on its autorepeat,
+and a scroll over the open panel moves nothing.
+
+A shared binding's kind is now weak in `actionKinds`, so a secondary named like another list's
+extra verb never hides that verb from its action panel and records no conflict. `chord = false`
+on a secondary is refused, since the bar would name a key nothing binds. The secondary sits on
+Command and keypad Enter as well as Command and Return, a list of places in `listDefaults`. The key
+panel lists Back only where Backspace leaves a pushed level and the list lists no Backspace binding
+of its own.
+
+Known and left as it was, the same as the old pane. A tool's list hosted in the launcher shows the
+launcher's words in the bar, since the showing context is the launcher's, and the action panel over
+a hosted list omits the primary and the secondary unless the scope's verbs declare them.
