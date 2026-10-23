@@ -1027,7 +1027,7 @@ step mirroring what the clipboard already does.
    bottom of its own canvas for every list on the stage, always visible, docs/PLAN-ACTION-BAR.md.
    Its right side reads the primary's label on Return, the secondary's on Command and Return
    when the surface declares a `secondary`, and Actions on the action panel's chord, and a
-   (?) button on its left, or the shared `showKeys` verb, spelled Hyper and ? and answering Hyper and slash with or without Shift, opens a
+   (?) button on its left, or the shared `showKeys` verb on Command and ?, a key the list's field answers, opens a
    key panel over the bottom rows listing every other key the list answers. The words are
    `lib/hints.lua`'s `footerModel`, read from the same context bindings, gates and labels the
    action panel reads, and a presentation's own `labels` member words the primary and the
@@ -1776,8 +1776,8 @@ one writing a plus where the other wrote a space, until this shared speller clos
 same way `aliasHint` and `aliasLabel` already had for the aliases.
 
 File search is the first scope whose alias is punctuation, `/` then a space, which the grammar
-already allowed since its only rule is one word with no whitespace. It matches that tool's Hyper
-key, so there is one thing to remember rather than two, and a slash reads as a path everywhere
+already allowed since its only rule is one word with no whitespace. It matched that tool's Hyper
+key until the key moved to Hyper and semicolon, and a slash still reads as a path everywhere
 else. It is also the first scope over an ASYNCHRONOUS list that is not merely slow to arrive but
 stateful, so two things had to be added rather than adapted. Entering the scope needs a session,
 which is what makes an empty query answer with the recent list instead of a loading row nothing
@@ -1945,10 +1945,12 @@ difference rather than an inconsistency. Every tool it shells out to, `defaults`
 named in this file or probed for. The decision trail and both findings live in
 `Spoons/Olm.spoon/plugins/dockautohide/AGENTS.md`.
 
-**FileSearch.** Hyper+/ finds a file by name and does something with it, opening,
-revealing, browsing into, or copying the path of whatever is highlighted. Activity
-Monitor moved to Hyper+\ to free the key, the two reading as a pair, one for what the
-machine is doing and one for what is on it. It follows the Capture layout, an engine over
+**FileSearch.** Hyper+; finds a file by name and does something with it, opening,
+revealing, browsing into, or copying the path of whatever is highlighted. It sat on Hyper+/
+until 2026-10-23, when it was measured that macOS takes Hyper and slash before any event tap
+on a machine where Hyper is the four real modifiers, see `decisions/olm-chooser-keys.md`.
+Activity Monitor moved to Hyper+\ once to free the slash, the two then reading as a pair, one
+for what the machine is doing and one for what is on it. It follows the Capture layout, an engine over
 interchangeable search sources, and the DisplayProfiles shape of a spoon whose surface is
 its own `chooser.lua` beside the engine, so it is configured twice. It follows the picker
 checklist, its `fileSearch` context giving it the shared j, k, i navigation with x to close

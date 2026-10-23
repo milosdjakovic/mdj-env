@@ -100,11 +100,11 @@
 -- lists holds the keys live only while a list is open, one table per list keyed by its context
 -- name, clipboard, fileSearch, emoji, launcher and the rest, and all for the keys every list
 -- shares. Each maps a chord to the action it runs in that list, or to false to free it. The
--- shared verbs are primary, the list's own main action, selectNext, selectPrev, close,
--- openActionPanel and showKeys, which Olm puts on hyper and i, j, k, x, o and slash unless a list
--- states its own, the launcher closing on space, and secondary, a list's second action, which Olm
--- puts on Command and Return and Command and keypad Enter with no leader. Any other action a list lists, deleteSelected in the clipboard, is
--- named the same way. all is read first and each list's own table over it, so a list's own entry
+-- shared verbs are primary, the list's own main action, selectNext, selectPrev, close and
+-- openActionPanel, which Olm puts on hyper and i, j, k, x and o unless a list states its own, the
+-- launcher closing on space, then secondary, a list's second action, which Olm puts on Command and
+-- Return and Command and keypad Enter, and showKeys on Command and ?, all three with no leader. Any
+-- other action a list lists, deleteSelected in the clipboard, is named the same way. all is read first and each list's own table over it, so a list's own entry
 -- decides every action and chord it names there. all moves only the keys Olm gave, so the
 -- launcher's space close, which is also its open key, moves only in a launcher table, and a key a
 -- list adds of its own, deleteSelected's d, moves only in that list's table. The rules are the keys section's inside one list.
@@ -157,9 +157,8 @@ return {
     -- combination rather than a Hyper chord since it is pressed mid work, live all the time
     -- rather than only while Hyper is held.
     ["alt+`"] = "apptoggler.GhosttyPlaced",
-    -- Activity Monitor. On backslash rather than slash, because slash opens file search, and the
-    -- two read as a pair on adjacent keys, one for what the machine is doing and one for what is
-    -- on it.
+    -- Activity Monitor. On backslash, chosen when file search sat on slash beside it. File search
+    -- moved to semicolon on 2026-10-23, since macOS takes Hyper and slash before any event tap.
     ["hyper+\\"] = "apptoggler.ActivityMonitor",
     -- System Settings, opened straight to the General pane, a hide when it is already in front.
     ["hyper+,"] = "systemsettings.General",

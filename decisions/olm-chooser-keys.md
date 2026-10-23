@@ -2,8 +2,8 @@
 
 Status. The default chooser's text field lets Hyper presses through to their own dispatch, the
 action panel opens on Hyper and o in every list, with file search reveal on Hyper and f, and every
-list carries an always visible action bar with a key panel on Hyper and slash and an optional
-secondary on Command and Return.
+list carries an always visible action bar with a key panel on Command and ? and an optional
+secondary on Command and Return. File search opens on Hyper and semicolon.
 
 ## Now
 
@@ -28,13 +28,15 @@ always visible, since 2026-10-23, `Spoons/Olm.spoon/docs/PLAN-ACTION-BAR.md`. It
 docked shortcut hint pane that showed after 800 ms with no key. The right side reads the primary's
 label on Return, the secondary's on Command and Return when the list declares a `secondary`, and
 Actions on the action panel's chord, each label following the level shown, the presentation's
-`labels` first. A (?) button on the left, or the shared `showKeys` verb on Hyper and slash, opens a
+`labels` first. A (?) button on the left, or the shared `showKeys` verb on Command and ?, a key the
+list's field answers on no leader and spells ⌘?, opens a
 key panel over the bottom rows listing every other key, and any key that acts or a second click
 closes it, Escape closing the panel and leaving the list. Command and Return in a list with no
 secondary keeps choosing the row, and so does Command and keypad Enter, the secondary's second key.
-Hyper and slash inside an open list toggles the key panel rather than opening file search, which it
-still opens everywhere else, and over the legacy chooser, which draws no bar and has no key panel,
-it does nothing inside a list. While the action panel is open the bar describes the panel, and
+Command and ? reaches a list only where the system's Show Help menu shortcut is off, which
+`src/setup-macos-shortcuts.sh` sees to, `macos-shortcuts.md`. The legacy chooser has no field that
+answers it and no key panel. File search opens on Hyper and semicolon, since macOS takes Hyper and
+slash before any tap. While the action panel is open the bar describes the panel, and
 every field key of the list is inert there. The action panel lists Back, the primary, the secondary and then
 the verbs. The legacy chooser draws no bar.
 
@@ -44,6 +46,14 @@ through `chooser.provider` in the settings as a fallback, marked in its own head
 in a console warning on every load that picks it. Removing it is a later, separate step.
 
 ## Rejected
+
+- **Hyper and slash for the key panel or for file search.** 2026-10-23. With Hyper as the four
+  real modifiers from kanata, macOS takes Hyper and slash before any Hammerspoon tap or hotkey, so
+  the key never arrives, and no setting was found that frees it.
+- **Any Hyper key on punctuation where Hyper is the four modifiers, unless measured to arrive.**
+  2026-10-23. Hyper and period is the system's own sysdiagnose shortcut and Hyper and slash never
+  arrived, so the system reserves at least some four modifier punctuation chords with no switch.
+  Hyper and semicolon was measured to arrive, which is why file search sits there.
 
 - **A dropdown anchored to (?) for the key list.** 2026-10-23. It is a new kind of component with
   its own scroll and key handling, for a list of about a dozen keys.
@@ -269,3 +279,23 @@ rows read it, and the shared glyph speller in `lib/cheatsheet.lua` folds Shift a
 question mark, so no surface writes the character itself. A person moving `showKeys` replaces the
 binding and its spelling, and freeing slash frees both presses, since they are one binding. The
 action panel lists no row for it, being navigation, and no cheat sheet draws list keys.
+Corrected 2026-10-23, see below.
+
+### 2026-10-23 16:49
+
+Measured live on this machine, macOS 27 with kanata, where Hyper arrives as the four real
+modifiers, control, option, shift and command. A real Hyper and slash never reaches any
+Hammerspoon event tap or hotkey, macOS takes it before the session taps. Hyper and period is
+macOS's own sysdiagnose shortcut, so the system reserves at least some four modifier chords on
+punctuation, and no setting frees them. Hyper and semicolon and Hyper and J do arrive. Command,
+Shift and slash arrives once the system's symbolic hotkey 98, Show Help menu, is off, which was
+done by hand here with `defaults write com.apple.symbolichotkeys` and `activateSettings -u`.
+
+So, as Milos chose, `showKeys` moved to Command and ?, a field key on no leader, slash with Command
+and Shift, answered by the open list's field like the secondary and spelled ⌘? by the shared glyph
+speller. The Hyper and slash binding and the spelling trick of the entry at 14:39 are gone, and
+with them the claim there that both Hyper and slash and Hyper, Shift and slash open the panel,
+which no press on this machine ever could. File search's open key moved from Hyper and slash to
+Hyper and semicolon, which nothing else claims, globally or in a list, and its typed alias in the
+launcher stays slash and a space. `src/setup-macos-shortcuts.sh` turns symbolic hotkey 98 off
+where the hammerspoon piece is on, `macos-shortcuts.md`.

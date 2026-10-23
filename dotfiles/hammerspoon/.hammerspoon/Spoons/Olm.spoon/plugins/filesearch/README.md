@@ -6,7 +6,7 @@ in front of a word filters by file type, and a lone dot reaches the files macOS
 refuses to index. The list remembers what you actually open, copy, or reveal, so
 a file you reach for often rises even when it has not changed lately.
 
-Opens on Hyper and slash, appears in the launcher under Tools, and can be
+Opens on Hyper and semicolon, appears in the launcher under Tools, and can be
 searched without leaving the launcher by typing a slash.
 
 While the list is open, j and k move, i opens the highlighted file, l goes into a
