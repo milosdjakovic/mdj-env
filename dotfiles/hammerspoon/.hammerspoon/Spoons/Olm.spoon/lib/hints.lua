@@ -185,6 +185,11 @@ local function badgesFor(b, deps)
   if b.chord == false then
     return { (glyphFor and glyphFor(b.key, b.mods)) or tostring(b.key) }
   end
+  -- The primary reads Return first, the key a person presses, and its held chord beside it, so
+  -- it never reads as the held chord alone.
+  if b.shared == "primary" then
+    return { (glyphFor and glyphFor("return")) or "return", obj.chordFor(b, deps) }
+  end
   local badges = { obj.chordFor(b, deps) }
   local doubled = DOUBLED[b.action] or (b.shared == "close" and "escape" or nil)
   if doubled and glyphFor then badges[2] = glyphFor(doubled) end
@@ -321,7 +326,16 @@ function obj.rowsFor(contextName, plan, deps, hosted)
     end
     if listed and bindingActive(b, deps)
       and (not hosted or hostedVerbDeclared(hosted, b.action)) then
+      -- The primary's chord is Return, the key a person presses, the way the action bar spells it,
+      -- whichever held chord it also sits on. The secondary's is its own, Command and Return.
       local chord = obj.chordFor(b, deps)
+      if b.shared == "primary" then chord = (glyphFor and glyphFor("return")) or "return" end
+      -- Every row carries an icon. A primary or a secondary naming none takes Olm's own, declared
+      -- beside Back in the action panel's manifest and read against it.
+      local icon, iconOwner = b.icon, owner and owner[contextName]
+      if icon == nil and (b.shared == "primary" or b.shared == "secondary") then
+        icon, iconOwner = b.shared, deps and deps.panelOwner
+      end
       local closes
       if hosted then
         local owner = deps and deps.owners and deps.owners[contextName]
@@ -331,7 +345,7 @@ function obj.rowsFor(contextName, plan, deps, hosted)
         closes = hosted[b.action].closes
       end
       rows[#rows + 1] = { action = b.action, title = obj.labelFor(b, contextName, deps and deps.liveLabels, labels),
-                          chord = chord, icon = b.icon, owner = owner and owner[contextName], closes = closes }
+                          chord = chord, icon = icon, owner = iconOwner, closes = closes }
     end
   end
   return rows

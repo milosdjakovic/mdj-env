@@ -114,12 +114,20 @@ do
   }
   local inset = 13
   local band = { x = 1, y = 400, w = 478, h = barH }
-  local els, keysRect = footer.bar(ui, T, model, band, inset)
-  local boxes = frames(els, function(el)
-    return el.type == "rectangle" and el.action == "fill" and el.frame.h == chipH
-  end)
-  check("one chip for the key button and one for each entry on the right",
+  local els, keysRect = footer.bar(ui, T, model, band, inset, true)
+  local function chipsOf(list)
+    return frames(list, function(el)
+      return el.type == "rectangle" and el.action == "fill" and el.frame.h == chipH
+    end)
+  end
+  local boxes = chipsOf(els)
+  check("lit, one chip for the key button and one for each entry on the right",
     #boxes == 1 + #model.right, "chips " .. #boxes)
+  local restEls, restRect = footer.bar(ui, T, model, band, inset, false)
+  check("at rest the key button draws its glyph and no chip, the state a row has off the pointer",
+    #chipsOf(restEls) == #model.right, "chips " .. #chipsOf(restEls))
+  check("and keeps the same rect, so the hit test does not move under the pointer",
+    restRect ~= nil and restRect.x == keysRect.x and restRect.w == keysRect.w)
   check("the key button is one chip, centred in the bar and starting at the inset",
     keysRect ~= nil and keysRect.h == chipH and keysRect.x == band.x + inset
       and keysRect.y == band.y + T.space.s,

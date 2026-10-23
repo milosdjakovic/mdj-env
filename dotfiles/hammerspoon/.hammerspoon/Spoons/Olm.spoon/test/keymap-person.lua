@@ -1404,8 +1404,8 @@ do
   local keys = {}
   for _, k in ipairs(model.keys) do keys[#keys + 1] = table.concat(k.badges, "+") .. " " .. k.label end
   eq(table.concat(keys, " | "),
-    "Hyper i Choose Files | Hyper j+down Move down | Hyper k+up Move up | Hyper d Delete | Hyper p Peek | Hyper x+escape Close | Hyper / Keys | cmd+1+cmd+9 Choose a visible row",
-    "footer: every other key in declaration order, then Command with a digit, and no Back on a level Backspace does not leave")
+    "return+Hyper i Choose Files | Hyper j+down Move down | Hyper k+up Move up | Hyper d Delete | Hyper p Peek | Hyper x+escape Close | Hyper / Keys | cmd+1+cmd+9 Choose a visible row",
+    "footer: every other key in declaration order, the primary reading Return first, then Command with a digit, and no Back on a level Backspace does not leave")
   local before = model.state
   gate.open = false
   local gated = hints.footerModel("bar", plan, deps)
@@ -1448,6 +1448,7 @@ do
     predicates = { paged = function() return true end },
     backs = function() return backs end,
     actionPanel = function() return openRow end,
+    panelOwner = "panel",
   }
   local function keyLabels(model)
     local out = {}
@@ -1488,6 +1489,26 @@ do
   local rows = {}
   for _, row in ipairs(hints.rowsFor("bar", plan, deps)) do rows[#rows + 1] = tostring(row.action) end
   eq(table.concat(rows, ","), "nil,insertSelected,uninstall,deleteSelected", "panel rows: the secondary is listed once")
+  local spelled = {}
+  for _, row in ipairs(hints.rowsFor("bar", plan, deps)) do
+    spelled[#spelled + 1] = tostring(row.chord) .. "/" .. tostring(row.icon) .. "/" .. tostring(row.owner)
+  end
+  eq(table.concat(spelled, ","), "delete/back/panel,return/primary/panel,cmd+return/secondary/panel,Hyper d/nil/nil",
+    "panel rows: the primary reads Return, the secondary Command and Return, and both take Olm's own icons")
+  local mine = barList({ primary = { action = "insertSelected", icon = "paste" },
+    secondary = { action = "uninstall", icon = "trash" } })
+  keymap.applyLists({ mine = mine }, {}, { listLeader = "hyper", keycodes = LIST_KEYCODES })
+  local ownIcons = {}
+  for _, row in ipairs(hints.rowsFor("mine", { contexts = { mine = mine } },
+    { glyphFor = deps.glyphFor, chordLabel = deps.chordLabel, leaderName = "Hyper", panelOwner = "panel",
+      owners = { mine = "minePlugin" } })) do
+    ownIcons[#ownIcons + 1] = tostring(row.icon) .. "/" .. tostring(row.owner)
+  end
+  eq(table.concat(ownIcons, ","), "back/panel,paste/minePlugin,trash/minePlugin",
+    "panel rows: an icon the surface names is read against the plugin that owns the list")
+  eq(surface.validate("bar", { primary = { action = "open", icon = 3 } }), false, "icons: a primary icon that is no key is refused")
+  eq(surface.validate("bar", { primary = { action = "open" }, secondary = { action = "go", icon = "trash" } }), true,
+    "icons: a secondary may name an icon")
 end
 
 -- A shared binding never shadows another list's verb. One list's secondary named like another

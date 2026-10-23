@@ -143,11 +143,22 @@ local function validateGates(label, row)
   return true
 end
 
+-- An icon on the primary or the secondary is a key of the manifest's own icons, a string, the
+-- shape an extra row's icon takes. Whether the key is declared is the dry gate's literal scan, the
+-- same check an extra row's icon gets, so this only refuses a value that is no key at all.
+local function validateIcon(label, row)
+  if row.icon ~= nil and (type(row.icon) ~= "string" or row.icon == "") then
+    return false, label .. ".icon is a " .. type(row.icon) .. " rather than the name of one of the manifest's icons"
+  end
+  return true
+end
+
 -- The fields a secondary may carry, the same shape as primary. It names no key, since Command
 -- and Return is Olm's own all layer, so a key, mods or leader written here is refused rather
 -- than read as a second place a list key is set. chord is refused too, since chord false would
--- leave the action bar naming a Command and Return that nothing binds.
-local SECONDARY_FIELDS = { action = true, description = true, needs = true, repeats = true }
+-- leave the action bar naming a Command and Return that nothing binds. icon names a key of the
+-- manifest's own icons, the way an extra row's does, for its row in the action panel.
+local SECONDARY_FIELDS = { action = true, description = true, needs = true, repeats = true, icon = true }
 
 -- Checks the optional second action a list answers on Command and Return, the same way primary
 -- is checked, and refuses any field the shape does not name.
@@ -163,9 +174,11 @@ local function validateSecondary(secondary)
   end
   for field in pairs(secondary) do
     if not SECONDARY_FIELDS[field] then
-      return false, "secondary." .. tostring(field) .. " is not a field a secondary takes, only action, description, needs and repeats"
+      return false, "secondary." .. tostring(field) .. " is not a field a secondary takes, only action, description, needs, repeats and icon"
     end
   end
+  local iok, ierr = validateIcon("secondary", secondary)
+  if not iok then return false, ierr end
   return validateGates("secondary", secondary)
 end
 
@@ -191,6 +204,8 @@ function obj.validate(name, decl)
   end
   local pok, perr = validateGates("primary", decl.primary)
   if not pok then return false, perr end
+  local piok, pierr = validateIcon("primary", decl.primary)
+  if not piok then return false, pierr end
   if decl.secondary ~= nil then
     local sok, serr = validateSecondary(decl.secondary)
     if not sok then return false, serr end
@@ -281,7 +296,7 @@ function obj.context(name, decl, available, keys)
     return false
   end
 
-  -- chord, needs and repeats are carried through from decl.primary rather than left behind
+  -- chord, needs, repeats and icon are carried through from decl.primary rather than left behind
   -- the way only action and description used to be, so a primary binding is subject to the
   -- same gates as any other one this module builds.
   local primary = {
@@ -293,6 +308,7 @@ function obj.context(name, decl, available, keys)
     chord = decl.primary.chord,
     needs = decl.primary.needs,
     repeats = decl.primary.repeats,
+    icon = decl.primary.icon,
   }
   if primary.key ~= nil and take(primary) then
     bindings[#bindings + 1] = primary
@@ -307,6 +323,7 @@ function obj.context(name, decl, available, keys)
       description = decl.secondary.description }, keys)) do
       secondary.needs = decl.secondary.needs
       secondary.repeats = decl.secondary.repeats
+      secondary.icon = decl.secondary.icon
       if take(secondary) then bindings[#bindings + 1] = secondary end
     end
   end

@@ -503,7 +503,10 @@ along the bar's top edge and the background colour role behind the key panel. Th
 the hint badge with the small space step above and below it, and geometry gives it a footer rect
 under the list, subtracted from the rows a screen can hold. The provider asks the model on every
 show, after every highlight move and on a quarter second poll, the timer's handle kept, and owns
-the key panel's open state, the (?) hit test and the panel's rect. A press on the bar never hides
+the key panel's open state, the (?) hit test and the panel's rect. The (?) button draws its glyph
+alone at rest and the hint badge on the highlight colour role while the pointer is over it or its
+panel is open, the state a row takes under the pointer, and `_onMouseMove` redraws only as the
+pointer crosses its edge. A press on the bar never hides
 the list, a press on (?) toggles the panel, and the panel's rect is on no row and takes no scroll.
 Every list key that acts closes it, through the dispatch table's `onAction`, which the root points at
 the stage's `closeKeys` for every action but `showKeys`, and so does every field key, a new query
@@ -528,6 +531,10 @@ chooses the panel row. A shared binding's kind is weak in `actionKinds`, filling
 other binding classified, so a secondary named like another list's verb never hides that verb.
 `showKeys` is slash on the list role in every list. Both move and free in the `lists` section like
 every shared verb. The action panel lists Back, the primary, the secondary and then the verbs.
+The primary row reads Return and the secondary row Command and Return, the keys a person presses,
+and the key panel spells the primary as Return beside its held chord. Every row carries an icon. A
+surface's `primary` and `secondary` may name one of the manifest's icons like an extra row, and one
+naming none takes Olm's own, `primary` and `secondary` in the action panel's manifest beside `back`.
 
 ## Secure focus, a list opened over a password field
 

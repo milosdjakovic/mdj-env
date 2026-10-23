@@ -1049,9 +1049,12 @@ so a surface key names no leader. A person moves any of
 them in the `lists` section of `config/keymap.lua`, never here and never in `config/plugins.lua`.
 
 `secondary` is optional, the second thing a list does with its highlighted row, the same shape as
-`primary` and checked the same way, with `needs` and `repeats` allowed and any other field refused,
+`primary` and checked the same way, with `needs`, `repeats` and `icon` allowed and any other field refused,
 a key among them and `chord`, since `chord = false` would leave the action bar naming a key nothing
-binds. It sits on Command and Return and on Command and keypad Enter. It is built right after the primary, so the action panel lists the two
+binds. It sits on Command and Return and on Command and keypad Enter. `primary.icon` and
+`secondary.icon` name a key of the manifest's `icons` for the two rows in the action panel, checked
+by the dry gate's scan like an extra row's, and a list naming none shows Olm's own Return and
+Command icons, declared in the action panel's manifest. It is built right after the primary, so the action panel lists the two
 together, and its action is answered by the plugin's surface adapter like any `extra` row's. A list
 declaring none binds nothing on Command and Return, which keeps choosing the row there. The action
 bar under the list names the primary on Return, the secondary on its chord and the action panel on

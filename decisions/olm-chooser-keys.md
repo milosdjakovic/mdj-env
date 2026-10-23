@@ -238,3 +238,15 @@ of its own.
 Known and left as it was, the same as the old pane. A tool's list hosted in the launcher shows the
 launcher's words in the bar, since the showing context is the launcher's, and the action panel over
 a hosted list omits the primary and the secondary unless the scope's verbs declare them.
+
+### 2026-10-23 14:24
+
+From Milos's first live test. The primary row in the action panel read Hyper I, a chord nobody
+presses for it, so it now reads Return and the secondary Command and Return, and the key panel puts
+Return in front of the primary's held chord. The primary and secondary rows had no icon while every
+verb row had one, so a surface's `primary` and `secondary` may name an icon of the manifest, and a
+list naming none takes Olm's own, `primary` on the return symbol and `secondary` on the command
+symbol, declared in the action panel's manifest beside `back`, both names checked against AppKit
+offline. The (?) button had no hover. It now draws its glyph alone at rest and the hint badge on
+the highlight colour while the pointer is over it or its panel is open, the state a row takes under
+the pointer, through the provider's one mouse tap.

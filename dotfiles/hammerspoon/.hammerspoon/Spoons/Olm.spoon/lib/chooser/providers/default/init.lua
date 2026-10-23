@@ -585,7 +585,8 @@ function Provider:_footerElements(els, origin, interior, listRect)
     for _, el in ipairs(panelEls) do els[#els + 1] = el end
     self._keysPanelRect = { x = panelRect.x + origin.x, y = panelRect.y + origin.y, w = panelRect.w, h = panelRect.h }
   end
-  local barEls, keysRect = footerLib.bar(UI, self._tokens, self._footerModel, band, inset)
+  local barEls, keysRect = footerLib.bar(UI, self._tokens, self._footerModel, band, inset,
+    self._keysHover or self._keysOpen)
   for _, el in ipairs(barEls) do els[#els + 1] = el end
   if keysRect then
     self._keysHit = { x = keysRect.x + origin.x, y = keysRect.y + origin.y, w = keysRect.w, h = keysRect.h }
@@ -902,6 +903,13 @@ end
 -- claimed, mouse.lua's own contract already has onMove answer true to claim nothing on
 -- its own, the caller deciding, and this file has no reason to claim a plain hover.
 function Provider:_onMouseMove(point)
+  -- The key button lights under the pointer the way a row does, redrawn only as the pointer
+  -- enters or leaves its rect, so a move anywhere else costs a comparison.
+  local overKeys = pointInRect(point, self._keysHit)
+  if overKeys ~= (self._keysHover == true) then
+    self._keysHover = overKeys
+    self:_redraw()
+  end
   local index = self:_rowIndexAtPoint(point)
   if index then self:_setHighlightIndex(index) end
 end
@@ -961,6 +969,7 @@ function Provider:_teardown()
   self._pressedRowIndex = nil
   self._keysOpen = false
   self._escapeClosedKeys = false
+  self._keysHover = false
   self._keysHit, self._keysPanelRect = nil, nil
   if self.surface then self.surface:hide() end
 

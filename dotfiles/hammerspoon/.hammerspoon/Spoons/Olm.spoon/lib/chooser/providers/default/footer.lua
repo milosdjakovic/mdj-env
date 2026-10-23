@@ -57,12 +57,17 @@ local function keyNode(ui, entry)
   return ui.row(parts, { gap = "s", align = ui.rowAligns.center })
 end
 
---- M.bar(ui, tokens, model, rect, inset) -> elements, keysRect
+--- M.bar(ui, tokens, model, rect, inset, lit) -> elements, keysRect
 --- The footer row inside rect, the canvas's own footer band, inset by inset points on the left
 --- and the right so its edges line up with the list's rows. A divider runs along its top, the key
 --- button sits on the left, and the model's right side runs flush against the right edge, each
 --- entry its label beside its chord. keysRect is the key button's rect, for the hit test.
-function M.bar(ui, tokens, model, rect, inset)
+---
+--- lit says the key button is under the pointer or its panel is open. A lit button is the hint
+--- badge as the kit draws it, its glyph on the highlight colour role, which is the state a list row
+--- takes under the pointer. At rest the badge's highlight fill is left out and only its glyph is
+--- drawn, so the pointer arriving reads the way it does over a row.
+function M.bar(ui, tokens, model, rect, inset, lit)
   local els = {}
   append(els, (ui.layout(ui.divider(), { x = rect.x, y = rect.y, w = rect.w, h = 0 }, { tokens = tokens })))
 
@@ -72,7 +77,9 @@ function M.bar(ui, tokens, model, rect, inset)
   local keysEls = ui.layout(ui.badge(M.KEYS_GLYPH, "hint"), { x = inner.x, y = inner.y, w = inner.w, h = rowH },
     { tokens = tokens })
   local keysRect = bounds(keysEls)
-  append(els, keysEls)
+  for _, el in ipairs(keysEls) do
+    if lit or not (el.type == "rectangle" and el.action == "fill") then els[#els + 1] = el end
+  end
   local left = keysRect and (keysRect.w + tokens.space.l) or 0
 
   local items = {}

@@ -276,52 +276,52 @@ panelrows.context name=vpn rowCount=2
 panelrows.context name=wifi rowCount=2
 panelrows.context name=workspaces rowCount=2
 panelrows.row context=audio action=- title=Back chord=⌫ icon=back
-panelrows.row context=audio action=insertSelected title=Use chord=Hyper I icon=-
+panelrows.row context=audio action=insertSelected title=Use chord=↩ icon=primary
 panelrows.row context=browserTabs action=- title=Back chord=⌫ icon=back
-panelrows.row context=browserTabs action=insertSelected title=Select chord=Hyper I icon=-
+panelrows.row context=browserTabs action=insertSelected title=Select chord=↩ icon=primary
 panelrows.row context=caffeinate action=- title=Back chord=⌫ icon=back
-panelrows.row context=caffeinate action=insertSelected title=Confirm chord=Hyper I icon=-
+panelrows.row context=caffeinate action=insertSelected title=Confirm chord=↩ icon=primary
 panelrows.row context=clipboard action=- title=Back chord=⌫ icon=back
-panelrows.row context=clipboard action=insertSelected title=Paste chord=Hyper I icon=-
+panelrows.row context=clipboard action=insertSelected title=Paste chord=↩ icon=primary
 panelrows.row context=clipboard action=manageHistory title=Manage history chord=Hyper M icon=sweep
 panelrows.row context=displayProfiles action=- title=Back chord=⌫ icon=back
-panelrows.row context=displayProfiles action=insertSelected title=Select chord=Hyper I icon=-
+panelrows.row context=displayProfiles action=insertSelected title=Select chord=↩ icon=primary
 panelrows.row context=emoji action=- title=Back chord=⌫ icon=back
-panelrows.row context=emoji action=insertSelected title=Insert chord=Hyper I icon=-
+panelrows.row context=emoji action=insertSelected title=Insert chord=↩ icon=primary
 panelrows.row context=fileSearch action=- title=Back chord=⌫ icon=back
 panelrows.row context=fileSearch action=browseInto title=Into folder chord=Hyper L icon=browse
 panelrows.row context=fileSearch action=browseUp title=Up a level chord=Hyper H icon=up
 panelrows.row context=fileSearch action=copyPath title=Copy path chord=Hyper Y icon=copy
-panelrows.row context=fileSearch action=insertSelected title=Open chord=Hyper I icon=-
+panelrows.row context=fileSearch action=insertSelected title=Open chord=↩ icon=primary
 panelrows.row context=fileSearch action=peekPreview title=Quick Look chord=Hyper Q icon=peek
 panelrows.row context=fileSearch action=revealInFinder title=Reveal in Finder chord=Hyper F icon=search
 panelrows.row context=launcher action=- title=Back chord=⌫ icon=back
-panelrows.row context=launcher action=insertSelected title=Run chord=Hyper I icon=-
+panelrows.row context=launcher action=insertSelected title=Run chord=↩ icon=primary
 panelrows.row context=menuSearch action=- title=Back chord=⌫ icon=back
-panelrows.row context=menuSearch action=insertSelected title=Run chord=Hyper I icon=-
+panelrows.row context=menuSearch action=insertSelected title=Run chord=↩ icon=primary
 panelrows.row context=obsidian action=- title=Back chord=⌫ icon=back
-panelrows.row context=obsidian action=insertSelected title=Open chord=Hyper I icon=-
+panelrows.row context=obsidian action=insertSelected title=Open chord=↩ icon=primary
 panelrows.row context=processes action=- title=Back chord=⌫ icon=back
-panelrows.row context=processes action=insertSelected title=Stop chord=Hyper I icon=-
+panelrows.row context=processes action=insertSelected title=Stop chord=↩ icon=primary
 panelrows.row context=processes action=refreshList title=Rescan chord=Hyper R icon=rescan
 panelrows.row context=processes action=sortByLoad title=Sort by load chord=Hyper S icon=sortByLoad
 panelrows.row context=processes action=stopForced title=Force stop chord=Hyper F icon=stopForced
 panelrows.row context=settings action=- title=Back chord=⌫ icon=back
-panelrows.row context=settings action=insertSelected title=Choose chord=Hyper I icon=-
+panelrows.row context=settings action=insertSelected title=Choose chord=↩ icon=primary
 panelrows.row context=speedtest action=- title=Back chord=⌫ icon=back
-panelrows.row context=speedtest action=insertSelected title=Confirm chord=Hyper I icon=-
+panelrows.row context=speedtest action=insertSelected title=Confirm chord=↩ icon=primary
 panelrows.row context=textCase action=- title=Back chord=⌫ icon=back
-panelrows.row context=textCase action=insertSelected title=Apply chord=Hyper I icon=-
+panelrows.row context=textCase action=insertSelected title=Apply chord=↩ icon=primary
 panelrows.row context=tmuxSessions action=- title=Back chord=⌫ icon=back
-panelrows.row context=tmuxSessions action=insertSelected title=Select chord=Hyper I icon=-
+panelrows.row context=tmuxSessions action=insertSelected title=Select chord=↩ icon=primary
 panelrows.row context=volume action=- title=Back chord=⌫ icon=back
-panelrows.row context=volume action=insertSelected title=Confirm chord=Hyper I icon=-
+panelrows.row context=volume action=insertSelected title=Confirm chord=↩ icon=primary
 panelrows.row context=vpn action=- title=Back chord=⌫ icon=back
-panelrows.row context=vpn action=insertSelected title=Confirm chord=Hyper I icon=-
+panelrows.row context=vpn action=insertSelected title=Confirm chord=↩ icon=primary
 panelrows.row context=wifi action=- title=Back chord=⌫ icon=back
-panelrows.row context=wifi action=insertSelected title=Confirm chord=Hyper I icon=-
+panelrows.row context=wifi action=insertSelected title=Confirm chord=↩ icon=primary
 panelrows.row context=workspaces action=- title=Back chord=⌫ icon=back
-panelrows.row context=workspaces action=insertSelected title=Select chord=Hyper I icon=-
+panelrows.row context=workspaces action=insertSelected title=Select chord=↩ icon=primary
 registry hostedrows count=19
 hostedrows.context name=audio rowCount=1
 hostedrows.context name=browserTabs rowCount=1
