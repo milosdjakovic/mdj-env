@@ -18,7 +18,22 @@
 local source = debug.getinfo(1, "S").source
 local herePath = source:match("^@(.*)$") or source
 local caseDir = herePath:match("^(.*)/[^/]+$")
-local configDir = caseDir .. "/../.."
+
+-- A path with its dot segments resolved in Lua, the config directory two levels above this case.
+-- The run must be handed it with no dot segments, since the stub lists the plugin trees by that
+-- spelling and a path through this case's own directory finds no plugin and no host.
+local function resolved(path)
+  -- A relative path, a plain lua run from inside the checkout, is taken from the working directory.
+  if path:sub(1, 1) ~= "/" then path = (os.getenv("PWD") or ".") .. "/" .. path end
+  local parts = {}
+  for part in path:gmatch("[^/]+") do
+    if part == ".." then table.remove(parts)
+    elseif part ~= "." then parts[#parts + 1] = part end
+  end
+  return "/" .. table.concat(parts, "/")
+end
+local configDir = resolved(caseDir .. "/../..")
+local spoonDir = configDir .. "/Spoons/Olm.spoon/"
 
 local function check(description, ok, detail)
   if ok then
@@ -28,13 +43,17 @@ local function check(description, ok, detail)
   end
 end
 
--- The run is handed the config directory as the shell resolves it, with no dot segments, since
--- the stub lists the plugin trees by that spelling and a path through this case's own directory
--- finds no plugin and no host, so nothing it checks below would be built.
+-- Every path is resolved here and single quoted, with nothing for a shell to expand. Inside
+-- Hammerspoon hs.execute wraps the whole command in double quotes for the user's login shell, so
+-- a double quote in it ends that quoting and a command substitution is expanded by the outer
+-- shell, in Hammerspoon's own directory, before any cd in the command has run. The first version
+-- built the paths with cd and $(pwd) and so handed the stub a spoon that was not there inside
+-- Hammerspoon, while it passed under plain lua.
 local sandbox = os.tmpname()
 os.remove(sandbox)
-local command = string.format("cd %q && lua Spoons/Olm.spoon/test/drygate-composerun.lua \"$(pwd)/Spoons/Olm.spoon/\" \"$(pwd)\" %q 2>&1",
-  configDir, sandbox)
+local function quoted(path) return "'" .. path .. "'" end
+local command = "lua " .. quoted(spoonDir .. "test/drygate-composerun.lua") .. " " .. quoted(spoonDir)
+  .. " " .. quoted(configDir) .. " " .. quoted(sandbox) .. " 2>&1"
 local output
 if hs and hs.execute then
   output = hs.execute(command, true) or ""
