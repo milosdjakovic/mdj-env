@@ -157,7 +157,7 @@ return {
       -- several other plugins have configured.
       aliasHint = { source = "root", policy = "optional",
         breaks = "no row ever states the word that would scope the launcher onto it, so a tool's alias still works when typed but is never discovered by reading its row" },
-      -- The one spelling of a chord, shared with the docked hint bar so a row and a hint can
+      -- The one spelling of a chord, shared with the action bar so a row and a hint can
       -- never print two different words for the same key. Root computed, since the leader
       -- catalog and the glyph renderer both live there.
       chordLabel = { source = "root", policy = "optional",
@@ -300,18 +300,9 @@ return {
     -- this one has no registry entry at all, being a host rather than a launcher row, so
     -- nothing else tells the root where to look.
     member = "_surface",
-    -- No panelAs line, and unlike every other plugin that omits one, the absence here is not
-    -- about this plugin's own configure contract at all, since the chooser stage build's
-    -- phase two left this plugin reading no docked panel callback in any shape, flat or
-    -- nested. It matters to a different reader. lib/services.lua's own perPlugin writes the
-    -- three callbacks onto perPluginData under this manifest's own name either way, nested
-    -- under a panelAs word when one is declared or flat when none is, and root/compose.lua's
-    -- own THE SEAM comment beside its stage wiring reads them flat now, straight off
-    -- perPluginData, with no nested field name for that file to carry by heart any more. So
-    -- this plugin's own configure still receives whichever shape arrives, flat fields now
-    -- rather than one nested table, on its ordinary call, and drops every one of them on the
-    -- floor on purpose either way, findings seven and eight of the phase two adversarial
-    -- review closed together by removing the line rather than by explaining it.
+    -- No panelAs line. It once named the field a docked hint panel's three callbacks arrived
+    -- under, and that panel was retired on 2026-10-23 for the action bar inside the chooser's own
+    -- canvas, so nothing is handed to this plugin under any name for it.
     primary = { action = "insertSelected", description = "Run" },
     close = { key = "space" },
     extra = {

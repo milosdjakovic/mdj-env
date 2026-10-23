@@ -1238,7 +1238,7 @@ function UI.leaveManageHistory()
 end
 
 --- UI.isManagingHistory() - whether the page is on, read by the plugin's own predicate so the
---- hint panel lists the way out exactly while there is one. Migrated onto host/stage, reading
+--- key panel lists the way out exactly while there is one. Migrated onto host/stage, reading
 --- the plain showing flag rather than an instance this file no longer holds.
 function UI.isManagingHistory()
   return page == "prune" and showing

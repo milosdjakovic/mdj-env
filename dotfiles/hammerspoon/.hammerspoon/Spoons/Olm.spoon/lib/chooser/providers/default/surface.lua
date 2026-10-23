@@ -31,8 +31,7 @@
 --- every draw exactly the way lib/panel.lua's own show and the clipboard preview both
 --- already do, so a surface drawn through this file looks identical to every other
 --- surface in this configuration. The window level matches lib/panel.lua's own default,
---- popUpMenu, since this is the same atom's own chrome sitting under a picker rather than
---- under a docked hint panel.
+--- popUpMenu, since this is the same atom's own chrome sitting under a picker.
 ---
 --- Surface.new(opts) takes opts.panel, the CanvasPanel module, injected here rather than
 --- required by path so this file names no concrete module of its own, and opts.style, the

@@ -128,8 +128,9 @@ registrar's descriptor validation, and `keymap-person.lua` is the person's own f
 `config/keymap.lua`, its chord grammar, every problem an entry can raise, displacement, false,
 the leaders, roles and aliases sections, which leaders a keymap puts in use, and the lists
 section, Olm's own all layer under every list, a person's all and per list entries, false, a
-refused clash within one list, a list chord shadowing a global one and the hint bar and action
-panel reading the moved key. `suite.sh dry` runs both.
+refused clash within one list, a list chord shadowing a global one, the action bar and the action
+panel reading the moved key, and the secondary, showKeys and the action bar's footer model.
+`suite.sh dry` runs both.
 
 Since the keymap binds, a projection of its rows is not the whole proof, so a second offline
 check records what was actually bound. `keys.sh --bound` runs the composition root under the

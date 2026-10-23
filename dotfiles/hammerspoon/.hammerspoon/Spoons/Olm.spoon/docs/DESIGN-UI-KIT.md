@@ -61,7 +61,7 @@ row, is in the alpha group and is not a role. The rule and what each role is for
 other corner Olm draws is derived from it by one formula, inner radius equals outer radius less
 the padding between the two edges, never below zero. `ui.nestedRadius(outer, gap)` is that
 formula and `radius.nested` is it applied once, the surface radius less `pad`, the padding every
-panel and pane takes on all four sides. So the hint bar's key badges, the Dismiss chip, the
+panel and pane takes on all four sides. So the action bar's key badges, the Dismiss chip, the
 colour toast's swatch, a preview picture in a pane and the clipboard's colour chip all take
 `radius.nested`. Something with its own padding works out its own corner with the same call,
 the chooser's highlighted row from the list margin and the cheat sheet's badges from its doubled
@@ -101,8 +101,8 @@ row(children, {gap, align, fillIndex})
                               its facts whole
 heading(label, facts)         a section label left and optional facts flush right in subtext, see below
 stack(children, {gap})        top to bottom
-flow(children, {gapX, gapY})  left to right, wrapping at the rect width, the hint bar
-grid(children, {columns})     the cheat sheet
+flow(children, {gapX, gapY})  left to right, wrapping at the rect width
+grid(children, {columns})     the cheat sheet and the action bar's key panel
 divider()
 spacer(size)
 surface()                     the chrome, CanvasPanel.surfaceElements behind it
@@ -234,7 +234,7 @@ no rows under a typed query. The last one draws the shared empty state,
 where the rows would be. It is drawn by `lib/chooser/providers/default/list/render.lua` for
 every list rather than offered by each tool, and it is never a row, so nothing highlights it,
 Return and a digit and a click reach nothing, and the action panel, the stage's held highlight
-and the hint panel see exactly the zero rows they saw before. An empty query with no rows
+and the action bar see exactly the zero rows they saw before. An empty query with no rows
 stays blank, since no search was made. The band keeps its height when it is empty, because the
 surface is sized from the row count and never from the rows, which gives the message at least
 one row of room and keeps the surface still as a query empties the list and refills it. Added
@@ -250,13 +250,25 @@ the line height of the role its glyph is drawn in plus twice a space step, with 
 a space step too, so there is no textY and no height literal. The layout engine centres the
 cap height of every text in its line band, from the real font metrics through `measure:metrics`,
 the way the canvas list centres a row, so no caller nudges a frame. The empty state is caption
-and subtext, the hint bar is a section badge beside a caption label, the message toast is
+and subtext, the hint bar, now the action bar, is a section badge beside a caption label, the message toast is
 title, the colour toast's hex is code, the report toast is title, body and caption, and the
 cheat sheet is body for the row label and the key glyph, caption for the separator and section
 for a title. The cheat sheet's row, badge and title heights are derived from the role line
 heights and the space steps unless a model gives its own. The parity probes for these
 surfaces were removed, since they asserted the old look, and `test/cases/surfaces.lua` pins
 the derived geometry instead.
+
+## The action bar
+
+The default chooser's footer row, `docs/PLAN-ACTION-BAR.md`, drawn by
+`lib/chooser/providers/default/footer.lua` through the kit and nothing else. Every word is the
+caption role, every key the hint badge, the line along its top edge and along the key panel's is
+the kit's divider, and the key panel sits on the background colour role. The bar's height is the
+hint badge's height with the small space step above and below it, 21 plus twice 6 at the shipped
+sizes, so a size set in `config/typography.toml` reflows it, and the key panel is as tall as its
+two column grid of keys with `pad` around it, never taller than the list. It replaced the docked
+hint bar, a flow of the same badges under the list in a panel of its own, on 2026 10 23.
+`test/cases/surfaces.lua` pins the derived geometry.
 
 ## The typography check, and how an icon declares itself
 

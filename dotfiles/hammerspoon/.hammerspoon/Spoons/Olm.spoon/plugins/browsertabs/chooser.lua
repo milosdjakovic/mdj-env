@@ -38,7 +38,7 @@
 --- This file is pure policy over an injected api, so it reaches the engine, the recency
 --- memory and the permission probe without naming any of them. The spoon composition root
 --- builds that api. It names no keys either, rows say what selecting them does and never which
---- key does it, since the keys are config data that the shared shortcut panel surfaces.
+--- key does it, since the keys are config data that the action bar surfaces.
 
 local M = { name = "BrowserTabs.chooser" }
 

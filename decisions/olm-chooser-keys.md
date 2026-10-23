@@ -1,7 +1,9 @@
 # Olm chooser keys
 
-Status. The default chooser's text field lets Hyper presses through to their own dispatch, and
-the action panel opens on Hyper and o in every list, with file search reveal on Hyper and f.
+Status. The default chooser's text field lets Hyper presses through to their own dispatch, the
+action panel opens on Hyper and o in every list, with file search reveal on Hyper and f, and every
+list carries an always visible action bar with a key panel on Hyper and slash and an optional
+secondary on Command and Return.
 
 ## Now
 
@@ -21,9 +23,16 @@ The action panel is on Hyper and o in every list, declared once in `lib/surface.
 that once sat at the bottom of `config/keys.lua` having gone with that file. File search reveal in
 Finder is on Hyper and f.
 
-The docked shortcut hint pane shows after 800 ms with no key, and every key restarts that
-countdown, Hyper moves included, since the default provider counts activity in selectNext,
-selectPrev and insertSelected. Once shown it stays until the list closes.
+Every list in the default chooser carries one action bar row at the bottom of its own canvas,
+always visible, since 2026-10-23, `Spoons/Olm.spoon/docs/PLAN-ACTION-BAR.md`. It replaced the
+docked shortcut hint pane that showed after 800 ms with no key. The right side reads the primary's
+label on Return, the secondary's on Command and Return when the list declares a `secondary`, and
+Actions on the action panel's chord, each label following the level shown, the presentation's
+`labels` first. A (?) button on the left, or the shared `showKeys` verb on Hyper and slash, opens a
+key panel over the bottom rows listing every other key, and any key that acts or a second click
+closes it, Escape closing the panel and leaving the list. Command and Return in a list with no
+secondary keeps choosing the row. The action panel lists Back, the primary, the secondary and then
+the verbs. The legacy chooser draws no bar.
 
 The default chooser is the shipped default and the word chooser means it unless legacy is
 named. The legacy chooser, the one wrapping hs.chooser, is deprecated, still selectable
@@ -31,6 +40,16 @@ through `chooser.provider` in the settings as a fallback, marked in its own head
 in a console warning on every load that picks it. Removing it is a later, separate step.
 
 ## Rejected
+
+- **A dropdown anchored to (?) for the key list.** 2026-10-23. It is a new kind of component with
+  its own scroll and key handling, for a list of about a dozen keys.
+- **Turning the list itself into the key list the way Actions does.** 2026-10-23. The person loses
+  sight of the list they were in.
+- **The footer as a separate docked `CanvasPanel`.** 2026-10-23. A press outside the chooser's canvas
+  hides the chooser, so (?) would need a second hit test across two surfaces, and one canvas draws
+  both for free.
+- **Keeping the pause before the footer shows.** 2026-10-23. What Return and Command and Return do is
+  the thing worth seeing before pressing either, so the bar is there from the first frame.
 
 - **Putting the action panel on Hyper and k.** 2026-10-14. k already moves the cursor up in
   every list, so two actions would answer to one key.
@@ -168,3 +187,23 @@ Return as a list chord, though nothing ever decided that it should. It was a sid
 action, so `uses` now claims only plain Return and plain keypad Enter. The field already asks the
 list keys before `_onFieldKey`, so a list key on a modified Return answers first, and a modified
 Return nothing claims still chooses the row as before.
+
+### 2026-10-23 13:44
+
+The docked shortcut hint pane is replaced by the action bar, `Spoons/Olm.spoon/docs/PLAN-ACTION-BAR.md`,
+at Milos's request, built on `olm/action-bar` and waiting for its live load. `lib/hints.lua`'s
+`footerModel` answers the bar's right side, the key panel's keys and one state string from the same
+bindings, gates and labels `rowsFor` reads, and `footerFor`, `shortcutsContent` and
+`shortcutPanelFor` are gone, footerFor folded into the model rather than kept beside it, since its
+only readers were the pane and the tests. The default provider takes the model through a per
+instance `config.footer` the stage passes on, draws it through `footer.lua` and the kit, polls it
+four times a second while the list is up and owns the key panel's state and hit tests. The footer
+height is the hint badge with the small space step above and below it. The stage answers the
+current presentation's `labels` for the item last highlighted outside the action panel, and the
+root asks it only for the context showing. Two shared verbs joined `keymap.listDefaults`,
+`secondary` as the first field key default, a table of key, mods and leader false beside the bare
+key names, and `showKeys` on slash. The `shortcutsPanel` policy, its commented seam in
+`config/settings.lua` and `init.lua`, the per plugin panel triple in `lib/services.lua` and
+`lib/wire.lua`, and the stage's three panel callbacks are removed. One reading of the plan was
+chosen here rather than stated there, Escape over an open key panel closes the panel and leaves the
+list, the way a popover answers it, and a second Escape closes the list.

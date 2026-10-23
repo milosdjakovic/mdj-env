@@ -103,8 +103,10 @@ so no open after the first one pays construction, and no handoff closes a window
 can open.
 
 The shared navigation keys are live while you are showing, j, k, i, x, and your primary key,
-routed to the stage through the one nav adapter. The docked hint panel names them, the cheat
-sheet lists you, and the action panel opens over your list and offers your verbs.
+routed to the stage through the one nav adapter. The action bar under your rows says what Return,
+Command and Return and the action panel do, its (?) opens a key panel naming every other key, the
+cheat sheet lists you, and the action panel opens over your list and offers your primary, your
+secondary and your verbs.
 
 The ambient policy arrives without a word from you. Ten rows, the uniform width, the fuzzy
 matcher, the shared theme, the overlay display policy, and the highlight reset to row one on
@@ -235,6 +237,17 @@ person's own Backspace or Escape.
 `back` is asked on Backspace while the field is empty, and answers first. Only when it declines
 does the stage pop the stack.
 
+`labels` words the action bar and the action panel for the highlighted row, a member answering a
+table with `primary` and `secondary` strings, called with the highlighted item every time the bar
+is drawn, so "Uninstall 4" may count what is checked. A string left out keeps your surface's own
+description, and a level declaring nothing reads the descriptions. A child presentation that wants
+its own words hands its own `labels` function, since it inherits only its parent's name.
+
+`surface.secondary`, `{ action = "...", description = "..." }`, is the second thing Return can
+mean, on Command and Return, the same shape as `primary` with `needs`, `chord` and `repeats`
+allowed and no key, since the key is Olm's. Your surface adapter answers its action like any
+`extra` row's. A list declaring none keeps Command and Return choosing the row.
+
 Three more exist and are used by exactly the plugins that needed them, `peekPreview`,
 `onScroll`, and `onRightClick`. `docs/PLUGIN-CONTRACT.md` has each.
 
@@ -246,7 +259,7 @@ pushes a tool, so choosing the row swaps the list in place, backspace pops back 
 the child may declare its own placeholder, matcher, paneWidth, or rowCount and inherit
 whatever it does not. Returning nil or nothing keeps today's meaning, the row completed and
 the window hides. A child needs no name, the stage derives context from you, though it may
-carry one when its level genuinely wants different hint content.
+carry one when its level genuinely wants different keys in the action bar.
 
 This is `docs/BRIEF-CONTRACT-V3.md`, built and landed. BrowserTabs and DisplayProfiles are the
 two plugins that nest this way today, each a settled example worth reading beside the brief.
@@ -356,7 +369,7 @@ by the cascade that already handles a missing plugin.
 And one warning rather than a refusal, worth reading as a real defect, since the routing it
 names really does go quiet.
 
-- `registrar found '%s' presenting under identity '%s' while its surface declares context '%s', the docked hint bar routes by identity and will not follow that context`
+- `registrar found '%s' presenting under identity '%s' while its surface declares context '%s', the action bar routes by identity and will not follow that context`
 
 `lib/registry.lua`, on the descriptor the registrar built for you.
 
@@ -470,7 +483,7 @@ window. Nothing audits that.
 Moving the highlight yourself is not forbidden by anything. It is simply wrong.
 
 `surface.context` and your identity agreeing is a warning, not a refusal, and everything keeps
-working until the hint bar goes quietly empty.
+working until the action bar quietly loses your keys.
 
 ## Drawing with the kit
 
@@ -770,7 +783,7 @@ A row is data. Never put a function in a row or its item, since the launcher han
 
 Name the chord rather than spelling it. Give `group` and `chord` with the leader as a role, or
 `false` for a plain combination, and the launcher spells the subtitle with the same speller the
-hint bar uses. A finished `subTitle` is for a row with no key, and it is taken as it stands.
+action bar uses. A finished `subTitle` is for a row with no key, and it is taken as it stands.
 
 Your run gets the whole item back. Olm stamps your identity on every item as `owner`, and the
 launcher routes a chosen row to your `launcherRun` by it, after the list has closed and focus has

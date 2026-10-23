@@ -86,7 +86,7 @@ function obj.new(deps)
     -- Which wiring time choices were actually made, so a binding that named one through `needs`
     -- is dropped here rather than being bound to nothing. This is answered ONCE, unlike `when`,
     -- which is a live predicate asked on every press, and the difference matters because a
-    -- `needs` gate must remove the binding from the key wiring and from the hint panel together.
+    -- `needs` gate must remove the binding from the key wiring and from the action bar together.
     -- A binding present in one and absent from the other is the exact disagreement the two
     -- discoverability rules exist to prevent.
     --

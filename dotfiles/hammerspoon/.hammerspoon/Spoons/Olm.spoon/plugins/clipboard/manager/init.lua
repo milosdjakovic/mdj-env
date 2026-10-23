@@ -259,7 +259,7 @@ function M.leaveManageHistory()
 end
 
 --- M.isManagingHistory() - whether that page is on, read by the plugin's own `when` predicate so
---- the hint panel lists the way back out exactly while there is one.
+--- the key panel lists the way back out exactly while there is one.
 function M.isManagingHistory()
   return ui.isManagingHistory()
 end

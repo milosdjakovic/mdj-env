@@ -94,7 +94,7 @@ obj.providers = {
 --- The live `when` gates this plugin's own bindings name. The composition root collects these
 --- off every module rather than holding a list of its own, so a key gated on a state only this
 --- plugin can see needs nothing outside this plugin, and an unknown name would be treated as
---- always live, which is what leaves a key listed in the hint panel when there is nothing for it
+--- always live, which is what leaves a key listed in the key panel when there is nothing for it
 --- to do. Both are about one thing, whether the picker is on its manage history page, which is
 --- what decides which of its keys mean anything and which of them are worth printing.
 obj.predicates = {
@@ -111,7 +111,7 @@ obj.predicates = {
 
 --- ClipboardHistory.liveLabels
 --- The words on this plugin's own keys that change with its own live state, collected by the
---- composition root the same way the predicates above are, so the hint bar and the action panel
+--- composition root the same way the predicates above are, so the action bar and the action panel
 --- read one answer and this plugin still never learns which surfaces exist or which key reaches
 --- it. A label answers nil to leave the binding's declared description standing.
 ---

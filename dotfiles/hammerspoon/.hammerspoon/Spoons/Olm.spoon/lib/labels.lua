@@ -1,7 +1,7 @@
 --- === labels ===
 ---
 --- The one spelling of a chord and of a set of aliases, wherever a person reads one. Two surfaces
---- state a chord, every launcher row and the docked hint bar, and two state a set of aliases, a
+--- state a chord, every launcher row and the action bar, and two state a set of aliases, a
 --- launcher row and the alias directory's own rows. Spelling either in each surface is how one key
 --- came to read two ways depending on where you met it, one writing a plus where the other wrote a
 --- space, and how one set of aliases differed by a leading space.

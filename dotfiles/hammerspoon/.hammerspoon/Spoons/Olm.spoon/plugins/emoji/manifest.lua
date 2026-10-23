@@ -99,7 +99,7 @@ return {
   },
 
   -- It has a chooser, so it takes the shared navigation, its predicate, its registry
-  -- entry, and its docked shortcut panel with nothing further stated. Only the primary key
+  -- entry, and its place in the action bar with nothing further stated. Only the primary key
   -- is named, since j, k, and x mean the same thing in every list here and the predicate
   -- name and priority follow from the context name.
   surface = {

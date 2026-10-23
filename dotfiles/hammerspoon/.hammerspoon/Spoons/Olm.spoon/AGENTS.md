@@ -404,12 +404,13 @@ retired and named.
 
 The `lists` section holds the keys live while a list is open, read by `readConfig` into one entry
 list per list name and `all`, and laid over the built lists by `keymap.applyLists` in the root,
-right after the plan resolves and before the hint bar, the action panel, the keymap and the
+right after the plan resolves and before the action bar, the action panel, the keymap and the
 contexts read them, so all of them read one answer. It first places every default binding, one
 naming no leader, on the leader the `list` role lands on, `keymap.LIST_ROLE`, HYPER unless the
 `roles` section moves it, so every reader after it spells and binds a binding's own leader and
 `w.contexts` binds each on the held leader it names, a list key on a modifier leader being a field key. The shared verbs carry `shared` on their
-binding, `primary`, `selectNext`, `selectPrev`, `close` and `openActionPanel`, and `lib/surface.lua`
+binding, `primary`, `secondary`, `selectNext`, `selectPrev`, `close`, `openActionPanel` and
+`showKeys`, and `lib/surface.lua`
 builds them on the keys of Olm's own `all` layer, `keymap.listDefaults`, handed in through the
 resolver's `listKeys`, so that file holds no key and the dry gate refuses one written there. A
 manifest's own key, an `extra` row's or a `close.key`, is that list's default, and `all` moves and
@@ -449,7 +450,7 @@ and the libs keep the rules. `test/rootmechanism.lua` pins all three over fakes.
 `lib/labels.lua` is the one spelling of a chord, a leader's name, a space and the key glyph, and of
 a set of aliases, the words in brackets. `chordLabel(glyphFor)` answers the speller every surface is
 handed, and the glyph helper is the shared cheat sheet renderer's, handed in rather than loaded
-because the spoon publishes that renderer once. The launcher and the hint bar both spell a chord
+because the spoon publishes that renderer once. The launcher and the action bar both spell a chord
 through it, and a launcher row and the alias directory both spell aliases through it, which is
 what ended one key reading two ways.
 
@@ -475,6 +476,48 @@ the launcher's name, the stage's rule for a level pushed over a list, so its ico
 launcher's. Its rows are `lib/hints.lua`'s `keyEntries`, words only, built on the first open and
 kept for the load, a row listed exactly when `lib/binder.lua`'s `bindable` says it is bound. A key
 row answers stay and does nothing. `test/keypage.lua` pins it.
+
+## The action bar, one footer row inside the default chooser
+
+Every list on the stage carries one footer row at the bottom of the default chooser's own canvas,
+always visible, `docs/PLAN-ACTION-BAR.md`. It replaced the docked shortcut hint pane on 2026-10-23,
+a separate `CanvasPanel` under the list that appeared after an 800 ms pause, and nothing of that
+pane is left, no `shortcutsPanel` policy, no per plugin panel triple and no `shortcutPanelFor`.
+`decisions/olm-chooser-keys.md` has the decision and what was turned down.
+
+The model and the paint stay apart. `lib/hints.lua`'s `footerModel(contextName, plan, deps)` is
+pure data, `right` the bar's right side, the primary's label on the Return glyph, the secondary's
+on its chord when the list declares one and its gate is open, and Actions on the action panel's
+chord, `keys` every other key the list answers in declaration order followed by Back and Command
+with a digit, which the field reads for itself, and `state` one comparable string. It reads the
+bindings, the live gates and the label lookup `rowsFor` reads, so the bar, its key panel and the
+action panel cannot disagree. A label is the level's own `labels` first, then `liveLabels`, then
+the binding's description, then Open for the primary and the action spelled as words otherwise.
+
+The default provider takes the model through one per instance collaborator, `config.footer`, and
+`footer.lua` beside it draws it through the kit, the caption role and the hint badge, the divider
+along the bar's top edge and the background colour role behind the key panel. The bar's height is
+the hint badge with the small space step above and below it, and geometry gives it a footer rect
+under the list, subtracted from the rows a screen can hold. The provider asks the model on every
+show, after every highlight move and on a quarter second poll, the timer's handle kept, and owns
+the key panel's open state, the (?) hit test and the panel's rect. A press on the bar never hides
+the list, a press on (?) toggles the panel, the panel's rect is on no row, any key that acts closes
+it, and Escape over an open panel closes the panel and leaves the list. With no footer handed in
+the provider draws no bar and keeps every row, so it stays usable alone, and the legacy chooser
+draws none.
+
+The root builds one footer for the stage over `stageModule:current()`, the way the stage panel
+did, and hands it through the stage's manifest need `footer`. The stage passes it to its instance,
+remembers the item last highlighted outside the action panel, and answers `labels()`, the current
+presentation's `labels` member asked with that item, and `toggleKeys()`, which the shared
+`showKeys` verb's dispatch exception calls. A presentation's `labels` is a registrar member like
+`searchText`, and a child presentation hands its own function.
+
+Two shared verbs came with it, both in `keymap.listDefaults`. `secondary` is a field key, Command
+and Return with leader false, the second listDefaults shape, built right after the primary only for
+a surface declaring `secondary`, so Command and Return keeps choosing the row in every other list.
+`showKeys` is slash on the list role in every list. Both move and free in the `lists` section like
+every shared verb. The action panel lists Back, the primary, the secondary and then the verbs.
 
 ## Secure focus, a list opened over a password field
 

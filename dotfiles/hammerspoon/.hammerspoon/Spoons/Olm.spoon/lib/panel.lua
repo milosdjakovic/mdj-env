@@ -17,7 +17,7 @@
 ---
 --- Second, it is the mechanism for a docked panel: placement (below / above / left /
 --- right / center), sizing, and reveal timing. WHAT it shows is a pluggable content
---- renderer injected by the caller, so a purpose like a shortcut-hint bar is one
+--- renderer injected by the caller, so a purpose like a toast is one
 --- content object and the panel stays ignorant of it. The composition root creates an
 --- instance per purpose and wires show/hide to a chooser's onPositioned/onClose.
 ---
@@ -57,8 +57,8 @@
 --- delay and it becomes idle-timed instead: arm(anchor) starts a countdown rather than
 --- drawing, poke() restarts that countdown (call it on each keypress), and when the
 --- countdown expires the panel reveals and latches, staying up until hide() regardless of
---- later pokes. This is the deferred hint bar: hidden while the field is in active use,
---- shown once the user pauses. The panel owns only the timing; it never learns where the
+--- later pokes. It was built for the deferred hint bar the action bar inside the chooser
+--- replaced: hidden while the field is in active use, shown once the user pauses. The panel owns only the timing; it never learns where the
 --- pokes come from, so a caller wires its own activity source to poke().
 ---
 --- config (all optional unless noted):

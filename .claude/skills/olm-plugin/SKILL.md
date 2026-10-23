@@ -290,9 +290,9 @@ keys and never assumes its action sits on the key it suggested. `config/plugins.
 `config/keymap.lua`, and every other default is overridden in the plugin's entry there. A plugin
 action is reachable from the keymap by its descriptor's `name`, its tool's open row is `open`, and
 a list verb by the action name its `surface` gives it, so name actions as a person would write
-them. The keys every list shares, the primary, the two move keys, close and the action panel, are
-Olm's own `all` layer and never a plugin's, so a `surface` names only its primary action and the
-`extra` rows it adds, and a key listed with `chord = false` stays the plugin's own fact. A surface
+them. The keys every list shares, the primary, the secondary, the two move keys, close, the action
+panel and the key panel, are Olm's own `all` layer and never a plugin's, so a `surface` names only
+its primary action, an optional `secondary` on Command and Return, and the `extra` rows it adds, and a key listed with `chord = false` stays the plugin's own fact. A surface
 key names no leader. Every default list key rides the `list` role, which the person moves like
 any role, and a person's list chord names its own leader, or none at all for a key the open list's
 own field answers, so a plugin never assumes its list keys sit on Hyper. Person supplied policy

@@ -104,8 +104,8 @@ exposes a dot-called navigation adapter through `surface()`, which the root drop
 shared `choosers` list, and the `textCaseOpen` predicate reads `isShowing()`. Its `textCase`
 context gives it the shared j, k, i navigation with x to close. Rows are a static set per
 open, so the shared fuzzy matcher filters them over title and subtitle with no per-tool
-wiring, unlike the structured-query tools that opt out. Like the other native choosers it
-docks the deferred shortcut panel through the three chooser callbacks.
+wiring, unlike the structured-query tools that opt out. Like every list on the stage it
+carries the action bar under its rows.
 
 ## The last applied case leads, and the launcher row tells the truth early
 

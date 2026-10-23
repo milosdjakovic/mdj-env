@@ -668,9 +668,9 @@ any other list tool. The spoon exposes its dot called navigation adapter through
 `launcherOpen` predicate reads `spoon.Launcher:isShowing()` directly. It has a
 `launcher` context block giving it the shared next, previous, and accept
 navigation with a close action (the open key doubles as the close, the same
-pattern another list tool uses). Like the other list tools it docks the deferred
-shortcut panel (`shortcutPanelFor("launcher")`) through the three chooser
-callbacks, which spell the shortcuts out on the same canvas once the user pauses.
+pattern another list tool uses). Like every list on the stage it carries the action
+bar at the bottom of the chooser's own canvas, which names what Return does and opens a
+key panel spelling every other shortcut out.
 The native arrows, typing, accept, and cancel keys work whenever the opening key
 is released. The chosen row runs deferred by a short timer, so it fires only
 after the chooser tears down and

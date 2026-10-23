@@ -308,8 +308,7 @@ drops into the shared `choosers` list, and the `emojiOpen` predicate reads
 `isShowing()` directly. It has an `emoji` context block giving it the shared j, k, and
 i navigation with x to close, the same shape a pure policy picker uses, because the key
 that opens it is itself the move down key inside so it cannot double as the close the way
-an open key that is not also a navigation key can. Escape closes natively. Like the other native choosers it docks the deferred
-shortcut panel through the three chooser callbacks.
+an open key that is not also a navigation key can. Escape closes natively. Like every list on the stage it carries the action bar under its rows.
 
 It inherits the shared search, declaring no matcher, since phase three of the unified search on
 2026-10-17. Until then it opted out with `matcher = false`, because the shared matcher read only

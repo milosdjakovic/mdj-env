@@ -824,7 +824,7 @@ end
 --- asked for rather than followed.
 ---
 --- Inert with no peek viewer resolved, because then there is nothing to ask for. The binding is
---- gated on the same question through a predicate, so the key drops out of the shortcut panel
+--- gated on the same question through a predicate, so the key drops out of the key panel
 --- too rather than being listed and doing nothing.
 function M.peekPreview()
   if peekViewer == NO_VIEWER then return end

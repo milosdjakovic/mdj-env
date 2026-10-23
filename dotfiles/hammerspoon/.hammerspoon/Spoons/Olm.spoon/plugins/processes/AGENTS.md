@@ -374,8 +374,8 @@ dropped whole. The picker has no scroll bindings and this is why it needs none.
 The canvas is the shared docked pane, `lib/dockedpane.lua`, which the root grants for the
 manifest's `pane = true` and which every pane in Olm uses, so the docking, the empty state, the
 hide guard and the teardown described here live there once. `preview.lua` hands it a painter.
-It draws through the shared surface, the same routine behind the docked shortcut panel
-and the cheat sheets, so the three read as one component. It is not a CanvasPanel
+It draws through the shared surface, the same routine behind the chooser and the cheat
+sheets, so the three read as one component. It is not a CanvasPanel
 instance though, and the reason is placement rather than looks. A CanvasPanel computes
 its own position from an anchor and its own size from its content, while this pane has
 to land exactly on the companion rect the Chooser atom already reserved and reported
@@ -386,8 +386,8 @@ pane harmless, and `clickActivating` is off on top of that so typing never leave
 search field.
 
 Everything the pane composes with is wrapped rather than replaced. `onPositioned`
-docks the pane and then hands the shortcut panel an anchor spanning both panes, so the
-hints sit under the pair rather than stopping short under the list, and `onClose`
+docks the pane, which once also handed the docked shortcut panel an anchor spanning both
+panes before the action bar moved inside the chooser's own canvas, and `onClose`
 destroys the pane on the same idempotent teardown path the sampler stops on. Destroyed
 rather than hidden, because nothing may outlive a dismissal, and rebuilding one canvas
 on the next open costs nothing.

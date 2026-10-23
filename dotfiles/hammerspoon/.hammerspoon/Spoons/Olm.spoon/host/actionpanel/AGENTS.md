@@ -86,7 +86,9 @@ and that function asks the live gate as well as the kind, so a verb whose `when`
 false is no longer offered. `verbsIn` is untouched and stays untouched, for exactly the reason
 the next section gives. The correction was owed the moment a picker grew a page whose two entry
 verbs are gated off, since the panel was listing two rows that did nothing, and it belonged in
-`rowsFor` because that is the function the hint bar already read the same answer from.
+`rowsFor` because that is the function whose gate the hint bar, and now the action bar's
+`footerModel`, already read the same answer from. Since the action bar landed the panel also
+lists the primary and the secondary right after Back, with the same live labels the bar shows.
 
 Keeping them out here is what makes verbsIn a statement about the declarations themselves,
 a fact that only changes when a manifest or actionKinds changes, rather than a

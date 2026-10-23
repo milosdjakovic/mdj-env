@@ -691,12 +691,12 @@ Two things follow from it that are easy to miss. Room beside the list is asked o
 rather than read from config by the surface, since the panel wants 420 and the window wants none,
 and that number is fixed when the picker is built. And the keys follow the provider, because a
 binding may declare what it `needs` and the root answers it once, so the two scroll keys exist
-only under the panel and the peek key only under Quick Look. The shortcut panel is filtered by the
+only under the panel and the peek key only under Quick Look. The action bar's key panel is filtered by the
 same answer, so a key is never listed while doing nothing, which is the discoverability rule
 holding rather than a nicety.
 
-**That filter is applied to the DATA once rather than evaluated per press, and the reason is the
-shortcut panel.** A binding gated on live state stays bound and simply does nothing when its
+**That filter is applied to the DATA once rather than evaluated per press, and the reason was the
+shortcut panel the action bar replaced.** A binding gated on live state stays bound and simply does nothing when its
 predicate is false, which is right for something that changes while you use the tool, like whether
 there is a level above the one you are browsing. A provider is chosen at wiring time and cannot
 change, and the panel is built from a static hint list, so a runtime predicate would have hidden
@@ -1045,8 +1045,9 @@ the companion rect the Chooser atom already reserved and reported. That rect is 
 the click watcher counts as part of the picker, so a pane drawn a few points outside it would
 turn a click on itself into a dismissal.
 
-`onPositioned` is composed rather than replaced, docking the pane and then handing the
-shortcut panel an anchor spanning both panes, so the hints sit under the pair. The pane is
+`onPositioned` is composed rather than replaced, docking the pane, which once also handed the
+docked shortcut panel an anchor spanning both panes before the action bar moved inside the
+chooser's own canvas. The pane is
 destroyed rather than hidden on the atom's one idempotent teardown, so nothing outlives a
 dismissal.
 

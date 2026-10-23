@@ -209,7 +209,7 @@ return {
       { key = "m", action = "manageHistory", description = "Manage history", icon = "sweep" },
       -- A listing rather than a binding. Backspace on an empty field belongs to the Chooser
       -- atom, which reads it directly as its `back` hook, so there is nothing here to bind and
-      -- chord = false says so. It is still declared, because the hint panel is where a key
+      -- chord = false says so. It is still declared, because the key panel is where a key
       -- becomes visible and a way out nobody can see is a way out nobody takes, and it is gated
       -- so it appears exactly while there is a page to leave.
       { key = "delete", action = "leaveManageHistory", when = "clipboardManagingHistory",

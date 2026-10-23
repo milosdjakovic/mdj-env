@@ -7,8 +7,8 @@
 --- coordinates, and the chip and text colours.
 ---
 --- It does NOT draw its own panel. The surface (fill, border, corners, padding,
---- placement) is the shared CanvasPanel atom, the same one behind the docked
---- shortcut hint bar and the clipboard preview, so the overlay reads as the same
+--- placement) is the shared CanvasPanel atom, the same one behind the toasts
+--- and the clipboard preview, so the overlay reads as the same
 --- family. This spoon is a CanvasPanel content strategy: it exposes
 --- preferredSize/draw, CanvasPanel owns everything around it. CanvasPanel owns the
 --- surface look itself, so the composition root injects only the factory, not any
@@ -25,7 +25,7 @@
 --- and the key badge glyph are the body role, the separator word between alternate keys is
 --- caption, and a section title is the section role in its own colour, so the type, the
 --- chip and the text colours track light and dark through the kit's tokens, matching the
---- hint bar. The badge radius is the kit's nested radius, the surface's corner less the panel
+--- action bar under every list. The badge radius is the kit's nested radius, the surface's corner less the panel
 --- padding, and there is no font size setting, since the roles carry the sizes.
 ---
 --- The three heights are derived, never literal. The key badge is a body line with the small

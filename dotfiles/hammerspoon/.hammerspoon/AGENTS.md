@@ -281,7 +281,7 @@ inside one list. `all` moves and frees only keys Olm's own layer gave, so a list
 states its own key for a shared verb, the launcher's space close that doubles as its open key,
 keeps it unless the person names that list, and a list's own entry overrides an `all` entry that
 resolves to the same binding, by verb or by action. `keymap.applyLists` lays the section over
-the built lists before the hint bar, the action panel, the keymap and the contexts read them, so a moved list key shows its new chord in
+the built lists before the action bar, the action panel, the keymap and the contexts read them, so a moved list key shows its new chord in
 all of them. A list chord may shadow a global one while its list is open, since collisions are
 checked within the global layer and within each list's layer by leader, modifiers and key, never
 across, so `hyper+j` and `meta+j` are two keys of one list. A list chord with no held leader,
@@ -665,7 +665,7 @@ profiles, marks the active one, captures the current arrangement when it matches
 none, and renames or deletes the captured ones, curated ones staying read only.
 The main root wires it like the other native choosers: the curated profiles and
 the JSON path (`hs.configdir .. "/config/display-profiles.json"`) are injected in
-`configure`, the view deps and the docked shortcut panel in
+`configure`, the view deps in
 `spoon.DisplayProfiles.chooser.configure`, plus the `displayProfilesOpen`
 predicate, the `displayProfiles` Hyper context its manifest declares, the
 `choosers` registry entry, and the launcher special action row. Because the JSON
@@ -725,7 +725,7 @@ The automatic Workspaces that replaced them ran, and was replaced in turn becaus
 on its own meant remembering whatever macOS or an app last did.
 
 **Overlay display policy.** One place decides which display every transient
-overlay appears on, every chooser with its docked shortcut panel, both cheat
+overlay appears on, every chooser with its action bar, both cheat
 sheets, and the colour toast. The list is not enumerated here on purpose, a hand kept
 roster drifts the moment a picker is added, and the mode to resolver map inside
 `Spoons/Olm.spoon/lib/overlaydisplay.lua` is the authority. This is Strategy wired through
@@ -975,8 +975,8 @@ restow, it resolves through the existing link like any new file.
 
 **A spoon never knows how it is used.** Which physical keys open a spoon and drive
 its list, and any human wording that names those keys or the interaction, live only
-in the plugin's manifest and the composition root, and reach the user through the shared
-deferred shortcut panel. A spoon supplies its rows as plain data, a title, a subtitle,
+in the plugin's manifest and the composition root, and reach the user through the action
+bar every list draws under its rows. A spoon supplies its rows as plain data, a title, a subtitle,
 and an icon, plus the action a chosen row performs, and nothing more. It never bakes a
 hint like "Return to copy", or the name of the key that opens it, into a row, a
 placeholder, or an alert, and it never reads a binding to decide its behavior. When a
@@ -984,7 +984,7 @@ row's selection does something, express it as the action itself, "copy this comm
 "connect to this relay", never as the key that triggers it, since the key is config data
 that drifts the moment it is rebound. The rule covers the spoon's own doc comments too,
 they describe what the tool does, not the keys that reach it. This is the invariant the
-picker wiring below serves, the contexts, the predicates, and the shortcut panel are all
+picker wiring below serves, the contexts, the predicates, and the action bar are all
 assembled in the root, so the spoon exposes only a control surface and its rows and
 learns none of it. The payoff is that rebinding a key, or opening the tool another way,
 touches config alone, and the hint and the binding can never disagree because there is
@@ -1023,21 +1023,19 @@ step mirroring what the clipboard already does.
 4. Expose a `surface` function so `root/compose.lua`'s `surfaceAdapterFor` can resolve
    it into the plan, the live equivalent of the retired `choosers` list, so `lib/nav.lua`'s
    `activeSurface` and `routeNav` send the navigation actions to whichever surface is open.
-5. Show the shortcuts. Every chooser docks a
-   deferred `HelperPanel` (a plain `hs.canvas`) below the list, so the hints stay
-   hidden while the field is in use and reveal once the user pauses
-   (`settings.shortcutsPanel.delayMs`). Build one with `shortcutPanelFor(name)`, defined in
-   `Spoons/Olm.spoon/lib/hints.lua` and called from `root/compose.lua`, which reads the hints
-   from `footerFor(name)` in the same file (the same context
-   bindings the plan builds from the manifests) and returns the three callbacks a chooser is wired with, then
-   pass `onPositioned`, `onActivity`, and `onClose` into the chooser. `onPositioned`
-   arms the panel at the chooser frame, `onActivity` pokes its idle timer on each
-   keypress, and `onClose` hides it and clears any peeked overlay. A consumer that
-   already owns `onPositioned` (the clipboard, Local Servers and file search, each to
-   place its canvas preview) composes the panel's inside its own and forwards an anchor
-   spanning both panes out. `contextOverlays` stays as an empty seam, so a context that
-   wants a real hold overlay again can register a model builder there without touching
-   the reveal logic.
+5. Show the shortcuts. Nothing to wire. The default chooser draws one action bar row at the
+   bottom of its own canvas for every list on the stage, always visible, docs/PLAN-ACTION-BAR.md.
+   Its right side reads the primary's label on Return, the secondary's on Command and Return
+   when the surface declares a `secondary`, and Actions on the action panel's chord, and a
+   (?) button on its left, or the shared `showKeys` verb, Hyper and slash by default, opens a
+   key panel over the bottom rows listing every other key the list answers. The words are
+   `lib/hints.lua`'s `footerModel`, read from the same context bindings, gates and labels the
+   action panel reads, and a presentation's own `labels` member words the primary and the
+   secondary for the highlighted row. The root hands the stage one footer collaborator and
+   the stage hands it to its instance, so a plugin declares nothing beyond its `surface` and,
+   optionally, `labels`. The legacy chooser draws no bar. `contextOverlays` stays as an empty
+   seam, so a context that wants a real hold overlay again can register a model builder there
+   without touching the reveal logic.
 6. Inject the panel's `onClose` (which also runs the root's overlay teardown) as the
    surface's `onClose`, wire `onPositioned`/`onActivity`, and suggest the open key as a
    `defaults.bindings` row whose action is `open`, which Olm binds as a base Hyper binding.
@@ -1090,34 +1088,36 @@ press, so the key stays bound and does nothing while its predicate is false. Tha
 something that changes while you use the tool, and the launcher's peek key is the example, since
 whether there is anything to preview depends on the row under the cursor. `needs` gates a binding
 on a CHOICE this root made at wiring time, and it is answered once against the `bindingNeeds`
-registry before either the key wiring or `footerFor` reads the bindings, so the binding is removed
+registry before either the key wiring or the action bar's `footerModel` reads the bindings, so the binding is removed
 from both together and stays removed for the session. File search is that consumer, where the
 preview provider decides whether the two scroll keys or the peek key are the ones that mean
 anything. Config names the requirement and the root answers it, so neither learns the other's
 business, and an unknown name, a requirement or a predicate, keeps its binding and logs, since a
 typo should cost a stray key rather than a silently missing one.
 
-Both gates are honoured by the hints as well as by the keys, and the second half of that was
-added later than the first. A docked shortcut panel used to bake its hint list once when the panel
-was built, so a binding gated on live state would be unbound at the press and printed in the hints
-anyway, which is precisely the disagreement the two discoverability mandates exist to prevent. The
-panel now takes its hints as a QUESTION rather than as a list and asks it on every reveal, and
-`footerFor` drops a binding whose predicate is currently false as well as one whose requirement
-was not met. So a key appears in the hints exactly while it does something, and `when` is a real
-option for a chooser binding rather than a trap. The cost is rebuilding a small list each time the
-panel is revealed, which happens once per pause rather than per keystroke.
+Both gates are honoured by the action bar as well as by the keys, and the second half of that was
+added later than the first. The docked shortcut panel the bar replaced once baked its hint list
+when the panel was built, so a binding gated on live state would be unbound at the press and
+printed in the hints anyway, which is precisely the disagreement the two discoverability mandates
+exist to prevent. The hints became a QUESTION rather than a list then, and the action bar keeps
+that, since the default chooser asks `footerModel` for the list showing on every show, after every
+highlight move and on its poll, and `footerModel` drops a binding whose predicate is currently
+false as well as one whose requirement was not met. So a key appears in the bar and its key panel
+exactly while it does something, and `when` is a real option for a chooser binding rather than a
+trap.
 
-THE ACTION PANEL ASKS IT TOO, which it did not at first. Its rows come from the same `rowsFor`
-the hint bar reads, and that function filtered by an action's kind alone, on the stated grounds
+THE ACTION PANEL ASKS IT TOO, which it did not at first. Its rows come from `rowsFor`, which
+reads the same gate and the same labels the action bar reads, and that function once filtered by an
+action's kind alone, on the stated grounds
 that no verb anywhere carried a `when` for a second gate to disagree with. A picker with a second
 page ended that, since the two clipboard verbs that act on one highlighted entry are gated off
 while the page is up and the panel went on offering both, which is the same disagreement one
 surface further along. The panel's own `verbsIn` is deliberately still unfiltered, because the
 committed snapshot leans on it being a statement about declarations rather than about a moment.
 
-ASKING ON REVEAL IS NOT ENOUGH, and that took a second report to see. The panel latches visible,
-so the reveal shows the truth and then nothing redraws while the state carries on changing
-underneath. Entering a tool's list after the panel was already up left the way out unlisted, and
+ASKING ON REVEAL IS NOT ENOUGH, and that took a second report to see, against the docked panel
+the action bar replaced. That panel latched visible, so the reveal showed the truth and then
+nothing redrew while the state carried on changing underneath. Entering a tool's list after the panel was already up left the way out unlisted, and
 stepping back out of one left it listed, and the same staleness was quietly true of every other
 gated key, the preview one included, since moving the highlight changes whether it means anything.
 So `CanvasPanel` polls while it is visible. Content may offer `state()`, one comparable string
@@ -1127,6 +1127,9 @@ might matter, because that is a list nobody keeps complete and the entry already
 the reason this exists. Content without `state` runs no timer, and a steady panel costs a string
 comparison and nothing else. The guard is the canvas being up rather than the reveal flag, since
 that flag tracks only the delayed reveal and stays false for a panel configured with no delay.
+The action bar keeps the same rule inside the chooser. The default provider asks its footer
+collaborator four times a second while the list is up, keeping the timer's handle, and redraws
+only when the model's `state` string differs.
 
 A WORD MAY FOLLOW LIVE STATE TOO, through `liveLabels`, which is the same idea applied to what a
 key is called rather than to whether it is listed. `lib/hints.lua` has always accepted the table
@@ -1143,12 +1146,12 @@ action claimed by two plugins is reported rather than one quietly winning.
 to the Chooser atom and are read there directly, Backspace on an empty field being the one, so
 there is nothing for this root to bind. Such an entry still sits in its context's bindings, because
 the panel is where a key becomes visible and a plain key nobody can see is a key nobody presses.
-The wiring loop skips it and `footerFor` prints the bare key with no `Hyper+` in front, since
+The wiring loop skips it and the key panel prints the bare key with no `Hyper+` in front, since
 binding it as a chord would invent a second way to press it that the hint would then be wrong
 about. It is gated like anything else, so the way out of a hosted list appears exactly while there
 is a list to leave, and is absent in a tool's own picker and absent when a typed word did the
 scoping, where deleting that word is already the way out and says so by itself. The alternative
-tried first was a sentence in the placeholder, which did a hint panel's job worse and put wording
+tried first was a sentence in the placeholder, which did the key panel's job worse and put wording
 somewhere nothing else keeps it.
 
 **A rebuilt list tells the highlight poll.** `Chooser:refresh` clears `lastRow` after setting
@@ -1474,8 +1477,7 @@ clipboard's own, a canvas cannot report a scroll, so the atom watches for one ov
 companion rect and calls `onScroll` with a distance in points, normalising a wheel
 notch against a trackpad's pixels and flipping the sign once so a pane never has an
 opinion about direction. See the file search pane, which was where that gap was found. The canvas
-pane and the docked shortcut panel share the palette's `preview.bg`/`preview.border`
-so they read as one surface. Crucially the file storage and the preview sizing are
+pane and the chooser share the palette's colour roles so they read as one surface. Crucially the file storage and the preview sizing are
 decoupled from the UI: `manager/store.lua` owns the media lifecycle and
 `manager/preview.lua` is a Chain of Responsibility that produces the downscaled
 PNGs off the main thread (sips for rasters, ffmpeg for video, `hs.image` for
@@ -1734,7 +1736,7 @@ being told it.
 
 Three wiring facts about it are worth knowing here. It is a scope like the tools it lists rather
 than a second chooser, which is what makes Back ordinary text editing, deleting the space, and
-which is why it needs no context block, no predicate, no `choosers` entry, and no shortcut panel
+which is why it needs no context block, no predicate, no `choosers` entry, and no action bar
 of its own. It is this root's policy over `QueryScope:catalog()` rather than something that spoon
 offers about itself, so the resolver still names no scope at all including its own, and its
 alias sits in its manifest defaults like every other rather than as a constant inside a spoon. And
@@ -1769,7 +1771,7 @@ collision can make different.
 
 A chord is spelled the same way, by one function, `lib/labels.lua`'s `chordLabel` handed the
 shared renderer's glyph helper by the root, since the launcher's own
-rows and the docked hint bar both have to say the same key for the same tool. They did not,
+rows and the action bar both have to say the same key for the same tool. They did not,
 one writing a plus where the other wrote a space, until this shared speller closed the gap the
 same way `aliasHint` and `aliasLabel` already had for the aliases.
 
@@ -1832,12 +1834,14 @@ inserting, closing, and scrolling every context already carries. It is a host sp
 Launcher and QueryScope, but a decorator rather than a coordinator, installed once at
 `Chooser.configure`'s decorate seam so every chooser gains it with no edit to any of the
 twelve places one is built and no consumer learning it exists. Opening it swaps a chooser's
-own rows for the panel's, built by the same `rowsFor` the docked hint bar reads, so the two
-cannot print two different words for the same chord, and choosing a verb restores the
+own rows for the panel's, built by `rowsFor`, which reads the bindings, gates and labels the
+action bar's `footerModel` reads, so the two cannot print two different words for the same chord, and choosing a verb restores the
 highlight to the row the panel was opened over before running it, so the panel and the chord
 act on exactly the same row. Every action is classified first, verb or navigation from a
 named set the root's own `actionKinds` maps an action name onto, and a panel row is never
-navigation, the panel's own chord included. What it does not yet reach is a list hosted
+navigation, the panel's own chord included, with two exceptions since the action bar landed, the
+primary and the secondary, which the panel lists right after Back with their live labels so every
+action on the highlighted row is in one list. What it does not yet reach is a list hosted
 inside the launcher, whose own verbs are still a chord away rather than in this list. The
 decision trail and internals live in `Spoons/Olm.spoon/host/actionpanel/AGENTS.md`.
 

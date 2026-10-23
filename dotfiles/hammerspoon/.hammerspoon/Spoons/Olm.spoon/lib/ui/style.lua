@@ -99,8 +99,8 @@ local SHIPPED = {
   -- typography file when the table is built.
   fonts = {},
 
-  -- sm and lg are the hint bar's two gaps, eight between lines and sixteen between hints,
-  -- added in stage two beside the scale they fall between.
+  -- sm and lg were the retired hint bar's two gaps, eight between lines and sixteen between
+  -- hints, added in stage two beside the scale they fall between and still used elsewhere.
   space = { xs = 2, s = 6, sm = 8, m = 10, l = 14, lg = 16, xl = 20 },
 
   -- surface is the one corner a person sets, overwritten from settings by the spec, square for
@@ -126,8 +126,8 @@ local SHIPPED = {
 -- the glyph is drawn in plus twice padY, and the padding either side of the glyph is padX,
 -- both names of the space scale. Nothing here states a point value, so a size changed in
 -- config/typography.toml reflows every chip. cheat is the cheat sheet chip, its glyph in
--- body. hint is the hint bar chip, its glyph in section, with no minimum width since the bar
--- never had one. button is the report toast's Dismiss chip, its word in caption, rounded at
+-- body. hint is the action bar chip, its glyph in section, with no minimum width since the
+-- hint bar it came from never had one. button is the report toast's Dismiss chip, its word in caption, rounded at
 -- the chip radius. minWidth is the narrowest the chip may be, the height when absent, so a
 -- lone glyph stays square. radius names the radius token the chip is rounded with, badge
 -- when absent.

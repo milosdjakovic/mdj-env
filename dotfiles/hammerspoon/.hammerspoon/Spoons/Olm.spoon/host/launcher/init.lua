@@ -212,7 +212,7 @@ function obj:configure(opts)
   -- opens it without this file deciding what any leader is called. The word Hyper used to be
   -- written into every one of those subtitles literally, which was correct only for as long as
   -- nobody moved a tool to the other leader. Every role is here, the window leader's too, so a
-  -- contributed row names its leader by role and reads the same word the hint bar prints.
+  -- contributed row names its leader by role and reads the same word the action bar prints.
   self._leaderNames = opts.leaderNames or {}
   -- The rows other plugins add to this catalog, one supplier per contributing plugin in the
   -- order the root's set answer put them, and the runners that take a chosen row back. Each
@@ -229,7 +229,7 @@ function obj:configure(opts)
   self._launcherOrder = opts.launcherOrder or self._launcherOrder
   self._glyphFor = opts.glyphFor or function(key) return tostring(key) end
   -- The shared chord speller, held as data rather than wrapped in a method of its own, so a
-  -- row states the exact same words the docked hint bar and the action panel already agree
+  -- row states the exact same words the action bar and the action panel already agree
   -- on. There is deliberately no fallback function, since inventing one would be a second
   -- speller rather than the shared one, which is the whole defect this closed.
   --
@@ -293,10 +293,9 @@ function obj:configure(opts)
   -- deferred, after the chooser tears down and macOS restores focus to the app that was
   -- frontmost before the launcher opened, since a window action acts on
   -- hs.window.focusedWindow(). What is gone is the docked shortcut panel triple, onPositioned,
-  -- onActivity, and onClose, which this host no longer passes anywhere. The stage owns that
-  -- triple now as fixed, atom level policy rather than something a presentation carries, and
-  -- the composition root hands it this host's own panel directly when it configures the
-  -- stage, before the stage is ever handed to this host.
+  -- onActivity, and onClose, which this host no longer passes anywhere. The stage owned that
+  -- triple as fixed, atom level policy, and since 2026-10-23 owns the action bar's footer
+  -- collaborator in its place, which the composition root hands it when it configures the stage.
   self._presentation = {
     name = "launcher",
     -- The opening value only. Every show replaces this field before handing the table to the
@@ -782,7 +781,7 @@ function obj:_appRows()
       subTitle = status .. " · " .. glyphs .. (cfg.description and (" " .. cfg.description) or "")
     elseif chord then
       -- Spelled by the shared chord speller every other row's chord goes through, the leader's
-      -- name then the key with its modifiers, so Hyper, Shift and S reads as the hint bar reads it.
+      -- name then the key with its modifiers, so Hyper, Shift and S reads as the action bar reads it.
       subTitle = self:_chordSuffix(status, self:_leaderName(chord.leader), chord.key, chord.mods)
     end
     rows[#rows + 1] = {
