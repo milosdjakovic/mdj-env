@@ -1,4 +1,4 @@
-# Emoji
+# Emoji & Symbol Picker
 
 A picker over emoji and a wide slice of native Unicode symbols, matched by name,
 shortcode, tag, or category, so a word like happy or money or a group word like

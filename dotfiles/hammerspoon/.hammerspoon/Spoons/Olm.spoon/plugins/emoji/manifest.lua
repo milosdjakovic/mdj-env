@@ -8,7 +8,7 @@ return {
   apiVersion = 1,
 
   about = {
-    title = "Emoji Picker",
+    title = "Emoji & Symbol Picker",
     author = "Milos Djakovic",
     version = "0.1",
     license = "MIT",
@@ -93,7 +93,7 @@ return {
     leader = "app",
     -- The open key, a bindings row whose action is open, on the leader above.
     bindings = { { action = "open", key = "j" } },
-    description = "Emoji picker",
+    description = "Emoji & symbol picker",
     icon = "emoji",
     aliases = { "e", "em", "emoji" },
   },

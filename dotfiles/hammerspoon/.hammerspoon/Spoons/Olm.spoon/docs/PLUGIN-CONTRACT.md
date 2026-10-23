@@ -882,7 +882,7 @@ app role to SUPER with `roles = { app = "super" }` carries every default with it
 
 ```lua
 defaults = {
-  leader = "app", description = "Emoji picker",
+  leader = "app", description = "Emoji & symbol picker",
   icon = "emoji", aliases = { "e", "emoji" },
   bindings = { { action = "open", key = "j" } },
 },
