@@ -732,19 +732,25 @@ end
 --- and lib/surface.lua builds each on the key named here. This is a core default rather than a
 --- plugin's, and the one place these keys are written.
 ---
---- An entry takes one of two shapes. A bare key name is a key on the list role, LIST_ROLE, which
+--- An entry takes one of three shapes. A bare key name is a key on the list role, LIST_ROLE, which
 --- applyLists turns into a leader, and every held list key takes it. A table holding key, mods and
 --- leader false is a key the open list's own field answers with modifiers alone, the same three
 --- fields a person's list chord with no held leader carries once applyLists has read it, so
 --- lib/surface.lua copies them onto the binding and applyLists, which places only a binding whose
---- leader is nil, leaves it on no leader. secondary takes that shape on Command and Return, which
---- the field asks the list keys for before its own Return handling. A list declaring no secondary
---- builds no binding there, so Command and Return keeps choosing the row. showKeys sits on slash
+--- leader is nil, leaves it on no leader. A list of such tables puts one verb on several keys.
+--- secondary takes that last shape, Command and Return and Command and keypad Enter, since plain
+--- keypad Enter chooses the row as plain Return does, and the field asks the list keys for both
+--- before its own Return handling. A list declaring no secondary builds no binding there, so both
+--- keep choosing the row. A person naming secondary in the lists section moves both at once, since
+--- an action named takes exactly the chords listed for it. showKeys sits on slash
 --- on the list role, shadowing a global slash only while a list is open, which a list key may do
 --- since collisions are checked per layer.
 obj.listDefaults = {
   primary = "i", selectNext = "j", selectPrev = "k", close = "x", openActionPanel = "o",
-  secondary = { key = "return", mods = { "cmd" }, leader = false },
+  secondary = {
+    { key = "return", mods = { "cmd" }, leader = false },
+    { key = "padenter", mods = { "cmd" }, leader = false },
+  },
   showKeys = "/",
 }
 

@@ -84,8 +84,8 @@ Field.__index = Field
 --- owner rather than holding one here. opts.onKey(event) runs for a key down neither the
 --- keymap nor the printable check claims, and its answer is ignored, the key is claimed
 --- either way per decision six, a consumer answering nothing simply swallows it.
---- opts.onDismiss() runs once for escape, which this file always claims and never hands
---- to onKey instead. opts.yields(event) answers true for a key down that belongs to
+--- opts.onDismiss(event) runs for each escape key down, its autorepeat included, which this
+--- file always claims and never hands to onKey instead. opts.yields(event) answers true for a key down that belongs to
 --- something downstream of this tap and must pass on unclaimed, which is how Hyper stays
 --- alive while the field is up. It is asked after escape and before the keymap, and an
 --- error in it is reported and counted as false.
@@ -196,7 +196,8 @@ function Field:_handle(ev)
   local code = ev:getKeyCode()
 
   if code == ESCAPE_KEYCODE then
-    if self.onDismiss then self.onDismiss() end
+    -- The event goes along so an owner can tell a held Escape's autorepeat from a fresh press.
+    if self.onDismiss then self.onDismiss(ev) end
     return true
   end
 

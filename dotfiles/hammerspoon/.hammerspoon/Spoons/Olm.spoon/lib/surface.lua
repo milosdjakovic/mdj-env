@@ -44,13 +44,16 @@ local ACTION_PANEL = { shared = "openActionPanel", action = "openActionPanel", d
 -- footer. Like the action panel's it names no plugin and sits in every block this module builds.
 local SHOW_KEYS = { shared = "showKeys", action = "showKeys", description = "Keys" }
 
--- Where the all layer puts one shared verb, its key, its modifiers and its leader. An entry is a
--- bare key name on the list role, or a table of key, mods and leader false for a key the open
--- list's own field answers, see lib/keymap.lua's listDefaults. The leader is nil for the first
--- shape, which is what lets the keymap's lists layer place it on the list role later.
-local function layerPlace(entry)
-  if type(entry) == "table" then return entry.key, entry.mods, entry.leader end
-  return entry, nil, nil
+-- Where the all layer puts one shared verb, a list of places each holding a key, its modifiers
+-- and its leader. An entry is a bare key name on the list role, a table of key, mods and leader
+-- false for a key the open list's own field answers, or a list of such tables for a verb on more
+-- than one key, see lib/keymap.lua's listDefaults. The leader is nil for a bare key, which is what
+-- lets the keymap's lists layer place it on the list role later.
+local function layerPlaces(entry)
+  if entry == nil then return {} end
+  if type(entry) ~= "table" then return { { key = entry } } end
+  if entry.key ~= nil then return { entry } end
+  return entry
 end
 
 -- A fresh copy of a list of modifiers, so two blocks never share one table a later pass edits.
@@ -61,13 +64,17 @@ local function copyMods(mods)
   return out
 end
 
--- One shared verb as a binding of its own, a fresh table for every context, on the key the all
--- layer gives it, or nil where the layer gives it none, since a verb with no key is not bound.
-local function sharedBinding(verb, keys)
-  local key, mods, leader = layerPlace((keys or {})[verb.shared])
-  if key == nil then return nil end
-  return { shared = verb.shared, key = key, mods = copyMods(mods), leader = leader, layerKey = true,
-    action = verb.action, description = verb.description }
+-- One shared verb as bindings of its own, a fresh table for every context and every key the all
+-- layer gives it, or none where the layer gives it no key, since a verb with no key is not bound.
+local function sharedBindings(verb, keys)
+  local out = {}
+  for _, place in ipairs(layerPlaces((keys or {})[verb.shared])) do
+    if place.key ~= nil then
+      out[#out + 1] = { shared = verb.shared, key = place.key, mods = copyMods(place.mods), leader = place.leader,
+        layerKey = true, action = verb.action, description = verb.description }
+    end
+  end
+  return out
 end
 
 -- The close binding a context gets unless it says otherwise. A plugin overrides only the
@@ -138,8 +145,9 @@ end
 
 -- The fields a secondary may carry, the same shape as primary. It names no key, since Command
 -- and Return is Olm's own all layer, so a key, mods or leader written here is refused rather
--- than read as a second place a list key is set.
-local SECONDARY_FIELDS = { action = true, description = true, needs = true, chord = true, repeats = true }
+-- than read as a second place a list key is set. chord is refused too, since chord false would
+-- leave the action bar naming a Command and Return that nothing binds.
+local SECONDARY_FIELDS = { action = true, description = true, needs = true, repeats = true }
 
 -- Checks the optional second action a list answers on Command and Return, the same way primary
 -- is checked, and refuses any field the shape does not name.
@@ -155,7 +163,7 @@ local function validateSecondary(secondary)
   end
   for field in pairs(secondary) do
     if not SECONDARY_FIELDS[field] then
-      return false, "secondary." .. tostring(field) .. " is not a field a secondary takes, only action, description, needs, chord and repeats"
+      return false, "secondary." .. tostring(field) .. " is not a field a secondary takes, only action, description, needs and repeats"
     end
   end
   return validateGates("secondary", secondary)
@@ -295,10 +303,8 @@ function obj.context(name, decl, available, keys)
   -- its key and Command and Return keeps choosing the row there. The plugin's surface adapter
   -- answers its action the way it answers any extra row's.
   if decl.secondary then
-    local secondary = sharedBinding({ shared = "secondary", action = decl.secondary.action,
-      description = decl.secondary.description }, keys)
-    if secondary then
-      secondary.chord = decl.secondary.chord
+    for _, secondary in ipairs(sharedBindings({ shared = "secondary", action = decl.secondary.action,
+      description = decl.secondary.description }, keys)) do
       secondary.needs = decl.secondary.needs
       secondary.repeats = decl.secondary.repeats
       if take(secondary) then bindings[#bindings + 1] = secondary end
@@ -311,8 +317,9 @@ function obj.context(name, decl, available, keys)
   -- from whether decl.extra looks a certain way.
   if decl.nav ~= false then
     for _, verb in ipairs({ MOVE_NEXT, MOVE_PREV }) do
-      local b = sharedBinding(verb, keys)
-      if b and take(b) then bindings[#bindings + 1] = b end
+      for _, b in ipairs(sharedBindings(verb, keys)) do
+        if take(b) then bindings[#bindings + 1] = b end
+      end
     end
   end
 
@@ -330,11 +337,9 @@ function obj.context(name, decl, available, keys)
     bindings[#bindings + 1] = close
   end
 
-  local panel = sharedBinding(ACTION_PANEL, keys)
-  if panel then bindings[#bindings + 1] = panel end
-
-  local showKeys = sharedBinding(SHOW_KEYS, keys)
-  if showKeys then bindings[#bindings + 1] = showKeys end
+  for _, verb in ipairs({ ACTION_PANEL, SHOW_KEYS }) do
+    for _, b in ipairs(sharedBindings(verb, keys)) do bindings[#bindings + 1] = b end
+  end
 
   return {
     name = name,

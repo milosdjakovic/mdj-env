@@ -32,4 +32,24 @@ end
 check("one row has viewRows 1", geometry.resolve(screen, layoutWith(1), nil).viewRows, 1)
 check("nine rows keep viewRows 9.3", geometry.resolve(screen, layoutWith(9), nil).viewRows, 9.3)
 
+-- The action bar. A footer height is taken from the rows a short screen can hold, sits under the
+-- list across the canvas's full width, and is absent when the height is zero.
+local short = { x = 0, y = 0, w = 1440, h = 600 }
+local bare = geometry.resolve(short, layoutWith(9), nil)
+check("a 600 point screen holds eight rows with no bar", bare.rowCount, 8)
+check("and resolves no footer rect", bare.footer == nil and 1 or 0, 1)
+local barred = layoutWith(9)
+barred.footerH = 33
+local withBar = geometry.resolve(short, barred, nil)
+check("a 33 point bar trims the same screen to seven rows", withBar.rowCount, 7)
+check("the canvas grows by the bar", withBar.canvas.h,
+  barred.marginY + barred.baseH + withBar.viewRows * barred.rowH + 33)
+check("the footer is the bar's height", withBar.footer.h, 33)
+check("the footer spans the canvas's width", withBar.footer.w, withBar.canvas.w)
+check("the footer starts at the canvas's left edge", withBar.footer.x, withBar.canvas.x)
+check("the footer sits on the canvas's bottom edge", withBar.footer.y + withBar.footer.h, withBar.canvas.y + withBar.canvas.h)
+check("the list stops at the footer's top edge", withBar.list.y + withBar.list.h, withBar.footer.y)
+local paned = geometry.resolve(screen, barred, true)
+check("a companion keeps matching the canvas height with the bar", paned.companion.h, paned.canvas.h)
+
 if failed then os.exit(1) end

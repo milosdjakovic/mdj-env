@@ -1853,6 +1853,16 @@ function obj.run(olm, cfg)
     leaveManageHistory = "navigation",
   }
 
+  -- The action panel borrows the one list instance and leaves current() naming the list, so the
+  -- action bar and the list's field keys ask this rather than the stage. It answers the panel row
+  -- under the highlight, an empty table with none, or nil while the panel is closed. ActionPanel is
+  -- one of the host modules this file may name.
+  local function actionPanelShowingRow()
+    local ap = modules[plan.identity.actionpanel or "actionpanel"]
+    if not (ap and type(ap.isOpen) == "function" and ap:isOpen()) then return nil end
+    return (stageModule and stageModule:selectedItem()) or {}
+  end
+
   local hintsDeps = {
     predicates = ownPredicates,
     glyphFor = cheatSheetAtom.glyphFor,
@@ -1889,6 +1899,15 @@ function obj.run(olm, cfg)
       if not stageModule or stageModule:current() ~= contextName then return nil end
       return stageModule:labels()
     end,
+    -- Whether Backspace on an empty field leaves the level showing, a level pushed over another,
+    -- so the key panel lists Back only when it does something.
+    backs = function(contextName)
+      return stageModule ~= nil and stageModule:current() == contextName and stageModule:depth() > 1
+    end,
+    -- The panel row under the highlight while the action panel is open over the list, an empty
+    -- table when it is open on no row, and nil while it is closed, so the action bar describes the
+    -- panel the person is looking at rather than the list it borrowed. Read late, like the stage.
+    actionPanel = function() return actionPanelShowingRow() end,
   }
 
   -- LeaderSheet and QueryScope both keep what configure gave them across calls, and the sheet
@@ -2398,6 +2417,11 @@ function obj.run(olm, cfg)
   dispatchTable = navLib.actions(plan, {
     surfaces = surfaceAdapters,
     hideShortcuts = hideSharedOverlay,
+    -- Every list key that acts closes the action bar's key panel first, the spec's rule, in the
+    -- one place every handler passes through. showKeys is the one that toggles it instead.
+    onAction = function(name)
+      if name ~= "showKeys" and stageModule then stageModule:closeKeys() end
+    end,
     -- The three action names that do not equal the surface method answering them. Everything
     -- else routes by its own name, which is why lib/nav.lua defaults to that and this table is
     -- three lines rather than twenty six.
@@ -2461,11 +2485,22 @@ function obj.run(olm, cfg)
   -- read off binding.fn, which the dispatch table above stamped. A held key's autorepeat runs only
   -- a binding whose action repeats, the same table the leaders read. Only the default chooser has
   -- such a field, so with the legacy chooser chosen the keys are said once as not live.
+  --
+  -- While the action panel is open over a list the field's keys are inert, so Command and Return
+  -- in the panel chooses the panel row rather than running the list's secondary on whatever the
+  -- panel was opened over. That is said through the watcher's own gate. Each list's predicate is
+  -- handed over wrapped, answering false while the panel is open, so the watcher keeps knowing
+  -- only predicates and the key falls through to the field, which chooses the highlighted row.
+  local fieldPredicates = setmetatable({}, { __index = function(_, name)
+    local pred = (w._predicates or ownPredicates)[name]
+    if type(pred) ~= "function" then return pred end
+    return function() return actionPanelShowingRow() == nil and pred() end
+  end })
   local fieldKeyList
   fieldWatch, fieldKeyList = navLib.fieldKeys(plan.contexts, {
     keycodes = hs.keycodes.map,
     modifierLeaders = modifierLeaderSets,
-    predicates = w._predicates or ownPredicates,
+    predicates = fieldPredicates,
     repeats = repeatableActions,
     isRepeat = function(ev)
       return ev:getProperty(hs.eventtap.event.properties.keyboardEventAutorepeat) ~= 0

@@ -1072,6 +1072,23 @@ function obj:toggleKeys()
   if instance and type(instance.toggleKeys) == "function" then instance:toggleKeys() end
 end
 
+--- Stage:closeKeys()
+--- Method
+--- Closes the key panel above the action bar of the one instance, which every list key that acts
+--- does first. A provider with no key panel is not asked.
+function obj:closeKeys()
+  local instance = self._instance
+  if instance and type(instance.closeKeys) == "function" then instance:closeKeys() end
+end
+
+--- Stage:depth() -> number
+--- Method
+--- How many levels are on the stack, zero when nothing is presented. A level above the first is
+--- one Backspace on an empty field leaves, which is what the action bar's key panel asks.
+function obj:depth()
+  return #(self._stack or {})
+end
+
 --- Stage:isCurrent(token) -> bool
 --- Method
 --- Whether token, a presentation table, is the one currently on top of the stack, table

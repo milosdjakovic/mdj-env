@@ -86,12 +86,18 @@ end
 -- name. The second pass runs after the exceptions are folded in on purpose, so a binding whose
 -- action is an exception ends up carrying the exception's own closure rather than the
 -- placeholder this module would otherwise have built for it first.
+--
+-- deps.onAction, optional, a function of the action name, is told before every handler in the
+-- table runs, routed and exception alike, so a caller can do one thing for every list key that
+-- acts without each surface or exception remembering to. The root closes the action bar's key
+-- panel there. It is folded in after the exceptions, so no handler escapes it.
 function obj.actions(plan, deps)
   deps = deps or {}
   local methodFor = deps.methodFor or {}
   local exceptions = deps.exceptions or {}
   local surfaces = deps.surfaces
   local hideShortcuts = deps.hideShortcuts
+  local onAction = deps.onAction
 
   local built = {}
   for _, block in pairs(plan.contexts or {}) do
@@ -106,6 +112,15 @@ function obj.actions(plan, deps)
 
   for name, fn in pairs(exceptions) do
     built[name] = fn
+  end
+
+  if type(onAction) == "function" then
+    for name, fn in pairs(built) do
+      built[name] = function(...)
+        onAction(name)
+        return fn(...)
+      end
+    end
   end
 
   for _, block in pairs(plan.contexts or {}) do

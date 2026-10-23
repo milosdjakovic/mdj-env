@@ -204,8 +204,18 @@ end
 --- a list no surface describes, still chooses on Return, so the primary is always listed.
 ---
 --- keys is the key panel, each { badges, label, action }, every other key the open list answers
---- in declaration order, the primary's own chord among them, then the two the chooser's field
---- reads for itself on every list, Back on Backspace and a visible row on Command and a digit.
+--- in declaration order, the primary's own chord among them, then the keys the chooser's field
+--- reads for itself. Back on Backspace is listed only when deps.backs(contextName) answers true,
+--- the level a press would leave being a pushed one, and never when the list already lists its own
+--- binding on a plain Backspace, the launcher's way out of a hosted list or a page's way back.
+--- A visible row on Command and a digit is always listed.
+---
+--- While the action panel is open over the list, deps.actionPanel answers the panel row under the
+--- highlight, or an empty table, and the model describes the panel instead, since the panel
+--- borrows the list's window and current() still names the list. Return runs the highlighted row,
+--- so it is labelled with that row's title, Run when there is none, the secondary is not offered,
+--- since a field key acts on the list rather than on a panel row, and the key panel lists only the
+--- keys that still mean something there, the shared ones and Back.
 ---
 --- state is the whole answer as one comparable string, so a surface polling this redraws only
 --- when something it would draw changed.
@@ -213,35 +223,44 @@ function obj.footerModel(contextName, plan, deps)
   deps = deps or {}
   local glyphFor = deps.glyphFor
   local function glyph(key, mods) return (glyphFor and glyphFor(key, mods)) or tostring(key) end
-  local labels = deps.labelsFor and deps.labelsFor(contextName) or nil
+  local panelRow = deps.actionPanel and deps.actionPanel() or nil
+  local labels = (not panelRow) and deps.labelsFor and deps.labelsFor(contextName) or nil
   local ctx = plan and plan.contexts and plan.contexts[contextName]
 
   local primary, secondary, panel
   local keys = {}
+  local ownBack = false
   for _, b in ipairs(ctx and ctx.bindings or {}) do
     if b.shared == "primary" and not primary then primary = b end
     if bindingActive(b, deps) then
+      if b.key == "delete" and (b.mods == nil or #b.mods == 0) then ownBack = true end
       if b.shared == "secondary" then
         secondary = secondary or b
       elseif b.shared == "openActionPanel" then
         panel = panel or b
-      else
+      elseif not panelRow or (b.shared ~= nil and b.shared ~= "primary") then
         keys[#keys + 1] = { badges = badgesFor(b, deps),
           label = obj.labelFor(b, contextName, deps.liveLabels, labels), action = b.action }
       end
     end
   end
-  keys[#keys + 1] = { badges = { glyph("delete") }, label = "Back" }
+  if panelRow or (not ownBack and deps.backs and deps.backs(contextName)) then
+    keys[#keys + 1] = { badges = { glyph("delete") }, label = "Back" }
+  end
   keys[#keys + 1] = { badges = { glyph("1", { "cmd" }), glyph("9", { "cmd" }) }, label = "Choose a visible row" }
 
   local right = {}
   local primaryLabel
-  if primary then
+  if panelRow then
+    primaryLabel = (type(panelRow.title) == "string" and panelRow.title ~= "") and panelRow.title or "Run"
+    secondary = nil
+  elseif primary then
     primaryLabel = obj.labelFor(primary, contextName, deps.liveLabels, labels)
   else
     primaryLabel = obj.labelFor({ shared = "primary" }, contextName, nil, labels)
   end
-  right[#right + 1] = { label = primaryLabel, chord = glyph("return"), action = primary and primary.action }
+  right[#right + 1] = { label = primaryLabel, chord = glyph("return"),
+    action = (not panelRow) and primary and primary.action or nil }
   if secondary then
     right[#right + 1] = { label = obj.labelFor(secondary, contextName, deps.liveLabels, labels),
       chord = obj.chordFor(secondary, deps), action = secondary.action }
@@ -289,8 +308,17 @@ function obj.rowsFor(contextName, plan, deps, hosted)
   if not ctx then return rows end
   local kinds = obj.actionKinds(plan, deps and deps.kinds)
   local labels = deps and deps.labelsFor and deps.labelsFor(contextName) or nil
+  local sharedListed = {}
   for _, b in ipairs(ctx.bindings) do
-    local listed = kinds[b.action] == "verb" or b.shared == "primary" or b.shared == "secondary"
+    -- A shared binding is listed only as the primary or the secondary, once each, since the
+    -- secondary sits on two keys and a shared verb's action may be classified a verb elsewhere.
+    local listed
+    if b.shared == "primary" or b.shared == "secondary" then
+      listed = not sharedListed[b.shared]
+      sharedListed[b.shared] = true
+    else
+      listed = b.shared == nil and kinds[b.action] == "verb"
+    end
     if listed and bindingActive(b, deps)
       and (not hosted or hostedVerbDeclared(hosted, b.action)) then
       local chord = obj.chordFor(b, deps)
@@ -329,31 +357,45 @@ end
 -- kinds, when given, is a caller supplied table merged in last, an override rather than
 -- another vote, for the rare action this derivation could not classify correctly on its own.
 --
--- The second return value lists every action name two different bindings classified two
--- different ways before the override was applied, which can only happen when one plugin's
--- primary or extra reuses a name another plugin gave a different role, since the derivation
--- itself is otherwise a pure function of a binding's position and its own action name.
+-- A shared binding's classification is weak. A shared verb's action is a plugin's own name, a
+-- primary or a secondary, so one list's secondary may share its name with another list's extra
+-- verb, and a navigation answer for it would hide that verb from the other list's action panel.
+-- So every binding that is not shared is classified first, and a shared binding only fills an
+-- action no other binding classified, never shadowing a verb and never recorded as a conflict.
+--
+-- The second return value lists every action name two different unshared bindings classified
+-- two different ways before the override was applied, which can only happen when one plugin's
+-- extra reuses a name another plugin's hand built block gave a different role, since the
+-- derivation itself is otherwise a pure function of a binding's position and its own action name.
 function obj.actionKinds(plan, kinds)
   local out, conflicts = {}, {}
+  local weak = {}
   for _, ctx in pairs(plan.contexts or {}) do
     local marked = false
     for _, b in ipairs(ctx.bindings) do
       if b.shared ~= nil then marked = true break end
     end
     for i, b in ipairs(ctx.bindings) do
-      local kind
-      if GENERIC_NAV[b.action] or b.shared ~= nil then
-        kind = "navigation"
-      elseif i == 1 and not marked then
-        kind = "navigation"
+      if b.shared ~= nil then
+        weak[#weak + 1] = b.action
       else
-        kind = "verb"
+        local kind
+        if GENERIC_NAV[b.action] then
+          kind = "navigation"
+        elseif i == 1 and not marked then
+          kind = "navigation"
+        else
+          kind = "verb"
+        end
+        if out[b.action] and out[b.action] ~= kind then
+          conflicts[#conflicts + 1] = b.action
+        end
+        out[b.action] = kind
       end
-      if out[b.action] and out[b.action] ~= kind then
-        conflicts[#conflicts + 1] = b.action
-      end
-      out[b.action] = kind
     end
+  end
+  for _, action in ipairs(weak) do
+    if out[action] == nil then out[action] = "navigation" end
   end
   for name, kind in pairs(kinds or {}) do
     out[name] = kind

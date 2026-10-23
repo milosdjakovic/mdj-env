@@ -914,6 +914,9 @@ end
 -- having no opinion about what that pane does with it.
 function Provider:_onMouseScroll(point, dy, continuous)
   local rects = self._rects
+  -- The open key panel covers the bottom rows, so a scroll over it is claimed and moves nothing,
+  -- rather than scrolling a list the person cannot see under it.
+  if pointInRect(point, self._keysPanelRect) then return true end
   if pointInRect(point, rects and rects.list) then
     self:_stopScrollEase()
     if continuous then
@@ -957,6 +960,7 @@ function Provider:_teardown()
   self:_stopFooterPoll()
   self._pressedRowIndex = nil
   self._keysOpen = false
+  self._escapeClosedKeys = false
   self._keysHit, self._keysPanelRect = nil, nil
   if self.surface then self.surface:hide() end
 
@@ -1065,6 +1069,10 @@ end
 --- contract and native.
 function Provider:refresh(resetRow)
   if not self.active then return end
+  -- A rebuild from the top is a page change, which closes the key panel the way a key that acts
+  -- does. A refresh holding the row is a repaint in place, often a background answer arriving,
+  -- and leaves an open key panel alone.
+  if resetRow then self._keysOpen = false end
   self:_stopScrollEase()
   self:_rebuildList(self:query(), resetRow)
   self:_fireHighlight()
@@ -1097,6 +1105,8 @@ end
 --- is read.
 function Provider:setQuery(text)
   text = text or ""
+  -- A new query is a new page or a seeded word, so the key panel closes with it.
+  self._keysOpen = false
   self._suppressRebuild = true
   self.field:setText(text)
   self._suppressRebuild = false
@@ -1234,6 +1244,12 @@ function Provider:toggleKeys()
   self:_redraw()
 end
 
+--- Provider colon closeKeys, arity zero. Closes the key panel when it is open and does nothing
+--- otherwise, what the composition root asks before every list key that acts.
+function Provider:closeKeys()
+  self:_closeKeys()
+end
+
 --- Provider colon textBudget, arity zero. The pixel room a row's text has on the
 --- screen this picker will open on, resolved lazily and cached for the open through
 --- geometry.textBudget, the replacement for legacy.lua's own measured ROW_TEXT_INSET.
@@ -1353,11 +1369,17 @@ local function buildField(self)
     text = "",
     onChange = function(state) self:_onFieldChange(state) end,
     onKey = function(ev) self:_onFieldKey(ev) end,
-    onDismiss = function()
+    onDismiss = function(ev)
+      -- A held Escape that closed the key panel goes on repeating, and its autorepeat must not
+      -- close the list too, so every repeat of that press is swallowed until a fresh one.
+      local repeating = ev ~= nil and ev:getProperty(hs.eventtap.event.properties.keyboardEventAutorepeat) ~= 0
+      if repeating and self._escapeClosedKeys then return end
+      self._escapeClosedKeys = false
       if self.config.onActivity then safeCall(self.config.onActivity) end
       -- Escape over an open key panel closes the panel and leaves the list, the way a popover
       -- answers Escape, and a second Escape closes the list.
       if self._keysOpen then
+        self._escapeClosedKeys = true
         self:_closeKeys()
         return
       end
