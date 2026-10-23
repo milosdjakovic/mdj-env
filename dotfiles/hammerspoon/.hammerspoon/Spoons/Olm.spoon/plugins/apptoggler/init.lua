@@ -9,13 +9,14 @@
 --- Placement and the show and hide toggle form both used to live in TerminalHandler.spoon,
 --- a whole spoon kept outside Olm for the one behaviour the terminal wanted, hide when
 --- frontmost instead of cycle, and land centered at a fixed size on whichever display it
---- was already on. Both turned out to be plain fields any variant can ask for, `hides` and
+--- was already on. Both turned out to be plain fields any app can ask for, `hides` and
 --- `placement`, rather than a tool of their own, so the spoon is gone and every app this
 --- plugin already serves may now ask for the same thing.
 ---
 --- Since phase 6 of the keymap plan this plugin holds no key. It answers one action per app in
---- its apps catalog, apptoggler.Safari, which focuses or cycles, and one per named variant,
---- apptoggler.GhosttyPlaced, which carries the behaviour an app needs beyond that. Every
+--- its apps catalog, apptoggler.Safari, which focuses or cycles. An app listed in its toggles
+--- takes a named style instead, a behaviour described once in its styles and shared by every app
+--- that names it, so the action keeps the app's own name and only what it does changes. Every
 --- descriptor names its app and a group answering whether the app is running, and Olm binds,
 --- lists and draws the rest, so a key moved in config/keymap.lua shows its new chord everywhere.
 
@@ -148,8 +149,9 @@ end
 
 --- AppToggler:configure(opts)
 --- Method
---- Configure the spoon. opts.apps is the bundle id catalog and opts.variants the named variants,
---- both this plugin's own data, and the descriptors are built from them here, once per load.
+--- Configure the spoon. opts.apps is the bundle id catalog, opts.styles the named behaviours and
+--- opts.toggles the list saying which app takes which style, all this plugin's own data, and the
+--- descriptors are built from them here, once per load.
 function obj:configure(opts)
   opts = opts or {}
   self._apps = opts.apps or {}
@@ -158,7 +160,7 @@ function obj:configure(opts)
   -- core split moved it into lib/appfocus.lua so the launcher's app rows name no plugin, and
   -- this plugin calls the same module rather than keeping a copy.
   self._appFocus = opts.appFocus
-  self:_build(self._apps, opts.variants or {})
+  self:_build(self._apps, opts.styles or {}, opts.toggles or {})
   return self
 end
 
@@ -289,22 +291,22 @@ function obj:_setupPlacement(bundleID, placement)
   end)
 end
 
---- AppToggler:_buildAction(variant, bundleID)
+--- AppToggler:_buildAction(spec, bundleID)
 --- Method
---- Builds one variant's run, the show and hide or focus or cycle call its `hides` field asks
---- for, then placement when the variant declared one and the outcome was showing, launching, or
---- focusing rather than a plain cycle.
-function obj:_buildAction(variant, bundleID)
+--- Builds one styled app's run from its resolved spec, the show and hide or focus or cycle call
+--- its `hides` field asks for, then placement when the spec carries one and the outcome was
+--- showing, launching, or focusing rather than a plain cycle.
+function obj:_buildAction(spec, bundleID)
   local self_ref = self
   return function()
     local outcome
-    if variant.hides then
+    if spec.hides then
       outcome = self_ref:toggle(bundleID)
     else
       outcome = self_ref._appFocus.focusOrCycle(bundleID)
     end
-    if variant.placement and PLACING_OUTCOMES[outcome] then
-      self_ref:_setupPlacement(bundleID, variant.placement)
+    if spec.placement and PLACING_OUTCOMES[outcome] then
+      self_ref:_setupPlacement(bundleID, spec.placement)
     end
   end
 end
@@ -345,15 +347,19 @@ function obj:_isRunning(bundleID)
 end
 
 --------------------------------------------------------------------------------
--- The descriptors, one per app and one per variant
+-- The descriptors, one per app, styled where the toggles list says so
 --------------------------------------------------------------------------------
 
--- The fields a variant may carry beyond its app. A key or a modifiers field is the person's key
--- choice, which config/keymap.lua holds, and a url a pane's, which System Settings answers as an
--- action of its own, so each is named rather than ignored in silence.
-local VARIANT_FIELDS = { app = true, hides = true, placement = true, description = true }
+-- The fields a style describes, and the fields a toggles entry may carry, which are those plus the
+-- app it names, the style it takes and a description. A key or a modifiers field is the person's
+-- key choice, which config/keymap.lua holds, and a url a pane's, which System Settings answers as
+-- an action of its own, so each is named rather than ignored in silence. `variants` and named
+-- variant actions were retired on 2026-10-24, since a style named once and an app taking it keeps
+-- the action on the app's own name rather than minting a second one per behaviour.
+local STYLE_FIELDS = { hides = true, placement = true }
+local ENTRY_FIELDS = { app = true, style = true, hides = true, placement = true, description = true }
 local MOVED = {
-  key = "a key belongs in config/keymap.lua, naming this variant as apptoggler.<name>",
+  key = "a key belongs in config/keymap.lua, naming the app as apptoggler.<app>",
   modifiers = "modifiers belong in config/keymap.lua, written into the chord",
   url = "a pane is opened by its System Settings action, systemsettings.<pane>, named in config/keymap.lua",
 }
@@ -365,59 +371,105 @@ local function sortedNames(t)
   return out
 end
 
---- AppToggler:_build(apps, variants)
---- Method
---- One descriptor per app in the catalog, named by its catalog name, focusing or cycling it,
---- then one per variant, named by the variant's own name, running the behaviour it asks for.
---- Apps come first and each list is sorted by name, so the order is the same on every load.
---- Every descriptor carries the bundle id in app, so the launcher shows its chord on that app's
---- own row rather than listing it twice, and a group answering whether the app runs, so the sheet
---- splits the apps into running and not running. A variant naming an app the catalog does not
---- hold, or carrying a field that is not a variant's, is logged and the field or the variant left
---- out, and every other descriptor is still built.
-function obj:_build(apps, variants)
-  local self_ref = self
-  local actions = {}
-  local function groupFor(bundleID)
-    return function() return self_ref:_isRunning(bundleID) and RUNNING or DORMANT end
+-- Names every field of a table the reader does not read, with where it belongs when it moved.
+local function warnUnread(t, known, what, allowed)
+  for _, field in ipairs(sortedNames(t)) do
+    if not known[field] then
+      log.w(what .. " field '" .. tostring(field) .. "' is not read, " .. (MOVED[field] or allowed))
+    end
   end
+end
+
+-- An entry's fields laid over its style's. A plain field the entry states wins. Placement merges
+-- one level deep when both sides are tables, so an entry naming only a width keeps the style's
+-- height and padding, and a function on either side replaces the other whole, since a function
+-- answers the frame outright and has no fields to merge into.
+local function resolve(style, entry)
+  local spec = {}
+  for k, v in pairs(style or {}) do spec[k] = v end
+  if entry.hides ~= nil then spec.hides = entry.hides end
+  if entry.placement ~= nil then
+    if type(entry.placement) == "table" and type(spec.placement) == "table" then
+      local merged = {}
+      for k, v in pairs(spec.placement) do merged[k] = v end
+      for k, v in pairs(entry.placement) do merged[k] = v end
+      spec.placement = merged
+    else
+      spec.placement = entry.placement
+    end
+  end
+  return spec
+end
+
+--- AppToggler:_styled(apps, styles, toggles) -> { [appName] = { spec, description } }
+--- Method
+--- Reads the toggles list against the catalog and the styles, answering each listed app's resolved
+--- spec by its catalog name. A style naming a field no style reads, an entry that is not a table,
+--- names an app the catalog does not hold, names a style that does not exist or repeats an app
+--- already listed is logged, and that entry is left out, so its app keeps the plain focus or cycle
+--- and every other entry still applies.
+function obj:_styled(apps, styles, toggles)
+  for _, name in ipairs(sortedNames(styles)) do
+    local style = styles[name]
+    if type(style) ~= "table" then
+      log.w("Style '" .. tostring(name) .. "' is not a table, so no app can take it")
+    else
+      warnUnread(style, STYLE_FIELDS, "Style '" .. tostring(name) .. "'", "a style takes hides and placement")
+    end
+  end
+  local out = {}
+  if type(toggles) ~= "table" then
+    log.w("The toggles list is not a table, so every app keeps its plain focus or cycle")
+    return out
+  end
+  for i, entry in ipairs(toggles) do
+    local where = "Toggle " .. i
+    if type(entry) ~= "table" then
+      log.w(where .. " is not a table, so it is left out")
+    else
+      where = where .. ", " .. tostring(entry.app)
+      warnUnread(entry, ENTRY_FIELDS, where, "an entry takes app, style, hides, placement and description")
+      local style = entry.style ~= nil and styles[entry.style] or nil
+      if not apps[entry.app] then
+        log.w(where .. ", names an app config/apps.lua does not hold, so it is left out")
+      elseif out[entry.app] then
+        log.w(where .. ", lists an app already listed, so only the first entry applies")
+      elseif entry.style ~= nil and type(style) ~= "table" then
+        log.w(where .. ", names the style '" .. tostring(entry.style)
+          .. "', which is not among the styles, so the app keeps its plain focus or cycle")
+      else
+        out[entry.app] = {
+          spec = resolve(style, entry),
+          description = type(entry.description) == "string" and entry.description or nil,
+        }
+      end
+    end
+  end
+  return out
+end
+
+--- AppToggler:_build(apps, styles, toggles)
+--- Method
+--- One descriptor per app in the catalog, named by its catalog name, sorted by name so the order
+--- is the same on every load. An app the toggles list styles runs its resolved spec, any other
+--- focuses or cycles. Every descriptor carries the bundle id in app, so the launcher shows its
+--- chord on that app's own row rather than listing it twice, and a group answering whether the
+--- app runs, so the sheet splits the apps into running and not running.
+function obj:_build(apps, styles, toggles)
+  local self_ref = self
+  local styled = self:_styled(apps, styles, toggles)
+  local actions = {}
   for _, name in ipairs(sortedNames(apps)) do
     local bundleID = apps[name]
     if type(name) == "string" and type(bundleID) == "string" then
       local appFocus = self._appFocus
+      local style = styled[name]
       actions[#actions + 1] = {
-        name = name, app = bundleID, group = groupFor(bundleID),
-        run = function() appFocus.focusOrCycle(bundleID) end,
+        name = name, app = bundleID, description = style and style.description or nil,
+        group = function() return self_ref:_isRunning(bundleID) and RUNNING or DORMANT end,
+        run = style and self:_buildAction(style.spec, bundleID)
+          or function() appFocus.focusOrCycle(bundleID) end,
       }
-    end
-  end
-  for _, name in ipairs(sortedNames(variants)) do
-    local variant = variants[name]
-    local ok, err = pcall(function()
-      if type(variant) ~= "table" then
-        log.w("Variant '" .. tostring(name) .. "' is not a table, so it is left out")
-        return
-      end
-      for _, field in ipairs(sortedNames(variant)) do
-        if not VARIANT_FIELDS[field] then
-          log.w("Variant '" .. tostring(name) .. "' field '" .. tostring(field) .. "' is not read, "
-            .. (MOVED[field] or "a variant takes app, hides, placement and description"))
-        end
-      end
-      local bundleID = apps[variant.app]
-      if not bundleID then
-        log.w("Variant '" .. tostring(name) .. "' names the app '" .. tostring(variant.app)
-          .. "', which config/apps.lua does not hold, so it is left out")
-        return
-      end
-      actions[#actions + 1] = {
-        name = name, app = bundleID, group = groupFor(bundleID),
-        description = type(variant.description) == "string" and variant.description or nil,
-        run = self:_buildAction(variant, bundleID),
-      }
-    end)
-    if not ok then
-      log.w("Variant '" .. tostring(name) .. "' failed to build, " .. tostring(err))
     end
   end
   self._actions = actions

@@ -40,7 +40,7 @@ apptoggler.app name=Xcode bundleID=com.apple.dt.Xcode
 apptoggler.app name=Yomu bundleID=net.cecinestpasparis.yomu
 apptoggler.app name=Zed bundleID=dev.zed.Zed
 apptoggler.app name=iPhoneMirroring bundleID=com.apple.ScreenContinuity
-registry apptoggler.actions count=36
+registry apptoggler.actions count=35
 apptoggler.action name=ActivityMonitor app=com.apple.ActivityMonitor description=- group=true
 apptoggler.action name=Alacritty app=org.alacritty description=- group=true
 apptoggler.action name=AndroidStudio app=com.google.android.studio description=- group=true
@@ -54,7 +54,6 @@ apptoggler.action name=Cursor app=com.todesktop.230313mzl4w4u92 description=- gr
 apptoggler.action name=Docker app=com.electron.dockerdesktop description=- group=true
 apptoggler.action name=Finder app=com.apple.finder description=- group=true
 apptoggler.action name=Ghostty app=com.mitchellh.ghostty description=- group=true
-apptoggler.action name=GhosttyPlaced app=com.mitchellh.ghostty description=Terminal placed group=true
 apptoggler.action name=GoogleChat app=com.google.Chrome.app.mdpkiolbdkhdjpekfbkbmhigcaggjagi description=- group=true
 apptoggler.action name=GoogleChrome app=com.google.Chrome description=- group=true
 apptoggler.action name=Hammerspoon app=org.hammerspoon.Hammerspoon description=- group=true
@@ -443,7 +442,7 @@ launcherrows.entry name=pasteNext subTitle=Clipboard · ⌃⌥V
 launcherrows.entry name=processes subTitle=System · stops a dev server, container, or watcher
 launcherrows.entry name=searchSettings subTitle=System · opens the System Settings search field
 launcherrows.entry name=settings subTitle=System · where the OLM launcher appears, the colour theme and other preferences
-launcherrows.entry name=sleep subTitle=System · Hyper esc
+launcherrows.entry name=sleep subTitle=System
 launcherrows.entry name=speedtest subTitle=Network · measure this connection and compare it with its own past (st, speed)
 launcherrows.entry name=textCase subTitle=Text · recase the selection in place
 launcherrows.entry name=tmuxSessions subTitle=Tools · Hyper U (u, tmux)
@@ -451,7 +450,7 @@ launcherrows.entry name=volume subTitle=System · see the volume, set it from 0 
 launcherrows.entry name=vpn subTitle=Network · Hyper P (v, vpn)
 launcherrows.entry name=wifi subTitle=Network · see the current network, disconnect, or join another (wi, wifi)
 launcherrows.entry name=workspaces subTitle=Displays · window layouts you snapshot and put back (ws, layout)
-registry hyperkey count=36
+registry hyperkey count=35
 hyperkey.key code=0 total=2 base=1
 hyperkey.key code=1 total=2 base=1
 hyperkey.key code=2 total=2 base=1
@@ -487,8 +486,6 @@ hyperkey.key code=45 total=1 base=1
 hyperkey.key code=46 total=2 base=1
 hyperkey.key code=49 total=2 base=1
 hyperkey.key code=50 total=1 base=1
-hyperkey.key code=53 total=1 base=1
-registry hotkeys count=3
+registry hotkeys count=2
 hotkeys.entry msg=⌃⌥C enabled=true
 hotkeys.entry msg=⌃⌥V enabled=true
-hotkeys.entry msg=⌥` enabled=true

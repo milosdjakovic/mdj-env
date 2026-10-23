@@ -650,7 +650,7 @@ finding `exactSize` by its name and calling `run`.
 
 A list may be built from the plugin's own data rather than fixed in code, answered by a member
 that builds it in `configure`, once per load, which is an ordinary case rather than a trick. The
-app toggler answers one action per app in its catalog and one per named variant, each naming its
+app toggler answers one action per app in its catalog, styled where its toggles list says so, each naming its
 app and a group function answering a `RUNNING` table or a `DORMANT` table with `faded = true`, and
 System Settings one per pane. A person's keys reach them from `config/keymap.lua`,
 `["hyper+S"] = "apptoggler.Safari"`. Keys bind at load, so an action added while Hammerspoon runs
@@ -658,10 +658,9 @@ is bindable after the next reload.
 
 ```lua
 provides = { actions = "actions" },
--- answers, built in configure from data.apps and data.variants
+-- answers, built in configure from data.apps, data.styles and data.toggles
 { { name = "Safari", app = "com.apple.Safari", group = runningGroup, run = focusSafari },
-  { name = "GhosttyPlaced", app = "com.mitchellh.ghostty", group = runningGroup,
-    description = "Terminal placed", run = placeTerminal } }
+  { name = "Ghostty", app = "com.mitchellh.ghostty", group = runningGroup, run = popupGhostty } }
 ```
 
 `bindings`, `cheatSheetSections` and `launcherAppDetails` were provides fields until phase 6, the
@@ -910,7 +909,7 @@ reads it, so nothing here changes for a plugin. It has five sections.
   `fn`, and `fn` is refused on a held leader, which compares only the other four. The keypad plus
   is `pad+`, and the main row plus is written as its unshifted key, `shift+=`. An action id is the plugin or host identity, a dot,
   and the action, the descriptor's `name` or `open` for a tool's or a host's open row,
-  `vpn.open`, `windowmanager.leftHalf`, `apptoggler.Safari`, `apptoggler.GhosttyPlaced`,
+  `vpn.open`, `windowmanager.leftHalf`, `apptoggler.Safari`,
   `systemsettings.General`, `launcher.lock`. An action named there takes exactly the chords listed for it and loses its
   defaults, and its new rows copy the gate, label, repeat and function of the row it had.
 - `leaders`, a name to a list of real modifiers, `nav = { "shift", "ctrl" }`, a leader of its own

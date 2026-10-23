@@ -41,7 +41,7 @@ return {
 
   -- A terminal block used to sit here, the timing and the size and padding the retired
   -- TerminalHandler spoon read. AppToggler owns the behaviour now, through the placement
-  -- field its GhosttyPlaced variant in config/plugins.lua carries, and the timing that
+  -- field of the popup style in config/toggles.lua, and the timing that
   -- block held is internal to that plugin, nobody has ever tuned it.
 
   -- A windowMemory block used to sit here, holding the pixel tolerance for the retired

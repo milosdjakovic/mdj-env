@@ -51,9 +51,9 @@ Give it a key in the `keys` section of `config/keymap.lua`:
 ```lua
 ["hyper+W"] = "apptoggler.NewApp",
 ```
-An app that needs more than focus or cycle, show and hide or a placement, is a named variant
-in the `apptoggler` entry of `config/plugins.lua`, and its key names the variant,
-`apptoggler.GhosttyPlaced`.
+An app that needs more than focus or cycle, show and hide or a placement, takes a style in
+`config/toggles.lua`, `{ app = "Ghostty", style = "popup" }`, and its key still names the app,
+`apptoggler.Ghostty`.
 
 App toggles fire by holding the Hyper key (**Caps Lock**, remapped to **F18** at the
 HID level by Olm's core `lib/keyremap.lua` from the key the root's own shipped leaders table gives Hyper,

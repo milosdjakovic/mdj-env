@@ -16,7 +16,7 @@
 --   main row is written as its unshifted key, shift+=, and the keypad plus is pad+, hyper+pad+.
 --   An action is the plugin or host identity, a dot and the action name, vpn.open,
 --   windowmanager.leftHalf, clipboard.appendCopy, apptoggler.Safari for an app in
---   config/apps.lua, apptoggler.GhosttyPlaced for a variant of one in config/plugins.lua,
+--   config/apps.lua, whose style config/toggles.lua may set,
 --   systemsettings.General for a System Settings pane, and launcher.open, launcher.lock and
 --   launcher.sleep for Olm's own.
 --   An action named here takes exactly the chords listed for it here and loses its defaults, and
@@ -151,12 +151,10 @@ return {
     ["hyper+L"] = "apptoggler.Slack",
     -- Third character
     ["hyper+A"] = "apptoggler.Claude",
-    -- The default terminal, plain focus or cycle.
+    -- The terminal, popping in and out through its popup style in config/toggles.lua. The popup
+    -- sat on Option and backtick as a variant of its own beside the plain toggle on this chord
+    -- until 2026-10-23.
     ["hyper+`"] = "apptoggler.Ghostty",
-    -- The terminal's own placed summon, the GhosttyPlaced variant in config/plugins.lua, a plain
-    -- combination rather than a Hyper chord since it is pressed mid work, live all the time
-    -- rather than only while Hyper is held.
-    ["alt+`"] = "apptoggler.GhosttyPlaced",
     -- Activity Monitor. On backslash, chosen when file search sat on slash beside it. File search
     -- moved to semicolon on 2026-10-23, since macOS takes Hyper and slash before any event tap.
     ["hyper+\\"] = "apptoggler.ActivityMonitor",

@@ -2,26 +2,23 @@
 
 Brings an application forward, and cycles through its windows when it is already
 the frontmost app, so pressing the chord repeatedly walks the app's windows and
-wraps to the first. A variant may instead ask for show and hide, where a second
-press while the app is frontmost really does hide it, or ask to be centered and
-sized once it actually shows, launches, or focuses, never on a press that only
-cycled to another window of an app already in front.
+wraps to the first. An app may instead take a style, show and hide, where a
+second press while the app is frontmost really does hide it, or being centered
+and sized once it actually shows, launches, or focuses, never on a press that
+only cycled to another window of an app already in front.
 
 The plugin holds no key. It answers one action per app in its catalog,
-`apptoggler.Safari`, which focuses or cycles that app, and one per named variant
-in its data, `apptoggler.GhosttyPlaced`, which runs the behaviour that variant
-asks for. Both are built once in `configure` and answered through
-`provides.actions`, and a person reaches any of them from `config/keymap.lua`,
-`["hyper+S"] = "apptoggler.Safari"`, on Hyper or on a plain combination such as
-Option and backtick, which is live all the time rather than only while Hyper is
-held. The one key it suggests is Finder on Hyper and F, so a fresh install has a
+`apptoggler.Safari`, which focuses or cycles that app, or runs the style its
+toggles list gives it. The actions are built once in `configure` and answered
+through `provides.actions`, and a person reaches any of them from
+`config/keymap.lua`, `["hyper+S"] = "apptoggler.Safari"`, on Hyper or on a plain
+combination, which is live all the time rather than only while Hyper is held.
+The one key it suggests is Finder on Hyper and F, so a fresh install has a
 working toggle.
 
 Every action names its app in `app`, so Olm merges it into the launcher's own row
 for that app, which then shows the chord, rather than listing the app twice.
-Where two actions name one app and both have keys, a plain combination wins the
-row, since it appears on no cheat sheet and the row is its only discoverability
-surface, and the row shows that action's description beside it. Reached by
+Reached by
 typing a or app to narrow the launcher to the application rows. Choosing an app
 row always focuses or cycles the app.
 
@@ -40,31 +37,47 @@ about twenty milliseconds each and dominated the overlay's show latency.
 The sheet draws an app row with the app's own icon and name, resolved once when the sheet is built,
 leaves off an app that is not installed, and orders the apps by key, letters and digits first, then
 symbols, ignoring case. All of that is Olm's, decided from `app`, so the plugin knows nothing about
-the sheet. A variant's description is its row's label in place of the app's name.
+the sheet. A styled app's description, where its entry states one, is its row's label in place of
+the app's name.
 
 Until phase 6 of the keymap plan this plugin answered complete key rows through
 `provides.bindings`, its own sheet sections through `provides.cheatSheetSections` and the
 launcher's app row details through `provides.launcherAppDetails`, all built from a toggle list in
 `config/keys.lua` that held the keys. All three are retired, and so is that file.
 
-## The variant fields
+## Styles and the toggles list
 
-A variant is keyed by its name, which is its action's name, and names its `app`
-from the catalog. Every other field is optional. A variant naming an app the
-catalog does not hold is logged and left out, and a field a variant does not
-read is logged with where it belongs now, a key or modifiers in
-`config/keymap.lua`, a url in System Settings' own pane action.
+A style is a behaviour described once under a name, `hides`, `placement` or
+both, and every app that takes it follows when it changes. The toggles list says
+which app takes which style, one entry per app, `{ app = "Ghostty", style =
+"popup" }`, the app named as the catalog names it. The style changes what the
+app's own action does, so the action keeps the app's name and a key names the
+app and never the style. One app takes one style, so an app cannot be plain on
+one key and styled on another.
+
+An entry may state `hides` or `placement` itself, laid over its style's, and may
+leave out `style` and state both, a behaviour for one app only. Placement merges
+one level deep when both sides are tables, so an entry naming only a `width`
+keeps the style's height and padding, and a function on either side replaces
+the other whole. An entry may add a `description`, the label Olm shows for the
+app's action.
+
+Every mistake is logged and costs only its own entry. A style field no style
+reads, an entry naming an app the catalog does not hold, a style that does not
+exist, or an app listed twice, where the first entry applies, leaves that app on
+its plain focus or cycle. A field an entry does not read is logged with where it
+belongs now, a key or modifiers in `config/keymap.lua`, a url in System Settings'
+own pane action.
+
+Named variants, each a second action for one app such as `GhosttyPlaced`, were
+the form before 2026-10-24. They needed a name per behaviour per app, and a
+style named once on the app's own action replaced them.
 
 `hides` swaps the default focus-or-cycle behaviour for show and hide. Focused
 hides, visible but unfocused focuses, hidden or not running launches or shows.
 Absent means focus-or-cycle, first press showing the last focused window and
 each press after walking to the next one, wrapping to the first, and never
 hiding anything.
-
-`description` labels the action wherever Olm lists it, the app's launcher row
-when the variant's key wins it and the sheet row when its key is on a leader.
-It matters most for a variant on a plain combination, the one case with no
-other discoverability surface.
 
 `placement` centers and sizes the window once the press actually showed,
 launched, or focused the app. It never fires on a press that only cycled
@@ -102,16 +115,14 @@ never this one's.
 
 ## Where the data comes from
 
-The catalog of bundle ids is config/apps.lua and the variants are written in this plugin's own
-apptoggler entry in config/plugins.lua, which hands both over as this plugin's own data rather
-than through the flat shared channel in init.lua. Neither holds a key, every key is in
-config/keymap.lua.
+The catalog of bundle ids is config/apps.lua and the styles and the toggles list are
+config/toggles.lua, and this plugin's own apptoggler entry in config/plugins.lua hands all three
+over as this plugin's own data. None holds a key, every key is in config/keymap.lua.
 
 ## History
 
 A show and hide behaviour and a placement engine both used to live in
 TerminalHandler.spoon, a whole spoon kept outside Olm for the one app that
-wanted them. Both turned out to be plain fields any variant here can ask for
+wanted them. Both turned out to be plain fields any app here can ask for
 rather than a tool of their own, so the spoon is gone and the terminal's own
-summon is now one variant, GhosttyPlaced, beside the plain focus or cycle
-action the same app already had.
+summon is the popup style on Ghostty's own action.

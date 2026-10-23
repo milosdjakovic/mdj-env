@@ -259,7 +259,7 @@ sheet host, reads the keymap, so a key is listed where it is bound, filed under 
 `group` where it names one, a word, a table with a `title` and `faded = true`, or a function
 asked at every show, in a block placed by the plugin's `defaults.cheatSheetOrder`. An action list
 may be built from the plugin's own data in `configure`, one action per item, which is how the app
-toggler answers one action per app and per variant and System Settings one per pane, so a person
+toggler answers one action per app, styled from its data, and System Settings one per pane, so a person
 reaches any item from `config/keymap.lua` and the plugin's data holds no key. A descriptor
 standing for an application names its bundle id in `app`, so Olm merges it into that app's launcher
 row with its chord instead of listing it twice and draws its sheet row with the app's icon and

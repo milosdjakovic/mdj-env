@@ -34,6 +34,7 @@
 -- thing that merges it with the manifests.
 
 local apps       = require("config.apps")
+local toggles    = require("config.toggles")
 local settings   = require("config.settings")
 local displays   = require("config.displays")
 local filesearch = require("config.filesearch")
@@ -51,33 +52,13 @@ return {
     data = { settings = settings, margins = margins },
   },
 
-  -- The app toggler's data, no keys. The catalog of bundle ids lives in config/apps.lua and this
-  -- entry points at it rather than copying it in, and every app there is an action,
-  -- apptoggler.Safari, focusing or cycling the app. An app that needs more is a named variant
-  -- below, an action of its own, apptoggler.GhosttyPlaced. Which key reaches which action is
-  -- written in config/keymap.lua, the one place a person sets a key. This is the plugin's own data
-  -- and no other plugin asks for it, which is why it travels here. The key is the plugin's
-  -- identity, apptoggler, which is also its directory.
-  --
-  -- A variant names its app from config/apps.lua. `hides` turns focus or cycle into show and
-  -- hide, a second press on an app already in front hiding it instead of walking its windows.
-  -- `placement` centers and sizes the window once showing, launching, or focusing is the actual
-  -- outcome of the press, never when the press only cycled to another window of an app already in
-  -- front. `description` labels the action wherever Olm lists it. Every field is read in full in
-  -- that plugin's own README.
+  -- The app toggler's data, no keys. The catalog of bundle ids lives in config/apps.lua and how
+  -- apps toggle in config/toggles.lua, and this entry points at both rather than copying them in.
+  -- Every app in the catalog is an action, apptoggler.Safari, and which key reaches it is written
+  -- in config/keymap.lua, the one place a person sets a key. The key is the plugin's identity,
+  -- apptoggler, which is also its directory.
   apptoggler = {
-    data = {
-      apps = apps,
-      variants = {
-        -- The terminal's own placed summon, show and hide rather than cycle since a second press
-        -- while it is in front should get it out of the way, and centered at a fixed size on
-        -- whichever display it is already on. This is what TerminalHandler.spoon used to be,
-        -- absorbed into the toggler as one variant rather than a whole spoon kept outside Olm.
-        -- Its key, Option and backtick, is in config/keymap.lua, beside the plain Ghostty toggle.
-        GhosttyPlaced = { app = "Ghostty", hides = true, description = "Terminal placed",
-          placement = { width = 2400, height = 1350, padding = { x = 40, y = 20 } } },
-      },
-    },
+    data = { apps = apps, styles = toggles.styles, toggles = toggles.apps },
   },
 
   browserTabs = {

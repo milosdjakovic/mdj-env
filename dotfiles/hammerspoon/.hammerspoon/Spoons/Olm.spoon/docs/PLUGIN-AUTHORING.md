@@ -825,8 +825,8 @@ plugin supplies a section of its own, `provides.cheatSheetSections` is retired.
 
 An action list may be built from your plugin's data in `configure` rather than fixed in code, one
 action per item, which is how a person reaches any item from `config/keymap.lua` with no key in
-your data at all. The app toggler is the worked example, one action per app in its catalog and one
-per named variant, each built in `configure`.
+your data at all. The app toggler is the worked example, one action per app in its catalog, each
+built in `configure` and styled where its toggles list says so.
 
 ```lua
 provides = { actions = "actions" },

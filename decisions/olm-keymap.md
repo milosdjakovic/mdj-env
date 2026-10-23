@@ -974,3 +974,16 @@ aliases live only in `config/keymap.lua`.
   machine, Right Option or Right Command with a letter swallowed over an open list rather than
   typed into the field, and the tap against hotkey order for a field key on a plain combo, were
   not checked by hand.
+
+- 2026-10-24 00:15. App toggler variants retired for styles. Milos moved the placed terminal summon
+  from Option and backtick to Hyper and backtick and dropped the plain Ghostty toggle, then asked
+  why the action needed its own name, GhosttyPlaced, and for a shape where a behaviour is defined
+  once and fed to apps from a list. Names per behaviour per app were turned down twice, Summon
+  and GhosttyPopup both, since a second id exists only to tell two toggles of one app apart. So
+  `config/toggles.lua` holds `styles`, a behaviour by name, `popup` today, and `apps`, a list of
+  `{ app, style }` entries that may override a field and add a description. The style changes
+  the app's own action, `apptoggler.Ghostty`, and mints no second id, so one app has one toggle.
+  Placement merges one level deep. A missing style, an unknown app or a repeated app is a console
+  line and leaves that app plain. `data.variants` is no longer declared. The fixtures in
+  `test/keymap-person.lua` and `test/leadersheet.lua` still use a GhosttyPlaced action, since they
+  test two actions on one app in the keymap, not this plugin.

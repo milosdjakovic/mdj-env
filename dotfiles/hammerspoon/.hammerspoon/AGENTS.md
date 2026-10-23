@@ -264,7 +264,7 @@ suggests in `defaults.aliases` and its lists and their verbs in its `surface` bl
 keys, list keys and aliases are `config/keymap.lua`, a plugin's data and its switch are
 `config/plugins.lua`, and which physical key is a leader is the `leaders` section of `config/keymap.lua`. An action id is the identity, a dot and
 the action, `vpn.open`, `windowmanager.leftHalf`, `apptoggler.Safari`,
-`apptoggler.GhosttyPlaced`, `systemsettings.General`, `launcher.lock`. An action named there takes
+`systemsettings.General`, `launcher.lock`. An action named there takes
 exactly its listed chords and loses its defaults. A person's chord on a slot a default holds
 drops that one row of the default, with one routine `Olm keymap` console line naming it. `false`
 frees a global chord. A toggle moved there shows its new chord wherever the app is
@@ -442,9 +442,9 @@ leader, so a typo fails visibly rather than silently disabling a binding. Today 
 display is attached.
 
 App toggles are actions built from data since phase 6 of the keymap plan. `AppToggler` answers
-one action per app in `config/apps.lua`, `apptoggler.Safari`, which focuses or cycles it, and one
-per named variant in its entry in `config/plugins.lua`, `apptoggler.GhosttyPlaced`, and every key
-reaching one is a line in `config/keymap.lua`. Each descriptor names its app in `app` and a group
+one action per app in `config/apps.lua`, `apptoggler.Safari`, which focuses or cycles it or runs
+the style `config/toggles.lua` gives that app, and every key reaching one is a line in
+`config/keymap.lua`. Each descriptor names its app in `app` and a group
 function answering RUNNING or DORMANT, so the Hyper sheet draws the apps running now first and the
 rest faded below them with no section of the plugin's own, and the launcher shows each chord on the
 app's own row, merging the action into it rather than listing the app twice. The sheet draws an
@@ -453,13 +453,11 @@ app row with the app's icon and name and leaves off an app not installed, both d
 pane and hides the app when it is already in front showing General, the toggle by url that used
 to be a toggler field. A pane key pressed while System Settings shows another pane goes to its own. A System Settings pane action lands among the Hyper sheet's actions, not the app section.
 
-A variant may carry `hides` and `placement`, two fields AppToggler's own README documents in full,
-and a `description`. Its key may be a plain combination, live all the time rather than only while
-Hyper is held, which is what the terminal's own placed summon on Option+\` wants, since it is
-pressed mid work rather than reached through a leader, and such a key never reaches a cheat sheet,
-so the app's launcher row shows it instead, a plain combination winning that row over a Hyper
-chord. `hides` swaps focus or cycle for show and hide. `placement` centers and sizes the window
-once the press actually showed, launched, or focused the app, and is where the retired
+A style is `hides`, `placement` or both, named once in `config/toggles.lua` and taken by any app
+listed there, which may override either field and add a `description`, all documented in
+AppToggler's own README. The style changes what the app's own action does, so a key names the app
+and never the style. `hides` swaps focus or cycle for show and hide. `placement` centers and sizes
+the window once the press actually showed, launched, or focused the app, and is where the retired
 TerminalHandler spoon's own behaviour lives now.
 
 **Two discoverability mandates, and a binding is not finished until both hold.**
@@ -676,12 +674,11 @@ in `Spoons/Olm.spoon/plugins/displayprofiles/AGENTS.md`. Adding the original spo
 needed a restow, but the new sibling files inside it did not, they resolve through
 the existing symlink.
 
-**Terminal placement.** Option+\` toggles the terminal, and the centering and sizing that
-follows lives inside `AppToggler` now, a `placement` field any variant in its entry in
-`config/plugins.lua` may declare, the GhosttyPlaced variant stating the same width, height, and
-padding a retired `TerminalHandler.spoon` used to hold. That whole spoon is gone, absorbed
-into AppToggler as one variant beside the app toggles it already served rather than a tool kept
-outside Olm for one app's sake. It operates on the display the window is already on,
+**Terminal placement.** Hyper+\` toggles the terminal, and the centering and sizing that
+follows lives inside `AppToggler` now, the popup style in `config/toggles.lua` stating the same
+width, height, and padding a retired `TerminalHandler.spoon` used to hold, and Ghostty taking it.
+That whole spoon is gone, absorbed into AppToggler as a style any app may take rather than a tool
+kept outside Olm for one app's sake. It operates on the display the window is already on,
 `win:screen()`, and never chooses one, the decision TerminalHandler recorded before the
 absorption and this engine kept rather than revisited, since the shared overlay display
 policy resolves to the cursor's screen, right for a chooser or an overlay that has to appear

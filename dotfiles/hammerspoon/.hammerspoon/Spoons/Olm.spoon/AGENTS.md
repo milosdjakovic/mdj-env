@@ -380,8 +380,8 @@ beside it and never a problem, which replaced the one exemption the collision ch
 no key, its `key`, `mods`, `leader`, `bindings`, `surface` and `aliases` each refused by
 `keymap.refusePluginKeys` with a problem line naming `config/keymap.lua`, so a keymap entry is the
 only row of the person's. Since phase
-6 an app toggle is an action like any other, one per app and one per variant, so the plain and the
-placed Ghostty are two ids and each moves alone. `fn` is refused on a held leader, which compares only the other four
+6 an app toggle is an action like any other, one per app, whose behaviour a style in
+`config/toggles.lua` may change without minting a second id. `fn` is refused on a held leader, which compares only the other four
 modifiers, the keypad plus is `pad+` and the main row plus `shift+=`. A named leader no chord uses
 is a routine note. A keymap that fails to build keeps the roles' leaders and every leader a list
 key names in use, `keymap.fallbackLeaders`. Two of the

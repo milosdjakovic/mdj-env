@@ -52,7 +52,6 @@ field	/	cmd+shift	volumeOpen	100	volume
 field	/	cmd+shift	vpnOpen	100	vpn
 field	/	cmd+shift	wifiOpen	100	wifi
 field	/	cmd+shift	workspacesOpen	100	workspaces
-hotkey	`	alt	-	-	apptoggler
 hotkey	c	alt+ctrl	-	-	clipboard
 hotkey	v	alt+ctrl	-	-	clipboard
 hyper	,	any	-	-	systemsettings
@@ -71,7 +70,6 @@ hyper	c	any	-	-	apptoggler
 hyper	d	any	-	-	apptoggler
 hyper	d	any	clipboardOpen	100	clipboard
 hyper	e	any	-	-	menuSearch
-hyper	escape	any	-	-	launcher
 hyper	f	any	-	-	apptoggler
 hyper	f	any	fileSearchOpen	100	fileSearch
 hyper	f	any	processesOpen	100	processes

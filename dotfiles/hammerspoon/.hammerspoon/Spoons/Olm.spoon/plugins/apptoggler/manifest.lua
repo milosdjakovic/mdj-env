@@ -2,26 +2,22 @@
 --
 -- A general toggle mechanism serving every app in config/apps.lua, so it owns no single key of
 -- its own. It answers one action per app in that catalog, apptoggler.Safari, which focuses the
--- app or cycles its windows, and one per named variant in its own data, apptoggler.GhosttyPlaced,
--- for an app that needs more than that. Which key reaches which action is the person's choice in
+-- app or cycles its windows, unless its toggles list gives that app a named style, a behaviour
+-- described once and shared by every app that takes it, which changes what the app's own action
+-- does and mints no second action. Which key reaches which action is the person's choice in
 -- config/keymap.lua, which this plugin never reads, and Olm binds every one of them, so the plugin
--- binds nothing and learns no chord. Which apps exist and how a variant behaves stays this
--- plugin's data, in config/apps.lua and in its own entry in config/plugins.lua.
+-- binds nothing and learns no chord. Which apps exist and how each behaves stays this plugin's
+-- data, config/apps.lua and config/toggles.lua, handed over by its entry in config/plugins.lua.
 --
 -- Finder is not personal, though. It ships on every Mac with a fixed bundle id, and the owner
 -- asked for it as a default toggle, so a fresh install gets one working toggle out of the box
 -- rather than an empty list with nothing to press. It is the one suggested key below. The
--- person's own catalog and variants merge over these defaults, the same override rules every
--- default already follows.
+-- person's own catalog, styles and toggles merge over these defaults, the same override rules
+-- every default already follows.
 --
--- A variant names its `app` and may ask for more. `hides` swaps the default focus or cycle
--- behaviour for show and hide, a second press on an already frontmost app hiding it instead of
--- walking its windows. `description` labels the action wherever Olm lists it, worth stating on a
--- variant especially, since two actions for one app would otherwise read the same. `placement`
--- centers and sizes the window once the press actually showed, launched, or focused the app, a
--- table of width, height, padding, and a fractional anchor, or a function answering a frame
--- outright, both documented in this plugin's own README rather than here, since this file states
--- what the plugin needs, not how it behaves.
+-- A style is `hides`, `placement` or both, and a toggles entry names its `app` and the `style` it
+-- takes and may override either field or add a `description`, all documented in this plugin's own
+-- README rather than here, since this file states what the plugin needs, not how it behaves.
 return {
   -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
   apiVersion = 1,
@@ -53,15 +49,17 @@ return {
       -- `data.apps` in its own apptoggler entry in config/plugins.lua.
       apps = { source = "user", policy = "optional",
                breaks = "only Finder has an action, so a keymap entry naming any other app is a problem line and binds nothing" },
-      -- The named variants, each an app and the behaviour it needs beyond focus or cycle, hides,
-      -- placement and a description, reaching this plugin as `data.variants` in the same entry.
-      -- They are the person's per app choices and this door already carries those.
-      variants = { source = "user", policy = "optional",
-                   breaks = "no variant action exists, so an app has only its plain focus or cycle" },
+      -- The named styles, each a behaviour beyond focus or cycle, hides and placement, reaching
+      -- this plugin as `data.styles` in the same entry, from config/toggles.lua.
+      styles = { source = "user", policy = "optional",
+                 breaks = "no style exists, so a toggles entry naming one is logged and its app keeps its plain focus or cycle" },
+      -- The list saying which app takes which style, reaching this plugin as `data.toggles`.
+      toggles = { source = "user", policy = "optional",
+                  breaks = "every app keeps its plain focus or cycle" },
     },
   },
 
-  -- What this plugin can run, one descriptor per app and per variant, built in configure from its
+  -- What this plugin can run, one descriptor per app, built in configure from its
   -- own effective data, already merged with whatever the person's own file overrides. Each names
   -- its app, so the launcher shows the action's chord on that app's own row rather than listing
   -- it twice, and a group function answering RUNNING or DORMANT, asked at every show of a sheet,
@@ -82,7 +80,8 @@ return {
     apps = {
       Finder = "com.apple.finder",
     },
-    variants = {},
+    styles = {},
+    toggles = {},
     -- The one suggested key, Finder on the app leader, exactly what a fresh install with nothing
     -- else configured is meant to demonstrate. Every other key is the person's.
     bindings = {
