@@ -2965,6 +2965,19 @@ function obj.run(olm, cfg)
     end
   end):start()
 
+  -- A load that ran before Accessibility was given has no working event taps or hotkeys, and
+  -- macOS does not restart them when the grant arrives, so the config looks alive and answers
+  -- no key. That is the first launch on every fresh machine, since the grants step opens
+  -- Hammerspoon so it can ask. So a load made without the grant reloads itself once the grant
+  -- is given, scheduled for the same reason as the switch's reload above, and held so it fires.
+  local loadedWithAccess = hs.accessibilityState()
+  local accessReloadTimer
+  hs.accessibilityStateCallback = function()
+    if loadedWithAccess or accessReloadTimer or not hs.accessibilityState() then return end
+    log.i("Olm compose, Accessibility was given after this load, reloading so the taps start")
+    accessReloadTimer = hs.timer.doAfter(0.5, hs.reload)
+  end
+
   local record = w.record
 
   -- The seam init.lua reads through self._composed, so Olm:start's own handle answers

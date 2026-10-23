@@ -14,10 +14,14 @@ Run from a terminal, it asks for your password once, before the first step, and 
 asks again. Near the end it walks through every permission macOS keeps for a person to give,
 such as Accessibility for Hammerspoon or Input Monitoring for kanata. For each one still missing
 it says in one line what to do, opens the exact System Settings list, shows the program in Finder
-when it has to be dragged into the list, and waits until the permission is given, so the run
-confirms it and no second run is needed. Enter skips one, and anything skipped or left after a few
-minutes is repeated in the closing notes. Run without a terminal, nothing opens and those notes
-are all it leaves.
+when it has to be dragged into the list, and waits until the permission is given, however long
+that takes, so the run confirms it and no second run is needed. Enter skips one, and anything
+skipped is repeated in the closing notes. Hammerspoon reloads itself once its Accessibility
+permission arrives, so its keys work straight away. Run without a terminal, nothing opens and
+those notes are all it leaves.
+
+To start it from a shell that has no terminal of its own, such as Claude's, use
+`./src/open-in-terminal.sh ./setup.sh`, which opens a Terminal window running it.
 
 On a machine this repository has not seen before, capture it first, so setup knows what this
 machine takes. See [Capturing a machine](#capturing-a-machine).
@@ -72,7 +76,33 @@ Do this once on every machine, and again whenever a machine changes.
    change to `tools` or to the catalog, `./src/install-mise-tools.sh` is enough.
 
 Capture records what a machine has, not what you want it to have. To give a machine a piece it
-does not have yet, such as mise or a tool from the catalog, write that row by hand in step 4.
+does not have yet, such as kanata or mise, see the next section.
+
+## Giving a machine an optional piece
+
+kanata is the example, since it is off by default and capture never offers it on a machine
+that does not already run it.
+
+1. **Write the row.**
+   ```bash
+   ./src/machine.sh set kanata on
+   ```
+2. **Commit and push it**, so every checkout knows.
+   ```bash
+   git add machines && git commit -m "machines(<name>) kanata is on" && git push
+   ```
+3. **Apply only that piece, from a terminal.**
+   ```bash
+   ./setup.sh --only kanata
+   ```
+   It asks for your password once. It installs the packages and links the config, then runs the
+   kanata step and walks the three permissions kanata needs. For each one, the matching System
+   Settings list opens. For the two that need it, the kanata binary is shown in Finder to drag
+   in, and the step waits until the permission is given. Enter skips one. `./src/setup-kanata.sh --dry-run`
+   shows everything the kanata step would do first, changing nothing.
+
+`tools` takes a list rather than on or off, `./src/machine.sh set tools node,python,uv`, and
+`./src/install-mise-tools.sh` applies it.
 
 When a machine's rows were written somewhere else first, from another machine or by hand, run
 the steps in a different order. Pull, run `./setup.sh` so the machine gets what its rows ask for,
@@ -125,7 +155,9 @@ machine already has, that is always done by hand.
 | `setup-stow-dotfiles.sh` | Symlinks dotfiles to home directory |
 | `setup-zshrc.sh` | Configures .zshrc with Powerlevel10k |
 | `set-dev-defaults.sh` | Sets default app for dev file types |
-| `setup-grants.sh` | Opens where each missing permission is given and waits for it, with a terminal, or leaves a closing note |
+| `setup-grants.sh` | Opens where each missing permission is given and waits until it is given or Enter is pressed, with a terminal, or leaves a closing note |
+| `machine.sh` | Reads and writes which optional pieces this machine takes, `get`, `set` and `capture` |
+| `open-in-terminal.sh` | Opens a Terminal window running a command of this repository, for a step a person has to sit through |
 | `setup-kanata.sh` | Installs the Karabiner driver kanata needs and runs both as root daemons, where the kanata piece is on, with `--dry-run` and `--upgrade` |
 | `setup-macos-shortcuts.sh` | Turns off the macOS keyboard shortcuts that take a chord Olm uses, Show Help menu on Command and ? today, where the hammerspoon piece is on |
 

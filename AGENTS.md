@@ -20,6 +20,14 @@ lists both names in its `.stow-local-ignore` so neither lands in the home direct
 # Full setup (run once on new machine)
 ./setup.sh
 MDJ_EDITOR="Visual Studio Code" ./setup.sh   # the editor step's answer, for a run with no terminal
+./setup.sh --only kanata                     # one optional piece, its packages, links, grants and the check
+
+# Give this machine an optional piece it does not have yet, then apply it
+./src/machine.sh set kanata on
+./setup.sh --only kanata
+
+# Start a step a person has to sit through in a Terminal window, from a shell that has none
+./src/open-in-terminal.sh ./setup.sh --only kanata
 
 # Run individual setup scripts
 ./src/install-xcode-clt.sh
@@ -72,6 +80,20 @@ choices, and Claude asks each one before starting, with skip as the first option
 the answers as environment variables on the `setup.sh` command. An unset variable means skip,
 which the step reports in the closing notes.
 
+**A step that needs a password or a grant, Claude starts in a Terminal window.** Such a step run
+from Claude's own shell can neither ask sudo nor wait for a person, so it only leaves closing
+notes, and telling the person to go and run it is a chore Claude can do for them. So Claude runs
+`src/open-in-terminal.sh` with the command, `NAME=value` answers first, which opens a Terminal
+window running it from the repository root and returns at once. In the same message Claude gives
+the person a short numbered list of what the window will ask, in order. The password once. Then
+for each grant still missing, the System Settings list it opens, the program it shows in Finder
+to drag in, and the switch to turn on, read from the grant rows in `DEPENDENCIES.map`. And that
+each wait lasts until the grant is given, so there is no hurry, and Enter skips one. Claude never
+starts such a window without saying so first, and when the person says it finished, Claude reads
+the result with `src/setup-grants.sh` and `src/check-dependencies.sh` rather than asking what
+happened. `setup.sh`, `setup.sh --only PIECE`, `setup-kanata.sh` and `setup-grants.sh` are all
+this kind.
+
 - `MDJ_EDITOR`, which app opens development files from Finder. Choices come from
   `./src/setup-dev-defaults.sh --list`.
 - `MDJ_SHADOWS`, `move` or `keep`, whether files that override a linked config go into the
@@ -80,8 +102,9 @@ which the step reports in the closing notes.
 
 One step needs a password rather than an answer. Where the `kanata` piece is on,
 `src/setup-kanata.sh` asks sudo for the driver and the daemons, and with no terminal it stops
-with a closing note rather than failing the run. Run `./src/setup-kanata.sh --dry-run` and show
-the person what it would do, then let them run it from a terminal.
+with a closing note rather than failing the run. On a machine that has not run it, run
+`./src/setup-kanata.sh --dry-run` first and show the person what it would do, then start it in a
+Terminal window as above.
 
 ## Architecture
 
@@ -238,7 +261,7 @@ names no module. The mechanism lives in `src/lib/grants.sh`, so a module step th
 grants walked when it runs alone, as `setup-kanata.sh` does, calls the step with its module's
 name rather than carrying a second copy. With a terminal a required grant not given gets one
 line saying what to do, its pane opened once, its `file` subject revealed in Finder to drag in,
-and a wait of up to three minutes that polls the prober and ends on Enter. An `app` subject is
+and a wait that polls the prober until the grant is given or Enter is pressed, with no bound. An `app` subject is
 opened when its prober cannot answer, since only the running application can. Without a
 terminal, and for every optional grant, nothing opens and the closing notes carry the map's
 sentence. `decisions/setup-grants.md` has why.
@@ -335,7 +358,7 @@ These are rules, not background. Each one exists because the opposite was done o
    stow, configure or activate it, and do not suggest switching it on as a fix for something else.
 2. **Only the machine you are on is yours to describe.** Write rows in `machines/<name>/pieces` only for this
    machine, and only through `src/machine.sh capture` in a terminal or with the person's explicit
-   answer. Never write, edit or delete another machine's rows, and never guess a row from what a
+   answer, which `src/machine.sh set KEY VALUE` writes. Never write, edit or delete another machine's rows, and never guess a row from what a
    machine probably has. One of the three machines is not the user's, so a guess there is wrong
    in a way nobody can see from here.
 3. **Never answer a difference between machines with a branch, a fork or a per machine copy of a

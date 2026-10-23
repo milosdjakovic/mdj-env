@@ -13,6 +13,9 @@ set -e
 #   machine.sh check       reports every row that names a key with no default and every directory
 #                          that is no valid machine name, exits 1 on any
 #   machine.sh capture     looks at what this machine has and brings its pieces file in line
+#   machine.sh set KEY VALUE [REASON]
+#                          writes one row for this machine, the way to give it a piece it does
+#                          not have yet, such as kanata, which capture can only ever find off
 #
 # An unknown key is exit 3 from get and on, so a misspelt key in a caller fails loudly rather
 # than reading as off. A machine name that is no safe directory name is exit 1 from every command
@@ -277,6 +280,33 @@ capture() {
     echo "Wrote the block for $machine to machines/$machine/pieces. Commit it so every checkout has it."
 }
 
+# One row for this machine, replaced where it stands or added after the others, so the person's
+# answer becomes a row without hand editing a file. Capture can only propose what it finds, so a
+# piece a machine does not have yet is never offered there, and this is how it is asked for. It
+# writes this machine's file and no other, and installs and removes nothing.
+set_row() {
+    local key="$1" value="$2" reason="$3" file row tmp
+    get "$key" >/dev/null
+    if [[ -z "$value" || "$value" =~ [[:space:]\|#] ]]; then
+        echo "machine.sh: '$value' cannot be a value, it may hold no space, pipe or hash" >&2
+        exit 1
+    fi
+    [[ -n "$reason" ]] || reason="set by hand, asked for on $(date +%Y-%m-%d)"
+    file="$(pieces_file "$NAME")"
+    row="$(printf '%-14s | %-9s # %s' "$key" "$value" "$reason")"
+    mkdir -p "$DIR/$NAME"
+    [[ -f "$file" ]] || echo "# $NAME, rows set by hand, not captured yet" > "$file"
+    tmp="$(mktemp)"
+    ROW="$row" awk -F'|' -v k="$key" '
+        BEGIN { row = ENVIRON["ROW"] }
+        $0 !~ /^[ \t]*#/ && NF >= 2 { f = $1; gsub(/^[ \t]+|[ \t]+$/, "", f); if (f == k) { if (!done) print row; done = 1; next } }
+        { print }
+        END { if (!done) print row }
+    ' "$file" > "$tmp"
+    mv "$tmp" "$file"
+    echo "$NAME now has $key = $value in machines/$NAME/pieces. Commit it so every checkout has it."
+}
+
 case "$1" in
     name)   require_name; echo "$NAME" ;;
     get)    require_name; get "$2" ;;
@@ -284,6 +314,7 @@ case "$1" in
     keys)   keys ;;
     listed) require_name; [[ -f "$(pieces_file "$NAME")" ]] ;;
     capture) require_name; capture ;;
+    set)    require_name; set_row "$2" "$3" "${4:-}" ;;
     check)
         bad=0
         known="$(keys)"
@@ -307,7 +338,7 @@ case "$1" in
         exit $bad
         ;;
     *)
-        echo "usage: machine.sh name | get KEY | on KEY | keys | listed | check | capture" >&2
+        echo "usage: machine.sh name | get KEY | on KEY | keys | listed | check | capture | set KEY VALUE [REASON]" >&2
         exit 2
         ;;
 esac

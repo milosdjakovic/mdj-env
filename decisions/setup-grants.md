@@ -2,7 +2,7 @@
 
 Status. `src/setup-grants.sh` walks every declared grant near the end of `setup.sh`, and with a
 terminal it opens the pane of each required grant still missing, shows the program to add when
-there is one, and waits for it, while `setup.sh` asks for the password once for the whole run.
+there is one, and waits for it until it is given or Enter is pressed, while `setup.sh` asks for the password once for the whole run.
 
 ## Now
 
@@ -22,10 +22,12 @@ grants to the step, which `MDJ_GRANTS_LATER` tells it, so a person meets each gr
 
 With a terminal, a required grant that is not given gets one line saying what to do, taken from
 the map, its pane opened once, its program revealed in Finder when one has to be dragged into the
-list, and a wait of up to three minutes that asks the probe every two seconds and ends on Enter.
+list, and a wait that asks the probe every two seconds until the grant is given or Enter is
+pressed, with no bound, since 2026-10-24.
 A refused grant says that macOS never asks again and still opens the pane, since the pane is the
-only way back. A grant the probe cannot answer gets twenty seconds first, since what was just
-started is usually still on its way to its checks, and then a note. Without a terminal nothing
+only way back. A grant the probe cannot answer is waited for the same way until the probe gives any word, since
+what was just started is usually still on its way to its checks, and without a terminal it gets
+twenty seconds and then a note. Without a terminal nothing
 opens, and every grant not given is a closing note, which is what a run said before. An optional
 grant is only ever a note, because the module runs without it and whether it is wanted is the
 person's choice, which a run that stops for it would be making for them.
@@ -91,6 +93,13 @@ prompt earlier. Without a terminal nothing about sudo changes.
   want, Location Services for the wifi names say, and the note already says what to do.
 - **An unbounded wait.** 2026-10-23. A run left alone would wait forever on the first grant. Three
   minutes is enough for a few clicks and a password, and past that the closing notes carry it.
+  Corrected 2026-10-24 00:45, see below. A guided wait only ever happens with a person at the
+  terminal, and Enter already moves on, so the bound protected nobody and cost the person a
+  second run.
+- **Telling the person to run a step from a terminal themselves.** 2026-10-24. An agent's shell
+  has no terminal, so the rule was to show the dry run and hand the command over. It made the
+  person do the one thing a script could, and it left them to find out what each window would ask
+  as it asked. `src/open-in-terminal.sh` opens the window and the agent says what is coming.
 - **A sudoers rule, or a password kept for an askpass helper.** 2026-10-23. Both change how the
   machine treats root, or keep a password, for a setup convenience. A timestamp that ends with
   the run changes nothing after it.
@@ -141,3 +150,25 @@ and Privacy_LocationServices opened Location Services. The LoginItems address op
 titled Login Items, the Login Items and Extensions page, from which Driver Extensions is one more
 click, as the map's sentence for that grant says. All four addresses in the map have now been
 opened at least once.
+
+### 2026-10-24 00:45
+
+The second machine, Miloss-MacBook-Pro, was given kanata on 2026-10-24 and an agent session
+started `setup-kanata.sh` for Milos in a Terminal window. Milos reported that the wait ran out on
+him while he was still working through the panes, and that he would rather the window waited for
+as long as it took while the session said in the chat what to do. Both are done. A guided wait,
+and the wait for a probe that cannot answer yet while a person is there, now last until the grant
+is given or Enter is pressed. `MDJ_GRANTS_WAIT_SECONDS` still bounds it for a harness, zero being
+no bound and the default. A wait whose terminal goes away stops and leaves a note, since nobody is
+left to give the grant. `src/open-in-terminal.sh` opens a Terminal window through a `.command`
+file, so no Automation grant is needed to script Terminal, and the root `AGENTS.md` now tells an
+agent to start such a step that way and to list what the window will ask. Checked with a stub
+probe in a real pseudo terminal, an unanswerable probe waited for until it gave a word, a grant
+waited for until given, Enter skipping, and a closed terminal ending an unbounded wait at once.
+
+Milos also reported that Hammerspoon misbehaved after the grants were given, until it was
+reloaded. The likely cause, reasoned and not measured, is that the step opens Hammerspoon before
+it has Accessibility, its config loads with no working taps, and macOS starts none when the grant
+arrives. Olm now reloads itself once when that grant arrives after a load made without it, see
+`dotfiles/hammerspoon/.hammerspoon/AGENTS.md`. The next fresh machine confirms it.
+

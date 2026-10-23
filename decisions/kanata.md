@@ -195,3 +195,22 @@ now the grant row's address in `DEPENDENCIES.map`, and the probe answers `--subj
 binary launchd runs, so the person is shown the file to drag into Input Monitoring and
 Accessibility. Inside `setup.sh` this step leaves its grants to the grants step, and run alone it
 calls that step for kanata. `decisions/setup-grants.md` has the rest.
+
+### 2026-10-24 00:45
+
+kanata went onto the second machine, Miloss-MacBook-Pro, at 00:28, the first install where the
+step itself installed the driver rather than finding one installed by hand. The commit there
+says the driver, Input Monitoring and Accessibility were all given and kanata holds the
+keyboard. What it cost is in `decisions/setup-grants.md` under the same time, a wait that ran out
+on the person and a Hammerspoon that needed a reload afterwards, and both are answered there.
+
+Giving a machine kanata used to be a row written by hand, since capture proposes on only for a
+machine already running it, and then a whole `setup.sh`, since `setup-kanata.sh` alone stops
+with kanata not installed until the package step has run. `src/machine.sh set kanata on` writes
+the row and `./setup.sh --only kanata` runs the package step, the stow step, this step, its grants
+and the check, and nothing else. `decisions/machine-profiles.md` has the first.
+
+Still owed from that run, since nobody wrote them down. Whether the Input Monitoring list offered
+the binary on its own or needed the plus button, whether the three pane addresses opened the
+right place, whether the driver needed a reboot, and whether kanata starts at boot.
+

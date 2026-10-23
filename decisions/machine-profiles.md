@@ -130,3 +130,16 @@ Karabiner driver extension is activated and enabled, since kanata without the ex
 nothing. The stow step adds the package where the piece is on, the Brewfile guards its line with
 `on?(:kanata)`, and `setup.sh` runs the step through `step_if kanata on`. `decisions/kanata.md`
 has the rest.
+
+### 2026-10-24 00:45
+
+`src/machine.sh set KEY VALUE [REASON]` writes one row for this machine. Capture can only propose
+what it finds, so a piece a machine does not have yet, kanata on the second machine that day, was
+a row written into the file by hand. `set` writes only this machine's file, replaces the key's
+row where it stands or adds one, refuses a key with no default and a value holding a space, a
+pipe or a hash, and installs and removes nothing, so rule 2 of the root `AGENTS.md` still holds,
+the person's explicit answer becoming the row. A file it creates starts with a header saying its
+rows were set by hand and it was not captured yet, rather than a captured header it did not earn.
+`./setup.sh --only PIECE` is the step that follows it, refusing a piece that is off or none here.
+Checked on a throwaway machine name, the folder removed afterwards.
+

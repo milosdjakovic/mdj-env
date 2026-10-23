@@ -4,7 +4,7 @@ kanata remaps the keyboard below every app, so Caps Lock held is Hyper as the fo
 and Right Option held is META as shift, control and option. It reads the physical keyboard through
 IOKit and types through a virtual keyboard that the Karabiner DriverKit VirtualHIDDevice driver
 provides. Both run as root daemons. This module is an optional piece, `kanata` in `machines/`,
-off by default and on for `Miloss-MacBook-Pro-Vicert`. `decisions/kanata.md` has why kanata, what
+off by default, and each machine's pieces file says whether it takes it. `decisions/kanata.md` has why kanata, what
 was turned down and what was measured, and it is the file to read before proposing anything here.
 
 ## What lives where
@@ -27,6 +27,13 @@ writes into the home directory at all.
 Homebrew and after the stow step. `src/setup-kanata.sh --dry-run` prints every change it would
 make, every sudo command and both generated plists, and changes nothing. Read that first on a
 machine that has not run it.
+
+Giving a machine kanata is three commands, and the README has them under giving a machine an
+optional piece. `src/machine.sh set kanata on`, a commit, then `./setup.sh --only kanata` from a
+terminal. Running `src/setup-kanata.sh` alone right after the row is written stops with kanata
+not installed, since only the package step installs it, which is what `--only` adds. From an
+agent's shell, start it with `src/open-in-terminal.sh ./setup.sh --only kanata` and tell the
+person what the window will ask, as the root `AGENTS.md` says under the Terminal window rule.
 
 A config change is applied by running `src/setup-kanata.sh` again. It validates the stowed file
 with `kanata --check`, compares its sha256 with the one recorded when the daemon last started,
@@ -68,7 +75,8 @@ Three grants, each declared as a gate in `DEPENDENCIES` and answered by `grants-
 terminal, `src/setup-grants.sh` opens the pane for each one missing, shows the binary in Finder
 for the two that need it added, and waits until the probe reads it as given. Inside `setup.sh`
 that step runs after this module's, and run alone this module's step calls it for kanata only.
-Without a terminal each missing grant is a closing note. The probe's `--subject` answer, the
+Each wait lasts until the grant is given or Enter is pressed. Without a terminal each missing
+grant is a closing note. The probe's `--subject` answer, the
 file to add, is read from launchd, so the binary's path stays written in `src/setup-kanata.sh`.
 
 - **The driver extension.** Approved once per driver install, in System Settings, General, Login

@@ -4,6 +4,25 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC_DIR="$SCRIPT_DIR/src"
 
+# `./setup.sh --only PIECE` applies one optional piece and nothing else, for the moment a machine
+# has just been given it with `src/machine.sh set`. It runs the steps every piece stands on, the
+# packages and the links, then only the steps that belong to that piece, then that module's
+# grants and the reconciler. The piece's own step alone would stop short, since only the package
+# step installs what the piece needs.
+ONLY=""
+if [[ "${1:-}" == --only ]]; then
+    ONLY="${2:-}"
+    if [[ -z "$ONLY" ]]; then
+        echo "usage: setup.sh [--only PIECE]" >&2
+        exit 2
+    fi
+elif [[ $# -gt 0 ]]; then
+    echo "usage: setup.sh [--only PIECE]" >&2
+    exit 2
+fi
+# What every piece stands on, by step name, the only steps an --only run takes besides its own.
+ONLY_CORE=" install-homebrew-packages setup-stow-dotfiles setup-grants check-dependencies "
+
 # One stamp for the whole run, so every step that has to move something out of this
 # repository's way puts it in the same directory. Exported rather than passed, because the
 # steps are separate processes and each one also has to work when it is run on its own, which
@@ -43,6 +62,10 @@ STEP_NOW=""
 
 step() {
     STEP_NOW="$(basename "${1%.sh}")"
+    if [[ -n "$ONLY" && " $ONLY_CORE " != *" $STEP_NOW "* && "${STEP_PIECE:-}" != "$ONLY" ]]; then
+        STEP_DONE=$((STEP_DONE + 1))
+        return 0
+    fi
     "$@"
     STEP_DONE=$((STEP_DONE + 1))
 }
@@ -53,7 +76,9 @@ step_if() {
     local key="$1" want="$2"
     shift 2
     if [[ "$("$SRC_DIR/machine.sh" get "$key")" == "$want" ]]; then
-        step "$@"
+        STEP_PIECE="$key" step "$@"
+    elif [[ -n "$ONLY" && "$key" != "$ONLY" ]]; then
+        STEP_DONE=$((STEP_DONE + 1))
     else
         echo "==> Skipping $(basename "${1%.sh}"), $key is not $want on $("$SRC_DIR/machine.sh" name)"
         STEP_DONE=$((STEP_DONE + 1))
@@ -129,6 +154,19 @@ trap on_exit EXIT
 
 echo "==> Starting dotfiles setup..."
 echo ""
+
+if [[ -n "$ONLY" ]]; then
+    value="$("$SRC_DIR/machine.sh" get "$ONLY")" || { trap - EXIT; rm -f "$MDJ_RUN_NOTES"; exit 1; }
+    if [[ "$value" == off || "$value" == none ]]; then
+        echo "$ONLY is $value on $("$SRC_DIR/machine.sh" name), so there is nothing to apply. src/machine.sh set $ONLY on gives it to this machine." >&2
+        # Nothing ran, so the abort summary would only say twenty steps were lost.
+        trap - EXIT
+        rm -f "$MDJ_RUN_NOTES"
+        exit 1
+    fi
+    echo "==> Only $ONLY, with the packages, the links, its grants and the check"
+    echo ""
+fi
 
 # Which optional pieces this machine takes, from machines/. A machine with no rows takes the
 # defaults, and the closing block says so, since a new machine is exactly when that is missed.
@@ -221,7 +259,7 @@ step_if herdr on "$SRC_DIR/setup-herdr-plugins.sh"
 # runs after every step that installs or starts something a grant applies to, and before the
 # check below, so the check reads the grants as they now are. Run it alone with
 # src/setup-grants.sh, and decisions/setup-grants.md has the reasoning.
-step "$SRC_DIR/setup-grants.sh"
+step "$SRC_DIR/setup-grants.sh" ${ONLY:+"$ONLY"}
 
 # Reconcile what every module declares it needs against what this repo knows how to install
 # and what actually landed on the machine. It only reports, it never installs, so it runs

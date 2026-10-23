@@ -495,6 +495,14 @@ Hammerspoon.
 
 Config auto-reloads when files change. Get app bundle ID: `osascript -e 'id of app "APP_NAME"'`
 
+A load made before Accessibility was given reloads itself once the grant arrives, through
+`hs.accessibilityStateCallback` in `root/compose.lua`. Such a load has no working taps or hotkeys
+and macOS does not start them when the grant lands, so the config looked alive and answered no
+key. That is every fresh machine, since the grants step opens Hammerspoon so it can ask, and it
+is the likely cause of what the second machine showed on 2026-10-24, reasoned rather than
+measured. A load that already had the grant never reloads
+this way.
+
 After any change to the Hammerspoon config always reload it, do not rely on the
 pathwatcher alone. Run `hs -c "hs.reload()"` so the change is guaranteed live,
 then verify with the `hs` command line tool, for example `hs -c "return
