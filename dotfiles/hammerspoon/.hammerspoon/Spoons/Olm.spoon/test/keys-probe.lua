@@ -250,6 +250,12 @@ for _, h in ipairs(hs.hotkey.getHotkeys() or {}) do
   end
 end
 
+-- The list keys the open list's own field answers, which no engine and no hotkey holds, from the
+-- record the root publishes, so a field key in the config is a line here as it is offline.
+if type(project.fieldLines) == "function" then
+  for _, line in ipairs(project.fieldLines(composed.fieldKeys)) do lines[#lines + 1] = line end
+end
+
 table.sort(lines)
 -- The held leaders the remap was applied with, the inventory's last line.
 lines[#lines + 1] = project.remapLine(project.remapOf(composed, { HYPER = true, META = true, SUPER = true }))

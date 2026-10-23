@@ -138,9 +138,7 @@ function obj.chordFor(binding, deps)
     local glyphFor = deps and deps.glyphFor
     return (glyphFor and glyphFor(binding.key, binding.mods)) or tostring(binding.key)
   end
-  -- A binding bound with any modifiers may name the ones it is spelled with, showKeys on slash
-  -- read as Hyper and ?, see lib/keymap.lua's listDefaults.
-  local mods = binding.shownMods or binding.mods
+  local mods = binding.mods
   local chordLabel = deps and deps.chordLabel
   local leaderName = deps and deps.leaderName
   if binding.leader ~= nil and deps and deps.leaderNames then
@@ -246,7 +244,9 @@ function obj.footerModel(contextName, plan, deps)
         secondary = secondary or b
       elseif b.shared == "openActionPanel" then
         panel = panel or b
-      elseif not panelRow or (b.shared ~= nil and b.shared ~= "primary") then
+      -- Over the action panel only the shared keys a held leader answers stay listed, since the
+      -- list's field keys, showKeys among them, are inert while the panel is open.
+      elseif not panelRow or (b.shared ~= nil and b.shared ~= "primary" and b.leader ~= false) then
         keys[#keys + 1] = { badges = badgesFor(b, deps),
           label = obj.labelFor(b, contextName, deps.liveLabels, labels), action = b.action }
       end

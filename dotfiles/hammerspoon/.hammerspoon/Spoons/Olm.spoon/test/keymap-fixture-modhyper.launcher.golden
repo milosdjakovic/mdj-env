@@ -9,7 +9,7 @@
 9	special:displayProfiles	Display Profiles	Displays · inspect and manage arrangements	profile	displayProfiles	-	-	-
 10	special:dockAutoHide	Dock	System · hides or reveals the Dock (d, dock)	dockautohide	dockAutoHide	-	autohide, hide dock, show dock |  (d, dock)	-
 11	special:emoji	Emoji picker	Tools · Hyper J (e, em, emoji)	emoji	emoji	-	 (e, em, emoji)	-
-12	special:fileSearch	File search	Tools · Hyper / (/)	filesearch	fileSearch	-	find, folders, locate, finder search |  (/)	-
+12	special:fileSearch	File search	Tools · Hyper ; (/)	filesearch	fileSearch	-	find, folders, locate, finder search |  (/)	-
 13	special:obsidian	Search Obsidian	Tools · search and open notes (ob, obsidian)	image	-	-	notes, vault, markdown |  (ob, obsidian)	-
 14	special:speedtest	Speedtest	Network · measure this connection and compare it with its own past (st, speed)	speedtest	speedtest	-	internet speed, bandwidth, latency, ping, network quality, rpm |  (st, speed)	-
 15	special:tmuxSessions	Tmux Manager	Tools · Hyper U (u, tmux)	tmuxsessions	tmuxSessions	-	sessions, terminal, ghostty |  (u, tmux)	-

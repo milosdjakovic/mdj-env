@@ -955,17 +955,19 @@ do
   local contexts = lists()
   local problems = keymap.applyLists(contexts, {}, { listLeader = "meta", heldLeaders = HELD, keycodes = LIST_KEYCODES })
   eq(#problems, 0, "list role: placing the defaults is no problem")
-  local onMeta, listedOnly = 0, nil
+  local onMeta, listedOnly, onField = 0, nil, 0
   for _, b in ipairs(contexts.clip.bindings) do
     if b.chord == false then listedOnly = b.leader
+    elseif b.leader == false then onField = onField + 1
     elseif b.leader == "meta" then onMeta = onMeta + 1 end
   end
-  eq(onMeta, #contexts.clip.bindings - 1, "list role: every bound default of the list sits on meta")
+  eq(onMeta, #contexts.clip.bindings - 1 - onField, "list role: every bound default of the list sits on meta, the field's own keys apart")
+  eq(onField, 1, "list role: showKeys is the one default the field answers on no leader")
   eq(listedOnly, nil, "list role: a key the list reads for itself is placed on no leader")
   local result = keymap.build({ plan = { effective = {}, identity = {}, contexts = contexts, order = {} },
     roles = ROLES, keycodes = LIST_KEYCODES, listLeader = "meta" })
   local leaders = {}
-  for _, row in ipairs(result.rows) do if row.layer ~= "global" then leaders[row.leader] = true end end
+  for _, row in ipairs(result.rows) do if row.layer ~= "global" and row.leader then leaders[row.leader] = true end end
   eq(leaders.meta and not leaders.hyper, true, "list role: every list row names meta")
   eq(table.concat(keymap.leadersInUse(result), ","), "meta", "list role: so meta is in use and hyper is not")
   local deps = { chordLabel = function(leader, key) return leader .. " " .. key end,
@@ -1337,10 +1339,11 @@ do
   eq(secondary and secondary.leader, false, "bar: on no leader, a key the field answers")
   eq(secondary and secondary.layerKey, true, "bar: from Olm's own all layer, so all moves it")
   eq(show and show.key, "/", "bar: showKeys sits on slash")
-  eq(show and show.leader, nil, "bar: on the list role, placed by applyLists")
+  eq(show and table.concat(show.mods, "+") .. tostring(show.leader), "cmd+shiftfalse",
+    "bar: with Command and Shift on no leader, a key the field answers")
   keymap.applyLists({ bar = block }, {}, { listLeader = "hyper", keycodes = LIST_KEYCODES })
   eq(secondary.leader, false, "bar: applyLists leaves the secondary on no leader")
-  eq(show.leader, "hyper", "bar: and places showKeys on the list role's leader")
+  eq(show.leader, false, "bar: and leaves showKeys on no leader too")
   local nav = assert(loadfile(here .. "../lib/nav.lua"))()
   local _, fieldList = nav.fieldKeys({ bar = block }, { keycodes = { ["return"] = 36, padenter = 76, d = 2 } })
   eq(#fieldList, 2, "bar: the field answers exactly the two secondary keys")
@@ -1405,7 +1408,7 @@ do
   local keys = {}
   for _, k in ipairs(model.keys) do keys[#keys + 1] = table.concat(k.badges, "+") .. " " .. k.label end
   eq(table.concat(keys, " | "),
-    "return Choose Files | Hyper j+down Move down | Hyper k+up Move up | Hyper d Delete | Hyper p Peek | Hyper x+escape Close | Hyper / Keys | cmd+1+cmd+9 Choose a visible row",
+    "return Choose Files | Hyper j+down Move down | Hyper k+up Move up | Hyper d Delete | Hyper p Peek | Hyper x+escape Close | cmd+shift+/ Keys | cmd+1+cmd+9 Choose a visible row",
     "footer: every other key in declaration order, the primary reading Return alone, then Command with a digit, and no Back on a level Backspace does not leave")
   local before = model.state
   gate.open = false
@@ -1481,8 +1484,8 @@ do
   eq(panel.right[1].label, "Delete", "panel: Return reads the highlighted panel row's title")
   eq(#panel.right, 2, "panel: no secondary, only Return and the action panel's chord")
   eq(panel.right[2].action, "openActionPanel", "panel: the second entry closes the panel")
-  eq(keyLabels(panel), "Move down,Move up,Close,Keys,Back,Choose a visible row",
-    "panel: the key panel lists the shared keys and Back, not the list's own verbs")
+  eq(keyLabels(panel), "Move down,Move up,Close,Back,Choose a visible row",
+    "panel: the key panel lists the shared held keys and Back, not the list's own verbs or its inert field keys")
   openRow = {}
   eq(hints.footerModel("bar", plan, deps).right[1].label, "Run", "panel: Run when no row is highlighted")
   openRow = nil
@@ -1551,44 +1554,49 @@ do
   eq(told[1], "selectNext", "dispatch: the handler stamped on a binding, what a key runs, tells it too")
 end
 
--- showKeys is bound on slash with any modifiers, so Hyper and slash and Hyper, Shift and slash
--- both open the key panel, since lib/leader.lua's resolver answers a binding with no mods for any
--- modifiers held. It is spelled with Shift, which the shared glyph speller reads as a question
--- mark. A person moving it replaces the binding and its spelling, and freeing it frees both keys.
+-- showKeys is Command and ?, slash with Command and Shift, a key the open list's field answers on
+-- no leader, since macOS takes Hyper with slash before any tap. The shared speller folds Shift and
+-- slash into a question mark, so it reads ⌘? wherever it is spelled, and a person moves and frees
+-- it like any field key.
 do
   local glyph = assert(loadfile(here .. "../lib/cheatsheet.lua"))().glyphFor
   eq(glyph("/", { "shift" }), "?", "showKeys: the speller reads Shift and slash as a question mark")
+  eq(glyph("/", { "cmd", "shift" }), "\u{2318}?", "showKeys: and Command, Shift and slash as Command and ?")
+  eq(glyph("/", { "shift", "cmd" }), "\u{2318}?", "showKeys: in either order the keymap sorts them")
   eq(glyph("/"), "/", "showKeys: and plain slash as itself")
   local block = barList({ primary = { action = "insertSelected" } })
   local show
   for _, b in ipairs(block.bindings) do if b.shared == "showKeys" then show = b end end
-  eq(show and show.mods, nil, "showKeys: bound with no mods, a catch all that answers Shift too")
   keymap.applyLists({ bar = block }, {}, { listLeader = "hyper", keycodes = LIST_KEYCODES })
   local deps = { chordLabel = labelsLib.chordLabel(glyph), leaderNames = { hyper = "Hyper" }, leaderName = "Hyper", glyphFor = glyph }
-  eq(hints.chordFor(show, deps), "Hyper ?", "showKeys: spelled Hyper and ?")
+  eq(hints.chordFor(show, deps), "\u{2318}?", "showKeys: spelled Command and ?")
   local keyPanel
   for _, k in ipairs(hints.footerModel("bar", { contexts = { bar = block } }, deps).keys) do
     if k.action == "showKeys" then keyPanel = k.badges[1] end
   end
-  eq(keyPanel, "Hyper ?", "showKeys: the key panel spells it the same way")
+  eq(keyPanel, "\u{2318}?", "showKeys: the key panel row spells it the same way")
   local result = keymap.build({ plan = { effective = {}, identity = {}, contexts = { bar = block }, order = {} },
     roles = ROLES, keycodes = LIST_KEYCODES, listLeader = "hyper" })
   local row
   for _, r in ipairs(result.rows) do if r.layer == "bar" and r.action == "showKeys" then row = r end end
-  eq(row and row.anyMods, true, "showKeys: the keymap row matches any modifiers")
-  eq(row and table.concat(row.shownMods or {}, "+"), "shift", "showKeys: and is shown with Shift, so the keys page reads Hyper and ?")
+  eq(row and row.field, true, "showKeys: the keymap row is a field key")
+  eq(row and glyph(row.key, row.shownMods), "\u{2318}?", "showKeys: and the keys page spells it Command and ?")
+  -- The default chooser reads nothing on Command, Shift and slash or on Control and Y.
+  local function fieldUses() return nil end
+  local accepted = keymap.applyLists({ bar = barList({ primary = { action = "insertSelected" } }) },
+    readLists({ bar = { ["cmd+shift+/"] = "showKeys" } }).lists,
+    { listLeader = "hyper", keycodes = LIST_KEYCODES, fieldUses = fieldUses })
+  eq(#accepted, 0, "showKeys: applyLists accepts Command, Shift and slash as a field chord")
 
   local moved = { bar = barList({ primary = { action = "insertSelected" } }) }
-  keymap.applyLists(moved, readLists({ all = { ["hyper+y"] = "showKeys" } }).lists, { listLeader = "hyper", keycodes = LIST_KEYCODES })
-  local movedShow
-  for _, b in ipairs(moved.bar.bindings) do if b.action == "showKeys" then movedShow = b end end
-  eq(movedShow and movedShow.key, "y", "showKeys: a person's all moves it")
-  eq(movedShow and movedShow.shownMods, nil, "showKeys: and the moved key is spelled as written, not with Shift")
+  local movedProblems = keymap.applyLists(moved, readLists({ all = { ["ctrl+y"] = "showKeys" } }).lists,
+    { listLeader = "hyper", keycodes = LIST_KEYCODES, fieldUses = fieldUses })
+  eq(#movedProblems, 0, "showKeys: a person may move it to another field chord")
+  eq(listKeys(moved, "bar", "showKeys"), "ctrl+y", "showKeys: and it takes exactly that chord")
   local freed = { bar = barList({ primary = { action = "insertSelected" } }) }
-  keymap.applyLists(freed, readLists({ all = { ["hyper+/"] = false } }).lists, { listLeader = "hyper", keycodes = LIST_KEYCODES })
-  local still = false
-  for _, b in ipairs(freed.bar.bindings) do if b.action == "showKeys" then still = true end end
-  eq(still, false, "showKeys: freeing slash frees the one catch all binding, so Hyper, Shift and slash goes too")
+  keymap.applyLists(freed, readLists({ all = { ["cmd+shift+/"] = false } }).lists,
+    { listLeader = "hyper", keycodes = LIST_KEYCODES, fieldUses = fieldUses })
+  eq(listKeys(freed, "bar", "showKeys"), "", "showKeys: and freeing Command and ? leaves it unbound")
 end
 
 if failures > 0 then

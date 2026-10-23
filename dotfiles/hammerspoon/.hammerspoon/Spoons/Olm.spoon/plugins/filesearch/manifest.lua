@@ -272,8 +272,10 @@ return {
   -- expects a viewer, and the picker then raised on start every single time it opened.
   defaults = {
     leader = "app",
-    -- The open key, a bindings row whose action is open, on the leader above.
-    bindings = { { action = "open", key = "/" } },
+    -- The open key, a bindings row whose action is open, on the leader above. Semicolon rather
+    -- than slash, since macOS takes Hyper and slash before any event tap when Hyper arrives as the
+    -- four real modifiers, see decisions/olm-chooser-keys.md. The typed alias stays slash.
+    bindings = { { action = "open", key = ";" } },
     description = "File search",
     icon = "filesearch",
     aliases = { "/" },

@@ -71,7 +71,7 @@ local function sharedBindings(verb, keys)
   for _, place in ipairs(layerPlaces((keys or {})[verb.shared])) do
     if place.key ~= nil then
       out[#out + 1] = { shared = verb.shared, key = place.key, mods = copyMods(place.mods), leader = place.leader,
-        shownMods = copyMods(place.shownMods), layerKey = true, action = verb.action, description = verb.description }
+        layerKey = true, action = verb.action, description = verb.description }
     end
   end
   return out

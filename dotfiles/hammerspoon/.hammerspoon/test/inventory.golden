@@ -97,23 +97,23 @@ hypercontexts.context name=volume when=volumeOpen priority=100 bindingCount=4
 hypercontexts.context name=vpn when=vpnOpen priority=100 bindingCount=6
 hypercontexts.context name=wifi when=wifiOpen priority=100 bindingCount=6
 hypercontexts.context name=workspaces when=workspacesOpen priority=100 bindingCount=6
-hypercontexts.binding context=audio key=/ mods=- action=showKeys kind=navigation when=- chord=true needs=- description=Keys
+hypercontexts.binding context=audio key=/ mods=cmd+shift action=showKeys kind=navigation when=- chord=true needs=- description=Keys
 hypercontexts.binding context=audio key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Use
 hypercontexts.binding context=audio key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
 hypercontexts.binding context=audio key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
 hypercontexts.binding context=audio key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=audio key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-hypercontexts.binding context=browserTabs key=/ mods=- action=showKeys kind=navigation when=- chord=true needs=- description=Keys
+hypercontexts.binding context=browserTabs key=/ mods=cmd+shift action=showKeys kind=navigation when=- chord=true needs=- description=Keys
 hypercontexts.binding context=browserTabs key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Select
 hypercontexts.binding context=browserTabs key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
 hypercontexts.binding context=browserTabs key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
 hypercontexts.binding context=browserTabs key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=browserTabs key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-hypercontexts.binding context=caffeinate key=/ mods=- action=showKeys kind=navigation when=- chord=true needs=- description=Keys
+hypercontexts.binding context=caffeinate key=/ mods=cmd+shift action=showKeys kind=navigation when=- chord=true needs=- description=Keys
 hypercontexts.binding context=caffeinate key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Confirm
 hypercontexts.binding context=caffeinate key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=caffeinate key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-hypercontexts.binding context=clipboard key=/ mods=- action=showKeys kind=navigation when=- chord=true needs=- description=Keys
+hypercontexts.binding context=clipboard key=/ mods=cmd+shift action=showKeys kind=navigation when=- chord=true needs=- description=Keys
 hypercontexts.binding context=clipboard key=a mods=- action=appendSelected kind=verb when=clipboardHistoryList chord=true needs=- description=Append to batch
 hypercontexts.binding context=clipboard key=d mods=- action=deleteSelected kind=verb when=clipboardHistoryList chord=true needs=- description=Delete
 hypercontexts.binding context=clipboard key=delete mods=- action=leaveManageHistory kind=navigation when=clipboardManagingHistory chord=false needs=- description=Back to history
@@ -125,19 +125,19 @@ hypercontexts.binding context=clipboard key=k mods=cmd action=scrollPreviewUp ki
 hypercontexts.binding context=clipboard key=m mods=- action=manageHistory kind=verb when=- chord=true needs=- description=Manage history
 hypercontexts.binding context=clipboard key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=clipboard key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-hypercontexts.binding context=displayProfiles key=/ mods=- action=showKeys kind=navigation when=- chord=true needs=- description=Keys
+hypercontexts.binding context=displayProfiles key=/ mods=cmd+shift action=showKeys kind=navigation when=- chord=true needs=- description=Keys
 hypercontexts.binding context=displayProfiles key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Select
 hypercontexts.binding context=displayProfiles key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
 hypercontexts.binding context=displayProfiles key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
 hypercontexts.binding context=displayProfiles key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=displayProfiles key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-hypercontexts.binding context=emoji key=/ mods=- action=showKeys kind=navigation when=- chord=true needs=- description=Keys
+hypercontexts.binding context=emoji key=/ mods=cmd+shift action=showKeys kind=navigation when=- chord=true needs=- description=Keys
 hypercontexts.binding context=emoji key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Insert
 hypercontexts.binding context=emoji key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
 hypercontexts.binding context=emoji key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
 hypercontexts.binding context=emoji key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=emoji key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-hypercontexts.binding context=fileSearch key=/ mods=- action=showKeys kind=navigation when=- chord=true needs=- description=Keys
+hypercontexts.binding context=fileSearch key=/ mods=cmd+shift action=showKeys kind=navigation when=- chord=true needs=- description=Keys
 hypercontexts.binding context=fileSearch key=f mods=- action=revealInFinder kind=verb when=- chord=true needs=- description=Reveal in Finder
 hypercontexts.binding context=fileSearch key=h mods=- action=browseUp kind=verb when=- chord=true needs=- description=Up a level
 hypercontexts.binding context=fileSearch key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Open
@@ -150,26 +150,26 @@ hypercontexts.binding context=fileSearch key=o mods=- action=openActionPanel kin
 hypercontexts.binding context=fileSearch key=q mods=- action=peekPreview kind=verb when=- chord=true needs=askedPreview description=Quick Look
 hypercontexts.binding context=fileSearch key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
 hypercontexts.binding context=fileSearch key=y mods=- action=copyPath kind=verb when=- chord=true needs=- description=Copy path
-hypercontexts.binding context=launcher key=/ mods=- action=showKeys kind=navigation when=- chord=true needs=- description=Keys
+hypercontexts.binding context=launcher key=/ mods=cmd+shift action=showKeys kind=navigation when=- chord=true needs=- description=Keys
 hypercontexts.binding context=launcher key=delete mods=- action=leavePage kind=navigation when=launcherHostingList chord=false needs=- description=Go back
 hypercontexts.binding context=launcher key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Run
 hypercontexts.binding context=launcher key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
 hypercontexts.binding context=launcher key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
 hypercontexts.binding context=launcher key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=launcher key=space mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-hypercontexts.binding context=menuSearch key=/ mods=- action=showKeys kind=navigation when=- chord=true needs=- description=Keys
+hypercontexts.binding context=menuSearch key=/ mods=cmd+shift action=showKeys kind=navigation when=- chord=true needs=- description=Keys
 hypercontexts.binding context=menuSearch key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Run
 hypercontexts.binding context=menuSearch key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
 hypercontexts.binding context=menuSearch key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
 hypercontexts.binding context=menuSearch key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=menuSearch key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-hypercontexts.binding context=obsidian key=/ mods=- action=showKeys kind=navigation when=- chord=true needs=- description=Keys
+hypercontexts.binding context=obsidian key=/ mods=cmd+shift action=showKeys kind=navigation when=- chord=true needs=- description=Keys
 hypercontexts.binding context=obsidian key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Open
 hypercontexts.binding context=obsidian key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
 hypercontexts.binding context=obsidian key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
 hypercontexts.binding context=obsidian key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=obsidian key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-hypercontexts.binding context=processes key=/ mods=- action=showKeys kind=navigation when=- chord=true needs=- description=Keys
+hypercontexts.binding context=processes key=/ mods=cmd+shift action=showKeys kind=navigation when=- chord=true needs=- description=Keys
 hypercontexts.binding context=processes key=f mods=- action=stopForced kind=verb when=- chord=true needs=- description=Force stop
 hypercontexts.binding context=processes key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Stop
 hypercontexts.binding context=processes key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
@@ -178,47 +178,47 @@ hypercontexts.binding context=processes key=o mods=- action=openActionPanel kind
 hypercontexts.binding context=processes key=r mods=- action=refreshList kind=verb when=- chord=true needs=- description=Rescan
 hypercontexts.binding context=processes key=s mods=- action=sortByLoad kind=verb when=- chord=true needs=- description=Sort by load
 hypercontexts.binding context=processes key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-hypercontexts.binding context=settings key=/ mods=- action=showKeys kind=navigation when=- chord=true needs=- description=Keys
+hypercontexts.binding context=settings key=/ mods=cmd+shift action=showKeys kind=navigation when=- chord=true needs=- description=Keys
 hypercontexts.binding context=settings key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Choose
 hypercontexts.binding context=settings key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
 hypercontexts.binding context=settings key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
 hypercontexts.binding context=settings key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=settings key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-hypercontexts.binding context=speedtest key=/ mods=- action=showKeys kind=navigation when=- chord=true needs=- description=Keys
+hypercontexts.binding context=speedtest key=/ mods=cmd+shift action=showKeys kind=navigation when=- chord=true needs=- description=Keys
 hypercontexts.binding context=speedtest key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Confirm
 hypercontexts.binding context=speedtest key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
 hypercontexts.binding context=speedtest key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
 hypercontexts.binding context=speedtest key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=speedtest key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-hypercontexts.binding context=textCase key=/ mods=- action=showKeys kind=navigation when=- chord=true needs=- description=Keys
+hypercontexts.binding context=textCase key=/ mods=cmd+shift action=showKeys kind=navigation when=- chord=true needs=- description=Keys
 hypercontexts.binding context=textCase key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Apply
 hypercontexts.binding context=textCase key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
 hypercontexts.binding context=textCase key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
 hypercontexts.binding context=textCase key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=textCase key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-hypercontexts.binding context=tmuxSessions key=/ mods=- action=showKeys kind=navigation when=- chord=true needs=- description=Keys
+hypercontexts.binding context=tmuxSessions key=/ mods=cmd+shift action=showKeys kind=navigation when=- chord=true needs=- description=Keys
 hypercontexts.binding context=tmuxSessions key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Select
 hypercontexts.binding context=tmuxSessions key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
 hypercontexts.binding context=tmuxSessions key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
 hypercontexts.binding context=tmuxSessions key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=tmuxSessions key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-hypercontexts.binding context=volume key=/ mods=- action=showKeys kind=navigation when=- chord=true needs=- description=Keys
+hypercontexts.binding context=volume key=/ mods=cmd+shift action=showKeys kind=navigation when=- chord=true needs=- description=Keys
 hypercontexts.binding context=volume key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Confirm
 hypercontexts.binding context=volume key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=volume key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-hypercontexts.binding context=vpn key=/ mods=- action=showKeys kind=navigation when=- chord=true needs=- description=Keys
+hypercontexts.binding context=vpn key=/ mods=cmd+shift action=showKeys kind=navigation when=- chord=true needs=- description=Keys
 hypercontexts.binding context=vpn key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Confirm
 hypercontexts.binding context=vpn key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
 hypercontexts.binding context=vpn key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
 hypercontexts.binding context=vpn key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=vpn key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-hypercontexts.binding context=wifi key=/ mods=- action=showKeys kind=navigation when=- chord=true needs=- description=Keys
+hypercontexts.binding context=wifi key=/ mods=cmd+shift action=showKeys kind=navigation when=- chord=true needs=- description=Keys
 hypercontexts.binding context=wifi key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Confirm
 hypercontexts.binding context=wifi key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
 hypercontexts.binding context=wifi key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
 hypercontexts.binding context=wifi key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=wifi key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-hypercontexts.binding context=workspaces key=/ mods=- action=showKeys kind=navigation when=- chord=true needs=- description=Keys
+hypercontexts.binding context=workspaces key=/ mods=cmd+shift action=showKeys kind=navigation when=- chord=true needs=- description=Keys
 hypercontexts.binding context=workspaces key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Select
 hypercontexts.binding context=workspaces key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
 hypercontexts.binding context=workspaces key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
@@ -415,7 +415,7 @@ launcherrows.entry name=colorPicker subTitle=Tools · Hyper 2
 launcherrows.entry name=displayProfiles subTitle=Displays · inspect and manage arrangements
 launcherrows.entry name=dockAutoHide subTitle=System · hides or reveals the Dock (d, dock)
 launcherrows.entry name=emoji subTitle=Tools · Hyper J (e, em, emoji)
-launcherrows.entry name=fileSearch subTitle=Tools · Hyper / (/)
+launcherrows.entry name=fileSearch subTitle=Tools · Hyper ; (/)
 launcherrows.entry name=keys subTitle=Tools · every key Olm binds
 launcherrows.entry name=lock subTitle=System · Hyper §
 launcherrows.entry name=manageHistory subTitle=Clipboard
@@ -461,9 +461,9 @@ hyperkey.key code=35 total=1 base=1
 hyperkey.key code=37 total=2 base=1
 hyperkey.key code=38 total=20 base=1
 hyperkey.key code=40 total=20 base=1
+hyperkey.key code=41 total=1 base=1
 hyperkey.key code=42 total=1 base=1
 hyperkey.key code=43 total=1 base=1
-hyperkey.key code=44 total=1 base=1
 hyperkey.key code=45 total=1 base=1
 hyperkey.key code=46 total=2 base=1
 hyperkey.key code=49 total=2 base=1

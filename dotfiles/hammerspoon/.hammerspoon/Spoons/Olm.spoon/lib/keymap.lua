@@ -742,11 +742,11 @@ end
 --- keypad Enter chooses the row as plain Return does, and the field asks the list keys for both
 --- before its own Return handling. A list declaring no secondary builds no binding there, so both
 --- keep choosing the row. A person naming secondary in the lists section moves both at once, since
---- an action named takes exactly the chords listed for it. A place may also carry shownMods, the
---- modifiers it is spelled with when they differ from the ones it is bound on. showKeys is bound on
---- slash with any modifiers, a catch all, so Hyper and slash and Hyper, Shift and slash both open
---- the key panel, and it is spelled with Shift, which the shared glyph speller reads as a question
---- mark, Hyper and ?. A person moving showKeys replaces the whole binding, its spelling included. showKeys sits on slash
+--- an action named takes exactly the chords listed for it. showKeys is Command and ?, slash with
+--- Command and Shift, a field key on no leader like the secondary, which the shared glyph speller
+--- spells as ⌘?. It is not a held list key because macOS takes Hyper and slash, and Hyper with other
+--- punctuation, before any event tap sees it, see decisions/olm-chooser-keys.md. It reaches a list
+--- only where the system's Show Help menu shortcut is off, which src/setup-macos-shortcuts.sh sees to. showKeys sits on slash
 --- on the list role, shadowing a global slash only while a list is open, which a list key may do
 --- since collisions are checked per layer.
 obj.listDefaults = {
@@ -755,7 +755,7 @@ obj.listDefaults = {
     { key = "return", mods = { "cmd" }, leader = false },
     { key = "padenter", mods = { "cmd" }, leader = false },
   },
-  showKeys = { key = "/", shownMods = { "shift" } },
+  showKeys = { key = "/", mods = { "cmd", "shift" }, leader = false },
 }
 
 -- Whether a key types a character into a text field when pressed with no modifier or with Shift
@@ -1042,7 +1042,7 @@ function obj.applyLists(contexts, lists, opts)
           local copy = {}
           for k, v in pairs(b) do copy[k] = v end
           copy.leader, copy.key, copy.mods = held.entry.leader or false, held.entry.key, held.entry.mods
-          copy.fn, copy.layerKey, copy.shownMods = nil, nil, nil
+          copy.fn, copy.layerKey = nil, nil
           copy.entry = held.section .. " " .. tostring(held.entry.text)
           rebuilt[#rebuilt + 1] = copy
         end
@@ -1228,7 +1228,7 @@ function obj.build(inputs)
       role = spec.role,
       key = obj.keyName(spec.key, keycodes),
       mods = mods,
-      shownMods = spec.shownMods or obj.shownMods(mods, anyMods),
+      shownMods = obj.shownMods(mods, anyMods),
       anyMods = anyMods,
       owner = spec.owner,
       action = spec.action,
@@ -1422,7 +1422,6 @@ function obj.build(inputs)
             mods = (field and b.leader == false) and (b.mods or {}) or b.mods, owner = name, field = field or nil,
             action = b.action, source = "context", when = block.when, priority = block.priority,
             description = b.description, origin = b.entry and "user" or "default", entry = b.entry,
-            shownMods = b.shownMods,
           })
         end
       end

@@ -14,33 +14,33 @@ META	s	any	-	-	windowmanager
 META	up	any	-	-	windowmanager
 META	w	any	-	-	windowmanager
 META	z	any	-	-	windowmanager
+field	/	cmd+shift	audioOpen	100	audio
+field	/	cmd+shift	browserTabsOpen	100	browserTabs
+field	/	cmd+shift	caffeinateOpen	100	caffeinate
+field	/	cmd+shift	clipboardOpen	100	clipboard
+field	/	cmd+shift	displayProfilesOpen	100	displayProfiles
+field	/	cmd+shift	emojiOpen	100	emoji
+field	/	cmd+shift	fileSearchOpen	100	fileSearch
+field	/	cmd+shift	launcherOpen	100	launcher
+field	/	cmd+shift	menuSearchOpen	100	menuSearch
+field	/	cmd+shift	obsidianOpen	100	obsidian
+field	/	cmd+shift	processesOpen	100	processes
+field	/	cmd+shift	settingsOpen	100	settings
+field	/	cmd+shift	speedtestOpen	100	speedtest
+field	/	cmd+shift	textCaseOpen	100	textCase
+field	/	cmd+shift	tmuxSessionsOpen	100	tmuxSessions
+field	/	cmd+shift	volumeOpen	100	volume
+field	/	cmd+shift	vpnOpen	100	vpn
+field	/	cmd+shift	wifiOpen	100	wifi
+field	/	cmd+shift	workspacesOpen	100	workspaces
 hotkey	c	alt+ctrl	-	-	clipboard
 hotkey	v	alt+ctrl	-	-	clipboard
-hyper	/	any	-	-	fileSearch
-hyper	/	any	audioOpen	100	audio
-hyper	/	any	browserTabsOpen	100	browserTabs
-hyper	/	any	caffeinateOpen	100	caffeinate
-hyper	/	any	clipboardOpen	100	clipboard
-hyper	/	any	displayProfilesOpen	100	displayProfiles
-hyper	/	any	emojiOpen	100	emoji
-hyper	/	any	fileSearchOpen	100	fileSearch
-hyper	/	any	launcherOpen	100	launcher
-hyper	/	any	menuSearchOpen	100	menuSearch
-hyper	/	any	obsidianOpen	100	obsidian
-hyper	/	any	processesOpen	100	processes
-hyper	/	any	settingsOpen	100	settings
-hyper	/	any	speedtestOpen	100	speedtest
-hyper	/	any	textCaseOpen	100	textCase
-hyper	/	any	tmuxSessionsOpen	100	tmuxSessions
-hyper	/	any	volumeOpen	100	volume
-hyper	/	any	vpnOpen	100	vpn
-hyper	/	any	wifiOpen	100	wifi
-hyper	/	any	workspacesOpen	100	workspaces
 hyper	2	any	-	-	colorPicker
 hyper	3	any	-	-	capture
 hyper	4	any	-	-	capture
 hyper	4	shift	-	-	capture
 hyper	5	any	-	-	capture
+hyper	;	any	-	-	fileSearch
 hyper	a	any	clipboardOpen	100	clipboard
 hyper	d	any	clipboardOpen	100	clipboard
 hyper	e	any	-	-	menuSearch
@@ -159,11 +159,11 @@ hyper	x	any	workspacesOpen	100	workspaces
 hyper	y	any	fileSearchOpen	100	fileSearch
 hyper	§	any	-	-	launcher
 remap	HYPER+META
-claim	hyper	/	shift+ctrl+alt+cmd
 claim	hyper	2	shift+ctrl+alt+cmd
 claim	hyper	3	shift+ctrl+alt+cmd
 claim	hyper	4	shift+ctrl+alt+cmd
 claim	hyper	5	shift+ctrl+alt+cmd
+claim	hyper	;	shift+ctrl+alt+cmd
 claim	hyper	a	shift+ctrl+alt+cmd
 claim	hyper	d	shift+ctrl+alt+cmd
 claim	hyper	e	shift+ctrl+alt+cmd
