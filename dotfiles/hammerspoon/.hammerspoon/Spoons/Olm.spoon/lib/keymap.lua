@@ -728,11 +728,25 @@ end
 --- Olm's own all layer, the key every list's shared verbs sit on unless that list's manifest
 --- states its own, the launcher's close for one, or the person moves it in the lists section of
 --- config/keymap.lua. A shared verb is named by what it does, primary for the list's own primary
---- action, close for its close, and the action names of the other three, and lib/surface.lua
---- builds each on the key named here. A key here names no leader, since every default list key
---- rides the list role, LIST_ROLE, which applyLists turns into a leader. This is a core default
---- rather than a plugin's, and the one place these five keys are written.
-obj.listDefaults = { primary = "i", selectNext = "j", selectPrev = "k", close = "x", openActionPanel = "o" }
+--- action, secondary for its second one, close for its close, and the action names of the rest,
+--- and lib/surface.lua builds each on the key named here. This is a core default rather than a
+--- plugin's, and the one place these keys are written.
+---
+--- An entry takes one of two shapes. A bare key name is a key on the list role, LIST_ROLE, which
+--- applyLists turns into a leader, and every held list key takes it. A table holding key, mods and
+--- leader false is a key the open list's own field answers with modifiers alone, the same three
+--- fields a person's list chord with no held leader carries once applyLists has read it, so
+--- lib/surface.lua copies them onto the binding and applyLists, which places only a binding whose
+--- leader is nil, leaves it on no leader. secondary takes that shape on Command and Return, which
+--- the field asks the list keys for before its own Return handling. A list declaring no secondary
+--- builds no binding there, so Command and Return keeps choosing the row. showKeys sits on slash
+--- on the list role, shadowing a global slash only while a list is open, which a list key may do
+--- since collisions are checked per layer.
+obj.listDefaults = {
+  primary = "i", selectNext = "j", selectPrev = "k", close = "x", openActionPanel = "o",
+  secondary = { key = "return", mods = { "cmd" }, leader = false },
+  showKeys = "/",
+}
 
 -- Whether a key types a character into a text field when pressed with no modifier or with Shift
 -- alone, a key whose name is one character, space, or a keypad key that is not Enter or Clear.
@@ -791,7 +805,7 @@ local function reaches(held, b)
 end
 
 --- obj.applyLists(contexts, lists, opts) -> problems, notes
---- The person's lists section laid over every list's built bindings, in place, so the hint bar,
+--- The person's lists section laid over every list's built bindings, in place, so the action bar,
 --- the action panel, the keymap's rows and the contexts the root binds all read the one answer.
 --- First every default binding, one naming no leader, is placed on the leader the list role lands
 --- on, opts.listLeader, so every reader after this reads a binding's own leader. Then all is laid

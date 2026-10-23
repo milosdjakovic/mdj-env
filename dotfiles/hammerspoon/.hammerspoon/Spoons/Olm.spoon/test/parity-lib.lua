@@ -136,18 +136,6 @@ function M.withHalf(half, fn)
   return table.unpack(results, 2, results.n)
 end
 
--- A panel factory standing in for CanvasPanel, which keeps the content strategy it is handed.
-function M.fakePanel()
-  local fake = { placements = { below = "below", above = "above", left = "left", right = "right",
-                                center = "center" } }
-  function fake.new(cfg)
-    fake.content = cfg.content
-    return { arm = function() end, poke = function() end, hide = function() end,
-             show = function() end, isShowing = function() return false end }
-  end
-  return fake
-end
-
 M.out(string.format("TOLERANCE a colour component may differ by one 8 bit step, "
   .. "the largest difference between the old settings and the default theme is %.2f of a step",
   M.largestStep()))

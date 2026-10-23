@@ -30,7 +30,7 @@
 -- eleven of the phase two adversarial review. The lesson kept is that a need only belongs here
 -- when this host actually reads what arrives.
 --
--- All six needs below are delivered by hand into wireData.stage at the composition root
+-- All four needs below are delivered by hand into wireData.stage at the composition root
 -- rather than through servicesLib.fanOut, the same door host/actionpanel's own kindOf,
 -- rowsFor, and run already go through for the identical reason, a value only the root can
 -- compute for one particular host rather than a word many plugins share.
@@ -60,18 +60,13 @@ return {
       -- whichever presentation is current. The chooser draws the picture when it paints.
       stampIcons = { source = "root", policy = "optional",
         breaks = "a row that names an icon by key has no owner to read the key against, so every plugin that declares its icons in its manifest draws its rows bare" },
-      -- The docked shortcut panel triple. Fixed for the life of this one instance rather than
-      -- carried on a presentation, per the stage design brief's own decision that panel
-      -- callbacks are atom level policy alongside screen, matcher, and theme, not something a
-      -- presentation may override. Phase two hands this the launcher's own panel, the only one
-      -- that exists yet, and later phases are what teach the panel to follow whichever
-      -- presentation is current.
-      onPositioned = { source = "root", policy = "optional",
-        breaks = "the docked shortcut panel never arms, so no hint bar ever appears beneath whatever the stage is showing" },
-      onActivity = { source = "root", policy = "optional",
-        breaks = "the docked shortcut panel's idle countdown never resets on a keypress, so it can reveal itself mid type" },
-      onClose = { source = "root", policy = "optional",
-        breaks = "the docked shortcut panel is never told to hide, so it can survive past the list it was pinned under" },
+      -- The action bar's model for whatever is showing, lib/hints.lua's footerModel built by the
+      -- root over this host's own current and labels. Fixed for the life of this one instance
+      -- rather than carried on a presentation, per the stage design brief's own decision that
+      -- such callbacks are atom level policy alongside screen, matcher, and theme. It replaced
+      -- the docked shortcut panel triple on 2026-10-23, docs/PLAN-ACTION-BAR.md.
+      footer = { source = "root", policy = "optional",
+        breaks = "the one instance draws no action bar, so no list says what Return, Command and Return and the action panel do, and the key panel never opens" },
     },
   },
 

@@ -29,7 +29,7 @@
 --- docs/PROBE-FINDINGS-2026-08-27.md.
 ---
 --- What a presentation is not asked to carry. Screen policy, the matcher, the theme, the
---- docked shortcut panel, and the poll interval are all atom level policy this host owns for
+--- action bar's collaborator, and the poll interval are all atom level policy this host owns for
 --- the life of the one instance, never per presentation, the same list the stage design
 --- brief's own decisions name. A presentation that wants any of those is asking the wrong
 --- layer.
@@ -54,7 +54,7 @@
 --- instance last showed rather than on what kind of call this one is, adversarial review
 --- finding M1. onPositioned, refired through _positionPane on the manual path and through
 --- the atom's own automatic firing on the native one, converge on one function, _onPositioned,
---- which is also what re anchors the docked shortcut panel now, finding M2, using paneAnchor,
+--- which once also re anchored the docked shortcut panel, finding M2, using paneAnchor,
 --- the one true copy of the anchor arithmetic three plugins once carried their own copy of,
 --- consumer map sections 7.3 and 9.11, built for phase five's migrations to call instead, and
 --- the survey of 2026-09-11 found every one of those migrations already done. The
@@ -130,9 +130,7 @@ local CONSTRUCTION_PLACEHOLDER = ""
 -- Injected via configure
 obj._chooser = nil          -- the Chooser factory (has .new), the one door this host builds through
 obj._theme = nil
-obj._panelOnPositioned = nil -- the docked shortcut panel triple, fixed for the life of the instance
-obj._panelOnActivity = nil
-obj._panelOnClose = nil
+obj._footer = nil           -- the action bar's model for whatever is showing, fixed for the life of the instance
 
 -- Owned state
 obj._instance = nil         -- the one Chooser instance, built once and never rebuilt
@@ -154,6 +152,7 @@ obj._enterGen = 0            -- bumped by every present, push, hide, and pop, co
                               -- two, so a deferring presentation's own proceed can tell whether the
                               -- stage is still waiting on it or has since moved on, see _bumpEnterGen
 obj._closedObservers = nil   -- functions told once each time the stage goes away, see onClosed
+obj._highlighted = nil       -- the item last reported highlighted, what a level's labels are asked of
 obj._selectHandled = false   -- contract v3, set true the instant _intercept has already run the
                               -- current presentation's own onSelect and found no child, so the
                               -- atom's own separate call to config.onSelect a moment later, once
@@ -179,10 +178,12 @@ end
 ---                     lib/icons/rows.lua. It draws nothing, the chooser turns icon and
 ---                     iconOwner into a picture when it paints. Without it a row that names an
 ---                     icon without an owner shows nothing.
---- opts.onPositioned, opts.onActivity, opts.onClose
----                     the docked shortcut panel triple, fixed atom level policy rather than
----                     something a presentation carries. Phase two hands this the launcher's
----                     own panel, the only one that exists yet.
+--- opts.footer       a function of no arguments answering the action bar's model for whatever
+---                     is showing, lib/hints.lua's footerModel, handed to the one instance as
+---                     its footer collaborator. Fixed atom level policy rather than something a
+---                     presentation carries, the way the docked shortcut panel triple it
+---                     replaced was. The root builds it over current and labels below. Without
+---                     it the instance draws no action bar.
 function obj:configure(opts)
   -- Decision one of the stage design brief, the one instance this host ever builds is never
   -- rebuilt. A second call here would not merely waste a chooser, it would orphan the first
@@ -200,9 +201,7 @@ function obj:configure(opts)
   self._chooser = opts.chooser
   self._theme = opts.theme
   self._stampIcons = opts.stampIcons
-  self._panelOnPositioned = opts.onPositioned
-  self._panelOnActivity = opts.onActivity
-  self._panelOnClose = opts.onClose
+  self._footer = opts.footer
 
   self._stack = {}
   self._openId = nil
@@ -261,16 +260,14 @@ function obj:configure(opts)
     -- lifecycles defeated it.
     onScroll = function(points) self:_onScroll(points) end,
     onRightClick = function(item, row) self:_onRightClick(item, row) end,
-    -- Adversarial review finding M2. Routed through this host's own _onPositioned rather
-    -- than handed self._panelOnPositioned directly, so the docked panel is re anchored
-    -- through the identical function a manual placement uses on a swap, _onPositioned
-    -- being the one place that knows to span the pair through paneAnchor rather than
-    -- anchor to the list alone. A presentation with no pane still reaches the panel
-    -- exactly as before, paneAnchor answers the bare chooser frame back unchanged when
-    -- there is no companion to span.
+    -- Adversarial review finding M2. Routed through this host's own _onPositioned, the
+    -- identical function a manual placement uses on a swap, so the current presentation's own
+    -- pane hook hears the same frames whichever of the two placed the window.
     onPositioned = function(chooserFrame, companionFrame) self:_onPositioned(chooserFrame, companionFrame) end,
-    onActivity = self._panelOnActivity,
     onClose = function() self:_onClose() end,
+    -- The action bar's model, asked by the instance on its own schedule. A provider that draws
+    -- no bar never asks.
+    footer = self._footer,
   })
 
   -- Decision two of the geometry brief. The row count the window is currently built for is
@@ -627,8 +624,8 @@ end
 -- every hit test, so a click on the new companion keeps testing honestly. What stays here
 -- is only what this host itself owns, the guard that the presentation asking is still
 -- current, and the report of the two frames onward to _onPositioned, the one function that
--- also fires on the atom's own native path, so the panel and this presentation's own
--- onPositioned are told through the identical route regardless of which of the two placed
+-- also fires on the atom's own native path, so this presentation's own
+-- onPositioned is told through the identical route regardless of which of the two placed
 -- the window, adversarial review finding M2.
 --
 -- Guarded against a stale call landing after a newer presentation already took over, which
@@ -649,16 +646,12 @@ end
 -- Where every geometry pass that has real frames to report converges, the atom's own
 -- automatic firing on a cold show, docs/BRIEF-GEOMETRY.md decision one wired through
 -- configure above, and _positionPane's own manual one on a swap alike, adversarial review
--- finding M2. Re anchors the docked shortcut panel through paneAnchor, spanning the pair
--- rather than the list alone, so the host that claims to own that panel is the one that
--- actually moves it, and tells the current presentation's own onPositioned the same two
--- frames, so a pane consumer draws into the real rect or hides when this presentation
--- declares none. A presentation with no onPositioned of its own is silently skipped, exactly
--- as an ordinary missing field already is everywhere else in this file.
+-- finding M2. Tells the current presentation's own onPositioned the two frames, so a pane
+-- consumer draws into the real rect or hides when this presentation declares none. A
+-- presentation with no onPositioned of its own is silently skipped, exactly as an ordinary
+-- missing field already is everywhere else in this file. It once re anchored the docked
+-- shortcut panel first, which the action bar inside the chooser's own canvas replaced.
 function obj:_onPositioned(chooserFrame, companionFrame)
-  if self._panelOnPositioned then
-    self._panelOnPositioned(self:paneAnchor(chooserFrame, companionFrame))
-  end
   local p = self:_current()
   if p and p.onPositioned then p.onPositioned(chooserFrame, companionFrame) end
 end
@@ -1049,6 +1042,36 @@ function obj:current()
   return p and p.name or nil
 end
 
+--- Stage:labels() -> table or nil
+--- Method
+--- The words the level on screen gives its primary and its secondary for the highlighted row, a
+--- table with primary and secondary strings, either one absent, or nil when nothing is showing,
+--- the level declares no labels, or its labels raised or answered something else. A registered
+--- presentation's labels is the member the registrar resolved, and a child presentation hands
+--- its own function, so both are read the same way. Asked live, so the action bar can count
+--- what is checked. A raise is logged and answers nil, so the bar falls back to the declared
+--- descriptions rather than losing its words.
+function obj:labels()
+  local p = self:_current()
+  if not p or type(p.labels) ~= "function" then return nil end
+  local ok, answer = pcall(p.labels, self._highlighted)
+  if not ok then
+    log.w("Stage labels of '" .. tostring(p.name) .. "' raised, " .. tostring(answer))
+    return nil
+  end
+  return type(answer) == "table" and answer or nil
+end
+
+--- Stage:toggleKeys()
+--- Method
+--- Opens or closes the key panel above the action bar of the one instance, what the shared
+--- showKeys list verb runs. A provider that draws no action bar has no key panel and is not
+--- asked, so this does nothing there.
+function obj:toggleKeys()
+  local instance = self._instance
+  if instance and type(instance.toggleKeys) == "function" then instance:toggleKeys() end
+end
+
 --- Stage:isCurrent(token) -> bool
 --- Method
 --- Whether token, a presentation table, is the one currently on top of the stack, table
@@ -1115,8 +1138,8 @@ end
 --- The one true copy of the anchor arithmetic three plugins carried a literal copy of before
 --- this phase, decision three of the geometry brief, consumer map sections 7.3 and 9.11,
 --- plugins/clipboard/manager/ui.lua:1180, plugins/filesearch/chooser.lua:454,
---- plugins/processes/chooser.lua:347. Spans the chooser and its companion so a docked hint
---- panel sits full width beneath both rather than stopping short under the list alone.
+--- plugins/processes/chooser.lua:347. Spans the chooser and its companion so a panel docked
+--- beneath sits full width under both rather than stopping short under the list alone.
 --- Answers the plain chooser frame when there is no companion, exactly as the three copies
 --- already do, so a plugin migrating onto this host in phase five drops its own copy in
 --- favour of this one call with no change in what its own docked panel receives. Pure
@@ -1338,6 +1361,9 @@ function obj:_back()
 end
 
 function obj:_onHighlight(item)
+  -- Remembered for labels below. The action panel answers the instance's highlight for itself
+  -- while it is open and never reaches here, so this stays the row the panel was opened over.
+  self._highlighted = item
   local p = self:_current()
   if p and p.onHighlight then p.onHighlight(item) end
 end
@@ -1363,8 +1389,8 @@ end
 
 -- Fired for any teardown, a completed selection, escape, a click away, or a programmatic
 -- hide, never for a swap or a push between presentations while the window stays open, since
--- neither ever tears the atom down at all. Tells the fixed docked panel first, since that is
--- atom level infrastructure this host owns regardless of what was showing, then every
+-- neither ever tears the atom down at all. Forgets the remembered highlight first, since that
+-- belongs to this host regardless of what was showing, then tells every
 -- presentation still on the stack its own onClose, top down, decision six of the handoff
 -- brief, closing review finding twelve, which used to tell only the one on top and leave
 -- every level below it silently discarded. Then clears the whole stack, so the next present
@@ -1383,7 +1409,7 @@ function obj:_onClose()
   -- must not count as the stage moving on, the presentation it resizes being the one about to
   -- be reshown on the very next line rather than one actually leaving.
   self:_bumpEnterGen()
-  if self._panelOnClose then self._panelOnClose() end
+  self._highlighted = nil
   local had = #self._stack > 0
   closeStack(self._stack)
   self._stack = {}

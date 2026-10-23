@@ -1,6 +1,6 @@
--- Presentation, and only presentation. What the docked hint bar shows for a live context,
--- what the action panel shows when it borrows one, which context is live, how an action is
--- classified, which tools carry a Hyper chord, and every bound chord as words for a keys page.
+-- Presentation, and only presentation. What the action bar under a list shows for a live
+-- context, what the action panel shows when it borrows one, which context is live, how an action
+-- is classified, which tools carry a Hyper chord, and every bound chord as words for a keys page.
 --
 -- This file names no plugin. Every question it answers is asked of the plan a resolved run
 -- already produced, plus a small deps table the composition root assembles once. Where the
@@ -12,7 +12,7 @@
 -- and never a concrete module.
 --   predicates,    name to a zero argument test function, the live gate a binding's own
 --                  when name is checked against. The same table wire.lua installs into the
---                  chord engine, so the key and the hint bar never disagree about whether a
+--                  chord engine, so the key and the action bar never disagree about whether a
 --                  gate is open.
 --   glyphFor,      a function of a key and an optional mods list answering the printable
 --                  glyph for that chord, the shared renderer the root injects so this file
@@ -28,17 +28,13 @@
 --   kinds,         the caller's own action kind overrides, merged last inside actionKinds,
 --                  needed here too since rowsFor derives kinds a second time, and both
 --                  doors must answer the same classification for the same action.
---   canvasPanel,   the shared docked panel atom's factory, exposing new(opts), used by
---                  shortcutPanelFor to build one panel per context.
---   ui,            the UI kit, lib/ui, which every panel and toast this file builds is
---                  drawn through, its tokens answering the type and the colours for the
---                  half the system is on.
---   settings,      may carry settings.shortcutsPanel.delayMs, the idle reveal delay every
---                  panel this file builds shares.
---   hideShortcuts, a function of no arguments that hides the shared hold overlay, called
---                  from a panel's onClose. Owning that overlay's own visibility flag belongs
---                  to whatever wires the hold reveal, not to this file, so this is a plain
---                  callback rather than a piece of state kept here.
+--   labelsFor,     a function of a context name answering the labels the level showing it
+--                  declares, a table with primary and secondary strings, or nil. The words
+--                  follow the highlighted row, so it is asked on every call rather than kept.
+--                  It answers nil for a context that is not the one showing, since the level
+--                  that declares the words is only the one on screen.
+--   ui,            the UI kit, lib/ui, which every toast this file builds is drawn through,
+--                  its tokens answering the type and the colours for the half the system is on.
 
 local obj = {}
 
@@ -88,8 +84,8 @@ end
 -- builds, never a plugin's own choice. selectNext and selectPrev are the shared move keys,
 -- closeChooser is the shared close default, and openActionPanel is the chord that module
 -- appends to every block unconditionally. Naming these four here is not naming a plugin, it
--- is reading the same fixed vocabulary lib/surface.lua already owns, the same way footerFor
--- below already has to recognise them one at a time to double a badge with Return or Escape.
+-- is reading the same fixed vocabulary lib/surface.lua already owns, the same way the key
+-- panel's badges below already have to recognise the move keys to double them with an arrow.
 local GENERIC_NAV = {
   selectNext = true,
   selectPrev = true,
@@ -118,14 +114,21 @@ function obj.contextOwners(plan, manifests)
   return owners
 end
 
--- A binding's chord label, shared by footerFor and rowsFor rather than each building its own
--- copy, which is the whole reason the panel and the docked hint bar cannot print two
+-- camelCase action name to a Title Case label, the words a row wears when nothing else names it.
+local function humanize(name)
+  local s = tostring(name):gsub("(%l)(%u)", "%1 %2")
+  s = s:gsub("^%l", string.upper)
+  return s
+end
+
+-- A binding's chord label, shared by footerModel and rowsFor rather than each building its own
+-- copy, which is the whole reason the action panel and the action bar cannot print two
 -- different words for the same chord. The spelling itself is asked of deps.chordLabel and of
 -- the leader's word rather than done here, so this file never learns how a leader's name or a
 -- chord's words are put together, only that something answers both. The word is the binding's
 -- own leader's, deps.leaderNames keyed by the name the binding spells its leader with, which a list
 -- key carries once the root has placed it, and deps.leaderName for a binding built by hand that
--- names none, the list role's leader. Either missing degrades to the bare glyph, the same shape footerFor already
+-- names none, the list role's leader. Either missing degrades to the bare glyph, the same shape footerModel already
 -- renders for a binding declaring chord = false, so a missing collaborator lands on a shape
 -- this file already knows rather than an invented one.
 function obj.chordFor(binding, deps)
@@ -151,57 +154,114 @@ function obj.chordFor(binding, deps)
   return (glyphFor and glyphFor(binding.key, binding.mods)) or tostring(binding.key)
 end
 
--- A binding's label, the live wording when one applies to this context and this action,
--- else the binding's own description, else its bare action name. Shared by footerFor and
--- rowsFor for the same reason chordFor above is, so a wording that changes with the
--- situation cannot say one thing in the hint bar and another in the panel. liveLabels is
--- supplied fresh by the caller rather than kept here, since the one live case that exists
--- today, the launcher's Run reading as Open over an application row, is that plugin's own
--- business and not something this file may know by name.
-function obj.labelFor(binding, contextName, liveLabels)
+-- A binding's label, the one lookup the action bar, its key panel and the action panel share,
+-- so a wording that changes with the situation cannot say one thing in one and another in the
+-- next. The order is the level's own labels for its primary and its secondary, asked live so a
+-- word may follow the highlighted row or count what is checked, then liveLabels, then the
+-- binding's own description, then Open for the primary and the action name spelled as words
+-- for anything else. labels and liveLabels are supplied fresh by the caller rather than kept
+-- here, since the words belong to the plugin that declares them and this file may not know one
+-- by name.
+function obj.labelFor(binding, contextName, liveLabels, labels)
+  local shared = binding.shared
+  local own = type(labels) == "table" and (shared == "primary" or shared == "secondary") and labels[shared]
+  if type(own) == "string" and own ~= "" then return own end
   local live = liveLabels and liveLabels[binding.action]
   local word = live and live(contextName)
-  return word or binding.description or binding.action
+  if word then return word end
+  if binding.description then return binding.description end
+  if shared == "primary" then return "Open" end
+  return humanize(binding.action)
 end
 
--- The hints for one context, answered fresh each time rather than built once, since the
--- live gate above changes while the list is open, and so does the word on the primary key.
--- Reads plan.contexts[contextName].bindings directly, already carrying only the bindings
--- whose own needs were met at wiring time, so this never repeats that filter, it only asks
--- the live one.
-function obj.footerFor(contextName, plan, deps)
-  local hints = {}
-  local ctx = plan.contexts and plan.contexts[contextName]
-  if not ctx then return hints end
+-- The badges one binding is spelled with in the key panel. A key the chooser reads for itself,
+-- chord false, is its bare glyph, since there is no chord to print in front of it and listing
+-- it is the only reason it appears in a context at all. Every other binding is its chord, and a
+-- shared verb the field also answers on a plain key carries that key's glyph beside it, the
+-- move keys their arrows and close its Escape.
+local DOUBLED = { selectNext = "down", selectPrev = "up", closeChooser = "escape" }
+local function badgesFor(b, deps)
   local glyphFor = deps and deps.glyphFor
-  for _, b in ipairs(ctx.bindings) do
+  if b.chord == false then
+    return { (glyphFor and glyphFor(b.key, b.mods)) or tostring(b.key) }
+  end
+  local badges = { obj.chordFor(b, deps) }
+  local doubled = DOUBLED[b.action] or (b.shared == "close" and "escape" or nil)
+  if doubled and glyphFor then badges[2] = glyphFor(doubled) end
+  return badges
+end
+
+--- hints.footerModel(contextName, plan, deps) -> { right, keys, state }
+--- What the action bar under a list says for one context, as pure data, answered fresh on every
+--- call since a live gate and a live label both change while the list is open. It reads the same
+--- bindings, the same gate and the same label lookup rowsFor reads, so the bar, its key panel and
+--- the action panel cannot disagree.
+---
+--- right is the bar's right side, in order, each { label, chord, action }. The primary first on
+--- the Return glyph, since Return chooses the row whichever chord the primary also sits on, then
+--- the secondary on its own chord when the list declares one and its gate is open, then the
+--- action panel on its chord. A list with no primary binding, one whose key the person freed or
+--- a list no surface describes, still chooses on Return, so the primary is always listed.
+---
+--- keys is the key panel, each { badges, label, action }, every other key the open list answers
+--- in declaration order, the primary's own chord among them, then the two the chooser's field
+--- reads for itself on every list, Back on Backspace and a visible row on Command and a digit.
+---
+--- state is the whole answer as one comparable string, so a surface polling this redraws only
+--- when something it would draw changed.
+function obj.footerModel(contextName, plan, deps)
+  deps = deps or {}
+  local glyphFor = deps.glyphFor
+  local function glyph(key, mods) return (glyphFor and glyphFor(key, mods)) or tostring(key) end
+  local labels = deps.labelsFor and deps.labelsFor(contextName) or nil
+  local ctx = plan and plan.contexts and plan.contexts[contextName]
+
+  local primary, secondary, panel
+  local keys = {}
+  for _, b in ipairs(ctx and ctx.bindings or {}) do
+    if b.shared == "primary" and not primary then primary = b end
     if bindingActive(b, deps) then
-      local badges
-      if b.chord == false then
-        -- A key the chooser atom reads for itself, so there is no chord to print in front
-        -- of it, the bare key is the whole badge. Listing it is the only reason it appears
-        -- in a context at all, since a key nobody can see is a key nobody presses.
-        badges = { (glyphFor and glyphFor(b.key, b.mods)) or tostring(b.key) }
+      if b.shared == "secondary" then
+        secondary = secondary or b
+      elseif b.shared == "openActionPanel" then
+        panel = panel or b
       else
-        local chord = obj.chordFor(b, deps)
-        badges = { chord }
-        local doubled
-        if b.action == "insertSelected" or b.action == "enter" then doubled = "return"
-        elseif b.action == "closeChooser" then doubled = "escape"
-        elseif b.action == "selectNext" then doubled = "down"
-        elseif b.action == "selectPrev" then doubled = "up"
-        end
-        if doubled and glyphFor then badges[2] = glyphFor(doubled) end
+        keys[#keys + 1] = { badges = badgesFor(b, deps),
+          label = obj.labelFor(b, contextName, deps.liveLabels, labels), action = b.action }
       end
-      hints[#hints + 1] = { badges = badges, label = obj.labelFor(b, contextName, deps and deps.liveLabels),
-                            action = b.action }
     end
   end
-  return hints
+  keys[#keys + 1] = { badges = { glyph("delete") }, label = "Back" }
+  keys[#keys + 1] = { badges = { glyph("1", { "cmd" }), glyph("9", { "cmd" }) }, label = "Choose a visible row" }
+
+  local right = {}
+  local primaryLabel
+  if primary then
+    primaryLabel = obj.labelFor(primary, contextName, deps.liveLabels, labels)
+  else
+    primaryLabel = obj.labelFor({ shared = "primary" }, contextName, nil, labels)
+  end
+  right[#right + 1] = { label = primaryLabel, chord = glyph("return"), action = primary and primary.action }
+  if secondary then
+    right[#right + 1] = { label = obj.labelFor(secondary, contextName, deps.liveLabels, labels),
+      chord = obj.chordFor(secondary, deps), action = secondary.action }
+  end
+  if panel then
+    right[#right + 1] = { label = obj.labelFor(panel, contextName, deps.liveLabels, labels),
+      chord = obj.chordFor(panel, deps), action = panel.action }
+  end
+
+  local parts = {}
+  for _, r in ipairs(right) do parts[#parts + 1] = tostring(r.label) .. " " .. tostring(r.chord) end
+  parts[#parts + 1] = "|"
+  for _, k in ipairs(keys) do parts[#parts + 1] = table.concat(k.badges, "+") .. " " .. tostring(k.label) end
+  return { right = right, keys = keys, state = table.concat(parts, " | ") }
 end
 
--- The ordered rows the action panel would show for one context, Back first and then its
--- verbs in declaration order. hosted, when truthy, is not a bare flag, it is the scope's own
+-- The ordered rows the action panel would show for one context, Back first, then the primary
+-- and the secondary, the two shared verbs that act on the highlighted row, then its verbs in
+-- declaration order. The primary and the secondary come first because lib/surface.lua builds them
+-- first, so declaration order is the order wanted. Each wears the same label the action bar does. hosted, when truthy, is not a bare flag, it is the scope's own
 -- verbs table, already resolved by whoever called this against the real registry, since this
 -- file never reads spoon.Olm.registry or any other global. A kept row's chord is qualified
 -- with the tool's own description, read through deps.owners and plan.effective, so the row
@@ -215,8 +275,8 @@ end
 -- there was nothing for a second gate to disagree with. That stopped being true the moment a
 -- picker grew a page, since the two verbs that act on one highlighted entry are gated off while
 -- that page is up and were still listed here, offering a person two rows that do nothing.
--- footerFor has asked this same question all along, so this is the panel catching up with the
--- hint bar rather than a new idea. The wiring time needs gate is still not repeated, since
+-- The hint bar asked this same question all along, so this was the panel catching up with it
+-- rather than a new idea. The wiring time needs gate is still not repeated, since
 -- lib/surface.lua's own keep answered that before the binding ever reached plan.contexts.
 function obj.rowsFor(contextName, plan, deps, hosted)
   local glyphFor = deps and deps.glyphFor
@@ -228,8 +288,10 @@ function obj.rowsFor(contextName, plan, deps, hosted)
   local ctx = plan.contexts and plan.contexts[contextName]
   if not ctx then return rows end
   local kinds = obj.actionKinds(plan, deps and deps.kinds)
+  local labels = deps and deps.labelsFor and deps.labelsFor(contextName) or nil
   for _, b in ipairs(ctx.bindings) do
-    if kinds[b.action] == "verb" and bindingActive(b, deps)
+    local listed = kinds[b.action] == "verb" or b.shared == "primary" or b.shared == "secondary"
+    if listed and bindingActive(b, deps)
       and (not hosted or hostedVerbDeclared(hosted, b.action)) then
       local chord = obj.chordFor(b, deps)
       local closes
@@ -240,7 +302,7 @@ function obj.rowsFor(contextName, plan, deps, hosted)
         chord = chord .. " in " .. (description or contextName)
         closes = hosted[b.action].closes
       end
-      rows[#rows + 1] = { action = b.action, title = obj.labelFor(b, contextName, deps and deps.liveLabels),
+      rows[#rows + 1] = { action = b.action, title = obj.labelFor(b, contextName, deps and deps.liveLabels, labels),
                           chord = chord, icon = b.icon, owner = owner and owner[contextName], closes = closes }
     end
   end
@@ -297,99 +359,6 @@ function obj.actionKinds(plan, kinds)
     out[name] = kind
   end
   return out, conflicts
-end
-
--- Shortcut hints as a docked panel's content strategy. It knows nothing about placement,
--- only about the width the panel offers, and it is drawn through the UI kit, so the text and
--- the chips track light and dark through the kit's tokens on every draw. hints may be a
--- function rather than a list, resolved on every draw, which is what lets a binding gated on
--- live state appear and disappear with the state instead of being printed once and never
--- revisited.
---
--- The bar is a flow of hints, sixteen apart and eight between lines, and one hint is a row
--- of its badges and its label, six apart, centred on each other since the chip is taller than
--- the label. The key badge is the kit's hint size, its glyph in the section role, and the
--- label is the caption role, so the bar's type, its chip height and the centring of both
--- text lines all come from the kit and nothing here places a frame by hand.
-local function shortcutsContent(ui, hints)
-  local function current()
-    if type(hints) == "function" then return hints() or {} end
-    return hints or {}
-  end
-  local function tree(list)
-    local chips = {}
-    for _, h in ipairs(list) do
-      local parts = {}
-      for _, b in ipairs(h.badges or {}) do parts[#parts + 1] = ui.badge(b, "hint") end
-      parts[#parts + 1] = ui.text(h.label or "", "caption",
-        { lineBreak = ui.lineBreaks.wordWrap })
-      chips[#chips + 1] = ui.row(parts, { gap = "s", fill = false, align = ui.rowAligns.center })
-    end
-    return ui.flow(chips, { gapX = "lg", gapY = "sm" })
-  end
-
-  return {
-    -- What is currently being said, as one comparable string, so a visible panel can notice
-    -- the answer changed and redraw. The badges and the label are both in the signature
-    -- because either can change without the other, a key appearing or disappearing being the
-    -- first and the primary key's word changing with the row being the second.
-    state = function()
-      local parts = {}
-      for _, h in ipairs(current()) do
-        parts[#parts + 1] = table.concat(h.badges or {}, "+") .. " " .. tostring(h.label)
-      end
-      return table.concat(parts, " | ")
-    end,
-    preferredSize = function(availW)
-      local w = availW or 320
-      if not ui then return { w = w, h = 0 } end
-      local _, h = ui.layout(tree(current()), { x = 0, y = 0, w = w, h = 0 })
-      return { w = w, h = h }
-    end,
-    draw = function(w)
-      if not ui then return {} end
-      return (ui.layout(tree(current()), { x = 0, y = 0, w = w, h = 0 }))
-    end,
-  }
-end
-
--- The deferred shortcut hint panel, one per context, ordinarily. Builds a fresh docked panel
--- through deps.canvasPanel, inheriting the shared surface so it matches the native picker,
--- with that context's footerFor hints as its content, and returns the three callbacks a
--- native chooser is wired with. arm on onPositioned starts the idle countdown, poke on
--- onActivity resets it on each keypress, and hide on onClose tears it down and clears any
--- peeked overlay through the injected hideShortcuts. A caller must call this once per plugin
--- and never share one panel across two, since every call here builds a new one.
---
--- contextName is ordinarily a plain string, one context for the life of this panel, which is
--- true for every plugin that owns its own window. Phase three of the chooser stage build adds
--- the other shape, a function, for the one panel that does not, host/stage's own fixed,
--- constructor time panel, which outlives every presentation it will ever show hints for.
--- Asked fresh on every reveal rather than once here, since the panel is built long before
--- anyone can say which presentation it will be showing hints for on any one open, decision
--- seven of the handoff brief, contexts and hints follow current().
-function obj.shortcutPanelFor(contextName, plan, deps)
-  local shortcutsPanel = deps and deps.policy and deps.policy.shortcutsPanel
-  local panel = deps.canvasPanel.new({
-    placement = deps.canvasPanel.placements.below,
-    gap = 8,
-    delay = shortcutsPanel and shortcutsPanel.delayMs,
-    -- Handed as a question rather than as an answer, so a binding whose predicate turns
-    -- while the list is open is listed only while it means something, and so a caller naming
-    -- a function rather than a string is asked again on every reveal rather than once here.
-    content = shortcutsContent(deps and deps.ui, function()
-      local name = type(contextName) == "function" and contextName() or contextName
-      return obj.footerFor(name, plan, deps)
-    end),
-  })
-  return {
-    onPositioned = function(frame) panel:arm(frame) end,
-    onActivity = function() panel:poke() end,
-    onClose = function()
-      if deps and deps.hideShortcuts then deps.hideShortcuts() end
-      panel:hide()
-    end,
-  }
 end
 
 -- Three small CanvasPanel content strategies over a mutable state table, folded into one
@@ -572,13 +541,6 @@ function obj.toast(deps)
   return toast
 end
 
--- camelCase action name to a Title Case label, the words a row wears when nothing else names it.
-local function humanize(name)
-  local s = tostring(name):gsub("(%l)(%u)", "%1 %2")
-  s = s:gsub("^%l", string.upper)
-  return s
-end
-
 --- hints.sheetRows(keymap, plan, leader, deps) -> entries
 --- Every global chord the keymap holds on one leader, in the order a leader's cheat sheet draws
 --- them, as plain entries { key, mods, action, description, when, group, app, owner }. Since phase 4 of
@@ -663,10 +625,10 @@ end
 --- cheat sheet draws them and labelled the way the sheet labels them, since sheetRows answers both,
 --- then the plain combinations with no leader. A row the binder leaves unbound, refused or quiet, is
 --- left out, which is whatever deps.bindable refuses, lib/binder.lua's own test. Then every list's own keys, a list at a time in plan order, each in the order its
---- bindings are declared, which is the order the hint bar shows them.
+--- bindings are declared, which is the order the key panel under a list shows them.
 ---
 --- A chord is a leader's word and the glyph through deps.chordLabel, the spelling the launcher and
---- the hint bar use, and a plain combination is the glyph alone, as the launcher spells one. A row
+--- the action bar use, and a plain combination is the glyph alone, as the launcher spells one. A row
 --- standing for an app with no description of its own is named by deps.appName, else its action
 --- spelled out as words, where a sheet would draw the app instead. An owner is named by its own
 --- description, else its manifest's about title, else its identity.

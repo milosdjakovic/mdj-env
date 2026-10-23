@@ -38,18 +38,6 @@ local ENTITLEMENTS = {
   tools = { "deps" },
 }
 
--- The docked hint panel arrives as three callbacks, and plugins disagree about the SHAPE they
--- want them in. Some read three flat fields, some read one nested table called shortcutPanel,
--- and one reads the same table called panel. That disagreement is real, it is in the plugins'
--- own configure contracts, so it has to be declared rather than assumed. Assuming one shape is
--- what silently removed the panel from four tools while handing each of them three fields none
--- of them read.
---
--- This field is the honest way to live with the disagreement, not an endorsement of it.
--- Normalising the four plugins onto one shape would delete it, and that is worth doing once
--- the wiring is proved, since the field only exists to describe an inconsistency.
-local PANEL_CALLBACKS = { "onPositioned", "onActivity", "onClose" }
-
 -- Services every plugin may have whether it declared anything or not. Kept deliberately tiny.
 -- A service in here is one that cannot sensibly be refused, not merely one that is convenient.
 local UNIVERSAL = { "after", "log" }
@@ -182,25 +170,6 @@ function obj.new(deps)
     -- first attempt defaulted every plugin to fuzzy and declared the pane nowhere, so all
     -- three lost the matcher they were built around and all three came back with no pane.
     local decl = manifest.surface
-    if decl then
-      -- The panel's three callbacks, in whichever shape this plugin's own configure reads.
-      -- `panelAs` names a field to nest them under, and its absence means the flat form.
-      local panel = {}
-      local anyPanel = false
-      for _, key in ipairs(PANEL_CALLBACKS) do
-        if services[key] ~= nil then
-          panel[key] = services[key]
-          anyPanel = true
-        end
-      end
-      if anyPanel then
-        if decl.panelAs then
-          opts[decl.panelAs] = panel
-        else
-          for key, fn in pairs(panel) do opts[key] = fn end
-        end
-      end
-    end
     if decl then
       if decl.matcher ~= nil then
         opts.matcher = decl.matcher ~= false and (services.matchers or {})[decl.matcher] or false
@@ -460,7 +429,7 @@ function obj.new(deps)
   function self.contexts(engineFor, bindOne)
     for contextName, block in pairs(plan.contexts) do
       for _, binding in ipairs(block.bindings or {}) do
-        -- chord equals false means listed in the hint panel but deliberately not bound. The
+        -- chord equals false means listed in the key panel but deliberately not bound. The
         -- first attempt dropped this rule along with the per binding needs gate and the repeat
         -- flag, which is three behaviours lost in one loop.
         if binding.chord == false then

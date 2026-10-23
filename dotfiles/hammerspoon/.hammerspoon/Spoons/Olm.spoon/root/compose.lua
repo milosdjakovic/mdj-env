@@ -167,23 +167,6 @@ local SHIPPED_POLICY = {
   chooserTheme = {},
   cheatSheet = {},
 
-  -- The docked shortcut hint panel, the bar that spells out the Hyper navigation keys under
-  -- a list. delayMs is an IDLE delay rather than a delay from opening. lib/hints.lua's own
-  -- shortcutPanelFor arms a countdown when the list is placed and restarts it on every
-  -- keypress, so the bar only appears once a person has actually stopped, and once it appears
-  -- it stays until the list closes. Zero, and only zero, means draw it the instant the list
-  -- opens.
-  -- Ships at 800 ms, so the bar shows once no key has been pressed for that long.
-  --
-  -- This ships here rather than only in a person's own config file because a docked panel is
-  -- an ambient entitlement every surfaced plugin earns without asking, so a plugin installed
-  -- tomorrow has to inherit the timing without its author knowing this field exists. It was
-  -- not here at all until 2026-09-01, and the consequence is worth recording. The number lived
-  -- in one machine's config/settings.lua, that file's own comment called itself the one source
-  -- for every chooser that docks the panel, and the root never forwarded the field, so
-  -- deps.policy.shortcutsPanel resolved to nil, CanvasPanel read no delay, and every panel
-  -- in the config drew instantly. The knob read as configured and was doing nothing.
-  shortcutsPanel = { delayMs = 800 },
   matcher = "fuzzy",
   -- Which picker provider every Chooser.new builds, a name from Chooser.providers. default is
   -- the default since 2026-10-14. legacy is deprecated, kept selectable as a fallback for now
@@ -1103,7 +1086,7 @@ function obj.run(olm, cfg)
   -- answers this about itself, so this only names the host, which this file is allowed to do.
   --
   -- It was declared by a binding and defined nowhere, and an unknown predicate is treated as
-  -- always active by design, so the way out was listed in the hint panel at all times including
+  -- always active by design, so the way out was listed in the hint panel at all times, including
   -- when there was nothing to leave. Looked up inside the closure rather than captured, since
   -- predicates are built before the loader has filled that table.
   ownPredicates.launcherHostingList = function()
@@ -1508,7 +1491,7 @@ function obj.run(olm, cfg)
     end,
 
     -- One line of feedback, one sampled colour, and one titled list, all on the shared overlay
-    -- so they read as part of the same interface as the cheat sheet and the docked hint bars.
+    -- so they read as part of the same interface as the cheat sheet and the action bar.
     notify = notify,
     showColor = showColor,
     report = report,
@@ -1615,7 +1598,7 @@ function obj.run(olm, cfg)
     listKeys = keymapLib.listDefaults,
   })
 
-  -- The person's lists section, laid over every list's bindings once, here, before the hint bar,
+  -- The person's lists section, laid over every list's bindings once, here, before the action bar,
   -- the action panel, the keymap and the contexts read any of them, so a list key moved there
   -- shows its new chord everywhere it is bound. Every default is placed on the list role's leader
   -- first, and a person's chord may open with any held leader in the catalog, a chord opening with
@@ -1843,7 +1826,7 @@ function obj.run(olm, cfg)
 
   ------------------------------------------------------------------------------
   -- Presentation deps, one shared table for every lib/hints.lua call this file
-  -- makes directly or hands to services.perPlugin to make on its behalf.
+  -- makes, the action bar's model and the action panel's rows among them.
   ------------------------------------------------------------------------------
 
   -- Takes down whichever leader's sheet a hold put up, which each leader answers only for its
@@ -1876,11 +1859,7 @@ function obj.run(olm, cfg)
     owners = contextOwners,
     -- The identity whose manifest icons the panel's own Back row reads its key against.
     panelOwner = plan.identity.actionpanel or "actionpanel",
-    canvasPanel = canvasPanel,
     ui = uiAtom,
-    theme = policy.chooserTheme,
-    policy = policy,
-    hideShortcuts = hideSharedOverlay,
     chordLabel = chordLabel,
     -- leaderNames hands over each leader's already resolved word rather than the catalog
     -- itself, keyed by the name a row spells its leader with, since deciding what a leader is
@@ -1894,7 +1873,7 @@ function obj.run(olm, cfg)
     -- overrides the panel's own kindOf uses or the panel rows and verbsIn drift apart.
     kinds = actionKindOverrides,
     -- liveLabels, harvested above off whatever each module offers rather than written here, so
-    -- a word that follows a plugin's own live state reaches the hint bar and the action panel
+    -- a word that follows a plugin's own live state reaches the action bar and the action panel
     -- with this file still naming no plugin. It was absent, on the grounds that the only case
     -- then in existence, the launcher's Run reading as Open over an application row, was that
     -- plugin's own business and there was nowhere generic to reach it from. The generic place is
@@ -1902,6 +1881,14 @@ function obj.run(olm, cfg)
     -- means something else on a second page is what made the difference worth paying. The
     -- launcher's own case is still its own and is not routed through here.
     liveLabels = ownLiveLabels,
+    -- The words the level on screen gives its primary and its secondary, asked of the stage for
+    -- the presentation it shows, its labels member, and answered only for the context that is
+    -- showing, since a level's words mean nothing for any other list. Asked live on every call,
+    -- so a word follows the highlighted row. Read late, since the stage is built further down.
+    labelsFor = function(contextName)
+      if not stageModule or stageModule:current() ~= contextName then return nil end
+      return stageModule:labels()
+    end,
   }
 
   -- LeaderSheet and QueryScope both keep what configure gave them across calls, and the sheet
@@ -1951,14 +1938,10 @@ function obj.run(olm, cfg)
     ownRowsMatcher = chooserAtom.matchers and chooserAtom.matchers.substring,
   }
 
-  -- deps.hints receives this same table forwarded whole into shortcutPanelFor for whichever
-  -- plugin earns a docked panel, which is why the fields above sit next to deps.libs and
-  -- deps.deps here rather than in a table of their own.
-  local perPluginDeps = {}
-  for k, v in pairs(hintsDeps) do perPluginDeps[k] = v end
-  perPluginDeps.hints = hintsLib
-  perPluginDeps.libs = libs
-  perPluginDeps.deps = sharedDepsScope
+  -- What services.perPlugin builds a plugin's own data from, its scoped tool path adapter and
+  -- its recency instance. It once also took the hints deps to build a docked hint panel per
+  -- surfaced plugin, which the action bar inside the chooser's own canvas replaced.
+  local perPluginDeps = { libs = libs, deps = sharedDepsScope }
 
   local perPluginData = servicesLib.perPlugin(plan, manifests, perPluginDeps)
 
@@ -1980,30 +1963,22 @@ function obj.run(olm, cfg)
   -- so the construction time field is never on screen for a single frame, and host/stage/
   -- init.lua now writes a literal there instead of asking anyone for one.
   --
-  -- THE SEAM, its second half. The panel triple used to be the launcher's own, read straight
-  -- off perPluginData, correct only for as long as the launcher was the one presentation there
-  -- was. Phase three's own decision seven, contexts and hints follow current(), means the
-  -- docked hint bar beneath the stage's one window has to answer for whichever presentation is
-  -- actually up, VPN's own keys while VPN is presented and the launcher's again after pop, not
-  -- the launcher's forever. lib/hints.lua's own shortcutPanelFor now accepts a function for the
-  -- context name it renders hints for, asked fresh on every reveal rather than fixed once, so
-  -- this builds ONE dedicated panel for the stage, here, naming no plugin, asking only
-  -- stageModule:current() at the moment a hint is actually about to be drawn. The generic
-  -- panel services.perPlugin still builds for the launcher's own identity, because
-  -- host/launcher/manifest.lua still declares a surface and earns one automatically, is left
-  -- unused rather than suppressed, since nothing in this contract lets one plugin's manifest
-  -- opt out of an entitlement its own declared surface earns, and an unarmed CanvasPanel nobody
-  -- ever positions costs nothing worth a deeper change to avoid.
-  local stagePanel = hintsLib.shortcutPanelFor(
-    function() return (stageModule and stageModule:current()) or (plan.identity.launcher or "launcher") end,
-    plan, hintsDeps)
+  -- THE SEAM, its second half. The action bar under the stage's one window answers for whichever
+  -- presentation is actually up, VPN's own keys while VPN is presented and the launcher's again
+  -- after pop, decision seven of phase three, contexts and hints follow current(). So this builds
+  -- ONE footer collaborator for the stage, here, naming no plugin, asking stageModule:current()
+  -- each time the instance asks for the model, and the stage's labels through hintsDeps above.
+  -- It replaced the docked hint panel on 2026-10-23, docs/PLAN-ACTION-BAR.md, a CanvasPanel
+  -- under the window that appeared after a pause, built here the same way for the same reason.
+  local function stageFooter()
+    local contextName = (stageModule and stageModule:current()) or (plan.identity.launcher or "launcher")
+    return hintsLib.footerModel(contextName, plan, hintsDeps)
+  end
   local stageOpts = {
     chooser = chooserAtom,
     theme = policy.chooserTheme,
     stampIcons = iconRows.stampAll,
-    onPositioned = stagePanel.onPositioned,
-    onActivity = stagePanel.onActivity,
-    onClose = stagePanel.onClose,
+    footer = stageFooter,
   }
 
   -- fannedData WINS, and its absence here altogether was the single worst defect in this build.
@@ -2060,11 +2035,6 @@ function obj.run(olm, cfg)
       }, spec)
     end,
     log = log,
-    -- onPositioned, onActivity and onClose are deliberately never passed here. Each
-    -- surfaced plugin needs its OWN docked panel closure, never one shared function every
-    -- plugin would otherwise receive identically, so that triple travels through
-    -- services.perPlugin above, into wireData, the one channel built to carry a value the
-    -- flat ambient grant structurally cannot.
   })
 
   wiredRegistry = registryLib.new({ apiVersion = API_VERSION, log = log })
@@ -2444,6 +2414,12 @@ function obj.run(olm, cfg)
       -- toggles a panel that borrows whichever list is currently open rather than being a
       -- verb that list answers itself, so this is the one closure lib/nav.lua's own design
       -- hands back to this file to build rather than resolving generically.
+      -- THE SEAM, the key panel's own verb. Like the action panel it belongs to whichever list
+      -- is open rather than to that list's surface, and the one list instance is the stage's,
+      -- so it is the stage that is asked, and a provider drawing no action bar does nothing.
+      showKeys = function()
+        if stageModule then stageModule:toggleKeys() end
+      end,
       openActionPanel = function()
         local actionPanelModule = modules[plan.identity.actionpanel or "actionpanel"]
         if not actionPanelModule then return end
@@ -2824,11 +2800,11 @@ function obj.run(olm, cfg)
       registry = wiredRegistry,
       glyphFor = cheatSheetAtom and cheatSheetAtom.glyphFor,
       -- What every leader role is called, app and window alike, so a contributed row that names
-      -- its leader by role reads the same word the docked hint bar prints, and every leader by the
+      -- its leader by role reads the same word the action bar prints, and every leader by the
       -- name a keymap row spells it with, for a row the person put on a leader no role answers.
       leaderNames = leaderDisplayNames,
       -- The shared speller rather than one the launcher owns for itself, so a row states the
-      -- same chord the docked hint bar already agreed on.
+      -- same chord the action bar already agreed on.
       chordLabel = chordLabel,
       -- The chord a registered tool's row names, its open row in the keymap, a leader role, else
       -- the leader's own name for a leader no role answers, or false for a plain combination, a key
@@ -3020,7 +2996,7 @@ function obj.run(olm, cfg)
   -- thing most worth inspecting.
   record.predicates = w._predicates or ownPredicates
   -- Exposed for the same reason the predicates above are, so what a plugin offered and what the
-  -- hint bar was actually handed can be read from outside rather than only inferred from this
+  -- action bar was actually handed can be read from outside rather than only inferred from this
   -- file. A harvest that silently collected nothing looks exactly like a config with nothing to
   -- collect, which is the failure this one line makes answerable.
   record.liveLabels = ownLiveLabels

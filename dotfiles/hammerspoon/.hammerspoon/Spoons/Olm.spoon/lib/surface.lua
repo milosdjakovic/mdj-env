@@ -40,13 +40,34 @@ end
 local MOVE_NEXT = { shared = "selectNext", action = "selectNext", description = "Move down" }
 local MOVE_PREV = { shared = "selectPrev", action = "selectPrev", description = "Move up" }
 local ACTION_PANEL = { shared = "openActionPanel", action = "openActionPanel", description = "Actions" }
+-- The key panel's own verb, toggling the list of every key the open list answers above its
+-- footer. Like the action panel's it names no plugin and sits in every block this module builds.
+local SHOW_KEYS = { shared = "showKeys", action = "showKeys", description = "Keys" }
+
+-- Where the all layer puts one shared verb, its key, its modifiers and its leader. An entry is a
+-- bare key name on the list role, or a table of key, mods and leader false for a key the open
+-- list's own field answers, see lib/keymap.lua's listDefaults. The leader is nil for the first
+-- shape, which is what lets the keymap's lists layer place it on the list role later.
+local function layerPlace(entry)
+  if type(entry) == "table" then return entry.key, entry.mods, entry.leader end
+  return entry, nil, nil
+end
+
+-- A fresh copy of a list of modifiers, so two blocks never share one table a later pass edits.
+local function copyMods(mods)
+  if mods == nil then return nil end
+  local out = {}
+  for i, m in ipairs(mods) do out[i] = m end
+  return out
+end
 
 -- One shared verb as a binding of its own, a fresh table for every context, on the key the all
 -- layer gives it, or nil where the layer gives it none, since a verb with no key is not bound.
 local function sharedBinding(verb, keys)
-  local key = (keys or {})[verb.shared]
+  local key, mods, leader = layerPlace((keys or {})[verb.shared])
   if key == nil then return nil end
-  return { shared = verb.shared, key = key, layerKey = true, action = verb.action, description = verb.description }
+  return { shared = verb.shared, key = key, mods = copyMods(mods), leader = leader, layerKey = true,
+    action = verb.action, description = verb.description }
 end
 
 -- The close binding a context gets unless it says otherwise. A plugin overrides only the
@@ -98,7 +119,7 @@ end
 -- Checks the three gates a binding may carry beyond its key and action, so a shape nothing
 -- downstream could honour is named here rather than surfacing later as a binding that quietly
 -- keeps a field no caller can make sense of. chord is only ever meaningful set to false, the
--- sentinel that lists a key in the hint panel without binding it, so anything else in that
+-- sentinel that lists a key in the key panel without binding it, so anything else in that
 -- field cannot be honoured. needs only ever names a requirement as a string, the name a
 -- caller's available table is asked about. repeats only ever answers whether the key auto
 -- repeats, plainly true or false.
@@ -113,6 +134,31 @@ local function validateGates(label, row)
     return false, label .. ".repeats is a " .. type(row.repeats) .. " rather than a boolean"
   end
   return true
+end
+
+-- The fields a secondary may carry, the same shape as primary. It names no key, since Command
+-- and Return is Olm's own all layer, so a key, mods or leader written here is refused rather
+-- than read as a second place a list key is set.
+local SECONDARY_FIELDS = { action = true, description = true, needs = true, chord = true, repeats = true }
+
+-- Checks the optional second action a list answers on Command and Return, the same way primary
+-- is checked, and refuses any field the shape does not name.
+local function validateSecondary(secondary)
+  if type(secondary) ~= "table" then
+    return false, "secondary is a " .. type(secondary) .. " rather than a table naming an action"
+  end
+  if type(secondary.action) ~= "string" or secondary.action == "" then
+    return false, "secondary names no action for Command and Return to run"
+  end
+  if secondary.description ~= nil and type(secondary.description) ~= "string" then
+    return false, "secondary.description is a " .. type(secondary.description) .. " rather than a string"
+  end
+  for field in pairs(secondary) do
+    if not SECONDARY_FIELDS[field] then
+      return false, "secondary." .. tostring(field) .. " is not a field a secondary takes, only action, description, needs, chord and repeats"
+    end
+  end
+  return validateGates("secondary", secondary)
 end
 
 -- Checks a declaration is usable before context() trusts it, so a plugin with no primary
@@ -137,6 +183,10 @@ function obj.validate(name, decl)
   end
   local pok, perr = validateGates("primary", decl.primary)
   if not pok then return false, perr end
+  if decl.secondary ~= nil then
+    local sok, serr = validateSecondary(decl.secondary)
+    if not sok then return false, serr end
+  end
   if decl.nav ~= nil and type(decl.nav) ~= "boolean" then
     return false, "nav is a " .. type(decl.nav) .. " rather than a boolean"
   end
@@ -187,11 +237,12 @@ end
 -- says so by passing priority through decl rather than this module growing a name based
 -- exception for it.
 --
--- The action panel's own binding is appended to every block this module builds, as plain data
--- naming no plugin, see ACTION_PANEL above.
+-- The action panel's own binding and the key panel's are appended to every block this module
+-- builds, as plain data naming no plugin, see ACTION_PANEL and SHOW_KEYS above.
 --
--- keys is Olm's own all layer, a shared verb to the key it sits on, primary, selectNext,
--- selectPrev, close and openActionPanel, lib/keymap.lua's listDefaults in a real load. A verb the
+-- keys is Olm's own all layer, a shared verb to the key it sits on, primary, secondary, selectNext,
+-- selectPrev, close, openActionPanel and showKeys, lib/keymap.lua's listDefaults in a real load,
+-- an entry being a bare key or a key the field answers with modifiers alone. A verb the
 -- layer gives no key is left out of the block, and a close key the manifest states wins over the
 -- layer's, since it is that list's own default. The person's lists section is laid over the built
 -- block afterwards by lib/keymap.lua's applyLists, never here. A binding whose key came from the
@@ -239,6 +290,21 @@ function obj.context(name, decl, available, keys)
     bindings[#bindings + 1] = primary
   end
 
+  -- The optional second action, right after the primary so the action panel lists the two
+  -- together. It is built only when the list declares one, so a list with none binds nothing on
+  -- its key and Command and Return keeps choosing the row there. The plugin's surface adapter
+  -- answers its action the way it answers any extra row's.
+  if decl.secondary then
+    local secondary = sharedBinding({ shared = "secondary", action = decl.secondary.action,
+      description = decl.secondary.description }, keys)
+    if secondary then
+      secondary.chord = decl.secondary.chord
+      secondary.needs = decl.secondary.needs
+      secondary.repeats = decl.secondary.repeats
+      if take(secondary) then bindings[#bindings + 1] = secondary end
+    end
+  end
+
   -- Moving the highlight is the default because all but one of the contexts checked against
   -- this module are a list you scroll through. The one exception, a single morphing row with
   -- nothing to move between, sets nav to false rather than this module trying to infer it
@@ -266,6 +332,9 @@ function obj.context(name, decl, available, keys)
 
   local panel = sharedBinding(ACTION_PANEL, keys)
   if panel then bindings[#bindings + 1] = panel end
+
+  local showKeys = sharedBinding(SHOW_KEYS, keys)
+  if showKeys then bindings[#bindings + 1] = showKeys end
 
   return {
     name = name,

@@ -387,6 +387,11 @@ function obj.validatePresentation(name, identity, manifest, modules, deps)
     -- is not one, a string or a number, is refused by the same two lines, and a manifest never
     -- holds a function itself.
     "searchText",
+    -- labels, docs/PLAN-ACTION-BAR.md, a function from the highlighted item to the words the
+    -- action bar and the action panel give the primary and the secondary, a table with primary
+    -- and secondary strings, either one absent meaning the declared description. A member spec
+    -- like every other function here, asked live by the stage so a word may count what is checked.
+    "labels",
   }
   local broken = false
   for _, field in ipairs(presentationFields) do
@@ -536,17 +541,17 @@ function obj.validatePresentation(name, identity, manifest, modules, deps)
   end
   -- Finding ten. A presenting plugin routes by identity, isShowingFor and the surface
   -- adapters loop both ask the registry by identity and the stage's own current() answers
-  -- the identity the registrar stamped, but the docked hint bar still looks the answer up in
+  -- the identity the registrar stamped, but the action bar still looks the answer up in
   -- plan.contexts, which is keyed by this plugin's own declared surface.context when it
   -- named one. The two agree today because every plugin that presents also spells its
   -- context exactly as its identity, and nothing enforces that agreement, so a plugin that
-  -- ever let them diverge would route, gate, and present correctly while its hint bar quietly
+  -- ever let them diverge would route, gate, and present correctly while its action bar quietly
   -- went empty. One console line, naming both words, so that divergence cannot happen in
   -- silence even though this phase does not fix the routing itself.
   local declaredContext = manifest.surface and manifest.surface.context
   if declaredContext and declaredContext ~= identity and deps.log then
     deps.log("w", string.format(
-      "registrar found '%s' presenting under identity '%s' while its surface declares context '%s', the docked hint bar routes by identity and will not follow that context",
+      "registrar found '%s' presenting under identity '%s' while its surface declares context '%s', the action bar routes by identity and will not follow that context",
       name, identity, declaredContext))
   end
   if broken then
@@ -599,6 +604,8 @@ function obj.validatePresentation(name, identity, manifest, modules, deps)
       -- host/stage beside the matcher.
       searchText = obj.action(modules, identity, name, p.searchText, nil),
       rowLimit = p.rowLimit,
+      -- labels resolved the identical lazy way, asked by host/stage for the level on screen.
+      labels = obj.action(modules, identity, name, p.labels, nil),
     }
     -- paneWidth, review finding M1. A member spec resolves once, right here, the identical
     -- moment and the identical reason placeholder does, since a plugin's own reservation

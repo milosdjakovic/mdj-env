@@ -15,14 +15,9 @@
 -- order. Nothing here starts a watcher, binds a key, or configures a plugin. It only
 -- decides what a plugin is handed once wire.lua's stage two runs.
 --
--- THE RULE THAT MATTERS MOST FOR THIS FILE. obj.ambient must never carry onPositioned,
--- onActivity, or onClose. wire.lua's own ENTITLEMENTS table grants a surfaced plugin only
--- chooser, theme, and placeholder ambiently, and it reads the panel triple as a separate
--- question, straight off the same flat services table, so leaving those three keys out of
--- it is what makes the panel triple's real home the per plugin data table instead. That is
--- also why the panel triple is built here, in obj.perPlugin, rather than being one more key
--- in obj.ambient. Twelve plugins wanting twelve different panels can only ever be answered
--- by the one channel that is per plugin by construction.
+-- A per plugin docked hint panel, three callbacks built here in obj.perPlugin, was retired on
+-- 2026-10-23 with the hint panel itself, docs/PLAN-ACTION-BAR.md. The action bar is drawn inside
+-- the one chooser's canvas, so nothing is built per plugin for it.
 
 local obj = {}
 
@@ -205,13 +200,8 @@ end
 --- obj.perPlugin(plan, manifests, deps)
 --- Function
 --- What a plugin earns because of who it is, once the plan already knows what was built for
---- it. Three questions, each answered independently, and a plugin may earn all three, one,
---- or none.
+--- it. Two questions, each answered independently, and a plugin may earn both, one, or none.
 ---
---- deps.hints   the lib/hints.lua module, injected rather than required, since this file
----              names no sibling lib by path and calls it only through what the composition
----              root handed in. Read for its shortcutPanelFor(contextName, plan, deps)
----              function, presentation this file has no business computing itself.
 --- deps.libs    the lib module set by name, the same table resolve.lua and wire.lua already
 ---              read capabilities off, so a plugin declaring needs.lib.recency gets an
 ---              instance built off the real recency.lua module rather than off a stand in.
@@ -219,17 +209,6 @@ end
 ---              whatever the composition root uses to answer a tool's presence. Handed out
 ---              whole to every plugin that earns it, the same single adapter every earning
 ---              plugin already shares in the live root today, never rebuilt per plugin here.
----
---- The docked hint panel. wire.lua's own ambient grant for onPositioned, onActivity and
---- onClose reads them straight off the flat services table, and obj.ambient never puts them
---- there on purpose, so this is their only real home. Built for a plugin only once its
---- surface actually produced a context, checked by asking the plan rather than by trusting
---- the manifest declared one, since a surface that failed validation earns nothing back from
---- resolve.lua and building a panel for a context that does not exist is a panel nothing can
---- ever show. Shaped flat, three separate fields, or nested under manifest.surface.panelAs
---- when that field names one, the one axis PLUGIN-CONTRACT.md documents as a real
---- disagreement between plugins' own configure contracts rather than a shape this file gets
---- to pick for all of them.
 ---
 --- The scoped tool path adapter. Earned only once needs.tools carries at least one entry
 --- whose stage is runtime or carries no stage at all, since an absent stage already means
@@ -271,28 +250,6 @@ function obj.perPlugin(plan, manifests, deps)
   for _, name in ipairs(plan.order or {}) do
     local manifest = manifests[name] or {}
     local needs = manifest.needs or {}
-
-    -- The panel triple, only for a plugin whose surface actually produced a context.
-    -- Surface declarations name their context after the plugin's own identity, and
-    -- resolve.lua's own default agrees, so that identity is the one name asked of the
-    -- plan rather than a second guess of what resolve.lua already decided.
-    if manifest.surface and deps.hints and plan.contexts then
-      local contextName = (plan.identity or {})[name] or name
-      if plan.contexts[contextName] then
-        local panel = deps.hints.shortcutPanelFor(contextName, plan, deps)
-        if panel then
-          local panelAs = manifest.surface.panelAs
-          if panelAs then
-            slot(name)[panelAs] = panel
-          else
-            local s = slot(name)
-            s.onPositioned = panel.onPositioned
-            s.onActivity = panel.onActivity
-            s.onClose = panel.onClose
-          end
-        end
-      end
-    end
 
     -- The scoped tool path adapter, earned by a runtime stage tool and never by a dev or
     -- test only one.
