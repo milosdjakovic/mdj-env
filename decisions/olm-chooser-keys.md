@@ -250,3 +250,10 @@ symbol, declared in the action panel's manifest beside `back`, both names checke
 offline. The (?) button had no hover. It now draws its glyph alone at rest and the hint badge on
 the highlight colour while the pointer is over it or its panel is open, the state a row takes under
 the pointer, through the provider's one mouse tap.
+Corrected 2026-10-23, see below.
+
+### 2026-10-23 14:36
+
+From Milos's second live check. The key panel spelled the primary as Return followed by its held
+chord, Hyper and I. It now reads Return alone, the key a person presses, which replaces what the
+entry at 14:24 said about putting Return in front of the held chord.

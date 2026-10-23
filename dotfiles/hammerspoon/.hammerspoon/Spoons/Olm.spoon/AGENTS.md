@@ -532,7 +532,7 @@ other binding classified, so a secondary named like another list's verb never hi
 `showKeys` is slash on the list role in every list. Both move and free in the `lists` section like
 every shared verb. The action panel lists Back, the primary, the secondary and then the verbs.
 The primary row reads Return and the secondary row Command and Return, the keys a person presses,
-and the key panel spells the primary as Return beside its held chord. Every row carries an icon. A
+and the key panel spells the primary as Return alone. Every row carries an icon. A
 surface's `primary` and `secondary` may name one of the manifest's icons like an extra row, and one
 naming none takes Olm's own, `primary` and `secondary` in the action panel's manifest beside `back`.
 

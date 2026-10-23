@@ -185,10 +185,10 @@ local function badgesFor(b, deps)
   if b.chord == false then
     return { (glyphFor and glyphFor(b.key, b.mods)) or tostring(b.key) }
   end
-  -- The primary reads Return first, the key a person presses, and its held chord beside it, so
-  -- it never reads as the held chord alone.
+  -- The primary reads Return alone, the key a person presses, and never its held chord, which
+  -- Milos found only added noise once the bar already says Return.
   if b.shared == "primary" then
-    return { (glyphFor and glyphFor("return")) or "return", obj.chordFor(b, deps) }
+    return { (glyphFor and glyphFor("return")) or "return" }
   end
   local badges = { obj.chordFor(b, deps) }
   local doubled = DOUBLED[b.action] or (b.shared == "close" and "escape" or nil)

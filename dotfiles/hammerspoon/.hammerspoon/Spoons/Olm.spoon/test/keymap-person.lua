@@ -1404,8 +1404,8 @@ do
   local keys = {}
   for _, k in ipairs(model.keys) do keys[#keys + 1] = table.concat(k.badges, "+") .. " " .. k.label end
   eq(table.concat(keys, " | "),
-    "return+Hyper i Choose Files | Hyper j+down Move down | Hyper k+up Move up | Hyper d Delete | Hyper p Peek | Hyper x+escape Close | Hyper / Keys | cmd+1+cmd+9 Choose a visible row",
-    "footer: every other key in declaration order, the primary reading Return first, then Command with a digit, and no Back on a level Backspace does not leave")
+    "return Choose Files | Hyper j+down Move down | Hyper k+up Move up | Hyper d Delete | Hyper p Peek | Hyper x+escape Close | Hyper / Keys | cmd+1+cmd+9 Choose a visible row",
+    "footer: every other key in declaration order, the primary reading Return alone, then Command with a digit, and no Back on a level Backspace does not leave")
   local before = model.state
   gate.open = false
   local gated = hints.footerModel("bar", plan, deps)
