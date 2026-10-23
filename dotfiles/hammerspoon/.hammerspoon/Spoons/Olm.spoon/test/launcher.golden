@@ -28,7 +28,7 @@
 28	special:aliasDirectory	Aliases	Tools · every word that scopes this list (?)	aliases	launcher	-	alias, scope, shortcut, prefix |  (?)	30
 29	special:keys	OLM keys	Tools · every key Olm binds	keys	launcher	-	shortcuts, hotkeys, keybindings, chords	30
 30	special:lock	Lock Screen	System · Hyper §	lock	launcher	-	-	30
-31	special:sleep	Sleep	System · Hyper esc	sleep	launcher	-	-	30
+31	special:sleep	Sleep	System	sleep	launcher	-	-	30
 32	window:previousDisplay	Previous Display	Window · Meta ,	windows	windowmanager	multipleDisplays	-	40
 33	window:nextDisplay	Next Display	Window · Meta .	windows	windowmanager	multipleDisplays	-	40
 34	window:leftHalf	Left Half	Window · Meta ←	windows	windowmanager	-	-	40

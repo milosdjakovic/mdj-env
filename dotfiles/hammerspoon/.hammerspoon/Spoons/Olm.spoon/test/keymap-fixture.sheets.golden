@@ -11,7 +11,6 @@ hyper	row	2	⇧4	Screenshot	-
 hyper	row	2	5	Record screen	-
 hyper	row	2	␣	Launcher	-
 hyper	row	2	§	Lock Screen	-
-hyper	row	2	esc	Sleep	-
 window	group	META
 window	row	1	Y	Clipboard history	-
 window	row	2	E	VPN	-

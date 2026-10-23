@@ -63,7 +63,6 @@ hyper	;	any	-	-	fileSearch
 hyper	a	any	clipboardOpen	100	clipboard
 hyper	d	any	clipboardOpen	100	clipboard
 hyper	e	any	-	-	menuSearch
-hyper	escape	any	-	-	launcher
 hyper	f	any	-	-	apptoggler
 hyper	f	any	fileSearchOpen	100	fileSearch
 hyper	f	any	processesOpen	100	processes

@@ -190,7 +190,7 @@ return {
 
   -- What this host can run beside opening itself, its actions, the same descriptors a plugin
   -- answers. Lock and sleep are plain macOS calls, launcher.lock and launcher.sleep, so Olm binds
-  -- the keys the bindings below suggest, builds their rows in this catalog from the descriptors
+  -- whatever keys the bindings below suggest, builds their rows in this catalog from the descriptors
   -- and runs a chosen one through them, and a person moves either in config/keymap.lua like any
   -- action. Both were special rows of this manifest until phase 5 of the keymap plan, which was a
   -- second way to declare something runnable.
@@ -204,11 +204,12 @@ return {
   defaults = {
     leader = "app",
     -- The open key, a bindings row whose action is open, on the leader above, launcher.open in
-    -- config/keymap.lua, and the keys of the two actions this host answers.
+    -- config/keymap.lua, and the lock key. Sleep ships with no key and runs from its launcher row.
+    -- It sat on Escape until 2026-10-23, and with Hyper as the four real modifiers that chord holds
+    -- Command, Option and Escape, which macOS takes for Force Quit before any tap sees it.
     bindings = {
       { action = "open", key = "space" },
       { action = "lock", key = "§" },
-      { action = "sleep", key = "escape" },
     },
     description = "Launcher",
     icon = "launcher",

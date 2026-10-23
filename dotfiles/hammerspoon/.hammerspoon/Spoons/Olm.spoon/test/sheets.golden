@@ -17,7 +17,6 @@ hyper	row	2	5	Record screen	-
 hyper	row	2	,	General settings	-
 hyper	row	2	␣	Launcher	-
 hyper	row	2	§	Lock Screen	-
-hyper	row	2	esc	Sleep	-
 window	group	WINDOW MANAGEMENT
 window	row	1	,	Previous Display	multipleDisplays
 window	row	2	.	Next Display	multipleDisplays

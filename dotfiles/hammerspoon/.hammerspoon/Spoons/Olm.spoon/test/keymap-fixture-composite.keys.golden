@@ -63,7 +63,6 @@ hyper	;	any	-	-	fileSearch
 hyper	a	any	clipboardOpen	100	clipboard
 hyper	d	any	clipboardOpen	100	clipboard
 hyper	e	any	-	-	menuSearch
-hyper	escape	any	-	-	launcher
 hyper	f	any	-	-	apptoggler
 hyper	f	any	fileSearchOpen	100	fileSearch
 hyper	f	any	processesOpen	100	processes
@@ -186,7 +185,6 @@ claim	hyper	;	shift+ctrl+alt+cmd
 claim	hyper	a	shift+ctrl+alt+cmd
 claim	hyper	d	shift+ctrl+alt+cmd
 claim	hyper	e	shift+ctrl+alt+cmd
-claim	hyper	escape	shift+ctrl+alt+cmd
 claim	hyper	f	shift+ctrl+alt+cmd
 claim	hyper	h	shift+ctrl+alt+cmd
 claim	hyper	i	shift+ctrl+alt+cmd

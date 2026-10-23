@@ -19,8 +19,9 @@ The one entry today is 98, Show Help menu, on Command, Shift and slash, which is
 key Olm's key panel answers inside every list, `olm-chooser-keys.md`.
 
 The other kind cannot be switched off. With Hyper as the four real modifiers, Hyper and slash
-never reaches any tap and Hyper and period is the system's sysdiagnose shortcut, and neither is a
-symbolic hotkey a setting frees. Those chords are avoided rather than reclaimed.
+never reaches any tap, Hyper and period is the system's sysdiagnose shortcut, and Hyper and Escape
+holds Command, Option and Escape, which is Force Quit. None of them is a symbolic hotkey a setting
+frees. Those chords are avoided rather than reclaimed.
 
 ## Rejected
 
@@ -41,3 +42,17 @@ and semicolon and Hyper and J arrive. Command, Shift and slash arrives once symb
 off, done by hand with `defaults write com.apple.symbolichotkeys` and `activateSettings -u`. The
 setup step was written to do the same on every machine where Olm runs, changing only the flag.
 Written offline and not yet run, Milos runs it first.
+
+### 2026-10-23 23:55
+
+Hyper and Escape, the sleep key, measured dead on macOS 27 with kanata. A passive keyDown tap in
+the live Hammerspoon saw all four modifiers go down twice and no Escape either time, while a plain
+Escape arrived. The chord carries Command, Option and Escape, the Force Quit shortcut, which the
+system takes before any tap. Sleep now ships with no key and runs from its launcher row, the
+person's choice, since Olm already reaches it.
+
+The same session found the lock key, Hyper and §, unbound. Hammerspoon resolves a key by its
+character against the layout active when the config loads, and the Serbian Latin layout has no §,
+so the chord was never bound. Switching to ABC and reloading bound it. A layout switch after a load
+rebinds nothing, so a key missing after a switch wants a reload before any other diagnosis.
+
