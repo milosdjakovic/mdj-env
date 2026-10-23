@@ -1,0 +1,3 @@
+# Miloss-MacBook-Pro, captured 2026-10-07
+mise           | on        # this repository's mise config is stowed
+tools          | node,python,uv # set by hand, capture found commands found for go,node,python,ruby,uv

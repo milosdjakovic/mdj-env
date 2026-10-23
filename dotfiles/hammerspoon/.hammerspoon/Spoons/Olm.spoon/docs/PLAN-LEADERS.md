@@ -209,7 +209,7 @@ that any key or change conceals it.
   physical key. It is a Composite over the same trigger contract and can follow once a second
   physical key is actually wanted.
 - **Which tool supplies Hyper on which machine.** Karabiner on one Mac and Olm's own remap on
-  another is a difference between machines, so it is a piece in `MACHINES` with a probe in
+  another is a difference between machines, so it is a piece in `machines/` with a probe in
   `capture`, never a second keymap.
 - **Installing Karabiner.** If it is chosen, it is declared in `DEPENDENCIES.map` and the Brewfile
   like any tool, and its own configuration lives in a module of its own.

@@ -1,33 +1,45 @@
 #!/bin/bash
 set -e
 
-# The one reader of MACHINES, which says what each machine takes from this repository.
+# The one reader of machines/, which says what each machine takes from this repository.
+# machines/default/pieces holds one row per optional piece, and machines/<name>/pieces holds the
+# rows of one machine that differ from it, each row written as `piece | value  # reason`.
 #
 #   machine.sh name        this machine's name, LocalHostName unless MDJ_MACHINE says otherwise
 #   machine.sh get KEY     this machine's value for KEY, or the default when it has no row
 #   machine.sh on KEY      exits 0 when that value is on, for a caller that only branches
 #   machine.sh keys        every key, one per line, which is every optional piece
-#   machine.sh listed      exits 0 when this machine has rows of its own
-#   machine.sh check       reports every row that names a key with no default, exits 1 on any
-#   machine.sh capture     looks at what this machine has and brings its block in MACHINES in line
+#   machine.sh listed      exits 0 when this machine has a pieces file of its own
+#   machine.sh check       reports every row that names a key with no default and every directory
+#                          that is no valid machine name, exits 1 on any
+#   machine.sh capture     looks at what this machine has and brings its pieces file in line
 #
 # An unknown key is exit 3 from get and on, so a misspelt key in a caller fails loudly rather
-# than reading as off.
+# than reading as off. A machine name that is no safe directory name is exit 1 from every command
+# that needs the name, and so is the name default, which belongs to the defaults directory.
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-FILE="$ROOT/MACHINES"
+DIR="$ROOT/machines"
 
-# machine|key|value per line, with comments, blanks and padding removed.
+# What a machine name may be, since it becomes a directory. Letters, digits, hyphen, dot and
+# underscore, with no leading dot, which also rules out a slash and the names . and ..
+NAME_SHAPE='^[A-Za-z0-9_-][A-Za-z0-9._-]*$'
+
+pieces_file() { echo "$DIR/$1/pieces"; }
+
+# key|value per line for one machine, with comments, blanks and padding removed.
 rows() {
-    [[ -f "$FILE" ]] || return 0
+    local file
+    file="$(pieces_file "$1")"
+    [[ -f "$file" ]] || return 0
     awk -F'|' '
         { sub(/#.*/, "") }
-        NF < 3 { next }
+        NF < 2 { next }
         {
-            for (i = 1; i <= 3; i++) gsub(/^[ \t]+|[ \t]+$/, "", $i)
-            print $1 "|" $2 "|" $3
+            for (i = 1; i <= 2; i++) gsub(/^[ \t]+|[ \t]+$/, "", $i)
+            print $1 "|" $2
         }
-    ' "$FILE"
+    ' "$file"
 }
 
 # Homebrew strips every variable from a Brewfile's environment except its own HOMEBREW_ ones,
@@ -43,24 +55,43 @@ name() {
     fi
 }
 
-# A block is this machine's rows plus one header comment above them, `# NAME, captured DATE`.
+# A pieces file is one header comment, `# NAME, captured DATE`, above the machine's rows.
 # The header is what keeps a machine that captured every piece at its default from reading as
 # one that was never captured.
-header_of() { grep -E "^# $1, captured " "$FILE" 2>/dev/null | head -1; }
+header_of() {
+    local file
+    file="$(pieces_file "$1")"
+    [[ -f "$file" ]] || return 0
+    awk -v m="$1" 'index($0, "# " m ", captured ") == 1 { print; exit }' "$file"
+}
 
 value_for() {
     local machine="$1" key="$2"
-    rows | awk -F'|' -v m="$machine" -v k="$key" '$1 == m && $2 == k { print $3; exit }'
+    rows "$machine" | awk -F'|' -v k="$key" '$1 == k { print $2; exit }'
+}
+
+# Resolves and checks this machine's name once, in the main shell, so a bad name ends the run
+# here and not inside a command substitution that would swallow the exit.
+require_name() {
+    NAME="$(name)"
+    if [[ ! "$NAME" =~ $NAME_SHAPE ]]; then
+        echo "machine.sh: '$NAME' cannot be a machine name, it becomes a directory under machines/ and may hold only letters, digits, hyphen, dot and underscore, with no leading dot" >&2
+        exit 1
+    fi
+    if [[ "$NAME" == default ]]; then
+        echo "machine.sh: 'default' is the directory of the defaults and cannot be a machine name" >&2
+        exit 1
+    fi
 }
 
 get() {
     local key="$1" default value
     default="$(value_for default "$key")"
     if [[ -z "$default" ]]; then
-        echo "machine.sh: no default for '$key' in MACHINES" >&2
+        echo "machine.sh: no default for '$key' in machines/default/pieces" >&2
         exit 3
     fi
-    value="$(value_for "$(name)" "$key")"
+    value="$(value_for "$NAME" "$key")"
     echo "${value:-$default}"
 }
 
@@ -125,6 +156,8 @@ probe() {
     esac
 }
 
+keys() { rows default | awk -F'|' '{ print $1 }'; }
+
 ask() {
     local answer
     [[ -t 0 ]] || return 1
@@ -139,9 +172,9 @@ ask() {
 # whole file, plus any value the person chose against the evidence, which is a decision worth
 # keeping. Without a terminal it reports and writes nothing.
 capture() {
-    local machine key default explicit found fact final current
+    local machine key default explicit found fact final current file
     local new=() changes=0 interactive=0
-    machine="$(name)"
+    machine="$NAME"
     [[ -t 0 ]] && interactive=1
 
     if [[ -z "$MDJ_MACHINE" && "$machine" =~ ^(Mac|MacBook|MacBook-Pro|MacBook-Air|iMac|Mac-mini|Mac-Studio|Mac-Pro)(-[0-9]+)?$ ]]; then
@@ -150,11 +183,12 @@ capture() {
         exit 1
     fi
 
+    file="$(pieces_file "$machine")"
     echo "Machine  $machine"
     if [[ -n "$(header_of "$machine")" ]]; then echo "         $(header_of "$machine" | sed 's/^# //')"; else echo "         not captured before"; fi
     echo ""
 
-    for key in $(rows | awk -F'|' '$1 == "default" { print $2 }'); do
+    for key in $(keys); do
         default="$(value_for default "$key")"
         explicit="$(value_for "$machine" "$key")"
         current="${explicit:-$default}"
@@ -184,16 +218,16 @@ capture() {
         # the same question again.
         if [[ "$final" != "$default" || ( "$found" != "?" && "$final" != "$found" ) ]]; then
             if [[ "$final" == "$found" ]]; then
-                new+=("$(printf '%-27s | %-11s | %-9s # %s' "$machine" "$key" "$final" "$fact")")
+                new+=("$(printf '%-14s | %-9s # %s' "$key" "$final" "$fact")")
             else
-                new+=("$(printf '%-27s | %-11s | %-9s # %s' "$machine" "$key" "$final" "set by hand, capture found $fact")")
+                new+=("$(printf '%-14s | %-9s # %s' "$key" "$final" "set by hand, capture found $fact")")
             fi
         fi
     done
 
     # Compare rows only, values and reasons, never the header, so the date alone is not a change.
     local old_rows new_rows
-    old_rows="$(grep -E "^$machine[[:space:]]*\|" "$FILE" 2>/dev/null | sed 's/[[:space:]]*$//')"
+    old_rows="$(grep -E '^[^#]*\|' "$file" 2>/dev/null | sed 's/[[:space:]]*$//' || true)"
     new_rows="$(printf '%s\n' "${new[@]+"${new[@]}"}" | sed '/^$/d; s/[[:space:]]*$//')"
     echo ""
     if [[ "$old_rows" == "$new_rows" && -n "$(header_of "$machine")" ]]; then
@@ -209,49 +243,58 @@ capture() {
     block="# $machine, captured $(date +%Y-%m-%d)"
     [[ ${#new[@]} -eq 0 ]] && block="$block, every piece on its default"
     [[ -n "$new_rows" ]] && block="$block"$'\n'"$new_rows"
+    mkdir -p "$DIR/$machine"
     tmp="$(mktemp)"
-    # The block is replaced where it stands, so a machine keeps its place in the file, and it is
-    # appended only when this machine has none yet.
-    BLOCK="$block" awk -v m="$machine" '
-        BEGIN { block = ENVIRON["BLOCK"] }
-        {
-            line = $0
-            first = line; sub(/[ \t]*\|.*/, "", first)
-            if (index(line, "# " m ", captured ") == 1 || first == m) {
-                if (!done) { print block; done = 1 }
-                next
+    # The block is replaced where it stands, so any other comment in the file keeps its place,
+    # and it is appended when the file has no header or row yet.
+    if [[ -f "$file" ]]; then
+        BLOCK="$block" awk -v m="$machine" '
+            BEGIN { block = ENVIRON["BLOCK"] }
+            {
+                line = $0
+                if (index(line, "# " m ", captured ") == 1 || (line !~ /^[ \t]*#/ && line ~ /\|/)) {
+                    if (!done) { print block; done = 1 }
+                    next
+                }
+                print
             }
-            print
-        }
-        END { if (!done) { print ""; print block } }
-    ' "$FILE" > "$tmp"
-    mv "$tmp" "$FILE"
-    echo "Wrote the block for $machine to MACHINES. Commit it so every checkout has it."
+            END { if (!done) print block }
+        ' "$file" > "$tmp"
+    else
+        echo "$block" > "$tmp"
+    fi
+    mv "$tmp" "$file"
+    echo "Wrote the block for $machine to machines/$machine/pieces. Commit it so every checkout has it."
 }
 
 case "$1" in
-    name)   name ;;
-    get)    get "$2" ;;
-    on)     [[ "$(get "$2")" == "on" ]] ;;
-    keys)   rows | awk -F'|' '$1 == "default" { print $2 }' ;;
-    listed)
-        [[ -n "$(header_of "$(name)")" ]] && exit 0
-        rows | awk -F'|' -v m="$(name)" '$1 == m { found = 1 } END { exit !found }'
-        ;;
-    capture) capture ;;
+    name)   require_name; echo "$NAME" ;;
+    get)    require_name; get "$2" ;;
+    on)     require_name; [[ "$(get "$2")" == "on" ]] ;;
+    keys)   keys ;;
+    listed) require_name; [[ -f "$(pieces_file "$NAME")" ]] ;;
+    capture) require_name; capture ;;
     check)
-        rows | awk -F'|' '
-            $1 == "default" { known[$2] = 1; next }
-            { seen[NR] = $0 }
-            END {
-                bad = 0
-                for (n in seen) {
-                    split(seen[n], f, "|")
-                    if (!(f[2] in known)) { print f[1] " sets " f[2] ", which has no default row"; bad = 1 }
-                }
-                exit bad
-            }
-        '
+        bad=0
+        known="$(keys)"
+        for dir in "$DIR"/* "$DIR"/.[!.]*; do
+            [[ -d "$dir" ]] || continue
+            machine="$(basename "$dir")"
+            [[ "$machine" == default ]] && continue
+            if [[ ! "$machine" =~ $NAME_SHAPE ]]; then
+                echo "machines/$machine is no valid machine name, it may hold only letters, digits, hyphen, dot and underscore, with no leading dot"
+                bad=1
+                continue
+            fi
+            while IFS='|' read -r key _; do
+                [[ -z "$key" ]] && continue
+                if ! grep -qxF -- "$key" <<< "$known"; then
+                    echo "$machine sets $key, which has no default row"
+                    bad=1
+                fi
+            done <<< "$(rows "$machine")"
+        done
+        exit $bad
         ;;
     *)
         echo "usage: machine.sh name | get KEY | on KEY | keys | listed | check | capture" >&2

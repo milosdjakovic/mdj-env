@@ -1,5 +1,5 @@
 # How mise behaves on every machine that takes it. No tools are listed here. Which tools a
-# machine has is its tools row in MACHINES, picked by name from dotfiles/mise/TOOLS, and
+# machine has is its tools row in machines/<name>/pieces, picked by name from dotfiles/mise/TOOLS, and
 # src/install-mise-tools.sh writes them to conf.d/machine.toml beside this file. Never add a
 # tool here and never run `mise use -g`, both would give every machine what one asked for.
 # decisions/runtime-versions.md has the reasoning.

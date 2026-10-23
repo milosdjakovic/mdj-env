@@ -59,9 +59,9 @@ records() {
 
 field() { echo "$1" | cut -d'|' -f"$2"; }
 
-# A module this machine switched off in MACHINES is not expected here, so what it declares is
-# neither missing nor ungranted. Asked through src/machine.sh, the one reader of that file, and
-# keyed by module name, so only a module that is also a MACHINES key can ever be off.
+# A module this machine switched off under machines/ is not expected here, so what it declares is
+# neither missing nor ungranted. Asked through src/machine.sh, the one reader of machines/, and
+# keyed by module name, so only a module that is also a machines/ piece can ever be off.
 module_off() { [[ "$("$SCRIPT_DIR/machine.sh" get "$1" 2>/dev/null)" == "off" ]]; }
 
 # True when git ignores a path, used to keep every recursive scan below on files this
@@ -733,15 +733,15 @@ fi
 [[ $decisions_bad -eq 0 ]] && say "  every decision file is indexed and carries its four parts"
 
 #-------------------------------------------------------------------------------
-# Check eight and a half, MACHINES names only pieces it has a default for
+# Check eight and a half, machines/ names only pieces it has a default for
 #-------------------------------------------------------------------------------
 
 say ""
 say "==> Machine profiles"
 if machine_gaps="$("$SCRIPT_DIR/machine.sh" check)"; then
-    say "  every machine row names a known piece, $("$SCRIPT_DIR/machine.sh" name) is $("$SCRIPT_DIR/machine.sh" listed && echo listed || echo on the defaults)"
+    say "  every machine row names a known piece and every machine directory a valid name, $("$SCRIPT_DIR/machine.sh" name) is $("$SCRIPT_DIR/machine.sh" listed && echo listed || echo on the defaults)"
 else
-    while IFS= read -r gap; do err "MACHINES, $gap"; done <<< "$machine_gaps"
+    while IFS= read -r gap; do err "machines, $gap"; done <<< "$machine_gaps"
 fi
 
 #-------------------------------------------------------------------------------

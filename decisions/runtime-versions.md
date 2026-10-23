@@ -1,6 +1,6 @@
 # Runtime versions, and the one tool that switches them
 
-Status. On a machine that `MACHINES` turns mise on for, mise manages every language runtime, python, ruby, node, go and rust,
+Status. On a machine that `machines/` turns mise on for, mise manages every language runtime, python, ruby, node, go and rust,
 plus uv itself, from a global config in its own stow package, `dotfiles/mise`. A project
 overrides any of them with its own pin. uv may only use the interpreters mise installed.
 

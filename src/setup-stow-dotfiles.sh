@@ -10,7 +10,7 @@ DOTFILES="$ROOT/dotfiles"
 # shellcheck source=lib/backup.sh
 source "$SCRIPT_DIR/lib/backup.sh"
 
-# Core packages every machine takes, then each optional one this machine's MACHINES row turns
+# Core packages every machine takes, then each optional one this machine's pieces file under machines/ turns
 # on. A package switched off is only not stowed here, never unstowed, since this step removes
 # nothing a machine already has.
 PACKAGES=(ghostty tmux nvim zsh claude lf lazygit)

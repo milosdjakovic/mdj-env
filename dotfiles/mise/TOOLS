@@ -1,12 +1,12 @@
 # Every tool a machine may take through mise, each defined once, as
 # name | mise tool | version | command | why.
 #
-# The name is what a machine's tools row in MACHINES picks. The mise tool is what mise installs,
+# The name is what a machine's tools row in its machines/<name>/pieces picks. The mise tool is what mise installs,
 # a registry name or a backend such as pipx:, npm: or cargo:. Rows that share a mise tool merge
 # into one list in the order written here, so the first python row is the default python. The
 # version is a major or minor prefix, or an exact release where a client project needs one. The
 # command is what capture looks for on a machine to propose the name. Nothing here knows about
-# machines, and src/install-mise-tools.sh is the only place that joins this with MACHINES.
+# machines, and src/install-mise-tools.sh is the only place that joins this with a machine's pieces file.
 #
 # A tool one project needs belongs in that project, not here. Repo only, never stowed.
 

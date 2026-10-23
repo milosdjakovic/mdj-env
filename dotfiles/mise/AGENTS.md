@@ -6,7 +6,7 @@ before changing anything here.
 
 ## Which machines
 
-This package is optional per machine. `MACHINES` at the repository root turns it on, and it is
+This package is optional per machine. `machines/default/pieces` at the repository root says it is off, and a machine's own `pieces` file turns it on, and it is
 off by default. Where it is off the package is not stowed, the Brewfile skips mise, the install
 step is skipped, and the shell does not activate mise, because `.zshrc.custom` activates it only
 when `~/.config/mise/config.toml` exists. `decisions/machine-profiles.md` has the mechanism.
@@ -17,7 +17,7 @@ when `~/.config/mise/config.toml` exists. `decisions/machine-profiles.md` has th
 its mise name, its version and the command capture looks for. It knows nothing about machines, and
 it is repo only, never stowed.
 
-The `tools` row in `MACHINES` is each machine's pick list, catalog names separated by commas,
+The `tools` row in a machine's `pieces` file under `machines/` is each machine's pick list, catalog names separated by commas,
 alphabetical, with no spaces, or `none`. It knows nothing about versions.
 
 `.config/mise/config.toml` is how mise behaves on every machine, the version file support and the

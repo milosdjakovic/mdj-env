@@ -80,7 +80,7 @@ source "$(brew --prefix)/opt/fzf/shell/key-bindings.zsh"
 # process's own directory, so the project's .node-version decides. /Users/Shared/dev-env/LEDGER.md
 # log #26 has the measurements.
 #
-# The config is the condition, not the binary. mise is optional per machine in MACHINES, and a
+# The config is the condition, not the binary. mise is optional per machine in machines/, and a
 # machine that has it installed without taking this repository's runtimes must not have its own
 # pyenv or nvm overridden by mise acting on every .nvmrc it meets. A stowed config, or one set up
 # by hand, is what says this machine uses mise.

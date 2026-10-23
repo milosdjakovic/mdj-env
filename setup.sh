@@ -43,7 +43,7 @@ step() {
     STEP_DONE=$((STEP_DONE + 1))
 }
 
-# A step that belongs to one optional piece runs only when MACHINES gives this machine that
+# A step that belongs to one optional piece runs only when machines/ gives this machine that
 # value for it, as in `step_if mise on`. A skip counts as done, since the run did all it should.
 step_if() {
     local key="$1" want="$2"
@@ -89,7 +89,7 @@ trap on_exit EXIT
 echo "==> Starting dotfiles setup..."
 echo ""
 
-# Which optional pieces this machine takes, from MACHINES. A machine with no rows takes the
+# Which optional pieces this machine takes, from machines/. A machine with no rows takes the
 # defaults, and the closing block says so, since a new machine is exactly when that is missed.
 MACHINE="$("$SRC_DIR/machine.sh" name)"
 echo "==> Machine $MACHINE"
@@ -98,7 +98,7 @@ for key in $("$SRC_DIR/machine.sh" keys); do
 done
 echo ""
 if ! "$SRC_DIR/machine.sh" listed; then
-    echo "$MACHINE has no rows in MACHINES and took every default, add rows there to change that" >> "$MDJ_RUN_NOTES"
+    echo "$MACHINE has no pieces file under machines/ and took every default, capture it to change that" >> "$MDJ_RUN_NOTES"
 fi
 
 # Files a tool reads besides the config this repository links, left on this machine from before

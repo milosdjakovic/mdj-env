@@ -15,9 +15,10 @@ machine takes. See [Capturing a machine](#capturing-a-machine).
 
 ## Capturing a machine
 
-Machines differ, and `MACHINES` at the repository root says how. It has one default row per
-optional piece and rows for each machine that differs, keyed by the machine's local hostname.
-The pieces are `mise`, `hammerspoon`, `herdr`, `mole`, `docker`, `vpn` and `tools`. A machine
+Machines differ, and the `machines/` directory at the repository root says how. Its `default`
+folder has one default row per optional piece, and each machine that differs has a folder of its
+own, named by the machine's local hostname, with a `pieces` file of the rows that differ. The
+pieces are `mise`, `hammerspoon`, `herdr`, `mole`, `docker`, `vpn` and `tools`. A machine
 with no rows gets every default, which keeps its own setup alone and leaves mise off.
 
 Do this once on every machine, and again whenever a machine changes.
@@ -40,11 +41,11 @@ Do this once on every machine, and again whenever a machine changes.
    ```
    It shows each piece, what it found on this machine, and the value that suggests. Answer each
    question. Enter takes the answer in capitals, which is yes for a new proposal and no for
-   changing a row you already set by hand. Nothing is installed or removed, only `MACHINES` is
-   written.
+   changing a row you already set by hand. Nothing is installed or removed, only
+   `machines/<name>/pieces` is written.
 4. **Check what was written.**
    ```bash
-   git diff MACHINES
+   git diff machines
    ```
    Edit a row by hand if you want something else. `tools` lists the mise tools this machine
    takes, names from `dotfiles/mise/TOOLS`, alphabetical, comma separated, no spaces, such as
@@ -52,7 +53,7 @@ Do this once on every machine, and again whenever a machine changes.
    with its version.
 5. **Commit and push**, so every checkout knows this machine.
    ```bash
-   git add MACHINES && git commit -m "machines(<name>) capture" && git push
+   git add machines && git commit -m "machines(<name>) capture" && git push
    ```
 6. **Apply it.**
    ```bash
@@ -154,7 +155,7 @@ stow -t ~ alacritty # Alternative terminal
 
 - ghostty, tmux, nvim, zsh, claude, lf, lazygit
 
-### Stowed Where MACHINES Turns Them On
+### Stowed Where The Machine Turns Them On
 
 - hammerspoon, herdr, mise
 

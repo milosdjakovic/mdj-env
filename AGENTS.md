@@ -40,8 +40,8 @@ MDJ_EDITOR="Visual Studio Code" ./setup.sh   # the editor step's answer, for a r
 ./src/setup-claude-settings.sh
 ./src/setup-herdr-plugins.sh
 ./src/check-dependencies.sh
-./src/machine.sh get mise            # what this machine takes for one optional piece, from MACHINES
-./src/machine.sh capture             # look at this machine and bring its block in MACHINES in line, safe to rerun
+./src/machine.sh get mise            # what this machine takes for one optional piece, from machines/
+./src/machine.sh capture             # look at this machine and bring its pieces file in line, safe to rerun
 
 # Rewrite every tool's theme file from the one palette, and report any that had drifted.
 # Run after changing a colour, then commit what it regenerated. --show prints every role.
@@ -283,7 +283,7 @@ to drift unnoticed.
 
 **Stowed on every machine:** ghostty, tmux, nvim, zsh, claude, lf, lazygit
 
-**Stowed where MACHINES turns them on:** hammerspoon, herdr, mise
+**Stowed where machines/ turns them on:** hammerspoon, herdr, mise
 
 ### Rules for an agent working on machines and runtimes
 
@@ -292,13 +292,13 @@ These are rules, not background. Each one exists because the opposite was done o
 1. **Find out which machine you are on before touching an optional piece.** Run
    `src/machine.sh name` and `src/machine.sh get <piece>`. Where a piece is off, do not install,
    stow, configure or activate it, and do not suggest switching it on as a fix for something else.
-2. **Only the machine you are on is yours to describe.** Write rows in `MACHINES` only for this
+2. **Only the machine you are on is yours to describe.** Write rows in `machines/<name>/pieces` only for this
    machine, and only through `src/machine.sh capture` in a terminal or with the person's explicit
    answer. Never write, edit or delete another machine's rows, and never guess a row from what a
    machine probably has. One of the three machines is not the user's, so a guess there is wrong
    in a way nobody can see from here.
 3. **Never answer a difference between machines with a branch, a fork or a per machine copy of a
-   file.** It is a row in `MACHINES`, and a new kind of difference is a new piece, a default row,
+   file.** It is a row in a `pieces` file under `machines/`, and a new kind of difference is a new piece, a default row,
    a probe in `capture`, and the lines that ask for it.
 4. **Nothing in this repository removes what a machine has.** Switching a piece off only stops a
    run from adding it. An uninstall, a deleted venv or a removed interpreter is a one off act on
@@ -307,7 +307,7 @@ These are rules, not background. Each one exists because the opposite was done o
 5. **Each kind of tool has one home, and installing it anywhere else is the drift this prevents.**
    A language runtime, or a command run from any directory, is one row in the mise catalog,
    `dotfiles/mise/TOOLS`, through a mise backend, `pipx:`, `npm:`, `cargo:` or the registry, and a
-   machine has it only when its `tools` row in `MACHINES` names it. The catalog holds versions and
+   machine has it only when its `tools` row in its `machines/<name>/pieces` names it. The catalog holds versions and
    never machines, the row holds names and never versions. Never put a tool in the mise
    `config.toml`, which every machine gets, and never run `mise use -g`. A tool one project
    needs goes in that project's own dependencies and runs through `uv run`, `uvx` or `npx`. A
@@ -327,14 +327,16 @@ These are rules, not background. Each one exists because the opposite was done o
 
 ### Machines, and what each one takes
 
-`MACHINES` at the root says which optional pieces each machine takes, keyed by
-`scutil --get LocalHostName`, with a default row per piece for a machine that has no rows.
+`machines/` at the root says which optional pieces each machine takes. `machines/default/pieces`
+holds a default row per piece, and `machines/<name>/pieces` holds the rows where one machine
+differs, the directory named by `scutil --get LocalHostName`. A row reads `piece | value  # reason`,
+and `default` is never a machine name.
 `src/machine.sh` is its only reader. The stow step, `setup.sh` through `step_if`, the Brewfile
-through `on?`, and the reconciler all ask it, and nothing else knows the file's shape. The steps a
+through `on?`, and the reconciler all ask it, and nothing else knows the layout. The steps a
 person follows to capture a machine are in `README.md` under "Capturing a machine", keep them
 current when capture changes. On a machine
-that has no block yet, or has changed, run `src/machine.sh capture` in a terminal. It probes each
-piece, proposes rows, asks, and rewrites that machine's block in place, so a second run on an
+that has no pieces file yet, or has changed, run `src/machine.sh capture` in a terminal. It probes each
+piece, proposes rows, asks, and rewrites that machine's pieces file in place, so a second run on an
 unchanged machine writes nothing and a row set by hand is kept unless you say otherwise. Adding a
 piece is a default row, a probe in `capture`, and the lines that ask for it. Switching one off never removes anything.
 Never answer a difference between machines with a branch. `decisions/machine-profiles.md` has

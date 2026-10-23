@@ -1,4 +1,4 @@
-# An optional piece's lines install only on a machine MACHINES turns it on for, asked through
+# An optional piece's lines install only on a machine machines/ turns it on for, asked through
 # src/machine.sh, its one reader. A line switched off is only not installed, never removed.
 def on?(key)
   system(File.join(__dir__, "src", "machine.sh"), "on", key.to_s)

@@ -1,0 +1,24 @@
+# What a machine takes from this repository when it has no rows of its own, as piece | value.
+#
+# Every piece here is one optional piece. Its row says what a machine gets by default, and the
+# reason after it says what the piece brings. Everything not listed here is core and every
+# machine takes it. A machine writes a row in machines/<name>/pieces only where it differs from
+# the default. The directory is named by `scutil --get LocalHostName`, and MDJ_MACHINE answers for
+# it in a run that should pretend to be another machine. `default` is never a machine name.
+#
+# README.md, under "Capturing a machine", has the steps to add or update a machine, and
+# `src/machine.sh capture` writes its pieces file. src/machine.sh is the only reader. setup.sh,
+# the stow step, the Brewfile and the reconciler all ask it, and nothing else knows this layout.
+# decisions/machine-profiles.md has why machines are data and not one branch per machine.
+#
+# The defaults keep what every machine got before this directory existed, except mise, which
+# stays off unless a machine asks, since a machine with its own pyenv or nvm must not be taken over.
+
+# piece        | value      # reason
+mise           | off       # the mise package, its Homebrew line, the runtime install step, and the shell activation that follows the stowed config
+hammerspoon    | on        # the Hammerspoon package and cask, and the Caps Lock remap its Hyper key stands on
+herdr          | on        # the herdr package and formula, and the step that registers its plugin
+mole           | on        # the mole formula, the package itself is not stowed yet
+docker         | on        # the Docker Desktop cask
+vpn            | mullvad   # mullvad, ivpn or none, and only ivpn adds a setup step, the permission repair its daemon needs
+tools          | none      # the mise tools a machine takes, names from dotfiles/mise/TOOLS, comma separated, alphabetical, no spaces, or none
