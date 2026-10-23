@@ -97,8 +97,10 @@ do
   local footer = fresh("lib/chooser/providers/default/footer.lua")
   local chipH = T.badge.hint.height
   local barH = footer.height(T)
-  check("the action bar is a hint chip with the small space above and below, 21 plus twice 6 is 33",
-    chipH == 21 and barH == chipH + 2 * T.space.s and barH == 33, "height " .. tostring(barH))
+  local bodyH = T.text.body.lineHeight
+  check("the action bar is its row, the taller of the hint chip 21 and the body line 22, with the small space above and below, 34",
+    chipH == 21 and bodyH == 22 and barH == math.max(chipH, bodyH) + 2 * T.space.s and barH == 34,
+    "height " .. tostring(barH))
 
   local model = {
     right = {
@@ -165,9 +167,15 @@ do
   local panelEls, panelRect = footer.keysPanel(ui, T, model, band, 300)
   check("the key panel rises from the bar's top edge", panelRect.y + panelRect.h == band.y,
     tostring(panelRect.y + panelRect.h))
-  local wantH = 2 * chipH + T.space.s + 2 * T.pad
-  check("three keys in two columns are two chip rows, a small space between and the panel padding around, 76",
-    panelRect.h == wantH and wantH == 76, "height " .. tostring(panelRect.h))
+  local wantH = 2 * bodyH + T.space.s + 2 * T.pad
+  check("three keys in two columns are two rows of a body label beside a chip, a small space between and the panel padding around, 78",
+    panelRect.h == wantH and wantH == 78, "height " .. tostring(panelRect.h))
+  local labels = frames(els, function(el)
+    if el.type ~= "text" then return false end
+    local attrs = el.text:asTable()[2].attributes
+    return attrs.font.size == T.text.body.size and el.text:getString() == "Uninstall"
+  end)
+  check("the bar's labels are hint labels in the body role", #labels == 1, "body labels " .. #labels)
   local fill = panelEls[1]
   check("the key panel is filled in the background colour role",
     fill and fill.type == "rectangle" and fill.fillColor and fill.fillColor.red == T.colors.background.red

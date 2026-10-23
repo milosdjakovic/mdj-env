@@ -498,7 +498,8 @@ action panel cannot disagree. A label is the level's own `labels` first, then `l
 the binding's description, then Open for the primary and the action spelled as words otherwise.
 
 The default provider takes the model through one per instance collaborator, `config.footer`, and
-`footer.lua` beside it draws it through the kit, the caption role and the hint badge, the divider
+`footer.lua` beside it draws it through the kit, the body role for its hint labels and the hint
+badge with its glyph in the section role, the divider
 along the bar's top edge and the background colour role behind the key panel. The bar's height is
 the hint badge with the small space step above and below it, and geometry gives it a footer rect
 under the list, subtracted from the rows a screen can hold. The provider asks the model on every

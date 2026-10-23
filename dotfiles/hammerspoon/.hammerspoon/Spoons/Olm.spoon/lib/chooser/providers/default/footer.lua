@@ -6,11 +6,12 @@
 --- lib/hints.lua's footerModel, pure data the provider is handed through its footer collaborator,
 --- so nothing here knows a keymap, a binding or a plugin, only the three lists that model holds.
 ---
---- Everything is drawn through the UI kit handed in, the caption role for every word, the kit's
---- hint badge for every key, the kit's divider for each edge and the background colour role
---- behind the key panel, so no font, size, colour, radius or stroke is written here. The bar's
---- height is the hint badge's height with the small space step above and below it, the same
---- rule the toasts' footers follow, so a size set in config/typography.toml reflows it.
+--- Everything is drawn through the UI kit handed in, the body role for every word, since each is a
+--- hint label, the kit's hint badge for every key, its glyph in the section role, the kit's
+--- divider for each edge and the background colour role behind the key panel, so no font, size,
+--- colour, radius or stroke is written here. The bar's height is its row, the taller of the hint
+--- badge and the body line, with the small space step above and below it, the same rule the
+--- toasts' footers follow, so a size set in config/typography.toml reflows it.
 ---
 --- Coordinates are the canvas's own, the same local space the provider hands list render, and
 --- the key button's rect comes back in that space too, so the provider turns it into screen
@@ -21,10 +22,16 @@ local M = {}
 -- The word on the button that opens the key panel, drawn as a key badge like every other key.
 M.KEYS_GLYPH = "?"
 
---- M.height(tokens) -> the footer row's height in points, the hint badge with the small space
---- step above and below it.
+-- The height of the bar's row and of a key panel row, the taller of a hint badge and a body line,
+-- since a label in the body role sits beside the badges on each.
+local function rowHeight(tokens)
+  return math.max(tokens.badge.hint.height, tokens.text.body.lineHeight)
+end
+
+--- M.height(tokens) -> the footer row's height in points, the row with the small space step
+--- above and below it.
 function M.height(tokens)
-  return tokens.badge.hint.height + 2 * tokens.space.s
+  return rowHeight(tokens) + 2 * tokens.space.s
 end
 
 -- The smallest rect holding every shape and picture the kit drew, how the key button's rect is read
@@ -49,11 +56,11 @@ local function append(out, els)
   for _, el in ipairs(els or {}) do out[#out + 1] = el end
 end
 
--- One key as the cheat sheets draw it, its badges beside a caption naming what it does.
+-- One key as the cheat sheets draw it, its badges beside a hint label naming what it does.
 local function keyNode(ui, entry)
   local parts = {}
   for _, b in ipairs(entry.badges or {}) do parts[#parts + 1] = ui.badge(b, "hint") end
-  parts[#parts + 1] = ui.text(entry.label or "", "caption", { lineBreak = ui.lineBreaks.truncateTail })
+  parts[#parts + 1] = ui.text(entry.label or "", "body", { lineBreak = ui.lineBreaks.truncateTail })
   return ui.row(parts, { gap = "s", align = ui.rowAligns.center })
 end
 
@@ -75,7 +82,7 @@ function M.bar(ui, tokens, model, rect, inset, lit, keysImage)
   local els = {}
   append(els, (ui.layout(ui.divider(), { x = rect.x, y = rect.y, w = rect.w, h = 0 }, { tokens = tokens })))
 
-  local rowH = tokens.badge.hint.height
+  local rowH = rowHeight(tokens)
   local inner = { x = rect.x + inset, y = rect.y + (rect.h - rowH) / 2, w = rect.w - 2 * inset, h = rowH }
 
   -- The key button, its glyph and, when showKeys has a key, that key's chord beside it, both lit
@@ -109,13 +116,13 @@ function M.bar(ui, tokens, model, rect, inset, lit, keysImage)
   local items = {}
   for _, r in ipairs((model and model.right) or {}) do
     items[#items + 1] = ui.row({
-      ui.text(r.label or "", "caption", { lineBreak = ui.lineBreaks.truncateTail }),
+      ui.text(r.label or "", "body", { lineBreak = ui.lineBreaks.truncateTail }),
       ui.badge(r.chord or "", "hint"),
     }, { gap = "s", fill = false, align = ui.rowAligns.center })
   end
   if #items > 0 then
     -- An empty text takes whatever width the entries leave, so the entries sit flush right.
-    local children = { ui.text("", "caption") }
+    local children = { ui.text("", "body") }
     for _, item in ipairs(items) do children[#children + 1] = item end
     append(els, (ui.layout(ui.row(children, { gap = "l", align = ui.rowAligns.center, fillIndex = 1 }),
       { x = inner.x + left, y = inner.y, w = math.max(0, inner.w - left), h = rowH }, { tokens = tokens })))
