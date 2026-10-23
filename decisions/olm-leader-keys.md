@@ -250,3 +250,16 @@ key moves a window on every machine and holding the three shows META's sheet. Ov
 chooser a composite is a held leader, so a combination of its modifiers nobody claimed passes on to
 the app beneath an open list, where a modifier Hyper sealing over the same list would have
 swallowed it.
+
+### 2026-10-23 09:36
+
+Phase 1 passed a live check by Milos on this machine, first without kanata and then with kanata
+1.12.0 running. Caps Lock held toggled Safari with S, a tap toggled Caps Lock, a hold showed the
+Hyper sheet once, Right Option with Left snapped the window, the four modifiers held by hand
+toggled Safari, and Hyper J and K moved the launcher's selection, the same on both runs. The
+console showed only the routine line naming the five chords left to the held key. It also closed
+the question phase 0 left open. Hammerspoon was reloaded while kanata ran, so hidutil laid its
+remap again with the virtual keyboard already present, and a Caps Lock tap still reached macOS as
+Caps Lock itself with no F18, which the key logger showed and the light confirmed. hidutil's
+mapping does not reach kanata's virtual keyboard in either order, so Olm takes no part in a tap
+on a kanata machine.
