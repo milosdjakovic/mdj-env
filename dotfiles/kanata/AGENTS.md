@@ -75,6 +75,8 @@ said again through the setup run's closing notes when it is missing.
 - **Accessibility** for the same path. kanata 1.12 checks it right after Input Monitoring and
   refuses to open the keyboard without either. Its own source names a missing Accessibility grant
   as the usual cause of the not permitted error from `IOHIDDeviceOpen`, upstream issue 1211.
+  On macOS 27 the Privacy and Security page lists no Accessibility row, and the list is opened
+  directly with `open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"`.
 
 The probe answers the last two from kanata's own log, since asking from a terminal would answer
 about the terminal. Keyboard grabbed, or any later failure at the driver, means both were given.

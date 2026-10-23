@@ -169,3 +169,17 @@ measured. The stubbed harness covers a fresh machine, an unchanged one, an edite
 upgrade paths, a Homebrew binary changed under the same version, which recopied and restarted
 kanata and nothing else, a Homebrew kanata that accepts commands, refused before the copy was
 touched, and a kanata planted early on PATH, which was ignored.
+
+### 2026-10-23 10:44
+
+The first real run, on this machine with kanata 1.12.0 and driver 6.2.0 already installed and
+approved by hand. Milos ran `src/setup-kanata.sh` from a terminal. It copied kanata into the root
+owned folder, proved the copy cannot run commands, wrote and loaded both daemons and pinned
+kanata, and found Input Monitoring not determined. On macOS 27 the Privacy and Security page has
+no Accessibility row a person can find, so the list was opened directly through its
+`x-apple.systempreferences` address, which `dotfiles/kanata/AGENTS.md` now gives. Kanata's log
+shows it refused the keyboard for want of Accessibility every few seconds, launchd restarting it
+each time, and grabbed the keyboard at 10:42:15 once both grants were given, with no restart by
+hand. The second run changed nothing and read all three grants as granted. Milos confirmed Caps
+Lock held with S, a Caps Lock tap toggling the light, Right Option with Left, and the brightness
+and volume keys. Starting at boot has not been watched yet, the next restart is that check.
