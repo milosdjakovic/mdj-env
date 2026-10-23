@@ -27,14 +27,14 @@ function M.height(tokens)
   return tokens.badge.hint.height + 2 * tokens.space.s
 end
 
--- The smallest rect holding every shape the kit drew, how the key button's rect is read back from
--- what the kit drew for it rather than worked out a second time beside the kit. Only shapes are
--- counted, since a glyph's frame is nudged to centre its capitals and is not the chip's edge.
+-- The smallest rect holding every shape and picture the kit drew, how the key button's rect is read
+-- back from what the kit drew for it rather than worked out a second time beside the kit. Text is
+-- not counted, since a glyph's frame is nudged to centre its capitals and is not the chip's edge.
 local function bounds(els)
   local x0, y0, x1, y1
   for _, el in ipairs(els) do
     local f = el.frame
-    if el.type == "rectangle" and f and f.w and f.h then
+    if (el.type == "rectangle" or el.type == "image") and f and f.w and f.h then
       x0 = x0 and math.min(x0, f.x) or f.x
       y0 = y0 and math.min(y0, f.y) or f.y
       x1 = x1 and math.max(x1, f.x + f.w) or f.x + f.w
@@ -57,18 +57,21 @@ local function keyNode(ui, entry)
   return ui.row(parts, { gap = "s", align = ui.rowAligns.center })
 end
 
---- M.bar(ui, tokens, model, rect, inset, lit) -> elements, keysRect
+--- M.bar(ui, tokens, model, rect, inset, lit, keysImage) -> elements, keysRect
 --- The footer row inside rect, the canvas's own footer band, inset by inset points on the left
 --- and the right so its edges line up with the list's rows. A divider runs along its top, the key
 --- button sits on the left, and the model's right side runs flush against the right edge, each
 --- entry its label beside its chord. The key button is the ? glyph and, beside it, the chord of
 --- showKeys, model.keysChord, when it has one. keysRect is the whole button's rect, for the hit test.
 ---
---- lit says the key button is under the pointer or its panel is open. A lit button is the hint
---- badge as the kit draws it, its glyph on the highlight colour role, which is the state a list row
---- takes under the pointer. At rest the badge's highlight fill is left out and only its glyph is
---- drawn, so the pointer arriving reads the way it does over a row.
-function M.bar(ui, tokens, model, rect, inset, lit)
+--- keysImage is the button's icon, the keyboard the icon engine drew, which the provider resolves
+--- from model.keysIcon. Without one the button falls back to the ? glyph in a hint badge.
+---
+--- lit says the key button is under the pointer or its panel is open. A lit button sits on the
+--- highlight colour role across its whole rect, icon and chord badge alike, which is the state a
+--- list row takes under the pointer. At rest every highlight fill of the button is left out, so the
+--- icon and the chord's glyph stand alone, and the pointer arriving reads the way it does over a row.
+function M.bar(ui, tokens, model, rect, inset, lit, keysImage)
   local els = {}
   append(els, (ui.layout(ui.divider(), { x = rect.x, y = rect.y, w = rect.w, h = 0 }, { tokens = tokens })))
 
@@ -77,11 +80,27 @@ function M.bar(ui, tokens, model, rect, inset, lit)
 
   -- The key button, its glyph and, when showKeys has a key, that key's chord beside it, both lit
   -- and hit together as one button.
-  local buttonParts = { ui.badge(M.KEYS_GLYPH, "hint") }
+  -- An icon has no chip of its own, so a small space before it keeps it off the lit edge.
+  local buttonParts = keysImage and { ui.spacer("xs"), ui.icon(keysImage, "hint") }
+    or { ui.badge(M.KEYS_GLYPH, "hint") }
   if model and model.keysChord then buttonParts[#buttonParts + 1] = ui.badge(model.keysChord, "hint") end
   local keysEls = ui.layout(ui.row(buttonParts, { gap = "s", fill = false, align = ui.rowAligns.center }),
     { x = inner.x, y = inner.y, w = inner.w, h = rowH }, { tokens = tokens })
   local keysRect = bounds(keysEls)
+  -- The button starts where its row starts, the leading space included, since a spacer draws
+  -- nothing for bounds to find.
+  if keysRect and keysRect.x > inner.x then
+    keysRect.w = keysRect.w + (keysRect.x - inner.x)
+    keysRect.x = inner.x
+  end
+  if lit and keysRect then
+    -- One highlight behind the whole button, so the icon lights with the chord beside it. Its
+    -- corner is the kit's nested radius, the corner a hint badge takes.
+    local r = tokens.radius.nested
+    els[#els + 1] = { type = "rectangle", action = "fill", fillColor = tokens.colors.highlight,
+      roundedRectRadii = { xRadius = r, yRadius = r },
+      frame = { x = keysRect.x, y = keysRect.y, w = keysRect.w, h = keysRect.h } }
+  end
   for _, el in ipairs(keysEls) do
     if lit or not (el.type == "rectangle" and el.action == "fill") then els[#els + 1] = el end
   end

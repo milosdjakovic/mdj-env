@@ -223,7 +223,8 @@ end
 --- since a field key acts on the list rather than on a panel row, and the key panel lists only the
 --- keys that still mean something there, the shared ones and Back.
 ---
---- keysChord is the key button's chord, shown beside it, nil when showKeys has no key.
+--- keysChord is the key button's chord, shown beside it, nil when showKeys has no key, and
+--- keysIcon the button's own icon, a key and the manifest owner it is read against.
 ---
 --- state is the whole answer as one comparable string, so a surface polling this redraws only
 --- when something it would draw changed.
@@ -294,7 +295,11 @@ function obj.footerModel(contextName, plan, deps)
   for _, r in ipairs(right) do parts[#parts + 1] = tostring(r.label) .. " " .. tostring(r.chord) end
   parts[#parts + 1] = "|"
   for _, k in ipairs(keys) do parts[#parts + 1] = table.concat(k.badges, "+") .. " " .. tostring(k.label) end
-  return { right = right, keys = keys, keysChord = keysChord, state = table.concat(parts, " | ") }
+  -- The key button's icon, Olm's own, declared in the action panel's manifest beside Back and
+  -- read against it, so the provider draws it through the icon engine like any row icon.
+  local keysIcon = { icon = "keys", owner = deps.panelOwner }
+  return { right = right, keys = keys, keysChord = keysChord, keysIcon = keysIcon,
+    state = table.concat(parts, " | ") }
 end
 
 -- The ordered rows the action panel would show for one context, Back first, then the primary

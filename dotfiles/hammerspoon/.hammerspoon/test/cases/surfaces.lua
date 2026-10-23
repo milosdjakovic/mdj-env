@@ -121,8 +121,8 @@ do
     end)
   end
   local boxes = chipsOf(els)
-  check("lit, one chip for the key button and one for each entry on the right",
-    #boxes == 1 + #model.right, "chips " .. #boxes)
+  check("lit, the button's highlight and its ? chip, and one chip for each entry on the right",
+    #boxes == 2 + #model.right, "chips " .. #boxes)
   local restEls, restRect = footer.bar(ui, T, model, band, inset, false)
   check("at rest the key button draws its glyph and no chip, the state a row has off the pointer",
     #chipsOf(restEls) == #model.right, "chips " .. #chipsOf(restEls))
@@ -130,13 +130,25 @@ do
     restRect ~= nil and restRect.x == keysRect.x and restRect.w == keysRect.w)
   local withChord = { right = model.right, keys = model.keys, keysChord = "\u{2318}?" }
   local chordEls, chordRect = footer.bar(ui, T, withChord, band, inset, true)
-  check("lit, the key button carries its chord as a second chip beside the glyph",
-    #chipsOf(chordEls) == 2 + #model.right, "chips " .. #chipsOf(chordEls))
+  check("lit, the key button carries its chord as a chip beside the glyph, on the button's highlight",
+    #chipsOf(chordEls) == 3 + #model.right, "chips " .. #chipsOf(chordEls))
   check("and its rect covers both, so the hit test and the light take the whole button",
     chordRect ~= nil and chordRect.x == keysRect.x and chordRect.w > keysRect.w + T.space.s)
   local restChordEls = footer.bar(ui, T, withChord, band, inset, false)
   check("at rest the glyph and the chord are both drawn without a chip",
     #chipsOf(restChordEls) == #model.right, "chips " .. #chipsOf(restChordEls))
+  -- With the keyboard icon the engine drew, the icon takes the glyph's place, the hint icon size,
+  -- and the button's highlight spans the icon and the chord together.
+  local img = hs.image.imageFromName("NSComputer")
+  local iconEls, iconRect = footer.bar(ui, T, withChord, band, inset, true, img)
+  local pictures = frames(iconEls, function(el) return el.type == "image" end)
+  check("the key button draws its icon at the hint icon size, the section line 17",
+    #pictures == 1 and pictures[1].h == T.icon.hint and T.icon.hint == 17, "pictures " .. #pictures)
+  check("lit, one highlight spans the icon and the chord, beside the chord's own chip",
+    #chipsOf(iconEls) == 2 + #model.right and iconRect.x == band.x + inset
+      and iconRect.x + iconRect.w >= pictures[1].x + pictures[1].w, "chips " .. #chipsOf(iconEls))
+  check("at rest the icon stands alone with no highlight",
+    #chipsOf((footer.bar(ui, T, withChord, band, inset, false, img))) == #model.right)
   check("the key button is one chip, centred in the bar and starting at the inset",
     keysRect ~= nil and keysRect.h == chipH and keysRect.x == band.x + inset
       and keysRect.y == band.y + T.space.s,

@@ -585,8 +585,12 @@ function Provider:_footerElements(els, origin, interior, listRect)
     for _, el in ipairs(panelEls) do els[#els + 1] = el end
     self._keysPanelRect = { x = panelRect.x + origin.x, y = panelRect.y + origin.y, w = panelRect.w, h = panelRect.h }
   end
+  -- The key button's icon through the injected icon engine, read at paint like a row's, so it
+  -- follows the light and dark halves. Without an engine the button keeps the ? glyph.
+  local keysIcon = self._footerModel.keysIcon
+  local keysImage = keysIcon and ICON and ICON(keysIcon.icon, keysIcon.owner) or nil
   local barEls, keysRect = footerLib.bar(UI, self._tokens, self._footerModel, band, inset,
-    self._keysHover or self._keysOpen)
+    self._keysHover or self._keysOpen, keysImage)
   for _, el in ipairs(barEls) do els[#els + 1] = el end
   if keysRect then
     self._keysHit = { x = keysRect.x + origin.x, y = keysRect.y + origin.y, w = keysRect.w, h = keysRect.h }

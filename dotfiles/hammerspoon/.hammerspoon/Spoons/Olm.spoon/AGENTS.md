@@ -503,9 +503,11 @@ along the bar's top edge and the background colour role behind the key panel. Th
 the hint badge with the small space step above and below it, and geometry gives it a footer rect
 under the list, subtracted from the rows a screen can hold. The provider asks the model on every
 show, after every highlight move and on a quarter second poll, the timer's handle kept, and owns
-the key panel's open state, the (?) hit test and the panel's rect. The (?) button draws its glyph
-alone at rest and the hint badge on the highlight colour role while the pointer is over it or its
-panel is open, the state a row takes under the pointer, and `_onMouseMove` redraws only as the
+the key panel's open state, the key button's hit test and the panel's rect. The key button is the
+outline keyboard icon, Olm's own `keys` in the action panel's manifest drawn through the injected
+icon engine at the kit's `hint` icon size, the section line height, with the ? glyph only where no
+engine is injected. It stands alone at rest and sits on one highlight across the icon and its chord
+badge while the pointer is over it or its panel is open, the state a row takes under the pointer, and `_onMouseMove` redraws only as the
 pointer crosses its edge. A press on the bar never hides
 the list, a press on (?) toggles the panel, and the panel's rect is on no row and takes no scroll.
 Every list key that acts closes it, through the dispatch table's `onAction`, which the root points at

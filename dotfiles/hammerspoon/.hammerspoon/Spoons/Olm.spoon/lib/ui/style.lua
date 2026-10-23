@@ -175,7 +175,12 @@ M.names = {
   end)(),
   roles = M.roles,
   space = keysOf(SHIPPED.space),
-  icon = keysOf(SHIPPED.icon),
+  -- hint joins the shipped sizes, derived rather than shipped, see the build below.
+  icon = (function()
+    local out = keysOf(SHIPPED.icon)
+    out.hint = true
+    return out
+  end)(),
   badge = keysOf(BADGE_RULES),
 }
 
@@ -405,7 +410,13 @@ function M.new(opts)
       space = space,
       radius = radius,
       alpha = alpha,
-      icon = mergeGroup(SHIPPED.icon, spec.icon),
+      icon = (function()
+        -- hint is an icon drawn among the hint badges, the action bar's key button, as tall as
+        -- the glyph line a hint badge carries, so it reflows with the section role's size.
+        local icon = mergeGroup(SHIPPED.icon, spec.icon)
+        if icon.hint == nil then icon.hint = text[BADGE_RULES.hint.role].lineHeight end
+        return icon
+      end)(),
       stroke = mergeGroup(SHIPPED.stroke, spec.stroke),
       badge = mergeGroup(badges, spec.badge),
       inset = inset,

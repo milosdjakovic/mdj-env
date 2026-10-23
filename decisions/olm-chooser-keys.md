@@ -308,3 +308,12 @@ with a person's chord and absent when both keys are freed, and the glyph and the
 the pointer and answer a click as one button. `showKeys` also answers Command and slash, a second
 field key place beside Command and ?, the way the secondary sits on Return and keypad Enter, and
 both are listed once as ⌘?. Freeing one key leaves the other bound and shown.
+
+### 2026-10-23 17:33
+
+From Milos. A button reading ? and then ⌘? was confusing, so the ? glyph gave way to an icon, the
+outline keyboard SF Symbol with a keyboard emoji as its fallback, declared as Olm's own `keys` icon
+in the action panel's manifest beside `primary` and `secondary` and drawn through the icon engine
+the provider is already handed. The kit gained an icon size for it, `hint`, derived from the line a
+hint badge's glyph sits on. The ⌘? badge stays beside the icon, and one highlight now spans both
+when the button is lit, with the hit area covering both.
