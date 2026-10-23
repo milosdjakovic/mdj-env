@@ -1,5 +1,5 @@
 -- Unit case for the shared surfaces that moved onto the five type roles, the empty pane
--- state, the hint bar, the three toasts and the cheat sheet. They draw through the real kit
+-- state, the default chooser's action bar, the three toasts and the cheat sheet. They draw through the real kit
 -- and the real measurer, since the runner is Hammerspoon's own interpreter, and every
 -- assertion is on a height or a geometry that is arithmetic from the role line heights, so
 -- the assertion text carries the sum. At the shipped sizes the line heights are title 27,
@@ -90,44 +90,61 @@ do
 end
 
 --------------------------------------------------------------------------------
--- hint bar, section badge over a caption label
+-- action bar, the default chooser's footer row and the key panel above it
 --------------------------------------------------------------------------------
 
 do
-  local hints = fresh("lib/hints.lua")
-  local glyphFor = fresh("lib/cheatsheet.lua").glyphFor
-  local plan = { contexts = { list = { bindings = {
-    { action = "enter", key = "o", description = "Open" },
-    { action = "closeChooser", key = "w", description = "Close" },
-    { action = "selectNext", key = "j", description = "Next" },
-  } } } }
-  local function content(width)
-    local fake = fakePanel()
-    hints.shortcutPanelFor("list", plan, { predicates = {}, glyphFor = glyphFor,
-      leaderName = "Hyper", chordLabel = function(l, k, m) return l .. " " .. glyphFor(k, m) end,
-      canvasPanel = fake, policy = {}, ui = ui })
-    return fake.content, width
-  end
-  local c = content()
-  local size = c.preferredSize(592)
-  local chipH = T.text.section.lineHeight + 2 * T.space.xs
-  check("a one line hint bar is one chip high, the section line 17 plus twice xs 2 is 21",
-    size.h == chipH and chipH == 21, "height " .. tostring(size.h))
-  local drawn = c.draw(592)
-  local boxes = chips(drawn)
-  check("every key badge is the derived 21 high and has no literal frame offset",
-    #boxes >= 3 and boxes[1].h == 21, "chips " .. #boxes)
-  -- The idle delay arrives as policy, the name root/compose.lua hands it under, so a rename
-  -- that reaches one side and not the other leaves every hint bar drawing at once.
-  local timed = fakePanel()
-  hints.shortcutPanelFor("list", plan, { predicates = {}, glyphFor = glyphFor, leaderName = "Hyper",
-    chordLabel = function(l, k, m) return l .. " " .. glyphFor(k, m) end, canvasPanel = timed,
-    policy = { shortcutsPanel = { delayMs = 650 } }, ui = ui })
-  check("the policy's shortcutsPanel delay reaches the hint bar's panel",
-    timed.config and timed.config.delay == 650, "delay " .. tostring(timed.config and timed.config.delay))
-  local narrow = c.preferredSize(90)
-  check("a wrapped bar is whole lines of 21 with 8 between them, so 21 n plus 8 times n less 1",
-    narrow.h > 21 and (narrow.h - 21) % (21 + 8) == 0, "height " .. tostring(narrow.h))
+  local footer = fresh("lib/chooser/providers/default/footer.lua")
+  local chipH = T.badge.hint.height
+  local barH = footer.height(T)
+  check("the action bar is a hint chip with the small space above and below, 21 plus twice 6 is 33",
+    chipH == 21 and barH == chipH + 2 * T.space.s and barH == 33, "height " .. tostring(barH))
+
+  local model = {
+    right = {
+      { label = "Choose Files", chord = "\u{21A9}" },
+      { label = "Uninstall", chord = "\u{2318}\u{21A9}" },
+      { label = "Actions", chord = "Hyper O" },
+    },
+    keys = {
+      { badges = { "Hyper J", "\u{2193}" }, label = "Move down" },
+      { badges = { "\u{232B}" }, label = "Back" },
+      { badges = { "\u{2318}1", "\u{2318}9" }, label = "Choose a visible row" },
+    },
+  }
+  local inset = 13
+  local band = { x = 1, y = 400, w = 478, h = barH }
+  local els, keysRect = footer.bar(ui, T, model, band, inset)
+  local boxes = frames(els, function(el)
+    return el.type == "rectangle" and el.action == "fill" and el.frame.h == chipH
+  end)
+  check("one chip for the key button and one for each entry on the right",
+    #boxes == 1 + #model.right, "chips " .. #boxes)
+  check("the key button is one chip, centred in the bar and starting at the inset",
+    keysRect ~= nil and keysRect.h == chipH and keysRect.x == band.x + inset
+      and keysRect.y == band.y + T.space.s,
+    keysRect and string.format("%s,%s %sx%s", keysRect.x, keysRect.y, keysRect.w, keysRect.h) or "no rect")
+  local last = boxes[#boxes]
+  check("the right side runs flush against the bar's right edge less the inset",
+    last ~= nil and math.abs(last.x + last.w - (band.x + band.w - inset)) < 1,
+    last and tostring(last.x + last.w) or "no chip")
+  local divider = frames(els, function(el)
+    return el.type == "rectangle" and el.action == "fill" and el.frame.y == band.y and el.frame.w == band.w
+  end)
+  check("a divider runs along the bar's top edge", #divider == 1, "dividers " .. #divider)
+
+  local panelEls, panelRect = footer.keysPanel(ui, T, model, band, 300)
+  check("the key panel rises from the bar's top edge", panelRect.y + panelRect.h == band.y,
+    tostring(panelRect.y + panelRect.h))
+  local wantH = 2 * chipH + T.space.s + 2 * T.pad
+  check("three keys in two columns are two chip rows, a small space between and the panel padding around, 76",
+    panelRect.h == wantH and wantH == 76, "height " .. tostring(panelRect.h))
+  local fill = panelEls[1]
+  check("the key panel is filled in the background colour role",
+    fill and fill.type == "rectangle" and fill.fillColor and fill.fillColor.red == T.colors.background.red
+      and fill.fillColor.blue == T.colors.background.blue)
+  local _, short = footer.keysPanel(ui, T, model, band, 50)
+  check("the key panel is never taller than the room the list has", short.h == 50, "height " .. tostring(short.h))
 end
 
 --------------------------------------------------------------------------------

@@ -21,7 +21,7 @@
 --- truncateTail, a question this file never adjudicates.
 ---
 --- M.resolve(screenFrame, layout, paneWidth) answers one table of rectangles, canvas,
---- field, list, chooser, companion and rowCount, every rectangle in absolute screen
+--- field, list, chooser, companion, footer and rowCount, every rectangle in absolute screen
 --- points, the same space hs.window frames and hs.eventtap event locations already use.
 --- The arithmetic mirrors legacy.lua's own placement functions in shape, a row count
 --- trimmed to the screen, a pair centred as one unit, a top biased vertical position
@@ -131,6 +131,10 @@ M.DEFAULT_LAYOUT = {
   marginY = 10,
   showRowNumbers = true,
   caretWidth = 2,
+  -- The action bar's height, the footer row the provider draws at the bottom of the canvas when
+  -- it is handed a footer. Zero here, since a caller with no footer draws none, and the provider
+  -- sets it from the kit's tokens when it has one, see footer.lua.
+  footerH = 0,
   -- Borrowed outright from legacy.lua's own DEFAULT_LAYOUT, a placement question the
   -- five rounds behind BRIEF-CANVAS-LIST.md never redesigned. Named here so this file's
   -- own header can say plainly that this is a borrow rather than a fresh design.
@@ -152,14 +156,14 @@ end
 --------------------------------------------------------------------------------
 
 -- Trims the requested row count to what the screen can actually hold, the screen
--- height less twice the minimum vertical padding, less the field height and the edge
--- margin twice, divided by the row height, floored, and never more than what layout
+-- height less twice the minimum vertical padding, less the field height, the edge margin
+-- and the action bar, divided by the row height, floored, and never more than what layout
 -- itself asked for. Bounded at zero rather than left negative on a screen too short to
 -- hold even the field, the same answer something sane rather than raising posture every
 -- other file in this provider already keeps.
 local function trimmedRowCount(screenFrame, layout)
   local avail = screenFrame.h - 2 * layout.minVPad - layout.baseH - layout.marginY
-    - (layout.peek or 0) * layout.rowH
+    - (layout.footerH or 0) - (layout.peek or 0) * layout.rowH
   local fit = math.floor(avail / layout.rowH)
   return math.max(0, math.min(layout.rowCount, fit))
 end
@@ -197,7 +201,8 @@ function M.resolve(screenFrame, layout, paneWidth)
   local rowCount = trimmedRowCount(screenFrame, layout)
   local viewRows = rowCount + ((rowCount > 1) and (layout.peek or 0) or 0)
   local canvasW = layout.width
-  local canvasH = layout.marginY + layout.baseH + viewRows * layout.rowH
+  local footerH = layout.footerH or 0
+  local canvasH = layout.marginY + layout.baseH + viewRows * layout.rowH + footerH
 
   local companionW = resolveCompanionWidth(paneWidth, canvasW, layout)
   local total = canvasW + (companionW > 0 and (layout.gap + companionW) or 0)
@@ -220,6 +225,12 @@ function M.resolve(screenFrame, layout, paneWidth)
     x = x + layout.marginX, y = y + layout.baseH,
     w = canvasW - 2 * layout.marginX, h = viewRows * layout.rowH + layout.marginY,
   }
+  -- The action bar spans the canvas's full width under the list, so the list stops above it
+  -- and a row cut by the viewport is cut at the bar's top edge. None when footerH is zero.
+  local footerRect = nil
+  if footerH > 0 then
+    footerRect = { x = x, y = y + canvasH - footerH, w = canvasW, h = footerH }
+  end
 
   local companionRect = nil
   if companionW > 0 then
@@ -232,6 +243,7 @@ function M.resolve(screenFrame, layout, paneWidth)
     list = listRect,
     chooser = canvasRect,
     companion = companionRect,
+    footer = footerRect,
     rowCount = rowCount,
     viewRows = viewRows,
   }

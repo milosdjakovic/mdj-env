@@ -66,6 +66,15 @@
 --- text sizes are the body and caption roles, handed to both renderers through the draw
 --- layout, and the rest of the layout is geometry.lua's.
 ---
+--- The action bar, docs/PLAN-ACTION-BAR.md. A consumer that hands config.footer, a function
+--- answering lib/hints.lua's footerModel shape for the list now showing, gets one footer row at
+--- the bottom of this canvas, drawn by footer.lua, with a key button on its left that opens a
+--- key panel over the bottom rows. The model is asked on every show, after every highlight move
+--- and on a quarter second poll while the list is up, so a gated key or a live label changes the
+--- bar without anyone telling this file. This file owns the panel's open state, the key button's
+--- hit test and the panel's rect, and knows no keymap and no plugin. A consumer handing none gets
+--- no bar and no change to its rows, so the provider stays usable alone.
+---
 --- M.configure(opts) takes opts.panel, the CanvasPanel module, and opts.ui, the UI kit,
 --- both injected here rather than loaded by path, since lib/panel.lua holds the shared
 --- surface style and lib/ui the shared style the composition root configures exactly
@@ -99,6 +108,7 @@ local Field = fieldInput.Field
 local fieldRender = load("field/render.lua")
 local listModel = load("list/model.lua")
 local listRender = load("list/render.lua")
+local footerLib = load("footer.lua")
 
 -- lib/chooser/rank.lua and lib/chooser/contract.lua sit two directories above this file,
 -- providers up to chooser, the same siblings lib/chooser/providers/legacy.lua already
@@ -177,6 +187,11 @@ local SCROLL_EASE_EPSILON = 0.5
 -- probe's own timer, a plain literal rather than a setting since nothing in this tree
 -- exposes one for it.
 local BLINK_INTERVAL = 0.5
+
+-- How often a showing list asks its footer collaborator again, so a gated key or a live label
+-- changes the action bar without anyone telling this provider, the same quarter second
+-- CanvasPanel polled the hint bar's state at. A redraw happens only when the answer changed.
+local FOOTER_POLL_INTERVAL = 0.25
 
 --------------------------------------------------------------------------------
 -- Small stateless helpers, none of them touching self
@@ -469,13 +484,17 @@ function Provider:_rebuildList(query, resetHighlight)
 end
 
 -- Reports the highlighted row's own opaque item through config.onHighlight, if one is
--- injected, read live on every call rather than captured once. This provider has no
--- poll of any kind, unlike the native one, since it knows the instant its own
--- highlight moves and calls this directly from wherever that happens.
+-- injected, read live on every call rather than captured once, then asks the footer again.
+-- This provider has no highlight poll of any kind, unlike the native one, since it knows the
+-- instant its own highlight moves and calls this directly from wherever that happens.
 function Provider:_fireHighlight()
-  if not self.config.onHighlight then return end
-  local row = listModel.highlightedRow(self.listState)
-  safeCall(self.config.onHighlight, rowItem(row))
+  if self.config.onHighlight then
+    local row = listModel.highlightedRow(self.listState)
+    safeCall(self.config.onHighlight, rowItem(row))
+  end
+  -- After the consumer heard the move, since a label in the action bar may follow the row. The
+  -- answer is whether the bar's words changed, for a caller that does not redraw anyway.
+  return self:_refreshFooter()
 end
 
 --------------------------------------------------------------------------------
@@ -506,7 +525,79 @@ function Provider:_redraw()
   for _, el in ipairs(listRender.elements(self.listState, listRect, self._drawLayout, self._listStyle, clip, self._rankedQuery)) do
     els[#els + 1] = el
   end
+  self:_footerElements(els, origin, interior, listRect)
   self.surface:draw(els)
+end
+
+--------------------------------------------------------------------------------
+-- The action bar and its key panel, docs/PLAN-ACTION-BAR.md
+--------------------------------------------------------------------------------
+
+-- Asks the footer collaborator for the model of the list now showing and keeps it, answering
+-- whether what it says changed. The collaborator is config.footer, a function this file knows
+-- only as answering lib/hints.lua's footerModel shape, so no keymap and no plugin is named here.
+-- Without one there is no model and no bar.
+function Provider:_refreshFooter()
+  if not self.config.footer then
+    self._footerModel = nil
+    return false
+  end
+  local model = safeCall(self.config.footer)
+  if type(model) ~= "table" then model = nil end
+  local before = self._footerModel and self._footerModel.state
+  self._footerModel = model
+  return (model and model.state) ~= before
+end
+
+-- Polls the footer collaborator while the list is up, the handle kept so the timer can neither be
+-- collected before it fires nor outlive the open. Nothing to poll without a collaborator.
+function Provider:_startFooterPoll()
+  self:_stopFooterPoll()
+  if not self.config.footer then return end
+  self._footerTimer = hs.timer.doEvery(FOOTER_POLL_INTERVAL, function()
+    if self.active and self:_refreshFooter() then self:_redraw() end
+  end)
+end
+
+function Provider:_stopFooterPoll()
+  if self._footerTimer then
+    self._footerTimer:stop()
+    self._footerTimer = nil
+  end
+end
+
+-- Appends the action bar, and the key panel above it when open, to els, in the canvas's own
+-- coordinates. Both keep inside the surface's border, the interior's left and right edges, and
+-- the bar's entries line up with the rows above, the list margin from the canvas's edge. The key
+-- button's rect and the panel's are kept in screen points, the space the mouse handlers test in.
+function Provider:_footerElements(els, origin, interior, listRect)
+  self._keysHit, self._keysPanelRect = nil, nil
+  local footerRect = toLocal(self._rects.footer, origin)
+  if not footerRect or not self._footerModel then return end
+  local band = footerRect
+  if interior then
+    band = { x = interior.x, y = footerRect.y, w = interior.w, h = footerRect.h }
+  end
+  local inset = math.max(0, self.layout.marginX - (band.x - footerRect.x))
+  if self._keysOpen then
+    local panelEls, panelRect = footerLib.keysPanel(UI, self._tokens, self._footerModel, band,
+      math.max(0, band.y - listRect.y))
+    for _, el in ipairs(panelEls) do els[#els + 1] = el end
+    self._keysPanelRect = { x = panelRect.x + origin.x, y = panelRect.y + origin.y, w = panelRect.w, h = panelRect.h }
+  end
+  local barEls, keysRect = footerLib.bar(UI, self._tokens, self._footerModel, band, inset)
+  for _, el in ipairs(barEls) do els[#els + 1] = el end
+  if keysRect then
+    self._keysHit = { x = keysRect.x + origin.x, y = keysRect.y + origin.y, w = keysRect.w, h = keysRect.h }
+  end
+end
+
+-- Closes the key panel, redrawing only when it was open. Every key that acts closes it, since a
+-- key that acts is a person who has found what they were looking for.
+function Provider:_closeKeys()
+  if not self._keysOpen then return end
+  self._keysOpen = false
+  self:_redraw()
 end
 
 -- Restarts the caret blink from visible, called on show and on every field change, the
@@ -659,17 +750,19 @@ function Provider:_onFieldChange(state)
     self:_rebuildList(state.text, true)
     self:_fireHighlight()
   end
+  self._keysOpen = false
   self:_redraw()
   if self.config.onActivity then safeCall(self.config.onActivity) end
 end
 
--- The idle signal a consumer such as the docked hint panel restarts its countdown on.
--- A Hyper press never reaches _onFieldKey, since the field yields it so the leader
+-- The signal that a key acted on this list, told to a consumer's onActivity and closing the key
+-- panel. A Hyper press never reaches _onFieldKey, since the field yields it so the leader
 -- dispatch can run, and that dispatch drives selectNext, selectPrev and insertSelected
 -- instead, so those count here. The field itself deliberately does not count a yielded
--- key, because the leader autorepeats while held and the panel would never appear.
+-- key, because the leader autorepeats while held and is not yet a key that acted.
 function Provider:_noteActivity()
   if self.config.onActivity then safeCall(self.config.onActivity) end
+  self:_closeKeys()
 end
 
 -- Runs for a key down neither the field's own keymap nor its printable check claims,
@@ -710,7 +803,7 @@ end
 -- answers anything but true, rather than dismissing, matching what legacy.lua's own
 -- colon underscore back does for the identical press.
 function Provider:_onEmptyBackspace()
-  if self.config.onActivity then safeCall(self.config.onActivity) end
+  self:_noteActivity()
   local ask = self.config.back
   if not ask then return end
   if safeCall(ask) ~= true then return end
@@ -729,6 +822,8 @@ end
 function Provider:_rowIndexAtPoint(point)
   local listRect = self._rects and self._rects.list
   if not pointInRect(point, listRect) then return nil end
+  -- The key panel covers the bottom rows while it is up, so a point on it is on no row.
+  if pointInRect(point, self._keysPanelRect) then return nil end
   return listModel.rowAtPoint(self.listState, point.y - listRect.y)
 end
 
@@ -763,6 +858,13 @@ function Provider:_onMouseDown(point, button)
     if row and self.config.onRightClick then
       safeCall(self.config.onRightClick, rowItem(row), index)
     end
+    return true
+  end
+  -- A press on the key button toggles the key panel. Any other press on the action bar or on the
+  -- panel lands on no row, so it is claimed and chooses nothing.
+  if pointInRect(point, self._keysHit) then
+    self._pressedRowIndex = nil
+    self:toggleKeys()
     return true
   end
   self._pressedRowIndex = self:_rowIndexAtPoint(point)
@@ -800,9 +902,7 @@ end
 -- claimed, mouse.lua's own contract already has onMove answer true to claim nothing on
 -- its own, the caller deciding, and this file has no reason to claim a plain hover.
 function Provider:_onMouseMove(point)
-  local listRect = self._rects and self._rects.list
-  if not pointInRect(point, listRect) then return end
-  local index = listModel.rowAtPoint(self.listState, point.y - listRect.y)
+  local index = self:_rowIndexAtPoint(point)
   if index then self:_setHighlightIndex(index) end
 end
 
@@ -854,7 +954,10 @@ function Provider:_teardown()
 
   self:_stopBlink()
   self:_stopScrollEase()
+  self:_stopFooterPoll()
   self._pressedRowIndex = nil
+  self._keysOpen = false
+  self._keysHit, self._keysPanelRect = nil, nil
   if self.surface then self.surface:hide() end
 
   -- After the surface is down and before onClose, so an insert a consumer makes on close lands
@@ -907,6 +1010,8 @@ function Provider:show()
   self.field:setText("")
   self._suppressRebuild = false
 
+  self._keysOpen = false
+  self:_refreshFooter()
   self:_redraw()
   self.surface:show()
   -- A show over a list already up keeps the hold it has, since a second would strand the first.
@@ -917,11 +1022,12 @@ function Provider:show()
   self.field:start()
   self.mouse:start()
   self:_restartBlink()
+  self:_startFooterPoll()
 
   self._paneFrames = { chooser = self._rects.chooser, companion = self._rects.companion }
   safeCall(self.config.onPositioned, self._rects.chooser, self._rects.companion)
 
-  self:_fireHighlight()
+  if self:_fireHighlight() then self:_redraw() end
 end
 
 --- Provider colon hide, arity zero. The single idempotent dismissal path, calling it
@@ -1117,6 +1223,17 @@ function Provider:_insertHighlighted()
   self:_choose(row, ns.highlight)
 end
 
+--- Provider colon toggleKeys, arity zero. Opens the key panel above the action bar, or closes
+--- it when it is open, the same as a click on the key button. Not part of the picker contract,
+--- since only a provider that draws an action bar has a key panel, so a caller asks for it by
+--- name and a provider without one is simply not asked. Does nothing while the list is down or
+--- when this instance draws no bar.
+function Provider:toggleKeys()
+  if not self.active or not (self._rects and self._rects.footer) or not self._footerModel then return end
+  self._keysOpen = not self._keysOpen
+  self:_redraw()
+end
+
 --- Provider colon textBudget, arity zero. The pixel room a row's text has on the
 --- screen this picker will open on, resolved lazily and cached for the open through
 --- geometry.textBudget, the replacement for legacy.lua's own measured ROW_TEXT_INSET.
@@ -1238,6 +1355,12 @@ local function buildField(self)
     onKey = function(ev) self:_onFieldKey(ev) end,
     onDismiss = function()
       if self.config.onActivity then safeCall(self.config.onActivity) end
+      -- Escape over an open key panel closes the panel and leaves the list, the way a popover
+      -- answers Escape, and a second Escape closes the list.
+      if self._keysOpen then
+        self:_closeKeys()
+        return
+      end
       self:hide()
     end,
     onEmptyBackspace = function() self:_onEmptyBackspace() end,
@@ -1247,8 +1370,12 @@ local function buildField(self)
     -- Read at the press like yields. A key it took counts as activity, since it moved or acted on
     -- the list the way a Hyper key does.
     listKeys = function(ev)
+      -- Whether the key panel was up before the key, so a key that opened it, the person's own
+      -- showKeys chord on the field, is not taken as a key that acted and closes it again.
+      local keysWereOpen = self._keysOpen
       if LIST_KEYS == nil or LIST_KEYS(ev) ~= true then return false end
-      self:_noteActivity()
+      if self.config.onActivity then safeCall(self.config.onActivity) end
+      if keysWereOpen then self:_closeKeys() end
       return true
     end,
   })
@@ -1344,6 +1471,9 @@ function M.new(config)
   end
   layout.rowH = derived.rowH
   layout.baseH = derived.baseH
+  -- A consumer handing a footer collaborator gets the action bar, its height from the kit's
+  -- tokens, and one handing none draws no bar and keeps every row it had.
+  if config.footer then layout.footerH = footerLib.height(tokens) end
   for k, v in pairs(config.layout or {}) do layout[k] = v end
 
   local self = setmetatable({
