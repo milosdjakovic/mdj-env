@@ -71,7 +71,7 @@ local SHIPPED_COLORS = {
 -- takes and the colour each role is drawn in are derived, one rule each, in ROLE_RULES.
 local SHIPPED_TYPOGRAPHY = {
   fonts = { ui = ".AppleSystemUIFont", mono = ".AppleSystemUIFontMonospaced" },
-  sizes = { title = 20, body = 16, caption = 14, section = 12, code = 14 },
+  sizes = { title = 20, body = 16, caption = 14, section = 14, code = 14 },
 }
 
 --- M.roles, the five type roles in reading order. A text node names one of them as its

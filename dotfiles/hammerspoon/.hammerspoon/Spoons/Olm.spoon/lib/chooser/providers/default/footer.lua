@@ -6,12 +6,13 @@
 --- lib/hints.lua's footerModel, pure data the provider is handed through its footer collaborator,
 --- so nothing here knows a keymap, a binding or a plugin, only the three lists that model holds.
 ---
---- Everything is drawn through the UI kit handed in, the body role for every word, since each is a
---- hint label, the kit's hint badge for every key, its glyph in the section role, the kit's
---- divider for each edge and the background colour role behind the key panel, so no font, size,
---- colour, radius or stroke is written here. The bar's height is its row, the taller of the hint
---- badge and the body line, with the small space step above and below it, the same rule the
---- toasts' footers follow, so a size set in config/typography.toml reflows it.
+--- Everything is drawn through the UI kit handed in, the caption role for every word, since each
+--- is a hint label and Milos chose caption for those, the kit's hint badge for every key, its glyph
+--- in the section role, the kit's divider for each edge and the background colour role behind the
+--- key panel, so no font, size, colour, radius or stroke is written here. Both roles are 14 points
+--- as shipped. The bar's height is its row, the taller of the hint badge and the caption line,
+--- with the small space step above and below it, the same rule the toasts' footers follow, so a
+--- size set in config/typography.toml reflows it.
 ---
 --- Coordinates are the canvas's own, the same local space the provider hands list render, and
 --- the key button's rect comes back in that space too, so the provider turns it into screen
@@ -22,10 +23,10 @@ local M = {}
 -- The word on the button that opens the key panel, drawn as a key badge like every other key.
 M.KEYS_GLYPH = "?"
 
--- The height of the bar's row and of a key panel row, the taller of a hint badge and a body line,
--- since a label in the body role sits beside the badges on each.
+-- The height of the bar's row and of a key panel row, the taller of a hint badge and a caption
+-- line, since a label in the caption role sits beside the badges on each.
 local function rowHeight(tokens)
-  return math.max(tokens.badge.hint.height, tokens.text.body.lineHeight)
+  return math.max(tokens.badge.hint.height, tokens.text.caption.lineHeight)
 end
 
 --- M.height(tokens) -> the footer row's height in points, the row with the small space step
@@ -60,7 +61,7 @@ end
 local function keyNode(ui, entry)
   local parts = {}
   for _, b in ipairs(entry.badges or {}) do parts[#parts + 1] = ui.badge(b, "hint") end
-  parts[#parts + 1] = ui.text(entry.label or "", "body", { lineBreak = ui.lineBreaks.truncateTail })
+  parts[#parts + 1] = ui.text(entry.label or "", "caption", { lineBreak = ui.lineBreaks.truncateTail })
   return ui.row(parts, { gap = "s", align = ui.rowAligns.center })
 end
 
@@ -116,13 +117,13 @@ function M.bar(ui, tokens, model, rect, inset, lit, keysImage)
   local items = {}
   for _, r in ipairs((model and model.right) or {}) do
     items[#items + 1] = ui.row({
-      ui.text(r.label or "", "body", { lineBreak = ui.lineBreaks.truncateTail }),
+      ui.text(r.label or "", "caption", { lineBreak = ui.lineBreaks.truncateTail }),
       ui.badge(r.chord or "", "hint"),
     }, { gap = "s", fill = false, align = ui.rowAligns.center })
   end
   if #items > 0 then
     -- An empty text takes whatever width the entries leave, so the entries sit flush right.
-    local children = { ui.text("", "body") }
+    local children = { ui.text("", "caption") }
     for _, item in ipairs(items) do children[#children + 1] = item end
     append(els, (ui.layout(ui.row(children, { gap = "l", align = ui.rowAligns.center, fillIndex = 1 }),
       { x = inner.x + left, y = inner.y, w = math.max(0, inner.w - left), h = rowH }, { tokens = tokens })))

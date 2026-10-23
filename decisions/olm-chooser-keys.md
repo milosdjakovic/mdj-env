@@ -317,3 +317,13 @@ in the action panel's manifest beside `primary` and `secondary` and drawn throug
 the provider is already handed. The kit gained an icon size for it, `hint`, derived from the line a
 hint badge's glyph sits on. The ⌘? badge stays beside the icon, and one highlight now spans both
 when the button is lit, with the hit area covering both.
+
+### 2026-10-23 17:59
+
+Milos decided the type sizes. Nothing in Olm is drawn at 12 points any more, so the section role
+ships at 14, in `config/typography.toml` and in the kit's own fallback, which moves the action bar's
+key badges, the cheat sheet section titles and the pane headings from 12 to 14. The bar's labels and
+the key panel's go back from body to caption, 14, by his choice, which overrides the rule that a
+hint label is body, so the rule now names a hint label caption, in the hammerspoon `AGENTS.md`
+typography section. The bar grows to 35 points, the 23 point hint badge with the small space above
+and below, and a key panel row to 23, both from the tokens.

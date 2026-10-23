@@ -250,7 +250,7 @@ the line height of the role its glyph is drawn in plus twice a space step, with 
 a space step too, so there is no textY and no height literal. The layout engine centres the
 cap height of every text in its line band, from the real font metrics through `measure:metrics`,
 the way the canvas list centres a row, so no caller nudges a frame. The empty state is caption
-and subtext, the hint bar was a section badge beside a caption label, the action bar that replaced it is a section badge beside a body label, the message toast is
+and subtext, the hint bar was a section badge beside a caption label, the action bar that replaced it is a section badge beside a caption label, both 14 points, the message toast is
 title, the colour toast's hex is code, the report toast is title, body and caption, and the
 cheat sheet is body for the row label and the key glyph, caption for the separator and section
 for a title. The cheat sheet's row, badge and title heights are derived from the role line
@@ -262,10 +262,10 @@ the derived geometry instead.
 
 The default chooser's footer row, `docs/PLAN-ACTION-BAR.md`, drawn by
 `lib/chooser/providers/default/footer.lua` through the kit and nothing else. Every word is the
-body role, a hint label, every key the hint badge with its glyph in the section role, the line
+caption role, a hint label as Milos chose, every key the hint badge with its glyph in the section role, the line
 along its top edge and along the key panel's is the kit's divider, and the key panel sits on the
-background colour role. The bar's height is its row, the taller of the hint badge and the body
-line, with the small space step above and below it, 22 plus twice 6 at the shipped sizes, so a size set in `config/typography.toml` reflows it, and the key panel is as tall as its
+background colour role. The bar's height is its row, the taller of the hint badge and the caption
+line, with the small space step above and below it, 23 plus twice 6 at the shipped sizes, so a size set in `config/typography.toml` reflows it, and the key panel is as tall as its
 two column grid of keys with `pad` around it, never taller than the list. It replaced the docked
 hint bar, a flow of the same badges under the list in a panel of its own, on 2026 10 23.
 `test/cases/surfaces.lua` pins the derived geometry.

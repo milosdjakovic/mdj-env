@@ -77,9 +77,10 @@ end
 local ROW_H = 42
 local ROWS_10 = { rowCount = 10, rowH = ROW_H }
 
--- The type the render layouts below carry, the kit's body, caption and section roles at
--- their shipped sizes. A line is the size times 1.35 rounded up, so body 16 gives 22,
--- caption 14 gives 19, and section 12 gives 17. The row height a render layout states is the
+-- The type the render layouts below carry, the kit's body, caption and section roles at the
+-- sizes they shipped at when this case was written. A line is the size times 1.35 rounded up, so
+-- body 16 gives 22, caption 14 gives 19, and section 12 gives 17, a fixture value here since
+-- section has shipped at 14 from 2026-10-23. The row height a render layout states is the
 -- derived one, 22 body plus 19 caption plus 2 times a padding of 8, which is 57, the number
 -- geometry.lua's DEFAULT_LAYOUT answers for these sizes.
 local FONT = ".AppleSystemUIFont"

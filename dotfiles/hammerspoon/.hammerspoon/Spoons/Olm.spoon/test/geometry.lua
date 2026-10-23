@@ -39,16 +39,16 @@ local bare = geometry.resolve(short, layoutWith(9), nil)
 check("a 600 point screen holds eight rows with no bar", bare.rowCount, 8)
 check("and resolves no footer rect", bare.footer == nil and 1 or 0, 1)
 local barred = layoutWith(9)
--- 34 is the shipped bar, the body line 22 with the small space 6 above and below.
-barred.footerH = 34
+-- 35 is the shipped bar, the hint chip 23 with the small space 6 above and below.
+barred.footerH = 35
 local withBar = geometry.resolve(short, barred, nil)
-check("a 34 point bar trims the same screen to seven rows", withBar.rowCount, 7)
+check("a 35 point bar trims the same screen to seven rows", withBar.rowCount, 7)
 check("the canvas grows by the bar", withBar.canvas.h,
-  barred.marginY + barred.baseH + withBar.viewRows * barred.rowH + 34)
-check("the footer is the bar's height", withBar.footer.h, 34)
--- The rows a screen holds turn on the bar's own height, seven at 564.1 points and six just below.
-check("seven rows fit exactly where the bar leaves room for them", geometry.resolve({ x = 0, y = 0, w = 1440, h = 564.1 }, barred, nil).rowCount, 7)
-check("and six one hair shorter", geometry.resolve({ x = 0, y = 0, w = 1440, h = 564 }, barred, nil).rowCount, 6)
+  barred.marginY + barred.baseH + withBar.viewRows * barred.rowH + 35)
+check("the footer is the bar's height", withBar.footer.h, 35)
+-- The rows a screen holds turn on the bar's own height, seven at 565.1 points and six just below.
+check("seven rows fit exactly where the bar leaves room for them", geometry.resolve({ x = 0, y = 0, w = 1440, h = 565.1 }, barred, nil).rowCount, 7)
+check("and six one hair shorter", geometry.resolve({ x = 0, y = 0, w = 1440, h = 565 }, barred, nil).rowCount, 6)
 check("the footer spans the canvas's width", withBar.footer.w, withBar.canvas.w)
 check("the footer starts at the canvas's left edge", withBar.footer.x, withBar.canvas.x)
 check("the footer sits on the canvas's bottom edge", withBar.footer.y + withBar.footer.h, withBar.canvas.y + withBar.canvas.h)

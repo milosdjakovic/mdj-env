@@ -3,7 +3,7 @@
 -- and the real measurer, since the runner is Hammerspoon's own interpreter, and every
 -- assertion is on a height or a geometry that is arithmetic from the role line heights, so
 -- the assertion text carries the sum. At the shipped sizes the line heights are title 27,
--- body 22, caption 19, section 17 and code 19, and the space steps are xs 2, s 6, sm 8, m 10.
+-- body 22, caption 19, section 19 and code 19, and the space steps are xs 2, s 6, sm 8, m 10.
 --
 -- The old parity probes for these surfaces claimed the look had not changed, which stopped
 -- being true on purpose, so this case replaces them with what the new look derives.
@@ -97,9 +97,9 @@ do
   local footer = fresh("lib/chooser/providers/default/footer.lua")
   local chipH = T.badge.hint.height
   local barH = footer.height(T)
-  local bodyH = T.text.body.lineHeight
-  check("the action bar is its row, the taller of the hint chip 21 and the body line 22, with the small space above and below, 34",
-    chipH == 21 and bodyH == 22 and barH == math.max(chipH, bodyH) + 2 * T.space.s and barH == 34,
+  local captionH = T.text.caption.lineHeight
+  check("the action bar is its row, the taller of the hint chip 23 and the caption line 19, with the small space above and below, 35",
+    chipH == 23 and captionH == 19 and barH == math.max(chipH, captionH) + 2 * T.space.s and barH == 35,
     "height " .. tostring(barH))
 
   local model = {
@@ -144,8 +144,8 @@ do
   local img = hs.image.imageFromName("NSComputer")
   local iconEls, iconRect = footer.bar(ui, T, withChord, band, inset, true, img)
   local pictures = frames(iconEls, function(el) return el.type == "image" end)
-  check("the key button draws its icon at the hint icon size, the section line 17",
-    #pictures == 1 and pictures[1].h == T.icon.hint and T.icon.hint == 17, "pictures " .. #pictures)
+  check("the key button draws its icon at the hint icon size, the section line 19",
+    #pictures == 1 and pictures[1].h == T.icon.hint and T.icon.hint == 19, "pictures " .. #pictures)
   check("lit, one highlight spans the icon and the chord, beside the chord's own chip",
     #chipsOf(iconEls) == 2 + #model.right and iconRect.x == band.x + inset
       and iconRect.x + iconRect.w >= pictures[1].x + pictures[1].w, "chips " .. #chipsOf(iconEls))
@@ -167,15 +167,17 @@ do
   local panelEls, panelRect = footer.keysPanel(ui, T, model, band, 300)
   check("the key panel rises from the bar's top edge", panelRect.y + panelRect.h == band.y,
     tostring(panelRect.y + panelRect.h))
-  local wantH = 2 * bodyH + T.space.s + 2 * T.pad
-  check("three keys in two columns are two rows of a body label beside a chip, a small space between and the panel padding around, 78",
-    panelRect.h == wantH and wantH == 78, "height " .. tostring(panelRect.h))
+  local wantH = 2 * chipH + T.space.s + 2 * T.pad
+  check("three keys in two columns are two rows of a chip beside a caption label, a small space between and the panel padding around, 80",
+    panelRect.h == wantH and wantH == 80, "height " .. tostring(panelRect.h))
+  -- The empty text that pushes the right side flush has no attribute run at all, so a run is
+  -- looked for before it is read, which the first version of this check did not do.
   local labels = frames(els, function(el)
     if el.type ~= "text" then return false end
-    local attrs = el.text:asTable()[2].attributes
-    return attrs.font.size == T.text.body.size and el.text:getString() == "Uninstall"
+    local run = el.text:asTable()[2]
+    return run ~= nil and run.attributes.font.size == T.text.caption.size and el.text:getString() == "Uninstall"
   end)
-  check("the bar's labels are hint labels in the body role", #labels == 1, "body labels " .. #labels)
+  check("the bar's labels are hint labels in the caption role, 14", #labels == 1, "caption labels " .. #labels)
   local fill = panelEls[1]
   check("the key panel is filled in the background colour role",
     fill and fill.type == "rectangle" and fill.fillColor and fill.fillColor.red == T.colors.background.red
@@ -253,14 +255,14 @@ do
   obj._model = { sections = { { title = "KEYS", rows = rows } } }
   local built = obj:_build()
   -- Badge 22 plus 2 times 6 is 34, a row is the badge plus the medium space 10, 44, and a
-  -- title band is the section line 17 plus 10, 27. Three rows in two columns are two rows.
+  -- title band is the section line 19 plus 10, 29. Three rows in two columns are two rows.
   -- The content box is trimmed to its ink, so the padding is the same on every side, the
   -- title's leading above its capitals at the top and the last row's half spacing at the bottom.
   local sec = ui.tokens().text.section
   local topTrim = (sec.lineHeight - ui.measure:metrics(sec.font, sec.size).capHeight) / 2
   local function near(a, b) return math.abs(a - b) < 0.001 end
-  check("the badge is 34, a row 44 and the title band 27, so a titled three row sheet is 27 plus 88 trimmed to its ink",
-    near(built.h, 27 + 2 * 44 - topTrim - (44 - 34) / 2), "height " .. tostring(built.h))
+  check("the badge is 34, a row 44 and the title band 29, so a titled three row sheet is 29 plus 88 trimmed to its ink",
+    near(built.h, 29 + 2 * 44 - topTrim - (44 - 34) / 2), "height " .. tostring(built.h))
   check("the width is the two default columns, 500", built.w == 500, "width " .. tostring(built.w))
   local boxes = chips(built.els)
   check("every key badge is the derived 34 high and square, 34 wide",
@@ -270,8 +272,8 @@ do
   for _, el in ipairs(built.els) do
     if el.text then sizes[#sizes + 1] = el.text:asTable()[2].attributes.font.size end
   end
-  check("the section title is 12 and every label and key glyph is body 16",
-    sizes[1] == 12 and sizes[2] == 16 and sizes[3] == 16, table.concat(sizes, ","))
+  check("the section title is 14 and every label and key glyph is body 16",
+    sizes[1] == 14 and sizes[2] == 16 and sizes[3] == 16, table.concat(sizes, ","))
 
   local over = sheet()
   over._model = { rowHeight = 60, badgeHeight = 40, badgeWidth = 50, titleHeight = 30,
@@ -283,8 +285,8 @@ do
 
   local sectionOverride = sheet()
   sectionOverride._model = { sections = { { title = "KEYS", rows = rows, rowHeight = 50 } } }
-  check("a section may override a height for its own rows, 27 plus 2 times 50",
-    near(sectionOverride:_build().h, 27 + 2 * 50 - topTrim - (50 - 34) / 2))
+  check("a section may override a height for its own rows, 29 plus 2 times 50",
+    near(sectionOverride:_build().h, 29 + 2 * 50 - topTrim - (50 - 34) / 2))
 
   local alt = sheet()
   alt._model = { sections = { { rows = { { badges = { "H", "←" }, label = "Left" } } } } }

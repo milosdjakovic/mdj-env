@@ -89,14 +89,14 @@ do
     end)())
   check("line height is ceil of size times 1.35",
     dark.text.title.lineHeight == 27 and dark.text.body.lineHeight == 22
-      and dark.text.caption.lineHeight == 19 and dark.text.section.lineHeight == 17
+      and dark.text.caption.lineHeight == 19 and dark.text.section.lineHeight == 19
       and dark.text.code.lineHeight == 19)
   check("a text variant names its font, not the font token",
     dark.text.code.font == ".AppleSystemUIFontMonospaced"
       and dark.text.body.font == ".AppleSystemUIFont")
   check("caption draws in subtext", dark.text.caption.color == "subtext")
   check("a badge is its glyph's line height plus twice its vertical space",
-    dark.badge.hint.height == 17 + 2 * 2 and dark.badge.cheat.height == 22 + 2 * 6
+    dark.badge.hint.height == 19 + 2 * 2 and dark.badge.cheat.height == 22 + 2 * 6
       and dark.badge.button.height == 19 + 2 * 6,
     dark.badge.hint.height .. " " .. dark.badge.cheat.height .. " " .. dark.badge.button.height)
   check("a badge pads its glyph by a space step and draws it in a role",
@@ -398,7 +398,7 @@ do
   check("the joined table carries the measurer", type(ui.measure) == "table"
     and type(ui.measure.width) == "function")
   local els, height = ui.layout(ui.stack({ ui.text("a", "section") }), RECT)
-  check("ui.layout lays out with the current tokens", #els == 1 and height == 17)
+  check("ui.layout lays out with the current tokens", #els == 1 and height == 19)
   local a = ui.iconImage("🔥", "row")
   check("a glyph icon is an image, cached by glyph and size",
     type(a) == "userdata" and rawequal(a, ui.iconImage("🔥", "row"))

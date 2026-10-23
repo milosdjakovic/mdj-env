@@ -62,19 +62,19 @@ end
 
 do
   local t = tokensFor()
-  local sizes = { title = 20, body = 16, caption = 14, section = 12, code = 14 }
+  local sizes = { title = 20, body = 16, caption = 14, section = 14, code = 14 }
   local ok = true
   for role, size in pairs(sizes) do
     if t.text[role].size ~= size then ok = false end
   end
-  check("the shipped sizes are 20, 16, 14, 12 and 14", ok)
+  check("the shipped sizes are 20, 16, 14, 14 and 14", ok)
   check("code is the mono font and the other four the ui font",
     t.text.code.font == ".AppleSystemUIFontMonospaced" and t.text.title.font == ".AppleSystemUIFont"
       and t.text.body.font == ".AppleSystemUIFont" and t.text.caption.font == ".AppleSystemUIFont"
       and t.text.section.font == ".AppleSystemUIFont")
   check("line height is ceil of size times 1.35 for every role",
     t.text.title.lineHeight == 27 and t.text.body.lineHeight == 22 and t.text.caption.lineHeight == 19
-      and t.text.section.lineHeight == 17 and t.text.code.lineHeight == 19)
+      and t.text.section.lineHeight == 19 and t.text.code.lineHeight == 19)
   check("title, body and code take foreground, caption and section subtext",
     t.text.title.color == "foreground" and t.text.body.color == "foreground"
       and t.text.code.color == "foreground" and t.text.caption.color == "subtext"
