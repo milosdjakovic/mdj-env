@@ -212,8 +212,9 @@ do
 end
 
 do
-  -- Four hint badges of three characters, each 21 wide plus 12 of padding is 33, 21 high, with a
-  -- gap of 6 between, in a width of 80, fit two to a line.
+  -- Four hint badges of three characters, each 21 wide plus 12 of padding is 33, as high as the
+  -- hint badge the tokens derive, 23 with section at 14, with a gap of 6 between, in a width of 80,
+  -- fit two to a line. The height is read from the tokens, so a section size change moves it.
   local tree = kit.flow({
     kit.badge("aaa", "hint"), kit.badge("bbb", "hint"),
     kit.badge("ccc", "hint"), kit.badge("ddd", "hint"),
@@ -223,11 +224,12 @@ do
   for _, el in ipairs(els) do
     if el.type == "rectangle" and el.action == "fill" then chips[#chips + 1] = el.frame end
   end
+  local chipH, gap = tokens.badge.hint.height, tokens.space.s
   check("a flow wraps at the rect width",
-    #chips == 4 and chips[1].y == 0 and chips[2].y == 0 and chips[2].x == 39
-      and chips[3].y == 21 + 6 and chips[3].x == 0,
+    #chips == 4 and chips[1].y == 0 and chips[2].y == 0 and chips[2].x == 33 + gap
+      and chips[3].y == chipH + gap and chips[3].x == 0,
     "chip frames " .. #chips)
-  check("a flow's height is its lines and the gap between them", height == 21 + 6 + 21,
+  check("a flow's height is its lines and the gap between them", height == chipH + gap + chipH,
     "got " .. tostring(height))
 end
 
