@@ -530,6 +530,11 @@ function obj.run(olm, cfg)
   local function paintIcon(icon, owner)
     return iconRows and iconRows.image(icon, owner) or nil
   end
+  -- The same icon as canvas elements, for the default chooser, which paints a row's icon into its
+  -- own canvas and so can draw an emoji as text rather than keep a picture of it.
+  local function paintIconElements(icon, owner, frame)
+    return iconRows and iconRows.elements(icon, owner, frame) or nil
+  end
   chooserAtom.configure({
     screen = function() return overlay and overlay.screen() end,
     matcher = chooserAtom.matchers and chooserAtom.matchers[policy.matcher],
@@ -564,6 +569,7 @@ function obj.run(olm, cfg)
       panel = canvasPanel,
       ui = uiAtom,
       icon = paintIcon,
+      iconElements = paintIconElements,
       -- A list opened over a password field takes focus for as long as it is open, see
       -- lib/securefocus.lua. The provider only asks and never names the mechanism.
       focusHold = secureFocusLib.hold,

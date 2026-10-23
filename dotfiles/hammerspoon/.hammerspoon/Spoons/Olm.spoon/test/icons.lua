@@ -332,7 +332,45 @@ do
   local glyph = emojiSource.new().draw("E", 72, nil)
   check("the emoji source draws on a 72 point canvas", glyph.w, 72)
   check("the emoji source answers nil for an empty glyph", emojiSource.new().draw("", 72, nil), nil)
+  local els = emojiSource.new().elements("E", { x = 10, y = 20, w = 36, h = 36 }, { white = 1 })
+  check("the emoji source answers one text element", #els .. els[1].type, "1text")
+  check("the text fills 60 of 72 of the frame, as the picture does", els[1].textSize, 30)
+  check("the text sits in the frame it was handed", els[1].frame.x .. "," .. els[1].frame.y, "10,20")
+  check("the text takes the colour it is handed", els[1].textColor.white, 1)
+  check("the emoji source answers no elements for an empty glyph",
+    emojiSource.new().elements("", { x = 0, y = 0, w = 1, h = 1 }, nil), nil)
   _G.hs = nil
+end
+
+-- Elements, the same walk for a canvas that paints the icon itself.
+do
+  local sf = fake("sf", { refuse = { unknown = true } })
+  local emoji = fake("emoji", { tinted = true })
+  function emoji.elements(value, frame, color)
+    return { { type = "text", text = value, frame = frame, color = color } }
+  end
+  local engine = icons.new({ sources = { emoji, sf }, order = { "sf", "emoji" },
+    color = function() return { red = 1 } end })
+  local box = { x = 1, y = 2, w = 3, h = 4 }
+  local els = engine.elements({ emoji = "E", sf = "known" }, box, 72)
+  check("a source without elements answers its picture as an image element", els[1].type, "image")
+  check("that picture is drawn at points", els[1].image.points, 72)
+  check("that picture is placed in the frame", els[1].frame.h, 4)
+  engine.elements({ emoji = "E", sf = "known" }, box, 72)
+  check("that picture is drawn once", sf.draws, 1)
+  els = engine.elements({ emoji = "E", sf = "unknown" }, box, 72)
+  check("a refused picture falls back to a source with elements", els[1].type, "text")
+  check("a tinted source with elements takes the colour", els[1].color.red, 1)
+  engine.elements("E", box, 72)
+  check("a source with elements never draws a picture", emoji.draws, 0)
+  check("the string shorthand reaches elements", engine.elements("E", box, 72)[1].text, "E")
+  check("a spec nothing can draw answers nil", engine.elements({ other = "x" }, box, 72), nil)
+  local resolver = rowsLib.new({ engine = engine, points = 72,
+    declared = function() return { cup = { emoji = "C", sf = "unknown" } } end })
+  check("the resolver answers a declared key as elements", resolver.elements("cup", "p", box)[1].text, "C")
+  raises("the contract refuses elements that is not a function", function()
+    icons.new({ sources = { { name = "x", draw = function() end, elements = true } } })
+  end, "elements field")
 end
 
 if failed then os.exit(1) end

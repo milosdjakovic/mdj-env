@@ -17,6 +17,13 @@
 -- colour like any letter. So this source is tinted and draws in the colour it is handed, the
 -- theme's foreground, which leaves a colour emoji exactly as it was and turns a plain symbol
 -- dark on the light half and light on the dark half.
+--
+-- A canvas that paints rows can skip the picture altogether, and the default chooser does. So
+-- this source also answers elements, the glyph as one text element in the frame it is handed,
+-- in the same proportion the picture uses, 60 of 72 of the frame's side. The picture costs
+-- memory that is never given back, about 92KB a glyph by the record in plugins/emoji/AGENTS.md,
+-- and the emoji picker can surface thousands of glyphs, while a text element is a small table
+-- built at paint and dropped with the frame.
 
 local M = {}
 
@@ -42,6 +49,14 @@ function M.new()
     local img = canvas:imageFromCanvas()
     if img and points and points ~= SIDE then img = img:setSize({ w = points, h = points }) end
     return img
+  end
+
+  function source.elements(glyph, frame, color)
+    if type(glyph) ~= "string" or glyph == "" then return nil end
+    -- The glyph fills the frame in the proportion the picture above uses.
+    return { { type = "text", text = glyph, textSize = frame.w * TEXT / SIDE,
+               textAlignment = "center", textColor = color or { white = 0, alpha = 1 },
+               frame = { x = frame.x, y = frame.y, w = frame.w, h = frame.h } } }
   end
 
   return source

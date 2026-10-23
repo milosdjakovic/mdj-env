@@ -6,7 +6,7 @@ the spoon lifecycle contract this file refers to live there.
 
 ## What it is
 
-The picker is a filterable list over the Chooser atom, carrying both emoji and a
+The Emoji & Symbol Picker is a filterable list over the Chooser atom, carrying both emoji and a
 generous slice of native Unicode symbols, currency and arrows and math and the Mac
 modifier keys and more, the same glyphs the macOS Character Viewer shows. Typing
 matches by name, shortcode, tag, or category, so a keyword like happy or money or a
@@ -208,6 +208,15 @@ supplier, where it decided which rows could be found before any ranking ran, whi
 
 ## Icons
 
+Corrected 2026 10 24. On the default chooser no picture of a glyph is made at all. The
+canvas that paints the rows asks the icon engine for elements rather than an image, and the
+emoji source answers the glyph as one text element in the row's icon box, in the same 60 of
+72 proportion the picture used. A text element is a small table built at paint and dropped
+with the frame, so browsing the whole set no longer grows the process, and a light and dark
+switch costs nothing. The record below still holds for anything that does ask for a picture,
+the legacy chooser, which hands images to `hs.chooser`, a pane, a toast, or a launcher row's
+identity icon, and it is kept as the reason the text path was worth the change.
+
 Corrected 2026 10 15. This picker no longer draws its own icons. A row carries
 `icon = { emoji = glyph }` and Olm's icon engine draws it, through the one reused canvas the
 emoji source in `lib/icons/sources/emoji.lua` now holds for every emoji icon, at the shared
@@ -270,12 +279,10 @@ picker supplies a hundred rows while showing about ten. A file backed icon stays
 undecoded price until something draws it, and it outlives a reload rather than being
 rebuilt.
 
-Even one reused canvas is too slow to render the whole set at once, so the empty state
-icons are warmed in the background right after configure, in small batches on a self
-stopping timer, and the cost is paid before the first open rather than during it. An
-open before the warm finishes, or a typed query that reaches glyphs outside the warmed
-slice, renders those on demand and caches them, so correctness never depends on the
-warm having completed, only the smoothness of the first open does.
+Even one reused canvas was too slow to render the whole set at once, so the empty state
+icons were once warmed in the background in small batches after configure. That warm went
+with the drawing on 2026 10 15, and on the default chooser there is nothing left to warm,
+since a row's glyph is text drawn when the row is painted and only the visible rows are.
 
 ## Rows are data, never functions
 
@@ -348,16 +355,16 @@ presentation's `rowLimit` cutting what an empty field shows to the first hundred
 is ordered by the shared search, so search stays predictable and the memory only shapes the
 browse view, the same split between an empty timeline view and a typed rerank. A remembered
 glyph that a regenerated `data.lua` no longer carries is skipped when the recents are built,
-so the list is always renderable and the memory never has to be migrated. The recents glyphs
-are warmed into the icon cache alongside the first hundred rows, since a favorite may sit
-outside them, and there are at most `RECENTS_MAX` of them so the extra render is trivial.
+so the list is always renderable and the memory never has to be migrated.
 
 ## What it does not do
 
 It inserts one glyph per name, it does not offer skin tone variants, since the gemoji base
 set is one glyph per name.
 
-It does not cache its icons on disk, and that was decided with the figures above in hand
+It does not cache its icons on disk. On the default chooser there is no picture to cache,
+since a glyph is drawn as text, so the question survives only for the paths that still ask
+for a picture. It was decided with the figures above in hand
 rather than by not thinking about it. Saving each glyph as a PNG under a cache directory
 would cut icon memory by roughly 40 percent for an icon that is drawn and 60 percent across
 a realistic session, halve the per icon cost, and let icons outlive a reload. What it would

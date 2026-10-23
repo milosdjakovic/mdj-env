@@ -163,6 +163,7 @@ local NO_RESULTS = "No results"
 -- runs. List render asks it for a row's icon at paint, so the colour is read on every draw and
 -- a light and dark switch redraws the icon with nothing watching for it.
 local ICON = nil
+local ICON_ELEMENTS = nil
 
 -- Return, keypad enter, up and down, the four keys the field's own keymap never
 -- claims, so all four already reach this provider's onKey unclaimed rather than being
@@ -341,7 +342,9 @@ function Provider:_deriveStyles()
     numberColor = T.colors[T.text.section.color],
     dimAlpha = T.alpha.dim,
     -- Read late through the module level, so a configure after this instance was built applies.
-    icon = function(icon, owner) return ICON and ICON(icon, owner) or nil end,
+    iconElements = function(icon, owner, frame)
+      return ICON_ELEMENTS and ICON_ELEMENTS(icon, owner, frame) or nil
+    end,
     -- The shared empty state, in the caption role and the subtext colour, list render deciding
     -- when it shows.
     emptyState = function(w, h)
@@ -1482,7 +1485,9 @@ end
 local M = {}
 
 --- M.configure(opts) takes opts.panel, the CanvasPanel module, and opts.ui, the UI kit, and
---- optionally opts.icon, the icon resolver function(icon, owner) -> hs.image or nil, and opts.yields, a function(event) answering true for a key down the field's tap
+--- optionally opts.icon, the icon resolver function(icon, owner) -> hs.image or nil, opts.iconElements,
+--- the same icon as canvas elements function(icon, owner, frame) -> elements or nil, which a row
+--- draws through, and opts.yields, a function(event) answering true for a key down the field's tap
 --- must let through instead of claiming, and opts.listKeys, a function(event) that runs a list key
 --- the open list binds with no held leader and answers true when it took the key, and opts.focusHold, a function
 --- answering a release function or nil, asked once per open after the surface shows and released on teardown. Callable more than once, a nil field left unchanged, matching CanvasPanel.configure's
@@ -1495,6 +1500,7 @@ function M.configure(opts)
   if opts.listKeys ~= nil then LIST_KEYS = opts.listKeys end
   if opts.focusHold ~= nil then FOCUS_HOLD = opts.focusHold end
   if opts.icon ~= nil then ICON = opts.icon end
+  if opts.iconElements ~= nil then ICON_ELEMENTS = opts.iconElements end
   return M
 end
 

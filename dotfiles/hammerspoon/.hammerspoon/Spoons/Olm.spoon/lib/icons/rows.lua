@@ -24,7 +24,7 @@
 local M = {}
 
 --- M.new(opts) -> instance
---- opts.engine    a lib/icons instance, image(spec, points).
+--- opts.engine    a lib/icons instance, image(spec, points) and elements(spec, frame, points).
 --- opts.declared  function of an owner identity answering that plugin's icons table or nil.
 --- opts.points    the side the image is drawn at, what a chooser row scales down from.
 --- opts.log       optional table with w, the warning sink.
@@ -36,15 +36,8 @@ function M.new(opts)
   local warned = {}
   local instance = {}
 
-  --- instance.image(spec, owner) -> hs.image or nil
-  --- The one function turning an owner and an icon into an image, which every reader of an icon
-  --- goes through, a row, a launcher row, an action panel verb, a scope's own identity. spec is
-  --- a table of source name to value, drawn as it stands, or a string. A string that is a key the
-  --- owner declared in its manifest icons draws that entry. A string that is not an identifier,
-  --- an emoji a person wrote over a plugin's default icon in their config, is the documented
-  --- shorthand and means { emoji = string }. An identifier no manifest declared is a typo and
-  --- logs one warning per owner and key, and nothing is drawn.
-  function instance.image(spec, owner)
+  -- A key or a spec turned into a table spec, or nil, by the rules instance.image states.
+  local function resolve(spec, owner)
     if spec == nil then return nil end
     if type(spec) == "string" then
       local icons = declared(owner)
@@ -63,7 +56,29 @@ function M.new(opts)
       end
     end
     if type(spec) ~= "table" then return nil end
-    return engine.image(spec, points)
+    return spec
+  end
+
+  --- instance.image(spec, owner) -> hs.image or nil
+  --- The one function turning an owner and an icon into an image, which every reader of an icon
+  --- goes through, a row, a launcher row, an action panel verb, a scope's own identity. spec is
+  --- a table of source name to value, drawn as it stands, or a string. A string that is a key the
+  --- owner declared in its manifest icons draws that entry. A string that is not an identifier,
+  --- an emoji a person wrote over a plugin's default icon in their config, is the documented
+  --- shorthand and means { emoji = string }. An identifier no manifest declared is a typo and
+  --- logs one warning per owner and key, and nothing is drawn.
+  function instance.image(spec, owner)
+    spec = resolve(spec, owner)
+    return spec and engine.image(spec, points) or nil
+  end
+
+  --- instance.elements(spec, owner, frame) -> array of canvas elements or nil
+  --- The same resolution as image, answered as elements drawn into frame, for a canvas that
+  --- paints the icon itself. A glyph is then text in the frame rather than a picture kept for
+  --- the life of the config, see lib/icons/sources/emoji.lua.
+  function instance.elements(spec, owner, frame)
+    spec = resolve(spec, owner)
+    return spec and engine.elements(spec, frame, points) or nil
   end
 
   --- instance.stamp(row, owner) -> row

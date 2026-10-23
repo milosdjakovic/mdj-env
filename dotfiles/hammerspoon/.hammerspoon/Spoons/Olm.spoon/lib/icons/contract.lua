@@ -15,6 +15,14 @@
 --                                     colour it is given, so the engine keys its cache on the
 --                                     colour for that source alone and a source that ignores
 --                                     colour is not redrawn on every light and dark switch.
+--   source.elements(spec, frame, color)
+--                                     optional. Canvas elements that draw the spec straight
+--                                     into frame, a table of x, y, w and h, or nil when this
+--                                     source cannot draw it. A source offers it when drawing in
+--                                     place is cheaper than keeping a picture, and the engine
+--                                     then never draws or caches a picture for a canvas that
+--                                     asks for elements. A source without it is wrapped, its
+--                                     cached picture placed in the frame as an image element.
 --
 -- A Lua contract is structural, a documented set of members and no compiled interface, so
 -- this is a runtime check and says only what it checked. It cannot prove draw answers the
@@ -35,6 +43,9 @@ function M.validate(source)
   end
   if type(source.draw) ~= "function" then
     error("icon source '" .. label .. "' has no draw function", 3)
+  end
+  if source.elements ~= nil and type(source.elements) ~= "function" then
+    error("icon source '" .. label .. "' has an elements field that is not a function", 3)
   end
   if source.tinted ~= nil and type(source.tinted) ~= "boolean" then
     error("icon source '" .. label .. "' has a tinted field that is not a boolean", 3)

@@ -13,10 +13,14 @@ keeps it, since a real picture such as an app or a file icon is not an icon key.
 holds a picture of an icon. Whoever knows the owner stamps `iconOwner` on the row, the stage
 with the presenting plugin, the query scope with the scope, the launcher with the row's owner,
 the action panel with the verb's owner, through `stamp` and `stampAll` in `lib/icons/rows.lua`.
-The chooser then draws the picture each time it paints, asking the one function `image(spec,
-owner)` in that file through an `icon` function the root injects into both providers, the default
-provider's list render and the legacy provider as it converts a row for `hs.chooser`. An unknown
-key logs one warning per owner and key and the row shows no icon.
+The chooser then draws the icon each time it paints. The default provider's list render asks
+`elements(spec, owner, frame)` in that file through an `iconElements` function the root injects,
+and the legacy provider asks `image(spec, owner)` through an `icon` function as it converts a row
+for `hs.chooser`, which takes only a picture. A source may answer elements, canvas elements drawn
+straight into a frame, and the emoji source does, as one text element, so on the default chooser
+an emoji is never a picture and never cached. A source without elements answers its cached
+picture placed as an image element. An unknown key logs one warning per owner and key and the
+row shows no icon.
 
 The engine in `lib/icons/init.lua` is a Strategy over sources that answer a small contract in
 `lib/icons/contract.lua`, a name and a `draw(spec, points, color)`. It tries the active set and
@@ -149,3 +153,16 @@ removed. A scope row that names an icon the engine cannot draw no longer falls b
 identity icon, since the fallback is chosen from data and not from whether a picture came back.
 Rejected here, an appearance watcher that flushes the row caches and per plugin colour choices,
 both listed above with the reasons.
+
+### 2026-10-24 00:55
+
+The emoji source draws a row icon as text on the default chooser. Its picture path made a 72
+point canvas snapshot per glyph, about 92KB that the process never gives back, kept in the
+engine's cache and keyed by colour as well, so a light and dark switch drew every symbol again.
+That cost was forced by `hs.chooser`, which takes only an image, and the emoji picker can surface
+thousands of glyphs. The default chooser paints its own canvas, so the glyph can be a text element
+in the row's icon box. The contract gained an optional `elements(spec, frame, color)`, the engine
+an `elements` walk in the same order as `image`, and the resolver an `elements` beside `image`.
+The text keeps the picture's 60 of 72 proportion of the frame, so it lands where the picture did
+by construction, which the live look confirms rather than replaces. The picture path stays for
+the legacy chooser and for anything else that wants an image.

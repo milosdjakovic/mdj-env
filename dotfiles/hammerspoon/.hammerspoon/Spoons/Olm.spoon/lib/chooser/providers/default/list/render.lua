@@ -26,9 +26,10 @@
 --- numberColor and dimAlpha, every one resolved by the provider from the kit's tokens, and
 --- this file reads none of settings.chooserTheme, decision six of the original brief
 --- stated plainly. The one set of colours it keeps answers only a caller passing no style.
---- style.icon is optional, function(icon, owner) -> hs.image or nil. A row with no image of its
---- own that names an icon is drawn through it at every paint, which is what keeps an icon in the
---- colour of the half the system is in now. A row that carries an image keeps it.
+--- style.iconElements is optional, function(icon, owner, frame) -> canvas elements or nil. A row
+--- with no image of its own that names an icon is drawn through it at every paint, which is what
+--- keeps an icon in the colour of the half the system is in now, and an emoji then arrives as
+--- text in the frame rather than a picture. A row that carries an image keeps it.
 --- style.emptyState is optional, function(w, h) -> elements at the origin, the shared empty state
 --- the provider hands in from CanvasPanel.emptyStateElements. It is drawn centred in the band
 --- when a typed query left no rows, see M.showsEmptyState, and never as a row, so nothing can
@@ -350,24 +351,24 @@ function M.elements(state, rect, layout, style, clip, query)
       }
     end
 
-    local image = row.image
-    if image == nil and row.icon ~= nil and style.icon then
-      image = style.icon(row.icon, row.iconOwner)
-    end
-    if image then
-      -- iconSize is the artwork's side and iconFrame the image's, larger by the transparent
-      -- margin an icon carries, so the image is centred on the artwork's box and the margin
-      -- falls into the padding around it.
-      local art = layout.iconSize
-      local side = layout.iconFrame or art
-      local artX, artY = rect.x + iconPadLeft, rowY + iconPad
+    -- iconSize is the artwork's side and iconFrame the icon's, larger by the transparent
+    -- margin an icon carries, so the icon is centred on the artwork's box and the margin
+    -- falls into the padding around it.
+    local art = layout.iconSize
+    local side = layout.iconFrame or art
+    local artX, artY = rect.x + iconPadLeft, rowY + iconPad
+    local iconBox = {
+      x = px(artX - (side - art) / 2), y = px(artY - (side - art) / 2),
+      w = px(side), h = px(side),
+    }
+    if row.image then
       els[#els + 1] = {
-        type = "image", image = image, imageScaling = "scaleProportionally",
-        frame = {
-          x = px(artX - (side - art) / 2), y = px(artY - (side - art) / 2),
-          w = px(side), h = px(side),
-        },
+        type = "image", image = row.image, imageScaling = "scaleProportionally", frame = iconBox,
       }
+    elseif row.icon ~= nil and style.iconElements then
+      for _, el in ipairs(style.iconElements(row.icon, row.iconOwner, iconBox) or {}) do
+        els[#els + 1] = el
+      end
     end
 
     if hasSubTitle(row) then

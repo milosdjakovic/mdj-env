@@ -22,6 +22,10 @@
 -- for a source that declares it takes one, so a theme switch redraws a symbol and leaves an
 -- emoji alone. A draw that answers nothing is remembered as false, so a spec nothing can
 -- render is asked for once, and answered back out as nil.
+--
+-- instance.elements(spec, frame, points) is the same walk for a canvas that paints the icon
+-- itself. A source that offers elements answers them directly and nothing is cached, and any
+-- other source answers its cached picture, drawn at points, as one image element in frame.
 
 local here = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local contractChunk = assert(loadfile(here .. "contract.lua"))
@@ -66,30 +70,72 @@ function M.new(opts)
     return nil
   end
 
+  -- The colour for one call, fetched at most once and only when a tinted source is reached.
+  local function colorGetter()
+    local color, fetched = nil, false
+    return function()
+      if not fetched then
+        color = colorOf and colorOf() or nil
+        fetched = true
+      end
+      return color
+    end
+  end
+
+  -- A source's cached picture of value at points, or nil. See the header for the key.
+  local function drawn(name, source, value, points, colorNow)
+    local key = name .. "\0" .. tostring(value) .. "\0" .. tostring(points)
+    local color
+    if source.tinted then
+      color = colorNow()
+      key = key .. "\0" .. colorKey(color)
+    end
+    if cache[key] == nil then
+      cache[key] = source.draw(value, points, color) or false
+    end
+    return cache[key] or nil
+  end
+
   --- instance.image(spec, points) -> hs.image or nil
   --- spec is a table keyed by source name, or a string meaning its emoji. points is the square
   --- side wanted. Answers nil for a spec no source in the order can draw.
   function instance.image(spec, points)
     spec = specOf(spec)
     if not spec then return nil end
-    local color
-    local colorFetched = false
+    local colorNow = colorGetter()
     for _, name in ipairs(order) do
       local source = byName[name]
       local value = source and spec[name]
       if value ~= nil then
-        local key = name .. "\0" .. tostring(value) .. "\0" .. tostring(points)
-        if source.tinted then
-          if not colorFetched then
-            color = colorOf and colorOf() or nil
-            colorFetched = true
+        local img = drawn(name, source, value, points, colorNow)
+        if img then return img end
+      end
+    end
+    return nil
+  end
+
+  --- instance.elements(spec, frame, points) -> array of canvas elements or nil
+  --- The icon drawn into frame, a table of x, y, w and h. points is the side a source without
+  --- elements draws its picture at before it is scaled into frame. Answers nil for a spec no
+  --- source in the order can draw.
+  function instance.elements(spec, frame, points)
+    spec = specOf(spec)
+    if not spec then return nil end
+    local colorNow = colorGetter()
+    for _, name in ipairs(order) do
+      local source = byName[name]
+      local value = source and spec[name]
+      if value ~= nil then
+        if source.elements then
+          local els = source.elements(value, frame, source.tinted and colorNow() or nil)
+          if els then return els end
+        else
+          local img = drawn(name, source, value, points, colorNow)
+          if img then
+            return { { type = "image", image = img, imageScaling = "scaleProportionally",
+                       frame = { x = frame.x, y = frame.y, w = frame.w, h = frame.h } } }
           end
-          key = key .. "\0" .. colorKey(color)
         end
-        if cache[key] == nil then
-          cache[key] = source.draw(value, points, source.tinted and color or nil) or false
-        end
-        if cache[key] then return cache[key] end
       end
     end
     return nil
