@@ -1280,17 +1280,22 @@ end
 --- M.uses(keyCode, mods) -> string or nil
 --- What the field or this provider already does with a chord, in a few words, or nil when neither
 --- reads it, so a list key the person binds with no held leader cannot take a key the field needs.
---- mods is a list of shift, ctrl, alt and cmd. Escape always closes, Return and keypad Enter choose
---- and the two vertical arrows move with any modifiers held, since _onFieldKey reads their keycode
---- alone, Command with a digit chooses a visible row, and every entry of the field's own keymap
---- is read on its exact modifiers. A printable key is the caller's to judge, since what it types
+--- mods is a list of shift, ctrl, alt and cmd. Escape always closes, plain Return and keypad Enter
+--- choose, and the two vertical arrows move with any modifiers held, since _onFieldKey reads their
+--- keycode alone. Return or keypad Enter with a modifier is left free, because the field asks the
+--- list keys before _onFieldKey sees a key, so a list key on Command and Return answers first and an
+--- unclaimed one still chooses. Command with a digit chooses a visible row, and every entry of the
+--- field's own keymap is read on its exact modifiers. A printable key is the caller's to judge, since what it types
 --- depends on the keyboard and not on this file.
 function M.uses(keyCode, mods)
   if type(keyCode) ~= "number" then return nil end
   local flags = {}
   for _, m in ipairs(mods or {}) do flags[m] = true end
   if keyCode == 53 then return "Escape closes the list" end
-  if keyCode == KEYCODE_RETURN or keyCode == KEYCODE_KEYPAD_ENTER then return "Return chooses the row" end
+  if (keyCode == KEYCODE_RETURN or keyCode == KEYCODE_KEYPAD_ENTER)
+    and not (flags.shift or flags.ctrl or flags.alt or flags.cmd) then
+    return "Return chooses the row"
+  end
   if keyCode == KEYCODE_UP or keyCode == KEYCODE_DOWN then return "the arrow moves the highlight" end
   if KEYCODE_DIGIT[keyCode] and flags.cmd then return "Command and a digit choose a visible row" end
   local op = fieldInput.keymap.resolve(keyCode, flags)

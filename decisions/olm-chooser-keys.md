@@ -158,3 +158,13 @@ were both measured unable to take focus from Safari, so the native chooser is th
 proven, and a titled webview was never tried. With Hyper from kanata, Milos confirmed typing, list
 keys, Escape, picking an app and inserting an emoji over a Safari password field, focus returning
 to the field each time, and no change over an ordinary field.
+
+### 2026-10-23 12:37
+
+Return with a modifier is free for a list key. The provider's `uses` used to answer "Return
+chooses the row" for Return and keypad Enter with any modifiers, so the keymap refused Command and
+Return as a list chord, though nothing ever decided that it should. It was a side effect of
+`_onFieldKey` reading the Return keycode alone. Milos wanted Command and Return for a secondary
+action, so `uses` now claims only plain Return and plain keypad Enter. The field already asks the
+list keys before `_onFieldKey`, so a list key on a modified Return answers first, and a modified
+Return nothing claims still chooses the row as before.
