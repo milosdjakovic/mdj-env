@@ -119,6 +119,19 @@ the step says so through its closing notes when the grants probe does not answer
 macOS really drops the grant on a new cdhash was not measured here, since that needs a granted
 binary to replace. The first upgrade measures it.
 
+### The next upgrade, kanata 1.13 and driver 8
+
+Known on 2026-10-23 and not yet done. kanata 1.13.0 is a prerelease, and Homebrew's stable kanata
+is still 1.12.0, so nothing moves until Homebrew ships 1.13 as stable. kanata pull request 2123
+moved kanata to VirtualHIDDevice v8, and says the standalone v6.2.0 driver and kanata must be
+upgraded together, while the 1.13.0 prerelease notes still name v6.2.0 in their macOS section,
+which looks like a template left stale. So the row is written from the final 1.13 release notes
+and the PR, not from the prerelease. When it lands, write the `1.13` row with the v8 package URL
+and its sha256, commit it, and run the upgrade above. Three things are measured that day and
+written into `decisions/kanata.md`. Whether driver 8 replaces 6.2.0 cleanly through the manager's
+activate, whether a reboot or a second approval of the extension is needed, and whether Input
+Monitoring and Accessibility have to be given again for the new binary.
+
 ## Gotchas
 
 - **When the driver daemon is absent, kanata waits ten seconds and lets go.** It logs that the
