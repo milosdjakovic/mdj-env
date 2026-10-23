@@ -132,3 +132,12 @@ time passed.
 
 On this machine, where every grant is given, the step said all five were given and opened nothing,
 with and without a terminal, and for kanata alone said all three.
+
+### 2026-10-23 11:22
+
+The three pane addresses found inside macOS 27 were opened on this machine and the window System
+Settings showed was read back through System Events. Privacy_ListenEvent opened Input Monitoring
+and Privacy_LocationServices opened Location Services. The LoginItems address opened the window
+titled Login Items, the Login Items and Extensions page, from which Driver Extensions is one more
+click, as the map's sentence for that grant says. All four addresses in the map have now been
+opened at least once.
