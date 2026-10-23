@@ -19,16 +19,18 @@ set -e
 # restarts both daemons and pins again. decisions/kanata.md has the reasoning and what was
 # measured, and dotfiles/kanata/AGENTS.md has the day to day.
 #
-# Everything only a person can do is said through mdj_note, so setup.sh repeats it at the end.
-# That is the password, approving the driver extension, and allowing the kanata binary in Input
-# Monitoring and in Accessibility. Without a terminal and without a sudo timestamp the step says
-# what it still needs and stops, and a run from a terminal finishes it.
+# What only a person can do is the password, approving the driver extension, and allowing the
+# kanata binary in Input Monitoring and in Accessibility. The password is asked once, by setup.sh
+# for its whole run or by this step when it runs alone. The three grants are walked by
+# src/setup-grants.sh, the one copy of that guide, which setup.sh runs after this step and which
+# this step runs itself, for kanata alone, when it is run on its own. Without a terminal and
+# without a sudo timestamp the step says what it still needs and stops, and a run from a terminal
+# finishes it.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 PACKAGE="$ROOT/dotfiles/kanata"
 DRIVER_TABLE="$PACKAGE/DRIVER"
-PROBE="$PACKAGE/grants-probe"
 
 # shellcheck source=lib/backup.sh
 source "$SCRIPT_DIR/lib/backup.sh"
@@ -195,16 +197,6 @@ driver_row() {
 installed_driver() { pkgutil --pkg-info "$DRIVER_PKG_ID" 2>/dev/null | awk '$1 == "version:" { print $2; exit }'; }
 
 extension_active() { systemextensionsctl list 2>/dev/null | grep -F "$DRIVER_BUNDLE" | grep -qF '[activated enabled]'; }
-
-# The pane systemextensionsctl itself names for driver extensions, read rather than written here,
-# since Apple has moved it between macOS versions. It is a sentence in the header of its listing.
-extension_pane() {
-    local pane
-    pane="$(systemextensionsctl list 2>/dev/null | grep -F 'driver_extension' | sed -nE "s/.*Go to '([^']+)'.*/\1/p" | head -1)"
-    pane="${pane// > /, }"
-    pane="${pane// & / and }"
-    echo "${pane:-System Settings, General, Login Items and Extensions, Driver Extensions}"
-}
 
 loaded() { launchctl print "system/$1" >/dev/null 2>&1; }
 daemon_pid() { launchctl print "system/$1" 2>/dev/null | awk '$1 == "pid" && $2 == "=" { print $3; exit }'; }
@@ -483,7 +475,8 @@ fi
 
 # The manager asks macOS to load the extension it just installed, and replaces an older one. It
 # runs as this user, which is how the driver's own README runs it. Approval is a click in
-# System Settings that only a person can make.
+# System Settings that only a person can make, and it is a grant like the other two, so the
+# grants walk at the end of this step, or the grants step in setup.sh, takes the person there.
 if [[ $DRIVER_INSTALLED -eq 1 ]] || ! extension_active; then
     say "  asking macOS to activate the driver extension"
     # Bounded, since the request is answered by a person and nothing promises it returns first.
@@ -491,9 +484,6 @@ if [[ $DRIVER_INSTALLED -eq 1 ]] || ! extension_active; then
         change "$DRIVER_MANAGER" activate
     else
         bounded 30 "$DRIVER_MANAGER" activate || true
-    fi
-    if [[ $DRY_RUN -eq 1 ]] || ! extension_active; then
-        mdj_note "approve the Karabiner driver extension in $(extension_pane), kanata cannot type until it is"
     fi
 else
     say "  driver extension activated and enabled"
@@ -514,8 +504,6 @@ root_dir "$BIN_DIR"
 # restarts kanata below. The proof and the config check then run against the copy, the file the
 # daemon runs.
 BIN_CHANGED=0
-HAD_BIN=0
-[[ -e "$RUN_BIN" ]] && HAD_BIN=1
 if [[ "$(sha_of "$RUN_BIN")" != "$(sha_of "$SOURCE_BIN")" ]]; then
     say "  $RUN_BIN differs from Homebrew's kanata $version, copying it"
     as_root install -m 755 -o root -g wheel "$SOURCE_BIN" "$RUN_BIN"
@@ -591,38 +579,22 @@ else
 fi
 
 #-------------------------------------------------------------------------------
-# What only a person can give, read from kanata itself
+# What only a person can give, walked by the one guide every grant goes through
 #-------------------------------------------------------------------------------
 
-say "==> Grants"
-# A daemon started a moment ago has not reached its permission checks yet, so the answer is
-# waited for, bounded, rather than read once and called unknown.
-answer() {
-    local locator="$1" wait="${2:-yes}" state waited=0 limit=0
-    [[ "$wait" == yes && "$KANATA_RESULT" == started && $DRY_RUN -eq 0 ]] && limit=20
-    while :; do
-        if state="$("$PROBE" "$locator" 2>/dev/null)"; then echo "$state"; return; fi
-        (( waited >= limit )) && { echo "unknown"; return; }
-        sleep 1
-        waited=$(( waited + 1 ))
-    done
-}
-driver_state="$(answer driver-extension)"
-monitoring_state="$(answer input-monitoring)"
-# Kanata checks Accessibility only once Input Monitoring passed, so waiting for it is pointless
-# while Input Monitoring is not given.
-if [[ "$monitoring_state" == granted ]]; then
-    accessibility_state="$(answer accessibility)"
+# The driver approval, Input Monitoring and Accessibility for the root owned copy. Inside
+# setup.sh the grants step after this one walks them with every other module's, so a person is
+# taken through each grant once. Run alone, this step walks kanata's own through the same step.
+# A daemon started a moment ago has not reached its permission checks yet, and the guide gives a
+# probe that cannot answer a short wait before it calls the grant unknown, so nothing here waits.
+# A new binary at the same path may need its grants switched off and on again, which the map's
+# sentence for each grant says.
+if [[ $DRY_RUN -eq 1 ]]; then
+    say "==> Grants"
+    say "    would walk every kanata grant not yet given, through src/setup-grants.sh kanata"
+elif [[ -n "${MDJ_GRANTS_LATER:-}" ]]; then
+    say "==> Grants"
+    say "  left to the grants step later in this run"
 else
-    accessibility_state="$(answer accessibility no)"
-fi
-say "  driver extension $driver_state, Input Monitoring $monitoring_state, Accessibility $accessibility_state"
-if [[ "$monitoring_state" != granted || "$accessibility_state" != granted ]]; then
-    # A new build at the same path carries a new cdhash, and the grant was given to the old one,
-    # so a binary that changed may need switching off and on again rather than adding.
-    again=""
-    [[ $BIN_CHANGED -eq 1 && $HAD_BIN -eq 1 ]] && again=", or if it is listed and on, switch it off and on again, since its binary changed"
-    mdj_note "allow $RUN_BIN in System Settings, Privacy and Security, under both Input Monitoring and Accessibility, adding it with the plus button where it is not listed$again, and remove any other kanata entry"
-elif [[ $BIN_CHANGED -eq 1 ]]; then
-    say "  the new kanata binary kept both grants"
+    "$SCRIPT_DIR/setup-grants.sh" kanata
 fi

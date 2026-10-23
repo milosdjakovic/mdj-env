@@ -640,6 +640,36 @@ elif [[ $grants_open -eq 0 && $grants_unanswered -eq 0 ]]; then
     say "  every declared grant is given"
 fi
 
+# Every grant row in the map carries the address of its pane in a fourth field, which
+# src/setup-grants.sh opens for a person, and no other row has one. Errors, since a missing or
+# malformed address is the same on every machine. Whether macOS still has the pane at that
+# address is not something a check can learn without opening it, so the shape is what is proven,
+# and decisions/setup-grants.md records which addresses were opened and on which macOS.
+say ""
+say "==> Grant panes in the map"
+pane_gaps=0
+while IFS= read -r record; do
+    [[ -z "$record" ]] && continue
+    name="$(field "$record" 1)"
+    origin="$(field "$record" 2)"
+    fields="$(awk -F'|' '{ print NF }' <<< "$record")"
+    pane=""
+    [[ $fields -ge 4 ]] && pane="$(field "$record" 4)"
+    if [[ "$origin" == grant ]]; then
+        if [[ -z "$pane" ]]; then
+            err "$name is a grant in DEPENDENCIES.map with no pane address in a fourth field, so the grants step cannot open where it is given"
+            pane_gaps=$((pane_gaps + 1))
+        elif [[ ! "$pane" =~ ^x-apple\.systempreferences:[A-Za-z0-9.-]+(\?[A-Za-z0-9_]+)?$ ]]; then
+            err "$name has the pane address '$pane' in DEPENDENCIES.map, which is not an x-apple.systempreferences address"
+            pane_gaps=$((pane_gaps + 1))
+        fi
+    elif [[ $fields -ge 4 ]]; then
+        err "$name is a $origin row in DEPENDENCIES.map with a fourth field, which only a grant row has"
+        pane_gaps=$((pane_gaps + 1))
+    fi
+done < <(records "$MAP")
+[[ $pane_gaps -eq 0 ]] && say "  every grant row names the pane that gives it"
+
 #-------------------------------------------------------------------------------
 # Check seven, a closed set option handed a bare string instead of a named value
 #-------------------------------------------------------------------------------

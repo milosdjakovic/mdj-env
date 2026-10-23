@@ -10,6 +10,15 @@ Personal dotfiles and machine bootstrap configuration, managed with [GNU Stow](h
 
 This runs all setup scripts in sequence. Restart your terminal when done, then run `nvim` to bootstrap LazyVim.
 
+Run from a terminal, it asks for your password once, before the first step, and nothing later
+asks again. Near the end it walks through every permission macOS keeps for a person to give,
+such as Accessibility for Hammerspoon or Input Monitoring for kanata. For each one still missing
+it says in one line what to do, opens the exact System Settings list, shows the program in Finder
+when it has to be dragged into the list, and waits until the permission is given, so the run
+confirms it and no second run is needed. Enter skips one, and anything skipped or left after a few
+minutes is repeated in the closing notes. Run without a terminal, nothing opens and those notes
+are all it leaves.
+
 On a machine this repository has not seen before, capture it first, so setup knows what this
 machine takes. See [Capturing a machine](#capturing-a-machine).
 
@@ -116,6 +125,7 @@ machine already has, that is always done by hand.
 | `setup-stow-dotfiles.sh` | Symlinks dotfiles to home directory |
 | `setup-zshrc.sh` | Configures .zshrc with Powerlevel10k |
 | `set-dev-defaults.sh` | Sets default app for dev file types |
+| `setup-grants.sh` | Opens where each missing permission is given and waits for it, with a terminal, or leaves a closing note |
 | `setup-kanata.sh` | Installs the Karabiner driver kanata needs and runs both as root daemons, where the kanata piece is on, with `--dry-run` and `--upgrade` |
 
 All scripts are idempotent (safe to re-run) and support both Apple Silicon and Intel Macs.

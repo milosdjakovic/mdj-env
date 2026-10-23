@@ -7,7 +7,7 @@
 xcode-select | system | /usr/bin/xcode-select | required | install-xcode-clt.sh | raising Apple's installer when the headless install cannot finish
 sw_vers      | system | /usr/bin/sw_vers      | required | install-xcode-clt.sh | reading the running macOS major version, which names the SDK the command line tools must carry
 softwareupdate | system | /usr/sbin/softwareupdate | required | install-xcode-clt.sh | finding and installing the command line tools for this macOS without a dialog
-sudo         | system | /usr/bin/sudo         | required | install-xcode-clt.sh, setup-kanata.sh | installing the command line tools and the Karabiner driver, and loading the kanata daemons, which only root may do
+sudo         | system | /usr/bin/sudo         | required | setup.sh, install-xcode-clt.sh, setup-kanata.sh | asking for the password once and keeping it for the run, installing the command line tools and the Karabiner driver, and loading the kanata daemons, which only root may do
 brew         | path   | brew                  | required | install-homebrew-packages.sh, setup-kanata.sh | every package install in this repository runs through it, and holding kanata with a pin
 stow         | path   | stow                  | required | setup-stow-dotfiles.sh | symlinking every module into the home directory
 git          | path   | git                   | required | install-ohmyzsh-plugins.sh, bootstrap-nvim.sh | cloning the framework and its plugins, and reading each installed plugin's revision to compare it against the lockfile
@@ -20,3 +20,4 @@ pkgutil      | system | /usr/sbin/pkgutil     | required | setup-kanata.sh | rea
 shasum       | system | /usr/bin/shasum       | required | setup-kanata.sh | checking the driver package against the hash pinned in dotfiles/kanata/DRIVER, and noticing a changed kanata config
 launchctl    | system | /bin/launchctl        | required | setup-kanata.sh | loading and restarting the kanata and driver daemons
 systemextensionsctl | system | /usr/bin/systemextensionsctl | required | setup-kanata.sh, machine.sh | reading whether the driver extension is activated, which needs no privilege
+open         | system | /usr/bin/open         | optional | setup-grants.sh | opening the pane where a grant is given, revealing the program to add, and opening an application so it can answer for its own grant, without which a grant is only a closing note

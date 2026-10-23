@@ -42,6 +42,8 @@ MDJ_EDITOR="Visual Studio Code" ./setup.sh   # the editor step's answer, for a r
 ./src/setup-kanata.sh                 # the Karabiner driver and both root daemons, where the kanata piece is on
 ./src/setup-kanata.sh --dry-run       # every change it would make, every sudo command and both plists, changing nothing
 ./src/setup-kanata.sh --upgrade       # move kanata and its driver together, once dotfiles/kanata/DRIVER has the new row
+./src/setup-grants.sh                 # every grant not given yet, opened where it is given and waited for, with a terminal
+./src/setup-grants.sh kanata          # the same, for one module's grants only
 ./src/check-dependencies.sh
 ./src/machine.sh get mise            # what this machine takes for one optional piece, from machines/
 ./src/machine.sh capture             # look at this machine and bring its pieces file in line, safe to rerun
@@ -214,7 +216,31 @@ defect and an error. The vocabulary is three words, `granted`, `notDetermined`, 
 which is the distinction BrowserTabs settled on first. The last one matters most, since macOS
 remembers a refusal forever and never prompts a second time, so the only route back is the pane
 in System Settings. Which pane is not the prober's business either. That comes from
-`DEPENDENCIES.map`, where every other answer to where something comes from already lives.
+`DEPENDENCIES.map`, where every other answer to where something comes from already lives. A
+grant row there carries one field more than any other, the pane's `x-apple.systempreferences`
+address, and the reconciler reports a grant row without one.
+
+A prober may answer a second question, `grants-probe --subject LOCATOR`, which is what a person
+has to act on for that grant. It prints `file PATH` for a program that has to be added to the
+list with the plus button, `app BUNDLE_ID` for an application that asks for the grant itself and
+answers for it only while it runs, or nothing, and exits zero. It is optional by construction. A
+prober that predates it reads `--subject` as an unknown locator and exits nonzero, which the
+layer above takes as no subject, so an old prober stays valid. The subject belongs to the
+module, since only the module knows which program it runs, and a prober reads it from wherever
+the module already keeps it rather than writing it down again. The kanata prober asks launchd
+which program the daemon runs, and the Hammerspoon prober reads the bundle id from the
+module's own declaration of the application.
+
+`src/setup-grants.sh` is the step that uses both. It walks every grant the way the reconciler
+does, finding modules and their probers by name and skipping a module switched off here, and
+names no module. The mechanism lives in `src/lib/grants.sh`, so a module step that wants its own
+grants walked when it runs alone, as `setup-kanata.sh` does, calls the step with its module's
+name rather than carrying a second copy. With a terminal a required grant not given gets one
+line saying what to do, its pane opened once, its `file` subject revealed in Finder to drag in,
+and a wait of up to three minutes that polls the prober and ends on Enter. An `app` subject is
+opened when its prober cannot answer, since only the running application can. Without a
+terminal, and for every optional grant, nothing opens and the closing notes carry the map's
+sentence. `decisions/setup-grants.md` has why.
 
 The Hammerspoon module's prober answers by asking the running config, because only Hammerspoon
 can be asked about Hammerspoon. It is bounded, since the reply can go missing, and a setup step
@@ -429,6 +455,15 @@ cannot finish by itself.
 Restowing also clears links to files this repository used to have and no longer does, which is
 the other half of overriding an outdated machine. That was verified rather than assumed, both
 folded and unfolded.
+
+**One password, and every grant in one place.** With a terminal, `setup.sh` asks sudo for the
+password once before the first step and keeps the timestamp fresh in the background until the
+run ends, then drops it, so the command line tools, a cask whose installer asks, the kanata
+daemons and the IVPN repair ask nothing more. Near the end, after everything a grant applies to
+has been installed and started, `src/setup-grants.sh` takes the person to each grant still
+missing and waits for it, and a module step that would guide its own grants leaves them to it,
+which `MDJ_GRANTS_LATER` tells it. Without a terminal neither happens and a run behaves as it
+did. `decisions/setup-grants.md` has it.
 
 **Neovim is pinned, and the pin is now actually used.** `lazy-lock.json` names an exact commit
 per plugin, and `bootstrap-nvim.sh` used to run `Lazy! sync`, which is install, clean and

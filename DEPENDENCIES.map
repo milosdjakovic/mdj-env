@@ -17,7 +17,8 @@
 #   xcode-clt  ships with the Xcode command line tools, detail says how those arrive
 #   macos      ships with the operating system, detail says so and there is nothing to install
 #   manual     installed by hand, detail says how, for anything no package manager covers
-#   grant      a permission only a person can give, detail names the pane that gives it
+#   grant      a permission only a person can give, detail names the pane that gives it, and a
+#              fourth field holds that pane's address, which src/setup-grants.sh opens
 #
 # A declaration may also state its own origin, in the two trailing columns of a module's
 # generated manifest, and some do. A plugin built to travel to another machine has to carry
@@ -152,15 +153,20 @@ macshot       | manual    | the macshot cask, the preferred screenshot backend. 
 # it on every run, and it exits cleanly on a machine that does not have IVPN at all.
 ivpn          | manual    | the ivpn cask, wanted only on a machine that uses IVPN, and then src/setup-ivpn-permissions.sh to make its daemon able to start
 
-# Gates rather than tools. Nothing here can be installed, and no script can open one. A module
+# Gates rather than tools. Nothing here can be installed, and no script can give one. A module
 # declares a gate the way it declares a tool, the reconciler proves it the way it proves a tool,
 # and these lines say what a person has to do. Which is the whole point of moving them here,
 # since a gate that lives only in prose is one you find by watching a feature fail quietly.
-accessibility            | grant     | System Settings, Privacy and Security, Accessibility, turn Hammerspoon on
-location                 | grant     | System Settings, Privacy and Security, Location Services, turn Hammerspoon on
-kanata-driver-extension  | grant     | System Settings, General, Login Items and Extensions, Driver Extensions, turn on Karabiner DriverKit VirtualHIDDevice, which older macOS shows under Privacy and Security instead
-kanata-input-monitoring  | grant     | System Settings, Privacy and Security, Input Monitoring, add /Library/Application Support/mdj-env/bin/kanata, the root owned copy src/setup-kanata.sh makes, and turn it on, or off and on again after a new kanata binary
-kanata-accessibility     | grant     | System Settings, Privacy and Security, Accessibility, add /Library/Application Support/mdj-env/bin/kanata, the root owned copy src/setup-kanata.sh makes, and turn it on, or off and on again after a new kanata binary
+#
+# A grant row carries one more field than the rest, the address of its pane in System Settings,
+# so the grants step can open the exact list rather than describe it. Only grant rows have it,
+# and the reconciler reports a grant row without one and any other row with one. The addresses
+# are the anchors macOS 27's own settings extensions declare, and a moved pane is fixed here.
+accessibility            | grant     | System Settings, Privacy and Security, Accessibility, turn Hammerspoon on | x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility
+location                 | grant     | System Settings, Privacy and Security, Location Services, turn Hammerspoon on | x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices
+kanata-driver-extension  | grant     | System Settings, General, Login Items and Extensions, Extensions, Driver Extensions, turn on Karabiner DriverKit VirtualHIDDevice, which older macOS shows under Privacy and Security instead | x-apple.systempreferences:com.apple.LoginItems-Settings.extension?ExtensionItems
+kanata-input-monitoring  | grant     | System Settings, Privacy and Security, Input Monitoring, add /Library/Application Support/mdj-env/bin/kanata, the root owned copy src/setup-kanata.sh makes, and turn it on, or off and on again after a new kanata binary | x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent
+kanata-accessibility     | grant     | System Settings, Privacy and Security, Accessibility, add /Library/Application Support/mdj-env/bin/kanata, the root owned copy src/setup-kanata.sh makes, and turn it on, or off and on again after a new kanata binary | x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility
 obsidian-vaults          | manual    | open a vault in Obsidian once, which is what writes the registry this plugin reads
 
 # Tools a module's own tooling needs rather than its running configuration. A generated

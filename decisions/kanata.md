@@ -51,7 +51,9 @@ on only when kanata rejects it with the note `kanata was compiled to never allow
 Three grants are declared as gates and answered by `dotfiles/kanata/grants-probe`. The driver
 extension comes from `systemextensionsctl list`. Input Monitoring and Accessibility come from
 kanata's own log, since kanata 1.12 checks both at startup, in that order, and says what it
-found.
+found. A person is walked through all three by `src/setup-grants.sh`, which opens each pane from
+its address in `DEPENDENCIES.map` and shows the root owned binary in Finder, and
+`decisions/setup-grants.md` has that.
 
 ## Rejected
 
@@ -183,3 +185,13 @@ each time, and grabbed the keyboard at 10:42:15 once both grants were given, wit
 hand. The second run changed nothing and read all three grants as granted. Milos confirmed Caps
 Lock held with S, a Caps Lock tap toggling the light, Right Option with Left, and the brightness
 and volume keys. Starting at boot has not been watched yet, the next restart is that check.
+
+### 2026-10-23 11:13
+
+The grants moved to `src/setup-grants.sh`, which every module's grants now go through. The step no
+longer reads the driver pane from the `systemextensionsctl list` header, the decision recorded on
+2026-10-23 09:59, because that header is a sentence and can be printed but not opened. The pane is
+now the grant row's address in `DEPENDENCIES.map`, and the probe answers `--subject` with the
+binary launchd runs, so the person is shown the file to drag into Input Monitoring and
+Accessibility. Inside `setup.sh` this step leaves its grants to the grants step, and run alone it
+calls that step for kanata. `decisions/setup-grants.md` has the rest.

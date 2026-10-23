@@ -64,19 +64,24 @@ readable by anyone and listed in Console under Log Reports. The driver also keep
 
 ## What only a person can do
 
-Three grants, each declared as a gate in `DEPENDENCIES` and answered by `grants-probe`, and each
-said again through the setup run's closing notes when it is missing.
+Three grants, each declared as a gate in `DEPENDENCIES` and answered by `grants-probe`. With a
+terminal, `src/setup-grants.sh` opens the pane for each one missing, shows the binary in Finder
+for the two that need it added, and waits until the probe reads it as given. Inside `setup.sh`
+that step runs after this module's, and run alone this module's step calls it for kanata only.
+Without a terminal each missing grant is a closing note. The probe's `--subject` answer, the
+file to add, is read from launchd, so the binary's path stays written in `src/setup-kanata.sh`.
 
 - **The driver extension.** Approved once per driver install, in System Settings, General, Login
-  Items and Extensions, Driver Extensions on macOS 26 and 27. The step reads the pane from
-  `systemextensionsctl` itself, since Apple moves it. The probe reads `systemextensionsctl list`,
-  which needs no privilege.
+  Items and Extensions, Extensions, Driver Extensions on macOS 26 and 27. The pane's address is
+  the grant row's fourth field in `DEPENDENCIES.map`, which opens the Extensions section, and the
+  Driver Extensions row is one click inside it. The probe reads `systemextensionsctl list`, which
+  needs no privilege.
 - **Input Monitoring** for `/Library/Application Support/mdj-env/bin/kanata`, the root owned copy.
 - **Accessibility** for the same path. kanata 1.12 checks it right after Input Monitoring and
   refuses to open the keyboard without either. Its own source names a missing Accessibility grant
   as the usual cause of the not permitted error from `IOHIDDeviceOpen`, upstream issue 1211.
-  On macOS 27 the Privacy and Security page lists no Accessibility row, and the list is opened
-  directly with `open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"`.
+  On macOS 27 the Privacy and Security page lists no Accessibility row, so the list is opened
+  directly at its address, which is the grant row's fourth field in `DEPENDENCIES.map`.
 
 The probe answers the last two from kanata's own log, since asking from a terminal would answer
 about the terminal. Keyboard grabbed, or any later failure at the driver, means both were given.

@@ -30,6 +30,27 @@ set -uo pipefail
 
 CANNOT_ANSWER_HERE=2
 
+# The second question the contract allows, what a person has to act on for a grant. Both of
+# this module's grants belong to Hammerspoon itself, an application that asks for them on its
+# own and that macOS then lists, so nothing has to be added by hand. What the layer above does
+# need is the application to be running, since only the running config answers, so the subject
+# is the application and the layer above opens it when this cannot answer. Its bundle id is read
+# from this module's own declaration of the application, so it is written once.
+if [[ "${1:-}" == --subject ]]; then
+    case "${2:-}" in
+        accessibility|location)
+            here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+            app="$(awk -F'|' '/^[[:space:]]*#/ { next } { k = $2; gsub(/[[:space:]]/, "", k) } k == "app" { v = $3; gsub(/^[[:space:]]+|[[:space:]]+$/, "", v); print v; exit }' "$here/dependencies-module")"
+            [[ -n "$app" ]] && echo "app $app"
+            exit 0
+            ;;
+        *)
+            echo "grants-probe: '${2:-}' is not a grant this module knows how to answer for" >&2
+            exit 1
+            ;;
+    esac
+fi
+
 locator="${1:-}"
 if [[ -z "$locator" ]]; then
     echo "grants-probe: takes one locator, and was given none" >&2

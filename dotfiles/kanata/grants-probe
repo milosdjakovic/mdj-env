@@ -23,6 +23,28 @@ CANNOT_ANSWER_HERE=2
 KANATA_LABEL="mdj-env.kanata"
 DRIVER_BUNDLE="org.pqrs.Karabiner-DriverKit-VirtualHIDDevice"
 
+# The second question the contract allows, what a person has to act on for a grant. Input
+# Monitoring and Accessibility are given to the binary the daemon runs, which macOS does not
+# always list by itself, so the subject is that file, for the layer above to show in Finder and
+# the person to drag into the list. Its path is read from launchd, which has it from the plist
+# src/setup-kanata.sh wrote, so the path stays written in one place. The driver extension is
+# listed by macOS once it is installed, so it has no subject, and neither does a daemon that is
+# not loaded, since there is then no binary to point at yet.
+if [[ "${1:-}" == --subject ]]; then
+    case "${2:-}" in
+        driver-extension) exit 0 ;;
+        input-monitoring|accessibility)
+            program="$(launchctl print "system/$KANATA_LABEL" 2>/dev/null | awk -F' = ' '$1 ~ /^[[:space:]]*program$/ { print $2; exit }')"
+            [[ -n "$program" ]] && echo "file $program"
+            exit 0
+            ;;
+        *)
+            echo "grants-probe: '${2:-}' is not a grant this module knows how to answer for" >&2
+            exit 1
+            ;;
+    esac
+fi
+
 locator="${1:-}"
 if [[ -z "$locator" ]]; then
     echo "grants-probe: takes one locator, and was given none" >&2

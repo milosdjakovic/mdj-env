@@ -15,6 +15,10 @@ export MDJ_BACKUP_STAMP="$(date +%Y%m%d-%H%M%S)"
 # alone finds it unset and only says its line where it happens. src/lib/backup.sh has mdj_note.
 export MDJ_RUN_NOTES="$(mktemp -t mdj-env-notes)"
 
+# A step that would guide its own grants when run alone leaves them to the grants step near the
+# end of this run instead, so a person is walked through each grant once, in one place.
+export MDJ_GRANTS_LATER=1
+
 # Why a trap, when set -e is already doing the right thing.
 #
 # This script is a flat list of calls under set -e and that shape is correct. A step that fails
@@ -71,8 +75,45 @@ say_notes() {
     rm -f "$MDJ_RUN_NOTES"
 }
 
+# One password for the whole run. Several steps need root, the command line tools, a cask
+# whose installer asks, the kanata daemons and the IVPN repair, and each used to ask on its own,
+# minutes apart, so a run left alone stopped at the second prompt and waited for nobody. With a
+# terminal, sudo asks once before the first step, and a background loop refreshes the timestamp
+# until the run ends. Every later sudo in the run, a step's own or Homebrew's, then finds a
+# valid timestamp and asks nothing, which is the whole change. A step that checks with sudo -n
+# whether it may ask, as the kanata step and the command line tools step do, now goes ahead
+# where it would have asked, which is the run doing what it was always going to do, one prompt
+# earlier. Without a terminal nothing here runs, and every step behaves as it did.
+#
+# The timestamp is dropped when the run ends, so the terminal is not left holding root for
+# another five minutes on the strength of a password typed for setup.
+SUDO_HOLDER=""
+hold_sudo() {
+    [[ -t 0 ]] || return 0
+    echo "==> One password for the whole run"
+    if ! sudo -v; then
+        echo "    sudo took no password, so each step that needs root asks for itself."
+        echo ""
+        return 0
+    fi
+    ( while kill -0 "$$" 2>/dev/null; do sudo -n -v 2>/dev/null || exit 0; sleep 50; done ) &
+    SUDO_HOLDER=$!
+    echo "    Kept until this run ends, so no later step asks again."
+    echo ""
+}
+release_sudo() {
+    [[ -n "$SUDO_HOLDER" ]] || return 0
+    kill "$SUDO_HOLDER" 2>/dev/null
+    # Collected, so the shell does not print a notice that a job it started was terminated.
+    wait "$SUDO_HOLDER" 2>/dev/null
+    SUDO_HOLDER=""
+    sudo -k
+    return 0
+}
+
 on_exit() {
     local code=$?
+    release_sudo
     [[ $code -eq 0 ]] && return 0
     local remaining=$(( STEP_TOTAL - STEP_DONE - 1 ))
     [[ $remaining -lt 0 ]] && remaining=0
@@ -111,6 +152,8 @@ if [[ -z "${MDJ_SHADOWS:-}" && -t 0 ]]; then
     export MDJ_SHADOWS
     [[ -n "$MDJ_SHADOWS" ]] && echo ""
 fi
+
+hold_sudo
 
 # Make sure the command line tools carry an SDK for this macOS, before anything that compiles
 # or wants one. Homebrew refuses a formula without a bottle otherwise, so this runs first.
@@ -151,8 +194,8 @@ step "$SRC_DIR/setup-dev-defaults.sh"
 step_if hammerspoon on "$SRC_DIR/setup-capslock-hyper.sh"
 
 # Install the Karabiner driver kanata types through, at the version dotfiles/kanata/DRIVER pairs
-# with the installed kanata, and run both as launchd daemons. Asks for sudo, and says through the
-# closing notes what only a person can do, approving the driver and allowing kanata its grants.
+# with the installed kanata, and run both as launchd daemons. Needs root, which the run already
+# holds. Its grants are left to the grants step below, which is what MDJ_GRANTS_LATER says.
 step_if kanata on "$SRC_DIR/setup-kanata.sh"
 
 # Restore the file modes IVPN's daemon requires inside its own bundle, which the Homebrew
@@ -166,6 +209,14 @@ step "$SRC_DIR/setup-claude-settings.sh"
 
 # Register the herdr module's local plugin, which stow places but cannot register
 step_if herdr on "$SRC_DIR/setup-herdr-plugins.sh"
+
+# Every permission a module declares and macOS has not given yet. With a terminal each required
+# one is opened where it is given and waited for, a few minutes at most, with Enter to skip, and
+# what is still missing goes into the closing notes. Without one it only leaves those notes. It
+# runs after every step that installs or starts something a grant applies to, and before the
+# check below, so the check reads the grants as they now are. Run it alone with
+# src/setup-grants.sh, and decisions/setup-grants.md has the reasoning.
+step "$SRC_DIR/setup-grants.sh"
 
 # Reconcile what every module declares it needs against what this repo knows how to install
 # and what actually landed on the machine. It only reports, it never installs, so it runs
