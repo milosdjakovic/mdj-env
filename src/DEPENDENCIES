@@ -13,7 +13,7 @@ stow         | path   | stow                  | required | setup-stow-dotfiles.s
 git          | path   | git                   | required | install-ohmyzsh-plugins.sh, bootstrap-nvim.sh | cloning the framework and its plugins, and reading each installed plugin's revision to compare it against the lockfile
 duti         | path   | duti                  | required | set-dev-defaults.sh | setting the default application for development file types
 jq           | path   | jq                    | required | setup-claude-settings.sh, bootstrap-nvim.sh, install-homebrew-packages.sh, setup-kanata.sh | merging the status line key into the Claude settings without losing the others, reading the names and commits out of lazy-lock.json, reading which app each cask installs, and reading Homebrew's stable kanata for an upgrade
-curl         | system | /usr/bin/curl         | required | install-ohmyzsh.sh, setup-kanata.sh | fetching the upstream installer, and the Karabiner driver package
+curl         | system | /usr/bin/curl         | required | install-ohmyzsh.sh, install-claude-code.sh, setup-kanata.sh | fetching the upstream installers, and the Karabiner driver package
 herdr        | path   | herdr                 | optional | setup-herdr-plugins.sh | registering the local plugin that stow places but cannot register, the popups are nameless without it
 installer    | system | /usr/sbin/installer   | required | setup-kanata.sh | installing the Karabiner driver package, which no package manager here covers
 pkgutil      | system | /usr/sbin/pkgutil     | required | setup-kanata.sh | reading which driver version is installed and checking the package's notarization and developer team

@@ -35,6 +35,7 @@ MDJ_EDITOR="Visual Studio Code" ./setup.sh   # the editor step's answer, for a r
 ./src/install-homebrew-packages.sh
 ./src/install-ohmyzsh.sh
 ./src/install-ohmyzsh-plugins.sh
+./src/install-claude-code.sh
 ./src/install-mise-tools.sh
 ./src/install-tmux-plugins.sh
 ./src/setup-stow-dotfiles.sh
@@ -570,6 +571,11 @@ Configuration in `dotfiles/claude/.claude/` (stow managed):
 - `skills/` - Skills this repository ships, `/handoff` among them, which writes a prompt that
   carries a session into a fresh one. `decisions/claude-handoff.md` has it.
 - `statusline-command.sh` - Custom status line script
+
+Claude Code itself comes from Anthropic's native installer rather than the `claude-code` cask,
+because only that copy updates itself. `src/install-claude-code.sh` installs it from
+`setup.sh` on every machine, once, and the copy keeps itself current from then on.
+`decisions/claude-code-install.md` has it.
 
 `settings.json` is not tracked in the repo because Claude Code modifies it
 directly. Since it is not stowed, the keys that point at the stowed scripts cannot be

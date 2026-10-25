@@ -209,6 +209,9 @@ step "$SRC_DIR/install-ohmyzsh.sh"
 # Install oh-my-zsh plugins (autosuggestions, syntax highlighting, fzf-tab)
 step "$SRC_DIR/install-ohmyzsh-plugins.sh"
 
+# Install Claude Code from the native installer, which keeps itself updated
+step "$SRC_DIR/install-claude-code.sh"
+
 # Stow dotfiles to home directory
 step "$SRC_DIR/setup-stow-dotfiles.sh"
 

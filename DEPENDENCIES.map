@@ -83,6 +83,7 @@ font-meslo-lg-nerd-font  | cask | font-meslo-lg-nerd-font
 
 # Things no package manager here covers.
 oh-my-zsh                | manual    | installed by src/install-ohmyzsh.sh from the upstream installer
+claude                   | manual    | installed by src/install-claude-code.sh from Anthropic's native installer, which keeps itself updated. Not the claude-code cask, which never updates itself
 zsh-autosuggestions      | manual    | installed by src/install-ohmyzsh-plugins.sh
 fast-syntax-highlighting | manual    | installed by src/install-ohmyzsh-plugins.sh
 fzf-tab                  | manual    | installed by src/install-ohmyzsh-plugins.sh
