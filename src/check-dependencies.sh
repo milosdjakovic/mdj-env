@@ -168,6 +168,21 @@ done < <(records "$MAP")
 map_detail() { records "$MAP" | awk -F'|' -v n="$1" '$1 == n { print $3; exit }'; }
 map_origin() { records "$MAP" | awk -F'|' -v n="$1" '$1 == n { print $2; exit }'; }
 
+# Whether Homebrew has a package installed, read from the prefix Homebrew names rather than
+# asked with brew list. brew list refreshes Homebrew's package index first, and an account that
+# does not own the prefix cannot take the lock that needs, so on a Mac where Homebrew belongs to
+# another account every package read as absent. An installed formula has a link under opt, a
+# tap's formula under its own short name, and an installed cask a folder under Caskroom.
+# decisions/homebrew-owner.md has it.
+brew_has() {
+    local prefix
+    prefix="$(brew --prefix 2>/dev/null)" || return 1
+    case "$1" in
+        cask) [[ -d "$prefix/Caskroom/$2" ]] ;;
+        *)    [[ -e "$prefix/opt/${2##*/}" ]] ;;
+    esac
+}
+
 #-------------------------------------------------------------------------------
 # Check one, a declared tool with no entry in the install map
 #-------------------------------------------------------------------------------
@@ -523,7 +538,7 @@ for line in "${declared_lines[@]}"; do
         # map names. The locator stays in the manifest to document which file is loaded.
         package)
             detail="$(map_detail "$name")"
-            if [[ -z "$detail" ]]; then ok=0; else brew list "$detail" >/dev/null 2>&1 || ok=0; fi
+            if [[ -z "$detail" ]]; then ok=0; else brew_has "$(map_origin "$name")" "$detail" || ok=0; fi
             ;;
         *)      err "$name in $module declares unknown kind '$kind'" ;;
     esac

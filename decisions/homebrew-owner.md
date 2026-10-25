@@ -16,9 +16,10 @@ dies without returning leaves the note, and the next run adopts the loan and ret
 With no terminal and no sudo timestamp nothing can be borrowed, so the package step stops with
 a note, as it would have failed anyway.
 
-`check-dependencies.sh` run alone still asks Homebrew as the caller, so on such a machine it
-reports Homebrew packages as not installed when they are. Inside `setup.sh` it runs while the
-prefix is borrowed and reads correctly.
+`check-dependencies.sh` borrows nothing, since it only reads. It proves a `package` present by
+reading the prefix Homebrew names, a link under `opt` for a formula and a folder under
+`Caskroom` for a cask, rather than with `brew list`, which refreshes Homebrew's package index
+first and fails for an account that does not own the prefix.
 
 ## Rejected
 
@@ -66,3 +67,11 @@ Every path under `/opt/homebrew` belonged to jelenadjakovic again afterwards, th
 `~/.local/state/mdj-env/` was gone, and git, lazygit, libqalculate and mole, which the failed
 runs had never installed, were present. `check-dependencies.sh`, run inside that setup, reported
 no Homebrew package as missing.
+
+### 2026-10-25 07:01
+
+The gap the first entry left open is closed. `check-dependencies.sh` run alone reported
+font-meslo-lg-nerd-font, tpm and powerlevel10k as not installed on Jelenas-MacBook-Pro, all
+three present, because `brew list` failed on the index lock before answering. It now reads the
+prefix instead, and borrowing was not used for it, since a check that only reads has no reason
+to take another account's install over or to ask for a password.
