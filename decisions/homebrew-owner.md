@@ -58,3 +58,11 @@ the person typing. `src/lib/brew.sh` was rewritten as borrow and return, wired i
 inside one exit handler so the two cannot replace each other. Tested without a password, that
 bash runs the exit trap on Ctrl-C and that a nested step neither borrows nor returns. Not yet
 tested with a real chown.
+
+### 2026-10-25 06:53
+
+The first full `setup.sh` with the loan ran from a terminal on Jelenas-MacBook-Pro and finished.
+Every path under `/opt/homebrew` belonged to jelenadjakovic again afterwards, the note under
+`~/.local/state/mdj-env/` was gone, and git, lazygit, libqalculate and mole, which the failed
+runs had never installed, were present. `check-dependencies.sh`, run inside that setup, reported
+no Homebrew package as missing.
