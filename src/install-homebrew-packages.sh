@@ -41,6 +41,13 @@ export HOMEBREW_MDJ_MACHINE="$("$SCRIPT_DIR/machine.sh" name)"
 # adopted, and a rerun can never remove something it did not put there.
 # shellcheck source=lib/backup.sh
 source "$SCRIPT_DIR/lib/backup.sh"
+# shellcheck source=lib/brew.sh
+source "$SCRIPT_DIR/lib/brew.sh"
+
+# Homebrew owned by another account is borrowed for this step and returned when it ends, unless
+# setup.sh already holds the loan for the whole run. decisions/homebrew-owner.md has it.
+mdj_brew_borrow || { echo "Error: Homebrew belongs to another account and could not be borrowed"; exit 1; }
+trap mdj_brew_return EXIT
 
 # Every Brewfile cask Homebrew has not installed whose app already sits in an app directory,
 # one per line as the token, a tab, and the app. Without jq the artifacts cannot be read, so

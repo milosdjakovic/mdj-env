@@ -34,6 +34,17 @@ DRIVER_TABLE="$PACKAGE/DRIVER"
 
 # shellcheck source=lib/backup.sh
 source "$SCRIPT_DIR/lib/backup.sh"
+# Homebrew may belong to another account, and pinning and upgrading kanata write to it, so it is
+# borrowed for those and returned when the step ends. decisions/homebrew-owner.md has it.
+# shellcheck source=lib/brew.sh
+source "$SCRIPT_DIR/lib/brew.sh"
+# Pin kanata again however the step ends, once an upgrade has unpinned it, then return Homebrew.
+PIN_ON_EXIT=0
+kanata_exit() {
+    [[ $PIN_ON_EXIT -eq 1 ]] && { brew pin kanata 2>/dev/null || true; }
+    mdj_brew_return
+}
+trap kanata_exit EXIT
 
 # Where stow puts the config. The daemon reads it here, through the link into this checkout.
 CONFIG="$HOME/.config/kanata/kanata.kbd"
@@ -357,6 +368,13 @@ if ! source_bin >/dev/null; then
         "installs it. Run that, or ./setup.sh, and then this again."
 fi
 
+# Every brew call below that writes, the pin, the unpin and the upgrade, needs Homebrew to be
+# this account's, so a Homebrew owned by another account is borrowed here and returned on exit.
+if [[ $DRY_RUN -eq 0 ]] && ! mdj_brew_borrow; then
+    fail "Homebrew belongs to another account and could not be borrowed" \
+        "Run this from a terminal, where sudo can ask for your password."
+fi
+
 #-------------------------------------------------------------------------------
 # Upgrade, only when asked for, and only to a version DRIVER has a row for
 #-------------------------------------------------------------------------------
@@ -382,7 +400,7 @@ if [[ "$MODE" == upgrade ]]; then
         # Pinned again however this ends, so a failure below cannot leave a bulk upgrade free to
         # move kanata away from its driver.
         pinned && change brew unpin kanata
-        [[ $DRY_RUN -eq 0 ]] && trap 'brew pin kanata 2>/dev/null || true' EXIT
+        [[ $DRY_RUN -eq 0 ]] && PIN_ON_EXIT=1
         # The old version is kept, since the running daemon still runs it until the new one is
         # proven below. brew cleanup removes it later.
         change env HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew upgrade kanata
@@ -573,7 +591,7 @@ if pinned; then
 else
     change brew pin kanata
     if [[ $DRY_RUN -eq 0 ]]; then
-        trap - EXIT
+        PIN_ON_EXIT=0
         say "  kanata is pinned, only src/setup-kanata.sh --upgrade moves it"
     fi
 fi

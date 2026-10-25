@@ -34,6 +34,11 @@ export MDJ_BACKUP_STAMP="$(date +%Y%m%d-%H%M%S)"
 # alone finds it unset and only says its line where it happens. src/lib/backup.sh has mdj_note.
 export MDJ_RUN_NOTES="$(mktemp -t mdj-env-notes)"
 
+# shellcheck source=src/lib/backup.sh
+source "$SRC_DIR/lib/backup.sh"
+# shellcheck source=src/lib/brew.sh
+source "$SRC_DIR/lib/brew.sh"
+
 # A step that would guide its own grants when run alone leaves them to the grants step near the
 # end of this run instead, so a person is walked through each grant once, in one place.
 export MDJ_GRANTS_LATER=1
@@ -138,6 +143,8 @@ release_sudo() {
 
 on_exit() {
     local code=$?
+    # Before the password is dropped, since handing Homebrew back needs it.
+    mdj_brew_return
     release_sudo
     [[ $code -eq 0 ]] && return 0
     local remaining=$(( STEP_TOTAL - STEP_DONE - 1 ))
@@ -199,6 +206,12 @@ step "$SRC_DIR/install-xcode-clt.sh"
 
 # Install Homebrew package manager
 step "$SRC_DIR/install-homebrew.sh"
+
+# Homebrew that belongs to another account is borrowed for the whole run and returned when it
+# ends, however it ends, so every step installs as this account. A step run alone borrows for
+# itself. src/lib/brew.sh has the loan, and decisions/homebrew-owner.md the reasoning. A loan
+# that cannot be taken, with no terminal for the password, leaves the package step to fail.
+mdj_brew_borrow || true
 
 # Install packages from Brewfile
 step "$SRC_DIR/install-homebrew-packages.sh"

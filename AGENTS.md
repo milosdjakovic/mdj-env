@@ -468,6 +468,13 @@ type, rolls back and deletes the app it adopted, which is how a Docker.app was l
 `install-homebrew-packages.sh` skips any cask whose app is already on disk but not Homebrew's,
 and says so at the end. `decisions/homebrew-upgrades.md` has it.
 
+**Homebrew that belongs to another account is borrowed for the run.** On a Mac with more than
+one account, the account that did not install Homebrew cannot take even its download lock, so
+every install failed there. `setup.sh` takes the prefix over with `chown` after the Homebrew
+step and hands it back to its owner when the run ends, however it ends, through
+`src/lib/brew.sh`. A step run alone does the same for itself, and a run that died before handing
+back is repaired by the next one. `decisions/homebrew-owner.md` has it.
+
 **What a step asks of you is said again at the end.** An unfold owes one line, that the program
 writing into that directory has to be restarted, and printed where it happens that line sits at
 line twenty of a two hundred line run, which is how it was missed the one time a machine needed
