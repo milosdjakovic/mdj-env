@@ -1,2 +1,3 @@
-# Jelenas-MacBook-Pro, rows set by hand, not captured yet
-kanata         | on        # set by hand, asked for on 2026-10-25
+# Jelenas-MacBook-Pro, captured 2026-10-25
+tools          | none      # set by hand, capture found commands found for node,python,python3.11,python3.12,python3.13,ruby,uv
+kanata         | on        # kanata and the Karabiner driver extension active
