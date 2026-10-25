@@ -9,8 +9,9 @@ The claude module declares `claude` as required, since the module configures not
 runs that step on every machine. It installs once and then leaves the copy alone, since the
 native copy updates itself. The copy lives in `~/.local/share/claude/versions` behind a link at
 `~/.local/bin/claude`, and `setup-zshrc.sh` already puts `~/.local/bin` ahead of the Homebrew
-prefix on PATH. A leftover `claude-code` cask is reported through `mdj_note` and not removed,
-since removing it can need another account's password.
+prefix on PATH. A leftover `claude-code` cask is removed by the same step once the native copy
+is in place, borrowing Homebrew when another account owns it, as `homebrew-owner.md` says, and
+only reported through `mdj_note` when there is no terminal to borrow it from.
 
 ## Rejected
 
@@ -43,3 +44,10 @@ Milos wants Claude Code installed on every machine rather than chosen per machin
 out of the opt in extras. A Brewfile line is still wrong, since the only Homebrew copy is the
 cask that never updates, so `src/install-claude-code.sh` runs the native installer the way
 `install-ohmyzsh.sh` runs that framework's own, and `setup.sh` calls it before stow.
+
+### 2026-10-25 07:01
+
+The leftover cask was only reported, because removing it needed the owner's password. Setup now
+borrows Homebrew from its owner for the run, `homebrew-owner.md`, so that reason is gone and the
+step removes the cask itself. On Jelenas-MacBook-Pro it was still installed beside the native
+copy, which came first on PATH.

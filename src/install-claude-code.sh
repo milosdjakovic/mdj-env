@@ -23,8 +23,17 @@ else
 fi
 
 # A cask left over from before this step still sits on PATH behind the native copy and never
-# updates. It is not removed here, since this Homebrew prefix may belong to another account and
-# only a person can type that password.
-if command -v brew >/dev/null 2>&1 && brew list --cask claude-code >/dev/null 2>&1; then
-    mdj_note "The claude-code cask is still installed and no longer used. Remove it with brew uninstall --cask claude-code."
+# updates, so it goes once the native copy is in place. Homebrew is borrowed for that when it
+# belongs to another account, and when it cannot be, with no terminal for the password, the
+# cask stays and a note says so. decisions/claude-code-install.md has it.
+if command -v brew >/dev/null 2>&1 && [[ -x "$NATIVE" ]] && [[ -d "$(brew --prefix)/Caskroom/claude-code" ]]; then
+    # shellcheck source=lib/brew.sh
+    source "$SCRIPT_DIR/lib/brew.sh"
+    if mdj_brew_borrow; then
+        trap mdj_brew_return EXIT
+        echo "Removing the claude-code cask, which the native copy replaces"
+        brew uninstall --cask claude-code
+    else
+        mdj_note "The claude-code cask is still installed and no longer used, the next setup run from a terminal removes it."
+    fi
 fi
