@@ -93,6 +93,12 @@ its address in `DEPENDENCIES.map` and shows the root owned binary in Finder, and
   one note. The step itself says it when run by hand on such a machine, and
   `dotfiles/kanata/AGENTS.md` has the removal commands.
 
+- **A `DefaultKeyBinding.dict` binding Command and forward delete to delete to end of line.**
+  2026-10-26. Tried as a stowed package and removed the same hour. It adds a binding macOS never
+  had rather than restoring one, and stowed as a link it did not take effect in TextEdit or Notes,
+  which beeped, likely since both are sandboxed, though that was not confirmed. Control and K
+  already deletes to the end of the line.
+
 ## Log
 
 ### 2026-10-22 19:11
@@ -214,3 +220,17 @@ Still owed from that run, since nobody wrote them down. Whether the Input Monito
 the binary on its own or needed the plus button, whether the three pane addresses opened the
 right place, whether the driver needed a reboot, and whether kanata starts at boot.
 
+### 2026-10-26 01:36
+
+fn with Backspace typed a plain Backspace on Jelenas-MacBook-Pro once kanata held its keyboard.
+A Hammerspoon event log showed the key arriving as code 51 with the fn flag set, never as forward
+delete, and fn with Left arriving as Left rather than Home. macOS makes those translations in its
+Apple keyboard driver, and the virtual keyboard kanata types through is not an Apple keyboard, the
+same cause as the media row and kanata issue 975. The fn layer now sends `del` for Backspace and
+`home`, `end`, `pgup` and `pgdn` for the arrows. It was first blamed on the Olm input sources
+plugin's Globe tap, which takes only the Globe key press and was ruled out by the log.
+
+With the layer in, fn with Option and Backspace arrived as Option and forward delete and deleted
+the next word, and fn with Command and Backspace arrived as Command and forward delete, measured
+with the same log. That last one beeps, as it does from an Apple keyboard, since AppKit's
+`StandardKeyBinding.dict` binds nothing to it, so the layer matches stock macOS.
