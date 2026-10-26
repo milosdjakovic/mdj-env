@@ -402,7 +402,10 @@ no key, its `key`, `mods`, `leader`, `bindings`, `surface` and `aliases` each re
 only row of the person's. Since phase
 6 an app toggle is an action like any other, one per app, whose behaviour a style in
 `config/toggles.lua` may change without minting a second id. `fn` is refused on a held leader, which compares only the other four
-modifiers, the keypad plus is `pad+` and the main row plus `shift+=`. A named leader no chord uses
+modifiers, the keypad plus is `pad+` and the main row plus `shift+=`. A key `lib/keycodes.lua` calls
+standalone, the Globe key, may be named alone by both readers, a plugin's row and the person's chord,
+`readConfig` taking `standalone` from the root, and a global row with no leader that states no
+modifiers means none, since `hs.hotkey` binds one exact combination and the binder binds it so. A named leader no chord uses
 is a routine note. A keymap that fails to build keeps the roles' leaders and every leader a list
 key names in use, `keymap.fallbackLeaders`. Two of the
 person's own on one slot are a collision named by entry. An entry naming a plugin that exists and

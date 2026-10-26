@@ -1622,6 +1622,56 @@ do
   eq(movedModel.keysChord, "\u{2303}Y", "showKeys: a moved showKeys moves the key button's chord with it")
 end
 
+-- The Globe key, which lib/keycodes.lua calls standalone, read the same way from both sides. A
+-- plugin's row on it stating no modifiers means none, as the binder binds it, and the person's
+-- keymap may name it alone to move a binding onto it or to free it.
+do
+  local keycodes = assert(loadfile(here .. "../lib/keycodes.lua"))()
+  local keyTable = keycodes.new(KEYCODES)
+  local function readStandalone(config, standalone)
+    return keymap.readConfig(config, { leaders = SHIPPED, sources = SOURCES, allocate = KeyRemap.allocate,
+      roleWords = ROLE_WORDS, keycodes = keyTable, standalone = standalone })
+  end
+  local function buildGlobe(config)
+    local cfg = readStandalone(config, keycodes.standalone)
+    local result = keymap.build({
+      plan = { effective = {
+        inputs = { leader = "app", bindings = { { action = "cycle", key = "globe", leader = false } } },
+        vpn = { leader = "app", bindings = { { action = "open", key = "P" } } },
+      }, identity = {}, contexts = {}, order = { "inputs", "vpn" } },
+      roles = ROLES, keycodes = keyTable, standalone = keycodes.standalone,
+      shortcuts = { { name = "vpn", kind = "leader", fn = fn("vpn") } },
+      cycleRun = function() return fn("cycle") end,
+      personKeys = cfg.keys,
+    })
+    return result, cfg
+  end
+
+  local result = buildGlobe({})
+  local row = rowsOf(result, "inputs", "cycle")[1]
+  eq(row and row.anyMods, false, "globe: a plugin's row with no leader and no mods is no catch all")
+  eq(row and #row.mods, 0, "globe: it demands no modifier, as the binder binds it")
+  eq(chordsOf(result, "inputs", "cycle"), "globe", "globe: and reads as the bare key")
+
+  local cfg = readStandalone({ keys = { globe = "vpn.open" } }, keycodes.standalone)
+  eq(#cfg.problems, 0, "globe: the person's keymap reads the Globe key alone")
+  eq(cfg.keys[1] and #cfg.keys[1].mods, 0, "globe: as a chord of no modifier")
+  local refused = readStandalone({ keys = { globe = "vpn.open" } }, nil)
+  eq(has(whys(refused.problems), "neither a leader nor a modifier"), true,
+    "globe: with no standalone answer it is refused as before")
+  local typing = readStandalone({ keys = { a = "vpn.open" } }, keycodes.standalone)
+  eq(has(whys(typing.problems), "neither a leader nor a modifier"), true, "globe: a typing key alone is still refused")
+
+  local moved = buildGlobe({ keys = { globe = "vpn.open" } })
+  eq(#moved.problems, 0, "globe: moving an action onto the Globe key is no problem")
+  eq(chordsOf(moved, "vpn", "open"), "globe", "globe: the person's action takes the key")
+  eq(chordsOf(moved, "inputs", "cycle"), "", "globe: and the plugin's default there is dropped")
+
+  local freed = buildGlobe({ keys = { globe = false } })
+  eq(#freed.problems, 0, "globe: freeing the Globe key is no problem")
+  eq(chordsOf(freed, "inputs", "cycle"), "", "globe: the plugin's row there is dropped")
+end
+
 if failures > 0 then
   print(string.format("keymap person, %d check(s), %d failure(s)", checks, failures))
   os.exit(1)

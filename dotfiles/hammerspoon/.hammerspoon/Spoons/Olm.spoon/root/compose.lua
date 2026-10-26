@@ -284,6 +284,7 @@ function obj.run(olm, cfg)
     allocate = keyRemapAtom.allocate,
     roleWords = { "app", "window", keymapLib.LIST_ROLE },
     keycodes = keyTable,
+    standalone = keycodesLib.standalone,
   })
   local keymapProblems = {}
   for _, problem in ipairs(keymapConfig.problems) do keymapProblems[#keymapProblems + 1] = problem end

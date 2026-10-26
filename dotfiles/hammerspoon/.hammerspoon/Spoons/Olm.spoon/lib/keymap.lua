@@ -253,7 +253,7 @@ local function splitPlus(text)
   end
 end
 
---- obj.parseChord(text, leaders, keycodes) -> chord or nil, why
+--- obj.parseChord(text, leaders, keycodes, allowBare, standalone) -> chord or nil, why
 --- One chord as the person writes it, a leader or modifiers joined by a plus and the key last.
 --- leaders maps every leader name a chord may open with, lowercased, to true for a held leader or
 --- to the list of modifiers a named leader holds. A chord ending in pad+ names the keypad plus key,
@@ -269,7 +269,11 @@ end
 --- With allowBare true a chord of a key alone is read too, leader and modifiers both absent and the
 --- modifiers an empty list, which only a list chord asks for, since a list's own field decides
 --- whether a bare key is one it can answer without typing it.
-function obj.parseChord(text, leaders, keycodes, allowBare)
+---
+--- standalone is lib/keycodes.lua's answer to whether a key is one no app reads as typing, the
+--- Globe key. Such a key alone is read as a chord of no modifier, the same rule placeOfRow keeps
+--- for a plugin's row, so a person may move a binding onto it or free it like any other chord.
+function obj.parseChord(text, leaders, keycodes, allowBare, standalone)
   if type(text) ~= "string" or text == "" then return nil, "is not a chord" end
   local parts, key
   local lower = text:lower()
@@ -300,7 +304,7 @@ function obj.parseChord(text, leaders, keycodes, allowBare)
       return nil, "names '" .. part .. "', which is neither a leader nor a modifier"
     end
   end
-  if not leader and #mods == 0 and not allowBare then
+  if not leader and #mods == 0 and not allowBare and not (standalone and standalone(key)) then
     return nil, "has neither a leader nor a modifier, and a bare key would be taken from every app"
   end
   local base = leader and leaders[leader]
@@ -397,6 +401,8 @@ end
 ---                   so the leaders returned are the ones it could place. Nil skips the check.
 ---   opts.roleWords  the role words a default may name, app and window.
 ---   opts.keycodes   the keycode table a key is spelled with, or nil.
+---   opts.standalone function answering whether a key is one no app reads as typing, which a
+---                   chord may name alone, lib/keycodes.lua's standalone, or nil to allow none.
 ---
 --- leaders is every leader in use, shipped and named, as a list of { name, key or mods or both,
 --- remapTo, policy, shipped }, the held ones first and then the modifier ones, each sorted by name.
@@ -667,7 +673,7 @@ function obj.readConfig(config, opts)
     if value ~= false and type(value) ~= "string" then
       problem(where, "answers a " .. type(value) .. ", where a chord takes an action id such as vpn.open, or false to free it, so the entry is ignored")
     else
-      local chord, why = obj.parseChord(text, chordLeaders, opts.keycodes)
+      local chord, why = obj.parseChord(text, chordLeaders, opts.keycodes, false, opts.standalone)
       if not chord then
         problem(where, why .. ", so the entry is ignored")
       else

@@ -14,6 +14,8 @@
 --   compared without case. fn is refused on a held leader, which compares only the other
 --   four, and stays legal in a chord of modifiers alone or on a leader of modifiers. The plus on the
 --   main row is written as its unshifted key, shift+=, and the keypad plus is pad+, hyper+pad+.
+--   The Globe key, a tap of fn alone, is written globe and is the one key a chord may name with
+--   neither a leader nor a modifier, since no app reads it as typing. globe = false frees it.
 --   An action is the plugin or host identity, a dot and the action name, vpn.open,
 --   windowmanager.leftHalf, clipboard.appendCopy, apptoggler.Safari for an app in
 --   config/apps.lua, whose style config/toggles.lua may set,

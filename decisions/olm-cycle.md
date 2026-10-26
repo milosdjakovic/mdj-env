@@ -1,7 +1,8 @@
 # Olm cycle, a list stepped by one repeated key
 
-Status. Built on `olm-inputsources` on 2026-10-26 and live under the test lock, waiting for
-Milos's verdict on the feel. Input Sources is the first and only list that declares it.
+Status. On main since 2026-10-26, and the Globe key rule for the person's own keymap merged on
+2026-10-28, when Milos closed the trial under the test lock with the live questions in the Now
+section still unanswered. Input Sources is the first and only list that declares it.
 
 ## Now
 
@@ -22,7 +23,9 @@ searched as before, so how a list is shown follows the door and is never a plugi
 posture is `setPosture` on the default provider, applied by the stage through the same hide and
 reshow a row count change takes. The Globe key, code 179, which macOS posts for a tap of fn, is
 named `globe` by `lib/keycodes.lua`, the key table every reader of a key name now uses, and is the
-one standalone key, which a row may bind with neither a leader nor a modifier. The plain leader
+one standalone key, which a row may bind with neither a leader nor a modifier. A row with no
+leader that states no modifiers means none, never a catch all, and the person's keymap may name
+`globe` alone, so `config/keymap.lua` can move a binding onto the Globe key or free it. The plain leader
 claims it as an `hs.hotkey` by code. With the plugin switched off nothing binds it and macOS
 answers a tap of fn with its own Globe key setting.
 
@@ -69,3 +72,31 @@ Globe key with no leader, a typing key bound bare still refused, and a cycle row
 with no presentation refused by name. Whether a typed key lands in the new layout every time, and
 whether 50 milliseconds is enough for the app underneath to take focus back, is owed from the live
 trial.
+
+### 2026-10-26 17:47
+
+The standalone rule had reached only one of the keymap's two readers. The plugin row reader let
+a row bind the Globe key bare, but the row it built stated no modifiers and the keymap read that
+as a catch all, while the binder bound it with an empty list, the only shape `hs.hotkey` has. So
+the keymap and the binder described one key two ways, which the offline goldens showed as a
+`hotkey globe` line with no owner, and the keys page would have called it a chord with any
+modifiers. The person's reader, `parseChord`, had no standalone rule at all, so `config/keymap.lua`
+could neither move a binding onto the Globe key nor free it, which a plugin's manifest could do.
+Both were fixed in `lib/keymap.lua`. A global row with no leader that states no modifiers means
+none, and `readConfig` takes `standalone` from the root, `lib/keycodes.lua`'s answer, and hands it
+to `parseChord`. The plugin's manifest did not change. Rejected on the way, correcting only the
+test projection, which would have left the keymap wrong for every other reader, and writing an
+empty modifier list into the manifest, which would have made a plugin know a quirk of the core.
+`test/keymap-person.lua` pins both rules, and the goldens were refreshed for the Input Sources rows
+and the category moves of the same day, which had not been written into them.
+
+### 2026-10-28 10:29
+
+The branch carrying the entry above was rebased onto main to merge. Its first half had already
+landed there by another route, a85fb348, which clears the catch all for a global row with no
+leader in the same place, so the rebase kept main's version and dropped this branch's. Its second
+half, `parseChord` and `readConfig` taking `standalone` so `config/keymap.lua` may bind or free
+the Globe key, was not on main and merged as written. Its goldens commit had become empty, since
+main had already refreshed the same goldens. Milos ended the manual hold the trial was running
+under and asked for the work merged, without a verdict on the feel, so whether a key typed during
+a cycle lands in the new layout every time and whether 50 milliseconds is enough stay owed.
