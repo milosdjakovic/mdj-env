@@ -266,7 +266,7 @@ return {
   -- would not merely be dead weight, it would silently drop three bound keys with nothing in
   -- the console naming why.
   registry = {
-    row = { category = "System", detail = "stops a dev server, container, or watcher",
+    row = { category = "Tools", detail = "stops a dev server, container, or watcher",
       icon = "processes", keywords = "dev server, port, kill process, node, docker, container" },
     open = { member = "chooser.show", call = "dot" },
     surface = "chooser",

@@ -141,7 +141,7 @@ return {
   -- buys nothing. M.show asks cfg.stagePresent for the shared stage the identical way
   -- DisplayProfiles' own launcher only entry does.
   registry = {
-    row = { category = "System", icon = "settings",
+    row = { category = "Olm", icon = "settings",
       detail = "where the OLM launcher appears, the colour theme and other preferences",
       keywords = "preferences, options, placement, theme, colour, color, appearance" },
     open = { member = "show", call = "dot" },
