@@ -75,6 +75,15 @@
 --- hit test and the panel's rect, and knows no keymap and no plugin. A consumer handing none gets
 --- no bar and no change to its rows, so the provider stays usable alone.
 ---
+--- The bare posture. setPosture("bare") draws the list alone, no field over it and no action
+--- bar under it, the list's own margin on every side and no peek of a further row, so a list
+--- shown this way is exactly as tall as its rows. The field's tap still runs, since the list's
+--- own keys are still read, the arrows, Return, keypad Enter and Escape, and so are the list keys
+--- a person bound. It draws no row numbers, so Command and a digit is not read there. Every other key down is handed to config.onBareKey
+--- and never typed, since a bare list has no field to type into, and a key it answers true for
+--- is claimed. The posture is the caller's to set, the stage sets it from how a list was opened,
+--- and it takes effect on the next show, like setRows. "full" is everything this file draws.
+---
 --- M.configure(opts) takes opts.panel, the CanvasPanel module, and opts.ui, the UI kit,
 --- both injected here rather than loaded by path, since lib/panel.lua holds the shared
 --- surface style and lib/ui the shared style the composition root configures exactly
@@ -373,7 +382,7 @@ end
 -- tokens, the names list render reads off a layout, since geometry.lua holds no type.
 function Provider:_updateDrawLayout()
   local L = {}
-  for k, v in pairs(self.layout) do L[k] = v end
+  for k, v in pairs(self:_shapedLayout()) do L[k] = v end
   -- The viewport holds the whole rows and the peek of one more, so the model scrolls and the
   -- renderer clips to that height. A fractional count is fine for both, they work in points.
   L.rowCount = self._rects.viewRows or self._rects.rowCount
@@ -381,6 +390,23 @@ function Provider:_updateDrawLayout()
   L.padBottom = self.layout.marginY
   for k, v in pairs(self._type) do L[k] = v end
   self._drawLayout = L
+end
+
+-- The layout geometry.resolve is handed, the layout itself in the full posture and a copy in
+-- the bare one, with the field's height down to the list's own margin, so the rows sit the same
+-- distance from the top edge as from the bottom, and with no action bar and no peek, since a
+-- list shown bare is as tall as its rows and has nothing below them to hint at. It draws no row
+-- numbers either, since a bare list is stepped by its own key and Command and a digit is not read
+-- there, see listReads.
+function Provider:_shapedLayout()
+  if not self._bare then return self.layout end
+  local L = {}
+  for k, v in pairs(self.layout) do L[k] = v end
+  L.baseH = self.layout.marginY
+  L.footerH = 0
+  L.peek = 0
+  L.showRowNumbers = false
+  return L
 end
 
 --------------------------------------------------------------------------------
@@ -507,9 +533,11 @@ function Provider:_redraw()
   local fieldRect = toLocal(self._rects.field, origin)
   local listRect = toLocal(self._rects.list, origin)
   local els = {}
-  local fieldState = self.field:getState()
-  for _, el in ipairs(fieldRender.elements(fieldState, fieldRect, self._fieldStyle, self._caretVisible, self._placeholder)) do
-    els[#els + 1] = el
+  if not self._bare then
+    local fieldState = self.field:getState()
+    for _, el in ipairs(fieldRender.elements(fieldState, fieldRect, self._fieldStyle, self._caretVisible, self._placeholder)) do
+      els[#els + 1] = el
+    end
   end
   -- The band is cut at the inside of the border, so a row scrolled past the bottom stops at
   -- the edge of the surface and never draws over the border line.
@@ -538,7 +566,7 @@ end
 -- only as answering lib/hints.lua's footerModel shape, so no keymap and no plugin is named here.
 -- Without one there is no model and no bar.
 function Provider:_refreshFooter()
-  if not self.config.footer then
+  if not self.config.footer or self._bare then
     self._footerModel = nil
     return false
   end
@@ -553,7 +581,7 @@ end
 -- collected before it fires nor outlive the open. Nothing to poll without a collaborator.
 function Provider:_startFooterPoll()
   self:_stopFooterPoll()
-  if not self.config.footer then return end
+  if not self.config.footer or self._bare then return end
   self._footerTimer = hs.timer.doEvery(FOOTER_POLL_INTERVAL, function()
     if self.active and self:_refreshFooter() then self:_redraw() end
   end)
@@ -615,7 +643,7 @@ end
 -- its own first line once active is already false. Returning here whenever active is
 -- false is what keeps a blink timer from ever starting outside an open at all.
 function Provider:_restartBlink()
-  if not self.active then return end
+  if not self.active or self._bare then return end
   self._caretVisible = true
   if self._blinkTimer then self._blinkTimer:stop() end
   self._blinkTimer = hs.timer.doEvery(BLINK_INTERVAL, function()
@@ -1018,7 +1046,7 @@ function Provider:show()
   local screen = self:_resolveScreen()
   self._targetScreen = screen
   local sf = screen:frame()
-  self._rects = geometry.resolve(sf, self.layout, self._paneWidth)
+  self._rects = geometry.resolve(sf, self:_shapedLayout(), self._paneWidth)
   self:_updateDrawLayout()
   self.surface:setFrame(self._rects.canvas)
 
@@ -1270,7 +1298,7 @@ function Provider:textBudget()
   if not self._textBudget then
     local screen = self._targetScreen or self:_resolveScreen()
     local sf = screen:frame()
-    local rects = geometry.resolve(sf, self.layout, self._paneWidth)
+    local rects = geometry.resolve(sf, self:_shapedLayout(), self._paneWidth)
     self._textBudget = geometry.textBudget(rects, self.layout)
   end
   return self._textBudget
@@ -1304,7 +1332,7 @@ function Provider:reposition(paneWidth)
   if not self.active then return nil end
   local screen = self._targetScreen or self:_resolveScreen()
   local sf = screen:frame()
-  self._rects = geometry.resolve(sf, self.layout, paneWidth)
+  self._rects = geometry.resolve(sf, self:_shapedLayout(), paneWidth)
   self:_updateDrawLayout()
   self.surface:setFrame(self._rects.canvas)
   self:_redraw()
@@ -1352,6 +1380,20 @@ function Provider:setPaneWidth(w)
   self._paneWidth = w
 end
 
+--- Provider colon setPosture, arity one. "bare" draws the list alone and hands every key the list
+--- does not read to config.onBareKey, "full" draws the field and the action bar as well, and
+--- anything else is read as full. Like setRows it takes effect on the next show, so a caller
+--- changing it over a list already up hides and shows again, the stage's own resize path.
+function Provider:setPosture(word)
+  self._bare = word == "bare"
+  self._textBudget = nil
+end
+
+--- Provider colon posture, arity zero. "bare" or "full".
+function Provider:posture()
+  return self._bare and "bare" or "full"
+end
+
 --------------------------------------------------------------------------------
 -- Wiring, called once at construction
 --------------------------------------------------------------------------------
@@ -1368,6 +1410,16 @@ local function buildMouse(self)
     end,
     onScroll = function(point, dy, continuous) return self:_onMouseScroll(point, dy, continuous) end,
   })
+end
+
+-- Whether a key down is one a bare list reads, the vertical arrows, Return and keypad Enter, which
+-- _onFieldKey answers. Escape is answered by the field before it is ever asked. Command and a digit
+-- is not one, since a bare list draws no row numbers to choose by, so it is typing like every
+-- other key, which a bare list hands on rather than reads.
+local function listReads(ev)
+  local code = ev:getKeyCode()
+  if code == KEYCODE_UP or code == KEYCODE_DOWN then return true end
+  return code == KEYCODE_RETURN or code == KEYCODE_KEYPAD_ENTER
 end
 
 -- Builds the field, wiring every one of its four callbacks to this instance's own
@@ -1408,7 +1460,14 @@ local function buildField(self)
       -- Whether the key panel was up before the key, so a key that opened it, the person's own
       -- showKeys chord on the field, is not taken as a key that acted and closes it again.
       local keysWereOpen = self._keysOpen
-      if LIST_KEYS == nil or LIST_KEYS(ev) ~= true then return false end
+      if LIST_KEYS == nil or LIST_KEYS(ev) ~= true then
+        -- A bare list has no field to type into, so a key the list does not read goes to the
+        -- consumer, the stage, which claims it or lets the field swallow it as before.
+        if self._bare and not listReads(ev) and self.config.onBareKey then
+          return safeCall(self.config.onBareKey, ev) == true
+        end
+        return false
+      end
       if self.config.onActivity then safeCall(self.config.onActivity) end
       if keysWereOpen then self:_closeKeys() end
       return true

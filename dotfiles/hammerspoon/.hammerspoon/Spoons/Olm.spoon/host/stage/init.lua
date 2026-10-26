@@ -100,6 +100,23 @@
 --- atom's own separate onSelect hook would otherwise run it again the moment intercept has
 --- answered false and the row is let through for real.
 
+--- Cycle, the second way a list is shown, beside present. cycle(p, { keyCode }) is what a tool's
+--- cycle key calls, through the keymap, the way its open key calls present. The first press shows
+--- p bare, the provider's list alone with no field and no action bar, with the highlight one row
+--- down, since a list a person cycles is ordered by recent use and row one is where they already
+--- are, the way Command and Tab lands on the app used before. Each further press of the same key
+--- steps the highlight down one row, wrapping at the end. The list then completes by itself on
+--- the highlighted row a moment after the last press, through the presentation's own onSelect,
+--- the same completion Return gives. Moving the highlight by hand, an arrow or the pointer, stops
+--- that, and the list waits for Return or Escape. Any other key completes the list on the
+--- highlighted row and is typed again into the app underneath once the list is gone, since a bare
+--- list has nothing to type into and the person was already typing. The same presentation shown
+--- through present, from its open key, the launcher row or its alias, is the full list as before,
+--- so a plugin declares one list and the door it came through decides how it is shown.
+---
+--- The highlight belongs to the person, and the stage moving it here is not a plugin moving it,
+--- it is the person's own repeated key, the one exception the core makes and the only place.
+
 local obj = {}
 obj.__index = obj
 
@@ -127,6 +144,15 @@ local SELF_BUNDLE = hs.processInfo and hs.processInfo.bundleID
 -- damage a value that can actually render would risk again.
 local CONSTRUCTION_PLACEHOLDER = ""
 
+-- How long a cycled list waits after the last press of its key before it completes by itself.
+-- 0.8 seconds, settled by trying 1.2, 0.6, 0.35 and 0.5 on 2026-10-25, the shorter ones closing
+-- before a second tap could land.
+local CYCLE_IDLE = 0.8
+
+-- How long after a cycled list closes on a typed key that key is typed again, so the app the list
+-- covered has taken focus back by the time it arrives.
+local RETYPE_DELAY = 0.05
+
 -- Injected via configure
 obj._chooser = nil          -- the Chooser factory (has .new), the one door this host builds through
 obj._theme = nil
@@ -153,6 +179,10 @@ obj._enterGen = 0            -- bumped by every present, push, hide, and pop, co
                               -- stage is still waiting on it or has since moved on, see _bumpEnterGen
 obj._closedObservers = nil   -- functions told once each time the stage goes away, see onClosed
 obj._highlighted = nil       -- the item last reported highlighted, what a level's labels are asked of
+obj._cycle = nil             -- the cycle in progress, its presentation and the keycode of its key, see cycle
+obj._cycleNext = nil         -- the cycle the present cycle is about to run, taken by _takeCycle
+obj._cycleTimer = nil        -- held so the idle completion cannot be collected before it fires
+obj._retypeTimer = nil       -- held the same way, the typed key's second arrival
 obj._selectHandled = false   -- contract v3, set true the instant _intercept has already run the
                               -- current presentation's own onSelect and found no child, so the
                               -- atom's own separate call to config.onSelect a moment later, once
@@ -265,6 +295,8 @@ function obj:configure(opts)
     -- pane hook hears the same frames whichever of the two placed the window.
     onPositioned = function(chooserFrame, companionFrame) self:_onPositioned(chooserFrame, companionFrame) end,
     onClose = function() self:_onClose() end,
+    -- A key typed over a list shown bare, which a cycle answers, see _onBareKey.
+    onBareKey = function(ev) return self:_onBareKey(ev) end,
     -- The action bar's model, asked by the instance on its own schedule. A provider that draws
     -- no bar never asks.
     footer = self._footer,
@@ -490,7 +522,8 @@ function obj:_show(p, wasShowing, outgoing)
   -- cycle itself when it is needed and answers whether it did, since a window it already
   -- reshowed for a resize must not also run the ordinary swap or cold show path just below on
   -- top of that.
-  local resized = self:_applyRowCount(p)
+  local reshaped = self:_applyPosture(self._cycle and self._cycle.p == p and "bare" or "full")
+  local resized = self:_applyRowCount(p) or reshaped
   local cold = resized or not wasShowing
   -- Adversarial review finding H2. present already tells a genuinely discarded outgoing
   -- level its own onClose through _freshStack, and this still runs for it too, since
@@ -558,7 +591,19 @@ end
 -- launcher and every presentation alike, with nothing anywhere saying why. Nothing found in
 -- that path is known to raise today, the cost of guarding it anyway is one pcall.
 function obj:_applyRowCount(p)
-  local desired = p.rowCount or self._defaultRowCount
+  local desired = p.rowCount
+  -- A presentation whose height follows its own list answers a function, asked here on every
+  -- show and clamped to the default, which stays the ceiling. A bad answer or a raise falls
+  -- back to the default rather than reaching the atom's arithmetic.
+  if type(desired) == "function" then
+    local ok, n = pcall(desired)
+    if ok and type(n) == "number" and n >= 1 then
+      desired = math.min(math.floor(n), self._defaultRowCount)
+    else
+      desired = nil
+    end
+  end
+  desired = desired or self._defaultRowCount
   if desired == self._rowCount then return false end
   self._rowCount = desired
   if not self._instance:isShowing() then
@@ -572,6 +617,27 @@ function obj:_applyRowCount(p)
     log.w(string.format("Stage's own resize hide raised, %s, continuing to setRows and show regardless", tostring(err)))
   end
   self._instance:setRows(desired)
+  return true
+end
+
+-- Applies the posture a list is shown in, bare for a cycle and full for everything else, the
+-- same way _applyRowCount applies a row count. A provider that knows no posture, the legacy one,
+-- is left as it is. Over a window already up a change takes the same hide and reshow, held shut
+-- by _suppressClose, and answers true so _show runs the cold show that follows it.
+function obj:_applyPosture(word)
+  local instance = self._instance
+  if type(instance.setPosture) ~= "function" or instance:posture() == word then return false end
+  if not instance:isShowing() then
+    instance:setPosture(word)
+    return false
+  end
+  self._suppressClose = true
+  local ok, err = pcall(function() instance:hide() end)
+  self._suppressClose = false
+  if not ok then
+    log.w(string.format("Stage's own posture hide raised, %s, continuing to show regardless", tostring(err)))
+  end
+  instance:setPosture(word)
   return true
 end
 
@@ -699,6 +765,7 @@ function obj:present(p)
     return false
   end
 
+  self:_takeCycle()
   local myGen = self:_bumpEnterGen()
   local function finish()
     local wasShowing = self._instance:isShowing()
@@ -762,6 +829,7 @@ function obj:push(p)
     return false
   end
 
+  self:_takeCycle()
   local myGen = self:_bumpEnterGen()
   local function finish()
     local wasShowing = self._instance:isShowing()
@@ -800,6 +868,103 @@ function obj:push(p)
   return true
 end
 
+--- Stage:cycle(p, opts) -> bool
+--- Method
+--- The cycle door, see the header. opts.keyCode is the code of the key that called it, so a press
+--- of that key while the list is up steps rather than completing it. A first press shows p bare
+--- as a fresh stack and steps once, a press while p is the cycle on screen steps again, and every
+--- press arms the idle completion afresh. A presentation that defers through enter cannot be
+--- stepped before it shows, so it is presented in full instead, as its open key would.
+function obj:cycle(p, opts)
+  if not isPresentation(p) then
+    log.w("Stage cycle was given something that is not a presentation, name, rows, and onSelect are all required, refusing")
+    return false
+  end
+  if not self._instance then
+    log.w(string.format("Stage cycle for '%s' arrived with no instance built, refusing", p.name))
+    return false
+  end
+  local c = self._cycle
+  if c and c.p == p and self:_current() == p and self._instance:isShowing() then
+    self:_stepCycle()
+    return true
+  end
+  if p.enter then return self:present(p) end
+  self._cycleNext = { p = p, keyCode = (opts or {}).keyCode }
+  self:present(p)
+  self:_stepCycle()
+  return true
+end
+
+-- Every door but cycle ends any cycle in progress, and cycle hands its own over through
+-- _cycleNext, so the present it calls is the one door that starts one.
+function obj:_takeCycle()
+  local nextCycle = self._cycleNext
+  self._cycleNext = nil
+  self:_disarmCycle()
+  self._cycle = nextCycle
+end
+
+function obj:_endCycle()
+  self._cycleNext = nil
+  self:_disarmCycle()
+  self._cycle = nil
+end
+
+function obj:_disarmCycle()
+  if self._cycleTimer then
+    self._cycleTimer:stop()
+    self._cycleTimer = nil
+  end
+end
+
+-- One row down, wrapping, through the provider's own move, marked as the cycle's so _onHighlight
+-- does not take it for the person's, then the idle completion armed afresh.
+function obj:_stepCycle()
+  local c = self._cycle
+  if not c then return end
+  c.stepping = true
+  local ok, err = pcall(function() self._instance:selectNext() end)
+  c.stepping = false
+  if not ok then log.e("Stage cycle could not step, " .. tostring(err)) end
+  self:_disarmCycle()
+  self._cycleTimer = hs.timer.doAfter(CYCLE_IDLE, function()
+    self._cycleTimer = nil
+    if self._cycle == c and self:_current() == c.p and self._instance:isShowing() then
+      self._instance:insertSelected()
+    end
+  end)
+end
+
+-- A key down over a list shown bare that the list itself does not read. The cycle's own key steps.
+-- Any other key completes the list on the highlighted row and is posted again once the list is
+-- gone, built afresh after the completion rather than let through, since the press already
+-- carries the characters of whatever the completion may have changed, a keyboard layout among
+-- them, and its own key up arrives as it would. Answers true, the key claimed, while a cycle runs.
+function obj:_onBareKey(ev)
+  local c = self._cycle
+  if not c then return false end
+  local code = ev:getKeyCode()
+  if code == c.keyCode then
+    self:_stepCycle()
+    return true
+  end
+  local mods = {}
+  for flag, on in pairs(ev:getFlags() or {}) do
+    if on and flag ~= "fn" then mods[#mods + 1] = flag end
+  end
+  self:_disarmCycle()
+  self._instance:insertSelected()
+  if self._retypeTimer then self._retypeTimer:stop() end
+  self._retypeTimer = hs.timer.doAfter(RETYPE_DELAY, function()
+    self._retypeTimer = nil
+    -- A completion that answered a child keeps the window up, and the key is not typed into it.
+    if self:isShowing() then return end
+    hs.eventtap.event.newKeyEvent(mods, code, true):post()
+  end)
+  return true
+end
+
 --- Stage:pop() -> bool
 --- Method
 --- Back one presentation, restoring the one below with an empty query and the highlight at
@@ -825,6 +990,7 @@ end
 --- drops itself rather than showing a presentation Backspace has since stepped away from.
 function obj:pop()
   if #self._stack <= 1 then return false end
+  self:_takeCycle()
   self:_bumpEnterGen()
   local leaving = table.remove(self._stack)
   if leaving.onClose then leaving.onClose() end
@@ -938,6 +1104,7 @@ function obj:presentAt(p, path, highlight)
     log.w(string.format("Stage presentAt for '%s' arrived with no instance built, refusing", p.name))
     return false
   end
+  self:_takeCycle()
   self:_bumpEnterGen()
   local levels = { p }
   for _, step in ipairs(path or {}) do
@@ -977,6 +1144,7 @@ end
 --- itself stale the moment a person escapes out from under it, rather than showing a
 --- presentation over a window that was just asked to clear.
 function obj:hide()
+  self:_endCycle()
   self:_bumpEnterGen()
   if self._geometryTimer then
     self._geometryTimer:stop()
@@ -1378,6 +1546,9 @@ function obj:_back()
 end
 
 function obj:_onHighlight(item)
+  -- A highlight the cycle did not move was moved by the person, an arrow or the pointer, so the
+  -- list stops completing by itself and waits for them.
+  if self._cycle and not self._cycle.stepping then self:_disarmCycle() end
   -- Remembered for labels below. The action panel answers the instance's highlight for itself
   -- while it is open and never reaches here, so this stays the row the panel was opened over.
   self._highlighted = item
@@ -1426,6 +1597,7 @@ function obj:_onClose()
   -- must not count as the stage moving on, the presentation it resizes being the one about to
   -- be reshown on the very next line rather than one actually leaving.
   self:_bumpEnterGen()
+  self:_endCycle()
   self._highlighted = nil
   local had = #self._stack > 0
   closeStack(self._stack)

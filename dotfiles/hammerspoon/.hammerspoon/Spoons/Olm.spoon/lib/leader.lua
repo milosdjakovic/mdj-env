@@ -53,6 +53,11 @@ obj.license = "MIT"
 
 local log = hs.logger.new("Leader", "info")
 
+-- The key table a binding's key is read against, set by the root to lib/keycodes.lua's table so
+-- a key Hammerspoon does not name, the Globe key, binds like any other. Hammerspoon's own table
+-- when nothing set it, a plain test among them.
+obj.keycodes = nil
+
 -- The only sub modifiers a binding may require. fn is deliberately excluded, since macOS stamps
 -- fn onto arrow and navigation keys, so a raw exact check would never match a Shift and arrow
 -- binding. Every comparison below reads these four only.
@@ -360,7 +365,7 @@ end
 function obj:bind(key, fn, mods, opts)
   opts = opts or {}
   local name = type(key) == "string" and key:lower() or key
-  local code = hs.keycodes.map[name]
+  local code = (obj.keycodes or hs.keycodes.map)[name]
   if not code then
     log.w("unknown key '" .. tostring(key) .. "'")
     return self

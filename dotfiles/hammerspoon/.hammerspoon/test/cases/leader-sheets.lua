@@ -147,6 +147,7 @@ local hints = load("lib/hints.lua")
 local registrar = load("lib/registrar.lua")
 local keymapLib = load("lib/keymap.lua")
 local binderLib = load("lib/binder.lua")
+local keycodesLib = load("lib/keycodes.lua")
 local contributions = load("lib/contributions.lua")
 local leaderLib = load("lib/leader.lua")
 
@@ -279,6 +280,10 @@ local function run(manifests, person)
       return hints.hostKeyBinding(plan.effective[directory], hostModule(directory), claimed[identity])
         and noop or nil
     end,
+    -- A cycle row runs the stage, which this case has none of, so every presentation's cycle is the
+    -- no op a host's key is, and the Globe key may be bound bare as the root allows.
+    cycleRun = function() return noop end,
+    standalone = keycodesLib.standalone,
     specialRun = function(owner, name)
       if owner == (plan.identity.launcher or "launcher") and (name == "lock" or name == "sleep") then return noop end
       return nil

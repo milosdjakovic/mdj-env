@@ -436,7 +436,19 @@ function obj.validatePresentation(name, identity, manifest, modules, deps)
   -- degenerate window rather than the crash the first fix already closed, and the refusal
   -- costs nothing to widen. paneMaxW gives the arithmetic a sane ceiling of its own
   -- already, so this only needs a floor and a wholeness check, not a matching cap.
-  if p.rowCount ~= nil and (type(p.rowCount) ~= "number" or p.rowCount < 1 or p.rowCount % 1 ~= 0) then
+  -- rowCount may also be a member spec, asked at every show, for a list whose length is the
+  -- height it wants, the input sources list first. It states its call like every presentation
+  -- member, and host/stage clamps what it answers to the default, so a wrong answer costs a
+  -- default window rather than a degenerate one.
+  if type(p.rowCount) == "table" then
+    if p.rowCount.call ~= "dot" and p.rowCount.call ~= "method" then
+      broken = true
+      if deps.log then
+        deps.log("e", string.format(
+          "registrar refused '%s', its presentation.rowCount does not state call, dot or method, explicitly", name))
+      end
+    end
+  elseif p.rowCount ~= nil and (type(p.rowCount) ~= "number" or p.rowCount < 1 or p.rowCount % 1 ~= 0) then
     broken = true
     if deps.log then
       deps.log("e", string.format(
@@ -590,7 +602,8 @@ function obj.validatePresentation(name, identity, manifest, modules, deps)
       -- above already is, so a plugin that assembles it inside its own configure is still
       -- found once that has actually run.
       enter = obj.action(modules, identity, name, p.enter, nil),
-      rowCount = p.rowCount,
+      rowCount = type(p.rowCount) == "table" and obj.action(modules, identity, name, p.rowCount, nil)
+        or p.rowCount,
       -- matcher, contract v2 decision one, carried through as the plain value the check
       -- above already trusts, false, a strategy name, or nil, never resolved into the
       -- actual matcher function here, since host/stage/init.lua's own _resolveMatcher is

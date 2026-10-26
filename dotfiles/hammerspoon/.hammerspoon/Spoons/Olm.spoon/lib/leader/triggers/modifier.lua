@@ -140,9 +140,13 @@ function obj.new(spec)
     end
     -- A combo no binding repeats is claimed with exactly the three arguments a plain hs.hotkey
     -- always had. The repeat callback resolves at each repeat, so it runs whichever binding answers
-    -- then, and only when that binding repeats.
+    -- then, and only when that binding repeats. A key is claimed by the name it was spelled with
+    -- where Hammerspoon's own table knows that name, and by the code the leader resolved where it
+    -- does not, since hs.hotkey reads a name against that table and the Globe key has no name there.
+    local key = binding.key
+    if type(key) ~= "string" or hs.keycodes.map[key:lower()] == nil then key = code end
     if repeats then
-      return hs.hotkey.bind(combo, binding.key, press, nil, function()
+      return hs.hotkey.bind(combo, key, press, nil, function()
         local fn, rep = host:_onKey(code, flags, trigger)
         if fn and rep then
           if driven then
@@ -154,7 +158,7 @@ function obj.new(spec)
         end
       end)
     end
-    return hs.hotkey.bind(combo, binding.key, press)
+    return hs.hotkey.bind(combo, key, press)
   end
 
   -- Each claim runs under its own pcall, so one combination that raises costs that combination

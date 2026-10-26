@@ -204,7 +204,9 @@ frames as nil, the stage's own swap signal, and when the stage closes, and a lat
 hide stays down until the next dock.
 
 `rowCount` is a positive whole number, declared only when ten genuinely does not fit. It costs
-a hide and show to resize, so it blinks, which is why almost nothing declares it.
+a hide and show to resize, so it blinks, which is why almost nothing declares it. It may also be
+a member spec answering the count on every show, clamped to ten, for a short list whose height
+should follow its own length, as the input sources list does.
 
 `titleLineBreak` names where a title too long for its row loses characters.
 `"truncateMiddle"` for filenames, where the tail is the extension and worth keeping. Absent
@@ -327,9 +329,44 @@ safe to draw.
 `stageTextBudget()` and `stageTextWidth(str, which)` measure a row's room on the live
 instance, for a plugin that elides its own text.
 
+## Cycling a list
+
+A list a person flips through by pressing one key over and over, the way Command and Tab steps
+through apps, is your same presentation shown a second way, and you write nothing for it beyond
+one bindings row whose action is `cycle`.
+
+```lua
+defaults = {
+  bindings = {
+    { action = "cycle", key = "globe", leader = false, description = "Cycle input sources" },
+  },
+},
+```
+
+Olm turns that row into a key the way it turns an `open` row into one, and the press runs the
+stage's cycle rather than its present. The first press shows your list bare, the rows alone with
+no field and no action bar and as tall as the rows, with the highlight on row two. Each further
+press of the same key moves it one row down and wraps. A moment after the last press the list
+completes on the highlighted row through your own `select`, exactly as Return would. An arrow or
+the pointer stops that and the list waits for Return or Escape, and any other key completes the
+list and is typed again into the app underneath. Your `open` row, the launcher row and your alias
+show the same presentation in full, searched like any other list, so the door decides how it is
+shown and your plugin never knows which one was used.
+
+Order the rows by recent use, through `needs.lib.recency`, with the current one first. Row two is
+where the first press lands because row one is where the person already is. A presentation that
+defers through `enter` cannot be stepped before it shows, so its cycle key presents it in full.
+
+The key is any key a row can name. `globe`, the key macOS posts for a tap of fn, is one Olm names
+itself, since Hammerspoon does not, and it is the one key a row may bind with `leader = false` and
+no `mods`, since no app reads it. A cycle row on a plugin with no presentation is refused by name.
+A person moves it like any action, `yourplugin.cycle` in `config/keymap.lua`.
+
 ## Navigation belongs to the user
 
-Your plugin supplies rows and answers questions about them. It never moves the highlight.
+Your plugin supplies rows and answers questions about them. It never moves the highlight. The
+stage moving it on a cycle key is not a plugin moving it, it is the person's own repeated key,
+and that is the one place the core moves it.
 Selection is the person's, the nav layer owns j and k, and the stage resets to the top on
 present because the list changed underneath. The one sanctioned way to ask for the top back is
 `redrawPresented(name, true)`, and only when a reorder left no row worth preserving. A
@@ -400,6 +437,7 @@ The root, on what a plugin can run, after every plugin's wiring and before any k
 Each is one line in the wiring report, and costs only the action, the row or the key it names.
 
 - `wire, retired, <plugin>, registry.commands is retired, replaced by an action descriptor in provides.actions, with its key in a defaults.bindings row, so it is refused and nothing it declares is bound or listed`
+- `keymap, <plugin> cycle, the bindings row names cycle, which needs a presentation the stage can show, and this plugin declares none, so it is not bound`
 - `wire, retired, <plugin>, defaults.key is retired, replaced by a defaults.bindings row whose action is open, so it is refused and nothing it declares is bound or listed`
 - `wire, retired, <plugin>, defaults.mods is retired, replaced by the mods of a defaults.bindings row whose action is open, so it is refused and nothing it declares is bound or listed`
 - `wire, retired, <plugin>, provides.bindings is retired, replaced by an action descriptor in provides.actions, built from the plugin's data where it must be, with its key in a defaults.bindings row or in config/keymap.lua, so it is refused and nothing it declares is bound or listed`
@@ -693,8 +731,10 @@ action and a key. Never ask for a leader to wait on it yourself. Capture did, th
 The keys you suggest are your `bindings`, each naming an action, a key and optional `mods`, on
 the leader your `defaults.leader` names by role, `app` or `window`. A row may name its own role in
 `leader`, or `leader = false` for a plain combination on no leader, which must state its `mods`,
-the clipboard's append copy and paste next on Control and Option being the case. Your tool's own
-open key is the row whose action is `open`, there is no other field for it, and `defaults.leader`
+the clipboard's append copy and paste next on Control and Option being the case, unless the key
+is one no app reads, `globe` alone today. Your tool's own open key is the row whose action is
+`open`, there is no other field for it, its cycle key the row whose action is `cycle`, see
+Cycling a list, and `defaults.leader`
 is the role every row stating none inherits. Olm builds one keymap row per binding and binds it
 on its leader to the descriptor its action names, the descriptor's `when` and `repeats`
 travelling with it, so a binding never names a keycode. Your bindings are suggestions. A person

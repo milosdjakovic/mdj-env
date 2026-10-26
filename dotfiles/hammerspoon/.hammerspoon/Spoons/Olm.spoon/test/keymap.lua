@@ -599,6 +599,53 @@ do
   eq(plain.when, "descriptorGate", "and the descriptor's answers where no binding states one")
 end
 
+-- A cycle row, the second way the core shows a tool's list. It binds through the function the
+-- root answers for the identity and the row's keycode, a standalone key may take it with neither a
+-- leader nor a modifier, and an identity the root answers nothing for is refused by name.
+do
+  local keycodes = assert(loadfile(here .. "../lib/keycodes.lua"))()
+  local keyTable = keycodes.new(KEYCODES)
+  eq(keyTable.globe, 179, "the key table names the Globe key")
+  eq(keyTable[179], "globe", "and spells its code back")
+  eq(keyTable.a, 0, "a key Hammerspoon names still answers through it")
+  eq(keycodes.standalone("Globe"), true, "the Globe key is standalone by name")
+  eq(keycodes.standalone(179), true, "and by code")
+  eq(keycodes.standalone("a"), false, "a typing key is not")
+
+  local asked = {}
+  local run = function() end
+  local plan = defaultPlan({
+    tool = { leader = "app", bindings = { { action = "cycle", key = "globe", leader = false } } },
+    bare = { leader = "app", bindings = { { action = "cycle", key = "a", leader = false } } },
+    nolist = { leader = "app", bindings = { { action = "cycle", key = "s" } } },
+  })
+  local result = build(plan, {
+    keycodes = keyTable,
+    standalone = keycodes.standalone,
+    cycleRun = function(identity, code)
+      asked[identity] = code
+      if identity == "nolist" then return nil end
+      return run
+    end,
+  })
+  local cycleRow
+  for _, row in ipairs(result.bound) do
+    if row.owner == "tool" and row.action == "cycle" then cycleRow = row end
+  end
+  eq(cycleRow ~= nil, true, "a cycle row on the Globe key with no leader is bound")
+  eq(cycleRow and cycleRow.leader, nil, "on no leader")
+  eq(cycleRow and cycleRow.key, "globe", "spelled as the key table spells it")
+  eq(cycleRow and cycleRow.run, run, "running what the root answered")
+  eq(cycleRow and cycleRow.source, "cycle", "and told from an open row by its source")
+  eq(asked.tool, 179, "the root is handed the row's keycode")
+  local why = {}
+  for _, problem in ipairs(result.problems) do why[problem.where] = problem.why end
+  eq((why["bare cycle"] or ""):find("no mods", 1, true) ~= nil, true,
+    "a typing key bound bare is still refused")
+  eq((why["nolist cycle"] or ""):find("presentation", 1, true) ~= nil, true,
+    "an identity with no presentation is refused, naming why")
+end
+
 -- A build given no plan raises, which is the failure the root catches so a defect here cannot
 -- stop a load. The root's own pcall needs the whole composition, so this pins the raise.
 do

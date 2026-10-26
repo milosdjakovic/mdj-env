@@ -58,6 +58,9 @@ local registrarLib = load("lib/registrar.lua")
 -- The read model of every chord that gets bound, built once from declarations. A pure module
 -- like the registrar, so the unit case drives the same code this file runs.
 local keymapLib = load("lib/keymap.lua")
+-- Hammerspoon's key names with the few it lacks, the Globe key among them, the one table every
+-- keymap row, leader binding and list key is read against. Pure like the keymap.
+local keycodesLib = load("lib/keycodes.lua")
 -- The one place a global key is bound, walking the keymap's rows in order. Pure like the keymap,
 -- with the engines handed in, so a plain case drives the same dispatch this file runs.
 local binderLib = load("lib/binder.lua")
@@ -270,12 +273,16 @@ function obj.run(olm, cfg)
   -- line said once the wiring report exists. Read this early because the roles decide which leader
   -- a default lands on and the aliases are merged before the plan is resolved.
   local keyRemapAtom = atoms.keyremap
+  -- The key table, built once and handed to every reader of a key name below and to the leader
+  -- adapter, so a key Hammerspoon does not name is spelled the same way everywhere.
+  local keyTable = keycodesLib.new(hs.keycodes.map)
+  atoms.leader.keycodes = keyTable
   local keymapConfig = keymapLib.readConfig(cfg.keymap, {
     leaders = SHIPPED_LEADERS,
     sources = keyRemapAtom.sources(),
     allocate = keyRemapAtom.allocate,
     roleWords = { "app", "window", keymapLib.LIST_ROLE },
-    keycodes = hs.keycodes.map,
+    keycodes = keyTable,
   })
   local keymapProblems = {}
   for _, problem in ipairs(keymapConfig.problems) do keymapProblems[#keymapProblems + 1] = problem end
@@ -1626,9 +1633,9 @@ function obj.run(olm, cfg)
       heldLeaders = heldLeaderNames,
       modifierLeaders = modifierLeaderSets,
       fieldUses = defaultProvider and defaultProvider.uses and function(key, mods)
-        return defaultProvider.uses(hs.keycodes.map[key], mods)
+        return defaultProvider.uses(keyTable[key], mods)
       end or nil,
-      keycodes = hs.keycodes.map,
+      keycodes = keyTable,
       known = function(name) return listNames[name] == true end,
     })
     for _, problem in ipairs(listProblems) do keymapProblems[#keymapProblems + 1] = problem end
@@ -2297,6 +2304,18 @@ function obj.run(olm, cfg)
     return function() module:show() end
   end
 
+  -- What a tool's cycle row calls, the stage cycling that tool's own presentation, the one the
+  -- registry holds for it and stagePresent shows, or nil for an identity with none, which the
+  -- keymap refuses by name. The key's code travels with it, since a press of the same key while
+  -- the list is up steps the highlight rather than reaching the binding.
+  local function cycleRun(identity, keyCode)
+    if not (wiredRegistry.presentationFor and wiredRegistry.presentationFor(identity)) then return nil end
+    return function()
+      local presentation = wiredRegistry.presentationFor(identity)
+      if presentation and stageModule then stageModule:cycle(presentation, { keyCode = keyCode }) end
+    end
+  end
+
   -- The keymap, every chord Olm binds as one list of rows, built once now that the plan, the
   -- registry and every plugin's actions exist. Each global row carries the function it calls and
   -- its place in the binding order, and the binder below binds exactly that list, so the keymap
@@ -2312,11 +2331,13 @@ function obj.run(olm, cfg)
   local built, keymap = pcall(keymapLib.build, {
     plan = plan,
     roles = leaderRoles,
-    keycodes = hs.keycodes.map,
+    keycodes = keyTable,
     shortcuts = wiredRegistry.shortcuts(),
     actions = pluginActions,
     refusedActions = refusedActions,
     hostRun = hostRun,
+    cycleRun = cycleRun,
+    standalone = keycodesLib.standalone,
     personKeys = keymapConfig.keys,
     modifierLeaders = modifierLeaderSets,
     compositeLeaders = compositeLeaderSets,
@@ -2498,7 +2519,7 @@ function obj.run(olm, cfg)
   end })
   local fieldKeyList
   fieldWatch, fieldKeyList = navLib.fieldKeys(plan.contexts, {
-    keycodes = hs.keycodes.map,
+    keycodes = keyTable,
     modifierLeaders = modifierLeaderSets,
     predicates = fieldPredicates,
     repeats = repeatableActions,

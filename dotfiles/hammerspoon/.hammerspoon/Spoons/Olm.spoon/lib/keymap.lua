@@ -1173,6 +1173,11 @@ end
 ---   refusedActions the action names each plugin declared and had refused, by directory, or
 ---               true for a plugin whose whole actions member failed.
 ---   hostRun     a function from a host's directory to the function its key calls, or nil.
+---   cycleRun    a function from an identity and the keycode its cycle row binds to the function
+---               that key calls, the stage cycling that identity's presentation, or nil for an
+---               identity with none, which refuses the row. Absent, no cycle row binds.
+---   standalone  a function answering whether a key, by name, is one no app reads as typing,
+---               which a row may bind with neither a leader nor a modifier, or nil for none.
 ---   personKeys  the keys section readConfig read from config/keymap.lua, or nil.
 ---   modifierLeaders the leaders the person named, name to its sorted set of modifiers, or nil.
 ---   compositeLeaders the held leaders that also listen on a set of modifiers, name to that sorted
@@ -1294,7 +1299,9 @@ function obj.build(inputs)
   -- the word, and the row is not read.
   local function placeOfRow(b, eff)
     if b.leader == false then
-      if type(b.mods) ~= "table" or #b.mods == 0 then
+      -- A standalone key, the Globe key, is read by no app, so binding it bare takes nothing.
+      local bare = inputs.standalone and inputs.standalone(b.key) == true
+      if (type(b.mods) ~= "table" or #b.mods == 0) and not bare then
         return nil, "states leader false and no mods, and a key with neither a leader nor a modifier would be taken from every app"
       end
       return { leader = nil, role = nil }
@@ -1315,9 +1322,18 @@ function obj.build(inputs)
   end
 
   -- An open row belongs to the open keys source, unless the plugin answers a descriptor named
-  -- open of its own, in which case it is an ordinary binding running that descriptor.
+  -- open of its own, in which case it is an ordinary binding running that descriptor. A cycle row
+  -- is the same, the other way the core shows a tool's list.
   local function isOpenRow(directory, b)
-    return b.action == "open" and not (actions[directory] or {}).open
+    return (b.action == "open" or b.action == "cycle") and not (actions[directory] or {})[b.action]
+  end
+
+  -- What a cycle row of a tool calls, the stage cycling that tool's list, or nil and why. The
+  -- root answers nil for an identity with no presentation, a host or a plugin with no list.
+  local function cycleOf(owner, key)
+    local run = inputs.cycleRun and inputs.cycleRun(owner, obj.keyCode(key, keycodes)) or nil
+    if not run then return nil, "names cycle, which needs a presentation the stage can show, and this plugin declares none" end
+    return run
   end
 
   source("open keys", function()
@@ -1337,6 +1353,20 @@ function obj.build(inputs)
           local origin = "default"
           if not place then
             badRow(owner, b, why)
+          elseif b.action == "cycle" then
+            -- A cycle row binds on the leader it names like an open row, and calls the stage
+            -- cycling the tool's list rather than opening it.
+            local run, cycleWhy = cycleOf(owner, b.key)
+            if not run then
+              badRow(owner, b, cycleWhy)
+            else
+              add({
+                leader = place.leader, role = place.role, key = b.key, mods = b.mods, owner = owner,
+                action = "cycle", source = "cycle",
+                description = b.description or eff.description, origin = origin,
+                run = run, order = orderOf(2, shortcutAt[owner], 1),
+              })
+            end
           elseif entry then
             local global = kindOf[owner] == "global"
             add({
@@ -1507,6 +1537,12 @@ function obj.build(inputs)
       end
       if refusedHere == true or (type(refusedHere) == "table" and refusedHere[entry.action]) then
         return { source = "bindings", refused = true, order = tail }
+      end
+      if entry.action == "cycle" then
+        local run, why = cycleOf(entry.owner, entry.key)
+        if not run then return nil, why end
+        return { source = "cycle", run = run, description = eff.description,
+          order = orderOf(2, shortcutAt[entry.owner], 1) }
       end
       if entry.action == "open" then
         local shortcut = shortcutOf[entry.owner]

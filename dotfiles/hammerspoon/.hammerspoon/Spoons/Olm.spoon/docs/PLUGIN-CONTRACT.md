@@ -889,9 +889,15 @@ defaults = {
 ```
 
 `bindings` is the one place a plugin suggests a key. Each row names an `action`, a `key` and
-optional `mods`, and a tool's or a host's own open key is the row whose action is `open`. A row
+optional `mods`, and a tool's or a host's own open key is the row whose action is `open`. A
+plugin with a `presentation` may also suggest a row whose action is `cycle`, which the keymap
+binds to the stage's cycle of that presentation, the list shown bare and stepped by repeated
+presses of the key, rather than to its present, see Cycling a list in PLUGIN-AUTHORING.md. A
+cycle row on a plugin with no presentation is refused by name. A row
 may name its own `leader` role, or `leader = false` for a plain combination on no leader, which
-must then state its `mods`, since a bare key with neither would be taken from every app. A row
+must then state its `mods`, since a bare key with neither would be taken from every app. The one
+exception is a key no app reads, which lib/keycodes.lua names, `globe` alone today, the key macOS
+posts for a tap of fn. A row
 naming no leader inherits `defaults.leader`, which is what that field is, the default role every
 row of the plugin takes, and a person who overrides it moves every such row at once.
 `defaults.key` and `defaults.mods` retired in phase 2b of the keymap plan, each a second way to
@@ -1154,7 +1160,7 @@ presentation = {
   onClose     = { member = "onClose", call = "dot" },    -- optional
   peekPreview = { member = "peekPreview", call = "dot" },-- optional
   onPositioned = { member = "onPositioned", call = "dot" }, -- optional
-  rowCount    = 2,                                       -- optional, a plain number
+  rowCount    = 2,                                       -- optional, a plain number or a member spec
   paneWidth   = 320,                                     -- optional, a plain number, true, or a member spec
   matcher     = false,                                   -- optional, false only where the field is not a search, with a search-exempt reason
   titleLineBreak = "truncateMiddle",                     -- optional, a plain string
@@ -1165,7 +1171,8 @@ presentation = {
 ```
 
 Every field but `rowCount`, `matcher`, `titleLineBreak` and `rowLimit` is either a member spec or, for `paneWidth`
-alone, may be either one, the same `{ member, call }` shape
+and `rowCount`, may be either one, `rowCount` as a member being asked on every show and clamped to the
+default ten, for a list whose height follows its own length, the same `{ member, call }` shape
 `registry.open` and `registry.scope` already resolve, with one deliberate tightening. **A presentation member
 must be the table form and must state `call` itself, `"dot"` or `"method"`, never the bare
 string shorthand and never left to default.** Every other member spec in this whole contract

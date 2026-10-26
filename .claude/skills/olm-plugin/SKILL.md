@@ -84,6 +84,14 @@ A searchable list the person picks from is a stage presentation, always. A plugi
 a window, never touches the chooser widget, and never holds chooser state, it declares a
 presentation and reads the stage words off `opts`.
 
+A list a person flips through with one repeated key, the way Command and Tab steps through apps,
+is the same presentation and a `defaults.bindings` row whose action is `cycle`, stated by Milos
+on 2026-10-26. The stage shows it bare, rows only, steps the highlight on each press, completes
+on a pause, and hands a typed key to the app underneath, so a plugin never builds an event tap, a
+timer or a highlight move for it. How a list is shown, bare or full, follows the door it came
+through, `cycle` or `open`, and is never a plugin field. The authoring guide's Cycling a list
+section has the shape, and Input Sources is the settled example.
+
 A glanceable overlay nothing is typed into, a preview, a toast, a status card, is CanvasPanel
 content, never a window of the plugin's own. A companion preview pane beside the rows is
 declared on the surface, `pane = true`, which earns `opts.dockedPane`, the shared docked pane in
@@ -113,7 +121,8 @@ level itself, a delete landing you above the thing you acted on, calls `stagePop
 its own `intercept`, since a child can only ever push.
 
 The highlight belongs to the person. A plugin never moves it, never caches the selected row,
-and reads it only through the stage words. An async answer lands on its own level via the
+and reads it only through the stage words. The stage stepping it on a cycle key is the one place
+the core moves it, the person's own repeated key, and no stage word lets a plugin do the same. An async answer lands on its own level via the
 token discipline in the authoring guide, or not at all. A redraw that resets to the top is
 sanctioned only when a reorder left no row worth preserving. A row that mutates the list it
 is standing on answers "stay" from intercept, never plain true, so the highlight never

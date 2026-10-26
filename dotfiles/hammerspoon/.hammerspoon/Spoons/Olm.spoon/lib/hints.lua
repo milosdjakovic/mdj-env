@@ -662,8 +662,9 @@ function obj.sheetRows(keymap, plan, leader, deps)
     if row.leader ~= nil and row.leader == leader and row.layer == "global" then rows[#rows + 1] = row end
   end
 
+  -- A tool's open row and its cycle row alike, the two ways the core shows a tool's list.
   for _, row in ipairs(rows) do
-    if row.source == "tool" then
+    if row.source == "tool" or row.source == "cycle" then
       local reg = registry and registry.rowFor and registry.rowFor(row.owner)
       -- A detail may be a resolved function for a row whose subtitle is computed at open time,
       -- and an overlay label wants the stable words, so only a plain string is borrowed.
