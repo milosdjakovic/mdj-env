@@ -78,6 +78,27 @@ Do this once on every machine, and again whenever a machine changes.
 Capture records what a machine has, not what you want it to have. To give a machine a piece it
 does not have yet, such as kanata or mise, see the next section.
 
+## Giving a machine its own Hyper app keys
+
+A machine with no file of its own gets `machines/default/hammerspoon-apps.lua`, which holds only
+apps every machine has, the ones macOS ships and the ones the Brewfile installs.
+
+1. **Capture the keys it has now** into a file of its own.
+   ```bash
+   ./src/setup-hammerspoon-apps.sh --capture
+   ```
+   This writes `machines/<name>/hammerspoon-apps.lua`. It replaces the default whole, so keep
+   the lines it starts with.
+2. **Add this machine's keys** to that file, such as `["hyper+G"] = "apptoggler.GoogleChat"`,
+   the name from `dotfiles/hammerspoon/.hammerspoon/config/apps.lua`. An app whose bundle id
+   differs on this machine, as every Chrome web app does, goes under `apps`, the id from
+   `osascript -e 'id of app "Google Chat"'`.
+3. **Apply it.** Hammerspoon reloads by itself when the file changes.
+   ```bash
+   ./src/setup-hammerspoon-apps.sh
+   ```
+4. **Commit and push it.** `./setup.sh` applies it from then on.
+
 ## Giving a machine an optional piece
 
 kanata is the example, since it is off by default and capture never offers it on a machine

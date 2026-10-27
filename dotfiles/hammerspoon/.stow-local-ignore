@@ -15,6 +15,8 @@ dependencies-collect
 dependencies-collect.lua
 grants-probe
 check-timers
+# NO-FOLD is read by the stow step and keeps ~/.hammerspoon a real directory.
+NO-FOLD
 # theme-map and theme-emit are this package's half of the theme contract, read by
 # src/check-theme.sh and by nothing Hammerspoon loads. The generated aura theme under
 # .hammerspoon/config/themes is stowed with the rest, since Olm reads it.

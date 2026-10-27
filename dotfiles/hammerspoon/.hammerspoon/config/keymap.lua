@@ -126,46 +126,14 @@
 --     all       = { ["hyper+n"] = "selectNext" },
 --     clipboard = { ["meta+e"] = "deleteSelected", ["hyper+o"] = false },
 
-return {
+local keymap = {
   keys = {
     -- ["meta+E"] = "vpn.open",
     -- ["meta+Y"] = "clipboard.open",
 
-    -- App toggles, each app named as in config/apps.lua. Holding Hyper and the key focuses the
-    -- app, or walks its windows when it is already in front.
-    -- First character
-    ["hyper+B"] = "apptoggler.Books",
-    ["hyper+C"] = "apptoggler.GoogleChrome",
-    ["hyper+D"] = "apptoggler.Docker",
-    ["hyper+F"] = "apptoggler.Finder",
-    ["hyper+M"] = "apptoggler.Mail",
-    ["hyper+O"] = "apptoggler.Obsidian",
-    ["hyper+S"] = "apptoggler.Safari",
-    ["hyper+V"] = "apptoggler.VisualStudioCode",
-    ["hyper+N"] = "apptoggler.Notes",
-    ["hyper+I"] = "apptoggler.iPhoneMirroring",
-    ["hyper+Z"] = "apptoggler.Zed",
-    ["hyper+R"] = "apptoggler.Preview",
-    -- Second character
-    ["hyper+T"] = "apptoggler.Stickies",
-    ["hyper+L"] = "apptoggler.Slack",
-    -- Third character
-    ["hyper+A"] = "apptoggler.Claude",
-    -- The terminal, popping in and out through its popup style in config/toggles.lua. The popup
-    -- sat on Option and backtick as a variant of its own beside the plain toggle on this chord
-    -- until 2026-10-23.
-    ["hyper+`"] = "apptoggler.Ghostty",
-    -- Activity Monitor. On backslash, chosen when file search sat on slash beside it. File search
-    -- moved to semicolon on 2026-10-23, since macOS takes Hyper and slash before any event tap.
-    ["hyper+\\"] = "apptoggler.ActivityMonitor",
-    -- System Settings, opened straight to the General pane, a hide when it is already in front.
-    ["hyper+,"] = "systemsettings.General",
-    -- Disabled, uncomment to enable.
-    -- ["hyper+A"] = "apptoggler.ChatGPTAtlas",
-    -- ["hyper+A"] = "apptoggler.AndroidStudio",
-    -- ["hyper+H"] = "apptoggler.Hammerspoon",
-    -- ["hyper+P"] = "apptoggler.TablePlus",
-    -- ["hyper+X"] = "apptoggler.Xcode",
+    -- App keys are not here. Each machine has its own, in machines/<name>/hammerspoon-apps.lua
+    -- at the repository root, or the default one there, and config/machine.lua reads the copy
+    -- setup puts beside this config. They are added below, after this table.
   },
 
   leaders = {
@@ -185,3 +153,11 @@ return {
     -- clipboard = { ["hyper+e"] = "deleteSelected" },
   },
 }
+
+-- This machine's app keys, from config/machine.lua. A chord written above wins over the same chord
+-- there, so a key set here for every machine is never lost to one machine's file.
+for chord, action in pairs(require("config.machine").keys) do
+  if keymap.keys[chord] == nil then keymap.keys[chord] = action end
+end
+
+return keymap

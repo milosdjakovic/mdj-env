@@ -45,6 +45,8 @@ MDJ_EDITOR="Visual Studio Code" ./setup.sh   # the editor step's answer, for a r
 ./src/setup-dev-defaults.sh
 ./src/setup-dev-defaults.sh --list   # the apps that can open development files, one per line
 ./src/setup-capslock-hyper.sh
+./src/setup-hammerspoon-apps.sh            # this machine's Hyper app keys, from machines/<name>/hammerspoon-apps.lua or the default
+./src/setup-hammerspoon-apps.sh --capture  # give this machine its own file, from the keys it has now
 ./src/setup-macos-shortcuts.sh       # turns off the macOS shortcuts that take a chord Olm uses, Show Help menu today
 ./src/setup-ivpn-permissions.sh   # repairs bundle modes the ivpn cask leaves wrong; needs sudo only when repairing
 ./src/setup-claude-settings.sh
@@ -399,7 +401,10 @@ and `default` is never a machine name.
 `src/machine.sh` is its only reader. The stow step, `setup.sh` through `step_if`, the Brewfile
 through `on?`, and the reconciler all ask it, and nothing else knows the layout. The steps a
 person follows to capture a machine are in `README.md` under "Capturing a machine", keep them
-current when capture changes. On a machine
+current when capture changes. A machine's Hyper app keys are a second file there, `hammerspoon-apps.lua`, a Lua table rather than
+rows because Hammerspoon reads it, copied into `~/.hammerspoon` by `src/setup-hammerspoon-apps.sh`.
+The default holds only apps macOS ships and the Brewfile installs, and a machine's own file replaces
+it whole. `decisions/machine-profiles.md` has why it is copied rather than read by machine name. On a machine
 that has no pieces file yet, or has changed, run `src/machine.sh capture` in a terminal. It probes each
 piece, proposes rows, asks, and rewrites that machine's pieces file in place, so a second run on an
 unchanged machine writes nothing and a row set by hand is kept unless you say otherwise. Adding a

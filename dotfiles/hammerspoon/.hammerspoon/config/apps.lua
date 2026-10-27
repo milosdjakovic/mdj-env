@@ -3,7 +3,7 @@
 -- The browserTabs entry there reads Chrome's id from it too.
 -- Get app identifier: osascript -e 'id of app "APP_NAME"'
 
-return {
+local apps = {
   -- System
   Finder = "com.apple.finder",
   Mail = "com.apple.mail",
@@ -58,3 +58,9 @@ return {
   Yomu = "net.cecinestpasparis.yomu",
   iPhoneMirroring = "com.apple.ScreenContinuity",
 }
+
+-- This machine's own ids laid over the catalog, from config/machine.lua, for an app whose id
+-- differs per install, which every Chrome web app does.
+for name, bundleID in pairs(require("config.machine").apps) do apps[name] = bundleID end
+
+return apps

@@ -24,6 +24,13 @@ only when its config exists, so it needs no knowledge of the profile at all.
 
 Switching a piece off never removes anything. It only stops a run from adding it.
 
+A machine's Hyper app keys are a second file in its folder, `hammerspoon-apps.lua`, a Lua table
+Hammerspoon reads, and `machines/default/hammerspoon-apps.lua` holds only apps macOS ships and the
+Brewfile installs. A machine's own file replaces the default whole. `src/setup-hammerspoon-apps.sh`
+copies the one that applies to `~/.hammerspoon/machine-apps.lua`, and `config/machine.lua` reads it,
+so the Hammerspoon config never names a machine. `--capture` writes this machine's file from what
+is in place.
+
 ## Rejected
 
 **One git branch per machine, 2026-10-06.** Every shared fix would be copied onto each branch
@@ -44,6 +51,18 @@ tracked file is a new behaviour with its own failure modes and the defaults alre
 unlisted machine a safe answer. The run says in its closing block that the machine took every
 default, which is the moment the rows get written by hand. Reopen if a third machine makes
 writing them by hand a real cost.
+
+**Olm reading a per machine keymap by host name, 2026-10-27, about 14:50, estimated.** The way
+`config/displays.lua` keys display profiles by `LocalHostName`. Milos turned it down, he would not
+teach Olm about machines, and wanted the setup script that already does per machine work to put
+the machine's keys where Hammerspoon reads them.
+
+**A machine's app keys added on top of the default, 2026-10-27, about 14:50, estimated.** Milos chose a file that
+repeats the default and adds its own, so one file says everything a machine's Hyper reaches.
+
+**Every app key in the shared keymap, 2026-10-27, about 14:50, estimated.** A key there reaches every machine, and
+an app one machine lacks, or a Chrome web app whose bundle id differs per install, cannot be
+right on all of them. Google Chat was the case, its id here differs from the one `apps.lua` held.
 
 **TOML for the file, 2026-10-06.** Nothing in bash or in the Brewfile's Ruby reads it without a
 dependency, and every other declaration in this repository is a pipe table already, so the
@@ -143,3 +162,17 @@ rows were set by hand and it was not captured yet, rather than a captured header
 `./setup.sh --only PIECE` is the step that follows it, refusing a piece that is off or none here.
 Checked on a throwaway machine name, the folder removed afterwards.
 
+### 2026-10-27 14:56
+
+Hyper app keys moved out of `config/keymap.lua` into `machines/default/hammerspoon-apps.lua` and
+`machines/Jelenas-MacBook-Pro/hammerspoon-apps.lua`, at Milos's asking, after he wanted Google Chat
+on Hyper and G on this machine only. The default is the ten macOS apps and keys that were in the
+keymap plus Ghostty, Obsidian and Docker from the Brewfile. This machine's file repeats those and
+adds Chrome, VS Code, Zed, Slack, Claude and Google Chat, with Google Chat's id as Chrome installed
+it here, `com.google.Chrome.app.pommaclcbfghclhalboakcipcmmndhcj`, where `apps.lua` holds
+`mdpkiolbdkhdjpekfbkbmhigcaggjagi`, presumably another machine's. The other two machines have no
+file and take the default, so they lose Chrome, VS Code, Zed, Slack and Claude until each is
+captured there, which Milos chose. The hammerspoon module gained a `NO-FOLD` for `~/.hammerspoon`,
+since a folded one would send the copy into this checkout. Applied here, reloaded, the live keymap
+read back 19 keys with Hyper and G on Google Chat and the id laid over the catalog, the console
+clean of new errors, and the unit cases 2017 of 2017.

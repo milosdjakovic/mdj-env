@@ -252,6 +252,10 @@ step_if hammerspoon on "$SRC_DIR/setup-capslock-hyper.sh"
 # when it is already off. decisions/macos-shortcuts.md has why.
 step_if hammerspoon on "$SRC_DIR/setup-macos-shortcuts.sh"
 
+# Copy this machine's Hyper app keys, machines/<name>/hammerspoon-apps.lua or the default, to
+# ~/.hammerspoon/machine-apps.lua, where the config reads them. Writes only on a difference.
+step_if hammerspoon on "$SRC_DIR/setup-hammerspoon-apps.sh"
+
 # Install the Karabiner driver kanata types through, at the version dotfiles/kanata/DRIVER pairs
 # with the installed kanata, and run both as launchd daemons. Needs root, which the run already
 # holds. Its grants are left to the grants step below, which is what MDJ_GRANTS_LATER says.

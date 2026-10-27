@@ -4,7 +4,8 @@ Configuration in `dotfiles/hammerspoon/.hammerspoon/`:
 - `init.lua` - Entry point, holding this machine's own data and preferences plus the one call into Olm
 - `config/` - User-editable configuration (pure data)
   - `apps.lua` - App bundle ID registry
-  - `keymap.lua` - Every key and alias this person sets, one file Olm owns and reads as `cfg.keymap`, never a plugin. `keys` maps a chord, a leader or modifiers joined by `+` with the key last, to an action id such as `vpn.open`, `apptoggler.Safari` or `systemsettings.General`, or to `false` to free it, and the app toggles live there. `leaders` names a set of real modifiers as a leader of its own, `roles` moves a role to another leader, and `aliases` replaces a plugin's launcher words. Empty means the shipped keys exactly, see the file's own header and `Spoons/Olm.spoon/lib/keymap.lua`
+  - `keymap.lua` - Every key and alias this person sets, one file Olm owns and reads as `cfg.keymap`, never a plugin. `keys` maps a chord, a leader or modifiers joined by `+` with the key last, to an action id such as `vpn.open`, `apptoggler.Safari` or `systemsettings.General`, or to `false` to free it. The Hyper app keys are not there, they are this machine's, see `machine.lua`. `leaders` names a set of real modifiers as a leader of its own, `roles` moves a role to another leader, and `aliases` replaces a plugin's launcher words. Empty means the shipped keys exactly, see the file's own header and `Spoons/Olm.spoon/lib/keymap.lua`
+  - `machine.lua` - This machine's Hyper app keys and app ids, read from `~/.hammerspoon/machine-apps.lua`, which `src/setup-hammerspoon-apps.sh` copies there from `machines/<name>/hammerspoon-apps.lua` at the repository root or from the default beside it. `keymap.lua` adds the keys, `apps.lua` lays the ids over its catalog, and a chord in `keymap.lua` wins over the same chord there. The copy sits beside `config/` because `config/` is a link into the repository, and the module's `NO-FOLD` keeps `~/.hammerspoon` a real directory
   - `plugins.lua` - One entry per plugin identity, holding that plugin's overrides of its manifest defaults, its person supplied data and its spoon global, or `false` to switch it off. Only a plugin under `plugins/` can be switched off, a host written `false` is refused with a console line, and a switch saved by the Olm Plugins page under `Olm.disabledPlugins` joins these, see `Spoons/Olm.spoon/lib/pluginswitch.lua`
   - `settings.lua` - Global settings (margins, timing)
   - `workspaces/` - Workspace definitions (dev.lua, vicert.lua)
@@ -256,7 +257,7 @@ whose action is `open`, a row may name its own role or `leader = false` for a pl
 combination with its modifiers, and `defaults.leader` is the role a row naming none inherits.
 Every listed action descriptor is also a launcher row Olm builds, so a plugin builds no row
 for what it can run. A person sets every key, every list key and every alias in one place,
-`config/keymap.lua`, the app toggles included, never in a plugin and never in
+`config/keymap.lua`, the app toggles arriving there from this machine's file through `config/machine.lua`, never in a plugin and never in
 `config/plugins.lua`, which refuses `key`, `mods`, `leader`, `bindings`, `surface` and `aliases`
 with one problem line each naming `config/keymap.lua`. Each concern has one way. A plugin declares
 what it can run in `provides.actions`, the keys it suggests in `defaults.bindings`, the words it
@@ -444,7 +445,7 @@ display is attached.
 App toggles are actions built from data since phase 6 of the keymap plan. `AppToggler` answers
 one action per app in `config/apps.lua`, `apptoggler.Safari`, which focuses or cycles it or runs
 the style `config/toggles.lua` gives that app, and every key reaching one is a line in
-`config/keymap.lua`. Each descriptor names its app in `app` and a group
+this machine's `machines/<name>/hammerspoon-apps.lua`, or the default one, which `config/keymap.lua` adds to its keys through `config/machine.lua`. The default holds only apps macOS ships and the Brewfile installs, and a machine's own file replaces it whole, so it repeats those and adds its own. Adding a key is a line in this machine's file and `src/setup-hammerspoon-apps.sh`. Each descriptor names its app in `app` and a group
 function answering RUNNING or DORMANT, so the Hyper sheet draws the apps running now first and the
 rest faded below them with no section of the plugin's own, and the launcher shows each chord on the
 app's own row, merging the action into it rather than listing the app twice. The sheet draws an
