@@ -637,6 +637,8 @@ do
   eq(cycleRow and cycleRow.key, "globe", "spelled as the key table spells it")
   eq(cycleRow and cycleRow.run, run, "running what the root answered")
   eq(cycleRow and cycleRow.source, "cycle", "and told from an open row by its source")
+  eq(cycleRow and cycleRow.anyMods, false,
+    "demanding no modifier, as the plain binder binds it, never a catch all")
   eq(asked.tool, 179, "the root is handed the row's keycode")
   local why = {}
   for _, problem in ipairs(result.problems) do why[problem.where] = problem.why end

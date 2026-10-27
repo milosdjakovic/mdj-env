@@ -987,3 +987,14 @@ aliases live only in `config/keymap.lua`.
   line and leaves that app plain. `data.variants` is no longer declared. The fixtures in
   `test/keymap-person.lua` and `test/leadersheet.lua` still use a GhosttyPlaced action, since they
   test two actions on one app in the keymap, not this plugin.
+- 2026-10-27 10:24. A plain combination stating no modifiers is a row demanding none, not a catch
+  all. The binder always bound it that way, since hs.hotkey has no catch all and `lib/binder.lua`
+  turns no modifiers into an empty list for the plain engine, but `add` in `lib/keymap.lua` left
+  `anyMods` set, so the read model said any while the binder bound none. The Input Sources cycle
+  row on the Globe key, `leader = false` and no mods, was the first such row, and it made the
+  offline projection and the bound recording disagree on one line of `keys.golden`, `any` owned
+  by inputsources against `none` owned by nobody, since the owner lookup crosses the two by their
+  modifiers. No golden could satisfy both, so `keys.golden` was left stale from 7771e64 until
+  now. `add` now clears `anyMods` for a global row with no leader, `test/keymap.lua` pins it on
+  the Globe cycle row, and every golden matches. A leader chord with no modifiers stays a catch
+  all.

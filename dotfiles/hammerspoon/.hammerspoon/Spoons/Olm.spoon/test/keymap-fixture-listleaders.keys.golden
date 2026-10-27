@@ -81,7 +81,7 @@ field	/	cmd+shift	workspacesOpen	100	workspaces
 field	j	ctrl	launcherOpen	100	launcher
 field	k	ctrl+shift	clipboardOpen	100	clipboard
 hotkey	c	alt+ctrl	-	-	clipboard
-hotkey	globe	none	-	-	?
+hotkey	globe	none	-	-	inputsources
 hotkey	v	alt+ctrl	-	-	clipboard
 hyper	2	any	-	-	colorPicker
 hyper	3	any	-	-	capture

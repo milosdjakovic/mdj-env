@@ -180,7 +180,7 @@ field	x	alt+cmd+ctrl+shift	wifiOpen	100	wifi
 field	x	alt+cmd+ctrl+shift	workspacesOpen	100	workspaces
 field	y	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch
 hotkey	c	alt+ctrl	-	-	clipboard
-hotkey	globe	none	-	-	?
+hotkey	globe	none	-	-	inputsources
 hotkey	v	alt+ctrl	-	-	clipboard
 hyper	2	any	-	-	colorPicker
 hyper	3	any	-	-	capture

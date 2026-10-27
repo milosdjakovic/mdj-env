@@ -180,7 +180,7 @@ field	/	cmd+shift	vpnOpen	100	vpn
 field	/	cmd+shift	wifiOpen	100	wifi
 field	/	cmd+shift	workspacesOpen	100	workspaces
 hotkey	c	alt+ctrl	-	-	clipboard
-hotkey	globe	none	-	-	?
+hotkey	globe	none	-	-	inputsources
 hotkey	v	alt+ctrl	-	-	clipboard
 hyper	2	any	-	-	colorPicker
 hyper	3	any	-	-	capture

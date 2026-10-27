@@ -1231,6 +1231,11 @@ function obj.build(inputs)
 
   local function add(spec)
     local mods, anyMods = obj.mods(spec.mods)
+    -- A plain combination is bound by hs.hotkey, which has no catch all, so one stating no
+    -- modifiers is bound demanding none, lib/binder.lua, and its row says so rather than any.
+    if anyMods and spec.leader == nil and (spec.layer or GLOBAL) == GLOBAL then
+      anyMods = false
+    end
     local row = {
       layer = spec.layer or GLOBAL,
       leader = spec.leader,
