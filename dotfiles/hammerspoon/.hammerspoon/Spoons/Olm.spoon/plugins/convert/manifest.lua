@@ -13,6 +13,8 @@ return {
 
   about = {
     title = "Convert",
+
+    description = "Convert a typed unit or currency amount inside the launcher.",
     author = "Milos Djakovic",
     version = "0.1",
     license = "MIT",

@@ -195,7 +195,7 @@ of the number. `decisions/olm-manifest-header.md` at the repository root has why
 **Identity stays off the descriptor.** The keys, the leader each role lands on, whether a plugin
 is switched off, and the alias words live above this spoon in the config tree, `config/keymap.lua`
 for every key and alias and `config/plugins.lua` for a plugin's data and its switch under
-`.hammerspoon`, or in the saved set the OLM settings page writes, never on the descriptor, so a tool knows what it does and the person's config knows how it is reached.
+`.hammerspoon`, or in the saved set the Olm Plugins page writes, never on the descriptor, so a tool knows what it does and the person's config knows how it is reached.
 That split is why a rebind, a rename, or switching a plugin off never touches a plugin. Switching
 off is one switch, `lib/pluginswitch.lua`, and the registry activates every tool that registered.
 

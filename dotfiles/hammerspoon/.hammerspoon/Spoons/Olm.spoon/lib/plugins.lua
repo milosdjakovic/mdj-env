@@ -95,7 +95,8 @@ end
 -- was written against and the about block a person reads. The fields about may carry, each a
 -- string. A key outside this set is refused rather than ignored, because a misspelt author
 -- would otherwise show as a blank line on any page that lists plugins, far from the typo.
-local ABOUT = { title = true, author = true, version = true, license = true, homepage = true }
+local ABOUT = { title = true, description = true, author = true, version = true, license = true,
+  homepage = true }
 
 -- Answers nil when the header is sound, or one sentence saying why it is not. Pure, with no
 -- hs call, so the dry gate asks the same question the live load asks rather than a mirror of

@@ -14,7 +14,7 @@
 -- needs to know the caller is a chooser or a canvas panel, only that a screen
 -- comes back.
 --
--- Two modes only, activeWindow and cursor. The OLM settings plugin is the one
+-- Two modes only, activeWindow and cursor. The Olm Placement plugin is the one
 -- place a person sees or changes this choice, reading and writing it through
 -- self.mode and self.setMode, so this file stays the one place that ever calls
 -- hs.settings for the policy itself.
@@ -64,7 +64,7 @@ function M.new()
     return hs.mouse.getCurrentScreen() or hs.screen.primaryScreen()
   end
 
-  -- The persisted choice, layered over the seed. The OLM settings plugin writes
+  -- The persisted choice, layered over the seed. The Olm Placement plugin writes
   -- here, under one hs.settings key, so the choice survives a reload and a reboot
   -- the same way the launcher's own remembered order does. effectiveMode reads the
   -- stored value first and falls back to the seed, so a choice made in the settings
@@ -106,7 +106,7 @@ function M.new()
 
   --- self.mode() -> string
   --- The effective placement mode right now, one of M.modes, the persisted choice
-  --- when there is one, else the seed. Public so the OLM settings plugin can
+  --- when there is one, else the seed. Public so the Olm Placement plugin can
   --- describe the live choice in words without keeping a second read of
   --- effectiveMode.
   function self.mode()

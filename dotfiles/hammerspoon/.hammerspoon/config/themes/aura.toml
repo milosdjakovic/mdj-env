@@ -3,7 +3,7 @@
 # palette or a role in the map and run the checker.
 #
 # This is the Aura theme for Olm, the second file beside default.toml, and the switcher on the
-# OLM settings page lists it by its file name.
+# Olm Theme list shows it by its file name.
 
 [dark]
 background = "#15141b"

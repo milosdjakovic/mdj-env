@@ -11,6 +11,8 @@ return {
 
   about = {
     title = "Arithmetic",
+
+    description = "Answer a sum typed into the launcher with a copyable result.",
     author = "Milos Djakovic",
     version = "0.1",
     license = "MIT",

@@ -14,6 +14,8 @@ return {
 
   about = {
     title = "Speedtest",
+
+    description = "Measure this connection and compare it with its own past readings.",
     author = "Milos Djakovic",
     version = "0.1",
     license = "MIT",

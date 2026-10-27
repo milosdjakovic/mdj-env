@@ -25,6 +25,8 @@ return {
 
   about = {
     title = "Window Manager",
+
+    description = "Move, resize and send the focused window between halves and displays.",
     author = "Milos Djakovic",
     version = "0.1",
     license = "MIT",

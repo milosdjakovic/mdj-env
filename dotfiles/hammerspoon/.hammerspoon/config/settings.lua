@@ -53,7 +53,7 @@ return {
   -- light and dark, the chooser and its action bar, the cheat sheet, the colour toast,
   -- and the clipboard preview pane. Only the shape lives here, the border width and the
   -- corner radius. The colours of the surface and of everything drawn on it come from the
-  -- theme files under config/themes, one file per theme, chosen on the OLM settings page.
+  -- theme files under config/themes, one file per theme, chosen in the Olm Theme list.
   surface = {
     cornerRadius = 0,    -- square surfaces, 20 is the macOS window corner, rounding every surface at once
     borderWidth = 1,
@@ -81,10 +81,10 @@ return {
   --                  should land where the eyes already are.
   --
   -- This block is now only the DEFAULT SEED. The live choice is set at runtime from
-  -- the OLM settings tool in the launcher and persisted under the hs.settings key
+  -- the Olm Placement list in the launcher and persisted under the hs.settings key
   -- overlayDisplayPolicy, which overrides this value. init.lua reads it through
   -- effectiveMode, seeded then persisted. So edit here to change the default for a
-  -- fresh machine, and use the OLM settings tool for day to day switching.
+  -- fresh machine, and use Olm Placement for day to day switching.
   overlayDisplay = {
     -- overlayModes.activeWindow | overlayModes.cursor
     mode = overlayModes.cursor,

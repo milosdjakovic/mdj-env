@@ -1,4 +1,4 @@
---- === Settings.pluginspage ===
+--- === OlmPlugins.pluginspage ===
 ---
 --- What the Plugins page shows, as plain data and UI kit nodes and nothing else. It holds no
 --- canvas and no state of its own, one function for the rows, one for the state words a row says
@@ -160,7 +160,7 @@ end
 
 --- M.detail(ui, entry, catalog, cascade, selfIdentity) -> node
 --- The detail block for one plugin, built from kit nodes. The heading is the title with the
---- version flush right, then the about facts, then the needs in short labelled groups, then the
+--- version flush right, then the description, then the about facts, then the needs in short labelled groups, then the
 --- cascade line when there is one. Every piece of text names a role and never a font or colour.
 function M.detail(ui, entry, catalog, cascade, selfIdentity)
   local about = entry.about or {}
@@ -175,6 +175,10 @@ function M.detail(ui, entry, catalog, cascade, selfIdentity)
   end
 
   blocks[#blocks + 1] = ui.heading(string.upper(titleOf(entry)), about.version and ("v" .. about.version) or nil)
+  -- What the plugin does comes first, since it is what a person scrolling the list is reading for.
+  if about.description and about.description ~= "" then
+    blocks[#blocks + 1] = ui.text(about.description, "body", { wrap = true })
+  end
   blocks[#blocks + 1] = ui.text(M.words(entry, catalog, selfIdentity), "caption")
   fact("Author", about.author)
   fact("License", about.license)

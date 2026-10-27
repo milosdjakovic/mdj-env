@@ -18,6 +18,8 @@ return {
 
   about = {
     title = "Window Size",
+
+    description = "Size the focused window to typed dimensions and centre it.",
     author = "Milos Djakovic",
     version = "0.1",
     license = "MIT",

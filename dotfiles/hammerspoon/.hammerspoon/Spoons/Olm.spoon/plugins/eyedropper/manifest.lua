@@ -15,6 +15,8 @@ return {
 
   about = {
     title = "Color Picker",
+
+    description = "Sample a colour anywhere on screen and copy its hex value.",
     author = "Milos Djakovic",
     version = "0.1",
     license = "MIT",

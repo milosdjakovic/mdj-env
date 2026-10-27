@@ -15,8 +15,10 @@ gate cannot hold two different rules. A manifest that fails the check is left ou
 console line, like a manifest that will not load, and anything that needed it is reported by
 the cascade that already handles a missing plugin.
 
-`about` carries `title`, `author`, `version`, `license` and `homepage`, each a string and each
-optional. A key outside those five is refused, so a typo is reported where it was written
+`about` carries `title`, `description`, `author`, `version`, `license` and `homepage`, each a
+string and each optional, and every shipped plugin states a `description`, one short sentence the
+Olm Plugins page shows in its pane beside the highlighted plugin. A key outside those six is
+refused, so a typo is reported where it was written
 rather than shown as a blank line on a page that lists plugins. `defaults.description` stays
 where it is, since the launcher reads it and a person can override it, and `about` does not
 repeat it.
@@ -47,3 +49,13 @@ repeat it.
   manifests under `plugins/` and `host/` carry the header. Verified by the dry gate going from
   35 refusals to zero findings, and by a probe in the running Hammerspoon reading every
   manifest at core version 1 and refusing all 35 at core version 2.
+- 2026-10-27 07:59. Milos asked for a description on every plugin, seen while scrolling the
+  plugins list. `about.description` joined the accepted keys in `lib/plugins.lua`, each of the
+  thirty plugins under `plugins/` states one sentence, and the Plugins page's docked pane draws
+  it right under the heading. It lives in `about` rather than reusing `defaults.description`,
+  because that one is the launcher row's title, which a person can override and which reads
+  as a name, not as what the plugin does. In the same change the OLM settings plugin was split
+  into Olm Placement, Olm Theme and Olm Plugins, three plugins rather than one plugin
+  contributing three launcher rows, because a contributed row runs only after the launcher has
+  closed, so its list would open as a second window, while a registered tool's own row is pushed
+  onto the stage in place, the one list becoming another rule.

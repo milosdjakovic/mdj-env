@@ -136,7 +136,7 @@ a `[light]` section of the eight colour keys, read by `lib/ui/toml.lua` and kept
 `aura.toml` is generated from the repository palette by the package's `theme-map` and
 `theme-emit`. `root/uispec.lua` builds the spec from the live theme's colours and from the
 `cheatSheet` radius and type settings, and a switch is the store handing the kit a new spec, so
-the next draw shows it. The OLM settings page lists the themes and switches them. Two views
+the next draw shows it. The Olm Theme list shows the themes and switches them. Two views
 of the theme, a `chooserTheme` shaped table and a `surface` shaped one, are rewritten in place
 on every switch from the eight roles, for the readers outside the kit that still take them, the
 legacy provider and the panel surface, and stage four retires both.

@@ -15,6 +15,8 @@ return {
 
   about = {
     title = "Clipboard History",
+
+    description = "Keep a history of what you copy and paste any of it back.",
     author = "Milos Djakovic",
     version = "0.1",
     license = "MIT",

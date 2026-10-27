@@ -25,7 +25,9 @@ field	/	cmd	launcherOpen	100	launcher
 field	/	cmd	menuSearchOpen	100	menuSearch
 field	/	cmd	obsidianOpen	100	obsidian
 field	/	cmd	processesOpen	100	processes
-field	/	cmd	settingsOpen	100	settings
+field	/	cmd	olmplacementOpen	100	olmplacement
+field	/	cmd	olmpluginsOpen	100	olmplugins
+field	/	cmd	olmthemeOpen	100	olmtheme
 field	/	cmd	speedtestOpen	100	speedtest
 field	/	cmd	textCaseOpen	100	textCase
 field	/	cmd	tmuxSessionsOpen	100	tmuxSessions
@@ -44,7 +46,9 @@ field	/	cmd+shift	launcherOpen	100	launcher
 field	/	cmd+shift	menuSearchOpen	100	menuSearch
 field	/	cmd+shift	obsidianOpen	100	obsidian
 field	/	cmd+shift	processesOpen	100	processes
-field	/	cmd+shift	settingsOpen	100	settings
+field	/	cmd+shift	olmplacementOpen	100	olmplacement
+field	/	cmd+shift	olmpluginsOpen	100	olmplugins
+field	/	cmd+shift	olmthemeOpen	100	olmtheme
 field	/	cmd+shift	speedtestOpen	100	speedtest
 field	/	cmd+shift	textCaseOpen	100	textCase
 field	/	cmd+shift	tmuxSessionsOpen	100	tmuxSessions
@@ -86,7 +90,9 @@ hyper	i	any	launcherOpen	100	launcher
 hyper	i	any	menuSearchOpen	100	menuSearch
 hyper	i	any	obsidianOpen	100	obsidian
 hyper	i	any	processesOpen	100	processes
-hyper	i	any	settingsOpen	100	settings
+hyper	i	any	olmplacementOpen	100	olmplacement
+hyper	i	any	olmpluginsOpen	100	olmplugins
+hyper	i	any	olmthemeOpen	100	olmtheme
 hyper	i	any	speedtestOpen	100	speedtest
 hyper	i	any	textCaseOpen	100	textCase
 hyper	i	any	tmuxSessionsOpen	100	tmuxSessions
@@ -105,7 +111,9 @@ hyper	j	any	launcherOpen	100	launcher
 hyper	j	any	menuSearchOpen	100	menuSearch
 hyper	j	any	obsidianOpen	100	obsidian
 hyper	j	any	processesOpen	100	processes
-hyper	j	any	settingsOpen	100	settings
+hyper	j	any	olmplacementOpen	100	olmplacement
+hyper	j	any	olmpluginsOpen	100	olmplugins
+hyper	j	any	olmthemeOpen	100	olmtheme
 hyper	j	any	speedtestOpen	100	speedtest
 hyper	j	any	textCaseOpen	100	textCase
 hyper	j	any	tmuxSessionsOpen	100	tmuxSessions
@@ -125,7 +133,9 @@ hyper	k	any	launcherOpen	100	launcher
 hyper	k	any	menuSearchOpen	100	menuSearch
 hyper	k	any	obsidianOpen	100	obsidian
 hyper	k	any	processesOpen	100	processes
-hyper	k	any	settingsOpen	100	settings
+hyper	k	any	olmplacementOpen	100	olmplacement
+hyper	k	any	olmpluginsOpen	100	olmplugins
+hyper	k	any	olmthemeOpen	100	olmtheme
 hyper	k	any	speedtestOpen	100	speedtest
 hyper	k	any	textCaseOpen	100	textCase
 hyper	k	any	tmuxSessionsOpen	100	tmuxSessions
@@ -151,7 +161,9 @@ hyper	o	any	launcherOpen	100	launcher
 hyper	o	any	menuSearchOpen	100	menuSearch
 hyper	o	any	obsidianOpen	100	obsidian
 hyper	o	any	processesOpen	100	processes
-hyper	o	any	settingsOpen	100	settings
+hyper	o	any	olmplacementOpen	100	olmplacement
+hyper	o	any	olmpluginsOpen	100	olmplugins
+hyper	o	any	olmthemeOpen	100	olmtheme
 hyper	o	any	speedtestOpen	100	speedtest
 hyper	o	any	textCaseOpen	100	textCase
 hyper	o	any	tmuxSessionsOpen	100	tmuxSessions
@@ -182,7 +194,9 @@ hyper	x	any	fileSearchOpen	100	fileSearch
 hyper	x	any	menuSearchOpen	100	menuSearch
 hyper	x	any	obsidianOpen	100	obsidian
 hyper	x	any	processesOpen	100	processes
-hyper	x	any	settingsOpen	100	settings
+hyper	x	any	olmplacementOpen	100	olmplacement
+hyper	x	any	olmpluginsOpen	100	olmplugins
+hyper	x	any	olmthemeOpen	100	olmtheme
 hyper	x	any	speedtestOpen	100	speedtest
 hyper	x	any	textCaseOpen	100	textCase
 hyper	x	any	tmuxSessionsOpen	100	tmuxSessions

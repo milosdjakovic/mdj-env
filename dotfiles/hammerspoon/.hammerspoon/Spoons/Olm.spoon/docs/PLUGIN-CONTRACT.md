@@ -104,6 +104,7 @@ What a person reads about the plugin, all optional strings.
 ```lua
 about = {
   title = "Obsidian",
+  description = "Search the notes in your Obsidian vaults and open one.",
   author = "Milos Djakovic",
   version = "0.1",
   license = "MIT",
@@ -112,7 +113,9 @@ about = {
 ```
 
 `title` is the name a person reads, which may differ from both the directory and the identity.
-`version` is the plugin's own, separate from `apiVersion`. A key outside these five is refused
+`description` is one short sentence saying what the plugin does, shown in the Olm Plugins page's
+pane beside the highlighted plugin. `version` is the plugin's own, separate from `apiVersion`. A
+key outside these six is refused
 with the plugin, so a misspelt field is reported where it was written. Nothing here is read by
 the wiring, it exists for a page or a listing that describes plugins. `defaults.description`
 stays where it is and is not repeated here, since the launcher reads it and a person can

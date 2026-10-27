@@ -9,6 +9,7 @@ return {
 
   about = {
     title = "Emoji & Symbol Picker",
+    description = "Find an emoji or symbol by name and insert it.",
     author = "Milos Djakovic",
     version = "0.1",
     license = "MIT",

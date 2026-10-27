@@ -1,6 +1,6 @@
 -- Unit case for the simple lists that moved onto the shared search in phase two of
--- docs/PLAN-UNIFIED-SEARCH.md, Workspaces, DisplayProfiles, TmuxSessions and the settings
--- Plugins page. The first row under a typed query is checked by name wherever a pinned row
+-- docs/PLAN-UNIFIED-SEARCH.md, Workspaces, DisplayProfiles, TmuxSessions, the Olm Plugins
+-- page and the Olm Placement list. The first row under a typed query is checked by name wherever a pinned row
 -- leads the resting list, since the first row is what the highlight and Enter land on. Each chooser is
 -- loaded by path over a fake api and its rows are ranked through the real rank.lua and
 -- match.lua, since what is under test is that the supplier hands back every row and that the
@@ -201,7 +201,7 @@ do
 end
 
 --------------------------------------------------------------------------------
--- The settings Plugins page
+-- The Olm Plugins page, and the Olm Placement list
 --------------------------------------------------------------------------------
 
 do
@@ -209,33 +209,30 @@ do
     { identity = "calendar", about = { title = "Calendar" }, needs = {}, disabled = false },
     { identity = "clipboard", about = { title = "Clipboard" }, needs = {}, disabled = false,
       pending = true, after = { off = true } },
-    { identity = "settings", about = { title = "Settings" }, needs = {}, disabled = false },
+    { identity = "olmplugins", about = { title = "Olm Plugins" }, needs = {}, disabled = false },
   }
-  local M = load("plugins/settings/init.lua")
+  local M = load("plugins/olmplugins/init.lua")
   M:configure({
-    overlayPlacementMode = function() return "cursor" end,
-    setOverlayPlacementMode = function() end,
-    themeName = function() return "default" end,
-    themeNames = function() return { "default" } end,
-    setTheme = function() end,
     pluginCatalog = function() return catalog end,
     pluginCascade = function() return {} end,
     stagePluginSwitch = function() return true end,
     applyPluginSwitches = function() end,
   })
-  local page = M.select({ nav = true, to = "plugins" })
-  local rows = page.rows()
-  check("the Plugins page leads with Back then Apply now, both pinned", rows[1].title == "Back"
-    and rows[1].pinned == true and rows[2].title == "Apply now" and rows[2].pinned == true, titles(rows))
+  local rows = M.rows()
+  check("the Plugins page leads with Apply now, pinned", rows[1].title == "Apply now"
+    and rows[1].pinned == true, titles(rows))
   local kept = ranked(rows, "clip")
-  check("with clip typed the first row, where Enter lands, is Clipboard and not Back",
+  check("with clip typed the first row, where Enter lands, is Clipboard and not Apply now",
     kept[1] and kept[1].title == "Clipboard", titles(kept))
-  check("and Back and Apply now trail it", titles(kept) == "Clipboard,Back,Apply now", titles(kept))
+  check("and Apply now trails it", titles(kept) == "Clipboard,Apply now", titles(kept))
   kept = ranked(rows, "off")
-  check("a plugin's state words are not searched", titles(kept) == "Back,Apply now", titles(kept))
-  kept = ranked(M.rows(), "mouse")
-  check("the top level's live status subtitles are not searched", #kept == 0, titles(kept))
-  kept = ranked(M.rows(), "cursor")
-  check("the placement row answers to its declared keywords", titles(kept) == "Where the OLM launcher appears",
-    titles(kept))
+  check("a plugin's state words are not searched", titles(kept) == "Apply now", titles(kept))
+
+  local P = load("plugins/olmplacement/init.lua")
+  P:configure({
+    overlayPlacementMode = function() return "cursor" end,
+    setOverlayPlacementMode = function() end,
+  })
+  kept = ranked(P.rows(), "active")
+  check("a placement option is found by its title", titles(kept) == "With the active window", titles(kept))
 end

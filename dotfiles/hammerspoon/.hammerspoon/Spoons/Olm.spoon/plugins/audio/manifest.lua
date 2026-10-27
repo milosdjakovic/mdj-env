@@ -8,6 +8,8 @@ return {
 
   about = {
     title = "Audio Devices",
+
+    description = "Switch the sound output and input devices.",
     author = "Milos Djakovic",
     version = "0.1",
     license = "MIT",

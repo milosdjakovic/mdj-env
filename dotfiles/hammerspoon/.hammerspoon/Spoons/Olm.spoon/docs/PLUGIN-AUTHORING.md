@@ -26,6 +26,7 @@ return {
 
   about = {
     title = "Obsidian",
+    description = "Search the notes in your Obsidian vaults and open one.",
     author = "Milos Djakovic",
     version = "0.1",
     license = "MIT",
@@ -36,8 +37,10 @@ return {
 
 `apiVersion` is required and must equal the spoon's own `obj.apiVersion` in `init.lua`. A
 manifest without it, or naming another number, is left out before any of its code runs. `about`
-takes `title`, `author`, `version`, `license` and `homepage`, all strings, and refuses any other
-key, so a typo is reported rather than shown blank.
+takes `title`, `description`, `author`, `version`, `license` and `homepage`, all strings, and
+refuses any other key, so a typo is reported rather than shown blank. `description` is one short
+sentence saying what the plugin does, which the Olm Plugins page shows beside the highlighted
+plugin, so every plugin carries one.
 
 `init.lua` returns the module and exposes `configure(opts)`, unless the manifest declares
 `wiring` steps that stand in for it. Everything else `init.lua` exposes, the manifest
@@ -229,8 +232,8 @@ down.
 `intercept` is asked for the highlighted row before that row is allowed to complete. Answer
 "stay" when your row mutates the list it is standing on, changing what a sibling row shows
 or removing one, in place, so the list stays open and rebuilds with the highlight held on
-the row the person just chose rather than jumping away from it, the OLM settings placement
-page's own two option rows and the clipboard's own prune page both being shipped examples.
+the row the person just chose rather than jumping away from it, the Olm Placement
+list's own two option rows and the clipboard's own prune page both being shipped examples.
 Answer plain true only for a wholesale swap of the whole list, the one case it still means
 what it always has, rebuilt from the top with the highlight starting over at row one. A page
 of options a person flips this way never pops or closes on its own, leaving is always the

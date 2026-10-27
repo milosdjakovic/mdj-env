@@ -21,6 +21,8 @@ return {
 
   about = {
     title = "System Settings",
+
+    description = "Open any System Settings pane directly from the launcher.",
     author = "Milos Djakovic",
     version = "0.1",
     license = "MIT",

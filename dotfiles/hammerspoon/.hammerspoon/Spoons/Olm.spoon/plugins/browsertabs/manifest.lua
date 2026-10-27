@@ -9,6 +9,8 @@ return {
 
   about = {
     title = "Browser Tabs",
+
+    description = "Find any open browser tab across your browsers and switch to it.",
     author = "Milos Djakovic",
     version = "0.1",
     license = "MIT",

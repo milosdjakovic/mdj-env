@@ -1,4 +1,4 @@
--- Unit case for the Plugins page of the settings plugin, plugins/settings/pluginspage.lua. The
+-- Unit case for the Olm Plugins page, plugins/olmplugins/pluginspage.lua. The
 -- runner reaches this file with a dofile call carrying an absolute path, so it locates itself
 -- through debug.getinfo and derives every module path from there.
 --
@@ -30,13 +30,13 @@ local function fresh(path)
   return chunk()
 end
 
-local page = fresh("plugins/settings/pluginspage.lua")
+local page = fresh("plugins/olmplugins/pluginspage.lua")
 local styleLib = fresh("lib/ui/style.lua")
 local ui = fresh("lib/ui/kit.lua").new(styleLib.names)
 
 local catalog = {
-  { identity = "alpha", about = { title = "Alpha", version = "1.2", author = "A", license = "MIT",
-      homepage = "example.test" }, needs = { tools = { "tool1" }, libs = {}, siblings = { "beta" },
+  { identity = "alpha", about = { title = "Alpha", description = "Does alpha things.", version = "1.2",
+      author = "A", license = "MIT", homepage = "example.test" }, needs = { tools = { "tool1" }, libs = {}, siblings = { "beta" },
       data = { "wordOne" } }, disabled = false },
   { identity = "beta", about = { title = "Beta" }, needs = { tools = {}, libs = {}, siblings = {},
       data = {} }, disabled = true },
@@ -127,6 +127,7 @@ end
 local function joined(node) return table.concat(said(node), "\n") end
 
 local detail = joined(page.detail(ui, catalog[1], catalog, { off = true, others = { "gamma" } }))
+check("the detail says what the plugin does", detail:find("Does alpha things.", 1, true) ~= nil)
 check("the detail names the author", detail:find("A", 1, true) ~= nil)
 check("the detail names the homepage", detail:find("example.test", 1, true) ~= nil)
 check("the detail lists the tools", detail:find("tool1", 1, true) ~= nil)
@@ -152,16 +153,13 @@ check("a plugin staged on says what applying brings back",
   returning:find("Applying this also brings back Gamma.", 1, true) ~= nil)
 
 local bare = joined(page.detail(ui, catalog[2], catalog, nil))
+check("a plugin with no description draws none", bare:find("Does alpha", 1, true) == nil)
 check("a plugin with no author draws none", bare:find("Author", 1, true) == nil)
 check("a plugin that needs nothing says so", bare:find("Needs nothing", 1, true) ~= nil)
 
--- The Plugins child must inherit the shared matcher, since it is a list a person picks from.
-local initFile = io.open(olm .. "plugins/settings/init.lua", "r")
-local initText = initFile and initFile:read("*a") or ""
-if initFile then initFile:close() end
-local childBody = initText:match("local function buildPluginsChild%(%).-\n  }\nend") or ""
-check("the Plugins child body was found", childBody ~= "")
-check("the Plugins child does not set matcher to false", childBody:find("matcher%s*=%s*false") == nil)
+-- The page must inherit the shared matcher, since it is a list a person picks from.
+local manifest = fresh("plugins/olmplugins/manifest.lua")
+check("the page does not set a matcher", manifest.presentation.matcher == nil)
 
 check("a plugin row filters on its title and identity only", rows[1].filterText == "Alpha alpha")
 check("a staged row filters on the same text as before", afterRows[1].filterText == rows[1].filterText)

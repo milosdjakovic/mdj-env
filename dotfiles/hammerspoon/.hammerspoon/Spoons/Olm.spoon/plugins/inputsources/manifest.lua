@@ -8,6 +8,8 @@ return {
 
   about = {
     title = "Input Sources",
+
+    description = "Switch between the keyboard layouts enabled on this Mac.",
     author = "Milos Djakovic",
     version = "0.2",
     license = "MIT",
