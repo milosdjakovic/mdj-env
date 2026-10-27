@@ -117,14 +117,39 @@ function M.textEntry(util, s)
   }
 end
 
+-- Whether this process can open the file for reading. A stat is not enough, since a file
+-- in another app's container answers attributes and then refuses to be opened.
+local function readable(path)
+  local f = io.open(path, "rb")
+  if not f then return false end
+  f:close()
+  return true
+end
+
 function M.build(util)
   local fileReader = {
     kind = "file",
+    -- A copy from another device over Universal Clipboard arrives as a file url into the
+    -- system's own spool, which this process may stat but never open, beside the image's real
+    -- bytes. Recorded as a file it could never be frozen or previewed, and the spool is
+    -- cleared soon after, so when no linked file can be opened and the pasteboard carries an
+    -- image this reader steps aside for the image one. A real Finder copy is always readable,
+    -- so its thumbnail rep never wins. The paths are read once and left on ctx for read, and
+    -- the first name goes on ctx too so the image keeps what it was called.
     matches = function(ctx)
-      return ctx.set["public.file-url"] == true
+      if ctx.set["public.file-url"] ~= true then return false end
+      ctx.paths = readFilePaths(util)
+      if ctx.avail.image == true and #ctx.paths > 0 then
+        for _, p in ipairs(ctx.paths) do
+          if readable(p) then return true end
+        end
+        ctx.imageName = util.basename(ctx.paths[1])
+        return false
+      end
+      return true
     end,
-    read = function()
-      local paths = readFilePaths(util)
+    read = function(ctx)
+      local paths = ctx.paths or readFilePaths(util)
       if #paths == 0 then
         return nil
       end
@@ -142,16 +167,20 @@ function M.build(util)
     matches = function(ctx)
       return ctx.avail.image == true
     end,
-    read = function()
+    read = function(ctx)
       local img = hs.pasteboard.readImage()
       if not img then
         return nil
       end
       local sz = img:size() or { w = 0, h = 0 }
       local w, h = floor(sz.w or 0), floor(sz.h or 0)
+      local title = string.format("Image %dx%d", w, h)
+      if ctx.imageName then
+        title = util.oneLine(ctx.imageName, 80)
+      end
       return {
         kind = "image", _img = img, w = w, h = h, ts = os.time(),
-        title = string.format("Image %dx%d", w, h), preview = "image",
+        title = title, preview = "image",
       }
     end,
   }
