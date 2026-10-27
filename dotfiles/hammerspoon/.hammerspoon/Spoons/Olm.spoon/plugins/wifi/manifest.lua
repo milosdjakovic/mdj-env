@@ -9,7 +9,6 @@ return {
 
   about = {
     title = "Wi-Fi",
-
     description = "Join or leave a Wi-Fi network in range.",
     author = "Milos Djakovic",
     version = "0.1",

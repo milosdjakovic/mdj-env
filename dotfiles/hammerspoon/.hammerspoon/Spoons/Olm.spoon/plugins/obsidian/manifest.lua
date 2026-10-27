@@ -21,7 +21,6 @@ return {
 
   about = {
     title = "Obsidian",
-
     description = "Search the notes in your Obsidian vaults and open one.",
     author = "Milos Djakovic",
     version = "0.1",

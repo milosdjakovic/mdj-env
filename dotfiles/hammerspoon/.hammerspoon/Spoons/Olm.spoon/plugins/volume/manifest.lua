@@ -8,7 +8,6 @@ return {
 
   about = {
     title = "Volume",
-
     description = "Set or mute the output volume from a typed level.",
     author = "Milos Djakovic",
     version = "0.1",

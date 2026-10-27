@@ -17,7 +17,6 @@ return {
 
   about = {
     title = "Tmux Sessions",
-
     description = "Jump to any tmux window across every session.",
     author = "Milos Djakovic",
     version = "0.1",

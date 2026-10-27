@@ -10,7 +10,6 @@ return {
 
   about = {
     title = "Keep Awake",
-
     description = "Keep the Mac awake, indefinitely, for a span or until a time.",
     author = "Milos Djakovic",
     version = "0.1",

@@ -12,7 +12,6 @@ return {
 
   about = {
     title = "Screen Capture",
-
     description = "Take screenshots and recordings, and copy text read from the screen.",
     author = "Milos Djakovic",
     version = "0.1",

@@ -9,7 +9,6 @@ return {
 
   about = {
     title = "Display Profiles",
-
     description = "Keep saved display arrangements applied whenever the same monitors are attached.",
     author = "Milos Djakovic",
     version = "0.1",

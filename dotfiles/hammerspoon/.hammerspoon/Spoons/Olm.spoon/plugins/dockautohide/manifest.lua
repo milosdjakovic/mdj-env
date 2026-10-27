@@ -11,7 +11,6 @@ return {
 
   about = {
     title = "Dock",
-
     description = "Turn Dock auto hide on or off and switch its show delay.",
     author = "Milos Djakovic",
     version = "0.1",

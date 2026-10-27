@@ -24,7 +24,6 @@ return {
 
   about = {
     title = "App Toggler",
-
     description = "Bring an app forward with its key, cycling its windows when it is already in front.",
     author = "Milos Djakovic",
     version = "0.1",

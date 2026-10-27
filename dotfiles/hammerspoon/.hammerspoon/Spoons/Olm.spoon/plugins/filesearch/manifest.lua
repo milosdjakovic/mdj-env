@@ -11,7 +11,6 @@ return {
 
   about = {
     title = "File Search",
-
     description = "Find a file by name and open, reveal or copy it.",
     author = "Milos Djakovic",
     version = "0.1",

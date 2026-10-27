@@ -12,7 +12,6 @@ return {
 
   about = {
     title = "Local Servers",
-
     description = "Find the dev servers and containers left running and stop them.",
     author = "Milos Djakovic",
     version = "0.1",

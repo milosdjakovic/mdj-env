@@ -19,7 +19,6 @@ return {
 
   about = {
     title = "Workspaces",
-
     description = "Snapshot where your windows sit and put them back later.",
     author = "Milos Djakovic",
     version = "0.1",

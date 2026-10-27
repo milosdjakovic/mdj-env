@@ -34,7 +34,6 @@ return {
 
   about = {
     title = "Menu Search",
-
     description = "Search the front app's menu bar and run any item.",
     author = "Milos Djakovic",
     version = "0.1",

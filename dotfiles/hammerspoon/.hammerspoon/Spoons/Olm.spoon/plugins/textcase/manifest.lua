@@ -12,7 +12,6 @@ return {
 
   about = {
     title = "Text Case",
-
     description = "Change the case of the selected text, previewed before it is pasted back.",
     author = "Milos Djakovic",
     version = "0.1",

@@ -17,7 +17,6 @@ return {
 
   about = {
     title = "VPN",
-
     description = "Connect the VPN to a chosen location or disconnect it.",
     author = "Milos Djakovic",
     version = "0.1",
