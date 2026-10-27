@@ -574,5 +574,11 @@ surface shows and released on teardown after the surface hides and before `onClo
 passes `lib/securefocus.lua`, the one file that knows the mechanism, a native `hs.chooser` with no
 rows moved off screen, which is the only thing measured to take focus from Safari. While such a
 list is open secure input is off, so any tap on the machine could read what is typed into it, and
-that lasts only while the list is open. `test/securefocus.lua` pins the lib over fakes. The
-provider has no plain test harness, only the live probe, so the call order is checked live.
+that lasts only while the list is open. Chrome keeps secure input on whichever application is
+active, measured 2026-10-27, so the hold is handed a sink by the provider and, while secure input
+stays on, relays the chooser's typed text into the field and claims the list's non typing keys
+through `hs.hotkey`, feeding each to the field as a key event through `Field:feed`, and claims
+nothing while it is off. A list key bound with no leader beyond the relayed set is not heard over
+Chrome. `test/securefocus.lua` pins the lib over fakes. The provider has no plain test harness,
+only the live probe, so the call order is checked live. `decisions/olm-chooser-keys.md` has the
+measurements.

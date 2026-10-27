@@ -146,7 +146,9 @@ local LIST_KEYS = nil
 
 -- An optional function answering a release function or nil, asked once per open right after the
 -- surface shows. It is the seam for whatever must give this canvas keys a tap cannot otherwise
--- hear, and the release it answers runs on teardown. Nil until M.configure runs.
+-- hear, and the release it answers runs on teardown. It is handed a sink, key(event) feeding the
+-- field as its tap would and text(string) replacing the field's text, for keys it hears by another
+-- route. Nil until M.configure runs.
 local FOCUS_HOLD = nil
 
 -- The injected CanvasPanel module, nil until M.configure runs. Held at module level rather than
@@ -1064,7 +1066,12 @@ function Provider:show()
   self.surface:show()
   -- A show over a list already up keeps the hold it has, since a second would strand the first.
   if not self._focusRelease then
-    self._focusRelease = FOCUS_HOLD and safeCall(FOCUS_HOLD) or nil
+    -- Where a hold relays what the tap cannot hear, typed text and keys alike, into this field.
+    local sink = {
+      key = function(ev) self.field:feed(ev) end,
+      text = function(text) self.field:setText(text) end,
+    }
+    self._focusRelease = FOCUS_HOLD and safeCall(FOCUS_HOLD, sink) or nil
   end
 
   self.field:start()

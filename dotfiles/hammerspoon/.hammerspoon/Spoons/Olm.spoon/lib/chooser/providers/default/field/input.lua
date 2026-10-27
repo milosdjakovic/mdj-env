@@ -249,6 +249,13 @@ function Field:_handle(ev)
   return true
 end
 
+--- feed handles a key down that reached this field by another route than its tap, the relay
+--- lib/securefocus.lua runs while secure input hides every key from the tap, so the key takes
+--- exactly the path a tapped one takes.
+function Field:feed(ev)
+  return self:_handle(ev)
+end
+
 --- start arms the tap. Idempotent, calling it again while already armed does
 --- nothing, so an owner does not have to track whether it already called this once.
 function Field:start()

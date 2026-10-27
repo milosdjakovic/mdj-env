@@ -327,3 +327,45 @@ the key panel's go back from body to caption, 14, by his choice, which overrides
 hint label is body, so the rule now names a hint label caption, in the hammerspoon `AGENTS.md`
 typography section. The bar grows to 35 points, the 23 point hint badge with the small space above
 and below, and a key panel row to 23, both from the tokens.
+
+### 2026-10-27 15:30
+
+Bug found, and a belief from 2026-10-22 22:37 corrected. That entry measured secure input going off
+within a tenth of a second once `lib/securefocus.lua`'s native chooser became key, and that holds
+only for an app that drops secure input when it loses focus, as Safari did. Chrome can keep it with
+no window in front. At 15:27 secure input was on, `kCGSSessionSecureInputPID` named Chrome, and
+Ghostty was frontmost. Opened over that, the clipboard list showed, the hold put its empty native
+chooser in front, the field's tap stayed blind, and Up, Down, Return and Escape went to the native
+chooser instead, which the console records as `unable to select row -2 of 0` at 15:20:55 and twice
+at 15:26:09. Nothing is changed yet. The list was deaf before the hold existed in this case too,
+since no tap can hear keys while another process holds secure input.
+
+### 2026-10-27 16:45
+
+Measured with Milos, a passive watcher logging secure input, the frontmost app and the focused
+window every half second. Over Chrome's password field on the w3schools tryit page the hold's
+chooser became the focused window and Chrome stayed the active application, secure input on and
+the tap hearing nothing. Calling `hs.focus()` and focusing the chooser's window after the show was
+tried, and it made Hammerspoon the active application, and secure input still stayed on, the tap
+still deaf, until Milos left Chrome. Over Safari's the same hold made Hammerspoon active and secure
+input went off, as on 2026-10-22. So Chrome keeps secure input for as long as its field has focus
+inside its own window, whichever application is active, and no way of taking focus can end it.
+The focus change was reverted, since it fixed nothing. A list over a Chrome password field can only
+hear keys by a route secure input does not hide, which `hs.hotkey` is, Hyper's keys acting there
+throughout.
+
+### 2026-10-27 16:58
+
+Built, the route the 16:45 entry named. While secure input stays on after the hold's chooser is
+key, `lib/securefocus.lua` relays into the list what the tap cannot hear. The chooser's typed text
+goes to the field's text, and Up, Down, Return, keypad Enter, Escape, Command and Return, Command
+and a digit, Command and ? and, while the text is empty, Backspace are claimed through `hs.hotkey`
+and handed to the field as key events through `Field:feed`, so each takes a tapped key's own path,
+the field's yield, the list key watcher and its keymap. The relay polls secure input every tenth of
+a second and claims nothing while it is off, since a key a tap hears and a hotkey fires on would act
+twice, which the 15:40 probe measured, both seeing every key with secure input off. Tinycast's
+palette was read for comparison, `PalettePanel.swift`, a borderless non activating panel that
+becomes key and reads every key as a window event, which is why it never meets this. Milos
+confirmed searching, moving, Backspace, Return and Escape in the clipboard over Chrome's password
+field with secure input on for the whole run, and over Safari's. A list key a list binds with no
+leader beyond those, a person's own `ctrl+j`, is not relayed, and is the gap left.
