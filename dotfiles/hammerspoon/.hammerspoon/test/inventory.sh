@@ -34,6 +34,39 @@ for arg in "$@"; do
   esac
 done
 
+# Every hs call passes -q and is bounded, the way units.sh calls it and for its reason. Without -q
+# the client mirrors the console back, and a client killed or wedged while mirrored stays
+# registered until the ipc channel stops answering anything that mirrors, which hung this
+# script's readiness wait on 2026-10-27 while a -q call answered at once. And bash runs the
+# trap below only once the foreground command returns, so an unbounded hung call also held the
+# test lock until someone released it by hand. Prints what the command printed, and answers 124
+# when the limit ran out.
+bounded() {
+  local limit=$1
+  shift
+  local out
+  out=$(mktemp)
+  "$@" >"$out" 2>&1 </dev/null &
+  local pid=$!
+  local ticks=0
+  while kill -0 "$pid" 2>/dev/null; do
+    if [ "$ticks" -ge $((limit * 10)) ]; then
+      kill "$pid" 2>/dev/null
+      wait "$pid" 2>/dev/null
+      cat "$out"
+      rm -f "$out"
+      return 124
+    fi
+    sleep 0.1
+    ticks=$((ticks + 1))
+  done
+  wait "$pid"
+  local status=$?
+  cat "$out"
+  rm -f "$out"
+  return "$status"
+}
+
 # Puts the machine back on any exit, an interrupt, or a failure, the same three
 # paths suite.sh guards, so the resting state is always main whatever happened
 # above.
@@ -75,14 +108,14 @@ trap finish EXIT INT TERM
 waited=0
 live_ok=""
 while [ "$waited" -lt 30 ]; do
-  live_ok=$(hs -c "return (hs.configdir == '$CONFIG_DIR')" 2>/dev/null)
+  live_ok=$(bounded 3 hs -q -c "return (hs.configdir == '$CONFIG_DIR')" 2>/dev/null)
   [ "$live_ok" = "true" ] && break
   sleep 1
   waited=$(( waited + 1 ))
 done
 if [ "$live_ok" != "true" ]; then
   printf 'inventory.sh, the live config never became this worktree, saw configdir %s\n' \
-    "$(hs -c "return hs.configdir" 2>/dev/null)" >&2
+    "$(bounded 3 hs -q -c "return hs.configdir" 2>/dev/null)" >&2
   exit 1
 fi
 
@@ -92,7 +125,7 @@ rm -f "$SNAPSHOT_FILE"
 # The only Lua that crosses the shell boundary for the dump itself, one dofile
 # call and nothing else. Everything the dump needs to decide, where to write and
 # what to read, lives inside inventory.lua rather than being passed in here.
-hs_out=$(hs -c "dofile('$INVENTORY_LUA')" 2>&1)
+hs_out=$(bounded 30 hs -q -c "dofile('$INVENTORY_LUA')" 2>&1)
 
 if [ ! -s "$SNAPSHOT_FILE" ]; then
   printf 'inventory.sh, the dump produced no snapshot, hs reported\n%s\n' "$hs_out" >&2
