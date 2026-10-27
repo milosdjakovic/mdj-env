@@ -24,12 +24,16 @@ only when its config exists, so it needs no knowledge of the profile at all.
 
 Switching a piece off never removes anything. It only stops a run from adding it.
 
-A machine's Hyper app keys are a second file in its folder, `hammerspoon-apps.lua`, a Lua table
-Hammerspoon reads, and `machines/default/hammerspoon-apps.lua` holds only apps macOS ships and the
-Brewfile installs. A machine's own file replaces the default whole. `src/setup-hammerspoon-apps.sh`
-copies the one that applies to `~/.hammerspoon/machine-apps.lua`, and `config/machine.lua` reads it,
-so the Hammerspoon config never names a machine. `--capture` writes this machine's file from what
-is in place.
+A machine's Hyper app keys and display profiles are two more files in its folder,
+`hammerspoon-apps.lua` and `hammerspoon-displays.lua`, Lua tables Hammerspoon reads. The default
+apps are only those macOS ships and the Brewfile installs, the default displays are none, and a
+machine's own file replaces its default whole. `src/setup-hammerspoon-apps.sh` copies each one that
+applies to `~/.hammerspoon/machine-<kind>.lua`, and `config/machine.lua` reads them, so the
+Hammerspoon config never names a machine. A copy edited by hand is refused rather than overwritten,
+and an app key in `config/keymap.lua` is reported, both as closing notes. `--capture` writes this
+machine's files from what is in place, `--discard` overwrites a hand edit. Rule 9 in the root
+`AGENTS.md` says an agent changes a key or a profile in this machine's file only, runs the script,
+and proposes discarding or moving a change it finds made directly.
 
 ## Rejected
 
@@ -176,3 +180,23 @@ captured there, which Milos chose. The hammerspoon module gained a `NO-FOLD` for
 since a folded one would send the copy into this checkout. Applied here, reloaded, the live keymap
 read back 19 keys with Hyper and G on Google Chat and the id laid over the catalog, the console
 clean of new errors, and the unit cases 2017 of 2017.
+
+### 2026-10-27 15:05
+
+Display profiles moved the same way, at Milos's asking, with an empty default. Only
+Miloss-MacBook-Pro-Vicert had any, four, and they moved unchanged into its own folder, compared by
+loading both and matching every name and command. Moving a machine's existing profiles is not
+writing rows for it, and leaving them would have dropped them there. `config/displays.lua` keeps the
+settle delay and hands DisplayProfiles this machine's list, which the plugin already took as is
+when it is not keyed by host, so Olm is unchanged. The step copies both kinds now.
+
+Milos asked in the same exchange for a rule, that an app key he asks for goes into this machine's
+file and the script runs, never the shared config, and that a change found made directly is
+proposed for discarding or moving. It is rule 9 in the root `AGENTS.md`. The script backs the half
+it can see. It remembers each copy as `.machine-<kind>.copied`, refuses a copy that differs from
+it, and reports an `apptoggler` key in `config/keymap.lua`, as closing notes inside `setup.sh` and
+a nonzero exit alone. Checked in a scratch home through a fresh copy, a rerun, a hand edit, the
+same inside a setup run, `--discard` and `--capture`, and live here, 19 keys and no profiles as
+before, unit cases 2017 of 2017. This machine's built in panel reports `s4251086178`, the id the
+Vicert profiles name for theirs, which `displays.lua` had called different on every Mac. Not acted
+on.

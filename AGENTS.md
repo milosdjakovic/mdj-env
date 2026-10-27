@@ -45,8 +45,9 @@ MDJ_EDITOR="Visual Studio Code" ./setup.sh   # the editor step's answer, for a r
 ./src/setup-dev-defaults.sh
 ./src/setup-dev-defaults.sh --list   # the apps that can open development files, one per line
 ./src/setup-capslock-hyper.sh
-./src/setup-hammerspoon-apps.sh            # this machine's Hyper app keys, from machines/<name>/hammerspoon-apps.lua or the default
-./src/setup-hammerspoon-apps.sh --capture  # give this machine its own file, from the keys it has now
+./src/setup-hammerspoon-apps.sh            # this machine's Hyper app keys and display profiles, from machines/<name>/ or the default
+./src/setup-hammerspoon-apps.sh --capture  # give this machine its own files, from what it has now
+./src/setup-hammerspoon-apps.sh --discard  # overwrite a copy that was edited by hand
 ./src/setup-macos-shortcuts.sh       # turns off the macOS shortcuts that take a chord Olm uses, Show Help menu today
 ./src/setup-ivpn-permissions.sh   # repairs bundle modes the ivpn cask leaves wrong; needs sudo only when repairing
 ./src/setup-claude-settings.sh
@@ -391,6 +392,15 @@ These are rules, not background. Each one exists because the opposite was done o
 8. **A venv is moved aside before it is replaced.** Rebuild from the lockfile with `uv sync` where
    one exists, otherwise from the exact list `uv pip freeze` gives, and compare the lists before
    and after. Delete the old one only after the new one has been checked.
+9. **A Hyper app key or a display profile is changed in this machine's file, never in the shared
+   config.** Asked to add or change one, edit `machines/<this machine>/hammerspoon-apps.lua` or
+   `hammerspoon-displays.lua`, after `src/setup-hammerspoon-apps.sh --capture` when the machine has
+   none, and then run `src/setup-hammerspoon-apps.sh` so it is live. Never put one in
+   `config/keymap.lua`, `config/displays.lua` or `machines/default/`, which reach every machine.
+   When one turns up changed directly, an `apptoggler` key in `config/keymap.lua` or a copy in
+   `~/.hammerspoon/machine-*.lua` edited by hand, both of which the script reports, propose to the
+   person either discarding it or moving it into this machine's file, and once they answer, do it
+   and run the script again, `--discard` for the copy when they chose to drop it.
 
 ### Machines, and what each one takes
 
@@ -401,10 +411,12 @@ and `default` is never a machine name.
 `src/machine.sh` is its only reader. The stow step, `setup.sh` through `step_if`, the Brewfile
 through `on?`, and the reconciler all ask it, and nothing else knows the layout. The steps a
 person follows to capture a machine are in `README.md` under "Capturing a machine", keep them
-current when capture changes. A machine's Hyper app keys are a second file there, `hammerspoon-apps.lua`, a Lua table rather than
-rows because Hammerspoon reads it, copied into `~/.hammerspoon` by `src/setup-hammerspoon-apps.sh`.
-The default holds only apps macOS ships and the Brewfile installs, and a machine's own file replaces
-it whole. `decisions/machine-profiles.md` has why it is copied rather than read by machine name. On a machine
+current when capture changes. A machine's Hyper app keys and display profiles are two more files
+there, `hammerspoon-apps.lua` and `hammerspoon-displays.lua`, Lua tables rather than rows because
+Hammerspoon reads them, copied into `~/.hammerspoon` by `src/setup-hammerspoon-apps.sh`, which
+refuses to overwrite a copy edited by hand. The default apps are only those macOS ships and the
+Brewfile installs, the default displays are none, and a machine's own file replaces the default
+whole. Rule 9 above says how an agent changes one. `decisions/machine-profiles.md` has why it is copied rather than read by machine name. On a machine
 that has no pieces file yet, or has changed, run `src/machine.sh capture` in a terminal. It probes each
 piece, proposes rows, asks, and rewrites that machine's pieces file in place, so a second run on an
 unchanged machine writes nothing and a row set by hand is kept unless you say otherwise. Adding a

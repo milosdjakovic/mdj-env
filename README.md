@@ -78,26 +78,34 @@ Do this once on every machine, and again whenever a machine changes.
 Capture records what a machine has, not what you want it to have. To give a machine a piece it
 does not have yet, such as kanata or mise, see the next section.
 
-## Giving a machine its own Hyper app keys
+## Giving a machine its own Hyper app keys and display profiles
 
-A machine with no file of its own gets `machines/default/hammerspoon-apps.lua`, which holds only
-apps every machine has, the ones macOS ships and the ones the Brewfile installs.
+A machine with no files of its own gets `machines/default/hammerspoon-apps.lua`, which holds only
+apps every machine has, the ones macOS ships and the ones the Brewfile installs, and
+`machines/default/hammerspoon-displays.lua`, which holds no display profile.
 
-1. **Capture the keys it has now** into a file of its own.
+1. **Capture what it has now** into files of its own.
    ```bash
    ./src/setup-hammerspoon-apps.sh --capture
    ```
-   This writes `machines/<name>/hammerspoon-apps.lua`. It replaces the default whole, so keep
-   the lines it starts with.
+   This writes `machines/<name>/hammerspoon-apps.lua` and `hammerspoon-displays.lua`, each
+   only where the machine has none yet. Each replaces its default whole, so keep the lines it
+   starts with. Delete a captured file you have nothing to add to, and the default applies.
 2. **Add this machine's keys** to that file, such as `["hyper+G"] = "apptoggler.GoogleChat"`,
    the name from `dotfiles/hammerspoon/.hammerspoon/config/apps.lua`. An app whose bundle id
    differs on this machine, as every Chrome web app does, goes under `apps`, the id from
-   `osascript -e 'id of app "Google Chat"'`.
+   `osascript -e 'id of app "Google Chat"'`. A display profile goes under `profiles` in the
+   displays file, a name and the `displayplacer ...` line `displayplacer list` prints last, and
+   the default file's header says how matching works.
 3. **Apply it.** Hammerspoon reloads by itself when the file changes.
    ```bash
    ./src/setup-hammerspoon-apps.sh
    ```
 4. **Commit and push it.** `./setup.sh` applies it from then on.
+
+Change these files, never the copies in `~/.hammerspoon`. A copy edited by hand is left alone and
+reported, and `./src/setup-hammerspoon-apps.sh --discard` overwrites it once the change is moved
+or not wanted.
 
 ## Giving a machine an optional piece
 

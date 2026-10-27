@@ -4,8 +4,9 @@ Configuration in `dotfiles/hammerspoon/.hammerspoon/`:
 - `init.lua` - Entry point, holding this machine's own data and preferences plus the one call into Olm
 - `config/` - User-editable configuration (pure data)
   - `apps.lua` - App bundle ID registry
+  - `displays.lua` - The settle delay every machine shares, and this machine's display profiles from `machine.lua`
   - `keymap.lua` - Every key and alias this person sets, one file Olm owns and reads as `cfg.keymap`, never a plugin. `keys` maps a chord, a leader or modifiers joined by `+` with the key last, to an action id such as `vpn.open`, `apptoggler.Safari` or `systemsettings.General`, or to `false` to free it. The Hyper app keys are not there, they are this machine's, see `machine.lua`. `leaders` names a set of real modifiers as a leader of its own, `roles` moves a role to another leader, and `aliases` replaces a plugin's launcher words. Empty means the shipped keys exactly, see the file's own header and `Spoons/Olm.spoon/lib/keymap.lua`
-  - `machine.lua` - This machine's Hyper app keys and app ids, read from `~/.hammerspoon/machine-apps.lua`, which `src/setup-hammerspoon-apps.sh` copies there from `machines/<name>/hammerspoon-apps.lua` at the repository root or from the default beside it. `keymap.lua` adds the keys, `apps.lua` lays the ids over its catalog, and a chord in `keymap.lua` wins over the same chord there. The copy sits beside `config/` because `config/` is a link into the repository, and the module's `NO-FOLD` keeps `~/.hammerspoon` a real directory
+  - `machine.lua` - This machine's Hyper app keys, app ids and display profiles, read from `~/.hammerspoon/machine-apps.lua` and `machine-displays.lua`, which `src/setup-hammerspoon-apps.sh` copies there from `machines/<name>/hammerspoon-<kind>.lua` at the repository root or from the default beside it. `keymap.lua` adds the keys, `apps.lua` lays the ids over its catalog, `displays.lua` hands the profiles on, and a chord in `keymap.lua` wins over the same chord there. Rule 9 in the root `AGENTS.md` says how a key or a profile is changed, in this machine's file and never here, and what to do with one found changed directly. The copy sits beside `config/` because `config/` is a link into the repository, and the module's `NO-FOLD` keeps `~/.hammerspoon` a real directory
   - `plugins.lua` - One entry per plugin identity, holding that plugin's overrides of its manifest defaults, its person supplied data and its spoon global, or `false` to switch it off. Only a plugin under `plugins/` can be switched off, a host written `false` is refused with a console line, and a switch saved by the Olm Plugins page under `Olm.disabledPlugins` joins these, see `Spoons/Olm.spoon/lib/pluginswitch.lua`
   - `settings.lua` - Global settings (margins, timing)
   - `workspaces/` - Workspace definitions (dev.lua, vicert.lua)
@@ -639,10 +640,11 @@ macOS still scrambles the main display, scaling, or window positions when a dock
 wakes monitors in a different order, and the Settings UI cannot force a layout
 back. Olm's DisplayProfiles plugin watches screen changes with `hs.screen.watcher` and
 reapplies the saved arrangement that fits whatever is attached. It is the
-mechanism only, it never names a machine or a layout. `config/displays.lua` holds
-the pure data, a list of profiles per machine keyed by `LocalHostName` (read with
-`scutil --get LocalHostName`), each profile a name plus a full `displayplacer`
-command. `root/compose.lua` resolves this machine's name once, through `scutil`,
+mechanism only, it never names a machine or a layout. Each machine's profiles are its own
+`machines/<name>/hammerspoon-displays.lua` at the repository root, none by default, copied beside
+the config by `src/setup-hammerspoon-apps.sh` and handed on by `config/displays.lua` as this
+machine's list already, each profile a name plus a full `displayplacer`
+command. Until 2026-10-27 `config/displays.lua` held every machine's list keyed by `LocalHostName`. `root/compose.lua` resolves this machine's name once, through `scutil`,
 and hands it to every plugin keyed per host. DisplayProfiles' own `configure` is
 where the per host split actually happens, taking its own slice of the curated
 list by that name. The spoon
