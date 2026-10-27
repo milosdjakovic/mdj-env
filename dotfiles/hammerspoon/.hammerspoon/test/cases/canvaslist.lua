@@ -694,7 +694,8 @@ do
 end
 
 --------------------------------------------------------------------------------
--- An icon is drawn at paint, through the injected style.icon
+-- An icon is drawn at paint, through the injected style.iconElements, which answers elements
+-- drawn into the icon's frame rather than a picture, since 06c2d71e lets an emoji arrive as text
 --------------------------------------------------------------------------------
 
 do
@@ -711,9 +712,11 @@ do
   local rect = { x = 0, y = 0, w = layout.width, h = render.bandHeight(layout) }
   local asked = {}
   local colour = "light"
-  local style = { icon = function(icon, owner)
+  local frames = {}
+  local style = { iconElements = function(icon, owner, frame)
     asked[#asked + 1] = icon .. "/" .. tostring(owner)
-    return "drawn-" .. colour
+    frames[#frames + 1] = frame
+    return { { type = "image", image = "drawn-" .. colour, frame = frame } }
   end }
   local function images(els)
     local out = {}
@@ -723,12 +726,13 @@ do
     return out
   end
   local first = images(render.elements(s, rect, layout, style))
-  check("a row that names an icon is drawn through style.icon with its owner", first[1] == "drawn-light" and asked[1] == "go/demo")
+  check("a row that names an icon is drawn through style.iconElements with its owner", first[1] == "drawn-light" and asked[1] == "go/demo")
+  check("and is handed the icon's frame to draw into", type(frames[1]) == "table" and frames[1].w ~= nil and frames[1].w > 0)
   check("a row that carries an image keeps it and never asks", first[2] == "real" and #asked == 1)
   check("a row with no icon draws no image", #first == 2)
   colour = "dark"
   local again = images(render.elements(s, rect, layout, style))
   check("the next paint asks again, so a switch of halves redraws the icon", again[1] == "drawn-dark")
-  check("without style.icon a row that names an icon draws none",
+  check("without style.iconElements a row that names an icon draws none",
     #images(render.elements(s, rect, layout, {})) == 1)
 end

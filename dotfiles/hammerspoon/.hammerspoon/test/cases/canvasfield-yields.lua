@@ -138,13 +138,19 @@ do
   check("under the held trigger any key is owned while the leader is held",
     leader:owns(ev(34)) == true)
 
+  -- The modifier trigger reads the flags the key event carries, since c3ece570, because the live
+  -- keyboard is read a moment after the event, and the live keyboard only when handed no event.
   mods = {}
   local chord = fresh(modifierChunk().new({ mods = { "ctrl", "alt" } }))
   check("under the modifier trigger a key is not owned with no modifier held", chord:owns(ev(34)) == false)
-  mods = { ctrl = true }
-  check("under the modifier trigger a partial base set does not own a key", chord:owns(ev(34)) == false)
+  check("under the modifier trigger a partial base set does not own a key",
+    chord:owns(ev(34, { ctrl = true })) == false)
+  check("under the modifier trigger the whole base set owns any key",
+    chord:owns(ev(34, { ctrl = true, alt = true })) == true)
   mods = { ctrl = true, alt = true }
-  check("under the modifier trigger the whole base set owns any key", chord:owns(ev(34)) == true)
+  check("under the modifier trigger the event's own flags win over the live keyboard",
+    chord:owns(ev(34, {})) == false)
+  check("and handed no event it reads the live keyboard", chord:owns(nil) == true)
 
   local plain = fresh(modifierChunk().new({ mods = {} }))
   check("an empty base set, the plain leader, owns nothing whatever is held", plain:owns(ev(34)) == false)

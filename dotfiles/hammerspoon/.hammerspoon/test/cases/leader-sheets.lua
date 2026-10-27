@@ -130,6 +130,15 @@ local function tally(into, key)
   into[key] = (into[key] or 0) + 1
 end
 
+-- The chords a sheet shows plus the ones its host left off for an app not installed here, which
+-- is what every key bound on a leader is held against.
+local function accounted(shown, absent)
+  local out = {}
+  for k, n in pairs(shown or {}) do out[k] = n end
+  for k, n in pairs(absent or {}) do out[k] = (out[k] or 0) + n end
+  return out
+end
+
 local function missing(from, against)
   local out = {}
   for _, k in ipairs(sorted(from)) do
@@ -182,7 +191,8 @@ local function run(manifests, person)
     present = function() return true end,
     libNames = libNames, listKeys = keymapLib.listDefaults })
   local result = { plan = plan, bound = { app = {}, window = {}, global = {} },
-    sheet = { app = {}, window = {} }, undriven = {}, problems = plan.problems, bindProblems = {} }
+    sheet = { app = {}, window = {} }, absent = { app = {}, window = {} }, undriven = {},
+    problems = plan.problems, bindProblems = {} }
 
   local function bindOn(leader)
     return function(key, mods) tally(result.bound[leader], mark(key, mods)) end
@@ -230,16 +240,11 @@ local function run(manifests, person)
       if identity == "apptoggler" then
         module = load("plugins/apptoggler/init.lua")
         module:init()
-        -- The person's catalog and variants, handed over as that plugin's data, win over the
-        -- shipped defaults the way config/plugins.lua's entry does for the running config.
+        -- The person's catalog, styles and toggles, handed over as that plugin's data, win over
+        -- the shipped defaults the way config/plugins.lua's entry does for the running config.
         local given = (person.data or {}).apptoggler or {}
-        local apps = given.apps or eff.apps
-        -- A variant bound as a plain combination, so one is added to prove it stays off every
-        -- sheet, with its key in the keys below.
-        local variants = {}
-        for name, v in pairs(given.variants or eff.variants or {}) do variants[name] = v end
-        variants.ProbePlaced = { app = "Finder", hides = true }
-        module:configure({ apps = apps, variants = variants, appFocus = {} })
+        module:configure({ apps = given.apps or eff.apps, styles = given.styles or eff.styles,
+          toggles = given.toggles or eff.toggles, appFocus = {} })
       elseif identity == "systemsettings" then
         module = load("plugins/systemsettings/init.lua")
         module:init()
@@ -260,13 +265,19 @@ local function run(manifests, person)
     end
   end
 
-  -- The person's keys, read the way the root reads config/keymap.lua, plus the probe variant's
-  -- plain combination when the app toggler is in the plan.
+  -- The person's keys, read the way the root reads config/keymap.lua. With none, Finder's toggle
+  -- takes a plain combination beside its leader chord, to prove a combination on an app stays off
+  -- every sheet. Naming an action gives it exactly the chords named, so its Hyper key is restated.
+  -- Until 2026-10-24 this was a variant of its own, ProbePlaced, retired with variants for styles.
   local keys = {}
   for chord, id in pairs((person.keymap or {}).keys or {}) do keys[chord] = id end
-  if manifests.apptoggler then keys["ctrl+alt+8"] = "apptoggler.ProbePlaced" end
+  if manifests.apptoggler and not person.keymap then
+    keys["hyper+f"] = "apptoggler.Finder"
+    keys["ctrl+alt+8"] = "apptoggler.Finder"
+  end
   local personKeys = keymapLib.readConfig({ keys = keys },
-    { catalog = { HYPER = true, META = true, SUPER = true }, roleWords = { "app", "window" } })
+    { leaders = { hyper = { key = "capsLock" }, meta = { key = "rightOption" }, super = { key = "rightCommand" } },
+      roleWords = { "app", "window" } })
   for _, pr in ipairs(personKeys.problems) do result.bindProblems[#result.bindProblems + 1] = pr end
 
   local claimed = {}
@@ -339,6 +350,11 @@ local function run(manifests, person)
     local spec = policies[name]
     local layout = leaderLib.sheetLayout(spec.policy)
     local rows = hints.sheetRows(keymap, plan, name, { registry = registry })
+    -- The host leaves off a row whose app is not on this machine, so its key is bound and not
+    -- shown by design. Counted here, so the checks below hold on a Mac missing a toggled app.
+    for _, row in ipairs(rows) do
+      if row.app ~= nil and not appInfo(row.app) then tally(result.absent[spec.role], mark(row.key, row.mods)) end
+    end
     sheets[#sheets + 1] = { name = name, keyCode = spec.code, layout = layout,
       entries = host.ownSections(rows, { glyphFor = mark, layout = layout, appInfo = appInfo,
         orderOf = orderOf, ownOrder = (plan.effective[sheetIdentity] or {}).cheatSheetOrder }) }
@@ -371,7 +387,7 @@ for _, leader in ipairs({ "app", "window" }) do
   local bound, shown = real.bound[leader], real.sheet[leader]
   local n = #sorted(bound)
   check("the " .. leader .. " leader binds something", n > 0)
-  local hidden = missing(bound, shown)
+  local hidden = missing(bound, accounted(shown, real.absent[leader]))
   check("every key bound on the " .. leader .. " leader is on its sheet", #hidden == 0,
     "bound and not shown, " .. table.concat(hidden, " "))
   local dead = missing(shown, bound)
@@ -383,7 +399,7 @@ for _, k in ipairs(sorted(real.bound.global)) do
   check("the global combo " .. k .. " is on no leader's sheet",
     not real.sheet.app[k] and not real.sheet.window[k])
 end
-check("the variant bound as a plain combination was bound as a global combo", real.bound.global["8+alt+ctrl"])
+check("an app toggle's plain combination was bound as a global combo", real.bound.global["8+alt+ctrl"])
 
 -- The app toggles come first, as they always have, a block of the toggler's own rows asked at
 -- every show, since each row's group answers whether its app runs.
@@ -441,7 +457,7 @@ do
     check("with the person's config the plan has no problems", #person.problems == 0,
       #person.problems > 0 and (tostring(person.problems[1].kind) .. " at " .. tostring(person.problems[1].where)) or nil)
     for _, leader in ipairs({ "app", "window" }) do
-      local hidden = missing(person.bound[leader], person.sheet[leader])
+      local hidden = missing(person.bound[leader], accounted(person.sheet[leader], person.absent[leader]))
       check("with the person's config every key bound on the " .. leader .. " leader is on its sheet",
         #hidden == 0, "bound and not shown, " .. table.concat(hidden, " "))
       local dead = missing(person.sheet[leader], person.bound[leader])
@@ -449,8 +465,8 @@ do
         #dead == 0, "shown and not bound, " .. table.concat(dead, " "))
     end
     check("the person's toggles reach the app sheet", person.sheet.app["b"] == 1 and person.sheet.app["`"] == 1)
-    check("the person's placed terminal toggle is a global combo on no sheet",
-      person.bound.global["`+alt"] == 1 and not person.sheet.app["`+alt"])
+    check("the person's terminal popup is on Hyper and backtick, and Option and backtick is gone",
+      person.bound.app["`"] == 1 and not person.bound.global["`+alt"])
     check("Hyper and comma is bound on the app leader and on its sheet",
       person.bound.app[","] == 1 and person.sheet.app[","] == 1)
     local personDrawn = person.host:sections(person.hyperCode)

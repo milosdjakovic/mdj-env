@@ -47,9 +47,20 @@ local function freshModule(opts)
     return entry.handle
   end
 
+  -- The blind stream check repeats while a key is held. It is kept apart from the one shot
+  -- timers, so the checks that fire a timer by its wait meet exactly the timers they did before
+  -- it existed, and it never fires here, since this case has no secure input and no disabled tap.
+  local function doEvery(interval, fn)
+    local entry = { interval = interval, fn = fn, live = true }
+    entry.handle = { stop = function() entry.live = false end }
+    world.every = entry
+    return entry.handle
+  end
+
   local fakeHs = {
     timer = {
       doAfter = doAfter,
+      doEvery = doEvery,
       secondsSinceEpoch = function() return world.now end,
     },
     eventtap = {
@@ -58,9 +69,11 @@ local function freshModule(opts)
       -- outright by moving this delay and finding the window unmoved.
       keyRepeatDelay = function() return opts.repeatDelay or 0.5 end,
       keyRepeatInterval = function() return 0.1 end,
+      isSecureInputEnabled = function() return false end,
       new = function(_, fn)
         world.callback = fn
-        return { start = function() return true end, stop = function() return true end }
+        return { start = function() return true end, stop = function() return true end,
+                 isEnabled = function() return true end }
       end,
       event = {
         types = { keyDown = KEY_DOWN, keyUp = KEY_UP },

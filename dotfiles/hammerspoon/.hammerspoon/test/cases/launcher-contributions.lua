@@ -453,11 +453,13 @@ eq("an owned special row whose owner runs nothing reaches no tool",
   run({ kind = "special", name = "searchSettings", owner = "arithmetic" }), nil)
 
 --------------------------------------------------------------------------------
--- The app rows. The app toggler answers one action per app and per variant, each naming its app,
--- and a person's keymap puts keys on them. The subtitles are the ones the launcher wrote when it
--- read the person's toggles and app registry itself, a key on a leader spelled with the leader's
--- name, a plain combination spelled by the glyph function with its description, and of two
--- actions on one app the plain combination winning the row. No app row carries a url any more,
+-- The app rows. The app toggler answers one action per app, each naming its app, an app its
+-- toggles list styles carrying the entry's description, and a person's keymap puts keys on them.
+-- The subtitles are the ones the launcher wrote when it read the person's toggles and app
+-- registry itself, a key on a leader spelled with the leader's name, a plain combination spelled
+-- by the glyph function with its description, and of two chords on one app the plain combination
+-- winning the row. Until 2026-10-24 the second chord was a named variant, a second action on the
+-- same app, and since styles replaced variants it is the app's own action taking two chords. No app row carries a url any more,
 -- since a pane is System Settings' own action.
 --------------------------------------------------------------------------------
 
@@ -467,19 +469,21 @@ local togglerManifest = load("plugins/apptoggler/manifest.lua")
 local buildOk, buildErr = pcall(toggler.configure, toggler, {
   apps = { Alpha = "olm.test.alpha", Beta = "olm.test.beta", Gamma = "olm.test.gamma", Delta = "olm.test.delta" },
   appFocus = {},
-  variants = {
-    BetaPlaced = { app = "Beta", hides = true, description = "Placed" },
-    GammaFirst = { app = "Gamma", description = "First" },
-    Stray = { app = "Nowhere" },
+  styles = { popup = { hides = true } },
+  toggles = {
+    { app = "Beta", style = "popup", description = "Placed" },
+    { app = "Gamma", description = "First" },
+    { app = "Nowhere", style = "popup" },
   },
 })
 check("the app toggler builds its actions", buildOk, tostring(buildErr))
 local togglerActions, _, togglerProblems, togglerOrder = registrar.validateActions("apptoggler", togglerManifest, toggler)
-eq("the app toggler answers one action per app and per known variant", #togglerOrder, 6)
+eq("the app toggler answers one action per app, a styled one included", #togglerOrder, 4)
 eq("every one of them passes the registrar", #togglerProblems, 0)
-eq("apps come first, by name", table.concat(togglerOrder, ","), "Alpha,Beta,Delta,Gamma,BetaPlaced,GammaFirst")
-eq("a variant naming no app in the catalog is left out", togglerActions.Stray, nil)
-eq("every action names its app", togglerActions.BetaPlaced.app, "olm.test.beta")
+eq("the apps in order, by name", table.concat(togglerOrder, ","), "Alpha,Beta,Delta,Gamma")
+eq("a toggle naming no app in the catalog mints no action", togglerActions.Nowhere, nil)
+eq("every action names its app", togglerActions.Beta.app, "olm.test.beta")
+eq("a styled app's action carries the entry's description", togglerActions.Beta.description, "Placed")
 eq("and a group function", type(togglerActions.Alpha.group), "function")
 
 local function appLauncher(details)
@@ -510,9 +514,9 @@ local appPlan = {
   order = { "apptoggler" },
 }
 local appKeys = keymapLib.readConfig({ keys = {
-  ["hyper+A"] = "apptoggler.Alpha", ["hyper+B"] = "apptoggler.Beta", ["ctrl+alt+8"] = "apptoggler.BetaPlaced",
-  ["cmd+G"] = "apptoggler.GammaFirst", ["hyper+H"] = "apptoggler.Gamma", ["hyper+shift+D"] = "apptoggler.Delta",
-} }, { catalog = { HYPER = true, META = true }, roleWords = { "app", "window" } })
+  ["hyper+A"] = "apptoggler.Alpha", ["hyper+B"] = "apptoggler.Beta", ["ctrl+alt+8"] = "apptoggler.Beta",
+  ["cmd+G"] = "apptoggler.Gamma", ["hyper+H"] = "apptoggler.Gamma", ["hyper+shift+D"] = "apptoggler.Delta",
+} }, { leaders = { hyper = { key = "capsLock" }, meta = { key = "rightOption" } }, roleWords = { "app", "window" } })
 local appKeymap = keymapLib.build({ plan = appPlan, roles = { app = "HYPER", window = "META" },
   actions = { apptoggler = togglerActions }, personKeys = appKeys.keys })
 eq("the keymap binds every app action the person named", #appKeymap.problems, 0)
