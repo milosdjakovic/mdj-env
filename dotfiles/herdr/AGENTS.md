@@ -21,6 +21,18 @@ pull request that was closed unread, and how to recheck it after an upgrade, is
 `decisions/iris.md`. Read it before touching detection or before adding anything to the shell
 that holds the terminal.
 
+## What an agent row says
+
+Two lines, where the agent is and then what it is. The first is the space and the tab, the tab
+only when it was named, since a rule hides a label that reads as a number. The second is the
+pane's name, only once the pane has been named, and the agent's name. A Claude session goes by
+its session name there, which `statusline-command.sh` in the claude package reports to the pane
+as herdr's display agent with `herdr pane report-metadata` and clears when there is none, so the
+row falls back to claude. The session name is the `/rename` name or, without one, the title
+Claude generated. Metadata is display only and never touches the pane's state, which is what
+separates it from the hook `decisions/iris.md` removed. `decisions/herdr-sidebar.md` has what
+was turned down.
+
 ## The popup surface, and its one rule
 
 A popup is session modal. It takes every key including escape, it does not disturb the tiled

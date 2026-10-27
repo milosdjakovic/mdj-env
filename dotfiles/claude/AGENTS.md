@@ -49,6 +49,7 @@ pane with a copy button, and a session end hook for the cleanup.
 ## Dependencies
 
 Declared in `DEPENDENCIES` at this package root, by hand, since the module has no swappable
-units. `jq` and `git` serve the status line, `pbcopy` serves the handoff skill and is optional,
+units. `jq` and `git` serve the status line, and `herdr` does too, optionally, since inside herdr the
+status line reports the session name to its pane for the agents sidebar. `pbcopy` serves the handoff skill and is optional,
 because the handoff file is still written without it. Never name an install command in a skill,
 the reconciler scans every file under `dotfiles` for one.

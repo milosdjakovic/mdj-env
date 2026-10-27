@@ -22,10 +22,22 @@ delivery = "herdr"
 #
 # Only the agents rows are restated. The spaces rows keep their default, so the lines being
 # matched to are untouched.
+#
+# A tab that was never named carries the number herdr proposed as its label, so a label that
+# reads as a number is hidden and the row says space and tab only when the tab has a name.
+#
+# The first line is where the agent is, the second what it is. A pane's name leads the second
+# line only once the pane has been named, since herdr reports no label before that.
+#
+# After it comes the agent's name. A Claude session renamed with /rename goes by that
+# name instead of the word claude. Claude Code hands it to the status line as session_name,
+# and statusline-command.sh reports it to the pane as herdr's display agent, clearing it when
+# there is none so the row says claude again. Metadata is display only and takes no authority
+# over the pane's state, unlike the hook decisions/iris.md records.
 [ui.sidebar.agents]
 rows = [
-  ["state_icon", "machine", "workspace", { token = "tab", dim = false }],
-  [{ token = "agent", dim = false }],
+  ["state_icon", "machine", "workspace", { token = "tab", dim = false, rules = [{ gt = -1, hide = true }] }],
+  ["pane", { token = "agent", dim = false }],
 ]
 
 [theme]

@@ -6,3 +6,4 @@ jq  | path | jq  | required | statusline-command.sh | parsing the session json t
 git | path | git | optional | statusline-command.sh | the branch shown in the status line
 pbcopy | system | /usr/bin/pbcopy | optional | skills/handoff/SKILL.md | putting the handoff prompt on the clipboard, without it the handoff file is still written
 claude | path | claude | required | the whole module | the program this module configures, without it the status line, commands and skills have nothing to run in
+herdr | path | herdr | optional | statusline-command.sh | reporting the session name to the herdr pane the session runs in, so its agents sidebar shows it, nothing is reported outside herdr

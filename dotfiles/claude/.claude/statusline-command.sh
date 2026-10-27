@@ -24,6 +24,19 @@ fi
 
 used=$(echo "$input" | jq -r '.context_window.used_percentage // empty')
 
+# Inside herdr, the /rename name goes to this pane as the agent name its sidebar shows, and is
+# cleared when there is none so the row says claude again. Detached and silent, so a slow or
+# absent herdr never holds up the status line.
+if [ -n "$HERDR_PANE_ID" ]; then
+  session=$(echo "$input" | jq -r '.session_name // empty')
+  if [ -n "$session" ]; then
+    set -- --display-agent "$session"
+  else
+    set -- --clear-display-agent
+  fi
+  (herdr pane report-metadata "$HERDR_PANE_ID" --source claude-statusline "$@" >/dev/null 2>&1 &)
+fi
+
 # The chrome grey is slot 17, which dotfiles/ghostty/theme-map declares as the overlay role,
 # Aura's statusBar.foreground on the dark half and the light grey herdr's secondary line
 # carries on the light one. A slot is right here because Claude Code passes the escape
