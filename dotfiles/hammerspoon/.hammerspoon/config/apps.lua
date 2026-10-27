@@ -37,7 +37,12 @@ return {
   Arc = "company.thebrowser.Browser",
 
   -- Dev tools
-  Docker = "com.electron.dockerdesktop",
+  -- The outer Docker.app, which macOS can launch and the sheet can show. The window belongs to
+  -- the Docker Desktop.app nested inside it, com.electron.dockerdesktop, which Launch Services
+  -- does not register, so naming that one launched nothing and left Docker off the Hyper sheet.
+  -- Asked again while running, Docker.app has no window of its own and is reopened, which brings
+  -- the dashboard forward.
+  Docker = "com.docker.docker",
   Bruno = "com.usebruno.app",
   TablePlus = "com.tinyapp.TablePlus",
   Hammerspoon = "org.hammerspoon.Hammerspoon",

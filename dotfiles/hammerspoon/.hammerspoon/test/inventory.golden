@@ -15,7 +15,7 @@ apptoggler.app name=ChatGPT bundleID=com.openai.chat
 apptoggler.app name=ChatGPTAtlas bundleID=com.openai.atlas.web
 apptoggler.app name=Claude bundleID=com.anthropic.claudefordesktop
 apptoggler.app name=Cursor bundleID=com.todesktop.230313mzl4w4u92
-apptoggler.app name=Docker bundleID=com.electron.dockerdesktop
+apptoggler.app name=Docker bundleID=com.docker.docker
 apptoggler.app name=Finder bundleID=com.apple.finder
 apptoggler.app name=Ghostty bundleID=com.mitchellh.ghostty
 apptoggler.app name=GoogleChat bundleID=com.google.Chrome.app.mdpkiolbdkhdjpekfbkbmhigcaggjagi
@@ -51,7 +51,7 @@ apptoggler.action name=ChatGPT app=com.openai.chat description=- group=true
 apptoggler.action name=ChatGPTAtlas app=com.openai.atlas.web description=- group=true
 apptoggler.action name=Claude app=com.anthropic.claudefordesktop description=- group=true
 apptoggler.action name=Cursor app=com.todesktop.230313mzl4w4u92 description=- group=true
-apptoggler.action name=Docker app=com.electron.dockerdesktop description=- group=true
+apptoggler.action name=Docker app=com.docker.docker description=- group=true
 apptoggler.action name=Finder app=com.apple.finder description=- group=true
 apptoggler.action name=Ghostty app=com.mitchellh.ghostty description=- group=true
 apptoggler.action name=GoogleChat app=com.google.Chrome.app.mdpkiolbdkhdjpekfbkbmhigcaggjagi description=- group=true
@@ -76,7 +76,7 @@ apptoggler.action name=Xcode app=com.apple.dt.Xcode description=- group=true
 apptoggler.action name=Yomu app=net.cecinestpasparis.yomu description=- group=true
 apptoggler.action name=Zed app=dev.zed.Zed description=- group=true
 apptoggler.action name=iPhoneMirroring app=com.apple.ScreenContinuity description=- group=true
-registry hypercontexts count=19
+registry hypercontexts count=22
 hypercontexts.context name=audio when=audioOpen priority=100 bindingCount=7
 hypercontexts.context name=browserTabs when=browserTabsOpen priority=100 bindingCount=7
 hypercontexts.context name=caffeinate when=caffeinateOpen priority=100 bindingCount=5
@@ -84,11 +84,14 @@ hypercontexts.context name=clipboard when=clipboardOpen priority=100 bindingCoun
 hypercontexts.context name=displayProfiles when=displayProfilesOpen priority=100 bindingCount=7
 hypercontexts.context name=emoji when=emojiOpen priority=100 bindingCount=7
 hypercontexts.context name=fileSearch when=fileSearchOpen priority=100 bindingCount=14
+hypercontexts.context name=inputsources when=inputsourcesOpen priority=100 bindingCount=7
 hypercontexts.context name=launcher when=launcherOpen priority=100 bindingCount=8
 hypercontexts.context name=menuSearch when=menuSearchOpen priority=100 bindingCount=7
 hypercontexts.context name=obsidian when=obsidianOpen priority=100 bindingCount=7
+hypercontexts.context name=olmplacement when=olmplacementOpen priority=100 bindingCount=7
+hypercontexts.context name=olmplugins when=olmpluginsOpen priority=100 bindingCount=7
+hypercontexts.context name=olmtheme when=olmthemeOpen priority=100 bindingCount=7
 hypercontexts.context name=processes when=processesOpen priority=100 bindingCount=10
-hypercontexts.context name=settings when=settingsOpen priority=100 bindingCount=7
 hypercontexts.context name=speedtest when=speedtestOpen priority=100 bindingCount=7
 hypercontexts.context name=textCase when=textCaseOpen priority=100 bindingCount=7
 hypercontexts.context name=tmuxSessions when=tmuxSessionsOpen priority=100 bindingCount=7
@@ -156,6 +159,13 @@ hypercontexts.binding context=fileSearch key=o mods=- action=openActionPanel kin
 hypercontexts.binding context=fileSearch key=q mods=- action=peekPreview kind=verb when=- chord=true needs=askedPreview description=Quick Look
 hypercontexts.binding context=fileSearch key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
 hypercontexts.binding context=fileSearch key=y mods=- action=copyPath kind=verb when=- chord=true needs=- description=Copy path
+hypercontexts.binding context=inputsources key=/ mods=cmd action=showKeys kind=navigation when=- chord=true needs=- description=Keys
+hypercontexts.binding context=inputsources key=/ mods=cmd+shift action=showKeys kind=navigation when=- chord=true needs=- description=Keys
+hypercontexts.binding context=inputsources key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Use
+hypercontexts.binding context=inputsources key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
+hypercontexts.binding context=inputsources key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
+hypercontexts.binding context=inputsources key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
+hypercontexts.binding context=inputsources key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
 hypercontexts.binding context=launcher key=/ mods=cmd action=showKeys kind=navigation when=- chord=true needs=- description=Keys
 hypercontexts.binding context=launcher key=/ mods=cmd+shift action=showKeys kind=navigation when=- chord=true needs=- description=Keys
 hypercontexts.binding context=launcher key=delete mods=- action=leavePage kind=navigation when=launcherHostingList chord=false needs=- description=Go back
@@ -178,6 +188,27 @@ hypercontexts.binding context=obsidian key=j mods=- action=selectNext kind=navig
 hypercontexts.binding context=obsidian key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
 hypercontexts.binding context=obsidian key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=obsidian key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
+hypercontexts.binding context=olmplacement key=/ mods=cmd action=showKeys kind=navigation when=- chord=true needs=- description=Keys
+hypercontexts.binding context=olmplacement key=/ mods=cmd+shift action=showKeys kind=navigation when=- chord=true needs=- description=Keys
+hypercontexts.binding context=olmplacement key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Choose
+hypercontexts.binding context=olmplacement key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
+hypercontexts.binding context=olmplacement key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
+hypercontexts.binding context=olmplacement key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
+hypercontexts.binding context=olmplacement key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
+hypercontexts.binding context=olmplugins key=/ mods=cmd action=showKeys kind=navigation when=- chord=true needs=- description=Keys
+hypercontexts.binding context=olmplugins key=/ mods=cmd+shift action=showKeys kind=navigation when=- chord=true needs=- description=Keys
+hypercontexts.binding context=olmplugins key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Switch
+hypercontexts.binding context=olmplugins key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
+hypercontexts.binding context=olmplugins key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
+hypercontexts.binding context=olmplugins key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
+hypercontexts.binding context=olmplugins key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
+hypercontexts.binding context=olmtheme key=/ mods=cmd action=showKeys kind=navigation when=- chord=true needs=- description=Keys
+hypercontexts.binding context=olmtheme key=/ mods=cmd+shift action=showKeys kind=navigation when=- chord=true needs=- description=Keys
+hypercontexts.binding context=olmtheme key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Apply
+hypercontexts.binding context=olmtheme key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
+hypercontexts.binding context=olmtheme key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
+hypercontexts.binding context=olmtheme key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
+hypercontexts.binding context=olmtheme key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
 hypercontexts.binding context=processes key=/ mods=cmd action=showKeys kind=navigation when=- chord=true needs=- description=Keys
 hypercontexts.binding context=processes key=/ mods=cmd+shift action=showKeys kind=navigation when=- chord=true needs=- description=Keys
 hypercontexts.binding context=processes key=f mods=- action=stopForced kind=verb when=- chord=true needs=- description=Force stop
@@ -188,13 +219,6 @@ hypercontexts.binding context=processes key=o mods=- action=openActionPanel kind
 hypercontexts.binding context=processes key=r mods=- action=refreshList kind=verb when=- chord=true needs=- description=Rescan
 hypercontexts.binding context=processes key=s mods=- action=sortByLoad kind=verb when=- chord=true needs=- description=Sort by load
 hypercontexts.binding context=processes key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-hypercontexts.binding context=settings key=/ mods=cmd action=showKeys kind=navigation when=- chord=true needs=- description=Keys
-hypercontexts.binding context=settings key=/ mods=cmd+shift action=showKeys kind=navigation when=- chord=true needs=- description=Keys
-hypercontexts.binding context=settings key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Choose
-hypercontexts.binding context=settings key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
-hypercontexts.binding context=settings key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
-hypercontexts.binding context=settings key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
-hypercontexts.binding context=settings key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
 hypercontexts.binding context=speedtest key=/ mods=cmd action=showKeys kind=navigation when=- chord=true needs=- description=Keys
 hypercontexts.binding context=speedtest key=/ mods=cmd+shift action=showKeys kind=navigation when=- chord=true needs=- description=Keys
 hypercontexts.binding context=speedtest key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Confirm
@@ -242,7 +266,7 @@ hypercontexts.binding context=workspaces key=j mods=- action=selectNext kind=nav
 hypercontexts.binding context=workspaces key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
 hypercontexts.binding context=workspaces key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=workspaces key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-registry actionpanel count=19
+registry actionpanel count=22
 actionpanel.context name=audio verbCount=0
 actionpanel.context name=browserTabs verbCount=0
 actionpanel.context name=caffeinate verbCount=0
@@ -250,11 +274,14 @@ actionpanel.context name=clipboard verbCount=3
 actionpanel.context name=displayProfiles verbCount=0
 actionpanel.context name=emoji verbCount=0
 actionpanel.context name=fileSearch verbCount=5
+actionpanel.context name=inputsources verbCount=0
 actionpanel.context name=launcher verbCount=0
 actionpanel.context name=menuSearch verbCount=0
 actionpanel.context name=obsidian verbCount=0
+actionpanel.context name=olmplacement verbCount=0
+actionpanel.context name=olmplugins verbCount=0
+actionpanel.context name=olmtheme verbCount=0
 actionpanel.context name=processes verbCount=3
-actionpanel.context name=settings verbCount=0
 actionpanel.context name=speedtest verbCount=0
 actionpanel.context name=textCase verbCount=0
 actionpanel.context name=tmuxSessions verbCount=0
@@ -273,7 +300,7 @@ actionpanel.verb context=fileSearch key=y mods=- action=copyPath description=Cop
 actionpanel.verb context=processes key=f mods=- action=stopForced description=Force stop
 actionpanel.verb context=processes key=r mods=- action=refreshList description=Rescan
 actionpanel.verb context=processes key=s mods=- action=sortByLoad description=Sort by load
-registry panelrows count=19
+registry panelrows count=22
 panelrows.context name=audio rowCount=2
 panelrows.context name=browserTabs rowCount=2
 panelrows.context name=caffeinate rowCount=2
@@ -281,11 +308,14 @@ panelrows.context name=clipboard rowCount=3
 panelrows.context name=displayProfiles rowCount=2
 panelrows.context name=emoji rowCount=2
 panelrows.context name=fileSearch rowCount=7
+panelrows.context name=inputsources rowCount=2
 panelrows.context name=launcher rowCount=2
 panelrows.context name=menuSearch rowCount=2
 panelrows.context name=obsidian rowCount=2
+panelrows.context name=olmplacement rowCount=2
+panelrows.context name=olmplugins rowCount=2
+panelrows.context name=olmtheme rowCount=2
 panelrows.context name=processes rowCount=5
-panelrows.context name=settings rowCount=2
 panelrows.context name=speedtest rowCount=2
 panelrows.context name=textCase rowCount=2
 panelrows.context name=tmuxSessions rowCount=2
@@ -313,19 +343,25 @@ panelrows.row context=fileSearch action=copyPath title=Copy path chord=Hyper Y i
 panelrows.row context=fileSearch action=insertSelected title=Open chord=↩ icon=primary
 panelrows.row context=fileSearch action=peekPreview title=Quick Look chord=Hyper Q icon=peek
 panelrows.row context=fileSearch action=revealInFinder title=Reveal in Finder chord=Hyper F icon=search
+panelrows.row context=inputsources action=- title=Back chord=⌫ icon=back
+panelrows.row context=inputsources action=insertSelected title=Use chord=↩ icon=primary
 panelrows.row context=launcher action=- title=Back chord=⌫ icon=back
 panelrows.row context=launcher action=insertSelected title=Run chord=↩ icon=primary
 panelrows.row context=menuSearch action=- title=Back chord=⌫ icon=back
 panelrows.row context=menuSearch action=insertSelected title=Run chord=↩ icon=primary
 panelrows.row context=obsidian action=- title=Back chord=⌫ icon=back
 panelrows.row context=obsidian action=insertSelected title=Open chord=↩ icon=primary
+panelrows.row context=olmplacement action=- title=Back chord=⌫ icon=back
+panelrows.row context=olmplacement action=insertSelected title=Choose chord=↩ icon=primary
+panelrows.row context=olmplugins action=- title=Back chord=⌫ icon=back
+panelrows.row context=olmplugins action=insertSelected title=Switch chord=↩ icon=primary
+panelrows.row context=olmtheme action=- title=Back chord=⌫ icon=back
+panelrows.row context=olmtheme action=insertSelected title=Apply chord=↩ icon=primary
 panelrows.row context=processes action=- title=Back chord=⌫ icon=back
 panelrows.row context=processes action=insertSelected title=Stop chord=↩ icon=primary
 panelrows.row context=processes action=refreshList title=Rescan chord=Hyper R icon=rescan
 panelrows.row context=processes action=sortByLoad title=Sort by load chord=Hyper S icon=sortByLoad
 panelrows.row context=processes action=stopForced title=Force stop chord=Hyper F icon=stopForced
-panelrows.row context=settings action=- title=Back chord=⌫ icon=back
-panelrows.row context=settings action=insertSelected title=Choose chord=↩ icon=primary
 panelrows.row context=speedtest action=- title=Back chord=⌫ icon=back
 panelrows.row context=speedtest action=insertSelected title=Confirm chord=↩ icon=primary
 panelrows.row context=textCase action=- title=Back chord=⌫ icon=back
@@ -340,7 +376,7 @@ panelrows.row context=wifi action=- title=Back chord=⌫ icon=back
 panelrows.row context=wifi action=insertSelected title=Confirm chord=↩ icon=primary
 panelrows.row context=workspaces action=- title=Back chord=⌫ icon=back
 panelrows.row context=workspaces action=insertSelected title=Select chord=↩ icon=primary
-registry hostedrows count=19
+registry hostedrows count=22
 hostedrows.context name=audio rowCount=1
 hostedrows.context name=browserTabs rowCount=1
 hostedrows.context name=caffeinate rowCount=1
@@ -348,11 +384,14 @@ hostedrows.context name=clipboard rowCount=1
 hostedrows.context name=displayProfiles rowCount=1
 hostedrows.context name=emoji rowCount=1
 hostedrows.context name=fileSearch rowCount=4
+hostedrows.context name=inputsources rowCount=1
 hostedrows.context name=launcher rowCount=1
 hostedrows.context name=menuSearch rowCount=1
 hostedrows.context name=obsidian rowCount=1
+hostedrows.context name=olmplacement rowCount=1
+hostedrows.context name=olmplugins rowCount=1
+hostedrows.context name=olmtheme rowCount=1
 hostedrows.context name=processes rowCount=1
-hostedrows.context name=settings rowCount=1
 hostedrows.context name=speedtest rowCount=1
 hostedrows.context name=textCase rowCount=1
 hostedrows.context name=tmuxSessions rowCount=1
@@ -370,11 +409,14 @@ hostedrows.row context=fileSearch action=- title=Back chord=⌫ icon=back closes
 hostedrows.row context=fileSearch action=copyPath title=Copy path chord=Hyper Y in File search icon=copy closes=true
 hostedrows.row context=fileSearch action=peekPreview title=Quick Look chord=Hyper Q in File search icon=peek closes=false
 hostedrows.row context=fileSearch action=revealInFinder title=Reveal in Finder chord=Hyper F in File search icon=search closes=true
+hostedrows.row context=inputsources action=- title=Back chord=⌫ icon=back closes=-
 hostedrows.row context=launcher action=- title=Back chord=⌫ icon=back closes=-
 hostedrows.row context=menuSearch action=- title=Back chord=⌫ icon=back closes=-
 hostedrows.row context=obsidian action=- title=Back chord=⌫ icon=back closes=-
+hostedrows.row context=olmplacement action=- title=Back chord=⌫ icon=back closes=-
+hostedrows.row context=olmplugins action=- title=Back chord=⌫ icon=back closes=-
+hostedrows.row context=olmtheme action=- title=Back chord=⌫ icon=back closes=-
 hostedrows.row context=processes action=- title=Back chord=⌫ icon=back closes=-
-hostedrows.row context=settings action=- title=Back chord=⌫ icon=back closes=-
 hostedrows.row context=speedtest action=- title=Back chord=⌫ icon=back closes=-
 hostedrows.row context=textCase action=- title=Back chord=⌫ icon=back closes=-
 hostedrows.row context=tmuxSessions action=- title=Back chord=⌫ icon=back closes=-
@@ -383,7 +425,7 @@ hostedrows.row context=vpn action=- title=Back chord=⌫ icon=back closes=-
 hostedrows.row context=wifi action=- title=Back chord=⌫ icon=back closes=-
 hostedrows.row context=workspaces action=- title=Back chord=⌫ icon=back closes=-
 registry actionpaneldecorated count=1
-registry tools count=20
+registry tools count=23
 tools.entry name=audio active=true surface=false hosted=true scope=true
 tools.entry name=browserTabs active=true surface=false hosted=true scope=true
 tools.entry name=caffeinate active=true surface=false hosted=true scope=true
@@ -393,10 +435,13 @@ tools.entry name=displayProfiles active=true surface=false hosted=false scope=fa
 tools.entry name=dockAutoHide active=true surface=false hosted=true scope=true
 tools.entry name=emoji active=true surface=false hosted=true scope=true
 tools.entry name=fileSearch active=true surface=true hosted=true scope=true
+tools.entry name=inputsources active=true surface=false hosted=true scope=true
 tools.entry name=menuSearch active=true surface=false hosted=false scope=true
 tools.entry name=obsidian active=true surface=false hosted=false scope=true
+tools.entry name=olmplacement active=true surface=false hosted=false scope=false
+tools.entry name=olmplugins active=true surface=false hosted=false scope=false
+tools.entry name=olmtheme active=true surface=false hosted=false scope=false
 tools.entry name=processes active=true surface=true hosted=false scope=false
-tools.entry name=settings active=true surface=false hosted=false scope=false
 tools.entry name=speedtest active=true surface=false hosted=true scope=true
 tools.entry name=textCase active=true surface=false hosted=false scope=false
 tools.entry name=tmuxSessions active=true surface=false hosted=true scope=true
@@ -404,7 +449,7 @@ tools.entry name=volume active=true surface=false hosted=true scope=true
 tools.entry name=vpn active=true surface=false hosted=true scope=true
 tools.entry name=wifi active=true surface=false hosted=true scope=true
 tools.entry name=workspaces active=true surface=false hosted=false scope=true
-registry scopes count=17
+registry scopes count=18
 scopes.entry name=aliasDirectory aliases=?
 scopes.entry name=apps aliases=a+app
 scopes.entry name=audio aliases=au+audio
@@ -413,6 +458,7 @@ scopes.entry name=caffeinate aliases=k+awake
 scopes.entry name=dockAutoHide aliases=d+dock
 scopes.entry name=emoji aliases=e+em+emoji
 scopes.entry name=fileSearch aliases=/
+scopes.entry name=inputsources aliases=kb+input
 scopes.entry name=menuSearch aliases=m+menu
 scopes.entry name=obsidian aliases=ob+obsidian
 scopes.entry name=speedtest aliases=st+speed
@@ -422,7 +468,7 @@ scopes.entry name=vpn aliases=v+vpn
 scopes.entry name=wifi aliases=wi+wifi
 scopes.entry name=windowActions aliases=w+window
 scopes.entry name=workspaces aliases=ws+layout
-registry launcherrows count=27
+registry launcherrows count=30
 launcherrows.entry name=aliasDirectory subTitle=Tools · every word that scopes this list (?)
 launcherrows.entry name=appendCopy subTitle=Clipboard · ⌃⌥C
 launcherrows.entry name=audio subTitle=System · switch the sound output or the microphone (au, audio)
@@ -434,14 +480,17 @@ launcherrows.entry name=displayProfiles subTitle=Displays · inspect and manage 
 launcherrows.entry name=dockAutoHide subTitle=System · hides or reveals the Dock (d, dock)
 launcherrows.entry name=emoji subTitle=Tools · Hyper J (e, em, emoji)
 launcherrows.entry name=fileSearch subTitle=Tools · Hyper ; (/)
+launcherrows.entry name=inputsources subTitle=Keyboard · switch the keyboard layout or input method (kb, input)
 launcherrows.entry name=keys subTitle=Tools · every key Olm binds
 launcherrows.entry name=lock subTitle=System · Hyper §
 launcherrows.entry name=manageHistory subTitle=Clipboard
 launcherrows.entry name=obsidian subTitle=Tools · search and open notes (ob, obsidian)
+launcherrows.entry name=olmplacement subTitle=Olm · which display the launcher appears on
+launcherrows.entry name=olmplugins subTitle=Olm · switch plugins on or off
+launcherrows.entry name=olmtheme subTitle=Olm · the colour theme Olm is drawn in
 launcherrows.entry name=pasteNext subTitle=Clipboard · ⌃⌥V
-launcherrows.entry name=processes subTitle=System · stops a dev server, container, or watcher
+launcherrows.entry name=processes subTitle=Tools · stops a dev server, container, or watcher
 launcherrows.entry name=searchSettings subTitle=System · opens the System Settings search field
-launcherrows.entry name=settings subTitle=System · where the OLM launcher appears, the colour theme and other preferences
 launcherrows.entry name=sleep subTitle=System
 launcherrows.entry name=speedtest subTitle=Network · measure this connection and compare it with its own past (st, speed)
 launcherrows.entry name=textCase subTitle=Text · recase the selection in place
@@ -457,7 +506,7 @@ hyperkey.key code=2 total=2 base=1
 hyperkey.key code=3 total=3 base=1
 hyperkey.key code=4 total=1 base=0
 hyperkey.key code=6 total=1 base=1
-hyperkey.key code=7 total=19 base=1
+hyperkey.key code=7 total=22 base=1
 hyperkey.key code=8 total=1 base=1
 hyperkey.key code=9 total=1 base=1
 hyperkey.key code=10 total=1 base=1
@@ -472,13 +521,13 @@ hyperkey.key code=19 total=1 base=1
 hyperkey.key code=20 total=1 base=1
 hyperkey.key code=21 total=2 base=2
 hyperkey.key code=23 total=1 base=1
-hyperkey.key code=31 total=20 base=1
+hyperkey.key code=31 total=23 base=1
 hyperkey.key code=32 total=1 base=1
-hyperkey.key code=34 total=20 base=1
+hyperkey.key code=34 total=23 base=1
 hyperkey.key code=35 total=1 base=1
 hyperkey.key code=37 total=2 base=1
-hyperkey.key code=38 total=20 base=1
-hyperkey.key code=40 total=20 base=1
+hyperkey.key code=38 total=23 base=1
+hyperkey.key code=40 total=23 base=1
 hyperkey.key code=41 total=1 base=1
 hyperkey.key code=42 total=1 base=1
 hyperkey.key code=43 total=1 base=1
@@ -486,7 +535,8 @@ hyperkey.key code=45 total=1 base=1
 hyperkey.key code=46 total=2 base=1
 hyperkey.key code=49 total=2 base=1
 hyperkey.key code=50 total=1 base=1
-registry hotkeys count=53
+registry hotkeys count=54
+hotkeys.entry msg=[#179] enabled=true
 hotkeys.entry msg=⌃⌥C enabled=true
 hotkeys.entry msg=⌃⌥V enabled=true
 hotkeys.entry msg=⌃⌥⇧, enabled=true
