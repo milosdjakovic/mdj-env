@@ -349,10 +349,13 @@ In order, before anything merges.
    description moves them, so refresh them in the same commit with `test/goldens.sh --update`
    and read every changed line, never with a live `--update` and never by hand. The section on
    goldens in the spoon's `AGENTS.md` says why.
-3. One live load. This is the gate no static check replaces, and the discipline around the
+3. The unit cases, `test/units.sh` under `dotfiles/hammerspoon/.hammerspoon`, ending with no
+   failure. A case the change made stale is updated in the same commit, never left, and the
+   hammerspoon `AGENTS.md` says why. It needs the running Hammerspoon, so no gate enforces it.
+4. One live load. This is the gate no static check replaces, and the discipline around the
    devlock, the console read, and the scheduled reload lives in the hammerspoon `AGENTS.md`.
    Never drive the screen or the keyboard for a test until Milos says start.
-4. One real key press. Structure has never proven that a key fires.
+5. One real key press. Structure has never proven that a key fires.
 
 ## Style and commits
 

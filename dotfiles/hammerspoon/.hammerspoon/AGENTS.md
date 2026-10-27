@@ -517,6 +517,15 @@ the loop he already expects to end with the change live. What still needs his
 explicit go ahead is driving the screen or the keyboard for a live test, which
 is a different action with its own rule.
 
+**The unit cases run before every commit that touches this config.** `test/units.sh`
+drives every case under `test/cases/` through the running Hammerspoon, takes no lock
+and needs no reload, and it must end with no failure. A case that fails because the
+code moved under it is updated in the same commit that moved the code, never left
+for later, since the next change then meets failures it did not cause and learns to
+ignore them. Fifteen had piled up across five commits by October 2026, two of them
+crashes that hid every check after them. It cannot join the Olm dry gate, which runs
+with no Hammerspoon, so it is a rule to follow rather than a gate that enforces it.
+
 **Testing a change in an isolated worktree, and the test lock.** There is only
 one Hammerspoon app on the machine, with one config directory and one set of
 global event taps, so only one config can be live at a time. Editing files
