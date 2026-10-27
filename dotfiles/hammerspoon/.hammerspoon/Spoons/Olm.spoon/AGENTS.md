@@ -578,7 +578,20 @@ that lasts only while the list is open. Chrome keeps secure input on whichever a
 active, measured 2026-10-27, so the hold is handed a sink by the provider and, while secure input
 stays on, relays the chooser's typed text into the field and claims the list's non typing keys
 through `hs.hotkey`, feeding each to the field as a key event through `Field:feed`, and claims
-nothing while it is off. A list key bound with no leader beyond the relayed set is not heard over
-Chrome. `test/securefocus.lua` pins the lib over fakes. The provider has no plain test harness,
+nothing while it is off, the root handing it every list key bound with no leader beside the fixed
+set. The hold also answers a mirror the provider tells the field's text, so text the list writes
+itself, a scope's word, reaches the chooser and typing carries on from it. `test/securefocus.lua`
+pins the lib over fakes. The provider has no plain test harness,
 only the live probe, so the call order is checked live. `decisions/olm-chooser-keys.md` has the
+measurements.
+
+## Secure notice, a held leader pressed under secure input
+
+A held leader is a function key read by the ChordKey tap, deaf while any application holds secure
+input. `lib/securenotice.lua` claims each held leader's function key in use as a plain `hs.hotkey`
+while secure input is on and nothing while it is off, and a press draws one message through the
+root's `notify` naming the holder, read from `ioreg` declared in `root/manifest.lua`. The output is
+read as it streams, since `ioreg` writes more than a pipe holds and blocks otherwise. A posted key
+fires no hotkey, so a live check calls the press handler rather than posting F18.
+`test/securenotice.lua` pins it over fakes, and `decisions/olm-leader-keys.md` has the
 measurements.

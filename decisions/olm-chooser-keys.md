@@ -369,3 +369,16 @@ becomes key and reads every key as a window event, which is why it never meets t
 confirmed searching, moving, Backspace, Return and Escape in the clipboard over Chrome's password
 field with secure input on for the whole run, and over Safari's. A list key a list binds with no
 leader beyond those, a person's own `ctrl+j`, is not relayed, and is the gap left.
+
+### 2026-10-27 18:40
+
+The relay's two gaps closed. Text the list writes into its own field, a scope's word after an
+alias directory row or a seeded query, never passed through the hold's chooser, so the next letter
+typed there replaced the field with that letter and left the scope. The hold now answers a mirror
+beside its release, which the provider tells the field's text on every change, writing it into
+the chooser with the caret moved after it through the accessibility tree, since `hs.chooser:query`
+leaves what it wrote selected. Milos confirmed it over Chrome's password field, `?` and a space,
+the VPN row, then a letter, which stayed in the VPN list. And the list keys a person binds with no
+leader are relayed too, the root handing the hold every field key as a modifier set and a keycode,
+with a combination the fixed set already claims claimed once. No such key is bound on this machine,
+so that half is pinned by `test/securefocus.lua` alone.

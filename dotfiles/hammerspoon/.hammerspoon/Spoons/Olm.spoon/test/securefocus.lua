@@ -4,7 +4,9 @@
 -- chooser with no rows is shown and its window moved off screen, and that the release hides and
 -- deletes it and activates the remembered application, once. And that while secure input stays on
 -- the relay hands typed text and the claimed keys to the sink, Backspace only on empty text, goes
--- quiet the moment secure input is off, and is torn down by the release.
+-- quiet the moment secure input is off, and is torn down by the release, that a person's own list
+-- keys are relayed beside the fixed set and a key both name is claimed once, and that the mirror
+-- writes the list's own text into the chooser.
 --
 -- Run it.
 --   lua test/securefocus.lua
@@ -22,7 +24,7 @@ local function check(name, got, want)
 end
 
 local log, secure, moved, activated = {}, false, nil, 0
-local hotkeys, timers, onQuery = {}, {}, nil
+local hotkeys, timers, onQuery, queried = {}, {}, nil, {}
 
 local previous = { activate = function() activated = activated + 1 end }
 local window = {
@@ -32,6 +34,8 @@ local window = {
 }
 
 hs = {
+  keycodes = { map = { ["return"] = 36, j = 38 } },
+  axuielement = { windowElement = function() return nil end },
   eventtap = {
     isSecureInputEnabled = function() return secure end,
     event = { newKeyEvent = function(mods, key) return { mods = mods, key = key } end },
@@ -67,6 +71,7 @@ hs = {
         hide = function() log[#log + 1] = "hide" end,
         delete = function() log[#log + 1] = "delete" end,
         queryChangedCallback = function(_, fn) onQuery = fn end,
+        query = function(_, t) queried[#queried + 1] = t; if onQuery then onQuery(t) end end,
       }
     end,
   },
@@ -138,6 +143,34 @@ secure = true
 timers[1].fn()
 check("secure input back on claims again, Backspace aside", enabledCount(), 18)
 
+-- The mirror, text the list wrote itself.
+local _
+hotkeys, timers, log, texts = {}, {}, {}, {}
+secure = true
+release, mirror = lib.hold(sink)
+check("the hold answers a mirror", type(mirror), "function")
+mirror("v ")
+check("the mirror writes the chooser", table.concat(queried, ","), "v ")
+check("the mirror is not relayed back", #texts, 0)
+check("Backspace is the chooser's own after a mirror", hotkey("", "delete").enabled, false)
+mirror("v ")
+check("an unchanged text is not written again", #queried, 1)
+release()
+mirror("x")
+check("a released hold mirrors nothing", #queried, 1)
+
+-- A person's own list keys, one new and one the fixed set already claims.
+hotkeys, timers = {}, {}
+release = lib.hold(sink, { keys = { { { "ctrl" }, 38 }, { { "cmd" }, 36 } } })
+check("a person's list key is relayed", hotkey("ctrl", 38) ~= nil, true)
+check("a key the fixed set claims is claimed once", hotkey("cmd", 36), nil)
+check("every relayed key enabled with the person's added", enabledCount(), 20)
+release()
+_ = nil
+
+hotkeys, timers = {}, {}
+secure = true
+release = lib.hold(sink)
 release()
 local deleted = 0
 for _, k in ipairs(hotkeys) do if k.deleted then deleted = deleted + 1 end end

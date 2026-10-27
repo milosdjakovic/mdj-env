@@ -30,9 +30,16 @@
 -- release function puts secure input back by returning focus to the password field. Over Chrome
 -- secure input stays on and nothing changes about who can read keys.
 --
--- hold(sink) answers nil when secure input is off, so every ordinary open is untouched. When it
--- is on, hold answers a release function, safe to call more than once. sink is optional, and
--- carries key(event) and text(string).
+-- Text the list puts in its own field, a scope's word or a seeded query, never passes through the
+-- chooser, so the hold answers a mirror beside the release, which writes it into the chooser with
+-- the caret after it. Without it the next letter typed there would replace the list's text with
+-- that letter alone.
+--
+-- hold(sink, opts) answers nil when secure input is off, so every ordinary open is untouched. When
+-- it is on, hold answers a release function, safe to call more than once, and a mirror
+-- function(text). sink is optional, and carries key(event) and text(string). opts.keys is a list of
+-- { mods, key } relayed beside the fixed set, the list keys a person binds with no leader, a key
+-- the fixed set already claims skipped.
 
 local M = {}
 
@@ -53,6 +60,15 @@ local RELAYED = {
 }
 for digit = 1, 9 do RELAYED[#RELAYED + 1] = { { "cmd" }, tostring(digit) } end
 
+local function comboId(mods, key)
+  local sorted = {}
+  for _, m in ipairs(mods) do sorted[#sorted + 1] = m end
+  table.sort(sorted)
+  -- A key by name and the same key by code are one combination.
+  local code = type(key) == "string" and hs.keycodes.map[key] or key
+  return table.concat(sorted, "+") .. ":" .. tostring(code)
+end
+
 local function relayed(sink, mods, key)
   return function()
     if not sink.key then return end
@@ -62,12 +78,23 @@ local function relayed(sink, mods, key)
 end
 
 -- Builds the hotkeys disabled, enabled and disabled as secure input comes and goes.
-local function buildRelay(sink)
+local function buildRelay(sink, extra)
   local relay = { keys = {}, on = false, text = "" }
-  for _, spec in ipairs(RELAYED) do
-    local fn = relayed(sink, spec[1], spec[2])
-    relay.keys[#relay.keys + 1] = hs.hotkey.new(spec[1], spec[2], fn, nil, spec[3] and fn or nil)
+  local seen = {}
+  local function claim(mods, key, repeats)
+    local id = comboId(mods, key)
+    if seen[id] then return end
+    seen[id] = true
+    local fn = relayed(sink, mods, key)
+    local ok, hotkey = pcall(hs.hotkey.new, mods, key, fn, nil, repeats and fn or nil)
+    if ok and hotkey then
+      relay.keys[#relay.keys + 1] = hotkey
+    else
+      print("Olm secure focus, " .. id .. " could not be relayed, " .. tostring(hotkey))
+    end
   end
+  for _, spec in ipairs(RELAYED) do claim(spec[1], spec[2], spec[3]) end
+  for _, spec in ipairs(extra or {}) do claim(spec[1] or {}, spec[2]) end
   relay.backspace = hs.hotkey.new({}, "delete", relayed(sink, {}, "delete"))
 
   function relay.sync()
@@ -89,16 +116,42 @@ local function buildRelay(sink)
   return relay
 end
 
-function M.hold(sink)
+-- Puts the caret after the chooser's text, which hs.chooser:query leaves selected. There is no
+-- caret api, so the field is reached through the accessibility tree, as the legacy chooser does.
+local function caretToEnd(window)
+  local element = window and hs.axuielement.windowElement(window)
+  if not element then return end
+  local function find(e, depth)
+    if depth > 6 then return nil end
+    for _, kid in ipairs(e:attributeValue("AXChildren") or {}) do
+      local role = kid:attributeValue("AXRole")
+      if role == "AXTextField" or role == "AXComboBox" then return kid end
+      local found = find(kid, depth + 1)
+      if found then return found end
+    end
+    return nil
+  end
+  local field = find(element, 0)
+  if not field then return end
+  local n = field:attributeValue("AXNumberOfCharacters")
+  if type(n) ~= "number" then
+    local value = field:attributeValue("AXValue") or ""
+    n = utf8.len(value) or #value
+  end
+  field:setAttributeValue("AXSelectedTextRange", { location = n, length = 0 })
+end
+
+function M.hold(sink, opts)
   if not hs.eventtap.isSecureInputEnabled() then return nil end
   sink = sink or {}
+  opts = opts or {}
 
   local previous = hs.application.frontmostApplication()
   local picker = hs.chooser.new(function() end)
   picker:choices({})
   picker:rows(0)
 
-  local relay = buildRelay(sink)
+  local relay = buildRelay(sink, opts.keys)
   picker:queryChangedCallback(function(text)
     text = text or ""
     if text == relay.text then return end
@@ -125,7 +178,7 @@ function M.hold(sink)
   relay.timer = hs.timer.doEvery(POLL_SECONDS, relay.sync)
 
   local released = false
-  return function()
+  local function release()
     if released then return end
     released = true
     relay.stop()
@@ -133,6 +186,15 @@ function M.hold(sink)
     picker:delete()
     if previous then previous:activate() end
   end
+  local function mirror(text)
+    text = text or ""
+    if released or text == relay.text then return end
+    relay.text = text
+    picker:query(text)
+    if text ~= "" then pcall(caretToEnd, window) end
+    relay.sync()
+  end
+  return release, mirror
 end
 
 return M

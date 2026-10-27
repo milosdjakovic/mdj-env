@@ -1,7 +1,7 @@
 -- The composition root's own needs, which belong to no plugin.
 --
 -- Every other manifest in this tree describes a plugin. This one describes the root that wires
--- them, which reaches for three tools of its own. A need with nothing but the root behind it is
+-- them, which reaches for four tools of its own. A need with nothing but the root behind it is
 -- otherwise the one category nothing declares and so nothing checks, which is the same reason
 -- the setup scripts one layer up declare stow and duti rather than assuming them.
 --
@@ -39,6 +39,13 @@ return {
       { name = "open", kind = "system", locator = "/usr/bin/open", policy = "optional",
         unit = "appfocus",
         reason = "opening a System Settings pane by its url when a pane action's key is pressed",
+        origin = { macos = "ships with the system" } },
+      -- Optional, because only the message a held leader gives under secure input runs it, and
+      -- without it that message says secure input is on without naming the application holding it.
+      { name = "ioreg", kind = "system", locator = "/usr/sbin/ioreg", policy = "optional",
+        unit = "securenotice",
+        reason = "naming the application that holds secure input when a held leader is pressed " ..
+                 "under it",
         origin = { macos = "ships with the system" } },
     },
   },

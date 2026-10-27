@@ -62,3 +62,4 @@ location | grant | location | optional | wifi | reading the name of the current 
 scutil | system | /usr/sbin/scutil | optional | root/compose | reading this machine's own short name, the key every per host answer a plugin asks the root for is stored under | macos | ships with the system
 hidutil | system | /usr/bin/hidutil | required | root/keyremap | applying the one HID mapping every leader key depends on, and clearing it again on quit | macos | ships with the system
 open | system | /usr/bin/open | optional | root/appfocus | opening a System Settings pane by its url when a pane action's key is pressed | macos | ships with the system
+ioreg | system | /usr/sbin/ioreg | optional | root/securenotice | naming the application that holds secure input when a held leader is pressed under it | macos | ships with the system

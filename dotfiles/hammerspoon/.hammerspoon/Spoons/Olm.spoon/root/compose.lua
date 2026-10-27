@@ -73,6 +73,7 @@ local contributionsLib = load("lib/contributions.lua")
 local labelsLib = load("lib/labels.lua")
 local listOpenLib = load("lib/listopen.lua")
 local secureFocusLib = load("lib/securefocus.lua")
+local secureNoticeLib = load("lib/securenotice.lua")
 local rowInterceptLib = load("lib/rowintercept.lua")
 -- The OLM keys page, every bound chord listed read only, a presentation the launcher's own row
 -- pushes. Pure, the catalog and the stage's pop handed in from here.
@@ -330,6 +331,8 @@ function obj.run(olm, cfg)
   -- The watcher for list keys the open list's own field answers, built once the dispatch table is,
   -- and read by the default chooser's field at each press.
   local fieldWatch = nil
+  -- The same field keys as { mods, keycode } pairs, which the secure focus hold relays over Chrome.
+  local relayFieldKeys = {}
   -- Whether any held leader in use answers fn, asked of each in turn.
   local function anyHeldLeader(fn)
     for _, leader in ipairs(heldLeaders) do
@@ -572,7 +575,7 @@ function obj.run(olm, cfg)
       iconElements = paintIconElements,
       -- A list opened over a password field takes focus for as long as it is open, see
       -- lib/securefocus.lua. The provider only asks and never names the mechanism.
-      focusHold = secureFocusLib.hold,
+      focusHold = function(sink) return secureFocusLib.hold(sink, { keys = relayFieldKeys }) end,
       yields = function(ev)
         return anyHeldLeader(function(leader) return leader:owns(ev) end)
       end,
@@ -2533,6 +2536,10 @@ function obj.run(olm, cfg)
       return ev:getProperty(hs.eventtap.event.properties.keyboardEventAutorepeat) ~= 0
     end,
   })
+  for _, k in ipairs(fieldKeyList) do
+    local code = keyTable[k.key]
+    if type(code) == "number" then relayFieldKeys[#relayFieldKeys + 1] = { k.mods, code } end
+  end
   if #fieldKeyList > 0 and chooserAtom.providers and chooserProvider == chooserAtom.providers.legacy then
     log.i("Olm keymap, " .. #fieldKeyList .. " list key(s) with no held leader are answered by the default "
       .. "chooser's field, and the legacy chooser is chosen, so none of them is live this load")
@@ -2550,6 +2557,16 @@ function obj.run(olm, cfg)
   -- saying so, which leaves every leader its own native key.
   keyRemapAtom:apply(remapRows, sharedDepsScope.path("hidutil"))
   w.start(leaderList, chordKeyAtom)
+
+  -- A held leader is deaf while another application holds secure input, so its press there says
+  -- which one, see lib/securenotice.lua. ioreg comes through the door from root/manifest.lua.
+  local noticeKeys = {}
+  for _, spec in ipairs(leaderSpecs) do
+    if spec.inUse and spec.held and spec.keyCode then
+      noticeKeys[#noticeKeys + 1] = { code = spec.keyCode, name = displayName(spec.catalogName) }
+    end
+  end
+  secureNoticeLib.start({ keys = noticeKeys, ioreg = sharedDepsScope.path("ioreg"), notify = notify })
 
   ------------------------------------------------------------------------------
   -- ActionPanel's own configure. Deferred to here for the identical reason step

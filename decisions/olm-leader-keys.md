@@ -263,3 +263,19 @@ remap again with the virtual keyboard already present, and a Caps Lock tap still
 Caps Lock itself with no F18, which the key logger showed and the light confirmed. hidutil's
 mapping does not reach kanata's virtual keyboard in either order, so Olm takes no part in a tap
 on a kanata machine.
+
+### 2026-10-27 18:40
+
+A held leader pressed under secure input now says why it did nothing. `lib/securenotice.lua`
+claims each held leader's function key as a plain `hs.hotkey` while secure input is on, polled
+every quarter second, and nothing while it is off, and a press draws one message through the root's
+`notify` naming the application holding secure input, the first session `kCGSSessionSecureInputPID`
+that names an application this session can see, read through `ioreg` as Tinycast reads it. That
+corrects nothing in the Now section, Hyper on F18 still does nothing in a password field, it only
+stops looking broken. Chrome made it worth having, since it keeps secure input whichever application
+is in front, `decisions/olm-chooser-keys.md` 2026-10-27. Two things were measured. A posted F18 or
+F19 fires no `hs.hotkey`, with secure input on, so the live check ran the press handler directly
+and gave "Google Chrome holds secure input, so Hyper is not heard until its password field loses
+focus". And `hs.task` read only at its end left `ioreg` blocked forever on a full pipe, its output
+being about a hundred kilobytes, so the output is read as it streams. On this machine kanata sends
+Hyper and META as modifiers, so the message shows only where kanata is off or stopped.

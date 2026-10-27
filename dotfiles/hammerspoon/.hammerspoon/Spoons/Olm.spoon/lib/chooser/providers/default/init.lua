@@ -148,7 +148,8 @@ local LIST_KEYS = nil
 -- surface shows. It is the seam for whatever must give this canvas keys a tap cannot otherwise
 -- hear, and the release it answers runs on teardown. It is handed a sink, key(event) feeding the
 -- field as its tap would and text(string) replacing the field's text, for keys it hears by another
--- route. Nil until M.configure runs.
+-- route, and may answer a mirror beside the release, told the field's text on every change. Nil
+-- until M.configure runs.
 local FOCUS_HOLD = nil
 
 -- The injected CanvasPanel module, nil until M.configure runs. Held at module level rather than
@@ -777,6 +778,8 @@ end
 -- that and calling refresh themselves right after.
 function Provider:_onFieldChange(state)
   self:_restartBlink()
+  -- Text this list wrote itself reaches the hold's chooser too, so typing there carries on from it.
+  if self._focusMirror then safeCall(self._focusMirror, state.text) end
   if self._suppressRebuild then
     self._lastQuery = state.text
     self:_redraw()
@@ -1013,7 +1016,7 @@ function Provider:_teardown()
   -- After the surface is down and before onClose, so an insert a consumer makes on close lands
   -- in the application that had focus. A raise is printed and never abandons the teardown.
   local release = self._focusRelease
-  self._focusRelease = nil
+  self._focusRelease, self._focusMirror = nil, nil
   if release then
     local ok, err = pcall(release)
     if not ok then
@@ -1071,7 +1074,14 @@ function Provider:show()
       key = function(ev) self.field:feed(ev) end,
       text = function(text) self.field:setText(text) end,
     }
-    self._focusRelease = FOCUS_HOLD and safeCall(FOCUS_HOLD, sink) or nil
+    if FOCUS_HOLD then
+      local ok, release, mirror = pcall(FOCUS_HOLD, sink)
+      if not ok then
+        print("Olm canvas provider, the focus hold failed, " .. tostring(release))
+      else
+        self._focusRelease, self._focusMirror = release, mirror
+      end
+    end
   end
 
   self.field:start()
