@@ -70,6 +70,13 @@ on one trigger.
   block list has to guess every key that is dangerous, and a letter as a leader taxes every word
   typed with it. An allow list of Caps Lock, the right modifiers and F13 to F20 only has to know
   what is safe, and extra hardware reaches it by sending F13 to F20 from its own firmware.
+- **Claiming Hyper's keys as plain hotkeys while F18 is held, under secure input.** 2026-10-27,
+  measured with Milos over Chrome's password field and turned down. A plain `hs.hotkey` on F1 gave
+  its press, every repeat and its release with secure input on, but a plain hotkey on J, enabled
+  while it was held, never fired and J was typed, and one on backtick never fired either. Secure
+  input lets a hotkey with no modifier claim a function key, an arrow, Return or Escape, and no
+  key that types a character, so a held F18 can be heard and Hyper's letters cannot. No function
+  key in place of F18 changes that. The log below has the runs.
 - **A per machine leaders overlay instead of a composite trigger.** 2026-10-23. Phase 4 of
   `docs/PLAN-MACHINES.md` would make it possible to write Hyper as the four modifiers on a kanata
   machine and as Caps Lock everywhere else. On a kanata machine where kanata crashed, was stopped or
@@ -279,3 +286,17 @@ and gave "Google Chrome holds secure input, so Hyper is not heard until its pass
 focus". And `hs.task` read only at its end left `ioreg` blocked forever on a full pipe, its output
 being about a hundred kilobytes, so the output is read as it streams. On this machine kanata sends
 Hyper and META as modifiers, so the message shows only where kanata is off or stopped.
+
+### 2026-10-27 19:10
+
+Measured with Milos whether a held leader on a function key could work under secure input through
+plain hotkeys, F18 claimed as an `hs.hotkey` for its press and release and the leader's keys claimed
+as plain hotkeys only while it is held. A throwaway probe over Chrome's password field, secure input
+on throughout. F1, pressed with fn, gave its press, nineteen and ten repeats and its release on each
+hold. J enabled only while F1 was held never fired and was typed into the field. That was first put
+down to fn being held, and corrected by the second run, a plain hotkey on backtick, which never
+fired with no fn involved. So secure input refuses a plain hotkey on a key that types a character
+and allows one on a function key, which the relay in `decisions/olm-chooser-keys.md` agrees with,
+its arrows, Return and Escape firing there while its text came through the chooser. A held leader on
+a function key stays deaf in a password field, and only a modifier Hyper from below secure input,
+kanata here, reaches one. The Rejected section has it.
