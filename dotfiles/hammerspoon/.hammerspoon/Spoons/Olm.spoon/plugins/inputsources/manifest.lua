@@ -8,10 +8,9 @@ return {
 
   about = {
     title = "Input Sources",
-
-    description = "Switch between the keyboard layouts enabled on this Mac.",
+    description = "Switch between the keyboard layouts and input methods enabled on this Mac.",
     author = "Milos Djakovic",
-    version = "0.2",
+    version = "0.3",
     license = "MIT",
   },
 
@@ -21,6 +20,7 @@ return {
     inputsources = { emoji = "⌨️", sf = "keyboard" },
     current = { emoji = "🟢", sf = "circle.fill" },
     layout = { emoji = "🔤", sf = "character.textbox" },
+    method = { emoji = "💬", sf = "character.bubble" },
   },
 
   needs = {
@@ -74,8 +74,8 @@ return {
   },
 
   registry = {
-    row = { category = "Keyboard", detail = "switch the keyboard layout",
-      keywords = "keyboard layout, language, abc, serbian, cyrillic, latin" },
+    row = { category = "Keyboard", detail = "switch the keyboard layout or input method",
+      keywords = "keyboard layout, language, ime, japanese, chinese, pinyin, korean, abc, serbian, cyrillic, latin" },
     open = { member = "show", call = "dot" },
     hosted = true,
     scope = {

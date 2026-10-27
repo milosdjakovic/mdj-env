@@ -10,7 +10,7 @@
 10	special:dockAutoHide	Dock	System · hides or reveals the Dock (d, dock)	dockautohide	dockAutoHide	-	autohide, hide dock, show dock |  (d, dock)	-
 11	special:emoji	Emoji & symbol picker	Tools · Hyper J (e, em, emoji)	emoji	emoji	-	 (e, em, emoji)	-
 12	special:fileSearch	File search	Tools · Hyper ; (/)	filesearch	fileSearch	-	find, folders, locate, finder search |  (/)	-
-13	special:inputsources	Input sources	Keyboard · switch the keyboard layout (kb, input)	inputsources	inputsources	-	keyboard layout, language, abc, serbian, cyrillic, latin |  (kb, input)	-
+13	special:inputsources	Input sources	Keyboard · switch the keyboard layout or input method (kb, input)	inputsources	inputsources	-	keyboard layout, language, ime, japanese, chinese, pinyin, korean, abc, serbian, cyrillic, latin |  (kb, input)	-
 14	inputsources:previous	Previous Input Source	Keyboard	inputsources	inputsources	-	switch layout, globe, fn, toggle	-
 15	special:obsidian	Search Obsidian	Tools · search and open notes (ob, obsidian)	image	-	-	notes, vault, markdown |  (ob, obsidian)	-
 16	special:speedtest	Speedtest	Network · measure this connection and compare it with its own past (st, speed)	speedtest	speedtest	-	internet speed, bandwidth, latency, ping, network quality, rpm |  (st, speed)	-

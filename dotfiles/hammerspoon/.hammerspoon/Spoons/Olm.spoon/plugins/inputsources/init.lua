@@ -1,7 +1,8 @@
 --- === InputSources ===
 ---
---- The keyboard layouts enabled in System Settings, as one list ordered by recent use, the
---- layout in use first and marked. Choosing a row makes that layout the current one.
+--- The keyboard layouts and input methods enabled in System Settings, as one list ordered by
+--- recent use, the source in use first and marked. Choosing a row makes that source the current
+--- one.
 ---
 --- This file answers the rows and the choice and nothing else. How the list is shown is Olm's.
 --- Opened from its launcher row or its alias it is the full list, searched like any other. Its
@@ -23,17 +24,22 @@ local readAt = 0
 -- The enabled sources, the recently used ones first in the order they were used and the rest
 -- after them in the order System Settings lists them. The layout in use is touched on every read,
 -- so one switched from the menu bar or by macOS itself still leads. Without the shared recency
--- service the layout in use leads and the rest keep the System Settings order.
+-- service the source in use leads and the rest keep the System Settings order, layouts before
+-- input methods. An input method, Japanese or Pinyin, is listed by the mode it types in, which is
+-- what macOS makes current, and switches through the same call a layout does.
 local function read()
-  local ids = hs.keycodes.layouts(true) or {}
-  local names = hs.keycodes.layouts() or {}
   local current = hs.keycodes.currentSourceID()
   local recency = cfg.recency
   if recency and current then recency.touch(current) end
   local list = {}
-  for i, id in ipairs(ids) do
-    list[#list + 1] = { id = id, name = names[i] or id, current = id == current }
+  local function add(ids, names, kind, icon)
+    for i, id in ipairs(ids or {}) do
+      list[#list + 1] = { id = id, name = (names or {})[i] or id, kind = kind, icon = icon,
+                          current = id == current }
+    end
   end
+  add(hs.keycodes.layouts(true), hs.keycodes.layouts(), "Keyboard layout", "layout")
+  add(hs.keycodes.methods(true), hs.keycodes.methods(), "Input method", "method")
   if recency then
     list = recency.order(list, function(s) return s.id end)
   else
@@ -54,15 +60,15 @@ local function rows()
   for _, s in ipairs(held) do
     out[#out + 1] = {
       title = s.name,
-      subTitle = s.current and "In use" or "Keyboard layout",
-      icon = s.current and "current" or "layout",
+      subTitle = s.current and "In use" or s.kind,
+      icon = s.current and "current" or s.icon,
       filterText = s.name,
       key = s.id,
       item = { id = "source", sourceID = s.id, name = s.name },
     }
   end
   if #out == 0 then
-    out[1] = { title = "No keyboard layouts", subTitle = "System Settings lists none",
+    out[1] = { title = "No input sources", subTitle = "System Settings lists none",
                icon = "layout", enabled = false, pinned = true, item = { id = "none" } }
   end
   return out
@@ -77,7 +83,7 @@ local function use(sourceID, name, quiet)
   return true
 end
 
--- The layout used before this one, the one the first press of the cycle key lands on.
+-- The source used before this one, the one the first press of the cycle key lands on.
 function M.previous()
   local list = read()
   if #list < 2 then return false end
@@ -102,7 +108,7 @@ end
 
 M.rows = rows
 
--- One row per enabled layout, so the window is as tall as the list and no taller. The stage
+-- One row per enabled source, so the window is as tall as the list and no taller. The stage
 -- caps it at its own default.
 function M.rowCount()
   return math.max(1, #read())
