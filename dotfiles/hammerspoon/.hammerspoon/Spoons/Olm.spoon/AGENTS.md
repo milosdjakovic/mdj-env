@@ -7,6 +7,26 @@ rediscover by measuring. The authoring rules live in `docs/PLUGIN-AUTHORING.md`,
 reference in `docs/PLUGIN-CONTRACT.md`, and the workflow for building or changing a plugin in
 the repository's `olm-plugin` skill.
 
+## Goldens, refreshed in the commit that moves them
+
+The goldens under `test/` record every bound chord, the launcher's catalog and each cheat sheet,
+and `test/goldens.sh` compares all of them offline in a couple of seconds. They drift the moment
+a commit changes a manifest's keys, a launcher row or a description without running it, and
+`keys.golden` stayed stale across three commits in October 2026 that way, each one leaving the
+next a diff it had not caused. So the dry gate runs them last and fails on any that is stale.
+
+A change that moves what a golden records refreshes it in the same commit, with
+`test/goldens.sh --update`, and every changed line is read in `git diff` before it is committed,
+since a golden written unread proves nothing. Never refresh with the live `keys.sh --update` or
+`views.sh --update`. The first adds the raw hotkey lines only the live probe sees, and both read
+whatever config was last loaded, which before a reload is the old one.
+
+`keys.golden` is checked twice, against the keymap projection and against what the binder bound,
+and the two must agree line for line. When they disagree no golden can satisfy both, so the
+update refuses to write. That is the read model in `lib/keymap.lua` and the binder drifting
+apart, and it is fixed there, never by patching the golden by hand.
+`decisions/olm-keymap.md` has the case that taught it.
+
 ## Paste, the insertion primitives
 
 `lib/paste.lua` is the shared insertion engine, carved out of the insertion half of

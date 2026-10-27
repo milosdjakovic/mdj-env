@@ -998,3 +998,11 @@ aliases live only in `config/keymap.lua`.
   now. `add` now clears `anyMods` for a global row with no leader, `test/keymap.lua` pins it on
   the Globe cycle row, and every golden matches. A leader chord with no modifiers stays a catch
   all.
+- 2026-10-27 10:29. The goldens are gated rather than remembered. Nothing ran `test/goldens.sh` on the way
+  to a commit, so a stale golden surfaced only when a later change ran it and met a diff it had
+  not caused. `test/drygate.sh` now runs them last and fails on a stale one, at a cost of about
+  two seconds. `test/goldens.sh --update` is the one refresh, all of them offline, because the
+  live `--update` modes read whatever config was last loaded and `keys.sh`'s adds raw hotkey
+  lines. `keys.sh --offline --update` refuses to write when the projection and the binder
+  disagree, which is the case of the entry above, so it can no longer be patched over by hand.
+  The rule is in the spoon's `AGENTS.md` under goldens and in the `olm-plugin` skill's gates.

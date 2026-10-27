@@ -22,6 +22,12 @@
 #   keys.sh --update   dump and overwrite keys.golden with the result
 #   keys.sh --out FILE dump to FILE and stop, no diff
 #   keys.sh --offline  the keymap projection from a stubbed run of the root, no Hammerspoon needed
+#   keys.sh --offline --update
+#                      write keys.golden from the offline projection, the way to refresh it after a
+#                      change. It records what the binder bound as well and refuses to write when
+#                      the two disagree, since no golden can then satisfy both, and that is a defect
+#                      in the core to fix, never a golden to patch by hand. The live --update is not
+#                      this, it adds the raw hotkey lines only the live probe sees.
 #   keys.sh --bound    what the binder actually bound in a stubbed run of the root, every call into
 #                      the two leader engines' bind and into hs.hotkey.bind recorded and written in
 #                      the golden's format, diffed against keys.golden. The keymap projection proves
@@ -52,12 +58,13 @@ other=""
 probe_mode=""
 fixture=""
 fixture_update=""
+offline_update=""
 
 case "${1:-}" in
   --update) mode="update" ;;
   --out) mode="out"; out="${2:?--out needs a file}" ;;
   --keymap) probe_mode="keymap" ;;
-  --offline) mode="offline" ;;
+  --offline) mode="offline"; offline_update="${2:-}" ;;
   --bound) mode="bound" ;;
   --bound-order) mode="boundorder"; other="${2:-}" ;;
   --fixture) mode="fixture"; fixture="${2:?--fixture needs a fixture name}"; fixture_update="${3:-}" ;;
@@ -141,6 +148,18 @@ if [ "$mode" = "offline" ]; then
     echo "keys.sh: the offline run wrote nothing" >&2
     tail -5 "$work/err.txt" >&2
     exit 2
+  fi
+  if [ "$offline_update" = "--update" ]; then
+    record_bound "$spoon" golden "$work/bound.txt"
+    if ! diff -u "$work/keymap.txt" "$work/bound.txt"; then
+      echo "keys.sh: the keymap projection and what the binder bound disagree, above, so no golden" >&2
+      echo "  can satisfy both. The read model in lib/keymap.lua and the binder have drifted apart," >&2
+      echo "  fix that rather than the golden. keys.golden is unchanged." >&2
+      exit 1
+    fi
+    cp "$work/keymap.txt" "$golden"
+    echo "keys.sh: wrote keys.golden, $(wc -l < "$golden" | tr -d ' ') lines, projection and binder agreeing"
+    exit 0
   fi
   if diff -u "$golden" "$work/keymap.txt"; then
     echo "keys.sh: the offline keymap projection matches keys.golden, $(wc -l < "$golden" | tr -d ' ') lines"

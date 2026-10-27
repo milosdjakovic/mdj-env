@@ -17,6 +17,10 @@
 #   views.sh            live, diff both against launcher.golden and sheets.golden
 #   views.sh --update   live, overwrite both goldens
 #   views.sh --offline  the offline projections of both, diffed against the goldens
+#   views.sh --offline --update
+#                       write both goldens from the offline projections, the way to refresh them
+#                       after a change, since the live --update reads whatever config was last
+#                       loaded and saves a stale one when the reload has not happened yet
 #   views.sh --fixture NAME [--update]
 #                       the offline projections again with the keymap test/NAME.lua handed to Olm
 #                       in place of config/keymap.lua, diffed against test/NAME.launcher.golden and
@@ -34,7 +38,7 @@ fixture_update=""
 
 case "${1:-}" in
   --update) mode="update" ;;
-  --offline) mode="offline" ;;
+  --offline) mode="offline"; fixture_update="${2:-}" ;;
   --fixture) mode="fixture"; fixture="${2:?--fixture needs a fixture name}"; fixture_update="${3:-}" ;;
   "") ;;
   *) echo "views.sh: unknown argument $1" >&2; exit 2 ;;

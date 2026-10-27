@@ -23,6 +23,7 @@
 # Exit status mirrors drygate.lua's own. A clean tree, meaning every finding is either
 # genuinely absent or accepted by test/drygate-accepted.txt, exits zero. An unknown module
 # and a warning both print but do not fail the gate on their own, unless --strict is given.
+# A stale offline golden fails it too, see the end of this file.
 
 set -uo pipefail
 
@@ -81,3 +82,19 @@ if [ -f "$config/init.lua" ] && cp -R "$spoon" "$work/Olm.spoon" && mkdir "$work
 fi
 
 lua "$here/drygate.lua" "$spoon/" "${manifests[@]}"
+gate=$?
+
+# The offline goldens ride along last, see goldens.sh. They take a couple of seconds and no
+# Hammerspoon, and they are what drifts when nothing runs them, keys.golden stayed stale across
+# three commits that way. Their full diff goes to a file so the gate stays readable, and a stale
+# golden fails the gate, with the one command that refreshes it safely.
+if "$here/goldens.sh" >"$work/goldens.txt" 2>&1; then
+  echo "goldens, every offline golden matches"
+else
+  echo "goldens, stale or disagreeing, every line below names one:" >&2
+  grep -E 'differs|disagree|wrote nothing' "$work/goldens.txt" | sed 's/^/  /' >&2
+  echo "  See the diff with test/goldens.sh. When the change is meant, refresh them all with" >&2
+  echo "  test/goldens.sh --update and read every changed line before committing it." >&2
+  [ "$gate" -eq 0 ] && gate=1
+fi
+exit "$gate"

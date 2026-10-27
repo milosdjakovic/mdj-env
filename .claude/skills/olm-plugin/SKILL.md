@@ -344,7 +344,11 @@ In order, before anything merges.
    static scan can see, `test/drygate-search.lua` lists them and the ones it cannot, a finding
    naming the file and line, answered by handing the rows to the shared search or, for a field
    that is not a search, a `search-exempt, <reason>` comment. A green gate is not proof the rule
-   holds, so read a new supplier for a filter or an order the scan cannot see.
+   holds, so read a new supplier for a filter or an order the scan cannot see. It runs the
+   offline goldens last and fails on a stale one. A change to a key, a launcher row or a
+   description moves them, so refresh them in the same commit with `test/goldens.sh --update`
+   and read every changed line, never with a live `--update` and never by hand. The section on
+   goldens in the spoon's `AGENTS.md` says why.
 3. One live load. This is the gate no static check replaces, and the discipline around the
    devlock, the console read, and the scheduled reload lives in the hammerspoon `AGENTS.md`.
    Never drive the screen or the keyboard for a test until Milos says start.
