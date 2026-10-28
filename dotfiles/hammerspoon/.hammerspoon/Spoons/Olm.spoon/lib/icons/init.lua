@@ -19,7 +19,7 @@
 -- a file.
 --
 -- Each icon is drawn once. The cache key is the source, its value and the size, plus the colour
--- for a source that declares it takes one, so a theme switch redraws a symbol and leaves an
+-- for a source that declares it takes one and the variant for a source that declares one, so a theme switch redraws a symbol and leaves an
 -- emoji alone. A draw that answers nothing is remembered as false, so a spec nothing can
 -- render is asked for once, and answered back out as nil.
 --
@@ -86,6 +86,7 @@ function M.new(opts)
   local function drawn(name, source, value, points, colorNow)
     local key = name .. "\0" .. tostring(value) .. "\0" .. tostring(points)
     local color
+    if source.variant then key = key .. "\0" .. tostring(source.variant()) end
     if source.tinted then
       color = colorNow()
       key = key .. "\0" .. colorKey(color)

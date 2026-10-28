@@ -166,3 +166,22 @@ an `elements` walk in the same order as `image`, and the resolver an `elements` 
 The text keeps the picture's 60 of 72 proportion of the frame, so it lands where the picture did
 by construction, which the live look confirms rather than replaces. The picture path stays for
 the legacy chooser and for anything else that wants an image.
+
+### 2026-10-28 14:55
+
+SF Symbol icons looked soft under both choosers. The sf source rendered the symbol to a bitmap of
+one pixel per point, then snapshotted it through a 72 point canvas, so on a Retina screen the
+image held half the pixels drawn. The native chooser already draws images on whole pixel frames,
+see `decisions/olm-swift-chooser.md`, which left this source bitmap as the cause. The script now
+draws the symbol itself into a bitmap of 72 times the scale pixels on a side with a size of 72
+points, centred at 60 of 72 as before, and the canvas step is gone. Run from the shell, the script
+gave 72 by 72 pixels at scale 1 and 144 by 144 at scale 2, both at 72 points, so every layout and
+golden is unchanged.
+
+The scale is the largest `scale` of `currentMode()` over `hs.screen.allScreens()`, bounded to 1
+through 4. The source gained an optional `variant()` in the icon contract and the engine adds it
+to its in memory cache key, so a draw at one scale is not served at another. No cache of images
+exists on disk, the storage cache directory holds only the scratch PNG that is deleted after
+loading, so no old entry needed handling. The emoji source was left alone, the default chooser
+draws it as text and the legacy picture path is a canvas snapshot that is not the reported defect.
+Not yet confirmed live, the soft edge going away on a Retina screen is the remaining check.

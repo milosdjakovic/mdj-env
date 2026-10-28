@@ -122,6 +122,23 @@ do
   check("a source that ignores colour is handed none", engine.image({ emoji = "e" }, 28).color, nil)
 end
 
+-- A source's variant keys the cache, so a picture drawn at one scale is not served at another.
+do
+  local scale = "1x"
+  local sf = fake("sf")
+  function sf.variant() return scale end
+  local engine = icons.new({ sources = { sf }, order = { "sf" } })
+  engine.image({ sf = "a" }, 28)
+  engine.image({ sf = "a" }, 28)
+  check("an icon is drawn once for one variant", sf.draws, 1)
+  scale = "2x"
+  engine.image({ sf = "a" }, 28)
+  check("a variant change redraws the icon", sf.draws, 2)
+  raises("the contract refuses a variant that is not a function", function()
+    icons.new({ sources = { { name = "x", draw = function() end, variant = "2x" } } })
+  end, "variant field")
+end
+
 -- The contract.
 do
   raises("a source with no name is refused", function() icons.new({ sources = { { draw = function() end } } }) end, "no name")
@@ -300,7 +317,11 @@ do
       if script:find("'nope.nope'", 1, true) then return true, "unknown" end
       return true, "ok"
     end },
-    image = { imageFromPath = function() return image(98, 72) end },
+    image = { imageFromPath = function() return image(72, 72) end },
+    screen = { allScreens = function()
+      return { { currentMode = function() return { scale = 1 } end },
+               { currentMode = function() return { scale = _G.testScale } end } }
+    end },
     canvas = { new = function(frame)
       local c = { frame = frame }
       function c:imageFromCanvas() return image(frame.w, frame.h) end
@@ -309,6 +330,7 @@ do
       return setmetatable(c, { __newindex = function(t, k, v) rawset(t, k, v) end })
     end },
   }
+  _G.testScale = 2
   local source = sfSource.new({ scratchDir = function() return "/tmp" end })
   check("the sf source is named sf", source.name, "sf")
   check("the sf source is tinted", source.tinted, true)
@@ -325,10 +347,20 @@ do
   local img = source.draw("cup.and.saucer.fill", 28, { red = 0.5, green = 0.25, blue = 1, alpha = 1 })
   check("a known name answers an image sized to the points", img and img.w, 28)
   check("the colour is spliced into the script", scripts[1]:find("0.5000, 0.2500, 1.0000, 1.0000", 1, true) ~= nil, true)
-  local square = canvases[#canvases][1]
-  check("the symbol is centred keeping its aspect", math.abs((72 - square.frame.w) / 2 - square.frame.x) < 1e-9
-    and math.abs(square.frame.w / square.frame.h - 98 / 72) < 1e-9, true)
-  check("the longest side fills 60 of 72 points", square.frame.w, 60)
+  check("the scale is the largest among the screens", sfSource.scale(), 2)
+  check("the script renders at that scale", scripts[1]:find("scale = 2.0000", 1, true) ~= nil, true)
+  check("the script writes the size in points", scripts[1]:find("rep.size = $.NSMakeSize(side, side)", 1, true) ~= nil, true)
+  check("the longest side fills 60 of 72 points", scripts[1]:find("k = 60 /", 1, true) ~= nil, true)
+  check("the variant names the scale", source.variant(), "2x")
+  _G.testScale = 1
+  check("the variant follows a change of screens", source.variant(), "1x")
+  _G.testScale = 9
+  check("the scale is bounded", sfSource.scale(), 4)
+  local saved = _G.hs.screen
+  _G.hs.screen = nil
+  check("no hs.screen answers a scale of 1", sfSource.scale(), 1)
+  _G.hs.screen = saved
+  check("a scale below 1 is raised to 1", sfSource.script("circle", nil, "/tmp/x.png", 0.5):find("scale = 1.0000", 1, true) ~= nil, true)
   local glyph = emojiSource.new().draw("E", 72, nil)
   check("the emoji source draws on a 72 point canvas", glyph.w, 72)
   check("the emoji source answers nil for an empty glyph", emojiSource.new().draw("", 72, nil), nil)
