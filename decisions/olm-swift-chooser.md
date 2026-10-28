@@ -120,3 +120,10 @@ themes into their own files, so it raises before either provider is built. The p
 it is rather than repaired inside this change. The stub driven trace above already compares every
 draw event of the provider before and after, a hundred and twenty four of them, and it ran
 identical against `main` as well as against the split.
+
+### 2026-10-28 10:55
+
+Live under a manual hold of the test lock on this branch, from 10:44, Milos used his own lists on
+the split chooser, the launcher, the action panel, the key panel, the clipboard and file search
+with their panes, and a list over a password field, and said all of it works. The console after
+the load carried no problem. Merged to main the same minute.
