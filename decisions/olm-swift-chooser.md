@@ -400,3 +400,10 @@ the scroll's reset, scrollBy, kept place and clamp, the drawn content at the top
 pixel size, points and template flag. With the autoresizing line removed it fails on the redock.
 The dry suite, the dry gate, the goldens, the dependency check and the docked pane unit case
 pass. Not yet run live.
+
+### 2026-10-28 14:21
+
+Live under a manual hold from 14:20 with the docking fix, the clipboard, file search and speed
+test panes drew their content and scrolled natively, and Milos said it works great. The file
+search preview's header scrolling away with its body stands as it is for now, since nothing was
+said against it. Merged to main with default still the shipped value.
