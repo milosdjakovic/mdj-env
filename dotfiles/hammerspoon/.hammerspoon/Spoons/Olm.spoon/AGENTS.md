@@ -603,6 +603,19 @@ called once at the first paint, and what it answers keeps five methods and no ru
 draws both lists in place of what was there, `show()` and `hide()` bring it up and take it down,
 and `destroy()` tears it down on close.
 
+A backend may also answer `scrollsNatively()`, meaning its view scrolls on its own, and then it
+keeps `scrollBy(points)` too. For such a backend a scrolling pane's content is laid out once at
+its full height, unshifted and cut only at the viewport grown by the overflow, and handed over as
+`render(surface, content, scroll)` with `scroll = { height, visible, reset, thumb }`, the whole
+height, the pane's own, whether the content changed so the view goes back to the top, and whether
+the pane asked for a thumb. `lib/dockedpane.lua` then keeps no offset, clamps nothing, draws no
+thumb and runs no scroll timer, and `pane.scrollBy` calls the backend's, so a key that pages the
+pane still pages it. A redraw of the same content, a repaint, a redock or a show with
+`keepScroll`, keeps the view where it is, and new content resets it, exactly when the canvas path
+resets its offset. A painter is called once to learn its overflow and again with
+`view.viewport` grown by it, so a painter that cuts at the viewport hands over everything, and a
+painter's fixed header, the file search preview's, scrolls with the body under such a backend.
+
 There are two. `lib/dockedpane/canvas.lua` paints both lists on one `hs.canvas` at the floating
 level with click activation off, exactly what every pane drew before the backend existed.
 `lib/chooser/providers/swift/pane.lua`, over `native/Pane.swift` in the swift chooser's own
@@ -619,8 +632,14 @@ last reported. When none matches, the pane stands in a window of its own, a nona
 that never becomes key, at the canvas pane's level. A press in the gap lands on glass and is
 inside, keeping the list and the keyboard as a press on the pane does, and the Lua view's rule
 treats the span from the canvas to the companion as inside while there is a companion, the one
-place it differs from the canvas, which hides for a press there. A scroll over the pane is
-claimed by the view's own tap. It draws `rectangle` and `segments`
+place it differs from the canvas, which hides for a press there. It scrolls natively, the drawn
+elements in a flipped document view inside an `NSScrollView` with no scroller unless the pane
+asked for a thumb, then the overlay style, and only the elements that reach the area being drawn
+are drawn. A scroll over the pane in the chooser's window is left to that scroll view, since
+`View:_onScroll` in `providers/swift/view.lua` asks the panel through `hostsPane` and claims
+nothing while the panel holds a shown pane. That method is the one place the tap and the hosting
+meet. A pane in its own window is claimed by the tap as before and comes back as `scrollBy`. It
+draws `rectangle` and `segments`
 filled, stroked or clipped, `image`, `text` as a string or an `hs.styledtext`, and `resetClip`,
 with the canvas's semantics and defaults. Any other type, action, scaling or attribute leaves
 that element out and is named once in the console. It is torn down with the chooser panels by
@@ -631,7 +650,9 @@ The root chooses, in `dockedPaneBackend` beside `wireSwiftChooser`, and no plugi
 the chosen one and its library is loaded, which is fixed for the session, and the canvas one
 otherwise, so a pane under the default chooser is exactly what it was. `test/panebackends.lua`
 drives one pane over both backends with the same describer and painter, and pins that the native
-one is handed the very content list the canvas paints over its surface.
+one is handed the very content list the canvas paints over its surface, and for a scrolling pane
+that the canvas one scrolls as it always did while the native one gets the full height content
+unshifted, scrolls through the library and keeps its place across a redraw of the same content.
 
 ## The swift chooser, the engine under a native panel
 
@@ -651,7 +672,8 @@ over as its event's bytes, which `hs.eventtap.event.newEventFromData` turns back
 engine reads. A press outside the panel is heard by event monitors and decided in Lua against the
 canvas view's own rects, a press in the companion keeping the list and asking the panel for key
 again, and losing key never hides it. A scroll over the companion is claimed by a scroll wheel tap
-the Lua view runs while it is up, as the canvas view's mouse tap claims it. Only the Control keys
+the Lua view runs while it is up, as the canvas view's mouse tap claims it, unless the panel's
+window holds a shown native pane, which scrolls itself. Only the Control keys
 the canvas field keymap reads reach the native field, named once in `providers/swift/fieldkeys.lua`,
 and every other Control chord is a leftover, so Cocoa can never put a line break in the field. The
 provider's `uses` answers from the same file, and the root checks list keys against the provider

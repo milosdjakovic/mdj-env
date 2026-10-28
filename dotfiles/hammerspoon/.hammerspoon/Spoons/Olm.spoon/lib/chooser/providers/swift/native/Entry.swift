@@ -242,8 +242,11 @@ private let panePlace: lua_CFunction = { L in
   return 0
 }
 
-// paneDraw(id, radius, elements) draws the elements on glass of that corner radius and answers
-// an array naming each thing in them that was not drawn, empty when everything was.
+// paneDraw(id, radius, elements, scroll) draws the elements on glass of that corner radius and
+// answers an array naming each thing in them that was not drawn, empty when everything was.
+// scroll is { height, reset, thumb }, the content's full height, whether the view goes back to
+// the top, and whether it shows an overlay scroller, lib/dockedpane.lua's native scroll. Without
+// it the content is the pane's own height and the view keeps where it is.
 private let paneDraw: lua_CFunction = { L in
   olm_newTable(L)
   guard let pane = paneAt(L), let L else { return 1 }
@@ -251,11 +254,32 @@ private let paneDraw: lua_CFunction = { L in
   let skin = LuaSkin.shared(with: L) as! LuaSkin
   let radius = CGFloat(reader.number(at: 2) ?? 0)
   let (elements, unsupported) = PaneReader(r: reader, skin: skin, size: pane.size).elements(at: 3)
-  pane.draw(elements, radius: radius)
+  var scroll = PaneScroll(height: pane.size.height, reset: false, thumb: false)
+  if reader.isTable(4) {
+    scroll = PaneScroll(height: reader.number(4, "height") ?? pane.size.height,
+      reset: reader.bool(4, "reset") ?? false, thumb: reader.bool(4, "thumb") ?? false)
+  }
+  pane.draw(elements, radius: radius, scroll: scroll)
   for (i, name) in unsupported.enumerated() {
     _ = lua_pushstring(L, name)
     lua_rawseti(L, -2, lua_Integer(i + 1))
   }
+  return 1
+}
+
+// paneScrollBy(id, points) scrolls the pane's view further down by points, clamped to its
+// content, and answers whether it moved.
+private let paneScrollBy: lua_CFunction = { L in
+  let moved = paneAt(L)?.scrollBy(CGFloat(LuaReader(L).number(at: 2) ?? 0)) ?? false
+  lua_pushboolean(L, moved ? 1 : 0)
+  return 1
+}
+
+// hostsPane(id) answers whether that chooser panel's window holds a shown docked pane, which then
+// scrolls natively under the pointer. The Lua view's scroll tap asks it before claiming a scroll
+// over the companion, see View colon _onScroll in view.lua.
+private let hostsPane: lua_CFunction = { L in
+  lua_pushboolean(L, (panelAt(L)?.hostsShownPane ?? false) ? 1 : 0)
   return 1
 }
 
@@ -311,6 +335,8 @@ public func luaopen_olm_swiftchooser(_ L: LuaState?) -> Int32 {
   olm_setFunction(L, "paneNew", paneNew)
   olm_setFunction(L, "panePlace", panePlace)
   olm_setFunction(L, "paneDraw", paneDraw)
+  olm_setFunction(L, "paneScrollBy", paneScrollBy)
+  olm_setFunction(L, "hostsPane", hostsPane)
   olm_setFunction(L, "paneShow", paneShow)
   olm_setFunction(L, "paneHide", paneHide)
   olm_setFunction(L, "paneDelete", paneDelete)

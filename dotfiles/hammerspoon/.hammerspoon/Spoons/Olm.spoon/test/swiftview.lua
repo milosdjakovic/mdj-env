@@ -16,7 +16,8 @@
 -- And, after the review of 2026-10-28, that a missing command line tools directory, clang or SDK
 -- serves the fallback without running anything, that a finished build removes all but the
 -- newest three outputs, that the view hands the panel exactly the Control keys its field reads,
--- that a scroll over the companion is claimed by the view's own tap and nowhere else, that uses
+-- that a scroll over the companion is claimed by the view's own tap and nowhere else, unless the
+-- panel's own window holds a shown native pane, which scrolls itself, that uses
 -- answers for the field that serves, and that a loaded library's module table, which holds the
 -- sentinel whose __gc cleans up when the state closes, stays referenced for the session.
 --
@@ -166,6 +167,8 @@ function native.isVisible() return visible end
 function native.start() record("start") end
 function native.stop() record("stop") end
 function native.refocus() record("refocus") end
+local hosted = false
+function native.hostsPane() return hosted end
 local fieldKeysSent = nil
 function native.setFieldKeys(_, t) fieldKeysSent = t end
 
@@ -367,6 +370,13 @@ check("a scroll over the companion is claimed", tap.fn(scrollEvent(companion.x +
 check("and handed to the engine inverted", companionScrolls[1], -3)
 check("a scroll over the list is not claimed", tap.fn(scrollEvent(rects.list.x + 5, rects.list.y + 5, 3)), false)
 check("a zero scroll over the companion is not claimed", tap.fn(scrollEvent(companion.x + 5, companion.y + 5, 0)), false)
+-- While the panel's own window holds a shown native pane, a scroll over the companion is left to
+-- AppKit, which hands it to the pane's scroll view, and the engine never hears it.
+hosted = true
+check("a scroll over a hosted native pane is not claimed", tap.fn(scrollEvent(companion.x + 5, companion.y + 5, 3)), false)
+check("and never reaches the engine", #companionScrolls, 1)
+hosted = false
+check("claimed again once the pane is not hosted", tap.fn(scrollEvent(companion.x + 5, companion.y + 5, 3)), true)
 picker:hide()
 check("a stopped view stops its scroll tap", tap.running, false)
 

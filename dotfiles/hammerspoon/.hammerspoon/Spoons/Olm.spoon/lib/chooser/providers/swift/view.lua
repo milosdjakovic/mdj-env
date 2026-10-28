@@ -27,7 +27,10 @@
 --- the one place this differs from the canvas view. A scroll over the companion is claimed
 --- by a scroll wheel tap this view runs while it is started, the way the canvas view's mouse tap
 --- claims it, since an event monitor in Swift could only watch it go by and the window under the
---- pointer would scroll too.
+--- pointer would scroll too. The one exception is a docked pane drawn in this panel's own window,
+--- which is a native scroll view, so a scroll over it is left to AppKit, which hands it to that
+--- view with its momentum. View colon _onScroll is the one place the tap and the hosting meet,
+--- and it asks the panel, through native.hostsPane, rather than knowing where a pane is drawn.
 ---
 --- View.configure(opts) takes opts.ui, the UI kit, and opts.icon, the icon resolver. View.attach
 --- (native) points the library's one callback at this file's dispatch. View.new(engine, native)
@@ -305,9 +308,17 @@ end
 
 -- A scroll anywhere on screen, claimed and handed to the engine only over the companion rect, the
 -- canvas view's rule. Everywhere else it passes on untouched, the panel's own list included.
+--
+-- THE COUPLING between this tap and where the docked pane is drawn lives here and nowhere else.
+-- While this panel's window holds a shown native pane, the companion rect is that window and the
+-- pane in it is a scroll view, so the event is left alone for AppKit to hand it, momentum and all.
+-- Claiming it would delete it before the window saw it. A canvas pane, or a native pane standing
+-- in a window of its own, is not hosted here, so the scroll is claimed as before, the app
+-- underneath never scrolls, and the engine hands it to the pane's scrollBy.
 function View:_onScroll(ev)
   local rects = self.engine:scene().rects
   if not pointInRect(ev:location(), rects and rects.companion) then return false end
+  if self.native.hostsPane(self.id) then return false end
   local dy = scrollDelta(ev)
   if not dy or dy == 0 then return false end
   self.engine:companionScroll(-dy)

@@ -1,8 +1,17 @@
 // The docked pane's native view. lib/dockedpane.lua reduces every pane, described through the UI
 // kit or painted directly, to a list of hs.canvas element tables, and this file draws that list
 // the way hs.canvas documents it, on glass. It holds no pane rule. The lazy build, the inner
-// rect, the scroll and its clamp, the thumb and the empty state all stay in Lua, and this file
-// only places, draws, shows and hides.
+// rect, the layout and the empty state all stay in Lua, and this file only places, draws, scrolls,
+// shows and hides.
+//
+// IT SCROLLS NATIVELY. The drawn elements live in a flipped document view inside an NSScrollView,
+// and Lua hands them laid out at the content's full height, so a scroll over the pane is AppKit's
+// own, with momentum and at display rate, and Lua repaints only when the content changes. A
+// redraw keeps where the view is, clamped to the new height, unless Lua says the content changed,
+// and then it goes back to the top. No scroller shows unless the pane asked for a thumb, and then
+// it is the overlay style. scrollBy moves the view for a key that pages the pane. Only the
+// elements that reach the area being drawn are drawn, the clips excepted, so a tall pane costs a
+// scroll only what comes into view.
 //
 // WHERE IT IS DRAWN. The pane is made by a plugin, which knows no chooser panel, so it never
 // names one. Each time it is placed or shown it asks the seam in Entry.swift for the visible
@@ -13,7 +22,9 @@
 // is never key and never main, at the level the canvas pane floats at, with no animation. A
 // click on that window still reaches the chooser panel's local monitor as a press on another
 // Hammerspoon window, which the Lua view finds inside the companion rect and answers by keeping
-// the list up, and a scroll over either is claimed by the Lua view's own tap first.
+// the list up. A scroll over the pane in a chooser's window is left to the scroll view, the Lua
+// view's tap passing it on, and one over the pane's own window is claimed by that tap and comes
+// back as scrollBy, see View colon _onScroll in view.lua.
 //
 // THE SURFACE IS GLASS. The surface elements the canvas backend paints first are a filled and a
 // stroked rounded rectangle, and the fill drawn over glass would hide the glass, so the Lua half
@@ -47,7 +58,16 @@ enum PaneElement {
   case resetClip
 }
 
-// The canvas view, flipped so the elements' own coordinates, origin top left, are its own.
+// What a draw says about the scroll, the content's full height, whether the view goes back to
+// the top and whether it shows an overlay scroller.
+struct PaneScroll {
+  let height: CGFloat
+  let reset: Bool
+  let thumb: Bool
+}
+
+// The canvas view, flipped so the elements' own coordinates, origin top left, are its own. It is
+// the scroll view's document view, as tall as the content.
 final class PaneCanvas: NSView {
   var elements: [PaneElement] = []
 
@@ -63,6 +83,8 @@ final class PaneCanvas: NSView {
           path.addClip()
           continue
         }
+        let reach = path.bounds.insetBy(dx: -path.lineWidth, dy: -path.lineWidth)
+        if !reach.intersects(dirtyRect) { continue }
         if let fill {
           fill.setFill()
           path.fill()
@@ -72,9 +94,11 @@ final class PaneCanvas: NSView {
           path.stroke()
         }
       case .image(let image, let rect, let alpha):
+        if !rect.intersects(dirtyRect) { continue }
         image.draw(in: rect, from: .zero, operation: .sourceOver, fraction: alpha,
           respectFlipped: true, hints: nil)
       case .text(let text, let rect):
+        if !rect.intersects(dirtyRect) { continue }
         text.draw(in: rect)
       case .resetClip:
         context.restoreGraphicsState()
@@ -91,6 +115,9 @@ final class PanePanel {
 
   private let window: PaneWindow
   private let canvas = PaneCanvas()
+  private let scroller = NSScrollView()
+  // The content's full height, never less than the pane's own.
+  private var contentHeight: CGFloat = 0
   private let surface: Surface
   private let findHost: FindHost
   private weak var host: ChooserPanel?
@@ -104,7 +131,17 @@ final class PanePanel {
       contentRect: NSRect(x: 0, y: 0, width: 1, height: 1),
       styleMask: [.borderless, .nonactivatingPanel, .fullSizeContentView],
       backing: .buffered, defer: true)
-    surface = Surface(holding: canvas)
+    scroller.drawsBackground = false
+    scroller.contentView.drawsBackground = false
+    scroller.borderType = .noBorder
+    scroller.hasHorizontalScroller = false
+    scroller.hasVerticalScroller = false
+    scroller.scrollerStyle = .overlay
+    scroller.autohidesScrollers = true
+    scroller.horizontalScrollElasticity = .none
+    scroller.verticalScrollElasticity = .none
+    scroller.documentView = canvas
+    surface = Surface(holding: scroller)
     window.isFloatingPanel = true
     window.level = .floating
     window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
@@ -124,16 +161,49 @@ final class PanePanel {
   func place(_ next: NSRect) {
     rect = next
     window.setFrame(ScreenSpace.cocoaRect(next), display: window.isVisible && host == nil)
-    canvas.frame = NSRect(origin: .zero, size: next.size)
+    scroller.frame = NSRect(origin: .zero, size: next.size)
+    layoutDocument()
     rehome()
     canvas.needsDisplay = true
   }
 
-  func draw(_ elements: [PaneElement], radius next: CGFloat) {
+  func draw(_ elements: [PaneElement], radius next: CGFloat, scroll: PaneScroll) {
     radius = next
     applyRadius()
+    contentHeight = scroll.height
+    scroller.hasVerticalScroller = scroll.thumb
     canvas.elements = elements
+    layoutDocument()
+    if scroll.reset { scrollTo(0) }
     canvas.needsDisplay = true
+  }
+
+  // Further down by points, clamped to the content, answering whether the view moved.
+  func scrollBy(_ points: CGFloat) -> Bool {
+    let next = min(max(0, offset + points), maxOffset)
+    guard abs(next - offset) >= 0.5 else { return false }
+    scrollTo(next)
+    if scroller.hasVerticalScroller { scroller.flashScrollers() }
+    return true
+  }
+
+  private var offset: CGFloat { scroller.contentView.bounds.origin.y }
+  private var maxOffset: CGFloat { max(0, canvas.frame.height - rect.height) }
+
+  private func scrollTo(_ y: CGFloat) {
+    let clip = scroller.contentView
+    clip.scroll(to: NSPoint(x: 0, y: y))
+    scroller.reflectScrolledClipView(clip)
+  }
+
+  // The document as wide as the pane and as tall as the content, the view kept where it was
+  // unless the content got shorter than that, and the bounce at the ends only when there is
+  // something to scroll, so a pane that fits sits still under a scroll.
+  private func layoutDocument() {
+    let height = max(contentHeight, rect.height)
+    canvas.frame = NSRect(x: 0, y: 0, width: rect.width, height: height)
+    scroller.verticalScrollElasticity = height > rect.height + 0.5 ? .automatic : .none
+    if offset > maxOffset { scrollTo(maxOffset) }
   }
 
   func show() {
@@ -144,14 +214,14 @@ final class PanePanel {
 
   func hide() {
     shown = false
-    host?.hidePane(canvas)
+    host?.hidePane(scroller)
     window.orderOut(nil)
   }
 
   // Out of whichever window holds it, for good, on destroy and at a reload.
   func close() {
     hide()
-    host?.releasePane(canvas)
+    host?.releasePane(scroller)
     host = nil
   }
 
@@ -160,13 +230,13 @@ final class PanePanel {
   private func rehome() {
     let next = findHost(rect)
     if next !== host {
-      host?.releasePane(canvas)
+      host?.releasePane(scroller)
       host = next
       if let next {
         window.orderOut(nil)
-        next.adoptPane(canvas)
+        next.adoptPane(scroller)
       } else {
-        surface.hold(canvas)
+        surface.hold(scroller)
       }
       applyRadius()
       if shown { present() }
@@ -180,11 +250,11 @@ final class PanePanel {
 
   // In the chooser's window the pane's region is shown. In its own window the window is ordered
   // front without being made key, and only when it is not already up, since the pane asks for a
-  // show on every paint and a window ordered front on every scroll would climb over anything
+  // show on every paint and a window ordered front on every paint would climb over anything
   // shown above it since.
   private func present() {
     if let host {
-      host.showPane(canvas)
+      host.showPane(scroller)
     } else if !window.isVisible {
       window.orderFrontRegardless()
     }

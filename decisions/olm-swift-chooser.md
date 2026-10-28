@@ -326,3 +326,34 @@ the worktree for the test put both right, and the test lock is to do that itself
 does not scroll smoothly, since every scroll event rebuilds and redraws the whole element list
 through Lua, as the canvas pane always did, which reads as stepping beside a natively scrolled
 list. Merged to main with default still the shipped value.
+
+### 2026-10-28 13:50
+
+The native pane scrolls natively, built on `olm/pane-native-scroll`, offline only. The backend
+contract in `lib/dockedpane.lua` gained a capability a backend may answer, `scrollsNatively`,
+with `scrollBy` beside it. For such a backend a scrolling pane's content is laid out once at its
+full height, unshifted and cut at the viewport grown by the overflow, and rendered with the whole
+height, the pane's own, a reset flag and the thumb request. The pane then keeps no offset, clamps
+nothing, draws no thumb and runs no timer, and `pane.scrollBy` becomes the backend's. Reset
+follows today's rule, a show without `keepScroll` resets, a repaint, a redock and a `keepScroll`
+show keep. A painter is called a second time with `view.viewport` grown by its overflow, which is
+how the file search preview, which cuts its body at the viewport and lays out only the lines
+inside it, hands over everything without a plugin change. One behaviour changes with it, its
+header now scrolls with the body under the native backend. The canvas backend answers nothing and
+its path is untouched. In `native/Pane.swift` the drawn elements sit in a flipped document view
+inside an `NSScrollView`, which is what moves between the chooser's pane region and the fallback
+window, with no scroller unless the pane asked for a thumb, then the overlay style, elasticity
+only when there is something to scroll, the position kept and clamped across a redraw, and only
+the elements reaching the dirty rect drawn. The scroll tap and the hosting meet in one place,
+`View:_onScroll` in `providers/swift/view.lua`, which asks the panel through a new `hostsPane`
+whether its window holds a shown pane and, if it does, leaves the scroll for AppKit. A pane in
+its own window is still claimed by the tap and scrolled through `scrollBy`, instantly and without
+a Lua repaint, since whether that window gets scroll events under an inactive Hammerspoon was not
+something to rest on unmeasured. Scrolling natively under the swift chooser are speedtest, the
+clipboard preview and the file search preview, the three panes that pass `scroll = true`. The
+library built with the provider's flags with no error and no warning, `test/panebackends.lua`
+gained the canvas scroll unchanged, the native full height content, the native scrollBy, the kept
+and reset positions and a painter cut at the viewport, `test/swiftview.lua` the tap leaving a
+hosted pane's scroll alone, and the dry suite, the dry gate, the goldens, the dependency check and
+the docked pane unit case pass. Not yet run live, so momentum, the overlay scroller and the cost of
+a tall file preview drawn once are unmeasured.

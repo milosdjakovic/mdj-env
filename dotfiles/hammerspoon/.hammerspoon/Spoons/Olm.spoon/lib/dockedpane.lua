@@ -30,15 +30,36 @@
 --- puts them on screen. deps.backend is a factory, called once at the first paint with the
 --- companion rect, answering a backend that keeps four promises and holds no rule.
 ---   backend.place(frame)             move to the companion rect, in screen coordinates.
----   backend.render(surface, content) draw both lists, replacing whatever was drawn before.
+---   backend.render(surface, content) draw both lists, replacing whatever was drawn before, with
+---                                 a third argument for a backend that scrolls natively, below.
 ---   backend.show(), backend.hide()   bring it up and take it down without forgetting it.
 ---   backend.destroy()                tear it down for good, on close.
+---   backend.scrollsNatively()     optional, true for a backend that scrolls its own view.
+---   backend.scrollBy(points)      only on such a backend, scroll its view, answering whether it
+---                                 moved.
 --- lib/dockedpane/canvas.lua is one, an hs.canvas that paints the surface and the content in
 --- order, which is how every pane drew before the backend existed. The swift chooser's
 --- lib/chooser/providers/swift/pane.lua is the other, drawn on the swift chooser panel's own
 --- glass by the same Swift library, which puts glass where the surface elements would be and
 --- draws the content over it. The composition root chooses, the native one only while the swift
 --- provider serves, and no code in this file or in a plugin ever picks one.
+---
+--- A BACKEND THAT SCROLLS NATIVELY. A canvas scrolls by being painted again at a new offset, so
+--- this file holds the offset, clamps it, draws the thumb and coalesces scroll events into one
+--- paint a frame. A backend whose view scrolls on its own, with momentum and at display rate,
+--- answers scrollsNatively, and for it a scrolling pane's content is laid out once at its full
+--- height, unshifted by any offset and cut only at the bottom of all of it, and handed over as
+--- render(surface, content, scroll) with scroll = { height, visible, reset, thumb }. height is the
+--- whole content's height in the pane's coordinates, the pane's own height plus the overflow,
+--- visible the pane's height, reset whether the content changed since the last render so the view
+--- goes back to the top, and thumb whether the pane asked for a thumb, which the backend shows as
+--- its own overlay scroller. Here scrollY stays zero, nothing is clamped, no thumb is drawn and no
+--- scroll timer runs, and pane.scrollBy becomes backend.scrollBy, so a key that pages the pane
+--- still pages it. A painter is called once as usual to learn its overflow, and again with the
+--- view's viewport grown by that overflow, which is how a painter that cuts at the viewport and
+--- lays out only what is inside it hands over everything. A painter's fixed header therefore
+--- scrolls with the rest under such a backend. The canvas backend answers nothing and keeps the
+--- path above exactly as it was.
 ---
 --- Granted rather than loaded. A plugin whose surface declares `pane = true` receives
 --- `opts.dockedPane`, a function answering a new pane, built by the composition root with the
@@ -64,7 +85,8 @@
 ---                               Both reset the scroll unless opts.keepScroll is true.
 ---   pane.repaint()              paint what is current again at the current scroll.
 ---   pane.clear()                the shared empty state, for a highlight with nothing to say.
----   pane.scrollBy(points)       move further down by points, answering whether anything moved.
+---   pane.scrollBy(points)       move further down by points, answering whether anything moved,
+---                               the backend's own view when it scrolls natively.
 ---   pane.hide()                 hide without destroying, for the stage's swap away signal.
 ---   pane.destroy()              destroy the backend and forget everything, on close.
 ---
@@ -72,7 +94,8 @@
 ---   frame     the companion rect, in screen coordinates.
 ---   inner     the frame less the kit's pad on all four sides, in the pane's own coordinates.
 ---   viewport  the box inside the surface's border, which scrolled content is cut at.
----   scrollY   how far the content is scrolled, in points.
+---   scrollY   how far the content is scrolled, in points, always zero under a backend that
+---             scrolls natively.
 
 local M = {}
 
@@ -131,6 +154,8 @@ function M.new(deps, spec)
   local scrollY = 0    -- how far the content is scrolled, clamped on every paint
   local overflow = 0   -- how far it can go, measured by the last paint
   local timer = nil    -- the one pending scroll paint
+  local native = false -- whether the backend scrolls its own view, read once when it is built
+  local reset = true   -- whether the next native render goes back to the top
 
   local function timerLib() return deps.timer or hs.timer end
 
@@ -144,6 +169,15 @@ function M.new(deps, spec)
   local function ensureBackend()
     if backend then return end
     backend = deps.backend(frame)
+    native = type(backend.scrollsNatively) == "function" and backend.scrollsNatively() == true
+  end
+
+  -- The viewport grown downward by the overflow, the box full height content is cut at.
+  local function grown(viewport, by)
+    local out = {}
+    for k, v in pairs(viewport) do out[k] = v end
+    out.h = viewport.h + by
+    return out
   end
 
   function pane.isEnabled()
@@ -188,6 +222,15 @@ function M.new(deps, spec)
     local content, contentH = ui.layout(node, inner,
       { scrollY = scrollY, tokens = tokens, viewport = view.viewport })
     overflow = math.max(0, (contentH or 0) - inner.h)
+    -- A native backend scrolls the whole of it, so it is laid out again down to its end, with
+    -- no clamp and no thumb, both being the backend's.
+    if native then
+      if overflow > 0 then
+        content = ui.layout(node, inner,
+          { scrollY = 0, tokens = tokens, viewport = grown(view.viewport, overflow) })
+      end
+      return content
+    end
     if scrollY > overflow or scrollY < 0 then
       scrollY = math.max(0, math.min(scrollY, overflow))
       content = ui.layout(node, inner, { scrollY = scrollY, tokens = tokens, viewport = view.viewport })
@@ -213,6 +256,14 @@ function M.new(deps, spec)
     local els, over = current.painter(viewOf(inner))
     if not spec.scroll then return els or {} end
     overflow = math.max(0, over or 0)
+    if native then
+      if overflow > 0 then
+        local tall = viewOf(inner)
+        tall.viewport = grown(tall.viewport, overflow)
+        els = current.painter(tall)
+      end
+      return els or {}
+    end
     if scrollY > overflow or scrollY < 0 then
       scrollY = math.max(0, math.min(scrollY, overflow))
       els = current.painter(viewOf(inner))
@@ -239,16 +290,25 @@ function M.new(deps, spec)
       content = paintedElements(inner)
     end
     backend.place(frame)
-    backend.render(surface, content)
+    if native then
+      local extra = spec.scroll and overflow or 0
+      backend.render(surface, content, { height = frame.h + extra, visible = frame.h,
+        reset = reset, thumb = spec.thumb == true })
+      reset = false
+    else
+      backend.render(surface, content)
+    end
     backend.show()
   end
 
   -- Every show resets the scroll unless asked not to, since the content underneath changed and a
-  -- position measured against something else would land somewhere arbitrary.
+  -- position measured against something else would land somewhere arbitrary. A native backend is
+  -- told so with its next render, and a repaint or a redock keeps where its view is.
   local function present(next, opts)
     current = next
     if not (opts and opts.keepScroll) then
       scrollY = 0
+      reset = true
       stopTimer()
     end
     paint()
@@ -283,11 +343,13 @@ function M.new(deps, spec)
 
   -- The chooser hands over a distance already normalised for a wheel against a trackpad. The
   -- offset moves at once, clamped against the overflow the last paint measured, and the paint
-  -- waits for the next frame, so however many events land before it they cost one layout.
+  -- waits for the next frame, so however many events land before it they cost one layout. A
+  -- backend that scrolls natively is asked to move its own view instead, and nothing repaints.
   function pane.scrollBy(points)
     if not (spec.scroll and current and not current.empty and frame and overflow > 0) then
       return false
     end
+    if native then return backend.scrollBy(tonumber(points) or 0) == true end
     local next = math.max(0, math.min(overflow, scrollY + (tonumber(points) or 0)))
     if next == scrollY then return false end
     scrollY = next
@@ -315,6 +377,8 @@ function M.new(deps, spec)
     hidden = false
     scrollY = 0
     overflow = 0
+    native = false
+    reset = true
     if backend then
       backend.destroy()
       backend = nil

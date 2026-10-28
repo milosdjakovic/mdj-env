@@ -278,6 +278,11 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     return ScreenSpace.same(companion, rect)
   }
 
+  // Whether this window is up with a docked pane shown in its region, so a scroll over the
+  // companion lands on the pane's own scroll view. The Lua view's scroll tap asks, through
+  // hostsPane in Entry.swift, before it claims one.
+  var hostsShownPane: Bool { window.isVisible && paneShown && paneContent != nil }
+
   // A docked pane's view moves into the pane's region, hidden until it is shown.
   func adoptPane(_ view: NSView) {
     if paneContent !== view {

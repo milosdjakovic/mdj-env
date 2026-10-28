@@ -19,9 +19,14 @@
 --- panel's own window, on the one shape of glass the list stands on, so the two are one surface
 --- and come and go together. With no such panel it stands in a window of its own.
 ---
+--- IT SCROLLS NATIVELY. It answers scrollsNatively, so the pane hands it a scrolling pane's
+--- content at its full height with the height, the reset and the thumb, and native/Pane.swift
+--- draws it in a scroll view that scrolls with the system's own momentum, Lua repainting only when
+--- the content changes. scrollBy moves that view, for a key that pages the pane.
+---
 --- Whatever Swift could not draw comes back named, an element type, an action or a scaling it
 --- does not know, or an attribute it does not draw, and is said once per name for the session,
---- since the same pane repaints on every scroll.
+--- since the same pane repaints whenever its content changes.
 ---
 --- M.factory(native, log) -> function(frame) -> backend, native the loaded library, log a
 --- logger with e, or nil for print.
@@ -67,8 +72,15 @@ function M.factory(native, log)
       native.panePlace(id, rect)
     end
 
-    function backend.render(surface, content)
-      report(log, native.paneDraw(id, radiusOf(surface), content))
+    function backend.scrollsNatively() return true end
+
+    -- scroll is { height, visible, reset, thumb }, see lib/dockedpane.lua's header.
+    function backend.render(surface, content, scroll)
+      report(log, native.paneDraw(id, radiusOf(surface), content, scroll))
+    end
+
+    function backend.scrollBy(points)
+      return native.paneScrollBy(id, points) == true
     end
 
     function backend.show() native.paneShow(id) end

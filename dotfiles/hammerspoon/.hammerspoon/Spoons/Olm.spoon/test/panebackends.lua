@@ -4,7 +4,7 @@
 -- ever draw what the canvas pane draws. The same pane is driven twice over the same describer
 -- and painter, once over lib/dockedpane/canvas.lua on a recording hs.canvas stub and once over
 -- lib/chooser/providers/swift/pane.lua on a recording stand in for the Swift library, for an
--- empty state, a described pane, a painted pane and a described pane scrolled with its thumb.
+-- empty state, a described pane and a painted pane.
 -- For each, the canvas is handed the surface and then the content as one list, the library is
 -- handed the very content list the pane rendered, equal to the canvas's element for element and
 -- nothing more, at the corner radius the surface was drawn with, and both are placed on the
@@ -12,6 +12,15 @@
 -- Then that hide, a redock and destroy reach both, that the native pane is placed on the rect it
 -- is docked on before every draw, which is what the library matches it to its chooser on, and
 -- that what the library could not draw is said once per name however often the pane repaints.
+--
+-- Then scrolling, where the two differ on purpose. The canvas pane scrolls as it always has, the
+-- offset clamped in Lua, the content shifted by it, a thumb drawn, one paint a frame through the
+-- timer, and its backend rendered with the surface and the content alone. The native pane answers
+-- that it scrolls natively, so it is handed the content laid out at its full height, unshifted
+-- and cut only at the viewport grown by the overflow, with the full height, the pane's height, the
+-- reset and the thumb, scrollBy becomes the library's own scroll with no paint and no timer, and a
+-- redraw of the same content keeps its place while new content goes back to the top. A painter is
+-- called again with the grown viewport, which is how one that cuts at the viewport hands it all.
 --
 -- How Swift draws the list, and which window it draws it in, is measured live, not here.
 --
@@ -75,6 +84,11 @@ local native = {
   paneShow = function(id) panes[id].shown = true; table.insert(panes[id].calls, "show") end,
   paneHide = function(id) panes[id].shown = false; table.insert(panes[id].calls, "hide") end,
   paneDelete = function(id) panes[id].deleted = true end,
+  paneScrollBy = function(id, points)
+    panes[id].scrolled = (panes[id].scrolled or 0) + points
+    table.insert(panes[id].calls, "scroll")
+    return true
+  end,
 }
 local function newestPane() return panes[nextId] end
 
@@ -138,16 +152,18 @@ local function newPane(backend, spec)
     timer = timerLib }, spec)
 end
 
--- The content list the pane last handed the native backend's render, recorded on the way in, so
--- the comparison can see that the backend passes the very same table on to the library.
-local rendered = nil
+-- The content list the pane last handed a backend's render, recorded on the way in, so the
+-- comparison can see that the backend passes the very same table on to the library, with the
+-- scroll argument a native backend is given and how many arguments the render was handed.
+local rendered, renderedScroll, renderedArgs = nil, nil, nil
 local function spied(factory)
   return function(frame)
     local backend = factory(frame)
     local render = backend.render
-    backend.render = function(surfaceEls, content)
-      rendered = content
-      return render(surfaceEls, content)
+    backend.render = function(...)
+      local surfaceEls, content, scroll = ...
+      rendered, renderedScroll, renderedArgs = content, scroll, select("#", ...)
+      return render(surfaceEls, content, scroll)
     end
     return backend
   end
@@ -240,19 +256,106 @@ do
     #newestPane().els, 5)
 end
 
--- A described pane scrolled with its thumb, through the scroll timer.
+-- The canvas pane, a described pane scrolled with its thumb through the scroll timer, exactly as
+-- before the native scroll existed.
 do
-  local a, b = pair({ scroll = true, thumb = true })
-  a.dock(FRAME); b.dock(FRAME)
-  a.show(describer("long", 1000)); b.show(describer("long", 1000))
-  check("scrolled, the canvas pane moves", a.scrollBy(120), true)
+  local a = newPane(spied(CanvasBackend.new({ canvas = canvasLib })), { scroll = true, thumb = true })
+  a.dock(FRAME)
+  a.show(describer("long", 1000))
+  check("canvas, rendered with the surface and the content alone", renderedArgs, 2)
+  check("canvas, the pane moves", a.scrollBy(120), true)
+  check("canvas, and waits for the timer to paint", pending ~= nil, true)
   fire()
-  check("scrolled, the native pane moves", b.scrollBy(120), true)
+  local els = canvases[#canvases].els
+  check("canvas, the text is drawn scrolled", els[4].frame.y, 10 - 120)
+  check("canvas, cut at the viewport", els[3].frame.h, 398)
+  check("canvas, the thumb is the last element", els[#els].fillColor ~= nil, true)
+  check("canvas, clamped at the overflow", a.scrollBy(10000), true)
   fire()
-  compare("scrolled")
-  local els = newestPane().els
-  check("scrolled, the text is drawn scrolled", els[2].frame.y, 10 - 120)
-  check("scrolled, the thumb is the last element", els[#els].fillColor ~= nil, true)
+  check("canvas, the text drawn at the end", canvases[#canvases].els[4].frame.y, 10 - 620)
+  check("canvas, and no further", a.scrollBy(10), false)
+  check("canvas, the backend does not scroll natively",
+    CanvasBackend.new({ canvas = canvasLib })(FRAME).scrollsNatively, nil)
+end
+
+-- The native pane, the same described pane handed over at full height and scrolled natively.
+-- The pane is 400 high with a pad of 10, so the inner box is 380 and a 1000 point node overflows
+-- by 620, the viewport inside the border is 398 and grows to 1018, and the whole is 1020.
+do
+  local b = newPane(spied(SwiftPane.factory(native, log)), { scroll = true, thumb = true })
+  b.dock(FRAME)
+  b.show(describer("long", 1000))
+  local p = newestPane()
+  check("native, the text is laid out unshifted", p.els[2].frame.y, 10)
+  check("native, cut at the viewport grown by the overflow", p.els[1].frame.h, 398 + 620)
+  check("native, with no thumb drawn in Lua", p.els[#p.els].type, "resetClip")
+  check("native, the very list the pane rendered", p.els, rendered)
+  check("native, told the full height", renderedScroll.height, 1020)
+  check("native, and the pane's own", renderedScroll.visible, 400)
+  check("native, a new content goes to the top", renderedScroll.reset, true)
+  check("native, asked for its own thumb", renderedScroll.thumb, true)
+  p.calls = {}
+  check("native, scrollBy moves the native view", b.scrollBy(120), true)
+  check("native, by those points", p.scrolled, 120)
+  check("native, with no paint", table.concat(p.calls, " "), "scroll")
+  check("native, and no timer", pending, nil)
+  b.repaint()
+  check("native, a repaint keeps its place", renderedScroll.reset, false)
+  b.show(describer("long", 1000), { keepScroll = true })
+  check("native, the same content kept keeps its place", renderedScroll.reset, false)
+  b.dock(FRAME)
+  check("native, a redock keeps its place", renderedScroll.reset, false)
+  b.show(describer("other", 1000))
+  check("native, new content goes back to the top", renderedScroll.reset, true)
+  b.clear()
+  check("native, the empty state is the pane's own height", renderedScroll.height, 400)
+  check("native, an empty pane does not scroll", b.scrollBy(120), false)
+end
+
+-- A short native pane is its own height and does not scroll, and a pane without scroll is laid
+-- out unscrolled however tall its content.
+do
+  local b = newPane(spied(SwiftPane.factory(native, log)), { scroll = true })
+  b.dock(FRAME)
+  b.show(describer("short", 100))
+  check("native short, the pane's own height", renderedScroll.height, 400)
+  check("native short, no thumb asked for", renderedScroll.thumb, false)
+  check("native short, nothing to scroll", b.scrollBy(50), false)
+  local c = newPane(spied(SwiftPane.factory(native, log)), {})
+  c.dock(FRAME)
+  c.show(describer("long", 1000))
+  check("native unscrolled, the pane's own height", renderedScroll.height, 400)
+  check("native unscrolled, cut at the viewport", newestPane().els[1].frame.h, 398)
+end
+
+-- A painter that cuts its body at the viewport, the way a pane with a fixed header does, and
+-- reports how far the body overflows the room it has. The canvas pane hands it the offset, the
+-- native one calls it again with the viewport grown by the overflow and no offset.
+local function cutPainter(view)
+  local body = 900
+  return { { type = "text", text = "body", frame = { x = 10, y = 10 - view.scrollY, w = 200,
+    h = view.viewport.h } } }, body - view.inner.h
+end
+do
+  local a = newPane(spied(CanvasBackend.new({ canvas = canvasLib })), { scroll = true })
+  a.dock(FRAME)
+  a.draw(cutPainter)
+  a.scrollBy(100)
+  fire()
+  local els = canvases[#canvases].els
+  check("canvas painter, drawn at the offset", els[3].frame.y, 10 - 100)
+  check("canvas painter, cut at the viewport", els[3].frame.h, 398)
+  local b = newPane(spied(SwiftPane.factory(native, log)), { scroll = true })
+  b.dock(FRAME)
+  b.draw(cutPainter)
+  local p = newestPane()
+  check("native painter, unshifted", p.els[1].frame.y, 10)
+  check("native painter, handed the grown viewport", p.els[1].frame.h, 398 + 520)
+  check("native painter, told the full height", renderedScroll.height, 400 + 520)
+  check("native painter, scrolled natively", b.scrollBy(100), true)
+  check("native painter, by the library", p.scrolled, 100)
+  b.draw(cutPainter, { keepScroll = true })
+  check("native painter, the same content kept keeps its place", renderedScroll.reset, false)
 end
 
 -- Hide, redock and destroy reach both backends.
