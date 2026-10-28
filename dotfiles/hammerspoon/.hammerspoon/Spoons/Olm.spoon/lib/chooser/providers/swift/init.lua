@@ -167,6 +167,13 @@ function M.uses(keyCode, mods)
   return nil
 end
 
+--- M.iconsChanged() repaints the icons of every list this provider has on screen, called by the
+--- root when an icon source has finished pictures in the background. A list served by the
+--- fallback is the fallback provider's own, which the root asks too.
+function M.iconsChanged()
+  SwiftView.iconsChanged()
+end
+
 --- M.serving() -> "swift" when the native library is loaded and every new builds through it,
 --- "fallback" otherwise, for a probe or a test to read.
 function M.serving()

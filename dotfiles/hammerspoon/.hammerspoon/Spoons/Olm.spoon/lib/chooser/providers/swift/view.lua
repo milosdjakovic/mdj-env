@@ -236,13 +236,25 @@ function View:feedKey(ev)
   self.native.feedKey(self.id, ev:asData())
 end
 
--- The row a disabled or enabled title and its picture become for Swift, the icon resolved at
--- every draw like the canvas view resolves it at paint.
-local function rowData(row)
+-- The row a disabled or enabled title and its picture become for Swift. icon is the picture this
+-- view resolved for the row's icon key, or nil while the row has not been near the viewport.
+local function rowData(row, icon)
   local image = row.image
-  if image == nil and row.icon ~= nil and ICON then image = ICON(row.icon, row.iconOwner) end
+  if image == nil then image = icon or nil end
   return { title = plain(row.title), subtitle = plain(row.subTitle), enabled = row.enabled ~= false,
     image = image }
+end
+
+-- The rows whose icon is resolved, the ones the viewport shows and one viewport's worth past each
+-- edge, so a scroll of up to a page lands on rows that already carry their picture. Answers the
+-- first and the last index, or 1 and 0 for an empty list. The canvas view resolves an icon only
+-- for a row it paints, and this is the same rule for a list Swift scrolls on its own.
+local function iconWindow(ns)
+  local visible = listModel.visibleRows(ns)
+  if #visible == 0 then return 1, 0 end
+  local first, last = visible[1].index, visible[#visible].index
+  local margin = #visible
+  return math.max(1, first - margin), math.min(#ns.filtered, last + margin)
 end
 
 -- The footer model flattened to strings, a key panel entry's badges joined into one chord.
@@ -258,16 +270,44 @@ local function footerData(model)
     keysImage = icon and ICON and ICON(icon.icon, icon.owner) or nil }
 end
 
---- View colon redraw, arity zero. Sends the rows when the engine holds a new list, then the state
---- the scene says now. Nothing before the first place.
+-- Resolves the icon of every row from lo to hi not asked yet, through the injected resolver, and
+-- remembers each answer by index, false for a row with nothing to resolve or nothing drawn yet.
+-- Answers true when a row gained a picture the panel does not have.
+function View:_resolveIcons(rows, lo, hi)
+  local gained = false
+  for i = lo, hi do
+    if self._icons[i] == nil then
+      local row = rows[i]
+      local image = nil
+      if row and row.image == nil and row.icon ~= nil and ICON then
+        image = ICON(row.icon, row.iconOwner)
+      end
+      self._icons[i] = image or false
+      if image then gained = true end
+    end
+  end
+  return gained
+end
+
+--- View colon redraw, arity zero. Sends the rows when the engine holds a new list, or when rows
+--- that came near the viewport gained their icon, then the state the scene says now. An icon is
+--- resolved only for a row in iconWindow, so opening a long list draws a few pages of icons and
+--- not its whole catalog, and a scroll, which reaches here through the engine, resolves the rows
+--- it brings near. Nothing before the first place.
 function View:redraw()
   local s = self.engine:scene()
   if not s.rects then return end
   local ns = listModel.normalized(s.list)
-  if ns.filtered ~= self._sentRows then
+  local fresh = ns.filtered ~= self._sentRows
+  if fresh then
     self._sentRows = ns.filtered
+    self._icons = {}
+  end
+  local lo, hi = iconWindow(ns)
+  local gained = self:_resolveIcons(ns.filtered, lo, hi)
+  if fresh or gained then
     local rows = {}
-    for i, row in ipairs(ns.filtered) do rows[i] = rowData(row) end
+    for i, row in ipairs(ns.filtered) do rows[i] = rowData(row, self._icons[i]) end
     self.native.setRows(self.id, rows)
   end
   local slots = {}
@@ -432,6 +472,16 @@ function M.dispatch(id, event, ...)
   return handler(view, ...) == true
 end
 
+--- M.iconsChanged() makes every view resolve its icons again, since a picture that was still
+--- being made may exist now. A view on screen redraws at once, and one that is hidden resends
+--- its rows on its next draw.
+function M.iconsChanged()
+  for _, view in pairs(views) do
+    view._sentRows = nil
+    if view:isVisible() then view:redraw() end
+  end
+end
+
 --- M.configure(opts) takes opts.ui and opts.icon. Callable more than once, a nil field left
 --- unchanged.
 function M.configure(opts)
@@ -449,7 +499,7 @@ end
 --- M.new(engine, native) answers a view for one engine instance, with a panel of its own, built
 --- and not yet placed or shown.
 function M.new(engine, native)
-  local self = setmetatable({ engine = engine, native = native, _sentRows = nil }, View)
+  local self = setmetatable({ engine = engine, native = native, _sentRows = nil, _icons = {} }, View)
   self.id = native.new()
   views[self.id] = self
   native.setFieldKeys(self.id, fieldKeys.controlKeys())

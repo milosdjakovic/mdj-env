@@ -21,6 +21,10 @@
 -- answers for the field that serves, and that a loaded library's module table, which holds the
 -- sentinel whose __gc cleans up when the state closes, stays referenced for the session.
 --
+-- And that a row's icon is resolved only for the rows near the viewport, a page past each edge,
+-- that a scroll resolves the rows it brings near, and that iconsChanged hands a picture finished
+-- in the background to the row on screen.
+--
 -- The key order itself runs in Swift, native/Panel.swift, so what this pins is that each step of
 -- it lands on the right engine call. The panel is measured live.
 --
@@ -502,6 +506,64 @@ check("uses answers for the native field, Control and A", Loaded.uses(0, { "ctrl
 check("uses leaves Control and T free, the native field reads none", Loaded.uses(17, { "ctrl" }), nil)
 check("uses still answers the engine's own keys", Loaded.uses(53, {}), "Escape closes the list")
 check("a loaded library answers the native pane backend's factory", type(Loaded.paneBackend()), "function")
+
+--------------------------------------------------------------------------------
+-- Icons are resolved for the rows near the viewport only
+--------------------------------------------------------------------------------
+
+-- A long list of rows that each name an icon key, the shape the launcher's catalog has. Opening
+-- it asks the resolver for the visible rows and a page past them, a scroll asks for the rows it
+-- brings near, and iconsChanged asks again for what is near, since a picture may exist now.
+do
+  local asked, ready = {}, {}
+  -- The provider cases above attached their own copy of the view, so the callback is this one's again.
+  View.attach(native)
+  View.configure({ icon = function(icon)
+    asked[#asked + 1] = icon
+    return ready[icon] and { picture = icon } or nil
+  end })
+  local many = Engine.new({
+    rows = function()
+      local out = {}
+      for i = 1, 200 do out[i] = { title = "row " .. i, item = i, icon = i, iconOwner = "o" } end
+      return out
+    end,
+  }, function(engine) return View.new(engine, native) end)
+  many:show()
+  local listModel = dofile(spoon .. "lib/chooser/providers/default/list/model.lua")
+  local visible = listModel.visibleRows(many:scene().list)
+  local page = #visible
+  check("the list shows fewer rows than it holds", page > 0 and page < 200, true)
+  local highest = 0
+  for _, i in ipairs(asked) do if i > highest then highest = i end end
+  check("opening asks for no icon past a page below the viewport", highest, visible[#visible].index + page)
+  check("opening asks for each near row once", #asked, highest)
+  check("every row is still sent", #lastRows, 200)
+
+  -- A scroll far down, as the native list reports one, resolves the rows it brings near.
+  asked = {}
+  local y = 120 * many:scene().list.rowH
+  send("scroll", y)
+  local lowest, top = math.huge, 0
+  for _, i in ipairs(asked) do
+    if i < lowest then lowest = i end
+    if i > top then top = i end
+  end
+  visible = listModel.visibleRows(many:scene().list)
+  check("a scroll asks only for rows near the new viewport", lowest >= visible[1].index - page
+    and top <= visible[#visible].index + page, true)
+  check("a scroll asks for the rows it brings into view", #asked > 0, true)
+
+  -- A picture finished in the background reaches a row on screen through iconsChanged.
+  local onScreen = visible[1].index
+  ready[onScreen] = true
+  local sends = #calls
+  View.iconsChanged()
+  check("iconsChanged resends the rows", since(sends):find("setRows", 1, true) ~= nil, true)
+  check("the finished picture is on its row", lastRows[onScreen].image and lastRows[onScreen].image.picture, onScreen)
+  check("a row far from the viewport still carries none", lastRows[1].image, nil)
+  many:hide()
+end
 
 if failed then
   print("swiftview, FAILED")

@@ -67,3 +67,4 @@ hidutil | system | /usr/bin/hidutil | required | root/keyremap | applying the on
 open | system | /usr/bin/open | optional | root/appfocus | opening a System Settings pane by its url when a pane action's key is pressed | macos | ships with the system
 ioreg | system | /usr/sbin/ioreg | optional | root/securenotice | naming the application that holds secure input when a held leader is pressed under it | macos | ships with the system
 swiftc-clt | system | /Library/Developer/CommandLineTools/usr/bin/swiftc | optional | root/swiftchooser | compiling the native panel the swift chooser draws with, the default chooser serving without it | xcode-clt | installed by src/install-xcode-clt.sh, which makes sure the command line tools carry an SDK for the running macOS
+osascript | system | /usr/bin/osascript | optional | root/icons | rendering SF Symbol icons into cached pictures, out of Hammerspoon's process | macos | ships with the system

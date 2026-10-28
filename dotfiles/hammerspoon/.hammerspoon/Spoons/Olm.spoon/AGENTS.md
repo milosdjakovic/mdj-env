@@ -755,20 +755,34 @@ fires no hotkey, so a live check calls the press handler rather than posting F18
 `test/securenotice.lua` pins it over fakes, and `decisions/olm-leader-keys.md` has the
 measurements.
 
-## Icons, the SF Symbol source renders at the screen's scale
+## Icons, the SF Symbol source renders out of process at the screen's scale
 
 The engine in `lib/icons` and its two sources are described in `decisions/olm-icons.md`. What an
-agent needs to keep true is the pixel rule of the sf source. A symbol is drawn by a script into a
-square bitmap that is 72 points on a side and 72 times the scale in pixels, with its size in
-points written into the PNG, so the image `hs.image.imageFromPath` loads reports 72 points and
-carries more pixels. The scale is the largest `scale` among `hs.screen.allScreens()` current modes,
-at least 1 and at most 4, read on every draw. `hs.image:setSize` in its default form changes the
-size in points and keeps the bitmap, so sizing the result to a row's points never costs pixels.
+agent needs to keep true is where the sf source draws and its pixel rule.
 
-The source declares a `variant`, an optional member of the icon contract, and the engine adds it to
-its cache key, so a picture drawn at 1x is not served after a 2x screen is attached. Nothing is
-cached on disk. The storage cache directory holds only the scratch PNG, which is removed after it
-is loaded, so there is no stale file to clear. Do not draw the symbol through an `hs.canvas`
-snapshot again, its pixels follow the canvas and not the screen. The emoji source is not affected,
-since the default chooser paints a glyph as a text element and only the legacy chooser takes its
-picture.
+Hammerspoon's process never runs JXA for an icon. Calling `hs.osascript.javascript` for a symbol
+leaks a JavaScriptCore context group per call, which grew the process past 1 GB, so the sf source
+keeps every picture as a PNG in the storage cache directory for icons, `sf-<symbol>-72pt-<scale>x-
+<rrggbbaa>.png`, and loads it from there. A missing one answers nil and pending, which the engine
+does not cache, and joins a queue that one `osascript -l JavaScript` run renders through `hs.task`
+in the background. The tool is declared in `root/manifest.lua` and its path comes from the door.
+When a run finishes, the root calls `iconsChanged` on every chooser provider, which repaints the
+lists on screen. At load the root hands the source every symbol the manifests declare. Never call
+`hs.osascript` or `hs.execute` from an icon source, and never wait for a render on the main thread.
+
+A symbol is drawn by the script into a square bitmap that is 72 points on a side and 72 times the
+scale in pixels, with its size in points written into the PNG, so the image
+`hs.image.imageFromPath` loads reports 72 points and carries more pixels. The scale is the largest
+`scale` among `hs.screen.allScreens()` current modes, at least 1 and at most 4, read on every draw.
+`hs.image:setSize` in its default form changes the size in points and keeps the bitmap, so sizing
+the result to a row's points never costs pixels. The scale is in the file name and is the source's
+`variant`, so a picture drawn at 1x is not served after a 2x screen is attached. The cache
+directory is safe to delete, which costs one run. Do not draw the symbol through an `hs.canvas`
+snapshot again, its pixels follow the canvas and not the screen.
+
+The swift chooser's view resolves a row's icon only from a page above the viewport to a page below
+it, read from the list model the engine moves on every native scroll, the way the canvas list
+resolves an icon only for a row it paints. Resolving every row when rows are sent is what turned
+one launcher open into a render of the whole catalog. The emoji source is not affected, since it
+draws through `hs.canvas` with no JavaScript and the default chooser paints a glyph as a text
+element.

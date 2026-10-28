@@ -1,7 +1,7 @@
 -- The composition root's own needs, which belong to no plugin.
 --
 -- Every other manifest in this tree describes a plugin. This one describes the root that wires
--- them, which reaches for five tools of its own. A need with nothing but the root behind it is
+-- them, which reaches for six tools of its own. A need with nothing but the root behind it is
 -- otherwise the one category nothing declares and so nothing checks, which is the same reason
 -- the setup scripts one layer up declare stow and duti rather than assuming them.
 --
@@ -61,6 +61,14 @@ return {
                  "serving without it",
         origin = { ["xcode-clt"] = "installed by src/install-xcode-clt.sh, which makes sure the " ..
                    "command line tools carry an SDK for the running macOS" } },
+      -- Optional, because only the sf icon source runs it, and only where config/icons.toml
+      -- reaches that source. It renders SF Symbols into PNG files in a process of its own, so
+      -- what its JavaScript bridge leaks dies with that process. Without it every symbol answers
+      -- nothing and the fallback source draws the icon.
+      { name = "osascript", kind = "system", locator = "/usr/bin/osascript", policy = "optional",
+        unit = "icons",
+        reason = "rendering SF Symbol icons into cached pictures, out of Hammerspoon's process",
+        origin = { macos = "ships with the system" } },
     },
   },
 }

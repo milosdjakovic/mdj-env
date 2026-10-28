@@ -5,6 +5,9 @@
 -- registered, caching so an icon is drawn once, the colour keyed cache for a tinted source
 -- only, a draw that answers nothing, the contract refusing a bad source, the config file, the
 -- row resolver, the manifest check in the registrar, and what the sf source does with a name.
+-- And the sf source rendering out of process, that it never calls hs.osascript, that a missing
+-- picture answers nil and pending and one paint's misses start one run, that a finished run fires
+-- the refresh callback, and that a picture on disk is loaded with no run at all.
 --
 -- Run it.
 --   lua test/icons.lua
@@ -137,6 +140,27 @@ do
   raises("the contract refuses a variant that is not a function", function()
     icons.new({ sources = { { name = "x", draw = function() end, variant = "2x" } } })
   end, "variant field")
+end
+
+-- A draw that answers nil and pending is not remembered, so the picture is found once it exists,
+-- and meanwhile the next source in the order answers.
+do
+  local ready = false
+  local sf = { name = "sf", draws = 0 }
+  function sf.draw(value)
+    sf.draws = sf.draws + 1
+    if not ready then return nil, true end
+    return { from = "sf", value = value }
+  end
+  local emoji = fake("emoji")
+  local engine = icons.new({ sources = { sf, emoji }, order = { "sf", "emoji" } })
+  check("a pending picture falls back to the next source", engine.image({ sf = "a", emoji = "E" }, 28).from, "emoji")
+  engine.image({ sf = "a", emoji = "E" }, 28)
+  check("a pending picture is asked again", sf.draws, 2)
+  ready = true
+  check("a pending picture is answered once it exists", engine.image({ sf = "a", emoji = "E" }, 28).from, "sf")
+  engine.image({ sf = "a", emoji = "E" }, 28)
+  check("and then cached", sf.draws, 3)
 end
 
 -- The contract.
@@ -299,12 +323,16 @@ do
   check("no log means a quiet refusal", ok, false)
 end
 
--- The two real sources, against a stub of the hs calls they make.
+-- The two real sources, against a stub of the hs calls they make. The sf source renders out of
+-- process, so the stub records every task it is asked to start and every timer, and keeps a
+-- table of files standing for the disk. hs.osascript is a function that fails the run, since the
+-- source must never call it.
 do
   local sfSource = dofile(here .. "../lib/icons/sources/sf.lua")
   local emojiSource = dofile(here .. "../lib/icons/sources/emoji.lua")
-  local scripts = {}
   local canvases = {}
+  local disk, tasks, timers, loaded = {}, {}, {}, {}
+  local osascriptCalls = 0
   local function image(w, h)
     local img = { w = w, h = h }
     function img:size() return { w = self.w, h = self.h } end
@@ -312,12 +340,29 @@ do
     return img
   end
   _G.hs = {
-    osascript = { javascript = function(script)
-      scripts[#scripts + 1] = script
-      if script:find("'nope.nope'", 1, true) then return true, "unknown" end
-      return true, "ok"
+    osascript = setmetatable({}, { __index = function()
+      return function() osascriptCalls = osascriptCalls + 1 return false, "never" end
+    end }),
+    fs = { attributes = function(path)
+      if disk[path] then return "file" end
+      local f = io.open(path)
+      if f then f:close() return "file" end
+      return nil
     end },
-    image = { imageFromPath = function() return image(72, 72) end },
+    image = { imageFromPath = function(path)
+      loaded[#loaded + 1] = path
+      return disk[path] and image(72, 72) or nil
+    end },
+    timer = { doAfter = function(_, fn)
+      timers[#timers + 1] = fn
+      return {}
+    end },
+    task = { new = function(path, callback, args)
+      local t = { path = path, callback = callback, args = args }
+      function t:start() self.started = true return self end
+      tasks[#tasks + 1] = t
+      return t
+    end },
     screen = { allScreens = function()
       return { { currentMode = function() return { scale = 1 } end },
                { currentMode = function() return { scale = _G.testScale } end } }
@@ -330,27 +375,128 @@ do
       return setmetatable(c, { __newindex = function(t, k, v) rawset(t, k, v) end })
     end },
   }
+  local function runTimers()
+    local due = timers
+    timers = {}
+    for _, fn in ipairs(due) do fn() end
+  end
+  -- Finishes the last task as osascript would, writing every picture it was asked for except
+  -- the names in unknown, and printing a line for each of those.
+  local function finishTask(task, unknown)
+    local script = io.open(task.args[3]):read("a")
+    local lines = {}
+    for name, path in script:gmatch("job%('([^']+)', [^\n]-, '([^']+)'%);") do
+      if unknown and unknown[name] then lines[#lines + 1] = "unknown\t" .. path
+      else disk[path] = true end
+    end
+    task.callback(0, table.concat(lines, "\n"), "")
+  end
+  local dir = os.tmpname()
+  os.remove(dir)
+  os.execute("mkdir -p '" .. dir .. "'")
+  local red = { red = 1, green = 0, blue = 0, alpha = 1 }
+  local blue = { red = 0, green = 0, blue = 1, alpha = 1 }
   _G.testScale = 2
-  local source = sfSource.new({ scratchDir = function() return "/tmp" end })
+
+  local source = sfSource.new({ dir = function() return dir end })
+  local readies = 0
   check("the sf source is named sf", source.name, "sf")
   check("the sf source is tinted", source.tinted, true)
-  local script = sfSource.script("circle", { red = 1, green = 0, blue = 0, alpha = 1 }, "/tmp/x.png")
+
+  -- The script, one run for many jobs.
+  local script = sfSource.script({
+    { name = "circle", color = red, scale = 2, path = "/tmp/a.png" },
+    { name = "globe", color = nil, scale = 0.5, path = "/tmp/b.png" },
+  })
   check("the sf script paints every layer with a palette", script:find("configurationWithPaletteColors($([col]))", 1, true) ~= nil, true)
   check("the sf script no longer asks for a hierarchical colour", script:find("Hierarchical", 1, true), nil)
-  check("the sf script falls back to the label colour for no colour",
-    sfSource.script("circle", nil, "/tmp/x.png"):find("$.NSColor.labelColor", 1, true) ~= nil, true)
-  check("an unsafe name is refused without calling out", source.draw("a'); evil('", 28, nil), nil)
-  check("no script ran for an unsafe name", #scripts, 0)
+  check("one script renders every job", select(2, script:gsub("\njob%(", "")), 2)
+  check("the colour is spliced into its job", script:find("1.0000, 0.0000, 0.0000, 1.0000", 1, true) ~= nil, true)
+  check("the script falls back to the label colour for no colour", script:find("$.NSColor.labelColor", 1, true) ~= nil, true)
+  check("the job renders at its scale", script:find("2.0000, '/tmp/a.png'", 1, true) ~= nil, true)
+  check("a scale below 1 is raised to 1", script:find("1.0000, '/tmp/b.png'", 1, true) ~= nil, true)
+  check("the script writes the size in points", script:find("rep.size = $.NSMakeSize(side, side)", 1, true) ~= nil, true)
+  check("the longest side fills 60 of 72 points", script:find("k = 60 /", 1, true) ~= nil, true)
+  local file = sfSource.fileName("cup.and.saucer.fill", red, 2)
+  check("the file is keyed by name, side, scale and colour", file, "sf-cup.and.saucer.fill-72pt-2x-ff0000ff.png")
+  check("no colour has a file of its own", sfSource.fileName("globe", nil, 1), "sf-globe-72pt-1x-label.png")
+
+  -- Names.
+  check("an unsafe name is refused", source.draw("a'); evil('", 28, nil), nil)
   check("a name with a space is refused", source.draw("a b", 28, nil), nil)
-  check("an unknown name answers nil", source.draw("nope.nope", 28, nil), nil)
-  scripts = {}
-  local img = source.draw("cup.and.saucer.fill", 28, { red = 0.5, green = 0.25, blue = 1, alpha = 1 })
-  check("a known name answers an image sized to the points", img and img.w, 28)
-  check("the colour is spliced into the script", scripts[1]:find("0.5000, 0.2500, 1.0000, 1.0000", 1, true) ~= nil, true)
+  check("a name that climbs out of the directory is refused", source.draw("../x", 28, nil), nil)
+
+  -- A missing picture answers nil and pending, and one paint's misses start one run.
+  local img, pending = source.draw("cup.and.saucer.fill", 28, red)
+  check("a missing picture answers nil", img, nil)
+  check("and says it is pending", pending, true)
+  source.draw("globe", 28, red)
+  source.draw("cup.and.saucer.fill", 28, red)
+  check("nothing runs before the door has answered", #timers + #tasks, 0)
+  source.configure({ osascript = "/door/osascript", onReady = function() readies = readies + 1 end })
+  check("configure schedules one run", #timers, 1)
+  source.draw("star", 28, red)
+  check("a later miss in the same turn joins it", #timers, 1)
+  runTimers()
+  check("one run starts for every miss", #tasks, 1)
+  check("the run is osascript from the door", tasks[1].path, "/door/osascript")
+  check("it runs a JavaScript file", tasks[1].args[1] .. " " .. tasks[1].args[2], "-l JavaScript")
+  local queuedScript = io.open(tasks[1].args[3]):read("a")
+  check("the run holds all three symbols", select(2, queuedScript:gsub("\njob%(", "")), 3)
+  img, pending = source.draw("globe", 28, red)
+  check("a picture in flight is still pending", pending, true)
+  source.draw("moon", 28, red)
+  runTimers()
+  check("a miss while a run is in flight starts no second run", #tasks, 1)
+  finishTask(tasks[1], { star = true })
+  check("a finished run fires the refresh callback", readies, 1)
+  check("the script file is removed", io.open(tasks[1].args[3]), nil)
+  local marker = io.open(dir .. "/" .. sfSource.fileName("star", red, 2) .. ".none")
+  check("an unknown symbol leaves a marker", marker ~= nil, true)
+  if marker then marker:close() end
+  img, pending = source.draw("star", 28, red)
+  check("an unknown symbol answers a plain nil", img == nil and pending == nil, true)
+  runTimers()
+  check("the miss queued during the run starts the next one", #tasks, 2)
+  finishTask(tasks[2])
+  check("that run fires the callback too", readies, 2)
+
+  -- A picture on disk is loaded with no run.
+  local before, timersBefore = #tasks, #timers
+  loaded = {}
+  img = source.draw("cup.and.saucer.fill", 28, red)
+  check("a picture on disk is loaded", img and img.w, 28)
+  check("from its file", loaded[1], dir .. "/" .. file)
+  check("without any render", #tasks .. "," .. #timers, before .. "," .. timersBefore)
+
+  -- Another colour, a switch of halves, queues every symbol the source knows, in one run.
+  source.draw("globe", 28, blue)
+  runTimers()
+  check("a new colour starts one run", #tasks, before + 1)
+  local switchScript = io.open(tasks[#tasks].args[3]):read("a")
+  check("that run holds every known symbol at the new colour", select(2, switchScript:gsub("\njob%(", "")), 4)
+  finishTask(tasks[#tasks])
+
+  -- Prefetch queues only what is missing.
+  local fresh = sfSource.new({ dir = function() return dir end })
+  fresh.configure({ osascript = "/door/osascript" })
+  fresh.prefetch({ "cup.and.saucer.fill", "globe", "bolt", "bad name" }, red)
+  runTimers()
+  local prefetchScript = io.open(tasks[#tasks].args[3]):read("a")
+  check("prefetch renders only the declared symbols not on disk", select(2, prefetchScript:gsub("\njob%(", "")), 1)
+  check("and that one is bolt", prefetchScript:find("job('bolt'", 1, true) ~= nil, true)
+
+  -- No tool means no run, and a plain nil.
+  local none = sfSource.new({ dir = function() return dir end })
+  none.configure({ osascript = nil })
+  local n0 = #tasks
+  img, pending = none.draw("bolt", 28, blue)
+  runTimers()
+  check("without osascript a missing picture answers a plain nil", img == nil and pending == nil, true)
+  check("and starts nothing", #tasks, n0)
+
+  -- Scale.
   check("the scale is the largest among the screens", sfSource.scale(), 2)
-  check("the script renders at that scale", scripts[1]:find("scale = 2.0000", 1, true) ~= nil, true)
-  check("the script writes the size in points", scripts[1]:find("rep.size = $.NSMakeSize(side, side)", 1, true) ~= nil, true)
-  check("the longest side fills 60 of 72 points", scripts[1]:find("k = 60 /", 1, true) ~= nil, true)
   check("the variant names the scale", source.variant(), "2x")
   _G.testScale = 1
   check("the variant follows a change of screens", source.variant(), "1x")
@@ -360,7 +506,13 @@ do
   _G.hs.screen = nil
   check("no hs.screen answers a scale of 1", sfSource.scale(), 1)
   _G.hs.screen = saved
-  check("a scale below 1 is raised to 1", sfSource.script("circle", nil, "/tmp/x.png", 0.5):find("scale = 1.0000", 1, true) ~= nil, true)
+  check("the sf source never calls hs.osascript", osascriptCalls, 0)
+  local code = {}
+  for line in io.lines(here .. "../lib/icons/sources/sf.lua") do
+    if not line:match("^%s*%-%-") then code[#code + 1] = line end
+  end
+  check("no code line in the sf source names hs.osascript", table.concat(code, "\n"):find("hs.osascript", 1, true), nil)
+  os.execute("rm -rf '" .. dir .. "'")
   local glyph = emojiSource.new().draw("E", 72, nil)
   check("the emoji source draws on a 72 point canvas", glyph.w, 72)
   check("the emoji source answers nil for an empty glyph", emojiSource.new().draw("", 72, nil), nil)

@@ -73,6 +73,12 @@ function M.uses(keyCode, mods)
   return Engine.uses(keyCode, mods, Canvas.fieldOp)
 end
 
+--- M.iconsChanged() redraws every list this provider has on screen, called by the root when an
+--- icon source has finished pictures in the background.
+function M.iconsChanged()
+  Canvas.iconsChanged()
+end
+
 --- M.new(config) answers an instance satisfying lib/chooser/contract.lua exactly, validated by
 --- the engine at construction and raised on a gap. Refuses outright when M.configure has not been
 --- called with a panel, rather than drawing a surface with no shared chrome, which would look

@@ -80,6 +80,10 @@ local NO_RESULTS = "No results"
 local ICON = nil
 local ICON_ELEMENTS = nil
 
+-- Every view built, weakly, so iconsChanged can repaint the ones on screen without keeping a
+-- dropped one alive.
+local views = setmetatable({}, { __mode = "k" })
+
 -- Round five's own scroll easing constants, settled by hand in
 -- Spoons/Olm.spoon/test/probe-canvasfield.lua and carried across rather than chosen a second
 -- time. wheelNotchPoints is what one wheel notch is worth in points, scrollEaseFactor is the
@@ -571,6 +575,14 @@ function M.configure(opts)
   return M
 end
 
+--- M.iconsChanged() redraws every view on screen, since a row's icon is resolved at paint and a
+--- picture that was still being made may exist now.
+function M.iconsChanged()
+  for view in pairs(views) do
+    if view:isVisible() then view:redraw() end
+  end
+end
+
 --- M.fieldOp(keyCode, flags) -> the name of the editing operation the field's own keymap reads
 --- on exactly those modifiers, or nil, for the engine's uses.
 function M.fieldOp(keyCode, flags)
@@ -588,6 +600,7 @@ function M.new(engine)
   self.surface = Surface.new({ panel = PANEL })
   self.mouse = buildMouse(self)
   self.field = buildField(self)
+  views[self] = true
   return self
 end
 

@@ -290,6 +290,76 @@ local function wirePanelBackend(canvasPanel, chooserAtom, chosen)
   end })
 end
 
+-- The icon engine and the sf source inside it. Every icon Olm draws, a launcher row, a panel
+-- verb, a row a plugin names by key, a glyph in a pane, comes out of this one instance, so they
+-- cannot drift. The sources are named here and nowhere else, one line each, and which is active
+-- and which is the fallback is the one setting in config/icons.toml. color answers the foreground
+-- role, the one a row title is drawn in, read from the kit on every draw so the light and dark
+-- halves and a theme switch reach a tinted source with no watcher, and the engine keys its cache
+-- on it for the sources that take a colour.
+--
+-- Answers the engine and a function the root calls once the manifests are read and the dependency
+-- door has answered, see wireIconRenders below. It lives outside obj.run, which sits near Lua
+-- 5.4's limit of two hundred active locals, so the sources and the config end with this call.
+local function buildIcons(atoms, policy, color, warnLog)
+  local sf = sfSourceLib.new({
+    dir = function() return atoms.storage.ensure(atoms.storage.cacheDir("icons")) end,
+    log = warnLog,
+  })
+  local iconSources = { emojiSourceLib.new(), sf }
+  local iconKnown = {}
+  for _, source in ipairs(iconSources) do iconKnown[source.name] = true end
+  local iconConfig = iconsConfigLib.load((policy.icons or {}).file, function(path)
+    local file = io.open(path, "r")
+    if not file then return nil end
+    local text = file:read("a")
+    file:close()
+    return text
+  end, warnLog, function(name) return iconKnown[name] end)
+  local order = iconsConfigLib.order(iconConfig)
+  local engine = iconsLib.new({ sources = iconSources, order = order, color = color })
+  local sfInOrder = false
+  for _, name in ipairs(order) do
+    if name == sf.name then sfInOrder = true end
+  end
+  -- The sf source renders out of process, see lib/icons/sources/sf.lua. It is handed the
+  -- osascript path from the door, the refresh to fire when a run has written pictures, and,
+  -- where the order reaches it, every symbol the manifests declare at the current colour, so a
+  -- fresh machine renders the declared set in one run at load rather than row by row.
+  local function prepare(declared, osascript, refresh)
+    sf.configure({ osascript = osascript, onReady = refresh })
+    if not sfInOrder then return end
+    local names, seen = {}, {}
+    for _, icons in pairs(declared) do
+      for _, spec in pairs(icons) do
+        local name = type(spec) == "table" and spec[sf.name] or nil
+        if type(name) == "string" and not seen[name] then
+          seen[name] = true
+          names[#names + 1] = name
+        end
+      end
+    end
+    table.sort(names)
+    sf.prefetch(names, color())
+  end
+  return engine, prepare
+end
+
+-- Wires the icon renders once the manifests' icons are read and the door has answered. The
+-- refresh repaints every list a provider is showing, asked of each provider that answers
+-- iconsChanged, so a picture finished in the background appears without a reopen. It walks the
+-- providers the chooser atom holds and names none of them. It lives outside obj.run for the same
+-- reason buildIcons does.
+local function wireIconRenders(prepareIcons, declared, depsScope, chooserAtom)
+  prepareIcons(declared, depsScope.path("osascript"), function()
+    for _, provider in pairs(chooserAtom.providers or {}) do
+      if type(provider) == "table" and type(provider.iconsChanged) == "function" then
+        provider.iconsChanged()
+      end
+    end
+  end)
+end
+
 function obj.run(olm, cfg)
   cfg = cfg or {}
 
@@ -516,38 +586,11 @@ function obj.run(olm, cfg)
   uiSpecLib.chooserView(policy.chooserTheme, themes.colors())
   uiSpecLib.surfaceView(policy.surface, themes.colors())
 
-  -- The icon engine. Every icon Olm draws, a launcher row, a panel verb, a row a plugin names by
-  -- key, a glyph in a pane, comes out of this one instance, so they cannot drift. The sources
-  -- are named here and nowhere else, one line each, and which is active and which is the
-  -- fallback is the one setting in config/icons.toml. The colour is the foreground role, the
-  -- one a row title is drawn in, read from the kit on every draw so the light and dark halves
-  -- and a theme switch reach a tinted source with no watcher, and the engine keys its cache on
-  -- it for the sources that take a colour.
-  --
-  -- The sources and the config are needed only to build the engine, so they live in a block of
-  -- their own and end with it. obj.run sits near Lua 5.4's limit of two hundred locals active at
-  -- once, which Hammerspoon's Lua enforces, so a value with no later reader is kept out of scope.
-  local iconEngine
-  do
-    local iconSources = {
-      emojiSourceLib.new(),
-      sfSourceLib.new({ scratchDir = function() return atoms.storage.ensure(atoms.storage.cacheDir("icons")) end }),
-    }
-    local iconKnown = {}
-    for _, source in ipairs(iconSources) do iconKnown[source.name] = true end
-    local iconConfig = iconsConfigLib.load((policy.icons or {}).file, function(path)
-      local file = io.open(path, "r")
-      if not file then return nil end
-      local text = file:read("a")
-      file:close()
-      return text
-    end, themeLog, function(name) return iconKnown[name] end)
-    iconEngine = iconsLib.new({
-      sources = iconSources,
-      order = iconsConfigLib.order(iconConfig),
-      color = function() return uiAtom and uiAtom.tokens().colors.foreground or nil end,
-    })
-  end
+  -- The icon engine, see buildIcons above obj.run. prepareIcons is called once the manifests'
+  -- icons are read and the dependency door has answered, through wireIconRenders.
+  local iconEngine, prepareIcons = buildIcons(atoms, policy, function()
+    return uiAtom and uiAtom.tokens().colors.foreground or nil
+  end, themeLog)
 
   local canvasPanel = atoms.panel
   canvasPanel:init()
@@ -870,6 +913,8 @@ function obj.run(olm, cfg)
     points = glyphIconLib.POINTS,
     log = themeLog,
   })
+  -- The sf source renders every declared symbol it lacks in the background, see wireIconRenders.
+  wireIconRenders(prepareIcons, declaredIcons, sharedDepsScope, chooserAtom)
   -- The door a plugin may draw an icon through at its own draw time, over the same resolver, so
   -- an owner and a key resolve one way. No host uses it for a row any more, the chooser draws
   -- those, and the door stays as the lib a plugin can ask for.

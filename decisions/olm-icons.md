@@ -27,10 +27,16 @@ The engine in `lib/icons/init.lua` is a Strategy over sources that answer a smal
 then the fallback, takes the first source that has an entry in the spec and draws, and caches
 by source, value, size and, for a source that takes a colour, the colour. `lib/icons/sources`
 holds the two sources, emoji and sf. The emoji source keeps the numbers that looked right live,
-a 72 point canvas with the glyph at 60, and holds one reused canvas. The sf source renders an SF
-Symbol in process through the AppKit bridge of `hs.osascript.javascript` and places it centred
-in a square keeping its aspect, painted with a palette of one colour so every layer is at full
-strength. The composition root names both and reads `config/icons.toml`,
+a 72 point canvas with the glyph at 60, and holds one reused canvas. The sf source never renders
+in Hammerspoon's process. It keeps each SF Symbol as a PNG in the storage cache directory for
+icons, named for the symbol, the side, the scale and the colour, and a separate `osascript -l
+JavaScript` process started through `hs.task` renders the missing ones in batches, centred in a
+square keeping their aspect, painted with a palette of one colour so every layer is at full
+strength. A picture not on disk yet answers nil and pending, the engine keeps no answer for it,
+and when a run finishes the root asks every chooser provider to repaint the lists it shows. At
+load the root hands the source every symbol the manifests declare, so a fresh machine renders
+the declared set in one run. The swift chooser's view resolves icons only for the rows near the
+viewport, a page past each edge. The composition root names both sources and reads `config/icons.toml`,
 shipped as `emoji` for the set and the fallback. The colour is the foreground role, the one a
 row title is drawn in, read from the kit on every draw.
 
@@ -64,6 +70,12 @@ literal `icon = "key"` in a plugin's Lua that its manifest does not declare.
   bridge of `hs.osascript.javascript` renders a symbol in process, about 100 ms for the first
   call on Hammerspoon 1.1.1, with no compiler and no helper binary to build, declare and keep
   alive. A helper would add a toolchain dependency for what the bridge already does.
+- **Rendering SF Symbols in Hammerspoon's process through `hs.osascript.javascript`.**
+  2026-10-28. Every call builds a JavaScriptCore context group that bridges AppKit's metadata into
+  strings and dictionaries and is never released, so Hammerspoon grows by every symbol drawn, to
+  564 MB after one launcher open and 1.23 GB in another process. It was accepted on 2026-10-15
+  for needing no helper, and that still holds for the out of process render, which runs the same
+  JXA in an `osascript` process that exits and takes the leak with it.
 - **Drawing the SF Symbol straight to a canvas.** 2026-10-15. This Hammerspoon has no SF Symbol
   api and the named system images it does expose are too sparse, which is why the bridge is used.
 
@@ -191,3 +203,37 @@ Not yet confirmed live, the soft edge going away on a Retina screen is the remai
 Live under a manual hold on top of the Retina fix in the native list, 15c1541b, Milos looked at
 the SF Symbols on the built in Retina display and on the external one and said they look good
 everywhere. Merged to main.
+
+### 2026-10-28 16:11
+
+Measured live. A freshly started Hammerspoon with Olm and the swift chooser had a 61 MB footprint
+and an 11 to 14 MB Lua heap. Three minutes later, after opening the launcher once, it was 564 MB,
+and an earlier process reached 1.23 GB. `heap -s` showed 2.7 million CFString and 3.8 million
+NSDictionary, about 350 MB together, 419 thousand non object blocks, 66 OpaqueJSContextGroup and
+28 thousand JSC NativeJITCode, with SVGAttribute and SVGPathCommand from CoreSVG. Lua's own heap
+stayed small.
+
+The cause was the sf source. It rendered every symbol in process through `hs.osascript.javascript`,
+and each run left a JavaScriptCore context group behind holding the AppKit metadata the bridge had
+built. The canvas chooser resolved icons only for the rows it painted, so it leaked slowly. The
+swift chooser's Lua view resolved every row's icon whenever rows were sent, so opening the launcher
+rendered the whole catalog of symbols at once.
+
+Two changes. The sf source now keeps pictures as PNG files in the storage cache directory for
+icons, named `sf-<symbol>-72pt-<scale>x-<rrggbbaa>.png`, with an empty `.none` marker for a symbol
+AppKit does not know. A missing picture answers nil and a second value for pending, a new optional
+part of the contract, which the engine does not cache, so the next source draws meanwhile. The
+missing ones are queued, and one turn later a single `osascript -l JavaScript` run started through
+`hs.task` renders the whole queue, the tool declared in `root/manifest.lua` and resolved through
+the door. A finished run fires a callback the root wires to `iconsChanged` on every chooser
+provider, which repaints what is on screen. At load the root hands the source every declared
+symbol at the current colour, and a miss at a new colour queues every known symbol at that colour,
+so a switch of halves is one run. The swift view now resolves icons only for the rows from a page
+above the viewport to a page below it, computed from the list model the engine already moves on a
+native scroll, and resolves more as a scroll brings them near. No Swift changed.
+
+From the shell, one run rendered `cup.and.saucer.fill` and `globe` at scale 2 into 144 by 144
+pixel PNGs at 144 dpi, 72 points, in about 0.1 s, and reported `nope.nope` as unknown. The emoji
+source was left as it is. It draws through `hs.canvas` and no JavaScript, and the default chooser
+paints it as text, so it does not share this defect. Not yet measured live, the footprint after
+opening the launcher is the remaining check.

@@ -21,7 +21,10 @@
 -- Each icon is drawn once. The cache key is the source, its value and the size, plus the colour
 -- for a source that declares it takes one and the variant for a source that declares one, so a theme switch redraws a symbol and leaves an
 -- emoji alone. A draw that answers nothing is remembered as false, so a spec nothing can
--- render is asked for once, and answered back out as nil.
+-- render is asked for once, and answered back out as nil. A draw that answers nil and pending
+-- is not remembered at all, since its picture is still being made elsewhere, so the next call
+-- asks the source again and finds it once it exists. Until then the next source in the order
+-- answers, the emoji where a spec carries one.
 --
 -- instance.elements(spec, frame, points) is the same walk for a canvas that paints the icon
 -- itself. A source that offers elements answers them directly and nothing is cached, and any
@@ -92,7 +95,13 @@ function M.new(opts)
       key = key .. "\0" .. colorKey(color)
     end
     if cache[key] == nil then
-      cache[key] = source.draw(value, points, color) or false
+      local img, pending = source.draw(value, points, color)
+      if img then
+        cache[key] = img
+      elseif not pending then
+        cache[key] = false
+      end
+      return img or nil
     end
     return cache[key] or nil
   end

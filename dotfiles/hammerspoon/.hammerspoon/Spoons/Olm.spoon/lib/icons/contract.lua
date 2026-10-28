@@ -11,6 +11,10 @@
 --                                     value, an emoji string, an SF Symbol name. color is an hs
 --                                     color table such as the kit hands out, or nil, and a
 --                                     source that draws a picture of its own colours ignores it.
+--                                     A source whose picture is still being made answers nil and
+--                                     a second value, true, for pending. The engine then keeps
+--                                     no answer for it and asks again on the next call, where a
+--                                     plain nil is remembered as nothing to draw.
 --   source.tinted                     optional boolean. True for a source whose picture takes the
 --                                     colour it is given, so the engine keys its cache on the
 --                                     colour for that source alone and a source that ignores
