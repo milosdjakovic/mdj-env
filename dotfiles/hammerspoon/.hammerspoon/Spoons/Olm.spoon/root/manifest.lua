@@ -1,7 +1,7 @@
 -- The composition root's own needs, which belong to no plugin.
 --
 -- Every other manifest in this tree describes a plugin. This one describes the root that wires
--- them, which reaches for four tools of its own. A need with nothing but the root behind it is
+-- them, which reaches for five tools of its own. A need with nothing but the root behind it is
 -- otherwise the one category nothing declares and so nothing checks, which is the same reason
 -- the setup scripts one layer up declare stow and duti rather than assuming them.
 --
@@ -47,6 +47,14 @@ return {
         reason = "naming the application that holds secure input when a held leader is pressed " ..
                  "under it",
         origin = { macos = "ships with the system" } },
+      -- Optional, because only the swift chooser runs it, and only where config/settings.lua
+      -- chooses that provider. Without it the library is never built and the default chooser
+      -- serves, so nothing breaks. The command line tools put it there, which is the origin.
+      { name = "swiftc", kind = "system", locator = "/usr/bin/swiftc", policy = "optional",
+        unit = "swiftchooser",
+        reason = "compiling the native panel the swift chooser draws with, the default chooser " ..
+                 "serving without it",
+        origin = { ["xcode-clt"] = "xcode-select --install" } },
     },
   },
 }

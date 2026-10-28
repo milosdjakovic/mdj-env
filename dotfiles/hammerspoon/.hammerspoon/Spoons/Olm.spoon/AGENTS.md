@@ -590,6 +590,46 @@ pins the lib over fakes. The provider has no plain test harness,
 only the live probe, so the call order is checked live. `decisions/olm-chooser-keys.md` has the
 measurements.
 
+## The swift chooser, the engine under a native panel
+
+`swift` is the third picker provider, beside `default` and `legacy`, and it is the chooser engine
+composed with a native view rather than a second set of rules. `lib/chooser/providers/swift/init.lua`
+composes `lib/chooser/engine/init.lua` with `providers/swift/view.lua`, and the view is a Humble
+Object over a Swift library whose sources are `providers/swift/native/`. The library draws a
+nonactivating panel that becomes key without activating Hammerspoon, on `NSGlassEffectView` where
+the system has it and a visual effect view where it does not, with a native `NSTextField`, an
+`NSTableView` list and a plain action bar with its key panel. The Lua view turns the engine's scene
+into plain data, colours, fonts, sizes, the radius and the space steps from the kit's tokens and
+every rectangle and row metric from the engine's geometry, so neither half writes a colour or a font
+by hand, and the panel sits exactly on the canvas rect with the docked pane beside it. Swift runs
+the view contract's key order, asking Lua synchronously before its field edits, and hands each key
+over as its event's bytes, which `hs.eventtap.event.newEventFromData` turns back into the event the
+engine reads. A press outside the panel is heard by event monitors and decided in Lua against the
+canvas view's own rects, a press in the companion keeping the list and asking the panel for key
+again, and losing key never hides it.
+
+It builds itself. `lib/swiftbuild.lua` compiles `native/` with `swiftc` into
+`~/.olm/cache/swiftchooser/`, the file and the Swift module named by a hash of every input, since a
+loaded image is never unloaded and a rebuild under the same name would never be seen, and
+`package.loadlib` loads it into Hammerspoon's own process. `luaopen` hides and forgets every panel a
+previous reload left in the image. `swiftc` is declared by `root/manifest.lua` and resolved through
+the dependency door. The provider decides once, at configure time, because the one shared picker is
+built at startup. A library already built for the current sources serves the session. Without one
+the build starts in the background, the default provider serves, one console line says the swift
+chooser takes over from the next reload, and a failed build or load serves default and logs the
+error.
+
+It is handed no focus hold. The canvas never takes key, so the default provider is handed
+`lib/securefocus.lua`'s hold, which shows a hidden `hs.chooser` over a password field, and that
+would take key from this panel. The swift provider loads its own copy of the engine, so the default
+provider's copy keeps the hold for the fallback. Whether typing reaches the panel while another
+application holds secure input is measured live, not assumed.
+
+To try it, set `chooser.provider` to `chooserProviders.swift` in `config/settings.lua` and reload,
+then reload once more when the console says the library is built. The shipped value stays
+`default`. `test/swiftview.lua` drives the Lua view under the engine over a fake library and pins
+the fallback, and `decisions/olm-swift-chooser.md` has the measurements and what was turned down.
+
 ## Secure notice, a held leader pressed under secure input
 
 A held leader is a function key read by the ChordKey tap, deaf while any application holds secure

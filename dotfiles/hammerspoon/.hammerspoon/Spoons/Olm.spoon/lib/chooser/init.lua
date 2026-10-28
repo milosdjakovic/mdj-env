@@ -1,7 +1,8 @@
 --- === Chooser ===
 ---
---- The picker facade. Two providers, default, the hand drawn canvas picker, and legacy,
---- wrapping the built in hs.chooser and deprecated.
+--- The picker facade. Three providers, default, the hand drawn canvas picker, swift, the same
+--- engine drawn by a native panel Olm compiles itself and serving default until that panel is
+--- built, and legacy, wrapping the built in hs.chooser and deprecated.
 --- Every consumer calls the same Chooser.new(config) and gets an instance validated
 --- against the picker contract in contract.lua, the full twenty five names documented in
 --- docs/CONTRACT-PICKER.md, show, hide, isShowing, isActive, refresh, selectNext,
@@ -50,10 +51,11 @@ end
 
 local legacy = load("providers/legacy.lua")
 local default = load("providers/default/init.lua")
+local swift = load("providers/swift/init.lua")
 
 --- Chooser.providers - the picker providers, exposed the same way matchers are, so the
 --- composition root names one and injects it through configure. The root picks default.
-obj.providers = { default = default, legacy = legacy }
+obj.providers = { default = default, swift = swift, legacy = legacy }
 
 --- Chooser.matchers - the shared matching strategies, exposed so the composition root
 --- names one and injects it, keeping the concrete policy in one place. Each is a

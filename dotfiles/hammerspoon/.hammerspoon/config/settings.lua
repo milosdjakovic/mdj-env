@@ -15,6 +15,7 @@ local overlayModes = {
 -- constants for the same reason as overlayModes.
 local chooserProviders = {
   default = "default",
+  swift = "swift",
   legacy = "legacy",
 }
 
@@ -23,9 +24,12 @@ return {
   chooserProviders = chooserProviders,
 
   -- Which picker draws every chooser. default is the hand drawn picker on the shared panel
-  -- chrome, with its own field, list and mouse handling. legacy is the
+  -- chrome, with its own field, list and mouse handling. swift is the same picker drawn by a
+  -- native panel Olm compiles on this machine, which serves default until its first build is
+  -- done and takes over from the reload after. legacy is the
   -- built in hs.chooser window, DEPRECATED since 2026-10-14, kept only as a fallback for now
-  -- and warned about in the console on every load that picks it. chooserProviders.default | chooserProviders.legacy
+  -- and warned about in the console on every load that picks it.
+  -- chooserProviders.default | chooserProviders.swift | chooserProviders.legacy
   chooser = {
     provider = chooserProviders.default,
   },

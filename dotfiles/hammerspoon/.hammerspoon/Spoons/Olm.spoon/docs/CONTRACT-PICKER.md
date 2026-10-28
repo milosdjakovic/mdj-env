@@ -211,6 +211,11 @@ for a backward delete on an empty field with nothing selected. `leftoverKey(even
 Down, Return, keypad Enter and Command with a digit. The canvas view's field asks in exactly this
 order already, in `field/input.lua`, and a native view asks the same way.
 
+The swift provider is the second composition, `lib/chooser/providers/swift/init.lua`, the same
+engine with a native view, `providers/swift/view.lua`, over a panel Olm compiles in Swift. It
+satisfies this contract through the engine with no extension to the view contract, and serves the
+default provider until its library is built, see the Olm `AGENTS.md` section on it.
+
 Three modules the engine reads still sit beside the canvas view, and the engine loads them from
 there in one place it names as the seam. `geometry.lua` and `list/model.lua` are pure.
 `footer.lua` is the view's drawing of the action bar, and the engine reads only its height.

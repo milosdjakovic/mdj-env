@@ -1,8 +1,9 @@
 # Olm swift chooser
 
-Status. A spike on `olm/swift-chooser-spike` proves a Swift library compiled by Olm itself loads
-into Hammerspoon and draws a glass panel that takes the keyboard over another app without
-activating Hammerspoon. The provider behind the picker contract is the next step.
+Status. A third picker provider, `swift`, is built on `olm/swift-provider`, the chooser engine
+composed with a native panel Olm compiles itself, chosen by one setting and serving the default
+provider until its library is built. It has passed every offline gate and waits for its first
+live load, where typing under secure input is still to be measured.
 
 ## Now
 
@@ -13,11 +14,18 @@ with `package.loadlib`, into Hammerspoon's own process. It links Hammerspoon's L
 headers ship inside the app, the same way Hammerspoon's own `libchooser.dylib` does.
 `native/bridge.h` is the one place Lua's function like macros are wrapped for Swift.
 
-It will join the picker facade as a third provider named `swift`, beside `default` and `legacy`,
-behind the twenty five method contract, chosen by one setting, with `default` served whenever
-the library is missing or fails to build. Its rules are the default provider's own, since that
-provider is now `lib/chooser/engine` composed with a canvas view, and the Swift provider is the
-same engine with a native view behind `lib/chooser/view.lua`. The bottom action bar, an anchored actions popover,
+It is the picker facade's third provider, `swift`, beside `default` and `legacy`, behind the
+twenty five method contract, chosen by `chooser.provider` in `config/settings.lua`, which ships
+as `default`. Its rules are the default provider's own, since that provider is
+`lib/chooser/engine` composed with a canvas view, and the swift provider is the same engine
+composed with `lib/chooser/providers/swift/view.lua`, a Humble Object over the library, behind
+`lib/chooser/view.lua`, which did not change. The choice is made once at configure time, since
+the one shared picker is built at startup. A library already built for the current sources is
+loaded then, and otherwise the build starts, the default provider serves the session and the
+swift provider takes over from the next reload, and a failed build serves default and logs the
+compiler's error. The compiler is `swiftc` declared in `root/manifest.lua` and resolved through
+the dependency door. The panel takes key itself, so the provider is handed no focus hold. The
+bottom action bar, an anchored actions popover,
 an Olm menu on a round button at the bar's left edge, and a native docked pane are planned on
 top of it. Each one presents a model Olm already has, `footerModel`, ActionPanel's `rowsFor`,
 and the UI kit's describer nodes.
@@ -39,6 +47,15 @@ and the UI kit's describer nodes.
   how the three existing Swift helpers already work.
 - **Naming the provider `native`.** 2026-10-28. The decision files already say native chooser
   and native provider for `hs.chooser`, the legacy one, so the word would make them ambiguous.
+- **Hiding the panel when it stops being key.** 2026-10-28 11:15, before any live run. A click
+  on the docked pane can hand key to that pane's window, and the canvas keeps the list up for a
+  press inside the companion, so a resign key handler that hides would close the list under the
+  pane. A press outside is heard by event monitors instead and decided in Lua against the same
+  rects the canvas tests, and a press in the companion asks the panel to take key back.
+- **Switching to the swift provider the moment a background build finishes.** 2026-10-28 11:15.
+  The one shared picker instance is built at startup and lives for the session, so a provider
+  that changed under it would leave that instance on the old one and any later instance on the
+  new one. The choice is made at configure time and a finished build waits for the next reload.
 - **Rebuilding when a source is newer than the output, under one fixed name.** 2026-10-28,
   before any build ran. A library that defines Objective C or Swift classes is never unloaded,
   so the next load of the same path is handed the old image and a rebuild is never seen until
@@ -127,3 +144,22 @@ Live under a manual hold of the test lock on this branch, from 10:44, Milos used
 the split chooser, the launcher, the action panel, the key panel, the clipboard and file search
 with their panes, and a list over a password field, and said all of it works. The console after
 the load carried no problem. Merged to main the same minute.
+
+### 2026-10-28 11:15
+
+The swift provider was built on `olm/swift-provider`, offline only. `providers/swift/init.lua`
+composes the engine with `providers/swift/view.lua` and loads the library, `native/` grew from
+the spike into the view, a field, an `NSTableView` list with the image, title, subtitle, a dimmed
+disabled row and the Command digit column, and a plain action bar with its key panel, and
+`spike.lua` was deleted. Every colour, font, size, radius and space step comes from the kit's
+tokens through the scene, and every rectangle and row metric from the engine's geometry, so the
+panel sits exactly on the canvas rect and the docked pane lines up. Swift runs the view
+contract's key order in its window's `sendEvent` and `performKeyEquivalent`, asking Lua
+synchronously and reading the answer off the stack, and hands each key over as its event's bytes,
+which `hs.eventtap.event.newEventFromData` turns back into the event the engine reads. One
+library serves every picker instance, each with a panel of its own named by an id. The view
+contract was not extended. The library built from the shell with the provider's own flags with no
+error and no warning, the stub driven `test/swiftview.lua` passes, the dry gate reports 0
+findings with every golden matching, and `check-dependencies.sh` passes with `swiftc` declared by
+the root. Not yet run live, so the glass, the key routing under a real field editor, the click
+outside with the companion, the hover and the scroll sync are all unmeasured.

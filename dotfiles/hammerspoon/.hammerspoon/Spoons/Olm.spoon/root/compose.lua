@@ -173,8 +173,10 @@ local SHIPPED_POLICY = {
 
   matcher = "fuzzy",
   -- Which picker provider every Chooser.new builds, a name from Chooser.providers. default is
-  -- the default since 2026-10-14. legacy is deprecated, kept selectable as a fallback for now
-  -- and warned about on every load that picks it, see decisions/olm-chooser-keys.md.
+  -- the default since 2026-10-14. swift draws the same engine in a native panel and serves
+  -- default until its library is built, see decisions/olm-swift-chooser.md. legacy is deprecated,
+  -- kept selectable as a fallback for now and warned about on every load that picks it, see
+  -- decisions/olm-chooser-keys.md.
   chooserProvider = "default",
   autoReload = { ignore = { "/config/[^/]+%.json[^/]*$" } },
 
@@ -562,13 +564,29 @@ function obj.run(olm, cfg)
   -- The default provider draws through the shared CanvasPanel chrome and reads its type and
   -- colours from the kit's tokens, and refuses to build until it is handed both, so the root
   -- gives it the ones already configured above.
+  -- The default chooser's field tap claims every key down, which would swallow a list key
+  -- before its dispatch ran, so the field is handed a predicate and told nothing else. It asks
+  -- every held leader in use, Hyper and META here, and reads them late, since no leader is built
+  -- until further down. A key pressed under a held leader therefore never types into the field,
+  -- it falls to that leader's one rule over open lists, its list keys acting and every other key
+  -- swallowed, which is what Milos asked for META over a list. The swift chooser's field asks the
+  -- same two, so both are named once here and handed to each.
+  local function chooserYields(ev)
+    return anyHeldLeader(function(leader) return leader:owns(ev) end)
+  end
+  -- A list key with no held leader, Ctrl and J, is answered by the field itself while its list
+  -- is up, so nothing global claims the chord. Read late, built after the dispatch table.
+  local function chooserListKeys(ev)
+    if fieldWatch ~= nil and fieldWatch(ev) == true then return true end
+    -- A modifier leader hosting list keys seals over this list. Its hotkey cannot fire
+    -- beneath this field's tap, which sees a chord first, so the chord is claimed here as the
+    -- no op the leader would have resolved it to, Hyper and a digit moving no row.
+    for _, leader in ipairs(sealingModifierLeaders) do
+      if leader:owns(ev) then return true end
+    end
+    return false
+  end
   if chooserAtom.providers and chooserAtom.providers.default then
-    -- The default chooser's field tap claims every key down, which would swallow a list key
-    -- before its dispatch ran, so the field is handed a predicate and told nothing else. It asks
-    -- every held leader in use, Hyper and META here, and reads them late, since no leader is built
-    -- until further down. A key pressed under a held leader therefore never types into the field,
-    -- it falls to that leader's one rule over open lists, its list keys acting and every other key
-    -- swallowed, which is what Milos asked for META over a list.
     chooserAtom.providers.default.configure({
       panel = canvasPanel,
       ui = uiAtom,
@@ -577,21 +595,8 @@ function obj.run(olm, cfg)
       -- A list opened over a password field takes focus for as long as it is open, see
       -- lib/securefocus.lua. The provider only asks and never names the mechanism.
       focusHold = function(sink) return secureFocusLib.hold(sink, { keys = relayFieldKeys }) end,
-      yields = function(ev)
-        return anyHeldLeader(function(leader) return leader:owns(ev) end)
-      end,
-      -- A list key with no held leader, Ctrl and J, is answered by the field itself while its list
-      -- is up, so nothing global claims the chord. Read late, built after the dispatch table.
-      listKeys = function(ev)
-        if fieldWatch ~= nil and fieldWatch(ev) == true then return true end
-        -- A modifier leader hosting list keys seals over this list. Its hotkey cannot fire
-        -- beneath this field's tap, which sees a chord first, so the chord is claimed here as the
-        -- no op the leader would have resolved it to, Hyper and a digit moving no row.
-        for _, leader in ipairs(sealingModifierLeaders) do
-          if leader:owns(ev) then return true end
-        end
-        return false
-      end,
+      yields = chooserYields,
+      listKeys = chooserListKeys,
     })
   end
 
@@ -713,6 +718,26 @@ function obj.run(olm, cfg)
   -- functions its keys call in its own configure.
   local appFocusAtom = atoms.appfocus
   appFocusAtom.configure({ path = sharedDepsScope.path })
+
+  -- The swift chooser, configured only where it is the chosen provider, and here rather than in
+  -- step B because its compiler comes through the door, which is answered just above, and still
+  -- before the first Chooser.new, which the stage makes when it is wired. It loads its library
+  -- now when one is built for these sources and otherwise starts the build and serves the
+  -- default chooser, configured above, for this session. It is handed no focus hold, since its
+  -- panel takes key itself, see lib/chooser/providers/swift/init.lua.
+  local swiftChooser = chooserAtom.providers and chooserAtom.providers.swift
+  if swiftChooser and chooserProvider == swiftChooser then
+    swiftChooser.configure({
+      ui = uiAtom,
+      icon = paintIcon,
+      fallback = chooserAtom.providers.default,
+      yields = chooserYields,
+      listKeys = chooserListKeys,
+      swiftc = sharedDepsScope.path("swiftc"),
+      dir = atoms.storage.cacheDir("swiftchooser"),
+      log = log,
+    })
+  end
 
   -- resolve.plan's existence question for one declared tool, which is the door's own answer
   -- rather than a probe of its own. A package kind is the exception, since presence for one is

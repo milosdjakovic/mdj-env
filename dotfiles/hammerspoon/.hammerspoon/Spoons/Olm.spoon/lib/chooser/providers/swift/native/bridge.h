@@ -10,9 +10,14 @@ static inline int olm_registryIndex(void) { return LUA_REGISTRYINDEX; }
 static inline int olm_noRef(void) { return LUA_NOREF; }
 static inline void olm_pop(lua_State *L, int n) { lua_pop(L, n); }
 static inline void olm_newTable(lua_State *L) { lua_newtable(L); }
-static inline const char *olm_toString(lua_State *L, int idx) { return lua_tostring(L, idx); }
 static inline int olm_isFunction(lua_State *L, int idx) { return lua_isfunction(L, idx); }
-static inline int olm_isTable(lua_State *L, int idx) { return lua_istable(L, idx); }
+static inline lua_Number olm_toNumber(lua_State *L, int idx) { return lua_tonumber(L, idx); }
+static inline lua_Integer olm_toInteger(lua_State *L, int idx) { return lua_tointeger(L, idx); }
+
+// Bytes pushed as one Lua string, embedded zeros kept, which is how an event's data travels.
+static inline void olm_pushBytes(lua_State *L, const void *bytes, size_t n) {
+  lua_pushlstring(L, (const char *)bytes, n);
+}
 
 static inline void olm_setFunction(lua_State *L, const char *name, lua_CFunction fn) {
   lua_pushcfunction(L, fn);

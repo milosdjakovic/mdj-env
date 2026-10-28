@@ -63,3 +63,4 @@ scutil | system | /usr/sbin/scutil | optional | root/compose | reading this mach
 hidutil | system | /usr/bin/hidutil | required | root/keyremap | applying the one HID mapping every leader key depends on, and clearing it again on quit | macos | ships with the system
 open | system | /usr/bin/open | optional | root/appfocus | opening a System Settings pane by its url when a pane action's key is pressed | macos | ships with the system
 ioreg | system | /usr/sbin/ioreg | optional | root/securenotice | naming the application that holds secure input when a held leader is pressed under it | macos | ships with the system
+swiftc | system | /usr/bin/swiftc | optional | root/swiftchooser | compiling the native panel the swift chooser draws with, the default chooser serving without it | xcode-clt | xcode-select --install
