@@ -34,9 +34,25 @@
 ---                                 a third argument for a backend that scrolls natively, below.
 ---   backend.show(), backend.hide()   bring it up and take it down without forgetting it.
 ---   backend.destroy()                tear it down for good, on close.
+---   backend.isShowing()           whether it is on screen, which this file never asks and
+---                                 lib/panel.lua does.
 ---   backend.scrollsNatively()     optional, true for a backend that scrolls its own view.
 ---   backend.scrollBy(points)      only on such a backend, scroll its view, answering whether it
 ---                                 moved.
+--- The contract has a second consumer, lib/panel.lua, whose overlays, the leader sheets and the
+--- toasts, are reduced to the same two lists and drawn by the same backends. A panel calls the
+--- factory with a second argument, its window, which a pane never passes.
+---   window.level      an hs.canvas.windowLevels value, the pane's being floating.
+---   window.onClick    function(id), told the id of an element built with id and trackMouseUp when
+---                     it is clicked, the id _canvas_ when no such element is under the click.
+---                     Absent means the window is click through, as a pane's canvas has always been
+---                     for a canvas with no mouse callback.
+---   window.activates  true where a click may activate Hammerspoon, hs.canvas's own default,
+---                     which a panel kept and a pane turns off. The native backend never
+---                     activates.
+--- A window also tells the native backend this is no pane, so it is never drawn into a chooser
+--- panel's window and is ordered front on every show, as hs.canvas does, where a pane is ordered
+--- front only when it comes up. That is the whole extension, one optional argument.
 --- lib/dockedpane/canvas.lua is one, an hs.canvas that paints the surface and the content in
 --- order, which is how every pane drew before the backend existed. The swift chooser's
 --- lib/chooser/providers/swift/pane.lua is the other, drawn on the swift chooser panel's own

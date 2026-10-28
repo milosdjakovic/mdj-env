@@ -6,7 +6,11 @@
 // The docked pane lives here too, in the same image, so the chooser panel and the panes beside it
 // are torn down together. paneNew makes one and answers its id, and the pane functions take that
 // id first the same way. A pane never calls back into Lua, it only draws what it is handed, so it
-// needs no callback and none can reach a closed state through it.
+// needs no callback and none can reach a closed state through it. A CanvasPanel is drawn by the
+// same functions, made by paneNew with an options table, and one whose content takes a click hands
+// a function there, which this file holds by reference for that panel alone. It is called with the
+// clicked element's id on the main Lua state, refused unless that is the state it was registered
+// on, released when the panel is deleted and dropped by the same cleanup that drops the callback.
 //
 // Every event goes back through the one callback setCallback registers, called as
 // callback(id, event, ...) on the main Lua state, the state LuaSkin says every callback belongs
@@ -28,6 +32,8 @@ import Cocoa
 
 private var panels: [Int: ChooserPanel] = [:]
 private var panes: [Int: PanePanel] = [:]
+// A CanvasPanel's click handler by pane id, the reference and the state it belongs to.
+private var paneClicks: [Int: (ref: Int32, state: LuaState?)] = [:]
 private var nextID = 1
 private var callbackRef: Int32 = olm_noRef()
 private var callbackState: LuaState?
@@ -41,6 +47,7 @@ private let sentinelType = "olm.swiftchooser.sentinel"
 private func closeAll() {
   for pane in panes.values { pane.close() }
   panes = [:]
+  paneClicks = [:]
   for panel in panels.values {
     panel.stop()
     panel.hide()
@@ -224,10 +231,35 @@ private func chooserHosting(_ rect: NSRect) -> ChooserPanel? {
   panels.values.first { $0.hostsPane(at: rect) }
 }
 
+// A CanvasPanel's click, handed to the function its paneNew registered, on the state it belongs to.
+private func paneClicked(_ id: Int, _ element: String) {
+  guard let entry = paneClicks[id], let L = LuaSkin.mainLuaState, L == entry.state else { return }
+  let skin = LuaSkin.shared(with: L) as! LuaSkin
+  _ = lua_rawgeti(L, olm_registryIndex(), lua_Integer(entry.ref))
+  _ = lua_pushstring(L, element)
+  _ = skin.protectedCallAndError("olm swift panel, click", nargs: 1, nresults: 0)
+}
+
+// paneNew() makes a docked pane. paneNew({ panel = true, level, onClick }) makes a CanvasPanel's
+// window instead, at that hs.canvas window level, never drawn into a chooser's window, click
+// through unless onClick is a function, which is then told the id of each clicked element.
 private let paneNew: lua_CFunction = { L in
   let id = nextID
   nextID += 1
-  panes[id] = PanePanel(findHost: chooserHosting)
+  let reader = LuaReader(L)
+  var config = PaneConfig()
+  if reader.isTable(1), reader.bool(1, "panel") == true {
+    config.panel = true
+    config.level = NSWindow.Level(rawValue: reader.integer(1, "level") ?? NSWindow.Level.popUpMenu.rawValue)
+    _ = lua_getfield(L, 1, "onClick")
+    if olm_isFunction(L, -1) != 0 {
+      paneClicks[id] = (ref: luaL_ref(L, olm_registryIndex()), state: mainThread(of: L))
+      config.onClick = { element in paneClicked(id, element) }
+    } else {
+      olm_pop(L, 1)
+    }
+  }
+  panes[id] = PanePanel(findHost: chooserHosting, config: config)
   lua_pushinteger(L, lua_Integer(id))
   return 1
 }
@@ -253,13 +285,13 @@ private let paneDraw: lua_CFunction = { L in
   let reader = LuaReader(L)
   let skin = LuaSkin.shared(with: L) as! LuaSkin
   let radius = CGFloat(reader.number(at: 2) ?? 0)
-  let (elements, unsupported) = PaneReader(r: reader, skin: skin, size: pane.size).elements(at: 3)
+  let (elements, targets, unsupported) = PaneReader(r: reader, skin: skin, size: pane.size).elements(at: 3)
   var scroll = PaneScroll(height: pane.size.height, reset: false, thumb: false)
   if reader.isTable(4) {
     scroll = PaneScroll(height: reader.number(4, "height") ?? pane.size.height,
       reset: reader.bool(4, "reset") ?? false, thumb: reader.bool(4, "thumb") ?? false)
   }
-  pane.draw(elements, radius: radius, scroll: scroll)
+  pane.draw(elements, targets: targets, radius: radius, scroll: scroll)
   for (i, name) in unsupported.enumerated() {
     _ = lua_pushstring(L, name)
     lua_rawseti(L, -2, lua_Integer(i + 1))
@@ -288,7 +320,9 @@ private let hostsPane: lua_CFunction = { L in
 // scrollFrame and superviewFrame are in their window's coordinates, AppKit's with y up,
 // autoresizes is whether the scroll view is placed by its autoresizing mask, documentFrame and
 // documentFlipped are the drawn view's, clipBounds is the visible part of it, and elements is
-// how many elements the last draw handed it. Nil for an id this image never made. With no id it
+// how many elements the last draw handed it. panel says it is a CanvasPanel's window, level is
+// its window level, clickThrough whether it ignores the mouse, and targets how many elements a
+// click can land on. Nil for an id this image never made. With no id it
 // answers every pane this image holds, keyed by id, since a pane's id lives inside its backend.
 private func pushPaneDebug(_ L: LuaState?, _ pane: PanePanel) {
   let d = pane.debug
@@ -316,6 +350,10 @@ private func pushPaneDebug(_ L: LuaState?, _ pane: PanePanel) {
   set("documentFlipped", .bool(d.documentFlipped))
   setRect("clipBounds", d.clipBounds)
   set("elements", .int(d.elements))
+  set("panel", .bool(d.panel))
+  set("level", .int(d.level))
+  set("clickThrough", .bool(d.clickThrough))
+  set("targets", .int(d.targets))
 }
 
 private let paneDebug: lua_CFunction = { L in
@@ -345,11 +383,21 @@ private let paneHide: lua_CFunction = { L in
   return 0
 }
 
+// paneIsVisible(id) answers whether the pane or panel can be seen, which CanvasPanel's isShowing
+// reads.
+private let paneIsVisible: lua_CFunction = { L in
+  lua_pushboolean(L, (paneAt(L)?.isVisible ?? false) ? 1 : 0)
+  return 1
+}
+
 // Out of whichever window held it and forgotten, its own window released with it.
 private let paneDelete: lua_CFunction = { L in
   guard let id = LuaReader(L).integer(at: 1), let pane = panes[id] else { return 0 }
   pane.close()
   panes[id] = nil
+  if let entry = paneClicks.removeValue(forKey: id), entry.state == mainThread(of: L) {
+    luaL_unref(L, olm_registryIndex(), entry.ref)
+  }
   return 0
 }
 
@@ -392,6 +440,7 @@ public func luaopen_olm_swiftchooser(_ L: LuaState?) -> Int32 {
   olm_setFunction(L, "hostsPane", hostsPane)
   olm_setFunction(L, "paneShow", paneShow)
   olm_setFunction(L, "paneHide", paneHide)
+  olm_setFunction(L, "paneIsVisible", paneIsVisible)
   olm_setFunction(L, "paneDelete", paneDelete)
   return 1
 }

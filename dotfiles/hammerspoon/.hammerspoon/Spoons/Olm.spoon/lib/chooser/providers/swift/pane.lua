@@ -24,12 +24,21 @@
 --- draws it in a scroll view that scrolls with the system's own momentum, Lua repainting only when
 --- the content changes. scrollBy moves that view, for a key that pages the pane.
 ---
+--- IT DRAWS A CANVASPANEL TOO. lib/panel.lua keeps the same contract and hands the factory its
+--- window as a second argument, { level, onClick, activates }. The library then makes a window
+--- that is never drawn into a chooser panel's, stands at that level, is ordered front on every
+--- show as hs.canvas is, is click through unless onClick is given, and never activates
+--- Hammerspoon whatever activates says. A click on it is hit tested in Swift against the elements
+--- built with id and trackMouseUp, the topmost first as hs.canvas does, and onClick is told the
+--- id, or _canvas_ when none is under the pointer, through a function the library holds for that
+--- window alone and lets go of when it is deleted or its Lua state closes.
+---
 --- Whatever Swift could not draw comes back named, an element type, an action or a scaling it
 --- does not know, or an attribute it does not draw, and is said once per name for the session,
 --- since the same pane repaints whenever its content changes.
 ---
---- M.factory(native, log) -> function(frame) -> backend, native the loaded library, log a
---- logger with e, or nil for print.
+--- M.factory(native, log) -> function(frame, window) -> backend, native the loaded library, log
+--- a logger with e, or nil for print. window is absent for a pane, see lib/dockedpane.lua.
 
 local M = {}
 
@@ -62,10 +71,18 @@ local function report(log, names)
 end
 
 function M.factory(native, log)
-  -- The frame is not needed here, since the pane places its backend before every render, and
-  -- nothing is shown until then.
-  return function()
-    local id = native.paneNew()
+  -- The frame is not needed here, since a pane and a panel both place their backend before every
+  -- render, and nothing is shown until then.
+  return function(_, window)
+    local id
+    if window then
+      -- A panel's window. onClick goes over only when it is a function, so the library holds
+      -- nothing for a window that takes no click.
+      id = native.paneNew({ panel = true, level = window.level,
+        onClick = type(window.onClick) == "function" and window.onClick or nil })
+    else
+      id = native.paneNew()
+    end
     local backend = {}
 
     function backend.place(rect)
@@ -85,6 +102,7 @@ function M.factory(native, log)
 
     function backend.show() native.paneShow(id) end
     function backend.hide() native.paneHide(id) end
+    function backend.isShowing() return native.paneIsVisible(id) == true end
     function backend.destroy() native.paneDelete(id) end
 
     return backend

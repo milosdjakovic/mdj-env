@@ -278,6 +278,18 @@ local function dockedPaneBackend(chooserAtom, chosen)
   return paneCanvasLib.new()
 end
 
+-- Hands CanvasPanel the same drawing backend, so the leader sheets and the toasts follow the
+-- chooser that serves the way every docked pane does, on the swift chooser's glass while it serves
+-- and on the canvas otherwise. The factory resolves at each panel's first show, through
+-- dockedPaneBackend, so a panel is never handed a backend before the swift chooser is wired, and
+-- a panel shown while the library is not loaded draws on canvas. It lives outside obj.run for the
+-- same reason wireSwiftChooser does.
+local function wirePanelBackend(canvasPanel, chooserAtom, chosen)
+  canvasPanel.configure({ backend = function(frame, window)
+    return dockedPaneBackend(chooserAtom, chosen)(frame, window)
+  end })
+end
+
 function obj.run(olm, cfg)
   cfg = cfg or {}
 
@@ -774,6 +786,7 @@ function obj.run(olm, cfg)
     dir = atoms.storage.cacheDir("swiftchooser"),
     log = log,
   })
+  wirePanelBackend(canvasPanel, chooserAtom, chooserProvider)
 
   -- resolve.plan's existence question for one declared tool, which is the door's own answer
   -- rather than a probe of its own. A package kind is the exception, since presence for one is

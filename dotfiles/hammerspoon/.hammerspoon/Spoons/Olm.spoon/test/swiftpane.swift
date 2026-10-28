@@ -10,6 +10,12 @@
 // to shorter content, and what is drawn is drawn at the top of the document. An icon drawn by
 // Crisp has exactly the pixels its box covers at the scale asked for, and a template stays one.
 //
+// A CanvasPanel's window, the same class made with a panel config, is never drawn into a chooser's
+// window even on the companion rect, stands at the level asked for, is click through with no click
+// handler and takes the mouse with one, hit tests the topmost element built with an id and
+// trackMouseUp and reports _canvas_ off every one, hands a mouse up to its handler, and draws a full
+// bleed surface over every pixel at backing scale 2 as at 1.
+//
 // Run it through swiftpane.sh, which suite.sh dry does.
 
 import Cocoa
@@ -155,6 +161,62 @@ func coverage(scale: CGFloat) -> (opaque: Int, total: Int) {
 for scale in [CGFloat(2), CGFloat(1)] {
   let c = coverage(scale: scale)
   check("a full bleed square covers the whole bitmap at scale \(Int(scale))", c.total > 0 && c.opaque == c.total,
+    "\(c.opaque) of \(c.total) pixels")
+}
+
+// A CanvasPanel's window.
+var clicked: [String] = []
+let sheet = PanePanel(findHost: { _ in panel }, config: PaneConfig(panel: true, level: .popUpMenu,
+  onClick: { clicked.append($0) }))
+let sheetRect = wider
+let chip = NSBezierPath(roundedRect: NSRect(x: 200, y: 360, width: 80, height: 24), xRadius: 6, yRadius: 6)
+let label = NSBezierPath(rect: NSRect(x: 210, y: 364, width: 60, height: 16))
+sheet.place(sheetRect)
+sheet.draw([.shape(path: NSBezierPath(rect: NSRect(origin: .zero, size: sheetRect.size)), fill: red, stroke: nil,
+  clip: false)], targets: [PaneTarget(id: "dismiss", area: chip), PaneTarget(id: "label", area: label)],
+  radius: 12, scroll: PaneScroll(height: sheetRect.height, reset: true, thumb: false))
+sheet.show()
+settle()
+check("a panel is never drawn into a chooser, even on its companion rect", sheet.debug.hosting == "own",
+  sheet.debug.hosting)
+check("a panel stands at the level it asks for", sheet.debug.level == NSWindow.Level.popUpMenu.rawValue)
+check("a panel with a click handler takes the mouse", !sheet.debug.clickThrough)
+check("the topmost target under the pointer answers", sheet.hit(NSPoint(x: 215, y: 370)) == "label")
+check("a target answers in its own shape", sheet.hit(NSPoint(x: 200.5, y: 360.5)) == "_canvas_")
+check("and off every target the canvas answers", sheet.hit(NSPoint(x: 20, y: 20)) == "_canvas_")
+let drawn = sheet.drawnView
+let at = drawn.convert(NSPoint(x: 276, y: 372), to: nil)
+if let up = NSEvent.mouseEvent(with: .leftMouseUp, location: at, modifierFlags: [], timestamp: 0,
+  windowNumber: 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 0) {
+  drawn.mouseUp(with: up)
+}
+check("a mouse up reaches the handler with the id", clicked == ["dismiss"], "\(clicked)")
+check("and takes the first press on a window that is not key", drawn.acceptsFirstMouse(for: nil))
+
+let plain = PanePanel(findHost: { _ in nil }, config: PaneConfig(panel: true, level: .popUpMenu, onClick: nil))
+plain.place(sheetRect)
+check("a panel without a click handler is click through", plain.debug.clickThrough)
+check("a docked pane is never click through", !pane.debug.clickThrough && pane.debug.level ==
+  NSWindow.Level.floating.rawValue)
+
+// The panel's drawn view rendered into a bitmap at a backing scale, a full bleed surface filling
+// every pixel, so a panel on a Retina screen draws at its full size and not a corner of it.
+func panelCoverage(scale: CGFloat) -> (opaque: Int, total: Int) {
+  let size = drawn.bounds.size
+  guard let bits = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(size.width * scale),
+    pixelsHigh: Int(size.height * scale), bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+    colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return (0, 0) }
+  bits.size = size
+  drawn.cacheDisplay(in: drawn.bounds, to: bits)
+  var opaque = 0
+  for y in 0..<bits.pixelsHigh {
+    for x in 0..<bits.pixelsWide where (bits.colorAt(x: x, y: y)?.alphaComponent ?? 0) > 0.99 { opaque += 1 }
+  }
+  return (opaque, bits.pixelsWide * bits.pixelsHigh)
+}
+for scale in [CGFloat(2), CGFloat(1)] {
+  let c = panelCoverage(scale: scale)
+  check("a panel's surface covers every pixel at backing scale \(Int(scale))", c.total > 0 && c.opaque == c.total,
     "\(c.opaque) of \(c.total) pixels")
 }
 

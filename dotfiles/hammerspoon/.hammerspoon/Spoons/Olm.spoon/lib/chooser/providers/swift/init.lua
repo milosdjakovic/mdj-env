@@ -41,7 +41,7 @@
 --- opts.dir, the cache directory, and opts.log, a logger with i and e. A dir starts the load.
 ---
 --- M.paneBackend() answers the docked pane's native drawing backend, pane.lua beside this file,
---- as the factory lib/dockedpane.lua takes, while the library is loaded, and nil otherwise, so
+--- as the factory lib/dockedpane.lua and lib/panel.lua take, while the library is loaded, and nil otherwise, so
 --- the composition root hands panes the canvas backend whenever this provider is not serving.
 ---
 --- M.uses(keyCode, mods) answers what the serving field already does with a chord, the native

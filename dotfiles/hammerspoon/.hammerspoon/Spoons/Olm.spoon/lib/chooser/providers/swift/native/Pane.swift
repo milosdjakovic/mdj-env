@@ -41,8 +41,34 @@
 // with any attribute not named here is not drawn at all, and is reported back so Lua can say so
 // once, rather than drawn half right. The mouse tracking attributes are the one exception, since
 // no pane listens for a click and the canvas ignores them in the same case.
+//
+// IT DRAWS A CANVASPANEL TOO. lib/panel.lua hands the same element lists to the same backend, and
+// a PaneConfig with panel set makes the window a CanvasPanel's. It is never drawn into a chooser
+// panel's window, whatever its rect, it stands at the level the panel asks for, popUpMenu unless it
+// says otherwise, and it is ordered front on every show, as hs.canvas orders a canvas front on
+// every show, so a sheet shown over a list rises above it as before. It is click through unless the
+// panel's content takes a click, and then a press on it is answered without the window becoming
+// key or main and without activating Hammerspoon, since the panel is nonactivating. The click is
+// hit tested here against the elements built with id and trackMouseUp, the topmost first, by the
+// element's own shape or by its bounds when trackMouseByBounds says so, and the id of the one
+// under the pointer, or _canvas_ when none is, goes to the panel's click handler on the mouse up.
 
 import Cocoa
+
+// What the window is for, a docked pane by default and a CanvasPanel when panel is set. onClick
+// is told the id of a clicked element, and is only ever set for a panel.
+struct PaneConfig {
+  var panel = false
+  var level: NSWindow.Level = .floating
+  var onClick: ((String) -> Void)?
+}
+
+// One element a click can land on, its id and the area it answers in, in the canvas's own
+// coordinates, origin top left.
+struct PaneTarget {
+  let id: String
+  let area: NSBezierPath
+}
 
 // Never key and never main, so the keyboard stays with the chooser panel.
 final class PaneWindow: NSPanel {
@@ -70,6 +96,10 @@ struct PaneDebug {
   let documentFlipped: Bool
   let clipBounds: NSRect
   let elements: Int
+  let panel: Bool
+  let level: Int
+  let clickThrough: Bool
+  let targets: Int
 }
 
 // What a draw says about the scroll, the content's full height, whether the view goes back to
@@ -84,8 +114,34 @@ struct PaneScroll {
 // the scroll view's document view, as tall as the content.
 final class PaneCanvas: NSView {
   var elements: [PaneElement] = []
+  var targets: [PaneTarget] = []
+  var onClick: ((String) -> Void)?
 
   override var isFlipped: Bool { true }
+
+  // A press on a window that is not key reaches the view at once, as a press on a canvas does.
+  override func acceptsFirstMouse(for event: NSEvent?) -> Bool { onClick != nil }
+
+  // Taken here so the mouse up comes back to this view, and answered only on the mouse up, the
+  // one event lib/panel.lua's content listens for.
+  override func mouseDown(with event: NSEvent) {
+    if onClick == nil { super.mouseDown(with: event) }
+  }
+
+  override func mouseUp(with event: NSEvent) {
+    guard let onClick else {
+      super.mouseUp(with: event)
+      return
+    }
+    onClick(hit(convert(event.locationInWindow, from: nil)))
+  }
+
+  // The id of the topmost target under point, or _canvas_, the name hs.canvas reports a mouse up
+  // on the canvas itself by.
+  func hit(_ point: NSPoint) -> String {
+    for target in targets.reversed() where target.area.contains(point) { return target.id }
+    return "_canvas_"
+  }
 
   override func draw(_ dirtyRect: NSRect) {
     guard let context = NSGraphicsContext.current else { return }
@@ -141,8 +197,11 @@ final class PanePanel {
   private var radius: CGFloat = 0
   private var shown = false
 
-  init(findHost: @escaping FindHost) {
+  private let config: PaneConfig
+
+  init(findHost: @escaping FindHost, config: PaneConfig = PaneConfig()) {
     self.findHost = findHost
+    self.config = config
     window = PaneWindow(
       contentRect: NSRect(x: 0, y: 0, width: 1, height: 1),
       styleMask: [.borderless, .nonactivatingPanel, .fullSizeContentView],
@@ -159,7 +218,12 @@ final class PanePanel {
     scroller.documentView = canvas
     surface = Surface(holding: scroller)
     window.isFloatingPanel = true
-    window.level = .floating
+    window.level = config.level
+    // Click through unless something here takes a click, the canvas rule for a canvas with no
+    // mouse callback. A pane's window keeps taking the press, which the chooser's local monitor
+    // reads as a press inside the companion.
+    window.ignoresMouseEvents = config.panel && config.onClick == nil
+    canvas.onClick = config.onClick
     window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
     window.isOpaque = false
     window.backgroundColor = .clear
@@ -177,6 +241,9 @@ final class PanePanel {
   // The scroll view that holds the drawn elements, the view that moves between hosts.
   var hostedView: NSScrollView { scroller }
 
+  // The view the elements are drawn in, for the harness to render and to click.
+  var drawnView: NSView { canvas }
+
   // Where the pane is and what it holds, for the read only diagnostic paneDebug in Entry.swift.
   // Every rect is in its window's coordinates, AppKit's, y measured up.
   var debug: PaneDebug {
@@ -189,7 +256,8 @@ final class PanePanel {
       hidden: scroller.isHiddenOrHasHiddenAncestor, scroll: inWindow(scroller),
       superview: inWindow(scroller.superview), autoresizes: scroller.translatesAutoresizingMaskIntoConstraints,
       document: canvas.frame, documentFlipped: canvas.isFlipped, clipBounds: scroller.contentView.bounds,
-      elements: canvas.elements.count)
+      elements: canvas.elements.count, panel: config.panel, level: window.level.rawValue,
+      clickThrough: window.ignoresMouseEvents, targets: canvas.targets.count)
   }
 
   func place(_ next: NSRect) {
@@ -201,12 +269,13 @@ final class PanePanel {
     canvas.needsDisplay = true
   }
 
-  func draw(_ elements: [PaneElement], radius next: CGFloat, scroll: PaneScroll) {
+  func draw(_ elements: [PaneElement], targets: [PaneTarget] = [], radius next: CGFloat, scroll: PaneScroll) {
     radius = next
     applyRadius()
     contentHeight = scroll.height
     scroller.hasVerticalScroller = scroll.thumb
     canvas.elements = elements
+    canvas.targets = targets
     layoutDocument()
     if scroll.reset { scrollTo(0) }
     canvas.needsDisplay = true
@@ -246,6 +315,16 @@ final class PanePanel {
     present()
   }
 
+  // Whether it can be seen, in the chooser's window or in its own.
+  var isVisible: Bool {
+    guard shown else { return false }
+    if let host { return host.isVisible }
+    return window.isVisible
+  }
+
+  // The id a click at point in the canvas's coordinates reports, for the harness.
+  func hit(_ point: NSPoint) -> String { canvas.hit(point) }
+
   func hide() {
     shown = false
     host?.hidePane(scroller)
@@ -262,7 +341,8 @@ final class PanePanel {
   // Moves the view to the chooser panel that owns this rect now, or to the own window when none
   // does, and leaves it where it is when that has not changed.
   private func rehome() {
-    let next = findHost(rect)
+    // A panel is never drawn into a chooser's window, even on a rect that matches a companion.
+    let next = config.panel ? nil : findHost(rect)
     if next !== host {
       host?.releasePane(scroller)
       host = next
@@ -286,11 +366,12 @@ final class PanePanel {
   // In the chooser's window the pane's region is shown. In its own window the window is ordered
   // front without being made key, and only when it is not already up, since the pane asks for a
   // show on every paint and a window ordered front on every paint would climb over anything
-  // shown above it since.
+  // shown above it since. A panel's window is ordered front on every show, which is what
+  // hs.canvas does on every show and what lib/panel.lua's overlays were always stacked by.
   private func present() {
     if let host {
       host.showPane(scroller)
-    } else if !window.isVisible {
+    } else if config.panel || !window.isVisible {
       window.orderFrontRegardless()
     }
   }
@@ -314,25 +395,48 @@ struct PaneReader {
     "trackMouseByBounds",
   ]
 
-  // The elements in the array at index, and what could not be drawn, each named once.
-  func elements(at index: Int32) -> ([PaneElement], [String]) {
+  // The elements in the array at index, the ones a click can land on, and what could not be
+  // drawn, each named once.
+  func elements(at index: Int32) -> ([PaneElement], [PaneTarget], [String]) {
     var out: [PaneElement] = []
+    var targets: [PaneTarget] = []
     var unsupported: [String] = []
-    guard r.isTable(index) else { return (out, unsupported) }
+    guard r.isTable(index) else { return (out, targets, unsupported) }
     let count = lua_rawlen(r.L, index)
-    guard count > 0 else { return (out, unsupported) }
+    guard count > 0 else { return (out, targets, unsupported) }
     for i in 1...count {
       _ = lua_rawgeti(r.L, index, lua_Integer(i))
       let t = r.absolute(-1)
       if r.isTable(t) {
         switch element(t) {
-        case .success(let element): if let element { out.append(element) }
+        case .success(let element):
+          if let element {
+            out.append(element)
+            if let target = target(t, element) { targets.append(target) }
+          }
         case .failure(let why): if !unsupported.contains(why.name) { unsupported.append(why.name) }
         }
       }
       olm_pop(r.L, 1)
     }
-    return (out, unsupported)
+    return (out, targets, unsupported)
+  }
+
+  // The element's click target, when it carries an id and asks for the mouse up. A shape answers
+  // in its own path, text and an image in their frame, and any of them in its bounds when
+  // trackMouseByBounds says so, as hs.canvas hit tests.
+  private func target(_ t: Int32, _ element: PaneElement) -> PaneTarget? {
+    guard r.bool(t, "trackMouseUp") == true, let id = r.string(t, "id") else { return nil }
+    let byBounds = r.bool(t, "trackMouseByBounds") == true
+    switch element {
+    case .shape(let path, _, _, let clip):
+      if clip { return nil }
+      return PaneTarget(id: id, area: byBounds ? NSBezierPath(rect: path.bounds) : path)
+    case .image, .text:
+      return PaneTarget(id: id, area: NSBezierPath(rect: frame(t)))
+    case .resetClip:
+      return nil
+    }
   }
 
   struct Unsupported: Error { let name: String }

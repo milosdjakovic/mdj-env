@@ -34,7 +34,8 @@
 ---                                              still places itself if nothing is injected.
 ---                                              opts.ui is the UI kit, which the empty state
 ---                                              draws through and which answers the current
----                                              half for the surface.
+---                                              half for the surface. opts.backend is the
+---                                              drawing backend factory, see below.
 ---                                              Callable more than once; each call merges.
 ---   CanvasPanel.surfaceElements(w, h, style?)  the surface elements for a w x h box at
 ---                                              origin (0, 0); style overrides the default.
@@ -80,7 +81,8 @@
 ---   padX, padY inner padding around the content (default the kit's inset.x on all four
 ---              sides, so a chip against the edge nests in the surface's corner).
 ---   style      per-instance surface override; nil inherits the configured default.
----   level      canvas window level (default hs.canvas.windowLevels.popUpMenu).
+---   level      window level, an hs.canvas.windowLevels value (default popUpMenu), which
+---              either backend puts its window at.
 ---   content    REQUIRED renderer:
 ---                preferredSize(availW, availH) -> { w = , h = }
 ---                  availW/availH is the content box the panel offers (either may
@@ -92,11 +94,28 @@
 ---                onClick(id), OPTIONAL. Told the id of an element the content built with
 ---                  id and trackMouseUp when it is clicked, so a button on the panel is an
 ---                  element plus this one function and no consumer reads the mouse itself.
+---                  Content without it is click through, on either backend.
 ---                state() -> string, OPTIONAL. What is being said right now, as one
 ---                  comparable value. Content that can go stale while the panel sits
 ---                  there offers it, and the panel then polls while visible and redraws
 ---                  when the value changes, so what is on screen keeps being true. Omit
 ---                  it for fixed content and no timer runs at all.
+---
+--- THE DRAWING BACKEND IS A STRATEGY, the one lib/dockedpane.lua's header states for a docked
+--- pane, so a panel and a pane are put on screen by the same two backends and the contract has
+--- two consumers. This file keeps every rule, the placement, the sizing, the reveal timing, the
+--- appearance and the surface style, and reduces each show to the same two lists of hs.canvas
+--- element tables a pane is reduced to, the surface and the content shifted by the padding. The
+--- backend only places, renders, shows, hides and answers whether it is showing. A panel hands
+--- the factory a second argument a pane does not, its window, { level, onClick, activates },
+--- since a panel stacks at its own level and may take a click where a pane does neither. The
+--- composition root injects the factory through configure. Under every chooser but the swift
+--- one it is lib/dockedpane/canvas.lua, which makes the very hs.canvas this file used to make,
+--- so every panel is exactly what it was. While the swift chooser serves it is the native
+--- backend, lib/chooser/providers/swift/pane.lua, which draws the content on glass at the
+--- surface's corner radius in a window that never takes key, never activates Hammerspoon and is
+--- never drawn into a chooser panel's window, and which reports a click on an element the same
+--- way the canvas does. No content renderer knows which one draws it.
 ---
 --- This is the olm side copy of CanvasPanel, moved into the core as lib/panel.lua in phase
 --- five of the build plan. It is a faithful copy, the module api and the instance api are
@@ -130,6 +149,13 @@ local SCREEN_PROVIDER = hs.screen.mainScreen
 -- surface asks its tokens which half the system is on, so the appearance is asked in one
 -- place, lib/ui/style.lua, rather than here as well. Nil until then.
 local UI = nil
+
+-- The drawing backend factory, injected by the composition root, the strategy lib/dockedpane.lua's
+-- header states for a docked pane, so a panel and a pane are drawn by the same two backends. The
+-- canvas one under every chooser but the swift one, and the swift chooser's native glass while it
+-- serves. Nil until then, and a panel then draws nothing, since naming a concrete backend here
+-- would be a second place that chooses one.
+local BACKEND = nil
 
 --- CanvasPanel.placements - the five placements, and CanvasPanel.aligns the three
 --- alignments, published so a caller writes CanvasPanel.placements.below rather than the
@@ -175,6 +201,7 @@ function obj.configure(opts)
   if opts.surface ~= nil then DEFAULT_STYLE = opts.surface end
   if opts.screen ~= nil then SCREEN_PROVIDER = opts.screen end
   if opts.ui ~= nil then UI = opts.ui end
+  if opts.backend ~= nil then BACKEND = opts.backend end
   return obj
 end
 
@@ -357,37 +384,47 @@ function Panel:_layout(anchor)
 end
 
 --- CanvasPanel:show(anchorFrame) - place and draw the panel relative to anchorFrame
---- ({ x, y, w, h }). Safe to call repeatedly; the canvas is built once and reused.
+--- ({ x, y, w, h }). Safe to call repeatedly; the backend is built once and reused.
 function Panel:show(anchor)
   if not anchor and self.config.placement ~= "center" then return end
   local frame, contentW, contentH, padX, padY = self:_layout(anchor)
+  local backend = self:_ensureBackend(frame)
+  if not backend then return end
 
-  local els = {}
-  for _, el in ipairs(obj.surfaceElements(frame.w, frame.h, self.config.style)) do
-    els[#els + 1] = el
-  end
+  local surface = obj.surfaceElements(frame.w, frame.h, self.config.style)
+  local content = {}
   for _, el in ipairs(self.config.content.draw(contentW, contentH) or {}) do
-    els[#els + 1] = shifted(el, padX, padY)
+    content[#content + 1] = shifted(el, padX, padY)
   end
 
-  if not self.canvas then
-    self.canvas = hs.canvas.new(frame)
-    self.canvas:level(self.config.level or hs.canvas.windowLevels.popUpMenu)
-    -- Content that answers a click declares onClick, and the canvas then reports a mouse up
-    -- on any element the content built with an id and trackMouseUp. Nothing else here reads
-    -- the mouse, so a panel with plain content stays click through to whatever is under it.
-    local onClick = self.config.content.onClick
-    if type(onClick) == "function" then
-      self.canvas:canvasMouseEvents(false, true)
-      self.canvas:mouseCallback(function(_, event, id)
-        if event == "mouseUp" and id then onClick(id) end
-      end)
+  backend.place(frame)
+  backend.render(surface, content)
+  backend.show()
+end
+
+-- Whether the missing backend was said, so a panel shown before the root wired one says it once.
+local saidNoBackend = false
+
+-- The panel's drawing backend, made by the injected factory at the first show and kept. The
+-- window it is handed is what the panel used to set on its own canvas, the level, the click
+-- handler of content that answers one, and activates, so the canvas backend keeps hs.canvas's
+-- own click activation exactly as the panel always left it. Nil while nothing is injected.
+function Panel:_ensureBackend(frame)
+  if self.backend then return self.backend end
+  if not BACKEND then
+    if not saidNoBackend then
+      saidNoBackend = true
+      print("CanvasPanel: no drawing backend was configured, so nothing is drawn")
     end
-  else
-    self.canvas:frame(frame)
+    return nil
   end
-  self.canvas:replaceElements(els)
-  self.canvas:show()
+  local onClick = self.config.content.onClick
+  self.backend = BACKEND(frame, {
+    level = self.config.level or hs.canvas.windowLevels.popUpMenu,
+    onClick = type(onClick) == "function" and onClick or nil,
+    activates = true,
+  })
+  return self.backend
 end
 
 -- Start (or restart) the idle countdown. On expiry the panel reveals at the last armed
@@ -428,9 +465,9 @@ function Panel:_startWatch()
   if type(state) ~= "function" then return end
   if self.watchTimer then self.watchTimer:stop() end
   self.lastState = state()
-  -- Guarded on the canvas rather than on `shown`, which only tracks the DELAYED reveal and stays
-  -- false for a panel configured with no delay, where the canvas is up all the same. Reading the
-  -- canvas is true on both paths, and it leaves a centered panel's nil anchor alone, since show
+  -- Guarded on the backend rather than on `shown`, which only tracks the DELAYED reveal and stays
+  -- false for a panel configured with no delay, where the panel is up all the same. Reading the
+  -- backend is true on both paths, and it leaves a centered panel's nil anchor alone, since show
   -- already accepts that.
   self.watchTimer = hs.timer.doEvery(WATCH_INTERVAL, function()
     if not self:isShowing() then return end
@@ -483,7 +520,7 @@ function Panel:poke()
 end
 
 --- CanvasPanel:hide() - hide the panel and clear the reveal state, so the next arm starts
---- a fresh countdown (the canvas is kept alive for the next show).
+--- a fresh countdown (the backend is kept alive for the next show).
 function Panel:hide()
   if self.timer then
     self.timer:stop()
@@ -492,12 +529,12 @@ function Panel:hide()
   self:_stopWatch()
   self.shown = false
   self.anchor = nil
-  if self.canvas then self.canvas:hide() end
+  if self.backend then self.backend.hide() end
 end
 
 --- CanvasPanel:isShowing() - whether the panel is currently visible.
 function Panel:isShowing()
-  return self.canvas ~= nil and self.canvas:isShowing()
+  return self.backend ~= nil and self.backend.isShowing() == true
 end
 
 --- CanvasPanel.new(config) -> instance.
@@ -507,7 +544,7 @@ function obj.new(config)
   -- through and a value corrected once is corrected for every draw that follows.
   config.placement = memberOf(obj.placements, config.placement, "placement", obj.placements.below)
   config.align = memberOf(obj.aligns, config.align, "align", obj.aligns.start)
-  return setmetatable({ config = config, canvas = nil, timer = nil, shown = false, anchor = nil,
+  return setmetatable({ config = config, backend = nil, timer = nil, shown = false, anchor = nil,
                         watchTimer = nil, lastState = nil }, Panel)
 end
 

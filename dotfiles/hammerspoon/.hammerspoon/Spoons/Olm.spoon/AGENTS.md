@@ -653,7 +653,7 @@ draws `rectangle` and `segments`
 filled, stroked or clipped, `image`, `text` as a string or an `hs.styledtext`, and `resetClip`,
 with the canvas's semantics and defaults. Any other type, action, scaling or attribute leaves
 that element out and is named once in the console. It is torn down with the chooser panels by
-the library's reload sentinel, and it never calls back into Lua.
+the library's reload sentinel, and a pane never calls back into Lua.
 
 The root chooses, in `dockedPaneBackend` beside `wireSwiftChooser`, and no plugin and no line of
 `lib/dockedpane.lua` names a backend. A pane gets the native one only while the swift provider is
@@ -663,6 +663,30 @@ drives one pane over both backends with the same describer and painter, and pins
 one is handed the very content list the canvas paints over its surface, and for a scrolling pane
 that the canvas one scrolls as it always did while the native one gets the full height content
 unshifted, scrolls through the library and keeps its place across a redraw of the same content.
+
+## CanvasPanel, the same two backends
+
+`lib/panel.lua` is the second consumer of that contract. It keeps every rule it owns, placement,
+sizing, reveal timing, the surface style resolved for the current half, and reduces each show to
+the surface and the content shifted by its padding, then places, renders and shows a backend the
+root injects through `CanvasPanel.configure({ backend })`. With none injected a panel draws
+nothing and says so once. The root's `wirePanelBackend`, beside `dockedPaneBackend`, hands it a
+factory that asks `dockedPaneBackend` at each panel's first show, so a panel follows the chooser
+that serves exactly as a pane does. A panel calls the factory with a second argument a pane never
+passes, its window, `{ level, onClick, activates }`, and `isShowing()` is the one backend method
+only a panel asks. On the canvas this makes the very hs.canvas the panel used to make, at its
+level, popUpMenu unless it says otherwise, with a mouse callback only for content that answers
+`onClick`, and with hs.canvas's own click activation left on. On the native backend it is a
+`PaneConfig` window in `native/Pane.swift`, never drawn into a chooser's window, at the panel's
+level, ordered front on every show as hs.canvas is, never key, never main, never activating, click
+through without `onClick`, and with it a mouse up is hit tested against the elements built with id
+and trackMouseUp and the id, or `_canvas_`, goes to a Lua function the library holds for that panel
+alone. The surface becomes glass at its corner radius, which follows the system appearance, while
+the content's colours come from the kit on each show as before. The users are the cheat sheet
+behind every leader sheet and the message, colour and report toasts in `root/compose.lua`, all
+centred, and only the report toast takes a click. `test/panelbackends.lua` pins that the canvas
+backend draws what the old code drew and that the native one is handed the same lists, and
+`test/swiftpane.sh` pins the panel window, its hit test and its drawing at backing scale 2.
 
 ## The swift chooser, the engine under a native panel
 
@@ -676,7 +700,8 @@ the system has it and a visual effect view where it does not, with a native `NST
 into plain data, colours, fonts, sizes, the radius and the space steps from the kit's tokens and
 every rectangle and row metric from the engine's geometry, so neither half writes a colour or a font
 by hand, and the panel sits exactly on the canvas rect with the docked pane beside it, which is
-drawn on the panel's own glass beside the list, see the docked pane section above. Swift runs
+drawn on the panel's own glass beside the list, see the docked pane section above, and every
+CanvasPanel is drawn on glass by the same library while it serves, see the CanvasPanel section. Swift runs
 the view contract's key order, asking Lua synchronously before its field edits, and hands each key
 over as its event's bytes, which `hs.eventtap.event.newEventFromData` turns back into the event the
 engine reads. A press outside the panel is heard by event monitors and decided in Lua against the

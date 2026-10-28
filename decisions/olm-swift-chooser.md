@@ -35,7 +35,9 @@ and the UI kit's describer nodes. The docked pane is built on `olm/native-pane`.
 reduced by `lib/dockedpane.lua` to hs.canvas element lists, and while the swift provider serves
 the root hands each pane a native backend in the same library, which draws those lists on the
 chooser panel's own glass, one shape spanning the list, the gap and the pane with a hairline in
-the gap, so no plugin changed.
+the gap, so no plugin changed. Every CanvasPanel, the leader sheets and the three toasts, is drawn
+by the same two backends through the same contract, on glass in a window of its own while the swift
+chooser serves and on the canvas otherwise, built on `olm/native-panel`.
 
 ## Rejected
 
@@ -94,6 +96,18 @@ the gap, so no plugin changed.
   filled rounded rectangle under its border, and the fill covers the glass, so the pane would
   read as a painted card beside a glass panel. The native backend reads the surface's corner
   radius and stands the pane on the same glass as the panel instead.
+
+- **A second native renderer for CanvasPanel.** 2026-10-28 15:18. `lib/panel.lua` already
+  reduced every show to a surface and a content list of hs.canvas elements, the very lists a docked
+  pane is reduced to, so `native/Pane.swift` draws them and a panel window is a `PaneConfig` on the
+  same class rather than a class of its own.
+- **Leaving the report toast on the canvas through a per panel opt out.** 2026-10-28 15:18. It is
+  the one panel that takes a click, and the hit test the canvas does is a dozen lines in Swift, so
+  every panel draws natively and the root keeps no knob with one consumer.
+- **Reporting a panel's click through the chooser's one callback.** 2026-10-28 15:18. That callback
+  belongs to the swift view and is registered only once a chooser is built, and a toast is shown
+  with no chooser at all. Each clickable panel registers its own function with `paneNew` instead,
+  held under the same state guard and dropped by the same cleanup.
 
 ## Log
 
@@ -430,3 +444,45 @@ make no bitmap context of their own, since the pane draws into its view's curren
 bar goes through Crisp.image. A check in swiftpane.swift draws a full bleed opaque square at
 scales 2 and 1 and asserts every pixel is opaque. It failed with the old order, 400 of 1600 pixels
 at scale 2, and passes with the fix.
+
+### 2026-10-28 15:18
+
+Every CanvasPanel draws natively while the swift chooser serves, built on `olm/native-panel`,
+offline only. `lib/panel.lua` keeps every rule, the placement, the sizing, the reveal timing, the
+appearance and the surface style, and where it made an hs.canvas it now calls the drawing backend
+the docked pane already takes, injected by the root through `CanvasPanel.configure({ backend })`,
+so the pane's contract has its second consumer. The canvas half moved into
+`lib/dockedpane/canvas.lua` unchanged. The contract was extended in one place for both, in
+`lib/dockedpane.lua`'s header, by an optional second argument to the factory, the panel's window,
+`{ level, onClick, activates }`, which a pane never passes, and by `isShowing()`, which only the
+panel asks. On the canvas a panel is made exactly as before, its level, its mouse callback only for
+content that takes a click, and hs.canvas's own click activation left on, so `activates` asks for
+it. Driven over a recording canvas stub against the old `lib/panel.lua` from HEAD, every call was
+the same but one, a `frame` call to the frame the canvas was just made at on the first show, since
+a backend is placed before every render.
+
+The native backend is the pane's, `providers/swift/pane.lua`, and with a window it asks the
+library for a panel window, `paneNew({ panel, level, onClick })`. That window is never drawn into a
+chooser's, whatever its rect, stands at the panel's level, popUpMenu for all four panels, is
+ordered front on every show as hs.canvas is, never becomes key or main and never activates
+Hammerspoon, and is click through unless onClick is given. Then `PaneCanvas` takes the first press
+and answers the mouse up with the id of the topmost element built with id and trackMouseUp, by its
+path or its bounds, or `_canvas_` off every one, the way hs.canvas reports, through a Lua function
+the library holds for that panel alone, refused off its own state, released on delete and dropped
+by the sentinel. The surface becomes glass at its radius, with the pane window's shadow and no
+animation, as the canvas had none. The report toast is the only panel that takes a click. The
+message and colour toasts and the cheat sheet behind every leader sheet are click through. None
+fades or waits, `delay` being unused today, and the timing stays in Lua either way.
+
+The library built with the provider's flags with no error and no warning. The new
+`test/panelbackends.lua`, run by `suite.sh dry`, drives a sheet, a clickable toast and a panel
+docked below an anchor over the canvas backend against a copy of the old canvas code and over the
+native backend, and finds the same frame, level, mouse settings, elements, shown state and click,
+and the native one handed the very content list over its surface at the surface's corner radius in
+a panel window. `test/swiftpane.swift` gained a panel window that stays out of a chooser on the
+companion rect, its level, click through with no handler, the hit test and a mouse up reaching the
+handler, and a full bleed surface covering every pixel at backing scale 2 as at 1. The dry suite,
+the dry gate, the goldens and the dependency check pass. Not yet run live, so the glass behind a
+leader sheet and a toast, a click on Dismiss with another app frontmost, the stacking of a sheet
+over an open swift chooser, and text metrics against the canvas are all unmeasured. One thing
+differs from the canvas on purpose, a click on Dismiss no longer activates Hammerspoon.
