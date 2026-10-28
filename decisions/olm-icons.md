@@ -237,3 +237,14 @@ pixel PNGs at 144 dpi, 72 points, in about 0.1 s, and reported `nope.nope` as un
 source was left as it is. It draws through `hs.canvas` and no JavaScript, and the default chooser
 paints it as text, so it does not share this defect. Not yet measured live, the footprint after
 opening the launcher is the remaining check.
+
+### 2026-10-28 16:24
+
+Measured live under a manual hold on this branch, Hammerspoon started fresh at 61 MB with the
+swift chooser serving and no JavaScriptCore memory at all, and the background run had drawn 126
+symbol pictures to disk. After Milos opened nearly every plugin it stood at 219 MB, the heap then
+holding 29 thousand CFString rather than 2.7 million and no JS context group, the rest being Lua's
+heap at 95 MB, of which a full collection freed 45 MB, plus clipboard images and file search's
+Spotlight results. A few minutes later macOS had taken back the freed pages and it sat at 141 MB,
+the plugins' own data rather than a leak. Milos found every icon present, full size and sharp.
+Merged to main.
