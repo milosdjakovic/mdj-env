@@ -561,6 +561,16 @@ opened through the launcher afterwards refused herdr as nested. With nothing
 passed, LaunchServices supplies the Dock launch environment, which is also the
 one the config really runs in. `decisions/ghostty-relaunch-env-leak.md` has it.
 
+The lock also carries this machine's files into the worktree. The config reads
+the Hyper app keys and display profiles from `machine-*.lua` beside its own
+`init.lua`, and those files exist only in the real `~/.hammerspoon`, so a
+worktree config alone ran on the shared defaults and showed the wrong apps and no
+dormant group. On acquire the lock links every `machine-*.lua` it finds there
+into the worktree's `.hammerspoon` directory, never over a real file, and records
+the links in its holder file. On release or break it removes exactly those, each
+only while it is still a symlink to the same target, before restoring main. The
+links are ignored by git, so none is ever committed.
+
 The discipline every session must follow. Ask before you start, and wait to be
 told to. Nothing that seizes the screen or the keyboard begins on an announcement,
 not taking the lock, not running a suite, not opening a chooser, and not posting a

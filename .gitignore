@@ -18,3 +18,8 @@ dotfiles/lazygit/Library/Application Support/lazygit/github_pull_requests.json
 # and it lives under the olm data root in the home directory now, so nothing of it is in the
 # tree to ignore.
 dotfiles/hammerspoon/.hammerspoon/config/*.json.*
+
+# This machine's Hyper app keys and display profiles, copied into the real config directory by
+# src/setup-hammerspoon-apps.sh and linked into a worktree by bin/hs-devlock while it holds the
+# lock. They describe one machine, so no checkout ever commits one.
+dotfiles/hammerspoon/.hammerspoon/machine-*.lua

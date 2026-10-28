@@ -43,6 +43,11 @@ MJ_KEY="MJConfigFile"
 LOCK_DIR="$HOME/.hammerspoon-devlock"
 HOLDER="$LOCK_DIR/holder.json"
 
+# The real config directory the resting main config lives in, where
+# src/setup-hammerspoon-apps.sh copies this machine's machine-*.lua files. A
+# worktree's config reads them from its own directory, so acquire links them in.
+REAL_CONFIG="$HOME/.hammerspoon"
+
 # A short-hold lock older than this with no release is treated as abandoned and
 # reclaimed, a backstop for a session that crashed or forgot to release. A real
 # test burst is tens of seconds to a couple of minutes, well under this, and
@@ -132,15 +137,50 @@ relaunch_hs() {
   die "$APP would not start after six attempts, open it by hand, the config it will load is $(current_mj)"
 }
 
+# Link every machine-*.lua file of the real config directory into a worktree's
+# Hammerspoon directory, so the worktree's config runs with this machine's Hyper
+# app keys and display profiles instead of the shared defaults. Found by pattern,
+# so a new kind of machine file joins with no edit here. A real file already in the
+# worktree is never replaced, it is reported and left. Prints a JSON array of the
+# links made, which the holder file keeps so release removes exactly those.
+link_machine_files() {
+  local dir="$1/dotfiles/hammerspoon/.hammerspoon" f link out="[]"
+  for f in "$REAL_CONFIG"/machine-*.lua; do
+    [ -e "$f" ] || continue
+    link="$dir/$(basename "$f")"
+    if [ -e "$link" ] || [ -L "$link" ]; then
+      echo "hs-devlock: $link already exists in the worktree, left as it is" >&2
+      continue
+    fi
+    ln -s "$f" "$link"
+    out="$(jq -c --arg l "$link" --arg t "$f" '. + [{link:$l, target:$t}]' <<<"$out")"
+  done
+  echo "$out"
+}
+
+# Remove the links the holder file recorded, each only if it is still a symlink
+# pointing where it pointed, so nothing a person put there is ever deleted.
+unlink_machine_files() {
+  [ -f "$HOLDER" ] || return 0
+  local link target
+  while IFS=$'\t' read -r link target; do
+    [ -n "$link" ] || continue
+    if [ -L "$link" ] && [ "$(readlink "$link")" = "$target" ]; then
+      rm -f "$link"
+    fi
+  done < <(jq -r '.machineLinks[]? | [.link, .target] | @tsv' "$HOLDER" 2>/dev/null)
+}
+
 holder_field() { jq -r "$1 // \"\"" "$HOLDER" 2>/dev/null || echo ""; }
 
 write_holder() {
-  # Arguments are worktree, branch, config, previous MJConfigFile, and manual flag.
+  # Arguments are worktree, branch, config, previous MJConfigFile, manual flag, and
+  # the JSON array of machine file links made for the worktree.
   local ts; ts="$(now)"
   jq -n \
     --arg wt "$1" --arg br "$2" --arg host "$(hostname)" \
-    --arg cfg "$3" --arg prev "$4" --arg manual "${5:-0}" --argjson at "$ts" \
-    '{worktree:$wt, branch:$br, host:$host, config:$cfg, prevMJConfigFile:$prev, manual:($manual=="1"), acquiredAt:$at, renewedAt:$at}' \
+    --arg cfg "$3" --arg prev "$4" --arg manual "${5:-0}" --argjson links "${6:-[]}" --argjson at "$ts" \
+    '{worktree:$wt, branch:$br, host:$host, config:$cfg, prevMJConfigFile:$prev, manual:($manual=="1"), machineLinks:$links, acquiredAt:$at, renewedAt:$at}' \
     > "$HOLDER"
 }
 
@@ -212,7 +252,7 @@ cmd_acquire() {
   while true; do
     if mkdir "$LOCK_DIR" 2>/dev/null; then
       local prev; prev="$(current_mj)"
-      write_holder "$wt" "$br" "$cfg" "$prev" "$manual"
+      write_holder "$wt" "$br" "$cfg" "$prev" "$manual" "$(link_machine_files "$wt")"
       set_mj "$cfg"
       relaunch_hs
       if [ "$manual" -eq 1 ]; then
@@ -298,6 +338,7 @@ cmd_release() {
     die "held by $(holder_field '.branch') ($holder_wt), not this worktree; use release --force to override"
   fi
 
+  unlink_machine_files
   restore_mj "$(holder_field '.prevMJConfigFile')"
   relaunch_hs
   rm -rf "$LOCK_DIR"

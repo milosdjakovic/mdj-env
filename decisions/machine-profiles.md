@@ -200,3 +200,15 @@ same inside a setup run, `--discard` and `--capture`, and live here, 19 keys and
 before, unit cases 2017 of 2017. This machine's built in panel reports `s4251086178`, the id the
 Vicert profiles name for theirs, which `displays.lua` had called different on every Mac. Not acted
 on.
+
+### 2026-10-28 13:45
+
+A Hyper hold sheet seen live on 2026-10-28 had no DORMANT group and listed the wrong running apps.
+The cause was the test lock. `bin/hs-devlock acquire` points Hammerspoon at a worktree's own
+`init.lua`, the config reads `machine-apps.lua` and `machine-displays.lua` from its own directory,
+and those two files exist only in the real `~/.hammerspoon`, so every worktree test had run on the
+shared defaults. The lock now links each `machine-*.lua` it finds in the real config directory into
+the worktree's `.hammerspoon` directory on acquire, by pattern so a third kind needs no edit, and
+never over a real file there. The links are recorded in the holder file. Release and break remove
+exactly those, each only while it is still a symlink to its recorded target, before main is
+restored. A `.gitignore` entry keeps `machine-*.lua` out of every checkout's commits.
