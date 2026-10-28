@@ -18,6 +18,12 @@
 // goes to the field, which edits natively, and its text is reported once afterwards. While an
 // input method holds marked text every key belongs to it and none is asked about.
 //
+// CONTROL CHORDS. Cocoa's text bindings answer far more Control chords than the canvas field
+// reads, Control and O inserting a line break and Control and T transposing among them. So only
+// the Control keys the Lua view names through setFieldKeys reach the field, the ones its field
+// keymap reads, and every other Control chord is a leftover. The field's command filter below is
+// a second fence, letting through only the editing commands those keys produce.
+//
 // THE CLICK OUTSIDE. A press outside the panel is heard by two event monitors, a global one for
 // presses delivered to other applications and a local one for presses on Hammerspoon's own other
 // windows, the docked pane among them, and reported with the point. The Lua view decides, so a
@@ -83,6 +89,8 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   private var lastRouted: NSEvent?
   private var lastClaimed = false
   private var monitors: [Any] = []
+  private var controlKeys: Set<UInt16> = []
+  private var controlBackspace: Set<UInt16> = []
   private(set) var surfaceName = ""
 
   init(ask: @escaping Ask) {
@@ -281,9 +289,10 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     if ask("listKey", [data]) { return true }
 
     let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-    if event.keyCode == KeyCode.backspace, mods.isDisjoint(with: [.command, .option, .control]),
-      field.stringValue.isEmpty
-    {
+      .subtracting([.capsLock, .numericPad, .function])
+    let backward = (event.keyCode == KeyCode.backspace && mods.isDisjoint(with: [.command, .option, .control]))
+      || (mods == .control && controlBackspace.contains(event.keyCode))
+    if backward, field.stringValue.isEmpty {
       _ = ask("emptyBackspace", [])
       return true
     }
@@ -296,8 +305,10 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
       throughField { NSApp.sendAction(action, to: nil, from: field) }
       return true
     }
+    let fieldControl = mods == .control && controlKeys.contains(event.keyCode)
     let leftover = KeyCode.leftover.contains(event.keyCode)
       || (mods.contains(.command) && !caret)
+      || (mods.contains(.control) && !fieldControl)
       || (event.specialKey != nil && !caret)
     if leftover {
       _ = ask("leftover", [data])
@@ -348,9 +359,30 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     if !inField { reportText() }
   }
 
+  // The Control keys the field may edit with, by key code, and the ones among them that delete
+  // backward and so stand for Backspace on an empty field, as the Lua view's field keys say.
+  func setFieldKeys(control: Set<UInt16>, backspace: Set<UInt16>) {
+    controlKeys = control
+    controlBackspace = backspace
+  }
+
+  // The editing commands the named Control keys produce through Cocoa's standard bindings.
+  private static let controlCommands: Set<Selector> = [
+    #selector(NSResponder.moveToBeginningOfParagraph(_:)), #selector(NSResponder.moveToEndOfParagraph(_:)),
+    #selector(NSResponder.moveToBeginningOfLine(_:)), #selector(NSResponder.moveToEndOfLine(_:)),
+    #selector(NSResponder.moveBackward(_:)), #selector(NSResponder.moveForward(_:)),
+    #selector(NSResponder.deleteForward(_:)), #selector(NSResponder.deleteBackward(_:)),
+    #selector(NSResponder.deleteBackwardByDecomposingPreviousCharacter(_:)),
+    #selector(NSResponder.deleteToEndOfParagraph(_:)), #selector(NSResponder.deleteToEndOfLine(_:)),
+  ]
+
   // Return, Escape and the arrows never reach here, the router claims them first, so any command
-  // the field editor still asks about is one the field must not act on by moving focus.
+  // the field editor still asks about is one the field must not act on by moving focus. A command
+  // a Control chord produced is let through only when it is one of the editing commands above.
   func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
+    if NSApp.currentEvent?.modifierFlags.contains(.control) == true {
+      return !Self.controlCommands.contains(selector)
+    }
     switch selector {
     case #selector(NSResponder.insertTab(_:)), #selector(NSResponder.insertBacktab(_:)),
       #selector(NSResponder.insertNewline(_:)), #selector(NSResponder.cancelOperation(_:)):
@@ -364,7 +396,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
 
   private func startMonitors() {
     guard monitors.isEmpty else { return }
-    let mask: NSEvent.EventTypeMask = [.leftMouseDown, .scrollWheel]
+    let mask: NSEvent.EventTypeMask = [.leftMouseDown]
     if let global = NSEvent.addGlobalMonitorForEvents(matching: mask, handler: { [weak self] event in
       self?.outside(event)
     }) {
@@ -380,22 +412,9 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
 
   private func outside(_ event: NSEvent) {
     guard started else { return }
+    guard event.type == .leftMouseDown else { return }
     let point = Self.hsPoint(NSEvent.mouseLocation)
-    switch event.type {
-    case .leftMouseDown:
-      _ = ask("pressOutside", [.number(point.x), .number(point.y)])
-    case .scrollWheel:
-      // The same two deltas lib/chooser/providers/default/mouse.lua reads, the point delta for a
-      // trackpad and the line delta for a wheel.
-      guard let cg = event.cgEvent else { return }
-      let continuous = cg.getIntegerValueField(.scrollWheelEventIsContinuous) != 0
-      let dy = cg.getIntegerValueField(continuous ? .scrollWheelEventPointDeltaAxis1 : .scrollWheelEventDeltaAxis1)
-      if dy != 0 {
-        _ = ask("scrollOutside", [.number(point.x), .number(point.y), .number(Double(dy)), .bool(continuous)])
-      }
-    default:
-      break
-    }
+    _ = ask("pressOutside", [.number(point.x), .number(point.y)])
   }
 
   // MARK: Layout and coordinates

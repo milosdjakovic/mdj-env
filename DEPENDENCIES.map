@@ -90,6 +90,7 @@ fzf-tab                  | manual    | installed by src/install-ohmyzsh-plugins.
 brew                     | manual    | installed by src/install-homebrew.sh from the upstream installer
 karabiner-vhid-driver    | manual    | installed by src/setup-kanata.sh from the package pinned in dotfiles/kanata/DRIVER, verified by its sha256, its notarization and its developer team, then activated, which the person approves in System Settings
 swiftc                   | xcode-clt | installed by src/install-xcode-clt.sh, which makes sure the command line tools carry an SDK for the running macOS
+swiftc-clt               | xcode-clt | installed by src/install-xcode-clt.sh, which makes sure the command line tools carry an SDK for the running macOS
 cc                       | xcode-clt | installed by src/install-xcode-clt.sh, which makes sure the command line tools carry an SDK for the running macOS
 xcode-select             | macos     | ships with macOS
 sw_vers                  | macos     | ships with macOS

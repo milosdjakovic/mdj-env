@@ -733,7 +733,7 @@ function obj.run(olm, cfg)
       fallback = chooserAtom.providers.default,
       yields = chooserYields,
       listKeys = chooserListKeys,
-      swiftc = sharedDepsScope.path("swiftc"),
+      swiftc = sharedDepsScope.path("swiftc-clt"),
       dir = atoms.storage.cacheDir("swiftchooser"),
       log = log,
     })
@@ -1660,15 +1660,19 @@ function obj.run(olm, cfg)
     for _, spec in ipairs(leaderSpecs) do
       if spec.held then heldLeaderNames[spec.name] = true end
     end
-    -- A list chord opening with no held leader belongs to the open list's own field, which the
-    -- default chooser answers, so it is checked against what that field already reads.
-    local defaultProvider = chooserAtom.providers and chooserAtom.providers.default
+    -- A list chord opening with no held leader belongs to the open list's own field, so it is
+    -- checked against what that field already reads, asked of the provider that serves, whose
+    -- field it is. The swift chooser answers for its native field, or for the default chooser
+    -- while that serves in its place. A provider with no answer of its own, legacy, is checked
+    -- against the default chooser's field as before.
+    local fieldProvider = (chooserProvider and chooserProvider.uses) and chooserProvider
+      or (chooserAtom.providers and chooserAtom.providers.default)
     local listProblems, listNotes = keymapLib.applyLists(plan.contexts, keymapConfig.lists, {
       listLeader = listLeaderName,
       heldLeaders = heldLeaderNames,
       modifierLeaders = modifierLeaderSets,
-      fieldUses = defaultProvider and defaultProvider.uses and function(key, mods)
-        return defaultProvider.uses(keyTable[key], mods)
+      fieldUses = fieldProvider and fieldProvider.uses and function(key, mods)
+        return fieldProvider.uses(keyTable[key], mods)
       end or nil,
       keycodes = keyTable,
       known = function(name) return listNames[name] == true end,

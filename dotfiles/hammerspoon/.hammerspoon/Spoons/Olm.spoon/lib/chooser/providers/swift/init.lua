@@ -11,8 +11,13 @@
 --- THE LIBRARY. lib/swiftbuild.lua compiles native/ into the cache directory configure is handed,
 --- named by a hash of every input and loaded with package.loadlib into Hammerspoon's own process.
 --- A loaded image is never unloaded, so the Swift module name carries the same hash and a rebuilt
---- image never collides with the old one. The compiler is the swiftc root/manifest.lua declares,
---- resolved through the dependency door and handed in, so this file names no path to it.
+--- image never collides with the old one. The compiler is the swiftc inside the command line
+--- tools, swiftc-clt in root/manifest.lua, resolved through the dependency door and handed in, so
+--- this file names no path to it. Before anything is built, lib/swiftbuild.lua's toolchain proves
+--- the tools are present the way src/install-xcode-clt.sh defines it, clang beside the compiler
+--- and an SDK for the running macOS, looking at the disk only, and the SDK it finds is handed to
+--- the compiler. Without them the default chooser serves and one line says why, and nothing is
+--- run, since running a compiler whose tools are missing raises Apple's install dialog.
 ---
 --- WHEN IT SERVES. The one shared picker is built once at startup, and a build takes a second or
 --- more, so the choice is made at configure time and never changes during a session. A library
@@ -32,6 +37,10 @@
 --- configured provider to serve when the library is not loaded, opts.yields and opts.listKeys,
 --- the same predicates the default provider is handed, and opts.swiftc, the resolved compiler,
 --- opts.dir, the cache directory, and opts.log, a logger with i and e. A dir starts the load.
+---
+--- M.uses(keyCode, mods) answers what the serving field already does with a chord, the native
+--- field's keys in fieldkeys.lua when the library is loaded and the fallback's own answer when it
+--- is not, so the root checks a person's list keys against the field that is really there.
 
 local herePath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local function load(relPath)
@@ -44,6 +53,7 @@ end
 
 local Engine = load("../../engine/init.lua")
 local SwiftView = load("view.lua")
+local fieldKeys = load("fieldkeys.lua")
 local swiftbuild = load("../../../swiftbuild.lua")
 
 -- The Swift sources and the bridging header, in the order the compiler is handed them.
@@ -61,9 +71,10 @@ local NATIVE = nil
 
 local M = {}
 
---- M.spec(opts) -> the lib/swiftbuild.lua spec for opts.dir, opts.swiftc and opts.frameworks, the
---- directory holding Hammerspoon's LuaSkin framework. The flags are the whole compile, so the
---- shell build that checks the sources and this provider's own build are the same command.
+--- M.spec(opts) -> the lib/swiftbuild.lua spec for opts.dir, opts.swiftc, opts.sdk, the SDK
+--- the toolchain check found, and opts.frameworks, the directory holding Hammerspoon's LuaSkin
+--- framework. The flags are the whole compile, so the shell build that checks the sources and
+--- this provider's own build are the same command.
 function M.spec(opts)
   local sources = {}
   for i, name in ipairs(SOURCES) do sources[i] = NATIVE_DIR .. name end
@@ -72,6 +83,7 @@ function M.spec(opts)
     inputs = { NATIVE_DIR .. HEADER },
     flags = {
       "-emit-library", "-O",
+      "-sdk", opts.sdk,
       "-module-name", "OlmSwiftChooser_{hash}",
       "-import-objc-header", NATIVE_DIR .. HEADER,
       "-F", opts.frameworks,
@@ -96,8 +108,14 @@ end
 -- synchronously by swiftbuild when the output exists, so the load happens inside configure.
 local function prepare(opts)
   local log = opts.log
+  local major = (hs.host.operatingSystemVersion() or {}).major
+  local sdk, missing = swiftbuild.toolchain(opts.swiftc, major)
+  if not sdk then
+    if log then log.i("swift chooser, " .. missing .. ", so the default chooser serves") end
+    return
+  end
   local inConfigure, answered = true, false
-  swiftbuild.ensure(M.spec({ dir = opts.dir, swiftc = opts.swiftc,
+  swiftbuild.ensure(M.spec({ dir = opts.dir, swiftc = opts.swiftc, sdk = sdk,
     frameworks = hs.processInfo.bundlePath .. "/Contents/Frameworks" }), function(ok, result)
     answered = true
     if not ok then
@@ -129,6 +147,12 @@ function M.configure(opts)
   SwiftView.configure({ ui = opts.ui, icon = opts.icon })
   if opts.dir ~= nil and not NATIVE then prepare(opts) end
   return M
+end
+
+function M.uses(keyCode, mods)
+  if NATIVE then return Engine.uses(keyCode, mods, fieldKeys.resolve) end
+  if FALLBACK and FALLBACK.uses then return FALLBACK.uses(keyCode, mods) end
+  return nil
 end
 
 --- M.serving() -> "swift" when the native library is loaded and every new builds through it,

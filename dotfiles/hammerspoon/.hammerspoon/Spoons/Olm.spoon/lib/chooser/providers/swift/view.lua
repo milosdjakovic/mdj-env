@@ -22,7 +22,10 @@
 ---
 --- A press outside the panel is reported with its point and decided here, against the same rects
 --- the canvas view tests, so a press inside the companion rect keeps the list and asks the panel
---- to take key again, and any other left press hides it.
+--- to take key again, and any other left press hides it. A scroll over the companion is claimed
+--- by a scroll wheel tap this view runs while it is started, the way the canvas view's mouse tap
+--- claims it, since an event monitor in Swift could only watch it go by and the window under the
+--- pointer would scroll too.
 ---
 --- View.configure(opts) takes opts.ui, the UI kit, and opts.icon, the icon resolver. View.attach
 --- (native) points the library's one callback at this file's dispatch. View.new(engine, native)
@@ -42,6 +45,7 @@ end
 -- which rows are on screen, to number them, and the geometry for the icon's padding in a row.
 local listModel = load("../default/list/model.lua")
 local geometry = load("../default/geometry.lua")
+local fieldKeys = load("fieldkeys.lua")
 
 -- The injected UI kit, read for the nested radius, nil until View.configure runs.
 local UI = nil
@@ -249,15 +253,51 @@ function View:show()
   self.native.show(self.id)
 end
 
---- View colon start, arity zero. The panel starts routing keys and watching for a press outside.
-function View:start()
-  self.native.start(self.id)
+-- The scroll deltas lib/chooser/providers/default/mouse.lua reads, the point delta for a
+-- trackpad and the line delta for a wheel.
+local function scrollDelta(ev)
+  local props = hs.eventtap.event.properties
+  local continuous = ev:getProperty(props.scrollWheelEventIsContinuous) ~= 0
+  if continuous then return ev:getProperty(props.scrollWheelEventPointDeltaAxis1) end
+  return ev:getProperty(props.scrollWheelEventDeltaAxis1)
 end
 
---- View colon stop, arity zero. Key routing and the outside watchers end. The native panel runs
---- no timer of its own, the caret blink being the system's.
+-- A scroll anywhere on screen, claimed and handed to the engine only over the companion rect, the
+-- canvas view's rule. Everywhere else it passes on untouched, the panel's own list included.
+function View:_onScroll(ev)
+  local rects = self.engine:scene().rects
+  if not pointInRect(ev:location(), rects and rects.companion) then return false end
+  local dy = scrollDelta(ev)
+  if not dy or dy == 0 then return false end
+  self.engine:companionScroll(-dy)
+  return true
+end
+
+--- View colon start, arity zero. The panel starts routing keys and watching for a press outside,
+--- and the scroll tap starts.
+function View:start()
+  self.native.start(self.id)
+  if not self._scrollTap then
+    self._scrollTap = hs.eventtap.new({ hs.eventtap.event.types.scrollWheel }, function(ev)
+      local ok, claimed = pcall(self._onScroll, self, ev)
+      if not ok then
+        print("Olm swift view, a companion scroll failed, " .. tostring(claimed))
+        return false
+      end
+      return claimed
+    end)
+    self._scrollTap:start()
+  end
+end
+
+--- View colon stop, arity zero. Key routing, the outside watchers and the scroll tap end. The
+--- native panel runs no timer of its own, the caret blink being the system's.
 function View:stop()
   self.native.stop(self.id)
+  if self._scrollTap then
+    self._scrollTap:stop()
+    self._scrollTap = nil
+  end
 end
 
 --- View colon stopScroll, arity zero. Nothing to stop, since the scrolling is the system's own and
@@ -293,14 +333,6 @@ function View:_pressOutside(x, y)
   self.engine:hide()
 end
 
--- A scroll outside the panel, handed on only when it is over the companion, as the canvas does.
-function View:_scrollOutside(x, y, dy)
-  local rects = self.engine:scene().rects
-  if pointInRect({ x = x, y = y }, rects and rects.companion) then
-    self.engine:companionScroll(-dy)
-  end
-end
-
 local handlers = {
   text = function(v, text) v.engine:fieldChanged(text or "") end,
   dismiss = function(v, data) v.engine:dismissKey(eventOf(data)) end,
@@ -328,7 +360,6 @@ local handlers = {
   end,
   toggleKeys = function(v) v.engine:toggleKeys() end,
   pressOutside = function(v, x, y) v:_pressOutside(x, y) end,
-  scrollOutside = function(v, x, y, dy) v:_scrollOutside(x, y, dy) end,
 }
 
 --------------------------------------------------------------------------------
@@ -367,6 +398,7 @@ function M.new(engine, native)
   local self = setmetatable({ engine = engine, native = native, _sentRows = nil }, View)
   self.id = native.new()
   views[self.id] = self
+  native.setFieldKeys(self.id, fieldKeys.controlKeys())
   return self
 end
 

@@ -49,12 +49,18 @@ return {
         origin = { macos = "ships with the system" } },
       -- Optional, because only the swift chooser runs it, and only where config/settings.lua
       -- chooses that provider. Without it the library is never built and the default chooser
-      -- serves, so nothing breaks. The command line tools put it there, which is the origin.
-      { name = "swiftc", kind = "system", locator = "/usr/bin/swiftc", policy = "optional",
+      -- serves, so nothing breaks. It is the compiler inside the command line tools rather than
+      -- /usr/bin/swiftc, because that one is a shim that exists without the tools and raises
+      -- Apple's install dialog when run, so a system probe of this path proves the tools are
+      -- there without running anything. lib/swiftbuild.lua's toolchain then checks the rest of
+      -- what src/install-xcode-clt.sh calls present, clang beside it and an SDK for this macOS.
+      { name = "swiftc-clt", kind = "system",
+        locator = "/Library/Developer/CommandLineTools/usr/bin/swiftc", policy = "optional",
         unit = "swiftchooser",
         reason = "compiling the native panel the swift chooser draws with, the default chooser " ..
                  "serving without it",
-        origin = { ["xcode-clt"] = "xcode-select --install" } },
+        origin = { ["xcode-clt"] = "installed by src/install-xcode-clt.sh, which makes sure the " ..
+                   "command line tools carry an SDK for the running macOS" } },
     },
   },
 }

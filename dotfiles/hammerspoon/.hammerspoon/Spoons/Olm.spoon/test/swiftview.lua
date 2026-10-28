@@ -10,6 +10,13 @@
 -- list and asking the panel to take key. And that the provider serves the fallback when the
 -- library is missing, while it builds, after a build in the same session, and when it fails.
 --
+-- And, after the review of 2026-10-28, that a missing command line tools directory, clang or SDK
+-- serves the fallback without running anything, that a finished build removes all but the
+-- newest three outputs, that the view hands the panel exactly the Control keys its field reads,
+-- that a scroll over the companion is claimed by the view's own tap and nowhere else, that uses
+-- answers for the field that serves, and that a loaded library's module table, which holds the
+-- sentinel whose __gc cleans up when the state closes, stays referenced for the session.
+--
 -- The key order itself runs in Swift, native/Panel.swift, so what this pins is that each step of
 -- it lands on the right engine call. The panel is measured live.
 --
@@ -33,7 +40,7 @@ end
 -- A fake hs, only what the engine, the view and the build reach for
 --------------------------------------------------------------------------------
 
-local files, tasks = {}, {}
+local files, tasks, dirs, taps = {}, {}, {}, {}
 
 -- A key event is described by its "bytes", the key code and the modifiers, which the fake
 -- newEventFromData turns back into an object answering what the engine asks of an event.
@@ -45,9 +52,21 @@ hs = {
   processInfo = { version = "1.0", bundlePath = "/Applications/Hammerspoon.app" },
   hash = { SHA256 = function(s) return ("%064x"):format(#s) end },
   fs = {
-    attributes = function(path) return files[path] and {} or nil end,
+    attributes = function(path, attr)
+      local f = files[path]
+      if not f then return nil end
+      if attr then return type(f) == "table" and f[attr] or 0 end
+      return {}
+    end,
     mkdir = function() return true end,
+    dir = function(path)
+      local list = dirs[path]
+      if not list then error("no such directory " .. path) end
+      local i = 0
+      return function() i = i + 1 return list[i] end, nil
+    end,
   },
+  host = { operatingSystemVersion = function() return { major = 27 } end },
   task = {
     new = function(_, callback, args)
       local t = { callback = callback, args = args }
@@ -67,8 +86,17 @@ hs = {
     end,
   },
   eventtap = {
+    new = function(types, fn)
+      local t = { types = types, fn = fn, running = false }
+      function t:start() self.running = true end
+      function t:stop() self.running = false end
+      taps[#taps + 1] = t
+      return t
+    end,
     event = {
-      properties = { keyboardEventAutorepeat = "autorepeat" },
+      types = { scrollWheel = "scrollWheel" },
+      properties = { keyboardEventAutorepeat = "autorepeat", scrollWheelEventIsContinuous = "continuous",
+        scrollWheelEventPointDeltaAxis1 = "point", scrollWheelEventDeltaAxis1 = "line" },
       newEventFromData = function(data)
         local parts = {}
         for p in data:gmatch("[^:]+") do parts[#parts + 1] = p end
@@ -133,6 +161,8 @@ function native.isVisible() return visible end
 function native.start() record("start") end
 function native.stop() record("stop") end
 function native.refocus() record("refocus") end
+local fieldKeysSent = nil
+function native.setFieldKeys(_, t) fieldKeysSent = t end
 
 local function since(mark)
   local out = {}
@@ -259,6 +289,38 @@ send("pressOutside", 1, 1)
 check("a press outside hides the list", picker:isActive(), false)
 check("every open closed once", closed, 4)
 
+-- The panel is handed the Control keys the canvas field keymap reads, A, E, B, F, D, H and K,
+-- and H alone as the one that stands for Backspace, so every other Control chord is a leftover.
+local sorted = {}
+for _, code in ipairs(fieldKeysSent and fieldKeysSent.control or {}) do sorted[#sorted + 1] = code end
+table.sort(sorted)
+check("the panel is handed exactly the field's Control keys", table.concat(sorted, ","), "0,2,3,4,11,14,40")
+check("Control and H stands for Backspace", table.concat(fieldKeysSent and fieldKeysSent.backspace or {}, ","), "4")
+
+-- A scroll over the companion is claimed by the view's own tap, which runs only while it is up.
+local function scrollEvent(x, y, dy)
+  return {
+    location = function() return { x = x, y = y } end,
+    getProperty = function(_, prop)
+      if prop == "continuous" then return 1 end
+      if prop == "point" then return dy end
+      return 0
+    end,
+  }
+end
+local companionScrolls = {}
+picker.config.onScroll = function(points) companionScrolls[#companionScrolls + 1] = points end
+picker:show()
+local tap = taps[#taps]
+check("a started view runs a scroll wheel tap", tap ~= nil and tap.running, true)
+check("the tap hears scroll wheel events only", tap and tap.types[1], "scrollWheel")
+check("a scroll over the companion is claimed", tap.fn(scrollEvent(companion.x + 5, companion.y + 5, 3)), true)
+check("and handed to the engine inverted", companionScrolls[1], -3)
+check("a scroll over the list is not claimed", tap.fn(scrollEvent(rects.list.x + 5, rects.list.y + 5, 3)), false)
+check("a zero scroll over the companion is not claimed", tap.fn(scrollEvent(companion.x + 5, companion.y + 5, 0)), false)
+picker:hide()
+check("a stopped view stops its scroll tap", tap.running, false)
+
 -- An unknown id or event answers false and does nothing.
 check("an unknown id is ignored", callback(99, "dismiss", keyData(53)), false)
 check("an unknown event is ignored", callback(7, "nonsense"), false)
@@ -267,47 +329,118 @@ check("an unknown event is ignored", callback(7, "nonsense"), false)
 -- The provider, serving the fallback whenever the library is not loaded
 --------------------------------------------------------------------------------
 
-local Provider = dofile(spoon .. "lib/chooser/providers/swift/init.lua")
 local lines = {}
 local log = {
   i = function(m) lines[#lines + 1] = "i " .. m end,
   e = function(m) lines[#lines + 1] = "e " .. m end,
 }
-local fallback = { new = function(config) return { fromFallback = true, config = config } end }
+local fallback = {
+  new = function(config) return { fromFallback = true, config = config } end,
+  uses = function() return "the canvas field's answer" end,
+}
 -- A directory that exists, the system's temporary one, so a finished build can be renamed in.
 local scratch = os.tmpname()
 os.remove(scratch)
 local dir = scratch:match("(.*)/")
+dirs[dir] = {}
+
+-- A command line tools directory with clang and SDKs, the way the toolchain check reads one.
+local CLT = "/CLT"
+local SWIFTC = CLT .. "/usr/bin/swiftc"
+dirs[CLT .. "/SDKs"] = { "MacOSX26.sdk", "MacOSX27.0.sdk", "MacOSX27.sdk" }
+
+local Provider = dofile(spoon .. "lib/chooser/providers/swift/init.lua")
 
 Provider.configure({ ui = UI, fallback = fallback, dir = dir, swiftc = nil, log = log })
 check("with no compiler the fallback serves", Provider.serving(), "fallback")
 check("new answers the fallback's instance", Provider.new({}).fromFallback, true)
-check("the missing compiler is said once", #lines, 1)
-check("as an error naming the fallback", lines[1]:match("^e swift chooser, the build failed") ~= nil, true)
+check("the missing tools are said once", #lines, 1)
+check("naming the default chooser", lines[1], "i swift chooser, no compiler inside the command line tools, so the default chooser serves")
+check("and nothing is run", #tasks, 0)
+check("uses answers for the fallback's field while it serves", Provider.uses(0, { "ctrl" }), "the canvas field's answer")
 
 lines = {}
-Provider.configure({ ui = UI, fallback = fallback, dir = dir, swiftc = "/usr/bin/swiftc", log = log })
+Provider.configure({ ui = UI, fallback = fallback, dir = dir, swiftc = SWIFTC, log = log })
+check("tools without clang serve the fallback", lines[1], "i swift chooser, the command line tools have no clang, so the default chooser serves")
+check("and run nothing", #tasks, 0)
+
+files[CLT .. "/usr/bin/clang"] = true
+dirs[CLT .. "/SDKs"] = { "MacOSX26.sdk" }
+lines = {}
+Provider.configure({ ui = UI, fallback = fallback, dir = dir, swiftc = SWIFTC, log = log })
+check("tools with no SDK for this macOS serve the fallback", lines[1], "i swift chooser, the command line tools have no macOS 27 SDK, so the default chooser serves")
+check("and still run nothing", #tasks, 0)
+
+dirs[CLT .. "/SDKs"] = { "MacOSX26.sdk", "MacOSX27.0.sdk", "MacOSX27.sdk" }
+lines = {}
+Provider.configure({ ui = UI, fallback = fallback, dir = dir, swiftc = SWIFTC, log = log })
 check("a missing library starts a build", #tasks, 1)
-check("the build runs the declared compiler", tasks[1] and tasks[1].args[1], "-emit-library")
+local args = tasks[1] and tasks[1].args or {}
+check("the build is handed the SDK the check found", args[3] == "-sdk" and args[4], CLT .. "/SDKs/MacOSX27.sdk")
 check("the fallback serves while it builds", Provider.serving(), "fallback")
 check("one line says the swift chooser takes over later",
   lines[1], "i swift chooser, building the library, the default chooser serves until the next reload")
 
--- The build finishing in this session does not switch providers under the shared picker.
+-- The build finishing in this session does not switch providers under the shared picker, and it
+-- leaves the newest three outputs of its name, itself among them.
 local output = tasks[1].args[#tasks[1].args]
+local built = output:gsub("%.building$", "")
+local builtName = built:match("[^/]+$")
+local olds = { "swiftchooser-aaaa.so", "swiftchooser-bbbb.so", "swiftchooser-cccc.so", "swiftchooser-dddd.so" }
+for i, name in ipairs(olds) do files[dir .. "/" .. name] = { modification = 100 + i } end
+dirs[dir] = { olds[1], olds[2], olds[3], olds[4], builtName, "other-eeee.so" }
+local removed = {}
+local realRemove = os.remove
+os.remove = function(path) removed[#removed + 1] = path:match("[^/]+$") return realRemove(path) end
 local handle = io.open(output, "w")
 if handle then handle:close() end
 tasks[1].callback(0, "", "")
-os.remove(output:gsub("%.building$", ""))
+os.remove = realRemove
+os.remove(built)
+table.sort(removed)
 check("a finished build is said", lines[2], "i swift chooser, the library is built and takes over from the next reload")
 check("the fallback still serves this session", Provider.serving(), "fallback")
+check("the build removes all but the newest three of its name",
+  table.concat(removed, ","), "swiftchooser-aaaa.so,swiftchooser-bbbb.so")
 
 -- A failed build says the compiler's error.
 lines = {}
-Provider.configure({ ui = UI, fallback = fallback, dir = dir, swiftc = "/usr/bin/swiftc", log = log })
+dirs[dir] = {}
+Provider.configure({ ui = UI, fallback = fallback, dir = dir, swiftc = SWIFTC, log = log })
 tasks[#tasks].callback(1, "", "Panel.swift:1: error: nope")
 check("a failed build says the compiler's error", lines[#lines]:match("error: nope") ~= nil, true)
 check("the fallback serves after a failed build", Provider.serving(), "fallback")
+
+-- A library already built is loaded at configure. Its module table carries the sentinel, here a
+-- table whose __gc stands in for the native one, and the provider keeps the table for the
+-- session, so a collection never finalizes it early and close the panels under an open list.
+local Loaded = dofile(spoon .. "lib/chooser/providers/swift/init.lua")
+local finalized = false
+local loadedNative = {}
+for k, v in pairs(native) do loadedNative[k] = v end
+loadedNative._sentinel = setmetatable({}, { __gc = function() finalized = true end })
+local realLoadlib = package.loadlib
+package.loadlib = function() return function() return loadedNative end end
+local spec = Loaded.spec({ dir = dir, swiftc = SWIFTC, sdk = CLT .. "/SDKs/MacOSX27.sdk",
+  frameworks = hs.processInfo.bundlePath .. "/Contents/Frameworks" })
+local present = dir .. "/swiftchooser-" .. dofile(spoon .. "lib/swiftbuild.lua").hash(spec) .. ".so"
+files[present] = true
+lines = {}
+local tasksBefore = #tasks
+Loaded.configure({ ui = UI, fallback = fallback, dir = dir, swiftc = SWIFTC, log = log })
+package.loadlib = realLoadlib
+loadedNative = nil
+collectgarbage("collect")
+collectgarbage("collect")
+check("a built library serves at once", Loaded.serving(), "swift")
+check("without a build", #tasks, tasksBefore)
+check("and without a line", #lines, 0)
+check("the module table and its sentinel live through a collection", finalized, false)
+local instance = Loaded.new({ rows = function() return {} end })
+check("new builds the engine over the native view", instance.view ~= nil and instance.fromFallback == nil, true)
+check("uses answers for the native field, Control and A", Loaded.uses(0, { "ctrl" }), "the field's own moveToStart")
+check("uses leaves Control and T free, the native field reads none", Loaded.uses(17, { "ctrl" }), nil)
+check("uses still answers the engine's own keys", Loaded.uses(53, {}), "Escape closes the list")
 
 if failed then
   print("swiftview, FAILED")

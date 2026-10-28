@@ -23,8 +23,11 @@ composed with `lib/chooser/providers/swift/view.lua`, a Humble Object over the l
 the one shared picker is built at startup. A library already built for the current sources is
 loaded then, and otherwise the build starts, the default provider serves the session and the
 swift provider takes over from the next reload, and a failed build serves default and logs the
-compiler's error. The compiler is `swiftc` declared in `root/manifest.lua` and resolved through
-the dependency door. The panel takes key itself, so the provider is handed no focus hold. The
+compiler's error. The compiler is the `swiftc` inside the command line tools, `swiftc-clt` in
+`root/manifest.lua`, resolved through the dependency door, and nothing is built or run unless
+clang and an SDK for the running macOS sit beside it, the definition `src/install-xcode-clt.sh`
+holds. A panel is torn down when the Lua state that made it closes, through a sentinel userdata's
+`__gc` in the library's module table. The panel takes key itself, so the provider is handed no focus hold. The
 bottom action bar, an anchored actions popover,
 an Olm menu on a round button at the bar's left edge, and a native docked pane are planned on
 top of it. Each one presents a model Olm already has, `footerModel`, ActionPanel's `rowsFor`,
@@ -163,3 +166,30 @@ error and no warning, the stub driven `test/swiftview.lua` passes, the dry gate 
 findings with every golden matching, and `check-dependencies.sh` passes with `swiftc` declared by
 the root. Not yet run live, so the glass, the key routing under a real field editor, the click
 outside with the companion, the hover and the scroll sync are all unmeasured.
+
+### 2026-10-28 11:30
+
+An adversarial review of 88306fd4 found six faults, all fixed the same hour, offline. One, high,
+`Entry.swift` and the Olm `AGENTS.md` both said `luaopen` cleans up after a reload, which was
+wrong, since a reload that switches
+the provider off, names a new image by a changed hash, or only builds never calls this image's
+`luaopen` again, which left a panel on screen as key with its monitors running and let the
+callback read an integer reference out of the new state's registry. The module table now holds a
+sentinel userdata whose `__gc` stops, hides and forgets every panel and the reference, guarded by
+a load generation so an old sentinel never clears a newer load, and a callback is refused unless
+the main Lua state is the one it was registered on. That `__gc` runs at a reload rests on two
+facts read offline, LuaSkin's `destroyLuaState` calls `lua_close` on the main state, read from its
+disassembly, and `lua_close` runs every pending finalizer, which plain Lua showed. It has not run
+in Hammerspoon yet. Two, a scroll over the companion reached the window under it as well, since a
+monitor cannot consume, so the Lua view now claims it with its own scroll wheel tap, as the canvas
+does, and the Swift path was removed. Three, `/usr/bin/swiftc` exists without the command line
+tools and raises Apple's dialog when run, so the root now declares `swiftc-clt`, the compiler
+inside the tools, mapped in `DEPENDENCIES.map`, and `swiftbuild.toolchain` checks clang and the
+SDK for the running macOS on disk before anything runs, handing that SDK to the compiler. The
+three plugins that compile Swift still declare `/usr/bin/swiftc` and carry the same exposure.
+Four, every Control chord reached Cocoa's bindings, Control and O putting a line break in the
+field, so only the Control keys the canvas keymap reads reach it, named in
+`providers/swift/fieldkeys.lua`, and the field's command filter lets through only the commands
+those produce. Five, the root checked list keys against the default field whatever served, so the
+provider now has its own `uses` and the root asks the one that serves. Six, old libraries were
+never removed, so a successful build now keeps the newest three of its name.

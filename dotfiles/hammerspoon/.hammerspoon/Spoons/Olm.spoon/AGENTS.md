@@ -606,14 +606,27 @@ the view contract's key order, asking Lua synchronously before its field edits, 
 over as its event's bytes, which `hs.eventtap.event.newEventFromData` turns back into the event the
 engine reads. A press outside the panel is heard by event monitors and decided in Lua against the
 canvas view's own rects, a press in the companion keeping the list and asking the panel for key
-again, and losing key never hides it.
+again, and losing key never hides it. A scroll over the companion is claimed by a scroll wheel tap
+the Lua view runs while it is up, as the canvas view's mouse tap claims it. Only the Control keys
+the canvas field keymap reads reach the native field, named once in `providers/swift/fieldkeys.lua`,
+and every other Control chord is a leftover, so Cocoa can never put a line break in the field. The
+provider's `uses` answers from the same file, and the root checks list keys against the provider
+that serves.
 
-It builds itself. `lib/swiftbuild.lua` compiles `native/` with `swiftc` into
-`~/.olm/cache/swiftchooser/`, the file and the Swift module named by a hash of every input, since a
-loaded image is never unloaded and a rebuild under the same name would never be seen, and
-`package.loadlib` loads it into Hammerspoon's own process. `luaopen` hides and forgets every panel a
-previous reload left in the image. `swiftc` is declared by `root/manifest.lua` and resolved through
-the dependency door. The provider decides once, at configure time, because the one shared picker is
+It builds itself. `lib/swiftbuild.lua` compiles `native/` with the `swiftc` inside the command line
+tools into `~/.olm/cache/swiftchooser/`, the file and the Swift module named by a hash of every
+input, since a loaded image is never unloaded and a rebuild under the same name would never be
+seen, and `package.loadlib` loads it into Hammerspoon's own process. A successful build removes all
+but the newest three libraries of the name. The compiler is `swiftc-clt` in `root/manifest.lua`,
+resolved through the dependency door, rather than `/usr/bin/swiftc`, a shim that raises Apple's
+install dialog when the tools are missing. Before anything runs, `swiftbuild.toolchain` checks what
+`src/install-xcode-clt.sh` calls present, clang beside the compiler and an SDK for the running
+macOS, on disk only, and without them the default chooser serves with one console line. A panel
+belongs to the Lua state that made it. The library's module table holds a sentinel userdata whose
+`__gc` stops, hides and forgets every panel and the callback when that state closes, which
+LuaSkin's `destroyLuaState` does with `lua_close` on every reload, whether or not the next state
+loads this library again, and a callback is refused whenever the main Lua state is not the one it
+was registered on. The provider decides once, at configure time, because the one shared picker is
 built at startup. A library already built for the current sources serves the session. Without one
 the build starts in the background, the default provider serves, one console line says the swift
 chooser takes over from the next reload, and a failed build or load serves default and logs the
