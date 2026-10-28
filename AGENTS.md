@@ -275,6 +275,13 @@ can be asked about Hammerspoon. It is bounded, since the reply can go missing, a
 that blocks forever is worse than one that says it could not answer. Every grant outcome is a
 warning and never an error, because a grant is a fact about one machine.
 
+A module whose running config embeds a language runtime ships a `runtime-probe` at its package
+root, found by name like the others. It takes no argument, prints one `runtime major.minor` line
+per runtime, and exits 2 when this machine cannot answer. The reconciler checks that the mise
+catalog holds a row for each, and an offline gate of that module resolves its interpreter from the
+probe's answer rather than from PATH. Hammerspoon embeds Lua, and `decisions/lua-version-align.md`
+has why.
+
 This layer's own setup scripts declare too, in `src/DEPENDENCIES`, because tools like
 stow and duti would otherwise be the one category nothing checks.
 

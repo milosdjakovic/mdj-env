@@ -59,6 +59,8 @@ compare() {
 }
 
 if [ "$mode" = "offline" ] || [ "$mode" = "fixture" ]; then
+  # Only the offline modes run Lua, the live ones ask Hammerspoon. See embedded-lua.sh.
+  . "$here/embedded-lua.sh"
   keymapFixture=""
   prefix=""
   if [ "$mode" = "fixture" ]; then
@@ -68,7 +70,7 @@ if [ "$mode" = "offline" ] || [ "$mode" = "fixture" ]; then
   fi
   for view in launcher sheets; do
     mkdir -p "$work/sb-$view"
-    DRYGATE_VIEWS="$view" DRYGATE_KEYMAP_FIXTURE="$keymapFixture" lua "$here/drygate-composerun.lua" "$spoon/" "$config" "$work/sb-$view" >"$work/$view.txt" 2>"$work/$view.err"
+    DRYGATE_VIEWS="$view" DRYGATE_KEYMAP_FIXTURE="$keymapFixture" "$OLM_LUA" "$here/drygate-composerun.lua" "$spoon/" "$config" "$work/sb-$view" >"$work/$view.txt" 2>"$work/$view.err"
     if [ ! -s "$work/$view.txt" ]; then
       echo "views.sh: the offline $view run wrote nothing" >&2
       grep -v '^log ' "$work/$view.err" | tail -5 >&2

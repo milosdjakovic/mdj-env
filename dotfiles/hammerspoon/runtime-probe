@@ -1,0 +1,58 @@
+#!/bin/bash
+set -uo pipefail
+
+# Answer for the language runtimes this module's running config embeds, which nothing but the
+# installed application can say.
+#
+# The contract with the layer above is the same small shape grants-probe has. It takes no
+# argument and prints one line per runtime this module embeds, the runtime name and then its
+# major and minor version, so `lua 5.4` today. The layer above checks that its catalog of
+# installed runtimes holds a row for each, which keeps every offline gate that runs this
+# module's code on the version that runs it live. A second module that embeds a runtime ships
+# its own runtime-probe at its package root in the same shape, and the layer above finds it by
+# name without knowing either module.
+#
+# Exit 0 with the lines. Exit 2 means this machine cannot answer right now, which is a machine
+# fact and a warning above, here an application that is not installed. Any other nonzero is a
+# defect in this file or in what it reads, identical on every machine, so it is an error above.
+#
+# Why it reads the application rather than a table written here. Hammerspoon compiles its Lua
+# into LuaSkin, so the version is a fact about the installed build and moves when the app is
+# updated. A number written into this repository would be a second copy that drifts, which is
+# how Homebrew's newer Lua once passed every offline gate for a config the app then refused to
+# load. decisions/lua-version-align.md has that.
+
+CANNOT_ANSWER_HERE=2
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+
+# The bundle id is read from this module's own declaration of the application, so it is written
+# once, the same way grants-probe finds it.
+bundle_id="$(awk -F'|' '/^[[:space:]]*#/ { next } { k = $2; gsub(/[[:space:]]/, "", k) } k == "app" { v = $3; gsub(/^[[:space:]]+|[[:space:]]+$/, "", v); print v; exit }' "$here/dependencies-module")"
+if [[ -z "$bundle_id" ]]; then
+    echo "runtime-probe: dependencies-module declares no application, so there is nothing to read" >&2
+    exit 1
+fi
+
+# Launch Services picks the copy a person would open, which is the installed one even where a
+# development build of the same bundle id sits elsewhere on disk.
+app="$(osascript -e "POSIX path of (path to application id \"$bundle_id\")" 2>/dev/null)"
+if [[ -z "$app" || ! -d "$app" ]]; then
+    echo "runtime-probe: $bundle_id is not installed, so the Lua it embeds cannot be read" >&2
+    exit $CANNOT_ANSWER_HERE
+fi
+
+binary="${app%/}/Contents/Frameworks/LuaSkin.framework/LuaSkin"
+if [[ ! -f "$binary" ]]; then
+    echo "runtime-probe: $app has no LuaSkin framework at the place this reads it from" >&2
+    exit 1
+fi
+
+banner="$(strings -a "$binary" 2>/dev/null | grep -m1 -oE 'LuaVersion: Lua [0-9]+\.[0-9]+' )"
+version="${banner##* }"
+if [[ ! "$version" =~ ^[0-9]+\.[0-9]+$ ]]; then
+    echo "runtime-probe: found no Lua version string inside $binary" >&2
+    exit 1
+fi
+
+echo "lua $version"

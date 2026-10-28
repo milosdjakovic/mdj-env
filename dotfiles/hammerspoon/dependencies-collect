@@ -47,6 +47,10 @@ fi
 # nonzero means the declarations themselves are wrong, which is a repository defect and identical
 # everywhere, so it is an error. Without that split a missing tool on one laptop reads as a broken
 # repository, which is exactly the confusion the two severities exist to prevent.
+#
+# This is plain lua from Homebrew on purpose and does not go through the version the offline gates
+# use. It runs on machines that have no mise, and reading a manifest into a list of lines is the
+# same on every Lua, so nothing here depends on matching the Lua Hammerspoon embeds.
 if ! command -v lua >/dev/null 2>&1; then
     echo "dependencies-collect: lua is not on PATH, and reading a manifest needs it." >&2
     echo "  It is declared in this module's DEPENDENCIES, so ./src/check-dependencies.sh" >&2

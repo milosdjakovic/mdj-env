@@ -104,6 +104,7 @@ plutil                   | macos     | ships with macOS
 activateSettings         | macos     | ships with macOS, inside the SystemAdministration private framework
 pbcopy                   | macos     | ships with macOS
 osascript                | macos     | ships with macOS
+strings                  | macos     | ships with macOS
 ps                       | macos     | ships with macOS
 kill                     | macos     | ships with macOS
 killall                  | macos     | ships with macOS

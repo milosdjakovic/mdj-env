@@ -35,3 +35,12 @@ accessibility | grant | accessibility | required | every leader key, every chord
 # module level rather than in any plugin, for the same reason lua is above, it belongs to this
 # module's own tooling and the running configuration never touches it.
 diff | system | /usr/bin/diff | optional | showing what moved when the inventory snapshot stops matching its golden file
+
+# The offline gates run the Lua that Hammerspoon embeds rather than whichever lua is on PATH, and
+# they find it through mise, see test/embedded-lua.sh in the Olm spoon. The runtime-probe beside
+# this file reads the version out of the installed application with strings and finds the
+# application through osascript, so those three are declared here too. All optional, since the
+# running configuration needs none of them and only the gates and the version check do.
+mise | path | mise | optional | finding the Lua interpreter of the version Hammerspoon embeds, which the offline gates run on
+strings | system | /usr/bin/strings | optional | reading the Lua version out of the installed Hammerspoon's LuaSkin framework
+osascript | system | /usr/bin/osascript | optional | finding the installed Hammerspoon by its bundle id, so the Lua version is read from the copy that runs

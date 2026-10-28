@@ -35,16 +35,10 @@ if [ "${1:-}" = "--strict" ]; then
   shift
 fi
 
-# lua is this spoon's own dependencies-collect.lua's own choice too, dotfiles/hammerspoon/
-# dependencies-module declares it, and DEPENDENCIES.map says where it comes from, so this
-# script names no new dependency, it reaches for the identical tool already on PATH for
-# that reason.
-if ! command -v lua >/dev/null 2>&1; then
-  echo "drygate.sh: lua is not on PATH. It is declared in the hammerspoon module's own" >&2
-  echo "  dependencies-module, so ./src/check-dependencies.sh names where it comes from" >&2
-  echo "  and setup.sh puts it there." >&2
-  exit 2
-fi
+# Lua is started through the helper, which resolves the interpreter of the version Hammerspoon
+# embeds and stops this gate with one message when this machine has none, see embedded-lua.sh.
+# It is exported, so the rename proof's nested run in drygate-rename.lua reads the same one.
+. "$here/embedded-lua.sh"
 
 manifests=()
 while IFS= read -r found; do
@@ -75,13 +69,13 @@ config="$(cd "$spoon/../.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 if [ -f "$config/init.lua" ] && cp -R "$spoon" "$work/Olm.spoon" && mkdir "$work/sandbox"; then
-  lua "$here/drygate-rename.lua" "$spoon/" "$config" "$work/Olm.spoon" "$work/sandbox" "${manifests[@]}" \
+  "$OLM_LUA" "$here/drygate-rename.lua" "$spoon/" "$config" "$work/Olm.spoon" "$work/sandbox" "${manifests[@]}" \
     >"$work/rename.txt" 2>&1
   DRYGATE_RENAMEPROOF="$work/rename.txt"
   export DRYGATE_RENAMEPROOF
 fi
 
-lua "$here/drygate.lua" "$spoon/" "${manifests[@]}"
+"$OLM_LUA" "$here/drygate.lua" "$spoon/" "${manifests[@]}"
 gate=$?
 
 # The offline goldens ride along last, see goldens.sh. They take a couple of seconds and no

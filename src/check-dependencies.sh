@@ -794,6 +794,82 @@ fi
 #-------------------------------------------------------------------------------
 
 say ""
+say "==> Runtimes a module embeds"
+
+# A module whose running config embeds a language runtime can run the offline checks of that
+# config on a different version of it, and a check run on the wrong version proves less than it
+# looks. Lua 5.4 refuses a function with more than 200 locals and 5.5 accepts it, so a change
+# passed every offline gate and then failed to load. The fix is that the checks run the version
+# the module embeds, and what this section guards is the other half, that the mise catalog has
+# a row for it.
+#
+# It names no module and no runtime. A module that embeds one ships a runtime-probe at its
+# package root, found by name here, which prints one line per runtime, the runtime's mise tool
+# name and then its major and minor version, and exits 0, or exits 2 when this machine cannot
+# answer. For each line the catalog must hold a row whose mise tool is that runtime and whose
+# version is that major and minor. A missing or different row is an error, since the catalog is
+# the same on every machine, and a probe that cannot answer is a warning, since it is a fact
+# about one machine. Any other exit from a probe is a repository defect.
+runtimes_bad=0
+runtimes_seen=0
+while IFS= read -r prober; do
+    module="$(basename "$(dirname "$prober")")"
+    module_off "$module" && continue
+    complaint="$(mktemp)"
+    embedded="$("$prober" 2>"$complaint")"
+    status=$?
+    case "$status" in
+        0) ;;
+        "$CANNOT_RUN_HERE")
+            warn "$module could not report the runtimes it embeds on this machine"
+            while IFS= read -r detail_line; do say "         $detail_line"; done <"$complaint"
+            rm -f "$complaint"
+            runtimes_bad=$((runtimes_bad + 1))
+            continue
+            ;;
+        *)
+            err "$module/runtime-probe exited $status, which is outside its contract"
+            while IFS= read -r detail_line; do say "         $detail_line"; done <"$complaint"
+            rm -f "$complaint"
+            runtimes_bad=$((runtimes_bad + 1))
+            continue
+            ;;
+    esac
+    rm -f "$complaint"
+    while read -r runtime version; do
+        [[ -z "$runtime" ]] && continue
+        runtimes_seen=$((runtimes_seen + 1))
+        rows="$(awk -F'|' -v t="$runtime" '
+            { sub(/#.*/, "") }
+            NF < 4 { next }
+            { for (i = 1; i <= 3; i++) gsub(/^[ \t]+|[ \t]+$/, "", $i) }
+            $2 == t { print $1 " " $3 }
+        ' "$ROOT/dotfiles/mise/TOOLS")"
+        if ! awk -v v="$version" '$2 == v { found = 1 } END { exit !found }' <<< "$rows"; then
+            have="no row for $runtime"
+            [[ -n "$rows" ]] && have="rows $(tr '\n' ',' <<< "$rows" | sed 's/,$//; s/ /@/g; s/,/, /g')"
+            err "$module embeds $runtime $version, and dotfiles/mise/TOOLS has $have, so its offline checks cannot run on the version it runs. Add a row for $runtime $version"
+            runtimes_bad=$((runtimes_bad + 1))
+        fi
+    done <<< "$embedded"
+done < <(find "$DOTFILES" -maxdepth 2 -name runtime-probe -type f | sort)
+
+for repo_only in runtime-probe; do
+    while IFS= read -r file; do
+        package="$(dirname "$file")"
+        if ! grep -qx "$repo_only" "$package/.stow-local-ignore" 2>/dev/null; then
+            err "$(basename "$package")/$repo_only is not listed in its .stow-local-ignore, so stow would link it into the home directory"
+            runtimes_bad=$((runtimes_bad + 1))
+        fi
+    done < <(find "$DOTFILES" -maxdepth 2 -name "$repo_only" -type f | sort)
+done
+if [[ $runtimes_seen -eq 0 && $runtimes_bad -eq 0 ]]; then
+    say "  no module embeds a runtime"
+elif [[ $runtimes_bad -eq 0 ]]; then
+    say "  every embedded runtime has a row in the mise catalog"
+fi
+
+say ""
 say "==> Config the running tools actually use"
 
 # A linked config can be exactly right and still lose, when the tool also reads a file stow

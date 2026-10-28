@@ -72,12 +72,16 @@ case "${1:-}" in
   *) echo "keys.sh: unknown argument $1" >&2; exit 2 ;;
 esac
 
+# Every mode but the live ones runs Lua, so those resolve the interpreter of the version
+# Hammerspoon embeds first, see embedded-lua.sh.
+case "$mode" in diff|update|out) ;; *) . "$here/embedded-lua.sh" ;; esac
+
 # The bound modes, see drygate-composerun.lua's own header. Each run needs a sandbox of its own.
 record_bound() {
   local spoonDir="$1" what="$2" into="$3" keymapFixture="${4:-}" config sb
   config="$(cd "$here/../../.." && pwd)"
   sb="$(mktemp -d)"
-  DRYGATE_BINDS="$what" DRYGATE_KEYMAP_FIXTURE="$keymapFixture" lua "$here/drygate-composerun.lua" "$spoonDir/" "$config" "$sb" >"$into" 2>"$into.err"
+  DRYGATE_BINDS="$what" DRYGATE_KEYMAP_FIXTURE="$keymapFixture" "$OLM_LUA" "$here/drygate-composerun.lua" "$spoonDir/" "$config" "$sb" >"$into" 2>"$into.err"
   local status=$?
   rm -rf "$sb"
   return $status
@@ -143,7 +147,7 @@ if [ "$mode" = "offline" ]; then
   config="$(cd "$spoon/../.." && pwd)"
   work="$(mktemp -d)"
   trap 'rm -rf "$work"' EXIT
-  DRYGATE_KEYMAP=1 lua "$here/drygate-composerun.lua" "$spoon/" "$config" "$work" >"$work/keymap.txt" 2>"$work/err.txt"
+  DRYGATE_KEYMAP=1 "$OLM_LUA" "$here/drygate-composerun.lua" "$spoon/" "$config" "$work" >"$work/keymap.txt" 2>"$work/err.txt"
   if [ ! -s "$work/keymap.txt" ]; then
     echo "keys.sh: the offline run wrote nothing" >&2
     tail -5 "$work/err.txt" >&2

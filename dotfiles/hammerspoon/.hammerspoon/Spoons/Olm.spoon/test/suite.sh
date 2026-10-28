@@ -39,25 +39,22 @@ tiers="${1:-all}"
 # every run and therefore never checks at all.
 if [ "$tiers" = "dry" ]; then
   shift
-  if ! command -v lua >/dev/null 2>&1; then
-    echo "suite.sh: lua is not on PATH, see drygate.sh for where it comes from" >&2
-    exit 2
-  fi
-  lua "$here/ranking.lua" || exit 1
-  lua "$here/geometry.lua" || exit 1
-  lua "$here/icons.lua" || exit 1
-  lua "$here/leaders.lua" || exit 1
-  lua "$here/chordkey.lua" || exit 1
-  lua "$here/keyremap.lua" || exit 1
-  lua "$here/keymap.lua" || exit 1
-  lua "$here/keymap-person.lua" || exit 1
-  lua "$here/leadersheet.lua" || exit 1
-  lua "$here/systemsettings.lua" || exit 1
-  lua "$here/rootmechanism.lua" || exit 1
-  lua "$here/keypage.lua" || exit 1
-  lua "$here/securefocus.lua" || exit 1
-  lua "$here/securenotice.lua" || exit 1
-  lua "$here/swiftview.lua" || exit 1
+  . "$here/embedded-lua.sh"
+  "$OLM_LUA" "$here/ranking.lua" || exit 1
+  "$OLM_LUA" "$here/geometry.lua" || exit 1
+  "$OLM_LUA" "$here/icons.lua" || exit 1
+  "$OLM_LUA" "$here/leaders.lua" || exit 1
+  "$OLM_LUA" "$here/chordkey.lua" || exit 1
+  "$OLM_LUA" "$here/keyremap.lua" || exit 1
+  "$OLM_LUA" "$here/keymap.lua" || exit 1
+  "$OLM_LUA" "$here/keymap-person.lua" || exit 1
+  "$OLM_LUA" "$here/leadersheet.lua" || exit 1
+  "$OLM_LUA" "$here/systemsettings.lua" || exit 1
+  "$OLM_LUA" "$here/rootmechanism.lua" || exit 1
+  "$OLM_LUA" "$here/keypage.lua" || exit 1
+  "$OLM_LUA" "$here/securefocus.lua" || exit 1
+  "$OLM_LUA" "$here/securenotice.lua" || exit 1
+  "$OLM_LUA" "$here/swiftview.lua" || exit 1
   echo
   exec "$here/drygate.sh" "$@"
 fi

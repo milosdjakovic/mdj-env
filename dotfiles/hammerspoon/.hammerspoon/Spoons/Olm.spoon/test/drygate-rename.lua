@@ -71,7 +71,11 @@ local function cipher(word, shift)
 end
 
 local function run(dir, mapPath)
-  local cmd = string.format("lua %q %q %q %q %q", scriptDir .. "drygate-composerun.lua", dir, hsRoot, sandbox, mapPath or "")
+  -- The interpreter comes from the gate that started this run, see embedded-lua.sh, so the nested
+  -- run uses the same Lua and this file names no version.
+  local lua = os.getenv("OLM_LUA")
+  if not lua or lua == "" then error("drygate-rename.lua: OLM_LUA is not set, run it through drygate.sh", 0) end
+  local cmd = string.format("%q %q %q %q %q %q", lua, scriptDir .. "drygate-composerun.lua", dir, hsRoot, sandbox, mapPath or "")
   return io.popen(cmd)
 end
 

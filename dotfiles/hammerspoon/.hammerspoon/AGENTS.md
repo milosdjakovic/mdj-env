@@ -530,6 +530,16 @@ ignore them. Fifteen had piled up across five commits by October 2026, two of th
 crashes that hid every check after them. It cannot join the Olm dry gate, which runs
 with no Hammerspoon, so it is a rule to follow rather than a gate that enforces it.
 
+**Offline gates run the Lua Hammerspoon embeds, through the helper.** Hammerspoon compiles its
+own Lua, and one on PATH can differ. Lua 5.4 refuses a function with more than 200 locals and
+5.5 accepts it, so a change once passed every offline gate and then failed to load. Every gate
+sources `Spoons/Olm.spoon/test/embedded-lua.sh` and starts Lua as `"$OLM_LUA"`, never as `lua`
+or `luac`, and names no version. The helper asks `runtime-probe` at this package root, which
+reads the version from the installed app, and resolves the interpreter through mise from the
+`lua5.4` row of `dotfiles/mise/TOOLS`. When Hammerspoon's Lua moves, that row moves with it,
+and `src/check-dependencies.sh` reports the disagreement. `dependencies-collect` is the one
+exception and stays on Homebrew's lua. `decisions/lua-version-align.md` has it.
+
 **Testing a change in an isolated worktree, and the test lock.** There is only
 one Hammerspoon app on the machine, with one config directory and one set of
 global event taps, so only one config can be live at a time. Editing files
