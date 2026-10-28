@@ -417,3 +417,16 @@ Escape. Milos reported all of it working. A logger meant to record each case sto
 four minute window before the cases were run, so the record of these two is his report and not a
 log, and a later doubt about either should start by running them again with the logger, which
 keeps no window at all next time.
+
+### 2026-10-28 15:03
+
+Live on a Retina built in display, every row icon of the swift chooser was half size and sat
+towards the bottom left, while the same icons were correct on a 1x external display. The cause was
+the order in Crisp.image. It made the graphics context from the bitmap rep and only then set the
+rep's size in points, and a context made from a rep still sized in pixels measures its user space
+in pixels, while the drawing rect is computed in points. At scale 2 that draws a quarter of the
+area. The size now goes on before the context is made. Pane.swift and Bar.swift were checked and
+make no bitmap context of their own, since the pane draws into its view's current context and the
+bar goes through Crisp.image. A check in swiftpane.swift draws a full bleed opaque square at
+scales 2 and 1 and asserts every pixel is opaque. It failed with the old order, 400 of 1600 pixels
+at scale 2, and passes with the fix.

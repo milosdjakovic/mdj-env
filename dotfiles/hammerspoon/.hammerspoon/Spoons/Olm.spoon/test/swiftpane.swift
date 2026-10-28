@@ -136,6 +136,28 @@ check("an icon is drawn at the pixels its box covers", rep?.pixelsWide == 40 && 
 check("and sized in points", crisp.size == NSSize(width: 20, height: 20))
 check("a template stays a template", crisp.isTemplate)
 
+// A full bleed opaque square must cover the whole bitmap at either scale. Drawn through a context
+// made before the rep had its size in points, it covered a quarter of it at scale 2.
+func coverage(scale: CGFloat) -> (opaque: Int, total: Int) {
+  let square = NSImage(size: NSSize(width: 72, height: 72), flipped: false) { rect in
+    red.setFill()
+    rect.fill()
+    return true
+  }
+  let image = Crisp.image(square, size: NSSize(width: 20, height: 20), scale: scale)
+  guard let bits = image.representations.first as? NSBitmapImageRep else { return (0, 0) }
+  var opaque = 0
+  for y in 0..<bits.pixelsHigh {
+    for x in 0..<bits.pixelsWide where (bits.colorAt(x: x, y: y)?.alphaComponent ?? 0) > 0.99 { opaque += 1 }
+  }
+  return (opaque, bits.pixelsWide * bits.pixelsHigh)
+}
+for scale in [CGFloat(2), CGFloat(1)] {
+  let c = coverage(scale: scale)
+  check("a full bleed square covers the whole bitmap at scale \(Int(scale))", c.total > 0 && c.opaque == c.total,
+    "\(c.opaque) of \(c.total) pixels")
+}
+
 if failed {
   print("swiftpane, FAILED")
   exit(1)

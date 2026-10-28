@@ -41,10 +41,13 @@ enum Crisp {
       let blank = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: w, pixelsHigh: h,
         bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
         colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
-      let rep = blank.retagging(with: .sRGB),
-      let context = NSGraphicsContext(bitmapImageRep: rep)
+      let rep = blank.retagging(with: .sRGB)
     else { return source }
+    // The size in points goes on before the context is made, since a context reads its user space
+    // from the rep's size then, and a rep still sized in pixels draws a point rect at half size
+    // towards the bottom left at scale 2.
     rep.size = size
+    guard let context = NSGraphicsContext(bitmapImageRep: rep) else { return source }
     let fit = min(size.width / source.size.width, size.height / source.size.height)
     func pixel(_ value: CGFloat) -> CGFloat { (value * scale).rounded() / scale }
     let dw = pixel(source.size.width * fit), dh = pixel(source.size.height * fit)
