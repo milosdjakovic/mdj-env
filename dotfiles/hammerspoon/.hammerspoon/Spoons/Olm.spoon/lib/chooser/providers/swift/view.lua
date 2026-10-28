@@ -20,11 +20,11 @@
 --- event, which hs.eventtap.event.newEventFromData turns back into the event the engine reads,
 --- its key code, its flags and its autorepeat bit, the same object a tap would have handed it.
 ---
---- A press outside the panel, or in the clear gap between the list's glass and the docked pane's
---- in the one window that holds both, is reported with its point and decided here, against the
---- same rects the canvas view tests, so a press inside the companion rect keeps the list and asks
---- the panel to take key again, and any other left press hides it, the gap included, as the
---- canvas hides for a press there. A scroll over the companion is claimed
+--- A press outside the panel is reported with its point and decided here, against the engine's
+--- rects. A press inside the companion rect, or in the gap between it and the canvas, keeps the
+--- list and asks the panel to take key again, and any other left press hides it. The gap is
+--- inside on purpose, since with a companion the panel's one shape of glass spans it, which is
+--- the one place this differs from the canvas view. A scroll over the companion is claimed
 --- by a scroll wheel tap this view runs while it is started, the way the canvas view's mouse tap
 --- claims it, since an event monitor in Swift could only watch it go by and the window under the
 --- pointer would scroll too.
@@ -85,18 +85,31 @@ local function toLocal(rect, origin)
   return { x = rect.x - origin.x, y = rect.y - origin.y, w = rect.w, h = rect.h }
 end
 
--- The window the panel stands in, spanning the canvas rect and the companion rect when there is
--- one, and where the list's glass and the docked pane's glass sit inside it, in the window's own
--- space with y measured down. The gap between the two is the engine's, left clear.
-local function windowRects(canvas, companion)
-  if not companion then
-    return canvas, { x = 0, y = 0, w = canvas.w, h = canvas.h }, nil
-  end
+-- The span from the canvas rect to the companion rect, the gap between them included, or nil
+-- with no companion.
+local function spanOf(canvas, companion)
+  if not (canvas and companion) then return nil end
   local x0, y0 = math.min(canvas.x, companion.x), math.min(canvas.y, companion.y)
   local x1 = math.max(canvas.x + canvas.w, companion.x + companion.w)
   local y1 = math.max(canvas.y + canvas.h, companion.y + companion.h)
-  local window = { x = x0, y = y0, w = x1 - x0, h = y1 - y0 }
-  return window, toLocal(canvas, window), toLocal(companion, window)
+  return { x = x0, y = y0, w = x1 - x0, h = y1 - y0 }
+end
+
+-- The window the panel stands in, the canvas rect alone or the span to the companion, and where
+-- the list's content, the docked pane's region and the hairline divider sit inside it, in the
+-- window's own space with y measured down. The divider is width points wide, centred in the gap
+-- between the two, from the top of the window to the bottom.
+local function windowRects(canvas, companion, width)
+  local window = spanOf(canvas, companion)
+  if not window then
+    return canvas, { x = 0, y = 0, w = canvas.w, h = canvas.h }, nil, nil
+  end
+  local list, pane = toLocal(canvas, window), toLocal(companion, window)
+  local left, right
+  if pane.x >= list.x + list.w then left, right = list.x + list.w, pane.x
+  else left, right = pane.x + pane.w, list.x end
+  local divider = { x = (left + right - width) / 2, y = 0, w = width, h = window.h }
+  return window, list, pane, divider
 end
 
 local function font(name, size)
@@ -139,6 +152,7 @@ function View:restyle()
     background = T.colors.background,
     caption = T.colors[text.caption.color],
     badge = T.colors[text.section.color],
+    divider = T.colors.border,
     fieldFont = font(face.fieldFont, face.fieldSize),
     titleFont = font(face.font, face.textSize),
     subFont = font(face.subFont, face.subSize),
@@ -150,9 +164,10 @@ function View:restyle()
   })
 end
 
---- View colon place, arity one. The list's glass goes exactly on rects.canvas and the docked
---- pane's glass on rects.companion, both in one window that spans the two, or the canvas rect
---- alone when there is no companion. The field, the list and the bar go on the engine's own rects
+--- View colon place, arity one. With a companion the panel's one shape of glass spans
+--- rects.canvas, the gap and rects.companion, the list's content on the canvas rect, the docked
+--- pane's region on the companion and a hairline of the kit's border width in the middle of the
+--- gap, and with none it is the canvas rect alone. The field, the list and the bar go on the engine's own rects
 --- inside the canvas, in the canvas's own space as before, with the row metrics of the layout the
 --- list is drawn to. The companion is handed over in screen space too, since a docked pane is
 --- matched to this panel on it.
@@ -161,12 +176,14 @@ function View:place(rects)
   local L, T = s.drawLayout, s.tokens
   local origin = rects.canvas
   local iconPad, iconPadLeft = geometry.iconPad(L)
-  local window, listFrame, paneFrame = windowRects(rects.canvas, rects.companion)
+  local window, listFrame, paneFrame, dividerFrame = windowRects(rects.canvas, rects.companion,
+    T.stroke.border)
   self.native.place(self.id, {
     canvas = rects.canvas,
     window = window,
     listFrame = listFrame,
     paneFrame = paneFrame,
+    dividerFrame = dividerFrame,
     companion = rects.companion,
     field = toLocal(rects.field, origin),
     list = toLocal(rects.list, origin),
@@ -343,14 +360,16 @@ end
 -- Events from the panel, each one engine call
 --------------------------------------------------------------------------------
 
--- A left press outside the panel. Inside the companion rect it keeps the list up and gives the
--- panel key again, since the press may have taken it, and anywhere else it hides the list, the
--- canvas view's rule.
+-- A left press outside the panel. Inside the companion rect, or in the gap between it and the
+-- canvas, which is glass of this panel's own window, it keeps the list up and gives the panel key
+-- again, since the press may have taken it, and anywhere else it hides the list. The gap is
+-- inside only while there is a companion, and only here, since the canvas view draws nothing
+-- there and still hides for a press in it.
 function View:_pressOutside(x, y)
   local rects = self.engine:scene().rects
   local point = { x = x, y = y }
   if pointInRect(point, rects and rects.canvas) then return end
-  if pointInRect(point, rects and rects.companion) then
+  if pointInRect(point, rects and spanOf(rects.canvas, rects.companion)) then
     self.native.refocus(self.id)
     return
   end

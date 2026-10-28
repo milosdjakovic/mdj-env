@@ -1,8 +1,8 @@
 // The surfaces this library draws on, built in one place. Surface is one shape of glass, the
-// docked pane's own when it stands alone. SharedSurface is the chooser panel's window content, a
-// glass container holding the list's shape and the docked pane's shape side by side, so macOS
-// samples and renders the two as one material and they read as one surface. ScreenSpace is the
-// one conversion between Hammerspoon's screen space and AppKit's.
+// docked pane's own when it stands alone. SharedSurface is the chooser panel's window content,
+// one shape of glass under the list and, when there is one, the docked pane beside it, so the two
+// are one surface. ScreenSpace is the one conversion between Hammerspoon's screen space and
+// AppKit's.
 
 import Cocoa
 
@@ -74,55 +74,75 @@ enum ScreenSpace {
   }
 }
 
-// The chooser panel's window content. The window spans the list's rect and, when there is one,
-// the companion's, and holds two shapes, the list's and the pane's, with the engine's gap between
-// them clear. They sit in one NSGlassEffectContainerView, which renders its descendant glass as
-// one batch and merges shapes only within its spacing. The spacing is zero, the header's own
-// default, which batches them without merging, so the two stay two shapes with the gap between
-// them. The rects come from the Lua view already in the window's own space, y measured down.
+// The chooser panel's window content, one shape of glass at the surface radius. With no
+// companion it is the canvas rect, the list's shape alone. With one, the window and the glass
+// span the canvas rect, the engine's gap and the companion rect, the list's content sits at the
+// canvas rect inside it, the docked pane's view at the companion rect, and a hairline divider
+// stands in the middle of the gap from top to bottom. One shape rather than two because two
+// shapes side by side each shade their edges and cast their shadow where they meet, which read
+// as a dark band in the gap. The rects come from the Lua view already in the window's own space,
+// y measured down.
 final class SharedSurface {
-  let view: NSView
-  let list: Surface
-  let pane: Surface
+  private let glass: Surface
   private let stage = FlippedView()
-  // What the pane's shape holds while no docked pane is in it.
-  private let vacant = NSView()
+  private let list: NSView
+  private let paneSlot = FlippedView()
+  private let divider = DividerView()
 
-  var name: String { list.name }
+  var view: NSView { glass.view }
+  var name: String { glass.name }
 
   init(list content: NSView) {
-    list = Surface(holding: content)
-    pane = Surface(holding: vacant)
-    stage.addSubview(list.view)
-    stage.addSubview(pane.view)
-    pane.view.isHidden = true
-    if #available(macOS 26.0, *) {
-      let container = NSGlassEffectContainerView()
-      container.spacing = 0
-      container.contentView = stage
-      view = container
-    } else {
-      view = stage
-    }
+    list = content
+    stage.addSubview(content)
+    stage.addSubview(paneSlot)
+    stage.addSubview(divider)
+    paneSlot.isHidden = true
+    divider.isHidden = true
+    glass = Surface(holding: stage)
   }
 
-  // Lays the two shapes out in a window of size, the pane's shown only when there is a rect for
-  // it and a docked pane in it.
-  func layout(size: NSSize, list listRect: NSRect, pane paneRect: NSRect?, paneShown: Bool) {
+  func setCornerRadius(_ radius: CGFloat) { glass.setCornerRadius(radius) }
+
+  func setDividerColor(_ color: NSColor) {
+    divider.color = color
+    divider.needsDisplay = true
+  }
+
+  // Lays the content out in a window of size. The pane's region shows only when there is a rect
+  // for it and a docked pane in it, and the divider whenever there is a rect for it.
+  func layout(size: NSSize, list listRect: NSRect, pane paneRect: NSRect?, divider dividerRect: NSRect?,
+    paneShown: Bool) {
     stage.frame = NSRect(origin: .zero, size: size)
-    list.view.frame = listRect
-    pane.view.frame = paneRect ?? .zero
-    pane.view.isHidden = paneRect == nil || !paneShown
+    list.frame = listRect
+    paneSlot.frame = paneRect ?? .zero
+    paneSlot.isHidden = paneRect == nil || !paneShown
+    divider.frame = dividerRect ?? .zero
+    divider.isHidden = dividerRect == nil
   }
 
-  // Whether a point in the window's own space lands on a shape rather than in the clear gap.
-  func covers(_ point: NSPoint) -> Bool {
-    let local = stage.convert(point, from: nil)
-    if list.view.frame.contains(local) { return true }
-    return !pane.view.isHidden && pane.view.frame.contains(local)
+  // A docked pane's view goes into the pane's region in place of whatever was there.
+  func holdPane(_ content: NSView) {
+    for old in paneSlot.subviews where old !== content { old.removeFromSuperview() }
+    if content.superview !== paneSlot {
+      content.removeFromSuperview()
+      paneSlot.addSubview(content)
+    }
+    content.frame = paneSlot.bounds
+    content.autoresizingMask = [.width, .height]
   }
 
-  func holdPane(_ content: NSView) { pane.hold(content) }
+  func vacatePane() {
+    for old in paneSlot.subviews { old.removeFromSuperview() }
+  }
+}
 
-  func vacatePane() { pane.hold(vacant) }
+// The hairline between the list and the pane, filled with the kit's border colour.
+final class DividerView: NSView {
+  var color = NSColor.separatorColor
+
+  override func draw(_ dirtyRect: NSRect) {
+    color.setFill()
+    bounds.fill()
+  }
 }

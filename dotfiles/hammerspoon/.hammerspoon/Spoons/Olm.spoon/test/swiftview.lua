@@ -7,7 +7,9 @@
 -- dismiss hiding, yields and listKey answering what the engine answers, an empty backspace asking
 -- back, a leftover Down moving the highlight and a leftover Return choosing, a hover highlighting,
 -- a press and release choosing, a press outside hiding and a press in the companion keeping the
--- list and asking the panel to take key. And that the provider serves the fallback when the
+-- list and asking the panel to take key, a press in the gap before it too while there is one,
+-- with the window spanning both and a hairline of the kit's border centred in the gap. And that
+-- the provider serves the fallback when the
 -- library is missing, while it builds, after a build in the same session, and when it fails,
 -- and offers the docked pane's native backend only once its library is loaded.
 --
@@ -125,11 +127,12 @@ local UI = {
   tokens = function()
     return {
       colors = { foreground = color(0.9), subtext = color(0.6), highlight = color(0.3),
-        background = color(0.1) },
+        background = color(0.1), border = color(0.45) },
       text = { title = role("foreground"), body = role("foreground"), caption = role("subtext"),
         section = role("subtext") },
       alpha = { dim = 0.4 },
       radius = { surface = 12 },
+      stroke = { border = 1 },
       space = { s = 6, l = 14 },
       pad = 14,
       inset = { x = 14, y = 10 },
@@ -149,7 +152,8 @@ local native = {}
 local function record(name) calls[#calls + 1] = name end
 function native.setCallback(fn) callback = fn end
 function native.new() return 7 end
-function native.style() record("style") end
+local lastStyle = nil
+function native.style(_, t) record("style"); lastStyle = t end
 function native.place(_, t) record("place"); lastPlace = t end
 function native.setRows(_, rows) record("setRows"); lastRows = rows end
 function native.update(_, t) record("update"); lastUpdate = t end
@@ -229,6 +233,13 @@ check("the pane's glass is the companion rect in the window, past the gap",
   lastPlace.paneFrame.x, rects.canvas.w + gap)
 check("the companion travels in screen space, for a pane to be matched on", lastPlace.companion,
   rects.companion)
+-- A hairline of the kit's border width, centred in the gap, from the top of the window to the
+-- bottom, in the kit's border colour.
+check("the divider is the kit's border width", lastPlace.dividerFrame.w, 1)
+check("the divider is centred in the gap", lastPlace.dividerFrame.x, rects.canvas.w + (gap - 1) / 2)
+check("the divider runs from the top", lastPlace.dividerFrame.y, 0)
+check("to the bottom", lastPlace.dividerFrame.h, lastPlace.window.h)
+check("the divider is the kit's border colour", lastStyle.divider.red, 0.45)
 check("every row is sent", #lastRows, 4)
 check("a row's subtitle travels as a string", lastRows[2].subtitle, "sub beta")
 check("the highlight starts on row one", lastUpdate.highlight, 1)
@@ -286,19 +297,28 @@ check("choosing tears down, input stopped before the panel hides", since(mark), 
 check("onClose fires once", closed, 1)
 check("the list is down", picker:isActive(), false)
 
--- A press in the clear gap between the two glass shapes hides the list, as the canvas does. The
--- two opens here are left out of the close counts below.
+-- A press in the gap between the canvas and the companion is inside on purpose, since the one
+-- shape of glass spans it, so it keeps the list and asks for key again, as the companion does.
+-- The two opens here are left out of the close counts below.
 local closedBefore = closed
 picker:show()
+mark = #calls
 send("pressOutside", rects.canvas.x + rects.canvas.w + 1, rects.canvas.y + 5)
-check("a press in the gap hides the list", picker:isActive(), false)
+check("a press in the gap keeps the list", picker:isActive(), true)
+check("a press in the gap asks for key again", since(mark), "refocus")
+send("pressOutside", rects.companion.x + rects.companion.w + 5, rects.canvas.y + 5)
+check("a press past the companion hides the list", picker:isActive(), false)
 
--- With no companion the window is the canvas rect alone and there is no pane shape.
+-- With no companion the window is the canvas rect alone, with no pane region and no divider.
 picker:setPaneWidth(nil)
 picker:show()
 check("without a companion the window is the canvas", lastPlace.window, picker:scene().rects.canvas)
-check("and there is no pane shape", lastPlace.paneFrame, nil)
+check("and there is no pane region", lastPlace.paneFrame, nil)
 check("and no companion to match a pane on", lastPlace.companion, nil)
+check("and no divider", lastPlace.dividerFrame, nil)
+local bare = picker:scene().rects.canvas
+send("pressOutside", bare.x + bare.w + 1, bare.y + 5)
+check("just past the canvas, a press hides the list without a companion", picker:isActive(), false)
 picker:hide()
 picker:setPaneWidth(300)
 closed = closedBefore

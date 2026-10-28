@@ -35,9 +35,9 @@
 ---   backend.destroy()                tear it down for good, on close.
 --- lib/dockedpane/canvas.lua is one, an hs.canvas that paints the surface and the content in
 --- order, which is how every pane drew before the backend existed. The swift chooser's
---- lib/chooser/providers/swift/pane.lua is the other, a native glass shape drawn in the swift
---- chooser panel's own window by the same Swift library, which puts glass where the surface
---- elements would be and draws the content over it. The composition root chooses, the native one only while the swift
+--- lib/chooser/providers/swift/pane.lua is the other, drawn on the swift chooser panel's own
+--- glass by the same Swift library, which puts glass where the surface elements would be and
+--- draws the content over it. The composition root chooses, the native one only while the swift
 --- provider serves, and no code in this file or in a plugin ever picks one.
 ---
 --- Granted rather than loaded. A plugin whose surface declares `pane = true` receives

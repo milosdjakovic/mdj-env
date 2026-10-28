@@ -17,6 +17,7 @@ struct Style {
   var background = NSColor.windowBackgroundColor
   var caption = NSColor.secondaryLabelColor
   var badge = NSColor.secondaryLabelColor
+  var divider = NSColor.separatorColor
   var fieldFont = NSFont.systemFont(ofSize: NSFont.systemFontSize)
   var titleFont = NSFont.systemFont(ofSize: NSFont.systemFontSize)
   var subFont = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
@@ -38,6 +39,7 @@ struct Style {
     background = r.color(t, "background") ?? background
     caption = r.color(t, "caption") ?? caption
     badge = r.color(t, "badge") ?? badge
+    divider = r.color(t, "divider") ?? divider
     fieldFont = r.font(t, "fieldFont") ?? fieldFont
     titleFont = r.font(t, "titleFont") ?? titleFont
     subFont = r.font(t, "subFont") ?? subFont
@@ -51,8 +53,8 @@ struct Style {
 
 // Where things sit. canvas, window and companion are in Hammerspoon's screen space, the top left
 // of the primary display at the origin and y growing down. window spans the canvas and the
-// companion when there is one, listFrame and paneFrame are where the list's glass and the docked
-// pane's glass sit inside it, and companion is the rect a docked pane is matched on. field, list
+// companion when there is one, listFrame, paneFrame and dividerFrame are where the list's content,
+// the docked pane's region and the hairline between them sit inside it, and companion is the rect a docked pane is matched on. field, list
 // and footer are the canvas's own, the same space and the same rectangles the canvas view draws
 // into, so nothing inside the list moved when the window grew to hold the pane.
 struct Placement {
@@ -60,6 +62,7 @@ struct Placement {
   var window: NSRect?
   var listFrame: NSRect?
   var paneFrame: NSRect?
+  var dividerFrame: NSRect?
   var companion: NSRect?
   var field: NSRect?
   var list: NSRect?
@@ -87,6 +90,7 @@ struct Placement {
     window = r.rect(t, "window")
     listFrame = r.rect(t, "listFrame")
     paneFrame = r.rect(t, "paneFrame")
+    dividerFrame = r.rect(t, "dividerFrame")
     companion = r.rect(t, "companion")
     field = r.rect(t, "field")
     list = r.rect(t, "list")

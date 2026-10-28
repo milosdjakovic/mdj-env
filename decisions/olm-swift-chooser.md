@@ -33,9 +33,9 @@ an Olm menu on a round button at the bar's left edge, and a native docked pane a
 top of it. Each one presents a model Olm already has, `footerModel`, ActionPanel's `rowsFor`,
 and the UI kit's describer nodes. The docked pane is built on `olm/native-pane`. Every pane is
 reduced by `lib/dockedpane.lua` to hs.canvas element lists, and while the swift provider serves
-the root hands each pane a native backend in the same library, which draws those lists as a
-second glass shape in the chooser panel's own window, one glass container holding the list's
-shape and the pane's, so no plugin changed.
+the root hands each pane a native backend in the same library, which draws those lists on the
+chooser panel's own glass, one shape spanning the list, the gap and the pane with a hairline in
+the gap, so no plugin changed.
 
 ## Rejected
 
@@ -78,13 +78,18 @@ shape and the pane's, so no plugin changed.
   made by a plugin and knows no chooser panel, the panel's frame is the canvas rect the engine
   reports while the companion rect is reported apart and may be absent, and one window across
   both would put one glass rectangle under the gap between them. The pane is a window of its own
-  that never becomes key instead. Reopened 2026-10-28 12:58, see the next entry and the log.
+  that never becomes key instead. Reopened 2026-10-28 12:58, see the next entry and the log. The
+  one rectangle across the gap was chosen on 2026-10-28 13:12, see the entry after that.
 - **The docked pane in a glass window of its own beside the chooser panel.** 2026-10-28 12:58,
   after Milos used it live. Each window samples what is behind it separately, so the list's glass
   read brighter than the pane's, and the pane's window animated in while the panel appeared with
   none. The two were never one surface. The chooser panel's window now spans both rects with two
   glass shapes in one container, which answers the reasons above without the one rectangle, and a
   pane's own window remains only as the fallback when no visible swift chooser owns its rect.
+- **Two glass shapes in one NSGlassEffectContainerView, the list's and the pane's.** 2026-10-28
+  13:12, after Milos used it live. The tone and the appearance matched, but each shape shaded its
+  own edges and cast its own shadow where the two met, so the gap read as a dark band. Milos chose
+  one surface, a single glass shape across the gap with a hairline divider in it.
 - **Painting the surface elements onto the pane's glass.** 2026-10-28 12:06. The surface is a
   filled rounded rectangle under its border, and the fill covers the glass, so the pane would
   read as a painted card beside a glass panel. The native backend reads the surface's corner
@@ -289,3 +294,22 @@ The library built with the provider's flags with no error and no warning, `test/
 gained the shared window's rects, the gap press and the no companion case, `test/panebackends.lua`
 the native pane placed on its current companion before it draws, and the dry gate, the goldens
 and the dependency check pass. Not yet run live.
+
+### 2026-10-28 13:12
+
+Milos tried the two shapes on 320f9edd. The tone and the appearance were right, but the shapes'
+edge shading and shadows met in the gap as a dark band, and he chose one surface. Reworked offline
+the same hour. With a companion the chooser panel's window and one `NSGlassEffectView` span the
+canvas rect, the engine's gap and the companion rect at the surface radius. The list's content sits
+on the canvas rect, the pane's region on the companion rect, and a hairline divider is centred in
+the gap from top to bottom. Its colour is the kit's border colour role and its width the kit's
+border width token, both handed over by the Lua view, which also computes where it goes. With no
+companion the window is the list's shape alone, as before. The glass container was dropped, since
+one shape gives it nothing to batch or merge. The seam and the pane's own fallback window did not
+change. One behaviour changed on purpose. A press in the gap now lands on glass, so it is inside,
+keeping the list and the keyboard as a press on the pane does, and the Lua view's press outside
+rule treats the span from the canvas to the companion as inside while there is a companion and
+only then. The default chooser is unchanged and still hides for a press in its gap. The library
+built with the provider's flags with no error and no warning, `test/swiftview.lua` gained the gap
+press, a press past the companion, the divider's width, place and colour and the no companion
+case, and the dry suite, the dry gate, the goldens and the dependency check pass. Not yet run live.

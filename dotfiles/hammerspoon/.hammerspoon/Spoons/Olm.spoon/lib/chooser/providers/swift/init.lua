@@ -5,9 +5,9 @@
 --- default provider's own, lib/chooser/engine/init.lua, so every picker rule is shared and none
 --- is copied. view.lua beside this file is the view, a Humble Object over a Swift library whose
 --- sources are in native/, which draws a nonactivating panel on a glass surface with a native
---- field, list and action bar. pane.lua beside it is the docked pane's native drawing backend, a
---- glass shape in the chooser panel's own window, which the root hands every docked pane while this provider
---- serves. decisions/olm-swift-chooser.md has why it exists and what was measured and turned
+--- field, list and action bar. pane.lua beside it is the docked pane's native drawing backend,
+--- the pane's region on the chooser panel's own glass, which the root hands every docked pane
+--- while this provider serves. decisions/olm-swift-chooser.md has why it exists and what was measured and turned
 --- down.
 ---
 --- THE LIBRARY. lib/swiftbuild.lua compiles native/ into the cache directory configure is handed,

@@ -24,21 +24,21 @@
 // keymap reads, and every other Control chord is a leftover. The field's command filter below is
 // a second fence, letting through only the editing commands those keys produce.
 //
-// ONE WINDOW, TWO SHAPES. The window spans the canvas rect and the companion rect, and stands on a
-// SharedSurface, the list's glass and the docked pane's glass in one glass container with the
-// engine's gap clear between them, so the two are sampled and drawn as one material and appear
-// and vanish together. With no companion the window is the canvas rect alone. The docked pane's
-// native backend puts its view in the pane's shape through the seam in Entry.swift, and the shape
-// shows only while a pane is in it and shown. The window never animates, so nothing fades in.
+// ONE WINDOW, ONE SHAPE. With a companion the window spans the canvas rect, the engine's gap and
+// the companion rect, and stands on one shape of glass, a SharedSurface, with the list's content
+// at the canvas rect, the docked pane's region at the companion rect and a hairline divider in
+// the middle of the gap. With none it is the canvas rect alone. The docked pane's native backend
+// puts its view in the pane's region through the seam in Entry.swift, shown only while a pane is
+// in it and shown. The window never animates, so nothing fades in.
 //
 // THE CLICK OUTSIDE. A press outside the panel is heard by two event monitors, a global one for
 // presses delivered to other applications and a local one for presses on Hammerspoon's own other
 // windows, a docked pane in a window of its own among them, and reported with the point. A press
-// in this window's clear gap, if the window server hands it here rather than to the window
-// below, is reported the same way. The Lua view decides, so a press inside the companion rect
-// keeps the list and asks refocus, and any other hides it, which is what the canvas does with a
-// press between the two. Losing key is never treated as a dismissal, since a click on a pane in
-// its own window may take key from the panel, which is why refocus exists.
+// anywhere in this window, the gap and the pane included, lands on glass and is inside, so it is
+// never reported. The Lua view decides the rest, so a press inside the span from the canvas to
+// the companion keeps the list and asks refocus, and any other hides it. Losing key is never
+// treated as a dismissal, since a click on a pane in its own window may take key from the panel,
+// which is why refocus exists.
 
 import Cocoa
 
@@ -68,10 +68,6 @@ final class KeyPanel: NSPanel {
   override var canBecomeMain: Bool { false }
 
   override func sendEvent(_ event: NSEvent) {
-    if event.type == .leftMouseDown, let owner, !owner.covers(event.locationInWindow) {
-      owner.pressInGap(event)
-      return
-    }
     guard event.type == .keyDown, let owner else { super.sendEvent(event); return }
     if owner.claim(event) { return }
     owner.throughField { super.sendEvent(event) }
@@ -107,7 +103,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   var surfaceName: String { surfaces.name }
   // The companion rect the engine last reported, in Hammerspoon's space, nil when there is none.
   private(set) var companion: NSRect?
-  // The docked pane's view while one is in the pane's shape, and whether it is shown.
+  // The docked pane's view while one is in the pane's region, and whether it is shown.
   private weak var paneContent: NSView?
   private var paneShown = false
   private var windowSize = NSSize.zero
@@ -165,7 +161,8 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
 
   func applyStyle(_ next: Style) {
     style = next
-    surfaces.list.setCornerRadius(style.radius)
+    surfaces.setCornerRadius(style.radius)
+    surfaces.setDividerColor(style.divider)
     field.font = style.fieldFont
     field.textColor = style.text
     applyPlaceholder()
@@ -179,7 +176,6 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     windowSize = frame.size
     window.setFrame(ScreenSpace.cocoaRect(frame), display: window.isVisible)
     layoutSurfaces()
-    root.frame = NSRect(origin: .zero, size: next.canvas.size)
     if let rect = next.field {
       let h = ceil(style.fieldFont.ascender - style.fieldFont.descender + style.fieldFont.leading) + 2
       field.frame = NSRect(x: rect.minX, y: rect.midY - h / 2, width: rect.width, height: h)
@@ -233,7 +229,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     }
   }
 
-  // The pane's shape goes down with the window and comes back only when a pane shows again, so a
+  // The pane's region goes down with the window and comes back only when a pane shows again, so a
   // reopened list never shows the last pane's content before its pane repaints.
   func hide() {
     list.table.forgetPress()
@@ -268,12 +264,12 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     throughField { field.currentEditor()?.keyDown(with: event) }
   }
 
-  // MARK: The docked pane's shape
+  // MARK: The docked pane's region
 
   private func layoutSurfaces() {
     let listFrame = placement.listFrame ?? NSRect(origin: .zero, size: placement.canvas.size)
     surfaces.layout(size: windowSize, list: listFrame, pane: placement.paneFrame,
-      paneShown: paneShown && paneContent != nil)
+      divider: placement.dividerFrame, paneShown: paneShown && paneContent != nil)
   }
 
   // Whether this panel is up with a companion at rect, the question the seam in Entry.swift asks.
@@ -282,7 +278,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     return ScreenSpace.same(companion, rect)
   }
 
-  // A docked pane's view moves into the pane's shape, hidden until it is shown.
+  // A docked pane's view moves into the pane's region, hidden until it is shown.
   func adoptPane(_ view: NSView) {
     if paneContent !== view {
       paneContent = view
@@ -304,11 +300,6 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     layoutSurfaces()
   }
 
-  func setPaneRadius(_ view: NSView, _ radius: CGFloat) {
-    guard paneContent === view else { return }
-    surfaces.pane.setCornerRadius(radius)
-  }
-
   // The pane's view leaves, for its own window or for good.
   func releasePane(_ view: NSView) {
     guard paneContent === view else { return }
@@ -317,10 +308,6 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     surfaces.vacatePane()
     layoutSurfaces()
   }
-
-  func covers(_ point: NSPoint) -> Bool { surfaces.covers(point) }
-
-  func pressInGap(_ event: NSEvent) { outside(event) }
 
   // MARK: Keys
 

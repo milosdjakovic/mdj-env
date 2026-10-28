@@ -15,9 +15,9 @@
 ---
 --- WHERE IT IS DRAWN is decided inside the library and never here, since a pane knows no chooser.
 --- native/Pane.swift asks the seam in native/Entry.swift for the visible chooser panel whose
---- reported companion is the rect this pane is placed on, and draws into a glass shape in that
---- panel's own window, beside the list's shape in one glass container, so the two are one
---- material and come and go together. With no such panel it stands in a window of its own.
+--- reported companion is the rect this pane is placed on, and draws into the pane's region of that
+--- panel's own window, on the one shape of glass the list stands on, so the two are one surface
+--- and come and go together. With no such panel it stands in a window of its own.
 ---
 --- Whatever Swift could not draw comes back named, an element type, an action or a scaling it
 --- does not know, or an attribute it does not draw, and is said once per name for the session,

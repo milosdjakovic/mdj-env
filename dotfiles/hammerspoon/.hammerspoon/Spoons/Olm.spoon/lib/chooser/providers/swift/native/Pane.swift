@@ -7,8 +7,8 @@
 // WHERE IT IS DRAWN. The pane is made by a plugin, which knows no chooser panel, so it never
 // names one. Each time it is placed or shown it asks the seam in Entry.swift for the visible
 // chooser panel whose reported companion rect is its own rect, and when there is one its view
-// goes into that panel's pane shape, in the chooser's own window, beside the list's glass in one
-// glass container, so the two are one material and appear and vanish together. When no visible
+// goes into that panel's pane region, in the chooser's own window, on the same one shape of glass
+// as the list, so the two are one surface and appear and vanish together. When no visible
 // swift chooser owns the rect it falls back to a window of its own, a nonactivating panel that
 // is never key and never main, at the level the canvas pane floats at, with no animation. A
 // click on that window still reaches the chooser panel's local monitor as a press on another
@@ -17,8 +17,8 @@
 //
 // THE SURFACE IS GLASS. The surface elements the canvas backend paints first are a filled and a
 // stroked rounded rectangle, and the fill drawn over glass would hide the glass, so the Lua half
-// hands only the content here, with the surface's corner radius, and the pane's shape takes that
-// radius, whichever window it is in.
+// hands only the content here, with the surface's corner radius, which the pane's own window takes.
+// In a chooser's window the pane is part of that window's one shape and its radius.
 //
 // WHAT IS DRAWN. rectangle and segments, filled, stroked, both, or added to the clip, with
 // fillColor, strokeColor, strokeWidth, strokeCapStyle, strokeJoinStyle, roundedRectRadii,
@@ -174,10 +174,11 @@ final class PanePanel {
   }
 
   private func applyRadius() {
-    if let host { host.setPaneRadius(canvas, radius) } else { surface.setCornerRadius(radius) }
+    // In a chooser's window the pane is part of that window's one shape and takes its radius.
+    if host == nil { surface.setCornerRadius(radius) }
   }
 
-  // In the chooser's window the pane's shape is shown. In its own window the window is ordered
+  // In the chooser's window the pane's region is shown. In its own window the window is ordered
   // front without being made key, and only when it is not already up, since the pane asks for a
   // show on every paint and a window ordered front on every scroll would climb over anything
   // shown above it since.
