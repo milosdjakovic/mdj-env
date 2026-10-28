@@ -407,3 +407,13 @@ Live under a manual hold from 14:20 with the docking fix, the clipboard, file se
 test panes drew their content and scrolled natively, and Milos said it works great. The file
 search preview's header scrolling away with its body stands as it is for now, since nothing was
 said against it. Merged to main with default still the shipped value.
+
+### 2026-10-28 14:53
+
+Swift became the shipped chooser. Before it did, the two cases never measured under it were tried
+live under a manual hold on this branch, typing into the launcher opened over a Safari password
+field, and the fn cycle, a letter typed straight after a tap, three taps and a wait, and a tap then
+Escape. Milos reported all of it working. A logger meant to record each case stopped after its
+four minute window before the cases were run, so the record of these two is his report and not a
+log, and a later doubt about either should start by running them again with the logger, which
+keeps no window at all next time.
