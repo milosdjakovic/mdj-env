@@ -45,7 +45,7 @@ local factory = { matchers = Chooser.matchers, rank = Chooser.rank, new = functi
     self._rects = nil
     self:_rebuildList("", true)
     self._suppressRebuild = true
-    self.field:setText("")
+    self.view:setText("")
     self._suppressRebuild = false
   end
   function inst:hide()

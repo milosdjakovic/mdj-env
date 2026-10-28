@@ -520,18 +520,20 @@ bindings, the live gates and the label lookup `rowsFor` reads, so the bar, its k
 action panel cannot disagree. A label is the level's own `labels` first, then `liveLabels`, then
 the binding's description, then Open for the primary and the action spelled as words otherwise.
 
-The default provider takes the model through one per instance collaborator, `config.footer`, and
-`footer.lua` beside it draws it through the kit, the caption role for its hint labels, as Milos
+The default provider is the chooser engine, `lib/chooser/engine/init.lua`, composed with the
+canvas view, `lib/chooser/providers/default/canvas.lua`, joined at `lib/chooser/view.lua`, and
+`docs/CONTRACT-PICKER.md` says which half owns what. The engine takes the model through one per
+instance collaborator, `config.footer`, and `footer.lua` beside the view draws it through the kit, the caption role for its hint labels, as Milos
 chose, and the hint badge with its glyph in the section role, both 14 points, the divider
 along the bar's top edge and the background colour role behind the key panel. The bar's height is
 the hint badge with the small space step above and below it, and geometry gives it a footer rect
-under the list, subtracted from the rows a screen can hold. The provider asks the model on every
+under the list, subtracted from the rows a screen can hold. The engine asks the model on every
 show, after every highlight move and on a quarter second poll, the timer's handle kept, and owns
-the key panel's open state, the key button's hit test and the panel's rect. The key button is the
+the key panel's open state, and the canvas view owns the key button's hit test and the panel's rect. The key button is the
 outline keyboard icon, Olm's own `keys` in the action panel's manifest drawn through the injected
 icon engine at the kit's `hint` icon size, the section line height, with the ? glyph only where no
 engine is injected. It stands alone at rest and sits on one highlight across the icon and its chord
-badge while the pointer is over it or its panel is open, the state a row takes under the pointer, and `_onMouseMove` redraws only as the
+badge while the pointer is over it or its panel is open, the state a row takes under the pointer, and the view's `_onMouseMove` redraws only as the
 pointer crosses its edge. A press on the bar never hides
 the list, a press on (?) toggles the panel, and the panel's rect is on no row and takes no scroll.
 Every list key that acts closes it, through the dispatch table's `onAction`, which the root points at
@@ -572,7 +574,7 @@ naming none takes Olm's own, `primary` and `secondary` in the action panel's man
 
 A password field turns on macOS secure input, which hides every key from every event tap, and the
 default chooser reads keys through a tap, so a list opened then would be drawn and deaf. The
-default provider takes an optional `focusHold` in its configure, asked once per open after the
+default provider takes an optional `focusHold` in its configure, held by the engine, asked once per open after the
 surface shows and released on teardown after the surface hides and before `onClose`. The root
 passes `lib/securefocus.lua`, the one file that knows the mechanism, a native `hs.chooser` with no
 rows moved off screen, which is the only thing measured to take focus from Safari. While such a
@@ -580,7 +582,7 @@ list is open secure input is off, so any tap on the machine could read what is t
 that lasts only while the list is open. Chrome keeps secure input on whichever application is
 active, measured 2026-10-27, so the hold is handed a sink by the provider and, while secure input
 stays on, relays the chooser's typed text into the field and claims the list's non typing keys
-through `hs.hotkey`, feeding each to the field as a key event through `Field:feed`, and claims
+through `hs.hotkey`, feeding each to the field as a key event through the view's `feedKey` and `Field:feed`, and claims
 nothing while it is off, the root handing it every list key bound with no leader beside the fixed
 set. The hold also answers a mirror the provider tells the field's text, so text the list writes
 itself, a scope's word, reaches the chooser and typing carries on from it. `test/securefocus.lua`

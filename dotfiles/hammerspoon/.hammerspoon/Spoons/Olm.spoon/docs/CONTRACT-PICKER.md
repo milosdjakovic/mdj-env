@@ -169,6 +169,52 @@ a presentation declaring neither leaves nothing of the one before it behind.
 picker's own resolved width, a number overrides it, nil or zero means no companion. Every
 answer is capped by the provider's own pane maximum.
 
+## The default provider is an engine and a view, since 2026-10-28
+
+The default provider is two halves joined at a second, smaller contract, the Bridge pattern.
+`lib/chooser/engine/init.lua` is the engine. It owns every rule this document states and all of a
+picker's state, implements the twenty five methods above and the extras the stage calls,
+`setPosture`, `posture`, `toggleKeys` and `closeKeys`, and answers the static `uses`. A view owns
+only drawing and raw input. `lib/chooser/providers/default/canvas.lua` is the canvas view, and
+`lib/chooser/providers/default/init.lua` composes the two and is the provider the facade names, so
+nothing above the facade changed. The split exists so a second view, a native panel, stands under
+the same engine instead of beside a copy of its rules, `decisions/olm-swift-chooser.md`.
+
+`lib/chooser/view.lua` holds the view contract the way `lib/chooser/contract.lua` holds this one,
+the required names with their arities and a `validate(view)` the engine runs at construction, by
+the same rules. Every name below is required.
+
+`restyle()` resolves the view's styles from the engine's scene, on every show. `place(rects)` puts
+the surface at `rects.canvas`. `presentRows(rows)` answers the ranked rows in the form the view
+draws them, same length and order, each keeping `item` and `enabled`, and the engine holds that and
+never ranks it again. `text()` answers the field's text. `setText(text)` replaces it with the caret
+after it and reports the change back before returning. `feedKey(event)` handles a key heard by
+another route, the focus hold's relay. `redraw()` draws what the scene says now. `show()` reveals
+the surface. `start()` begins reading keys and the pointer and starts the view's own timers.
+`stop()` ends the input first and the timers after. `stopScroll()` ends a scroll animation.
+`hide()` hides the surface and forgets the pointer. `isVisible()` answers a plain boolean.
+
+A view calls back into the engine through these. `scene()` answers what to draw, the rects, both
+layouts, the tokens and type, the list model's state, the ranked query, the placeholder, the
+posture, the footer model and whether the key panel is open. `fieldChanged(text)` after every
+change the field reports. `highlightIndex`, `chooseIndex` and `rightClickIndex` for the pointer on
+a row, `toggleKeys` for the key button, `scrollTo` and `scrollBy` for the viewport,
+`companionScroll` for a scroll over the companion, and `hide` for a press outside.
+
+The field's text editing is the view's, so a view whose field edits natively, with its own caret,
+selection, undo and input methods, fits. The engine never edits text. It reads it, sets it, and
+is told when it changes. A key down is asked of the engine in a fixed order around the field's own
+editing. `dismissKey(event)` first, for Escape and its autorepeat, before anything can yield it.
+`yieldsKey(event)` next, true meaning the key passes on unclaimed. `listKey(event)` next, true
+meaning the open list took it. Then the field edits or types, with `emptyBackspace()` standing in
+for a backward delete on an empty field with nothing selected. `leftoverKey(event)` last, for Up,
+Down, Return, keypad Enter and Command with a digit. The canvas view's field asks in exactly this
+order already, in `field/input.lua`, and a native view asks the same way.
+
+Three modules the engine reads still sit beside the canvas view, and the engine loads them from
+there in one place it names as the seam. `geometry.lua` and `list/model.lua` are pure.
+`footer.lua` is the view's drawing of the action bar, and the engine reads only its height.
+
 ## The config table
 
 `Chooser.new(config)` accepts these. Read live means read again on a later event rather

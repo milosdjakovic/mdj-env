@@ -15,7 +15,9 @@ headers ship inside the app, the same way Hammerspoon's own `libchooser.dylib` d
 
 It will join the picker facade as a third provider named `swift`, beside `default` and `legacy`,
 behind the twenty five method contract, chosen by one setting, with `default` served whenever
-the library is missing or fails to build. The bottom action bar, an anchored actions popover,
+the library is missing or fails to build. Its rules are the default provider's own, since that
+provider is now `lib/chooser/engine` composed with a canvas view, and the Swift provider is the
+same engine with a native view behind `lib/chooser/view.lua`. The bottom action bar, an anchored actions popover,
 an Olm menu on a round button at the bar's left edge, and a native docked pane are planned on
 top of it. Each one presents a model Olm already has, `footerModel`, ActionPanel's `rowsFor`,
 and the UI kit's describer nodes.
@@ -80,3 +82,41 @@ dismiss. Secure input read off at the moment the panel appeared and through ever
 this run does not yet say whether the panel takes the keyboard while a password field holds
 secure input or whether the field had focus at all. The next run reads it before the panel
 shows.
+
+### 2026-10-28 09:20
+
+The default provider was split into an engine and a canvas view, with no change in behaviour,
+before any Swift provider code was written. The provider's one file mixed Olm's picker rules with
+canvas drawing, and a third provider written beside it would have copied the rules and drifted
+from them. `lib/chooser/engine/init.lua` now owns every rule and all state and implements the
+picker contract, `lib/chooser/providers/default/canvas.lua` owns the surface, the field and its
+editing, the rows, the action bar, the pointer and the caret, and `lib/chooser/view.lua` is the
+contract between them, checked at construction. The default provider is the two composed, so the
+facade, the stage, the action panel and the composition root did not change. The engine is shaped
+so a view whose field edits text natively can sit under it, it reads and sets the text and is told
+of each change, and a key is asked of it before the field edits and after. Checked offline by
+driving the provider through the facade with a stub `hs` before and after the split, every
+callback, draw, frame, tap and timer event identical across about seven hundred lines, and by the
+unit cases that drive a real instance, three of which were moved from the instance's `field` to
+its `view` since the field now belongs to the view.
+
+### 2026-10-28 09:28
+
+The entry above counted three unit cases that reached into the provider instance. Review found a
+fourth, the parity probe `Spoons/Olm.spoon/test/parity-canvasprovider.lua`, run by
+`test/parity.sh`, which called the styles and the redraw on the instance and replaced its field,
+surface and caret flag, all of which belong to the view since the split. It was ported to reach
+them through `p.view`, keeping the old steps for a tree from before the split, since the probe
+builds one provider from an exported older tree and one from this checkout. Its stand in surface
+also gained the `interior` method the redraw calls, missing since that call was added, so the
+probe had been failing at HEAD before the split and could not have compared anything.
+
+### 2026-10-28 09:30
+
+Run after the port, the parity probe still does not reach a comparison, and for a reason older
+than both entries above. `test/parity-lib.lua`'s `largestStep` reads `chooserTheme` colours from
+the exported tree's `config/settings.lua`, which has carried none since cafd002a moved the colour
+themes into their own files, so it raises before either provider is built. The probe is left as
+it is rather than repaired inside this change. The stub driven trace above already compares every
+draw event of the provider before and after, a hundred and twenty four of them, and it ran
+identical against `main` as well as against the split.

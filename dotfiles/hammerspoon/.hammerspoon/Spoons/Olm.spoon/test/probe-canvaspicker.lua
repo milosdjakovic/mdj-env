@@ -271,10 +271,12 @@ local limit = math.max(10, math.min(600, requested))
 watchdog = hs.timer.doAfter(limit, function()
   print("Olm canvas picker probe, the " .. tostring(math.floor(limit)) .. " second watchdog fired")
   instance:hide()
-  local fieldArmed = instance.field and instance.field:isRunning()
-  local mouseArmed = instance.mouse and instance.mouse:isRunning()
-  if fieldArmed then instance.field:stop() end
-  if mouseArmed then instance.mouse:stop() end
+  -- The taps belong to the canvas view since the provider was split into engine and view.
+  local view = instance.view or instance
+  local fieldArmed = view.field and view.field:isRunning()
+  local mouseArmed = view.mouse and view.mouse:isRunning()
+  if fieldArmed then view.field:stop() end
+  if mouseArmed then view.mouse:stop() end
   print("Olm canvas picker probe, watchdog hard stop, field tap was armed "
     .. tostring(fieldArmed) .. ", mouse tap was armed " .. tostring(mouseArmed))
 end)

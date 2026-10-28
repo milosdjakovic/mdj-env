@@ -25,7 +25,9 @@ true location to be `compose.lua` unless the text says otherwise.
 
 **The chooser means the default chooser.** When a request says to change or fix something in
 the chooser, the work goes to the default chooser in `Spoons/Olm.spoon/lib/chooser/providers/default/`,
-and it is made live and tested there. The legacy chooser, `providers/legacy.lua`, is deprecated
+and it is made live and tested there. A rule, what a key or a choice does and when a callback fires,
+lives in `Spoons/Olm.spoon/lib/chooser/engine/`, and drawing and raw input in the canvas view,
+`providers/default/canvas.lua`, the split `Spoons/Olm.spoon/docs/CONTRACT-PICKER.md` explains. The legacy chooser, `providers/legacy.lua`, is deprecated
 and kept only as a fallback. It is touched only when a request names it. Stated by the person on
 2026-10-14, see `decisions/olm-chooser-keys.md`.
 

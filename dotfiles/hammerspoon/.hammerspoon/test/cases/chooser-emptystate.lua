@@ -150,7 +150,7 @@ if hs.canvas then
     self._rects = nil
     self:_rebuildList("", true)
     self._suppressRebuild = true
-    self.field:setText("")
+    self.view:setText("")
     self._suppressRebuild = false
   end
 
@@ -177,7 +177,7 @@ if hs.canvas then
   -- rows not yet rebuilt. The empty state must still answer for the rows on screen, which were
   -- ranked for the old text and exist, so reading the field instead would flash No results.
   inst._suppressRebuild = true
-  inst.field:setText("zzzq")
+  inst.view:setText("zzzq")
   inst._suppressRebuild = false
   check("a field ahead of the rows leaves the ranked query where it was",
     inst._rankedQuery == "zzz", tostring(inst._rankedQuery))

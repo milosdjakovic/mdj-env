@@ -50,13 +50,12 @@ M.requiredArity = {
   matcher = 0, setMatcher = 1, titleLineBreak = 0, setTitleLineBreak = 1, setPaneWidth = 1,
 }
 
---- M.validate(instance) -> ok, reason
---- Answers true when instance carries every required method at the arity that method is
---- stated to take, or false and one phrase naming the first gap, written to read as the tail
---- of a sentence the caller opens. Never throws, so the caller owns the failure policy.
-function M.validate(instance)
+--- M.conforms(instance, names, arity) -> ok, reason
+--- The check validate runs, over any list of names and their arities, so lib/chooser/view.lua
+--- checks a view by the same rules rather than by a second copy of them. Never throws.
+function M.conforms(instance, names, arity)
   if type(instance) ~= "table" then return false, "the instance is not a table" end
-  for _, name in ipairs(M.requiredMethods) do
+  for _, name in ipairs(names) do
     local fn = instance[name]
     if fn == nil then
       return false, name .. "() is missing"
@@ -64,7 +63,7 @@ function M.validate(instance)
     if type(fn) ~= "function" then
       return false, name .. "() is not a function"
     end
-    local wanted = M.requiredArity[name]
+    local wanted = arity[name]
     local info = debug.getinfo(fn, "u")
     if info and not info.isvararg and (info.nparams or 0) < wanted + 1 then
       local declared = (info.nparams or 0) - 1
@@ -75,6 +74,14 @@ function M.validate(instance)
     end
   end
   return true
+end
+
+--- M.validate(instance) -> ok, reason
+--- Answers true when instance carries every required method at the arity that method is
+--- stated to take, or false and one phrase naming the first gap, written to read as the tail
+--- of a sentence the caller opens. Never throws, so the caller owns the failure policy.
+function M.validate(instance)
+  return M.conforms(instance, M.requiredMethods, M.requiredArity)
 end
 
 return M

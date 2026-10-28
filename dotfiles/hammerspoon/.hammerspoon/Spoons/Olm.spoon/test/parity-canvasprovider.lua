@@ -45,17 +45,30 @@ local ok, err = pcall(function()
   local function draw(t, pol, fieldState, steps)
     local p = t.provider.new({ theme = pol.chooserTheme, placeholder = "Search apps",
       rows = function() return rows end })
+    -- Since 2026-10-28 the provider is an engine with a view, and the field, the surface, the
+    -- caret flag, the styles and the redraw are the view's. A tree from before that has no view,
+    -- so the same steps land on the instance itself there.
+    local view = p.view or p
     p:_selectTheme()
-    p:_deriveStyles()
+    if p.view then view:restyle() else p:_deriveStyles() end
     p._rects = t.geometry.resolve(SCREEN, p.layout, nil)
     p:_updateDrawLayout()
     p:_rebuildList("", true)
     for _ = 1, steps do p.listState = t.listModel.moveDown(p.listState) end
-    p.field = { getState = function() return fieldState end }
-    p._caretVisible = true
+    view.field = { getState = function() return fieldState end }
+    view._caretVisible = true
     local captured
-    p.surface = { draw = function(_, els) captured = els end }
-    p:_redraw()
+    -- The stand in answers interior the way surface.lua does, through the panel, since the
+    -- redraw cuts the row band at the border with it.
+    local frame = p._rects.canvas
+    view.surface = {
+      draw = function(_, els) captured = els end,
+      interior = function()
+        if not t.panel.surfaceInterior then return nil end
+        return t.panel.surfaceInterior(frame.w, frame.h)
+      end,
+    }
+    if p.view then view:redraw() else p:_redraw() end
     local widths = { p:textWidth("Hello Wörld, a title", "title"), p:textWidth("~/a/sub title", "sub") }
     return captured, widths, p._rects.canvas
   end
