@@ -10,9 +10,14 @@
 --- THE SURFACE BECOMES GLASS. The surface elements are a filled rounded rectangle and its
 --- stroked border, and the fill drawn over glass would cover the glass, so the pane would read as
 --- a painted card beside a glass panel rather than as one surface with it. So the surface is not
---- drawn, its corner radius is read off it and the Swift window stands on the chooser panel's
---- own glass at that radius. The radius is the surface's own, so a theme that squares the
---- surface squares the glass with it.
+--- drawn, its corner radius is read off it and the pane's glass takes that radius. The radius is
+--- the surface's own, so a theme that squares the surface squares the glass with it.
+---
+--- WHERE IT IS DRAWN is decided inside the library and never here, since a pane knows no chooser.
+--- native/Pane.swift asks the seam in native/Entry.swift for the visible chooser panel whose
+--- reported companion is the rect this pane is placed on, and draws into a glass shape in that
+--- panel's own window, beside the list's shape in one glass container, so the two are one
+--- material and come and go together. With no such panel it stands in a window of its own.
 ---
 --- Whatever Swift could not draw comes back named, an element type, an action or a scaling it
 --- does not know, or an attribute it does not draw, and is said once per name for the session,
@@ -53,7 +58,7 @@ end
 
 function M.factory(native, log)
   -- The frame is not needed here, since the pane places its backend before every render, and
-  -- the window stays hidden until then.
+  -- nothing is shown until then.
   return function()
     local id = native.paneNew()
     local backend = {}

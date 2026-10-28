@@ -1,24 +1,24 @@
-// The docked pane's native window, the second window of this library. lib/dockedpane.lua reduces
-// every pane, described through the UI kit or painted directly, to a list of hs.canvas element
-// tables, and this file draws that list the way hs.canvas documents it, on the same glass as the
-// chooser panel. It holds no pane rule. The lazy build, the inner rect, the scroll and its clamp,
-// the thumb and the empty state all stay in Lua, and this file only places, draws, shows and
-// hides.
+// The docked pane's native view. lib/dockedpane.lua reduces every pane, described through the UI
+// kit or painted directly, to a list of hs.canvas element tables, and this file draws that list
+// the way hs.canvas documents it, on glass. It holds no pane rule. The lazy build, the inner
+// rect, the scroll and its clamp, the thumb and the empty state all stay in Lua, and this file
+// only places, draws, shows and hides.
 //
-// A WINDOW OF ITS OWN. The pane is made by a plugin, which knows no chooser panel, at the
-// companion rect the engine reports apart from the chooser's own rect, and the companion may be
-// absent. So it is a separate nonactivating panel, never key and never main, so a click on it
-// leaves the keyboard with the chooser panel. It floats at the level the canvas pane floats at,
-// so it stacks against every other window exactly as the pane always has, a Quick Look preview
-// above it among them, and beside the chooser panel it overlaps nothing. That click still
-// reaches the chooser panel's local monitor as a press on another Hammerspoon window, which the
-// Lua view finds inside the companion rect and answers by keeping the list up. A scroll over it
-// is claimed by the Lua view's own tap before the window sees it.
+// WHERE IT IS DRAWN. The pane is made by a plugin, which knows no chooser panel, so it never
+// names one. Each time it is placed or shown it asks the seam in Entry.swift for the visible
+// chooser panel whose reported companion rect is its own rect, and when there is one its view
+// goes into that panel's pane shape, in the chooser's own window, beside the list's glass in one
+// glass container, so the two are one material and appear and vanish together. When no visible
+// swift chooser owns the rect it falls back to a window of its own, a nonactivating panel that
+// is never key and never main, at the level the canvas pane floats at, with no animation. A
+// click on that window still reaches the chooser panel's local monitor as a press on another
+// Hammerspoon window, which the Lua view finds inside the companion rect and answers by keeping
+// the list up, and a scroll over either is claimed by the Lua view's own tap first.
 //
 // THE SURFACE IS GLASS. The surface elements the canvas backend paints first are a filled and a
 // stroked rounded rectangle, and the fill drawn over glass would hide the glass, so the Lua half
-// hands only the content here, with the surface's corner radius, and the window stands on the
-// same Surface the chooser panel does.
+// hands only the content here, with the surface's corner radius, and the pane's shape takes that
+// radius, whichever window it is in.
 //
 // WHAT IS DRAWN. rectangle and segments, filled, stroked, both, or added to the clip, with
 // fillColor, strokeColor, strokeWidth, strokeCapStyle, strokeJoinStyle, roundedRectRadii,
@@ -86,11 +86,20 @@ final class PaneCanvas: NSView {
 }
 
 final class PanePanel {
+  // The seam's question, the visible chooser panel whose companion is this rect, if any.
+  typealias FindHost = (NSRect) -> ChooserPanel?
+
   private let window: PaneWindow
   private let canvas = PaneCanvas()
   private let surface: Surface
+  private let findHost: FindHost
+  private weak var host: ChooserPanel?
+  private var rect = NSRect.zero
+  private var radius: CGFloat = 0
+  private var shown = false
 
-  init() {
+  init(findHost: @escaping FindHost) {
+    self.findHost = findHost
     window = PaneWindow(
       contentRect: NSRect(x: 0, y: 0, width: 1, height: 1),
       styleMask: [.borderless, .nonactivatingPanel, .fullSizeContentView],
@@ -105,32 +114,80 @@ final class PanePanel {
     window.hidesOnDeactivate = false
     window.isReleasedWhenClosed = false
     window.becomesKeyOnlyIfNeeded = true
+    window.animationBehavior = .none
     window.contentView = surface.view
   }
 
   // The size percentages in a frame are taken of, the pane's own.
-  var size: NSSize { canvas.frame.size }
+  var size: NSSize { rect.size }
 
-  func place(_ rect: NSRect) {
-    window.setFrame(ScreenSpace.cocoaRect(rect), display: window.isVisible)
-    canvas.frame = NSRect(origin: .zero, size: rect.size)
+  func place(_ next: NSRect) {
+    rect = next
+    window.setFrame(ScreenSpace.cocoaRect(next), display: window.isVisible && host == nil)
+    canvas.frame = NSRect(origin: .zero, size: next.size)
+    rehome()
     canvas.needsDisplay = true
   }
 
-  func draw(_ elements: [PaneElement], radius: CGFloat) {
-    surface.setCornerRadius(radius)
+  func draw(_ elements: [PaneElement], radius next: CGFloat) {
+    radius = next
+    applyRadius()
     canvas.elements = elements
     canvas.needsDisplay = true
   }
 
-  // Ordered front without being made key, since the chooser panel holds the keyboard, and only
-  // when it is not already up, since the pane asks for a show on every paint and a window ordered
-  // front on every scroll would climb over anything shown above it since.
   func show() {
-    if !window.isVisible { window.orderFrontRegardless() }
+    shown = true
+    rehome()
+    present()
   }
 
-  func hide() { window.orderOut(nil) }
+  func hide() {
+    shown = false
+    host?.hidePane(canvas)
+    window.orderOut(nil)
+  }
+
+  // Out of whichever window holds it, for good, on destroy and at a reload.
+  func close() {
+    hide()
+    host?.releasePane(canvas)
+    host = nil
+  }
+
+  // Moves the view to the chooser panel that owns this rect now, or to the own window when none
+  // does, and leaves it where it is when that has not changed.
+  private func rehome() {
+    let next = findHost(rect)
+    if next !== host {
+      host?.releasePane(canvas)
+      host = next
+      if let next {
+        window.orderOut(nil)
+        next.adoptPane(canvas)
+      } else {
+        surface.hold(canvas)
+      }
+      applyRadius()
+      if shown { present() }
+    }
+  }
+
+  private func applyRadius() {
+    if let host { host.setPaneRadius(canvas, radius) } else { surface.setCornerRadius(radius) }
+  }
+
+  // In the chooser's window the pane's shape is shown. In its own window the window is ordered
+  // front without being made key, and only when it is not already up, since the pane asks for a
+  // show on every paint and a window ordered front on every scroll would climb over anything
+  // shown above it since.
+  private func present() {
+    if let host {
+      host.showPane(canvas)
+    } else if !window.isVisible {
+      window.orderFrontRegardless()
+    }
+  }
 }
 
 // Reads one pane's element list off the Lua stack. Colours, pictures and styled text go through

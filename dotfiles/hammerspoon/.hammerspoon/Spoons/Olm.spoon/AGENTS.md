@@ -606,12 +606,18 @@ and `destroy()` tears it down on close.
 There are two. `lib/dockedpane/canvas.lua` paints both lists on one `hs.canvas` at the floating
 level with click activation off, exactly what every pane drew before the backend existed.
 `lib/chooser/providers/swift/pane.lua`, over `native/Pane.swift` in the swift chooser's own
-library, draws the content on a glass window of its own and replaces the surface with glass at
-the surface's corner radius, since the surface's fill painted over glass would hide it. That
-window is a nonactivating panel that never becomes key, at the canvas pane's level, so a click on
-it leaves the keyboard with the chooser panel, the panel's local monitor still reports the press
-and the Lua view keeps the list up because it lands in the companion rect, and a scroll over it
-is claimed by the view's own tap before the window sees it. It draws `rectangle` and `segments`
+library, draws the content on glass and replaces the surface with glass at the surface's corner
+radius, since the surface's fill painted over glass would hide it. The glass is drawn in the
+chooser panel's own window. That window spans the canvas rect and the companion rect and holds an
+`NSGlassEffectContainerView` with two `NSGlassEffectView` shapes, the list's and the pane's, the
+gap between them clear and the container's spacing zero so they never merge, which makes the two
+one material that appears and vanishes together, with no window animation. With no companion the
+window is the canvas rect alone. A pane knows no chooser, so the one seam is `chooserHosting` in
+`native/Entry.swift`, which matches the pane's rect to the companion rect a visible chooser panel
+last reported. When none matches, the pane stands in a window of its own, a nonactivating panel
+that never becomes key, at the canvas pane's level. A press in the clear gap is reported like a
+press outside and hides the list, as the canvas does, and a scroll over the pane is claimed by
+the view's own tap. It draws `rectangle` and `segments`
 filled, stroked or clipped, `image`, `text` as a string or an `hs.styledtext`, and `resetClip`,
 with the canvas's semantics and defaults. Any other type, action, scaling or attribute leaves
 that element out and is named once in the console. It is torn down with the chooser panels by
@@ -636,7 +642,7 @@ the system has it and a visual effect view where it does not, with a native `NST
 into plain data, colours, fonts, sizes, the radius and the space steps from the kit's tokens and
 every rectangle and row metric from the engine's geometry, so neither half writes a colour or a font
 by hand, and the panel sits exactly on the canvas rect with the docked pane beside it, which is
-drawn on glass of its own by the same library, see the docked pane section above. Swift runs
+drawn as a second glass shape in the panel's own window, see the docked pane section above. Swift runs
 the view contract's key order, asking Lua synchronously before its field edits, and hands each key
 over as its event's bytes, which `hs.eventtap.event.newEventFromData` turns back into the event the
 engine reads. A press outside the panel is heard by event monitors and decided in Lua against the

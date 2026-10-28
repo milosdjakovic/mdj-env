@@ -33,8 +33,9 @@ an Olm menu on a round button at the bar's left edge, and a native docked pane a
 top of it. Each one presents a model Olm already has, `footerModel`, ActionPanel's `rowsFor`,
 and the UI kit's describer nodes. The docked pane is built on `olm/native-pane`. Every pane is
 reduced by `lib/dockedpane.lua` to hs.canvas element lists, and while the swift provider serves
-the root hands each pane a native backend in the same library, which draws those lists on glass
-of its own beside the panel, so no plugin changed.
+the root hands each pane a native backend in the same library, which draws those lists as a
+second glass shape in the chooser panel's own window, one glass container holding the list's
+shape and the pane's, so no plugin changed.
 
 ## Rejected
 
@@ -77,7 +78,13 @@ of its own beside the panel, so no plugin changed.
   made by a plugin and knows no chooser panel, the panel's frame is the canvas rect the engine
   reports while the companion rect is reported apart and may be absent, and one window across
   both would put one glass rectangle under the gap between them. The pane is a window of its own
-  that never becomes key instead.
+  that never becomes key instead. Reopened 2026-10-28 12:58, see the next entry and the log.
+- **The docked pane in a glass window of its own beside the chooser panel.** 2026-10-28 12:58,
+  after Milos used it live. Each window samples what is behind it separately, so the list's glass
+  read brighter than the pane's, and the pane's window animated in while the panel appeared with
+  none. The two were never one surface. The chooser panel's window now spans both rects with two
+  glass shapes in one container, which answers the reasons above without the one rectangle, and a
+  pane's own window remains only as the fallback when no visible swift chooser owns its rect.
 - **Painting the surface elements onto the pane's glass.** 2026-10-28 12:06. The surface is a
   filled rounded rectangle under its border, and the fill covers the glass, so the pane would
   read as a painted card beside a glass panel. The native backend reads the surface's corner
@@ -259,3 +266,26 @@ surface, and `test/swiftview.lua`, the unit case `test/cases/dockedpane.lua` und
 dry gate and every golden pass. Not yet run live, so the glass beside the panel, the text
 metrics against the canvas, a click on the pane keeping the list and the keyboard, and the
 sentinel closing a pane at a reload are all unmeasured.
+
+### 2026-10-28 12:58
+
+Milos tried the native pane live on 7442f7aa. The list's glass read brighter than the pane's,
+since each window sampled the screen behind it on its own, and the pane faded in while the panel
+appeared at once. Reworked offline the same hour. The chooser panel's window now spans the canvas
+rect and the companion rect, and the Lua view hands it the union and where each shape sits in it,
+with the companion in screen space too. The window holds an `NSGlassEffectContainerView`, read
+from the macOS 27 SDK header, with two `NSGlassEffectView` shapes. Its spacing is the proximity
+at which it starts merging shapes, zero by default, which the header says still batches them, so
+zero keeps the engine's gap between two shapes rather than one blob. Both windows set
+`animationBehavior` to none. A pane still knows no chooser. `chooserHosting` in
+`native/Entry.swift` is the one seam, matching the pane's rect to the companion rect a visible
+chooser panel last reported, and the pane's view moves into that panel's pane shape, or into a
+window of its own when nothing matches. Read from the canvas view, a press between the two hides
+the list and passes through. Here a press in the clear gap that reaches the window is reported
+as a press outside and hides the list too, though whether the window server passes it through to
+the window below is unmeasured. The field, list and footer keep the canvas's own coordinates, so
+every reported index and point is unchanged. closeAll closes every pane before the panels.
+The library built with the provider's flags with no error and no warning, `test/swiftview.lua`
+gained the shared window's rects, the gap press and the no companion case, `test/panebackends.lua`
+the native pane placed on its current companion before it draws, and the dry gate, the goldens
+and the dependency check pass. Not yet run live.

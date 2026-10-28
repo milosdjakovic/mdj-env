@@ -3,10 +3,10 @@
 // view asks of its panel. new makes a panel and answers its id, so every picker instance the
 // engine builds has a panel of its own.
 //
-// The docked pane's window lives here too, in the same image, so the chooser panel and the panes
-// beside it are torn down together. paneNew makes one and answers its id, and the pane functions
-// take that id first the same way. A pane never calls back into Lua, it only draws what it is
-// handed, so it needs no callback and none can reach a closed state through it.
+// The docked pane lives here too, in the same image, so the chooser panel and the panes beside it
+// are torn down together. paneNew makes one and answers its id, and the pane functions take that
+// id first the same way. A pane never calls back into Lua, it only draws what it is handed, so it
+// needs no callback and none can reach a closed state through it.
 //
 // Every event goes back through the one callback setCallback registers, called as
 // callback(id, event, ...) on the main Lua state, the state LuaSkin says every callback belongs
@@ -39,13 +39,13 @@ private let sentinelType = "olm.swiftchooser.sentinel"
 // sentinel and a fresh luaopen run, the docked panes with them. The reference belongs to a state
 // that is going or gone, so it is dropped rather than released.
 private func closeAll() {
+  for pane in panes.values { pane.close() }
+  panes = [:]
   for panel in panels.values {
     panel.stop()
     panel.hide()
   }
   panels = [:]
-  for pane in panes.values { pane.hide() }
-  panes = [:]
   callbackRef = olm_noRef()
   callbackState = nil
 }
@@ -216,10 +216,18 @@ private func paneAt(_ L: LuaState?) -> PanePanel? {
   return panes[id]
 }
 
+// THE SEAM between a docked pane and the chooser it is drawn into, the one place either knows of
+// the other. A pane knows no chooser, so it is matched here on the companion rect a visible
+// chooser panel last reported, and drawn into that panel's window. Nil when no visible swift
+// chooser owns the rect, and the pane then stands in a window of its own.
+private func chooserHosting(_ rect: NSRect) -> ChooserPanel? {
+  panels.values.first { $0.hostsPane(at: rect) }
+}
+
 private let paneNew: lua_CFunction = { L in
   let id = nextID
   nextID += 1
-  panes[id] = PanePanel()
+  panes[id] = PanePanel(findHost: chooserHosting)
   lua_pushinteger(L, lua_Integer(id))
   return 1
 }
@@ -261,10 +269,10 @@ private let paneHide: lua_CFunction = { L in
   return 0
 }
 
-// Hidden and forgotten, the window released with it.
+// Out of whichever window held it and forgotten, its own window released with it.
 private let paneDelete: lua_CFunction = { L in
   guard let id = LuaReader(L).integer(at: 1), let pane = panes[id] else { return 0 }
-  pane.hide()
+  pane.close()
   panes[id] = nil
   return 0
 }

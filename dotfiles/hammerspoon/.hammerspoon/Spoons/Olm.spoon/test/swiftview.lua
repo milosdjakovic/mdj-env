@@ -218,6 +218,17 @@ check("show sends style, place, text, rows, state, then shows and starts",
 local rects = picker:scene().rects
 check("the panel sits on the canvas rect", lastPlace.canvas, rects.canvas)
 check("the list rect is the canvas's own", lastPlace.list.y, rects.list.y - rects.canvas.y)
+-- One window holds the list's glass and the docked pane's, spanning both rects, with the gap clear.
+local gap = rects.companion.x - (rects.canvas.x + rects.canvas.w)
+check("there is a gap between the canvas and the companion", gap > 0, true)
+check("the window starts at the canvas", lastPlace.window.x, rects.canvas.x)
+check("the window spans the companion", lastPlace.window.w, rects.canvas.w + gap + rects.companion.w)
+check("the list's glass is the canvas rect in the window", lastPlace.listFrame.x == 0
+  and lastPlace.listFrame.y == 0 and lastPlace.listFrame.w == rects.canvas.w, true)
+check("the pane's glass is the companion rect in the window, past the gap",
+  lastPlace.paneFrame.x, rects.canvas.w + gap)
+check("the companion travels in screen space, for a pane to be matched on", lastPlace.companion,
+  rects.companion)
 check("every row is sent", #lastRows, 4)
 check("a row's subtitle travels as a string", lastRows[2].subtitle, "sub beta")
 check("the highlight starts on row one", lastUpdate.highlight, 1)
@@ -274,6 +285,23 @@ check("Return chooses the highlighted row", selected[1], "gamma")
 check("choosing tears down, input stopped before the panel hides", since(mark), "stop,hide")
 check("onClose fires once", closed, 1)
 check("the list is down", picker:isActive(), false)
+
+-- A press in the clear gap between the two glass shapes hides the list, as the canvas does. The
+-- two opens here are left out of the close counts below.
+local closedBefore = closed
+picker:show()
+send("pressOutside", rects.canvas.x + rects.canvas.w + 1, rects.canvas.y + 5)
+check("a press in the gap hides the list", picker:isActive(), false)
+
+-- With no companion the window is the canvas rect alone and there is no pane shape.
+picker:setPaneWidth(nil)
+picker:show()
+check("without a companion the window is the canvas", lastPlace.window, picker:scene().rects.canvas)
+check("and there is no pane shape", lastPlace.paneFrame, nil)
+check("and no companion to match a pane on", lastPlace.companion, nil)
+picker:hide()
+picker:setPaneWidth(300)
+closed = closedBefore
 
 -- A pointer press and release chooses that row.
 picker:show()

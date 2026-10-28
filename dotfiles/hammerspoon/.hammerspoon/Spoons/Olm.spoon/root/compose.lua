@@ -264,7 +264,7 @@ end
 
 -- The drawing backend every docked pane is handed, the strategy lib/dockedpane.lua's header
 -- describes. The swift chooser's native glass pane while that provider is the chosen one and its
--- library is loaded, so the pane stands beside the native panel on the same glass, and the canvas
+-- library is loaded, so the pane is drawn in the native panel's window as one glass, and the canvas
 -- backend otherwise, which draws exactly what every pane drew before. Asked each time a pane is
 -- made, which is after wireSwiftChooser has run, and the answer cannot change within a session,
 -- since the provider decides once at configure time. It lives outside obj.run for the same reason

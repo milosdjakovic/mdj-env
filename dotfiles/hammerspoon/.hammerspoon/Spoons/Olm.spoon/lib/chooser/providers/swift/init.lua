@@ -6,7 +6,7 @@
 --- is copied. view.lua beside this file is the view, a Humble Object over a Swift library whose
 --- sources are in native/, which draws a nonactivating panel on a glass surface with a native
 --- field, list and action bar. pane.lua beside it is the docked pane's native drawing backend, a
---- glass window in the same library, which the root hands every docked pane while this provider
+--- glass shape in the chooser panel's own window, which the root hands every docked pane while this provider
 --- serves. decisions/olm-swift-chooser.md has why it exists and what was measured and turned
 --- down.
 ---

@@ -20,9 +20,11 @@
 --- event, which hs.eventtap.event.newEventFromData turns back into the event the engine reads,
 --- its key code, its flags and its autorepeat bit, the same object a tap would have handed it.
 ---
---- A press outside the panel is reported with its point and decided here, against the same rects
---- the canvas view tests, so a press inside the companion rect keeps the list and asks the panel
---- to take key again, and any other left press hides it. A scroll over the companion is claimed
+--- A press outside the panel, or in the clear gap between the list's glass and the docked pane's
+--- in the one window that holds both, is reported with its point and decided here, against the
+--- same rects the canvas view tests, so a press inside the companion rect keeps the list and asks
+--- the panel to take key again, and any other left press hides it, the gap included, as the
+--- canvas hides for a press there. A scroll over the companion is claimed
 --- by a scroll wheel tap this view runs while it is started, the way the canvas view's mouse tap
 --- claims it, since an event monitor in Swift could only watch it go by and the window under the
 --- pointer would scroll too.
@@ -83,6 +85,20 @@ local function toLocal(rect, origin)
   return { x = rect.x - origin.x, y = rect.y - origin.y, w = rect.w, h = rect.h }
 end
 
+-- The window the panel stands in, spanning the canvas rect and the companion rect when there is
+-- one, and where the list's glass and the docked pane's glass sit inside it, in the window's own
+-- space with y measured down. The gap between the two is the engine's, left clear.
+local function windowRects(canvas, companion)
+  if not companion then
+    return canvas, { x = 0, y = 0, w = canvas.w, h = canvas.h }, nil
+  end
+  local x0, y0 = math.min(canvas.x, companion.x), math.min(canvas.y, companion.y)
+  local x1 = math.max(canvas.x + canvas.w, companion.x + companion.w)
+  local y1 = math.max(canvas.y + canvas.h, companion.y + companion.h)
+  local window = { x = x0, y = y0, w = x1 - x0, h = y1 - y0 }
+  return window, toLocal(canvas, window), toLocal(companion, window)
+end
+
 local function font(name, size)
   return { name = name, size = size }
 end
@@ -134,16 +150,24 @@ function View:restyle()
   })
 end
 
---- View colon place, arity one. The panel goes exactly on rects.canvas, so the docked pane drawn
---- at rects.companion lines up with it, and the field, the list and the bar go on the engine's
---- own rects inside it, with the row metrics of the layout the list is drawn to.
+--- View colon place, arity one. The list's glass goes exactly on rects.canvas and the docked
+--- pane's glass on rects.companion, both in one window that spans the two, or the canvas rect
+--- alone when there is no companion. The field, the list and the bar go on the engine's own rects
+--- inside the canvas, in the canvas's own space as before, with the row metrics of the layout the
+--- list is drawn to. The companion is handed over in screen space too, since a docked pane is
+--- matched to this panel on it.
 function View:place(rects)
   local s = self.engine:scene()
   local L, T = s.drawLayout, s.tokens
   local origin = rects.canvas
   local iconPad, iconPadLeft = geometry.iconPad(L)
+  local window, listFrame, paneFrame = windowRects(rects.canvas, rects.companion)
   self.native.place(self.id, {
     canvas = rects.canvas,
+    window = window,
+    listFrame = listFrame,
+    paneFrame = paneFrame,
+    companion = rects.companion,
     field = toLocal(rects.field, origin),
     list = toLocal(rects.list, origin),
     footer = toLocal(rects.footer, origin),

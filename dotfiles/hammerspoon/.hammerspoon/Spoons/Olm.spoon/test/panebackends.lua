@@ -9,10 +9,11 @@
 -- handed the very content list the pane rendered, equal to the canvas's element for element and
 -- nothing more, at the corner radius the surface was drawn with, and both are placed on the
 -- same rect and shown in the same order of calls.
--- Then that hide, a redock and destroy reach both, and that what the library could not draw is
--- said once per name however often the pane repaints.
+-- Then that hide, a redock and destroy reach both, that the native pane is placed on the rect it
+-- is docked on before every draw, which is what the library matches it to its chooser on, and
+-- that what the library could not draw is said once per name however often the pane repaints.
 --
--- How Swift draws the list is measured live, not here.
+-- How Swift draws the list, and which window it draws it in, is measured live, not here.
 --
 -- Run it.
 --   lua test/panebackends.lua
@@ -269,6 +270,22 @@ do
   a.destroy(); b.destroy()
   check("destroy deletes the canvas", c.deleted, true)
   check("destroy deletes the native pane", p.deleted, true)
+end
+
+-- The native pane is placed on the very rect it is docked on, every time, since the library
+-- matches it to the chooser panel whose reported companion is that rect and draws it into that
+-- panel's window, and falls back to the pane's own window when none matches. A redock at a moved
+-- companion is placed there before it draws, so the match is made against the rect now current.
+do
+  local _, b = pair({})
+  b.dock(FRAME)
+  b.clear()
+  local p = newestPane()
+  local moved = { x = 520, y = 200, w = 280, h = 400 }
+  p.calls = {}
+  b.dock(moved)
+  check("a redock places the native pane on the new companion", p.at, moved)
+  check("and places it before it draws and shows", table.concat(p.calls, " "), "place draw show")
 end
 
 -- What the library could not draw is said once per name.
