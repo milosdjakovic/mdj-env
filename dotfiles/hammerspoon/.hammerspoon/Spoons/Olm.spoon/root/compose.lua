@@ -246,6 +246,20 @@ local SHIPPED_LEADERS = {
 -- run(olm, cfg), the one door into all of this
 --------------------------------------------------------------------------------
 
+-- Configures the swift chooser when it is the chosen provider and does nothing otherwise. It
+-- loads its library when one is built for these sources, and otherwise starts the build and
+-- serves the default chooser, already configured, for this session. It is handed no focus hold,
+-- since its panel takes key itself, see lib/chooser/providers/swift/init.lua. It lives outside
+-- obj.run, which sits near Lua 5.4's limit of two hundred active locals. opts carries the kit,
+-- the icon resolver, the two field predicates, the resolved compiler, the cache directory and
+-- the logger.
+local function wireSwiftChooser(chooserAtom, chosen, opts)
+  local swift = chooserAtom.providers and chooserAtom.providers.swift
+  if not swift or chosen ~= swift then return end
+  opts.fallback = chooserAtom.providers.default
+  swift.configure(opts)
+end
+
 function obj.run(olm, cfg)
   cfg = cfg or {}
 
@@ -479,24 +493,31 @@ function obj.run(olm, cfg)
   -- one a row title is drawn in, read from the kit on every draw so the light and dark halves
   -- and a theme switch reach a tinted source with no watcher, and the engine keys its cache on
   -- it for the sources that take a colour.
-  local iconSources = {
-    emojiSourceLib.new(),
-    sfSourceLib.new({ scratchDir = function() return atoms.storage.ensure(atoms.storage.cacheDir("icons")) end }),
-  }
-  local iconKnown = {}
-  for _, source in ipairs(iconSources) do iconKnown[source.name] = true end
-  local iconConfig = iconsConfigLib.load((policy.icons or {}).file, function(path)
-    local file = io.open(path, "r")
-    if not file then return nil end
-    local text = file:read("a")
-    file:close()
-    return text
-  end, themeLog, function(name) return iconKnown[name] end)
-  local iconEngine = iconsLib.new({
-    sources = iconSources,
-    order = iconsConfigLib.order(iconConfig),
-    color = function() return uiAtom and uiAtom.tokens().colors.foreground or nil end,
-  })
+  --
+  -- The sources and the config are needed only to build the engine, so they live in a block of
+  -- their own and end with it. obj.run sits near Lua 5.4's limit of two hundred locals active at
+  -- once, which Hammerspoon's Lua enforces, so a value with no later reader is kept out of scope.
+  local iconEngine
+  do
+    local iconSources = {
+      emojiSourceLib.new(),
+      sfSourceLib.new({ scratchDir = function() return atoms.storage.ensure(atoms.storage.cacheDir("icons")) end }),
+    }
+    local iconKnown = {}
+    for _, source in ipairs(iconSources) do iconKnown[source.name] = true end
+    local iconConfig = iconsConfigLib.load((policy.icons or {}).file, function(path)
+      local file = io.open(path, "r")
+      if not file then return nil end
+      local text = file:read("a")
+      file:close()
+      return text
+    end, themeLog, function(name) return iconKnown[name] end)
+    iconEngine = iconsLib.new({
+      sources = iconSources,
+      order = iconsConfigLib.order(iconConfig),
+      color = function() return uiAtom and uiAtom.tokens().colors.foreground or nil end,
+    })
+  end
 
   local canvasPanel = atoms.panel
   canvasPanel:init()
@@ -570,22 +591,24 @@ function obj.run(olm, cfg)
   -- until further down. A key pressed under a held leader therefore never types into the field,
   -- it falls to that leader's one rule over open lists, its list keys acting and every other key
   -- swallowed, which is what Milos asked for META over a list. The swift chooser's field asks the
-  -- same two, so both are named once here and handed to each.
-  local function chooserYields(ev)
-    return anyHeldLeader(function(leader) return leader:owns(ev) end)
-  end
-  -- A list key with no held leader, Ctrl and J, is answered by the field itself while its list
-  -- is up, so nothing global claims the chord. Read late, built after the dispatch table.
-  local function chooserListKeys(ev)
-    if fieldWatch ~= nil and fieldWatch(ev) == true then return true end
-    -- A modifier leader hosting list keys seals over this list. Its hotkey cannot fire
-    -- beneath this field's tap, which sees a chord first, so the chord is claimed here as the
-    -- no op the leader would have resolved it to, Hyper and a digit moving no row.
-    for _, leader in ipairs(sealingModifierLeaders) do
-      if leader:owns(ev) then return true end
-    end
-    return false
-  end
+  -- same two, so both are named once here, in one table, and handed to each.
+  local chooserKeys = {
+    yields = function(ev)
+      return anyHeldLeader(function(leader) return leader:owns(ev) end)
+    end,
+    -- A list key with no held leader, Ctrl and J, is answered by the field itself while its list
+    -- is up, so nothing global claims the chord. Read late, built after the dispatch table.
+    listKeys = function(ev)
+      if fieldWatch ~= nil and fieldWatch(ev) == true then return true end
+      -- A modifier leader hosting list keys seals over this list. Its hotkey cannot fire
+      -- beneath this field's tap, which sees a chord first, so the chord is claimed here as the
+      -- no op the leader would have resolved it to, Hyper and a digit moving no row.
+      for _, leader in ipairs(sealingModifierLeaders) do
+        if leader:owns(ev) then return true end
+      end
+      return false
+    end,
+  }
   if chooserAtom.providers and chooserAtom.providers.default then
     chooserAtom.providers.default.configure({
       panel = canvasPanel,
@@ -595,8 +618,8 @@ function obj.run(olm, cfg)
       -- A list opened over a password field takes focus for as long as it is open, see
       -- lib/securefocus.lua. The provider only asks and never names the mechanism.
       focusHold = function(sink) return secureFocusLib.hold(sink, { keys = relayFieldKeys }) end,
-      yields = chooserYields,
-      listKeys = chooserListKeys,
+      yields = chooserKeys.yields,
+      listKeys = chooserKeys.listKeys,
     })
   end
 
@@ -702,10 +725,12 @@ function obj.run(olm, cfg)
   -- reports over, and the root is not a plugin. Declaring in the same shape is what lets the
   -- door answer for the root on the same terms, and what puts its two tools in the manifest the
   -- layer above reads.
-  local declarers = { root = load("root/manifest.lua") }
-  for identity, manifest in pairs(manifests) do declarers[identity] = manifest end
-
-  depsAtom:configure({ declared = pluginsLib.declarations(declarers, "Olm") })
+  -- In a block of its own, since nothing later reads the set, see the icon engine's block.
+  do
+    local declarers = { root = load("root/manifest.lua") }
+    for identity, manifest in pairs(manifests) do declarers[identity] = manifest end
+    depsAtom:configure({ declared = pluginsLib.declarations(declarers, "Olm") })
+  end
   depsAtom:start()
   -- The one shared scope every plugin earning the ambient deps grant is handed, unscoped by
   -- consumer, matching what services.perPlugin's own contract says it hands out, the same
@@ -719,25 +744,18 @@ function obj.run(olm, cfg)
   local appFocusAtom = atoms.appfocus
   appFocusAtom.configure({ path = sharedDepsScope.path })
 
-  -- The swift chooser, configured only where it is the chosen provider, and here rather than in
-  -- step B because its compiler comes through the door, which is answered just above, and still
-  -- before the first Chooser.new, which the stage makes when it is wired. It loads its library
-  -- now when one is built for these sources and otherwise starts the build and serves the
-  -- default chooser, configured above, for this session. It is handed no focus hold, since its
-  -- panel takes key itself, see lib/chooser/providers/swift/init.lua.
-  local swiftChooser = chooserAtom.providers and chooserAtom.providers.swift
-  if swiftChooser and chooserProvider == swiftChooser then
-    swiftChooser.configure({
-      ui = uiAtom,
-      icon = paintIcon,
-      fallback = chooserAtom.providers.default,
-      yields = chooserYields,
-      listKeys = chooserListKeys,
-      swiftc = sharedDepsScope.path("swiftc-clt"),
-      dir = atoms.storage.cacheDir("swiftchooser"),
-      log = log,
-    })
-  end
+  -- The swift chooser, here rather than in step B because its compiler comes through the door,
+  -- which is answered just above, and still before the first Chooser.new, which the stage makes
+  -- when it is wired. See wireSwiftChooser above obj.run.
+  wireSwiftChooser(chooserAtom, chooserProvider, {
+    ui = uiAtom,
+    icon = paintIcon,
+    yields = chooserKeys.yields,
+    listKeys = chooserKeys.listKeys,
+    swiftc = sharedDepsScope.path("swiftc-clt"),
+    dir = atoms.storage.cacheDir("swiftchooser"),
+    log = log,
+  })
 
   -- resolve.plan's existence question for one declared tool, which is the door's own answer
   -- rather than a probe of its own. A package kind is the exception, since presence for one is
@@ -776,11 +794,13 @@ function obj.run(olm, cfg)
 
   -- A plugin switched off, or off because of one, is left out here, so its init.lua is never
   -- run, its predicates and live labels are never harvested, and no module of it exists.
-  local rawNames, baseFor, identityOfRaw = switchLib.loadList(directories, spoonDir, switchedOff)
-
-  modules = loaderLib.modules(spoonDir, baseFor, rawNames, function(rawName)
-    return identityOfRaw[rawName]
-  end, log)
+  -- In a block of its own, since only the loader reads the three, see the icon engine's block.
+  do
+    local rawNames, baseFor, identityOfRaw = switchLib.loadList(directories, spoonDir, switchedOff)
+    modules = loaderLib.modules(spoonDir, baseFor, rawNames, function(rawName)
+      return identityOfRaw[rawName]
+    end, log)
+  end
   -- A global asked for under a name no plugin answers to mirrors nothing, silently, which is how
   -- the one door a test suite reaches its plugin through was shut while the whole config looked
   -- healthy. Same slip as the data block below, and the same answer, say so.

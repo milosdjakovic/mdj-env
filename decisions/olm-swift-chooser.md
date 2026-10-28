@@ -193,3 +193,15 @@ field, so only the Control keys the canvas keymap reads reach it, named in
 those produce. Five, the root checked list keys against the default field whatever served, so the
 provider now has its own `uses` and the root asks the one that serves. Six, old libraries were
 never removed, so a successful build now keeps the newest three of its name.
+
+### 2026-10-28 11:39
+
+The first live load of the swift provider never reached the chooser. Hammerspoon refused
+`root/compose.lua` with too many local variables, limit 200, in `obj.run`, which the wiring had
+taken from 196 to 199 and past the limit once the compiler counted its temporaries. Every offline
+gate had passed, since Homebrew's `lua` is 5.5.1 and accepts it, while Hammerspoon embeds Lua
+5.4.7. So an offline gate here proves nothing about whether a file compiles where it runs. The
+wiring moved into a helper beside `obj.run` and three blocks became `do` blocks, 190 at the peak,
+and every Lua file of the worktree, 252, was then compiled by the running Hammerspoon with
+`loadfile`, which executes nothing, and all of them compiled. Closing the blind spot for good,
+running the offline gates under 5.4, is a question put to Milos.
