@@ -23,15 +23,16 @@ return {
   overlayModes = overlayModes,
   chooserProviders = chooserProviders,
 
-  -- Which picker draws every chooser. default is the hand drawn picker on the shared panel
-  -- chrome, with its own field, list and mouse handling. swift is the same picker drawn by a
-  -- native panel Olm compiles on this machine, which serves default until its first build is
-  -- done and takes over from the reload after. legacy is the
+  -- Which picker draws every chooser. swift, the shipped value, is the picker drawn by a native
+  -- glass panel Olm compiles on this machine, which serves default until its first build is done
+  -- and takes over from the reload after, and serves default again whenever it cannot build or
+  -- load. default is the same picker hand drawn on the shared panel chrome, with its own field,
+  -- list and mouse handling. legacy is the
   -- built in hs.chooser window, DEPRECATED since 2026-10-14, kept only as a fallback for now
   -- and warned about in the console on every load that picks it.
   -- chooserProviders.default | chooserProviders.swift | chooserProviders.legacy
   chooser = {
-    provider = chooserProviders.default,
+    provider = chooserProviders.swift,
   },
 
   -- Gap around and between managed windows, in pixels. One value drives both the
