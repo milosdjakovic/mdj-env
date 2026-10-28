@@ -58,6 +58,20 @@ enum PaneElement {
   case resetClip
 }
 
+// The diagnostic's answer, see PanePanel.debug.
+struct PaneDebug {
+  let hosting: String
+  let windowVisible: Bool
+  let hidden: Bool
+  let scroll: NSRect?
+  let superview: NSRect?
+  let autoresizes: Bool
+  let document: NSRect
+  let documentFlipped: Bool
+  let clipBounds: NSRect
+  let elements: Int
+}
+
 // What a draw says about the scroll, the content's full height, whether the view goes back to
 // the top and whether it shows an overlay scroller.
 struct PaneScroll {
@@ -95,7 +109,9 @@ final class PaneCanvas: NSView {
         }
       case .image(let image, let rect, let alpha):
         if !rect.intersects(dirtyRect) { continue }
-        image.draw(in: rect, from: .zero, operation: .sourceOver, fraction: alpha,
+        // On whole pixels and with Core Graphics' best interpolation, see Crisp in List.swift.
+        context.imageInterpolation = .high
+        image.draw(in: Crisp.align(rect, in: self), from: .zero, operation: .sourceOver, fraction: alpha,
           respectFlipped: true, hints: nil)
       case .text(let text, let rect):
         if !rect.intersects(dirtyRect) { continue }
@@ -157,6 +173,24 @@ final class PanePanel {
 
   // The size percentages in a frame are taken of, the pane's own.
   var size: NSSize { rect.size }
+
+  // The scroll view that holds the drawn elements, the view that moves between hosts.
+  var hostedView: NSScrollView { scroller }
+
+  // Where the pane is and what it holds, for the read only diagnostic paneDebug in Entry.swift.
+  // Every rect is in its window's coordinates, AppKit's, y measured up.
+  var debug: PaneDebug {
+    let hosting = host != nil ? "chooser" : (scroller.superview == nil ? "none" : "own")
+    func inWindow(_ view: NSView?) -> NSRect? {
+      guard let view, view.window != nil else { return nil }
+      return view.convert(view.bounds, to: nil)
+    }
+    return PaneDebug(hosting: hosting, windowVisible: scroller.window?.isVisible ?? false,
+      hidden: scroller.isHiddenOrHasHiddenAncestor, scroll: inWindow(scroller),
+      superview: inWindow(scroller.superview), autoresizes: scroller.translatesAutoresizingMaskIntoConstraints,
+      document: canvas.frame, documentFlipped: canvas.isFlipped, clipBounds: scroller.contentView.bounds,
+      elements: canvas.elements.count)
+  }
 
   func place(_ next: NSRect) {
     rect = next
@@ -234,6 +268,7 @@ final class PanePanel {
       host = next
       if let next {
         window.orderOut(nil)
+        surface.release(scroller)
         next.adoptPane(scroller)
       } else {
         surface.hold(scroller)

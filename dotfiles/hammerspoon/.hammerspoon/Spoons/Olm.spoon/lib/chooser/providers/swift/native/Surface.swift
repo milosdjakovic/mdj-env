@@ -35,6 +35,9 @@ struct Surface {
   func hold(_ content: NSView) {
     content.removeFromSuperview()
     if #available(macOS 26.0, *), let glass = view as? NSGlassEffectView {
+      // A glass that still names this view from before it left would take the assignment as no
+      // change and leave it with no superview, so the old claim is dropped first.
+      if glass.contentView === content { glass.contentView = nil }
       glass.contentView = content
       return
     }
@@ -42,6 +45,15 @@ struct Surface {
     content.frame = view.bounds
     content.autoresizingMask = [.width, .height]
     view.addSubview(content)
+  }
+
+  // Gives content up for another window to hold. A glass keeps naming its content view after
+  // that view moved elsewhere, and goes on laying it out, so a view another window holds was
+  // resized to nothing on that window's next layout. The claim is dropped here.
+  func release(_ content: NSView) {
+    if #available(macOS 26.0, *), let glass = view as? NSGlassEffectView, glass.contentView === content {
+      glass.contentView = nil
+    }
   }
 
   func setCornerRadius(_ radius: CGFloat) {
@@ -128,6 +140,11 @@ final class SharedSurface {
       content.removeFromSuperview()
       paneSlot.addSubview(content)
     }
+    // Sized by its autoresizing mask here. A glass that held it before set it to be placed by
+    // constraints and pinned it to itself, and those pins went with the glass, so without this
+    // the view stood in the region with no constraint at all and the next layout after its frame
+    // changed sized it to nothing, which left a pane in its own window and then docked here blank.
+    content.translatesAutoresizingMaskIntoConstraints = true
     content.frame = paneSlot.bounds
     content.autoresizingMask = [.width, .height]
   }

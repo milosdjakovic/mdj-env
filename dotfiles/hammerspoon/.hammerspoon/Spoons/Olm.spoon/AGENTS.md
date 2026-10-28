@@ -638,7 +638,17 @@ asked for a thumb, then the overlay style, and only the elements that reach the 
 are drawn. A scroll over the pane in the chooser's window is left to that scroll view, since
 `View:_onScroll` in `providers/swift/view.lua` asks the panel through `hostsPane` and claims
 nothing while the panel holds a shown pane. That method is the one place the tap and the hosting
-meet. A pane in its own window is claimed by the tap as before and comes back as `scrollBy`. It
+meet. A pane in its own window is claimed by the tap as before and comes back as `scrollBy`. The
+scroll view moves between its own window's glass and the chooser's region, and a glass places
+its content view by constraints and keeps naming it after it leaves, so `holdPane` in
+`native/Surface.swift` gives it its autoresizing mask back and `Surface.release` drops the glass's
+claim. Without the first an `NSScrollView`, which carries constraints of its own, was sized to
+nothing by the first layout after a redock and the pane drew blank. `test/swiftpane.sh` builds the
+library's own sources into a program that shows no window and pins that view tree, and
+`suite.sh dry` runs it. `paneDebug` on the library, reached as `paneDebug(id)` on the swift
+provider module, answers read only where a pane is hosted, its frames, the document and the clip.
+Pictures in the list, the action bar and the pane are drawn on whole pixels at the backing scale
+through `Crisp` in `native/List.swift`, never scaled by Core Animation. It
 draws `rectangle` and `segments`
 filled, stroked or clipped, `image`, `text` as a string or an `hs.styledtext`, and `resetClip`,
 with the canvas's semantics and defaults. Any other type, action, scaling or attribute leaves

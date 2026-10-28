@@ -49,6 +49,8 @@ final class BarView: FlippedView {
   private var parts: [NSView] = []
   private var rightParts: [NSView] = []
   private var placement = Placement()
+  // The key button's picture as it came, drawn again on the pixel grid at every layout.
+  private var keysSource: NSImage?
 
   override init(frame: NSRect) {
     super.init(frame: frame)
@@ -66,6 +68,7 @@ final class BarView: FlippedView {
     for view in parts + rightParts { view.removeFromSuperview() }
     parts = []
     rightParts = []
+    keysSource = footer.keysImage
     if let image = footer.keysImage {
       let view = NSImageView(image: image)
       view.imageScaling = .scaleProportionallyUpOrDown
@@ -100,8 +103,15 @@ final class BarView: FlippedView {
       x += size.width + gap
     }
     let buttonH = parts.map { $0.frame.height }.max() ?? 0
-    button.frame = NSRect(x: inset - gap / 2, y: (bounds.height - buttonH) / 2, width: x, height: buttonH)
+    button.frame = Crisp.align(NSRect(x: inset - gap / 2, y: (bounds.height - buttonH) / 2, width: x, height: buttonH), in: self)
     for view in parts { view.frame.origin.y = (buttonH - view.frame.height) / 2 }
+    // The picture on whole pixels and drawn for exactly the pixels it covers, see Crisp.
+    for case let view as NSImageView in parts {
+      view.frame = Crisp.align(view.frame, in: button)
+      if let keysSource {
+        view.image = Crisp.image(keysSource, size: view.frame.size, scale: Crisp.scale(of: self))
+      }
+    }
     // The right side, laid from the right edge leftward, a wider gap between entries than
     // between a label and its chord.
     var right = bounds.width - inset

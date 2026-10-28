@@ -14,6 +14,53 @@ class FlippedView: NSView {
   override var isFlipped: Bool { true }
 }
 
+// Pictures on the pixel grid at the screen's backing scale. An icon arrives as an hs.image whose
+// bitmap is larger than the box it is shown in, and an NSImageView hands that bitmap to Core
+// Animation, which shrinks it with a plain linear filter and puts it wherever the frame lands, a
+// half point included, so a symbol came out softer than the canvas list, which draws the same
+// picture with Core Graphics' own interpolation. So the frame is moved to whole pixels and the
+// picture is drawn once, at high quality, into a bitmap of exactly the pixels it covers, which
+// the view then shows unscaled. Nothing here knows which source made the picture.
+enum Crisp {
+  // The rect moved and sized to whole pixels of view's backing store.
+  static func align(_ rect: NSRect, in view: NSView) -> NSRect {
+    view.backingAlignedRect(rect, options: .alignAllEdgesNearest)
+  }
+
+  // The backing scale view draws at, the main screen's while it is in no window.
+  static func scale(of view: NSView) -> CGFloat {
+    view.window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
+  }
+
+  // source fitted whole into size, centred and kept to its aspect as scaleProportionallyUpOrDown
+  // fits it, drawn into a bitmap of size times scale pixels on whole pixels. A template stays a
+  // template, so a tinted view still tints it.
+  static func image(_ source: NSImage, size: NSSize, scale: CGFloat) -> NSImage {
+    let w = Int((size.width * scale).rounded()), h = Int((size.height * scale).rounded())
+    guard w > 0, h > 0, source.size.width > 0, source.size.height > 0,
+      let blank = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: w, pixelsHigh: h,
+        bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+        colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
+      let rep = blank.retagging(with: .sRGB),
+      let context = NSGraphicsContext(bitmapImageRep: rep)
+    else { return source }
+    rep.size = size
+    let fit = min(size.width / source.size.width, size.height / source.size.height)
+    func pixel(_ value: CGFloat) -> CGFloat { (value * scale).rounded() / scale }
+    let dw = pixel(source.size.width * fit), dh = pixel(source.size.height * fit)
+    let rect = NSRect(x: pixel((size.width - dw) / 2), y: pixel((size.height - dh) / 2), width: dw, height: dh)
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = context
+    context.imageInterpolation = .high
+    source.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
+    NSGraphicsContext.restoreGraphicsState()
+    let out = NSImage(size: size)
+    out.addRepresentation(rep)
+    out.isTemplate = source.isTemplate
+    return out
+  }
+}
+
 // A row's background, filled with the highlight colour while the row is the highlighted one.
 final class LitRowView: NSTableRowView {
   var lit = false { didSet { if lit != oldValue { needsDisplay = true } } }
@@ -38,6 +85,10 @@ final class RowCell: NSView {
   let subtitle = NSTextField(labelWithString: "")
   let number = NSTextField(labelWithString: "")
   var placement = Placement()
+  // The row's picture as it came, and what it was last drawn for, so a layout redraws the icon
+  // only when the picture, its box or the backing scale changed.
+  private var source: NSImage?
+  private var drawnFor: (NSImage, NSSize, CGFloat)?
 
   override var isFlipped: Bool { true }
 
@@ -51,8 +102,18 @@ final class RowCell: NSView {
 
   required init?(coder: NSCoder) { nil }
 
+  // A move to a screen of another scale draws the icon again for it.
+  override func viewDidChangeBackingProperties() {
+    super.viewDidChangeBackingProperties()
+    needsLayout = true
+  }
+
   func fill(_ row: Row, slot: Int?, style: Style, lineBreak: NSLineBreakMode) {
-    icon.image = row.image
+    if row.image !== source {
+      source = row.image
+      drawnFor = nil
+      icon.image = nil
+    }
     title.stringValue = row.title
     title.font = style.titleFont
     title.textColor = row.enabled ? style.text : style.textDim
@@ -78,8 +139,16 @@ final class RowCell: NSView {
     super.layout()
     let p = placement
     let side = p.iconFrame
-    icon.frame = NSRect(x: p.iconPadLeft - (side - p.iconSize) / 2, y: p.iconPad - (side - p.iconSize) / 2,
-      width: side, height: side)
+    icon.frame = Crisp.align(NSRect(x: p.iconPadLeft - (side - p.iconSize) / 2,
+      y: p.iconPad - (side - p.iconSize) / 2, width: side, height: side), in: self)
+    if let source {
+      let scale = Crisp.scale(of: self)
+      let size = icon.frame.size
+      if !(drawnFor.map { $0.0 === source && $0.1 == size && $0.2 == scale } ?? false) {
+        icon.image = Crisp.image(source, size: size, scale: scale)
+        drawnFor = (source, size, scale)
+      }
+    }
     let textX = p.iconPadLeft + p.iconSize + p.iconGap
     let reserved = number.isHidden ? 0 : p.numW
     let textW = max(0, bounds.width - textX - p.padX - reserved)

@@ -178,6 +178,15 @@ function M.paneBackend()
   return SwiftPane.factory(NATIVE, LOG)
 end
 
+--- M.paneDebug(id) -> the native library's read only account of a docked pane, where it is
+--- hosted, its frames and what it last drew, or of every pane keyed by id when id is nil. Nil
+--- while the library is not loaded. For a live look through hs, see paneDebug in
+--- native/Entry.swift for the fields.
+function M.paneDebug(id)
+  if not NATIVE then return nil end
+  return NATIVE.paneDebug(id)
+end
+
 --- M.new(config) answers an instance satisfying lib/chooser/contract.lua, the engine over the
 --- native view when the library is loaded, and the fallback provider's own instance otherwise.
 function M.new(config)

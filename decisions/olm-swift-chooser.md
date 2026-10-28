@@ -357,3 +357,46 @@ and reset positions and a painter cut at the viewport, `test/swiftview.lua` the 
 hosted pane's scroll alone, and the dry suite, the dry gate, the goldens, the dependency check and
 the docked pane unit case pass. Not yet run live, so momentum, the overlay scroller and the cost of
 a tall file preview drawn once are unmeasured.
+
+### 2026-10-28 14:18
+
+Milos tried the native scroll on d4ff8f11 under the swift chooser. The clipboard, file search and
+speed test panes drew nothing, with no console line, and row and action bar icons read a little
+blurry. Both found offline the same hour.
+
+The blank pane. The pane's view is now an `NSScrollView`, made in the pane's own window, where
+`NSGlassEffectView` takes it as its content view, turns off its autoresizing mask and pins it
+with constraints of its own. When the pane docked into the chooser's region those pins stayed
+with the glass, so the scroll view stood there placed by constraints with none, and since an
+`NSScrollView` carries constraints of its own the layout engine owned its frame and the first
+layout after its frame changed, a redock at a new companion size among them, sized it to zero by
+zero. The old pane was a plain view with no constraints, which the engine leaves alone, so the same
+handover never showed. Found by building the real classes into a program with no window shown,
+which read the frame as 300 by 400 before the window's layout and 0 by 0 after. `holdPane` now
+gives the view its autoresizing mask back, and a pane leaving its own window has the glass drop
+its claim through a new `Surface.release`, since a glass that still named the view took handing
+it back as no change and left it with no superview, the fallback blank too. Whether every live
+blank was this is for the next live look, which `paneDebug` on the swift provider module answers,
+hosting, frames, document, clip and element count.
+
+The icons. An icon reaches the native list as an hs.image whose bitmap is bigger than its box,
+and an `NSImageView` hands it to Core Animation, which shrinks it with a linear filter at a frame
+that may sit on half a point, where the canvas list draws it through Core Graphics. Now the frame
+is moved to whole pixels and the picture drawn once at high quality into a bitmap of exactly the
+pixels it covers, through `Crisp` in `native/List.swift`, for the rows and the action bar's key
+icon, and the pane draws images on whole pixels at high interpolation. Nothing knows which source
+made a picture. The symbol source itself is lower than it should be. `lib/icons/sources/sf.lua`
+renders a 64 point symbol and writes it through `TIFFRepresentation`, whose first and only
+representation was measured at 75 by 75 pixels for 75 points, a 1x bitmap, which `hs.canvas` then
+enlarges to 60 points in a 72 point box before the engine sizes it down. Rendering at 2x would
+mean drawing the symbol into an `NSBitmapImageRep` of twice its point size with that size set as
+its points, or rendering the symbol at 128 points, in that script. Not changed yet.
+
+The library built with the provider's flags with no error and no warning. The new
+`test/swiftpane.sh`, run by `suite.sh dry` and skipped with exit 2 on a machine without the
+command line tools or Hammerspoon, builds the library's sources into a program that pins the pane
+filling the chooser's region after a redock at a new size, its return to its own window and back,
+the scroll's reset, scrollBy, kept place and clamp, the drawn content at the top, and an icon's
+pixel size, points and template flag. With the autoresizing line removed it fails on the redock.
+The dry suite, the dry gate, the goldens, the dependency check and the docked pane unit case
+pass. Not yet run live.

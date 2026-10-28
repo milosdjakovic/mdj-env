@@ -283,6 +283,58 @@ private let hostsPane: lua_CFunction = { L in
   return 1
 }
 
+// paneDebug(id) answers, read only, where a pane is and what it holds, for a live look through
+// hs. hosting is chooser, own or none, windowVisible and hidden say whether it can be seen,
+// scrollFrame and superviewFrame are in their window's coordinates, AppKit's with y up,
+// autoresizes is whether the scroll view is placed by its autoresizing mask, documentFrame and
+// documentFlipped are the drawn view's, clipBounds is the visible part of it, and elements is
+// how many elements the last draw handed it. Nil for an id this image never made. With no id it
+// answers every pane this image holds, keyed by id, since a pane's id lives inside its backend.
+private func pushPaneDebug(_ L: LuaState?, _ pane: PanePanel) {
+  let d = pane.debug
+  func setRect(_ name: String, _ rect: NSRect?) {
+    guard let rect else { return }
+    olm_newTable(L)
+    for (key, value) in [("x", rect.minX), ("y", rect.minY), ("w", rect.width), ("h", rect.height)] {
+      lua_pushnumber(L, Double(value))
+      lua_setfield(L, -2, key)
+    }
+    lua_setfield(L, -2, name)
+  }
+  func set(_ name: String, _ value: LuaValue) {
+    pushValue(L, value)
+    lua_setfield(L, -2, name)
+  }
+  olm_newTable(L)
+  set("hosting", .string(d.hosting))
+  set("windowVisible", .bool(d.windowVisible))
+  set("hidden", .bool(d.hidden))
+  setRect("scrollFrame", d.scroll)
+  setRect("superviewFrame", d.superview)
+  set("autoresizes", .bool(d.autoresizes))
+  setRect("documentFrame", d.document)
+  set("documentFlipped", .bool(d.documentFlipped))
+  setRect("clipBounds", d.clipBounds)
+  set("elements", .int(d.elements))
+}
+
+private let paneDebug: lua_CFunction = { L in
+  if LuaReader(L).integer(at: 1) == nil {
+    olm_newTable(L)
+    for (id, pane) in panes {
+      pushPaneDebug(L, pane)
+      lua_rawseti(L, -2, lua_Integer(id))
+    }
+    return 1
+  }
+  guard let pane = paneAt(L) else {
+    lua_pushnil(L)
+    return 1
+  }
+  pushPaneDebug(L, pane)
+  return 1
+}
+
 private let paneShow: lua_CFunction = { L in
   paneAt(L)?.show()
   return 0
@@ -336,6 +388,7 @@ public func luaopen_olm_swiftchooser(_ L: LuaState?) -> Int32 {
   olm_setFunction(L, "panePlace", panePlace)
   olm_setFunction(L, "paneDraw", paneDraw)
   olm_setFunction(L, "paneScrollBy", paneScrollBy)
+  olm_setFunction(L, "paneDebug", paneDebug)
   olm_setFunction(L, "hostsPane", hostsPane)
   olm_setFunction(L, "paneShow", paneShow)
   olm_setFunction(L, "paneHide", paneHide)
