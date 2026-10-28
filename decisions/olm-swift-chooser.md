@@ -31,7 +31,10 @@ holds. A panel is torn down when the Lua state that made it closes, through a se
 bottom action bar, an anchored actions popover,
 an Olm menu on a round button at the bar's left edge, and a native docked pane are planned on
 top of it. Each one presents a model Olm already has, `footerModel`, ActionPanel's `rowsFor`,
-and the UI kit's describer nodes.
+and the UI kit's describer nodes. The docked pane is built on `olm/native-pane`. Every pane is
+reduced by `lib/dockedpane.lua` to hs.canvas element lists, and while the swift provider serves
+the root hands each pane a native backend in the same library, which draws those lists on glass
+of its own beside the panel, so no plugin changed.
 
 ## Rejected
 
@@ -64,6 +67,21 @@ and the UI kit's describer nodes.
   so the next load of the same path is handed the old image and a rebuild is never seen until
   Hammerspoon quits. The output is named by a hash of its inputs instead, and the module name
   carries the same hash so the classes of two images never collide.
+
+- **Drawing the docked pane by translating kit nodes into AppKit views.** 2026-10-28, considered
+  and set aside before the pane was built. Of the three panes that describe with kit nodes, two
+  drop to `ui.raw` for canvas elements, and two more panes paint canvas elements directly, so a
+  node translation would have reached only one pane whole and needed four plugins rewritten.
+  The element lists every pane is already reduced to are the contract instead.
+- **Drawing the docked pane inside the chooser panel's own window.** 2026-10-28 12:06. A pane is
+  made by a plugin and knows no chooser panel, the panel's frame is the canvas rect the engine
+  reports while the companion rect is reported apart and may be absent, and one window across
+  both would put one glass rectangle under the gap between them. The pane is a window of its own
+  that never becomes key instead.
+- **Painting the surface elements onto the pane's glass.** 2026-10-28 12:06. The surface is a
+  filled rounded rectangle under its border, and the fill covers the glass, so the pane would
+  read as a painted card beside a glass panel. The native backend reads the surface's corner
+  radius and stands the pane on the same glass as the panel instead.
 
 ## Log
 
@@ -214,3 +232,30 @@ view. Milos used it and asked to keep the look as it is, the capsule action bar,
 popover and the round Olm menu set aside for now, and to build the native docked pane next.
 Merged to main with default still the shipped value, so a machine takes the swift chooser only
 when `config/settings.lua` names it.
+
+### 2026-10-28 12:06
+
+The native docked pane was built on `olm/native-pane`, offline only. `lib/dockedpane.lua` already
+reduced every pane, described or painted, to hs.canvas element tables before drawing, so those
+lists, the surface and the content, became the contract with a drawing backend the root injects,
+a Strategy with place, render, show, hide and destroy. `lib/dockedpane/canvas.lua` is the canvas
+half moved out unchanged. `providers/swift/pane.lua` over `native/Pane.swift` is the other, a
+nonactivating panel that never becomes key, at the canvas pane's floating level, in the same
+library as the chooser panel and torn down by the same sentinel, which draws the content on the
+same glass and takes the surface's corner radius rather than its fill. Read from the five panes
+and the kit's layout, the elements in use are rectangle filled, stroked and clipped with rounded
+radii, segments stroked with round caps, image with alpha, proportional scaling and top left or
+centred alignment, text as an hs.styledtext, and resetClip, and every one is drawn with the
+canvas's semantics, a clip adding to the region until resetClip clears it, as the kit's layout
+assumes. hs.canvas's own binary names `drawInRect:` for text and the image call with
+`respectFlipped`, which the Swift side uses too. Anything else is left out of that element and
+named once in the console. `root/compose.lua` picks the backend in `dockedPaneBackend` beside
+`wireSwiftChooser`, the native one only while the swift provider is chosen and its library is
+loaded, and `obj.run` kept its 195 register slots, the change living in a closure it already
+had. The library built with the provider's flags with no error and no warning, the new
+`test/panebackends.lua` drives one pane over both backends for an empty, a described, a painted
+and a scrolled pane and finds the native one handed the very content the canvas paints over its
+surface, and `test/swiftview.lua`, the unit case `test/cases/dockedpane.lua` under plain Lua, the
+dry gate and every golden pass. Not yet run live, so the glass beside the panel, the text
+metrics against the canvas, a click on the pane keeping the list and the keyboard, and the
+sentinel closing a pane at a reload are all unmeasured.

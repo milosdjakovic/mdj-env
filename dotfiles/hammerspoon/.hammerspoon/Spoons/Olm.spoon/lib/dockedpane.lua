@@ -1,12 +1,12 @@
 --- === DockedPane ===
 ---
---- The docked companion pane, the canvas beside a list that describes the highlighted row. Every
---- plugin with a pane used to carry its own copy of this lifecycle, the lazy canvas, the inner
+--- The docked companion pane, the surface beside a list that describes the highlighted row. Every
+--- plugin with a pane used to carry its own copy of this lifecycle, the lazy window, the inner
 --- rect, the dock, show, hide and destroy, the shared surface underneath and the shared empty
 --- state, five copies of the same sixty lines that differed only in what they drew. This file
 --- owns all of it once, and a plugin keeps only what it draws.
 ---
---- WHY A CANVAS OF ITS OWN AND NOT A CANVASPANEL INSTANCE. A CanvasPanel computes its own
+--- WHY A WINDOW OF ITS OWN AND NOT A CANVASPANEL INSTANCE. A CanvasPanel computes its own
 --- placement from an anchor and sizes itself from its content, while a docked pane has to land
 --- exactly on the companion rect the chooser reserved and reported. Drawing anywhere else would
 --- put it outside the rect the chooser's click watcher treats as part of the picker, so a click
@@ -15,7 +15,7 @@
 --- cheat sheets are one component drawn in several places.
 ---
 --- THE PATTERN IS TEMPLATE METHOD, adapted to closures. This file is the fixed skeleton of a
---- paint, the guards, the canvas, the surface first, the scroll clamp, the optional thumb, the
+--- paint, the guards, the backend, the surface first, the scroll clamp, the optional thumb, the
 --- frame and the show. The one step that varies, what is drawn, is a function the plugin hands
 --- in. A plain pane hands a describer, a function of the kit answering one node, and the pane
 --- lays it out in the inner rect. A pane made of several regions, a fixed header over a
@@ -24,22 +24,40 @@
 --- everything around it. Both are called again on every paint, so a redock or a change of
 --- appearance repaints from the same description without anyone being told again.
 ---
+--- THE DRAWING BACKEND IS A STRATEGY. Whatever a pane describes or paints is reduced here to two
+--- lists of hs.canvas element tables, the surface and the content, in the pane's own coordinates
+--- with the origin at its top left, and those two lists are the whole contract with whatever
+--- puts them on screen. deps.backend is a factory, called once at the first paint with the
+--- companion rect, answering a backend that keeps four promises and holds no rule.
+---   backend.place(frame)             move to the companion rect, in screen coordinates.
+---   backend.render(surface, content) draw both lists, replacing whatever was drawn before.
+---   backend.show(), backend.hide()   bring it up and take it down without forgetting it.
+---   backend.destroy()                tear it down for good, on close.
+--- lib/dockedpane/canvas.lua is one, an hs.canvas that paints the surface and the content in
+--- order, which is how every pane drew before the backend existed. The swift chooser's
+--- lib/chooser/providers/swift/pane.lua is the other, a native glass window in the same Swift
+--- library as the chooser panel, which puts glass where the surface elements would be and draws
+--- the content over it. The composition root chooses, the native one only while the swift
+--- provider serves, and no code in this file or in a plugin ever picks one.
+---
 --- Granted rather than loaded. A plugin whose surface declares `pane = true` receives
 --- `opts.dockedPane`, a function answering a new pane, built by the composition root with the
---- kit, the surface and the empty state already in it. The declaration stays the one gate, so a
---- plugin that never asked for a pane cannot make one, and nothing here names a plugin.
+--- kit, the surface, the empty state and the backend already in it. The declaration stays the
+--- one gate, so a plugin that never asked for a pane cannot make one, and nothing here names a
+--- plugin.
 ---
---- Plain Lua. The canvas and the timer come from deps when given, and from hs otherwise, read at
---- the moment they are needed, so a unit case drives this file over a stub with no Hammerspoon
---- running. That fallback is the one place this file reaches for hs, kept here as the seam
---- rather than behind another layer.
+--- Plain Lua. The timer comes from deps when given, and from hs otherwise, read at the moment it
+--- is needed, so a unit case drives this file over a stub with no Hammerspoon running. That
+--- fallback is the one place this file reaches for hs, kept here as the seam rather than behind
+--- another layer.
 ---
 --- PANE API, dot called, every member a closure, so pane.show(x) needs no self.
----   pane.isEnabled()            whether anything can be drawn, a surface and a kit both present.
+---   pane.isEnabled()            whether anything can be drawn, a surface, a kit and a backend
+---                               all present.
 ---   pane.dock(companionFrame)   take the rect the chooser reported and repaint what is current.
 ---                               Fired with a seed rect at show and again once the window
 ---                               settles, so a redock is expected.
----   pane.inner()                the padded box content is laid out in, in the canvas's own
+---   pane.inner()                the padded box content is laid out in, in the pane's own
 ---                               coordinates, nil before the first dock.
 ---   pane.show(describe, opts)   describe(ui, view) answers one kit node.
 ---   pane.draw(painter, opts)    painter(view) answers elements and the overflow in points.
@@ -48,11 +66,11 @@
 ---   pane.clear()                the shared empty state, for a highlight with nothing to say.
 ---   pane.scrollBy(points)       move further down by points, answering whether anything moved.
 ---   pane.hide()                 hide without destroying, for the stage's swap away signal.
----   pane.destroy()              delete the canvas and forget everything, on close.
+---   pane.destroy()              destroy the backend and forget everything, on close.
 ---
 --- view, what a describer and a painter are handed.
 ---   frame     the companion rect, in screen coordinates.
----   inner     the frame less the kit's pad on all four sides, in the canvas's own coordinates.
+---   inner     the frame less the kit's pad on all four sides, in the pane's own coordinates.
 ---   viewport  the box inside the surface's border, which scrolled content is cut at.
 ---   scrollY   how far the content is scrolled, in points.
 
@@ -93,7 +111,8 @@ end
 ---   surface     function(w, h) -> elements, CanvasPanel.surfaceElements.
 ---   emptyState  function(w, h, opts) -> elements, CanvasPanel.emptyStateElements. Absent leaves
 ---               the bare surface up, since a docked pane is never hidden while it is current.
----   canvas      optional, hs.canvas or a stub with new and windowLevels.
+---   backend     function(frame) -> backend, the drawing strategy, see above. Absent means a
+---               pane that never draws, see isEnabled.
 ---   timer       optional, hs.timer or a stub with doAfter.
 --- spec, from the plugin, all optional.
 ---   scroll      true when content taller than the pane scrolls. Without it content is laid
@@ -105,7 +124,7 @@ function M.new(deps, spec)
   spec = spec or {}
   local pane = {}
 
-  local canvas = nil   -- built lazily on the first paint and deleted on destroy
+  local backend = nil  -- built lazily on the first paint and destroyed on destroy
   local frame = nil    -- the companion rect, nil until the first dock and after destroy
   local current = nil  -- what is on screen, { describe = fn }, { painter = fn } or { empty = true }
   local hidden = false -- set by hide, cleared by dock, the guard every late paint reads
@@ -113,7 +132,6 @@ function M.new(deps, spec)
   local overflow = 0   -- how far it can go, measured by the last paint
   local timer = nil    -- the one pending scroll paint
 
-  local function canvasLib() return deps.canvas or hs.canvas end
   local function timerLib() return deps.timer or hs.timer end
 
   local function stopTimer()
@@ -123,19 +141,13 @@ function M.new(deps, spec)
     end
   end
 
-  local function ensureCanvas()
-    if canvas then return end
-    local lib = canvasLib()
-    canvas = lib.new(frame)
-    canvas:level(lib.windowLevels.floating)
-    -- A click on the pane must not pull focus off the search field. The chooser's click
-    -- watcher already treats a point inside the companion rect as part of the picker and
-    -- passes it through, so between the two a click here changes nothing.
-    canvas:clickActivating(false)
+  local function ensureBackend()
+    if backend then return end
+    backend = deps.backend(frame)
   end
 
   function pane.isEnabled()
-    return deps.surface ~= nil and deps.ui ~= nil
+    return deps.surface ~= nil and deps.ui ~= nil and deps.backend ~= nil
   end
 
   function pane.inner()
@@ -209,15 +221,14 @@ function M.new(deps, spec)
   end
 
   local function paint()
-    -- A late tick, a settled read or a thumbnail can all reach here after hide took the canvas
+    -- A late tick, a settled read or a thumbnail can all reach here after hide took the pane
     -- down for a swap away. hidden is what stops any of them bringing it back up beside a tool
     -- that is no longer current.
     if hidden then return end
     if not (current and frame and pane.isEnabled()) then return end
-    ensureCanvas()
+    ensureBackend()
     local inner = pane.inner()
-    local els = {}
-    for _, el in ipairs(deps.surface(frame.w, frame.h)) do els[#els + 1] = el end
+    local surface = deps.surface(frame.w, frame.h) or {}
     local content
     if current.empty then
       overflow = 0
@@ -227,10 +238,9 @@ function M.new(deps, spec)
     else
       content = paintedElements(inner)
     end
-    for _, el in ipairs(content) do els[#els + 1] = el end
-    canvas:frame(frame)
-    canvas:replaceElements(els)
-    canvas:show()
+    backend.place(frame)
+    backend.render(surface, content)
+    backend.show()
   end
 
   -- Every show resets the scroll unless asked not to, since the content underneath changed and a
@@ -293,11 +303,11 @@ function M.new(deps, spec)
   function pane.hide()
     hidden = true
     stopTimer()
-    if canvas then canvas:hide() end
+    if backend then backend.hide() end
   end
 
-  -- Deleted rather than hidden, because nothing may survive a close and rebuilding one canvas on
-  -- the next open costs nothing.
+  -- Destroyed rather than hidden, because nothing may survive a close and rebuilding one backend
+  -- on the next open costs nothing.
   function pane.destroy()
     stopTimer()
     current = nil
@@ -305,9 +315,9 @@ function M.new(deps, spec)
     hidden = false
     scrollY = 0
     overflow = 0
-    if canvas then
-      canvas:delete()
-      canvas = nil
+    if backend then
+      backend.destroy()
+      backend = nil
     end
   end
 

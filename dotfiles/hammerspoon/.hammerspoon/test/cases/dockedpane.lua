@@ -1,7 +1,7 @@
 -- Unit case for the shared docked companion pane, Spoons/Olm.spoon/lib/dockedpane.lua. The runner
 -- reaches this file with a dofile call carrying an absolute path, so it locates itself through
 -- debug.getinfo and derives every module path from there. It also runs under plain lua, since
--- the pane takes its canvas and its timer from deps and nothing here touches Hammerspoon.
+-- the pane takes its backend and its timer from deps and nothing here touches Hammerspoon.
 --
 -- The canvas is a stub that records what it was told, the timer a stub that holds its callback
 -- until the case fires it, and the kit a fake whose layout answers one element per node carrying
@@ -26,6 +26,12 @@ end
 local chunk, err = loadfile(olm .. "lib/dockedpane.lua")
 if not chunk then error("could not load lib/dockedpane.lua, " .. tostring(err)) end
 local DockedPane = chunk()
+
+-- The canvas backend the root hands every pane while the swift chooser does not serve, built
+-- over the stub canvas below, so this case still sees each canvas call the pane causes.
+local backendChunk, backendErr = loadfile(olm .. "lib/dockedpane/canvas.lua")
+if not backendChunk then error("could not load lib/dockedpane/canvas.lua, " .. tostring(backendErr)) end
+local CanvasBackend = backendChunk()
 
 -- Every canvas the stub made, newest last.
 local canvases = {}
@@ -77,7 +83,8 @@ local emptyState = function(w, h, opts)
   return { { type = "empty", frame = { x = 0, y = 0, w = w, h = h }, text = opts and opts.text } }
 end
 
-local deps = { ui = ui, surface = surface, emptyState = emptyState, canvas = canvasLib, timer = timerLib }
+local deps = { ui = ui, surface = surface, emptyState = emptyState,
+  backend = CanvasBackend.new({ canvas = canvasLib }), timer = timerLib }
 
 local function kinds(els)
   local out = {}

@@ -3,6 +3,11 @@
 // view asks of its panel. new makes a panel and answers its id, so every picker instance the
 // engine builds has a panel of its own.
 //
+// The docked pane's window lives here too, in the same image, so the chooser panel and the panes
+// beside it are torn down together. paneNew makes one and answers its id, and the pane functions
+// take that id first the same way. A pane never calls back into Lua, it only draws what it is
+// handed, so it needs no callback and none can reach a closed state through it.
+//
 // Every event goes back through the one callback setCallback registers, called as
 // callback(id, event, ...) on the main Lua state, the state LuaSkin says every callback belongs
 // on. Its first result is read as a boolean, which is how yields and listKey answer whether the
@@ -22,6 +27,7 @@
 import Cocoa
 
 private var panels: [Int: ChooserPanel] = [:]
+private var panes: [Int: PanePanel] = [:]
 private var nextID = 1
 private var callbackRef: Int32 = olm_noRef()
 private var callbackState: LuaState?
@@ -30,14 +36,16 @@ private var generation = 0
 private let sentinelType = "olm.swiftchooser.sentinel"
 
 // Stops, hides and forgets every panel and the callback, the one cleanup both a closing state's
-// sentinel and a fresh luaopen run. The reference belongs to a state that is going or gone, so it
-// is dropped rather than released.
+// sentinel and a fresh luaopen run, the docked panes with them. The reference belongs to a state
+// that is going or gone, so it is dropped rather than released.
 private func closeAll() {
   for panel in panels.values {
     panel.stop()
     panel.hide()
   }
   panels = [:]
+  for pane in panes.values { pane.hide() }
+  panes = [:]
   callbackRef = olm_noRef()
   callbackState = nil
 }
@@ -200,6 +208,67 @@ private let surface: lua_CFunction = { L in
   return 1
 }
 
+// MARK: The docked pane
+
+// The pane named by the id in the first argument, or nil for an id this image never made.
+private func paneAt(_ L: LuaState?) -> PanePanel? {
+  guard let id = LuaReader(L).integer(at: 1) else { return nil }
+  return panes[id]
+}
+
+private let paneNew: lua_CFunction = { L in
+  let id = nextID
+  nextID += 1
+  panes[id] = PanePanel()
+  lua_pushinteger(L, lua_Integer(id))
+  return 1
+}
+
+// The companion rect, { x, y, w, h } in Hammerspoon's screen space.
+private let panePlace: lua_CFunction = { L in
+  let reader = LuaReader(L)
+  guard reader.isTable(2), let x = reader.number(2, "x"), let y = reader.number(2, "y"),
+    let w = reader.number(2, "w"), let h = reader.number(2, "h")
+  else { return 0 }
+  paneAt(L)?.place(NSRect(x: x, y: y, width: w, height: h))
+  return 0
+}
+
+// paneDraw(id, radius, elements) draws the elements on glass of that corner radius and answers
+// an array naming each thing in them that was not drawn, empty when everything was.
+private let paneDraw: lua_CFunction = { L in
+  olm_newTable(L)
+  guard let pane = paneAt(L), let L else { return 1 }
+  let reader = LuaReader(L)
+  let skin = LuaSkin.shared(with: L) as! LuaSkin
+  let radius = CGFloat(reader.number(at: 2) ?? 0)
+  let (elements, unsupported) = PaneReader(r: reader, skin: skin, size: pane.size).elements(at: 3)
+  pane.draw(elements, radius: radius)
+  for (i, name) in unsupported.enumerated() {
+    _ = lua_pushstring(L, name)
+    lua_rawseti(L, -2, lua_Integer(i + 1))
+  }
+  return 1
+}
+
+private let paneShow: lua_CFunction = { L in
+  paneAt(L)?.show()
+  return 0
+}
+
+private let paneHide: lua_CFunction = { L in
+  paneAt(L)?.hide()
+  return 0
+}
+
+// Hidden and forgotten, the window released with it.
+private let paneDelete: lua_CFunction = { L in
+  guard let id = LuaReader(L).integer(at: 1), let pane = panes[id] else { return 0 }
+  pane.hide()
+  panes[id] = nil
+  return 0
+}
+
 @_cdecl("luaopen_olm_swiftchooser")
 public func luaopen_olm_swiftchooser(_ L: LuaState?) -> Int32 {
   closeAll()
@@ -231,5 +300,11 @@ public func luaopen_olm_swiftchooser(_ L: LuaState?) -> Int32 {
   olm_setFunction(L, "stop", stop)
   olm_setFunction(L, "refocus", refocus)
   olm_setFunction(L, "surface", surface)
+  olm_setFunction(L, "paneNew", paneNew)
+  olm_setFunction(L, "panePlace", panePlace)
+  olm_setFunction(L, "paneDraw", paneDraw)
+  olm_setFunction(L, "paneShow", paneShow)
+  olm_setFunction(L, "paneHide", paneHide)
+  olm_setFunction(L, "paneDelete", paneDelete)
   return 1
 }

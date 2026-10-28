@@ -74,13 +74,13 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   typealias Ask = (String, [LuaValue]) -> Bool
 
   private let window: KeyPanel
-  private let root = FlippedView()
+  private let root: FlippedView
   private let field = NSTextField()
   private let list = ListView()
   private let bar = BarView()
   private let keys = KeysPanelView()
   private let ask: Ask
-  private var surface: NSView
+  private let surface: Surface
   private var style = Style()
   private var placement = Placement()
   private var state = ViewState()
@@ -91,7 +91,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   private var monitors: [Any] = []
   private var controlKeys: Set<UInt16> = []
   private var controlBackspace: Set<UInt16> = []
-  private(set) var surfaceName = ""
+  var surfaceName: String { surface.name }
 
   init(ask: @escaping Ask) {
     self.ask = ask
@@ -99,7 +99,9 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
       contentRect: NSRect(x: 0, y: 0, width: 1, height: 1),
       styleMask: [.borderless, .nonactivatingPanel, .fullSizeContentView],
       backing: .buffered, defer: true)
-    surface = NSView()
+    let content = FlippedView()
+    root = content
+    surface = Surface(holding: content)
     super.init()
 
     window.owner = self
@@ -134,29 +136,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     list.onScroll = { [weak self] y in _ = self?.ask("scroll", [.number(Double(y))]) }
     bar.button.onPress = { [weak self] in _ = self?.ask("toggleKeys", []) }
 
-    surface = buildSurface()
-    window.contentView = surface
-  }
-
-  // Glass where the running macOS ships it, and the visual effect view where it does not, so the
-  // same build still draws a surface on an older system.
-  private func buildSurface() -> NSView {
-    if #available(macOS 26.0, *) {
-      let glass = NSGlassEffectView()
-      glass.contentView = root
-      surfaceName = "glass"
-      return glass
-    }
-    let effect = NSVisualEffectView()
-    effect.material = .hudWindow
-    effect.state = .active
-    effect.blendingMode = .behindWindow
-    effect.wantsLayer = true
-    effect.layer?.masksToBounds = true
-    root.autoresizingMask = [.width, .height]
-    effect.addSubview(root)
-    surfaceName = "visualEffect"
-    return effect
+    window.contentView = surface.view
   }
 
   // MARK: What the Lua view asks for
@@ -165,11 +145,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
 
   func applyStyle(_ next: Style) {
     style = next
-    if #available(macOS 26.0, *), let glass = surface as? NSGlassEffectView {
-      glass.cornerRadius = style.radius
-    } else {
-      surface.layer?.cornerRadius = style.radius
-    }
+    surface.setCornerRadius(style.radius)
     field.font = style.fieldFont
     field.textColor = style.text
     applyPlaceholder()
@@ -178,7 +154,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
 
   func place(_ next: Placement) {
     placement = next
-    window.setFrame(cocoaRect(next.canvas), display: window.isVisible)
+    window.setFrame(ScreenSpace.cocoaRect(next.canvas), display: window.isVisible)
     root.frame = NSRect(origin: .zero, size: next.canvas.size)
     if let rect = next.field {
       let h = ceil(style.fieldFont.ascender - style.fieldFont.descender + style.fieldFont.leading) + 2
@@ -413,7 +389,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   private func outside(_ event: NSEvent) {
     guard started else { return }
     guard event.type == .leftMouseDown else { return }
-    let point = Self.hsPoint(NSEvent.mouseLocation)
+    let point = ScreenSpace.hsPoint(NSEvent.mouseLocation)
     _ = ask("pressOutside", [.number(point.x), .number(point.y)])
   }
 
@@ -431,17 +407,5 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     let top = placement.list?.minY ?? 0
     let h = min(keys.height(for: footer.width), max(0, footer.minY - top))
     keys.frame = NSRect(x: footer.minX, y: footer.minY - h, width: footer.width, height: h)
-  }
-
-  // Hammerspoon's screen space has its origin at the primary display's top left and y growing
-  // down, AppKit's at its bottom left and y growing up, so both conversions flip about its height.
-  private static var primaryHeight: CGFloat { NSScreen.screens.first?.frame.height ?? 0 }
-
-  private func cocoaRect(_ rect: NSRect) -> NSRect {
-    NSRect(x: rect.minX, y: Self.primaryHeight - rect.maxY, width: rect.width, height: rect.height)
-  }
-
-  private static func hsPoint(_ point: NSPoint) -> NSPoint {
-    NSPoint(x: point.x, y: primaryHeight - point.y)
   }
 }

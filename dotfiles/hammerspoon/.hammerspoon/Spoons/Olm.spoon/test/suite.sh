@@ -55,6 +55,7 @@ if [ "$tiers" = "dry" ]; then
   "$OLM_LUA" "$here/securefocus.lua" || exit 1
   "$OLM_LUA" "$here/securenotice.lua" || exit 1
   "$OLM_LUA" "$here/swiftview.lua" || exit 1
+  "$OLM_LUA" "$here/panebackends.lua" || exit 1
   echo
   exec "$here/drygate.sh" "$@"
 fi

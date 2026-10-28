@@ -8,7 +8,8 @@
 -- back, a leftover Down moving the highlight and a leftover Return choosing, a hover highlighting,
 -- a press and release choosing, a press outside hiding and a press in the companion keeping the
 -- list and asking the panel to take key. And that the provider serves the fallback when the
--- library is missing, while it builds, after a build in the same session, and when it fails.
+-- library is missing, while it builds, after a build in the same session, and when it fails,
+-- and offers the docked pane's native backend only once its library is loaded.
 --
 -- And, after the review of 2026-10-28, that a missing command line tools directory, clang or SDK
 -- serves the fallback without running anything, that a finished build removes all but the
@@ -358,6 +359,7 @@ check("the missing tools are said once", #lines, 1)
 check("naming the default chooser", lines[1], "i swift chooser, no compiler inside the command line tools, so the default chooser serves")
 check("and nothing is run", #tasks, 0)
 check("uses answers for the fallback's field while it serves", Provider.uses(0, { "ctrl" }), "the canvas field's answer")
+check("no native pane backend while the fallback serves", Provider.paneBackend(), nil)
 
 lines = {}
 Provider.configure({ ui = UI, fallback = fallback, dir = dir, swiftc = SWIFTC, log = log })
@@ -441,6 +443,7 @@ check("new builds the engine over the native view", instance.view ~= nil and ins
 check("uses answers for the native field, Control and A", Loaded.uses(0, { "ctrl" }), "the field's own moveToStart")
 check("uses leaves Control and T free, the native field reads none", Loaded.uses(17, { "ctrl" }), nil)
 check("uses still answers the engine's own keys", Loaded.uses(53, {}), "Escape closes the list")
+check("a loaded library answers the native pane backend's factory", type(Loaded.paneBackend()), "function")
 
 if failed then
   print("swiftview, FAILED")

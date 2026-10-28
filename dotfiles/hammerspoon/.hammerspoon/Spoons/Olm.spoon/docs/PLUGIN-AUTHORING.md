@@ -181,7 +181,7 @@ to inherit the chooser width, or a member spec resolved once at register when yo
 is what decides whether a pane exists at all. Absent means no pane.
 
 The pane itself is core. Declaring `pane = true` on your surface earns `opts.dockedPane`, a
-function answering a pane from `lib/dockedpane.lua`, which owns the canvas, the docking, the
+function answering a pane from `lib/dockedpane.lua`, which owns the window, the docking, the
 shared surface, the shared empty state, the scroll and the teardown. You make one in configure
 and hand it what to draw, a describer answering one kit node or a painter answering elements,
 and never build a canvas of your own for it. docs/PLUGIN-CONTRACT.md has the calls under "The

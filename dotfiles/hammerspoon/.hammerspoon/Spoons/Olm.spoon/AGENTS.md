@@ -590,6 +590,40 @@ pins the lib over fakes. The provider has no plain test harness,
 only the live probe, so the call order is checked live. `decisions/olm-chooser-keys.md` has the
 measurements.
 
+## The docked pane, one lifecycle over two drawing backends
+
+`lib/dockedpane.lua` owns everything a docked companion pane does, the lazy build, the inner rect,
+the dock, the guards, the surface first, the scroll and its clamp, the thumb, the empty state,
+show, hide and destroy, and a plugin hands it only a describer or a painter. Whatever is
+described or painted is reduced there to two lists of `hs.canvas` element tables, the surface
+and the content, in the pane's own coordinates, and those two lists are the whole contract with
+the drawing backend, a Strategy the root injects as `deps.backend`. The backend is a factory
+called once at the first paint, and what it answers keeps five methods and no rule.
+`place(frame)` moves it to the companion rect in screen coordinates, `render(surface, content)`
+draws both lists in place of what was there, `show()` and `hide()` bring it up and take it down,
+and `destroy()` tears it down on close.
+
+There are two. `lib/dockedpane/canvas.lua` paints both lists on one `hs.canvas` at the floating
+level with click activation off, exactly what every pane drew before the backend existed.
+`lib/chooser/providers/swift/pane.lua`, over `native/Pane.swift` in the swift chooser's own
+library, draws the content on a glass window of its own and replaces the surface with glass at
+the surface's corner radius, since the surface's fill painted over glass would hide it. That
+window is a nonactivating panel that never becomes key, at the canvas pane's level, so a click on
+it leaves the keyboard with the chooser panel, the panel's local monitor still reports the press
+and the Lua view keeps the list up because it lands in the companion rect, and a scroll over it
+is claimed by the view's own tap before the window sees it. It draws `rectangle` and `segments`
+filled, stroked or clipped, `image`, `text` as a string or an `hs.styledtext`, and `resetClip`,
+with the canvas's semantics and defaults. Any other type, action, scaling or attribute leaves
+that element out and is named once in the console. It is torn down with the chooser panels by
+the library's reload sentinel, and it never calls back into Lua.
+
+The root chooses, in `dockedPaneBackend` beside `wireSwiftChooser`, and no plugin and no line of
+`lib/dockedpane.lua` names a backend. A pane gets the native one only while the swift provider is
+the chosen one and its library is loaded, which is fixed for the session, and the canvas one
+otherwise, so a pane under the default chooser is exactly what it was. `test/panebackends.lua`
+drives one pane over both backends with the same describer and painter, and pins that the native
+one is handed the very content list the canvas paints over its surface.
+
 ## The swift chooser, the engine under a native panel
 
 `swift` is the third picker provider, beside `default` and `legacy`, and it is the chooser engine
@@ -601,7 +635,8 @@ the system has it and a visual effect view where it does not, with a native `NST
 `NSTableView` list and a plain action bar with its key panel. The Lua view turns the engine's scene
 into plain data, colours, fonts, sizes, the radius and the space steps from the kit's tokens and
 every rectangle and row metric from the engine's geometry, so neither half writes a colour or a font
-by hand, and the panel sits exactly on the canvas rect with the docked pane beside it. Swift runs
+by hand, and the panel sits exactly on the canvas rect with the docked pane beside it, which is
+drawn on glass of its own by the same library, see the docked pane section above. Swift runs
 the view contract's key order, asking Lua synchronously before its field edits, and hands each key
 over as its event's bytes, which `hs.eventtap.event.newEventFromData` turns back into the event the
 engine reads. A press outside the panel is heard by event monitors and decided in Lua against the

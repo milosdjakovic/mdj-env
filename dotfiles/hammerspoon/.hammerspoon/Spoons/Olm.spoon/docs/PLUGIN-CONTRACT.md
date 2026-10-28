@@ -1082,6 +1082,12 @@ pane owns the canvas, docking it on the companion rect, the shared surface under
 shared empty state, the scroll and its clamp, the hide guard and the teardown, and draws text
 through the kit the root built it with. A plugin keeps only what it draws.
 
+What it draws reaches the screen through a drawing backend the root picks, an `hs.canvas` under
+the default chooser and a native glass window beside the swift chooser, so a painter or a raw
+node answers only `rectangle`, `segments`, `image`, `text` and `resetClip` elements, with the
+attributes `lib/chooser/providers/swift/native/Pane.swift` lists in its header. Anything else
+still draws on the canvas but is left out of the native pane, with one console line naming it.
+
 ```lua
 local pane = opts.dockedPane({ scroll = true, thumb = false, emptyText = "Highlight a file" })
 

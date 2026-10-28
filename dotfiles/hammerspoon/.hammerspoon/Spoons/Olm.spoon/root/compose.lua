@@ -85,8 +85,10 @@ local switchLib = load("lib/pluginswitch.lua")
 local resumeLib = load("lib/resume.lua")
 local navLib = load("lib/nav.lua")
 local servicesLib = load("lib/services.lua")
--- The docked companion pane's lifecycle, one copy for every plugin that declares a pane.
+-- The docked companion pane's lifecycle, one copy for every plugin that declares a pane, and
+-- its canvas drawing backend, the one every pane draws through unless the swift chooser serves.
 local dockedPaneLib = load("lib/dockedpane.lua")
+local paneCanvasLib = load("lib/dockedpane/canvas.lua")
 local uiSpecLib = load("root/uispec.lua")
 local themesLib = load("lib/ui/themes.lua")
 -- The icon engine and the units it is composed from. This file is the one that names the
@@ -258,6 +260,22 @@ local function wireSwiftChooser(chooserAtom, chosen, opts)
   if not swift or chosen ~= swift then return end
   opts.fallback = chooserAtom.providers.default
   swift.configure(opts)
+end
+
+-- The drawing backend every docked pane is handed, the strategy lib/dockedpane.lua's header
+-- describes. The swift chooser's native glass pane while that provider is the chosen one and its
+-- library is loaded, so the pane stands beside the native panel on the same glass, and the canvas
+-- backend otherwise, which draws exactly what every pane drew before. Asked each time a pane is
+-- made, which is after wireSwiftChooser has run, and the answer cannot change within a session,
+-- since the provider decides once at configure time. It lives outside obj.run for the same reason
+-- wireSwiftChooser does.
+local function dockedPaneBackend(chooserAtom, chosen)
+  local swift = chooserAtom.providers and chooserAtom.providers.swift
+  if swift and chosen == swift and swift.serving() == "swift" then
+    local native = swift.paneBackend()
+    if native then return native end
+  end
+  return paneCanvasLib.new()
 end
 
 function obj.run(olm, cfg)
@@ -2111,12 +2129,14 @@ function obj.run(olm, cfg)
     matchers = chooserAtom.matchers,
     -- The docked companion pane, one per plugin that asks, so the factory is what is shared.
     -- Its chrome and its quiet state are CanvasPanel's and its text is the kit's, named here
-    -- and nowhere else, so a pane in a plugin draws only its own content.
+    -- and nowhere else, so a pane in a plugin draws only its own content. Its drawing backend
+    -- follows the chooser that serves, see dockedPaneBackend above obj.run.
     dockedPane = function(spec)
       return dockedPaneLib.new({
         ui = uiAtom,
         surface = canvasPanel.surfaceElements,
         emptyState = canvasPanel.emptyStateElements,
+        backend = dockedPaneBackend(chooserAtom, chooserProvider),
       }, spec)
     end,
     log = log,

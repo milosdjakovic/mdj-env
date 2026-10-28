@@ -5,8 +5,10 @@
 --- default provider's own, lib/chooser/engine/init.lua, so every picker rule is shared and none
 --- is copied. view.lua beside this file is the view, a Humble Object over a Swift library whose
 --- sources are in native/, which draws a nonactivating panel on a glass surface with a native
---- field, list and action bar. decisions/olm-swift-chooser.md has why it exists and what was
---- measured and turned down.
+--- field, list and action bar. pane.lua beside it is the docked pane's native drawing backend, a
+--- glass window in the same library, which the root hands every docked pane while this provider
+--- serves. decisions/olm-swift-chooser.md has why it exists and what was measured and turned
+--- down.
 ---
 --- THE LIBRARY. lib/swiftbuild.lua compiles native/ into the cache directory configure is handed,
 --- named by a hash of every input and loaded with package.loadlib into Hammerspoon's own process.
@@ -38,6 +40,10 @@
 --- the same predicates the default provider is handed, and opts.swiftc, the resolved compiler,
 --- opts.dir, the cache directory, and opts.log, a logger with i and e. A dir starts the load.
 ---
+--- M.paneBackend() answers the docked pane's native drawing backend, pane.lua beside this file,
+--- as the factory lib/dockedpane.lua takes, while the library is loaded, and nil otherwise, so
+--- the composition root hands panes the canvas backend whenever this provider is not serving.
+---
 --- M.uses(keyCode, mods) answers what the serving field already does with a chord, the native
 --- field's keys in fieldkeys.lua when the library is loaded and the fallback's own answer when it
 --- is not, so the root checks a person's list keys against the field that is really there.
@@ -53,12 +59,14 @@ end
 
 local Engine = load("../../engine/init.lua")
 local SwiftView = load("view.lua")
+local SwiftPane = load("pane.lua")
 local fieldKeys = load("fieldkeys.lua")
 local swiftbuild = load("../../../swiftbuild.lua")
 
 -- The Swift sources and the bridging header, in the order the compiler is handed them.
 local NATIVE_DIR = herePath .. "native/"
-local SOURCES = { "Lua.swift", "Model.swift", "List.swift", "Bar.swift", "Panel.swift", "Entry.swift" }
+local SOURCES = { "Lua.swift", "Model.swift", "Surface.swift", "List.swift", "Bar.swift", "Panel.swift",
+  "Pane.swift", "Entry.swift" }
 local HEADER = "bridge.h"
 
 -- The library's stem in the cache directory and the symbol package.loadlib opens it by.
@@ -68,6 +76,9 @@ local OPEN_SYMBOL = "luaopen_olm_swiftchooser"
 -- The provider served while the library is not loaded, and the loaded library once it is.
 local FALLBACK = nil
 local NATIVE = nil
+
+-- The logger configure was handed, for the pane backend's one line per element it cannot draw.
+local LOG = nil
 
 local M = {}
 
@@ -143,6 +154,7 @@ end
 function M.configure(opts)
   opts = opts or {}
   if opts.fallback ~= nil then FALLBACK = opts.fallback end
+  if opts.log ~= nil then LOG = opts.log end
   Engine.configure({ ui = opts.ui, yields = opts.yields, listKeys = opts.listKeys })
   SwiftView.configure({ ui = opts.ui, icon = opts.icon })
   if opts.dir ~= nil and not NATIVE then prepare(opts) end
@@ -159,6 +171,11 @@ end
 --- "fallback" otherwise, for a probe or a test to read.
 function M.serving()
   return NATIVE and "swift" or "fallback"
+end
+
+function M.paneBackend()
+  if not NATIVE then return nil end
+  return SwiftPane.factory(NATIVE, LOG)
 end
 
 --- M.new(config) answers an instance satisfying lib/chooser/contract.lua, the engine over the
