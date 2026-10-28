@@ -486,3 +486,7 @@ the dry gate, the goldens and the dependency check pass. Not yet run live, so th
 leader sheet and a toast, a click on Dismiss with another app frontmost, the stacking of a sheet
 over an open swift chooser, and text metrics against the canvas are all unmeasured. One thing
 differs from the canvas on purpose, a click on Dismiss no longer activates Hammerspoon.
+
+### 2026-10-28 15:38
+
+Milos tried eab2114f live, the leader sheets, a long toast, a full screen app and the report panel, and said all seems good, shadows included. Review found that nothing destroyed a CanvasPanel backend, which a dropped hs.canvas never needed since its __gc deleted it, while a dropped native backend kept its window and its click reference until the next reload, so a cheat sheet configured again while its sheet was up would have left glass on screen. Panel instances now have destroy, which hides and destroys the backend, and `lib/cheatsheet.lua` calls it on the panel its configure drops, the one place a panel is replaced, the toasts in `root/compose.lua` being made once per load. `test/panelbackends.lua` pins it on both backends, offline only.

@@ -45,7 +45,8 @@
 ---                                              in their empty moments the same way
 ---                                              surfaceElements already makes them one
 ---                                              component in their chrome.
----   CanvasPanel.new(config) -> instance        a docked or centered panel.
+---   CanvasPanel.new(config) -> instance        a docked or centered panel. Whoever replaces
+---                                              or drops one calls its destroy, see below.
 ---
 --- style (all optional; omit a field to draw nothing for it):
 ---   cornerRadius  surface rounding in points (0 = square).
@@ -530,6 +531,19 @@ function Panel:hide()
   self.shown = false
   self.anchor = nil
   if self.backend then self.backend.hide() end
+end
+
+--- CanvasPanel:destroy() - hide the panel and tear its backend down for good, for a caller that
+--- replaces or drops a panel. A dropped hs.canvas was deleted by its own __gc, but a native
+--- backend's window and the click function the library holds for it live until the Lua state
+--- closes, so a panel that is let go without this would leave its window on screen until the next
+--- reload. The instance may be shown again afterwards, which builds a new backend.
+function Panel:destroy()
+  self:hide()
+  if self.backend then
+    self.backend.destroy()
+    self.backend = nil
+  end
 end
 
 --- CanvasPanel:isShowing() - whether the panel is currently visible.

@@ -398,6 +398,9 @@ function obj:configure(opts)
     -- nil takes PADDING_SCALE times the kit's inset, see obj:_padding.
     padding = opts.padding,
   }
+  -- The old panel is destroyed rather than dropped, since a native backend's window outlives a
+  -- dropped instance until the next reload, and a sheet up at this moment would stay on screen.
+  if self._panel then self._panel:destroy() end
   self._panel = nil
 
   return self

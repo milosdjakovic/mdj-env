@@ -9,7 +9,9 @@
 -- elements and shown state from both, and a click on it reaches the content the same way. Then
 -- the same panel over lib/chooser/providers/swift/pane.lua is handed the content list the canvas
 -- paints over its surface, element for element, at the surface's corner radius, in a panel window
--- at the panel's level with the content's click handler, and hide and isShowing reach both.
+-- at the panel's level with the content's click handler, and hide and isShowing reach both. Last,
+-- a cheat sheet configured again while its sheet is up destroys the panel it drops on either
+-- backend, and destroy deletes a clickable panel's native window.
 --
 -- Run it.
 --   lua test/panelbackends.lua
@@ -322,6 +324,50 @@ do
   check("a pane's canvas never activates", c.activating, false)
   check("a pane's canvas takes no mouse", c.callback, nil)
   check("and answers isShowing", backend.isShowing(), false)
+end
+
+-- A cheat sheet configured again while its sheet is up destroys the panel it drops, on either
+-- backend, so a native sheet never stays on screen until the next reload. Its grid is stubbed,
+-- since what it draws is not the question.
+local function sheetTwice(factory)
+  local P = freshPanel()
+  P.configure({ backend = factory })
+  local sheet = dofile(spoon .. "lib/cheatsheet.lua")
+  sheet:init()
+  sheet._build = function() return { w = 400, h = 200, els = {} } end
+  sheet:configure({ canvasPanel = P, ui = ui })
+  sheet:show({})
+  local first = sheet._panel
+  sheet:configure({ canvasPanel = P, ui = ui })
+  return first, sheet
+end
+do
+  local first, sheet = sheetTwice(CanvasBackend.new({ canvas = canvasLib }))
+  local c = canvases[#canvases]
+  check("cheat sheet reconfigured, the old canvas is hidden", c.shown, false)
+  check("and deleted", c.deleted, true)
+  check("and the old panel holds no backend", first.backend, nil)
+  sheet:show({})
+  check("the next show draws on a new canvas", canvases[#canvases] ~= c and canvases[#canvases].shown, true)
+end
+do
+  local first, sheet = sheetTwice(SwiftPane.factory(native, nil))
+  local n = natives[nextId]
+  check("cheat sheet reconfigured, the old native window is hidden", n.shown, false)
+  check("and deleted, which releases its click reference", n.deleted, true)
+  check("and the old panel holds no backend", first.backend, nil)
+  sheet:show({})
+  check("the next show draws in a new native window", natives[nextId] ~= n and natives[nextId].shown, true)
+end
+do
+  local P = freshPanel()
+  P.configure({ backend = SwiftPane.factory(native, nil) })
+  local panel = P.new({ placement = CENTER, content = toastContent({}) })
+  panel:show()
+  local n = natives[nextId]
+  panel:destroy()
+  check("destroy deletes a clickable panel's native window", n.deleted and not n.shown, true)
+  check("and a destroyed panel is not showing", panel:isShowing(), false)
 end
 
 if failed then
