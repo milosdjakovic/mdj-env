@@ -205,3 +205,12 @@ wiring moved into a helper beside `obj.run` and three blocks became `do` blocks,
 and every Lua file of the worktree, 252, was then compiled by the running Hammerspoon with
 `loadfile`, which executes nothing, and all of them compiled. Closing the blind spot for good,
 running the offline gates under 5.4, is a question put to Milos.
+
+### 2026-10-28 11:52
+
+Live under a manual hold from 11:39, the swift provider serving every list, confirmed by asking
+the running config, the provider answering swift and the stage's instance carrying the Swift
+view. Milos used it and asked to keep the look as it is, the capsule action bar, the actions
+popover and the round Olm menu set aside for now, and to build the native docked pane next.
+Merged to main with default still the shipped value, so a machine takes the swift chooser only
+when `config/settings.lua` names it.
