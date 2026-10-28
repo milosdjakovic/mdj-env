@@ -185,3 +185,9 @@ exists on disk, the storage cache directory holds only the scratch PNG that is d
 loading, so no old entry needed handling. The emoji source was left alone, the default chooser
 draws it as text and the legacy picture path is a canvas snapshot that is not the reported defect.
 Not yet confirmed live, the soft edge going away on a Retina screen is the remaining check.
+
+### 2026-10-28 15:05
+
+Live under a manual hold on top of the Retina fix in the native list, 15c1541b, Milos looked at
+the SF Symbols on the built in Retina display and on the external one and said they look good
+everywhere. Merged to main.
