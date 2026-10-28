@@ -313,3 +313,16 @@ only then. The default chooser is unchanged and still hides for a press in its g
 built with the provider's flags with no error and no warning, `test/swiftview.lua` gained the gap
 press, a press past the companion, the divider's width, place and colour and the no companion
 case, and the dry suite, the dry gate, the goldens and the dependency check pass. Not yet run live.
+
+### 2026-10-28 13:42
+
+Live under a manual hold from 13:14, the list and its pane as one glass shape with a hairline
+divider. Milos found the tone one, the pane appearing with the list, and a press in the old gap
+keeping the list, and said it works. Two things surfaced on the way. Holding Hyper showed RUNNING
+wrong and no DORMANT group, and the app switcher came up first, because the test lock points
+Hammerspoon at the worktree, whose folder has no `machine-apps.lua` or `machine-displays.lua`,
+so every worktree test has run without this machine's Hyper app keys. Linking the two files into
+the worktree for the test put both right, and the test lock is to do that itself. And the pane
+does not scroll smoothly, since every scroll event rebuilds and redraws the whole element list
+through Lua, as the canvas pane always did, which reads as stepping beside a natively scrolled
+list. Merged to main with default still the shipped value.
