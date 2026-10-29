@@ -490,3 +490,40 @@ differs from the canvas on purpose, a click on Dismiss no longer activates Hamme
 ### 2026-10-28 15:38
 
 Milos tried eab2114f live, the leader sheets, a long toast, a full screen app and the report panel, and said all seems good, shadows included. Review found that nothing destroyed a CanvasPanel backend, which a dropped hs.canvas never needed since its __gc deleted it, while a dropped native backend kept its window and its click reference until the next reload, so a cheat sheet configured again while its sheet was up would have left glass on screen. Panel instances now have destroy, which hides and destroys the backend, and `lib/cheatsheet.lua` calls it on the panel its configure drops, the one place a panel is replaced, the toasts in `root/compose.lua` being made once per load. `test/panelbackends.lua` pins it on both backends, offline only.
+
+### 2026-10-29 15:16
+
+Milos asked for the action bar to span both the chooser and the docked pane when one is up. The
+view contract gained one optional capability, `spansFooter`, which the engine asks once after the
+view is built, and the swift view answers true since its one shape of glass already spans the
+canvas, the gap and the companion. The engine then sets `footerSpan` on its layout, and
+`geometry.resolve` widens the footer rect from the canvas's left edge to the companion's right
+edge and stops the companion rect at the bar's top edge, so the pane is laid out at the height it
+is shown rather than drawn under the bar. Doing it in the geometry rather than only in Swift is
+what keeps the pane's own layout honest, since a pane reads the companion rect it is docked on.
+In Swift the bar and its key panel moved from the list's content view onto the shared surface's
+stage, above the pane's region, placed in window space, and the key panel takes the bar's width,
+so it opens over the pane too. The divider stops at the bar's top edge. The default chooser
+answers nothing and is unchanged, since its pane is a canvas of its own beside the list and a bar
+across the gap would need its canvas to grow. `test/geometry.lua` and `test/swiftview.lua` pin
+the spanning bar, the shorter companion and the divider, and the dry suite, `swiftpane.sh`, the
+dry gate and the goldens pass. Not yet run live.
+
+### 2026-10-29 15:45
+
+The surface radius went from 0 to 17, the macOS 27 window corner measured off Finder, Calendar and
+Reminders, and Milos saw a square edge outside the glass at the chooser's bottom corners and a
+doubled edge at its top ones. A first guess, a stale window shadow, was wrong and was taken back,
+since a capture with no shadow still carried it. Measured in a test program, a borderless window
+holding only an `NSGlassEffectView` drew a faint fill in its square corners, alpha 7 to 15, and a
+half covered edge column, on a 1x and a 2x display and with or without a shadow, exactly while it
+was key and not a moment after it lost key. So the window server draws a key window's edge along
+the window's outline, and a borderless window's outline is square. A titled window with its title
+bar transparent, hidden and empty has a rounded outline at the system window corner, measured at
+the same diagonal inset as Finder's, and drew clean corners while key. The chooser's panel is that
+now, unmovable and unconstrained so it keeps the canvas rect, and the list's and the pane's scroll
+views stop insetting their content by the title bar's height, which `swiftpane.sh` caught as three
+failing scroll cases first. Captured live after the change, every corner pixel outside the curve is
+clear and the diagonal inset is 5 points, a 17 point corner. The panel windows and the docked
+pane's own window stay borderless, since they never become key. A click on the top strip of the
+chooser lands on the hidden title bar rather than the field, which nothing has needed yet.

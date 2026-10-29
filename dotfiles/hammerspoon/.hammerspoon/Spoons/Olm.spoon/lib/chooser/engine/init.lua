@@ -1093,6 +1093,11 @@ function M.new(config, makeView)
   if not viewOk then
     error("Chooser engine: the view does not satisfy the view contract, " .. tostring(viewReason))
   end
+  -- A view drawing one surface across the canvas and the companion runs the bar under both,
+  -- see spansFooter in lib/chooser/view.lua and footerSpan in geometry.resolve.
+  if type(self.view.spansFooter) == "function" and self.view:spansFooter() == true then
+    layout.footerSpan = true
+  end
 
   local ok, reason = contract.validate(self)
   if not ok then

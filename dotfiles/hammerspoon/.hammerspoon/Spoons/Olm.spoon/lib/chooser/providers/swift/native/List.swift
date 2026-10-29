@@ -244,6 +244,9 @@ final class ListView: FlippedView, NSTableViewDataSource, NSTableViewDelegate {
 
     scroll.documentView = table
     scroll.drawsBackground = false
+    // The chooser's window is titled, see THE OUTLINE in Panel.swift, and a scroll view under a
+    // title bar insets its content by the bar's height on its own, which would push every row down.
+    scroll.automaticallyAdjustsContentInsets = false
     scroll.hasVerticalScroller = true
     scroll.autohidesScrollers = true
     scroll.scrollerStyle = .overlay

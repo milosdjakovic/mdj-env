@@ -330,6 +330,7 @@ picker:hide()
 picker:setPaneWidth(300)
 closed = closedBefore
 
+
 -- A pointer press and release chooses that row.
 picker:show()
 send("choose", 2)
@@ -564,6 +565,22 @@ do
   check("a row far from the viewport still carries none", lastRows[1].image, nil)
   many:hide()
 end
+
+-- With an action bar the view asks for the bar to span, so it runs under the gap and the pane,
+-- and the pane's region and the divider stop at its top edge.
+local barred = Engine.new({
+  rows = function() return {} end,
+  footer = function() return { right = {}, keys = {}, state = "" } end,
+}, function(engine) return View.new(engine, native) end)
+barred:setPaneWidth(300)
+barred:show()
+local br = barred:scene().rects
+check("the bar spans the whole window", lastPlace.footer.w, lastPlace.window.w)
+check("the bar starts at the window's left edge", lastPlace.footer.x, 0)
+check("the pane's region stops at the bar", lastPlace.paneFrame.y + lastPlace.paneFrame.h, lastPlace.footer.y)
+check("the divider stops at the bar", lastPlace.dividerFrame.h, lastPlace.footer.y)
+check("the companion is as tall as the pane's region", br.companion.h, lastPlace.paneFrame.h)
+barred:hide()
 
 if failed then
   print("swiftview, FAILED")

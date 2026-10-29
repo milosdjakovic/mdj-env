@@ -27,9 +27,17 @@
 // ONE WINDOW, ONE SHAPE. With a companion the window spans the canvas rect, the engine's gap and
 // the companion rect, and stands on one shape of glass, a SharedSurface, with the list's content
 // at the canvas rect, the docked pane's region at the companion rect and a hairline divider in
-// the middle of the gap. With none it is the canvas rect alone. The docked pane's native backend
+// the middle of the gap down to the action bar, which spans the whole window. With none it is
+// the canvas rect alone. The docked pane's native backend
 // puts its view in the pane's region through the seam in Entry.swift, shown only while a pane is
 // in it and shown. The window never animates, so nothing fades in.
+//
+// THE OUTLINE. The window is titled, with its title bar see through, hidden and empty, rather
+// than borderless. A key window gets an edge drawn along its outline, and a borderless window's
+// outline is its square frame, so while the panel was key a faint square edge stood outside the
+// glass's rounded corners, measured on 2026-10-29 at an alpha of 7 to 15 in the corner pixels
+// and gone the moment the window lost key. A titled window's outline is rounded by the window
+// server at the system window corner, which is the corner surface.cornerRadius is set to.
 //
 // THE CLICK OUTSIDE. A press outside the panel is heard by two event monitors, a global one for
 // presses delivered to other applications and a local one for presses on Hammerspoon's own other
@@ -66,6 +74,10 @@ final class KeyPanel: NSPanel {
 
   override var canBecomeKey: Bool { true }
   override var canBecomeMain: Bool { false }
+
+  // A titled window is kept below the menu bar and on screen by AppKit, and the Lua view already
+  // places this one exactly on the canvas rect, so the frame it is handed is the frame it takes.
+  override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
 
   override func sendEvent(_ event: NSEvent) {
     guard event.type == .keyDown, let owner else { super.sendEvent(event); return }
@@ -112,7 +124,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     self.ask = ask
     window = KeyPanel(
       contentRect: NSRect(x: 0, y: 0, width: 1, height: 1),
-      styleMask: [.borderless, .nonactivatingPanel, .fullSizeContentView],
+      styleMask: [.titled, .nonactivatingPanel, .fullSizeContentView],
       backing: .buffered, defer: true)
     let content = FlippedView()
     root = content
@@ -130,6 +142,14 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     window.isReleasedWhenClosed = false
     window.becomesKeyOnlyIfNeeded = false
     window.animationBehavior = .none
+    // Titled for its outline alone, see THE OUTLINE above. The title bar is see through and empty,
+    // the content runs under it, and nothing in it moves, zooms or closes the window.
+    window.titlebarAppearsTransparent = true
+    window.titleVisibility = .hidden
+    window.isMovable = false
+    for button in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
+      window.standardWindowButton(button)?.isHidden = true
+    }
 
     field.isBordered = false
     field.drawsBackground = false
@@ -140,7 +160,11 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     field.cell?.usesSingleLineMode = true
     field.allowsEditingTextAttributes = false
 
-    for view in [field, list, keys, bar] as [NSView] { root.addSubview(view) }
+    for view in [field, list] as [NSView] { root.addSubview(view) }
+    // The bar and its key panel stand on the window's stage rather than in the list's content,
+    // since with a companion they run under the gap and the pane too.
+    surfaces.addOverlay(keys)
+    surfaces.addOverlay(bar)
     keys.isHidden = true
     bar.isHidden = true
 
@@ -181,7 +205,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
       field.frame = NSRect(x: rect.minX, y: rect.midY - h / 2, width: rect.width, height: h)
     }
     list.frame = next.list ?? .zero
-    bar.frame = next.footer ?? .zero
+    bar.frame = toWindow(next.footer) ?? .zero
     list.apply(style: style, placement: placement)
     layoutKeys()
   }
@@ -474,11 +498,19 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
       attributes: [.font: style.fieldFont, .foregroundColor: style.textDim])
   }
 
-  // The key panel rises from the action bar's top edge over the rows, as tall as its keys and
-  // never taller than the list.
+  // A rect in the canvas's own space moved into the window's, where the bar and its key panel
+  // stand, since the canvas sits at the list's frame inside the window.
+  private func toWindow(_ rect: NSRect?) -> NSRect? {
+    guard let rect else { return nil }
+    let origin = placement.listFrame?.origin ?? .zero
+    return rect.offsetBy(dx: origin.x, dy: origin.y)
+  }
+
+  // The key panel rises from the action bar's top edge over the rows, as wide as the bar, so
+  // over the pane too when the bar spans it, as tall as its keys and never taller than the list.
   private func layoutKeys() {
-    guard !keys.isHidden, let footer = placement.footer else { return }
-    let top = placement.list?.minY ?? 0
+    guard !keys.isHidden, let footer = toWindow(placement.footer) else { return }
+    let top = toWindow(placement.list)?.minY ?? 0
     let h = min(keys.height(for: footer.width), max(0, footer.minY - top))
     keys.frame = NSRect(x: footer.minX, y: footer.minY - h, width: footer.width, height: h)
   }

@@ -60,6 +60,11 @@ local M = {}
 -- hide() hides the surface and forgets whatever the pointer was doing, after stop.
 --
 -- isVisible() answers whether the surface is genuinely on screen, as a plain boolean.
+--
+-- One capability a view may answer and the engine asks once, right after the view is built.
+-- spansFooter() true means the view draws one surface across the canvas, the gap and the
+-- companion, so the action bar runs under both and the companion stops above it. A view that
+-- answers nothing keeps the bar under the canvas alone and the companion at the canvas's height.
 M.requiredMethods = {
   "restyle", "place", "presentRows",
   "text", "setText", "feedKey",

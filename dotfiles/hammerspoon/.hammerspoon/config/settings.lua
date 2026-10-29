@@ -60,7 +60,7 @@ return {
   -- corner radius. The colours of the surface and of everything drawn on it come from the
   -- theme files under config/themes, one file per theme, chosen in the Olm Theme list.
   surface = {
-    cornerRadius = 0,    -- square surfaces, 20 is the macOS window corner, rounding every surface at once
+    cornerRadius = 17,   -- the macOS 27 window corner, measured off Finder, Calendar and Reminders, 0 squares every surface at once
     borderWidth = 1,
   },
 

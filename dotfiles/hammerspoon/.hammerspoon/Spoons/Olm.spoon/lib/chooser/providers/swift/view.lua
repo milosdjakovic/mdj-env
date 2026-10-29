@@ -101,8 +101,8 @@ end
 -- The window the panel stands in, the canvas rect alone or the span to the companion, and where
 -- the list's content, the docked pane's region and the hairline divider sit inside it, in the
 -- window's own space with y measured down. The divider is width points wide, centred in the gap
--- between the two, from the top of the window to the bottom.
-local function windowRects(canvas, companion, width)
+-- between the two, from the top of the window down to the action bar, or to the bottom with no bar.
+local function windowRects(canvas, companion, width, footer)
   local window = spanOf(canvas, companion)
   if not window then
     return canvas, { x = 0, y = 0, w = canvas.w, h = canvas.h }, nil, nil
@@ -111,7 +111,8 @@ local function windowRects(canvas, companion, width)
   local left, right
   if pane.x >= list.x + list.w then left, right = list.x + list.w, pane.x
   else left, right = pane.x + pane.w, list.x end
-  local divider = { x = (left + right - width) / 2, y = 0, w = width, h = window.h }
+  local bottom = footer and (footer.y - window.y) or window.h
+  local divider = { x = (left + right - width) / 2, y = 0, w = width, h = bottom }
   return window, list, pane, divider
 end
 
@@ -171,16 +172,17 @@ end
 --- rects.canvas, the gap and rects.companion, the list's content on the canvas rect, the docked
 --- pane's region on the companion and a hairline of the kit's border width in the middle of the
 --- gap, and with none it is the canvas rect alone. The field, the list and the bar go on the engine's own rects
---- inside the canvas, in the canvas's own space as before, with the row metrics of the layout the
---- list is drawn to. The companion is handed over in screen space too, since a docked pane is
---- matched to this panel on it.
+--- in the canvas's own space as before, with the row metrics of the layout the list is drawn to.
+--- With a companion the bar's rect runs past the canvas under the gap and the pane, see
+--- spansFooter, and the pane's region and the divider stop at its top edge. The companion is
+--- handed over in screen space too, since a docked pane is matched to this panel on it.
 function View:place(rects)
   local s = self.engine:scene()
   local L, T = s.drawLayout, s.tokens
   local origin = rects.canvas
   local iconPad, iconPadLeft = geometry.iconPad(L)
   local window, listFrame, paneFrame, dividerFrame = windowRects(rects.canvas, rects.companion,
-    T.stroke.border)
+    T.stroke.border, rects.footer)
   self.native.place(self.id, {
     canvas = rects.canvas,
     window = window,
@@ -494,6 +496,12 @@ end
 --- M.attach(native) registers dispatch as the loaded library's callback, once per load.
 function M.attach(native)
   native.setCallback(M.dispatch)
+end
+
+--- View colon spansFooter, arity zero. True, since the panel's one shape of glass spans the canvas,
+--- the gap and the companion, so the action bar runs under the list and the docked pane alike.
+function View:spansFooter()
+  return true
 end
 
 --- M.new(engine, native) answers a view for one engine instance, with a panel of its own, built

@@ -624,8 +624,12 @@ radius, since the surface's fill painted over glass would hide it. The glass is 
 chooser panel's own window. With a companion that window and one `NSGlassEffectView` span the
 canvas rect, the engine's gap and the companion rect at the surface radius, the list's content on
 the canvas rect, the pane's region on the companion rect, and a hairline in the kit's border
-colour and border width centred in the gap from top to bottom, so the list and the pane are one
-surface that appears and vanishes together, with no window animation. With no companion the
+colour and border width centred in the gap from the top down to the action bar, so the list and
+the pane are one surface that appears and vanishes together, with no window animation. The action
+bar runs under the list, the gap and the pane alike, since the swift view answers `spansFooter`
+and `geometry.resolve` then widens the footer rect across the span and stops the companion rect
+at the bar's top edge, so a pane is laid out at the height it is shown. The default chooser
+answers nothing and keeps the bar under the canvas alone. With no companion the
 window is the canvas rect alone. A pane knows no chooser, so the one seam is `chooserHosting` in
 `native/Entry.swift`, which matches the pane's rect to the companion rect a visible chooser panel
 last reported. When none matches, the pane stands in a window of its own, a nonactivating panel

@@ -208,6 +208,9 @@ final class PanePanel {
       backing: .buffered, defer: true)
     scroller.drawsBackground = false
     scroller.contentView.drawsBackground = false
+    // The chooser's window is titled, see THE OUTLINE in Panel.swift, and a scroll view under a
+    // title bar insets its content by the bar's height on its own, which would push every row down.
+    scroller.automaticallyAdjustsContentInsets = false
     scroller.borderType = .noBorder
     scroller.hasHorizontalScroller = false
     scroller.hasVerticalScroller = false

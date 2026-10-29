@@ -227,14 +227,18 @@ function M.resolve(screenFrame, layout, paneWidth)
   }
   -- The action bar spans the canvas's full width under the list, so the list stops above it
   -- and a row cut by the viewport is cut at the bar's top edge. None when footerH is zero.
+  -- With footerSpan, set when the view draws one surface across the canvas, the gap and the
+  -- companion, the bar spans that whole width and the companion stops at the bar's top edge.
+  local spans = layout.footerSpan == true and companionW > 0 and footerH > 0
   local footerRect = nil
   if footerH > 0 then
-    footerRect = { x = x, y = y + canvasH - footerH, w = canvasW, h = footerH }
+    footerRect = { x = x, y = y + canvasH - footerH, w = spans and total or canvasW, h = footerH }
   end
 
   local companionRect = nil
   if companionW > 0 then
-    companionRect = { x = x + canvasW + layout.gap, y = y, w = companionW, h = canvasH }
+    companionRect = { x = x + canvasW + layout.gap, y = y, w = companionW,
+      h = spans and canvasH - footerH or canvasH }
   end
 
   return {

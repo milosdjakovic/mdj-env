@@ -90,7 +90,7 @@ enum ScreenSpace {
 // companion it is the canvas rect, the list's shape alone. With one, the window and the glass
 // span the canvas rect, the engine's gap and the companion rect, the list's content sits at the
 // canvas rect inside it, the docked pane's view at the companion rect, and a hairline divider
-// stands in the middle of the gap from top to bottom. One shape rather than two because two
+// stands in the middle of the gap from the top down to the action bar, which runs under both. One shape rather than two because two
 // shapes side by side each shade their edges and cast their shadow where they meet, which read
 // as a dark band in the gap. The rects come from the Lua view already in the window's own space,
 // y measured down.
@@ -151,6 +151,12 @@ final class SharedSurface {
 
   func vacatePane() {
     for old in paneSlot.subviews { old.removeFromSuperview() }
+  }
+
+  // A view that stands over the list's content and the pane's region alike, the action bar and
+  // its key panel, placed by its owner in the window's own space and kept above both.
+  func addOverlay(_ view: NSView) {
+    stage.addSubview(view, positioned: .above, relativeTo: nil)
   }
 }
 
