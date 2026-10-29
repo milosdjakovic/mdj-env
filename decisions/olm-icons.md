@@ -82,6 +82,10 @@ literal `icon = "key"` in a plugin's Lua that its manifest does not declare.
   path was already on the pasteboard, as the url's `filePath` and in `NSFilenamesPboardType`, so
   the reader now reads it there, and the dry gate refuses a call of `hs.osascript.javascript` or
   `hs.osascript._osascript` anywhere in the spoon, see `test/drygate-jxa.lua`.
+- **A memory tripwire in Olm's core.** 2026-10-29. A timer reading Hammerspoon's own footprint
+  and showing a toast past a threshold was proposed after the second leak, and Milos declined it.
+  Both causes are fixed, the dry gate refuses in process JavaScript, and he watches the usage
+  himself, so it would be one more always running piece in the layer that runs everything else.
 - **Drawing the SF Symbol straight to a canvas.** 2026-10-15. This Hammerspoon has no SF Symbol
   api and the named system images it does expose are too sparse, which is why the bridge is used.
 
