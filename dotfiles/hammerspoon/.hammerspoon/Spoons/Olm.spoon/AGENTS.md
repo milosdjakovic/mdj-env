@@ -700,7 +700,8 @@ composes `lib/chooser/engine/init.lua` with `providers/swift/view.lua`, and the 
 Object over a Swift library whose sources are `providers/swift/native/`. The library draws a
 nonactivating panel that becomes key without activating Hammerspoon, on `NSGlassEffectView` where
 the system has it and a visual effect view where it does not, with a native `NSTextField`, an
-`NSTableView` list and a plain action bar with its key panel. The Lua view turns the engine's scene
+`NSTableView` list and an action bar of two floating glass groups with its key panel, see the
+action bar section of `docs/DESIGN-UI-KIT.md`. The Lua view turns the engine's scene
 into plain data, colours, fonts, sizes, the radius and the space steps from the kit's tokens and
 every rectangle and row metric from the engine's geometry, so neither half writes a colour or a font
 by hand, and the panel sits exactly on the canvas rect with the docked pane beside it, which is

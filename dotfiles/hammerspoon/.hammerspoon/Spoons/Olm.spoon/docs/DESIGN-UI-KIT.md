@@ -41,7 +41,8 @@ fonts    ui mono
 text     title body sub label heading mono big       each {font, size, lineHeight}
 space    xs s m l xl                                  points
 radius   surface nested                               points, nested derived from surface
-pad      one number                                   points, every panel's padding
+pad      one number                                   points, every panel's padding, spacing.outer
+inner    one number                                   points, the room inside a filled shape, spacing.inner
 stroke   border graph                                 points, outline and divider, graph line
 alpha    dim fade                                     multipliers, one rule each
 icon     row list sheet                               points
@@ -67,6 +68,15 @@ colour toast's swatch, a preview picture in a pane and the clipboard's colour ch
 the chooser's highlighted row from the list margin and the cheat sheet's badges from its doubled
 padding. The inside of a surface's border takes the surface radius less the border width, the
 same rule again, which is what a scroll clip follows.
+
+`pad` is the outer padding and `inner` the inner one, both set in the `spacing` block of
+`config/settings.lua` and both the `l` space step when it is absent. The outer padding is how far
+content stands from any edge of the glass, the chooser's field and highlighted rows, a pane's
+content, the swift chooser's two action bar groups and the gap between the chooser and its pane.
+The inner padding is the room inside a highlighted or filled shape, a row's edge to its icon and
+the inside of each action bar group. They were one value until 2026 10 29, which made a roomier
+window fatten every row. A row's and a group's corner is `radius.nested`, so the outer padding
+moves it and the inner one never does.
 
 The radius is dynamic and never cached beside the shape it rounds, so changing the surface
 radius changes every corner on the next draw, and a surface set to 0 squares everything inside
@@ -268,6 +278,16 @@ background colour role. The bar's height is its row, the taller of the hint badg
 line, with the small space step above and below it, 23 plus twice 6 at the shipped sizes, so a size set in `config/typography.toml` reflows it, and the key panel is as tall as its
 two column grid of keys with `pad` around it, never taller than the list. It replaced the docked
 hint bar, a flow of the same badges under the list in a panel of its own, on 2026 10 23.
+
+The swift chooser draws its own bar, `providers/swift/native/Bar.swift`, and it is not a row. It
+is two groups floating on the glass, the key group in the bottom left corner and the action group
+in the bottom right, each `pad` from the bottom edge and from its side. Each group is the window's
+own glass, untinted, and takes the highlight tint only while the key panel is open, and its words
+and chords are the row title's font and colour, which Milos chose over caption on 2026 10 29. Its
+corner is `radius.nested`. The list runs on behind the bar to the window's bottom edge, its
+viewport and its bottom content inset both grown by the bar's height, so every numbered row and
+the furthest scroll stay where they were and only the rows past them show between and behind the
+groups. A press between the groups reaches those rows.
 `test/cases/surfaces.lua` pins the derived geometry.
 
 ## The typography check, and how an icon declares itself

@@ -45,6 +45,7 @@ local olm = spoon.Olm:start({
     -- passthrough all keep whatever Olm ships.
     chord          = { repeatTiming = settings.keyRepeat },
     surface        = settings.surface,
+    spacing        = settings.spacing,
     chooserProvider = settings.chooser.provider,
     cheatSheet     = settings.cheatSheet,
     overlayDisplay = settings.overlayDisplay,

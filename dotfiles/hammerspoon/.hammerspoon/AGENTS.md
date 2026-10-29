@@ -823,7 +823,8 @@ default chooser, the side and bottom panes, the toasts, the cheat sheets and eve
 one of five roles from the UI kit in `Spoons/Olm.spoon/lib/ui`. title is the chooser's input
 field, the name at the top of a pane, a toast headline or a cheat sheet section title. body is a list row title and pane
 text. caption is a row subtitle, metadata, a description, an empty state and a hint label, the
-words of the action bar and its key panel, which Milos chose over body on 2026-10-23. section is
+words of the default chooser's action bar and of the key panel, which Milos chose over body on
+2026-10-23, while the swift chooser's floating bar groups use body, chosen on 2026-10-29. section is
 a heading inside a pane and a key badge glyph. Nothing is drawn below 14 points, so caption,
 section and code all ship at 14. code is a path, a command, output,
 or anything a person would copy, and it is the only role in the monospace font. A caller names
@@ -892,7 +893,8 @@ chooser's highlighted row, a preview picture, a swatch, is derived from the one 
 `surface.cornerRadius` in `config/settings.lua`. The formula is inner radius equals outer radius
 less the padding between them, never below zero, `ui.nestedRadius(outer, gap)` in the kit, and
 `radius.nested` is the surface radius less the kit's `pad`, the padding every panel takes on all
-four sides. A caller reads `radius.nested`, or calls `nestedRadius` with its own padding when it
+four sides. `pad` is `spacing.outer` in `config/settings.lua` and the room inside a row or a bar
+group is `spacing.inner`, so more outer padding squares the corners and the inner one moves none. A caller reads `radius.nested`, or calls `nestedRadius` with its own padding when it
 has one, and never writes a number. It is dynamic, so a surface set to 0 squares every corner
 inside it on the next draw. Padding is one value on every side, since unequal sides cannot both
 fit one corner. Borders follow the same idea. `surface.borderWidth` is the one width, handed on

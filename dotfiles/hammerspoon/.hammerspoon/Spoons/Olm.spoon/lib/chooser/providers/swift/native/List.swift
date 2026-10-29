@@ -227,6 +227,8 @@ final class ListView: FlippedView, NSTableViewDataSource, NSTableViewDelegate {
   private var state = ViewState()
   private var applyingScroll = false
   var onScroll: (CGFloat) -> Void = { _ in }
+  // How far the viewport reaches past the engine's own band, behind the floating bar.
+  var underBar: CGFloat = 0
 
   override init(frame: NSRect) {
     super.init(frame: frame)
@@ -273,7 +275,7 @@ final class ListView: FlippedView, NSTableViewDataSource, NSTableViewDelegate {
     needsLayout = true
     quietly {
       table.rowHeight = placement.rowH
-      scroll.contentInsets = NSEdgeInsets(top: 0, left: 0, bottom: placement.padBottom, right: 0)
+      scroll.contentInsets = NSEdgeInsets(top: 0, left: 0, bottom: placement.padBottom + underBar, right: 0)
       table.reloadData()
     }
   }
@@ -332,7 +334,7 @@ final class ListView: FlippedView, NSTableViewDataSource, NSTableViewDelegate {
     scroll.frame = bounds
     column.width = bounds.width
     let h = ceil(style.captionFont.ascender - style.captionFont.descender + style.captionFont.leading)
-    empty.frame = NSRect(x: 0, y: max(0, (bounds.height - h) / 2), width: bounds.width, height: h)
+    empty.frame = NSRect(x: 0, y: max(0, (bounds.height - underBar - h) / 2), width: bounds.width, height: h)
   }
 
   // MARK: Table

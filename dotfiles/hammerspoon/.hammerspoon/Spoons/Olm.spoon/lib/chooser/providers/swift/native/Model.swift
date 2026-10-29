@@ -82,6 +82,9 @@ struct Placement {
   var barGapWide: CGFloat = 0
   var keysIcon: CGFloat = 0
   var keysPad: CGFloat = 0
+  var barPad: CGFloat = 0
+  var barPillH: CGFloat = 0
+  var barPillPad: CGFloat = 0
 
   init() {}
 
@@ -110,6 +113,9 @@ struct Placement {
     barGapWide = r.number(t, "barGapWide") ?? barGapWide
     keysIcon = r.number(t, "keysIcon") ?? keysIcon
     keysPad = r.number(t, "keysPad") ?? keysPad
+    barPad = r.number(t, "barPad") ?? barPad
+    barPillH = r.number(t, "barPillH") ?? barPillH
+    barPillPad = r.number(t, "barPillPad") ?? barPillPad
   }
 }
 

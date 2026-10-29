@@ -202,9 +202,19 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     layoutSurfaces()
     if let rect = next.field {
       let h = ceil(style.fieldFont.ascender - style.fieldFont.descender + style.fieldFont.leading) + 2
-      field.frame = NSRect(x: rect.minX, y: rect.midY - h / 2, width: rect.width, height: h)
+      // The field editor starts its text one line fragment padding in, so the field stands that
+      // far left of its rect and the caret lands on the rect's edge, the inset every other
+      // surface takes.
+      let lead = (window.fieldEditor(true, for: field) as? NSTextView)?.textContainer?.lineFragmentPadding ?? 0
+      field.frame = NSRect(x: rect.minX - lead, y: rect.midY - h / 2, width: rect.width + lead, height: h)
     }
+    // The bar floats. The list runs on down behind it to the window's bottom edge, its viewport
+    // reaching that far and its content inset by the same height, so the furthest scroll and every
+    // row the engine numbers sit where they did, and only the rows past them show behind the bar.
+    let under = next.footer.map { $0.maxY - (next.list?.maxY ?? $0.minY) } ?? 0
     list.frame = next.list ?? .zero
+    list.frame.size.height += max(0, under)
+    list.underBar = max(0, under)
     bar.frame = toWindow(next.footer) ?? .zero
     list.apply(style: style, placement: placement)
     layoutKeys()

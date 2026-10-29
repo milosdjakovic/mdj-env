@@ -65,6 +65,8 @@ local M = {}
 -- spansFooter() true means the view draws one surface across the canvas, the gap and the
 -- companion, so the action bar runs under both and the companion stops above it. A view that
 -- answers nothing keeps the bar under the canvas alone and the companion at the canvas's height.
+-- footerHeight(tokens) answers the action bar's height in points for a view whose bar is not the
+-- default row, and a view that answers nothing takes the default row's height.
 M.requiredMethods = {
   "restyle", "place", "presentRows",
   "text", "setText", "feedKey",

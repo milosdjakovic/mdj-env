@@ -394,7 +394,12 @@ function M.new(opts)
       }
     end
 
-    local inset = { x = space[INSET_RULE.x], y = space[INSET_RULE.y] }
+    -- spacing.outer replaces the inset's step and spacing.inner is the room inside a filled
+    -- shape, the inset's step again when it is not set, which is what both were before either
+    -- could be set.
+    local spacing = spec.spacing or {}
+    local inset = { x = spacing.outer or space[INSET_RULE.x], y = space[INSET_RULE.y] }
+    local inner = spacing.inner or space[INSET_RULE.x]
     local radius = mergeGroup(SHIPPED.radius, spec.radius)
     -- pad is what every panel and pane pads its content by, one value on all four sides, so
     -- content sits as far from the bottom edge as from the sides. inset.y stays the text inset
@@ -421,6 +426,7 @@ function M.new(opts)
       badge = mergeGroup(badges, spec.badge),
       inset = inset,
       pad = pad,
+      inner = inner,
     }
   end
 

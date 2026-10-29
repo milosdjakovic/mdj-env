@@ -38,6 +38,12 @@ end
 --- table lib/ui/themes.lua answers for the current theme, a half each of theme keys.
 --- typography is what style.loadTypography answered, the valid fonts and sizes of the type
 --- roles from config/typography.toml, handed on untouched since the style owns the fallback.
+-- A padding from config, a number from zero up, or nil for anything else.
+local function padding(value)
+  if type(value) == "number" and value >= 0 then return value end
+  return nil
+end
+
 function M.spec(policy, colors, typography)
   policy = policy or {}
   return {
@@ -50,6 +56,12 @@ function M.spec(policy, colors, typography)
     stroke = {
       -- Every outline and divider takes this width, see stroke in lib/ui/style.lua.
       border = (policy.surface or {}).borderWidth,
+    },
+    -- The outer and inner paddings, see spacing in lib/ui/style.lua. A value that is not a
+    -- number from zero up is left out, so the kit's shipped step stands in its place.
+    spacing = {
+      outer = padding((policy.spacing or {}).outer),
+      inner = padding((policy.spacing or {}).inner),
     },
   }
 end

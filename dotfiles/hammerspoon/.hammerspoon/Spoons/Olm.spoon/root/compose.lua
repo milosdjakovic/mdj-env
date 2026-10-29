@@ -170,6 +170,8 @@ local SHIPPED_POLICY = {
   -- icons/config.lua carries the shipped values and a missing file falls back to them.
   icons = {},
   surface = {},
+  -- The outer and inner paddings, see root/uispec.lua. Empty keeps the kit's shipped steps.
+  spacing = {},
   chooserTheme = {},
   cheatSheet = {},
 

@@ -1048,11 +1048,17 @@ function M.new(config, makeView)
   -- reflows them. A consumer's own layout still wins over what is derived.
   local tokens = UI.tokens()
   local inset = tokens.inset or { x = layout.padX, y = layout.marginY }
-  layout.padX, layout.iconGap = inset.x, inset.x
+  -- The room inside a row, between its highlighted edge and its icon, is the inner padding, and
+  -- the margin wrapping the list below is the outer one.
+  local inner = tokens.inner or inset.x
+  layout.padX, layout.iconGap = inner, inner
   -- The margin wrapping the list is one value on every side, so a highlighted row sits the
   -- same distance from the bottom edge as from the sides and its corners nest in the
   -- surface's. inset.y stays the text inset inside a row, handed to derivedRows below.
   layout.marginX, layout.marginY = inset.x, inset.x
+  -- The gap between the chooser and its companion is that same inset, so one token moves every
+  -- padding and every gap together.
+  layout.gap = inset.x
   local cap = capOf(tokens)
   local derived = geometry.derivedRows(tokens.text, cap, inset)
   layout.iconSize = derived.iconSize
@@ -1097,6 +1103,12 @@ function M.new(config, makeView)
   -- see spansFooter in lib/chooser/view.lua and footerSpan in geometry.resolve.
   if type(self.view.spansFooter) == "function" and self.view:spansFooter() == true then
     layout.footerSpan = true
+  end
+  -- A view whose bar is not the default row answers its own height, see footerHeight in
+  -- lib/chooser/view.lua, unless the consumer's layout already set one.
+  if config.footer and type(self.view.footerHeight) == "function"
+      and not (config.layout and config.layout.footerH) then
+    layout.footerH = self.view:footerHeight(tokens)
   end
 
   local ok, reason = contract.validate(self)

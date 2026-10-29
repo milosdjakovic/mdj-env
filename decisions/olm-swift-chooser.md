@@ -527,3 +527,36 @@ failing scroll cases first. Captured live after the change, every corner pixel o
 clear and the diagonal inset is 5 points, a 17 point corner. The panel windows and the docked
 pane's own window stay borderless, since they never become key. A click on the top strip of the
 chooser lands on the hidden title bar rather than the field, which nothing has needed yet.
+
+### 2026-10-29 17:53
+
+Milos asked for the action bar to float as two groups, keys on the left and actions on the right,
+each the window's padding from the bottom edge and its side, with the rest of the list visible
+behind it. Built on `olm/floating-bar` and checked live by him in three rounds. A first fill of
+the highlight colour at 40 percent read as too transparent, then the full highlight as the wrong
+style, and what stayed is each group being exactly the window's own glass, an untinted
+`NSGlassEffectView` from the same `Surface`, with the highlight tint only while the key panel is
+open, and every word and chord in the row title's font and colour rather than caption. The bar no
+longer reserves a band. The engine's list rect and viewport are unchanged, so numbering, the
+highlight's scroll and the furthest scroll all read as before, and only Swift grows the table's
+frame and its bottom content inset by the bar's height, which shows the rows past the viewport
+behind the groups without any row the engine numbers sitting under them. The bar view answers no
+hit outside its groups, so a press or a scroll between them reaches those rows. The view contract
+gained a second optional capability, `footerHeight`, since the floating bar's region is a group
+and the padding below it rather than the default row.
+
+Asked whether every padding is uniform, measuring found one that was not. The native field's
+editor starts its text one line fragment padding in, 2 points, so the caret sat at 16 from the
+edge where the field rect, the highlighted rows, the pane's content and the groups all sat at 14.
+The field now stands left of its rect by the padding its own field editor reports. The gap between
+the chooser and its pane was a borrowed 12 from the legacy chooser and is the inset now.
+
+Then the paddings were split by meaning rather than made one. `spacing.outer` in
+`config/settings.lua` is how far content stands from any edge of the glass, the field, the list
+margin, a pane's content, the bar groups and the gap, and `spacing.inner` the room inside a filled
+shape, a row's edge to its icon and the inside of a bar group. They were one value before, so a
+roomier window fattened every row. Both ship at 14, so rows look as they did and the groups grew
+from 8 to 14 inside. A row's and a group's corner stays the surface radius less the outer padding,
+14 giving 3, 10 giving 7 and 17 or more square. A gap value was considered and left as the kit's
+space steps, since nothing asked to move it.
+

@@ -50,6 +50,7 @@ end
 -- which rows are on screen, to number them, and the geometry for the icon's padding in a row.
 local listModel = load("../default/list/model.lua")
 local geometry = load("../default/geometry.lua")
+local footerLib = load("../default/footer.lua")
 local fieldKeys = load("fieldkeys.lua")
 
 -- The injected UI kit, read for the nested radius, nil until View.configure runs.
@@ -208,6 +209,9 @@ function View:place(rects)
     barGapWide = T.space.l,
     keysIcon = T.text.section.lineHeight,
     keysPad = T.pad,
+    barPad = T.pad,
+    barPillH = footerLib.height(T),
+    barPillPad = T.inner or T.space.sm,
   })
 end
 
@@ -502,6 +506,13 @@ end
 --- the gap and the companion, so the action bar runs under the list and the docked pane alike.
 function View:spansFooter()
   return true
+end
+
+--- View colon footerHeight, arity one. The bar's region, a group as tall as the default bar's row
+--- and the bar pad below it, so each group stands that pad from the bottom edge. The pad above it
+--- is the list's own bottom margin, the same token.
+function View:footerHeight(tokens)
+  return footerLib.height(tokens) + tokens.pad
 end
 
 --- M.new(engine, native) answers a view for one engine instance, with a panel of its own, built

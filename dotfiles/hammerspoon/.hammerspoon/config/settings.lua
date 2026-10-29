@@ -64,6 +64,17 @@ return {
     borderWidth = 1,
   },
 
+  -- The two paddings every surface reads. outer is how far content stands from any edge of the
+  -- glass, the chooser's field and its highlighted rows, the right pane's content, the action
+  -- bar's two groups and the gap between the chooser and the pane, and every panel's padding.
+  -- inner is the room inside a highlighted or filled shape, between a row's edge and its icon,
+  -- and inside each action bar group. The corner of a row and of a group is cornerRadius above
+  -- less outer, so more outer padding makes squarer corners and less makes rounder ones.
+  spacing = {
+    outer = 14,
+    inner = 14,
+  },
+
   -- Cheat-sheet overlay content (the Hyper and SUPER modals). One place for the
   -- grid content styling; the shared CheatSheet renderer applies it to every
   -- overlay. Per-overlay layout (column count, icons) stays in the spoons. The
