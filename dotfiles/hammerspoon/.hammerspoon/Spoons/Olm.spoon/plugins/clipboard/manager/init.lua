@@ -373,8 +373,8 @@ function M:start()
       return media.resolveForPaste(items, folder)
     end,
     -- What file paths sit on the pasteboard right now, which is the one reading the engine's
-    -- restore guard needs and cannot do cheaply itself, since an opaque Finder reference url
-    -- takes a subprocess to resolve. The file reader already answers exactly that, so it is
+    -- restore guard needs and should not do itself, since an opaque Finder reference url
+    -- needs the reader's own fallbacks to name a real path. The file reader already answers exactly that, so it is
     -- handed over as one closure rather than the whole chain, which is this spoon's own shape
     -- and none of the engine's business.
     currentFilePaths = function()

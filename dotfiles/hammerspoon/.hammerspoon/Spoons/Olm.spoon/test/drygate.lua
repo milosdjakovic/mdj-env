@@ -976,6 +976,33 @@ do
 end
 
 ----------------------------------------------------------------------------------------
+-- Thirteen, no JavaScript in Hammerspoon's process, see test/drygate-jxa.lua. Every call of
+-- hs.osascript.javascript leaks a JavaScriptCore context group, so a call anywhere in the spoon
+-- is a finding naming its line. JavaScript that has to run goes through osascript in its own
+-- process, as the SF Symbol source does.
+----------------------------------------------------------------------------------------
+
+do
+  local scanner = dofile(scriptDir .. "drygate-jxa.lua")
+  local list = os.getenv("DRYGATE_SOURCES")
+  if list and list ~= "" then
+    for path in list:gmatch("[^\n]+") do
+      local rel = path:sub(1, #spoonDir) == spoonDir and path:sub(#spoonDir + 1) or path
+      local f = io.open(path, "r")
+      if f then
+        local text = f:read("a")
+        f:close()
+        for _, hit in ipairs(scanner.scan(text)) do
+          finding(string.format(
+            "dry gate refused '%s', line %d, in process JavaScript, '%s', each call leaks a JavaScriptCore context in Hammerspoon, run osascript in its own process through hs.task or read the answer without JavaScript",
+            rel, hit.line, hit.source))
+        end
+      end
+    end
+  end
+end
+
+----------------------------------------------------------------------------------------
 -- An accepted line that no longer matches anything this run is itself a finding, appended
 -- straight to the real list rather than through finding() above, so it is never itself
 -- eligible to be accepted away, the one rule that keeps this file from rotting.

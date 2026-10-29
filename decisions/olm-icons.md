@@ -76,6 +76,12 @@ literal `icon = "key"` in a plugin's Lua that its manifest does not declare.
   564 MB after one launcher open and 1.23 GB in another process. It was accepted on 2026-10-15
   for needing no helper, and that still holds for the out of process render, which runs the same
   JXA in an `osascript` process that exits and takes the leak with it.
+- **Any other caller of `hs.osascript.javascript` in Olm.** 2026-10-29. The clipboard's file
+  reader resolved each Finder reference url through it and leaked the same context group per
+  copied file, 130 of them and about a gigabyte by an evening, after the icon fix had landed. The
+  path was already on the pasteboard, as the url's `filePath` and in `NSFilenamesPboardType`, so
+  the reader now reads it there, and the dry gate refuses a call of `hs.osascript.javascript` or
+  `hs.osascript._osascript` anywhere in the spoon, see `test/drygate-jxa.lua`.
 - **Drawing the SF Symbol straight to a canvas.** 2026-10-15. This Hammerspoon has no SF Symbol
   api and the named system images it does expose are too sparse, which is why the bridge is used.
 
@@ -248,3 +254,19 @@ heap at 95 MB, of which a full collection freed 45 MB, plus clipboard images and
 Spotlight results. A few minutes later macOS had taken back the freed pages and it sat at 141 MB,
 the plugins' own data rather than a leak. Milos found every icon present, full size and sharp.
 Merged to main.
+
+### 2026-10-29 09:20
+
+Hammerspoon was back at 1007 MB the next morning with 130 JavaScriptCore context groups, the
+same signature, and the count did not move over sixteen hours of idle. After a restart at 51 MB a
+wrapper around `hs.osascript.javascript` logged a Lua traceback per call while a sampler read the
+footprint and the context count every half minute. Milos copied a few files in Finder, and the
+count went from 0 to 30 and the footprint to about 260 MB, with 29 logged calls, every one from
+the clipboard monitor's capture through the file reader's `matches` into `resolveReferenceURL`,
+one per copied file. Reading the pasteboard after that copy showed the real path already there,
+the url's `filePath` from `hs.pasteboard.readURL` and the same path in `NSFilenamesPboardType`,
+while `realpath`, `hs.fs.pathToAbsolute` and the `/.vol` device and inode path all fail on a
+reference url. The resolver is deleted and the dry gate refuses in process JavaScript anywhere in
+the spoon. The sampler's `heap` pauses the process while it walks memory, which may account for
+some of the lag Milos saw during the measurement. The fix is not yet measured live.
+

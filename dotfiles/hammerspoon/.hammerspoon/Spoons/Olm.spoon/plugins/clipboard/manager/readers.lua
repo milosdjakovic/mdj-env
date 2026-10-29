@@ -22,36 +22,33 @@ local M = {}
 
 local floor = math.floor
 
--- Resolve an opaque Finder file-reference url (file:///.file/id=<inode>) to a
--- real path via NSURL.filePathURL, reached through the ObjC bridge in JXA. This
--- is the only method that works for reference urls; the AppleScript alias
--- manager rejects them. One short subprocess, run only for reference urls.
-local function resolveReferenceURL(refURL)
-  local js = "ObjC.import('Foundation'); var r = $.NSURL.URLWithString("
-    .. string.format("%q", refURL)
-    .. "); (r && r.filePathURL) ? r.filePathURL.path.js : '';"
-  local ok, resolved = hs.osascript.javascript(js)
-  if ok and type(resolved) == "string" and #resolved > 0 then
-    return resolved
-  end
-  return nil
+-- A Finder copy puts an opaque reference url on the pasteboard, file:///.file/id=<n>, and
+-- the real path arrives beside it without any resolving. LuaSkin hands it over as the url's
+-- filePath, and Finder also writes every path into NSFilenamesPboardType. This used to
+-- resolve the reference through hs.osascript.javascript, and every such call left a
+-- JavaScriptCore context in Hammerspoon's process for good, about seven megabytes a copied
+-- file, which grew the process past a gigabyte. decisions/olm-icons.md has the measurement.
+local function filenamesOnPasteboard()
+  local ok, list = pcall(hs.pasteboard.readPListForUTI, nil, "NSFilenamesPboardType")
+  if ok and type(list) == "table" then return list end
+  return {}
 end
 
 -- Turn one copied url item into a real filesystem path, or nil if it is not a
--- resolvable file url. Handles the reference url, the clean filePath a normal
--- file url already carries, and a raw percent-encoded fallback.
-local function itemToPath(util, item)
+-- resolvable file url. Handles the clean filePath a file url carries, a reference
+-- url through the filename at the same position, and a raw percent-encoded fallback.
+local function itemToPath(util, item, filename)
   local urlStr = util.urlString(item)
   local filePath = type(item) == "table" and item.filePath or nil
 
-  if urlStr and urlStr:match("^file:///%.file/") then
-    local real = resolveReferenceURL(urlStr)
-    if real then
-      return (real:gsub("/$", ""))
-    end
-  end
   if filePath and #filePath > 0 and not filePath:match("^/%.file/") then
     return (filePath:gsub("/$", ""))
+  end
+  if urlStr and urlStr:match("^file:///%.file/") then
+    if type(filename) == "string" and #filename > 0 then
+      return (filename:gsub("/$", ""))
+    end
+    return nil
   end
   if urlStr and urlStr:match("^file://") then
     local u = urlStr:gsub("^file://[^/]*", ""):gsub("%%(%x%x)", function(h)
@@ -75,8 +72,13 @@ local function readFilePaths(util)
     items = raw
   end
   local paths = {}
-  for _, item in ipairs(items) do
-    local p = itemToPath(util, item)
+  local filenames
+  for i, item in ipairs(items) do
+    local urlStr = util.urlString(item)
+    if not filenames and urlStr and urlStr:match("^file:///%.file/") then
+      filenames = filenamesOnPasteboard()
+    end
+    local p = itemToPath(util, item, filenames and filenames[i])
     if p then
       paths[#paths + 1] = p
     end

@@ -14,7 +14,7 @@ local M = {}
 
 -- The code part of a line, with a whole line comment gone and a trailing comment cut off where
 -- a double dash sits outside a quoted string. nil for a line that is only a comment or blank.
-local function codeOf(line)
+function M.codeOf(line)
   if line:match("^%s*%-%-") or line:match("^%s*$") then return nil end
   local quote
   local i, n = 1, #line
@@ -39,7 +39,7 @@ function M.scan(text)
   local n = 0
   for l in (text .. "\n"):gmatch("(.-)\n") do
     n = n + 1
-    local code = codeOf(l)
+    local code = M.codeOf(l)
     if code then
       if code:find("canvas%.new") then makesCanvas = true end
       if not snapshotLine and code:find("imageFromCanvas") then snapshotLine = n end

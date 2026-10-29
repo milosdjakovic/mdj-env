@@ -760,7 +760,7 @@ measurements.
 The engine in `lib/icons` and its two sources are described in `decisions/olm-icons.md`. What an
 agent needs to keep true is where the sf source draws and its pixel rule.
 
-Hammerspoon's process never runs JXA for an icon. Calling `hs.osascript.javascript` for a symbol
+Hammerspoon's process never runs JXA, for an icon or for anything else, and the dry gate refuses a call of `hs.osascript.javascript` or `hs.osascript._osascript` anywhere in the spoon, `test/drygate-jxa.lua`. The clipboard's file reader leaked the same way until 2026-10-29, and reads a copied file's real path off the pasteboard now. Calling `hs.osascript.javascript` for a symbol
 leaks a JavaScriptCore context group per call, which grew the process past 1 GB, so the sf source
 keeps every picture as a PNG in the storage cache directory for icons, `sf-<symbol>-72pt-<scale>x-
 <rrggbbaa>.png`, and loads it from there. A missing one answers nil and pending, which the engine

@@ -397,8 +397,9 @@ end
 -- carries already says which reading to do, "f" for the current file paths, and
 -- anything else for plain text, so no second kind has to travel alongside the signature.
 --
--- Reading file paths off the pasteboard is the one reading this module cannot do cheaply on
--- its own, since a copied file url can be an opaque reference that only a subprocess resolves.
+-- Reading file paths off the pasteboard is the one reading this module should not do on its
+-- own, since a copied file url can be an opaque reference that the capture reader knows how to
+-- turn into a real path.
 -- So it is injected as one function rather than duplicated here or reached through somebody
 -- else's reader chain. Absent, a file restore has no second opinion and answers to the count
 -- alone, the same way an image already does.
