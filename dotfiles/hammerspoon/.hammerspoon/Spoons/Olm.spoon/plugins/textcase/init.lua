@@ -214,6 +214,8 @@ function obj:configure(opts)
   self._apply = opts.apply
   self._stagePresent = opts.stagePresent
   self._recency = opts.recency
+  self._stageSelectedItem = opts.stageSelectedItem
+  self._stageHide = opts.stageHide
   self._presence = opts.presence
   self._coveredApp = opts.coveredApp
   return self
@@ -243,6 +245,18 @@ function obj:select(item)
     if self._recency and item.id then self._recency.touch(item.id) end
     self._apply(item.text)
   end
+end
+
+--- TextCase:copySelected()
+--- Method
+--- The secondary, Copy, docs/PLAN-ACTION-PANEL.md. Puts the highlighted case on the pasteboard
+--- rather than pasting it over the selection, lifts it like a pick, and closes.
+function obj:copySelected()
+  local item = self._stageSelectedItem and self._stageSelectedItem()
+  if not (item and item.text) then return end
+  if self._recency and item.id then self._recency.touch(item.id) end
+  hs.pasteboard.setContents(item.text)
+  if self._stageHide then self._stageHide() end
 end
 
 --- TextCase:launcherDetail()

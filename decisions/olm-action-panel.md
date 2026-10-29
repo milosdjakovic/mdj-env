@@ -2,8 +2,9 @@
 
 Status. The action panel is programmable. A plugin's `surface.extra` row may carry a `section`,
 an `applies` method, `choices` or `confirm`, and may leave out its key to be a verb of the panel
-alone. Workspaces and Display Profiles apply on Return and offer the rest in the panel. Phases
-two to four of `docs/PLAN-ACTION-PANEL.md` are open.
+alone. Workspaces and Display Profiles apply on Return and offer the rest in the panel, and the
+clipboard, Text Case, Emoji and File Search have a secondary. Phases three and four of
+`docs/PLAN-ACTION-PANEL.md` are open.
 
 ## Now
 
@@ -42,3 +43,15 @@ Workspaces and Display Profiles applies, and that this track is the contract and
 new actions later. Phase one built the contract, the levels, `stagePush`, section headings in the
 popover and both plugins, and he checked it live. Display Profiles' monitor details, which lived on
 the level Return used to open, became a Displays verb.
+
+### 2026-10-29 19:16
+
+Display Profiles' Return reapplies only the profile matching the attached displays, and runs
+nothing on any other, since its own record says only that profile can take effect and the
+engine's named apply would hand displayplacer monitor ids that are not attached. Milos accepted it
+live. Phase two gave four lists a secondary on Command and Return, Copy in the clipboard through
+the paste engine's own write so it never returns as a new entry, Copy in Text Case and Emoji, and
+Reveal in Finder in File Search, which its f key also runs, so `lib/hints.lua` lists a verb on the
+secondary's action once. The key goldens moved by exactly those Command and Return bindings.
+Milos checked all four live.
+

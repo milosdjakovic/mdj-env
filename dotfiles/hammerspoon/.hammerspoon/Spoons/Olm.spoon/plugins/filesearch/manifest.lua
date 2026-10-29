@@ -292,6 +292,9 @@ return {
   surface = {
     context = "fileSearch",
     primary = { action = "insertSelected", description = "Open" },
+    -- Command and Return reveals the file in Finder, the same verb the f key runs, and the action
+    -- panel lists it once, docs/PLAN-ACTION-PANEL.md.
+    secondary = { action = "revealInFinder", description = "Reveal in Finder", icon = "search" },
     extra = {
       { key = "j", mods = { "cmd" }, action = "scrollPreviewDown", needs = "scrollablePreview",
         description = "Scroll preview down" },

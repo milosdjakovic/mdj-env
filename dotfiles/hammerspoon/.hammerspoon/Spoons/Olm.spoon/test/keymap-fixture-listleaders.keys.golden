@@ -80,6 +80,14 @@ field	/	cmd+shift	wifiOpen	100	wifi
 field	/	cmd+shift	workspacesOpen	100	workspaces
 field	j	ctrl	launcherOpen	100	launcher
 field	k	ctrl+shift	clipboardOpen	100	clipboard
+field	padenter	cmd	clipboardOpen	100	clipboard
+field	padenter	cmd	emojiOpen	100	emoji
+field	padenter	cmd	fileSearchOpen	100	fileSearch
+field	padenter	cmd	textCaseOpen	100	textCase
+field	return	cmd	clipboardOpen	100	clipboard
+field	return	cmd	emojiOpen	100	emoji
+field	return	cmd	fileSearchOpen	100	fileSearch
+field	return	cmd	textCaseOpen	100	textCase
 hotkey	c	alt+ctrl	-	-	clipboard
 hotkey	globe	none	-	-	inputsources
 hotkey	v	alt+ctrl	-	-	clipboard

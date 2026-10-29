@@ -25,6 +25,8 @@ return {
   -- by its place in the batch, one to nine and then a shared mark. The thumbnails, the file type
   -- icons and the colour chip on a row are content and are drawn from the entry itself.
   icons = {
+    -- The secondary, Copy, in the action panel.
+    copy = { emoji = "📋", sf = "doc.on.doc" },
     url = { emoji = "🔗", sf = "link" },
     text = { emoji = "📝", sf = "doc.text" },
     queued1 = { emoji = "1️⃣", sf = "1.circle" },
@@ -191,6 +193,8 @@ return {
   surface = {
     context = "clipboard",
     primary = { action = "insertSelected", description = "Paste" },
+    -- Command and Return copies the entry without pasting it, docs/PLAN-ACTION-PANEL.md.
+    secondary = { action = "copySelected", description = "Copy", icon = "copy" },
     extra = {
       -- Cmd is the sub modifier within Hyper, so these scroll the preview pane
       -- while the bare keys still move the highlight.

@@ -1151,6 +1151,18 @@ function UI.appendSelected()
   refreshFooter()
 end
 
+--- UI.copySelected() - the secondary, Copy, docs/PLAN-ACTION-PANEL.md. Puts the highlighted entry
+--- on the pasteboard without pasting it, through the paste engine's own write, which hides the
+--- write from the capture side so it never comes back as a new entry, floats the entry to the top
+--- as a paste would, and closes. Inert on the manage history page, whose rows are slices.
+function UI.copySelected()
+  if not showing or page then return end
+  local entry = cfg.stageSelectedItem and cfg.stageSelectedItem()
+  if not entry or entry.side then return end
+  if paste.writeClipboard(entry) then store.moveToFront(entry) end
+  if cfg.stageHide then cfg.stageHide() end
+end
+
 --- UI.deleteSelected() - delete from history, for the Hyper d binding. With a batch
 --- marked (Hyper a), delete the whole marked set and clear it, matching the "Delete
 --- marked" label; otherwise delete just the highlighted entry. Refreshing redraws the

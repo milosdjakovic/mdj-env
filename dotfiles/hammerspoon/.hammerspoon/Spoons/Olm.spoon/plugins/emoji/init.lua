@@ -111,7 +111,20 @@ function obj:configure(opts)
   self._active = self:_resolve(order)
   self._active:configure(opts)
   self._stagePresent = opts.stagePresent
+  self._stageSelectedItem = opts.stageSelectedItem
+  self._stageHide = opts.stageHide
   return self
+end
+
+--- Emoji:copySelected()
+--- Method
+--- The secondary, Copy, docs/PLAN-ACTION-PANEL.md. Puts the highlighted glyph on the pasteboard
+--- rather than inserting it, and closes.
+function obj:copySelected()
+  local glyph = self._stageSelectedItem and self._stageSelectedItem()
+  if type(glyph) ~= "string" or glyph == "" then return end
+  hs.pasteboard.setContents(glyph)
+  if self._stageHide then self._stageHide() end
 end
 
 --- Emoji:show()

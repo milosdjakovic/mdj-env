@@ -22,6 +22,8 @@ return {
   -- plugin is its identity icon, which the launcher row and the scoped list both wear.
   -- The row icons inside the list are drawn by the plugin itself and are left alone.
   icons = {
+    -- The secondary, Copy, in the action panel.
+    copy = { emoji = "📋", sf = "doc.on.doc" },
     textcase = { emoji = "🔠", sf = "textformat" },
   },
 
@@ -71,6 +73,10 @@ return {
     -- since a plugin asking before the stage's own configure has run is a wiring defect
     -- rather than a state a key press should silently swallow.
     data = {
+      stageSelectedItem = { source = "root", policy = "optional",
+        breaks = "Copy finds no case to copy and does nothing" },
+      stageHide = { source = "root", policy = "optional",
+        breaks = "Copy leaves the list open after copying" },
       stagePresent = { source = "root", policy = "optional",
         breaks = "the special row dispatch reaches nothing, since show has no other way to " ..
                  "reach the shared stage" },
@@ -100,6 +106,8 @@ return {
   surface = {
     context = "textCase",
     primary = { action = "insertSelected", description = "Apply" },
+    -- Command and Return copies the case rather than pasting it, docs/PLAN-ACTION-PANEL.md.
+    secondary = { action = "copySelected", description = "Copy", icon = "copy" },
   },
 
   -- The presentation contract, contract v2, docs/BRIEF-CONTRACT-V2.md. rows and select are

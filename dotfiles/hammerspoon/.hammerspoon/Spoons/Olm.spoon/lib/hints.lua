@@ -338,7 +338,10 @@ function obj.rowsFor(contextName, plan, deps, hosted)
   local labels = deps and deps.labelsFor and deps.labelsFor(contextName) or nil
   local sharedListed = {}
   -- The context's bindings and then its panel verbs, the action panel's alone, which carry no key.
-  local candidates = {}
+  local candidates, secondaryAction = {}, nil
+  for _, b in ipairs(ctx.bindings) do
+    if b.shared == "secondary" then secondaryAction = b.action break end
+  end
   for _, b in ipairs(ctx.bindings) do candidates[#candidates + 1] = b end
   for _, b in ipairs(ctx.panel or {}) do candidates[#candidates + 1] = b end
   for _, b in ipairs(candidates) do
@@ -352,6 +355,10 @@ function obj.rowsFor(contextName, plan, deps, hosted)
       listed = true
     else
       listed = b.shared == nil and kinds[b.action] == "verb"
+    end
+    -- A verb on the same action as the secondary is the secondary on a second key, listed once.
+    if listed and b.shared == nil and secondaryAction ~= nil and b.action == secondaryAction then
+      listed = false
     end
     if listed and bindingActive(b, deps)
       and (not hosted or hostedVerbDeclared(hosted, b.action)) then

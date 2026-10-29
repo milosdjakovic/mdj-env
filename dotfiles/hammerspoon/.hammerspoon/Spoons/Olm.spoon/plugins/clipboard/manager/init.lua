@@ -224,6 +224,12 @@ function M.appendSelected()
   ui.appendSelected()
 end
 
+--- M.copySelected() - the secondary, Copy, puts the highlighted entry on the pasteboard
+--- without pasting it, for Command and Return.
+function M.copySelected()
+  ui.copySelected()
+end
+
 --- M.scrollPreviewDown() / M.scrollPreviewUp() - scroll the preview pane, for the
 --- Hyper+Cmd+j and Hyper+Cmd+k bindings wired in the composition root, so a long
 --- entry can be read without reaching for the mouse.

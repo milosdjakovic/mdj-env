@@ -58,3 +58,17 @@ local titles = {}
 for _, r in ipairs(ordered) do titles[#titles + 1] = r.title end
 check("Back and the primary lead, then plain verbs, then each section in declared order",
   table.concat(titles, ",") == "Back,Apply,Plain,Manage one,Manage two,Layout one", table.concat(titles, ","))
+
+-- A verb on the same action as the secondary is the secondary on a second key, listed once.
+do
+  local plan = { contexts = { demo = { bindings = {
+    { shared = "primary", action = "insertSelected", key = "i", description = "Open" },
+    { shared = "secondary", action = "reveal", key = "return", mods = { "cmd" }, description = "Reveal" },
+    { key = "f", action = "reveal", description = "Reveal" },
+    { key = "y", action = "copyPath", description = "Copy path" },
+  } } } }
+  local rows = hints.rowsFor("demo", plan, {})
+  local reveals = 0
+  for _, r in ipairs(rows) do if r.action == "reveal" then reveals = reveals + 1 end end
+  check("the secondary's action is listed once though a key also names it", reveals == 1)
+end
