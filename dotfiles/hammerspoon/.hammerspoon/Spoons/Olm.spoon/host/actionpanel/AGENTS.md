@@ -319,3 +319,18 @@ Both changes are additive to existing call sites. A caller that never passes the
 to run, rowsFor, toggle, or _buildRows sees exactly the behaviour it saw before this packet,
 since Lua answers nil for an argument nobody supplied and every new branch above treats nil the
 same as false.
+
+## A view that floats the panel, and why it then has no Back row
+
+The swift chooser draws the panel as a popover over the list rather than in place of its rows,
+which its view says through `floatsActionPanel`, asked through the engine's method of the same
+name. Nothing in this module changes for it except one row. toggle asks the instance once, and
+`_buildRows` then leaves out the Back row, the one row carrying no action, since a popover is
+left by Escape and the list it would step back to never went away. The first verb is then the
+highlighted row, so Return runs the primary as the bar says. The rows, the field, the highlight
+and every way out are otherwise exactly as above, the view keeping the list's own rows on screen
+behind the popover and drawing the panel's rows in it. Escape over a floating panel closes the
+panel and not the list, through the engine asking the footer model's `panelAction`, the panel's
+own action name, so the engine never names it. A view that answers nothing, the canvas chooser,
+keeps the Back row and the in place panel.
+

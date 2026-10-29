@@ -300,7 +300,8 @@ function obj.footerModel(contextName, plan, deps)
   local keysIcon = { icon = "keys", owner = deps.panelOwner }
   -- The key panel's header, the name and version of this Olm, handed in by the root.
   return { right = right, keys = keys, keysChord = keysChord, keysIcon = keysIcon,
-    title = deps.title, state = table.concat(parts, " | ") }
+    title = deps.title, panelOpen = panelRow ~= nil, panelAction = panel and panel.action or nil,
+    state = (panelRow and "panel | " or "") .. table.concat(parts, " | ") }
 end
 
 -- The ordered rows the action panel would show for one context, Back first, then the primary

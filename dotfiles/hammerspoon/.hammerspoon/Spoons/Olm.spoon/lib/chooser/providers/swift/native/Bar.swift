@@ -25,6 +25,9 @@ private func label(_ text: String, _ font: NSFont, _ color: NSColor) -> NSTextFi
 // one is set, whatever part of the group is under the pointer.
 final class BarGroup: FlippedView {
   var onPress: (() -> Void)?
+  // A press reported with where it landed, in the group's own space, for a group whose parts
+  // each do something of their own.
+  var onPressAt: ((NSPoint) -> Void)?
   var lit = false { didSet { tint() } }
   var color = NSColor.clear { didSet { tint() } }
   var radius: CGFloat = 0 { didSet { glass.setCornerRadius(radius) } }
@@ -44,7 +47,10 @@ final class BarGroup: FlippedView {
   override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
   override func mouseDown(with event: NSEvent) {}
   override func mouseUp(with event: NSEvent) {
-    if bounds.contains(convert(event.locationInWindow, from: nil)) { onPress?() }
+    let point = convert(event.locationInWindow, from: nil)
+    guard bounds.contains(point) else { return }
+    onPress?()
+    onPressAt?(point)
   }
 
   override func layout() {
@@ -66,7 +72,10 @@ final class BarView: FlippedView {
   let actions = BarGroup()
   private var parts: [NSView] = []
   private var rightParts: [NSView] = []
+  private var rightActions: [String?] = []
   private var placement = Placement()
+  // A press on an entry of the action group, with the action that entry names.
+  var onEntry: (String) -> Void = { _ in }
   // The key button's picture as it came, drawn again on the pixel grid at every layout.
   private var keysSource: NSImage?
 
@@ -74,6 +83,19 @@ final class BarView: FlippedView {
     super.init(frame: frame)
     addSubview(button)
     addSubview(actions)
+    actions.onPressAt = { [weak self] point in self?.pressEntry(at: point) }
+  }
+
+  // The entry under point, from its label's left edge to its chord's right edge with half the
+  // gap between entries on either side, runs the action it names.
+  private func pressEntry(at point: NSPoint) {
+    let half = placement.barGapWide / 2
+    for (i, action) in rightActions.enumerated() where 2 * i + 1 < rightParts.count {
+      guard let action else { continue }
+      let lo = rightParts[2 * i].frame.minX - half
+      let hi = rightParts[2 * i + 1].frame.maxX + half
+      if point.x >= lo && point.x <= hi { onEntry(action); return }
+    }
   }
 
   required init?(coder: NSCoder) { nil }
@@ -102,6 +124,7 @@ final class BarView: FlippedView {
     }
     if let chord = footer.keysChord { parts.append(label(chord, style.titleFont, style.text)) }
     for view in parts { button.addSubview(view) }
+    rightActions = footer.right.map { $0.action }
     for entry in footer.right {
       rightParts.append(label(entry.label, style.titleFont, style.text))
       rightParts.append(label(entry.chord, style.titleFont, style.text))
@@ -112,6 +135,7 @@ final class BarView: FlippedView {
       group.radius = style.highlightRadius
     }
     button.lit = lit
+    actions.lit = footer.panelOpen
     actions.isHidden = rightParts.isEmpty
     needsLayout = true
   }

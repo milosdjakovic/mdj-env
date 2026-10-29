@@ -100,6 +100,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   private let list = ListView()
   private let bar = BarView()
   private let keys = PopoverView()
+  private let actionsPop = PopoverView()
   private let ask: Ask
   private let surfaces: SharedSurface
   private var style = Style()
@@ -164,17 +165,34 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     // The bar and its key panel stand on the window's stage rather than in the list's content,
     // since with a companion they run under the gap and the pane too.
     surfaces.addOverlay(keys)
+    surfaces.addOverlay(actionsPop)
     surfaces.addOverlay(bar)
     keys.isHidden = true
+    actionsPop.isHidden = true
     bar.isHidden = true
 
-    list.table.onHover = { [weak self] index in _ = self?.ask("hover", [.int(index + 1)]) }
-    list.table.onChoose = { [weak self] index in _ = self?.ask("choose", [.int(index + 1)]) }
-    list.table.onRight = { [weak self] index in
-      _ = self?.ask("rightClick", [index.map { .int($0 + 1) } ?? .none])
+    // While the action panel is open the engine's rows are the panel's, so the list behind it,
+    // still showing the rows it was opened over, answers no pointer of its own.
+    list.table.onHover = { [weak self] index in
+      guard let self, self.state.actions == nil else { return }
+      _ = self.ask("hover", [.int(index + 1)])
     }
-    list.onScroll = { [weak self] y in _ = self?.ask("scroll", [.number(Double(y))]) }
+    list.table.onChoose = { [weak self] index in
+      guard let self, self.state.actions == nil else { return }
+      _ = self.ask("choose", [.int(index + 1)])
+    }
+    list.table.onRight = { [weak self] index in
+      guard let self, self.state.actions == nil else { return }
+      _ = self.ask("rightClick", [index.map { .int($0 + 1) } ?? .none])
+    }
+    list.onScroll = { [weak self] y in
+      guard let self, self.state.actions == nil else { return }
+      _ = self.ask("scroll", [.number(Double(y))])
+    }
     bar.button.onPress = { [weak self] in _ = self?.ask("toggleKeys", []) }
+    bar.onEntry = { [weak self] action in _ = self?.ask("footerAction", [.string(action)]) }
+    actionsPop.document.onHover = { [weak self] index in _ = self?.ask("hover", [.int(index)]) }
+    actionsPop.document.onChoose = { [weak self] index in _ = self?.ask("choose", [.int(index)]) }
 
     window.contentView = surfaces.view
   }
@@ -218,6 +236,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     bar.frame = toWindow(next.footer) ?? .zero
     list.apply(style: style, placement: placement)
     layoutKeys()
+    layoutActions()
   }
 
   func setRows(_ rows: [Row]) { list.setRows(rows) }
@@ -233,14 +252,25 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
       keys.isHidden = !next.keysOpen
       if next.keysOpen {
         keys.show(title: footer.title, lines: footer.keys.map { .init(label: $0.label, chord: $0.chord) },
-          style: style, pad: placement.barPillPad, lineH: placement.barPillH, gap: placement.barGapWide,
-          radius: style.highlightRadius)
+          style: style, outer: placement.barPad, inner: placement.barPillPad, lineH: placement.barPillH,
+          gap: placement.barGapWide, radius: style.highlightRadius)
       }
     } else {
       bar.isHidden = true
       keys.isHidden = true
     }
+    if let actions = next.actions, !bar.isHidden {
+      actionsPop.isHidden = false
+      actionsPop.show(title: nil,
+        lines: actions.map { .init(label: $0.title, chord: $0.subtitle, image: $0.image) },
+        style: style, outer: placement.barPad, inner: placement.barPillPad, lineH: placement.barPillH,
+        gap: placement.barGapWide, radius: style.highlightRadius, iconSide: placement.keysIcon,
+        highlight: next.actionsHighlight, selectable: true)
+    } else {
+      actionsPop.isHidden = true
+    }
     layoutKeys()
+    layoutActions()
   }
 
   var text: String { field.stringValue }
@@ -521,15 +551,29 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   }
 
   // The key panel is a popover standing above the keys group, its left edge on the group's and
-  // the bar's small gap between them, as wide as its widest line and never wider than the window
+  // the outer padding between them, as wide as its widest line and never wider than the window
   // less the outer padding on both sides, as tall as its lines and never above the list's top,
   // where it scrolls instead.
+  // The action panel is the same popover above the action group, its right edge on the group's,
+  // never wider than the window less the outer padding and never above the list's top.
+  private func layoutActions() {
+    guard !actionsPop.isHidden, let stage = actionsPop.superview else { return }
+    bar.layoutSubtreeIfNeeded()
+    let anchor = bar.convert(bar.actions.frame, to: stage)
+    let top = toWindow(placement.list)?.minY ?? 0
+    let bottom = anchor.minY - placement.barPad
+    let size = actionsPop.preferredSize
+    let w = min(size.width, max(0, anchor.maxX - placement.barPad))
+    let h = min(size.height, max(0, bottom - top))
+    actionsPop.frame = NSRect(x: anchor.maxX - w, y: bottom - h, width: w, height: h)
+  }
+
   private func layoutKeys() {
     guard !keys.isHidden, let stage = keys.superview else { return }
     bar.layoutSubtreeIfNeeded()
     let anchor = bar.convert(bar.button.frame, to: stage)
     let top = toWindow(placement.list)?.minY ?? 0
-    let bottom = anchor.minY - placement.barGap
+    let bottom = anchor.minY - placement.barPad
     let size = keys.preferredSize
     let w = min(size.width, max(0, windowSize.width - anchor.minX - placement.barPad))
     let h = min(size.height, max(0, bottom - top))

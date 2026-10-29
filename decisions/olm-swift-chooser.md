@@ -587,3 +587,22 @@ header is this Olm's name and version, `title` in the footer model, which the ro
 `olm.version`. Its padding is the inner padding, each line as tall as a group, and its corner the
 groups'. Milos checked it live and kept it as built.
 
+### 2026-10-29 18:38
+
+The action panel became the popover's second user, above the actions group, built on the panel
+the action panel host already runs rather than a second one. The footer model says `panelOpen`
+while the panel is open, and the swift view then keeps the list's own rows, highlight and scroll
+on screen and draws the engine's rows, which are the panel's, in the popover with the engine's
+highlight, the list answering no pointer meanwhile. The engine re reads the footer model before
+the redraw that first shows the panel's rows, so the list never flashes them. The view answers
+`floatsActionPanel`, so the panel leaves out its Back row, and Escape closes the panel alone
+through the model's `panelAction`. Each entry of the actions group runs its own action through a
+new `footerAction` on the engine, which the stage hands from the root's dispatch.
+
+Milos checked it live in four rounds. The first showed the highlight 14 from the popover's top and
+bottom and 7 from its sides, so a chosen line now stands the outer padding from all four edges with
+its text the inner padding inside. The key panel then read uneven, since its lines are never lit,
+so a popover of read lines stands its text itself the outer padding from every edge, top and
+bottom measured to the text. Its header went from caption to the row title's size and colour, and
+the rule from half the outer padding on each side to the whole of it.
+

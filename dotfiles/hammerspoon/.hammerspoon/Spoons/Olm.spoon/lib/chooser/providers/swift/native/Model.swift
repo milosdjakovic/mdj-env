@@ -138,21 +138,27 @@ struct Footer {
   struct Entry {
     var label: String
     var chord: String
+    var action: String? = nil
   }
   var right: [Entry] = []
   var keys: [Entry] = []
   var keysChord: String?
   var keysImage: NSImage?
   var title: String?
+  var panelOpen = false
 
   init() {}
 
   init(_ r: LuaReader, _ t: Int32) {
-    r.each(t, "right") { e in right.append(Entry(label: r.string(e, "label") ?? "", chord: r.string(e, "chord") ?? "")) }
+    r.each(t, "right") { e in
+      right.append(Entry(label: r.string(e, "label") ?? "", chord: r.string(e, "chord") ?? "",
+        action: r.string(e, "action")))
+    }
     r.each(t, "keys") { e in keys.append(Entry(label: r.string(e, "label") ?? "", chord: r.string(e, "chord") ?? "")) }
     keysChord = r.string(t, "keysChord")
     keysImage = r.image(t, "keysImage")
     title = r.string(t, "title")
+    panelOpen = r.bool(t, "panelOpen") ?? false
   }
 }
 
@@ -168,6 +174,9 @@ struct ViewState {
   var lineBreak = NSLineBreakMode.byTruncatingTail
   var footer: Footer?
   var keysOpen = false
+  // The action panel's rows and its highlight, one based, while it is open over the list.
+  var actions: [Row]?
+  var actionsHighlight = 0
 
   init() {}
 
@@ -182,6 +191,12 @@ struct ViewState {
     lineBreak = ViewState.lineBreak(r.string(t, "lineBreak"))
     footer = r.field(t, "footer") { r.isTable($0) ? Footer(r, $0) : nil }
     keysOpen = r.bool(t, "keysOpen") ?? false
+    if r.field(t, "actions", { r.isTable($0) }) == true {
+      var rows: [Row] = []
+      r.each(t, "actions") { e in rows.append(Row(r, e)) }
+      actions = rows
+    }
+    actionsHighlight = r.integer(t, "actionsHighlight") ?? 0
   }
 
   // The truncation mode names the canvas view hands hs.styledtext, as AppKit spells them.

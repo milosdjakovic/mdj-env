@@ -271,11 +271,15 @@ end
 -- item carries the plain row itself back whole, so _choose below can read its action
 -- directly off whatever the atom hands back as the chosen item, and the Back row, carrying
 -- no action since no context declares one, is what marks it Back rather than a verb there.
-function obj:_buildRows(contextName, hosted)
+function obj:_buildRows(contextName, hosted, floats)
   local rows = {}
   for _, r in ipairs(self:rowsFor(contextName, hosted)) do
+    -- A popover over the list is left by Escape and needs no Back row, which is the one row
+    -- carrying no action.
+    if not (floats and r.action == nil) then
     rows[#rows + 1] = { title = r.title, subTitle = r.chord, icon = r.icon, iconOwner = r.owner,
                         item = r, filterText = r.title }
+    end
   end
   return rows
 end
@@ -570,7 +574,8 @@ function obj:toggle(contextName, hosted)
     self._capturedSearch = search
     instance:setMatcher(matcher, nil)
   end
-  self._panelRows = self:_buildRows(contextName, hosted)
+  local floats = type(instance.floatsActionPanel) == "function" and instance:floatsActionPanel() == true
+  self._panelRows = self:_buildRows(contextName, hosted, floats)
   self._openInstance = instance
   instance:setQuery("")
   instance:refresh(true)

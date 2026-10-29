@@ -548,6 +548,14 @@ function Engine:dismissKey(ev)
     self:_closeKeys()
     return
   end
+  -- The same over an action panel the view floats as a popover, toggled closed through the
+  -- action the footer model names for it, since the panel is the root's and not this file's.
+  local model = self._footerModel
+  if model and model.panelOpen and model.panelAction and self:floatsActionPanel() then
+    self._escapeClosedKeys = true
+    self:footerAction(model.panelAction)
+    return
+  end
   self:hide()
 end
 
@@ -883,6 +891,20 @@ function Engine:toggleKeys()
   if not self.active or not (self._rects and self._rects.footer) or not self._footerModel then return end
   self._keysOpen = not self._keysOpen
   self.view:redraw()
+end
+
+--- Engine colon footerAction, arity one. Runs the action a pressed entry of the bar names, through
+--- config.footerAction, the same dispatch a key runs. Does nothing while the list is down.
+function Engine:footerAction(name)
+  if not self.active or type(name) ~= "string" then return end
+  safeCall(self.config.footerAction, name)
+end
+
+--- Engine colon floatsActionPanel, arity zero. True when the view draws the action panel as a
+--- popover over the list rather than in place of its rows, see floatsActionPanel in
+--- lib/chooser/view.lua, so the panel leaves out the Back row a list of its own would need.
+function Engine:floatsActionPanel()
+  return type(self.view.floatsActionPanel) == "function" and self.view:floatsActionPanel() == true
 end
 
 --- Engine colon closeKeys, arity zero. Closes the key panel when it is open and does nothing

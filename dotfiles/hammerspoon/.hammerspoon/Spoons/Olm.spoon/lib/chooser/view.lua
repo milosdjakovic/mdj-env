@@ -67,6 +67,8 @@ local M = {}
 -- answers nothing keeps the bar under the canvas alone and the companion at the canvas's height.
 -- footerHeight(tokens) answers the action bar's height in points for a view whose bar is not the
 -- default row, and a view that answers nothing takes the default row's height.
+-- floatsActionPanel() true means the view draws the action panel's rows in a popover over the
+-- list rather than in place of the list's rows, so the panel offers no Back row.
 M.requiredMethods = {
   "restyle", "place", "presentRows",
   "text", "setText", "feedKey",

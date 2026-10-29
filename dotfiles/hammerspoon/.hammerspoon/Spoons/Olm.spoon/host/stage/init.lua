@@ -232,6 +232,7 @@ function obj:configure(opts)
   self._theme = opts.theme
   self._stampIcons = opts.stampIcons
   self._footer = opts.footer
+  self._footerAction = opts.footerAction
 
   self._stack = {}
   self._openId = nil
@@ -300,6 +301,8 @@ function obj:configure(opts)
     -- The action bar's model, asked by the instance on its own schedule. A provider that draws
     -- no bar never asks.
     footer = self._footer,
+    -- What a press on an entry of the bar runs, by its action name.
+    footerAction = self._footerAction,
   })
 
   -- Decision two of the geometry brief. The row count the window is currently built for is

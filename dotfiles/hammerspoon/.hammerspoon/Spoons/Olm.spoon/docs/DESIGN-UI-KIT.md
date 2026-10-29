@@ -292,8 +292,15 @@ way. The companion rect keeps the canvas's height and carries `under`, the bar's
 docked pane leaves out of the box it lays content in, so content stops above the bar, the clip
 reaches the bottom edge behind it, and the last line of a scrolled pane scrolls clear. The key panel
 is a popover, `native/Popover.swift`, the window's glass above the keys group with the version as
-its header and one scrolling column of keys, its padding the inner padding and its corner the
-groups'.
+its header and one scrolling column of keys, and its corner the groups'. The action panel is the
+same popover above the actions group, its right edge on the group's, with each verb's icon and a
+highlight the keys and the pointer move. A popover follows the padding rules one of two ways. One
+whose lines are chosen stands its lines the outer padding from all four edges and its text the
+inner padding inside a line, like the list's rows. One whose lines are only read stands its text
+itself the outer padding from all four edges, with its header in the row title's size and colour,
+a rule the outer padding below it and the first line the outer padding below the rule. Either
+stands the outer padding above its group. Each entry of the actions group is clickable, running
+its own action, so Actions opens the panel and the primary runs on the highlighted row.
 `test/cases/surfaces.lua` pins the derived geometry.
 
 ## The typography check, and how an icon declares itself

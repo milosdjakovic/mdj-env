@@ -2144,6 +2144,9 @@ function obj.run(olm, cfg)
     theme = policy.chooserTheme,
     stampIcons = iconRows.stampAll,
     footer = stageFooter,
+    -- A press on an entry of the bar runs that entry's action, the same dispatch a verb chosen in
+    -- the action panel runs, so Actions opens the panel and the primary chooses the row.
+    footerAction = actionPanelOpts.run,
   }
 
   -- fannedData WINS, and its absence here altogether was the single worst defect in this build.

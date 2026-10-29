@@ -267,12 +267,15 @@ end
 local function footerData(model)
   if not model then return nil end
   local right, keys = {}, {}
-  for _, r in ipairs(model.right or {}) do right[#right + 1] = { label = r.label or "", chord = r.chord or "" } end
+  for _, r in ipairs(model.right or {}) do
+    right[#right + 1] = { label = r.label or "", chord = r.chord or "", action = r.action }
+  end
   for _, k in ipairs(model.keys or {}) do
     keys[#keys + 1] = { label = k.label or "", chord = table.concat(k.badges or {}, " ") }
   end
   local icon = model.keysIcon
   return { right = right, keys = keys, keysChord = model.keysChord, title = model.title,
+    panelOpen = model.panelOpen == true,
     keysImage = icon and ICON and ICON(icon.icon, icon.owner) or nil }
 end
 
@@ -304,6 +307,8 @@ function View:redraw()
   local s = self.engine:scene()
   if not s.rects then return end
   local ns = listModel.normalized(s.list)
+  local footer = (not s.bare) and footerData(s.footer) or nil
+  if footer and footer.panelOpen then return self:_redrawPanel(s, ns, footer) end
   local fresh = ns.filtered ~= self._sentRows
   if fresh then
     self._sentRows = ns.filtered
@@ -333,8 +338,38 @@ function View:redraw()
     empty = empty,
     emptyText = NO_RESULTS,
     lineBreak = s.layout.titleLineBreak,
-    footer = (not s.bare) and footerData(s.footer) or nil,
+    footer = footer,
     keysOpen = s.keysOpen == true,
+  })
+  -- What the list shows, kept for while the action panel is open over it.
+  self._held = { highlight = ns.highlight or 0, scrollTop = ns.scrollTop, slots = slots }
+end
+
+-- While the action panel is open the engine's rows are the panel's verbs. The list keeps the rows,
+-- the highlight and the scroll it showed when the panel opened, and the verbs go to the popover
+-- above the action group with the engine's highlight, each with its icon resolved here, since the
+-- panel holds a handful of rows.
+function View:_redrawPanel(s, ns, footer)
+  local held = self._held or {}
+  local actions = {}
+  for i, row in ipairs(ns.filtered) do
+    local image = row.image
+    if image == nil and row.icon ~= nil and ICON then image = ICON(row.icon, row.iconOwner) end
+    actions[i] = { title = plain(row.title), subtitle = plain(row.subTitle), image = image or nil }
+  end
+  self.native.update(self.id, {
+    highlight = held.highlight or 0,
+    scrollTop = held.scrollTop or 0,
+    placeholder = s.placeholder or "",
+    bare = false,
+    slots = held.slots or {},
+    empty = false,
+    emptyText = NO_RESULTS,
+    lineBreak = s.layout.titleLineBreak,
+    footer = footer,
+    keysOpen = s.keysOpen == true,
+    actions = actions,
+    actionsHighlight = ns.highlight or 0,
   })
 end
 
@@ -459,6 +494,7 @@ local handlers = {
     v:redraw()
   end,
   toggleKeys = function(v) v.engine:toggleKeys() end,
+  footerAction = function(v, name) v.engine:footerAction(name) end,
   pressOutside = function(v, x, y) v:_pressOutside(x, y) end,
 }
 
@@ -505,6 +541,12 @@ end
 --- View colon spansFooter, arity zero. True, since the panel's one shape of glass spans the canvas,
 --- the gap and the companion, so the action bar runs under the list and the docked pane alike.
 function View:spansFooter()
+  return true
+end
+
+--- View colon floatsActionPanel, arity zero. True, since the action panel's verbs are drawn in a
+--- popover above the action group while the list keeps its own rows behind it.
+function View:floatsActionPanel()
   return true
 end
 
