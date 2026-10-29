@@ -221,3 +221,12 @@ reads this machine's Hyper app keys rather than the shared defaults, so `keys.go
 `sheets.golden` differ with no change to any key. The same tree run on a copy without the two
 links matched every golden. Not fixed yet, run the gate before taking the lock or on a copy.
 
+### 2026-10-29 11:40
+
+Fixed the entry above. The offline run, `test/drygate-composerun.lua`, now treats a
+`machine-*.lua` beside the config as absent, refused by its sandbox and by its `loadfile`, so
+every offline golden describes the repository's config whether or not the lock has linked this
+machine's files in. With both links in place the dry gate and every golden passed, where they had
+failed, and they pass without them as before. The live goldens, `goldens.sh --live`, still read
+the running config and so still include this machine's keys, which is what a live read is for.
+

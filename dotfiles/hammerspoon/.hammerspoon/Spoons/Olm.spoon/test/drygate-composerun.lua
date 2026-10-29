@@ -197,10 +197,26 @@ io.input = function(file)
   return realInput()
 end
 local spoonPrefix, configPrefix = clean(spoonDir), clean(hsRoot)
+-- This machine's own files beside the config, machine-apps.lua and its siblings, are never in
+-- the repository, and the test lock links them into a worktree it holds. Read there, they made
+-- every offline golden describe this machine's keys rather than the repository's, so the run
+-- treats them as absent wherever it finds them, the same as on a checkout the lock never held.
+local function machineFile(p)
+  return p:match("^(.*)/machine%-[^/]*%.lua$") == configPrefix
+end
 local function readable(path)
   local p = clean(path)
   local inside = p:sub(1, #spoonPrefix + 1) == spoonPrefix .. "/" or p:sub(1, #configPrefix + 1) == configPrefix .. "/"
-  return inside and not p:match("%.json$")
+  return inside and not p:match("%.json$") and not machineFile(p)
+end
+do
+  local realLoadfile = loadfile
+  loadfile = function(path, ...)
+    if path and machineFile(clean(path)) then
+      return nil, "cannot open " .. tostring(path) .. ": No such file or directory"
+    end
+    return realLoadfile(path, ...)
+  end
 end
 io.open = function(path, mode)
   mode = mode or "r"
