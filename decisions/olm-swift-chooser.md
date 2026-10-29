@@ -560,3 +560,17 @@ from 8 to 14 inside. A row's and a group's corner stays the surface radius less 
 14 giving 3, 10 giving 7 and 17 or more square. A gap value was considered and left as the kit's
 space steps, since nothing asked to move it.
 
+### 2026-10-29 17:58
+
+Milos asked for the pane to run behind the bar as the list does. The first attempt kept the
+companion rect stopped at the bar's top and only grew the pane's region in Swift with a bottom
+content inset, and Milos's screenshot showed the glass reaching the bottom while the text was
+still cut at the bar's top, since the docked pane lays its content out and clips it in the
+companion rect. So the companion keeps the canvas's height again, as it did before the bar
+spanned, and carries `under`, the bar's height, which `lib/dockedpane.lua`'s inner box leaves out.
+Content is laid out above the bar, the clip is the whole companion so a cut line shows behind the
+bar, and a native pane's scroll height grows by the same amount, so its last line scrolls clear
+with no inset in Swift. A view that does not span, the default chooser, gets no `under`.
+The same day the names for the chooser's parts were settled, chooser, field, list, pane and bar
+with a keys group and an actions group, in the Names section of `Spoons/Olm.spoon/AGENTS.md`.
+

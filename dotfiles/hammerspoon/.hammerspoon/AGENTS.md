@@ -23,6 +23,10 @@ inside the spoon, where a second person installing Olm would also need it. Below
 this file still names `init.lua` for a piece of wiring, configuration, or policy, take the
 true location to be `compose.lua` unless the text says otherwise.
 
+The words for the chooser's parts, chooser, field, list, pane and bar with its keys group and
+actions group, are settled in the Names section of `Spoons/Olm.spoon/AGENTS.md`. Use those and
+no synonym.
+
 **The chooser means the default chooser.** When a request says to change or fix something in
 the chooser, the work goes to the default chooser in `Spoons/Olm.spoon/lib/chooser/providers/default/`,
 and it is made live and tested there. A rule, what a key or a choice does and when a callback fires,

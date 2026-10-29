@@ -57,7 +57,7 @@ local paned = geometry.resolve(screen, barred, true)
 check("a companion keeps matching the canvas height with the bar", paned.companion.h, paned.canvas.h)
 check("and the bar stays under the canvas alone", paned.footer.w, paned.canvas.w)
 -- A view drawing one surface across both asks for footerSpan, so the bar runs under the gap and
--- the companion, and the companion stops at its top edge.
+-- the companion, and the companion keeps the canvas's height with the bar's height as under.
 local spanning = {}
 for k, v in pairs(barred) do spanning[k] = v end
 spanning.footerSpan = true
@@ -65,7 +65,9 @@ local spanned = geometry.resolve(screen, spanning, true)
 check("a spanning bar runs from the canvas to the companion's right edge", spanned.footer.w,
   spanned.companion.x + spanned.companion.w - spanned.canvas.x)
 check("and starts at the canvas's left edge", spanned.footer.x, spanned.canvas.x)
-check("the companion stops at the bar's top edge", spanned.companion.y + spanned.companion.h, spanned.footer.y)
+check("the companion keeps the canvas's height", spanned.companion.h, spanned.canvas.h)
+check("and says the bar covers its bottom", spanned.companion.under, spanned.footer.h)
+check("a companion with no spanning bar has nothing under it", paned.companion.under == nil and 1 or 0, 1)
 check("the canvas keeps its height", spanned.canvas.h, paned.canvas.h)
 check("without a companion a spanning bar is the canvas's width",
   geometry.resolve(screen, spanning, nil).footer.w, withBar.canvas.w)

@@ -567,7 +567,8 @@ do
 end
 
 -- With an action bar the view asks for the bar to span, so it runs under the gap and the pane,
--- and the pane's region and the divider stop at its top edge.
+-- and the pane's region and the divider run on behind it to the bottom, the companion keeping the
+-- canvas's height with the bar's height as under.
 local barred = Engine.new({
   rows = function() return {} end,
   footer = function() return { right = {}, keys = {}, state = "" } end,
@@ -577,9 +578,10 @@ barred:show()
 local br = barred:scene().rects
 check("the bar spans the whole window", lastPlace.footer.w, lastPlace.window.w)
 check("the bar starts at the window's left edge", lastPlace.footer.x, 0)
-check("the pane's region stops at the bar", lastPlace.paneFrame.y + lastPlace.paneFrame.h, lastPlace.footer.y)
-check("the divider stops at the bar", lastPlace.dividerFrame.h, lastPlace.footer.y)
+check("the pane's region runs to the bottom", lastPlace.paneFrame.y + lastPlace.paneFrame.h, lastPlace.window.h)
+check("the divider runs to the bottom", lastPlace.dividerFrame.h, lastPlace.window.h)
 check("the companion is as tall as the pane's region", br.companion.h, lastPlace.paneFrame.h)
+check("and the bar covers its bottom", br.companion.under, lastPlace.footer.h)
 barred:hide()
 
 if failed then

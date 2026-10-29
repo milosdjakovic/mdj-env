@@ -287,7 +287,10 @@ and chords are the row title's font and colour, which Milos chose over caption o
 corner is `radius.nested`. The list runs on behind the bar to the window's bottom edge, its
 viewport and its bottom content inset both grown by the bar's height, so every numbered row and
 the furthest scroll stay where they were and only the rows past them show between and behind the
-groups. A press between the groups reaches those rows.
+groups. A press between the groups reaches those rows. The pane runs on behind the bar the same
+way. The companion rect keeps the canvas's height and carries `under`, the bar's height, which the
+docked pane leaves out of the box it lays content in, so content stops above the bar, the clip
+reaches the bottom edge behind it, and the last line of a scrolled pane scrolls clear.
 `test/cases/surfaces.lua` pins the derived geometry.
 
 ## The typography check, and how an icon declares itself

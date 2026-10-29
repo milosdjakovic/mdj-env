@@ -102,8 +102,9 @@ end
 -- The window the panel stands in, the canvas rect alone or the span to the companion, and where
 -- the list's content, the docked pane's region and the hairline divider sit inside it, in the
 -- window's own space with y measured down. The divider is width points wide, centred in the gap
--- between the two, from the top of the window down to the action bar, or to the bottom with no bar.
-local function windowRects(canvas, companion, width, footer)
+-- between the two, from the top of the window to the bottom, since the bar floats over both and
+-- the companion keeps the canvas's height, see under in geometry.resolve.
+local function windowRects(canvas, companion, width)
   local window = spanOf(canvas, companion)
   if not window then
     return canvas, { x = 0, y = 0, w = canvas.w, h = canvas.h }, nil, nil
@@ -112,8 +113,7 @@ local function windowRects(canvas, companion, width, footer)
   local left, right
   if pane.x >= list.x + list.w then left, right = list.x + list.w, pane.x
   else left, right = pane.x + pane.w, list.x end
-  local bottom = footer and (footer.y - window.y) or window.h
-  local divider = { x = (left + right - width) / 2, y = 0, w = width, h = bottom }
+  local divider = { x = (left + right - width) / 2, y = 0, w = width, h = window.h }
   return window, list, pane, divider
 end
 
@@ -182,8 +182,8 @@ function View:place(rects)
   local L, T = s.drawLayout, s.tokens
   local origin = rects.canvas
   local iconPad, iconPadLeft = geometry.iconPad(L)
-  local window, listFrame, paneFrame, dividerFrame = windowRects(rects.canvas, rects.companion,
-    T.stroke.border, rects.footer)
+  local window, listFrame, paneFrame, dividerFrame = windowRects(rects.canvas,
+    rects.companion, T.stroke.border)
   self.native.place(self.id, {
     canvas = rects.canvas,
     window = window,

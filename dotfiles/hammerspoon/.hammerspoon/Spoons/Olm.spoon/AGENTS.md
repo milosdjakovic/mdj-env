@@ -7,6 +7,26 @@ rediscover by measuring. The authoring rules live in `docs/PLUGIN-AUTHORING.md`,
 reference in `docs/PLUGIN-CONTRACT.md`, and the workflow for building or changing a plugin in
 the repository's `olm-plugin` skill.
 
+## Names, one word per part of the chooser
+
+These are the words for the parts a person sees, settled on 2026-10-29 by Milos. Use them in
+conversation, in docs, in comments and in commit messages, and never a synonym. Code that predates
+them keeps its identifiers, and the old word each one replaced is listed so a reader can find it.
+
+- **chooser** is the whole window, one shape of glass holding everything below. Never the window,
+  the panel or the picker when the whole thing is meant.
+- **field** is where a person types, at the top of the chooser.
+- **list** is the rows under the field. A row under the cursor is the highlighted row.
+- **pane** is the right side, beside the list, when a list shows one. It was the docked pane and
+  the companion, and `companion` is still its rect in the geometry.
+- **bar** is the bottom of the chooser, floating over the list and the pane. It was the action bar
+  and the footer, and `footer` is still its model and its rect. The bar holds two groups, the
+  **keys group** on the left and the **actions group** on the right.
+- **key panel** is what the keys group opens, every key the list answers. **action panel** is what
+  the actions group opens, the list's verbs.
+- **outer padding** and **inner padding** are the two spacing values, `spacing.outer` and
+  `spacing.inner` in `config/settings.lua`, see Corners in `docs/DESIGN-UI-KIT.md`.
+
 ## Goldens, refreshed in the commit that moves them
 
 The goldens under `test/` record every bound chord, the launcher's catalog and each cheat sheet,

@@ -202,8 +202,10 @@ function M.new(deps, spec)
 
   function pane.inner()
     if not (frame and deps.ui) then return nil end
+    -- under is how much of the companion's bottom the chooser's bar floats over, so content is
+    -- laid out above the bar while the pane's clip still reaches the bottom edge behind it.
     local pad = deps.ui.tokens().pad
-    return { x = pad, y = pad, w = frame.w - 2 * pad, h = frame.h - 2 * pad }
+    return { x = pad, y = pad, w = frame.w - 2 * pad, h = frame.h - 2 * pad - (frame.under or 0) }
   end
 
   local function viewOf(inner)
