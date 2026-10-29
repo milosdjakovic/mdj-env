@@ -1,0 +1,37 @@
+# The glass theme, made for the swift chooser's glass surface. Hand written from the semantic
+# colours AppKit answers on macOS 26, read off NSColor in sRGB under darkAqua and aqua.
+#
+# theme-exempt, Apple's own semantic colours copied as values, not painted from theme/palettes
+#
+# Glass shows what is behind it, so every colour that lies over it is translucent the way
+# Apple's are, white over the dark half and black over the light half at a fixed alpha, and
+# the glass shows through. foreground is labelColor and subtext is secondaryLabelColor.
+# highlight is systemFill, the soft wash a row gets in Spotlight, where the default theme's
+# opaque grey covered the glass. border is separatorColor. The three accents are
+# systemPurple, systemGreen and systemOrange.
+#
+# background is the one colour kept opaque, windowBackgroundColor as AppKit answers it. On the
+# glass chooser it fills only the key panel, which then hides the rows under it. On the canvas
+# chooser it fills the whole panel with no blur behind it, so a translucent fill would show the
+# desktop sharp through the list. Every translucent colour above blends over it there the way
+# it blends over glass, which is what lets one theme serve both choosers.
+
+[dark]
+foreground = "#ffffffd8"
+subtext    = "#ffffff8c"
+background = "#1e1e1e"
+border     = "#ffffff19"
+highlight  = "#ffffff19"
+primary    = "#db34f2"
+secondary  = "#30d158"
+tertiary   = "#ff9230"
+
+[light]
+foreground = "#000000d8"
+subtext    = "#0000007f"
+background = "#ffffff"
+border     = "#00000019"
+highlight  = "#00000019"
+primary    = "#cb30e0"
+secondary  = "#34c759"
+tertiary   = "#ff8d28"

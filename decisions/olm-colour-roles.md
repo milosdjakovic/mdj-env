@@ -66,3 +66,17 @@ curve, but a figure sits directly over its own curve under its own unit, and an 
 a rank and no meaning, so a coloured figure would have said nothing the position did not. The
 native provider still carries a preview colour set in its own fallback theme. Nothing reads it
 either, `activeTheme` has no caller, and it goes with the native provider's own step.
+
+### 2026-10-29 15:07
+
+A third theme, `glass.toml`, was added beside default and Aura for the swift chooser's glass,
+after Milos found the default highlight too grey and too opaque there. It is hand written from
+the semantic colours AppKit answers on macOS 26, read off NSColor in sRGB under darkAqua and
+aqua rather than from memory. Text, highlight and border are translucent the way Apple's are,
+white over the dark half and black over the light half at a fixed alpha, so the glass shows
+through, and highlight is systemFill at ten percent where the default theme's was an opaque
+grey. The accents are the system purple, green and orange. background stays opaque, the window
+background colour, because the canvas chooser fills its whole panel with it and has no blur, so
+a translucent fill showed the desktop sharp through the list. On glass it fills only the key
+panel. A first version had it at sixty percent and was changed the same session for that
+reason. The default theme was left as it is, since it also paints the canvas surfaces.
