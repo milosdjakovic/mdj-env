@@ -270,3 +270,15 @@ reference url. The resolver is deleted and the dry gate refuses in process JavaS
 the spoon. The sampler's `heap` pauses the process while it walks memory, which may account for
 some of the lag Milos saw during the measurement. The fix is not yet measured live.
 
+### 2026-10-29 10:53
+
+The copies in that test also spiked the footprint to about 500 MB for a few seconds, all of it
+Malloc Large, with 11 MB of Lua heap after a forced collection. The clipboard's preview chain drew
+a pdf or an icns in process through `hs.image.imageFromPath` and an `img:copy()`, which holds the
+whole document twice in native memory that Lua's collector cannot see. Loading the 62 MB book
+Milos had copied that way took Hammerspoon from 114 MB to 255 MB, back to 118 MB only after a
+collection, and the call did not return within 15 seconds. `sips` drew the same first page at 512
+pixels in 0.07 s and 24 MB in its own process, `qlmanage -t` took 0.24 s and 67 MB and then hung
+on an epub, so the sips generator now takes pdf and icns beside the rasters and the hs.image
+generator is deleted. The sips path was checked on an icns too.
+

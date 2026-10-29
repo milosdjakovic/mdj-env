@@ -212,3 +212,12 @@ the worktree's `.hammerspoon` directory on acquire, by pattern so a third kind n
 never over a real file there. The links are recorded in the holder file. Release and break remove
 exactly those, each only while it is still a symlink to its recorded target, before main is
 restored. A `.gitignore` entry keeps `machine-*.lua` out of every checkout's commits.
+
+### 2026-10-29 10:53
+
+A worktree held under the test lock fails the offline goldens. The lock links this machine's
+`machine-apps.lua` and `machine-displays.lua` into the worktree, and the goldens projection then
+reads this machine's Hyper app keys rather than the shared defaults, so `keys.golden` and
+`sheets.golden` differ with no change to any key. The same tree run on a copy without the two
+links matched every golden. Not fixed yet, run the gate before taking the lock or on a copy.
+

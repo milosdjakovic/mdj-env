@@ -3,8 +3,8 @@
 ---
 --- The store persists media, then needs a small downscaled PNG for the preview
 --- pane and, for image copies, a tiny row thumbnail. HOW that PNG is produced
---- depends on the source type: sips resizes a raster image, ffmpeg grabs a frame
---- from a video, and hs.image renders the rest (pdf first page, icns). Each
+--- depends on the source type: sips resizes a raster image and renders a pdf's first
+--- page or an icns, and ffmpeg grabs a frame from a video. Each
 --- backend is a generator that declares which extensions it covers and runs off
 --- the main thread (via hs.task) so a large image or video never stalls
 --- Hammerspoon.
@@ -36,13 +36,18 @@ end
 -- Generators
 --------------------------------------------------------------------------------
 
--- Raster images: sips resizes to an edge-box keeping aspect ratio and forces PNG,
--- so heic/webp become something the preview webview always renders. Built into
--- macOS, so it is always available.
+-- Raster images, pdfs and icns: sips resizes to an edge-box keeping aspect ratio and
+-- forces PNG, so heic/webp become something the preview pane always renders, and a pdf
+-- gives its first page. Built into macOS, so it is always available.
+--
+-- Documents used to render in process through hs.image, which held the whole file and a
+-- copy of it in Hammerspoon's memory and drew the page on the main thread. A copied 62 MB
+-- book added 141 MB until a collection ran and stalled the main thread for seconds, while
+-- sips drew the same page in 0.07 s in its own process. decisions/olm-icons.md has it.
 local sipsGen = {
   name = "sips",
   handles = function(ext)
-    return util.RASTER_EXT[ext] == true
+    return util.RASTER_EXT[ext] == true or util.DOC_EXT[ext] == true
   end,
   run = function(spec, cb)
     -- sips ships on every real Mac, so a nil path here is a stranger machine rather than
@@ -112,27 +117,8 @@ local videoGen = {
   end,
 }
 
--- Everything else macOS can draw (pdf first page, icns): hs.image on the main
--- thread. These are small and rare, so the in-process render is acceptable and
--- needs no external tool.
-local hsImageGen = {
-  name = "hsimage",
-  handles = function(ext)
-    return util.DOC_EXT[ext] == true
-  end,
-  run = function(spec, cb)
-    local img = hs.image.imageFromPath(spec.path)
-    if not img then
-      cb(false)
-      return
-    end
-    local ok = img:copy():setSize({ w = spec.edge, h = spec.edge }):saveToFile(spec.dest)
-    cb(ok and true or false)
-  end,
-}
-
 -- The chain, in priority order. Generators read the tool paths configure resolves.
-local chain = { sipsGen, videoGen, hsImageGen }
+local chain = { sipsGen, videoGen }
 
 --------------------------------------------------------------------------------
 -- Public API

@@ -9,8 +9,8 @@ local floor = math.floor
 -- File-extension sets, pure data shared by the preview generators (which pick a
 -- backend by type), the store (which asks the preview module whether a file is
 -- previewable), and the ui (which picks the image render path). One list, so the
--- three never disagree. Raster images go to sips, videos to ffmpeg, and the docs
--- macOS can draw (pdf first page, icns) to hs.image.
+-- three never disagree. Raster images and the docs macOS can draw, a pdf's first
+-- page and icns, go to sips, and videos to ffmpeg.
 U.RASTER_EXT = {
   png = true, jpg = true, jpeg = true, gif = true, bmp = true,
   tiff = true, tif = true, heic = true, webp = true,

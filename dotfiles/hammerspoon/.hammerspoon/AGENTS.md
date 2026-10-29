@@ -1523,8 +1523,8 @@ opinion about direction. See the file search pane, which was where that gap was 
 pane and the chooser share the palette's colour roles so they read as one surface. Crucially the file storage and the preview sizing are
 decoupled from the UI: `manager/store.lua` owns the media lifecycle and
 `manager/preview.lua` is a Chain of Responsibility that produces the downscaled
-PNGs off the main thread (sips for rasters, ffmpeg for video, `hs.image` for
-pdf/icns), knowing nothing about the UI. `ui.lua` only consumes the resulting
+PNGs off the main thread (sips for rasters, pdfs and icns, ffmpeg for video),
+knowing nothing about the UI. `ui.lua` only consumes the resulting
 `e.prev`/`e.thumb` paths, so swapping the webview for the canvas touched neither.
 
 A frozen file, one small enough to copy rather than only link, lives in its own directory
