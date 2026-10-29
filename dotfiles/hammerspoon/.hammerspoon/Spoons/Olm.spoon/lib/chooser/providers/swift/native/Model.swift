@@ -143,6 +143,7 @@ struct Footer {
   var keys: [Entry] = []
   var keysChord: String?
   var keysImage: NSImage?
+  var title: String?
 
   init() {}
 
@@ -151,6 +152,7 @@ struct Footer {
     r.each(t, "keys") { e in keys.append(Entry(label: r.string(e, "label") ?? "", chord: r.string(e, "chord") ?? "")) }
     keysChord = r.string(t, "keysChord")
     keysImage = r.image(t, "keysImage")
+    title = r.string(t, "title")
   }
 }
 

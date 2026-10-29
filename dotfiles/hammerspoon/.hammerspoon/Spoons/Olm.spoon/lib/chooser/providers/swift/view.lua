@@ -272,7 +272,7 @@ local function footerData(model)
     keys[#keys + 1] = { label = k.label or "", chord = table.concat(k.badges or {}, " ") }
   end
   local icon = model.keysIcon
-  return { right = right, keys = keys, keysChord = model.keysChord,
+  return { right = right, keys = keys, keysChord = model.keysChord, title = model.title,
     keysImage = icon and ICON and ICON(icon.icon, icon.owner) or nil }
 end
 

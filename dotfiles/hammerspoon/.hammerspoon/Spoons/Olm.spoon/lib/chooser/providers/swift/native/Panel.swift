@@ -99,7 +99,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   private let field = NSTextField()
   private let list = ListView()
   private let bar = BarView()
-  private let keys = KeysPanelView()
+  private let keys = PopoverView()
   private let ask: Ask
   private let surfaces: SharedSurface
   private var style = Style()
@@ -231,7 +231,11 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
       bar.isHidden = false
       bar.show(footer, style: style, placement: placement, lit: next.keysOpen)
       keys.isHidden = !next.keysOpen
-      if next.keysOpen { keys.show(footer, style: style, pad: placement.keysPad) }
+      if next.keysOpen {
+        keys.show(title: footer.title, lines: footer.keys.map { .init(label: $0.label, chord: $0.chord) },
+          style: style, pad: placement.barPillPad, lineH: placement.barPillH, gap: placement.barGapWide,
+          radius: style.highlightRadius)
+      }
     } else {
       bar.isHidden = true
       keys.isHidden = true
@@ -516,12 +520,19 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     return rect.offsetBy(dx: origin.x, dy: origin.y)
   }
 
-  // The key panel rises from the action bar's top edge over the rows, as wide as the bar, so
-  // over the pane too when the bar spans it, as tall as its keys and never taller than the list.
+  // The key panel is a popover standing above the keys group, its left edge on the group's and
+  // the bar's small gap between them, as wide as its widest line and never wider than the window
+  // less the outer padding on both sides, as tall as its lines and never above the list's top,
+  // where it scrolls instead.
   private func layoutKeys() {
-    guard !keys.isHidden, let footer = toWindow(placement.footer) else { return }
+    guard !keys.isHidden, let stage = keys.superview else { return }
+    bar.layoutSubtreeIfNeeded()
+    let anchor = bar.convert(bar.button.frame, to: stage)
     let top = toWindow(placement.list)?.minY ?? 0
-    let h = min(keys.height(for: footer.width), max(0, footer.minY - top))
-    keys.frame = NSRect(x: footer.minX, y: footer.minY - h, width: footer.width, height: h)
+    let bottom = anchor.minY - placement.barGap
+    let size = keys.preferredSize
+    let w = min(size.width, max(0, windowSize.width - anchor.minX - placement.barPad))
+    let h = min(size.height, max(0, bottom - top))
+    keys.frame = NSRect(x: anchor.minX, y: bottom - h, width: w, height: h)
   }
 }

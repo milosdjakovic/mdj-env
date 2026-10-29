@@ -6,7 +6,7 @@
 // font and colour. The key group holds the keyboard icon, or a question mark, with the showKeys chord
 // beside it, and the action group holds the model's right side, each entry its label beside its
 // chord. A group's corner is the highlighted row's, the surface radius less the bar pad. The key
-// panel lists every key the list answers, two to a line, over the bottom of the list. A press on
+// panel the keys group opens is a popover, see Popover.swift. A press on
 // the key group reports toggleKeys and nothing else here reports anything, so a press on the bar
 // or the panel lands on no row and never hides the list.
 
@@ -18,13 +18,6 @@ private func label(_ text: String, _ font: NSFont, _ color: NSColor) -> NSTextFi
   field.textColor = color
   field.lineBreakMode = .byTruncatingTail
   return field
-}
-
-// A thin rule along the top edge of the key panel, the system separator.
-private func divider() -> NSBox {
-  let box = NSBox()
-  box.boxType = .separator
-  return box
 }
 
 // One group of the bar, a shape of exactly the glass the window stands on, untinted, and tinted
@@ -161,68 +154,5 @@ final class BarView: FlippedView {
       view.frame = frame.offsetBy(dx: actionsW - inner, dy: 0)
     }
     actions.frame = Crisp.align(NSRect(x: bounds.width - pad - actionsW, y: 0, width: actionsW, height: h), in: self)
-  }
-}
-
-// The key panel, every key the list answers in two columns on the background colour.
-final class KeysPanelView: FlippedView {
-  private let rule = divider()
-  private var cells: [NSTextField] = []
-  private var pad: CGFloat = 0
-  private var background = NSColor.clear
-
-  override init(frame: NSRect) {
-    super.init(frame: frame)
-    addSubview(rule)
-  }
-
-  required init?(coder: NSCoder) { nil }
-
-  // Claims the pointer so a press or a scroll over the panel reaches no row under it.
-  override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-  override func mouseDown(with event: NSEvent) {}
-  override func rightMouseDown(with event: NSEvent) {}
-  override func scrollWheel(with event: NSEvent) {}
-
-  func show(_ footer: Footer, style: Style, pad: CGFloat) {
-    self.pad = pad
-    background = style.background
-    for cell in cells { cell.removeFromSuperview() }
-    cells = footer.keys.map { entry in
-      let line = NSMutableAttributedString(string: entry.chord,
-        attributes: [.font: style.badgeFont, .foregroundColor: style.badge])
-      line.append(NSAttributedString(string: "  " + entry.label,
-        attributes: [.font: style.captionFont, .foregroundColor: style.caption]))
-      let cell = NSTextField(labelWithAttributedString: line)
-      cell.lineBreakMode = .byTruncatingTail
-      return cell
-    }
-    for cell in cells { addSubview(cell) }
-    needsLayout = true
-    needsDisplay = true
-  }
-
-  // How tall the panel stands at width, two keys to a line and the padding around them.
-  func height(for width: CGFloat) -> CGFloat {
-    let lineH = cells.map { $0.fittingSize.height }.max() ?? 0
-    let lines = CGFloat((cells.count + 1) / 2)
-    return lines * lineH + max(0, lines - 1) * pad / 2 + 2 * pad
-  }
-
-  override func draw(_ dirtyRect: NSRect) {
-    background.setFill()
-    bounds.fill()
-  }
-
-  override func layout() {
-    super.layout()
-    rule.frame = NSRect(x: 0, y: 0, width: bounds.width, height: 1)
-    let lineH = cells.map { $0.fittingSize.height }.max() ?? 0
-    let columnW = max(0, (bounds.width - 3 * pad) / 2)
-    for (i, cell) in cells.enumerated() {
-      let x = pad + CGFloat(i % 2) * (columnW + pad)
-      let y = pad + CGFloat(i / 2) * (lineH + pad / 2)
-      cell.frame = NSRect(x: x, y: y, width: columnW, height: lineH)
-    }
   }
 }

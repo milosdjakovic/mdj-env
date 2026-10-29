@@ -298,8 +298,9 @@ function obj.footerModel(contextName, plan, deps)
   -- The key button's icon, Olm's own, declared in the action panel's manifest beside Back and
   -- read against it, so the provider draws it through the icon engine like any row icon.
   local keysIcon = { icon = "keys", owner = deps.panelOwner }
+  -- The key panel's header, the name and version of this Olm, handed in by the root.
   return { right = right, keys = keys, keysChord = keysChord, keysIcon = keysIcon,
-    state = table.concat(parts, " | ") }
+    title = deps.title, state = table.concat(parts, " | ") }
 end
 
 -- The ordered rows the action panel would show for one context, Back first, then the primary

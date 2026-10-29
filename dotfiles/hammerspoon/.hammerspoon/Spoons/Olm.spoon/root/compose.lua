@@ -2013,6 +2013,8 @@ function obj.run(olm, cfg)
     owners = contextOwners,
     -- The identity whose manifest icons the panel's own Back row reads its key against.
     panelOwner = plan.identity.actionpanel or "actionpanel",
+    -- The key panel's header, this Olm's name and version.
+    title = "Olm " .. tostring(olm.version),
     ui = uiAtom,
     chordLabel = chordLabel,
     -- leaderNames hands over each leader's already resolved word rather than the catalog

@@ -290,7 +290,10 @@ the furthest scroll stay where they were and only the rows past them show betwee
 groups. A press between the groups reaches those rows. The pane runs on behind the bar the same
 way. The companion rect keeps the canvas's height and carries `under`, the bar's height, which the
 docked pane leaves out of the box it lays content in, so content stops above the bar, the clip
-reaches the bottom edge behind it, and the last line of a scrolled pane scrolls clear.
+reaches the bottom edge behind it, and the last line of a scrolled pane scrolls clear. The key panel
+is a popover, `native/Popover.swift`, the window's glass above the keys group with the version as
+its header and one scrolling column of keys, its padding the inner padding and its corner the
+groups'.
 `test/cases/surfaces.lua` pins the derived geometry.
 
 ## The typography check, and how an icon declares itself

@@ -574,3 +574,16 @@ with no inset in Swift. A view that does not span, the default chooser, gets no 
 The same day the names for the chooser's parts were settled, chooser, field, list, pane and bar
 with a keys group and an actions group, in the Names section of `Spoons/Olm.spoon/AGENTS.md`.
 
+### 2026-10-29 18:13
+
+The key panel became a popover, `native/Popover.swift`, a shape of the window's own glass
+standing above the keys group with its left edge on the group's, an optional header and one
+column of lines, each a label in the row title's font and colour and its chord in subtext, and
+scrolling once it would rise above the list's top. It replaced the flat two column panel over the
+bottom of the list, which `decisions/olm-chooser-keys.md` chose on 2026-10-23 over a dropdown
+anchored to the key button, turned down then as a new component for one list of about a dozen
+keys. That reason no longer holds, since the popover is built to be the action panel's too. Its
+header is this Olm's name and version, `title` in the footer model, which the root hands in from
+`olm.version`. Its padding is the inner padding, each line as tall as a group, and its corner the
+groups'. Milos checked it live and kept it as built.
+

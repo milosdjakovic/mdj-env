@@ -57,6 +57,9 @@ in a console warning on every load that picks it. Removing it is a later, separa
 
 - **A dropdown anchored to (?) for the key list.** 2026-10-23. It is a new kind of component with
   its own scroll and key handling, for a list of about a dozen keys.
+  Corrected 2026-10-29. Under the swift chooser the key list is now exactly that, a glass popover
+  above the keys group, since the same component serves the action panel too and the reason was
+  a single user. `decisions/olm-swift-chooser.md` has it.
 - **Turning the list itself into the key list the way Actions does.** 2026-10-23. The person loses
   sight of the list they were in.
 - **The footer as a separate docked `CanvasPanel`.** 2026-10-23. A press outside the chooser's canvas
