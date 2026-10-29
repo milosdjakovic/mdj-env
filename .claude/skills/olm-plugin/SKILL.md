@@ -114,6 +114,13 @@ dead binary. Routine feedback while a feature works never goes through an alert.
 
 These rules are what make every plugin feel like the same instrument.
 
+What a row offers beyond Return goes in the action panel, never in a level of actions pushed for
+that row. Return does the thing the row is for, and the rest are verbs of `surface.extra`, keyless
+when they are for the panel alone, with `applies` when they fit only some rows, `confirm` for
+anything destructive and `choices` for a pick of one of a few. A verb that needs typed input, a
+rename, opens its own level through `stagePush`. `docs/PLAN-ACTION-PANEL.md` and the contract's
+surface section have it, and Workspaces is the settled example.
+
 A menu level's first row is Back, spelled Back, carrying the back glyph the existing menus
 use. A typed scope has no Back row. Backspace on an empty field pops, the presentation's own
 `back` answers first, and the stage pops only when it declines. A row that must leave its

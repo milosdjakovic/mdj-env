@@ -91,21 +91,26 @@ do
   kept = ranked(M.scopeRows("studio"), "studio")
   check("the scope's Apply subtitle is not searched either", #kept == 0, titles(kept))
 
-  local layout = M.select({ nav = "layout", id = "a" })
-  check("the layout level inherits the shared search", layout.matcher == nil)
-  local lrows = layout.rows()
-  check("the layout level pins Back", lrows[1].title == "Back" and lrows[1].pinned == true)
-  local apps = M.select({ nav = "layout", id = "a" }).onSelect({ nav = "apps" })
-  check("the apps level inherits the shared search and reads as one", apps.matcher == nil
+  -- Return on a layout applies it, and its apps and its name are verbs of the action panel that
+  -- push a level through stagePush, docs/PLAN-ACTION-PANEL.md.
+  local applied, pushed = nil, nil
+  api.apply = function(id) applied = id return true end
+  M:configure({ stageSelectedItem = function() return { nav = "layout", id = "a" } end,
+    stagePush = function(child) pushed = child return true end })
+  check("Return on a layout applies it and opens no level",
+    M.select({ nav = "layout", id = "a" }) == nil and applied == "a")
+  check("isLayout answers for a layout row and not for New snapshot",
+    M:isLayout({ nav = "layout", id = "a" }) and not M:isLayout({ nav = "new" }))
+  M:editApps()
+  local apps = pushed
+  check("the apps level inherits the shared search and reads as one", apps and apps.matcher == nil
     and apps.placeholder == "Search apps in this layout")
   check("the apps level pins Back", apps.rows()[1].pinned == true)
   kept = ranked(apps.rows(), "main")
   check("an app row is searched by its name and not by where its windows sit", titles(kept) == "Back", titles(kept))
-  kept = ranked(lrows, "windows")
-  check("the layout level's prose subtitles are not searched", titles(kept) == "Back", titles(kept))
   check("the new snapshot name level keeps matcher false", M.select({ nav = "new" }).matcher == false)
-  check("the rename level keeps matcher false", layout.onSelect({ nav = "rename" }).matcher == false)
-  check("the delete confirm keeps matcher false", layout.onSelect({ nav = "delete" }).matcher == false)
+  M:renameLayout()
+  check("the rename level keeps matcher false", pushed and pushed.matcher == false)
   local app = apps.onSelect({ nav = "app", bundle = "b", name = "Notes", excluded = false })
   check("the app level keeps matcher false", app.matcher == false)
 end
@@ -147,16 +152,30 @@ do
   rows = M.rows("")
   check("with a profile active there is no capture row", not has(rows, "Capture current arrangement") and #rows == 2)
 
-  local profile = M.select({ nav = true, to = "profile", name = "Desk" })
-  check("the profile screen inherits the shared search", profile.matcher == nil)
-  check("the profile screen pins Back", profile.rows()[1].title == "Back" and profile.rows()[1].pinned == true)
-  kept = ranked(profile.rows(), "remove")
-  check("the profile screen's prose subtitles are not searched", titles(kept) == "Back", titles(kept))
-  local gone = M.select({ nav = true, to = "profile", name = "Nowhere" }).rows()
+  -- Return on a profile applies it, and its displays and its name are verbs of the action panel
+  -- that push a level through stagePush, docs/PLAN-ACTION-PANEL.md.
+  local applied, pushed = nil, nil
+  api.reapply = function() applied = active end
+  local highlighted = { nav = true, to = "profile", name = "Desk" }
+  M:configure({ stageSelectedItem = function() return highlighted end,
+    stagePush = function(child) pushed = child return true end })
+  check("Return on the matching profile reapplies it and opens no level",
+    M.select({ nav = true, to = "profile", name = "Desk" }) == nil and applied == "Desk")
+  applied = nil
+  check("Return on a profile whose displays are not attached runs nothing",
+    M.select({ nav = true, to = "profile", name = "Laptop" }) == nil and applied == nil)
+  M:showDisplays()
+  local displays = pushed
+  check("the displays screen inherits the shared search", displays and displays.matcher == nil)
+  check("the displays screen pins Back", displays.rows()[1].title == "Back" and displays.rows()[1].pinned == true)
+  highlighted = { nav = true, to = "profile", name = "Nowhere" }
+  M:showDisplays()
+  local gone = pushed.rows()
   check("Profile is gone is pinned like Layout is gone", gone[2] and gone[2].title == "Profile is gone"
     and gone[2].pinned == true)
-  check("the rename screen keeps matcher false", profile.onSelect({ nav = true, to = "rename" }).matcher == false)
-  check("the delete confirm keeps matcher false", profile.onSelect({ nav = true, to = "delete" }).matcher == false)
+  highlighted = { nav = true, to = "profile", name = "Desk" }
+  M:renameProfile()
+  check("the rename screen keeps matcher false", pushed and pushed.matcher == false)
   check("the capture screen keeps matcher false", M.select({ nav = true, to = "capture" }).matcher == false)
 end
 

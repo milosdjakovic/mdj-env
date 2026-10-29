@@ -104,16 +104,10 @@ local function profileByName(name)
   return nil
 end
 
--- A profile screen. Back leads, per the chooser menu convention, so stepping out is the
--- default and Return on the fresh highlight steps back. Then the displays show straight away,
--- one read only row per monitor with resolution, id, refresh, and origin, the main display
--- marked, so there is no extra list displays step. The actions follow, Reapply only on the
--- active profile, and Rename and Delete only when the profile is captured. A curated profile
--- shows neither Rename nor Delete, since the tool never rewrites the hand maintained
--- config/displays.lua. The monitor rows are disabled, and a stray confirm on one stays put
--- rather than closing, since the Return tap routes even a disabled row through the in-place
--- enter.
-local function profileRows(name)
+-- The displays of one profile, opened by the Displays verb of the action panel. Back leads, then
+-- one read only row per monitor with resolution, id, refresh, and origin, the main display marked.
+-- The monitor rows are disabled, so a stray Return on one stays put.
+local function displaysRows(name)
   local p = profileByName(name)
   if not p then return { backRow(), row("Profile is gone", "It may have been removed", "warn", { noop = true }, false, true) } end
   local out = { backRow() }
@@ -121,16 +115,6 @@ local function profileRows(name)
     local title = (d.res or "?") .. (d.main and "   (main)" or "")
     local sub = "id " .. d.id .. (d.hz and (", " .. d.hz .. "hz") or "") .. ", origin (" .. d.origin .. ")"
     out[#out + 1] = row(title, sub, "displays", { noop = true }, false)
-  end
-  if name == cfg.api.active() then
-    out[#out + 1] = row("Reapply this arrangement", "Force it back if macOS scrambled the layout",
-      "reapply", { act = "reapply" }, true)
-  end
-  if p.editable then
-    out[#out + 1] = row("Rename", "Change the name of this captured profile", "rename",
-      { nav = true, to = "rename", name = name }, true)
-    out[#out + 1] = row("Delete", "Remove this captured profile", "delete",
-      { nav = true, to = "delete", name = name }, true)
   end
   return out
 end
@@ -151,17 +135,6 @@ local function renameRows(name, query)
   end
   out[#out + 1] = backRow()
   return out
-end
-
--- The delete confirm screen. The safe choice leads, so the default highlight and a stray
--- Return keep the profile rather than remove it, and deleting takes a deliberate move down.
--- The names ride in the titles since there is no room for a disabled header at the top, which
--- would otherwise catch the default Return and close the chooser.
-local function deleteRows(name)
-  return {
-    row("Keep '" .. name .. "'", "Leave it as it is", "no", { nav = true, to = "back" }, true),
-    row("Delete '" .. name .. "'", "Remove this captured profile for good", "delete", { act = "delete", name = name }, true),
-  }
 end
 
 -- The capture screen. The search field names the new profile, and the top row morphs to
@@ -235,80 +208,14 @@ local function buildRenameChild(state)
   }
 end
 
--- The delete confirm screen, a child of a profile screen. Keep leaves exactly like Back,
--- both being the same { nav = true, to = "back" } item, so one branch answers both. A
--- successful delete pops twice in the same press, past the delete frame and past the
--- profile screen naming a profile that no longer exists, landing on top the identical place
--- the retired stack = { { kind = "top" } } always did.
-local function buildDeleteChild(state)
+-- The displays screen, pushed by the Displays verb of the action panel. Nothing here acts, so
+-- Back is the one row that answers, leaving for the top level.
+local function buildDisplaysChild(name)
   return {
     placeholder = "",
-    -- search-exempt, a delete confirm, Keep or Delete, with nothing to search
-    matcher = false,
-    rows = function() return deleteRows(state.name) end,
+    rows = function() return displaysRows(name) end,
     onSelect = function() end,
     intercept = function(item)
-      if not item then return true end
-      if item.nav and item.to == "back" then
-        if cfg.stagePop then cfg.stagePop() end
-        return true
-      end
-      if item.act == "delete" then
-        local ok, err = cfg.api.remove(item.name)
-        if ok then
-          -- Review finding L2, rework, counted honestly rather than left silent. Each
-          -- Stage:pop below runs _show's own swap branch, setQuery("") then refresh(true),
-          -- and this atom's own key watcher runs a further refresh(true) of its own once
-          -- this whole intercept answers true, legacy.lua:_intercept's documented contract
-          -- for any consumer that answers yes. So landing on top from here costs three
-          -- rebuilds for one keypress, not the two an ordinary single pop already costs
-          -- every other Back row in this file. All three are correct, cheap, and no
-          -- reader would see the difference, so this stays as it is rather than being
-          -- reworked to save microseconds nothing measures, but the true count belongs in
-          -- the comment rather than the two either call would suggest alone.
-          if cfg.stagePop then cfg.stagePop() end
-          if cfg.stagePop then cfg.stagePop() end
-        else
-          log.e("delete failed, " .. tostring(err))
-        end
-        return true
-      end
-      return false
-    end,
-  }
-end
-
--- The profile screen, a child of the top level. state is the one mutable table this level's
--- own rows reads, { name = ... }, which its own rename child corrects in place on success
--- rather than this level being rebuilt, so popping back after a rename lands on a level that
--- already answers for the new name.
-local function buildProfileChild(name)
-  local state = { name = name }
-  return {
-    placeholder = "",
-    rows = function() return profileRows(state.name) end,
-    -- Rename and Delete are genuine levels, so each answers through select, the ordinary
-    -- child push decision one describes, host/stage pushing whatever comes back. Reapply is
-    -- a genuine completion instead, not a level, calling the engine and returning nothing,
-    -- the ordinary meaning this contract has always given nil, the whole stack tears down,
-    -- closing the tool for good exactly as the retired chooser:hide() always did.
-    onSelect = function(item)
-      if not item then return nil end
-      if item.act == "reapply" then
-        cfg.api.reapply()
-        return nil
-      end
-      if item.nav and item.to == "rename" then return buildRenameChild(state) end
-      if item.nav and item.to == "delete" then return buildDeleteChild(state) end
-      return nil
-    end,
-    -- Back is the one row on this level that leaves rather than drills or completes, decision
-    -- three's reserved case, so it alone answers through intercept, cfg.stagePop leaving the
-    -- level the row was pressed on and the parent, the top level, standing in its place.
-    intercept = function(item)
-      -- The disabled row guard once written here by hand is gone, review findings H1 and
-      -- H2, rework, host/stage's own _intercept answering true and doing nothing for any
-      -- disabled row before this is ever asked.
       if not item then return true end
       if item.nav and item.to == "back" then
         if cfg.stagePop then cfg.stagePop() end
@@ -372,9 +279,66 @@ M.rows = topRows
 --- at this level, answers nothing.
 function M.select(item)
   if not item then return nil end
-  if item.nav and item.to == "profile" then return buildProfileChild(item.name) end
+  -- Return on a profile applies it, decided by Milos on 2026-10-29, docs/PLAN-ACTION-PANEL.md,
+  -- and what else a profile offers is in the action panel. Only the profile matching the attached
+  -- displays can take effect, so Return reapplies that one, what Reapply did, and on any other it
+  -- runs nothing against monitors that are not there and says why in the console.
+  if item.nav and item.to == "profile" then
+    if item.name == cfg.api.active() then
+      cfg.api.reapply()
+    else
+      log.i("'" .. tostring(item.name) .. "' was not applied, its displays are not the ones attached")
+    end
+    return nil
+  end
   if item.nav and item.to == "capture" then return buildCaptureChild() end
   return nil
+end
+
+--------------------------------------------------------------------------------
+-- The action panel's verbs on a profile row, docs/PLAN-ACTION-PANEL.md
+--------------------------------------------------------------------------------
+
+-- The profile the highlighted row names, or nil. The panel runs a verb after putting the
+-- highlight back on the row it was opened over, so this is the row the verb was chosen for.
+local function highlightedProfile()
+  local item = cfg.stageSelectedItem and cfg.stageSelectedItem()
+  return type(item) == "table" and item.to == "profile" and item.name or nil
+end
+
+--- M:isProfile(item) -> boolean. Whether the panel was opened over a profile row. Colon called,
+--- since the root hands a surface method its module first.
+function M:isProfile(item)
+  return type(item) == "table" and item.to == "profile"
+end
+
+--- M:isCaptured(item) -> boolean. Whether that profile was captured here and so can be renamed
+--- or deleted. A curated one never is, since the tool never rewrites config/displays.lua.
+function M:isCaptured(item)
+  if not M:isProfile(item) then return false end
+  local p = profileByName(item.name)
+  return p ~= nil and p.editable == true
+end
+
+--- M:showDisplays() - opens the highlighted profile's displays.
+function M:showDisplays()
+  local name = highlightedProfile()
+  if name and cfg.stagePush then cfg.stagePush(buildDisplaysChild(name)) end
+end
+
+--- M:renameProfile() - opens the name field for the highlighted captured profile.
+function M:renameProfile()
+  local name = highlightedProfile()
+  if name and cfg.stagePush then cfg.stagePush(buildRenameChild({ name = name })) end
+end
+
+--- M:deleteProfile() - removes the highlighted captured profile, after the panel's own confirm.
+function M:deleteProfile()
+  local name = highlightedProfile()
+  if not name then return end
+  local ok, err = cfg.api.remove(name)
+  if not ok then log.e("delete failed, " .. tostring(err)) end
+  M.refresh()
 end
 
 --- M.placeholder() -> string. The field hint while the top level is current, named on the

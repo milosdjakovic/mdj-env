@@ -79,6 +79,10 @@ return {
         breaks = "this plugin's own launcher row opens nothing, since M.show has no other way to reach the shared stage" },
       redrawPresented = { source = "root", policy = "optional",
         breaks = "the active marker stays stale after a screen change lands while the tool is open, since M.refresh has no other way to reach whatever is on screen" },
+      stagePush = { source = "root", policy = "optional",
+        breaks = "Displays and Rename in the action panel open nothing, since a verb has no other way to open a level" },
+      stageSelectedItem = { source = "root", policy = "optional",
+        breaks = "every verb of the action panel finds no profile to act on and does nothing" },
       stagePop = { source = "root", policy = "optional",
         breaks = "every child level's own Back row, and a successful rename, delete, or capture, all stand on the level they meant to leave rather than returning to its parent" },
     },
@@ -101,9 +105,20 @@ return {
   -- plugin's own levels reserve no companion pane, and matcher stays false through
   -- presentation.matcher below and every child's own field, since each level's own supplier
   -- morphs its rows from the query rather than filtering a fixed list.
+  -- Return applies the highlighted profile, and what else a profile offers is a verb of the
+  -- action panel alone, docs/PLAN-ACTION-PANEL.md. Rename and Delete apply to a captured profile
+  -- only, since a curated one lives in config/displays.lua, and Delete asks first.
   surface = {
     context = "displayProfiles",
-    primary = { action = "insertSelected", description = "Select" },
+    primary = { action = "insertSelected", description = "Apply", icon = "active" },
+    extra = {
+      { action = "showDisplays", description = "Displays", icon = "displays", section = "Profile",
+        applies = "isProfile" },
+      { action = "renameProfile", description = "Rename", icon = "rename", section = "Manage",
+        applies = "isCaptured" },
+      { action = "deleteProfile", description = "Delete", icon = "delete", section = "Manage",
+        applies = "isCaptured", confirm = "Delete this profile" },
+    },
   },
 
   -- The presentation contract, contract v3, docs/BRIEF-CONTRACT-V3.md. rows and select are
@@ -141,5 +156,8 @@ return {
   registry = {
     row = { category = "Displays", detail = "inspect and manage arrangements", icon = "profile" },
     open = { member = "chooser.show", call = "dot" },
+    -- The submodule the action panel's verbs, isProfile, isCaptured and the three on a
+    -- profile, are answered by.
+    surface = "chooser",
   },
 }

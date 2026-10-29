@@ -1539,6 +1539,18 @@ function obj:_intercept(item, enabled)
   return false
 end
 
+--- Stage:pushChild(child) -> boolean
+--- Method
+--- Pushes a child presentation over the current one, named after it when it names nothing, the
+--- way a presentation's own onSelect answering a child is pushed. What a verb run from the action
+--- panel uses to open a level of its own tool, docs/PLAN-ACTION-PANEL.md.
+function obj:pushChild(child)
+  local current = self:_current()
+  if type(child) ~= "table" or not current then return false end
+  if child.name == nil or child.name == "" then child.name = current.name end
+  return self:push(child)
+end
+
 -- Asked on Backspace while the field is empty. The current presentation's own back answers
 -- first, decision five of the stage design brief, and only once it declines does this pop the
 -- stack itself, which answers false at the bottom exactly as an ordinary press.

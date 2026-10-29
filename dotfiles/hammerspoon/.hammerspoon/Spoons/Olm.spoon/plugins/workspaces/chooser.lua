@@ -121,32 +121,6 @@ local function newRows(query)
   return out
 end
 
--- A layout. Back leads, per the chooser menu convention, so a stray confirm on the fresh
--- highlight steps back rather than doing anything. Apply is next, since that is what a layout is
--- for, and it is a disabled row saying why when the displays it needs are not attached.
-local function layoutRows(id)
-  local l = cfg.api.get(id)
-  if not l then
-    return { backRow(), row("Layout is gone", "It may have been deleted", "warn", { noop = true }, false, true) }
-  end
-  local out = { backRow() }
-  if l.available then
-    out[#out + 1] = row("Apply", "Place the windows that are open now, closed apps stay closed",
-      "apply", { act = "apply" }, true)
-  else
-    out[#out + 1] = row("Cannot apply here", "It " .. l.reason .. ", taken on " .. l.topology,
-      "warn", { noop = true }, false)
-  end
-  local appsSub = countLabel(l.apps, "app", "apps")
-  if l.excluded > 0 then appsSub = appsSub .. ", " .. countLabel(l.excluded, "excluded", "excluded") end
-  out[#out + 1] = row("Apps", appsSub, "apps", { nav = "apps" }, true)
-  out[#out + 1] = row("Update snapshot", "Replace what is recorded with the windows open now, taken " .. (l.taken or "?"),
-    "update", { act = "update" }, true)
-  out[#out + 1] = row("Rename", "Give this layout a different name", "rename", { nav = "rename" }, true)
-  out[#out + 1] = row("Delete", "Remove this layout for good", "delete", { nav = "delete" }, true)
-  return out
-end
-
 -- The apps of one layout, included first and the excluded as a tail, each saying where its
 -- windows sit so an app recorded somewhere silly is visible as such before anybody prunes it.
 local function appsRows(id)
@@ -205,17 +179,6 @@ local function renameRows(id, query)
   return out
 end
 
--- The delete confirm. The safe choice leads, so the default highlight and a stray confirm keep
--- the layout rather than remove it, and deleting takes a deliberate move down.
-local function deleteRows(id)
-  local l = cfg.api.get(id)
-  local name = l and l.name or ""
-  return {
-    row("Keep '" .. name .. "'", "Leave it as it is", "no", { nav = "back" }, true),
-    row("Delete '" .. name .. "'", "Remove this layout for good", "delete", { act = "delete" }, true),
-  }
-end
-
 --------------------------------------------------------------------------------
 -- Child levels, built lazily and pushed the moment a row drills into one
 --------------------------------------------------------------------------------
@@ -226,71 +189,28 @@ end
 -- disabled row guard is never written by hand, the stage's own gate answering for any row built
 -- with enabled false before a presentation is ever asked.
 
-local buildLayoutChild, buildAppsChild, buildAppChild, buildRenameChild, buildDeleteChild
+local buildAppsChild, buildAppChild, buildRenameChild
 
--- The name level for a new snapshot, a child of the top level. Save is answered from select
--- rather than intercept, because it is the one row that leaves this level and arrives at another
--- in the same press. The pop happens first, so the layout child returned below stacks on the top
--- level rather than on a name field that no longer has a purpose.
+-- The name level for a new snapshot, a child of the top level. Save leaves for the top level,
+-- where the new layout is listed and everything it offers is in the action panel, so it answers
+-- from intercept and pops like Back does.
 local function buildNewChild()
   return {
     placeholder = "Name for this snapshot",
     -- search-exempt, the field is the new snapshot's name being typed, input and not a search
     matcher = false,
     rows = newRows,
-    onSelect = function(item)
-      if item and item.act == "create" then
-        local id, err = cfg.api.create(item.name)
-        if not id then
-          log.e("snapshot failed, " .. tostring(err))
-          return nil
-        end
-        pop()
-        return buildLayoutChild(id)
-      end
-      return nil
-    end,
+    onSelect = function() end,
     intercept = function(item)
       if item and item.nav == "back" then
         pop()
         return true
       end
-      return false
-    end,
-  }
-end
-
--- A layout, a child of the top level. Apps, Rename, and Delete are genuine levels, so each
--- answers through select and the stage pushes whatever comes back. Apply is a completion, it
--- places the windows and returns nothing, so the window goes away and the report is what is
--- left. Update mutates the list it stands on, the app count and the taken time both change, so
--- it answers stay from intercept and the highlight holds on the row just chosen.
-buildLayoutChild = function(id)
-  return {
-    placeholder = "",
-    rows = function() return layoutRows(id) end,
-    onSelect = function(item)
-      if not item then return nil end
-      if item.act == "apply" then
-        local ok, err = cfg.api.apply(id)
-        if not ok then log.e("apply failed, " .. tostring(err)) end
-        return nil
-      end
-      if item.nav == "apps" then return buildAppsChild(id) end
-      if item.nav == "rename" then return buildRenameChild(id) end
-      if item.nav == "delete" then return buildDeleteChild(id) end
-      return nil
-    end,
-    intercept = function(item)
-      if not item then return true end
-      if item.nav == "back" then
+      if item and item.act == "create" then
+        local id, err = cfg.api.create(item.name)
+        if not id then log.e("snapshot failed, " .. tostring(err)) end
         pop()
         return true
-      end
-      if item.act == "update" then
-        local ok, err = cfg.api.update(id)
-        if not ok then log.e("update failed, " .. tostring(err)) end
-        return "stay"
       end
       return false
     end,
@@ -367,37 +287,6 @@ buildRenameChild = function(id)
   }
 end
 
--- The delete confirm, a child of a layout. Keep leaves exactly like Back. A successful delete
--- pops twice in the same press, past the confirm and past the layout level naming something that
--- no longer exists, landing on the top level.
-buildDeleteChild = function(id)
-  return {
-    placeholder = "",
-    -- search-exempt, a delete confirm, Keep or Delete, with nothing to search
-    matcher = false,
-    rows = function() return deleteRows(id) end,
-    onSelect = function() end,
-    intercept = function(item)
-      if not item then return true end
-      if item.nav == "back" then
-        pop()
-        return true
-      end
-      if item.act == "delete" then
-        local ok, err = cfg.api.remove(id)
-        if ok then
-          pop()
-          pop()
-        else
-          log.e("delete failed, " .. tostring(err))
-        end
-        return true
-      end
-      return false
-    end,
-  }
-end
-
 --------------------------------------------------------------------------------
 -- Public control surface, dot called
 --------------------------------------------------------------------------------
@@ -413,13 +302,69 @@ end
 --- block as the contract's rows.
 M.rows = topRows
 
---- M.select(item) -> presentation or nil. The top level's own onSelect. New snapshot and each
---- layout row drill into a child of their own, and the disabled status rows never reach here.
+--- M.select(item) -> presentation or nil. The top level's own onSelect. New snapshot drills into
+--- the name level, and a layout row applies the layout, since applying is what a layout is for and
+--- everything else it offers is in the action panel, decided by Milos on 2026-10-29,
+--- docs/PLAN-ACTION-PANEL.md. The disabled status rows never reach here.
 function M.select(item)
   if not item then return nil end
   if item.nav == "new" then return buildNewChild() end
-  if item.nav == "layout" then return buildLayoutChild(item.id) end
+  if item.nav == "layout" then
+    local ok, err = cfg.api.apply(item.id)
+    if not ok then log.e("apply failed, " .. tostring(err)) end
+  end
   return nil
+end
+
+--------------------------------------------------------------------------------
+-- The action panel's verbs on a layout row, docs/PLAN-ACTION-PANEL.md
+--------------------------------------------------------------------------------
+
+-- The layout the highlighted row names, or nil. The panel runs a verb after putting the highlight
+-- back on the row it was opened over, so this is the row the verb was chosen for.
+local function highlightedLayout()
+  local item = cfg.stageSelectedItem and cfg.stageSelectedItem()
+  return type(item) == "table" and item.nav == "layout" and item.id or nil
+end
+
+local function redraw()
+  if cfg.redrawPresented then cfg.redrawPresented("workspaces") end
+end
+
+--- M:isLayout(item) -> boolean. Whether the row the panel was opened over is a layout, which every
+--- verb below needs. Colon called, since the root hands a surface method its module first.
+function M:isLayout(item)
+  return type(item) == "table" and item.nav == "layout"
+end
+
+--- M:updateLayout() - replaces what the highlighted layout records with the windows open now.
+function M:updateLayout()
+  local id = highlightedLayout()
+  if not id then return end
+  local ok, err = cfg.api.update(id)
+  if not ok then log.e("update failed, " .. tostring(err)) end
+  redraw()
+end
+
+--- M:editApps() - opens the highlighted layout's apps, where an app is left alone or taken back.
+function M:editApps()
+  local id = highlightedLayout()
+  if id and cfg.stagePush then cfg.stagePush(buildAppsChild(id)) end
+end
+
+--- M:renameLayout() - opens the name field for the highlighted layout.
+function M:renameLayout()
+  local id = highlightedLayout()
+  if id and cfg.stagePush then cfg.stagePush(buildRenameChild(id)) end
+end
+
+--- M:deleteLayout() - removes the highlighted layout, after the panel's own confirm.
+function M:deleteLayout()
+  local id = highlightedLayout()
+  if not id then return end
+  local ok, err = cfg.api.remove(id)
+  if not ok then log.e("delete failed, " .. tostring(err)) end
+  redraw()
 end
 
 --- M.placeholder() -> string. The field hint while the top level is current.

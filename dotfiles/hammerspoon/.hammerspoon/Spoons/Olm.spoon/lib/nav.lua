@@ -57,17 +57,19 @@ function obj.activeSurface(surfaces)
   return nil
 end
 
--- A zero argument closure that hides the shared shortcut panel, finds whichever surface from
+-- A closure that hides the shared shortcut panel, finds whichever surface from
 -- the given order is showing right now, and calls the named method on it if that surface
 -- happens to answer it. A surface that does not answer the method is left alone rather than
 -- erroring, which is what makes one routed action safe to bind in every context regardless of
 -- whether the surface currently active happens to be the one the key was meant for.
 function obj.routeNav(method, surfaces, hideShortcuts)
-  return function()
+  -- Whatever it is called with reaches the method, which is how a choice made in the action
+  -- panel hands the verb its value. A key press calls it with nothing, as it always has.
+  return function(...)
     if hideShortcuts then hideShortcuts() end
     local surface = obj.activeSurface(surfaces)
     if surface and type(surface[method]) == "function" then
-      surface[method]()
+      surface[method](...)
     end
   end
 end
@@ -99,13 +101,17 @@ function obj.actions(plan, deps)
   local hideShortcuts = deps.hideShortcuts
   local onAction = deps.onAction
 
+  -- A context's panel verbs, the action panel's alone, get a handler the same way its bindings
+  -- do, since the panel runs them through this same table.
   local built = {}
   for _, block in pairs(plan.contexts or {}) do
-    for _, binding in ipairs(block.bindings or {}) do
-      local name = binding.action
-      if name and built[name] == nil then
-        local method = methodFor[name] or name
-        built[name] = obj.routeNav(method, surfaces, hideShortcuts)
+    for _, list in ipairs({ block.bindings or {}, block.panel or {} }) do
+      for _, binding in ipairs(list) do
+        local name = binding.action
+        if name and built[name] == nil then
+          local method = methodFor[name] or name
+          built[name] = obj.routeNav(method, surfaces, hideShortcuts)
+        end
       end
     end
   end
@@ -124,8 +130,10 @@ function obj.actions(plan, deps)
   end
 
   for _, block in pairs(plan.contexts or {}) do
-    for _, binding in ipairs(block.bindings or {}) do
-      binding.fn = built[binding.action]
+    for _, list in ipairs({ block.bindings or {}, block.panel or {} }) do
+      for _, binding in ipairs(list) do
+        binding.fn = built[binding.action]
+      end
     end
   end
 

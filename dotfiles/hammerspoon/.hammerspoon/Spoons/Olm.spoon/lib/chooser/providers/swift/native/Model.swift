@@ -124,12 +124,15 @@ struct Row {
   var subtitle = ""
   var enabled = true
   var image: NSImage?
+  // The heading an action panel row is listed under, nil for a list row.
+  var section: String?
 
   init(_ r: LuaReader, _ t: Int32) {
     title = r.string(t, "title") ?? ""
     subtitle = r.string(t, "subtitle") ?? ""
     enabled = r.bool(t, "enabled") ?? true
     image = r.image(t, "image")
+    section = r.string(t, "section")
   }
 }
 
@@ -146,6 +149,8 @@ struct Footer {
   var keysImage: NSImage?
   var title: String?
   var panelOpen = false
+  // The title of a level a verb opened in the action panel, heading the popover, nil at the top.
+  var panelTitle: String?
 
   init() {}
 
@@ -159,6 +164,7 @@ struct Footer {
     keysImage = r.image(t, "keysImage")
     title = r.string(t, "title")
     panelOpen = r.bool(t, "panelOpen") ?? false
+    panelTitle = r.string(t, "panelTitle")
   }
 }
 

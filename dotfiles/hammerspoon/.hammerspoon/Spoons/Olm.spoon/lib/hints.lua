@@ -301,6 +301,7 @@ function obj.footerModel(contextName, plan, deps)
   -- The key panel's header, the name and version of this Olm, handed in by the root.
   return { right = right, keys = keys, keysChord = keysChord, keysIcon = keysIcon,
     title = deps.title, panelOpen = panelRow ~= nil, panelAction = panel and panel.action or nil,
+    panelTitle = panelRow and deps.actionPanelTitle and deps.actionPanelTitle() or nil,
     state = (panelRow and "panel | " or "") .. table.concat(parts, " | ") }
 end
 
@@ -336,13 +337,19 @@ function obj.rowsFor(contextName, plan, deps, hosted)
   local kinds = obj.actionKinds(plan, deps and deps.kinds)
   local labels = deps and deps.labelsFor and deps.labelsFor(contextName) or nil
   local sharedListed = {}
-  for _, b in ipairs(ctx.bindings) do
+  -- The context's bindings and then its panel verbs, the action panel's alone, which carry no key.
+  local candidates = {}
+  for _, b in ipairs(ctx.bindings) do candidates[#candidates + 1] = b end
+  for _, b in ipairs(ctx.panel or {}) do candidates[#candidates + 1] = b end
+  for _, b in ipairs(candidates) do
     -- A shared binding is listed only as the primary or the secondary, once each, since the
     -- secondary sits on two keys and a shared verb's action may be classified a verb elsewhere.
     local listed
     if b.shared == "primary" or b.shared == "secondary" then
       listed = not sharedListed[b.shared]
       sharedListed[b.shared] = true
+    elseif b.key == nil then
+      listed = true
     else
       listed = b.shared == nil and kinds[b.action] == "verb"
     end
@@ -350,7 +357,7 @@ function obj.rowsFor(contextName, plan, deps, hosted)
       and (not hosted or hostedVerbDeclared(hosted, b.action)) then
       -- The primary's chord is Return, the key a person presses, the way the action bar spells it,
       -- whichever held chord it also sits on. The secondary's is its own, Command and Return.
-      local chord = obj.chordFor(b, deps)
+      local chord = b.key ~= nil and obj.chordFor(b, deps) or ""
       if b.shared == "primary" then chord = (glyphFor and glyphFor("return")) or "return" end
       -- Every row carries an icon. A primary or a secondary naming none takes Olm's own, declared
       -- beside Back in the action panel's manifest and read against it.
@@ -363,14 +370,44 @@ function obj.rowsFor(contextName, plan, deps, hosted)
         local owner = deps and deps.owners and deps.owners[contextName]
         local owned = owner and plan.effective[owner]
         local description = owned and owned.description
-        chord = chord .. " in " .. (description or contextName)
+        if chord ~= "" then chord = chord .. " in " .. (description or contextName) end
         closes = hosted[b.action].closes
       end
       rows[#rows + 1] = { action = b.action, title = obj.labelFor(b, contextName, deps and deps.liveLabels, labels),
-                          chord = chord, icon = icon, owner = iconOwner, closes = closes }
+                          chord = chord, icon = icon, owner = iconOwner, closes = closes,
+                          shared = b.shared, section = b.section, applies = b.applies,
+                          choices = b.choices, confirm = b.confirm }
     end
   end
-  return rows
+  return obj.sectioned(rows)
+end
+
+-- The panel's rows in the order docs/PLAN-ACTION-PANEL.md gives, Back, the primary and the
+-- secondary first whatever their section, then the verbs with no section, then each section in
+-- the order its first verb was declared, every row keeping its declared place inside its group.
+function obj.sectioned(rows)
+  local lead, plain, order, groups = {}, {}, {}, {}
+  for _, row in ipairs(rows) do
+    if row.action == nil or row.shared == "primary" or row.shared == "secondary" then
+      lead[#lead + 1] = row
+    elseif row.section == nil then
+      plain[#plain + 1] = row
+    else
+      if not groups[row.section] then
+        groups[row.section] = {}
+        order[#order + 1] = row.section
+      end
+      local group = groups[row.section]
+      group[#group + 1] = row
+    end
+  end
+  local out = {}
+  for _, row in ipairs(lead) do out[#out + 1] = row end
+  for _, row in ipairs(plain) do out[#out + 1] = row end
+  for _, name in ipairs(order) do
+    for _, row in ipairs(groups[name]) do out[#out + 1] = row end
+  end
+  return out
 end
 
 -- activeContext used to live here, answering which context is live right now off each

@@ -15,10 +15,10 @@ displays attached right now, and what a layout that does not would need.
 Opens from the launcher as Workspaces, with no dedicated chord. Typing `ws` and a space in
 the launcher lists the layouts instead, and choosing one applies it, which is the fast path.
 In the manager, New snapshot
-leads the list, then every layout, the ones that apply here first. Inside a layout, Apply
-places the windows, Apps lists what it recorded with Remove on each and Include again on the
-removed, Update snapshot replaces the record with what is open now while keeping the removals,
-and Rename and Delete do what they say.
+leads the list, then every layout, the ones that apply here first. Return on a layout applies it.
+The action panel on a layout offers Update snapshot, which replaces the record with what is open
+now while keeping the removals, Apps, which lists what it recorded with Remove on each and Include
+again on the removed, Rename, and Delete, which asks first.
 
-While the list is open, j and k move, i selects the highlighted row or drills into it, and x
-closes the whole thing. Back is the first row of every level.
+While the list is open, j and k move, i applies the highlighted layout or opens New snapshot, the
+action panel holds the rest, and x closes the whole thing. Back is the first row of every level.

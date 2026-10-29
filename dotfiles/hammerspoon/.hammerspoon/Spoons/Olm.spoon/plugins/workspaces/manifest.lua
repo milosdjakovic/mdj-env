@@ -78,6 +78,12 @@ return {
       -- press should swallow loudly.
       stagePresent = { source = "root", policy = "optional",
         breaks = "the launcher row opens nothing, since the chooser has no other way to reach the shared stage" },
+      stagePush = { source = "root", policy = "optional",
+        breaks = "Apps and Rename in the action panel open nothing, since a verb has no other way to open a level" },
+      stageSelectedItem = { source = "root", policy = "optional",
+        breaks = "every verb of the action panel finds no layout to act on and does nothing" },
+      redrawPresented = { source = "root", policy = "optional",
+        breaks = "an update or a delete from the action panel leaves the list showing what it showed until it is reopened" },
       stagePop = { source = "root", policy = "optional",
         breaks = "every Back row, and every successful rename, delete, remove, and include, all stand on the level they meant to leave rather than returning to its parent" },
     },
@@ -106,9 +112,20 @@ return {
   -- here reserves a companion, and no matcher is declared at the top, so the layouts are
   -- searched by the shared strategy. Only the levels whose field is a typed name or a confirm
   -- set matcher false themselves.
+  -- Return applies the highlighted layout, and what else a layout offers is a verb of the action
+  -- panel alone, no key, gated by isLayout so the New snapshot row offers none of them,
+  -- docs/PLAN-ACTION-PANEL.md. Delete asks first through the panel's own confirm.
   surface = {
     context = "workspaces",
-    primary = { action = "insertSelected", description = "Select" },
+    primary = { action = "insertSelected", description = "Apply", icon = "apply" },
+    extra = {
+      { action = "updateLayout", description = "Update snapshot", icon = "update",
+        section = "Layout", applies = "isLayout" },
+      { action = "editApps", description = "Apps", icon = "apps", section = "Layout", applies = "isLayout" },
+      { action = "renameLayout", description = "Rename", icon = "rename", section = "Manage", applies = "isLayout" },
+      { action = "deleteLayout", description = "Delete", icon = "delete", section = "Manage",
+        applies = "isLayout", confirm = "Delete this layout" },
+    },
   },
 
   -- rows, select, and placeholder are plain closures on the chooser submodule, dot called
@@ -143,6 +160,8 @@ return {
     row = { category = "Displays", detail = "window layouts you snapshot and put back",
       icon = "workspaces", keywords = "layout, snapshot, arrange windows, restore windows" },
     open = { member = "chooser.show", call = "dot" },
+    -- The submodule the action panel's verbs, isLayout and the four on a layout, are answered by.
+    surface = "chooser",
     scope = {
       rows = { member = "chooser.scopeRows", call = "dot" },
       run = { member = "chooser.applyScoped", call = "dot" },

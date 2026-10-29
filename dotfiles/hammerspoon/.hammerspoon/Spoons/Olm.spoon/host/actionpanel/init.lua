@@ -158,6 +158,9 @@ function obj:configure(deps)
   self._run = deps.run
   self._rank = deps.rank
   self._ownRowsMatcher = deps.ownRowsMatcher
+  -- Optional. Calls a named method of the open list's plugin surface, which a verb's applies and
+  -- choices name, docs/PLAN-ACTION-PANEL.md. Without it every verb applies and none has choices.
+  self._call = deps.call
   self._log = deps.log or log
   return self
 end
@@ -274,12 +277,57 @@ end
 function obj:_buildRows(contextName, hosted, floats)
   local rows = {}
   for _, r in ipairs(self:rowsFor(contextName, hosted)) do
+    -- The Back row is the panel's own, so its owner is whose icons a level's rows read too.
+    if r.action == nil then self._owner = r.owner end
     -- A popover over the list is left by Escape and needs no Back row, which is the one row
-    -- carrying no action.
-    if not (floats and r.action == nil) then
-    rows[#rows + 1] = { title = r.title, subTitle = r.chord, icon = r.icon, iconOwner = r.owner,
-                        item = r, filterText = r.title }
+    -- carrying no action, and a verb that does not apply to the row is left out.
+    if not (floats and r.action == nil) and self:_applies(r) then
+      rows[#rows + 1] = { title = r.title, subTitle = r.chord, icon = r.icon, iconOwner = r.owner,
+                          item = r, filterText = r.title, section = r.section }
     end
+  end
+  return rows
+end
+
+-- Whether a verb applies to the row the panel was opened over, asked of the plugin's surface
+-- method its applies names, docs/PLAN-ACTION-PANEL.md. A verb naming none always applies, and so
+-- does one the surface cannot answer, since a verb hidden by a typo is worse than one shown.
+function obj:_applies(row)
+  if not row.applies or type(self._call) ~= "function" then return true end
+  local ok, answer = pcall(self._call, row.applies, self._capturedItem)
+  if not ok then
+    self._log.w(string.format("ActionPanel applies '%s' raised, the verb stays listed, %s",
+      tostring(row.applies), tostring(answer)))
+    return true
+  end
+  return answer ~= false and answer ~= nil
+end
+
+-- The rows of the level a verb opens, its choices or its confirm, docs/PLAN-ACTION-PANEL.md. A
+-- confirm leads with Cancel, since a stray Return then does the harmless thing. A choice in force
+-- carries the green circle every list marks its current row with.
+function obj:_levelRows(verb)
+  local rows = {}
+  if verb.confirm then
+    local title = type(verb.confirm) == "string" and verb.confirm or verb.title
+    rows[1] = { title = "Cancel", icon = "back", iconOwner = self._owner, filterText = "Cancel",
+                item = { cancel = true, title = "Cancel" } }
+    rows[2] = { title = title, icon = verb.icon, iconOwner = verb.owner, filterText = title,
+                item = { run = verb.action, title = title } }
+    return rows
+  end
+  local ok, choices = true, nil
+  if type(self._call) == "function" then ok, choices = pcall(self._call, verb.choices, self._capturedItem) end
+  if not ok then
+    self._log.w(string.format("ActionPanel choices '%s' raised, %s", tostring(verb.choices), tostring(choices)))
+    choices = nil
+  end
+  for _, c in ipairs(type(choices) == "table" and choices or {}) do
+    local title = tostring(c.title or c.value or "")
+    local icon, owner = c.icon, verb.owner
+    if c.current then icon, owner = "current", self._owner end
+    rows[#rows + 1] = { title = title, subTitle = c.subtitle, icon = icon, iconOwner = owner,
+                        filterText = title, item = { run = verb.action, value = c.value, title = title } }
   end
   return rows
 end
@@ -303,6 +351,8 @@ end
 function obj:_close()
   self._openInstance = nil
   self._panelRows = nil
+  self._rootRows = nil
+  self._level = nil
   self._capturedItem = nil
   self._capturedRow = nil
   self._capturedQuery = nil
@@ -342,7 +392,7 @@ end
 -- before the deferred continuation runs. deps.run is handed it as a second argument so the
 -- root can route a verb against the actual row the panel opened over, a hosted scope row
 -- among them, rather than only the action's bare name.
-function obj:_leave(instance, action)
+function obj:_leave(instance, action, value)
   local capturedRow = self._capturedRow
   local capturedQuery = self._capturedQuery
   local capturedItem = self._capturedItem
@@ -361,7 +411,7 @@ function obj:_leave(instance, action)
       return
     end
     instance:selectRow(capturedRow)
-    if action then self._run(action, capturedItem) end
+    if action then self._run(action, capturedItem, value) end
   end)
 end
 
@@ -376,9 +426,45 @@ end
 -- separate flag, since the panel is the only thing that ever builds this row and the only
 -- thing that ever reads it back, and it is also what tells _leave whether there is an action
 -- to run once the row is back where it was.
+--
+-- A verb declaring choices or confirm opens a level of the panel instead, docs/PLAN-ACTION-PANEL.md.
+-- A row of that level either runs the verb, with a choice's value, or is Cancel, which steps
+-- back as Backspace does.
 function obj:_choose(instance, item)
+  if item and item.cancel then return self:_stepBack(instance) end
+  if item and item.run then
+    self:_leave(instance, item.run, item.value)
+    return true
+  end
+  if item and item.action and (item.choices or item.confirm) and not self._level then
+    self._level = item
+    self._rootRows = self._panelRows
+    self._panelRows = self:_levelRows(item)
+    instance:setQuery("")
+    return true
+  end
   self:_leave(instance, item and item.action or nil)
   return true
+end
+
+-- Steps out of a level back to the panel's own rows, or out of the panel when no level is open.
+function obj:_stepBack(instance)
+  if self._level then
+    self._panelRows = self._rootRows
+    self._rootRows = nil
+    self._level = nil
+    instance:setQuery("")
+    return true
+  end
+  self:_leave(instance, nil)
+  return true
+end
+
+--- ActionPanel:levelTitle() -> string or nil
+--- Method
+--- The title of the verb whose level is open, for a view that heads the level with it, or nil.
+function obj:levelTitle()
+  return self._level and self._level.title or nil
 end
 
 --- ActionPanel:decorate(instance, config)
@@ -477,8 +563,7 @@ function obj:decorate(instance, config)
   -- argument to back needs no second visit to this file to stop being eaten.
   config.back = function(...)
     if self._openInstance == instance then
-      self:_leave(instance, nil)
-      return true
+      return self:_stepBack(instance)
     end
     if originalBack then return originalBack(...) end
     return false

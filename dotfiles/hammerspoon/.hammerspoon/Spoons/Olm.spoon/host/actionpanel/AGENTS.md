@@ -334,3 +334,19 @@ panel and not the list, through the engine asking the footer model's `panelActio
 own action name, so the engine never names it. A view that answers nothing, the canvas chooser,
 keeps the Back row and the in place panel.
 
+## Levels, sections and verbs that depend on the row
+
+`docs/PLAN-ACTION-PANEL.md` made the panel programmable. A verb may name `applies`, `choices` or
+`confirm`, and the panel asks the open list's plugin through `deps.call`, which the root answers
+through the same surface adapters the dispatch routes every verb through. A verb whose `applies`
+answers false for the captured row is left out when the panel opens, and one whose method raises
+stays listed with a warning, since a verb hidden by a typo is worse than one shown. Choosing a verb
+with `choices` or `confirm` replaces the panel's rows with a level, the root rows kept aside, and
+the level's rows carry either `run` and a `value` or `cancel`. Choosing a `run` row leaves through
+`_leave` with the value, so the verb runs against the restored row with its value, the root's `run`
+handing the value to the plugin's method. Cancel and Backspace on an empty field step back to the
+root rows through `_stepBack`, which leaves the panel only when no level is open. Escape still
+closes the whole panel. `levelTitle` answers the verb whose level is open, which the footer model
+carries as `panelTitle` so the popover heads the level with it. Sections are ordered in
+`lib/hints.lua`'s `sectioned`, so the canvas chooser lists the same order with no headings.
+

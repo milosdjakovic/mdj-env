@@ -34,7 +34,12 @@ profile ever matches the attached displays, so there is nothing to switch betwee
 chooser therefore does not apply. The one apply like action is Reapply, shown only on the
 active profile, mapping to `reconcile(true)`, for the rare case where macOS scrambled the
 layout with no hardware change so no screen event fired. If this were built as a switcher it
-would offer choices that can never take effect, which is the trap the design avoids.
+would offer choices that can never take effect, which is the trap the design avoids. Since 2026-10-29
+Return on a profile applies it, Milos's decision for the programmable action panel, and that holds
+the rule rather than breaking it. Return on the matching profile is Reapply, and on any other it
+runs nothing and says why in the console, so no command ever names monitors that are not attached.
+Displays, Rename and Delete are verbs of the action panel, Rename and Delete on captured profiles
+only, and the profile screen they used to share is gone, `decisions/olm-action-panel.md`.
 
 ## Nested menu stack over one chooser, with re-show
 

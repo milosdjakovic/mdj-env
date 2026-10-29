@@ -275,7 +275,7 @@ local function footerData(model)
   end
   local icon = model.keysIcon
   return { right = right, keys = keys, keysChord = model.keysChord, title = model.title,
-    panelOpen = model.panelOpen == true,
+    panelOpen = model.panelOpen == true, panelTitle = model.panelTitle,
     keysImage = icon and ICON and ICON(icon.icon, icon.owner) or nil }
 end
 
@@ -355,7 +355,8 @@ function View:_redrawPanel(s, ns, footer)
   for i, row in ipairs(ns.filtered) do
     local image = row.image
     if image == nil and row.icon ~= nil and ICON then image = ICON(row.icon, row.iconOwner) end
-    actions[i] = { title = plain(row.title), subtitle = plain(row.subTitle), image = image or nil }
+    actions[i] = { title = plain(row.title), subtitle = plain(row.subTitle), image = image or nil,
+      section = row.section }
   end
   self.native.update(self.id, {
     highlight = held.highlight or 0,

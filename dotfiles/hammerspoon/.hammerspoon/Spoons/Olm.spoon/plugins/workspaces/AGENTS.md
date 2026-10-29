@@ -52,14 +52,14 @@ a live one whose title matches exactly, so two Chrome windows go back to their o
 than swapping, and whatever is left pairs in order front to back on both sides, since a title
 that changed with the tab is still most likely the same window in the same place in the stack.
 
-## Saving a snapshot leaves and arrives in one press
+## Return applies, the action panel manages
 
-Save on the name level pops that level from inside `select` and then answers the new layout's
-own child, so the stage lands on the layout just taken with Apps one row away, ready to prune,
-and Backspace from there goes to the list rather than back to a name field for a snapshot that
-already exists. `Stage:_intercept` runs `onSelect` and pushes whatever comes back, and a pop
-before the return simply changes what the child stacks on. Every other leaving row rides its
-level's `intercept` and `stagePop`, the shape DisplayProfiles settled.
+Since 2026-10-29 Return on a layout applies it and the level of actions it used to open is gone,
+Milos's decision for the programmable action panel, `decisions/olm-action-panel.md`. Update
+snapshot, Apps, Rename and Delete are keyless verbs of the panel, gated by `isLayout` so New
+snapshot offers none of them, Delete behind the panel's confirm, and Apps and Rename open their
+levels through `stagePush`. Save on the name level now pops back to the list, where the new
+layout is listed, rather than landing on a layout level that no longer exists.
 
 ## The typed word applies, the row manages
 

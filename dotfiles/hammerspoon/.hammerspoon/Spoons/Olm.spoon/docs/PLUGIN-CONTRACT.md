@@ -503,7 +503,10 @@ identity against whatever is actually current, so a child's own async operation,
 permission read on browsertabs' own settings level being the shipped example,
 redraws itself specifically and nothing else, self referential locals, `local child; child =
 { ... }`, being how a plugin gets a table to close over before that table exists to be
-returned. `stageHide()` hides the shared window outright. `stagePop()`, contract v3's own addition, docs/BRIEF-CONTRACT-V3.md, asks the stage
+returned. `stageHide()` hides the shared window outright. `stagePush(child)`,
+`docs/PLAN-ACTION-PANEL.md`, pushes a child presentation over the current one exactly as a
+`select` answering it does, named after the current one when it names nothing, for a verb run from
+the action panel, which has no `select` to answer a child through. `stagePop()`, contract v3's own addition, docs/BRIEF-CONTRACT-V3.md, asks the stage
 to leave the current child the way Backspace on an empty field already does, `Stage:pop`
 restoring the parent and answering false at the bottom exactly as that press does, for a
 row that must leave a level rather than drill into one, the one shape a child returned from
@@ -1067,6 +1070,26 @@ together, and its action is answered by the plugin's surface adapter like any `e
 declaring none binds nothing on Command and Return, which keeps choosing the row there. The action
 bar under the list names the primary on Return, the secondary on its chord and the action panel on
 its own, `docs/PLAN-ACTION-BAR.md`.
+
+A row of `extra` may carry four fields for the action panel, `docs/PLAN-ACTION-PANEL.md`, and
+may leave out `key`, which makes it a verb of the action panel alone, never bound and listed in no
+key panel, so it needs a `description`. Such a row is kept out of the context's `bindings` and
+listed in its `panel`, since every reader of a binding reads its key.
+
+- `section`, the heading the verb is listed under in the panel. The primary and the secondary
+  lead with no heading, then verbs with no section, then each section in declared order.
+- `applies`, the name of a method of the plugin's surface, called with the row the panel was
+  opened over, answering whether the verb fits that row. One that does not is left out.
+- `choices`, the name of a method of the plugin's surface, called with that row, answering a list
+  of `{ title, subtitle, icon, value, current }`. Choosing the verb opens them as a level of the
+  panel, `current` marked with the green circle, and choosing one runs the verb with its `value`.
+- `confirm`, true or the confirm row's title. Choosing the verb opens Cancel and the confirm row,
+  Cancel first, and only the confirm row runs it.
+
+A row sets `choices` or `confirm`, never both. The root calls a surface method with the surface
+module first, so a method named by `applies` or `choices`, and a verb that takes a value, is
+written colon style, `function M:isLayout(item)`. Workspaces and Display Profiles are the worked
+examples.
 
 `matcher` and `pane` live here rather than being ambient because they are per plugin
 choices. Since phase three of the unified search on 2026-10-17 no plugin names a matcher, and

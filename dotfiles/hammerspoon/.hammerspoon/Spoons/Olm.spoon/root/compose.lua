@@ -1553,6 +1553,13 @@ function obj.run(olm, cfg)
       return (stageModule and stageModule:pop()) or false
     end,
 
+    -- stagePush, docs/PLAN-ACTION-PANEL.md. A verb run from the action panel opens a level of
+    -- its own tool through this, the same push a row's onSelect answering a child gets, since a
+    -- verb has no onSelect to answer one through. Rename in Workspaces is the first.
+    stagePush = function(child)
+      return (stageModule and stageModule:pushChild(child)) or false
+    end,
+
     -- stageSetQuery, the trickle migration's own addition, FileSearch's own parent row
     -- intercept, which puts the query for the level above in the field and the presentation
     -- stays open, the identical "swap the list in place" shape host/launcher's own paging
@@ -2054,6 +2061,11 @@ function obj.run(olm, cfg)
     -- table when it is open on no row, and nil while it is closed, so the action bar describes the
     -- panel the person is looking at rather than the list it borrowed. Read late, like the stage.
     actionPanel = function() return actionPanelShowingRow() end,
+    -- The title of a level a verb opened in the action panel, which heads it in the popover.
+    actionPanelTitle = function()
+      local panel = modules and modules[plan.identity.actionpanel or "actionpanel"]
+      return panel and panel.levelTitle and panel:levelTitle() or nil
+    end,
   }
 
   -- LeaderSheet and QueryScope both keep what configure gave them across calls, and the sheet
@@ -2087,14 +2099,25 @@ function obj.run(olm, cfg)
   -- table is not built until between stages six and seven, so it is forward declared just above
   -- and reached through the closure at the moment a verb is actually run, which is always long
   -- after the whole pipeline has finished.
-  local dispatchTable
+  -- surfaceAdapters is declared here and filled further down, the same forward declaration as
+  -- dispatchTable, so the action panel's call below reaches the real list once it exists.
+  local dispatchTable, surfaceAdapters
   local actionKinds = hintsLib.actionKinds(plan, actionKindOverrides)
   local actionPanelOpts = {
     kindOf = function(action) return actionKinds[action] end,
     rowsFor = function(contextName, hosted) return hintsLib.rowsFor(contextName, plan, hintsDeps, hosted) end,
-    run = function(action)
+    -- value is a choice made in a level the verb opened, handed to the plugin's method,
+    -- docs/PLAN-ACTION-PANEL.md, and nil for a verb run plainly.
+    run = function(action, _, value)
       local fn = dispatchTable and dispatchTable[action]
-      if fn then fn() end
+      if fn then fn(value) end
+    end,
+    -- Calls a named method of the open list's plugin surface, what a verb's applies and choices
+    -- name, through the same adapters the dispatch routes every verb through.
+    call = function(method, ...)
+      local surface = navLib.activeSurface(surfaceAdapters)
+      if surface and type(surface[method]) == "function" then return surface[method](...) end
+      return nil
     end,
     -- The panel filters its own rows through the one rank engine when the list under it owns
     -- its filtering. substring is what it always did there, kept until phase three of
@@ -2323,7 +2346,8 @@ function obj.run(olm, cfg)
     })
   end
 
-  local surfaceAdapters, seenOwner = {}, {}
+  surfaceAdapters = {}
+  local seenOwner = {}
   for _, name in ipairs(plan.order) do
     local owns = false
     for _, owner in pairs(contextOwners) do

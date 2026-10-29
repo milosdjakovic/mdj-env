@@ -123,6 +123,32 @@ local function looksLikeBinding(value)
   return type(value) == "table" and type(value.key) == "string" and type(value.action) == "string"
 end
 
+-- A row of extra with no key, an action of the action panel alone, never bound and listed in no
+-- key panel, so it needs a description for the panel to show. docs/PLAN-ACTION-PANEL.md.
+local function looksLikePanelVerb(value)
+  return type(value) == "table" and value.key == nil and type(value.action) == "string"
+    and value.action ~= "" and type(value.description) == "string"
+end
+
+-- Checks the four fields a verb may carry for the action panel, section, applies, choices and
+-- confirm, docs/PLAN-ACTION-PANEL.md. applies and choices name a method of the plugin's surface,
+-- so each is a name rather than a function, and confirm is true or the confirm row's own title.
+local function validatePanelFields(label, row)
+  for _, field in ipairs({ "section", "applies", "choices" }) do
+    local value = row[field]
+    if value ~= nil and (type(value) ~= "string" or value == "") then
+      return false, label .. "." .. field .. " is a " .. type(value) .. " rather than a name"
+    end
+  end
+  if row.confirm ~= nil and row.confirm ~= true and (type(row.confirm) ~= "string" or row.confirm == "") then
+    return false, label .. ".confirm is neither true nor the confirm row's title"
+  end
+  if row.choices ~= nil and row.confirm ~= nil then
+    return false, label .. " sets both choices and confirm, and a verb opens one level or the other"
+  end
+  return true
+end
+
 -- Checks the three gates a binding may carry beyond its key and action, so a shape nothing
 -- downstream could honour is named here rather than surfacing later as a binding that quietly
 -- keeps a field no caller can make sense of. chord is only ever meaningful set to false, the
@@ -225,11 +251,14 @@ function obj.validate(name, decl)
       return false, "extra is a " .. type(decl.extra) .. " rather than a list of bindings"
     end
     for i, row in ipairs(decl.extra) do
-      if not looksLikeBinding(row) then
-        return false, "extra[" .. i .. "] is not a binding, it needs a key and an action"
+      if not looksLikeBinding(row) and not looksLikePanelVerb(row) then
+        return false, "extra[" .. i .. "] is not a binding, it needs a key and an action, or an"
+          .. " action and a description with no key for a verb of the action panel alone"
       end
       local rok, rerr = validateGates("extra[" .. i .. "]", row)
       if not rok then return false, rerr end
+      local fok, ferr = validatePanelFields("extra[" .. i .. "]", row)
+      if not fok then return false, ferr end
     end
   end
   if decl.when ~= nil and type(decl.when) ~= "string" then
@@ -343,9 +372,12 @@ function obj.context(name, decl, available, keys)
   -- Extra bindings sit between the move keys and close because that is where every context
   -- that has any puts them, scrolling a preview, appending to a batch, walking a folder,
   -- never after the key that closes the list.
+  -- A row with no key is a verb of the action panel alone, kept out of the bindings, since every
+  -- reader of a binding reads its key, and listed in panel for the action panel and the dispatch.
+  local panel = {}
   for _, row in ipairs(decl.extra or {}) do
     if take(row) then
-      bindings[#bindings + 1] = row
+      if row.key == nil then panel[#panel + 1] = row else bindings[#bindings + 1] = row end
     end
   end
 
@@ -363,6 +395,7 @@ function obj.context(name, decl, available, keys)
     when = obj.whenFor(name, decl),
     priority = decl.priority or 100,
     bindings = bindings,
+    panel = panel[1] and panel or nil,
     unmet = next(unmet) and unmet or nil,
   }
 end

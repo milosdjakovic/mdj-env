@@ -21,12 +21,18 @@ final class PopoverView: FlippedView {
     var label: String
     var chord: String
     var image: NSImage? = nil
+    // The heading the line is listed under. A heading is drawn above the first line of each run
+    // of lines naming the same one, docs/PLAN-ACTION-PANEL.md.
+    var section: String? = nil
   }
 
   // The lines' own view, drawing the highlight under them and reporting the pointer by line.
   final class Document: FlippedView {
     var lineH: CGFloat = 1
-    var count = 0
+    // Where each line starts, from the top of the document, since a heading takes room between
+    // two lines and a line is no longer its index times the line height.
+    var tops: [CGFloat] = []
+    var count: Int { tops.count }
     var highlight = 0 { didSet { needsDisplay = true } }
     var color = NSColor.clear
     var inset: CGFloat = 0
@@ -36,8 +42,8 @@ final class PopoverView: FlippedView {
 
     func lineAt(_ event: NSEvent) -> Int? {
       let p = convert(event.locationInWindow, from: nil)
-      let i = Int(p.y / lineH)
-      return i >= 0 && i < count ? i + 1 : nil
+      guard let i = tops.firstIndex(where: { p.y >= $0 && p.y < $0 + lineH }) else { return nil }
+      return i + 1
     }
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
@@ -59,7 +65,7 @@ final class PopoverView: FlippedView {
     override func draw(_ dirtyRect: NSRect) {
       guard highlight > 0, highlight <= count else { return }
       color.setFill()
-      let rect = NSRect(x: inset, y: CGFloat(highlight - 1) * lineH, width: bounds.width - 2 * inset, height: lineH)
+      let rect = NSRect(x: inset, y: tops[highlight - 1], width: bounds.width - 2 * inset, height: lineH)
       NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill()
     }
   }
@@ -71,6 +77,9 @@ final class PopoverView: FlippedView {
   let document = Document()
   private var cells: [(label: NSTextField, chord: NSTextField, image: NSImageView?)] = []
   private var iconSide: CGFloat = 0
+  private var headings: [(field: NSTextField, top: CGFloat)] = []
+  // The height of every line and heading together.
+  private var contentH: CGFloat = 0
   private var outer: CGFloat = 0
   private var inner: CGFloat = 0
   private var selectable = false
@@ -115,7 +124,6 @@ final class PopoverView: FlippedView {
     self.gap = gap
     self.iconSide = iconSide
     document.lineH = max(1, lineH)
-    document.count = lines.count
     document.color = style.highlight
     document.inset = outer
     document.radius = max(0, radius - outer)
@@ -131,6 +139,28 @@ final class PopoverView: FlippedView {
       cell.chord.removeFromSuperview()
       cell.image?.removeFromSuperview()
     }
+    for heading in headings { heading.field.removeFromSuperview() }
+    // Each line's top and each heading's, a heading as tall as a line, taken above the first line
+    // of a run naming a section different from the line before it.
+    var tops: [CGFloat] = []
+    headings = []
+    var y: CGFloat = 0
+    var previous: String? = nil
+    for line in lines {
+      if let section = line.section, section != previous {
+        let field = NSTextField(labelWithString: section)
+        field.font = style.captionFont
+        field.textColor = style.caption
+        headings.append((field, y))
+        document.addSubview(field)
+        y += lineH
+      }
+      previous = line.section
+      tops.append(y)
+      y += lineH
+    }
+    document.tops = tops
+    contentH = y
     cells = lines.map { line in
       let label = NSTextField(labelWithString: line.label)
       label.font = style.titleFont
@@ -159,8 +189,8 @@ final class PopoverView: FlippedView {
 
   // Scrolls just enough to show the highlighted line, as the list keeps its own highlight shown.
   private func revealHighlight() {
-    guard document.highlight > 0 else { return }
-    let rect = NSRect(x: 0, y: CGFloat(document.highlight - 1) * lineH, width: 1, height: lineH)
+    guard document.highlight > 0, document.highlight <= document.count else { return }
+    let rect = NSRect(x: 0, y: document.tops[document.highlight - 1], width: 1, height: lineH)
     document.scrollToVisible(rect)
   }
 
@@ -190,7 +220,7 @@ final class PopoverView: FlippedView {
     let widest = cells.map { lead + $0.label.fittingSize.width + gap + $0.chord.fittingSize.width }.max() ?? 0
     let width = max(widest + 2 * side, header.isHidden ? 0 : header.fittingSize.width + 2 * side)
     return NSSize(width: ceil(width),
-      height: ceil(headerH + CGFloat(cells.count) * lineH - 2 * slack + 2 * outer))
+      height: ceil(headerH + contentH - 2 * slack + 2 * outer))
   }
 
   override func layout() {
@@ -209,9 +239,13 @@ final class PopoverView: FlippedView {
     let start = top - slack
     scroll.frame = NSRect(x: 0, y: start, width: bounds.width, height: max(0, bounds.height - start))
     scroll.contentInsets = NSEdgeInsets(top: 0, left: 0, bottom: outer - slack, right: 0)
-    document.frame = NSRect(x: 0, y: 0, width: bounds.width, height: CGFloat(cells.count) * lineH)
+    document.frame = NSRect(x: 0, y: 0, width: bounds.width, height: contentH)
+    for heading in headings {
+      let h = heading.field.fittingSize.height
+      heading.field.frame = NSRect(x: side, y: heading.top + (lineH - h) / 2, width: bounds.width - 2 * side, height: h)
+    }
     for (i, cell) in cells.enumerated() {
-      let y = CGFloat(i) * lineH
+      let y = document.tops[i]
       let chordW = cell.chord.fittingSize.width
       let labelH = cell.label.fittingSize.height
       let chordH = cell.chord.fittingSize.height

@@ -878,3 +878,81 @@ do
   ap:toggle("demo")
   check("leaving the panel hands the same search back", liveSearch == search and liveMatcher == strategy)
 end
+
+-- The programmable panel, docs/PLAN-ACTION-PANEL.md. A verb's applies leaves it out for a row it
+-- does not fit, a confirm opens Cancel and the confirm row, choices open the plugin's own list
+-- with the one in force marked, and a choice runs the verb with its value. Backspace steps back
+-- out of a level before it leaves the panel, and a view that floats the panel gets no Back row.
+do
+  local rows = {
+    { title = "Back", chord = "⌫", icon = "back", owner = "actionpanel" },
+    { action = "insertSelected", title = "Apply", shared = "primary" },
+    { action = "rename", title = "Rename", applies = "isLayout" },
+    { action = "remove", title = "Delete", applies = "isLayout", confirm = "Delete this layout" },
+    { action = "pick", title = "Provider", choices = "providers" },
+  }
+  local ap = freshModule()
+  local runs, calls = {}, {}
+  ap:configure({
+    kindOf = function() return nil end,
+    rowsFor = function() return rows end,
+    run = function(action, _, value) runs[#runs + 1] = { action = action, value = value } end,
+    call = function(method, item)
+      calls[#calls + 1] = method
+      if method == "isLayout" then return item and item.layout == true end
+      if method == "providers" then
+        return { { title = "One", value = 1 }, { title = "Two", value = 2, current = true } }
+      end
+    end,
+    rank = rank,
+    ownRowsMatcher = substring,
+  })
+  ap._defer = function(_, fn) fn() end
+  local function titlesOf(list)
+    local out = {}
+    for _, r in ipairs(list or {}) do out[#out + 1] = r.title end
+    return table.concat(out, ",")
+  end
+
+  local instance = fakeInstance({ showing = true, item = { layout = false } })
+  ap:decorate(instance, fakeConfig())
+  ap:toggle("demo")
+  check("a verb whose applies answers false is left out", titlesOf(ap._panelRows) == "Back,Apply,Provider",
+    titlesOf(ap._panelRows))
+  ap:_close()
+
+  instance.item = { layout = true }
+  instance.floatsActionPanel = function() return true end
+  ap:toggle("demo")
+  check("a floating panel has no Back row and keeps the verbs that apply",
+    titlesOf(ap._panelRows) == "Apply,Rename,Delete,Provider", titlesOf(ap._panelRows))
+
+  local delete = ap._panelRows[3].item
+  ap:_choose(instance, delete)
+  check("a confirm opens Cancel first and the confirm row titled by the verb",
+    titlesOf(ap._panelRows) == "Cancel,Delete this layout", titlesOf(ap._panelRows))
+  check("the level is titled with the verb", ap:levelTitle() == "Delete")
+  ap:_choose(instance, ap._panelRows[1].item)
+  check("Cancel steps back to the panel's own rows",
+    titlesOf(ap._panelRows) == "Apply,Rename,Delete,Provider" and ap:levelTitle() == nil)
+  check("Cancel runs nothing", #runs == 0)
+
+  ap:_choose(instance, delete)
+  ap:_choose(instance, ap._panelRows[2].item)
+  check("the confirm row runs the verb", #runs == 1 and runs[1].action == "remove" and runs[1].value == nil)
+  check("running a verb closes the panel", not ap:isOpen())
+
+  ap:toggle("demo")
+  ap:_choose(instance, ap._panelRows[4].item)
+  check("choices open the plugin's list", titlesOf(ap._panelRows) == "One,Two", titlesOf(ap._panelRows))
+  check("the choice in force carries the current marker", ap._panelRows[2].icon == "current"
+    and ap._panelRows[1].icon ~= "current")
+  local config = fakeConfig()
+  ap:decorate(instance, config)
+  config.back()
+  check("Backspace steps out of a level before it leaves the panel",
+    ap:isOpen() and titlesOf(ap._panelRows) == "Apply,Rename,Delete,Provider")
+  ap:_choose(instance, ap._panelRows[4].item)
+  ap:_choose(instance, ap._panelRows[1].item)
+  check("a choice runs the verb with its value", runs[2] and runs[2].action == "pick" and runs[2].value == 1)
+end

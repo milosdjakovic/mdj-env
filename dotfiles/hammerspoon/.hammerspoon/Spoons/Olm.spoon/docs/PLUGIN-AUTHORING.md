@@ -253,6 +253,13 @@ mean, on Command and Return and Command and keypad Enter, the same shape as `pri
 `needs` and `repeats` allowed and no key and no `chord`, since the key is Olm's. Your surface adapter answers its action like any
 `extra` row's. A list declaring none keeps Command and Return choosing the row.
 
+What a row offers beyond Return belongs in the action panel rather than in a level of its own. A
+row of `surface.extra` with no key is a verb of the panel alone, and it may carry a `section`, an
+`applies` method answering whether it fits the highlighted row, and `choices` or `confirm`, which
+open a level of the panel, a list to pick from or a Cancel and confirm pair. A verb that must open
+a level of your own tool, a typed name for a rename, calls `stagePush` with the child. The contract
+has the fields, and Workspaces is the worked example.
+
 Three more exist and are used by exactly the plugins that needed them, `peekPreview`,
 `onScroll`, and `onRightClick`. `docs/PLUGIN-CONTRACT.md` has each.
 
