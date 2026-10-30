@@ -92,9 +92,8 @@ do
   )
 end
 
--- A kept hosted row's chord ends with the word in followed by the owner's description, read
--- through deps.owners and plan.effective, honest about a chord that will not fire until the
--- tool it names is reached directly.
+-- A kept hosted row that is not the primary shows no chord, since its chord belongs to the tool's
+-- own list and does nothing while the launcher hosts it, and it never carries the tool's name.
 do
   local hints = freshModule()
   local plan = demoPlan()
@@ -103,8 +102,8 @@ do
   local rows = hints.rowsFor("fileSearch", plan, deps, hosted)
   local kept = rows[2]
   check(
-    "a kept hosted row's chord ends with in followed by the owner's description",
-    kept.chord:sub(-#(" in File Search")) == " in File Search",
+    "a kept hosted verb row shows no chord",
+    kept.chord == "",
     "chord was " .. tostring(kept.chord)
   )
 end

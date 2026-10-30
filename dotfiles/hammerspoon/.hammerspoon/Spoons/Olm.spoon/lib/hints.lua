@@ -372,12 +372,14 @@ function obj.rowsFor(contextName, plan, deps, hosted)
       if icon == nil and (b.shared == "primary" or b.shared == "secondary") then
         icon, iconOwner = b.shared, deps and deps.panelOwner
       end
+      -- A hosted row shows a chord only where pressing it works. Return chooses the row in the
+      -- launcher as anywhere, so the primary keeps it. Every other chord belongs to the tool's own
+      -- list and does nothing while the launcher hosts it, so the row shows none rather than a
+      -- key that would mislead. It once kept the chord with the tool's name after it, Hyper R in
+      -- File Search, which Milos had dropped on 2026-10-30 as noise.
       local closes
       if hosted then
-        local owner = deps and deps.owners and deps.owners[contextName]
-        local owned = owner and plan.effective[owner]
-        local description = owned and owned.description
-        if chord ~= "" then chord = chord .. " in " .. (description or contextName) end
+        if b.shared ~= "primary" then chord = "" end
         closes = hosted[b.action].closes
       end
       rows[#rows + 1] = { action = b.action, title = obj.labelFor(b, contextName, deps and deps.liveLabels, labels),

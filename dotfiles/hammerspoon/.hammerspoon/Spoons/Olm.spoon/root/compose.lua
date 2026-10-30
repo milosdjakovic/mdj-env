@@ -2109,7 +2109,21 @@ function obj.run(olm, cfg)
     rowsFor = function(contextName, hosted) return hintsLib.rowsFor(contextName, plan, hintsDeps, hosted) end,
     -- value is a choice made in a level the verb opened, handed to the plugin's method,
     -- docs/PLAN-ACTION-PANEL.md, and nil for a verb run plainly.
-    run = function(action, _, value)
+    -- A hosted scope row runs the verb its own scope declared for the action first, since the
+    -- dispatch table routes by the list showing, which is the launcher, and the launcher answers
+    -- none of a hosted tool's verbs. A verb that closes hides the list before it runs, the same
+    -- order choosing a row keeps, so a paste lands in the app the launcher covered. Any other row
+    -- answers nil and falls through to the dispatch table.
+    run = function(action, item, value)
+      local queryScopeModule = modules[plan.identity.queryscope or "queryscope"]
+      if queryScopeModule and type(queryScopeModule.verbFor) == "function" then
+        local verb, closes = queryScopeModule:verbFor(item, action)
+        if verb then
+          if closes and stageModule then stageModule:hide() end
+          verb()
+          return
+        end
+      end
       local fn = dispatchTable and dispatchTable[action]
       if fn then fn(value) end
     end,

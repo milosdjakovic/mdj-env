@@ -307,9 +307,11 @@ about verbs, or about hosting, it only hands back the one piece of state it alre
 
 **rowsFor and toggle gain an optional second argument, hosted.** Passed straight through from
 toggle to _buildRows to the public rowsFor to deps.rowsFor, unexamined at every step, so the
-root's own rowsFor can filter a hosted context's verb rows to the ones a scope actually declared
-and qualify their chords with the tool's own name, without this module learning what either of
-those means. Absent or false answers exactly what toggle and rowsFor always answered, the
+root's own rowsFor can filter a hosted context's verb rows to the ones a scope actually declared,
+without this module learning what that means. Their chords once carried the tool's name after
+them, Return in Text Case, and Milos had that dropped on 2026-10-30 as noise. A hosted row now
+shows a chord only where pressing it works, Return on the primary, and none on any other verb,
+whose chord belongs to the tool's own list and does nothing while the launcher hosts it. Absent or false answers exactly what toggle and rowsFor always answered, the
 ordinary rows for a context genuinely showing its own picker. test/inventory.lua's own
 hostedrows section asks the public rowsFor for every context with hosted true and nothing open,
 the same reason contextName itself is an explicit argument rather than something this module
