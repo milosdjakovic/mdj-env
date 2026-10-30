@@ -238,9 +238,11 @@ check("show sends style, place, text, rows, state, then shows and starts",
 local rects = picker:scene().rects
 check("the panel sits on the canvas rect", lastPlace.canvas, rects.canvas)
 check("the list rect is the canvas's own", lastPlace.list.y, rects.list.y - rects.canvas.y)
--- One window holds the list's glass and the docked pane's, spanning both rects, with the gap clear.
+-- One window holds the list's glass and the docked pane's, spanning both rects. The engine gives
+-- a spanning view no gap since bb69fbc9, the list's margin already standing between a row and the
+-- divider, so the companion starts where the canvas ends.
 local gap = rects.companion.x - (rects.canvas.x + rects.canvas.w)
-check("there is a gap between the canvas and the companion", gap > 0, true)
+check("there is no gap between the canvas and the companion", gap, 0)
 check("the window starts at the canvas", lastPlace.window.x, rects.canvas.x)
 check("the window spans the companion", lastPlace.window.w, rects.canvas.w + gap + rects.companion.w)
 check("the list's glass is the canvas rect in the window", lastPlace.listFrame.x == 0
