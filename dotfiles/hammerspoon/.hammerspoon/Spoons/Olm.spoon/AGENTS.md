@@ -544,18 +544,18 @@ The default provider is the chooser engine, `lib/chooser/engine/init.lua`, compo
 canvas view, `lib/chooser/providers/default/canvas.lua`, joined at `lib/chooser/view.lua`, and
 `docs/CONTRACT-PICKER.md` says which half owns what. The engine takes the model through one per
 instance collaborator, `config.footer`, and `footer.lua` beside the view draws it through the kit, the caption role for its hint labels, as Milos
-chose, and the hint badge with its glyph in the section role, both 14 points, the divider
-along the bar's top edge and the background colour role behind the key panel. The bar's height is
+chose, and the hint badge with its glyph in the section role, both 14 points, and the divider
+along the bar's top edge. The bar's height is
 the hint badge with the small space step above and below it, and geometry gives it a footer rect
 under the list, subtracted from the rows a screen can hold. The engine asks the model on every
 show, after every highlight move and on a quarter second poll, the timer's handle kept, and owns
-the key panel's open state, and the canvas view owns the key button's hit test and the panel's rect. The key button is the
+the key panel's open state, and the canvas view owns the key button's hit test and the popovers' rects. The key button is the
 outline keyboard icon, Olm's own `keys` in the action panel's manifest drawn through the injected
 icon engine at the kit's `hint` icon size, the section line height, with the ? glyph only where no
 engine is injected. It stands alone at rest and sits on one highlight across the icon and its chord
 badge while the pointer is over it or its panel is open, the state a row takes under the pointer, and the view's `_onMouseMove` redraws only as the
 pointer crosses its edge. A press on the bar never hides
-the list, a press on (?) toggles the panel, and the panel's rect is on no row and takes no scroll.
+the list, a press on (?) toggles the panel, and a popover's rect is on no row and never scrolls the list.
 Every list key that acts closes it, through the dispatch table's `onAction`, which the root points at
 the stage's `closeKeys` for every action but `showKeys`, and so does every field key, a new query
 and a refresh from the top. Escape over an open panel closes the panel and leaves the list, and the
@@ -589,6 +589,33 @@ The primary row reads Return and the secondary row Command and Return, the keys 
 and the key panel spells the primary as Return alone. Every row carries an icon. A
 surface's `primary` and `secondary` may name one of the manifest's icons like an extra row, and one
 naming none takes Olm's own, `primary` and `secondary` in the action panel's manifest beside `back`.
+
+The canvas view draws the key panel and the action panel as popovers since 2026-10-30, the
+canvas clone of the swift chooser's `native/Popover.swift`, one drawing routine for both in
+`providers/default/popover.lua`, which answers elements and hit rects and opens no canvas. Each is
+filled with the background role and outlined in the border role at the border stroke, its corner
+the highlighted row's, the surface radius less the list margin, and a lit line's corner that less
+the outer padding. The words, the header and the chords are the body role, the label in
+foreground and the chord in subtext, a section heading the caption role, a line the bar's row, a
+picture the section line height, and the paddings follow swift's two ways, see the popover in
+`docs/DESIGN-UI-KIT.md`. The key panel stands above the keys anchor, its left edge on it, and the
+action panel above the actions anchor, its right edge on it, each the outer padding above, never
+above the list's top, where it scrolls, and never wider than the window less the outer padding.
+The anchors are the one seam to the bar, `View:_barAnchors` in `canvas.lua`, answering
+`{ keys = rect, actions = rect }` in the window's local coordinates. Today's bar is one row, so the
+keys anchor is the key button and the actions anchor a rect of no width at the right end of the
+row, and the bar as two groups hands its groups' rects there instead. The view answers
+`floatsActionPanel`, so the panel has no Back row and the engine's rows are the panel's while it is
+open. The list then goes on drawing the list state it held on the last draw before the panel
+opened, which a scroll over the list moves and nothing else, as the swift view keeps its rows.
+Keys need no routing of their own, since the canvas field hands every key to the engine, whose
+highlight and Return already act on the panel's rows. The pointer over a panel line calls
+`highlightIndex` and a release on one `chooseIndex`, the calls the swift view's hover and choose
+make, a press anywhere on a popover lands on no row, the rows behind a floating panel take no
+hover, press or right click, as swift's list guards them, and a scroll over a popover scrolls its
+own lines when they overflow and never the list. A press elsewhere closes neither, as in swift,
+Escape and the panel's own chord do. `test/canvaspopover.lua` pins the sizes, the placement and
+the pointer, in the dry tier.
 
 ## Secure focus, a list opened over a password field
 

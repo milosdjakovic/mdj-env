@@ -1,6 +1,6 @@
 # Olm canvas chooser, a layout clone of the swift chooser
 
-Status. In progress on the canvas-glass-layout branch. The canvas chooser shares swift's rects and spans its pane as one surface, and the floating bar groups and the popovers are still to come.
+Status. In progress. The canvas chooser shares swift's rects, spans its pane as one surface and draws the key panel and the action panel as popovers, and the floating bar groups are still to come.
 
 ## Now
 
@@ -16,10 +16,15 @@ A docked pane draws inside that surface through the provider's `paneBackend`, wh
 around the plain canvas backend whenever the native pane is not used. `Olm.spoon/AGENTS.md`, under
 the docked pane, has how it matches a pane to its chooser.
 
+Since 2026-10-30 the key panel and the action panel are popovers, `providers/default/popover.lua`,
+one drawing routine for both cloned from swift's `native/Popover.swift`, standing above an anchor
+rect for each group that `View:_barAnchors` in `canvas.lua` answers, and the view answers
+`floatsActionPanel`, so the panel has no Back row and the list keeps the rows it showed.
+`Olm.spoon/AGENTS.md`, at the end of the action bar section, has the sizes and the pointer.
+
 Still to do. The bar as two floating groups, keys on the left and actions on the right, with the
-list running on under them, then the key panel and the action panel as popovers above their
-groups, at which point the view answers `floatsActionPanel` too. Answering it before the popovers
-exist would leave the action panel nowhere to draw.
+list running on under them. That work hands its groups' rects to `_barAnchors` and nothing else of
+the popovers changes. `footer.lua`'s `keysPanel` is unused since the popovers and goes with it.
 
 ## Rejected
 
@@ -32,6 +37,15 @@ exist would leave the action panel nowhere to draw.
   the pane, and raising the pane above it would cover the bar's actions group, which floats over
   the pane's bottom edge. The pane's content is drawn inside the chooser's canvas instead, the way
   the swift library hosts its pane in the chooser's window.
+
+- **2026-10-30, a press anywhere else in the chooser closing an open popover.** Asked for in the
+  brief, but the swift chooser does not do it. Its popover claims presses on itself, its list
+  ignores presses while the action panel is open, and nothing closes either popover but Escape,
+  the key button and the panel's own chord, so the clone does the same.
+- **2026-10-30, routing the arrows and Return to the action panel in the view.** The swift view
+  only stops its native list from taking the arrows while the panel is open, so they reach the
+  engine, whose rows are the panel's. The canvas field already hands every key to the engine, so
+  there is nothing to route.
 
 ## Log
 
@@ -46,3 +60,13 @@ The canvas view answers `spansFooter` and `footerHeight`, spans its pane as one 
 divider, and hosts the pane's content. Commit bb69fbc9 on main had given every spanning view a
 zero gap the same evening, so the canvas view took it with no change of its own. The dry suite
 passes, with new cases in `test/panebackends.lua` for the hosting backend. Not yet seen live.
+
+### 2026-10-30 20:06
+
+The key panel and the action panel are popovers in the canvas chooser, `popover.lua` beside the
+view and `View:_barAnchors` as the seam the bar work feeds, and the view answers
+`floatsActionPanel`. The old key panel over the bottom rows is no longer drawn. A popover's
+heading is the caption role, as swift's popover draws it, and its corner is the highlighted row's,
+the radius swift hands its popover. `test/swiftview.lua` still asserted the gap beside the pane
+that commit bb69fbc9 took away, so the dry suite failed on main and here, and the case now pins a
+zero gap. The dry suite passes with `test/canvaspopover.lua` added to it. Not yet seen live.

@@ -273,11 +273,12 @@ the derived geometry instead.
 The default chooser's footer row, `docs/PLAN-ACTION-BAR.md`, drawn by
 `lib/chooser/providers/default/footer.lua` through the kit and nothing else. Every word is the
 caption role, a hint label as Milos chose, every key the hint badge with its glyph in the section role, the line
-along its top edge and along the key panel's is the kit's divider, and the key panel sits on the
-background colour role. The bar's height is its row, the taller of the hint badge and the caption
-line, with the small space step above and below it, 23 plus twice 6 at the shipped sizes, so a size set in `config/typography.toml` reflows it, and the key panel is as tall as its
-two column grid of keys with `pad` around it, never taller than the list. It replaced the docked
-hint bar, a flow of the same badges under the list in a panel of its own, on 2026 10 23.
+along its top edge is the kit's divider. The bar's height is its row, the taller of the hint badge and the caption
+line, with the small space step above and below it, 23 plus twice 6 at the shipped sizes, so a size set in `config/typography.toml` reflows it. It replaced the docked
+hint bar, a flow of the same badges under the list in a panel of its own, on 2026 10 23. Its key
+panel and its action panel are popovers since 2026 10 30, the canvas clone of the swift chooser's
+described below, `lib/chooser/providers/default/popover.lua`, filled with the background role and
+outlined in the border role at the border stroke rather than glass, with no shadow.
 
 The swift chooser draws its own bar, `providers/swift/native/Bar.swift`, and it is not a row. It
 is two groups floating on the glass, the key group in the bottom left corner and the action group

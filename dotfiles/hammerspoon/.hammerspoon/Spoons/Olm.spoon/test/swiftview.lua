@@ -240,7 +240,8 @@ check("the panel sits on the canvas rect", lastPlace.canvas, rects.canvas)
 check("the list rect is the canvas's own", lastPlace.list.y, rects.list.y - rects.canvas.y)
 -- One window holds the list's glass and the docked pane's, spanning both rects, with the gap clear.
 local gap = rects.companion.x - (rects.canvas.x + rects.canvas.w)
-check("there is a gap between the canvas and the companion", gap > 0, true)
+-- The engine gives a view that spans the bar no gap, see spansFooter in lib/chooser/engine/init.lua.
+check("there is no gap between the canvas and the companion", gap, 0)
 check("the window starts at the canvas", lastPlace.window.x, rects.canvas.x)
 check("the window spans the companion", lastPlace.window.w, rects.canvas.w + gap + rects.companion.w)
 check("the list's glass is the canvas rect in the window", lastPlace.listFrame.x == 0

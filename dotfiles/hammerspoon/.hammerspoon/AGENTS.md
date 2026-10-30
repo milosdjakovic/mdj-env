@@ -1307,8 +1307,9 @@ also carries. A new chooser that highlights its active row reuses the green
 circle rather than inventing its own glyph, so the marker stays one thing across
 every list.
 
-**Back is the first row in a chooser menu.** The action panel under the swift chooser is the one
-exception, since it is a popover left by Escape over a list that never went away, see
+**Back is the first row in a chooser menu.** The action panel under the swift chooser and the
+canvas chooser is the one exception, since it is a popover left by Escape over a list that never
+went away, see
 `Spoons/Olm.spoon/host/actionpanel/AGENTS.md`. For a menu style chooser with levels,
 like DisplayProfiles, the Back row is always the first row, not the last, so
 stepping out is the predictable default and the fresh highlight lands on it, and it
