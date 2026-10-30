@@ -4,8 +4,8 @@ Status. The action panel is programmable. A plugin's `surface.extra` row may car
 an `applies` method, `choices` or `confirm`, and may leave out its key to be a verb of the panel
 alone. Workspaces and Display Profiles apply on Return and offer the rest in the panel, and the
 clipboard, Text Case, Emoji and File Search have a secondary. Phase 3a moved VPN, Tmux Sessions,
-Speedtest, Caffeinate and File Search onto the contract. Phase 3b and phase four of
-`docs/PLAN-ACTION-PANEL.md` are open.
+Speedtest, Caffeinate and File Search onto the contract. Phase 3b and phase four were dropped, so
+the track is finished.
 
 ## Now
 
@@ -38,6 +38,23 @@ This track moves what plugins already do into the panel. New actions follow as s
   function for all verbs drifts from the verbs it names. `applies` sits on the verb it gates.
 - **Escape stepping back out of a level.** 2026-10-29. Escape closes, as everywhere else in Olm,
   and Backspace on an empty field steps back, as it does out of every pushed level.
+
+- **`stays`, a choices level that stays open as the mark moves, phase 3b.** 2026-10-30, decided by
+  Milos. Its two targets did not fit. Olm Plugins' toggles are its top level, the list itself, so
+  there is nothing to move into a panel. Browser Tabs' Browsers level reads each browser's
+  Automation permission in the background when it opens and adds rows under a browser to ask for
+  it or to open System Settings, so a level of the panel would need to redraw when an answer lands
+  and to hold rows of a different kind, which is a page and not a pick. It stays a page. What would
+  bring this back is a list whose setting is a set of toggles and nothing else.
+- **Verbs one plugin offers every other list's panel, phase four.** 2026-10-30, built, checked live
+  and dropped whole by Milos. It was `provides.panelVerbs`, rows the root added to every panel and
+  ran on the plugin offering them, used for Theme, Placement, Switch off plugin over a launcher
+  row, and Show keys. On the Placement list the panel offered Theme, on Theme it offered
+  Placement, and on every list all of them, none an action of the list in front of the person.
+  The panel holds the actions of the plugin whose list it opens over, Return, Command and Return
+  and its own verbs, and nothing another plugin puts there. Theme and Placement stay on their own
+  launcher rows, switching a plugin stays on the Olm Plugins page, and the key panel stays on its
+  own key and in the action bar.
 
 ## Log
 
@@ -83,3 +100,12 @@ apply, against its own comment. Hosted, Reveal, Copy path and Quick Look would h
 root now asks the context's owner and says whether the method exists. Wi-Fi's join was on the plan
 and is its Return already, with nothing beyond it to move.
 Milos checked all five live and approved them.
+
+### 2026-10-30 12:00
+
+Phase 3b was dropped by Milos, since neither of its lists fit. Phase four was built as verbs one
+plugin offers every list, Theme, Placement, Switch off plugin and Show keys under an Olm section,
+and loaded live. Milos found Theme and Placement offered on each other's lists and on every list,
+which is navigation rather than an action, and then that the idea itself was not his. The panel
+is the actions of the plugin the list belongs to, the way phases one to 3a built it. The whole of
+phase four was reverted before any of it was committed, and the track ends with phase three.

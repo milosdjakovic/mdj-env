@@ -119,7 +119,9 @@ that row. Return does the thing the row is for, and the rest are verbs of `surfa
 when they are for the panel alone, with `applies` when they fit only some rows, `confirm` for
 anything destructive and `choices` for a pick of one of a few. A setting of the tool is a verb
 with choices rather than a settings row leading to a page, and a choice this machine cannot take
-is answered disabled rather than hidden. A verb that needs typed input, a
+is answered disabled rather than hidden. The panel holds only the actions of the plugin whose
+list it opens over. No plugin adds a verb to another plugin's panel, and a setting of Olm is
+never a verb there, stated by Milos on 2026-10-30. A verb that needs typed input, a
 rename, opens its own level through `stagePush`. `docs/PLAN-ACTION-PANEL.md` and the contract's
 surface section have it, and Workspaces is the settled example.
 

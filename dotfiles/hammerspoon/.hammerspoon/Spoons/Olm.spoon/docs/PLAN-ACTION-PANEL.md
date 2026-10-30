@@ -64,11 +64,14 @@ choices is handed nothing, as before.
      may be disabled, the secondary may carry `applies`, and the root asks the plugin owning the
      context rather than the list showing, so a hosted list's verbs are answered by their tool.
    - 3b, `stays`, a choices level that stays open with the mark moving as a choice is made, for
-     Browser Tabs' browsers level and Olm Plugins' toggles.
+     Browser Tabs' browsers level and Olm Plugins' toggles. Dropped on 2026-10-30 by Milos, see
+     the Rejected section of `decisions/olm-action-panel.md`.
    - Not moved, as proposed. Processes' confirm guards Return itself, which a confirm in the
      panel cannot replace, and the clipboard's manage history takes a typed duration that fixed
      choices cannot express. Wi-Fi's join is its Return and every row offers nothing beyond it, so
      there was nothing to move. Forget network is a new action and follows with the others.
 4. Olm's own actions on any row. On a plugin's row in the launcher, Enable or Disable through the
    staged switch in `lib/pluginswitch.lua`, and Show keys. Theme and Placement as submenus from
-   any list.
+   any list. Built on 2026-10-30, checked live and dropped whole by Milos the same day, since the
+   panel holds the actions of the list it opens over and nothing another plugin adds to it. See
+   the Rejected section of `decisions/olm-action-panel.md`. The track ends with phase three.
