@@ -218,7 +218,8 @@ default provider until its library is built, see the Olm `AGENTS.md` section on 
 
 Three modules the engine reads still sit beside the canvas view, and the engine loads them from
 there in one place it names as the seam. `geometry.lua` and `list/model.lua` are pure.
-`footer.lua` is the view's drawing of the action bar, and the engine reads only its height.
+`footer.lua` holds the bar's height and the key panel's drawing, and the engine reads only the
+height. The canvas view draws the bar's two groups through `bar.lua` beside it.
 
 ## The config table
 

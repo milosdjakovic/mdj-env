@@ -10,8 +10,8 @@
 --- the provider on 2026-10-28 with no change in behaviour, see decisions/olm-swift-chooser.md.
 ---
 --- Everything this file stands on already exists. surface.lua owns the window, mouse.lua owns the
---- mouse tap, field is a complete text field, list/render.lua draws rows, footer.lua draws the
---- action bar, and the UI kit's tokens give every colour.
+--- mouse tap, field is a complete text field, list/render.lua draws rows, bar.lua draws the bar's
+--- two floating groups, footer.lua the key panel, and the UI kit's tokens give every colour.
 ---
 --- Rows here carry a title turned into an hs.styledtext value before list render ever sees them,
 --- through presentRows, baking in the enabled aware colour, the font, the size and the
@@ -57,13 +57,14 @@ local fieldRender = load("field/render.lua")
 local listModel = load("list/model.lua")
 local listRender = load("list/render.lua")
 local footerLib = load("footer.lua")
+local barLib = load("bar.lua")
 
 --------------------------------------------------------------------------------
 -- Module level collaborators and constants
 --------------------------------------------------------------------------------
 
 -- The injected UI kit, lib/ui, nil until Canvas.configure runs, read for the nested radius and
--- handed to footer.lua, which draws through it.
+-- handed to bar.lua and footer.lua, which draw through it.
 local UI = nil
 
 -- The injected CanvasPanel module, nil until Canvas.configure runs. Every view this file builds
@@ -154,6 +155,31 @@ end
 
 local function sameRect(a, b)
   return a ~= nil and b ~= nil and a.x == b.x and a.y == b.y and a.w == b.w and a.h == b.h
+end
+
+-- How far the bar reaches below the list rect, the height the list runs on by behind it, from
+-- the bottom of the list rect to the bottom of the footer rect, swift's underBar. Zero with no bar.
+local function underBar(list, footer)
+  if not (list and footer) then return 0 end
+  return math.max(0, (footer.y + footer.h) - (list.y + list.h))
+end
+
+-- The list's state as it is drawn, the engine's own with its viewport grown by under points, so
+-- the rows past the viewport are drawn on down behind the bar. Only padEnd moves, which list
+-- model reads for the rows it answers as visible and never for the scroll's bound, so the
+-- furthest scroll, the highlight and every row's place stay the engine's.
+local function drawnList(list, under)
+  if under <= 0 or not list then return list end
+  local copy = {}
+  for k, v in pairs(list) do copy[k] = v end
+  copy.padEnd = (list.padEnd or 0) + under
+  return copy
+end
+
+-- A rect moved from a canvas's own space into screen points, the inverse of toLocal.
+local function toScreen(rect, origin)
+  if not rect then return nil end
+  return { x = rect.x + origin.x, y = rect.y + origin.y, w = rect.w, h = rect.h }
 end
 
 -- One element of a hosted pane moved from the pane's own space into the window's, a copy with its
@@ -328,18 +354,23 @@ function View:redraw()
       els[#els + 1] = el
     end
   end
-  -- The band is cut at the inside of the border, so a row scrolled past the bottom stops at
-  -- the edge of the surface and never draws over the border line.
-  local clip = listRect
+  -- The bar floats, so the list runs on behind it to the bottom of the footer rect, swift's
+  -- underBar, its rows drawn from a copy of the engine's state with the viewport grown by that
+  -- much. The band is cut at the inside of the border, so a row scrolled past the bottom stops
+  -- at the edge of the surface and never draws over the border line.
+  local under = underBar(listRect, toLocal(s.rects.footer, origin))
+  local clip = { x = listRect.x, y = listRect.y, w = listRect.w, h = listRect.h + under }
   local interior = self.surface:interior()
   if interior then
-    local bottom = math.min(listRect.y + listRect.h, interior.y + interior.h)
+    local bottom = math.min(listRect.y + listRect.h + under, interior.y + interior.h)
     clip = { x = listRect.x, y = listRect.y, w = listRect.w, h = math.max(0, bottom - listRect.y) }
     -- The interior's rounded outline as a second clip, so a row cut by the bottom edge is cut
     -- along the surface's curve at the corners rather than poking past it.
     if (interior.radius or 0) > 0 then clip.round = interior end
   end
-  for _, el in ipairs(listRender.elements(s.list, listRect, s.drawLayout, self._listStyle, clip, s.rankedQuery)) do
+  local listEls = listRender.elements(drawnList(s.list, under), listRect, s.drawLayout,
+    self._listStyle, clip, s.rankedQuery)
+  for _, el in ipairs(listEls) do
     els[#els + 1] = el
   end
   self:_paneElements(s, els, origin)
@@ -349,8 +380,9 @@ end
 
 -- Appends the hairline between the list and the docked pane and the hosted pane's content to els,
 -- in the window's own space, while the surface spans a companion. The hairline is the border role
--- at the border stroke, centred in the gap from the top down to the bar, and the content is cut
--- at the pane's own rect, so nothing it draws reaches the list or past the surface.
+-- at the border stroke, centred in the gap from the top of the window to its bottom, since the
+-- bar floats over it as it does in swift, and the content is cut at the pane's own rect, so
+-- nothing it draws reaches the list or past the surface.
 function View:_paneElements(s, els, origin)
   local companion = self._companion
   if not companion then return end
@@ -361,10 +393,8 @@ function View:_paneElements(s, els, origin)
   if pane.x >= canvas.x + canvas.w then left, right = canvas.x + canvas.w, pane.x
   else left, right = pane.x + pane.w, canvas.x end
   local width = T.stroke.border
-  local footer = toLocal(s.rects.footer, origin)
-  local bottom = footer and footer.y or (self._window.h)
   els[#els + 1] = { type = "rectangle", action = "fill", fillColor = T.colors.border,
-    frame = { x = (left + right - width) / 2, y = 0, w = width, h = bottom } }
+    frame = { x = (left + right - width) / 2, y = 0, w = width, h = self._window.h } }
   local content = self._paneContent
   if not content then return end
   local clip = { type = "rectangle", action = "clip",
@@ -381,35 +411,44 @@ function View:_paneElements(s, els, origin)
   els[#els + 1] = { type = "resetClip" }
 end
 
--- Appends the action bar, and the key panel above it when open, to els, in the canvas's own
--- coordinates. Both keep inside the surface's border, the interior's left and right edges, and
--- the bar's entries line up with the rows above, the list margin from the canvas's edge. The key
--- button's rect and the panel's are kept in screen points, the space the mouse handlers test in.
+-- Appends the key panel when open and the bar's two groups to els, in the canvas's own
+-- coordinates. The key panel keeps inside the surface's border, the interior's left and right
+-- edges, rising from the top of the footer rect. The groups float on the footer rect as swift's
+-- do, see bar.lua, and are drawn last so they stand over the rows running on behind them. The
+-- groups' rects, each action entry's and the panel's are kept in screen points, the space the
+-- mouse handlers test in.
 function View:_footerElements(s, els, origin, interior, listRect)
-  self._keysHit, self._keysPanelRect = nil, nil
+  self._keysHit, self._keysPanelRect, self._barHits = nil, nil, nil
   local footerRect = toLocal(s.rects.footer, origin)
   if not footerRect or not s.footer then return end
-  local band = footerRect
-  if interior then
-    band = { x = interior.x, y = footerRect.y, w = interior.w, h = footerRect.h }
-  end
-  local inset = math.max(0, s.layout.marginX - (band.x - footerRect.x))
   if s.keysOpen then
+    local band = footerRect
+    if interior then
+      band = { x = interior.x, y = footerRect.y, w = interior.w, h = footerRect.h }
+    end
     local panelEls, panelRect = footerLib.keysPanel(UI, s.tokens, s.footer, band,
       math.max(0, band.y - listRect.y))
     for _, el in ipairs(panelEls) do els[#els + 1] = el end
-    self._keysPanelRect = { x = panelRect.x + origin.x, y = panelRect.y + origin.y, w = panelRect.w, h = panelRect.h }
+    self._keysPanelRect = toScreen(panelRect, origin)
   end
-  -- The key button's icon through the injected icon engine, read at paint like a row's, so it
-  -- follows the light and dark halves. Without an engine the button keeps the ? glyph.
+  -- The keyboard icon through the injected icon engine, read at paint like a row's, so it
+  -- follows the light and dark halves. Without an engine the keys group keeps the ? glyph.
   local keysIcon = s.footer.keysIcon
   local keysImage = keysIcon and ICON and ICON(keysIcon.icon, keysIcon.owner) or nil
-  local barEls, keysRect = footerLib.bar(UI, s.tokens, s.footer, band, inset,
-    self._keysHover or s.keysOpen, keysImage)
+  local hover = self._barHover
+  local barEls, hits = barLib.elements(UI, s.tokens, s.footer, footerRect, {
+    radius = self._listStyle and self._listStyle.highlightRadius,
+    keysImage = keysImage,
+    keysLit = hover == "keys" or s.keysOpen,
+    hover = type(hover) == "number" and hover or nil,
+  })
   for _, el in ipairs(barEls) do els[#els + 1] = el end
-  if keysRect then
-    self._keysHit = { x = keysRect.x + origin.x, y = keysRect.y + origin.y, w = keysRect.w, h = keysRect.h }
+  local entries = {}
+  for i, entry in ipairs(hits.entries) do
+    entries[i] = { rect = toScreen(entry.rect, origin), action = entry.action }
   end
+  self._keysHit = toScreen(hits.keys, origin)
+  self._barHits = { keys = self._keysHit, actions = toScreen(hits.actions, origin), entries = entries }
 end
 
 --- View colon show, arity zero. Reveals the surface.
@@ -441,9 +480,9 @@ end
 --- View colon hide, arity zero. Forgets the pointer's press and hover and the hit rects of the
 --- last draw, then hides the surface.
 function View:hide()
-  self._pressedRowIndex = nil
-  self._keysHover = false
-  self._keysHit, self._keysPanelRect = nil, nil
+  self._pressedRowIndex, self._pressedEntry = nil, nil
+  self._barHover = nil
+  self._keysHit, self._keysPanelRect, self._barHits = nil, nil, nil
   self._paneContent = nil
   self.surface:hide()
 end
@@ -525,15 +564,41 @@ end
 -- Mouse
 --------------------------------------------------------------------------------
 
--- The filtered index a screen point falls on, or nil when the point sits outside the list rect
--- entirely, answered by list model's own rowAtPoint from the point and the scroll.
+-- Whether a screen point is on one of the bar's two groups, which take the pointer, where the
+-- rest of the bar lets it through to the rows behind.
+function View:_onBarGroup(point)
+  local hits = self._barHits
+  return hits ~= nil and (pointInRect(point, hits.keys) or pointInRect(point, hits.actions))
+end
+
+-- The action entry a screen point is on, its index and the action it names, or nil.
+function View:_entryAt(point)
+  local hits = self._barHits
+  for i, entry in ipairs((hits and hits.entries) or {}) do
+    if pointInRect(point, entry.rect) then return i, entry.action end
+  end
+  return nil
+end
+
+-- The rows a hand reaches, the list rect run on down behind the bar, the same span the rows are
+-- drawn in, in screen points.
+function View:_rowsRect(s)
+  local list = s.rects and s.rects.list
+  if not list then return nil end
+  return { x = list.x, y = list.y, w = list.w, h = list.h + underBar(list, s.rects.footer) }
+end
+
+-- The filtered index a screen point falls on, or nil when the point sits outside the rows
+-- entirely or on a group of the bar, answered by list model's own rowAtPoint from the point and
+-- the scroll. Between the groups the point reaches the row the list shows behind the bar.
 function View:_rowIndexAtPoint(point)
   local s = self.engine:scene()
-  local listRect = s.rects and s.rects.list
-  if not pointInRect(point, listRect) then return nil end
+  local rows = self:_rowsRect(s)
+  if not pointInRect(point, rows) then return nil end
+  if self:_onBarGroup(point) then return nil end
   -- The key panel covers the bottom rows while it is up, so a point on it is on no row.
   if pointInRect(point, self._keysPanelRect) then return nil end
-  return listModel.rowAtPoint(s.list, point.y - listRect.y)
+  return listModel.rowAtPoint(s.list, point.y - rows.y)
 end
 
 -- A left or a right press. Outside this surface and outside its companion, if any, a LEFT press
@@ -554,11 +619,20 @@ function View:_onMouseDown(point, button)
     if button == "left" then self.engine:hide() end
     return false
   end
-  -- A press on the key button toggles the key panel, wherever the spanning bar put it. Any other
-  -- press on the action bar or on the panel lands on no row, so it is claimed and chooses nothing.
-  if button == "left" and pointInRect(point, self._keysHit) then
+  -- A press on the keys group toggles the key panel, wherever the spanning bar put it. A press
+  -- on an action entry is kept for its release, which runs the entry's action, the way a press
+  -- on a row is kept for the release that chooses it. Any other press on a group lands on no
+  -- row, so it is claimed and chooses nothing.
+  self._pressedEntry = nil
+  if self:_onBarGroup(point) then
     self._pressedRowIndex = nil
-    self.engine:toggleKeys()
+    if button == "left" then
+      if pointInRect(point, self._keysHit) then
+        self.engine:toggleKeys()
+      else
+        self._pressedEntry = self:_entryAt(point)
+      end
+    end
     return true
   end
   if insideCompanion and not pointInRect(point, rects and rects.footer) then
@@ -574,8 +648,10 @@ end
 
 -- The release chooses the row the matching press landed on, only when the release lands on that
 -- same row, ordinary click behaviour and also what legacy.lua's own click watcher measured the
--- real widget doing. A right release inside this surface is claimed too, purely so the down and
--- the up of the identical press agree about whether this surface owns it.
+-- real widget doing, and runs the action entry the press landed on by the same rule, through the
+-- engine's footerAction, which swift's bar reaches on its own release. A right release inside
+-- this surface is claimed too, purely so the down and the up of the identical press agree about
+-- whether this surface owns it.
 function View:_onMouseUp(point, button)
   local rects = self.engine:scene().rects
   local window = self._window or (rects and rects.canvas)
@@ -583,9 +659,17 @@ function View:_onMouseUp(point, button)
     return pointInRect(point, window)
   end
   if button ~= "left" then return false end
+  local pressedEntry = self._pressedEntry
+  self._pressedEntry = nil
   if not pointInRect(point, window) then
     self._pressedRowIndex = nil
     return false
+  end
+  if pressedEntry then
+    self._pressedRowIndex = nil
+    local entry, action = self:_entryAt(point)
+    if entry == pressedEntry and action then self.engine:footerAction(action) end
+    return true
   end
   local index = self:_rowIndexAtPoint(point)
   local pressed = self._pressedRowIndex
@@ -600,11 +684,12 @@ end
 -- claimed, mouse.lua's own contract has onMove answer true to claim, and a plain hover claims
 -- nothing.
 function View:_onMouseMove(point)
-  -- The key button lights under the pointer the way a row does, redrawn only as the pointer
-  -- enters or leaves its rect, so a move anywhere else costs a comparison.
-  local overKeys = pointInRect(point, self._keysHit)
-  if overKeys ~= (self._keysHover == true) then
-    self._keysHover = overKeys
+  -- The keys group and each action entry light under the pointer the way a row does, redrawn
+  -- only as the pointer moves from one to another, so a move anywhere else costs a comparison.
+  local over = nil
+  if pointInRect(point, self._keysHit) then over = "keys" else over = self:_entryAt(point) end
+  if over ~= self._barHover then
+    self._barHover = over
     self:redraw()
   end
   local index = self:_rowIndexAtPoint(point)
@@ -613,13 +698,16 @@ end
 
 -- A scroll over the list moves the viewport, never the highlight, a trackpad's continuous delta
 -- followed directly and a wheel's coarse notch eased toward over a few ticks, both settled by
--- hand in round five. A scroll over the companion rect goes to the engine for config.onScroll.
+-- hand in round five. Between the bar's groups it reaches the rows behind them, as in swift. A
+-- scroll over the companion rect goes to the engine for config.onScroll.
 function View:_onMouseScroll(point, dy, continuous)
-  local rects = self.engine:scene().rects
-  -- The open key panel covers the bottom rows, so a scroll over it is claimed and moves nothing,
-  -- rather than scrolling a list the person cannot see under it.
-  if pointInRect(point, self._keysPanelRect) then return true end
-  if pointInRect(point, rects and rects.list) then
+  local s = self.engine:scene()
+  local rects = s.rects
+  -- The open key panel covers the bottom rows and a group covers the rows behind it, so a scroll
+  -- over either is claimed and moves nothing, rather than scrolling a list the person cannot see
+  -- under it.
+  if pointInRect(point, self._keysPanelRect) or self:_onBarGroup(point) then return true end
+  if pointInRect(point, self:_rowsRect(s)) then
     self:_stopScrollEase()
     if continuous then
       self.engine:scrollBy(-dy)

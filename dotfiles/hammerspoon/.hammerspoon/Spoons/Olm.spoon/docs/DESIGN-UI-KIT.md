@@ -270,14 +270,21 @@ the derived geometry instead.
 
 ## The action bar
 
-The default chooser's footer row, `docs/PLAN-ACTION-BAR.md`, drawn by
-`lib/chooser/providers/default/footer.lua` through the kit and nothing else. Every word is the
-caption role, a hint label as Milos chose, every key the hint badge with its glyph in the section role, the line
-along its top edge and along the key panel's is the kit's divider, and the key panel sits on the
-background colour role. The bar's height is its row, the taller of the hint badge and the caption
-line, with the small space step above and below it, 23 plus twice 6 at the shipped sizes, so a size set in `config/typography.toml` reflows it, and the key panel is as tall as its
-two column grid of keys with `pad` around it, never taller than the list. It replaced the docked
-hint bar, a flow of the same badges under the list in a panel of its own, on 2026 10 23.
+The default chooser's bar, `docs/PLAN-ACTION-BAR.md`, drawn by
+`lib/chooser/providers/default/bar.lua` through the kit and nothing else since 2026-10-30, when it
+took the swift chooser's layout, described in the next paragraph, with solid theme colours where
+swift has glass. Each group is filled with the background colour role and outlined in the border
+role at `stroke.border`, with no shadow, and lights with the highlight role where swift tints its
+glass, and the keys group and each action entry also light under the pointer. Every measurement is
+the token swift's view hands Swift, so both choosers put the groups in the same place at the same
+size. `footer.lua` keeps the bar's height, the taller of the hint badge and the caption line with
+the small space step above and below it, 23 plus twice 6 at the shipped sizes, so a size set in
+`config/typography.toml` reflows it, and the key panel, every key the hint badge with its glyph in
+the section role beside a caption label, on the background colour role with the kit's divider
+along its top, as tall as its two column grid of keys with `pad` around it, never taller than the
+list. Until 2026-10-30 the canvas bar was a single row of caption labels and hint badges with a
+divider along its top. It replaced the docked hint bar, a flow of the same badges under the list in
+a panel of its own, on 2026 10 23.
 
 The swift chooser draws its own bar, `providers/swift/native/Bar.swift`, and it is not a row. It
 is two groups floating on the glass, the key group in the bottom left corner and the action group

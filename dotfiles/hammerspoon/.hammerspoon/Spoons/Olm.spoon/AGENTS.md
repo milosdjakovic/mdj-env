@@ -520,10 +520,10 @@ launcher's. Its rows are `lib/hints.lua`'s `keyEntries`, words only, built on th
 kept for the load, a row listed exactly when `lib/binder.lua`'s `bindable` says it is bound. A key
 row answers stay and does nothing. `test/keypage.lua` pins it.
 
-## The action bar, one footer row inside the default chooser
+## The action bar, two floating groups at the bottom of the default chooser
 
-Every list on the stage carries one footer row at the bottom of the default chooser's own canvas,
-always visible, `docs/PLAN-ACTION-BAR.md`. It replaced the docked shortcut hint pane on 2026-10-23,
+Every list on the stage carries the bar at the bottom of the default chooser's own canvas,
+always visible, one footer row until 2026-10-30 and two floating groups since, `docs/PLAN-ACTION-BAR.md`. It replaced the docked shortcut hint pane on 2026-10-23,
 a separate `CanvasPanel` under the list that appeared after an 800 ms pause, and nothing of that
 pane is left, no `shortcutsPanel` policy, no per plugin panel triple and no `shortcutPanelFor`.
 `decisions/olm-chooser-keys.md` has the decision and what was turned down.
@@ -543,19 +543,36 @@ the binding's description, then Open for the primary and the action spelled as w
 The default provider is the chooser engine, `lib/chooser/engine/init.lua`, composed with the
 canvas view, `lib/chooser/providers/default/canvas.lua`, joined at `lib/chooser/view.lua`, and
 `docs/CONTRACT-PICKER.md` says which half owns what. The engine takes the model through one per
-instance collaborator, `config.footer`, and `footer.lua` beside the view draws it through the kit, the caption role for its hint labels, as Milos
-chose, and the hint badge with its glyph in the section role, both 14 points, the divider
-along the bar's top edge and the background colour role behind the key panel. The bar's height is
-the hint badge with the small space step above and below it, and geometry gives it a footer rect
-under the list, subtracted from the rows a screen can hold. The engine asks the model on every
+instance collaborator, `config.footer`. Since 2026-10-30 the canvas view draws the bar as swift
+does, two floating groups rather than a row, through `bar.lua` beside the view, while `footer.lua`
+keeps the bar's height, which the engine and both views read, and the key panel's drawing. The
+keys group stands in the bottom left corner and the actions group in the bottom right, each the
+kit's `pad` in from its side at the top of the footer rect, as tall as `footer.lua`'s height with
+`pad` below it, the kit's `inner` padding inside it on the left and the right, a label and its
+chord the small space step apart and two entries the large one, the same tokens swift's view hands
+Swift as `barPad`, `barPillPad`, `barGap`, `barGapWide` and `barPillH`. Each group is filled with
+the background colour role and outlined in the border role at `stroke.border`, its corner the
+highlighted row's, `nestedRadius` of the surface radius and the list margin, with no shadow. Every
+word and chord is the body role, as in swift, and the keys group holds the outline keyboard icon,
+Olm's own `keys` in the action panel's manifest, drawn through the injected icon engine at the
+kit's `hint` icon size, the section line height, with the ? glyph only where no engine is
+injected, then the showKeys chord. The geometry gives the footer rect under the list, subtracted
+from the rows a screen can hold, and the list runs on behind the bar to the window's bottom edge,
+drawn from a copy of the engine's list state whose `padEnd` is grown by the bar's height, so the
+engine's scroll, its furthest scroll, the highlight and the numbered rows are untouched and only
+the rows past the viewport show between and behind the groups. The divider beside a docked pane
+runs the full height under the bar. The engine asks the model on every
 show, after every highlight move and on a quarter second poll, the timer's handle kept, and owns
-the key panel's open state, and the canvas view owns the key button's hit test and the panel's rect. The key button is the
-outline keyboard icon, Olm's own `keys` in the action panel's manifest drawn through the injected
-icon engine at the kit's `hint` icon size, the section line height, with the ? glyph only where no
-engine is injected. It stands alone at rest and sits on one highlight across the icon and its chord
-badge while the pointer is over it or its panel is open, the state a row takes under the pointer, and the view's `_onMouseMove` redraws only as the
-pointer crosses its edge. A press on the bar never hides
-the list, a press on (?) toggles the panel, and the panel's rect is on no row and takes no scroll.
+the key panel's open state, and the canvas view owns the groups' hit tests and the panel's rect.
+The keys group and each action entry sit on the highlight while the pointer is over them, the
+keys group also while its panel is open and the actions group while the action panel is, and the
+view's `_onMouseMove` redraws only as the pointer moves from one to another. A press on the keys
+group toggles the key panel, and a press and release on one action entry runs its action through
+the engine's `footerAction`, as swift's bar does, each entry reaching from half the large gap
+before its label to half after its chord. A press or a scroll between the groups reaches the row
+behind them, and one on a group reaches no row. A press on the bar never hides the list. The key
+panel still rises from the top of the footer rect across the surface's interior, until it becomes
+a popover above the keys group, and its rect is on no row and takes no scroll.
 Every list key that acts closes it, through the dispatch table's `onAction`, which the root points at
 the stage's `closeKeys` for every action but `showKeys`, and so does every field key, a new query
 and a refresh from the top. Escape over an open panel closes the panel and leaves the list, and the
@@ -579,9 +596,9 @@ chooses the panel row. A shared binding's kind is weak in `actionKinds`, filling
 other binding classified, so a secondary named like another list's verb never hides that verb.
 `showKeys` is Command and ?, slash with Command and Shift, and Command and slash beside it, two
 field keys on no leader like the secondary's, in every list, listed once and spelled ⌘? because the
-shared glyph speller folds Shift and slash into a question mark. The bar draws that chord as a badge
-beside the (?) glyph, `footerModel`'s `keysChord`, which follows a person's move and is absent when
-both keys are freed, and the glyph and the badge light and hit as one button. It is not a Hyper key since macOS takes Hyper and slash before any event tap, and it
+shared glyph speller folds Shift and slash into a question mark. The keys group draws that chord
+beside the keyboard icon, `footerModel`'s `keysChord`, which follows a person's move and is absent
+when both keys are freed, and the icon and the chord light and hit as one group. It is not a Hyper key since macOS takes Hyper and slash before any event tap, and it
 reaches a list only where the Show Help menu shortcut is off, which `src/setup-macos-shortcuts.sh`
 sees to. Both move and free in the `lists` section like
 every shared verb. The action panel lists Back, the primary, the secondary and then the verbs.

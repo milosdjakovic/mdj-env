@@ -56,6 +56,7 @@ if [ "$tiers" = "dry" ]; then
   "$OLM_LUA" "$here/securenotice.lua" || exit 1
   "$OLM_LUA" "$here/swiftview.lua" || exit 1
   "$OLM_LUA" "$here/panebackends.lua" || exit 1
+  "$OLM_LUA" "$here/canvasbar.lua" || exit 1
   "$OLM_LUA" "$here/panelbackends.lua" || exit 1
   # The native pane's AppKit view tree, built from the library's own sources with the command
   # line tools. Exit 2 is a machine that has no compiler or no Hammerspoon to link against, said
