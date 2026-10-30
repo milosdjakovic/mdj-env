@@ -14,16 +14,16 @@
 14	inputsources:previous	Previous Input Source	Keyboard	inputsources	inputsources	-	switch layout, globe, fn, toggle	-
 15	special:obsidian	Search Obsidian	Tools · search and open notes (ob, obsidian)	image	-	-	notes, vault, markdown |  (ob, obsidian)	-
 16	special:speedtest	Speedtest	Network · measure this connection and compare it with its own past (st, speed)	speedtest	speedtest	-	internet speed, bandwidth, latency, ping, network quality, rpm |  (st, speed)	-
-17	special:tmuxSessions	Tmux Manager	Tools · Hyper U (u, tmux)	tmuxsessions	tmuxSessions	-	sessions, terminal, ghostty |  (u, tmux)	-
-18	special:volume	Volume	System · see the volume, set it from 0 to 100, mute or unmute (vol)	volume	volume	-	mute, unmute, louder, quieter |  (vol)	-
-19	special:vpn	VPN	Network · Hyper P (v, vpn)	vpn	vpn	-	 (v, vpn)	-
-20	special:wifi	Wi-Fi	Network · see the current network, disconnect, or join another (wi, wifi)	wifi	wifi	-	wifi, wireless, network, ssid, join network, disconnect, airport |  (wi, wifi)	-
-21	special:workspaces	Workspaces	Displays · window layouts you snapshot and put back (ws, layout)	workspaces	workspaces	-	layout, snapshot, arrange windows, restore windows |  (ws, layout)	-
-22	special:olmplacement	Olm Placement	Olm · which display the launcher appears on	placement	olmplacement	-	position, cursor, display, screen, monitor	-
-23	special:olmplugins	Olm Plugins	Olm · switch plugins on or off	plugins	olmplugins	-	extensions, enable, disable, modules	-
-24	special:olmtheme	Olm Theme	Olm · the colour theme Olm is drawn in	theme	olmtheme	-	colour, color, appearance, palette, dark, light	-
-25	special:processes	Local Servers	Tools · stops a dev server, container, or watcher	processes	processes	-	dev server, port, kill process, node, docker, container	-
-26	special:textCase	Text Case	Text | live	textcase	textCase	-	-	-
+17	special:textCase	Text Case	Text (tc, case) | live	textcase	textCase	-	uppercase, lowercase, camel case, snake case, kebab case, capitalize |  (tc, case)	-
+18	special:tmuxSessions	Tmux Manager	Tools · Hyper U (u, tmux)	tmuxsessions	tmuxSessions	-	sessions, terminal, ghostty |  (u, tmux)	-
+19	special:volume	Volume	System · see the volume, set it from 0 to 100, mute or unmute (vol)	volume	volume	-	mute, unmute, louder, quieter |  (vol)	-
+20	special:vpn	VPN	Network · Hyper P (v, vpn)	vpn	vpn	-	 (v, vpn)	-
+21	special:wifi	Wi-Fi	Network · see the current network, disconnect, or join another (wi, wifi)	wifi	wifi	-	wifi, wireless, network, ssid, join network, disconnect, airport |  (wi, wifi)	-
+22	special:workspaces	Workspaces	Displays · window layouts you snapshot and put back (ws, layout)	workspaces	workspaces	-	layout, snapshot, arrange windows, restore windows |  (ws, layout)	-
+23	special:olmplacement	Olm Placement	Olm · which display the launcher appears on	placement	olmplacement	-	position, cursor, display, screen, monitor	-
+24	special:olmplugins	Olm Plugins	Olm · switch plugins on or off	plugins	olmplugins	-	extensions, enable, disable, modules	-
+25	special:olmtheme	Olm Theme	Olm · the colour theme Olm is drawn in	theme	olmtheme	-	colour, color, appearance, palette, dark, light	-
+26	special:processes	Local Servers	Tools · stops a dev server, container, or watcher	processes	processes	-	dev server, port, kill process, node, docker, container	-
 27	capture:ocrArea	OCR	Capture · Hyper 3	ocr	capture	-	-	10
 28	capture:captureAreaClipboard	Screenshot (copy)	Capture · Hyper 4	screenshot	capture	-	-	10
 29	capture:captureArea	Screenshot	Capture · Hyper ⇧4	screenshot	capture	-	-	10

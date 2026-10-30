@@ -679,19 +679,33 @@ end
 --- all, answers "unknown", since plenty of views hold a perfectly real selection they never
 --- report, and calling that absent would tell a person to select text they already selected.
 function M.selectionPresence(app)
-  local ax = app and hs.axuielement.applicationElement(app)
-  local focused = ax and ax:attributeValue("AXFocusedUIElement")
-  if not focused then
-    return "unknown"
-  end
-  local text = focused:attributeValue("AXSelectedText")
-  if type(text) ~= "string" then
+  local text = M.selectedTextOf(app)
+  if not text then
     return "unknown"
   end
   if text:match("^%s*$") then
     return "absent"
   end
   return "present"
+end
+
+--- M.selectedTextOf(app) -> string or nil
+--- The given application's selected text, read through its own accessibility element like
+--- selectionPresence above, so it answers about that app while a chooser holds the keyboard.
+--- An empty string means the app affirmatively reports no selection, and nil means it cannot
+--- say, no focused element or one that does not expose the attribute, where a caller that
+--- needs the text falls back to copySelection.
+function M.selectedTextOf(app)
+  local ax = app and hs.axuielement.applicationElement(app)
+  local focused = ax and ax:attributeValue("AXFocusedUIElement")
+  if not focused then
+    return nil
+  end
+  local text = focused:attributeValue("AXSelectedText")
+  if type(text) ~= "string" then
+    return nil
+  end
+  return text
 end
 
 --- M.snapshotClipboard() - the current pasteboard across every type, for a caller that will

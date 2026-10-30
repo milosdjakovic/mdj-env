@@ -70,7 +70,7 @@ picker is shown only once the selection is in hand. With nothing selected the co
 lands and the picker opens to a single non-actionable guidance row, the same shape Vpn's
 unavailable row uses, plain data naming no key.
 
-## Why this tool cannot be a launcher scope, which was built and then removed
+## The launcher scope, built, removed, and built again
 
 A query scope was wired for this tool and taken out again, which is worth recording so it is not
 rebuilt on the same reasoning.
@@ -89,6 +89,26 @@ lesser copy of it, and two ways in that do different things is worse than one wa
 
 The general rule this settled, and it is recorded in `Spoons/Olm.spoon/host/queryscope/AGENTS.md` too, is
 that a scope may be smaller than its tool but not smaller than the reason for the tool.
+
+It came back on 2026-10-30, asked for by Milos, because the obstacle above stopped being total.
+`lib/paste.lua` reads a selection through accessibility, and asking the covered app's own
+element rather than the system wide focused one answers about that app while the launcher holds
+the keyboard, the same read the launcher row's live subtitle already relied on. So the scope,
+`tc` or `case` and a space, previews the real selection wherever the app reports it, which is
+the reason for the tool, and the rule above holds. Where the app reports no selection at all
+the scope answers the guidance row. Where it cannot say, a view that keeps its selection to
+itself, the scope falls back to the old sample phrase and the pick reads the selection by Cmd+C
+once the launcher has closed, so the scope is smaller than the tool only in the apps where it
+cannot see, never wrong. The read runs once per launcher open behind the open id, the same
+cache the subtitle keeps, since a scope is asked for rows on every keystroke.
+
+The scope declares Apply and Copy as `registry.scope.verbs`, keyed by the surface's own primary
+and secondary actions, so the action panel over a scoped row offers what the tool's own list
+offers. Without them the panel listed nothing, and with them it still did nothing for Copy,
+because the root ran a panel verb through the dispatch table alone, which routes by the list
+showing, the launcher, and the launcher answers no hosted tool's verbs. The root's `run` now asks
+the query scope's `verbFor` first, as `host/actionpanel/AGENTS.md` always said it did, which is
+also the route File Search's scoped reveal and copy path take.
 
 ## The preview is display only
 

@@ -281,8 +281,10 @@ Text case is the case that failed this test, and it was built before it failed. 
 read your selection, since that needs the keyboard in the app the presenter is covering, so the
 rows could only demonstrate each case on a fixed sample with the real read moved to the pick. It
 worked. It was removed anyway, because seeing your own text in each case is the reason to open
-that tool, and a list of case names without it is a menu you guess at. Its own `AGENTS.md` holds
-the longer version.
+that tool, and a list of case names without it is a menu you guess at. It came back on
+2026-10-30 once the scope could read the covered app's selection through accessibility, which
+keeps the reason for the tool and leaves the sample only where an app cannot say. Its own
+`AGENTS.md` holds the longer version.
 
 So the rule has two halves. Let a scope be smaller than its tool and say so, and drop the scope
 when what it must leave out is the point of the tool. The first half stops a mechanism with one

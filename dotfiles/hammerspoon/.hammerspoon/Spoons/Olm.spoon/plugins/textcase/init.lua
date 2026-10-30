@@ -77,11 +77,11 @@ obj._stagePresent = nil    -- root published, the hotkey door onto the shared st
 obj._recency = nil         -- shared lift to front instance, the last applied case leads
 obj._presence = nil        -- function(app) -> "present", "absent", or "unknown"
 obj._coveredApp = nil      -- function() -> the app the launcher opened over, and the open id
+obj._peek = nil            -- function(app) -> that app's selected text, "" for none, nil unknown
 
 -- Owned state
 obj._transforms = nil      -- the ordered catalog loaded from transforms.lua
 obj._rows = nil            -- rows prebuilt for the current open, read by the supplier
-obj._iconCache = nil
 -- Review finding L1, rework, the identical fix applied twice already in a sibling plugin,
 -- plugins/processes/chooser.lua. Held on the instance rather than only as an upvalue of the
 -- read callback below, since a Hammerspoon timer is userdata whose finalizer stops it, so
@@ -95,17 +95,14 @@ obj._enterTimeoutTimer = nil
 -- key, the identical per open cache menu search keeps over the same two values.
 obj._detailOpenId = nil
 obj._detailAnswer = nil
+-- The scope's rows for one launcher open, keyed the same way, since the launcher asks the
+-- scope for rows on every keystroke and the accessibility read behind them runs once per open.
+obj._scopeOpenId = nil
+obj._scopeRows = nil
 
--- How long a preview subtitle may be before it is elided, and the row glyphs. The
--- preview is display only; the pasted result is always the full untruncated transform.
+-- How long a preview subtitle may be before it is elided. The preview is display only;
+-- the pasted result is always the full untruncated transform.
 local PREVIEW_MAX = 80
-local ICON = {
-  upper = "🔠", lower = "🔡", title = "🔤", sentence = "✍️",
-  capitalize = "🔤", toggle = "🔁", camel = "🐫", pascal = "🔺",
-  snake = "🐍", constant = "📢", kebab = "🍢", dot = "🔵",
-}
-local ICON_FALLBACK = "🔤"
-local EMPTY_ICON = "🚫" -- the no-selection guidance row
 
 -- The longest the selection read is ever allowed to run before this presentation shows
 -- itself regardless, contract v2's own requirement that a member declaring enter arranges
@@ -123,6 +120,10 @@ local ENTER_TIMEOUT = 3
 local DETAIL = "recase the selection in place"
 local DETAIL_NO_SELECTION = "no text selected, select some first"
 
+-- What the scope previews when the covered app does not expose its selection through
+-- accessibility. The pick still recases the real selection, read at that moment.
+local SAMPLE = "the quick brown fox"
+
 -- Collapse whitespace to single spaces and elide, so a multi-line or long selection
 -- still reads as one tidy row. Bytes, not codepoints, so an elided multibyte tail is
 -- possible on non-ASCII text; the preview is cosmetic and the pasted text is unaffected.
@@ -135,34 +136,11 @@ end
 
 --- TextCase:init()
 --- Method
---- Load the transforms and prepare the icon cache. No collaborator is wired yet, that
---- waits for configure.
+--- Load the transforms. No collaborator is wired yet, that waits for configure.
 function obj:init()
   self._transforms = loadSibling("transforms.lua")
-  self._iconCache = {}
   self._rows = {}
   return self
-end
-
--- The row glyph as an image, rendered once through one canvas and cached, sized to line
--- up with the app icons, the same technique the launcher and the overlay picker use since
--- this Hammerspoon has no SF Symbol API.
-function obj:_glyphIcon(glyph)
-  local cache = self._iconCache
-  if cache[glyph] == nil then
-    local size = 72
-    local c = hs.canvas.new({ x = 0, y = 0, w = size, h = size })
-    -- type-exempt, a glyph drawn into a row icon image, sized to its 72 point box
-    c[1] = { type = "text", text = glyph, textSize = 52, textAlignment = "center",
-             frame = { x = "0%", y = "8%", w = "100%", h = "100%" } }
-    cache[glyph] = c:imageFromCanvas() or false
-    c:delete()
-  end
-  return cache[glyph] or nil
-end
-
-function obj:_icon(id)
-  return self:_glyphIcon(ICON[id] or ICON_FALLBACK)
 end
 
 -- Build the rows for one open. With no selection captured it is a single non-actionable
@@ -173,7 +151,7 @@ end
 function obj:_buildRows(text)
   if not text or text:match("^%s*$") then
     return { { title = "No text selected", subTitle = "Select some text, then open Text Case",
-              image = self:_glyphIcon(EMPTY_ICON), enabled = false, pinned = true } }
+              icon = "none", enabled = false, pinned = true } }
   end
   -- The catalog order is the resting order, and the cases applied before lead in the order
   -- they were last applied, the shared lift to front service deciding which is which. The
@@ -190,7 +168,8 @@ function obj:_buildRows(text)
     rows[#rows + 1] = {
       title = t.name,
       subTitle = preview(result),
-      image = self:_icon(t.id),
+      -- The manifest declares one icon per transform id, so a case's icon is its id.
+      icon = t.id,
       item = { text = result, id = t.id },
     }
   end
@@ -218,6 +197,7 @@ function obj:configure(opts)
   self._stageHide = opts.stageHide
   self._presence = opts.presence
   self._coveredApp = opts.coveredApp
+  self._peek = opts.peek
   return self
 end
 
@@ -278,6 +258,100 @@ function obj:launcherDetail()
     self._detailAnswer = self._presence(app) == "absent" and DETAIL_NO_SELECTION or DETAIL
   end
   return self._detailAnswer
+end
+
+-- The case rows over a sample phrase, for a scope that cannot see the selection. Each row
+-- carries only its transform id, so the pick reads the selection and applies that case.
+function obj:_sampleRows()
+  local transforms = self._transforms
+  if self._recency then
+    transforms = self._recency.order(transforms, function(t) return t.id end)
+  end
+  local rows = {}
+  for _, t in ipairs(transforms) do
+    rows[#rows + 1] = {
+      title = t.name,
+      subTitle = preview(t.fn(SAMPLE)),
+      icon = t.id,
+      item = { id = t.id },
+    }
+  end
+  return rows
+end
+
+--- TextCase:scopeRows() -> list
+--- Method
+--- The launcher scope's rows, named on the manifest's registry.scope. A scope lists while the
+--- launcher holds the keyboard, so the selection is read through the covered app's own
+--- accessibility element rather than by Cmd+C. Real text previews every case exactly as the
+--- tool's own list does, an affirmatively empty selection answers the guidance row, and an app
+--- that cannot say lists the cases over a sample phrase. Built once per launcher open behind
+--- the open id, since the scope is asked on every keystroke.
+function obj:scopeRows()
+  local app, openId = nil, nil
+  if self._coveredApp then app, openId = self._coveredApp() end
+  if openId ~= nil and openId == self._scopeOpenId and self._scopeRows then
+    return self._scopeRows
+  end
+  local text = app and self._peek and self._peek(app) or nil
+  local rows
+  if text == nil then
+    rows = self:_sampleRows()
+  else
+    rows = self:_buildRows(text)
+  end
+  self._scopeOpenId = openId
+  self._scopeRows = rows
+  return rows
+end
+
+--- TextCase:scopeRun(item)
+--- Method
+--- Choosing a scope row, named on the manifest's registry.scope. A row built from the real
+--- selection carries its result and is applied as the tool's own list applies it. A sample
+--- row carries only its case, so the selection is read now, after the launcher has closed and
+--- the app holds the keyboard again, and that case of it is applied.
+function obj:scopeRun(item)
+  self._scopeOpenId = nil
+  self._scopeRows = nil
+  if not item or not item.id then return end
+  if item.text then return self:select(item) end
+  if not self._read then return end
+  local transform
+  for _, t in ipairs(self._transforms) do
+    if t.id == item.id then transform = t break end
+  end
+  if not transform then return end
+  local this = self
+  self._read(function(text)
+    if not text or text:match("^%s*$") then return end
+    this:select({ text = transform.fn(text), id = transform.id })
+  end)
+end
+
+--- TextCase:scopeCopy(item)
+--- Method
+--- Copy, offered over a scope row by the action panel. Puts the case on the pasteboard rather
+--- than pasting it, reading the selection first for a sample row the way scopeRun does.
+function obj:scopeCopy(item)
+  self._scopeOpenId = nil
+  self._scopeRows = nil
+  if not item or not item.id then return end
+  local function copy(text)
+    if self._recency then self._recency.touch(item.id) end
+    hs.pasteboard.setContents(text)
+  end
+  if item.text then return copy(item.text) end
+  if not self._read then return end
+  local transform
+  for _, t in ipairs(self._transforms) do
+    if t.id == item.id then transform = t break end
+  end
+  if not transform then return end
+  self._read(function(text)
+    if not text or text:match("^%s*$") then return end
+    copy(transform.fn(text))
+  end)
 end
 
 --- TextCase:enter(proceed)

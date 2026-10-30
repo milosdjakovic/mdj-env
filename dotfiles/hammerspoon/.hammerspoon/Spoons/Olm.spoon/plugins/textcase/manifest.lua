@@ -20,11 +20,28 @@ return {
 
   -- The icons this plugin names, in the emoji set and the SF Symbol set. The one named for the
   -- plugin is its identity icon, which the launcher row and the scoped list both wear.
-  -- The row icons inside the list are drawn by the plugin itself and are left alone.
+  -- Each case row names the icon keyed by its transform id, so a case added to
+  -- transforms.lua declares its icon here under the same id.
   icons = {
-    -- The secondary, Copy, in the action panel.
+    -- The primary, Apply, and the secondary, Copy, in the action panel. Each names what the verb
+    -- does, never the key that runs it, since the panel already prints the chord beside it.
+    apply = { emoji = "✅", sf = "checkmark.circle" },
     copy = { emoji = "📋", sf = "doc.on.doc" },
     textcase = { emoji = "🔠", sf = "textformat" },
+    -- The guidance row shown when nothing is selected.
+    none = { emoji = "🚫", sf = "nosign" },
+    upper = { emoji = "🔠", sf = "characters.uppercase" },
+    lower = { emoji = "🔡", sf = "characters.lowercase" },
+    title = { emoji = "🔤", sf = "textformat.size" },
+    sentence = { emoji = "✍️", sf = "text.alignleft" },
+    capitalize = { emoji = "🔤", sf = "textformat.abc" },
+    toggle = { emoji = "🔁", sf = "arrow.up.arrow.down" },
+    camel = { emoji = "🐫", sf = "curlybraces" },
+    pascal = { emoji = "🔺", sf = "curlybraces.square" },
+    snake = { emoji = "🐍", sf = "underline" },
+    constant = { emoji = "📢", sf = "megaphone" },
+    kebab = { emoji = "🍢", sf = "minus" },
+    dot = { emoji = "🔵", sf = "ellipsis" },
   },
 
   name = "textCase",
@@ -58,6 +75,11 @@ return {
       -- row falling back to its ordinary subtitle.
       presence = { from = "paste", member = "selectionPresence", call = "dot", policy = "optional" },
 
+      -- The covered app's selected text read through accessibility, which the launcher scope
+      -- previews from, since a scope lists while the launcher holds the keyboard and a Cmd+C
+      -- read cannot run then. Optional, the scope previewing a sample phrase without it.
+      peek = { from = "paste", member = "selectedTextOf", call = "dot", policy = "optional" },
+
       -- The shared lift to front ordering, the automatic per plugin grant keyed to this
       -- plugin's own settings slot, so the case a person last applied leads the list on the
       -- next open. No limit, the catalog is a fixed dozen. Optional, the list degrading to
@@ -90,22 +112,28 @@ return {
     },
   },
 
-  -- No `provides`, deliberately. A launcher scope cannot read your selection, since that
-  -- needs the keyboard in the app the launcher is covering, so a scoped copy could list
-  -- every case but never preview your own text in one. The preview is most of the reason
-  -- to open it, so the alias was tried and removed rather than kept as a lesser copy.
-  -- This absence is the decision, not an omission.
+  -- What puts this tool in the launcher's scope set, so its alias and a space lists every case.
+  -- The scope previews the covered app's selection read through accessibility, and where the
+  -- app does not expose one it previews a sample and the pick reads the selection itself. The
+  -- scope was once removed for having only the sample, AGENTS.md has the trail.
+  provides = {
+    rows = "scopeRows",
+    select = "scopeRun",
+  },
 
   -- Opened from the launcher only, so it proposes no key at all. A default of nothing is
   -- still a default, and it is why the file says so rather than leaving the field out.
   defaults = {
     description = "Text Case",
+    icon = "textcase",
     launcherRow = true,
+    aliases = { "tc", "case" },
+    example = "Try tc to recase the selection",
   },
 
   surface = {
     context = "textCase",
-    primary = { action = "insertSelected", description = "Apply" },
+    primary = { action = "insertSelected", description = "Apply", icon = "apply" },
     -- Command and Return copies the case rather than pasting it, docs/PLAN-ACTION-PANEL.md.
     secondary = { action = "copySelected", description = "Copy", icon = "copy" },
   },
@@ -138,7 +166,18 @@ return {
     -- whose whole point is the selection. The plugin answers the ordinary words, recase the
     -- selection in place, whenever it cannot tell, so the row never nags on a guess.
     row = { category = "Text", detail = { member = "launcherDetail", call = "method" },
-            icon = "textcase" },
+            icon = "textcase",
+            keywords = "uppercase, lowercase, camel case, snake case, kebab case, capitalize" },
     open = "show",
+    -- verbs are what the action panel offers over a scope row, keyed by the surface actions
+    -- above, so the scoped list offers Apply and Copy as the tool's own list does.
+    scope = {
+      rows = { member = "scopeRows", call = "method" },
+      run = { member = "scopeRun", call = "method" },
+      verbs = {
+        insertSelected = { member = "scopeRun", call = "method", closes = true },
+        copySelected = { member = "scopeCopy", call = "method", closes = true },
+      },
+    },
   },
 }
