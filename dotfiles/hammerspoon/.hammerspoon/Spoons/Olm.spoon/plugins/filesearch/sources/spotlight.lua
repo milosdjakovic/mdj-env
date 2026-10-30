@@ -365,11 +365,23 @@ function M.search(parsed, ctx, cb)
     return rows
   end
 
+  -- Stopping is not enough to let a query go. hs.spotlight keeps its callback in the LuaSkin
+  -- registry, a strong reference, and the callback closes over q, so a stopped query with its
+  -- callback still set is never collected and keeps every NSMetadataItem it gathered. Each
+  -- recent fetch gathers tens of thousands, and 92 thousand items were found held in a session
+  -- that had only opened the picker. Clearing the callback is what breaks the cycle, measured
+  -- live on 2026-10-30, three queries without it grew the held items by 118 thousand after a
+  -- collect and three with it grew them by none.
+  local function release()
+    pcall(function() q:stop() end)
+    pcall(function() q:setCallback(nil) end)
+  end
+
   local function deliver(reason)
     if delivered or cancelled then return end
     delivered = true
     local rows = harvest()
-    pcall(function() q:stop() end)
+    release()
     cb(rows, reason)
   end
 
@@ -446,7 +458,7 @@ function M.search(parsed, ctx, cb)
       if cancelled then return end
       cancelled = true
       timeout.cancel()
-      pcall(function() q:stop() end)
+      release()
     end,
   }
 end

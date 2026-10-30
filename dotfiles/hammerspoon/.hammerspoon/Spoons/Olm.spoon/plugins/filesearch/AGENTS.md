@@ -1207,6 +1207,12 @@ exactly like a search that found nothing. A search handle now carries its query,
 handle is what holds the query and there is one rule instead of two. `check-timers` enforces the
 timer half and nothing enforces the handles, so that one is on the reader.
 
+Holding a query too long. The opposite fault, and the one that cost memory. hs.spotlight keeps a
+query's callback in the LuaSkin registry, and the callback closes over the query, so a stopped
+query whose callback is still set is never collected and keeps every result it gathered. The
+source releases a query by stopping it and clearing its callback, on delivery and on cancel, and
+`release` in `sources/spotlight.lua` is the one place that does both.
+
 Two surfaces reading the engine at once. There is one engine instance, and the query it is
 answering is state, so two lists driven at the same time would each be changing what the other
 asked about. The launcher scope and the picker are never both on screen, and the failure would be a
