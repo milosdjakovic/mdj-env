@@ -645,7 +645,11 @@ chooser panel's own window. With a companion that window and one `NSGlassEffectV
 canvas rect, the engine's gap and the companion rect at the surface radius, the list's content on
 the canvas rect, the pane's region on the companion rect, and a hairline in the kit's border
 colour and border width centred in the gap from the top down to the action bar, so the list and
-the pane are one surface that appears and vanishes together, with no window animation. The action
+the pane are one surface that appears and vanishes together, with no window animation. The gap is
+zero under the swift view, which the engine sets beside `footerSpan`, since the list's margin
+already stands between a row and the hairline and the pane pads by the same inset. A gap there sat
+on top of both and gave a highlighted row more room on its right than on its left, reported on
+2026-10-30. The action
 bar runs under the list, the gap and the pane alike, since the swift view answers `spansFooter`
 and `geometry.resolve` then widens the footer rect across the span and stops the companion rect
 at the bar's top edge, so a pane is laid out at the height it is shown. The default chooser
