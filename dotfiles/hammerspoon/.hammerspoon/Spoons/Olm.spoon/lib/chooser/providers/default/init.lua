@@ -79,6 +79,12 @@ function M.iconsChanged()
   Canvas.iconsChanged()
 end
 
+--- M.paneBackend(fallback) -> the docked pane backend factory that draws a pane inside a canvas
+--- chooser spanning its rect and through fallback anywhere else, see paneBackend in canvas.lua.
+function M.paneBackend(fallback)
+  return Canvas.paneBackend(fallback)
+end
+
 --- M.new(config) answers an instance satisfying lib/chooser/contract.lua exactly, validated by
 --- the engine at construction and raised on a gap. Refuses outright when M.configure has not been
 --- called with a panel, rather than drawing a surface with no shared chrome, which would look

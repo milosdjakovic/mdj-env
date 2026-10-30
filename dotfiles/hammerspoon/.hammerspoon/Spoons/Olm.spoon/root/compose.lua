@@ -267,7 +267,9 @@ end
 -- The drawing backend every docked pane is handed, the strategy lib/dockedpane.lua's header
 -- describes. The swift chooser's native glass pane while that provider is the chosen one and its
 -- library is loaded, so the pane is drawn in the native panel's window as one glass, and the canvas
--- backend otherwise, which draws exactly what every pane drew before. Asked each time a pane is
+-- backend otherwise, wrapped by the default provider's own, which draws a pane docked to an open
+-- canvas list inside the list's surface, one shape as in swift, and leaves anything else to the
+-- plain canvas. Asked each time a pane is
 -- made, which is after wireSwiftChooser has run, and the answer cannot change within a session,
 -- since the provider decides once at configure time. It lives outside obj.run for the same reason
 -- wireSwiftChooser does.
@@ -276,6 +278,12 @@ local function dockedPaneBackend(chooserAtom, chosen)
   if swift and chosen == swift and swift.serving() == "swift" then
     local native = swift.paneBackend()
     if native then return native end
+  end
+  -- Whenever the native pane is not used, since the swift provider falls back to the canvas view
+  -- when its library will not load, and the wrapper hosts only a pane placed on a spanning list.
+  local default = chooserAtom.providers and chooserAtom.providers.default
+  if default and default.paneBackend then
+    return default.paneBackend(paneCanvasLib.new())
   end
   return paneCanvasLib.new()
 end

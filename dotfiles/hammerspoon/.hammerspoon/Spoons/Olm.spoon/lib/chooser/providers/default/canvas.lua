@@ -142,6 +142,50 @@ local function toLocal(rect, origin)
   return { x = rect.x - origin.x, y = rect.y - origin.y, w = rect.w, h = rect.h }
 end
 
+-- The span from the canvas rect to the companion rect, the gap between them included, or nil
+-- with no companion, the same span the swift view's one shape of glass covers.
+local function spanOf(canvas, companion)
+  if not (canvas and companion) then return nil end
+  local x0, y0 = math.min(canvas.x, companion.x), math.min(canvas.y, companion.y)
+  local x1 = math.max(canvas.x + canvas.w, companion.x + companion.w)
+  local y1 = math.max(canvas.y + canvas.h, companion.y + companion.h)
+  return { x = x0, y = y0, w = x1 - x0, h = y1 - y0 }
+end
+
+local function sameRect(a, b)
+  return a ~= nil and b ~= nil and a.x == b.x and a.y == b.y and a.w == b.w and a.h == b.h
+end
+
+-- One element of a hosted pane moved from the pane's own space into the window's, a copy with its
+-- frame, centre and coordinates shifted. A rectangle or an oval with no frame fills its canvas, so
+-- one is given the pane's own box rather than spreading over the whole window.
+local function shiftedElement(el, dx, dy, paneW, paneH)
+  local copy = {}
+  for k, v in pairs(el) do copy[k] = v end
+  local frame = el.frame
+  if not frame and (el.type == "rectangle" or el.type == "oval") and el.action ~= "clip" then
+    frame = { x = 0, y = 0, w = paneW, h = paneH }
+  end
+  if frame then
+    copy.frame = { x = (frame.x or 0) + dx, y = (frame.y or 0) + dy, w = frame.w, h = frame.h }
+  end
+  if el.center then
+    copy.center = { x = (el.center.x or 0) + dx, y = (el.center.y or 0) + dy }
+  end
+  if el.coordinates then
+    local coords = {}
+    for i, c in ipairs(el.coordinates) do
+      local p = {}
+      for k, v in pairs(c) do p[k] = v end
+      for _, k in ipairs({ "x", "c1x", "c2x" }) do if p[k] then p[k] = p[k] + dx end end
+      for _, k in ipairs({ "y", "c1y", "c2y" }) do if p[k] then p[k] = p[k] + dy end end
+      coords[i] = p
+    end
+    copy.coordinates = coords
+  end
+  return copy
+end
+
 -- Turns one already ranked row into what list render draws, a shallow copy with title replaced
 -- by a styled value baking in the enabled aware colour, the font, the size and the live
 -- titleLineBreak. subTitle is replaced the same way when the row carries a real one, always cut
@@ -207,9 +251,40 @@ function View:restyle()
   }
 end
 
---- View colon place, arity one. Puts the surface at rects.canvas.
+--- View colon place, arity one. With a companion the surface spans rects.canvas, the gap and
+--- rects.companion as one shape, the swift view's layout, and a docked pane placed on that
+--- companion rect draws into it, see M.paneBackend. With none it is the canvas rect alone.
 function View:place(rects)
-  self.surface:setFrame(rects.canvas)
+  local window = spanOf(rects.canvas, rects.companion)
+  self._window = window or rects.canvas
+  -- Kept across a hide, the companion rect this view last reported, which a pane's backend
+  -- matches its own rect against, so a pane painted as the list reopens lands here.
+  self._companion = window and rects.companion or nil
+  self.surface:setFrame(self._window)
+end
+
+--- View colon spansFooter, arity zero. True, since the surface spans the canvas, the gap and the
+--- companion, so the action bar runs under the list and the docked pane alike, as in swift.
+function View:spansFooter()
+  return true
+end
+
+--- View colon footerHeight, arity one. The bar's region, a row as tall as the default bar's and
+--- the bar pad below it, the swift view's own answer, so the two choosers share every rect.
+function View:footerHeight(tokens)
+  return footerLib.height(tokens) + tokens.pad
+end
+
+-- Whether this view hosts a pane placed at rect, its last companion rect while it spans one.
+function View:_hostsFrame(rect)
+  return self._companion ~= nil and sameRect(self._companion, rect)
+end
+
+-- A hosted pane's content, in the pane's own space, or nil to draw none. Redrawn at once while
+-- the surface is up, and otherwise drawn with the next redraw.
+function View:_setPaneContent(content)
+  self._paneContent = content
+  if self:isVisible() then self:redraw() end
 end
 
 --- View colon presentRows, arity one. The ranked rows styled for list render, see styleRow.
@@ -243,7 +318,7 @@ end
 function View:redraw()
   local s = self.engine:scene()
   if not s.rects then return end
-  local origin = s.rects.canvas
+  local origin = self._window or s.rects.canvas
   local fieldRect = toLocal(s.rects.field, origin)
   local listRect = toLocal(s.rects.list, origin)
   local els = {}
@@ -267,8 +342,43 @@ function View:redraw()
   for _, el in ipairs(listRender.elements(s.list, listRect, s.drawLayout, self._listStyle, clip, s.rankedQuery)) do
     els[#els + 1] = el
   end
+  self:_paneElements(s, els, origin)
   self:_footerElements(s, els, origin, interior, listRect)
   self.surface:draw(els)
+end
+
+-- Appends the hairline between the list and the docked pane and the hosted pane's content to els,
+-- in the window's own space, while the surface spans a companion. The hairline is the border role
+-- at the border stroke, centred in the gap from the top down to the bar, and the content is cut
+-- at the pane's own rect, so nothing it draws reaches the list or past the surface.
+function View:_paneElements(s, els, origin)
+  local companion = self._companion
+  if not companion then return end
+  local T = s.tokens
+  local canvas = toLocal(s.rects.canvas, origin)
+  local pane = toLocal(companion, origin)
+  local left, right
+  if pane.x >= canvas.x + canvas.w then left, right = canvas.x + canvas.w, pane.x
+  else left, right = pane.x + pane.w, canvas.x end
+  local width = T.stroke.border
+  local footer = toLocal(s.rects.footer, origin)
+  local bottom = footer and footer.y or (self._window.h)
+  els[#els + 1] = { type = "rectangle", action = "fill", fillColor = T.colors.border,
+    frame = { x = (left + right - width) / 2, y = 0, w = width, h = bottom } }
+  local content = self._paneContent
+  if not content then return end
+  local clip = { type = "rectangle", action = "clip",
+    frame = { x = pane.x, y = pane.y, w = pane.w, h = pane.h } }
+  els[#els + 1] = clip
+  for _, el in ipairs(content) do
+    if el.type == "resetClip" then
+      els[#els + 1] = el
+      els[#els + 1] = clip
+    else
+      els[#els + 1] = shiftedElement(el, pane.x, pane.y, pane.w, pane.h)
+    end
+  end
+  els[#els + 1] = { type = "resetClip" }
 end
 
 -- Appends the action bar, and the key panel above it when open, to els, in the canvas's own
@@ -334,6 +444,7 @@ function View:hide()
   self._pressedRowIndex = nil
   self._keysHover = false
   self._keysHit, self._keysPanelRect = nil, nil
+  self._paneContent = nil
   self.surface:hide()
 end
 
@@ -435,24 +546,26 @@ end
 -- release to compare against.
 function View:_onMouseDown(point, button)
   local rects = self.engine:scene().rects
-  local insideCanvas = pointInRect(point, rects and rects.canvas)
+  -- With a companion the window spans the canvas, the gap and the pane, so a press in the gap is
+  -- on the surface and inside, as in swift.
+  local insideWindow = pointInRect(point, self._window or (rects and rects.canvas))
   local insideCompanion = pointInRect(point, rects and rects.companion)
-  if not insideCanvas and not insideCompanion then
+  if not insideWindow and not insideCompanion then
     if button == "left" then self.engine:hide() end
     return false
   end
-  if not insideCanvas then
+  -- A press on the key button toggles the key panel, wherever the spanning bar put it. Any other
+  -- press on the action bar or on the panel lands on no row, so it is claimed and chooses nothing.
+  if button == "left" and pointInRect(point, self._keysHit) then
+    self._pressedRowIndex = nil
+    self.engine:toggleKeys()
+    return true
+  end
+  if insideCompanion and not pointInRect(point, rects and rects.footer) then
     return false
   end
   if button == "right" then
     self.engine:rightClickIndex(self:_rowIndexAtPoint(point))
-    return true
-  end
-  -- A press on the key button toggles the key panel. Any other press on the action bar or on the
-  -- panel lands on no row, so it is claimed and chooses nothing.
-  if pointInRect(point, self._keysHit) then
-    self._pressedRowIndex = nil
-    self.engine:toggleKeys()
     return true
   end
   self._pressedRowIndex = self:_rowIndexAtPoint(point)
@@ -465,11 +578,12 @@ end
 -- the up of the identical press agree about whether this surface owns it.
 function View:_onMouseUp(point, button)
   local rects = self.engine:scene().rects
+  local window = self._window or (rects and rects.canvas)
   if button == "right" then
-    return pointInRect(point, rects and rects.canvas)
+    return pointInRect(point, window)
   end
   if button ~= "left" then return false end
-  if not pointInRect(point, rects and rects.canvas) then
+  if not pointInRect(point, window) then
     self._pressedRowIndex = nil
     return false
   end
@@ -580,6 +694,67 @@ end
 function M.iconsChanged()
   for view in pairs(views) do
     if view:isVisible() then view:redraw() end
+  end
+end
+
+--- M.paneBackend(fallback) -> a docked pane backend factory, see lib/dockedpane.lua, that draws a
+--- pane's content inside a canvas chooser spanning its rect, the list and the pane as one surface,
+--- and through fallback, the plain canvas backend's factory, anywhere else. The surface is the
+--- chooser's, so a hosted pane's own surface list is left out. Which one draws is asked again on
+--- every place, the canvas counterpart of chooserHosting in the swift library. A panel, handed a
+--- window, is never hosted.
+function M.paneBackend(fallback)
+  return function(frame, window)
+    if window then return fallback(frame, window) end
+    local own, host, shown, content = nil, nil, false, nil
+    local function ownBackend()
+      if not own then own = fallback(frame) end
+      return own
+    end
+    local function hostFor(rect)
+      for view in pairs(views) do
+        if view:_hostsFrame(rect) then return view end
+      end
+      return nil
+    end
+    local backend = {}
+    function backend.place(rect)
+      local next = hostFor(rect)
+      if next ~= host then
+        if host then host:_setPaneContent(nil) end
+        if next and own then own.hide() end
+        host = next
+      end
+      if not host then ownBackend().place(rect) end
+    end
+    function backend.render(surface, elements)
+      content = elements
+      if host then
+        if shown then host:_setPaneContent(content) end
+      else
+        ownBackend().render(surface, elements)
+      end
+    end
+    function backend.show()
+      shown = true
+      if host then host:_setPaneContent(content) else ownBackend().show() end
+    end
+    function backend.hide()
+      shown = false
+      if host then host:_setPaneContent(nil) end
+      if own then own.hide() end
+    end
+    function backend.isShowing()
+      if host then return shown and host:isVisible() end
+      return own ~= nil and own.isShowing()
+    end
+    function backend.destroy()
+      if host then host:_setPaneContent(nil) end
+      host, shown, content = nil, false, nil
+      if own then own.destroy() end
+      own = nil
+    end
+    return backend
   end
 end
 
