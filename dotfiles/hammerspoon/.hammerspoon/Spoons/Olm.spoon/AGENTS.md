@@ -653,7 +653,9 @@ on top of both and gave a highlighted row more room on its right than on its lef
 bar runs under the list, the gap and the pane alike, since the swift view answers `spansFooter`
 and `geometry.resolve` then widens the footer rect across the span and stops the companion rect
 at the bar's top edge, so a pane is laid out at the height it is shown. The default chooser
-answers nothing and keeps the bar under the canvas alone. With no companion the
+answers `spansFooter` and `footerHeight` the same way since 2026-10-30, as the first step of
+making it a layout clone of swift in solid theme colours, so both share every rect, see the
+canvas hosting paragraph below. With no companion the
 window is the canvas rect alone. A pane knows no chooser, so the one seam is `chooserHosting` in
 `native/Entry.swift`, which matches the pane's rect to the companion rect a visible chooser panel
 last reported. When none matches, the pane stands in a window of its own, a nonactivating panel
@@ -686,11 +688,23 @@ the library's reload sentinel, and a pane never calls back into Lua.
 The root chooses, in `dockedPaneBackend` beside `wireSwiftChooser`, and no plugin and no line of
 `lib/dockedpane.lua` names a backend. A pane gets the native one only while the swift provider is
 the chosen one and its library is loaded, which is fixed for the session, and the canvas one
-otherwise, so a pane under the default chooser is exactly what it was. `test/panebackends.lua`
+otherwise, wrapped by the default provider's `paneBackend`. That wrapper is the canvas
+counterpart of `chooserHosting`. On every place it matches the pane's rect to the companion rect a
+canvas chooser that spans one last reported, and while one matches, the pane's content is drawn
+inside that chooser's own canvas, shifted into the pane's region and clipped to it, and its
+surface list is dropped, since the chooser's surface already spans the canvas, the gap and the
+pane as one shape with a hairline of the border role between them. When none matches it draws on
+a canvas of its own as before, and a panel, which passes a window, is never hosted. It applies
+whenever the native pane is not used, so a swift provider that fell back to the canvas view hosts
+its pane too. The two windows could not simply overlap, because the chooser's canvas stands at
+the popUpMenu level above a pane's floating one and its spanning surface would cover the pane.
+`test/panebackends.lua`
 drives one pane over both backends with the same describer and painter, and pins that the native
 one is handed the very content list the canvas paints over its surface, and for a scrolling pane
 that the canvas one scrolls as it always did while the native one gets the full height content
 unshifted, scrolls through the library and keeps its place across a redraw of the same content.
+It also pins the canvas wrapper, hosted on a spanning list's companion, on its own canvas
+anywhere else, never for a panel, and hiding what it left when it moves between the two.
 
 ## CanvasPanel, the same two backends
 
