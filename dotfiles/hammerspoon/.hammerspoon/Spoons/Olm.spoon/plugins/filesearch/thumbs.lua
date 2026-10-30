@@ -157,7 +157,7 @@ local nativeGen = {
       size = attrs and attrs.size
     end
     if not size then return true end
-    return size <= (cfg.nativeMaxBytes or 20 * 1024 * 1024)
+    return size <= (cfg.nativeMaxBytes or 1024 * 1024)
   end,
   image = function(spec, cb)
     cb(hs.image.imageFromPath(spec.path))

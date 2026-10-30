@@ -39,10 +39,9 @@ hs | path | hs | optional | emoji/regenerate | rendering every candidate glyph t
 swiftc | system | /usr/bin/swiftc | optional | eyedropper | compiles the native colour sampler helper | xcode-clt | xcode-select --install
 qlmanage | system | /usr/bin/qlmanage | optional | filesearch/thumbs | drawing a preview of a pdf, a video, or anything else only Quick Look can render | macos | ships with the system
 swiftc | system | /usr/bin/swiftc | optional | filesearch/quicklook | compiling the helper that opens the native Quick Look panel | xcode-clt | xcode-select --install
-fd | path | fd | optional | filesearch/hidden | building the index of paths Spotlight cannot see | brew | fd
-fzf | path | fzf | optional | filesearch/hidden | ranking that index, the one thing a substring tool cannot do over 42 thousand matches | brew | fzf
+swiftc | system | /usr/bin/swiftc | optional | filesearch/index | compiling the helper that lists, searches and orders the file index | xcode-clt | xcode-select --install
 open | system | /usr/bin/open | optional | filesearch/chooser | opening a found file or its containing folder in whatever application owns it | macos | ships with the system
-fd | path | fd | optional | filesearch/walk | walking a named directory, which is faster than the index once a scope is given and is the only way to see dotfiles | brew | fd
+fd | path | fd | optional | filesearch/walk | walking a named directory, which reads it live and is faster than the index once a scope is given | brew | fd
 obsidian | app | md.obsidian | required | obsidian | the application every chosen note opens in, and the owner of the vault registry this plugin reads to find notes at all | cask | obsidian
 obsidian-vaults | manual | ~/Library/Application Support/obsidian/obsidian.json | optional | obsidian | the vault registry every note is found through, which nothing here can create | manual | open a vault in Obsidian once, which is what writes the registry this plugin reads
 ps | system | /bin/ps | optional | processes/metrics | samples cpu and memory for the rows the picker is showing | macos | ships with the system

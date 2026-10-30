@@ -55,7 +55,7 @@ end
 ---
 --- The result carries:
 ---   raw        what was typed, untouched
----   hidden     include paths Spotlight cannot see, from the lone dot or a dotted text
+---   hidden     include paths under a dot folder, from the lone dot or a dotted text
 ---   ignored    include what gitignore and the prune list drop, from a lone bang
 ---   typeTokens list of type tokens consumed, for display
 ---   exts       union of the extensions those tokens cover, or nil for no type filter

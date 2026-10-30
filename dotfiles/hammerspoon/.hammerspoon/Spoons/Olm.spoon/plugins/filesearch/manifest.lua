@@ -1,10 +1,10 @@
 -- FileSearch, what it declares about itself.
 --
--- Five tools across four files, a walker that finds what Spotlight cannot see, a
--- ranker over that walk, a Quick Look renderer for the side pane, and a compiler for
--- the native Quick Look panel that leads it. fd is declared twice, once beside the
--- unscoped hidden search and once beside the scoped walk, since each file names it
--- for its own reason and neither should have to learn the other exists.
+-- Four tools across four files, a walker for a named folder, a Quick Look renderer for
+-- the side pane, and a compiler for two helpers, the one that lists and searches the
+-- file index and the native Quick Look panel. swiftc is declared twice, once beside
+-- each helper, since each file names it for its own reason and neither should have to
+-- learn the other exists.
 return {
   -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
   apiVersion = 1,
@@ -47,9 +47,9 @@ return {
   },
 
   needs = {
-    -- Where the compiled Quick Look helper and the hidden files index are kept,
-    -- lib/storage.lua's own cache root, handed down to the viewer through the surface's deps
-    -- and to the hidden source directly, since both are regenerable and no file here may name
+    -- Where the compiled helpers and the file index are kept, lib/storage.lua's own cache
+    -- root, handed down to the viewer through the surface's deps and to the index source
+    -- directly, since both are regenerable and no file here may name
     -- a directory under HOME of its own.
     lib = {
       storage = { from = "storage", policy = "required" },
@@ -68,17 +68,14 @@ return {
       { name = "swiftc", kind = "system", locator = "/usr/bin/swiftc", policy = "optional", unit = "quicklook",
         reason = "compiling the helper that opens the native Quick Look panel",
         origin = { ["xcode-clt"] = "xcode-select --install" } },
-      { name = "fd", kind = "path", policy = "optional", unit = "hidden",
-        reason = "building the index of paths Spotlight cannot see",
-        origin = { brew = "fd" } },
-      { name = "fzf", kind = "path", policy = "optional", unit = "hidden",
-        reason = "ranking that index, the one thing a substring tool cannot do over 42 thousand matches",
-        origin = { brew = "fzf" } },
+      { name = "swiftc", kind = "system", locator = "/usr/bin/swiftc", policy = "optional", unit = "index",
+        reason = "compiling the helper that lists, searches and orders the file index",
+        origin = { ["xcode-clt"] = "xcode-select --install" } },
       { name = "open", kind = "system", locator = "/usr/bin/open", policy = "optional", unit = "chooser",
         reason = "opening a found file or its containing folder in whatever application owns it",
         origin = { macos = "ships with the system" } },
       { name = "fd", kind = "path", policy = "optional", unit = "walk",
-        reason = "walking a named directory, which is faster than the index once a scope is given and is the only way to see dotfiles",
+        reason = "walking a named directory, which reads it live and is faster than the index once a scope is given",
         origin = { brew = "fd" } },
     },
 
@@ -180,7 +177,7 @@ return {
                      headSlack = 20,
                      folderEntries = 100,
                      imageEdge = 600,
-                     nativeMaxBytes = 20 * 1024 * 1024,
+                     nativeMaxBytes = 1024 * 1024,
                      cacheDir = "~/.olm/cache/filesearch/previews",
                      cacheFiles = 400,
                    },

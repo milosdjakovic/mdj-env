@@ -70,8 +70,8 @@
 ---   modified  epoch seconds, or nil for the same reason
 ---   source    name of the source that produced it, for logging and for the preview
 ---
---- Size and modified are optional ON PURPOSE. Spotlight returns both as attributes for
---- free, so its rows carry them, while a directory walk would have to stat every path to
+--- Size and modified are optional ON PURPOSE. The index records a date as it crawls, so its
+--- rows carry one, while a directory walk would have to stat every path to
 --- fill them in and that cost buys nothing for a row nobody looked at. So a source fills
 --- in what it already knows and never stats to satisfy this shape.
 

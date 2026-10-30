@@ -5,7 +5,7 @@
 -- Five things live here and they answer five different questions. `types` decides
 -- what a dot attached token in a query means. `roots` decides what a bare directory
 -- name resolves to. `searchAlso` decides where a search with no folder named starts
--- from, beyond home. `prune` decides what the hidden index refuses to walk. `preview`
+-- from, beyond home. `prune` decides what the file index never descends into. `preview`
 -- decides how much of a file the pane beside the list reads before drawing it.
 
 return {
@@ -83,38 +83,27 @@ return {
     root      = "/",
   },
 
-  -- Extra starting points for a search with NO folder named, added to the ones derived from
-  -- home. A search that names a folder is unaffected, since that one is answered by walking the
-  -- tree you named.
-  --
-  -- The derived half is the top level of home minus the pruned names, and it is derived rather
-  -- than written out because Spotlight cannot be told to leave a subtree out. Naming the siblings
-  -- of ~/Library is the only way to exclude it, and that list has to keep up as folders come and
-  -- go. So this one adds to it rather than replacing it.
+  -- Extra starting points for the file index, crawled beside home and searched by every query
+  -- with NO folder named. A search that names a folder is unaffected, since that one is answered
+  -- by walking the tree you named.
   --
   -- An entry may be absolute, relative to home, or written with a tilde, and one that is not a
   -- directory on this machine is skipped, so the same list works everywhere.
   --
-  -- Applications are the case this exists for. They live outside home, so they were unfindable,
-  -- which also made the `app` type token above useless. Keep the list short for RELEVANCE and
-  -- not for speed, because breadth here is close to free. Measured over three terms, the derived
-  -- list, the whole of home and the whole volume all answered in the same 120 to 175 millisecond
-  -- band once the index was warm, and reading a page of two hundred rows cost 3.5ms whether the
-  -- result held 3,781 rows or 52,246. Adding "/" would therefore cost no time at all and would
-  -- still be a bad trade, since every query would then compete with the system.
+  -- Applications are the case this exists for. They live outside home, so without this they are
+  -- unfindable, which also makes the `app` type token above useless. Each entry is crawled on
+  -- every rebuild, so adding "/" would multiply the index and the rebuild time, and every query
+  -- would then compete with the system.
   searchAlso = { "/Applications", "/System/Applications" },
 
-  -- What the hidden index refuses to walk. Spotlight indexes no path containing a
-  -- dot segment, not the dot entry itself and not anything beneath it, so the hidden
-  -- source walks that blind spot itself and keeps the result. This list is what keeps
-  -- that walk from being pointless, since the bulk of a home directory's dot paths
-  -- are package caches nobody searches for.
+  -- Folder names the file index never descends into, and a scoped walk skips too. The
+  -- bulk of a home directory is package caches and build output nobody searches for by
+  -- name, and leaving them out is what keeps the index small and its rows worth showing.
   --
-  -- Measured on one machine, the walk with this list applied covers about 245
-  -- thousand paths in a second, and without the cache like entries it is several
-  -- times that with nothing gained. Editing this list is how you decide what unscoped
-  -- hidden search can reach, so it is the one knob worth revisiting if something you
-  -- expected to find is missing.
+  -- Measured on 2026-10-30, the crawl with this list applied covered 160 thousand
+  -- entries in 1.2 seconds. Editing this list is how you decide what unscoped search can
+  -- reach, so it is the one knob worth revisiting if something you expected to find is
+  -- missing.
   prune = {
     "Library", "Backups", ".git", ".cache", ".Trash",
     ".npm", ".pnpm-store", ".yarn", ".bun", ".cargo", ".rustup", ".nvm", ".gem",
@@ -159,12 +148,15 @@ return {
 
     -- Past this, an image is not decoded in process. A decode happens on the main thread
     -- and Hammerspoon owns every leader key in this config, so a stall here is a stalled
-    -- keyboard, and a photo library holds files well over this.
+    -- keyboard. It is also memory, since an in process decode is the whole picture at full
+    -- size, a phone photo near 48MB, held by Hammerspoon until the picker closes. Quick Look
+    -- hands back a picture the size of the pane, near 1.4MB, so anything but a small image
+    -- goes there, at the price of a moment on its first preview, cached after that.
     --
     -- It routes rather than refuses. A file over it goes to Quick Look, which is another
     -- process and does not care how big the file is, so this is not a maximum size the pane
     -- can show. There is no such maximum.
-    nativeMaxBytes = 20 * 1024 * 1024,
+    nativeMaxBytes = 1024 * 1024,
 
     -- Where rendered pictures are kept between opens, so a pdf costs a Quick Look render
     -- once rather than on every open. Outside the git tracked config, beside the other
@@ -207,15 +199,15 @@ return {
     -- already small.
     minChars = 3,
 
-    -- How long a source may take before it is abandoned. Spotlight queries measured
-    -- 109 to 155ms, a scoped walk 13ms on a small tree and 353ms on one holding 196
-    -- thousand entries, so this is several times the worst observed case.
+    -- How long a source may take before it is abandoned. An index search measured about
+    -- 10ms, a scoped walk 13ms on a small tree and 353ms on one holding 196 thousand
+    -- entries, so this is several times the worst observed case.
     timeoutSeconds = 5,
 
-    -- How stale the hidden index may be before a rebuild is started in the background.
-    -- Dotfile trees barely move, and the stale answer stays on screen while the fresh
-    -- one is built, so this trades nothing for a walk that costs about a second.
-    hiddenMaxAgeSeconds = 300,
+    -- How stale the file index may be before an open rebuilds it in the background. The
+    -- stale answer stays on screen while the fresh one is built, and a rebuild measured
+    -- about a second, so this bounds how far behind a just saved file can be.
+    indexMaxAgeSeconds = 300,
 
     -- How many recent files fill the list before anything is typed, and how far back
     -- they may reach. This is the state the picker opens in, so it is answering what

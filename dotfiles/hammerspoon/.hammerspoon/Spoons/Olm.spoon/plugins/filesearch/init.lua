@@ -26,14 +26,10 @@
 --- index does not hold at all. So a scope going anywhere but here would be both slower and less
 --- complete, which makes this the one ordering decision with two independent reasons.
 ---
---- Hidden is second, and it claims only what is left that Spotlight physically cannot answer,
---- an unscoped search asking for paths with a dot segment. Putting it first would steal every
---- scoped hidden query from the walk, which would answer them from a cache that can be minutes
---- stale when the live filesystem was right there.
----
---- Spotlight is last and claims everything else, which is most searches. Last is correct
---- because it is the only source with no precondition, so anything earlier would never be
---- reached if this came first.
+--- The index is last and claims everything else, every unscoped search, hidden or not, and the
+--- recent list. Last is correct because it is the only source with no precondition, so anything
+--- earlier would never be reached if this came first. It replaced both Spotlight and a separate
+--- hidden files index on 2026-10-30, sources/index.lua says why.
 ---
 --- Adding a backend is a new file in sources/ plus two lines here, the registration and its
 --- policy slice, with no edit to the engine.
@@ -72,10 +68,9 @@ obj.query = load("query.lua")
 -- below is what the engine actually receives, since order is the decision, see the note above.
 obj.sources = {
   walk = load("sources/walk.lua"),
-  hidden = load("sources/hidden.lua"),
-  spotlight = load("sources/spotlight.lua"),
+  index = load("sources/index.lua"),
 }
-obj._defaultSources = { obj.sources.walk, obj.sources.hidden, obj.sources.spotlight }
+obj._defaultSources = { obj.sources.walk, obj.sources.index }
 
 --- FileSearch.PreviewProvider
 --- Constant
@@ -232,22 +227,16 @@ function obj:configure(opts)
     insideFrom = insideFrom,
   })
 
-  obj.sources.hidden.configure({
-    fdPath = toolPath("fd"),
-    fzfPath = toolPath("fzf"),
+  obj.sources.index.configure({
     storage = opts.storage,
-    prune = policy.prune,
-    pruneLocal = policy.pruneLocal,
-    maxAgeSeconds = limits.hiddenMaxAgeSeconds,
-  })
-
-  obj.sources.spotlight.configure({
     prune = prune,
     limits = limits,
-    -- Where an unscoped search starts from. This is the one source that answers a query naming
-    -- no folder, so it is the only one the list means anything to.
+    -- Where the crawl starts beside home. This is the one source that answers a query naming no
+    -- folder, so it is the only one the list means anything to.
     searchAlso = policy.searchAlso,
-    insideFrom = insideFrom,
+    maxAgeSeconds = limits.indexMaxAgeSeconds,
+    -- A rebuild that lands while a list is open answers it again from the new index.
+    onRebuilt = function() obj:refresh() end,
   })
 
   -- The settings key is named HERE rather than inside frecency.lua, so the one piece of global
@@ -297,7 +286,15 @@ function obj:configure(opts)
   -- cannot reach a source, cannot reorder the sources, and cannot learn what an index is.
   obj.chooser:configure({
     api = {
-      rowsFor = function(q) return obj:rowsFor(q) end,
+      -- While the index is being made or replaced, a list with no other status says so in its
+      -- pinned status row, under whatever rows the old index already answered.
+      rowsFor = function(q)
+        local rows, status = obj:rowsFor(q)
+        if status == nil or status == "searching" or status == "loading" then
+          status = obj.sources.index.status() or status
+        end
+        return rows, status
+      end,
       -- Walking a directory tree is two verbs, one down and one up, and both answer with a query
       -- string rather than performing a move. So the surface only ever sets the field, and there
       -- is no second notion of where the picker is that could disagree with what is typed.
@@ -313,18 +310,17 @@ function obj:configure(opts)
       preference = function(path) return obj:preference(path) end,
       reset = function()
         obj:reset()
-        -- Warming the hidden index belongs here rather than in the engine, because it names one
-        -- concrete source and the engine names none. It puts the index in the page cache while
-        -- the user is still reading the recent list, measured at 240 milliseconds cold against
-        -- 6 warm, and rebuilds it instead when it is missing or stale.
-        obj.sources.hidden.warm()
+        -- Warming the index belongs here rather than in the engine, because it names one concrete
+        -- source and the engine names none. It builds the index when it is missing and rebuilds
+        -- it when it is stale, so an open is the only thing that ever starts a crawl.
+        obj.sources.index.warm()
       end,
       -- For a surface with no open of its own, which must not restart a session it is only
       -- joining. The warm goes with it, since it is the same beginning either way and doing it
       -- twice is free.
       ensureSession = function()
         obj:ensureSession()
-        obj.sources.hidden.warm()
+        obj.sources.index.warm()
       end,
       cancel = function() obj:cancel() end,
       browseQueryFor = function(row) return obj:browseQueryFor(row) end,

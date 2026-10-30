@@ -228,7 +228,7 @@ end
 -- What a file row is searched by, decided 2026-10-17 for phase three of the unified search.
 -- Its file name alone, the title, so filterText keeps the fitted folder under it out of the
 -- search. The full path is not a name either, though the old narrow between round trips searched
--- it. Spotlight, which answers every query that names no folder, matches names only, so a path
+-- it. The index, which answers every query that names no folder, matches names only, so a path
 -- searched here would let typing on keep a row that a round trip for the same text never returns,
 -- and the list would depend on how fast you typed. A folder word would also match at the name's
 -- own level and tie with files actually called that. bonus is how much you use the file, so it
@@ -311,6 +311,9 @@ end
 -- making every source declare a presentation key it has no interest in.
 local STATUS = {
   ["searching"]           = { icon = "search", title = "Searching",       detail = "asking the index" },
+  ["building index"]      = { icon = "loading", title = "Building index",  detail = "listing your files, the first time takes a second or two" },
+  ["updating index"]      = { icon = "loading", title = "Updating index",  detail = "the list refreshes when it is done" },
+  ["index search failed"] = { icon = "warn",  title = "Search failed",   detail = "the index helper returned an error, the console says more" },
   ["loading"]             = { icon = "loading", title = "Recent files",    detail = "gathering what you touched lately" },
   ["keep typing"]         = { icon = "keyboard",  title = "Keep typing",     detail = "three characters, or name a folder to search inside" },
   ["nothing to search for"] = { icon = "keyboard", title = "Keep typing",   detail = "add something to search for" },

@@ -520,11 +520,25 @@ end
 --- Hooked to the picker's one teardown path, so no dismissal leaves a canvas behind.
 --- Deleted rather than hidden because nothing may survive a close, and rebuilding one
 --- canvas on the next open costs nothing.
+---
+--- The pictures are collected straight after rather than left to Lua. Lua sees an hs.image as a
+--- few bytes while the decoded bitmap behind it is megabytes, so it never hurries, and after a
+--- few photos Hammerspoon sat 168MB heavier until something else made it collect. A full
+--- collect measured 14 to 24ms, so it runs just after the close rather than inside it, and
+--- only when this open held a picture.
+local collectTimer = nil
 function M.destroy()
   model = nil
   pending = pending + 1
+  local held = next(images) ~= nil
   images = {}
   if pane then pane.destroy() end
+  if held then
+    collectTimer = hs.timer.doAfter(0, function()
+      collectTimer = nil
+      collectgarbage("collect")
+    end)
+  end
 end
 
 return M

@@ -1,11 +1,11 @@
--- Unit case for how FileSearch's sources ask for a typed word, aligned with the shared search on
--- 2026-10-17. Spotlight asks a word shorter than the shared search's inside length at a word
--- start, the walker asks for the first word in the file name and hands every row it answers to
--- the shared search, Spotlight hands every scope root over the same way, and the hidden index
--- asks fzf for whole words with the file name first. The sources are loaded by path into an environment
--- of their own over a stand in hs that records what each would ask Spotlight or run, so nothing
--- is searched and the live hs is never touched. The runner reaches this file with a dofile call
--- carrying an absolute path, so it locates itself through debug.getinfo.
+-- Unit case for what FileSearch's sources ask for. The walker asks for the first word in the file
+-- name and hands every row it answers to the shared search, aligned with it on 2026-10-17. The
+-- index source asks its helper for the typed words, the hidden flag and the recent window, and
+-- turns the helper's lines into rows, since 2026-10-30 when it replaced Spotlight and the hidden
+-- index. The sources are loaded by path into an environment of their own over a stand in hs that
+-- records what each would run, so nothing is searched and the live hs is never touched. The runner
+-- reaches this file with a dofile call carrying an absolute path, so it locates itself through
+-- debug.getinfo.
 
 local source = debug.getinfo(1, "S").source
 local herePath = source:match("^@(.*)$") or source
@@ -23,7 +23,7 @@ local function check(description, ok, detail)
 end
 
 local noop = function() end
-local queries, tasks, spotCallbacks = {}, {}, {}
+local tasks = {}
 -- A timer runs its function at once when a check asks it to, so a walker answer settles inside
 -- the call that delivers it. It is switched on only after a search has started, or the search's
 -- own timeout would fire first.
@@ -39,13 +39,6 @@ local fakeHs = {
     dir = function() error("no listing here") end,
     mkdir = noop,
   },
-  spotlight = { new = function()
-    local q = setmetatable({}, { __index = function() return noop end })
-    q.queryString = function(_, s) queries[#queries + 1] = s end
-    q.count = function() return 0 end
-    q.setCallback = function(_, fn) spotCallbacks[#spotCallbacks + 1] = fn end
-    return q
-  end },
   task = { new = function(binary, onExit, onStream, args)
     tasks[#tasks + 1] = { binary = binary, args = args, onExit = onExit, onStream = onStream }
     return { start = noop, terminate = noop }
@@ -56,36 +49,8 @@ env.loadfile = function(path, mode, e) return loadfile(path, mode or "t", e or e
 local function load(path) return assert(env.loadfile(path))() end
 
 local query = load(fs .. "query.lua")
-local spotlight = load(fs .. "sources/spotlight.lua")
 local walk = load(fs .. "sources/walk.lua")
-local hidden = load(fs .. "sources/hidden.lua")
-
---------------------------------------------------------------------------------
--- Spotlight
---------------------------------------------------------------------------------
-
-spotlight.configure({ insideFrom = 3 })
-spotlight.search(query.parse("ab report", {}), { cap = 10, timeoutSeconds = 5 }, noop)
-local pred = queries[#queries] or ""
-check("a short word is asked at a word start", pred:find('kMDItemFSName LIKE[cdw] "ab*"', 1, true) ~= nil, pred)
-check("a word of the inside length is asked anywhere in the name",
-  pred:find('kMDItemFSName LIKE[cd] "*report*"', 1, true) ~= nil, pred)
-
-spotlight.configure({})
-spotlight.search(query.parse("ab report", {}), { cap = 10, timeoutSeconds = 5 }, noop)
-pred = queries[#queries] or ""
-check("without an inside length every word is asked anywhere, as before",
-  pred:find('LIKE[cd] "*ab*"', 1, true) ~= nil and not pred:find("cdw", 1, true), pred)
-
--- The scope roots are handed over whatever was typed, and the shared search keeps the ones the
--- words match. Here the stand in lists no home folders, so home itself is the one root.
-local home = os.getenv("HOME") or ""
-local answered
-spotlight.search(query.parse("zzqq notthere", {}), { cap = 10, timeoutSeconds = 5 },
-  function(rows) answered = rows end)
-spotCallbacks[#spotCallbacks](setmetatable({}, { __index = function() return function() return 0 end end }), "didFinish")
-check("a scope root is handed over though no typed word is in its name",
-  answered and #answered == 1 and answered[1].path == home, answered and #answered)
+local index = load(fs .. "sources/index.lua")
 
 --------------------------------------------------------------------------------
 -- The walker
@@ -123,12 +88,46 @@ check("every row the walker answers goes to the shared search, the later words u
     and paths[3] == "/home/dev/old notes.txt", table.concat(paths, ", "))
 
 --------------------------------------------------------------------------------
--- The hidden index
+-- The index
 --------------------------------------------------------------------------------
 
-hidden.configure({ fdPath = "/bin/fd", fzfPath = "/bin/fzf",
-  storage = { cacheDir = function() return "/cache" end } })
-hidden.search(query.parse(". zshrc", {}), { cap = 10, timeoutSeconds = 5 }, noop)
-local cmd = tasks[#tasks].args and tasks[#tasks].args[2] or ""
-check("fzf is asked for whole words, file names first",
-  cmd:find("--exact", 1, true) ~= nil and cmd:find("--scheme=path", 1, true) ~= nil, cmd)
+-- The stand in reports every file as modified now, so the helper reads as built and the index as
+-- fresh, and every search runs at once rather than waiting on a compile or a crawl.
+index.configure({ storage = { cacheDir = function() return "/cache" end }, limits = { recentDays = 7 } })
+
+index.search(query.parse("ab report", {}), { cap = 10, timeoutSeconds = 5 }, noop)
+local run = tasks[#tasks]
+check("a typed search runs the helper over the index with the cap and every word",
+  run.binary == "/cache/fileindex" and table.concat(run.args, " ") == "search /cache/file-index.txt 10 ab report",
+  run.binary .. " " .. table.concat(run.args, " "))
+
+index.search(query.parse(". zshrc", {}), { cap = 10, timeoutSeconds = 5 }, noop)
+check("a hidden search asks the helper to include hidden paths",
+  table.concat(tasks[#tasks].args, " ") == "search /cache/file-index.txt 10 -h zshrc",
+  table.concat(tasks[#tasks].args, " "))
+
+local before = os.time() - 7 * 86400
+index.search(query.parse("", {}), { cap = 40, timeoutSeconds = 5 }, noop)
+local recentArgs = tasks[#tasks].args
+check("the recent list asks for the newest files of the recent window",
+  recentArgs[1] == "recent" and recentArgs[3] == "40" and tonumber(recentArgs[4]) >= before,
+  table.concat(recentArgs, " "))
+
+local status
+index.search(query.parse(".", {}), { cap = 10, timeoutSeconds = 5 }, function(_, s) status = s end)
+check("a lone dot asks for something to search rather than running the helper",
+  status == "type something to search hidden files", status)
+
+local rowsBack
+index.search(query.parse("notes", {}), { cap = 10, timeoutSeconds = 5 }, function(rows) rowsBack = rows end)
+run = tasks[#tasks]
+run.onStream(nil, "1700000000\td\t/home/notes\n1700000001\t\t/home/notes.md\n", "")
+runTimers = true
+run.onExit(0)
+runTimers = false
+check("the helper's lines become rows, a folder flagged and the date carried",
+  rowsBack and #rowsBack == 2 and rowsBack[1].isDir == true and rowsBack[1].path == "/home/notes"
+    and rowsBack[2].isDir ~= true and rowsBack[2].modified == 1700000001,
+  rowsBack and #rowsBack)
+
+check("no status while nothing is being built", index.status() == nil, index.status())

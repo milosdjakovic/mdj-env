@@ -25,17 +25,17 @@ the engine `keeps`, built from the shared matcher every surfaced plugin is hande
 surface's own `searchName`, and the engine fills the retain cap with the rows the search keeps
 first, then says no matches when a round trip brought back none of them. The root also asks the
 matcher how many letters a word needs before it is kept inside a word, three, and hands that to
-Spotlight and the walker, so a shorter word is asked at a word start, Spotlight through
-`LIKE[cdw]` and the walker through a pattern. The walker hands the first word to the tool and
-every row the tool answers to the shared search, which ranks the later words, and Spotlight hands
-every scope root over the same way. A source narrows only the request it builds and never tests a
+the walker, so a shorter word is asked at a word start through a pattern. The walker hands the
+first word to the tool and every row the tool answers to the shared search, which ranks the later
+words. The index helper ranks a match at the start of the name or of a word in it above one inside
+a word, which keeps the same rows in its cap without being told the length. A source narrows only the request it builds and never tests a
 row against the typed words in Lua, since a second matcher disagrees with the shared one. The
 walker's own later word filter did exactly that until the phase four rework, a typo in a second
 word dropping a row the shared search keeps, notes reprot against notes report.md, and the dry
 gate's self filter rule now refuses the shape. Handing a walker answer over whole costs little,
 measured on 2026-10-17 over real walker output in plain Lua, two thousand rows, the retain cap,
 took about 10 milliseconds for the kept first pass and 3 to 5 for the shared ranking, and five
-thousand took about 30 and 17. fzf is asked for whole words with the file name first. While a round trip
+thousand took about 30 and 17. While a round trip
 for another population is pending, a scope, a type or a sigil changed, the held rows are not
 handed over and only the searching status shows, and over the same population, a typed letter,
 a backspace or an edit, they stay.
@@ -43,9 +43,9 @@ a backspace or an edit, they stay.
 This is why there is no result cache and why one was deliberately refused. A cache is
 wrong at the exact moment this tool is used, right after something was downloaded or
 built, while narrowing is always as live as the results it narrows. The only cache in the
-spoon is the hidden index, and that exists because there is no index behind it at all
-rather than as an optimisation, which is the distinction that decides whether a cache is
-worth its staleness.
+spoon is the file index, and that exists because the index Spotlight keeps had to be answered
+inside Hammerspoon, see the section on the index below, rather than as an optimisation, which is
+the distinction that decides whether a cache is worth its staleness.
 
 The narrowing guard has four conditions and all four are load bearing. The population must
 be identical, the text must have grown rather than changed, the held set must not have been
@@ -57,30 +57,26 @@ The fourth condition is the one that is easy to miss, and it was missed. The pic
 showing recent files, whose parse shape is the empty query, and any typed text grows from
 the empty string over an identical population, so the first three conditions are all
 satisfied by the recent list. The result was that every search silently answered from the
-forty most recently modified files and no search ever ran. It looked like Spotlight
+forty most recently modified files and no search ever ran. It looked like the index
 returning nothing, and the headless run had found the same file moments earlier, which is
 what made it worth chasing. So `_narrowable` is set only by `_publish`, and every other
 path that fills the retained set clears it. There are two such paths and both had to be
 found by hand, the recent branch in `rowsFor` and the recents callback itself.
 
-## Three sources, and why the order is the design
+## Two sources, and why the order is the design
 
 Order is the whole conflict resolution. Each source says whether it supports a query shape
 and the first that says yes owns it, so `init.lua` is the only file that can decide who
 wins.
 
 Walk is first, on two independent measurements rather than a preference. Walking Downloads
-took **13ms** where the index takes about **105ms**, and the walk also sees dotfiles the
-index does not hold at all. So a scoped query going anywhere else would be both slower and
-less complete.
+took **13ms** where Spotlight took about **105ms**, and a walk reads the folder live while the
+index is as old as its last rebuild. So a scoped query going anywhere else would be both slower
+and staler.
 
-Hidden is second and claims only what Spotlight physically cannot answer, an unscoped
-search for paths with a dot segment. First would steal every scoped hidden query from the
-walk and answer it from an index that can be minutes stale when the live filesystem was
-right there.
-
-Spotlight is last because it is the only source with no precondition. Anything after it
-would never be reached.
+The index is last because it is the only source with no precondition. Anything after it
+would never be reached. Until 2026-10-30 there were three, a hidden files index second and
+Spotlight last, and the index replaced both.
 
 ## Two searches run at once, and one cancel slot could not tell them apart
 
@@ -89,8 +85,8 @@ The reported symptom was that opening the picker showed the recent files row say
 gathering, with nothing under it, every single time.
 
 There are two independent searches in flight here, a typed query and the background recent files
-fetch, and both go through the Spotlight source because that is the only source with no
-precondition. Each source kept ONE in flight slot and exposed a module level cancel, so starting
+fetch, and both went through the Spotlight source then, since it was the only source with no
+precondition, as the index is now. Each source kept ONE in flight slot and exposed a module level cancel, so starting
 either search abandoned the other. Cancelling is silent by design, an abandoned search must never
 paint rows the user has moved past, so nothing called back and nothing complained.
 
@@ -153,7 +149,7 @@ not exist a minute ago has no history to rank. The same argument the header make
 result cache protects the date half of that list.
 
 Two smaller decisions. A floated path the date list already returned is MOVED rather than rebuilt,
-so it keeps the modification date Spotlight gave for free, and only a genuinely absent row is built
+so it keeps the modification date the index gave for free, and only a genuinely absent row is built
 and stat'd, which is why the floated rows read the same as their neighbours instead of being the
 ones with no age beside them. And dead paths are pruned at read time among only the handful about
 to be shown, so a deleted file cannot squat at the top and the long tail nobody is looking at
@@ -196,10 +192,9 @@ local narrow between round trips, so a stamp would report the previous answer on
 was just acted on, which is exactly the row being asked about.
 
 Worth knowing when reading a row, an age is not on every row and that is a cost decision one layer
-down. The modification date is read from Spotlight only for the recent list, because it is a per
-row attribute read and the note in the harvest measures what asking for it costs, and no source
-reads a size at all. So the only rows carrying a size are the ones `_float` stats itself, and a
-browse or a search shows the directory alone.
+down. The index carries a modification date on every row it answers, since the crawl had the stat
+anyway, and no source reads a size at all. So the only rows carrying a size are the ones `_float`
+stats itself, and a browse shows the directory alone.
 
 ## Case is folded in four places and three of them were wrong
 
@@ -221,47 +216,18 @@ Both tools are SMART CASE, which is the right default for a shell and the wrong 
 picker. One capital letter anywhere silently made a scoped or hidden search case sensitive, so
 the walker takes `--ignore-case` and the filter takes `-i` explicitly.
 
-## The scope roots were invisible to the source that searches them
+## Where an unscoped search starts
 
-Found while checking the case fix. Every top level folder in home is a Spotlight search scope, so
-a query searches INSIDE each one and the folders themselves are never results. Typing `Downloads`
-found everything called downloads except `~/Downloads`, and those are the shortest, most obvious
-names anyone types first.
-
-They are about ten entries, so `sources/spotlight.lua` adds every one of them to what the index
-returned for a typed search, and the shared search keeps the ones the words match. Until the phase
-four rework of 2026-10-17 it tested each word against them as a substring first, a second matcher
-that disagreed with the shared one on a typo. It lives there rather than in the engine for the same reason the hidden
-source exists at all, a blind spot is owned by the source that has it. The engine knows nothing
-about scopes and must not start.
-
-## Where an unscoped search starts, half derived and half declared
-
-The starting points are the top level of home minus the pruned names, and that derivation is not
-laziness. Spotlight cannot be told to leave a subtree out, so naming the siblings of `~/Library` is
-the only way to exclude it, and the list has to keep up as folders come and go. Anyone tempted to
-collapse it to one scope should know that, since it looks like a pointless fan of sixteen paths.
-
-It could only be that, which meant nothing outside home was reachable. Applications live in
-`/Applications`, so they were unfindable and the `app` type token was decoration. `searchAlso` in
-config names extra starting points and is ADDED to the derived list rather than replacing it, so
-the adaptive half keeps working and nothing has to be maintained by hand. An entry may be absolute,
+The crawl starts at home and at each `searchAlso` entry in config, `/Applications` and
+`/System/Applications`, which are added rather than replacing home. An entry may be absolute,
 relative to home, or written with a tilde, and one that is not a directory here is skipped, so one
-list travels between machines. The folders themselves become findable for free, since the source
-already matches its own scope names as results.
+list travels between machines. The pruned names are never descended into, so `~/Library`,
+`node_modules` and the rest are simply absent from the index. Bundles, `.app` and its family, are
+listed and never entered, since their insides are resource files nobody searches for by name.
 
-**Breadth is close to free, and that is worth knowing before tuning it.** Three terms measured
-against the derived list, the whole of home and the whole volume all answered in the same 120 to
-175 millisecond band once the index was warm, and reading a page of two hundred rows cost 3.5ms
-whether the result held 3,781 rows or 52,246. Spotlight is reading an index, not walking a tree.
-The first query on a fresh term costs several times any of that, which is the index warming and is
-the number that misleads, since a first measurement blamed the scope list for a cost that simply
-fell on whichever list ran first. So the reason to keep the declared list short is RELEVANCE.
-Adding `/` would cost nothing measurable and would still be a bad trade.
-
-A scoped search is the opposite case. That one goes to the walk source and really does traverse,
-measured at 13ms on a small tree against 353ms on one holding 196 thousand entries, so there
-naming a narrower folder genuinely is faster.
+Two blind spots Spotlight had are gone with it. The top level folders of home were its search
+scopes, so a search ran inside each one and `~/Downloads` itself was never a result, which needed
+the scope roots added back by hand. And the crawl lists dot folders, which Spotlight held none of.
 
 ## The recent list was the one result set the noise filter never saw
 
@@ -280,45 +246,20 @@ itself counts too.
 
 ## A bare type token is a third query shape, and treating it as the second broke it
 
-`.py` found nothing, reliably. It parses as kind recent, because nothing was typed, so the predicate
-ANDed the type filter with the recent date bound and asked for python files modified in the last few
-days. Worse, the date bound made it slower rather than cheaper, **4839ms to return zero** against
-**475ms** for the same name pattern with no bound at all. A date bound sitting next to a name pattern
-costs on both counts, so the fix is simply not to add one when a type filter is already the bound.
+`.py` found nothing, reliably, under Spotlight. It parses as kind recent, because nothing was
+typed, so the predicate ANDed the type filter with the recent date bound and asked for python files
+modified in the last few days. The type filter is its own bound, so the index source asks the
+helper for the newest files of that type with no date bound at all. The rest of what this section
+used to say was about Spotlight's sort descriptor and early stop, and went with it.
 
-Ordering it then needs two separate mechanisms and both are load bearing. The sort descriptor decides
-which rows the query holds at the top, and therefore which ones a capped harvest reads at all. A Lua
-sort decides the order of what came back. They come apart the moment a gather stops early, because a
-query that has not finished gathering has not sorted anything.
+## Noise is left out of the index, not filtered after
 
-That is also why the early stop is now off for anything ordered by date. Waiting is affordable
-because the gather is the cheap half, sixty thousand results in about **60ms** and the entire js
-extension, 204 thousand files, in **385**, while reading rows out is the expensive half and only a
-page is ever read. A cold index is the exception, where the same gather measured **6.3 seconds**, and
-the timeout covers it.
-
-## Filtering noise has to happen while harvesting, not after
-
-The engine can only filter what a source handed it, so a source that returns a capped sample first
-has the filter throw most of the sample away. That is why `.js` came back with **eleven** rows.
-
-It cannot be fixed by reading deeper either. Only **0.12 percent** of the 204,496 js files here live
-outside a pruned directory, so filling two hundred rows means reading **161,334** of them and five
-seconds. So the scan is bounded, and because the list is date sorted the budget is spent on the
-newest candidates, which makes a very common extension return FEWER rows rather than take longer.
-That is the right way round, and the eleven rows it returns are the newest javascript actually
-written here rather than eleven arbitrary ones. `py` fills a page by row 204 and `png` by row 799,
-so neither comes near the bound.
-
-Pushing the prune into the predicate was tried first and does **nothing**. Excluding
-`*/node_modules/*` through `kMDItemPath` left the count at 204,496 unchanged, three different ways,
-so that attribute is not queryable like that whatever the syntax suggests.
-
-Cost of the whole shape, measured as the largest gap between fires of a 20ms repeating timer, which
-is the only metric that catches a stall wherever it lands. A bare type token blocks **114 to 145ms**
-once per dispatch, an ordinary search **26ms**, and the recent list does not register above the
-idle floor. Use that method rather than timing a single delayed callback, which misses any block
-that does not overlap the moment the callback is due, and gave three misleading readings here.
+Under Spotlight a bare `.js` came back with eleven rows, because only 0.12 percent of the 204,496
+js files here sit outside a pruned folder and a capped sample was mostly noise the engine then
+threw away. The crawl never descends into a pruned name, so the index holds none of it and every
+row the helper hands back is a candidate. `_denoise` in the engine still runs, since the walker and
+the frecency rows reach it too. The bang sigil cannot bring a pruned folder back to an unscoped
+search any more, since the index never held it, and still does for a scoped walk.
 
 ## One entry in the prune list is a file, and it is the only artifact that ever showed
 
@@ -344,90 +285,53 @@ the opposite.
 
 The recent list was led, and later tailed, by MIDI files carrying a modification date of
 `2524579200`. A single file with corrupt metadata would otherwise squat at the top of the default
-view permanently, so a date beyond tomorrow is treated as unknown and sorts last. They still occupy
-a slot, since a 2050 date does satisfy "modified since last week" and excluding them would mean a
-second rule for one fact.
+view permanently, so the helper leaves a date beyond tomorrow out of the recent list. Under
+Spotlight it was sorted last instead and still took a slot, and leaving it out costs nothing now
+that the helper is the one place the window is applied.
 
 Worth knowing when verifying an ordering, because a checker that does not apply the same rule reports
 the deliberate demotion as a sorting bug, which is exactly what happened here.
 
-## What Spotlight cannot see, measured
+## The index, and why it replaced Spotlight
 
-It holds **no path containing a dot segment**. Not the dot entry and not anything beneath
-it, so all 599 files in `~/.config` come back as zero results. This is not a filter that
-can be switched off, the data is absent, which is the entire reason a third source exists.
-Anyone tempted to collapse the hidden source into a Spotlight flag should re run that
-query first.
+Spotlight answered inside Hammerspoon, and that was the cost. An `hs.spotlight` query holds an
+NSMetadataItem per result, and the recent list asks for every file changed in a week, so one open
+gathered tens of thousands of them in the process. Until 2026-10-30 a finished query was never
+collected at all, since `hs.spotlight` keeps its callback in the LuaSkin registry and the callback
+closed over the query, and 92 thousand items were found held. Clearing the callback fixed the leak,
+and the footprint still settled near 230 megabytes after a few searches, because a collect frees
+those items and malloc keeps the pages.
 
-The blind spot is about **245 thousand paths and 33MB**, walked in roughly a second. Too
-slow per keystroke and too much to hold in Lua, so it is written to a file and filtered by
-a tool.
+So the work moved out of the process. `sources/fileindex.swift` is one small helper with three
+commands, each of which does one thing, prints at most a page of lines and exits. `build` walks the
+roots with fts into a file of `mtime TAB flags TAB path` lines, `search` maps that file and keeps
+the names holding every word, ranked roughly, and `recent` keeps the newest files of the window.
+Hammerspoon only ever receives the rows it shows. Measured on 2026-10-30 over 160 thousand
+entries, a 20 MB index, a build took 1.2 seconds warm at 8 MB resident, and a search or the
+recent list took about 10 milliseconds including the process start. The map is why a search is
+cheap, its pages are clean and file backed, so they count against nothing.
 
-## Five query facts, each one learned the hard way
+The helper's ranking is only good enough to keep the right candidates in the cap. The shared
+search ranks what comes back, the same as every other list, so the helper never decides the order a
+person sees.
 
-Every one of these cost a wrong first attempt, so they are recorded rather than left to be
-rediscovered.
+A rebuild happens only on an open, when the index is older than `indexMaxAgeSeconds`, and runs in
+the background while the old index answers. When it lands the engine is asked to answer again,
+and the list says Updating index in its pinned status row until then, or Building index when
+there was none. So a file saved since the last rebuild appears a second or two after the next
+open, which is what was given up for Spotlight's always current answer. Watching the disk for
+changes, the way tinycast does with FSEvents, was left out to keep this simple, and is the next
+step if that delay is ever noticed.
 
-An attribute is cheap to read only if the query was told about it. This was the second hands-on
-report, severe lag part way through a word, and it was one line. An undeclared
-`kMDItemContentType` is fetched per row on demand at **0.284ms**, so harvesting two thousand rows
-blocked the main thread for **567ms**. Named through `valueListAttributes` the same read costs
-**0.008ms**. Measured by alternating the declaration over six fresh terms, since running the same
-term twice measures a warm index rather than the change, mean harvest **300ms against 21** with
-the gather unchanged at 128 against 110. So nothing is traded, the cost is simply removed, and
-the live figure went from about 465ms of blocked main thread to **1ms**. `kMDItemPath` is already
-cheap undeclared at 0.011 and the modification date needs no declaration either, because the
-recent query already names it as its sort key.
+The helper is compiled from its source on first use into the cache directory, the same way the
+Quick Look helper is, and again whenever the source is newer than the binary.
 
-The mdfind wildcard form is rejected. `kMDItemFSName == "*x*"c` works on the command line
-and `hs.spotlight` refuses it outright as an unparseable format string. The working form is
-the proper NSPredicate one, `LIKE[cd]` with explicit wildcards.
+## No shell in the spoon
 
-`$time.now` is rejected too. mdfind accepts `$time.now(-259200)` and `hs.spotlight` fails
-to parse the selector. A date bound has to be `CAST(n, "NSDate")`, and an NSDate counts
-from 2001-01-01, so the reference offset must be subtracted or the bound lands thirty one
-years early and matches everything.
-
-`inProgress` fires far too rarely to bound a broad gather at the default rate. A probe
-asking to stop at two hundred results was first notified at three thousand eight hundred,
-by which time a full second had passed. `updateInterval` is what makes the early stop work,
-which is why it is set low deliberately.
-
-The search scope is not the home directory. Every broad probe came back dominated by
-`~/Library`, thousands of logs and caches that cost gather time and are then discarded. So
-the scope is the top level of home minus the pruned names, and the noise never enters the
-gather.
-
-## Why fzf, the one place a second tool earns its keep
-
-Over the full hidden index, ripgrep is faster, **0 to 20ms** against **20 to 130ms**, and
-it was still the wrong choice. It cannot rank. A one word query like `nvim` matches
-**42,559** of these paths, so capping ripgrep's output hands back two hundred arbitrary
-rows from wherever the walk began. fzf ranks first, so a cap after it gives the two hundred
-best.
-
-It used to match a subsequence over the full path too, so a fumbled `hmrspn` found hammerspoon
-paths. Since phase three of the unified search on 2026-10-17 that fumble no longer reaches the
-list, since the shared search keeps a row by its name at its levels with no scattered match, and
-after the review that day fzf is asked `--exact --scheme=path`, each word whole and a match in
-the file name ranked first, so its capped answer holds rows the list keeps rather than rows found
-by scattered letters. `--nth=-1` with a slash delimiter would restrict it to the name and was
-rejected, since a directory line ends in a slash and its last field is empty.
-
-nucleo is measurably faster still and was rejected because it is a Rust library, so it
-would add a cargo toolchain to this repository for a tenth of a second on one code path.
-Television was rejected for a different reason, it is a terminal application rather than a
-component, so adopting it means giving up the shared chooser surface entirely.
-
-## The one shell in the spoon
-
-fzf reads candidates from standard input and takes no file argument, and pushing 33MB
-through a task's stdin from Lua on every keystroke would be far worse than a redirect. So
-`sources/hidden.lua` goes through `/bin/sh` to get `fzf --filter=... < index | head`, which
-also bounds the output at the pipe. The query is quoted through `util.shellQuote` because it
-is arbitrary typed text. Every other shellout here runs a binary with an argument list where
-no quoting question arises, and the browse deliberately calls `/bin/ls` by absolute path
-because `ls` is commonly shadowed in a user's shell.
+The hidden index needed `/bin/sh`, for `fzf --filter=... < index | head` and for fd writing its
+listing straight to disk, and both went with it. Every shellout now runs a binary with an argument
+list where no quoting question arises, typed text included, and the browse deliberately calls
+`/bin/ls` by absolute path because `ls` is commonly shadowed in a user's shell.
 
 ## Every empty state is a real row
 
@@ -1022,6 +926,13 @@ Look claims the raster types as the backstop behind it, and order still means ev
 photo takes the cheap path. The cap protects the main thread, which is the only thing it was
 ever for, and the backend that is not on the main thread has no reason to have one.
 
+The cap is memory as well as time, and it is small for that reason. An in process decode is the
+whole picture at full size, a phone photo near 48 MB, and Lua sees the hs.image holding it as a few
+bytes, so it collects late. After a session of searching Hammerspoon stood at 299 MB, 168 MB of it
+decoded images that a forced collect freed at once, measured 2026-10-30. So the cap is 1 MB, a photo
+goes to Quick Look and comes back the size of the pane, and the pane collects just after the picker
+closes whenever it held a picture.
+
 Only the Quick Look generator caches, and it has to. Writing a raster out would cost more than
 decoding it again. A render is keyed on what the file WAS, its size and its modification time,
 so an edited file renders again and an unchanged one is free on every later open, and the
@@ -1143,17 +1054,17 @@ puts it away.
 
 ## What it deliberately does not do
 
-No content search. Spotlight's text index answers it in about 135ms and ripgrep is the
-gitignore aware fallback, so the shape is known, it is simply not built.
+No content search. Spotlight's text index answered it in about 135ms while Spotlight was a
+source, and ripgrep is the gitignore aware fallback, so the shape is known, it is simply not built.
 
 No delete or trash action. A destructive key in a fast picker is a bad trade without a
 confirm step, and this has no confirm screen.
 
 ## What it degrades to
 
-Every tool is optional. Without the walker, scoped search stops and Spotlight still answers
-everything unscoped. Without fzf, unscoped hidden search stops and a scoped hidden search
-still works through the walk. Each source reports itself unavailable with one console line
+Every tool is optional. Without the walker, scoped search stops and the index still answers
+everything unscoped. Without the Swift compiler and no helper built yet, unscoped search and the
+recent list stop and a scoped search still works through the walk. Each source reports itself unavailable with one console line
 naming why, and the key stays worth pressing in every case.
 
 Without `qlmanage` the pane loses one describer. A raster still draws through the in process
@@ -1196,22 +1107,16 @@ the scope declare `rowLimit` 200 instead, cut after ranking, and `retainCap` sta
 on what is held and handed over.
 
 Searching the full path. A file row filters on its name, and its folder is neither a name nor a
-keyword. Spotlight, which answers every unscoped query, matches names only, so a path searched
+keyword. The index, which answers every unscoped query, matches names only, so a path searched
 here would let typing on keep a row a round trip for the same text never returns, and a folder
 word would match at the name's own level and tie with a file actually called that. The old
 narrow searched the folded full path and had exactly that disagreement.
 
 Losing a held handle. Every timer and every in flight search are held in fields for the same
 reason, an unreferenced one is collected and its callback silently never arrives, which looks
-exactly like a search that found nothing. A search handle now carries its query, so holding the
-handle is what holds the query and there is one rule instead of two. `check-timers` enforces the
+exactly like a search that found nothing. A search handle carries its task, so holding the
+handle is what holds the task and there is one rule instead of two. `check-timers` enforces the
 timer half and nothing enforces the handles, so that one is on the reader.
-
-Holding a query too long. The opposite fault, and the one that cost memory. hs.spotlight keeps a
-query's callback in the LuaSkin registry, and the callback closes over the query, so a stopped
-query whose callback is still set is never collected and keeps every result it gathered. The
-source releases a query by stopping it and clearing its callback, on delivery and on cancel, and
-`release` in `sources/spotlight.lua` is the one place that does both.
 
 Two surfaces reading the engine at once. There is one engine instance, and the query it is
 answering is state, so two lists driven at the same time would each be changing what the other
@@ -1221,13 +1126,8 @@ that ate two probes. Driving the row supplier by hand while the picker was open 
 refresh cycle answer with the recent list branch, which cancels the dispatch, so both dumps were
 the recent list wearing a browse header.
 
-The hidden index is written by fd, never read into Lua. The rebuild once ran fd through `util.run`
-and wrote its output from Lua, which made the 35.6 MB listing arrive as chunks, join into a second
-35 MB string and then go to disk. Measured 2026-10-30, the Lua heap went from 16 to 88 MB and
-Hammerspoon's physical footprint peaked at 478 MB during one rebuild. Freed small malloc pages are
-not returned, so the idle footprint stayed near 270 to 340 MB afterwards. A rebuild starts whenever
-the picker opens on an index older than five minutes. So the rebuild runs `exec fd ... > tmp`
-through `/bin/sh` and the listing never enters Hammerspoon. Success is judged by the tmp file being
-non empty, since fd exits nonzero when any folder under home is unreadable. Separately, `util.run`
-now drops its chunk tables and timers once it has answered, because the drain timer's callback kept
-the last output alive. `decisions/olm-filesearch.md` has the rejected alternative.
+Reading a listing into Lua. The hidden index rebuild once wrote fd's 35.6 MB output from Lua, and
+the Lua heap went from 16 to 88 MB with the footprint peaking at 478 MB, measured 2026-10-30. The
+index helper writes its file itself and prints only a count, a search prints only a page, and
+`util.run` drops its chunk tables once it has answered, so no listing ever passes through
+Hammerspoon. `decisions/olm-filesearch.md` has the rejected alternative.

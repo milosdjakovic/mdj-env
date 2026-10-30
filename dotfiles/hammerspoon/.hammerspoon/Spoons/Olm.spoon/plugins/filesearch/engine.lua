@@ -22,8 +22,8 @@
 --- Retaining well above what is displayed is what keeps that third condition true in
 --- practice.
 ---
---- Everything expensive happens elsewhere. Spotlight queries run off the main thread and
---- call back, and the walk and the hidden index run as separate processes. What is left
+--- Everything expensive happens elsewhere. The walk and the index helper run as separate
+--- processes and call back. What is left
 --- here is parsing and deciding which rows to hand over, all of which are microseconds. That
 --- is not an optimisation, it is a requirement, because Hammerspoon owns the event taps
 --- for every leader key in this config and a block would freeze the whole keyboard.
@@ -58,7 +58,7 @@ local DEFAULTS = {
   timeoutSeconds = 5,
   recentCount = 40,
   recentDays = 14,
-  hiddenMaxAgeSeconds = 300,
+  indexMaxAgeSeconds = 300,
 }
 
 --------------------------------------------------------------------------------
@@ -301,7 +301,7 @@ end
 -- list, habits first and then what just changed.
 --
 -- A path that the date list already returned is MOVED rather than rebuilt, so it keeps the size
--- and the modification date Spotlight handed over for free. Only a row that would otherwise be
+-- and the modification date the index handed over for free. Only a row that would otherwise be
 -- absent is built here, and that one is stat'd so it reads the same as its neighbours rather
 -- than being the one row with no age beside it. At a few rows per open that cost is nothing.
 function obj:_float(rows)
@@ -338,9 +338,9 @@ end
 
 -- The rows the shared search will keep for this free text first, then the rest, each part in
 -- the order the source gave, and how many it keeps. A source asks more loosely than the search
--- keeps, Spotlight a word inside a word that the search wants at a word start, fzf a word
--- anywhere in the path, so a source's own order can put rows the search drops ahead of rows it
--- keeps, and the retain cap below would then hold the first and lose the second. The kept count
+-- keeps, the index helper a word inside a word that the search wants at a word start, so a
+-- source's own order can put rows the search drops ahead of rows it keeps, and the retain cap
+-- below would then hold the first and lose the second. The kept count
 -- is what tells a round trip that brought back only dropped rows from one that found nothing.
 -- With no keeps, or no free text, nothing is preferred and every row counts as kept.
 function obj:_keptFirst(rows, parsed)
@@ -667,6 +667,21 @@ function obj:rowsFor(raw)
   self._status = "searching"
 
   return self._display, self._status
+end
+
+--- engine:refresh()
+--- Answer the open session again, after the data under it changed. The recent list is fetched
+--- afresh and stays on screen until the new one lands, and a published search is dispatched again.
+--- Nothing happens without a session, and a list showing recents or asking for more typing has
+--- nothing to dispatch, so only those two are refreshed.
+function obj:refresh()
+  if not (self._recents or self._recentsHandle) then return end
+  if self._recentsHandle then
+    pcall(function() self._recentsHandle.cancel() end)
+    self._recentsHandle = nil
+  end
+  self:_fetchRecents()
+  if self._parsed and self._narrowable then self:_dispatch(self._parsed) end
 end
 
 --- engine:rows() -> the current display rows, for a caller redrawing after onResults.
