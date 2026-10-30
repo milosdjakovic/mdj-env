@@ -1,5 +1,5 @@
 -- Unit case for the shared surfaces that moved onto the five type roles, the empty pane
--- state, the default chooser's action bar, the three toasts and the cheat sheet. They draw through the real kit
+-- state, the default chooser's action bar and its popovers, the three toasts and the cheat sheet. They draw through the real kit
 -- and the real measurer, since the runner is Hammerspoon's own interpreter, and every
 -- assertion is on a height or a geometry that is arithmetic from the role line heights, so
 -- the assertion text carries the sum. At the shipped sizes the line heights are title 27,
@@ -90,11 +90,13 @@ do
 end
 
 --------------------------------------------------------------------------------
--- action bar, the default chooser's footer row and the key panel above it
+-- action bar, the default chooser's two floating groups and the popovers above them
 --------------------------------------------------------------------------------
 
 do
   local footer = fresh("lib/chooser/providers/default/footer.lua")
+  local bar = fresh("lib/chooser/providers/default/bar.lua")
+  local popover = fresh("lib/chooser/providers/default/popover.lua")
   local chipH = T.badge.hint.height
   local barH = footer.height(T)
   local captionH = T.text.caption.lineHeight
@@ -104,86 +106,61 @@ do
 
   local model = {
     right = {
-      { label = "Choose Files", chord = "\u{21A9}" },
-      { label = "Uninstall", chord = "\u{2318}\u{21A9}" },
-      { label = "Actions", chord = "Hyper O" },
+      { label = "Choose Files", chord = "\u{21A9}", action = "choose" },
+      { label = "Uninstall", chord = "\u{2318}\u{21A9}", action = "secondary" },
+      { label = "Actions", chord = "Hyper O", action = "actions" },
     },
     keys = {
       { badges = { "Hyper J", "\u{2193}" }, label = "Move down" },
       { badges = { "\u{232B}" }, label = "Back" },
       { badges = { "\u{2318}1", "\u{2318}9" }, label = "Choose a visible row" },
     },
+    keysChord = "\u{2318}?",
   }
-  local inset = 13
-  local band = { x = 1, y = 400, w = 478, h = barH }
-  local els, keysRect = footer.bar(ui, T, model, band, inset, true)
-  local function chipsOf(list)
-    return frames(list, function(el)
-      return el.type == "rectangle" and el.action == "fill" and el.frame.h == chipH
-    end)
-  end
-  local boxes = chipsOf(els)
-  check("lit, the button's highlight and its ? chip, and one chip for each entry on the right",
-    #boxes == 2 + #model.right, "chips " .. #boxes)
-  local restEls, restRect = footer.bar(ui, T, model, band, inset, false)
-  check("at rest the key button draws its glyph and no chip, the state a row has off the pointer",
-    #chipsOf(restEls) == #model.right, "chips " .. #chipsOf(restEls))
-  check("and keeps the same rect, so the hit test does not move under the pointer",
-    restRect ~= nil and restRect.x == keysRect.x and restRect.w == keysRect.w)
-  local withChord = { right = model.right, keys = model.keys, keysChord = "\u{2318}?" }
-  local chordEls, chordRect = footer.bar(ui, T, withChord, band, inset, true)
-  check("lit, the key button carries its chord as a chip beside the glyph, on the button's highlight",
-    #chipsOf(chordEls) == 3 + #model.right, "chips " .. #chipsOf(chordEls))
-  check("and its rect covers both, so the hit test and the light take the whole button",
-    chordRect ~= nil and chordRect.x == keysRect.x and chordRect.w > keysRect.w + T.space.s)
-  local restChordEls = footer.bar(ui, T, withChord, band, inset, false)
-  check("at rest the glyph and the chord are both drawn without a chip",
-    #chipsOf(restChordEls) == #model.right, "chips " .. #chipsOf(restChordEls))
-  -- With the keyboard icon the engine drew, the icon takes the glyph's place, the hint icon size,
-  -- and the button's highlight spans the icon and the chord together.
+  -- The footer rect a spanning view is handed, the group's height and the bar pad below it.
+  local rect = { x = 0, y = 500, w = 900, h = barH + T.pad }
   local img = hs.image.imageFromName("NSComputer")
-  local iconEls, iconRect = footer.bar(ui, T, withChord, band, inset, true, img)
-  local pictures = frames(iconEls, function(el) return el.type == "image" end)
-  check("the key button draws its icon at the hint icon size, the section line 19",
+  local els, hits = bar.elements(ui, T, model, rect, { radius = 4, keysImage = img })
+  check("the keys group stands the bar pad in from the left at the top of the footer rect, as tall as the bar",
+    hits.keys and hits.keys.x == rect.x + T.pad and hits.keys.y == rect.y and hits.keys.h == barH,
+    hits.keys and string.format("%s,%s h%s", hits.keys.x, hits.keys.y, hits.keys.h) or "no rect")
+  check("the actions group stands the bar pad in from the right",
+    hits.actions and math.abs(hits.actions.x + hits.actions.w - (rect.x + rect.w - T.pad)) <= 1,
+    hits.actions and tostring(hits.actions.x + hits.actions.w) or "no rect")
+  check("each entry on the right is one hit naming its action",
+    #hits.entries == 3 and hits.entries[2].action == "secondary", "entries " .. #hits.entries)
+  local pictures = frames(els, function(el) return el.type == "image" end)
+  check("the keys group draws its icon at the hint icon size, the section line 19",
     #pictures == 1 and pictures[1].h == T.icon.hint and T.icon.hint == 19, "pictures " .. #pictures)
-  check("lit, one highlight spans the icon and the chord, beside the chord's own chip",
-    #chipsOf(iconEls) == 2 + #model.right and iconRect.x == band.x + inset
-      and iconRect.x + iconRect.w >= pictures[1].x + pictures[1].w, "chips " .. #chipsOf(iconEls))
-  check("at rest the icon stands alone with no highlight",
-    #chipsOf((footer.bar(ui, T, withChord, band, inset, false, img))) == #model.right)
-  check("the key button is one chip, centred in the bar and starting at the inset",
-    keysRect ~= nil and keysRect.h == chipH and keysRect.x == band.x + inset
-      and keysRect.y == band.y + T.space.s,
-    keysRect and string.format("%s,%s %sx%s", keysRect.x, keysRect.y, keysRect.w, keysRect.h) or "no rect")
-  local last = boxes[#boxes]
-  check("the right side runs flush against the bar's right edge less the inset",
-    last ~= nil and math.abs(last.x + last.w - (band.x + band.w - inset)) < 1,
-    last and tostring(last.x + last.w) or "no chip")
-  local divider = frames(els, function(el)
-    return el.type == "rectangle" and el.action == "fill" and el.frame.y == band.y and el.frame.w == band.w
-  end)
-  check("a divider runs along the bar's top edge", #divider == 1, "dividers " .. #divider)
-
-  local panelEls, panelRect = footer.keysPanel(ui, T, model, band, 300)
-  check("the key panel rises from the bar's top edge", panelRect.y + panelRect.h == band.y,
-    tostring(panelRect.y + panelRect.h))
-  local wantH = 2 * chipH + T.space.s + 2 * T.pad
-  check("three keys in two columns are two rows of a chip beside a caption label, a small space between and the panel padding around, 80",
-    panelRect.h == wantH and wantH == 80, "height " .. tostring(panelRect.h))
-  -- The empty text that pushes the right side flush has no attribute run at all, so a run is
-  -- looked for before it is read, which the first version of this check did not do.
+  -- The body role, measured by the real measurer, since the runner is Hammerspoon's own.
   local labels = frames(els, function(el)
     if el.type ~= "text" then return false end
-    local run = el.text:asTable()[2]
-    return run ~= nil and run.attributes.font.size == T.text.caption.size and el.text:getString() == "Uninstall"
+    local run = el.text.asTable and el.text:asTable()[2]
+    local size = run and run.attributes.font.size or el.textSize
+    local str = el.text.getString and el.text:getString() or el.text
+    return size == T.text.body.size and str == "Uninstall"
   end)
-  check("the bar's labels are hint labels in the caption role, 14", #labels == 1, "caption labels " .. #labels)
-  local fill = panelEls[1]
-  check("the key panel is filled in the background colour role",
-    fill and fill.type == "rectangle" and fill.fillColor and fill.fillColor.red == T.colors.background.red
-      and fill.fillColor.blue == T.colors.background.blue)
-  local _, short = footer.keysPanel(ui, T, model, band, 50)
-  check("the key panel is never taller than the room the list has", short.h == 50, "height " .. tostring(short.h))
+  check("the groups' words are the body role, as swift's are", #labels == 1, "body labels " .. #labels)
+  local fills = frames(els, function(el)
+    return el.type == "rectangle" and el.action == "fill" and el.fillColor
+      and el.fillColor.red == T.colors.background.red and el.fillColor.blue == T.colors.background.blue
+  end)
+  check("both groups are filled in the background colour role", #fills == 2, "fills " .. #fills)
+
+  local style = popover.style(ui, T, 13, barH)
+  local lines = {}
+  for i, k in ipairs(model.keys) do lines[i] = { label = k.label, chord = table.concat(k.badges, " ") } end
+  local pop = popover.layout(ui, style, "Keys", lines, false)
+  local placed = popover.place(pop, hits.keys, "left", { w = rect.w, top = 60 })
+  check("the key panel stands the outer padding above the keys group, its left edge on it",
+    placed.x == hits.keys.x and placed.y + placed.h == hits.keys.y - T.pad,
+    string.format("%s,%s %sx%s", placed.x, placed.y, placed.w, placed.h))
+  local low = popover.place(pop, hits.keys, "left", { w = rect.w, top = hits.keys.y - T.pad - 30 })
+  check("and never rises above the list's top", low.h == 30, "height " .. tostring(low.h))
+  local acts = popover.layout(ui, style, "Actions", { { label = "Open" }, { label = "Reveal" } }, true)
+  local right = popover.place(acts, hits.actions, "right", { w = rect.w, top = 60 })
+  check("the action panel's right edge sits on the actions group's",
+    right.x + right.w == hits.actions.x + hits.actions.w, tostring(right.x + right.w))
 end
 
 --------------------------------------------------------------------------------
