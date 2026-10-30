@@ -26,13 +26,15 @@
 --- best. It is asked for each word whole and ranks a match in the file name first, see filter,
 --- since the shared search keeps a file by its name alone and never by scattered letters.
 ---
---- THE ONE SHELL IN THE SPOON is here. fzf reads its candidates from standard input and takes
---- no file argument, and pushing 33 megabytes through the task's stdin from Lua on every
---- keystroke would be far worse than a redirect. So this single call goes through /bin/sh to
---- get `fzf --filter=... < index | head`, which also bounds the output at the pipe rather than
---- after the fact. The query is quoted through util.shellQuote, since it is arbitrary typed
---- text. Everything else in this spoon runs a binary with an argument list where no quoting
---- question arises.
+--- THE ONLY SHELL IN THE SPOON is here, used in two places. The filter, because fzf reads its
+--- candidates from standard input and takes no file argument, and pushing 33 megabytes through
+--- the task's stdin from Lua on every keystroke would be far worse than a redirect. So that call
+--- goes through /bin/sh to get `fzf --filter=... < index | head`, which also bounds the output
+--- at the pipe rather than after the fact. The query is quoted through util.shellQuote, since it
+--- is arbitrary typed text. The rebuild, because the listing goes straight to disk through a
+--- redirect, so 35 megabytes never pass through Hammerspoon. Read into Lua and written back out
+--- the same listing peaked the process at 478 megabytes. Everything else in this spoon runs a
+--- binary with an argument list where no quoting question arises.
 
 local spoonPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local util = loadfile(spoonPath .. "../util.lua")()
@@ -125,17 +127,21 @@ local function rebuild(done)
   -- Written to a temporary file and moved into place, so a filter running against the old
   -- index never reads a half written one.
   local tmp = indexPath() .. ".tmp"
-  util.run(cfg.fdPath, args, 60, function(out, err)
+  -- fd writes the file itself. exec replaces the shell with fd, so the timeout's terminate
+  -- reaches fd and not an idle shell.
+  local quoted = { util.shellQuote(cfg.fdPath) }
+  for _, a in ipairs(args) do quoted[#quoted + 1] = util.shellQuote(a) end
+  local cmd = "exec " .. table.concat(quoted, " ") .. " > " .. util.shellQuote(tmp)
+  util.run("/bin/sh", { "-c", cmd }, 60, function(out, err)
     building = false
-    if out then
-      local f = io.open(tmp, "w")
-      if f then
-        f:write(out)
-        f:close()
-        os.rename(tmp, indexPath())
-      end
+    -- fd exits nonzero when any folder under home is unreadable, which is normal here, so
+    -- the file decides, never the exit code.
+    local size = hs.fs.attributes(tmp, "size")
+    if type(size) == "number" and size > 0 then
+      os.rename(tmp, indexPath())
     else
       util.log.i("hidden index build failed, " .. tostring(err))
+      os.remove(tmp)
     end
     local waiting = pendingAfterBuild
     pendingAfterBuild = {}

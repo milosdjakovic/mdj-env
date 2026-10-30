@@ -1214,3 +1214,14 @@ confused list rather than a broken one, so this is a note and not a mechanism. I
 that ate two probes. Driving the row supplier by hand while the picker was open had the picker's own
 refresh cycle answer with the recent list branch, which cancels the dispatch, so both dumps were
 the recent list wearing a browse header.
+
+The hidden index is written by fd, never read into Lua. The rebuild once ran fd through `util.run`
+and wrote its output from Lua, which made the 35.6 MB listing arrive as chunks, join into a second
+35 MB string and then go to disk. Measured 2026-10-30, the Lua heap went from 16 to 88 MB and
+Hammerspoon's physical footprint peaked at 478 MB during one rebuild. Freed small malloc pages are
+not returned, so the idle footprint stayed near 270 to 340 MB afterwards. A rebuild starts whenever
+the picker opens on an index older than five minutes. So the rebuild runs `exec fd ... > tmp`
+through `/bin/sh` and the listing never enters Hammerspoon. Success is judged by the tmp file being
+non empty, since fd exits nonzero when any folder under home is unreadable. Separately, `util.run`
+now drops its chunk tables and timers once it has answered, because the drain timer's callback kept
+the last output alive. `decisions/olm-filesearch.md` has the rejected alternative.

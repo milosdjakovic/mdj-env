@@ -56,6 +56,10 @@ function M.run(binary, args, timeoutSeconds, cb)
     done = true
     if timer then timer:stop() end
     if drainTimer then drainTimer:stop() end
+    -- The result string is already built. The drain timer callback stays registered with
+    -- this closure, so without this the last run's whole output stays alive in Lua.
+    outChunks, errChunks = {}, {}
+    timer, drainTimer, task = nil, nil, nil
     if not cancelled then cb(out, err) end
   end
 
@@ -82,6 +86,8 @@ function M.run(binary, args, timeoutSeconds, cb)
       settle()
     end,
     function(_, stdout, stderr)
+      -- The stream can keep firing after the result was handed over, store nothing then.
+      if done then return true end
       if stdout and stdout ~= "" then
         outChunks[#outChunks + 1] = stdout
         bytes = bytes + #stdout
@@ -115,6 +121,7 @@ function M.run(binary, args, timeoutSeconds, cb)
       if drainTimer then drainTimer:stop() end
       pcall(function() task:terminate() end)
       done = true
+      outChunks, errChunks = {}, {}
     end,
   }
 end
@@ -197,9 +204,9 @@ end
 --- Wraps in single quotes and escapes any embedded single quote the only way a POSIX
 --- shell allows, by closing the quote, emitting an escaped quote, and reopening.
 ---
---- This exists because ONE source genuinely needs a shell, see sources/hidden.lua, and a
---- query is arbitrary typed text. Everything else here runs a binary with an argument
---- list where quoting cannot apply.
+--- This exists because the hidden source genuinely needs a shell, in two places, see
+--- sources/hidden.lua, and a query is arbitrary typed text. Everything else here runs a
+--- binary with an argument list where quoting cannot apply.
 function M.shellQuote(s)
   return "'" .. tostring(s or ""):gsub("'", "'\\''") .. "'"
 end
