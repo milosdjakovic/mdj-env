@@ -52,14 +52,15 @@ local M = {}
 --- must let through instead of claiming, and opts.listKeys, a function(event) that runs a list key
 --- the open list binds with no held leader and answers true when it took the key, and opts.focusHold,
 --- a function answering a release function or nil, asked once per open after the surface shows and
---- released on teardown. Callable more than once, a nil field left unchanged, matching
+--- released on teardown, and opts.rowLimit, the most rows a list shows when its presentation names
+--- none, false for no default. Callable more than once, a nil field left unchanged, matching
 --- CanvasPanel.configure's own idiom. Whatever calls M.new is expected to have called this first.
 function M.configure(opts)
   opts = opts or {}
   if opts.panel ~= nil then PANEL = opts.panel end
   if opts.ui ~= nil then UI = opts.ui end
   Engine.configure({ ui = opts.ui, yields = opts.yields, listKeys = opts.listKeys,
-    focusHold = opts.focusHold })
+    focusHold = opts.focusHold, rowLimit = opts.rowLimit })
   Canvas.configure({ panel = opts.panel, ui = opts.ui, icon = opts.icon,
     iconElements = opts.iconElements })
   return M

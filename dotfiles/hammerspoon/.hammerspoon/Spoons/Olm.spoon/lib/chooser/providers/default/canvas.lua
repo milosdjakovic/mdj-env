@@ -241,6 +241,9 @@ local function styleRow(scene, row)
   local face = scene.type
   local enabled = row.enabled ~= false
   local titleColor = enabled and T.colors.foreground or faded(T.colors.foreground, T.alpha.dim)
+  -- The engine's row of more, the last row of a list its limit cut, reads as part of the list
+  -- rather than as one of its results, in the subtext colour and with no icon of its own.
+  if row.more then titleColor = T.colors.subtext end
   local out = {}
   for k, v in pairs(row) do out[k] = v end
   out.title = styledText(row.title, face.textSize, titleColor, face.font, L.titleLineBreak)

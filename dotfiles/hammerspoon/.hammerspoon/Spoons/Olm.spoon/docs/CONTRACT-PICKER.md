@@ -156,7 +156,7 @@ second answer is the search set beside the strategy, see `setMatcher`.
 
 `setMatcher(m, search)` arity 1, answers nothing. `false` and nil are different answers and both
 must survive the round trip. `search`, optional since phase three of the unified search, is the
-presentation's `{ searchText, rowLimit }`, handed to `lib/chooser/rank.lua`'s `apply` with the
+presentation's `{ searchText, rowLimit }`, `rowLimit` a positive whole number or false, handed to `lib/chooser/rank.lua`'s `apply` with the
 strategy on every rank, and nil clears it. The stage writes both together before every show, so
 a presentation declaring neither leaves nothing of the one before it behind.
 

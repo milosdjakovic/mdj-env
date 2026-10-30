@@ -182,6 +182,9 @@ local SHIPPED_POLICY = {
   -- kept selectable as a fallback for now and warned about on every load that picks it, see
   -- decisions/olm-chooser-keys.md.
   chooserProvider = "default",
+  -- The most rows a list shows before its last row offers the rest, when its presentation names
+  -- no rowLimit of its own, false for every row. See chooser.rowLimit in config/settings.lua.
+  chooserRowLimit = 50,
   autoReload = { ignore = { "/config/[^/]+%.json[^/]*$" } },
 
   -- The heading over a sheet's rows that name no group, per role, read by lib/leader.lua's
@@ -703,6 +706,7 @@ function obj.run(olm, cfg)
       focusHold = function(sink) return secureFocusLib.hold(sink, { keys = relayFieldKeys }) end,
       yields = chooserKeys.yields,
       listKeys = chooserKeys.listKeys,
+      rowLimit = policy.chooserRowLimit,
     })
   end
 

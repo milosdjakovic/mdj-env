@@ -47,6 +47,7 @@ local olm = spoon.Olm:start({
     surface        = settings.surface,
     spacing        = settings.spacing,
     chooserProvider = settings.chooser.provider,
+    chooserRowLimit = settings.chooser.rowLimit,
     cheatSheet     = settings.cheatSheet,
     overlayDisplay = settings.overlayDisplay,
     storage        = { cacheRoot = settings.paths.cacheRoot, olmRoot = settings.paths.olmRoot },

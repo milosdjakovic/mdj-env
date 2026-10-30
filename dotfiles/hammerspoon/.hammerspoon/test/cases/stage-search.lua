@@ -67,10 +67,13 @@ local env = setmetatable({
 local stage = loadOrFail(olmDir .. "host/stage/init.lua", env)
 stage:configure({ chooser = factory })
 
--- The ids of the rows the provider holds now, in the order drawn.
+-- The ids of the rows the provider holds now, in the order drawn, the engine's row of more, which
+-- ends a list its limit cut, as more.
 local function shown()
   local out = {}
-  for i, row in ipairs(inst.listState.filtered or {}) do out[i] = row.item and row.item.id or "?" end
+  for i, row in ipairs(inst.listState.filtered or {}) do
+    out[i] = row.more and "more" or (row.item and row.item.id or "?")
+  end
   return table.concat(out, ",")
 end
 
@@ -102,14 +105,15 @@ stage:present(files)
 check("the stage writes searchText and rowLimit beside the matcher",
   select(2, inst:matcher()) ~= nil and select(2, inst:matcher()).searchText == lastWord
     and select(2, inst:matcher()).rowLimit == 3)
-check("an empty field shows the first rows up to the limit and the pinned row in place",
-  shown() == "back,notes,foo,bar", shown())
+check("an empty field shows the first rows up to the limit and the pinned row in place, then the row of more",
+  shown() == "back,notes,foo,bar,more", shown())
 inst:setQuery("~/dev .js foo")
 check("a structured query ranks by what searchText answers", shown() == "foo,food,back", shown())
 inst:setQuery("~/dev fo")
 check("the limit cuts after ranking and keeps the pinned row", shown() == "foo,food,fold,back", shown())
 inst:setQuery("~/dev .js")
-check("an empty answer keeps the supplier's order", shown() == "back,notes,foo,bar", shown())
+check("an empty answer keeps the supplier's order, then the row of more",
+  shown() == "back,notes,foo,bar,more", shown())
 
 -- The highlight hold ranks with the same search, so the row it finds is the one on screen.
 inst:setQuery("~/dev .js foo")

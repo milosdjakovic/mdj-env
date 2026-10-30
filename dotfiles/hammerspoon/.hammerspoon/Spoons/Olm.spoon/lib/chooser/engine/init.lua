@@ -111,6 +111,12 @@ local LIST_KEYS = nil
 -- change. Nil until Engine.configure runs.
 local FOCUS_HOLD = nil
 
+-- The most rows a list shows when its presentation names no rowLimit of its own, chooser.rowLimit
+-- in config/settings.lua handed through the root, or nil for no default. A presentation's own
+-- number wins and its false opts out. Rows past it are offered by the row of more, see moreRow.
+-- Nil until Engine.configure runs.
+local ROW_LIMIT = nil
+
 -- Return, keypad enter, up and down, the four keys a field's editing never claims, so all four
 -- reach leftoverKey unclaimed rather than being typed into the buffer as a stray character.
 local KEYCODE_RETURN, KEYCODE_KEYPAD_ENTER = 36, 76
@@ -155,6 +161,19 @@ end
 -- and never its presented title.
 local function rowItem(row)
   return row and row.item or nil
+end
+
+-- The row of more, the last row of a list its limit cut, naming how many rows choosing it adds,
+-- a page of the limit or what is left when that is less, and how many are left in all when that
+-- is more. It carries no item, so a highlight on it reports no item, it has no actions and a
+-- right press on it is nobody's. more = true is what the engine and every view know it by.
+local function moreRow(cut, page)
+  local adds = math.min(cut, page)
+  return {
+    title = ("Show %d more"):format(adds),
+    subTitle = cut > adds and ("%d more in all"):format(cut) or nil,
+    more = true,
+  }
 end
 
 -- Whether a key down is one a bare list reads, the vertical arrows, Return and keypad Enter,
@@ -304,11 +323,36 @@ end
 -- through setMatcher, so the rows drawn are the rows the search kept and a list of thousands
 -- presents only as many as its limit allows. A searchText that failed ranks nothing, and the
 -- reason is said here the way a consumer callback's failure is.
+--
+-- The limit is the presentation's rowLimit, or ROW_LIMIT when it names none, times the pages the
+-- row of more has added since the list was last built from the top. When it cut rows, the row of
+-- more stands just after the last row it counted, before any pinned row.
 function Engine:_rankedRows(query)
   local items = safeCall(self.config.rows, query) or {}
-  local ranked, reason = rank.apply(items, query, self._matcher, self._search)
+  local page = self:_rowLimit()
+  local search = self._search
+  if page then
+    search = {}
+    for k, v in pairs(self._search or {}) do search[k] = v end
+    search.rowLimit = page * (self._pages or 1)
+  elseif search and search.rowLimit == false then
+    search = { searchText = search.searchText }
+  end
+  local ranked, reason, more = rank.apply(items, query, self._matcher, search)
   if reason then print("Olm canvas provider, " .. reason) end
+  if more and page then
+    table.insert(ranked, more.at, moreRow(more.count, page))
+  end
   return ranked
+end
+
+-- The rows one page of the list holds, the presentation's own rowLimit when it names a number,
+-- none when it says false, and ROW_LIMIT otherwise.
+function Engine:_rowLimit()
+  local own = self._search and self._search.rowLimit
+  if own == false then return nil end
+  if type(own) == "number" then return own end
+  return ROW_LIMIT
 end
 
 -- Rebuilds self.listState from config.rows(query), ranked through lib/chooser/rank.lua and
@@ -330,6 +374,8 @@ function Engine:_rebuildList(query, resetHighlight)
   -- The query these rows were ranked for, which is what decides the empty state. The field's
   -- text can run ahead of it for the length of a setQuery, so it is kept rather than read back.
   self._rankedQuery = query or ""
+  -- A list built from the top, a show, a new query or a refresh from row one, is one page again.
+  if resetHighlight or not self.listState then self._pages = 1 end
   local drawReady = self.view:presentRows(self:_rankedRows(query))
   if resetHighlight or not self.listState then
     self.listState = listModel.newState(drawReady, self._drawLayout, "")
@@ -435,6 +481,10 @@ end
 -- the row being chosen and the row reading as highlighted never disagree.
 function Engine:_choose(row, index)
   if not row then return end
+  if row.more then
+    self:_showMore(index)
+    return
+  end
   if index then self:highlightIndex(index) end
   local item = rowItem(row)
   local enabled = row.enabled ~= false
@@ -448,6 +498,19 @@ function Engine:_choose(row, index)
   if not enabled then return end
   if self.config.onSelect then safeCall(self.config.onSelect, item) end
   self:hide()
+end
+
+-- The row of more chosen, by Return, a press or a digit. One more page is ranked in and the list
+-- rebuilt holding its scroll, with the highlight on the first row it added, the one standing
+-- where the row of more stood, so the list reads on from where the person was.
+function Engine:_showMore(index)
+  local ns = listModel.normalized(self.listState)
+  index = index or ns.highlight
+  self._pages = (self._pages or 1) + 1
+  self.view:stopScroll()
+  self:_rebuildList(self._rankedQuery or "", false)
+  if index then self:selectRow(index) else self:_fireHighlight() end
+  self.view:redraw()
 end
 
 -- Command and a digit chooses the row at that place in the list, list model's own rowAtSlot,
@@ -469,7 +532,7 @@ end
 function Engine:rightClickIndex(index)
   local ns = listModel.normalized(self.listState)
   local row = index and ns.filtered[index]
-  if row and self.config.onRightClick then
+  if row and not row.more and self.config.onRightClick then
     safeCall(self.config.onRightClick, rowItem(row), index)
   end
 end
@@ -1019,14 +1082,20 @@ local M = {}
 --- for a key down the field must let through instead of claiming, opts.listKeys, a
 --- function(event) that runs a list key the open list binds with no held leader and answers true
 --- when it took the key, and opts.focusHold, a function answering a release function or nil,
---- asked once per open after the surface shows and released on teardown. Callable more than once,
---- a nil field left unchanged.
+--- asked once per open after the surface shows and released on teardown, and opts.rowLimit, the
+--- most rows a list shows when its presentation names none, false for no default. Callable more
+--- than once, a nil field left unchanged.
 function M.configure(opts)
   opts = opts or {}
   if opts.ui ~= nil then UI = opts.ui end
   if opts.yields ~= nil then YIELDS = opts.yields end
   if opts.listKeys ~= nil then LIST_KEYS = opts.listKeys end
   if opts.focusHold ~= nil then FOCUS_HOLD = opts.focusHold end
+  -- false clears the default, a positive whole number sets it, anything else is left unchanged.
+  if opts.rowLimit == false then ROW_LIMIT = nil
+  elseif type(opts.rowLimit) == "number" and opts.rowLimit >= 1 and opts.rowLimit % 1 == 0 then
+    ROW_LIMIT = opts.rowLimit
+  end
   return M
 end
 
