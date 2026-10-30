@@ -23,7 +23,12 @@
 --- rows, since that sum runs about zero point seven percent high, invisible in
 --- truncation and visible here as a caret sitting off the glyph it belongs to. One
 --- measure of a query length string costs about a tenth of a millisecond, which a single
---- field can afford where a hundred rows could not.
+--- field can afford where a hundred rows could not. The call goes through style.measure,
+--- the kit's measurer, whose exact answer is the same call cached, because every
+--- getTextDrawingSize builds a hidden canvas window that outlives its delete until a
+--- reload, and the canvas view redraws this field on each caret blink, each keystroke and
+--- each tick of its scroll ease. Uncached, that left a window behind up to sixty times a
+--- second. A caller with no measurer, the standalone probe, gets the direct call.
 ---
 --- Vertical placement is a font metric question, not a drawing size question, and a
 --- hand test is the reason that distinction matters here. The first build measured a
@@ -105,6 +110,7 @@ local function px(n) return math.floor(n + 0.5) end
 ---   caretColor     an hs colour table for the caret, default textColor.
 ---   caretWidth     the caret's pixel width.
 ---   placeholderColor an hs colour table for the placeholder.
+---   measure        optional, the kit's measurer, whose exact(str, font, size) is cached.
 --- placeholder is a plain string, drawn in place of the buffer only when the buffer is
 --- empty, on the same baseline the real text uses.
 function M.elements(state, rect, style, caretVisible, placeholder)
@@ -117,14 +123,16 @@ function M.elements(state, rect, style, caretVisible, placeholder)
   local caretWidth = style.caretWidth
   local placeholderColor = style.placeholderColor
 
+  local measurer = style.measure
   local measureStyle = { font = font, size = size }
 
-  -- The one call to hs.drawing.getTextDrawingSize this file makes for a given prefix,
-  -- answering only the width the caret and the selection edges are placed at. Vertical
+  -- The one width this file asks for a given prefix, the x the caret and the selection
+  -- edges are placed at, through the kit's cache when the caller handed one in. Vertical
   -- placement no longer comes from this call at all, it comes from the font metrics
   -- below, which is the whole point of the fix documented at the top of this file.
   local function measure(prefixText)
     if prefixText == "" then return 0 end
+    if measurer then return measurer:exact(prefixText, font, size) end
     local measured = hs.drawing.getTextDrawingSize(prefixText, measureStyle)
     return measured and measured.w or 0
   end

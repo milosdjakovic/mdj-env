@@ -184,6 +184,7 @@ function View:restyle()
     selectionColor = T.colors.highlight,
     placeholderColor = faded(T.colors.foreground, T.alpha.dim),
     caretWidth = s.layout.caretWidth,
+    measure = UI.measure,
   }
   self._listStyle = {
     titleColor = T.colors.foreground,
