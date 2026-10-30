@@ -279,10 +279,10 @@ glass, and the keys group and each action entry also light under the pointer. Ev
 the token swift's view hands Swift, so both choosers put the groups in the same place at the same
 size. `footer.lua` keeps the bar's height, the taller of the hint badge and the caption line with
 the small space step above and below it, 23 plus twice 6 at the shipped sizes, so a size set in
-`config/typography.toml` reflows it, and the key panel, every key the hint badge with its glyph in
-the section role beside a caption label, on the background colour role with the kit's divider
-along its top, as tall as its two column grid of keys with `pad` around it, never taller than the
-list. Until 2026-10-30 the canvas bar was a single row of caption labels and hint badges with a
+`config/typography.toml` reflows it. The key panel and the action panel are popovers above their
+groups, the canvas clone of the swift chooser's described below,
+`lib/chooser/providers/default/popover.lua`, filled with the background role and outlined in the
+border role at the border stroke rather than glass, with no shadow. Until 2026-10-30 the canvas bar was a single row of caption labels and hint badges with a
 divider along its top. It replaced the docked hint bar, a flow of the same badges under the list in
 a panel of its own, on 2026 10 23.
 

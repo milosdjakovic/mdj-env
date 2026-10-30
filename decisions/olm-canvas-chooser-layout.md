@@ -1,6 +1,6 @@
 # Olm canvas chooser, a layout clone of the swift chooser
 
-Status. In progress on the canvas-glass-layout branch. The canvas chooser shares swift's rects, spans its pane as one surface and draws the bar as swift's two floating groups, and the popovers are still to come.
+Status. In progress on the canvas-glass-layout branch. The canvas chooser shares swift's rects, spans its pane as one surface, draws the bar as swift's two floating groups and the key panel and the action panel as popovers above them, all checked offline and not yet seen live.
 
 ## Now
 
@@ -23,9 +23,13 @@ window's bottom edge, drawn from a copy of the engine's list state with its `pad
 bar's height. The divider runs the full height under the bar. `Olm.spoon/AGENTS.md`, under the
 action bar, has the measurements and how a press and a hover are answered.
 
-Still to do. The key panel and the action panel as popovers above their
-groups, at which point the view answers `floatsActionPanel` too. Answering it before the popovers
-exist would leave the action panel nowhere to draw.
+Since 2026-10-30 the key panel and the action panel are popovers, `providers/default/popover.lua`,
+one drawing routine for both cloned from swift's `native/Popover.swift`, each standing above its
+group's rect, which `bar.lua` answers, and the view answers `floatsActionPanel`, so the panel has no
+Back row and the list keeps the rows it showed. `Olm.spoon/AGENTS.md`, under the action bar, has the
+sizes and the pointer. `footer.lua` keeps only the bar's height.
+
+Still to do. Seeing it live beside the swift chooser.
 
 ## Rejected
 
@@ -50,6 +54,14 @@ exist would leave the action panel nowhere to draw.
   as a badge on the highlight, and swift's groups draw the chord as plain body text beside the
   label. A badge inside a group puts a filled chip inside a filled shape and makes the group taller
   than swift's, so the canvas groups take swift's body text.
+- **2026-10-30, a press anywhere else in the chooser closing an open popover.** Asked for in the
+  brief, but the swift chooser does not do it. Its popover claims presses on itself, its list
+  ignores presses while the action panel is open, and nothing closes either popover but Escape,
+  the key button and the panel's own chord, so the clone does the same.
+- **2026-10-30, routing the arrows and Return to the action panel in the view.** The swift view
+  only stops its native list from taking the arrows while the panel is open, so they reach the
+  engine, whose rows are the panel's. The canvas field already hands every key to the engine, so
+  there is nothing to route.
 
 ## Log
 
@@ -74,3 +86,21 @@ answers a press on an action entry through `footerAction` and lets a press or a 
 groups reach the row behind. `footer.lua` lost its row and keeps the height and the key panel. The
 dry suite passes, with `test/canvasbar.lua` new, and `test/swiftview.lua` gains the zero gap that
 bb69fbc9 gave a spanning view and left the test still asserting a gap for. Not yet seen live.
+
+### 2026-10-30 20:06
+
+The key panel and the action panel are popovers in the canvas chooser, `popover.lua` beside the
+view and `View:_barAnchors` as the seam the bar work feeds, and the view answers
+`floatsActionPanel`. The old key panel over the bottom rows is no longer drawn. A popover's
+heading is the caption role, as swift's popover draws it, and its corner is the highlighted row's,
+the radius swift hands its popover. `test/swiftview.lua` still asserted the gap beside the pane
+that commit bb69fbc9 took away, so the dry suite failed on main and here, and the case now pins a
+zero gap. The dry suite passes with `test/canvaspopover.lua` added to it. Not yet seen live.
+
+### 2026-10-30 20:09
+
+The two branches merged into canvas-glass-layout. The popovers' placeholder anchors went, and the
+bar's own group rects are the anchors now, the keys group's for the key panel and the actions
+group's for the action panel. A point on a group or a popover is on no row, a scroll over either
+moves no list, and the rows held behind a floating action panel scroll through the same span the
+rows run on behind the bar. `footer.lua`'s key panel, unused since the popovers, was removed.

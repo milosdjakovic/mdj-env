@@ -545,7 +545,7 @@ canvas view, `lib/chooser/providers/default/canvas.lua`, joined at `lib/chooser/
 `docs/CONTRACT-PICKER.md` says which half owns what. The engine takes the model through one per
 instance collaborator, `config.footer`. Since 2026-10-30 the canvas view draws the bar as swift
 does, two floating groups rather than a row, through `bar.lua` beside the view, while `footer.lua`
-keeps the bar's height, which the engine and both views read, and the key panel's drawing. The
+keeps the bar's height, which the engine and both views read. The
 keys group stands in the bottom left corner and the actions group in the bottom right, each the
 kit's `pad` in from its side at the top of the footer rect, as tall as `footer.lua`'s height with
 `pad` below it, the kit's `inner` padding inside it on the left and the right, a label and its
@@ -563,7 +563,7 @@ engine's scroll, its furthest scroll, the highlight and the numbered rows are un
 the rows past the viewport show between and behind the groups. The divider beside a docked pane
 runs the full height under the bar. The engine asks the model on every
 show, after every highlight move and on a quarter second poll, the timer's handle kept, and owns
-the key panel's open state, and the canvas view owns the groups' hit tests and the panel's rect.
+the key panel's open state, and the canvas view owns the groups' hit tests and the popovers' rects.
 The keys group and each action entry sit on the highlight while the pointer is over them, the
 keys group also while its panel is open and the actions group while the action panel is, and the
 view's `_onMouseMove` redraws only as the pointer moves from one to another. A press on the keys
@@ -571,8 +571,7 @@ group toggles the key panel, and a press and release on one action entry runs it
 the engine's `footerAction`, as swift's bar does, each entry reaching from half the large gap
 before its label to half after its chord. A press or a scroll between the groups reaches the row
 behind them, and one on a group reaches no row. A press on the bar never hides the list. The key
-panel still rises from the top of the footer rect across the surface's interior, until it becomes
-a popover above the keys group, and its rect is on no row and takes no scroll.
+panel and the action panel are popovers above the keys group and the actions group, see below.
 Every list key that acts closes it, through the dispatch table's `onAction`, which the root points at
 the stage's `closeKeys` for every action but `showKeys`, and so does every field key, a new query
 and a refresh from the top. Escape over an open panel closes the panel and leaves the list, and the
@@ -606,6 +605,32 @@ The primary row reads Return and the secondary row Command and Return, the keys 
 and the key panel spells the primary as Return alone. Every row carries an icon. A
 surface's `primary` and `secondary` may name one of the manifest's icons like an extra row, and one
 naming none takes Olm's own, `primary` and `secondary` in the action panel's manifest beside `back`.
+
+The canvas view draws the key panel and the action panel as popovers since 2026-10-30, the
+canvas clone of the swift chooser's `native/Popover.swift`, one drawing routine for both in
+`providers/default/popover.lua`, which answers elements and hit rects and opens no canvas. Each is
+filled with the background role and outlined in the border role at the border stroke, its corner
+the highlighted row's, the surface radius less the list margin, and a lit line's corner that less
+the outer padding. The words, the header and the chords are the body role, the label in
+foreground and the chord in subtext, a section heading the caption role, a line the bar's row, a
+picture the section line height, and the paddings follow swift's two ways, see the popover in
+`docs/DESIGN-UI-KIT.md`. The key panel stands above the keys anchor, its left edge on it, and the
+action panel above the actions anchor, its right edge on it, each the outer padding above, never
+above the list's top, where it scrolls, and never wider than the window less the outer padding.
+The anchors are the one seam to the bar, the groups' own rects that `bar.lua` answers, kept by
+`View:_footerElements` as `self._anchors = { keys = rect, actions = rect }` in the window's local
+coordinates. The view answers
+`floatsActionPanel`, so the panel has no Back row and the engine's rows are the panel's while it is
+open. The list then goes on drawing the list state it held on the last draw before the panel
+opened, which a scroll over the list moves and nothing else, as the swift view keeps its rows.
+Keys need no routing of their own, since the canvas field hands every key to the engine, whose
+highlight and Return already act on the panel's rows. The pointer over a panel line calls
+`highlightIndex` and a release on one `chooseIndex`, the calls the swift view's hover and choose
+make, a press anywhere on a popover lands on no row, the rows behind a floating panel take no
+hover, press or right click, as swift's list guards them, and a scroll over a popover scrolls its
+own lines when they overflow and never the list. A press elsewhere closes neither, as in swift,
+Escape and the panel's own chord do. `test/canvaspopover.lua` pins the sizes, the placement and
+the pointer, in the dry tier.
 
 ## Secure focus, a list opened over a password field
 
