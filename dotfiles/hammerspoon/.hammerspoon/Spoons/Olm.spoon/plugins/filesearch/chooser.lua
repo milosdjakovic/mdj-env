@@ -882,6 +882,24 @@ local function goTo(q)
   if cfg.redrawPresented then cfg.redrawPresented("fileSearch", true) end
 end
 
+--- chooser:isEntry(item) -> boolean. Whether the row the action panel opened over is a real
+--- file or folder, the guard every verb acting on one entry already keeps for itself. Colon
+--- called, since the root hands a surface method its module first, as are the two below.
+function M:isEntry(item)
+  return type(item) == "table" and item.path ~= nil and not item.status and not item.help
+end
+
+--- chooser:isFolder(item) -> boolean. Whether that row is a real folder, which Into folder needs.
+function M:isFolder(item)
+  return M:isEntry(item) and item.isDir == true
+end
+
+--- chooser:isBrowsing() -> boolean. Whether the query browses a folder with one above it, which
+--- Up a level needs, asked the way browseUp itself asks.
+function M:isBrowsing()
+  return cfg.api.upQuery ~= nil and cfg.api.upQuery() ~= nil
+end
+
 --- chooser.browseInto() - walk into the highlighted directory rather than opening it.
 --- The query becomes that directory as an absolute scope, so this introduces no new concept,
 --- it types what the user could have typed. A row that is not a directory is left alone.

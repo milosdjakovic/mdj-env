@@ -20,11 +20,11 @@
 ---
 --- This file is the composition root and the command policy. It loads the engine, loads
 --- every provider, names them, and validates each one against the contract. One provider is
---- active at a time, chosen on a page reached from the list's own last row and remembered
+--- active at a time, chosen through the Provider verb of the action panel and remembered
 --- across reloads. When the active provider's CLI is not installed it logs the reason and
 --- still presents, to a row naming the missing backend and what provides it, both read from
 --- that provider's own install metadata so the panel never learns the concrete tool, with
---- the provider page still beside it so the choice can be taken back. The engine is left
+--- the Provider verb still in the action panel so the choice can be taken back. The engine is left
 --- unwired in that state, so a machine missing a backend degrades to a self explaining row
 --- rather than a dead key. That row is a label and not an action, since how to obtain a tool
 --- is the concern of the layer above this config and no file here may answer it.
@@ -34,7 +34,7 @@
 --- foreign city would then flip the daemon underneath somebody as a side effect of picking a
 --- place. So the providers are a choice rather than a union.
 ---
---- One flat list, not a drill down, with the single exception of that page. The controls and
+--- One flat list, not a drill down. The controls and
 --- the locations live in the same list, so there is no mode to switch and no second level to
 --- re-show. The location list is fetched on each open so a relay update is reflected, and
 --- the list is refreshed once it lands. The navigation shortcuts are wired from the main
@@ -84,8 +84,8 @@ local contract = load("contract.lua")
 -- forgotten line here impossible, which is this list's only remaining failure, but the dry
 -- contract gate loads this module against a permissive hs stub where hs.fs.dir answers
 -- another stub rather than an iterator, so the scan would hang the one gate that exists to
--- catch mistakes of this kind. The provider page below covers most of what the scan would
--- have, since a file that never got a line here is a row that never appears in the one
+-- catch mistakes of this kind. The Provider choices below cover most of what the scan would
+-- have, since a file that never got a line here is a choice that never appears in the one
 -- place a person goes to look for it.
 local PROVIDER_FILES = { "mullvad", "ivpn" }
 
@@ -110,7 +110,7 @@ local TARGET_KEY = "olm.vpn.target"
 -- Every provider is loaded and validated at load, and a gap is a hard failure rather than
 -- graceful degradation, since a file that cannot answer the contract is not a backend this
 -- engine can drive at all. A missing tool is an entirely different thing, answered per
--- provider by available() and shown as a state on the page rather than raised here.
+-- provider by available() and shown as a state among the Provider choices rather than raised here.
 local providers = {}
 for _, id in ipairs(PROVIDER_FILES) do
   local module = load("providers/" .. id .. ".lua")
@@ -143,8 +143,7 @@ local pending = {}    -- callbacks waiting on that fetch, so none of them is dro
 local generation = 0
 
 -- Defined further down, once onChange exists for them to wire, and forward declared here
--- because the provider page's own intercept closes over switchTo while being built above
--- the point where it can be written.
+-- because the action panel's Provider verb below calls switchTo, which is written after it.
 local activate, switchTo
 
 -- The bound M.prepare gives each of its three reads before treating a leg that has not
@@ -353,96 +352,40 @@ local function actionRow()
 end
 
 --------------------------------------------------------------------------------
--- The provider page (a child level)
+-- The provider, a choice of the action panel
 --------------------------------------------------------------------------------
 
--- The row that opens the provider page, and the only way into it. Last in the list on
--- purpose. The city directly under the action row is the one used most recently, which is
--- the whole point of that ordering, so a settings row in second place would push the thing
--- a person actually came for down by one every single time. At the bottom it costs that
--- nothing, and it carries the words somebody would really type when looking for it, so any
--- of settings, config, or provider ranks it straight to the top and the placement stops
--- mattering the moment it is wanted.
-local function settingsRow()
-  return {
-    title = "VPN provider",
-    subTitle = (provider and provider.name) or "none",
-    icon = "settings",
-    item = { id = "providers" },
-    keywords = "providers, backend, settings, config",
-  }
-end
-
--- The page's own rows, Back and then one per loaded provider.
+-- One choice per loaded provider, for the Provider verb of the action panel,
+-- docs/PLAN-ACTION-PANEL.md. It used to be a page of its own behind a row at the foot of the
+-- list, and it moved into the panel on 2026-10-30, since a backend is a setting of the tool
+-- rather than a place in it, and the panel is where a list keeps what it offers beyond Return.
 --
--- Three states rather than two. Active is the one driving. Installed is present and one
--- press from driving. Not installed is a provider this config knows about and this machine
--- cannot reach, and it is shown rather than hidden because the difference between a backend
--- that was never written and one whose app is missing is worth being able to see. That row
--- is built disabled, so the stage never dispatches it and it reads as a label, which means
--- a person cannot switch to something that is not there.
-local function providerRows()
-  local out = {
-    { title = "Back", subTitle = "", icon = "back",
-      item = { nav = true, to = "back" }, pinned = true },
-  }
+-- Three states rather than two. Active is the one driving, marked the way every list marks the
+-- choice in force. Installed is present and one press from driving. Not installed is a provider
+-- this config knows about and this machine cannot reach, shown rather than hidden because the
+-- difference between a backend that was never written and one whose app is missing is worth
+-- being able to see. It is answered disabled, so the panel draws it dimmed and choosing it does
+-- nothing, which means a person cannot switch to something that is not there.
+local function providerChoices()
+  local out = {}
   for _, entry in ipairs(providers) do
     local usable = entry.module.available()
-    local mark, detail
+    local detail = "Not installed"
     if entry.id == activeId then
-      mark, detail = "active", "Active"
+      detail = "Active"
     elseif usable then
-      mark, detail = "idle", "Installed"
-    else
-      local note = (entry.module.install or {}).note
-      mark = "warn"
-      detail = note and ("Not installed. " .. note) or "Not installed"
+      detail = "Installed"
     end
     out[#out + 1] = {
       title = entry.module.name or entry.id,
-      subTitle = detail,
-      -- The subtitle is a status, Active or Installed, so the row searches its name alone.
-      filterText = entry.module.name or entry.id,
-      icon = mark,
+      subtitle = detail,
+      icon = usable and "idle" or "warn",
+      value = entry.id,
+      current = entry.id == activeId,
       enabled = usable,
-      item = { provider = entry.id },
     }
   end
   return out
-end
-
--- The page itself, a child presentation the stage pushes in place when the settings row is
--- chosen, so the list swaps without a second window and Backspace pops back to the
--- locations.
---
--- Choosing a provider answers "stay", so the page does not close and the highlight holds on
--- the row that was just pressed. A page of options a person flips is not somewhere they
--- should be ejected from, leaving is their own Backspace. Back is the one row that really is
--- a level change, so it pops and answers plain true.
---
--- No matcher is declared, so the page inherits the shared one and a typed word narrows the
--- backends by name. Back is pinned, so the search can never rank it away, and it trails the
--- matches under a typed query so Enter takes the best one.
-local function buildProviderChild()
-  return {
-    placeholder = "Which backend drives the VPN controls",
-    rows = providerRows,
-    -- Required on every presentation even though nothing reaches it, since both kinds of
-    -- reachable row on this level are caught by intercept below and the disabled ones are
-    -- never dispatched at all.
-    onSelect = function() end,
-    intercept = function(item)
-      if item.nav and item.to == "back" then
-        if cfg.stagePop then cfg.stagePop() end
-        return true
-      end
-      if item.provider then
-        switchTo(item.provider)
-        return "stay"
-      end
-      return false
-    end,
-  }
 end
 
 -- The single row shown when the active provider's CLI was not found. It names the missing
@@ -450,10 +393,10 @@ end
 -- panel explains the gap instead of opening empty and never names the concrete tool or the
 -- platform.
 --
--- This used to be the whole list and therefore a dead end. It is not one any more, because
--- the settings row is shown beside it, so a person who switches to a backend they have not
--- installed can always reach the page again and switch back. Making that reachable is the
--- reason this row is allowed to stay a label rather than having to grow an action.
+-- This is the whole list and it is not a dead end, because the action panel's Provider verb
+-- applies to every row, this one included, so a person whose backend has gone missing can
+-- always switch to one that is installed. Making that reachable is the reason this row is
+-- allowed to stay a label rather than having to grow an action.
 --
 -- Disabled on purpose, so it reads as a label rather than an action. It deliberately does
 -- not offer to install anything, because how a tool is obtained belongs to the layer above
@@ -502,7 +445,7 @@ end
 -- row appears only when the field is empty, so a query never has to filter it out. Each
 -- city row carries its country flag as the icon.
 local function rows(query)
-  if not available then return { unavailableRow(), settingsRow() } end
+  if not available then return { unavailableRow() } end
   local out = {}
   if (query or "") == "" then out[#out + 1] = actionRow() end
   if refused then
@@ -523,7 +466,6 @@ local function rows(query)
       names = loc.terms,
     }
   end
-  out[#out + 1] = settingsRow()
   return out
 end
 
@@ -548,9 +490,6 @@ local function onSelect(sel)
   -- branch for it here. Guarded anyway, since a row arriving without a live engine would
   -- otherwise reach an engine call.
   if sel.id == "unavailable" or sel.id == "waiting" or sel.id == "refused" then return end
-  -- Answering a table is what pushes a level, so this returns the page rather than opening
-  -- anything itself.
-  if sel.id == "providers" then return buildProviderChild() end
   if sel.id == "connect" then
     engine.connect(sel.target)
   elseif sel.id == "disconnect" then
@@ -643,21 +582,23 @@ end
 --- names no launcher and no host. Unchanged by the migration, decision eight, this scope
 --- stays exactly as is. While the locations are in flight the rows carry the waiting row, which
 --- is pinned, so the matcher can never rank away the only row there is.
---- The provider page is deliberately not among these rows. A scope's own run door discards
---- whatever select answers, so the one row whose entire job is to answer a child
---- presentation would look live in the launcher and then do nothing at all when chosen. The
---- page stays reachable from this tool's own list, which is the surface that can actually
---- push a level.
 function M.scopeRows(rest, redraw)
   if rest == "" or not M.ready() then
     M.prepare(redraw)
   end
-  local out = rows(rest)
-  for i = #out, 1, -1 do
-    local item = out[i].item
-    if item and item.id == "providers" then table.remove(out, i) end
-  end
-  return out
+  return rows(rest)
+end
+
+--- M:providerChoices() -> list. The choices of the action panel's Provider verb, one per
+--- loaded backend, the one driving marked as in force. Colon called, since the root hands a
+--- surface method its module first.
+function M:providerChoices()
+  return providerChoices()
+end
+
+--- M:switchProvider(id) - drive the VPN controls with the backend a Provider choice names.
+function M:switchProvider(id)
+  if id then switchTo(id) end
 end
 
 --- M.prepare(onReady) - make the rows current without presenting anything, reading the live
@@ -822,7 +763,7 @@ end
 -- itself declares, so this file learns neither where a tool lives nor how it is obtained.
 --
 -- Every provider, not only the active one, and that distinction is load bearing. A provider
--- reports itself unavailable until it has been given a path, and both the provider page and
+-- reports itself unavailable until it has been given a path, and both the Provider choices and
 -- the initial choice ask each provider whether it can drive. Resolving only the active one
 -- meant every other provider answered a confident false however installed it actually was,
 -- so the page read Not installed for a working backend and the initial choice fell through
@@ -866,7 +807,7 @@ end
 -- removed keeps standing, so reinstalling that app puts the tool back where the person left
 -- it rather than silently making a temporary fallback permanent. When nothing at all is
 -- available the first provider is still returned, so the list opens to that one's own
--- missing tool row with the provider page beside it rather than to nothing.
+-- missing tool row with the Provider verb still in the action panel rather than to nothing.
 local function chooseInitial()
   local stored = hs.settings.get(PROVIDER_KEY)
   for _, entry in ipairs(providers) do
@@ -878,7 +819,7 @@ local function chooseInitial()
   return providers[1]
 end
 
--- Switch the active backend, from the provider page and nowhere else.
+-- Switch the active backend, from the action panel's Provider verb and nowhere else.
 --
 -- Everything the previous backend answered is dropped, the status snapshot, the selected
 -- relay, and the whole location list, because none of it means anything under a different
@@ -896,8 +837,8 @@ switchTo = function(id)
   for _, candidate in ipairs(providers) do
     if candidate.id == id then entry = candidate end
   end
-  -- Both guards are unreachable through the page, which never builds a row for a provider
-  -- it did not load and builds an unusable one disabled so the stage cannot dispatch it.
+  -- Both guards are unreachable through the Provider verb, which never offers a provider it
+  -- did not load and answers an unusable one disabled so the panel cannot choose it.
   -- Kept because this function is the seam a future caller would reach for.
   if not entry or not entry.module.available() then return end
 
@@ -912,9 +853,8 @@ switchTo = function(id)
   activate(entry)
   hs.settings.set(PROVIDER_KEY, id)
 
-  -- The redraw names the top level, so it lands once the person has left the page and does
-  -- nothing while they are still on it. Nothing is lost either way, since popping back
-  -- re-asks for the rows and by then this round has already written the cache.
+  -- The redraw names this tool's list, so it lands once the action panel has closed back onto
+  -- it, and a later open re-asks for the rows by which time this round has written the cache.
   M.prepare(function()
     if cfg.redrawPresented then cfg.redrawPresented("vpn") end
   end)
@@ -944,9 +884,8 @@ end
 --- Nothing here may call the service's own prune, which would read one backend's ids as the
 --- complete set and forget every other backend's.
 ---
---- opts.stagePresent, opts.redrawPresented, and opts.stagePop are root published words, all
---- optional, all no ops when absent. M.show, onChange, and the provider page's own Back row
---- say what each one degrades to without the other.
+--- opts.stagePresent and opts.redrawPresented are root published words, both optional, both
+--- no ops when absent. M.show and onChange say what each one degrades to without the other.
 -- Colon here, not dot, because the composition root and the live top level init.lua both
 -- reach this through the ordinary method call spoon.Vpn:configure(opts), and the shared
 -- wiring pipeline in lib/wire.lua calls every plugin's configure the same way. self arrives

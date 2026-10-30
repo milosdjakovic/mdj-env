@@ -221,9 +221,9 @@ after adding `"tmuxSessions"` to `queryScopeSpec`, which answered the scope.
 
 `hosted = true` also changes what choosing this tool's own launcher row does, from
 opening the native picker to hosting the plain window list in place, the exact same
-tradeoff BrowserTabs makes for its own row. The Settings level stays reachable only
+tradeoff BrowserTabs makes for its own row. The Terminal verb stays reachable only
 through Hyper+U or through opening the picker directly, never through the alias or the
-row, since hosting shows one list and Settings is a step into a second one.
+row, since a hosted list offers only the verbs its scope declares.
 
 `row.detail` and a real chord do not mix well either, and this one was a style choice
 rather than a hidden mechanism. Setting `detail` makes the launcher's `addTool` print it
@@ -266,11 +266,12 @@ typed word against the name first and the session as a secondary field, so `vic 
 the `general` window inside `vicert` even though neither word names the whole of either field.
 
 The presentation and the scope no longer declare matcher false, and the supplier returns
-every window with no filtering of its own. The Settings door is an ordinary row, scored like
-any window and not pinned, so typing a word it does not answer to drops it. The settings
-level pins Back and lets the shared search narrow the providers. The old reason for a hand
-written filter, a Settings level that had to opt out of the shared matcher, ended when each
-level became its own presentation.
+every window with no filtering of its own. The old reason for a hand written filter, a
+Settings level that had to opt out of the shared matcher, ended when each level became its own
+presentation, and the level itself ended on 2026-10-30, when the choice of terminal became the
+Terminal verb of the action panel, `docs/PLAN-ACTION-PANEL.md` in the spoon. A window list with a
+settings row at its foot carried one row that was not a window, and the panel is where a list
+keeps what it offers beyond Return.
 
 ## Two Olm-wide landmines this plugin's wiring had to route around
 
@@ -303,7 +304,7 @@ AppleScript dictionary at all, so their `openAttach` goes through `open -na <App
 instead, `-e ... tmux attach-session` for Alacritty and `start -- tmux attach-session` for
 WezTerm, both documented CLI shapes and neither one run live. `available()` answers false
 for whichever of these are not installed on a given machine either way, so an unverified
-provider degrades to a disabled Settings row rather than a wrong answer. That sentence was
+provider degrades to a dimmed Terminal choice rather than a wrong answer. That sentence was
 written before it was true. The empty string trap above meant every absent backend reported
 itself installed, so this section made exactly the promise the bug was breaking, which is worth
 leaving on the record as the reason to measure a claim like it rather than write it down.

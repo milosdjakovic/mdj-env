@@ -2101,7 +2101,8 @@ function obj.run(olm, cfg)
   -- after the whole pipeline has finished.
   -- surfaceAdapters is declared here and filled further down, the same forward declaration as
   -- dispatchTable, so the action panel's call below reaches the real list once it exists.
-  local dispatchTable, surfaceAdapters
+  -- surfaceByOwner is the same adapters keyed by the plugin that owns them, filled beside them.
+  local dispatchTable, surfaceAdapters, surfaceByOwner
   local actionKinds = hintsLib.actionKinds(plan, actionKindOverrides)
   local actionPanelOpts = {
     kindOf = function(action) return actionKinds[action] end,
@@ -2112,12 +2113,23 @@ function obj.run(olm, cfg)
       local fn = dispatchTable and dispatchTable[action]
       if fn then fn(value) end
     end,
-    -- Calls a named method of the open list's plugin surface, what a verb's applies and choices
-    -- name, through the same adapters the dispatch routes every verb through.
-    call = function(method, ...)
-      local surface = navLib.activeSurface(surfaceAdapters)
-      if surface and type(surface[method]) == "function" then return surface[method](...) end
-      return nil
+    -- Calls a named method of the plugin owning the context the panel opened for, what a
+    -- verb's applies and choices name, through the same adapters the dispatch routes every verb
+    -- through. The owner rather than whichever list is showing, since a hosted list is showing
+    -- inside the launcher while its verbs belong to the tool that made its rows, and the row is
+    -- handed over as that tool made it, through the query scope that wrapped it. The second
+    -- answer says whether the method exists, so the panel can tell a verb that does not apply
+    -- from one whose surface cannot say.
+    call = function(method, item, contextName)
+      local owner = contextName and contextOwners[contextName]
+      local surface = (owner and surfaceByOwner and surfaceByOwner[owner])
+        or navLib.activeSurface(surfaceAdapters)
+      if not (surface and type(surface[method]) == "function") then return nil, false end
+      local queryScopeModule = modules[plan.identity.queryscope or "queryscope"]
+      if queryScopeModule and type(queryScopeModule.payloadOf) == "function" then
+        item = queryScopeModule:payloadOf(item)
+      end
+      return surface[method](item), true
     end,
     -- The panel filters its own rows through the one rank engine when the list under it owns
     -- its filtering. substring is what it always did there, kept until phase three of
@@ -2347,6 +2359,7 @@ function obj.run(olm, cfg)
   end
 
   surfaceAdapters = {}
+  surfaceByOwner = {}
   local seenOwner = {}
   for _, name in ipairs(plan.order) do
     local owns = false
@@ -2378,6 +2391,7 @@ function obj.run(olm, cfg)
         -- the moment this loop runs. identity travels into the proxy so it can ask again on
         -- every access instead of once, now, too early to ever be true.
         surfaceAdapters[#surfaceAdapters + 1] = surfaceAdapterFor(module, spec, identity)
+        surfaceByOwner[name] = surfaceAdapters[#surfaceAdapters]
       end
     end
   end

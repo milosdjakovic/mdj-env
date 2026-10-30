@@ -97,3 +97,10 @@ date like `Mon 27 Jul 2026, 06:00`. A clock only ever rolls within the next 24
 hours, so it lands today or tomorrow and never reaches the full date form. We
 chose this two tier split over spelling the full date for everything, since a
 next morning clock written as a full date would be needlessly long.
+
+**The common spans are a pick in the action panel.** Stay awake for, a verb of the
+action panel with choices since 2026-10-30, offers half an hour, one, two, four and
+eight hours, each subtitled with the clock it would end at, read when the panel
+opens. It does not replace typing, since a clock or any other span is still typed
+into the field. It goes through the same `keepFor` a typed span does, so a preset
+replaces a running session exactly as a typed one would.

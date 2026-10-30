@@ -305,3 +305,14 @@ do
   check("the no match note carries the identity icon as data",
     note[1].icon == "demo-id" and note[1].iconOwner == "demo-owner" and note[1].image == nil)
 end
+
+-- payloadOf hands the action panel the row a scope's tool made, out of the wrapper this module
+-- puts around it, and answers any other item as it is, docs/PLAN-ACTION-PANEL.md.
+do
+  local qs = freshModule()
+  local made = { path = "/tmp/a" }
+  check("a scope row answers the row its tool made",
+    qs:payloadOf({ kind = "scope", scope = "demo", payload = made }) == made)
+  local plain = { id = 1 }
+  check("any other item is answered as it is", qs:payloadOf(plain) == plain and qs:payloadOf(nil) == nil)
+end

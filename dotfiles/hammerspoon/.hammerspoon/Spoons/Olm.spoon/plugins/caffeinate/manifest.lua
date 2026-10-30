@@ -63,13 +63,20 @@ return {
 
   -- One morphing row rather than a list, a typed clock or duration, so the context
   -- binds only the commit and the close. There is no highlight to move, so j and k
-  -- are absent rather than shared, and there is nothing beyond the primary key. nav
-  -- is stated as false rather than left to say so only in this comment, since the
-  -- shared surface wiring adds both move keys to every context unless told not to.
+  -- are absent rather than shared. nav is stated as false rather than left to say so only
+  -- in this comment, since the shared surface wiring adds both move keys to every context
+  -- unless told not to.
+  --
+  -- Stay awake for is a verb of the action panel alone with choices, docs/PLAN-ACTION-PANEL.md,
+  -- the common spans as a pick so they need no typing. spanChoices and stayAwakeFor are colon
+  -- methods on this plugin's root, which the root reaches with no registry.surface named.
   surface = {
     context = "caffeinate",
     primary = { action = "insertSelected", description = "Confirm" },
     nav = false,
+    extra = {
+      { action = "stayAwakeFor", description = "Stay awake for", icon = "duration", choices = "spanChoices" },
+    },
   },
 
   -- configure alone leaves this plugin with no engine and no chooser, both of which

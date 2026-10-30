@@ -8,19 +8,16 @@ typed the action row drops out so the top match connects rather than the tunnel
 toggling.
 
 Two backends are supported, Mullvad and IVPN, and one of them drives at a time.
-The last row of the list opens a page listing every backend, saying which one is
-active, which are installed, and which this machine cannot reach. Choosing one
-there switches to it and is remembered across reloads. The page can also be
-reached by typing settings, config, or provider.
+Provider in the action panel lists every backend, marking the one that is active
+and dimming any this machine cannot reach. Choosing one there switches to it and
+is remembered across reloads.
 
 Opens on Hyper and P, appears in the launcher under Network, and can be searched
-without leaving the launcher by typing v or vpn. The provider page is reachable
-from the list itself rather than from the launcher, since the launcher's scoped
-rows cannot open a level.
+without leaving the launcher by typing v or vpn. Provider is reached from the
+list itself rather than from the launcher's scoped rows.
 
 While the list is open, j and k move, i confirms the highlighted row, and x
-closes it. On the provider page, Backspace or the Back row returns to the
-locations, and choosing a backend leaves the page open.
+closes it.
 
 Without the active backend's app installed, the list opens to one row explaining
-that, with the provider page still beside it so the choice can be taken back.
+that, with Provider still in the action panel so the choice can be taken back.

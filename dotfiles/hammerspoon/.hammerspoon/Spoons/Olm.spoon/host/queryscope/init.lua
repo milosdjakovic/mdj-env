@@ -353,6 +353,16 @@ function obj:_scopeOf(item)
   return scope
 end
 
+--- QueryScope:payloadOf(item) -> table or the item itself
+--- Method
+--- The row a scope's tool made, out of the row this module wrapped it in, which is what the tool's
+--- own methods understand. Any other item is answered as it is, so a caller holding a row of a
+--- list that is not hosted can ask without first knowing which kind it holds.
+function obj:payloadOf(item)
+  if type(item) == "table" and item.kind == "scope" and item.payload ~= nil then return item.payload end
+  return item
+end
+
 --- QueryScope:run(item)
 --- Method
 --- Route a chosen row back to the scope that made it, handing over the descriptor the scope's

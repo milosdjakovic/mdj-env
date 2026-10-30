@@ -29,11 +29,9 @@ return {
 
   -- The row icons, named by the rows and drawn by Olm.
   icons = {
-    active = { emoji = "🟢", sf = "circle.fill" },  -- the window currently on screen, or the currently chosen terminal
+    active = { emoji = "🟢", sf = "circle.fill" },  -- the window currently on screen
     window = { emoji = "🪟", sf = "macwindow" },
     terminal = { emoji = "💻", sf = "apple.terminal" },
-    settings = { emoji = "⚙️", sf = "gearshape" },
-    back = { emoji = "⬅️", sf = "chevron.left" },
     tmuxsessions = { emoji = "🗂️", sf = "terminal" },
   },
 
@@ -45,22 +43,15 @@ return {
       recency = { from = "recency", policy = "optional" },
     },
 
-    -- Two root computed words, the trickle migration onto the shared stage and, since,
-    -- contract v3's own child presentations, docs/BRIEF-CONTRACT-V3.md. stagePresent is
+    -- One root computed word, the trickle migration onto the shared stage. stagePresent is
     -- the hotkey door this plugin's own show reaches for, the plugin root still delegating
-    -- to the chooser submodule exactly as it always did. stagePop is what the settings
-    -- level's own Back row, and its own choice of terminal, leave or stand through, the one
-    -- thing a child pushed from select cannot express on its own. Both optional, both
-    -- degrading to an inert press rather than a crash, since a plugin asking before the
-    -- stage's own configure has run is a wiring defect rather than a state a key press
-    -- should silently swallow.
+    -- to the chooser submodule exactly as it always did. Optional, degrading to an inert
+    -- press rather than a crash, since a plugin asking before the stage's own configure has
+    -- run is a wiring defect rather than a state a key press should silently swallow.
     data = {
       stagePresent = { source = "root", policy = "optional",
         breaks = "the leader key opens nothing, since show has no other way to reach the " ..
                  "shared stage" },
-      stagePop = { source = "root", policy = "optional",
-        breaks = "the settings level's own Back row stands on the level it meant to leave " ..
-                 "rather than returning to the window list" },
     },
 
     tools = {
@@ -74,8 +65,8 @@ return {
         origin = { brew = "tmux" } },
       -- Alacritty and WezTerm carry no AppleScript dictionary, so a fresh attach goes through
       -- each one's own command line form, reached through open, the one door from Hammerspoon
-      -- to a bundle's own argv. Optional, since a missing path drops those two backends from
-      -- the settings list and leaves the three that script themselves working. The retired
+      -- to a bundle's own argv. Optional, since a missing path dims those two backends among
+      -- the Terminal choices and leaves the three that script themselves working. The retired
       -- generated file carried this as two lines, one per terminal, since each backend file
       -- declared open for itself. Merged into the one line above, it has no single owner left
       -- to name, so it carries no unit rather than crediting only one of the two terminals it
@@ -94,7 +85,7 @@ return {
   },
 
   -- U reads as the key nothing else wanted, and Tmux Manager rather than Tmux Sessions
-  -- because the picker reaches windows and a settings level as well as sessions.
+  -- because the picker reaches windows and the terminal they attach in as well as sessions.
   defaults = {
     leader = "app",
     -- The open key, a bindings row whose action is open, on the leader above.
@@ -106,15 +97,16 @@ return {
 
   surface = {
     context = "tmuxSessions",
-    -- insertSelected rather than the retired enter. The rename costs nothing behaviourally,
-    -- this chooser has always gone through the atom's own real completion path, once by way
-    -- of its own intercept and back hooks, now by way of select answering a child
-    -- presentation, rather than a private mechanism, enter having only ever been the name a
-    -- hand rolled surface elsewhere in this tree would have answered to. Stepping into
-    -- Settings still never closes and re shows the list, host/stage pushing the child in
-    -- place the moment select answers one, and host/stage's own surfaceFor now answers
-    -- insertSelected directly.
+    -- insertSelected rather than the retired enter, the atom's own real completion path,
+    -- which host/stage's own surfaceFor answers directly.
     primary = { action = "insertSelected", description = "Select" },
+    -- Which terminal a fresh attach opens into, a verb of the action panel alone with choices,
+    -- docs/PLAN-ACTION-PANEL.md. It replaced a settings level behind the list's last row on
+    -- 2026-10-30. terminalChoices and setTerminal are colon methods on the chooser submodule,
+    -- which registry.surface below names.
+    extra = {
+      { action = "setTerminal", description = "Terminal", icon = "terminal", choices = "terminalChoices" },
+    },
   },
 
   -- The presentation contract, contract v3, docs/BRIEF-CONTRACT-V3.md. rows and select are
@@ -173,13 +165,14 @@ return {
   -- has a real chord and its subtitle should read like every other keyed tool's, the category
   -- then the combination, with the alias hint appended by the catalogue itself.
   --
-  -- surface is no longer declared, host/stage's own surfaceFor answering the five generic
-  -- nav verbs now that presentation above exists, and this plugin binds no verb beyond
-  -- them, insertSelected replacing the retired enter being exactly what closed that gap.
+  -- surface names the chooser submodule, where the Terminal verb's two methods live.
+  -- host/stage's own surfaceFor still answers the five generic nav verbs, and the root falls
+  -- through to this submodule for any verb beyond them.
   registry = {
     row = { category = "Tools",
       keywords = "sessions, terminal, ghostty" },
     open = "show",
+    surface = "chooser",
     hosted = true,
     shortcut = "leader",
     scope = {

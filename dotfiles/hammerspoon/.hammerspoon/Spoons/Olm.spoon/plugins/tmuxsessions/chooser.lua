@@ -1,30 +1,18 @@
 --- === TmuxSessions.chooser ===
 ---
---- Two levels shown through the shared stage. The top lists every WINDOW across every
+--- One list shown through the shared stage. It lists every WINDOW across every
 --- session, one row each, title the window name and subtitle the session it belongs to, so
 --- a window with a common name (several sessions keep a plain "zsh" window) still reads
 --- unambiguously and is searchable by either name, or both together, a word at a time in
 --- any order ("vic zsh" finds the zsh window inside vicert), by the shared search reading the
 --- window name first and the session as the secondary field. Choosing
---- one jumps straight to that window and closes like any ordinary row. The last row is a
---- Settings door, the shape BrowserTabs and DisplayProfiles both use, leading to a second
---- level that names which terminal a fresh attach opens into.
+--- one jumps straight to that window and closes like any ordinary row.
 ---
---- Migrated onto host/stage's child presentations, contract v3, docs/BRIEF-CONTRACT-V3.md.
---- The Settings level is now a child presentation, built lazily and pushed the moment the
---- Settings row is chosen, rather than a hand kept "top" | "settings" flag this file
---- consulted on every rows() and intercept() call. Choosing Settings answers the child from
---- select, host/stage pushing it exactly as a launcher row pushes a tool, so the list swaps
---- in place with no close and no reopen. Leaving the settings level through its own Back
---- row is the one case a child cannot express on its own, decision three's reserved case, a
---- row that mutates the list it is on and stands rather than drilling anywhere, so it still
---- answers through the settings level's own intercept, reached through cfg.stagePop.
---- Choosing a terminal is the same reserved case, it changes what is persisted and stays
---- open so the moved green circle is what confirms the choice, so it answers through
---- intercept too, standing exactly as it always did. Backspace on an empty field needs no
---- hook from this file any more, Stage:pop already restores the top level the moment the
---- settings child sits above it, so the hand written back() this file used to carry is
---- gone along with the flag it used to read.
+--- Which terminal a fresh attach opens into is Terminal, a verb of the action panel with
+--- choices, docs/PLAN-ACTION-PANEL.md. Until 2026-10-30 it was a second level behind a
+--- Settings row at the foot of the list, and it moved into the panel because a terminal is a
+--- setting of the tool rather than a place in it, so the list now holds windows and nothing
+--- else.
 ---
 --- The list is ordered by recency, not by session then index, the engine's own doing
 --- (windows() returns it already ordered), so this file hands it over as it is and the shared
@@ -46,14 +34,6 @@ local function row(title, subTitle, icon, item, enabled, pinned)
     enabled = enabled ~= false, pinned = pinned }
 end
 
--- A row that searches its title alone, for a row whose subtitle is a status or a sentence
--- rather than something it is, the vocabulary in lib/chooser/rank.lua. A window row is not one,
--- its subtitle is the session it lives in and stays searchable.
-local function titled(r)
-  r.filterText = r.title
-  return r
-end
-
 -- A window is what is genuinely on screen right now, not merely the window that happens
 -- to be highlighted inside a detached session, so the green dot marks a window only when
 -- its own session is attached and this is the window that session is currently showing.
@@ -61,13 +41,11 @@ local function isLive(w)
   return w.sessionAttached and w.active
 end
 
--- Every window row, shared between this chooser's own top level and the launcher scope
+-- Every window row, shared between this chooser's own list and the launcher scope
 -- below, so the two can never rank or filter differently. The title is the window name and
 -- the subtitle the session, which is what the search reads, a query being a remembered
 -- fragment of more than one thing, a piece of the window and a piece of the session, so
--- "vic zsh" finds the zsh window inside vicert. No Settings door here, since that is a step
--- into a second level only this chooser's own native instance can show, the browserTabs
--- precedent for the identical reason.
+-- "vic zsh" finds the zsh window inside vicert.
 local function windowRows()
   local out = {}
   for _, w in ipairs(cfg.api:windows()) do
@@ -77,42 +55,22 @@ local function windowRows()
   return out
 end
 
--- The top level's own rows, the window list plus the Settings door. The door is a genuine
--- drill into a level of its own, so it carries the { nav = true, to = ... } shape select
--- below reads to decide which child to push, the same tag displayprofiles and browsertabs
--- both use for the identical reason. It is an ordinary row, scored like any window by its
--- title alone, so typing settings finds it and an unrelated word drops it.
-local function topRows()
-  local out = windowRows()
-  out[#out + 1] = titled(row("Settings", "Choose which terminal opens a fresh attach", "settings",
-    { nav = true, to = "settings" }, true))
-  return out
-end
-
--- The settings level's own rows, a Back row leading per the chooser menu convention, then
--- one row per terminal provider. Back is pinned, and the shared search narrows the providers by
--- name, never by the Installed status under it.
-local function settingsRows()
-  local out = { row("Back", "", "back", { nav = true, to = "back" }, true, true) }
+-- The terminal choices, one per provider, for the action panel's Terminal verb. The one in
+-- force carries the panel's current marker, and a terminal this machine does not have is
+-- answered disabled, drawn dimmed and choosing nothing.
+local function terminalChoices()
+  local out = {}
   local current = cfg.api:currentProviderName()
   for _, p in ipairs(cfg.api:providers()) do
-    local isActive = p.name == current
-    local sub = p.available() and "Installed" or "Not installed"
-    out[#out + 1] = titled(row(p.name, sub, isActive and "active" or "terminal",
-      { setProvider = p.name }, p.available()))
+    local usable = p.available()
+    out[#out + 1] = { title = p.name, subtitle = usable and "Installed" or "Not installed",
+      icon = "terminal", value = p.name, current = p.name == current, enabled = usable }
   end
   return out
 end
 
--- Forward declared, defined below, so the top level's own select, which precedes it in
--- this file for the same top-to-bottom reading order the retired rows/intercept/back trio
--- kept, can already name it.
-local buildSettingsChild
-
--- The top level's own select. Choosing a window is a genuine completion, jumping there and
+-- The list's own select. Choosing a window is a genuine completion, jumping there and
 -- answering nothing, the ordinary meaning this contract gives nil, the whole tool closing.
--- Choosing Settings drills into a child of its own, host/stage pushing whatever is
--- answered.
 local function onSelect(item)
   if not item then return nil end
   if item.go then
@@ -124,61 +82,13 @@ local function onSelect(item)
     end
     return nil
   end
-  if item.nav and item.to == "settings" then
-    return buildSettingsChild()
-  end
   return nil
 end
 
---------------------------------------------------------------------------------
--- The settings level, a child of the top level, built lazily and pushed the moment the
--- Settings row is chosen
---------------------------------------------------------------------------------
-
--- Its own placeholder rather than one inherited from the top level, since an absent
--- placeholder on a child resolves to the empty string, host/stage/init.lua's own
--- `p.placeholder or ""`, and this level's field has always read "Search sessions and
--- windows" regardless of which level was showing, M.placeholder below never having
--- consulted a level flag either. Named literally here, a plain field on a table built at
--- runtime, rather than through the manifest's own placeholder member, the identical choice
--- every child in this configuration makes.
---
--- select never actually answers, every reachable row on this level is caught by intercept
--- below, but the field is required on every presentation, host/stage's own isPresentation
--- refusing one without it.
---
--- Back leaves, decision three's reserved case, a row that mutates nothing and simply
--- stands aside, reached through cfg.stagePop, which restores the top level the settings
--- child sits above, so it still answers true, a level change rather than a mutation.
--- Choosing a terminal is the other half of that same reserved case, and answers "stay"
--- rather than true, the mandate for a row that mutates the list it is standing on, so it
--- persists the choice and the moved green circle is what confirms it, the highlight held
--- on the row just chosen rather than reset to the top the way a reopen would leave it.
-function buildSettingsChild()
-  return {
-    placeholder = "Search sessions and windows",
-    rows = settingsRows,
-    onSelect = function() end,
-    intercept = function(item)
-      if not item then return true end
-      if item.nav and item.to == "back" then
-        if cfg.stagePop then cfg.stagePop() end
-        return true
-      end
-      if item.setProvider then
-        cfg.api:setProviderName(item.setProvider)
-        return "stay"
-      end
-      return false
-    end,
-  }
-end
-
---- M.hostRows() - the window rows alone, for the launcher's own scope rather
---- than this chooser's native instance. No Settings door, since hosting shows one list and
---- a door is a step into a second one only the native picker can show; Hyper+U still opens
---- that picker directly when the terminal needs changing. Reuses windowRows exactly, so a
---- hosted list and this chooser's own top level can never disagree about what matched.
+--- M.hostRows() - the window rows, for the launcher's own scope rather than this chooser's
+--- native instance. Reuses windowRows exactly, so a hosted list and this chooser's own list can
+--- never disagree about what matched. The terminal is changed from the tool's own list, since a
+--- hosted list offers only the verbs its scope declares.
 function M.hostRows()
   return windowRows()
 end
@@ -198,12 +108,12 @@ end
 --- thing that knows what an empty list means, and a root assembling the answer had to know two
 --- of this file's members plus a field inside somebody else's data to manage it.
 ---
---- Where is stated plainly rather than read from a catalog, since the settings level it points
---- at is this tool's own and its name does not move when a key binding does.
+--- Where is stated plainly rather than read from a catalog, since it names no key and no tool
+--- whose name could move.
 function M.scopeRows()
   local out = M.hostRows()
   if #out == 0 then
-    return M.explain("in Tmux Manager settings")
+    return M.explain("again")
   end
   return out
 end
@@ -225,31 +135,34 @@ end
 -- no longer holds, kept only for the reason the atom exposed them itself before this
 -- migration, which is no longer a reason anything here needs.
 
---- M.rows(query) -> list. The top level's own row supplier, named on the manifest's own
---- presentation block as the contract's rows, exposing the file local topRows already
---- defined above without a second copy to disagree with. The settings level's own rows
---- live on its own child table instead, built the moment that level is pushed.
-M.rows = topRows
+--- M.rows(query) -> list. The list's own row supplier, named on the manifest's own
+--- presentation block as the contract's rows, exposing the file local windowRows already
+--- defined above without a second copy to disagree with.
+M.rows = windowRows
 
---- M.select(item) -> presentation or nil. The top level's own onSelect, named on the
---- manifest's own presentation block, exposing the file local onSelect already defined
---- above. A window row is a genuine completion, answering nothing. The Settings row drills
---- into a child of its own, host/stage pushing whatever is answered.
+--- M.select(item) -> nil. The list's own onSelect, named on the manifest's own presentation
+--- block, exposing the file local onSelect already defined above. A window row is a genuine
+--- completion, answering nothing.
 M.select = onSelect
 
--- M.intercept and M.back, this file's own hand kept drill down pair, are gone, contract
--- v3, docs/BRIEF-CONTRACT-V3.md. The top level never mutated a list it stood on or left
--- anywhere by itself, that was always the settings level's own business, so the top level
--- carries neither hook now and the manifest no longer names either. The settings level's
--- own intercept lives on the child table buildSettingsChild returns instead, asked only
--- while that level is what is showing, and Backspace popping it back to the top level is
--- Stage:pop's own doing now, needing no back() here to answer for it.
+--- M:terminalChoices() -> list. The choices of the action panel's Terminal verb. Colon called,
+--- since the root hands a surface method its module first.
+function M:terminalChoices()
+  return terminalChoices()
+end
 
---- M.placeholder() -> string. The field hint while the top level is current, named on the
---- manifest's own presentation block. Resolved once, at register, since the presentation
---- contract wants a plain string a presentation carries rather than a function to call
---- again later. The settings child below carries its own instead, a plain field on a table
---- built at runtime rather than something the registrar ever resolves.
+--- M:setTerminal(name) - open a fresh attach in the terminal a Terminal choice names.
+function M:setTerminal(name)
+  if name then cfg.api:setProviderName(name) end
+end
+
+-- M.intercept and M.back, this file's own hand kept drill down pair, are gone, contract
+-- v3, docs/BRIEF-CONTRACT-V3.md. The list never mutates itself or leaves anywhere by
+-- itself, so it carries neither hook and the manifest names neither.
+
+--- M.placeholder() -> string. The field hint, named on the manifest's own presentation
+--- block. Resolved once, at register, since the presentation contract wants a plain string a
+--- presentation carries rather than a function to call again later.
 function M.placeholder()
   return "Search sessions and windows"
 end

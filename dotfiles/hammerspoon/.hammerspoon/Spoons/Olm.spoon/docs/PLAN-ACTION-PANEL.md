@@ -55,10 +55,20 @@ choices is handed nothing, as before.
    on Workspaces and Display Profiles, Return applying and their levels moving into the panel.
 2. The quick secondaries, Copy in Text Case and Emoji, Reveal in Finder in File Search, Copy in
    the clipboard, each a declared `secondary`.
-3. The migrations, one plugin at a time. Processes' confirm, Speedtest's settings as submenus and
-   its clears as confirms, the clipboard's manage history as a submenu, the provider levels of
-   VPN and Tmux Sessions, Browser Tabs' browsers level, Caffeinate's duration presets, File
-   Search's folder and file verbs through `applies`, Wi-Fi's join through `applies`.
+3. The migrations, one plugin at a time, split in two on 2026-10-30.
+   - 3a, the plugins the contract fits as it is. The provider levels of VPN and Tmux Sessions
+     became a Provider and a Terminal choice. Speedtest's settings page became choices under Run
+     and History, Name this network a verb opening its field, and its clears confirms. Caffeinate
+     gained Stay awake for, the common spans as choices. File Search's verbs that act on one
+     entry name `applies`, the secondary among them. Three small additions came with it, a choice
+     may be disabled, the secondary may carry `applies`, and the root asks the plugin owning the
+     context rather than the list showing, so a hosted list's verbs are answered by their tool.
+   - 3b, `stays`, a choices level that stays open with the mark moving as a choice is made, for
+     Browser Tabs' browsers level and Olm Plugins' toggles.
+   - Not moved, as proposed. Processes' confirm guards Return itself, which a confirm in the
+     panel cannot replace, and the clipboard's manage history takes a typed duration that fixed
+     choices cannot express. Wi-Fi's join is its Return and every row offers nothing beyond it, so
+     there was nothing to move. Forget network is a new action and follows with the others.
 4. Olm's own actions on any row. On a plugin's row in the launcher, Enable or Disable through the
    staged switch in `lib/pluginswitch.lua`, and Show keys. Theme and Placement as submenus from
    any list.

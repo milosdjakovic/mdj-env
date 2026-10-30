@@ -89,6 +89,9 @@ obj._instances = nil
 obj._openInstance = nil
 obj._panelRows = nil
 obj._capturedItem = nil
+-- The context the panel was opened for, handed to every call so the root asks the plugin that
+-- owns it, which for a hosted list is the tool that made the rows rather than the launcher.
+obj._contextName = nil
 obj._capturedRow = nil
 obj._capturedQuery = nil
 -- The search the underlying presentation set beside its matcher, its searchText and rowLimit,
@@ -158,8 +161,9 @@ function obj:configure(deps)
   self._run = deps.run
   self._rank = deps.rank
   self._ownRowsMatcher = deps.ownRowsMatcher
-  -- Optional. Calls a named method of the open list's plugin surface, which a verb's applies and
-  -- choices name, docs/PLAN-ACTION-PANEL.md. Without it every verb applies and none has choices.
+  -- Optional. Calls a named method of the surface of the plugin owning the context, which a
+  -- verb's applies and choices name, docs/PLAN-ACTION-PANEL.md, answering the method's result
+  -- and whether the method exists. Without it every verb applies and none has choices.
   self._call = deps.call
   self._log = deps.log or log
   return self
@@ -294,7 +298,8 @@ end
 -- does one the surface cannot answer, since a verb hidden by a typo is worse than one shown.
 function obj:_applies(row)
   if not row.applies or type(self._call) ~= "function" then return true end
-  local ok, answer = pcall(self._call, row.applies, self._capturedItem)
+  local ok, answer, found = pcall(self._call, row.applies, self._capturedItem, self._contextName)
+  if ok and found == false then return true end
   if not ok then
     self._log.w(string.format("ActionPanel applies '%s' raised, the verb stays listed, %s",
       tostring(row.applies), tostring(answer)))
@@ -305,7 +310,9 @@ end
 
 -- The rows of the level a verb opens, its choices or its confirm, docs/PLAN-ACTION-PANEL.md. A
 -- confirm leads with Cancel, since a stray Return then does the harmless thing. A choice in force
--- carries the green circle every list marks its current row with.
+-- carries the green circle every list marks its current row with. A choice answering enabled
+-- false is shown dimmed and chooses nothing, for an option this machine cannot take right now,
+-- which is worth seeing rather than hiding.
 function obj:_levelRows(verb)
   local rows = {}
   if verb.confirm then
@@ -317,7 +324,9 @@ function obj:_levelRows(verb)
     return rows
   end
   local ok, choices = true, nil
-  if type(self._call) == "function" then ok, choices = pcall(self._call, verb.choices, self._capturedItem) end
+  if type(self._call) == "function" then
+    ok, choices = pcall(self._call, verb.choices, self._capturedItem, self._contextName)
+  end
   if not ok then
     self._log.w(string.format("ActionPanel choices '%s' raised, %s", tostring(verb.choices), tostring(choices)))
     choices = nil
@@ -326,8 +335,10 @@ function obj:_levelRows(verb)
     local title = tostring(c.title or c.value or "")
     local icon, owner = c.icon, verb.owner
     if c.current then icon, owner = "current", self._owner end
+    local enabled = c.enabled ~= false
     rows[#rows + 1] = { title = title, subTitle = c.subtitle, icon = icon, iconOwner = owner,
-                        filterText = title, item = { run = verb.action, value = c.value, title = title } }
+                        filterText = title, enabled = enabled,
+                        item = { run = verb.action, value = c.value, title = title, disabled = not enabled } }
   end
   return rows
 end
@@ -354,6 +365,7 @@ function obj:_close()
   self._rootRows = nil
   self._level = nil
   self._capturedItem = nil
+  self._contextName = nil
   self._capturedRow = nil
   self._capturedQuery = nil
   self._capturedSearch = nil
@@ -431,6 +443,7 @@ end
 -- A row of that level either runs the verb, with a choice's value, or is Cancel, which steps
 -- back as Backspace does.
 function obj:_choose(instance, item)
+  if item and item.disabled then return true end
   if item and item.cancel then return self:_stepBack(instance) end
   if item and item.run then
     self:_leave(instance, item.run, item.value)
@@ -652,6 +665,7 @@ function obj:toggle(contextName, hosted)
   local instance = self:_findShowing()
   if not instance then return end
   self._capturedItem = instance:selectedItem()
+  self._contextName = contextName
   self._capturedRow = instance:selectedRow()
   self._capturedQuery = instance:query()
   local matcher, search = instance:matcher()

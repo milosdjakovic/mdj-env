@@ -294,17 +294,25 @@ return {
     primary = { action = "insertSelected", description = "Open" },
     -- Command and Return reveals the file in Finder, the same verb the f key runs, and the action
     -- panel lists it once, docs/PLAN-ACTION-PANEL.md.
-    secondary = { action = "revealInFinder", description = "Reveal in Finder", icon = "search" },
+    --
+    -- Each verb that acts on one entry names applies, so the action panel lists it only over a
+    -- row it fits. isEntry is a real file or folder rather than a status or help row, isFolder a
+    -- real folder, and isBrowsing a query browsing a folder, the only time there is a level
+    -- above. applies decides the panel alone. A key still reaches its verb, which answers for
+    -- itself the way it always did. All three are colon methods on the chooser submodule.
+    secondary = { action = "revealInFinder", description = "Reveal in Finder", icon = "search",
+      applies = "isEntry" },
     extra = {
       { key = "j", mods = { "cmd" }, action = "scrollPreviewDown", needs = "scrollablePreview",
         description = "Scroll preview down" },
       { key = "k", mods = { "cmd" }, action = "scrollPreviewUp", needs = "scrollablePreview",
         description = "Scroll preview up" },
-      { key = "q", action = "peekPreview", needs = "askedPreview", description = "Quick Look", icon = "peek" },
-      { key = "l", action = "browseInto", description = "Into folder", icon = "browse" },
-      { key = "h", action = "browseUp",   description = "Up a level", icon = "up" },
+      { key = "q", action = "peekPreview", needs = "askedPreview", description = "Quick Look", icon = "peek",
+        applies = "isEntry" },
+      { key = "l", action = "browseInto", description = "Into folder", icon = "browse", applies = "isFolder" },
+      { key = "h", action = "browseUp",   description = "Up a level", icon = "up", applies = "isBrowsing" },
       { key = "f", action = "revealInFinder", description = "Reveal in Finder", icon = "search" },
-      { key = "y", action = "copyPath",   description = "Copy path", icon = "copy" },
+      { key = "y", action = "copyPath",   description = "Copy path", icon = "copy", applies = "isEntry" },
     },
     -- No matcher. Until phase three of the unified search on 2026-10-17 this declared the words
     -- strategy, injected into the engine to narrow a held result set between round trips over

@@ -278,6 +278,30 @@ M.rows = rows
 --- Named on the manifest's own presentation block as the contract's onSelect.
 M.select = onSelect
 
+-- The spans Stay awake for offers in the action panel, the holds a person reaches for most,
+-- so a common one is a pick rather than something to type. Any other span or a clock is still
+-- typed into the field.
+local PRESET_SPANS = { 30 * 60, 3600, 2 * 3600, 4 * 3600, 8 * 3600 }
+
+--- M:spanChoices() -> list. The choices of the action panel's Stay awake for verb, each span
+--- with the clock it would end at, read when the panel opens so the clock is the real one.
+--- Colon called, since the root hands a surface method its module first.
+function M:spanChoices()
+  local out = {}
+  local now = os.time()
+  for _, secs in ipairs(PRESET_SPANS) do
+    out[#out + 1] = { title = humanSpan(secs), subtitle = "until " .. endLabel(now + secs),
+      icon = "duration", value = secs }
+  end
+  return out
+end
+
+--- M:stayAwakeFor(secs) - hold awake for a span a Stay awake for choice names, replacing any
+--- running session the way a typed span does.
+function M:stayAwakeFor(secs)
+  if type(secs) == "number" and secs > 0 then engine.keepFor(secs) end
+end
+
 --- M.placeholder() -> string. The field hint while this plugin's own presentation is
 --- current, named on the manifest's own presentation block. Resolved once, at register,
 --- since the presentation contract wants a plain string a presentation carries rather than

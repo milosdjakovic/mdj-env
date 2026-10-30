@@ -24,6 +24,8 @@ final class PopoverView: FlippedView {
     // The heading the line is listed under. A heading is drawn above the first line of each run
     // of lines naming the same one, docs/PLAN-ACTION-PANEL.md.
     var section: String? = nil
+    // A line that chooses nothing, drawn in the dimmed colours a disabled list row takes.
+    var enabled = true
   }
 
   // The lines' own view, drawing the highlight under them and reporting the pointer by line.
@@ -164,11 +166,11 @@ final class PopoverView: FlippedView {
     cells = lines.map { line in
       let label = NSTextField(labelWithString: line.label)
       label.font = style.titleFont
-      label.textColor = style.text
+      label.textColor = line.enabled ? style.text : style.textDim
       label.lineBreakMode = .byTruncatingTail
       let chord = NSTextField(labelWithString: line.chord)
       chord.font = style.titleFont
-      chord.textColor = style.sub
+      chord.textColor = line.enabled ? style.sub : style.subDim
       chord.alignment = .right
       let image = line.image.map { picture -> NSImageView in
         let view = NSImageView(image: picture)

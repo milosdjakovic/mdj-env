@@ -356,7 +356,7 @@ function View:_redrawPanel(s, ns, footer)
     local image = row.image
     if image == nil and row.icon ~= nil and ICON then image = ICON(row.icon, row.iconOwner) end
     actions[i] = { title = plain(row.title), subtitle = plain(row.subTitle), image = image or nil,
-      section = row.section }
+      section = row.section, enabled = row.enabled ~= false }
   end
   self.native.update(self.id, {
     highlight = held.highlight or 0,

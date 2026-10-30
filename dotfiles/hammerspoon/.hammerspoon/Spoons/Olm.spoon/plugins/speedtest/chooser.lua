@@ -33,14 +33,12 @@ local lastReason = nil  -- why the most recent run did not land, shown until the
 local ICON_RUN = "run"
 local ICON_STOP = "stop"
 local ICON_RESULT = "result"
-local ICON_SETTINGS = "settings"
 local ICON_NETWORKS = "networks"
 local ICON_BACK = "back"
 local ICON_EMPTY = "empty"
 local ICON_PROBLEM = "problem"
 local ICON_NAME = "name"
 local ICON_CLEAR = "clear"
-local ICON_KEEP = "keep"
 
 --------------------------------------------------------------------------------
 -- Rows
@@ -65,7 +63,7 @@ local function labelFor(netId, fallback)
 end
 
 -- Said on the Run row and in the pane, so a person can see what a run will actually do
--- without opening the settings page to find out.
+-- without opening the action panel to find out.
 local function describeRun(settings)
   local parts = {}
   if settings.direction == "down" then
@@ -140,43 +138,10 @@ end
 -- whatever room it actually has, so nothing here is written against a guess about the pane's size
 -- and nothing gets cut off at the edge. An empty string is a paragraph break.
 local HELP = {
-  settings = { title = "Settings", lines = {
-    "What a run does, how many readings are kept per network, and what this network is called.",
-  } },
   networks = { title = "Other networks", lines = {
     "Every network this Mac has measured, each with its own history kept separately.",
     "",
     "A trend drawn across two different networks would be a number about nowhere, which is why they never share a line.",
-  } },
-  direction = { title = "Direction", lines = {
-    "Both directions, download only, or upload only.",
-    "",
-    "Skipping a direction makes the run shorter and leaves that half of the trend without a point for this run.",
-  } },
-  measurement = { title = "Measurement", lines = {
-    "Both at once loads the link in both directions together, which is what real use looks like and what responsiveness is meant to be measured under.",
-    "",
-    "One at a time measures each direction with the other idle, which reads higher and is closer to a capacity ceiling than to a working figure.",
-  } },
-  runtime = { title = "Maximum runtime", lines = {
-    "How long the tool is allowed to spend measuring.",
-    "",
-    "Shorter is noisier. Ten seconds is enough for the figures to settle for an ordinary look, and the longer runs are there for when a number is being argued over.",
-  } },
-  protocol = { title = "Protocol", lines = {
-    "Automatic lets the tool and the server agree, which is what ordinary traffic does.",
-    "",
-    "Forcing HTTP/3 or HTTP/2, or turning L4S off, is for answering a question about the path rather than for a reading you intend to compare with the others.",
-  } },
-  relay = { title = "iCloud Private Relay", lines = {
-    "Measures through Private Relay rather than directly.",
-    "",
-    "Worth one run when Safari feels slow and nothing else does. Not worth leaving on, since it measures a different path from the one everything else on this Mac uses.",
-  } },
-  cap = { title = "Keep per network", lines = {
-    "How many readings are kept for each network before the oldest is dropped.",
-    "",
-    "Nothing here expires by age. A reading from months ago is the most useful record in the file the day something changes.",
   } },
   name = { title = "Name this network", lines = {
     "Wi Fi network names are a location on modern macOS, so an app is only told one if it holds Location Services permission, and Hammerspoon has never asked for it. It is not refused outright either, the name simply comes back blank, which is why this shows a made up label instead.",
@@ -184,16 +149,6 @@ local HELP = {
     "Nothing is lost by that. Readings are filed against the network profile itself, which needs no permission and does not change, so naming a network here only changes what it is called on screen. Every reading already kept stays exactly where it is.",
     "",
     "Granting Hammerspoon Location Services in System Settings would make the real names appear on their own.",
-  } },
-  clearOne = { title = "Clear this network", lines = {
-    "Forgets every reading kept for this network.",
-    "",
-    "The name stays and other networks are untouched.",
-  } },
-  clearAll = { title = "Clear everything", lines = {
-    "Forgets every reading for every network.",
-    "",
-    "The names stay. There is no undo, the file is rewritten immediately.",
   } },
   missing = { title = "Nothing to measure with", lines = {
     "networkQuality ships with macOS and lives in /usr/bin. This Mac answers nothing there.",
@@ -269,18 +224,19 @@ local function startRun()
 end
 
 --------------------------------------------------------------------------------
--- The settings page
+-- The settings, verbs of the action panel
 --------------------------------------------------------------------------------
 
--- Every option row steps to the next value in a small ring rather than opening a level of
--- its own, so flipping one is a single press and the page never moves under the hand.
-local function nextIn(ring, current)
-  for i, value in ipairs(ring) do
-    if value == current then return ring[(i % #ring) + 1] end
-  end
-  return ring[1]
-end
-
+-- What a run does and how much is kept are verbs of the action panel, docs/PLAN-ACTION-PANEL.md,
+-- each a pick of one of a few through choices, and the two clears behind the panel's own
+-- confirm. Until 2026-10-30 they were a page of their own behind a Settings row, each row
+-- stepping through a ring of values on Return and the pane explaining the highlighted one. The
+-- panel shows every value at once instead, so a setting is one pick rather than a count of
+-- presses, and the Run test row's own subtitle still says what a run will do.
+--
+-- Each choice list is built from a ring of values and a word for each, the value in force
+-- marked as current. A setting stored before its key existed reads as the default it would
+-- have taken.
 local DIRECTIONS = { "both", "down", "up" }
 local RUNTIMES = { 10, 20, 30 }
 local PROTOCOLS = { "auto", "h3", "h2", "noL4S" }
@@ -292,97 +248,25 @@ local function directionWord(value)
   return "Both directions"
 end
 
-local settingsChild, namingChild, confirmClearChild, networksChild, networkRunsChild
+local PROTOCOL_WORDS = { auto = "Automatic", h3 = "HTTP/3", h2 = "HTTP/2", noL4S = "Without L4S" }
 
-local function settingsRows()
-  local settings = cfg.store.settings()
-  local target = currentNet()
-  local rows = { backRow() }
-
-  rows[#rows + 1] = row("Direction", directionWord(settings.direction), ICON_SETTINGS,
-    { act = "set", key = "direction", pane = "help", help = "direction" }, true)
-  rows[#rows + 1] = row("Measurement",
-    settings.sequential and "One direction at a time" or "Both at once", ICON_SETTINGS,
-    { act = "set", key = "sequential", pane = "help", help = "measurement" }, true)
-  rows[#rows + 1] = row("Maximum runtime", (settings.maxSeconds or 20) .. " seconds", ICON_SETTINGS,
-    { act = "set", key = "maxSeconds", pane = "help", help = "runtime" }, true)
-  rows[#rows + 1] = row("Protocol",
-    settings.protocol == "auto" and "Automatic" or settings.protocol, ICON_SETTINGS,
-    { act = "set", key = "protocol", pane = "help", help = "protocol" }, true)
-  rows[#rows + 1] = row("iCloud Private Relay",
-    settings.privateRelay and "Measure through the relay" or "Measure directly", ICON_SETTINGS,
-    { act = "set", key = "privateRelay", pane = "help", help = "relay" }, true)
-  rows[#rows + 1] = row("Keep per network", settings.cap .. " runs", ICON_SETTINGS,
-    { act = "set", key = "cap", pane = "help", help = "cap" }, true)
-
-  local named = cfg.store.nameOf(target.id)
-  rows[#rows + 1] = row("Name this network",
-    named or (target.named and target.label or (target.label .. ", not its real name")),
-    ICON_NAME, { act = "name", pane = "help", help = "name" }, true)
-
-  rows[#rows + 1] = row("Clear this network's history",
-    #cfg.store.forNetwork(target.id) .. " runs kept", ICON_CLEAR,
-    { act = "clearOne", pane = "help", help = "clearOne" }, true)
-  rows[#rows + 1] = row("Clear every network's history",
-    #cfg.store.networks() .. " networks kept", ICON_CLEAR,
-    { act = "clearAll", pane = "help", help = "clearAll" }, true)
-
-  return rows
-end
-
--- A step through one option's ring, written back and answered in place. Every one of these
--- mutates the list it is standing on, so every one of them answers stay and the highlight
--- never leaves the row the person is flipping.
-local function stepSetting(key)
-  local settings = cfg.store.settings()
-  if key == "direction" then
-    cfg.store.setSetting(key, nextIn(DIRECTIONS, settings.direction))
-  elseif key == "sequential" then
-    cfg.store.setSetting(key, not settings.sequential)
-  elseif key == "maxSeconds" then
-    cfg.store.setSetting(key, nextIn(RUNTIMES, settings.maxSeconds))
-  elseif key == "protocol" then
-    cfg.store.setSetting(key, nextIn(PROTOCOLS, settings.protocol))
-  elseif key == "privateRelay" then
-    cfg.store.setSetting(key, not settings.privateRelay)
-  elseif key == "cap" then
-    cfg.store.setSetting(key, nextIn(CAPS, settings.cap))
+local function choicesOf(ring, current, word, subtitle)
+  local out = {}
+  for _, value in ipairs(ring) do
+    out[#out + 1] = { title = word(value), subtitle = subtitle and subtitle(value) or nil,
+      value = value, current = value == current }
   end
+  return out
 end
 
--- The confirmation leads with the harmless answer, so a stray Return on this screen is never
--- the destructive one. The same rule the processes stop and the display profiles delete both
--- already keep.
-function confirmClearChild(scope, netId, label)
-  local child
-  child = {
-    placeholder = scope == "all" and "Clear every network" or ("Clear " .. label),
-    rows = function()
-      return {
-        row("Keep them", "leave this history alone", ICON_KEEP,
-          { act = "back", pane = "help", help = scope == "all" and "clearAll" or "clearOne" }, true),
-        row(scope == "all" and "Clear every network" or ("Clear " .. label),
-          "there is no undo", ICON_CLEAR,
-          { act = "clearConfirmed", scope = scope, netId = netId, pane = "help",
-            help = scope == "all" and "clearAll" or "clearOne" }, true),
-      }
-    end,
-    onSelect = function() return nil end,
-    intercept = function(item)
-      if item.act == "back" then
-        if cfg.stagePop then cfg.stagePop() end
-        return true
-      end
-      if item.act == "clearConfirmed" then
-        cfg.store.clear(item.scope == "all" and nil or item.netId)
-        if cfg.stagePop then cfg.stagePop() end
-        return true
-      end
-      return false
-    end,
-  }
-  return child
+-- Writes one setting and redraws, so the Run test row's subtitle follows it at once.
+local function setSetting(key, value)
+  if value == nil then return end
+  cfg.store.setSetting(key, value)
+  redraw()
 end
+
+local namingChild, networksChild, networkRunsChild
 
 -- The one page here that reads what is typed. The widget must not filter it, since the row
 -- IS the query, so this level declares matcher false and every row it builds ignores the
@@ -428,35 +312,6 @@ function namingChild()
         cfg.store.setName(target.id, nil)
         if cfg.stagePop then cfg.stagePop() end
         return true
-      end
-      return false
-    end,
-  }
-  return child
-end
-
-function settingsChild()
-  local child
-  child = {
-    placeholder = "Speedtest settings",
-    rows = settingsRows,
-    onSelect = function(item)
-      if item.act == "name" then return namingChild() end
-      if item.act == "clearOne" then
-        local target = currentNet()
-        return confirmClearChild("one", target.id, labelFor(target.id, target.label))
-      end
-      if item.act == "clearAll" then return confirmClearChild("all") end
-      return nil
-    end,
-    intercept = function(item)
-      if item.act == "back" then
-        if cfg.stagePop then cfg.stagePop() end
-        return true
-      end
-      if item.act == "set" then
-        stepSetting(item.key)
-        return "stay"
       end
       return false
     end,
@@ -571,9 +426,6 @@ function M.rows()
       ICON_EMPTY, { act = "none", pane = "trend" }, false)
   end
 
-  rows[#rows + 1] = row("Settings", describeRun(settings), ICON_SETTINGS,
-    { act = "settings", pane = "help", help = "settings" }, true)
-
   local networks = cfg.store.networks()
   if #networks > 1 then
     rows[#rows + 1] = row("Other networks", (#networks - 1) .. " more with runs kept",
@@ -587,7 +439,6 @@ end
 --- the stage in place, so a level is a returned table rather than anything wired by hand.
 function M.select(item)
   if not item then return nil end
-  if item.act == "settings" then return settingsChild() end
   if item.act == "networks" then return networksChild() end
   if item.act == "result" then
     local record = cfg.store.byId(item.rid)
@@ -630,7 +481,7 @@ local function nameNote(target)
   return "This is a made up label. macOS treats a Wi Fi name as a location and only tells an app "
     .. "that holds Location Services, which Hammerspoon has never been granted. Readings are filed "
     .. "against the network itself rather than its name, so nothing is mixed up by it. Name it "
-    .. "under Settings, or grant the permission and real names appear on their own."
+    .. "from the action panel, or grant the permission and real names appear on their own."
 end
 
 local function describe(item)
@@ -735,7 +586,7 @@ end
 --- chooser.scopeRows(query) - the rows a typed alias shows inside the launcher's own list.
 ---
 --- Deliberately not the whole tool. The launcher's list reserves no companion pane and nothing can
---- be pushed onto it, so neither the detail pane nor the settings level can exist here, and
+--- be pushed onto it, so neither the detail pane nor the settings can exist here, and
 --- pretending otherwise is what made choosing a row from the alias close the list rather than show
 --- anything. What a typed word is genuinely good for is the two things worth reaching in one
 --- gesture, taking a reading and seeing what this network has done before. Everything else is one
@@ -795,6 +646,74 @@ function M.scopeAct(item)
     if record then hs.pasteboard.setContents(summaryLine(record)) end
     return
   end
+end
+
+--------------------------------------------------------------------------------
+-- The action panel's verbs, colon called, since the root hands a surface method its module first
+--------------------------------------------------------------------------------
+
+function M:directionChoices()
+  return choicesOf(DIRECTIONS, cfg.store.settings().direction or "both", directionWord)
+end
+function M:setDirection(value) setSetting("direction", value) end
+
+function M:measurementChoices()
+  return choicesOf({ false, true }, cfg.store.settings().sequential == true,
+    function(sequential) return sequential and "One direction at a time" or "Both at once" end,
+    function(sequential) return sequential and "closer to capacity" or "like real use" end)
+end
+function M:setMeasurement(value) setSetting("sequential", value) end
+
+function M:runtimeChoices()
+  return choicesOf(RUNTIMES, cfg.store.settings().maxSeconds or 20,
+    function(seconds) return seconds .. " seconds" end,
+    function(seconds) return seconds == 10 and "noisier" or nil end)
+end
+function M:setRuntime(value) setSetting("maxSeconds", value) end
+
+function M:protocolChoices()
+  return choicesOf(PROTOCOLS, cfg.store.settings().protocol or "auto",
+    function(value) return PROTOCOL_WORDS[value] or value end)
+end
+function M:setProtocol(value) setSetting("protocol", value) end
+
+function M:relayChoices()
+  return choicesOf({ false, true }, cfg.store.settings().privateRelay == true,
+    function(relay) return relay and "Through the relay" or "Directly" end)
+end
+function M:setRelay(value) setSetting("privateRelay", value) end
+
+function M:capChoices()
+  return choicesOf(CAPS, cfg.store.settings().cap, function(cap) return cap .. " runs" end)
+end
+function M:setCap(value) setSetting("cap", value) end
+
+--- chooser:nameNetwork() - opens the name field for the network this open is about.
+function M:nameNetwork()
+  if cfg.stagePush then cfg.stagePush(namingChild()) end
+end
+
+--- chooser:hasRuns(item) -> boolean. Whether this network keeps any run, which Clear this
+--- network needs to have anything to clear.
+function M:hasRuns()
+  return #cfg.store.forNetwork(currentNet().id) > 0
+end
+
+--- chooser:hasHistory(item) -> boolean. Whether any network keeps a run.
+function M:hasHistory()
+  return #cfg.store.networks() > 0
+end
+
+--- chooser:clearNetwork() - forgets every run kept for this network, after the panel's confirm.
+function M:clearNetwork()
+  cfg.store.clear(currentNet().id)
+  redraw()
+end
+
+--- chooser:clearEverything() - forgets every run for every network, after the panel's confirm.
+function M:clearEverything()
+  cfg.store.clear(nil)
+  redraw()
 end
 
 --- chooser.configure(opts) - injected by this plugin's own composition root, which is the only

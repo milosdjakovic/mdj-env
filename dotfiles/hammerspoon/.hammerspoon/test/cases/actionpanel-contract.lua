@@ -72,3 +72,24 @@ do
   for _, r in ipairs(rows) do if r.action == "reveal" then reveals = reveals + 1 end end
   check("the secondary's action is listed once though a key also names it", reveals == 1)
 end
+
+-- The secondary may carry applies, the same field a verb of extra takes, and it reaches the panel's
+-- row, so a secondary that fits only some rows is left out of the panel for the others.
+do
+  local decl = with(nil)
+  decl.secondary = { action = "reveal", description = "Reveal", applies = "isEntry" }
+  check("a secondary naming applies is accepted", surface.validate("demo", decl) == true)
+  decl.secondary = { action = "reveal", description = "Reveal", applies = 3 }
+  check("a secondary whose applies is not a name is refused", surface.validate("demo", decl) == false)
+  decl.secondary = { action = "reveal", description = "Reveal", applies = "isEntry" }
+  local block = surface.context("demo", decl, nil, { secondary = { key = "return", mods = { "cmd" } } })
+  local carried = false
+  for _, b in ipairs(block.bindings) do
+    if b.shared == "secondary" and b.applies == "isEntry" then carried = true end
+  end
+  check("the secondary's binding carries its applies", carried)
+  local rows = hints.rowsFor("demo", { contexts = { demo = block } }, {})
+  local listed
+  for _, r in ipairs(rows) do if r.shared == "secondary" then listed = r end end
+  check("and so does its row in the panel", listed and listed.applies == "isEntry")
+end

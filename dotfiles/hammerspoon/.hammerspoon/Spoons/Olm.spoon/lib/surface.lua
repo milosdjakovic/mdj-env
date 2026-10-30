@@ -183,8 +183,11 @@ end
 -- and Return is Olm's own all layer, so a key, mods or leader written here is refused rather
 -- than read as a second place a list key is set. chord is refused too, since chord false would
 -- leave the action bar naming a Command and Return that nothing binds. icon names a key of the
--- manifest's own icons, the way an extra row's does, for its row in the action panel.
-local SECONDARY_FIELDS = { action = true, description = true, needs = true, repeats = true, icon = true }
+-- manifest's own icons, the way an extra row's does, for its row in the action panel. applies
+-- names the surface method answering whether the secondary fits the row the panel opened over,
+-- the same field a verb of extra takes, docs/PLAN-ACTION-PANEL.md.
+local SECONDARY_FIELDS = { action = true, description = true, needs = true, repeats = true, icon = true,
+  applies = true }
 
 -- Checks the optional second action a list answers on Command and Return, the same way primary
 -- is checked, and refuses any field the shape does not name.
@@ -200,8 +203,11 @@ local function validateSecondary(secondary)
   end
   for field in pairs(secondary) do
     if not SECONDARY_FIELDS[field] then
-      return false, "secondary." .. tostring(field) .. " is not a field a secondary takes, only action, description, needs, repeats and icon"
+      return false, "secondary." .. tostring(field) .. " is not a field a secondary takes, only action, description, needs, repeats, icon and applies"
     end
+  end
+  if secondary.applies ~= nil and (type(secondary.applies) ~= "string" or secondary.applies == "") then
+    return false, "secondary.applies is a " .. type(secondary.applies) .. " rather than a name"
   end
   local iok, ierr = validateIcon("secondary", secondary)
   if not iok then return false, ierr end
@@ -353,6 +359,7 @@ function obj.context(name, decl, available, keys)
       secondary.needs = decl.secondary.needs
       secondary.repeats = decl.secondary.repeats
       secondary.icon = decl.secondary.icon
+      secondary.applies = decl.secondary.applies
       if take(secondary) then bindings[#bindings + 1] = secondary end
     end
   end

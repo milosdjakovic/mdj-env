@@ -191,31 +191,32 @@ do
   }
   local api = {}
   function api:windows() return windows end
-  function api:providers() return { { name = "Terminal", available = function() return true end } } end
+  function api:providers()
+    return { { name = "Terminal", available = function() return true end },
+             { name = "WezTerm", available = function() return false end } }
+  end
   function api:currentProviderName() return "Terminal" end
+  local chosen
+  function api:setProviderName(name) chosen = name end
   local M = load("plugins/tmuxsessions/chooser.lua")
   M.configure({ api = api })
 
   local rows = M.rows("")
   check("a window row shows its name as the title and its session as the subtitle",
     rows[1].title == "zsh" and rows[1].subTitle == "vicert")
-  check("the Settings door is the last row and not pinned", rows[#rows].title == "Settings"
-    and rows[#rows].pinned == nil)
+  check("the list holds windows and nothing else", #rows == #windows)
   check("the supplier returns every window with a query typed", #M.rows("vic zsh") == #rows)
   local kept = ranked(M.rows("vic zsh"), "vic zsh")
   check("two words find the window inside its session", kept[1] and kept[1].item.go == "vicert:1"
     and not has(kept, "editor"), titles(kept))
-  kept = ranked(M.rows("settings"), "settings")
-  check("typing settings scores the Settings door in", has(kept, "Settings"), titles(kept))
-  kept = ranked(M.rows("editor"), "editor")
-  check("a query for a window drops the Settings door like any other row", not has(kept, "Settings"), titles(kept))
-  local child = M.select({ nav = true, to = "settings" })
-  check("the settings level inherits the shared search", child.matcher == nil)
-  check("the settings level pins Back", child.rows()[1].title == "Back" and child.rows()[1].pinned == true)
-  kept = ranked(child.rows(), "installed")
-  check("a provider's Installed status is not searched", titles(kept) == "Back", titles(kept))
-  kept = ranked(M.rows("fresh attach"), "fresh attach")
-  check("the Settings door's sentence is not searched", not has(kept, "Settings"), titles(kept))
+  -- The terminal is a choice of the action panel's Terminal verb, docs/PLAN-ACTION-PANEL.md.
+  local choices = M:terminalChoices()
+  check("Terminal offers one choice per provider, the one in force marked",
+    #choices == 2 and choices[1].current == true and choices[2].current == false)
+  check("a terminal this machine lacks is a disabled choice",
+    choices[1].enabled == true and choices[2].enabled == false and choices[2].subtitle == "Not installed")
+  M:setTerminal("Terminal")
+  check("a Terminal choice sets the provider by its name", chosen == "Terminal")
   check("the scope returns every window for the engine to filter", #M.scopeRows("vic") == 3)
 end
 

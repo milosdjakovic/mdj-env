@@ -17,7 +17,7 @@ switching behaviour, or the unavailable behaviour changes.
 A new file in `providers/`, one line in `PROVIDER_FILES` in `init.lua`, one entry in
 `needs.tools` in `manifest.lua` naming the new provider as its `unit`, then the repository
 half, a `DEPENDENCIES.map` line and a `Brewfile` entry. Nothing else in the plugin is
-touched, and the page picks the new backend up on its own.
+touched, and the Provider choices pick the new backend up on their own.
 
 The five required methods are the ones every VPN genuinely has, and a new backend owes them and
 the location shape below. `selectedLocation` is worth adding only when the backend really does
@@ -69,8 +69,8 @@ over.
 A scan of `providers/` was considered instead of that roster line, so a forgotten line would
 be impossible. It was rejected because the dry contract gate loads this module against a
 permissive `hs` stub where `hs.fs.dir` answers another stub rather than an iterator, so the
-scan would hang the very gate that catches mistakes of this kind. The provider page recovers
-most of what the scan would have given, since a file with no roster line is a row that never
+scan would hang the very gate that catches mistakes of this kind. The Provider choices recover
+most of what the scan would have given, since a file with no roster line is a choice that never
 appears in the one place a person goes to look for it.
 
 ## One backend at a time, not every backend merged
@@ -79,22 +79,19 @@ Merging every provider's locations into a single list was considered and rejecte
 grounds. Two VPN daemons cannot usefully both hold the routes. A single action row cannot
 carry two tunnel states. And choosing a foreign city would flip the daemon underneath a
 person as a side effect of picking a place, which is a surprise nobody asked for. So the
-providers are a choice rather than a union, and the choice is a page rather than a config
-file.
+providers are a choice rather than a union, and the choice is made in the list rather than in a
+config file.
 
-The page is a child presentation returned from `select`, so the stage pushes it in place.
-Choosing a backend answers `"stay"`, which holds the page open with the highlight on the row
-just pressed, because a page of options a person flips is not somewhere they should be
-ejected from. Back is the one row there that is a real level change, so it pops and answers
-plain `true`. It is placed last in the location list on purpose, since the row directly under
-the action row is the most recently used location and that is the whole point of the
-ordering, so a settings row in second place would push the thing a person came for down by
-one on every open. Its `filterText` carries settings, config, and provider, so the placement
-stops mattering the moment it is wanted.
+The choice is Provider, a verb of the action panel alone with `choices`,
+`docs/PLAN-ACTION-PANEL.md` in the spoon. Until 2026-10-30 it was a page of its own, a child
+presentation behind a settings row placed last in the location list. Moving it into the panel
+took that row out of the list, so nothing sits among the locations that is not a location or
+the action, and it made the choice reachable from every row rather than from one. Provider
+names no `applies` for that reason, the missing tool row included. A provider whose tool is
+not installed is answered `enabled = false`, so it is drawn dimmed and choosing it does nothing.
 
-The page is deliberately absent from the launcher's scoped rows. A scope's own `run` door
-discards whatever `select` answers, so a row whose entire job is to answer a child
-presentation would look live in the launcher and do nothing at all when chosen.
+The launcher's scoped rows carry no Provider, since a hosted list offers only the verbs its
+scope declares, and a backend is switched from this tool's own list.
 
 ## The contract shrank when the second backend arrived
 
@@ -236,9 +233,9 @@ nothing.
 
 `resolveAll` hands every provider the path the shared resolver found before anything asks
 which backend can drive. A provider reports itself unavailable until it has been given a
-path, and both the provider page and the initial choice ask each provider that question.
+path, and both the Provider choices and the initial choice ask each provider that question.
 Resolving only the active one, which is what the first version of this did, meant every other
-provider answered a confident false however installed it actually was, so the page read
+provider answered a confident false however installed it actually was, so the choices read
 `Not installed` for a working backend and the initial choice fell through to the first entry
 in the roster rather than to the stored one. An offline probe caught it, nothing static would
 have.
@@ -253,8 +250,8 @@ names a provider that can drive, otherwise the first provider in the roster that
 A fallback is deliberately not written back. A stored choice whose app has since been removed
 keeps standing, so reinstalling that app puts the tool back where the person left it rather
 than silently making a temporary fallback permanent. When nothing is available at all the
-first provider is still returned, so the list opens to that one's missing tool row with the
-page beside it rather than to nothing.
+first provider is still returned, so the list opens to that one's missing tool row with
+Provider still in the action panel rather than to nothing.
 
 ## One recency instance is shared across backends
 
@@ -348,10 +345,10 @@ never silently dead, opening it always shows something that explains itself. The
 is only wired when the backend is present, so the unavailable panel makes no provider
 calls and cannot stall.
 
-That row used to be the whole list and therefore a dead end. It is not one any more, because
-the provider row is shown beside it, so somebody who switches to a backend they have not
-installed can always reach the page again and switch back. Making that reachable is what lets
-this row stay a label rather than having to grow an action.
+That row is the whole list and it is not a dead end, because Provider in the action panel
+applies to it like any row, so somebody whose backend has gone missing can always switch to one
+that is installed. Making that reachable is what lets this row stay a label rather than having
+to grow an action.
 
 The `available` flag is resolved once per activation, not per open, because whether a CLI
 exists does not change while Hammerspoon runs. The separate `unavailable` state a live daemon

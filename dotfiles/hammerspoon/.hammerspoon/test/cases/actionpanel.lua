@@ -901,7 +901,8 @@ do
       calls[#calls + 1] = method
       if method == "isLayout" then return item and item.layout == true end
       if method == "providers" then
-        return { { title = "One", value = 1 }, { title = "Two", value = 2, current = true } }
+        return { { title = "One", value = 1 }, { title = "Two", value = 2, current = true },
+                 { title = "Three", value = 3, enabled = false } }
       end
     end,
     rank = rank,
@@ -944,7 +945,12 @@ do
 
   ap:toggle("demo")
   ap:_choose(instance, ap._panelRows[4].item)
-  check("choices open the plugin's list", titlesOf(ap._panelRows) == "One,Two", titlesOf(ap._panelRows))
+  check("choices open the plugin's list", titlesOf(ap._panelRows) == "One,Two,Three", titlesOf(ap._panelRows))
+  check("a choice answering enabled false is built disabled", ap._panelRows[3].enabled == false
+    and ap._panelRows[1].enabled == true)
+  ap:_choose(instance, ap._panelRows[3].item)
+  check("choosing a disabled choice runs nothing and keeps the level open",
+    #runs == 1 and ap:isOpen() and titlesOf(ap._panelRows) == "One,Two,Three")
   check("the choice in force carries the current marker", ap._panelRows[2].icon == "current"
     and ap._panelRows[1].icon ~= "current")
   local config = fakeConfig()
@@ -955,4 +961,38 @@ do
   ap:_choose(instance, ap._panelRows[4].item)
   ap:_choose(instance, ap._panelRows[1].item)
   check("a choice runs the verb with its value", runs[2] and runs[2].action == "pick" and runs[2].value == 1)
+end
+
+-- A verb whose applies names a method the surface does not have stays listed, since the root's
+-- call answers that the method was not found, and a verb hidden by a typo is worse than one
+-- shown. The context the panel opened for is handed to every call.
+do
+  local rows = {
+    { action = "insertSelected", title = "Open", shared = "primary" },
+    { action = "reveal", title = "Reveal", applies = "missing" },
+    { action = "copy", title = "Copy", applies = "fits" },
+  }
+  local ap = freshModule()
+  local contexts = {}
+  ap:configure({
+    kindOf = function() return nil end,
+    rowsFor = function() return rows end,
+    run = function() end,
+    call = function(method, _, contextName)
+      contexts[#contexts + 1] = contextName
+      if method == "fits" then return false, true end
+      return nil, false
+    end,
+    rank = rank,
+    ownRowsMatcher = substring,
+  })
+  local instance = fakeInstance({ showing = true, item = {} })
+  instance.floatsActionPanel = function() return true end
+  ap:decorate(instance, fakeConfig())
+  ap:toggle("demo")
+  local out = {}
+  for _, r in ipairs(ap._panelRows or {}) do out[#out + 1] = r.title end
+  check("a verb whose applies method is missing stays listed, one answering false does not",
+    table.concat(out, ",") == "Open,Reveal", table.concat(out, ","))
+  check("every call carries the context the panel opened for", contexts[1] == "demo" and contexts[2] == "demo")
 end

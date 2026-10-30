@@ -117,7 +117,9 @@ These rules are what make every plugin feel like the same instrument.
 What a row offers beyond Return goes in the action panel, never in a level of actions pushed for
 that row. Return does the thing the row is for, and the rest are verbs of `surface.extra`, keyless
 when they are for the panel alone, with `applies` when they fit only some rows, `confirm` for
-anything destructive and `choices` for a pick of one of a few. A verb that needs typed input, a
+anything destructive and `choices` for a pick of one of a few. A setting of the tool is a verb
+with choices rather than a settings row leading to a page, and a choice this machine cannot take
+is answered disabled rather than hidden. A verb that needs typed input, a
 rename, opens its own level through `stagePush`. `docs/PLAN-ACTION-PANEL.md` and the contract's
 surface section have it, and Workspaces is the settled example.
 

@@ -24,18 +24,15 @@ return {
   },
 
   -- The action glyphs. A green circle reads as go, a red one as stop. The rest are the shared
-  -- vocabulary the other pages in this config already use for the same meanings, so a page
-  -- here reads the way the settings and browser pages do rather than inventing its own marks.
-  -- Green is the live one, an empty circle is a choice that is there to be made, and the
-  -- warning triangle is something this machine cannot currently reach. The country flags on
+  -- vocabulary the other lists in this config already use for the same meanings. An empty
+  -- circle is a Provider choice that is there to be made, the one in force taking Olm's own
+  -- current marker, and the warning triangle is something this machine cannot currently reach. The country flags on
   -- the location rows are not here, they are content derived from the location and the plugin
   -- hands them over as a table spec.
   icons = {
     connect = { emoji = "🟢", sf = "shield" },
     disconnect = { emoji = "🔴", sf = "lock.open" },
-    back = { emoji = "⬅️", sf = "chevron.left" },
     settings = { emoji = "⚙️", sf = "gearshape" },
-    active = { emoji = "🟢", sf = "checkmark.circle.fill" },
     idle = { emoji = "⚪", sf = "circle" },
     warn = { emoji = "⚠️", sf = "exclamationmark.triangle" },
     loading = { emoji = "⏳", sf = "clock" },
@@ -82,12 +79,6 @@ return {
         breaks = "this plugin's own leader key opens nothing, since M.show has no other way to reach the shared stage" },
       redrawPresented = { source = "root", policy = "optional",
         breaks = "the list stays on its last read status and location until the field is touched, since the daemon changing state no longer redraws whatever is on screen" },
-      -- The provider page is a child level, and a child returned from select can only ever
-      -- push, so its own Back row needs this to leave. Optional like the other two, and
-      -- absent it degrades to a row that stands on the level it meant to leave, with
-      -- Backspace still the way out since the stage owns that key regardless.
-      stagePop = { source = "root", policy = "optional",
-        breaks = "the provider page's own Back row stands on the page rather than returning to the locations" },
     },
   },
 
@@ -115,12 +106,19 @@ return {
   },
 
   -- One flat list, the controls on top and every city below, so it takes the shared
-  -- navigation with nothing beyond the primary key. Unchanged by the migration, this block
-  -- is what plan.contexts["vpn"] is still built from, presentation below only changes what
-  -- object answers isShowing and where the rows themselves come from.
+  -- navigation and one verb of the action panel alone. Provider picks the backend that drives
+  -- the list, a choice of a few rather than a page of its own, docs/PLAN-ACTION-PANEL.md. It
+  -- names no applies, since a backend can be switched from any row, the missing tool row
+  -- included, which is what keeps that row from being a dead end. providerChoices and
+  -- switchProvider are colon methods on this plugin's root, which the root reaches with no
+  -- registry.surface named, the same lookup every verb here falls back to.
   surface = {
     context = "vpn",
     primary = { action = "insertSelected", description = "Confirm" },
+    extra = {
+      { action = "switchProvider", description = "Provider", icon = "settings",
+        choices = "providerChoices" },
+    },
   },
 
   -- The presentation contract, BRIEF-STAGE.md version one, docs/BRIEF-HANDOFF.md decision

@@ -1079,17 +1079,26 @@ listed in its `panel`, since every reader of a binding reads its key.
 - `section`, the heading the verb is listed under in the panel. The primary and the secondary
   lead with no heading, then verbs with no section, then each section in declared order.
 - `applies`, the name of a method of the plugin's surface, called with the row the panel was
-  opened over, answering whether the verb fits that row. One that does not is left out.
+  opened over, answering whether the verb fits that row. One that does not is left out. A method
+  the surface does not have leaves the verb listed, since a verb hidden by a typo is worse than
+  one shown. The secondary may carry `applies` too.
 - `choices`, the name of a method of the plugin's surface, called with that row, answering a list
-  of `{ title, subtitle, icon, value, current }`. Choosing the verb opens them as a level of the
-  panel, `current` marked with the green circle, and choosing one runs the verb with its `value`.
+  of `{ title, subtitle, icon, value, current, enabled }`. Choosing the verb opens them as a level
+  of the panel, `current` marked with the green circle, and choosing one runs the verb with its
+  `value`. A choice answering `enabled = false` is drawn dimmed and chooses nothing, for an option
+  this machine cannot take, worth seeing rather than hiding. The subtitle sits where a chord does,
+  on the right, so it is a word or two.
 - `confirm`, true or the confirm row's title. Choosing the verb opens Cancel and the confirm row,
   Cancel first, and only the confirm row runs it.
 
 A row sets `choices` or `confirm`, never both. The root calls a surface method with the surface
 module first, so a method named by `applies` or `choices`, and a verb that takes a value, is
-written colon style, `function M:isLayout(item)`. Workspaces and Display Profiles are the worked
-examples.
+written colon style, `function M:isLayout(item)`. It asks the plugin that owns the context the
+panel opened for, not whichever list is showing, so a list hosted in the launcher is answered by
+its own tool, handed the row its tool made rather than the launcher's wrapper around it. Workspaces
+and Display Profiles are the worked examples, VPN and Tmux Sessions for a choice that stands for a
+whole page of settings, Speedtest for several in sections, and File Search for `applies` on keyed
+verbs and the secondary.
 
 `matcher` and `pane` live here rather than being ambient because they are per plugin
 choices. Since phase three of the unified search on 2026-10-17 no plugin names a matcher, and

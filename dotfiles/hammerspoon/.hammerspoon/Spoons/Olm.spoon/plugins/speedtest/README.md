@@ -31,12 +31,17 @@ when the network feels wrong rather than something used daily.
 ## In the list
 
 Return runs a test without leaving the row, and Return on Stop ends one in flight. Return on a
-past reading copies a one line summary of it. Return on Settings or Other networks opens that
-level and Backspace on an empty field steps back out of it. The pane on the right follows the
-highlight throughout and scrolls under the trackpad when it holds more than fits.
+past reading copies a one line summary of it. Return on Other networks opens that level and
+Backspace on an empty field steps back out of it. The pane on the right follows the highlight
+throughout and scrolls under the trackpad when it holds more than fits.
+
+The settings are in the action panel. Under Run, Direction, Measurement, Maximum runtime,
+Protocol and iCloud Private Relay each open their few values with the one in force marked. Under
+History, Keep per network does the same, Name this network opens a field for the name, and the
+two clears ask before they forget anything.
 
 Through the alias the list is smaller on purpose. The launcher reserves no companion pane and
-nothing can be pushed onto its list, so the pane and the settings level cannot exist there. What
+nothing can be pushed onto its list, so the pane and the settings cannot exist there. What
 the alias carries is taking a reading and seeing the past ones, and a row at the top that opens
 the tool proper. Starting a run from the alias opens it too, since a row in the launcher has
 nothing that would redraw it and a run worth watching should be watchable.
