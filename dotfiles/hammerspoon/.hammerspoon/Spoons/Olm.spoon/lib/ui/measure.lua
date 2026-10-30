@@ -12,8 +12,11 @@
 -- by it, since one laid out tree measures a handful of strings rather than a page of rows,
 -- and since every shared surface was placed by a whole string measure before it moved onto
 -- the kit, so a sum running a point high would move the next chip along by that point. It is
--- not cached, since its strings are whatever a surface is saying right now, a toast message
--- among them, and a cache keyed by them would only grow.
+-- cached in a table that is emptied once it holds EXACT_LIMIT strings, so a surface redrawn on a
+-- poll measures its words once and a stream of toast messages cannot grow it. It was uncached
+-- until 2026-10-30, and every hs.drawing.getTextDrawingSize call builds a hidden canvas window
+-- that outlives its delete until much later, measured at 454 calls and 353 live windows a minute
+-- after a reload and 632 windows after fifteen minutes, most of the 200 MB Hammerspoon then held.
 --
 -- Wrapping is greedy by word, keeping whitespace as written and splitting a word wider than the
 -- line by character, which is what the layout needs to know how many lines a wrapped text takes. It is an estimate of
@@ -28,8 +31,11 @@ M.__index = M
 
 --- M.new() -> an instance holding its own cache, keyed by font and then by size.
 function M.new()
-  return setmetatable({ _cache = {}, _metrics = {} }, M)
+  return setmetatable({ _cache = {}, _metrics = {}, _exact = {}, _exactCount = 0 }, M)
 end
+
+-- How many whole strings exact remembers before it starts over.
+local EXACT_LIMIT = 512
 
 local function memoFor(self, font, size)
   local byFont = self._cache[font]
@@ -86,8 +92,17 @@ end
 --- instance:exact(str, font, size) -> points, one string measured whole.
 function M:exact(str, font, size)
   if not str or str == "" then return 0 end
+  local key = tostring(font) .. "\0" .. tostring(size) .. "\0" .. str
+  local hit = self._exact[key]
+  if hit then return hit end
   local sz = hs.drawing.getTextDrawingSize(str, { font = font, size = size })
-  return (sz and sz.w) or 0
+  local w = (sz and sz.w) or 0
+  if self._exactCount >= EXACT_LIMIT then
+    self._exact, self._exactCount = {}, 0
+  end
+  self._exact[key] = w
+  self._exactCount = self._exactCount + 1
+  return w
 end
 
 --- instance:metrics(font, size) -> { ascender, descender, capHeight }, the real metrics of
