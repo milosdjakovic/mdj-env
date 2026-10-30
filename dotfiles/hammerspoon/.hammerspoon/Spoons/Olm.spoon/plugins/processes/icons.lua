@@ -332,14 +332,6 @@ end
 -- Public surface
 --------------------------------------------------------------------------------
 
---- icons.emoji(str) -> hs.image
---- A literal character rendered the same way, for the fixed affordances that are not
---- technologies at all, the empty state and the two confirmation answers. They stay
---- emoji whatever the font situation is, because none of them is a brand.
-function M.emoji(str)
-  return render(str, nil, nil)
-end
-
 --- icons.badge(row) -> hs.image, label
 --- The image for the row and the word to call it. The label is nil when nothing beat
 --- the runtime, and the caller keeps whatever it already had.

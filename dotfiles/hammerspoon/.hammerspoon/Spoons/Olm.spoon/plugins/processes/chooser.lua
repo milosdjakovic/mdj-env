@@ -108,12 +108,9 @@ local ENTER_TIMEOUT = 5
 --------------------------------------------------------------------------------
 
 -- The technology glyphs and the framework naming both live in icons.lua, which is the
--- one place that decides what a row is called and what is drawn for it. Only the three
--- fixed affordances stay here, because the empty state and the two confirmation answers
--- are not technologies and never want a brand mark.
-local ICON_EMPTY = "🚫"
-local ICON_KEEP = "↩️"
-local ICON_STOP = "🛑"
+-- one place that decides what a row is called and what is drawn for it. The empty state
+-- and the two confirmation answers are not technologies and never want a brand mark, so
+-- they name icons the manifest declares, empty, keep and stop, and Olm draws them.
 
 -- The detail pane beside the list inherits the chooser's own width, the manifest's own
 -- presentation.paneWidth = true, the atom's own paneMaxW still capping whichever width wins.
@@ -242,7 +239,7 @@ local function listRows()
   if #rows == 0 then
     return { { title = "Nothing running", enabled = false, pinned = true,
                subTitle = "No development servers or containers found",
-               image = icons.emoji(ICON_EMPTY) } }
+               icon = "empty" } }
   end
   local out = {}
   local count = #rows
@@ -275,10 +272,10 @@ end
 -- search never drops either answer.
 local function confirmRows()
   return {
-    { title = "Keep it running", subTitle = "", image = icons.emoji(ICON_KEEP),
+    { title = "Keep it running", subTitle = "", icon = "keep",
       item = { confirm = false }, pinned = true },
     { title = "Stop anyway", subTitle = pending.message or "",
-      image = icons.emoji(ICON_STOP), item = { confirm = true }, pinned = true },
+      icon = "stop", item = { confirm = true }, pinned = true },
   }
 end
 

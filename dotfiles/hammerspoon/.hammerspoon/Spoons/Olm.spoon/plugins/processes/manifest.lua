@@ -27,6 +27,10 @@ return {
     sortByLoad = { emoji = "🔥", sf = "flame" },
     stopForced = { emoji = "⛔", sf = "xmark.octagon" },
     rescan = { emoji = "🔄", sf = "arrow.triangle.2.circlepath" },
+    -- The empty state and the two confirmation answers.
+    empty = { emoji = "🚫", sf = "nosign" },
+    keep = { emoji = "↩️", sf = "arrow.uturn.backward" },
+    stop = { emoji = "🛑", sf = "xmark.circle" },
   },
 
   needs = {
