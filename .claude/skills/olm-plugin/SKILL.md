@@ -229,7 +229,13 @@ on a row with `icon = "key"`, or with a table spec such as `icon = { emoji = fla
 that is content, and Olm draws it. The plugin's own identity icon is `defaults.icon`, a key into
 the same `icons`, named for the plugin, and a binding or a verb names its icon the same way. Every
 entry gets an `sf` name beside its `emoji`, each checked to exist before it is written, and content
-is the only spec without one. Every `sf` symbol is an outline glyph, judged by how it renders and not only by its
+is the only spec without one. A verb's icon, the primary, the secondary and every `extra` row,
+pictures what the verb does, never the key that runs it, so never a return arrow, a command
+glyph or any other key glyph, since the action panel already prints the chord beside the icon
+and the two read as one key twice. Stated by Milos on 2026-10-30. Olm's own fallback for a
+primary or a secondary naming no icon is exactly that key glyph, so a `surface` always names an
+icon on its `primary` and its `secondary`, declared in the manifest's `icons`, Apply a
+`checkmark.circle`, Copy a `doc.on.doc`. Every `sf` symbol is an outline glyph, judged by how it renders and not only by its
 name, since some symbols draw a solid body without `.fill` in the name. The one exception is an
 on and off marker, a filled circle beside an outline one, stated by Milos 2026-10-16. A row that carries a real picture keeps its `image`. The
 active icon set is one setting in `config/icons.toml`, and the dry gate refuses a plugin file
