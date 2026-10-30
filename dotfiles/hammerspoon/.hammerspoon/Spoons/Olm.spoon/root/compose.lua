@@ -839,6 +839,7 @@ function obj.run(olm, cfg)
     icon = paintIcon,
     yields = chooserKeys.yields,
     listKeys = chooserKeys.listKeys,
+    rowLimit = policy.chooserRowLimit,
     swiftc = sharedDepsScope.path("swiftc-clt"),
     dir = atoms.storage.cacheDir("swiftchooser"),
     log = log,

@@ -36,7 +36,7 @@ return {
     -- The most rows a list shows before its last row offers the rest, Show 27 more, a page of
     -- this many at a time. Applied after ranking, so a search still finds the best rows among
     -- every one. A list whose presentation names its own rowLimit keeps it, and false there opts
-    -- that list out. false here shows every row of every list. The canvas chooser reads it today.
+    -- that list out. false here shows every row of every list. Every chooser reads it.
     rowLimit = 50,
   },
 

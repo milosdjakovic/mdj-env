@@ -37,7 +37,8 @@
 ---
 --- M.configure(opts) takes opts.ui, the UI kit, opts.icon, the icon resolver, opts.fallback, the
 --- configured provider to serve when the library is not loaded, opts.yields and opts.listKeys,
---- the same predicates the default provider is handed, and opts.swiftc, the resolved compiler,
+--- the same predicates the default provider is handed, opts.rowLimit, the default row limit the
+--- engine takes, as the default provider is handed it, and opts.swiftc, the resolved compiler,
 --- opts.dir, the cache directory, and opts.log, a logger with i and e. A dir starts the load.
 ---
 --- M.paneBackend() answers the docked pane's native drawing backend, pane.lua beside this file,
@@ -155,7 +156,8 @@ function M.configure(opts)
   opts = opts or {}
   if opts.fallback ~= nil then FALLBACK = opts.fallback end
   if opts.log ~= nil then LOG = opts.log end
-  Engine.configure({ ui = opts.ui, yields = opts.yields, listKeys = opts.listKeys })
+  Engine.configure({ ui = opts.ui, yields = opts.yields, listKeys = opts.listKeys,
+    rowLimit = opts.rowLimit })
   SwiftView.configure({ ui = opts.ui, icon = opts.icon })
   if opts.dir ~= nil and not NATIVE then prepare(opts) end
   return M

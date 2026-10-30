@@ -137,7 +137,7 @@ final class RowCell: NSView {
     }
     title.stringValue = row.title
     title.font = style.titleFont
-    title.textColor = row.enabled ? style.text : style.textDim
+    title.textColor = row.muted ? style.sub : (row.enabled ? style.text : style.textDim)
     title.lineBreakMode = lineBreak
     subtitle.stringValue = row.subtitle
     subtitle.font = style.subFont

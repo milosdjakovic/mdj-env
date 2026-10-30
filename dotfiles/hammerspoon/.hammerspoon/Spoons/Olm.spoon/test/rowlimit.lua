@@ -235,6 +235,8 @@ check("a list past the default limit shows the limit's rows and one row of more"
 check("the row of more names the page it adds", t[51], "Show 50 more")
 check("and how many are left in all", lastRows[51].subtitle, "77 more in all")
 check("the row before it is the fiftieth", t[50], "row 050")
+check("the swift view hands it to Swift as muted", lastRows[51].muted, true)
+check("and every result as not muted", lastRows[50].muted, false)
 
 picker:selectRow(51)
 check("a highlight on the row of more reports no item", picker:selectedItem(), nil)

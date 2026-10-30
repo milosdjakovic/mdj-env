@@ -1423,8 +1423,8 @@ keystroke. A list that names none takes the chooser's own, `chooser.rowLimit` in
 engine ends the list in a row of more, Show 27 more, which carries no item, so a highlight on it
 reports none and a right press on it reaches nobody, and choosing it ranks in the next page with
 the highlight on the first row it added. A new query, a show or a refresh from row one starts from
-one page again. The canvas chooser reads the setting since 2026-10-30, and the swift chooser keeps
-a presentation's own limit and its row of more until its provider is handed the setting too.
+one page again. Both choosers read the setting since 2026-10-30, and each draws the row of more in
+the subtext colour, the swift one through a `muted` field on the row it hands its library.
 `decisions/olm-chooser-row-limit.md` has it. The action panel takes the search off the instance while it is open, since its verbs
 do not speak a tool's grammar. The DisplayProfiles, Workspaces and
 TmuxSessions lists and the settings page all inherit now, and the query scope and launcher

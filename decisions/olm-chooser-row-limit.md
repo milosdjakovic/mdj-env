@@ -1,6 +1,6 @@
 # Olm chooser row limit, and the row of more
 
-Status. On the canvas-glass-layout branch, the canvas chooser shows 50 rows of any list by default and ends a longer one in a row that adds the next 50, and the swift chooser is to take the same setting next.
+Status. On the canvas-glass-layout branch, both choosers show 50 rows of any list by default and end a longer one in a row that adds the next 50.
 
 ## Now
 
@@ -17,9 +17,8 @@ subtext colour with no icon.
 
 The engine is shared, so the behaviour is one piece of code under both choosers. Each provider
 loads its own copy of the engine module, which is why the default reaches it through the
-provider's `configure`, and the canvas provider is handed it since 2026-10-30. The swift chooser
-already shows the row of more for a presentation with its own limit, drawn as an ordinary row,
-and takes the default and its own look in the next change.
+provider's `configure`, and both are handed it since 2026-10-30. The swift view hands the row to
+its library with `muted` set, and `native/List.swift` draws a muted title in the subtext colour.
 
 A launcher query scoped to a plugin is ranked and cut by `host/queryscope` at the scope's own
 limit before the engine sees it, so the row of more there reaches that limit and not past it.
@@ -46,3 +45,11 @@ the engine reads the default from `configure` and adds and answers the row of mo
 accepts `rowLimit = false`, and the canvas view draws the row in the subtext colour. The dry suite
 passes with `test/rowlimit.lua` added, and every unit case passes, `test/cases/stage-search.lua`
 now expecting the row of more after a list its limit of three cut. Not yet seen live.
+
+### 2026-10-30 20:35
+
+The swift chooser takes the same default, handed through its provider's `configure` from the root,
+and draws the row of more in the subtext colour through a new `muted` field on the native row. The
+engine code is the one both choosers already shared, so nothing else moved. The dry suite passes,
+`swiftpane` compiling the changed sources, and every unit case passes. Not yet seen live.
+
