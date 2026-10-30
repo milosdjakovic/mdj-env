@@ -37,6 +37,8 @@ return {
     primary = { emoji = "↩️", sf = "return" },
     secondary = { emoji = "⌘", sf = "command" },
     keys = { emoji = "⌨️", sf = "keyboard" },
+    -- The row of more the chooser's engine ends a list its limit cut with, Show 27 more.
+    more = { emoji = "…", sf = "ellipsis" },
     -- The choice in force in a level a verb opens, the green circle every list marks it with.
     current = { emoji = "🟢", sf = "circle.fill" },
   },

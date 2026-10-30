@@ -117,6 +117,10 @@ local FOCUS_HOLD = nil
 -- Nil until Engine.configure runs.
 local ROW_LIMIT = nil
 
+-- The row of more's icon, { icon, owner }, a key and the manifest owner it is read against, the
+-- way the bar's keys icon is handed over, so this file names no owner. Nil draws it without one.
+local MORE_ICON = nil
+
 -- Return, keypad enter, up and down, the four keys a field's editing never claims, so all four
 -- reach leftoverKey unclaimed rather than being typed into the buffer as a stray character.
 local KEYCODE_RETURN, KEYCODE_KEYPAD_ENTER = 36, 76
@@ -172,6 +176,8 @@ local function moreRow(cut, page)
   return {
     title = ("Show %d more"):format(adds),
     subTitle = cut > adds and ("%d more in all"):format(cut) or nil,
+    icon = MORE_ICON and MORE_ICON.icon or nil,
+    iconOwner = MORE_ICON and MORE_ICON.owner or nil,
     more = true,
   }
 end
@@ -1082,9 +1088,10 @@ local M = {}
 --- for a key down the field must let through instead of claiming, opts.listKeys, a
 --- function(event) that runs a list key the open list binds with no held leader and answers true
 --- when it took the key, and opts.focusHold, a function answering a release function or nil,
---- asked once per open after the surface shows and released on teardown, and opts.rowLimit, the
---- most rows a list shows when its presentation names none, false for no default. Callable more
---- than once, a nil field left unchanged.
+--- asked once per open after the surface shows and released on teardown, opts.rowLimit, the
+--- most rows a list shows when its presentation names none, false for no default, and
+--- opts.moreIcon, { icon, owner }, the row of more's icon. Callable more than once, a nil field
+--- left unchanged.
 function M.configure(opts)
   opts = opts or {}
   if opts.ui ~= nil then UI = opts.ui end
@@ -1096,6 +1103,7 @@ function M.configure(opts)
   elseif type(opts.rowLimit) == "number" and opts.rowLimit >= 1 and opts.rowLimit % 1 == 0 then
     ROW_LIMIT = opts.rowLimit
   end
+  if type(opts.moreIcon) == "table" then MORE_ICON = opts.moreIcon end
   return M
 end
 

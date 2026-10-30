@@ -2027,6 +2027,17 @@ function obj.run(olm, cfg)
     return (stageModule and stageModule:selectedItem()) or {}
   end
 
+  -- The row of more's icon, read against the action panel's manifest like the bar's keys icon,
+  -- handed now since the identity is only known once the plan is resolved. Both providers take
+  -- it, since the swift one serves the default when its library is not loaded.
+  do
+    local moreIcon = { icon = "more", owner = plan.identity.actionpanel or "actionpanel" }
+    for _, name in ipairs({ "default", "swift" }) do
+      local provider = chooserAtom.providers and chooserAtom.providers[name]
+      if provider and provider.configure then provider.configure({ moreIcon = moreIcon }) end
+    end
+  end
+
   local hintsDeps = {
     predicates = ownPredicates,
     glyphFor = cheatSheetAtom.glyphFor,

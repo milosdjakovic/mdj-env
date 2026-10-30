@@ -208,7 +208,7 @@ end
 local Engine = dofile(spoon .. "lib/chooser/engine/init.lua")
 local View = dofile(spoon .. "lib/chooser/providers/swift/view.lua")
 Engine.configure({ ui = UI, yields = function() return false end,
-  listKeys = function() return false end, rowLimit = 50 })
+  listKeys = function() return false end, rowLimit = 50, moreIcon = { icon = "more", owner = "olm" } })
 View.configure({ ui = UI, icon = function() return nil end })
 View.attach(native)
 
@@ -236,6 +236,9 @@ check("the row of more names the page it adds", t[51], "Show 50 more")
 check("and how many are left in all", lastRows[51].subtitle, "77 more in all")
 check("the row before it is the fiftieth", t[50], "row 050")
 check("the swift view hands it to Swift as muted", lastRows[51].muted, true)
+local moreState = picker.listState.filtered[51]
+check("it carries the icon it was handed", moreState.icon, "more")
+check("read against the owner it was handed", moreState.iconOwner, "olm")
 check("and every result as not muted", lastRows[50].muted, false)
 
 picker:selectRow(51)

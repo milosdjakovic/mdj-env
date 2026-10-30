@@ -10,7 +10,8 @@ the clipboard's and FileSearch's 200, and `false` opts a list out. The cut is `l
 after ranking, so a search still finds the best rows among every one, and pinned and fromQuery rows
 are never cut. `rank.apply` answers what it cut as a third value, and the engine ends the list
 there in a row of more, Show 27 more, with 77 more in all beside it when more than a page is left.
-It carries no item. Choosing it, by Return, a press or a digit, ranks in the next page and lands the
+It carries the ellipsis icon, `more` in the action panel's manifest, handed to the engine as
+`{ icon, owner }` the way the bar's keys icon is, and no item. Choosing it, by Return, a press or a digit, ranks in the next page and lands the
 highlight on the first row it added, and a new query, a show or a refresh from row one is one page
 again. A right press on it reaches nobody. Each view draws it its own way, the canvas view in the
 subtext colour with no icon.
@@ -52,4 +53,12 @@ The swift chooser takes the same default, handed through its provider's `configu
 and draws the row of more in the subtext colour through a new `muted` field on the native row. The
 engine code is the one both choosers already shared, so nothing else moved. The dry suite passes,
 `swiftpane` compiling the changed sources, and every unit case passes. Not yet seen live.
+
+### 2026-10-30 21:20
+
+Seen live on the canvas chooser, and the row of more wanted an icon, an ellipsis. It is the `more`
+icon in the action panel's manifest, SF `ellipsis` with `…` for the emoji set, handed to both
+providers by the root once the plan names the action panel's identity, so the engine names no
+owner. Every row draws its icon the way the rest do, the canvas through list render and swift
+through the icons it resolves for the rows near the viewport.
 
