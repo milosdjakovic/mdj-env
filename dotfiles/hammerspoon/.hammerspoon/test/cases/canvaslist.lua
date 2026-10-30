@@ -407,35 +407,28 @@ do
 end
 
 --------------------------------------------------------------------------------
--- Cmd plus a digit resolving to a visible row, round four's decision four, including
--- while the viewport sits between two rows, the case most likely to be off by one.
+-- Cmd plus a digit names one of the first nine rows of the list, fixed however the
+-- viewport is scrolled, decided by Milos on 2026-10-30.
 --------------------------------------------------------------------------------
 
 do
   local s = model.newState(rowSet(30), ROWS_10)
-  local row1, idx1 = model.rowAtVisibleSlot(s, 1)
-  check("slot one resolves to the topmost row when the viewport sits exactly on a boundary",
-    row1.item == 1 and idx1 == 1)
-  local row9, idx9 = model.rowAtVisibleSlot(s, 9)
-  check("slot nine resolves to the ninth row down from the top of the viewport",
-    row9.item == 9 and idx9 == 9)
-  local row11 = model.rowAtVisibleSlot(s, 11)
-  check("a slot past what the viewport currently holds answers nil rather than a wrong row",
-    row11 == nil)
+  local row1, idx1 = model.rowAtSlot(s, 1)
+  check("slot one resolves to the first row", row1.item == 1 and idx1 == 1)
+  local row9, idx9 = model.rowAtSlot(s, 9)
+  check("slot nine resolves to the ninth row", row9.item == 9 and idx9 == 9)
+  check("no slot past nine resolves", model.rowAtSlot(s, 10) == nil)
+  check("a slot past the end of a short list answers nil rather than a wrong row",
+    model.rowAtSlot(model.newState(rowSet(4), ROWS_10), 5) == nil)
 end
 
 do
-  local s = model.newState(rowSet(30), ROWS_10)
-  s = model.scrollTo(s, 17)
-  local row1, idx1 = model.rowAtVisibleSlot(s, 1)
-  check("cmd one resolves to the row currently topmost even when the viewport shows only part of it",
+  local s = model.scrollTo(model.newState(rowSet(30), ROWS_10), 5 * ROW_H + 17)
+  local _, idx1 = model.rowAtSlot(s, 1)
+  check("cmd one still resolves to the first row after the list scrolled past it",
     idx1 == 1, "got " .. tostring(idx1))
-  local row2, idx2 = model.rowAtVisibleSlot(s, 2)
-  check("cmd two resolves to the second visible row counted from that same partly shown top row",
-    idx2 == 2, "got " .. tostring(idx2))
-  local row10, idx10 = model.rowAtVisibleSlot(s, 10)
-  check("cmd carries no further than a ninth row by name, but the tenth still resolves for a caller that asks",
-    idx10 == 10, "got " .. tostring(idx10))
+  local _, idx9 = model.rowAtSlot(s, 9)
+  check("cmd nine still resolves to the ninth row after a scroll", idx9 == 9, "got " .. tostring(idx9))
 end
 
 --------------------------------------------------------------------------------
@@ -614,6 +607,23 @@ do
 end
 
 do
+  -- Scrolled four rows down, the rows on screen keep their own digits, so the topmost row
+  -- shown is the fifth and draws cmd five, and nothing past the ninth row draws one.
+  local layout = {
+    width = 480, rowH = DERIVED_ROW_H, rowCount = 10, baseH = 94,
+    font = TYPE.font, textSize = TYPE.textSize, textLine = TYPE.textLine, subFont = TYPE.subFont, subSize = TYPE.subSize, subLine = TYPE.subLine, numFont = TYPE.numFont, numSize = TYPE.numSize, showRowNumbers = true,
+  }
+  local s = model.scrollTo(model.newState(rowSet(30), layout), 4 * DERIVED_ROW_H)
+  local rect = { x = 0, y = 0, w = layout.width, h = render.bandHeight(layout) }
+  local seen = {}
+  for _, el in ipairs(render.elements(s, rect, layout, {})) do
+    if el.type == "text" and el.textAlignment == "right" then seen[#seen + 1] = el.text end
+  end
+  check("a scrolled list numbers its rows by their place in the list, not on screen",
+    seen[1] == "\u{2318}5" and #seen == 5, table.concat(seen, " "))
+end
+
+do
   local layout = {
     width = 480, rowH = DERIVED_ROW_H, rowCount = 10, baseH = 94,
     font = TYPE.font, textSize = TYPE.textSize, textLine = TYPE.textLine, subFont = TYPE.subFont, subSize = TYPE.subSize, subLine = TYPE.subLine, numFont = TYPE.numFont, numSize = TYPE.numSize, showRowNumbers = false,
@@ -654,10 +664,8 @@ end
 
 --------------------------------------------------------------------------------
 -- M.rowAtPoint, phase three a part one of this track's build plan, built from
--- docs/BRIEF-CANVAS-GEOMETRY.md. Composes the same visible slot arithmetic
--- geometry.lua answers with the existing M.rowAtVisibleSlot, so a point measured from
--- the top of the row band answers a real filtered index and never a slot the filtered
--- set does not actually hold.
+-- docs/BRIEF-CANVAS-GEOMETRY.md. A point measured from the top of the row band answers
+-- a real filtered index and never a row the filtered set does not actually hold.
 --------------------------------------------------------------------------------
 
 do

@@ -214,7 +214,7 @@ end
 --- reads for itself. Back on Backspace is listed only when deps.backs(contextName) answers true,
 --- the level a press would leave being a pushed one, and never when the list already lists its own
 --- binding on a plain Backspace, the launcher's way out of a hosted list or a page's way back.
---- A visible row on Command and a digit is always listed.
+--- One of the first nine rows on Command and a digit is always listed.
 ---
 --- While the action panel is open over the list, deps.actionPanel answers the panel row under the
 --- highlight, or an empty table, and the model describes the panel instead, since the panel
@@ -264,7 +264,7 @@ function obj.footerModel(contextName, plan, deps)
   if panelRow or (not ownBack and deps.backs and deps.backs(contextName)) then
     keys[#keys + 1] = { badges = { glyph("delete") }, label = "Back" }
   end
-  keys[#keys + 1] = { badges = { glyph("1", { "cmd" }), glyph("9", { "cmd" }) }, label = "Choose a visible row" }
+  keys[#keys + 1] = { badges = { glyph("1", { "cmd" }), glyph("9", { "cmd" }) }, label = "Choose rows 1 to 9" }
 
   local right = {}
   local primaryLabel

@@ -342,45 +342,29 @@ function M.visibleRows(rawState)
   return out
 end
 
---- M.rowAtVisibleSlot(state, slot) answers the row and its filtered index sitting at the
---- given position in M.visibleRows, counted from whatever the viewport currently shows,
---- slot 1 being the topmost row on screen whether it is drawn whole or only partly, and
---- answers nil when the viewport does not currently hold that many rows. This is decision
---- four of round four of the brief answered as one function rather than as two places
---- that could drift, cmd plus a digit resolving to a row and this same list numbering its
---- own first nine visible rows both read this same ordering, so there is one answer to
---- which row a given digit means rather than a renderer's own count and a caller's own
---- count that might quietly stop agreeing.
-function M.rowAtVisibleSlot(rawState, slot)
-  local visible = M.visibleRows(rawState)
-  local entry = visible[slot]
-  if not entry then return nil, nil end
-  return entry.row, entry.index
+--- M.rowAtSlot(state, slot) answers the row and its filtered index that Command and a digit
+--- names, which is simply the slot'th row of the filtered set, 1 to 9, and nil past the end of
+--- it. The numbers are fixed to the first nine rows and never follow the viewport, so a digit
+--- means the same row however the list is scrolled, which is the predictable answer Milos asked
+--- for on 2026-10-30. They were once counted from whatever row sat topmost on screen, which
+--- renumbered every row on every scroll tick and made the swift list reload on each one.
+function M.rowAtSlot(rawState, slot)
+  local ns = normalizeState(rawState)
+  if type(slot) ~= "number" or slot < 1 or slot > 9 then return nil, nil end
+  local row = ns.filtered[slot]
+  if not row then return nil, nil end
+  return row, slot
 end
 
 --- M.rowAtPoint(state, yOffsetIntoBand) answers the index into the filtered set for a
 --- point that many points below the top of the row band, or nil when it falls past the
---- last row, phase three a part one of this track's build plan, built from
---- docs/BRIEF-CANVAS-GEOMETRY.md. yOffsetIntoBand is already local to the row band's own
---- top, a caller with a raw screen point subtracts the list rect's own top first, the
---- same subtraction geometry.lua's own M.rowAtPoint takes.
----
---- This is the composition the brief asks for, the same arithmetic geometry.lua answers
---- a visible slot with, scrollTop's own SUB ROW remainder added to the offset and
---- divided by the row height, floored and one added, fed straight into this file's own
---- M.rowAtVisibleSlot rather than turned into a filtered index by hand. That second step
---- is why this function lives here and not in geometry.lua, only this file knows how
---- many rows the filtered set actually has, and rowAtVisibleSlot already answers nil
---- past the end of it rather than a wrong row, the exact answer a point below the last
---- row needs.
+--- last row. yOffsetIntoBand is local to the row band's own top, a caller with a raw screen
+--- point subtracts the list rect's own top first.
 function M.rowAtPoint(rawState, yOffsetIntoBand)
   local ns = normalizeState(rawState)
-  if ns.rowH <= 0 then return nil end
-  local remainder = ns.scrollTop % ns.rowH
-  local raw = (yOffsetIntoBand + remainder) / ns.rowH
-  local slot = math.floor(raw) + 1
-  if slot < 1 then return nil end
-  local _, index = M.rowAtVisibleSlot(ns, slot)
+  if ns.rowH <= 0 or yOffsetIntoBand < 0 then return nil end
+  local index = math.floor((yOffsetIntoBand + ns.scrollTop) / ns.rowH) + 1
+  if index > #ns.filtered then return nil end
   return index
 end
 

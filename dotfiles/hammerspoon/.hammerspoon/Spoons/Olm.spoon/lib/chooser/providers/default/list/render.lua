@@ -77,8 +77,8 @@
 --- at its own edge, never merely omitted or overdrawn.
 ---
 --- Round four's other addition, a quiet row number. Cmd plus a digit chooses one of the
---- first nine rows the viewport currently shows, list model.lua's own
---- rowAtVisibleSlot answering exactly which row that is, and a shortcut nobody can see is
+--- first nine rows of the list, list model.lua's own rowAtSlot answering exactly which
+--- row that is, fixed however the list scrolls, and a shortcut nobody can see is
 --- a shortcut nobody presses, so this file draws that same digit on the trailing edge of
 --- each of those rows, dim, small, and in the column the native chooser reserves for
 --- exactly this. showRowNumbers is the flag that turns the whole feature off without
@@ -325,6 +325,9 @@ function M.elements(state, rect, layout, style, clip, query)
     local row = entry.row
     local rowY = rect.y + entry.top
     local enabled = row.enabled ~= false
+    -- The digit Command chooses this row with, its own place in the list, list model's
+    -- rowAtSlot, so the numbers stay on the first nine rows however the list scrolls.
+    local number = entry.index
 
     -- Fix round item twelve, extended by the coordinator to cover the subtitle too.
     -- geometry.textBudget already reserves a numeral column exactly layout.iconSize
@@ -339,7 +342,7 @@ function M.elements(state, rect, layout, style, clip, query)
     -- showRowNumbers is on, and using reservedW for both lines rather than textW, is
     -- what brings all three back into agreement.
     local reservedW = textW
-    if numberMetrics and slot <= 9 then
+    if numberMetrics and number <= 9 then
       reservedW = math.max(0, textW - (layout.numW or layout.iconSize))
     end
 
@@ -411,9 +414,9 @@ function M.elements(state, rect, layout, style, clip, query)
       }
     end
 
-    if numberMetrics and slot <= 9 then
+    if numberMetrics and number <= 9 then
       -- Decision four of round four's own consequence, a shortcut nobody can see is a
-      -- shortcut nobody presses, so the first nine visible rows quietly name the digit
+      -- shortcut nobody presses, so the first nine rows quietly name the digit
       -- cmd would choose them with, written as the shortcut itself, the command sign and the
       -- digit, in the row title's size and the subtext colour, on the trailing edge rather than
       -- beside the title, the column the native chooser reserves for exactly this,
@@ -422,7 +425,7 @@ function M.elements(state, rect, layout, style, clip, query)
       local numTop, numH = centredLine(rowY, layout.rowH, numberMetrics)
       local numW = layout.numW or layout.iconSize
       els[#els + 1] = {
-        type = "text", text = "\u{2318}" .. tostring(slot),
+        type = "text", text = "\u{2318}" .. tostring(number),
         textFont = layout.numFont, textSize = layout.numSize,
         textColor = numberColor,
         textAlignment = "right",

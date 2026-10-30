@@ -170,8 +170,11 @@ struct Footer {
 
 // What the engine's scene says now, apart from the rows, which travel on their own call.
 struct ViewState {
-  var highlight = 0
-  var scrollTop: CGFloat = 0
+  // The row the engine moved the highlight to, one based, 0 for none, or nil to leave the one
+  // the list holds, which the person may have moved since.
+  var highlight: Int?
+  // Where the engine moves the viewport, or nil to leave it where the person scrolled it.
+  var scrollTop: CGFloat?
   var placeholder = ""
   var bare = false
   var slots: [Int] = []
@@ -187,8 +190,8 @@ struct ViewState {
   init() {}
 
   init(_ r: LuaReader, _ t: Int32) {
-    highlight = r.integer(t, "highlight") ?? 0
-    scrollTop = r.number(t, "scrollTop") ?? 0
+    highlight = r.integer(t, "highlight")
+    scrollTop = r.number(t, "scrollTop").map { CGFloat($0) }
     placeholder = r.string(t, "placeholder") ?? ""
     bare = r.bool(t, "bare") ?? false
     r.each(t, "slots") { e in slots.append(r.integer(at: e) ?? 0) }

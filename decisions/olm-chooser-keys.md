@@ -40,12 +40,22 @@ slash before any tap. While the action panel is open the bar describes the panel
 every field key of the list is inert there. The action panel lists Back, the primary, the secondary and then
 the verbs. The legacy chooser draws no bar.
 
+Command and a digit chooses one of the first nine rows of the list, and those nine rows carry
+the ⌘1 to ⌘9 numbers, fixed however the list is scrolled, `rowAtSlot` in the list model, since
+2026-10-30. The bar's key panel reads Choose rows 1 to 9.
+
 The default chooser is the shipped default and the word chooser means it unless legacy is
 named. The legacy chooser, the one wrapping hs.chooser, is deprecated, still selectable
 through `chooser.provider` in the settings as a fallback, marked in its own header, and named
 in a console warning on every load that picks it. Removing it is a later, separate step.
 
 ## Rejected
+
+**Numbering the nine rows the viewport shows, from the topmost one on screen.** Held from round
+four of the canvas list until 2026-10-30. The numbers moved under the eye on every scroll tick,
+so a digit meant a different row from one moment to the next, and the swift list reloaded its
+whole table on each tick to redraw them, which was most of the scroll's stutter. Milos asked for
+the numbers fixed to the first nine rows, simple and predictable.
 
 - **Hyper and slash for the key panel or for file search.** 2026-10-23. With Hyper as the four
   real modifiers from kanata, macOS takes Hyper and slash before any Hammerspoon tap or hotkey, so
@@ -385,3 +395,100 @@ the VPN row, then a letter, which stayed in the VPN list. And the list keys a pe
 leader are relayed too, the root handing the hold every field key as a modifier set and a keycode,
 with a combination the fixed set already claims claimed once. No such key is bound on this machine,
 so that half is pinned by `test/securefocus.lua` alone.
+
+### 2026-10-30 17:10
+
+Command and a digit names the first nine rows of the list, fixed, in place of the nine rows the
+viewport shows, as Milos asked after a scroll moved every number. `rowAtVisibleSlot` became
+`rowAtSlot`, and the canvas renderer, the swift view and the engine read it. With the numbers fixed
+the swift view's slots no longer change on a scroll, so the native list stops reloading every row
+on every tick, and a resend of the same number of rows, icons arriving as a scroll brings rows
+near, reloads only the rows the table holds a view for.
+
+Found on the same report, a list filtered after the highlight moved down showed its rows several
+rows below the field under an empty band. Reproduced off screen in the swift list. A reload that
+shortened the table left the clip at the old scroll, 200 points, and `scroll(to:)` to zero from
+there landed at minus 200 once the table was laid out. Setting the clip's origin outright fixed
+it, and laying the table out first did not by itself. The engine already bounds scrollTop.
+
+### 2026-10-30 17:15
+
+The swift list scrolled choppily and showed a ghost bounce at both ends, while the docked pane,
+which scrolls entirely in AppKit, felt smooth. Every scroll tick went to Lua, which redrew the
+list and sent its own clamped scrollTop back, so two owners moved one viewport. The list now owns
+its scroll the way the pane does. A tick tells the engine where the viewport is and asks only for
+the icons of the rows it brings near, which arrive through a new `setImages` and fill those cells
+in place, and the native list never applies a scrollTop while it is reporting one. A whole list is
+sent only when the list itself changes, and `iconsChanged` sends only the rows that gained a
+picture.
+
+### 2026-10-30 17:20
+
+Still not like the rest of macOS on a trackpad, lagging and catching when the direction changed.
+Two causes were left. The report to Lua still ran inside every scroll frame, so momentum waited on
+Lua each frame, and every redraw, the bar's quarter second poll among them, sent the engine's
+scrollTop, a moment old, which pulled the list back under a finger that had reversed. Reports are
+now coalesced to one per 50 ms off the scroll's own call, the view sends scrollTop only when the
+engine moved the viewport rather than followed the person, and the list rubber bands at its ends,
+since `.none` elasticity was a workaround for the fight and is what felt unlike every other list.
+
+### 2026-10-30 17:40
+
+Milos asked for the list to be native through and through. The swift list now owns the highlight
+as it owns the scroll. Up and Down, with wrap, and the pointer move it in AppKit, the viewport
+following only far enough to show the row, the engine's rule, and the engine follows through a new
+`followHighlight` after the frame is drawn, a burst of arrows coalesced into one report. The view
+sends a highlight only when the engine moved it, a new list, a list key or the action panel's own,
+and every key or press Lua acts on first flushes the pending scroll and highlight, so Return and
+Command with a digit act on what is on screen. The canvas chooser is unchanged.
+
+### 2026-10-30 17:50
+
+A flick reversed mid momentum kept going the old way and then jumped. Events arriving while the
+main thread ran Lua were delivered late and together. Lua still ran twenty times a second during a
+scroll to resolve the icons of rows coming near. Now nothing calls into Lua between AppKit's
+`willStartLiveScroll` and `didEndLiveScroll`, momentum included, and the position is reported once
+the gesture ends. So a flick still finds icons, the Lua view resolves every row's icon in chunks of
+four every 50 ms while the list is idle, skipping ticks during a live scroll. And a cell's icon
+bitmap is cached per source, size and scale, so a row scrolling back into view is not drawn again.
+
+### 2026-10-30 18:15
+
+Measured rather than reasoned, which the last three rounds were. A probe in the swift library,
+`Perf` in `native/Entry.swift`, reached as `perf("start")` and `perf("read")` on the swift provider
+module, notes every gap in the main run loop over 25 ms and every call into Lua over 2 ms, and a
+`sample` of Hammerspoon was taken the moment a live scroll began. During a trackpad scroll the
+chooser made no Lua call at all and the main thread still stalled 30 to 45 ms a frame. A third of
+it was the cursor. As rows pass under a still pointer AppKit sends a cursor update every frame,
+which climbed every superview to the window and set the arrow again, and on this machine setting
+the cursor goes through the accessibility cursor generator, which draws the cursor image anew each
+time. The list now ends a cursor update itself. Twelve percent more was a new row view made for
+every row scrolled in, now reused. Over ten seconds of flicking the stalls went from 129 to 64,
+their average from 65 to 39 ms and the worst from 713 to 271 ms. What remains in a frame is
+ordinary text drawing for the rows coming in. A 199 ms Lua call at the end of one flick resolved
+a page of icons at once, so a scroll now restarts the idle prefetch at the first row on screen.
+Icons were never the stall the first guesses made them.
+
+### 2026-10-30 18:25
+
+Confirmed by Milos, it feels much better. The probe over one eight second scroll noted 3 frame
+drops, 43 ms on average and 45 at worst, where the runs before the cursor fix and the row view
+reuse noted 129 and 64 over similar flicking.
+
+### 2026-10-30 18:40
+
+Icons appeared after a flick rather than with it, and that was the idle prefetch's rule, not the
+icons. An SF symbol loads from its cached PNG in 0.66 ms and an app icon in 0.64 ms, measured live,
+while the prefetch paused for the whole scroll and resolved four rows every 50 ms. The list now
+tracks its scroll velocity and asks Lua for the icons of the rows on screen and of the rows the
+velocity carries it into over the next 0.4 s, nearest first, at most twelve per ask every 30 ms,
+during a scroll too, each row asked once per list. The idle prefetch resolves sixteen rows a tick.
+
+Hammerspoon was holding about 200 MB. A tracker on `hs.canvas.new` found the kit's text measurer,
+`lib/ui/measure.lua`, calling `hs.drawing.getTextDrawingSize` 454 times in the first minute after
+a reload, each building a hidden canvas window that outlived its delete, 353 live windows then and
+632 after fifteen minutes, freed only by the next reload. Its whole string measure was uncached on
+purpose so a stream of toasts could not grow a cache. It is cached now and emptied at 512 strings,
+the same values from the same call, and a minute after a reload the tracker counted no canvas made
+and no window alive, with the footprint at 169 MB. The rest is this session's twenty or so reloads,
+nine copies of the swift library among them, since a loaded image is never unloaded.

@@ -1,3 +1,6 @@
+-- The timers the fake hs.timer.doEvery made, newest last, so a case can tick one by hand.
+everyTimers = {}
+
 -- The swift chooser's Lua half, in plain Lua over a fake hs and a fake native library.
 --
 -- Pins that the engine drives the swift view through the view contract, a show placing the panel
@@ -89,8 +92,11 @@ hs = {
     end,
   },
   timer = {
-    doEvery = function()
-      return { stop = function() end }
+    doEvery = function(_, fn)
+      local t = { fn = fn, stopped = false }
+      function t:stop() self.stopped = true end
+      everyTimers[#everyTimers + 1] = t
+      return t
     end,
   },
   eventtap = {
@@ -161,7 +167,10 @@ local lastStyle = nil
 function native.style(_, t) record("style"); lastStyle = t end
 function native.place(_, t) record("place"); lastPlace = t end
 function native.setRows(_, rows) record("setRows"); lastRows = rows end
-function native.update(_, t) record("update"); lastUpdate = t end
+local lastImages = nil
+function native.setImages(_, images) record("setImages"); lastImages = images end
+local sentHighlight = nil
+function native.update(_, t) record("update"); lastUpdate = t; if t.highlight ~= nil then sentHighlight = t.highlight end end
 function native.text() return nativeText end
 function native.setText(_, t) record("setText"); nativeText = t end
 function native.feedKey() record("feedKey") end
@@ -249,7 +258,8 @@ check("to the bottom", lastPlace.dividerFrame.h, lastPlace.window.h)
 check("the divider is the kit's border colour", lastStyle.divider.red, 0.45)
 check("every row is sent", #lastRows, 4)
 check("a row's subtitle travels as a string", lastRows[2].subtitle, "sub beta")
-check("the highlight starts on row one", lastUpdate.highlight, 1)
+check("the highlight starts on row one", sentHighlight, 1)
+check("a redraw that did not move the highlight leaves the native list's own", lastUpdate.highlight, nil)
 check("a list with no query draws no empty state", lastUpdate.empty, false)
 
 -- Typing, reported by the native field, reranks through config.rows and resends the rows.
@@ -544,25 +554,73 @@ do
   -- A scroll far down, as the native list reports one, resolves the rows it brings near.
   asked = {}
   local y = 120 * many:scene().list.rowH
+  local beforeScroll = #calls
   send("scroll", y)
+  local scrollCalls = since(beforeScroll)
+  check("a scroll sends the native list no rows and no state, so it never moves it back",
+    scrollCalls:find("setRows", 1, true) == nil and scrollCalls:find("update", 1, true) == nil, true)
   local lowest, top = math.huge, 0
   for _, i in ipairs(asked) do
     if i < lowest then lowest = i end
     if i > top then top = i end
   end
   visible = listModel.visibleRows(many:scene().list)
-  check("a scroll asks only for rows near the new viewport", lowest >= visible[1].index - page
-    and top <= visible[#visible].index + page, true)
-  check("a scroll asks for the rows it brings into view", #asked > 0, true)
+  check("a scroll resolves no icon in its own call", #asked, 0)
+  local restarted = everyTimers[#everyTimers]
+  restarted.fn()
+  lowest = math.huge
+  for _, i in ipairs(asked) do if i < lowest then lowest = i end end
+  check("the prefetch restarts at the rows the scroll landed on", lowest, visible[1].index)
 
   -- A picture finished in the background reaches a row on screen through iconsChanged.
   local onScreen = visible[1].index
   ready[onScreen] = true
   local sends = #calls
   View.iconsChanged()
-  check("iconsChanged resends the rows", since(sends):find("setRows", 1, true) ~= nil, true)
-  check("the finished picture is on its row", lastRows[onScreen].image and lastRows[onScreen].image.picture, onScreen)
+  check("iconsChanged sends only the rows that gained a picture", since(sends):find("setRows", 1, true) == nil
+    and since(sends):find("setImages", 1, true) ~= nil, true)
+  local found = nil
+  for _, e in ipairs(lastImages or {}) do if e.index == onScreen then found = e.image.picture end end
+  check("the finished picture is on its row", found, onScreen)
   check("a row far from the viewport still carries none", lastRows[1].image, nil)
+
+  -- The native list moves its own highlight and tells the engine, which follows without sending
+  -- it back, while a move the engine makes itself, a list key, is sent.
+  send("highlighted", 5)
+  local followed = listModel.normalized(many:scene().list).highlight
+  check("the engine follows the native list's highlight", followed, 5)
+  check("and sends no highlight back", lastUpdate.highlight, nil)
+  many:selectNext()
+  check("a list key's move is sent to the native list", lastUpdate.highlight, 6)
+
+  -- The native list asks for the icons of the rows it shows or is heading into, during a scroll.
+  for i = 1, 200 do ready[i] = true end
+  local beforeWant = #calls
+  send("wantIcons", "190,191,1")
+  check("asked icons are sent alone", since(beforeWant), "setImages")
+  local got = {}
+  for _, e in ipairs(lastImages or {}) do got[#got + 1] = e.index end
+  table.sort(got)
+  check("only the rows asked for and not yet resolved", table.concat(got, ","), "190,191")
+
+  -- The prefetch resolves the rest of the list in small chunks, and waits out a live scroll.
+  local prefetch = everyTimers[#everyTimers]
+  check("a fresh list starts the icon prefetch", prefetch ~= nil and not prefetch.stopped, true)
+  send("liveScroll", true)
+  local beforeTick = #calls
+  prefetch.fn()
+  check("a tick during a live scroll sends nothing", since(beforeTick), "")
+  send("liveScroll", false)
+  for i = 1, 200 do ready[i] = true end
+  local gainedAny = false
+  for _ = 1, 100 do
+    if prefetch.stopped then break end
+    local mark = #calls
+    prefetch.fn()
+    if since(mark):find("setImages", 1, true) then gainedAny = true end
+  end
+  check("an idle tick sends the icons it resolved", gainedAny, true)
+  check("the prefetch ends once every row is asked", prefetch.stopped, true)
   many:hide()
 end
 

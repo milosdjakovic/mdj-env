@@ -726,7 +726,15 @@ into plain data, colours, fonts, sizes, the radius and the space steps from the 
 every rectangle and row metric from the engine's geometry, so neither half writes a colour or a font
 by hand, and the panel sits exactly on the canvas rect with the docked pane beside it, which is
 drawn on the panel's own glass beside the list, see the docked pane section above, and every
-CanvasPanel is drawn on glass by the same library while it serves, see the CanvasPanel section. Swift runs
+CanvasPanel is drawn on glass by the same library while it serves, see the CanvasPanel section. The native list owns its scroll and its highlight. The arrows,
+the pointer and a trackpad move them in AppKit, and Lua hears both afterwards, coalesced, and sends
+either back only when the engine moved it, a new list or a list key. Every key or press Lua acts on
+first flushes what it has not heard, so Return chooses the row on screen. Icons follow the scroll too. The list
+asks Lua for the icons of the rows on screen and of the rows its velocity is carrying it into, a
+dozen at most per ask, during a scroll as well, and an idle prefetch fills the rest. A cursor update
+ends at the list, since setting the cursor on every frame of a scroll went through the
+accessibility cursor generator and was a third of the main thread. `perf` on the provider module
+starts and reads a probe of main thread stalls and slow Lua calls, `Perf` in `native/Entry.swift`. Swift runs
 the view contract's key order, asking Lua synchronously before its field edits, and hands each key
 over as its event's bytes, which `hs.eventtap.event.newEventFromData` turns back into the event the
 engine reads. A press outside the panel is heard by event monitors and decided in Lua against the

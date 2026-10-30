@@ -28,9 +28,8 @@
 --- keys nobody meant to lose, and a keyboard tap or a mouse tap left running is the identical
 --- hazard.
 ---
---- The third is Command with a digit. It chooses a VISIBLE slot, list model's own
---- rowAtVisibleSlot, one based from whatever row currently sits topmost on screen, and not an
---- index into the filtered set, the off by one the list round already carries a test for.
+--- The third is Command with a digit. It chooses the row at that place in the list, list
+--- model's own rowAtSlot, the first nine rows fixed however the list is scrolled.
 ---
 --- The fourth is key order. A key down is asked of this file in a fixed order, Escape first and
 --- before anything can yield it, then the yield predicate, then the list keys, then the field's
@@ -234,8 +233,7 @@ end
 -- self.layout, or the two disagree on a screen short enough to trim, roughly under five hundred
 -- and twenty four points of frame height. The clip band would then stand taller than the list
 -- rect and rows would draw past the bottom of the surface, maxScrollTop would be too small for
--- the last rows ever to be reached, and rowAtVisibleSlot would answer slots that are not on
--- screen, so Command and a digit would act on a row nobody can see. Called right after
+-- the last rows ever to be reached. Called right after
 -- self._rects is computed, in show and in reposition, which is every place this file computes a
 -- fresh self._rects at all.
 --
@@ -423,6 +421,13 @@ function Engine:highlightIndex(index)
   self.view:redraw()
 end
 
+--- Engine colon followHighlight, arity one, for a view that moves its own highlight, the swift
+--- list's arrows and pointer. The engine's highlight follows to index, counting as activity.
+function Engine:followHighlight(index)
+  self:_noteActivity()
+  self:highlightIndex(index)
+end
+
 -- Chooses row, exactly what Return means, including asking config.intercept first and honouring
 -- a disabled row, which can be highlighted but never reaches onSelect. intercept answering true
 -- or "stay" refreshes and keeps the list up, true from the top and "stay" holding the row.
@@ -445,10 +450,10 @@ function Engine:_choose(row, index)
   self:hide()
 end
 
--- Command and a digit chooses the VISIBLE slot that digit names, list model's own
--- rowAtVisibleSlot, the third trap this file's header names.
-function Engine:_chooseVisibleSlot(slot)
-  local row, index = listModel.rowAtVisibleSlot(self.listState, slot)
+-- Command and a digit chooses the row at that place in the list, list model's own rowAtSlot,
+-- the third trap this file's header names.
+function Engine:_chooseSlot(slot)
+  local row, index = listModel.rowAtSlot(self.listState, slot)
   self:_choose(row, index)
 end
 
@@ -610,7 +615,7 @@ function Engine:leftoverKey(ev)
   local code = ev:getKeyCode()
   local digit = KEYCODE_DIGIT[code]
   if digit and ev:getFlags().cmd then
-    self:_chooseVisibleSlot(digit)
+    self:_chooseSlot(digit)
   elseif code == KEYCODE_DOWN then
     self.view:stopScroll()
     self.listState = listModel.moveDown(self.listState)
@@ -1032,7 +1037,7 @@ end
 --- and keypad Enter choose, and the two vertical arrows move with any modifiers held, since
 --- leftoverKey reads their keycode alone. Return or keypad Enter with a modifier is left free,
 --- because listKey is asked before leftoverKey sees a key, so a list key on Command and Return
---- answers first and an unclaimed one still chooses. Command with a digit chooses a visible row.
+--- answers first and an unclaimed one still chooses. Command with a digit chooses one of the first nine rows.
 --- fieldOp(keyCode, flags), the view's own, names the editing operation its field reads on those
 --- exact modifiers, or nil. A printable key is the caller's to judge, since what it types depends
 --- on the keyboard and not on this file.
@@ -1046,7 +1051,7 @@ function M.uses(keyCode, mods, fieldOp)
     return "Return chooses the row"
   end
   if keyCode == KEYCODE_UP or keyCode == KEYCODE_DOWN then return "the arrow moves the highlight" end
-  if KEYCODE_DIGIT[keyCode] and flags.cmd then return "Command and a digit choose a visible row" end
+  if KEYCODE_DIGIT[keyCode] and flags.cmd then return "Command and a digit choose one of the first nine rows" end
   local op = fieldOp and fieldOp(keyCode, flags)
   if op then return "the field's own " .. op end
   return nil

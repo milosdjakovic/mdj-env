@@ -175,15 +175,26 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     // still showing the rows it was opened over, answers no pointer of its own.
     list.table.onHover = { [weak self] index in
       guard let self, self.state.actions == nil else { return }
-      _ = self.ask("hover", [.int(index + 1)])
+      self.list.hover(index)
     }
     list.table.onChoose = { [weak self] index in
       guard let self, self.state.actions == nil else { return }
+      self.list.flushReports()
       _ = self.ask("choose", [.int(index + 1)])
     }
     list.table.onRight = { [weak self] index in
       guard let self, self.state.actions == nil else { return }
+      self.list.flushReports()
       _ = self.ask("rightClick", [index.map { .int($0 + 1) } ?? .none])
+    }
+    list.onLive = { [weak self] on in _ = self?.ask("liveScroll", [.bool(on)]) }
+    list.onWantIcons = { [weak self] indices in
+      guard let self, self.state.actions == nil else { return }
+      _ = self.ask("wantIcons", [.string(indices.map { String($0 + 1) }.joined(separator: ","))])
+    }
+    list.onHighlight = { [weak self] index in
+      guard let self, self.state.actions == nil else { return }
+      _ = self.ask("highlighted", [.int(index)])
     }
     list.onScroll = { [weak self] y in
       guard let self, self.state.actions == nil else { return }
@@ -240,6 +251,8 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   }
 
   func setRows(_ rows: [Row]) { list.setRows(rows) }
+
+  func setImages(_ images: [(Int, NSImage)]) { list.setImages(images) }
 
   func update(_ next: ViewState) {
     state = next
@@ -398,6 +411,12 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   private func decide(_ event: NSEvent) -> Bool {
     guard started else { return false }
     if editor?.hasMarkedText() == true { return false }
+    // The arrows move the list's own highlight, with any modifiers held as before, unless a held
+    // leader or a list key claims the press first.
+    let arrow = event.keyCode == KeyCode.up || event.keyCode == KeyCode.down
+    let native = arrow && state.actions == nil
+    // Lua acts on the highlight and the viewport from here on, so it hears both as they are.
+    list.flushReports()
     let data = Self.data(of: event)
     if event.keyCode == KeyCode.escape {
       _ = ask("dismiss", [data])
@@ -415,6 +434,10 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
       return true
     }
     let caret = KeyCode.caret.contains(event.keyCode)
+    if native {
+      list.move(event.keyCode == KeyCode.down ? 1 : -1)
+      return true
+    }
     if state.bare {
       if KeyCode.leftover.contains(event.keyCode) { _ = ask("leftover", [data]) }
       return true

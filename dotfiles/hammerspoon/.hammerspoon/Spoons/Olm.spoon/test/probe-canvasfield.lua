@@ -557,7 +557,7 @@ field = input.Field.new({
     local code = ev:getKeyCode()
     local digit = KEYCODE_DIGIT[code]
     if digit and ev:getFlags().cmd then
-      local row = listModel.rowAtVisibleSlot(listState, digit)
+      local row = listModel.rowAtSlot(listState, digit)
       chooseRow(row, "cmd " .. digit)
     elseif code == KEYCODE_DOWN then
       stopScrollEase()
@@ -609,6 +609,6 @@ print("Cmd z undoes, cmd shift z redoes.")
 print("Ctrl a, ctrl e, ctrl b, ctrl f, ctrl d, ctrl h and ctrl k are honoured as well.")
 print("Typing also filters the list under the field, up and down move its highlight, and both wrap.")
 print("Return chooses whichever row is highlighted, the second row is disabled on purpose and refuses it.")
-print("Cmd plus one through nine chooses that visible row directly, numbered quietly on its own trailing edge.")
+print("Cmd plus one through nine chooses that row of the list directly, numbered quietly on its own trailing edge.")
 print("Scroll with a trackpad or a wheel over the list to move the viewport without moving the highlight.")
 print("Escape ends the field now. With no escape it ends itself in " .. tostring(math.floor(limit)) .. " seconds.")

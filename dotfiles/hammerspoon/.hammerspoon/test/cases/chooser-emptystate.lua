@@ -125,10 +125,10 @@ do
     asked and asked.h >= ROW_H, asked and tostring(asked.h) or "never asked")
 end
 
--- Zero rows still answer no highlighted row and no visible slot, so Return, a digit and a click
+-- Zero rows still answer no highlighted row and no slot, so Return, a digit and a click
 -- reach nothing, exactly as before the empty state.
 check("no row is highlighted under the empty state", model.highlightedRow(none) == nil)
-check("no visible slot answers under the empty state", model.rowAtVisibleSlot(none, 1) == nil)
+check("no slot answers under the empty state", model.rowAtSlot(none, 1) == nil)
 check("no point in the band answers a row", model.rowAtPoint(none, ROW_H / 2) == nil)
 
 -- The provider's own bookkeeping of which query the rows were ranked for, which is what render

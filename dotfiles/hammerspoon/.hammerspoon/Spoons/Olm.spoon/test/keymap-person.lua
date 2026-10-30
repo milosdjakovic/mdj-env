@@ -1408,7 +1408,7 @@ do
   local keys = {}
   for _, k in ipairs(model.keys) do keys[#keys + 1] = table.concat(k.badges, "+") .. " " .. k.label end
   eq(table.concat(keys, " | "),
-    "return Choose Files | Hyper j+down Move down | Hyper k+up Move up | Hyper d Delete | Hyper p Peek | Hyper x+escape Close | cmd+shift+/ Keys | cmd+1+cmd+9 Choose a visible row",
+    "return Choose Files | Hyper j+down Move down | Hyper k+up Move up | Hyper d Delete | Hyper p Peek | Hyper x+escape Close | cmd+shift+/ Keys | cmd+1+cmd+9 Choose rows 1 to 9",
     "footer: every other key in declaration order, the primary reading Return alone, then Command with a digit, and no Back on a level Backspace does not leave")
   local before = model.state
   gate.open = false
@@ -1484,7 +1484,7 @@ do
   eq(panel.right[1].label, "Delete", "panel: Return reads the highlighted panel row's title")
   eq(#panel.right, 2, "panel: no secondary, only Return and the action panel's chord")
   eq(panel.right[2].action, "openActionPanel", "panel: the second entry closes the panel")
-  eq(keyLabels(panel), "Move down,Move up,Close,Back,Choose a visible row",
+  eq(keyLabels(panel), "Move down,Move up,Close,Back,Choose rows 1 to 9",
     "panel: the key panel lists the shared held keys and Back, not the list's own verbs or its inert field keys")
   openRow = {}
   eq(hints.footerModel("bar", plan, deps).right[1].label, "Run", "panel: Run when no row is highlighted")

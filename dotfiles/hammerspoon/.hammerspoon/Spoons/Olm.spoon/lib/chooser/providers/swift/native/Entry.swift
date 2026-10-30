@@ -45,6 +45,7 @@ private let sentinelType = "olm.swiftchooser.sentinel"
 // sentinel and a fresh luaopen run, the docked panes with them. The reference belongs to a state
 // that is going or gone, so it is dropped rather than released.
 private func closeAll() {
+  Perf.stop()
   for pane in panes.values { pane.close() }
   panes = [:]
   paneClicks = [:]
@@ -63,6 +64,71 @@ private func mainThread(of L: LuaState?) -> LuaState? {
   _ = lua_rawgeti(L, olm_registryIndex(), lua_Integer(LUA_RIDX_MAINTHREAD))
   defer { olm_pop(L, 1) }
   return lua_tothread(L, -1)
+}
+
+// A probe of the main thread, off until perfStart. A timer in the common modes, which run during a
+// scroll's tracking too, notes every gap between its ticks long enough to drop frames, and every
+// call into Lua is timed, so a stall shows what held the thread or that Lua was not it. perfRead
+// answers the notes since the last read.
+enum Perf {
+  static var on = false
+  static var notes: [String] = []
+  private static var timer: Timer?
+  private static var last: CFTimeInterval = 0
+  private static var origin: CFTimeInterval = 0
+
+  static func start() {
+    stop()
+    on = true
+    notes = []
+    origin = CACurrentMediaTime()
+    last = origin
+    let t = Timer(timeInterval: 1.0 / 120, repeats: true) { _ in
+      let now = CACurrentMediaTime()
+      let gap = (now - last) * 1000
+      if gap > 25 { note(String(format: "stall %.0f ms", gap), at: last) }
+      last = now
+    }
+    RunLoop.main.add(t, forMode: .common)
+    timer = t
+  }
+
+  static func stop() {
+    timer?.invalidate()
+    timer = nil
+    on = false
+  }
+
+  static func note(_ text: String, at time: CFTimeInterval = CACurrentMediaTime()) {
+    guard on else { return }
+    notes.append(String(format: "%7.0f ms  ", (time - origin) * 1000) + text)
+    if notes.count > 400 { notes.removeFirst(notes.count - 400) }
+  }
+}
+
+private func timedCallLua(_ id: Int, _ event: String, _ args: [LuaValue]) -> Bool {
+  guard Perf.on else { return callLua(id, event, args) }
+  let start = CACurrentMediaTime()
+  let answer = callLua(id, event, args)
+  let took = (CACurrentMediaTime() - start) * 1000
+  if took > 2 { Perf.note(String(format: "lua %@ %.1f ms", event, took), at: start) }
+  return answer
+}
+
+private let perfStart: lua_CFunction = { _ in
+  Perf.start()
+  return 0
+}
+
+private let perfRead: lua_CFunction = { L in
+  _ = lua_pushstring(L, Perf.notes.joined(separator: "\n"))
+  Perf.notes = []
+  return 1
+}
+
+private let perfStop: lua_CFunction = { _ in
+  Perf.stop()
+  return 0
 }
 
 private func callLua(_ id: Int, _ event: String, _ args: [LuaValue]) -> Bool {
@@ -108,7 +174,7 @@ private let sentinelGC: lua_CFunction = { L in
 private let new: lua_CFunction = { L in
   let id = nextID
   nextID += 1
-  panels[id] = ChooserPanel(ask: { event, args in callLua(id, event, args) })
+  panels[id] = ChooserPanel(ask: { event, args in timedCallLua(id, event, args) })
   lua_pushinteger(L, lua_Integer(id))
   return 1
 }
@@ -139,6 +205,27 @@ private let setRows: lua_CFunction = { L in
     }
   }
   panelAt(L)?.setRows(rows)
+  return 0
+}
+
+// A list of { index, image } pairs, one based, for rows that gained their icon after they were sent.
+private let setImages: lua_CFunction = { L in
+  let reader = LuaReader(L)
+  var images: [(Int, NSImage)] = []
+  if reader.isTable(2) {
+    let count = lua_rawlen(L, 2)
+    if count > 0 {
+      for i in 1...count {
+        _ = lua_rawgeti(L, 2, lua_Integer(i))
+        let t = reader.absolute(-1)
+        if reader.isTable(t), let index = reader.integer(t, "index"), let image = reader.image(t, "image") {
+          images.append((index - 1, image))
+        }
+        olm_pop(L, 1)
+      }
+    }
+  }
+  panelAt(L)?.setImages(images)
   return 0
 }
 
@@ -420,6 +507,10 @@ public func luaopen_olm_swiftchooser(_ L: LuaState?) -> Int32 {
   olm_setFunction(L, "style", style)
   olm_setFunction(L, "place", place)
   olm_setFunction(L, "setRows", setRows)
+  olm_setFunction(L, "setImages", setImages)
+  olm_setFunction(L, "perfStart", perfStart)
+  olm_setFunction(L, "perfRead", perfRead)
+  olm_setFunction(L, "perfStop", perfStop)
   olm_setFunction(L, "update", update)
   olm_setFunction(L, "text", text)
   olm_setFunction(L, "setText", setText)

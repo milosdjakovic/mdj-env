@@ -281,9 +281,9 @@ end
 
 -- Resolves the icon of every row from lo to hi not asked yet, through the injected resolver, and
 -- remembers each answer by index, false for a row with nothing to resolve or nothing drawn yet.
--- Answers true when a row gained a picture the panel does not have.
+-- Answers the rows that gained a picture the panel does not have, as index and image pairs.
 function View:_resolveIcons(rows, lo, hi)
-  local gained = false
+  local gained = {}
   for i = lo, hi do
     if self._icons[i] == nil then
       local row = rows[i]
@@ -292,17 +292,91 @@ function View:_resolveIcons(rows, lo, hi)
         image = ICON(row.icon, row.iconOwner)
       end
       self._icons[i] = image or false
-      if image then gained = true end
+      if image then gained[#gained + 1] = { index = i, image = image } end
     end
   end
   return gained
 end
 
+-- How many rows the prefetch resolves per tick, and how often it ticks, small enough that a tick
+-- never holds the main thread long enough to be felt. An icon costs about 0.66 ms, measured on
+-- 2026-10-30, so a tick is about 10 ms.
+local PREFETCH_ROWS = 16
+local PREFETCH_EVERY = 0.05
+
+-- Resolves every row's icon in small chunks while the list is idle, after the rows near the
+-- viewport, so a flick reaches rows that already carry their picture and a scroll never needs Lua.
+-- A tick does nothing while the person scrolls, and the timer ends once every row is asked, when
+-- the list changes, or when the view stops. The handle is kept, see the timer rule in AGENTS.md.
+-- from, when given, is the row to start at, the first row on screen after a scroll, and the
+-- prefetch goes on from there to the end and then from the top.
+function View:_startPrefetch(from)
+  self:_stopPrefetch()
+  if not (hs and hs.timer and hs.timer.doEvery) then return end
+  local rows = self._sentRows
+  if not rows or #rows == 0 then return end
+  local start = math.max(1, math.min(from or 1, #rows))
+  local step = 0
+  self._prefetchTimer = hs.timer.doEvery(PREFETCH_EVERY, function()
+    if self._live then return end
+    if self._sentRows ~= rows then return self:_stopPrefetch() end
+    local gained, asked = {}, 0
+    while step < #rows and asked < PREFETCH_ROWS do
+      local at = (start - 1 + step) % #rows + 1
+      if self._icons[at] == nil then
+        asked = asked + 1
+        for _, g in ipairs(self:_resolveIcons(rows, at, at)) do gained[#gained + 1] = g end
+      end
+      step = step + 1
+    end
+    if #gained > 0 then self.native.setImages(self.id, gained) end
+    if step >= #rows then self:_stopPrefetch() end
+  end)
+end
+
+function View:_stopPrefetch()
+  if self._prefetchTimer then
+    self._prefetchTimer:stop()
+    self._prefetchTimer = nil
+  end
+end
+
+-- Resolves the icons the native list asked for, the rows it has on screen or is about to, and
+-- sends only those that gained a picture.
+function View:_wantIcons(list)
+  local rows = self._sentRows
+  if not rows or type(list) ~= "string" then return end
+  local gained = {}
+  for word in list:gmatch("%d+") do
+    local i = tonumber(word)
+    if i and i >= 1 and i <= #rows and self._icons[i] == nil then
+      for _, g in ipairs(self:_resolveIcons(rows, i, i)) do gained[#gained + 1] = g end
+    end
+  end
+  if #gained > 0 then self.native.setImages(self.id, gained) end
+end
+
+-- After a native scroll, the prefetch starts again from the first row on screen, so the rows the
+-- scroll landed on get their icons first, a few per tick. Resolving them here instead held the
+-- main thread for 199 ms at the end of one flick, measured on 2026-10-30.
+function View:_scrolled()
+  local s = self.engine:scene()
+  if not s.rects or s.list == nil then return end
+  local ns = listModel.normalized(s.list)
+  if ns.filtered ~= self._sentRows then return self:redraw() end
+  local visible = listModel.visibleRows(ns)
+  local missing = false
+  for _, e in ipairs(visible) do
+    if self._icons[e.index] == nil then missing = true break end
+  end
+  if missing then self:_startPrefetch(visible[1] and visible[1].index or 1) end
+end
+
 --- View colon redraw, arity zero. Sends the rows when the engine holds a new list, or when rows
 --- that came near the viewport gained their icon, then the state the scene says now. An icon is
 --- resolved only for a row in iconWindow, so opening a long list draws a few pages of icons and
---- not its whole catalog, and a scroll, which reaches here through the engine, resolves the rows
---- it brings near. Nothing before the first place.
+--- not its whole catalog, and a row that gains its icon later is sent alone through setImages,
+--- never the whole list again. Nothing before the first place.
 function View:redraw()
   local s = self.engine:scene()
   if not s.rects then return end
@@ -316,22 +390,35 @@ function View:redraw()
   end
   local lo, hi = iconWindow(ns)
   local gained = self:_resolveIcons(ns.filtered, lo, hi)
-  if fresh or gained then
+  if fresh then
     local rows = {}
     for i, row in ipairs(ns.filtered) do rows[i] = rowData(row, self._icons[i]) end
     self.native.setRows(self.id, rows)
+    self:_startPrefetch()
+  elseif #gained > 0 then
+    self.native.setImages(self.id, gained)
   end
+  -- The first nine rows carry their digit, fixed however the list scrolls, list model's
+  -- rowAtSlot, so a scroll changes no number and the native list never reloads for one.
   local slots = {}
   if s.drawLayout and s.drawLayout.showRowNumbers then
-    for slot, entry in ipairs(listModel.visibleRows(ns)) do
-      if slot > 9 then break end
-      slots[slot] = entry.index
-    end
+    for i = 1, math.min(9, #ns.filtered) do slots[i] = i end
   end
   local empty = type(s.rankedQuery) == "string" and s.rankedQuery ~= "" and #ns.filtered == 0
+  -- The viewport is sent only when the engine moved it, a key that took the highlight past an
+  -- edge or a new list, and never when it only followed the person's scroll, since that value is
+  -- a moment old and sending it would pull the list back under a trackpad that has moved on.
+  local top = ns.scrollTop
+  if not fresh and top == self._knownTop then top = nil end
+  self._knownTop = ns.scrollTop
+  -- The highlight likewise, sent only when the engine moved it, since the native list moves its
+  -- own and tells the engine afterwards.
+  local highlight = ns.highlight or 0
+  if not fresh and highlight == self._knownHighlight then highlight = nil end
+  self._knownHighlight = ns.highlight or 0
   self.native.update(self.id, {
-    highlight = ns.highlight or 0,
-    scrollTop = ns.scrollTop,
+    highlight = highlight,
+    scrollTop = top,
     placeholder = s.placeholder or "",
     bare = s.bare == true,
     slots = slots,
@@ -359,8 +446,8 @@ function View:_redrawPanel(s, ns, footer)
       section = row.section, enabled = row.enabled ~= false }
   end
   self.native.update(self.id, {
-    highlight = held.highlight or 0,
-    scrollTop = held.scrollTop or 0,
+    highlight = nil,
+    scrollTop = nil,
     placeholder = s.placeholder or "",
     bare = false,
     slots = held.slots or {},
@@ -411,7 +498,10 @@ end
 --- and the scroll tap starts.
 function View:start()
   self.native.start(self.id)
-  if not self._scrollTap then
+  -- Only a list with a pane beside it needs the tap, and a tap sits in the path of every scroll
+  -- event on the machine, momentum included, so a list without one runs none.
+  local rects = self.engine:scene().rects
+  if not self._scrollTap and rects and rects.companion then
     self._scrollTap = hs.eventtap.new({ hs.eventtap.event.types.scrollWheel }, function(ev)
       local ok, claimed = pcall(self._onScroll, self, ev)
       if not ok then
@@ -427,6 +517,8 @@ end
 --- View colon stop, arity zero. Key routing, the outside watchers and the scroll tap end. The
 --- native panel runs no timer of its own, the caret blink being the system's.
 function View:stop()
+  self:_stopPrefetch()
+  self._live = false
   self.native.stop(self.id)
   if self._scrollTap then
     self._scrollTap:stop()
@@ -486,13 +578,27 @@ local handlers = {
     if ev then v.engine:leftoverKey(ev) end
   end,
   hover = function(v, index) v.engine:highlightIndex(index) end,
+  -- The native list moved its own highlight, by an arrow or the pointer, so the engine follows it,
+  -- and the redraw that follows sends no highlight back.
+  -- A trackpad gesture began or ended, momentum included. Nothing is reported while it runs, and
+  -- the prefetch waits it out.
+  liveScroll = function(v, on) v._live = on == true end,
+  -- The native list asks for the icons of rows on screen and of the rows its scroll is heading
+  -- into, a comma separated list of one based indices, a dozen at most, during a scroll too.
+  wantIcons = function(v, list) v:_wantIcons(list) end,
+  highlighted = function(v, index)
+    v._knownHighlight = index
+    v.engine:followHighlight(index)
+  end,
   choose = function(v, index) v.engine:chooseIndex(index) end,
   rightClick = function(v, index) v.engine:rightClickIndex(index) end,
-  -- A native scroll moved the viewport, so the engine's model follows it, and the redraw renumbers
-  -- the rows now on screen.
+  -- A native scroll moved the viewport, so the engine's model follows it and the rows it brings
+  -- near get their icons. Nothing else is sent back, so the native list owns the scroll the way
+  -- the docked pane does, and a tick never redraws the list or moves it again.
   scroll = function(v, y)
     v.engine:scrollTo(y)
-    v:redraw()
+    v._knownTop = listModel.normalized(v.engine:scene().list).scrollTop
+    v:_scrolled()
   end,
   toggleKeys = function(v) v.engine:toggleKeys() end,
   footerAction = function(v, name) v.engine:footerAction(name) end,
@@ -515,13 +621,18 @@ function M.dispatch(id, event, ...)
   return handler(view, ...) == true
 end
 
---- M.iconsChanged() makes every view resolve its icons again, since a picture that was still
---- being made may exist now. A view on screen redraws at once, and one that is hidden resends
---- its rows on its next draw.
+--- M.iconsChanged() makes every view resolve again the icons it found nothing for, since a
+--- picture that was still being made may exist now. A view on screen sends what it gained at
+--- once, and one that is hidden on its next draw.
 function M.iconsChanged()
   for _, view in pairs(views) do
-    view._sentRows = nil
-    if view:isVisible() then view:redraw() end
+    for i, image in pairs(view._icons) do
+      if image == false then view._icons[i] = nil end
+    end
+    if view:isVisible() then
+      view:redraw()
+      view:_startPrefetch()
+    end
   end
 end
 

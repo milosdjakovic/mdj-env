@@ -57,8 +57,8 @@
 --- answers where a point sits relative to whichever row is currently first on screen,
 --- which is the only question this file can answer without knowing the filtered set's own
 --- size, and the caller turns this visible slot into a real filtered index through
---- list/model.lua's own M.rowAtPoint, which composes this arithmetic with the existing
---- M.rowAtVisibleSlot, the one place that does know how many rows the filtered set holds.
+--- list/model.lua's own M.rowAtPoint, the one place that does know how many rows the
+--- filtered set holds.
 --- Confusing the two, treating this file's own slot as if it already were the filtered
 --- index, is the exact off by one that separation exists to prevent.
 ---
@@ -295,8 +295,7 @@ end
 --- including a point sitting in the field rect instead. This is a slot in the VISIBLE
 --- band, not an index into a filtered set, this file has no idea how many rows a
 --- filtered set holds. The caller turns one into the other through list/model.lua's own
---- M.rowAtPoint, which composes this same arithmetic with the existing
---- M.rowAtVisibleSlot.
+--- M.rowAtPoint.
 function M.rowAtPoint(point, rects, layout, scrollTop)
   layout = layout or M.DEFAULT_LAYOUT
   local listRect = rects and rects.list

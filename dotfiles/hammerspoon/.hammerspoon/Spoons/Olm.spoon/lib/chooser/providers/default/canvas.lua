@@ -414,8 +414,7 @@ end
 --------------------------------------------------------------------------------
 
 -- The filtered index a screen point falls on, or nil when the point sits outside the list rect
--- entirely, composing geometry's own arithmetic with list model's own rowAtVisibleSlot through
--- list model's own rowAtPoint, never treated as a slot on its own.
+-- entirely, answered by list model's own rowAtPoint from the point and the scroll.
 function View:_rowIndexAtPoint(point)
   local s = self.engine:scene()
   local listRect = s.rects and s.rects.list

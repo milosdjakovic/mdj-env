@@ -194,6 +194,16 @@ function M.paneDebug(id)
   return NATIVE.paneDebug(id)
 end
 
+--- M.perf(action) starts, reads or stops the native main thread probe, action "start", "read" or
+--- "stop", read answering every frame drop and every slow call into Lua since the last read, one
+--- per line. Nil while the library is not loaded. See Perf in native/Entry.swift.
+function M.perf(action)
+  if not NATIVE then return nil end
+  if action == "start" then return NATIVE.perfStart() end
+  if action == "read" then return NATIVE.perfRead() end
+  if action == "stop" then return NATIVE.perfStop() end
+end
+
 --- M.new(config) answers an instance satisfying lib/chooser/contract.lua, the engine over the
 --- native view when the library is loaded, and the fallback provider's own instance otherwise.
 function M.new(config)
