@@ -1,3 +1,4 @@
 # Jelenas-MacBook-Pro, captured 2026-10-25
-tools          | none      # set by hand, capture found commands found for node,python,python3.11,python3.12,python3.13,ruby,uv
+tools          | firebase,flutter,java,lua5.4,node,pnpm,python,uv,yarn # picked 2026-10-30, the base plus what this Mac used globally before mise was managed here
 kanata         | on        # kanata and the Karabiner driver extension active
+mise           | on        # turned on 2026-10-30, mise already ran here unmanaged with node, flutter, java and firebase-tools

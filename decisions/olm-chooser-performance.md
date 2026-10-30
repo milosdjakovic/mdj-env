@@ -114,3 +114,9 @@ one swift library loaded. The rest of the 169 MB was the day's twenty reloads, s
 library is never unloaded. Each fault was then checked against the other two choosers for this
 file. The canvas field's caret measure is the one still open, found by reading
 `providers/default/field/render.lua` and the canvas view's redraws, not by measuring it live.
+
+### 2026-10-30 19:50
+
+The offline gates ran on this work for the first time, once Jelenas-MacBook-Pro took `lua5.4`
+through mise. The Olm dry gate checked 35 plugins with 0 findings, 40 accepted and 0 warnings,
+and every offline golden matches, so commits d7a26b00, 3cc2beaf and 53ee283e pass every gate.

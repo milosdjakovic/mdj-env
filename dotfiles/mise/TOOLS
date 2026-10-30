@@ -25,4 +25,7 @@ yarn         | npm:yarn        | 1.22    | yarn        | projects that lock with
 ruby         | ruby            | 4.0     | ruby        | the default ruby
 go           | go              | 1.27    | go          | the default go
 rust         | rust            | stable  | cargo       | rustup driven by mise, rust-toolchain.toml in a project still decides
+java         | java            | temurin-17 | java     | the JDK, Temurin 17, for Flutter and Android builds, see decisions/runtime-versions.md on Flutter preferring Android Studio's own
+flutter      | flutter         | 3.38    | flutter     | the Flutter SDK, for the Flutter projects
+firebase     | npm:firebase-tools | 15   | firebase    | the Firebase CLI, deploys and emulators run from any project
 lua5.4       | lua             | 5.4     | lua         | the Lua Hammerspoon embeds, used by the hammerspoon module's offline gates so they check with the version that runs

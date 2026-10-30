@@ -69,7 +69,7 @@ differentiator is real Windows support, which is worth nothing on a Mac. Managin
 SDK is a different question from managing the JDK, so it was not enough. Reopen if Flutter SDK
 switching turns out to matter more than JDK coverage.
 
-**Configuring java now, 2026-09-20.** Rejected because there is no toolchain to configure. Java
+**Configuring java now, 2026-09-20.** Reopened 2026-10-30, see the log. Rejected because there is no toolchain to configure. Java
 is absent, `/usr/libexec/java_home` finds nothing, and Android Studio, the Android SDK, Flutter
 and Gradle are all absent too. Building setup machinery for a toolchain that does not exist is
 the ceremony the root guidance warns about.
@@ -207,3 +207,16 @@ deletes it. On this machine all 14 tools were already present and none changed v
 Rejected with it, a mise toml per machine, since every version would be written once per machine
 and the copies would drift, and the catalog as TOML, since a table holds each key once and four
 python rows would need nesting the awk reader `MACHINES` already uses has no need for.
+
+### 2026-10-30 19:40
+
+Jelenas-MacBook-Pro turned mise on. It already ran mise unmanaged, a hand written
+`~/.config/mise/config.toml` setting Flutter 3.38.6, Java temurin-17.0.8, Node 22.18.0 and
+firebase-tools 15.31 globally, which is the `mise use -g` this module forbids. Milos picked its
+tools, the base of node, python, uv and lua5.4, pnpm and yarn, and what it used globally, so the
+catalog gained `java` at temurin-17, `flutter` at 3.38 and `firebase` as `npm:firebase-tools` at
+15. That reopens configuring java, rejected on 2026-09-20 because no toolchain existed, since one
+now does. Node's default here moves from 22 to the catalog's 26, Milos's choice, with a project
+pinning its own, as redburst's gau3-web-app already does with `.node-version` at 18.12.1. The hand
+written config is moved aside by the stow step rather than deleted, and the installed versions stay
+in use, since a run installs what is missing and never moves what is present.
