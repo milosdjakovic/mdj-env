@@ -492,3 +492,18 @@ purpose so a stream of toasts could not grow a cache. It is cached now and empti
 the same values from the same call, and a minute after a reload the tracker counted no canvas made
 and no window alive, with the footprint at 169 MB. The rest is this session's twenty or so reloads,
 nine copies of the swift library among them, since a loaded image is never unloaded.
+
+### 2026-10-30 19:00
+
+The off screen checks that proved this work moved from a scratch program into `test/swiftpane.swift`,
+so `suite.sh dry` runs them. A shorter list after a scroll shows its rows from the top, the arrows
+move the highlight and the viewport only far enough and wrap, a burst of moves reaches Lua as one
+report, a state with neither field leaves the list's own, a fast scroll asks for the icons on screen
+first and then ahead, a dozen at most per ask and each row once, and a cursor update ends at the
+list. Putting `scroll(to:)` back fails the first of them at minus 200 points, the band as seen.
+
+Left open, the default chooser's field still measures the caret through
+`hs.drawing.getTextDrawingSize` on every keystroke, `providers/default/field/render.lua`, the call
+that leaves a hidden canvas window behind each time. It costs nothing while the swift chooser
+serves, since the default one stands in only during a rebuild, and wants the same bounded cache
+the kit's measurer got if the default chooser is ever the one in use again.

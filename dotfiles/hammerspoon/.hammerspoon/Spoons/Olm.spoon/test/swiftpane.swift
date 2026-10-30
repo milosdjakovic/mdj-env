@@ -16,6 +16,14 @@
 // trackMouseUp and reports _canvas_ off every one, hands a mouse up to its handler, and draws a full
 // bleed surface over every pixel at backing scale 2 as at 1.
 //
+// The list, its table in a window never shown. A query that shortens the list after the highlight
+// scrolled it down shows the rows from the top, never under an empty band, the bug of 2026-10-30.
+// The arrows move the highlight and the viewport only far enough to show the row above the bar,
+// wrapping at both ends, and a burst of moves reaches Lua as one report. A state with no scrollTop
+// or highlight leaves the list's own. A fast scroll asks for the icons of the rows on screen first,
+// then of the rows its velocity carries it into, a dozen at most per ask and each row once. A cursor
+// update ends at the list, so a scroll never sets the cursor again, a third of every frame once.
+//
 // Run it through swiftpane.sh, which suite.sh dry does.
 
 import Cocoa
@@ -219,6 +227,89 @@ for scale in [CGFloat(2), CGFloat(1)] {
   check("a panel's surface covers every pixel at backing scale \(Int(scale))", c.total > 0 && c.opaque == c.total,
     "\(c.opaque) of \(c.total) pixels")
 }
+
+// MARK: The list
+
+extension Row {
+  init(title: String) { self.title = title }
+}
+
+let listWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 460, height: 520), styleMask: [.titled],
+  backing: .buffered, defer: false)
+let list = ListView(frame: NSRect(x: 0, y: 60, width: 460, height: 470))
+listWindow.contentView?.addSubview(list)
+list.underBar = 60
+var listPlacement = Placement()
+listPlacement.rowH = 47
+listPlacement.padBottom = 8
+list.apply(style: Style(), placement: listPlacement)
+let listScroll = list.subviews.compactMap { $0 as? NSScrollView }.first!
+func listTop() -> CGFloat {
+  listWindow.contentView?.layoutSubtreeIfNeeded()
+  return listScroll.contentView.bounds.origin.y
+}
+func rows(_ n: Int) -> [Row] { (1...n).map { Row(title: "row \($0)") } }
+func state(highlight: Int?, top: CGFloat?) -> ViewState {
+  var s = ViewState()
+  s.highlight = highlight
+  s.scrollTop = top
+  return s
+}
+// The viewport above the bar, the window's list band less the bar and the margin under the rows.
+let shown: CGFloat = 470 - 60 - 8
+
+list.setRows(rows(50))
+list.update(state(highlight: 1, top: 0))
+list.update(state(highlight: 12, top: 200))
+check("the engine's scrollTop moves the list", listTop() == 200, "\(listTop())")
+list.setRows(rows(4))
+list.update(state(highlight: 1, top: 0))
+check("a shorter list after a scroll shows its rows from the top", listTop() == 0, "\(listTop())")
+
+var heard: [Int] = []
+list.onHighlight = { heard.append($0) }
+list.setRows(rows(50))
+list.update(state(highlight: 1, top: 0))
+heard = []
+for _ in 0..<12 { list.move(1) }
+check("twelve steps down highlight row thirteen", list.highlight == 13)
+check("the viewport moved only far enough to show it above the bar",
+  abs(listTop() - (13 * 47 - shown)) < 0.5, "\(listTop())")
+list.flushReports()
+check("a burst of moves reaches Lua as one report", heard == [13], "\(heard)")
+list.update(state(highlight: nil, top: nil))
+check("a state with no highlight and no scrollTop leaves the list's own",
+  list.highlight == 13 && abs(listTop() - (13 * 47 - shown)) < 0.5)
+for _ in 0..<13 { list.move(-1) }
+check("up from the first row wraps to the last", list.highlight == 50)
+check("and shows it at the bottom", abs(listTop() - (50 * 47 - shown)) < 0.5, "\(listTop())")
+list.move(1)
+check("down from the last row wraps to the first", list.highlight == 1 && listTop() == 0)
+
+var asks: [[Int]] = []
+list.onWantIcons = { asks.append($0) }
+list.setRows(rows(300))
+list.update(state(highlight: 1, top: 0))
+RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+asks = []
+for i in 1...10 {
+  listScroll.contentView.setBoundsOrigin(NSPoint(x: 0, y: CGFloat(i) * 60))
+  RunLoop.main.run(until: Date().addingTimeInterval(0.01))
+}
+RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+let askedRows = asks.flatMap { $0 }
+let onScreen = listScroll.contentView.bounds.origin.y / 47
+check("a fast scroll asks first for the rows on screen",
+  Double(asks.first?.first ?? -1) >= Double(onScreen) - 3 && Double(asks.first?.first ?? 999) <= Double(onScreen) + 1,
+  "\(asks.first ?? [])")
+check("then for rows ahead of the viewport, in the scroll's direction",
+  (askedRows.max() ?? 0) > Int(onScreen) + 20, "max \(askedRows.max() ?? -1)")
+check("a dozen rows at most per ask", asks.allSatisfy { $0.count <= 12 })
+check("each row asked once", Set(askedRows).count == askedRows.count)
+
+let ownCursor = class_getMethodImplementation(ListView.self, #selector(NSView.cursorUpdate(with:)))
+let viewCursor = class_getMethodImplementation(NSView.self, #selector(NSView.cursorUpdate(with:)))
+check("a cursor update ends at the list", ownCursor != viewCursor)
 
 if failed {
   print("swiftpane, FAILED")
