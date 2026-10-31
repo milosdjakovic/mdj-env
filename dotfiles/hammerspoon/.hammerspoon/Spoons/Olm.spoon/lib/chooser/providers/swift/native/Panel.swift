@@ -161,7 +161,10 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     field.cell?.usesSingleLineMode = true
     field.allowsEditingTextAttributes = false
 
-    for view in [field, list] as [NSView] { root.addSubview(view) }
+    root.addSubview(list)
+    // The field stands on the window's stage over the list, which runs on up behind it, and out of
+    // the content the fades mask, which faded the field with the rows behind it.
+    surfaces.addOverlay(field)
     // The bar and its key panel stand on the window's stage rather than in the list's content,
     // since with a companion they run under the gap and the pane too.
     surfaces.addOverlay(keys)
@@ -235,15 +238,24 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
       // far left of its rect and the caret lands on the rect's edge, the inset every other
       // surface takes.
       let lead = (window.fieldEditor(true, for: field) as? NSTextView)?.textContainer?.lineFragmentPadding ?? 0
-      field.frame = NSRect(x: rect.minX - lead, y: rect.midY - h / 2, width: rect.width + lead, height: h)
+      let inWindow = toWindow(rect) ?? rect
+      field.frame = NSRect(x: inWindow.minX - lead, y: inWindow.midY - h / 2, width: inWindow.width + lead, height: h)
     }
     // The bar floats. The list runs on down behind it to the window's bottom edge, its viewport
     // reaching that far and its content inset by the same height, so the furthest scroll and every
     // row the engine numbers sit where they did, and only the rows past them show behind the bar.
+    // It runs on up behind the field in the same way, inset at the top by as much, so a row the
+    // engine places at the band's top still sits there and only rows scrolled above it show behind
+    // the field. It stops at the title bar's bottom edge, since a scroll view under the title bar
+    // gets AppKit's own scroll edge effect, a blur with a hard edge over the field and the first
+    // row, seen on 2026-10-31, which no setting turned off. The fade is clear by that edge.
     let under = next.footer.map { $0.maxY - (next.list?.maxY ?? $0.minY) } ?? 0
+    let over = max(0, (next.list?.minY ?? 0) - titlebarHeight)
     list.frame = next.list ?? .zero
-    list.frame.size.height += max(0, under)
+    list.frame.origin.y -= over
+    list.frame.size.height += max(0, under) + over
     list.underBar = max(0, under)
+    list.overField = over
     bar.frame = toWindow(next.footer) ?? .zero
     list.apply(style: style, placement: placement)
     layoutKeys()
@@ -345,16 +357,27 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     throughField { field.currentEditor()?.keyDown(with: event) }
   }
 
+  // How far the title bar reaches down from the window's top, which the list stays below.
+  private var titlebarHeight: CGFloat {
+    max(0, window.frame.height - window.contentLayoutRect.maxY)
+  }
+
   // MARK: The docked pane's region
 
   private func layoutSurfaces() {
     let listFrame = placement.listFrame ?? NSRect(origin: .zero, size: placement.canvas.size)
     // The fade begins where the last row stands at the furthest scroll, the list's bottom padding
     // above the bar, so only what has scrolled under the bar softens.
+    // The top fade is clear down to the title bar's bottom edge, where the list stops, and rises
+    // along one smooth curve to full where the first row rests, over the list's column alone, since the
+    // pane's own top is its header and never scrolls under the field.
     let barTop = toWindow(placement.footer)?.minY ?? windowSize.height
+    let listTop = toWindow(placement.list)?.minY ?? 0
     surfaces.layout(size: windowSize, list: listFrame, pane: placement.paneFrame,
       divider: placement.dividerFrame, paneShown: paneShown && paneContent != nil,
-      fadeTop: max(0, barTop - placement.padBottom))
+      fadeTop: max(0, barTop - placement.padBottom), fadeListTop: listTop,
+      fadeClearTo: min(titlebarHeight, listTop),
+      listColumn: listFrame.maxX)
   }
 
   // Whether this panel is up with a companion at rect, the question the seam in Entry.swift asks.

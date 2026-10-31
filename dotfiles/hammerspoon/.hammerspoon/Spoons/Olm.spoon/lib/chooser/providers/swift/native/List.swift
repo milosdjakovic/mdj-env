@@ -87,6 +87,21 @@ final class LitRowView: NSTableRowView {
   var lit = false { didSet { if lit != oldValue { needsDisplay = true } } }
   var color = NSColor.clear
   var radius: CGFloat = 0
+  // A Gaussian blur over the row in points, 0 for none, changed only when it moves by a tenth.
+  var blur: CGFloat = 0 {
+    didSet {
+      guard abs(blur - oldValue) >= 0.1 || (blur == 0) != (oldValue == 0) else { blur = oldValue; return }
+      wantsLayer = true
+      layerUsesCoreImageFilters = true
+      if blur < 0.1 {
+        layer?.filters = nil
+      } else if let filter = CIFilter(name: "CIGaussianBlur") {
+        filter.setDefaults()
+        filter.setValue(blur, forKey: kCIInputRadiusKey)
+        layer?.filters = [filter]
+      }
+    }
+  }
 
   override func drawBackground(in dirtyRect: NSRect) {
     guard lit else { return }
@@ -197,7 +212,12 @@ final class RowTable: NSTableView {
   private var pressed: Int?
   private var tracking: NSTrackingArea?
 
+  // Whether a point in the window may reach a row, false behind the field, where rows scroll on
+  // but the field takes the pointer.
+  var reaches: (NSPoint) -> Bool = { _ in true }
+
   private func rowAt(_ event: NSEvent) -> Int? {
+    guard reaches(event.locationInWindow) else { return nil }
     let index = row(at: convert(event.locationInWindow, from: nil))
     return index >= 0 ? index : nil
   }
@@ -282,6 +302,12 @@ final class ListView: FlippedView, NSTableViewDataSource, NSTableViewDelegate {
   private var live = false
   // How far the viewport reaches past the engine's own band, behind the floating bar.
   var underBar: CGFloat = 0
+  // How far it reaches above the band, behind the field, to the window's top edge. The content is
+  // inset by as much, so the model's scrollTop is the clip's origin plus this.
+  var overField: CGFloat = 0
+  // The rows in either fade band are blurred by how deep they sit in it, at most this many points
+  // at the band's outer edge, the bands being overField at the top and the bar's band at the bottom.
+  private static let edgeBlur: CGFloat = 5
 
   override init(frame: NSRect) {
     super.init(frame: frame)
@@ -316,6 +342,11 @@ final class ListView: FlippedView, NSTableViewDataSource, NSTableViewDelegate {
     NotificationCenter.default.addObserver(self, selector: #selector(liveEnded),
       name: NSScrollView.didEndLiveScrollNotification, object: scroll)
 
+    table.reaches = { [weak self] point in
+      guard let self else { return true }
+      return self.convert(point, from: nil).y >= self.overField
+    }
+
     empty.alignment = .center
     empty.isHidden = true
     addSubview(scroll)
@@ -339,7 +370,7 @@ final class ListView: FlippedView, NSTableViewDataSource, NSTableViewDelegate {
     needsLayout = true
     quietly {
       table.rowHeight = placement.rowH
-      scroll.contentInsets = NSEdgeInsets(top: 0, left: 0, bottom: placement.padBottom + underBar, right: 0)
+      scroll.contentInsets = NSEdgeInsets(top: overField, left: 0, bottom: placement.padBottom + underBar, right: 0)
       table.reloadData()
     }
   }
@@ -417,12 +448,16 @@ final class ListView: FlippedView, NSTableViewDataSource, NSTableViewDelegate {
   // The engine already bounds scrollTop to what the list can show.
   private func setScrollTop(_ y: CGFloat) {
     let clip = scroll.contentView
-    guard abs(clip.bounds.origin.y - y) > 0.5 else { return }
-    clip.setBoundsOrigin(NSPoint(x: 0, y: max(0, y)))
+    guard abs(offset - y) > 0.5 else { return }
+    clip.setBoundsOrigin(NSPoint(x: 0, y: max(0, y) - overField))
     scroll.reflectScrolledClipView(clip)
   }
 
+  // The model's scrollTop, the clip's origin measured from the inset top rather than the field's.
+  private var offset: CGFloat { scroll.contentView.bounds.origin.y + overField }
+
   @objc private func scrolled() {
+    blurEdges()
     trackVelocity()
     wantAhead()
     guard !applyingScroll else { return }
@@ -518,7 +553,7 @@ final class ListView: FlippedView, NSTableViewDataSource, NSTableViewDelegate {
   func flushReports() {
     if scrollPending {
       scrollPending = false
-      onScroll(scroll.contentView.bounds.origin.y)
+      onScroll(offset)
     }
     if highlightPending {
       highlightPending = false
@@ -554,12 +589,12 @@ final class ListView: FlippedView, NSTableViewDataSource, NSTableViewDelegate {
   private func reveal(_ h: Int) {
     let clip = scroll.contentView
     let rect = table.rect(ofRow: h - 1)
-    let top = clip.bounds.origin.y
-    let visible = clip.bounds.height - scroll.contentInsets.bottom
+    let top = offset
+    let visible = clip.bounds.height - scroll.contentInsets.bottom - overField
     var y = top
     if rect.minY < top { y = rect.minY } else if rect.maxY > top + visible { y = rect.maxY - visible }
     guard abs(y - top) > 0.5 else { return }
-    clip.setBoundsOrigin(NSPoint(x: 0, y: max(0, y)))
+    clip.setBoundsOrigin(NSPoint(x: 0, y: max(0, y) - overField))
     scroll.reflectScrolledClipView(clip)
   }
 
@@ -574,7 +609,26 @@ final class ListView: FlippedView, NSTableViewDataSource, NSTableViewDelegate {
     scroll.frame = bounds
     column.width = bounds.width
     let h = ceil(style.captionFont.ascender - style.captionFont.descender + style.captionFont.leading)
-    empty.frame = NSRect(x: 0, y: max(0, (bounds.height - underBar - h) / 2), width: bounds.width, height: h)
+    empty.frame = NSRect(x: 0, y: overField + max(0, (bounds.height - overField - underBar - h) / 2),
+      width: bounds.width, height: h)
+    blurEdges()
+  }
+
+  // Blurs each row on screen by how deep its middle sits in a fade band, nothing at the band's
+  // inner edge and edgeBlur at the window's. A blur over the content drew nothing inside the
+  // glass, see decisions/olm-swift-chooser.md, so each row's own layer is blurred instead.
+  private func blurEdges() {
+    let bottomBand = underBar + placement.padBottom
+    table.enumerateAvailableRowViews { view, _ in
+      let mid = self.convert(view.frame, from: self.table).midY
+      var depth: CGFloat = 0
+      // Full strength from halfway up the field, so a row behind the field's text never sharpens.
+      if self.overField > 0, mid < self.overField { depth = 2 * (1 - mid / self.overField) }
+      if bottomBand > 0, mid > self.bounds.height - bottomBand {
+        depth = (mid - (self.bounds.height - bottomBand)) / bottomBand
+      }
+      (view as? LitRowView)?.blur = Self.edgeBlur * max(0, min(1, depth))
+    }
   }
 
   // MARK: Table
@@ -589,6 +643,10 @@ final class ListView: FlippedView, NSTableViewDataSource, NSTableViewDelegate {
     view.radius = style.highlightRadius
     view.lit = row == highlight - 1
     return view
+  }
+
+  func tableView(_ tableView: NSTableView, didAdd rowView: NSTableRowView, forRow row: Int) {
+    blurEdges()
   }
 
   func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {

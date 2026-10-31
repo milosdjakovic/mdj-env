@@ -132,12 +132,14 @@ final class SharedSurface {
 
   // Lays the content out in a window of size. The pane's region shows only when there is a rect
   // for it and a docked pane in it, and the divider whenever there is a rect for it. fadeTop is
-  // where the bottom fade begins, measured down from the window's top.
+  // where the bottom fade begins and fadeListTop where the top fade ends, both measured down from
+  // the window's top, the second over the list's column alone, which ends at listColumn.
   func layout(size: NSSize, list listRect: NSRect, pane paneRect: NSRect?, divider dividerRect: NSRect?,
-    paneShown: Bool, fadeTop: CGFloat) {
+    paneShown: Bool, fadeTop: CGFloat, fadeListTop: CGFloat = 0, fadeClearTo: CGFloat = 0,
+    listColumn: CGFloat? = nil) {
     stage.frame = NSRect(origin: .zero, size: size)
     content.frame = stage.bounds
-    fade.layout(content: content, size: size, top: fadeTop)
+    fade.layout(content: content, size: size, top: fadeTop, listTop: fadeListTop, clearTo: fadeClearTo, column: min(size.width, listColumn ?? size.width))
     list.frame = listRect
     paneSlot.frame = paneRect ?? .zero
     paneSlot.isHidden = paneRect == nil || !paneShown
@@ -172,29 +174,65 @@ final class SharedSurface {
   }
 }
 
-// The bottom of the chooser, where the list and the pane run on behind the floating bar. Over a
-// band from top to the window's bottom edge the content's alpha falls to nothing, so whatever
-// scrolls under the bar fades out alike on the list and on the pane. The mask spans the window's
-// whole width, so both read as one surface. A blur over the band was tried on 2026-10-31 and drew
-// nothing, a Core Image background filter and an in-window visual effect view alike, since neither
-// samples the content of a glass, see decisions/olm-swift-chooser.md.
+// The top and the bottom of the chooser, where the list runs on behind the field and the list and
+// the pane behind the floating bar. Over the bottom band, from bottom to the window's bottom edge,
+// the content's alpha falls to nothing across the window's whole width, so the list and the pane
+// fade alike. Over the top band it is nothing down to clearTo, the title bar's bottom edge where the
+// list stops, and rises along one smooth curve to full where the first row rests, low behind the
+// field's text so the field reads over a row there and with no kink anywhere, since a kink at the
+// field's bottom drew a line through a row scrolled half into the band, seen on 2026-10-31. Over the
+// list's column alone, since the pane's top is its header. The mask is one layer holding
+// a gradient per column. The rows blur by how deep they sit in a band, in List.swift, since a blur
+// over the content drew nothing inside the glass, see decisions/olm-swift-chooser.md.
 final class BottomFade {
-  private let contentMask = CAGradientLayer()
+  private let mask = CALayer()
+  private let listColumn = CAGradientLayer()
+  private let paneColumn = CAGradientLayer()
+  // The top curve, the alpha at t from 0 at the clear edge to 1 where the first row rests, a
+  // smoothstep squared, flat at both ends and about a tenth a third of the way down.
+  private static func rise(_ t: CGFloat) -> CGFloat {
+    let s = t * t * (3 - 2 * t)
+    return s * s
+  }
+  private static let riseStops = 12
 
   init() {
-    contentMask.startPoint = CGPoint(x: 0.5, y: 0)
-    contentMask.endPoint = CGPoint(x: 0.5, y: 1)
+    for column in [listColumn, paneColumn] {
+      column.startPoint = CGPoint(x: 0.5, y: 0)
+      column.endPoint = CGPoint(x: 0.5, y: 1)
+      mask.addSublayer(column)
+    }
   }
 
-  func layout(content: NSView, size: NSSize, top: CGFloat) {
+  func layout(content: NSView, size: NSSize, top bottom: CGFloat, listTop: CGFloat, clearTo: CGFloat,
+    column: CGFloat) {
     CATransaction.begin()
     CATransaction.setDisableActions(true)
-    // The mask covers the content whole, opaque down to the band and clear at the bottom edge.
-    if content.layer?.mask !== contentMask { content.layer?.mask = contentMask }
-    contentMask.frame = content.bounds
-    let start = size.height > 0 ? max(0, min(1, top / size.height)) : 1
-    contentMask.colors = [NSColor.black.cgColor, NSColor.black.cgColor, NSColor.clear.cgColor]
-    contentMask.locations = Self.down(contentMask, in: content.layer, [0, start, 1])
+    if content.layer?.mask !== mask { content.layer?.mask = mask }
+    mask.frame = content.bounds
+    let h = max(1, size.height)
+    let end = max(0, min(1, bottom / h))
+    let start = max(0, min(end, listTop / h))
+    let clearEnd = max(0, min(start, clearTo / h))
+    let black = NSColor.black.cgColor, clear = NSColor.clear.cgColor
+    listColumn.frame = CGRect(x: 0, y: 0, width: column, height: size.height)
+    var colors: [CGColor] = [], stops: [CGFloat] = []
+    if start > clearEnd {
+      colors.append(clear); stops.append(0)
+      for i in 0...Self.riseStops {
+        let t = CGFloat(i) / CGFloat(Self.riseStops)
+        colors.append(NSColor.black.withAlphaComponent(Self.rise(t)).cgColor)
+        stops.append(clearEnd + (start - clearEnd) * t)
+      }
+    } else {
+      colors.append(black); stops.append(0)
+    }
+    colors += [black, clear]; stops += [end, 1]
+    listColumn.colors = colors
+    listColumn.locations = Self.down(listColumn, in: content.layer, stops)
+    paneColumn.frame = CGRect(x: column, y: 0, width: max(0, size.width - column), height: size.height)
+    paneColumn.colors = [black, black, clear]
+    paneColumn.locations = Self.down(paneColumn, in: content.layer, [0, end, 1])
     CATransaction.commit()
   }
 

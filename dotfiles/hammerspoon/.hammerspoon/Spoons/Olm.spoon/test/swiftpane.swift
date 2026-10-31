@@ -24,8 +24,9 @@
 // then of the rows its velocity carries it into, a dozen at most per ask and each row once. A cursor
 // update ends at the list, so a scroll never sets the cursor again, a third of every frame once.
 //
-// The bottom fade masks the list and the pane as one, from the list's bottom padding above the bar
-// to the window's edge.
+// The fades mask the list and the pane as one, from the list's bottom padding above the bar to the
+// window's edge, and the list's column alone from the title bar's bottom edge to where the first
+// row rests, the list running on up behind the field and stopping at the title bar.
 //
 // Run it through swiftpane.sh, which suite.sh dry does.
 
@@ -326,13 +327,31 @@ do {
   fadePanel.place(p)
   func all(_ v: NSView) -> [NSView] { [v] + v.subviews.flatMap(all) }
   let tree = NSApp.windows.compactMap { $0.contentView }.flatMap(all)
-  let masked = tree.filter { $0.layer?.mask is CAGradientLayer }
-  check("the list and the pane fade out under one mask",
-    masked.contains { $0.frame.width == 800 && $0.frame.height == 400 }, "\(masked.map { $0.frame })")
-  let mask = masked.first { $0.frame.width == 800 && $0.frame.height == 400 }?.layer?.mask as? CAGradientLayer
-  let stops = (mask?.locations ?? []).map { CGFloat(truncating: $0) }
-  check("the fade begins at the list's bottom padding above the bar",
-    stops.contains { abs($0 - 344.0 / 400) < 0.001 || abs($0 - 56.0 / 400) < 0.001 }, "\(stops)")
+  let masked = tree.filter { $0.layer?.mask != nil && $0.frame.width == 800 && $0.frame.height == 400 }
+  check("the list and the pane fade under one mask", masked.count == 1, "\(masked.map { $0.frame })")
+  let columns = (masked.first?.layer?.mask?.sublayers ?? []).compactMap { $0 as? CAGradientLayer }
+  func stops(_ c: CAGradientLayer?) -> [CGFloat] { (c?.locations ?? []).map { CGFloat(truncating: $0) } }
+  func has(_ c: CAGradientLayer?, _ y: CGFloat) -> Bool {
+    stops(c).contains { abs($0 - y / 400) < 0.001 || abs($0 - (400 - y) / 400) < 0.001 }
+  }
+  let listColumn = columns.first { $0.frame.minX == 0 }, paneColumn = columns.first { $0.frame.minX > 0 }
+  check("one column over the list and one over the pane",
+    listColumn?.frame.width == 480 && paneColumn?.frame.width == 320, "\(columns.map { $0.frame })")
+  check("both fade out from the list's bottom padding above the bar", has(listColumn, 344) && has(paneColumn, 344),
+    "\(stops(listColumn)) \(stops(paneColumn))")
+  check("the list's column fades in from the window's top to where the first row rests",
+    has(listColumn, 60) && stops(listColumn).count > 6, "\(stops(listColumn))")
+  check("the pane's column has no top fade, since its top is its header", stops(paneColumn).count == 3)
+  let fields = tree.compactMap { $0 as? NSTextField }.filter { $0.isEditable }
+  check("the field stands outside the content the fades mask",
+    !fields.isEmpty && fields.allSatisfy { f in !masked.contains { f.isDescendant(of: $0) } })
+  func lists(_ v: NSView) -> [ListView] { (v as? ListView).map { [$0] } ?? v.subviews.flatMap(lists) }
+  let fadeList = NSApp.windows.compactMap { $0.contentView }.flatMap(lists).first { $0.frame.maxY == 400 && $0.overField > 0 }
+  let titlebar = NSApp.windows.first { $0.contentView?.subviews.isEmpty == false && $0.frame.width == 800 }
+    .map { $0.frame.height - $0.contentLayoutRect.maxY } ?? -1
+  check("the list runs on up behind the field to the title bar's bottom edge, not under it",
+    fadeList.map { abs($0.frame.minY - titlebar) < 0.5 && abs($0.overField - (60 - titlebar)) < 0.5 } == true,
+    "titlebar \(titlebar) \(String(describing: fadeList?.frame)) over \(String(describing: fadeList?.overField))")
 }
 
 let ownCursor = class_getMethodImplementation(ListView.self, #selector(NSView.cursorUpdate(with:)))

@@ -638,3 +638,40 @@ other than a title bar or split view accessory ask for, which `NSScrollEdgeEffec
 as of macOS 26.1. One false alarm on the way, worth not repeating. The fade looked absent once the
 blur view was removed, because the build it was compared against still carried that view's tint,
 which by itself lightened the band as much as the fade does.
+
+### 2026-10-31 13:45
+
+The list runs on up behind the field, with a top fade over the list's column alone, faint at 20
+percent as far as the field's bottom and full where the first row rests, and the rows blur. A blur
+over the content drew nothing inside the glass, see the entry above, but a blur on a row's own layer
+does, `filters` with `CIGaussianBlur`, so each row on screen in either band is blurred by how deep
+its middle sits, up to 5 points at the window's edge and at full strength from halfway up the
+field. The radius is one per row, so it grows in steps of a row rather than continuously. Running
+the scroll view under the title bar made AppKit lay its own scroll edge effect over the list's top
+inset, a grey blur with a hard bottom edge that covered the field's placeholder and the first row.
+An empty title bar accessory asking for `NSScrollEdgeEffectStyle.soft` still left a hard edge and
+still blurred the field, seen on a screenshot from Milos, so it was dropped. With
+`titlebarSeparatorStyle` set to none no grey band shows over the light half of the window.
+Corrected on 2026-10-31 13:50, the separator setting did not remove it, see the entry below.
+
+### 2026-10-31 13:50
+
+Two faults behind the field, both seen on a screenshot from Milos over a light window, which the
+dark backdrop of the earlier check had hidden. AppKit's scroll edge effect was still there with the
+separator set to none, a hard line through the first row's icon at rest. No setting turns it off, so
+the list stops at the title bar's bottom edge, measured as the window's height less the top of
+`contentLayoutRect`, and the top fade is clear down to that edge so the clip shows no line. Rows show
+behind the lower part of the field and the gap under it. And the placeholder was barely visible
+because the field sat inside the content the fades mask, so the top fade faded the field along with
+the rows. The field stands on the window's stage now, beside the bar, outside the mask.
+`test/swiftpane.sh` pins both, the list's top at the title bar's edge and the field outside the mask.
+
+### 2026-10-31 14:00
+
+A row scrolled half into the top band had a line across it, seen on a screenshot from Milos, the
+Notes icon whiter above its middle. The fade went from a fifth at the field's bottom to full where
+the first row rests, a few points apart, and that kink read as an edge. It was first answered here as
+part of the Antinote icon's own design, from a pixel column of a row at rest, which was the wrong row
+to look at, since only a row in the band crosses the kink. The top fade is one smooth curve now, a
+smoothstep squared from clear at the title bar's edge to full where the first row rests, sampled at
+thirteen stops, with no kink.
