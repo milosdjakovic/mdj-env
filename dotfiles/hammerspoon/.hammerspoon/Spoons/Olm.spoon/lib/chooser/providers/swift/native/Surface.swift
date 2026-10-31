@@ -97,6 +97,10 @@ enum ScreenSpace {
 final class SharedSurface {
   private let glass: Surface
   private let stage = FlippedView()
+  // The list's content, the pane's region and the divider, masked together so they fade out
+  // towards the bottom as one.
+  private let content = FlippedView()
+  private let fade = BottomFade()
   private let list: NSView
   private let paneSlot = FlippedView()
   private let divider = DividerView()
@@ -106,9 +110,14 @@ final class SharedSurface {
 
   init(list content: NSView) {
     list = content
-    stage.addSubview(content)
-    stage.addSubview(paneSlot)
-    stage.addSubview(divider)
+    self.content.addSubview(content)
+    self.content.addSubview(paneSlot)
+    self.content.addSubview(divider)
+    stage.addSubview(self.content)
+    // Both backed by layers of their own from the start, since the content's mask is a layer mask
+    // and drew nothing, seen live on 2026-10-31, until a sibling happened to make the stage a layer.
+    stage.wantsLayer = true
+    self.content.wantsLayer = true
     paneSlot.isHidden = true
     divider.isHidden = true
     glass = Surface(holding: stage)
@@ -122,10 +131,13 @@ final class SharedSurface {
   }
 
   // Lays the content out in a window of size. The pane's region shows only when there is a rect
-  // for it and a docked pane in it, and the divider whenever there is a rect for it.
+  // for it and a docked pane in it, and the divider whenever there is a rect for it. fadeTop is
+  // where the bottom fade begins, measured down from the window's top.
   func layout(size: NSSize, list listRect: NSRect, pane paneRect: NSRect?, divider dividerRect: NSRect?,
-    paneShown: Bool) {
+    paneShown: Bool, fadeTop: CGFloat) {
     stage.frame = NSRect(origin: .zero, size: size)
+    content.frame = stage.bounds
+    fade.layout(content: content, size: size, top: fadeTop)
     list.frame = listRect
     paneSlot.frame = paneRect ?? .zero
     paneSlot.isHidden = paneRect == nil || !paneShown
@@ -157,6 +169,42 @@ final class SharedSurface {
   // its key panel, placed by its owner in the window's own space and kept above both.
   func addOverlay(_ view: NSView) {
     stage.addSubview(view, positioned: .above, relativeTo: nil)
+  }
+}
+
+// The bottom of the chooser, where the list and the pane run on behind the floating bar. Over a
+// band from top to the window's bottom edge the content's alpha falls to nothing, so whatever
+// scrolls under the bar fades out alike on the list and on the pane. The mask spans the window's
+// whole width, so both read as one surface. A blur over the band was tried on 2026-10-31 and drew
+// nothing, a Core Image background filter and an in-window visual effect view alike, since neither
+// samples the content of a glass, see decisions/olm-swift-chooser.md.
+final class BottomFade {
+  private let contentMask = CAGradientLayer()
+
+  init() {
+    contentMask.startPoint = CGPoint(x: 0.5, y: 0)
+    contentMask.endPoint = CGPoint(x: 0.5, y: 1)
+  }
+
+  func layout(content: NSView, size: NSSize, top: CGFloat) {
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    // The mask covers the content whole, opaque down to the band and clear at the bottom edge.
+    if content.layer?.mask !== contentMask { content.layer?.mask = contentMask }
+    contentMask.frame = content.bounds
+    let start = size.height > 0 ? max(0, min(1, top / size.height)) : 1
+    contentMask.colors = [NSColor.black.cgColor, NSColor.black.cgColor, NSColor.clear.cgColor]
+    contentMask.locations = Self.down(contentMask, in: content.layer, [0, start, 1])
+    CATransaction.commit()
+  }
+
+  // Locations given top down, turned around when the host's space runs bottom up, since whether a
+  // view's layer is flipped follows AppKit's choice for that view and not this code's. The host is
+  // asked rather than the mask, which has no superlayer and so always answers unflipped.
+  private static func down(_ layer: CAGradientLayer, in host: CALayer?, _ stops: [CGFloat]) -> [NSNumber] {
+    if host?.contentsAreFlipped() == true { return stops.map { NSNumber(value: Double($0)) } }
+    layer.colors = layer.colors?.reversed()
+    return stops.reversed().map { NSNumber(value: Double(1 - $0)) }
   }
 }
 

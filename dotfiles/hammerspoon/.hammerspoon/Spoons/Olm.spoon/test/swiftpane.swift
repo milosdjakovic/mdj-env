@@ -24,6 +24,9 @@
 // then of the rows its velocity carries it into, a dozen at most per ask and each row once. A cursor
 // update ends at the list, so a scroll never sets the cursor again, a third of every frame once.
 //
+// The bottom fade masks the list and the pane as one, from the list's bottom padding above the bar
+// to the window's edge.
+//
 // Run it through swiftpane.sh, which suite.sh dry does.
 
 import Cocoa
@@ -306,6 +309,31 @@ check("then for rows ahead of the viewport, in the scroll's direction",
   (askedRows.max() ?? 0) > Int(onScreen) + 20, "max \(askedRows.max() ?? -1)")
 check("a dozen rows at most per ask", asks.allSatisfy { $0.count <= 12 })
 check("each row asked once", Set(askedRows).count == askedRows.count)
+
+// The bottom fade, the content masked as one, the list and the pane alike, opaque down to the
+// list's bottom padding above the bar and clear at the window's edge.
+do {
+  let fadePanel = ChooserPanel(ask: { _, _ in false })
+  var p = Placement()
+  p.canvas = NSRect(x: 0, y: 100, width: 480, height: 400)
+  p.window = NSRect(x: 0, y: 100, width: 800, height: 400)
+  p.listFrame = NSRect(x: 0, y: 0, width: 480, height: 400)
+  p.paneFrame = NSRect(x: 480, y: 0, width: 320, height: 352)
+  p.companion = NSRect(x: 480, y: 100, width: 320, height: 352)
+  p.list = NSRect(x: 0, y: 60, width: 480, height: 292)
+  p.footer = NSRect(x: 0, y: 352, width: 800, height: 48)
+  p.padBottom = 8
+  fadePanel.place(p)
+  func all(_ v: NSView) -> [NSView] { [v] + v.subviews.flatMap(all) }
+  let tree = NSApp.windows.compactMap { $0.contentView }.flatMap(all)
+  let masked = tree.filter { $0.layer?.mask is CAGradientLayer }
+  check("the list and the pane fade out under one mask",
+    masked.contains { $0.frame.width == 800 && $0.frame.height == 400 }, "\(masked.map { $0.frame })")
+  let mask = masked.first { $0.frame.width == 800 && $0.frame.height == 400 }?.layer?.mask as? CAGradientLayer
+  let stops = (mask?.locations ?? []).map { CGFloat(truncating: $0) }
+  check("the fade begins at the list's bottom padding above the bar",
+    stops.contains { abs($0 - 344.0 / 400) < 0.001 || abs($0 - 56.0 / 400) < 0.001 }, "\(stops)")
+}
 
 let ownCursor = class_getMethodImplementation(ListView.self, #selector(NSView.cursorUpdate(with:)))
 let viewCursor = class_getMethodImplementation(NSView.self, #selector(NSView.cursorUpdate(with:)))

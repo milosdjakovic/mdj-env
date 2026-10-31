@@ -349,8 +349,12 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
 
   private func layoutSurfaces() {
     let listFrame = placement.listFrame ?? NSRect(origin: .zero, size: placement.canvas.size)
+    // The fade begins where the last row stands at the furthest scroll, the list's bottom padding
+    // above the bar, so only what has scrolled under the bar softens.
+    let barTop = toWindow(placement.footer)?.minY ?? windowSize.height
     surfaces.layout(size: windowSize, list: listFrame, pane: placement.paneFrame,
-      divider: placement.dividerFrame, paneShown: paneShown && paneContent != nil)
+      divider: placement.dividerFrame, paneShown: paneShown && paneContent != nil,
+      fadeTop: max(0, barTop - placement.padBottom))
   }
 
   // Whether this panel is up with a companion at rect, the question the seam in Entry.swift asks.

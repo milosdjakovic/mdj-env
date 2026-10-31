@@ -606,3 +606,35 @@ so a popover of read lines stands its text itself the outer padding from every e
 bottom measured to the text. Its header went from caption to the row title's size and colour, and
 the rule from half the outer padding on each side to the whole of it.
 
+
+### 2026-10-30 21:25
+
+The bottom of the chooser fades. Asked for the list and the pane to fade out towards the bottom
+with a blur, uniformly. `BottomFade` in `native/Surface.swift` puts the list's content, the pane's
+region and the divider in one container masked by one gradient, opaque down to the list's bottom
+padding above the bar and clear at the window's edge, and stands a blur over the same band, a
+Gaussian background filter whose own mask grows it from nothing to full strength. One container
+and one band across the window's whole width, so the list and the pane fade alike. The band begins
+where the last row rests at the furthest scroll, so only rows scrolled under the bar soften.
+AppKit's own scroll edge effect, `NSScrollEdgeEffectStyle` from macOS 26.1, was looked at first
+and serves only title bar and split view accessories, so it cannot reach a floating bar inside a
+panel. A gradient's direction is read from the layer that owns the mask, since a mask has no
+superlayer and always answers unflipped. `test/swiftpane.sh` pins the band and both masks. Not yet
+seen live, since another session held the test lock as a manual hold when it was built.
+Corrected on 2026-10-31 13:25, the blur never drew and is gone, see the entry below.
+
+### 2026-10-31 13:25
+
+Seen live, and the blur half of the entry above was wrong. The fade works. Measured on the launcher,
+the darkest pixel of a row title under the bar goes from 0.15 at rest to 0.75 to 0.87 down the band.
+The blur drew nothing, read off zoomed screenshots, the text under the bar exactly as sharp as above
+it. A Core Image `CIGaussianBlur` in `backgroundFilters` on a layer standing over the band, with
+`layerUsesCoreImageFilters` on, blurred nothing, and an `NSVisualEffectView` blending within the
+window, `headerView` material under a gradient `maskImage`, laid a light tint over the band and
+blurred nothing either. Both sit inside the content view of an `NSGlassEffectView`, and neither
+samples what that content draws. The blur is removed and the fade is all of it. What would bring a
+blur back is a public way to sample a glass's content, or a scroll edge effect AppKit lets a view
+other than a title bar or split view accessory ask for, which `NSScrollEdgeEffectStyle` does not
+as of macOS 26.1. One false alarm on the way, worth not repeating. The fade looked absent once the
+blur view was removed, because the build it was compared against still carried that view's tint,
+which by itself lightened the band as much as the fade does.
