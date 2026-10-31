@@ -9,12 +9,12 @@ presentation names no `rowLimit` of its own. A presentation's own number wins, e
 the clipboard's and FileSearch's 200, and `false` opts a list out. The cut is `lib/chooser/rank.lua`
 after ranking, so a search still finds the best rows among every one, and pinned and fromQuery rows
 are never cut. `rank.apply` answers what it cut as a third value, and the engine ends the list
-there in a row of more, Show 27 more, with 77 more in all beside it when more than a page is left.
+there in a row of more, Show 27 more, and nothing beside it.
 It carries the ellipsis icon, `more` in the action panel's manifest, handed to the engine as
 `{ icon, owner }` the way the bar's keys icon is, and no item. Choosing it, by Return, a press or a digit, ranks in the next page and lands the
 highlight on the first row it added, and a new query, a show or a refresh from row one is one page
-again. A right press on it reaches nobody. Each view draws it its own way, the canvas view in the
-subtext colour with no icon.
+again. A right press on it reaches nobody. Each view draws it its own way, the canvas view and swift both in
+the subtext colour.
 
 The engine is shared, so the behaviour is one piece of code under both choosers. Each provider
 loads its own copy of the engine module, which is why the default reaches it through the
@@ -62,3 +62,7 @@ providers by the root once the plan names the action panel's identity, so the en
 owner. Every row draws its icon the way the rest do, the canvas through list render and swift
 through the icons it resolves for the rows near the viewport.
 
+### 2026-10-31 12:53
+
+The row of more said how many were left in all beneath its title, 77 more in all. The person
+wanted only the title, so the row says Show 27 more and nothing else.

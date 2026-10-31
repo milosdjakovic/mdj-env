@@ -168,14 +168,12 @@ local function rowItem(row)
 end
 
 -- The row of more, the last row of a list its limit cut, naming how many rows choosing it adds,
--- a page of the limit or what is left when that is less, and how many are left in all when that
--- is more. It carries no item, so a highlight on it reports no item, it has no actions and a
+-- a page of the limit or what is left when that is less, and nothing more. It carries no item, so a highlight on it reports no item, it has no actions and a
 -- right press on it is nobody's. more = true is what the engine and every view know it by.
 local function moreRow(cut, page)
   local adds = math.min(cut, page)
   return {
     title = ("Show %d more"):format(adds),
-    subTitle = cut > adds and ("%d more in all"):format(cut) or nil,
     icon = MORE_ICON and MORE_ICON.icon or nil,
     iconOwner = MORE_ICON and MORE_ICON.owner or nil,
     more = true,

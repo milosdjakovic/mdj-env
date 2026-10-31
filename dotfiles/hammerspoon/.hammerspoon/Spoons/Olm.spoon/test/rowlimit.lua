@@ -233,7 +233,7 @@ picker:show()
 local t = titles()
 check("a list past the default limit shows the limit's rows and one row of more", #t, 51)
 check("the row of more names the page it adds", t[51], "Show 50 more")
-check("and how many are left in all", lastRows[51].subtitle, "77 more in all")
+check("and no subtitle", lastRows[51].subtitle, "")
 check("the row before it is the fiftieth", t[50], "row 050")
 check("the swift view hands it to Swift as muted", lastRows[51].muted, true)
 local moreState = picker.listState.filtered[51]
