@@ -123,6 +123,9 @@ struct Row {
   var title = ""
   var subtitle = ""
   var enabled = true
+  // The engine's row of more, which ends a list its limit cut, drawn in the subtext colour so it
+  // reads as part of the list rather than as one of its results.
+  var muted = false
   var image: NSImage?
   // The heading an action panel row is listed under, nil for a list row.
   var section: String?
@@ -131,6 +134,7 @@ struct Row {
     title = r.string(t, "title") ?? ""
     subtitle = r.string(t, "subtitle") ?? ""
     enabled = r.bool(t, "enabled") ?? true
+    muted = r.bool(t, "muted") ?? false
     image = r.image(t, "image")
     section = r.string(t, "section")
   }

@@ -1206,7 +1206,7 @@ presentation = {
   matcher     = false,                                   -- optional, false only where the field is not a search, with a search-exempt reason
   titleLineBreak = "truncateMiddle",                     -- optional, a plain string
   searchText  = { member = "searchText", call = "dot" }, -- optional
-  rowLimit    = 200,                                     -- optional, a positive whole number
+  rowLimit    = 200,                                     -- optional, a positive whole number or false
   labels      = { member = "labels", call = "dot" },     -- optional
 }
 ```
@@ -1316,8 +1316,11 @@ the word. The supplier still receives the raw text. An empty answer ranks nothin
 supplier's order, as an empty field does, and an answer that raises or is not a string does the
 same and is said in the console. `rowLimit` is the most rows shown that are neither `pinned` nor
 `fromQuery`, cut after ranking, for a list of thousands of rows, since the provider styles every
-row it is handed. The registrar refuses a `searchText` that is not a member spec resolving to a
-function and a `rowLimit` that is not a positive whole number. `host/stage` hands both to the
+row it is handed. A list that declares none takes the chooser's own limit, `chooser.rowLimit` in
+the person's settings, and `false` opts out of it. Rows a limit cut are offered by a last row, Show
+N more, which the engine adds and answers itself. The registrar refuses a `searchText` that is not
+a member spec resolving to a function and a `rowLimit` that is neither a positive whole number nor
+false. `host/stage` hands both to the
 instance as the second argument of `setMatcher` before every show and swap, so a presentation
 declaring neither clears them, and the instance answers them as the second value of `matcher()`.
 A scope declares the same two under `registry.scope`, and `host/queryscope` refuses either in a

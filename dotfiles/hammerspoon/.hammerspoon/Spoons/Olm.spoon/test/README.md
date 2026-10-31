@@ -15,6 +15,7 @@ Spoons/Olm.spoon/test/rootmechanism.lua     # the chord and alias spelling, the 
 Spoons/Olm.spoon/test/keypage.lua           # the OLM keys page, the keymap as words and the presentation built from them
 Spoons/Olm.spoon/test/swiftview.lua         # the swift chooser's Lua view under the engine over a fake native panel, and its fallback
 Spoons/Olm.spoon/test/panebackends.lua      # one docked pane over the canvas and the native backend, handed the same elements
+Spoons/Olm.spoon/test/canvasbar.lua         # the canvas bar's two groups by swift's numbers, the list behind them and the pointer on them
 Spoons/Olm.spoon/test/keys.sh               # every bound chord in the live config, diffed against keys.golden
 Spoons/Olm.spoon/test/keys.sh --bound       # what the binder bound under the stub, diffed against keys.golden
 Spoons/Olm.spoon/test/views.sh --offline    # the launcher's catalog and every leader's cheat sheet under the stub, against their goldens

@@ -1307,8 +1307,9 @@ also carries. A new chooser that highlights its active row reuses the green
 circle rather than inventing its own glyph, so the marker stays one thing across
 every list.
 
-**Back is the first row in a chooser menu.** The action panel under the swift chooser is the one
-exception, since it is a popover left by Escape over a list that never went away, see
+**Back is the first row in a chooser menu.** The action panel under the swift chooser and the
+canvas chooser is the one exception, since it is a popover left by Escape over a list that never
+went away, see
 `Spoons/Olm.spoon/host/actionpanel/AGENTS.md`. For a menu style chooser with levels,
 like DisplayProfiles, the Back row is always the first row, not the last, so
 stepping out is the predictable default and the fresh highlight lands on it, and it
@@ -1417,7 +1418,14 @@ FileSearch can rank ~/dev .js foo by foo, and an empty answer keeps the supplier
 empty query. `rowLimit`, a positive whole number, cuts the rows that are neither pinned nor
 fromQuery after ranking, since the provider styles every row it is handed, at about 17
 microseconds an `hs.styledtext`, so the emoji set's 5648 rows would cost about 190 milliseconds a
-keystroke. The action panel takes the search off the instance while it is open, since its verbs
+keystroke. A list that names none takes the chooser's own, `chooser.rowLimit` in
+`config/settings.lua`, 50 as shipped, and `false` opts a list out. Wherever a limit cut rows, the
+engine ends the list in a row of more, Show 27 more, which carries no item, so a highlight on it
+reports none and a right press on it reaches nobody, and choosing it ranks in the next page with
+the highlight on the first row it added. A new query, a show or a refresh from row one starts from
+one page again. Both choosers read the setting since 2026-10-30, and each draws the row of more in
+the subtext colour, the swift one through a `muted` field on the row it hands its library.
+`decisions/olm-chooser-row-limit.md` has it. The action panel takes the search off the instance while it is open, since its verbs
 do not speak a tool's grammar. The DisplayProfiles, Workspaces and
 TmuxSessions lists and the settings page all inherit now, and the query scope and launcher
 query rows mark what a scope hands over as fromQuery. BrowserTabs tabs, the emoji picker,

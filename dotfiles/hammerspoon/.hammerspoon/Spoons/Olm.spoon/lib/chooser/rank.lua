@@ -227,10 +227,11 @@ local function rowLimitOf(search)
 end
 
 -- The list cut to at most limit rows that are neither pinned nor fromQuery, every kept row
--- left where it stands. A list within the limit is answered as it is.
+-- left where it stands, and what was cut, see M.apply. A list within the limit is answered as
+-- it is, with nothing cut.
 local function limited(list, limit)
-  if not limit or #list <= limit then return list end
-  local out, counted = {}, 0
+  if not limit or #list <= limit then return list, nil end
+  local out, counted, cut, at = {}, 0, 0, nil
   for i = 1, #list do
     local it = list[i]
     if it.fromQuery == true or it.pinned == true then
@@ -238,12 +239,16 @@ local function limited(list, limit)
     elseif counted < limit then
       counted = counted + 1
       out[#out + 1] = it
+      at = #out + 1
+    else
+      cut = cut + 1
     end
   end
-  return out
+  if cut == 0 then return out, nil end
+  return out, { count = cut, at = at or (#out + 1) }
 end
 
--- The supplier's order, a copy, cut to the limit.
+-- The supplier's order, a copy, cut to the limit, and what the limit cut.
 local function supplierOrder(items, limit)
   local out = {}
   for i = 1, #items do
@@ -263,11 +268,14 @@ end
 --- the order the supplier gave them, whatever it sets, since false means the supplier already
 --- owns its own filtering and an empty query has nothing yet to score against. Either way a
 --- search's rowLimit then cuts the rows that are neither pinned nor fromQuery. The second
---- answer is the reason a searchText failed, nil when nothing did.
+--- answer is the reason a searchText failed, nil when nothing did. The third is what the limit
+--- cut, { count, at }, how many rows and the place in the answer just after the last row kept
+--- that the limit counts, where a caller offers the rest, or nil when nothing was cut.
 function M.apply(items, query, matcher, search)
   local limit = rowLimitOf(search)
   if type(matcher) ~= "function" or query == "" then
-    return supplierOrder(items, limit)
+    local out, more = supplierOrder(items, limit)
+    return out, nil, more
   end
 
   local reason
@@ -281,7 +289,10 @@ function M.apply(items, query, matcher, search)
       reason = "searchText answered a " .. type(answer) .. ", not a string"
       answer = ""
     end
-    if not answer:find("%S") then return supplierOrder(items, limit), reason end
+    if not answer:find("%S") then
+      local out, more = supplierOrder(items, limit)
+      return out, reason, more
+    end
     query = answer
   end
 
@@ -316,8 +327,10 @@ function M.apply(items, query, matcher, search)
     if limit and i > limit then break end
     out[#out + 1] = ranked[i].item
   end
+  local more = nil
+  if limit and #ranked > limit then more = { count = #ranked - limit, at = #out + 1 } end
   for i = 1, #trail do out[#out + 1] = trail[i] end
-  return out, reason
+  return out, reason, more
 end
 
 return M

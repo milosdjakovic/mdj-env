@@ -22,6 +22,11 @@
 -- redraw of the same content keeps its place while new content goes back to the top. A painter is
 -- called again with the grown viewport, which is how one that cuts at the viewport hands it all.
 --
+-- Then the canvas chooser's hosting backend, lib/chooser/providers/default/canvas.lua
+-- paneBackend. A pane placed on the companion rect of a canvas view that spans one draws its
+-- content into that view and makes no window of its own, a pane anywhere else and every panel go
+-- to the plain canvas backend, and a pane that moves between the two hides what it left.
+--
 -- How Swift draws the list, and which window it draws it in, is measured live, not here.
 --
 -- Run it.
@@ -409,6 +414,65 @@ check("the radius of a fill", SwiftPane.radiusOf(surface(10, 10)), 12)
 check("the radius of a border alone, widened by half its stroke",
   SwiftPane.radiusOf({ surface(10, 10)[2] }), 12)
 check("no surface, a square pane", SwiftPane.radiusOf({}), 0)
+
+-- The canvas chooser hosting a docked pane in its own surface.
+do
+  local surfaceCanvas = { level = function() end, clickActivating = function() end,
+    frame = function() end, isShowing = function() return false end }
+  hs = { canvas = { new = function() return surfaceCanvas end,
+    windowLevels = { popUpMenu = "popUpMenu" } } }
+  local Canvas = dofile(spoon .. "lib/chooser/providers/default/canvas.lua")
+  Canvas.configure({ panel = {} })
+  local engine = { scene = function() return {} end, isActive = function() return false end }
+  local view = Canvas.new(engine)
+  local list = { x = 100, y = 100, w = 600, h = 400 }
+  local docked = { x = 700, y = 100, w = 400, h = 400, under = 40 }
+  view:place({ canvas = list, companion = docked })
+
+  local made = 0
+  local fallback = function(frame, window)
+    made = made + 1
+    return CanvasBackend.new({ canvas = canvasLib })(frame, window)
+  end
+  local factory = Canvas.paneBackend(fallback)
+  local content = { { type = "text", text = "x", frame = { x = 1, y = 2, w = 3, h = 4 } } }
+
+  local hosted = factory(docked)
+  hosted.place(docked)
+  hosted.render({ { type = "rectangle" } }, content)
+  hosted.show()
+  check("a pane on a spanning list's companion makes no window of its own", made, 0)
+  check("and its content is the list's to draw", view._paneContent, content)
+  hosted.hide()
+  check("hiding it takes the content off the list", view._paneContent, nil)
+
+  local elsewhere = { x = 0, y = 0, w = 300, h = 300 }
+  local loose = factory(elsewhere)
+  loose.place(elsewhere)
+  loose.render({ { type = "rectangle" } }, content)
+  loose.show()
+  check("a pane anywhere else draws in a canvas of its own", made, 1)
+  check("with its surface and its content", #canvases[#canvases].els, 2)
+
+  hosted.show()
+  hosted.place(elsewhere)
+  check("a hosted pane moved off the list leaves it", view._paneContent, nil)
+  local moved = canvases[#canvases]
+  hosted.render({}, content)
+  hosted.show()
+  check("and draws in its own canvas", moved.shown, true)
+  hosted.place(docked)
+  check("moved back, its own canvas is hidden", moved.shown, false)
+
+  check("a panel is never hosted, even on the companion rect",
+    (function() local before = made; factory(docked, { level = "floating" }); return made - before end)(), 1)
+
+  view:place({ canvas = list })
+  local lone = factory(docked)
+  lone.place(docked)
+  check("a list with no companion hosts nothing", made, 4)
+  hs = nil
+end
 
 if failed then
   print("panebackends, FAILED")

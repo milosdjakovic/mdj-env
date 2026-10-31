@@ -243,12 +243,13 @@ function View:feedKey(ev)
 end
 
 -- The row a disabled or enabled title and its picture become for Swift. icon is the picture this
--- view resolved for the row's icon key, or nil while the row has not been near the viewport.
+-- view resolved for the row's icon key, or nil while the row has not been near the viewport. The
+-- engine's row of more goes as muted, its title in the subtext colour, as the canvas view draws it.
 local function rowData(row, icon)
   local image = row.image
   if image == nil then image = icon or nil end
   return { title = plain(row.title), subtitle = plain(row.subTitle), enabled = row.enabled ~= false,
-    image = image }
+    muted = row.more == true, image = image }
 end
 
 -- The rows whose icon is resolved, the ones the viewport shows and one viewport's worth past each

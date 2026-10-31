@@ -52,14 +52,15 @@ local M = {}
 --- must let through instead of claiming, and opts.listKeys, a function(event) that runs a list key
 --- the open list binds with no held leader and answers true when it took the key, and opts.focusHold,
 --- a function answering a release function or nil, asked once per open after the surface shows and
---- released on teardown. Callable more than once, a nil field left unchanged, matching
+--- released on teardown, opts.rowLimit, the most rows a list shows when its presentation names
+--- none, false for no default, and opts.moreIcon, { icon, owner }, the row of more's icon. Callable more than once, a nil field left unchanged, matching
 --- CanvasPanel.configure's own idiom. Whatever calls M.new is expected to have called this first.
 function M.configure(opts)
   opts = opts or {}
   if opts.panel ~= nil then PANEL = opts.panel end
   if opts.ui ~= nil then UI = opts.ui end
   Engine.configure({ ui = opts.ui, yields = opts.yields, listKeys = opts.listKeys,
-    focusHold = opts.focusHold })
+    focusHold = opts.focusHold, rowLimit = opts.rowLimit, moreIcon = opts.moreIcon })
   Canvas.configure({ panel = opts.panel, ui = opts.ui, icon = opts.icon,
     iconElements = opts.iconElements })
   return M
@@ -77,6 +78,12 @@ end
 --- icon source has finished pictures in the background.
 function M.iconsChanged()
   Canvas.iconsChanged()
+end
+
+--- M.paneBackend(fallback) -> the docked pane backend factory that draws a pane inside a canvas
+--- chooser spanning its rect and through fallback anywhere else, see paneBackend in canvas.lua.
+function M.paneBackend(fallback)
+  return Canvas.paneBackend(fallback)
 end
 
 --- M.new(config) answers an instance satisfying lib/chooser/contract.lua exactly, validated by

@@ -528,11 +528,14 @@ function obj.validatePresentation(name, identity, manifest, modules, deps)
   -- neither pinned nor fromQuery, cut after ranking by lib/chooser/rank.lua. A plain value like
   -- rowCount and checked the same way, since zero, a fraction or a string would read as no
   -- limit at runtime and the list of thousands it exists for would build every row in silence.
-  if p.rowLimit ~= nil and (type(p.rowLimit) ~= "number" or p.rowLimit < 1 or p.rowLimit % 1 ~= 0) then
+  -- false is the one other answer, a list that opts out of the chooser's default limit, see
+  -- chooser.rowLimit in config/settings.lua.
+  if p.rowLimit ~= nil and p.rowLimit ~= false
+      and (type(p.rowLimit) ~= "number" or p.rowLimit < 1 or p.rowLimit % 1 ~= 0) then
     broken = true
     if deps.log then
       deps.log("e", string.format(
-        "registrar refused '%s', its presentation.rowLimit is '%s', not a positive whole number",
+        "registrar refused '%s', its presentation.rowLimit is '%s', not a positive whole number or false",
         name, tostring(p.rowLimit)))
     end
   end

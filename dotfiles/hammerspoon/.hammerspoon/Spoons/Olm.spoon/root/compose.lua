@@ -182,6 +182,9 @@ local SHIPPED_POLICY = {
   -- kept selectable as a fallback for now and warned about on every load that picks it, see
   -- decisions/olm-chooser-keys.md.
   chooserProvider = "default",
+  -- The most rows a list shows before its last row offers the rest, when its presentation names
+  -- no rowLimit of its own, false for every row. See chooser.rowLimit in config/settings.lua.
+  chooserRowLimit = 50,
   autoReload = { ignore = { "/config/[^/]+%.json[^/]*$" } },
 
   -- The heading over a sheet's rows that name no group, per role, read by lib/leader.lua's
@@ -267,7 +270,9 @@ end
 -- The drawing backend every docked pane is handed, the strategy lib/dockedpane.lua's header
 -- describes. The swift chooser's native glass pane while that provider is the chosen one and its
 -- library is loaded, so the pane is drawn in the native panel's window as one glass, and the canvas
--- backend otherwise, which draws exactly what every pane drew before. Asked each time a pane is
+-- backend otherwise, wrapped by the default provider's own, which draws a pane docked to an open
+-- canvas list inside the list's surface, one shape as in swift, and leaves anything else to the
+-- plain canvas. Asked each time a pane is
 -- made, which is after wireSwiftChooser has run, and the answer cannot change within a session,
 -- since the provider decides once at configure time. It lives outside obj.run for the same reason
 -- wireSwiftChooser does.
@@ -276,6 +281,12 @@ local function dockedPaneBackend(chooserAtom, chosen)
   if swift and chosen == swift and swift.serving() == "swift" then
     local native = swift.paneBackend()
     if native then return native end
+  end
+  -- Whenever the native pane is not used, since the swift provider falls back to the canvas view
+  -- when its library will not load, and the wrapper hosts only a pane placed on a spanning list.
+  local default = chooserAtom.providers and chooserAtom.providers.default
+  if default and default.paneBackend then
+    return default.paneBackend(paneCanvasLib.new())
   end
   return paneCanvasLib.new()
 end
@@ -695,6 +706,7 @@ function obj.run(olm, cfg)
       focusHold = function(sink) return secureFocusLib.hold(sink, { keys = relayFieldKeys }) end,
       yields = chooserKeys.yields,
       listKeys = chooserKeys.listKeys,
+      rowLimit = policy.chooserRowLimit,
     })
   end
 
@@ -827,6 +839,7 @@ function obj.run(olm, cfg)
     icon = paintIcon,
     yields = chooserKeys.yields,
     listKeys = chooserKeys.listKeys,
+    rowLimit = policy.chooserRowLimit,
     swiftc = sharedDepsScope.path("swiftc-clt"),
     dir = atoms.storage.cacheDir("swiftchooser"),
     log = log,
@@ -2012,6 +2025,17 @@ function obj.run(olm, cfg)
     local ap = modules[plan.identity.actionpanel or "actionpanel"]
     if not (ap and type(ap.isOpen) == "function" and ap:isOpen()) then return nil end
     return (stageModule and stageModule:selectedItem()) or {}
+  end
+
+  -- The row of more's icon, read against the action panel's manifest like the bar's keys icon,
+  -- handed now since the identity is only known once the plan is resolved. Both providers take
+  -- it, since the swift one serves the default when its library is not loaded.
+  do
+    local moreIcon = { icon = "more", owner = plan.identity.actionpanel or "actionpanel" }
+    for _, name in ipairs({ "default", "swift" }) do
+      local provider = chooserAtom.providers and chooserAtom.providers[name]
+      if provider and provider.configure then provider.configure({ moreIcon = moreIcon }) end
+    end
   end
 
   local hintsDeps = {

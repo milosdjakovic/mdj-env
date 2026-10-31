@@ -168,7 +168,10 @@ way under `registry.scope`.
 `rowLimit` is a positive whole number, the most rows your list shows that are neither pinned nor
 fromQuery, kept after ranking so the best ones survive. Declare it for a list of thousands, since
 the provider styles every row it is handed, and hand the engine every row rather than capping in
-your supplier, where a cap would cut rows before they were ranked.
+your supplier, where a cap would cut rows before they were ranked. A list that declares none takes
+the chooser's own limit, 50 as shipped, and every list a limit cut ends in a row the engine adds,
+Show N more, so nothing is out of reach. Declare `false` only for a list that must show every row
+at once.
 
 `enter` is a member handed one function, `proceed`, called in place of showing you
 immediately. Use it when your first row is meaningless before an async gather lands, as

@@ -333,8 +333,9 @@ highlighted row, so Return runs the primary as the bar says. The rows, the field
 and every way out are otherwise exactly as above, the view keeping the list's own rows on screen
 behind the popover and drawing the panel's rows in it. Escape over a floating panel closes the
 panel and not the list, through the engine asking the footer model's `panelAction`, the panel's
-own action name, so the engine never names it. A view that answers nothing, the canvas chooser,
-keeps the Back row and the in place panel.
+own action name, so the engine never names it. The canvas chooser floats it the same way since
+2026-10-30, in a popover drawn by `lib/chooser/providers/default/popover.lua`. A view that answers
+nothing keeps the Back row and the in place panel.
 
 ## Levels, sections and verbs that depend on the row
 

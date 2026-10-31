@@ -1,6 +1,6 @@
 # Olm chooser performance, scrolling and memory
 
-Status. The swift chooser scrolls at 3 frame drops in an 8 second flick and Hammerspoon starts at 44 MB. The canvas chooser still carries one of the five faults, and the legacy chooser none that this repository can fix.
+Status. The swift chooser scrolls at 3 frame drops in an 8 second flick and Hammerspoon starts at 44 MB. The canvas chooser's one remaining fault is fixed on the canvas-glass-layout branch and waits on a live measure, and the legacy chooser carries none that this repository can fix.
 
 ## Now
 
@@ -10,7 +10,7 @@ the list model and the kit and differ in how they draw.
 
 | Fault | swift | canvas (default) | legacy (hs.chooser) |
 |---|---|---|---|
-| Hidden canvas window per text measure | fixed, shared kit | **still open** in the field | not affected |
+| Hidden canvas window per text measure | fixed, shared kit | fixed, field through the kit, not yet measured live | not affected |
 | Lua and AppKit fighting over one scroll | fixed | not affected | not affected |
 | Cursor set again on every scroll frame | fixed | not measured | not ours to fix |
 | A list drawn under an empty band after a filter | fixed | not affected | not affected |
@@ -120,3 +120,11 @@ file. The canvas field's caret measure is the one still open, found by reading
 The offline gates ran on this work for the first time, once Jelenas-MacBook-Pro took `lua5.4`
 through mise. The Olm dry gate checked 35 plugins with 0 findings, 40 accepted and 0 warnings,
 and every offline golden matches, so commits d7a26b00, 3cc2beaf and 53ee283e pass every gate.
+
+### 2026-10-30 19:47
+
+The canvas field's caret measure goes through the kit's cached `exact` now, handed in as
+`style.measure` by the canvas view, on the canvas-glass-layout branch. Same call, same values, so
+the caret cannot move. The standalone field probe hands no measurer and keeps the direct call.
+The dry gate and the goldens pass. The tracker on `hs.canvas.new` has not been run against it
+live yet, and the table says so until it has.
