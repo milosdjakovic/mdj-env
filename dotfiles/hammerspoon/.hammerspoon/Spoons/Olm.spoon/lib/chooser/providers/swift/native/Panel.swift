@@ -249,7 +249,9 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     // the field. It stops at the title bar's bottom edge, since a scroll view under the title bar
     // gets AppKit's own scroll edge effect, a blur with a hard edge over the field and the first
     // row, seen on 2026-10-31, which no setting turned off. The fade is clear by that edge.
-    let under = next.footer.map { $0.maxY - (next.list?.maxY ?? $0.minY) } ?? 0
+    // It reaches the canvas's bottom edge, below the bar's own padding, so the faded rows touch the
+    // window's edge rather than stopping a padding short of it.
+    let under = next.footer.map { _ in next.canvas.height - (next.list?.maxY ?? next.canvas.height) } ?? 0
     let over = max(0, (next.list?.minY ?? 0) - titlebarHeight)
     list.frame = next.list ?? .zero
     list.frame.origin.y -= over

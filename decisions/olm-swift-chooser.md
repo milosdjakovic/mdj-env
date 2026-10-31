@@ -675,3 +675,22 @@ part of the Antinote icon's own design, from a pixel column of a row at rest, wh
 to look at, since only a row in the band crosses the kink. The top fade is one smooth curve now, a
 smoothstep squared from clear at the title bar's edge to full where the first row rests, sampled at
 thirteen stops, with no kink.
+
+### 2026-10-31 14:30
+
+No blur, by Milos's call after seeing every option measured. The fade is the one committed at
+c82ffb8c, the smooth top curve and the straight bottom ramp, and the list now reaches the canvas's
+bottom edge below the bar's own padding, so the faded rows touch the window's edge.
+
+What was tried after the per-row blur, all removed. A native backdrop blur works once the glass
+stands behind the content rather than holding it, an `NSVisualEffectView` blending within the window
+over each band. Its radius is fixed and large, so a partly masked one is only a crossfade in which
+the sharp rows win, the sharpest edge of a subtitle under the bar at 0.337, and a fully masked one
+blurs, at 0.027, but turns the text into a pale smear under the material's tint, its darkest pixel
+at 0.94. All thirteen materials were measured through a temporary hook, removed. Every one blurs
+alike, 0.027 to 0.031, and they differ only in tint, the lightest, sidebar, toolTip and
+underWindowBackground, leaving the text at 0.85. A blur over the band therefore gives strong blur or
+visible rows and never both. The per-row blur, `CIGaussianBlur` on each row's layer, kept the rows
+visible but showed each row's bounds and stepped by a row. A snapshot drawn blurred over the band
+was proposed and declined for the lag it risks, and the private `CABackdropLayer`, which takes a
+radius, was offered and not taken.

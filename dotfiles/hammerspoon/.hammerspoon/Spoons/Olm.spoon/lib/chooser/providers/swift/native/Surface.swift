@@ -182,8 +182,7 @@ final class SharedSurface {
 // field's text so the field reads over a row there and with no kink anywhere, since a kink at the
 // field's bottom drew a line through a row scrolled half into the band, seen on 2026-10-31. Over the
 // list's column alone, since the pane's top is its header. The mask is one layer holding
-// a gradient per column. The rows blur by how deep they sit in a band, in List.swift, since a blur
-// over the content drew nothing inside the glass, see decisions/olm-swift-chooser.md.
+// a gradient per column. Nothing blurs, see decisions/olm-swift-chooser.md for every blur tried.
 final class BottomFade {
   private let mask = CALayer()
   private let listColumn = CAGradientLayer()
