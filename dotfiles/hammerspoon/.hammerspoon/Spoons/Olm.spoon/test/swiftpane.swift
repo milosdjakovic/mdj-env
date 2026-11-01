@@ -1,4 +1,4 @@
-// The swift chooser's native pane, in its real classes, with no window ever shown.
+// The swift chooser's native pane, in its real classes, with nothing ever on screen.
 //
 // Compiled by swiftpane.sh with the library's own sources and run as a program. It pins what the
 // Lua cases cannot see, the AppKit view tree a docked pane lives in. A pane docked in a chooser
@@ -28,6 +28,10 @@
 // window's edge, and the list's column alone from the title bar's bottom edge to where the first
 // row rests, the list running on up behind the field and stopping at the title bar.
 //
+// The pane and the panel window are really shown, since that is what moves a pane between windows,
+// so every rect they are placed on sits far to the left of any display. On screen they flashed a red
+// square over whatever the person was doing on every dry run.
+//
 // Run it through swiftpane.sh, which suite.sh dry does.
 
 import Cocoa
@@ -42,6 +46,9 @@ func check(_ name: String, _ ok: Bool, _ detail: String = "") {
 
 _ = NSApplication.shared
 
+// Left of every display, so a window this program shows is never seen.
+let away: CGFloat = -20000
+
 let red = NSColor(srgbRed: 1, green: 0, blue: 0, alpha: 1)
 let elements: [PaneElement] = [.shape(path: NSBezierPath(rect: NSRect(x: 10, y: 10, width: 50, height: 50)),
   fill: red, stroke: nil, clip: false)]
@@ -50,10 +57,10 @@ let elements: [PaneElement] = [.shape(path: NSBezierPath(rect: NSRect(x: 10, y: 
 let panel = ChooserPanel(ask: { _, _ in false })
 func placePanel(companion rect: NSRect) {
   var p = Placement()
-  p.canvas = NSRect(x: 0, y: rect.minY, width: 480, height: rect.height)
-  p.window = NSRect(x: 0, y: rect.minY, width: rect.maxX, height: rect.height)
+  p.canvas = NSRect(x: away, y: rect.minY, width: 480, height: rect.height)
+  p.window = NSRect(x: away, y: rect.minY, width: rect.maxX - away, height: rect.height)
   p.listFrame = NSRect(x: 0, y: 0, width: 480, height: rect.height)
-  p.paneFrame = NSRect(x: rect.minX, y: 0, width: rect.width, height: rect.height)
+  p.paneFrame = NSRect(x: rect.minX - away, y: 0, width: rect.width, height: rect.height)
   p.companion = rect
   panel.place(p)
 }
@@ -77,9 +84,9 @@ func dock(_ rect: NSRect, height: CGFloat, reset: Bool) {
 
 // The seed rect a pane is first docked on before the chooser settles, the settled one, and a
 // later one at a new size.
-let seed = NSRect(x: 500, y: 200, width: 290, height: 380)
-let first = NSRect(x: 500, y: 200, width: 300, height: 400)
-let wider = NSRect(x: 500, y: 200, width: 340, height: 420)
+let seed = NSRect(x: away + 500, y: 200, width: 290, height: 380)
+let first = NSRect(x: away + 500, y: 200, width: 300, height: 400)
+let wider = NSRect(x: away + 500, y: 200, width: 340, height: 420)
 
 dock(seed, height: 1000, reset: true)
 check("a pane starts in its own window", pane.debug.hosting == "own")
