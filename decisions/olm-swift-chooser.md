@@ -61,6 +61,8 @@ chooser serves and on the canvas otherwise, built on `olm/native-panel`.
   press inside the companion, so a resign key handler that hides would close the list under the
   pane. A press outside is heard by event monitors instead and decided in Lua against the same
   rects the canvas tests, and a press in the companion asks the panel to take key back.
+  Corrected 2026-10-31 17:06. A pane in a window of its own was made a panel that never becomes
+  key, so the reason no longer holds, and the panel now hides when it loses key, see the log.
 - **Switching to the swift provider the moment a background build finishes.** 2026-10-28 11:15.
   The one shared picker instance is built at startup and lives for the session, so a provider
   that changed under it would leave that instance on the old one and any later instance on the
@@ -694,3 +696,16 @@ visible rows and never both. The per-row blur, `CIGaussianBlur` on each row's la
 visible but showed each row's bounds and stepped by a row. A snapshot drawn blurred over the band
 was proposed and declined for the lag it risks, and the private `CABackdropLayer`, which takes a
 radius, was offered and not taken.
+
+### 2026-10-31 17:06
+
+The panel hides when it loses key, reversing the rejection of 2026-10-28. Milos opened the list and
+pressed a shortcut Antinote defines itself, and Antinote took key while the list stayed in front,
+not hearing the keyboard. A press outside was the only dismissal, and a shortcut is no press. The
+rejection's reason was a press on a pane in its own window taking key, and that window is now a
+panel whose `canBecomeKey` answers false, so nothing of Olm's own can take key from the list. The
+resign is decided a tick later, so the resign an orderOut causes and one a refocus has already
+answered both pass, and the Lua view hides through the engine as a press outside does. The field
+also keeps first responder for as long as the panel is up with a field, the window refusing every
+other responder, so a click on a row, the bar, a popover or a docked pane's view cannot take the
+caret from it. Milos confirmed it live on 2026-11-01.

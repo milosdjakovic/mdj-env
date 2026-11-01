@@ -24,7 +24,9 @@
 --- rects. A press inside the companion rect, or in the gap between it and the canvas, keeps the
 --- list and asks the panel to take key again, and any other left press hides it. The gap is
 --- inside on purpose, since with a companion the panel's one shape of glass spans it, which is
---- the one place this differs from the canvas view. A scroll over the companion is claimed
+--- the one place this differs from the canvas view. The panel losing key while up, to another
+--- application's own shortcut or anything else, hides the list too, see native/Panel.swift's THE
+--- FOCUS. A scroll over the companion is claimed
 --- by a scroll wheel tap this view runs while it is started, the way the canvas view's mouse tap
 --- claims it, since an event monitor in Swift could only watch it go by and the window under the
 --- pointer would scroll too. The one exception is a docked pane drawn in this panel's own window,
@@ -604,6 +606,7 @@ local handlers = {
   toggleKeys = function(v) v.engine:toggleKeys() end,
   footerAction = function(v, name) v.engine:footerAction(name) end,
   pressOutside = function(v, x, y) v:_pressOutside(x, y) end,
+  resignedKey = function(v) v.engine:hide() end,
 }
 
 --------------------------------------------------------------------------------

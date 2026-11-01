@@ -44,9 +44,14 @@
 // windows, a docked pane in a window of its own among them, and reported with the point. A press
 // anywhere in this window, the gap and the pane included, lands on glass and is inside, so it is
 // never reported. The Lua view decides the rest, so a press inside the span from the canvas to
-// the companion keeps the list and asks refocus, and any other hides it. Losing key is never
-// treated as a dismissal, since a click on a pane in its own window may take key from the panel,
-// which is why refocus exists.
+// the companion keeps the list and asks refocus, and any other hides it.
+//
+// THE FOCUS. The field holds focus for as long as the panel is up. Nothing in the window takes first
+// responder from it, a click on a row, the bar, a popover or a docked pane's view included, and the
+// panel losing key hides the list, the way a press outside does, since a list in front that no
+// longer hears the keyboard reads as broken. That is what another application's own shortcut does,
+// Antinote's taking key while the list stood over it, seen on 2026-10-31. A pane in a window of its
+// own never becomes key, so a press on it cannot take key from the panel.
 
 import Cocoa
 
@@ -88,6 +93,12 @@ final class KeyPanel: NSPanel {
   override func performKeyEquivalent(with event: NSEvent) -> Bool {
     if event.type == .keyDown, let owner, owner.claim(event) { return true }
     return super.performKeyEquivalent(with: event)
+  }
+
+  // The field keeps first responder while the panel is up, see THE FOCUS above.
+  override func makeFirstResponder(_ responder: NSResponder?) -> Bool {
+    if let owner, !owner.lets(responder) { return false }
+    return super.makeFirstResponder(responder)
   }
 }
 
@@ -133,6 +144,8 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     super.init()
 
     window.owner = self
+    NotificationCenter.default.addObserver(self, selector: #selector(resignedKey),
+      name: NSWindow.didResignKeyNotification, object: window)
     window.isFloatingPanel = true
     window.level = .popUpMenu
     window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
@@ -342,6 +355,28 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     started = false
     for monitor in monitors { NSEvent.removeMonitor(monitor) }
     monitors = []
+  }
+
+  // Whether responder may take first responder, anything while the panel is down or has no field,
+  // and otherwise the field and the editor it edits through alone.
+  func lets(_ responder: NSResponder?) -> Bool {
+    guard window.isVisible, !state.bare else { return true }
+    if responder === field { return true }
+    if let editor = responder as? NSTextView, editor.isFieldEditor,
+      editor === field.currentEditor() || editor.delegate === field || field.currentEditor() == nil {
+      return true
+    }
+    return false
+  }
+
+  // The panel lost key while up, so the list goes down, decided once AppKit has settled, since an
+  // orderOut resigns key on the way down and a refocus may already have taken it back.
+  @objc private func resignedKey() {
+    guard started else { return }
+    DispatchQueue.main.async { [weak self] in
+      guard let self, self.started, self.window.isVisible, !self.window.isKeyWindow else { return }
+      _ = self.ask("resignedKey", [])
+    }
   }
 
   // Gives the panel key again after a press the Lua view kept the list up for, once AppKit has
