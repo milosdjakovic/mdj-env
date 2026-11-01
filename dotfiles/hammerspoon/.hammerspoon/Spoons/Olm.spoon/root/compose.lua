@@ -455,9 +455,9 @@ function obj.run(olm, cfg)
   -- may ask for and the stage word the BrowserTabs harness reads, all read them late.
   local leaderList = {}
   local heldLeaders = {}
-  -- The modifier leaders in use that host a list key, which seal over an open list, read by the
-  -- chooser field's claim below and filled once the leaders in use are known.
-  local sealingModifierLeaders = {}
+  -- The modifier leaders in use that host a list key, which the chooser field yields to below, filled
+  -- once the leaders in use are known.
+  local listModifierLeaders = {}
   -- The watcher for list keys the open list's own field answers, built once the dispatch table is,
   -- and read by the default chooser's field at each press.
   local fieldWatch = nil
@@ -675,24 +675,22 @@ function obj.run(olm, cfg)
   -- before its dispatch ran, so the field is handed a predicate and told nothing else. It asks
   -- every held leader in use, Hyper and META here, and reads them late, since no leader is built
   -- until further down. A key pressed under a held leader therefore never types into the field,
-  -- it falls to that leader's one rule over open lists, its list keys acting and every other key
-  -- swallowed, which is what Milos asked for META over a list. The swift chooser's field asks the
-  -- same two, so both are named once here, in one table, and handed to each.
+  -- it falls to that leader's one rule over open lists, the open list's keys first and every other
+  -- key as it does anywhere. A modifier leader hosting list keys is yielded to as well, since its
+  -- hotkey cannot fire beneath the default chooser's tap, which sees a chord first. The swift
+  -- chooser's field asks the same two, so both are named once here, in one table, and handed to each.
   local chooserKeys = {
     yields = function(ev)
-      return anyHeldLeader(function(leader) return leader:owns(ev) end)
+      if anyHeldLeader(function(leader) return leader:owns(ev) end) then return true end
+      for _, leader in ipairs(listModifierLeaders) do
+        if leader:owns(ev) then return true end
+      end
+      return false
     end,
     -- A list key with no held leader, Ctrl and J, is answered by the field itself while its list
     -- is up, so nothing global claims the chord. Read late, built after the dispatch table.
     listKeys = function(ev)
-      if fieldWatch ~= nil and fieldWatch(ev) == true then return true end
-      -- A modifier leader hosting list keys seals over this list. Its hotkey cannot fire
-      -- beneath this field's tap, which sees a chord first, so the chord is claimed here as the
-      -- no op the leader would have resolved it to, Hyper and a digit moving no row.
-      for _, leader in ipairs(sealingModifierLeaders) do
-        if leader:owns(ev) then return true end
-      end
-      return false
+      return fieldWatch ~= nil and fieldWatch(ev) == true
     end,
   }
   if chooserAtom.providers and chooserAtom.providers.default then
@@ -1895,8 +1893,8 @@ function obj.run(olm, cfg)
   -- keeps the one rule both pairs followed, nothing is revealed over an open list.
   local leadersByName = {}
   -- The leaders hosting at least one list key, by name, read off the lists as applyLists left them.
-  -- A chord opening with no leader is false there and names none. A modifier leader in this set
-  -- seals over an open list, which is only known here, once the lists are laid out.
+  -- A chord opening with no leader is false there and names none. The chooser field yields to a
+  -- modifier leader in this set, which is only known here, once the lists are laid out.
   local hostsListKey = {}
   for _, block in pairs(plan.contexts or {}) do
     for _, b in ipairs(block.bindings or {}) do
@@ -1921,13 +1919,11 @@ function obj.run(olm, cfg)
         end
         local trigger = heldTriggerLib.new({ chord = chordKeyAtom, keyCode = spec.keyCode, key = spec.key })
         if spec.mods ~= nil then
-          -- The modifier half seals over an open list on the terms a modifier leader does, when its
-          -- leader hosts a list key, and leaves a row asking for a modifier its set already holds to
-          -- the held half, which tells the two apart. The held half seals as it always does.
+          -- The modifier half leaves a row asking for a modifier its set already holds to the held
+          -- half, which tells the two apart.
           trigger = compositeTriggerLib.new({ triggers = {
             trigger,
-            modifierTriggerLib.new({ mods = spec.mods, sealsOverLists = hostsListKey[spec.name] == true,
-              skipOverlap = true }),
+            modifierTriggerLib.new({ mods = spec.mods, skipOverlap = true }),
           } })
         end
         leader = leaderLib.new({
@@ -1944,7 +1940,7 @@ function obj.run(olm, cfg)
       end
     else
       -- A leader of modifiers is the modifier trigger handed its set as the base, with the policy
-      -- its entry states, and it seals over an open list when it hosts a list key. It has no tap,
+      -- its entry states. It has no tap,
       -- since holding real modifiers is ordinary typing. A sheet is opt in, and it is revealed by
       -- the trigger once exactly that set has been held for the hold delay.
       local sheet = nil
@@ -1958,7 +1954,7 @@ function obj.run(olm, cfg)
       end
       leader = leaderLib.new({
         name = spec.name,
-        trigger = modifierTriggerLib.new({ mods = spec.mods, sealsOverLists = hostsListKey[spec.name] == true }),
+        trigger = modifierTriggerLib.new({ mods = spec.mods }),
         policy = spec.policy,
         sheet = sheet,
         listOpen = anyListShowing,
@@ -2611,7 +2607,7 @@ function obj.run(olm, cfg)
         leaderList[#leaderList + 1] = leader
         leadersByName[spec.name] = leader
         if not spec.held and hostsListKey[spec.name] then
-          sealingModifierLeaders[#sealingModifierLeaders + 1] = leader
+          listModifierLeaders[#listModifierLeaders + 1] = leader
         end
         if spec.held then
           activeLeaderNames[#activeLeaderNames + 1] = spec.catalogName

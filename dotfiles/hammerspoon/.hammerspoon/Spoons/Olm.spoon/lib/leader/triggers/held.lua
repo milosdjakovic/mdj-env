@@ -47,11 +47,6 @@ function obj.new(spec)
 
   function trigger.bound() end
 
-  -- A held key is a leader that owns every key while it is down, so an open list seals it, the one
-  -- rule over open lists in lib/leader.lua. A trigger claiming real modifiers says nothing, since a
-  -- combination of real modifiers is the app's own key and is never swallowed for a list.
-  trigger.sealsOverLists = true
-
   -- Registers the key with everything the leader decided. Answers false and a reason when there is
   -- nothing to register into, which the leader says once.
   function trigger.start(host)
@@ -68,9 +63,7 @@ function obj.new(spec)
       -- nothing.
       onHold = host:_reveals() and function(code) host:_reveal(code) end or nil,
       onHoldEnd = host:_reveals() and function() host:conceal() end or nil,
-      -- The trigger hands itself over with every key, so a leader listening on more than one
-      -- trigger seals by the one that fired, see _onKey in lib/leader.lua.
-      onKey = function(code, flags) return host:_onKey(code, flags, trigger) end,
+      onKey = function(code, flags) return host:_onKey(code, flags) end,
     })
     return true
   end

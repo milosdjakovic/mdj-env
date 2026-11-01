@@ -306,17 +306,14 @@ binding to both. The modifier half is built with `skipOverlap`, so a binding ask
 its set already holds, Hyper and Shift and 4 for one, is neither claimed nor warned about, since the
 held half still reaches it, and the composite says the count once at start as a routine line.
 `isActive` and `owns` are either half, which is the half pressed, since phase 0 measured that one
-press never arrives as both. Sealing over an open list is per press, so every trigger hands itself
-to `_onKey` as `via` and the adapter reads `sealsOverLists` off the trigger that heard the key. An
-F18 press seals as a held leader always has, and a press of the modifiers seals only when its
-leader hosts a list key, as a modifier leader does. The composite states no sealing of its own. One
+press never arrives as both. Over an open list both halves answer alike, the list's keys first and
+every other key as anywhere, so nothing over a list depends on which half heard a press. One
 sheet serves both halves, filed under the keycode, and two guards keep one press to one sheet. The
 adapter's reveal does nothing while its sheet is already up, and the modifier trigger takes down
 only a sheet it put up itself, so a modifier pressed under F18, or F18's own autorepeat, never
 hides the held half's sheet. Over the default chooser a composite is a held leader in use, so the
 field yields a key its modifier half owns and the claimed hotkey resolves it, a list key acting and
-a global key the bound no op. A combination its modifier half never claimed passes on to the app,
-where a modifier leader sealing over the same list would have swallowed it. The cost is that every
+a global key firing. A combination its modifier half never claimed passes on to the app. The cost is that every
 machine, kanata or not, claims machine wide the four and three modifier combinations its HYPER and
 META rows add up to. `test/leaders.lua` pins the composite, `test/keymap-person.lua` the reader,
 and `test/keymap-fixture-composite.lua` with its golden shows both forms bound through the real root.
@@ -371,20 +368,16 @@ keys bound on, and it was renamed for the one thing it still decides.
 as a bound no op on every leader, where Hyper left it unbound and with passthrough on leaked it
 to the app in front as F18 and the key. And an unknown predicate name warns once per leader. On
 this machine the keys that flip outside a list are Hyper and H, Q and Y, file search's own list
-keys. Inside an open list one rule covers every held leader since phase A of the list keys
-addendum. The leader answers only its bindings for the open list and swallows every other key, so
-with the launcher open Hyper and A, B, C or E are all swallowed while the launcher's keys act, and
-META, which binds no list key here, is inert, the chooser field yielding every key under a held
-leader in use so none is typed. The rule seals a leader whose trigger answers `sealsOverLists`,
-which the held trigger always does. The modifier trigger does when its leader hosts a list key, a
-fact the root knows only once `applyLists` has run and hands over at build. Over the legacy
-chooser a hotkey that fires then resolves to the bound no op. Over the default chooser the field's
-tap sees a chord before any hotkey and a claimed chord never reaches one, so the root's `listKeys`
-claims, as a no op, a key down the field watcher did not take whose own flags hold the whole set of
-a sealing modifier leader in use, through the leader's `owns`, which the modifier trigger answers
-from the event's flags when handed an event. So Hyper as four modifiers and a digit, an arrow or
-Return picks and moves nothing. The plain leader and a modifier leader hosting no list key fire
-over a list as anywhere. Outside lists an unbound key still passes through.
+keys. Inside an open list one rule covers every leader, since 2026-11-01. The open list's bindings
+answer first and every other key does what it does with no list open, so with the launcher open
+its Hyper keys act, Hyper and A still opens its app and META still moves windows. Until then the
+leader swallowed every other key, a seal each trigger stated as `sealsOverLists`, which is gone.
+The precedence is `_resolve`'s own, since a list's bindings are live exactly while it is open. Over
+the default chooser the field's tap sees a chord before any hotkey and a claimed chord never
+reaches one, so the root's `yields` passes on, unclaimed, a key down under a held leader in use or
+whose own flags hold the whole set of a modifier leader hosting a list key, through the leader's
+`owns`, which the modifier trigger answers from the event's flags when handed an event, and the
+hotkey then resolves it. Outside lists an unbound key still passes through.
 It replaced HYPER's `sealedOverLists` and META's and SUPER's `quietOverLists`.
 
 **No hold reveals a sheet over an open list, on any leader.** Hyper's reveal lived in the root

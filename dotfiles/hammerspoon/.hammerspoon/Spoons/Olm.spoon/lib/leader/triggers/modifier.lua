@@ -48,8 +48,6 @@ local log = hs.logger.new("Leader", "info")
 
 --- obj.new(spec) -> trigger
 ---   spec.mods  the base set of real modifiers, empty or absent for a plain combo
----   spec.sealsOverLists  true when this leader hosts a list key, which the root knows once the
----              lists are laid out, so a key it resolves over an open list is the bound no op
 ---   spec.skipOverlap  true when this is the modifier half of a composite, so a binding asking for
 ---              a modifier the base set already holds is left unclaimed and counted rather than
 ---              warned about, since the held half still reaches it
@@ -133,7 +131,7 @@ function obj.new(spec)
     local depth = 0
     local function press()
       depth = 0
-      local fn = host:_onKey(code, flags, trigger)
+      local fn = host:_onKey(code, flags)
       if fn then
         if driven then fn(0) else fn() end
       end
@@ -147,7 +145,7 @@ function obj.new(spec)
     if type(key) ~= "string" or hs.keycodes.map[key:lower()] == nil then key = code end
     if repeats then
       return hs.hotkey.bind(combo, key, press, nil, function()
-        local fn, rep = host:_onKey(code, flags, trigger)
+        local fn, rep = host:_onKey(code, flags)
         if fn and rep then
           if driven then
             depth = depth + 1
@@ -301,10 +299,6 @@ function obj.new(spec)
     end
     return true
   end
-
-  -- A leader hosting a list key seals over an open list, so a key it resolves there is the bound
-  -- no op and nothing global fires beneath the list, the rule a held leader has always had.
-  trigger.sealsOverLists = spec.sealsOverLists == true
 
   function trigger.bound(host, binding)
     if started then claim(host, binding) end

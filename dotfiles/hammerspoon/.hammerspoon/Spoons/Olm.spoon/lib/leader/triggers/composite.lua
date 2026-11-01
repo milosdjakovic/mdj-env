@@ -25,12 +25,6 @@
 -- is down, the held trigger's answer, and four held modifiers own only an event carrying them, the
 -- modifier trigger's.
 --
--- Sealing over an open list follows the half that fired as well, and that one cannot be answered
--- here, since lib/leader.lua decides it per key press. Each half hands itself to the adapter when it
--- asks about a key, and the adapter reads sealsOverLists off the half it was handed, so an F18 press
--- seals as a held leader does and a modifier press seals only when its leader hosts a list key. The
--- composite therefore states no sealsOverLists of its own.
---
 -- It is pure Lua apart from a logger, so a plain test drives it over the real halves with stubs.
 
 local obj = {}

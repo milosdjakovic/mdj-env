@@ -23,9 +23,9 @@ and META on the window role here, each an instance of the one adapter `lib/leade
 policy from `policy.leaderPolicy`, plus a plain leader on an empty set of modifiers for a combo
 with no leader, and the composition root loops over them naming none. A key gated off is swallowed
 on every leader and an unknown predicate name warns once on every leader. Over an open list every
-held leader answers only its bindings for the open list and swallows every other key, one rule
-since phase A of the list keys addendum, so META, which binds no list key here, is inert there,
-and outside lists an unbound key still passes through. The bindings on one key are ranked by
+leader answers the open list's bindings first and every other key as it does with no list open,
+since 2026-11-01, so Hyper and J moves down a list and Hyper and A still opens its app, and outside
+lists an unbound key still passes through. The bindings on one key are ranked by
 priority on HYPER, `ranked`, and taken first exact match on META and SUPER, and list bindings are
 ranked on every leader. One cheat sheet host,
 `host/leadersheet`, draws whichever held leader is down, its layout a table beside `sheet = true`
@@ -80,6 +80,8 @@ aliases live only in `config/keymap.lua`.
 - **Keeping global keys live over an open list.** 2026-10-20. Leaving an unbound Hyper key to
   pass through while a list is open would let a global toggle fire underneath the list, acting on
   whatever sits behind it. Milos chose to swallow instead, see the log.
+  Corrected 2026-11-01. Milos reversed it, the open list's keys first and every other key live,
+  see the log.
 - **A plugin naming a leader rather than a role.** 2026-10-19 16:44. It would let a binding say
   `option` directly, but a shipped plugin would then know the person's own leader names. A binding
   names a role and a leader answers roles, so a plugin travels and the person decides where.
@@ -1006,3 +1008,16 @@ aliases live only in `config/keymap.lua`.
   lines. `keys.sh --offline --update` refuses to write when the projection and the binder
   disagree, which is the case of the entry above, so it can no longer be patched over by hand.
   The rule is in the spoon's `AGENTS.md` under goldens and in the `olm-plugin` skill's gates.
+- 2026-11-01 09:44. Over an open list the list's keys come first and every other key acts as it
+  does with no list open, a global binding firing and an unbound key passing through, at Milos's
+  call. Asked whether to keep the seal, block every modifier, or let keys through, he chose this
+  over the proposal to pass only the keys that switch apps, so META's window moves and other keys
+  that take no focus now act on the window behind a list too, which is the cost the 2026-10-20
+  rejection named. What made it worth revisiting is the swift chooser hiding when it loses key,
+  `olm-swift-chooser.md` 2026-10-31 17:06, so an app opened from over a list closes the list
+  rather than leaving it standing over the app. The seal is gone rather than switched off. Each
+  trigger's `sealsOverLists` and the `via` it handed `_onKey` are removed, since a list's bindings
+  are live exactly while it is open and `_resolve` answering them first is the whole rule. The
+  root's chooser field now yields a modifier leader hosting a list key, where it had claimed that
+  chord as the no op, so the hotkey resolves it. `test/leaders.lua` pins the new rule. Milos
+  confirmed it live.

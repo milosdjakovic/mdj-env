@@ -198,8 +198,8 @@ do
   end
 end
 
--- Hyper's modal rule. While any context predicate is live, a binding with no when is dropped,
--- and within a tier the best priority wins. The window leader has no contexts and no priority.
+-- Hyper's list precedence. While any context predicate is live its list bindings answer first and
+-- a binding with no when only where none does, and within a tier the best priority wins. The window leader has no contexts and no priority.
 do
   local h = newHyper(predicates)
   h:bind("a", handler("base"))
@@ -213,7 +213,7 @@ do
 
   live.ctxA, live.ctxB = true, false
   eq(nameOf((h:_resolve(list, {}))), "ctxA", "hyper: a live context beats the base binding")
-  eq(h:_resolve(listOf(h, "b"), {}), nil, "hyper: while a context is live a binding with no when is dropped")
+  eq(nameOf((h:_resolve(listOf(h, "b"), {}))), "baseOnly", "hyper: while a context is live a binding with no when still answers its own key")
 
   live.ctxA, live.ctxB = true, true
   eq(nameOf((h:_resolve(list, {}))), "ctxB", "hyper: the higher priority wins between live contexts")
@@ -247,9 +247,8 @@ do
   live.ctxA = true
   eq(nameOf((k:_resolve(listOf(k, "c"), {}))), "listOnly", "hyper: the list key runs while its list is live")
 
-  -- A base binding dropped by the modal rule is outranked rather than gated, so while a list is
-  -- open a key whose only binding is a base one still resolves to nothing and passes through.
-  eq(h:_resolve(listOf(h, "b"), {}), nil, "hyper: a base key dropped by the modal rule still resolves to nothing")
+  -- While a list is open a key whose only binding is a base one runs it, since 2026-11-01.
+  eq(nameOf((h:_resolve(listOf(h, "b"), {}))), "baseOnly", "hyper: a base key runs while a list is open")
   live.ctxA = false
 end
 
@@ -381,18 +380,16 @@ end
 -- What the merge added
 --------------------------------------------------------------------------------
 
--- The one rule over open lists, phase A of the list keys addendum. While a list is open a held
--- leader answers only its bindings for the open list and swallows every other key, whatever its
--- policy, and with no list open it is unchanged. It replaced quietOverLists and sealedOverLists.
--- A held leader is one whose trigger seals over lists, which the held trigger says, so these use a
--- trigger saying the same.
-local SEALED = { sealsOverLists = true, bound = function() end, isActive = function() return false end,
+-- The one rule over open lists, since 2026-11-01. While a list is open a leader answers its bindings
+-- for the open list first and every other key as it does with no list open, whatever its policy and
+-- whatever trigger heard it. Until then it swallowed every other key.
+local TRIGGER = { bound = function() end, isActive = function() return false end,
   owns = function() return false end, start = function() return true end }
 do
   for _, policy in ipairs({ HYPER_POLICY, WINDOW_POLICY }) do
     local open = false
     live.ctxA = false
-    local e = newLeader(policy, predicates, { listOpen = function() return open end, trigger = SEALED })
+    local e = newLeader(policy, predicates, { listOpen = function() return open end, trigger = TRIGGER })
     local which = policy.ranked and "hyper" or "window"
     e:bind("a", handler("global"))
     e:bind("c", handler("listKey"), nil, { when = "ctxA", priority = 100 })
@@ -402,81 +399,52 @@ do
     eq(e:_onKey(b, {}), nil, which .. " over lists: with no list open an unbound key passes through")
     eq(nameOf((e:_onKey(c, {}))), "globalC", which .. " over lists: with no list open the global key on a list key's chord acts")
     open, live.ctxA = true, true
-    eq(nameOf((e:_onKey(c, {}))), "listKey", which .. " over lists: a bound list key of the open list acts")
-    local g = e:_onKey(a, {})
-    eq(type(g), "function", which .. " over lists: a global key is swallowed")
-    eq(nameOf(g), nil, which .. " over lists: and runs nothing")
-    local u = e:_onKey(b, {})
-    eq(type(u), "function", which .. " over lists: an unbound key is swallowed")
-    eq(nameOf(u), nil, which .. " over lists: and runs nothing")
+    eq(nameOf((e:_onKey(c, {}))), "listKey", which .. " over lists: the open list's key wins over the global key on its chord")
+    eq(nameOf((e:_onKey(a, {}))), "global", which .. " over lists: a global key still acts")
+    eq(e:_onKey(b, {}), nil, which .. " over lists: an unbound key still passes through")
     live.ctxA = false
-    local other = e:_onKey(c, {})
-    eq(nameOf(other), nil, which .. " over lists: a list key of another list is swallowed, never the global key on its chord")
+    eq(nameOf((e:_onKey(c, {}))), "globalC", which .. " over lists: over another list the global key on a list key's chord acts")
     open = false
   end
 
-  -- A leader binding no list key is inert over a list, which is what META was through quietOverLists.
-  local open = true
-  local w = newLeader(WINDOW_POLICY, predicates, { listOpen = function() return open end, trigger = SEALED })
+  -- A leader binding no list key acts over a list as anywhere, META's window moves among them.
+  local w = newLeader(WINDOW_POLICY, predicates, { listOpen = function() return true end, trigger = TRIGGER })
   w:bind("a", handler("move"))
-  local q = w:_onKey(hs.keycodes.map.a, {})
-  eq(type(q), "function", "over lists: a leader with no list key swallows its keys over a list")
-  eq(nameOf(q), nil, "over lists: and runs none of them")
+  eq(nameOf((w:_onKey(hs.keycodes.map.a, {}))), "move", "over lists: a leader with no list key acts over a list")
 
   -- List bindings on a leader that is not ranked still rank, so a closed list's gated binding bound
   -- first never swallows the open list's on the same key.
-  local m = newLeader(WINDOW_POLICY, predicates, { name = "meta", listOpen = function() return open end, trigger = SEALED })
+  local m = newLeader(WINDOW_POLICY, predicates, { name = "meta", listOpen = function() return true end, trigger = TRIGGER })
   m:bind("c", handler("listA"), nil, { when = "ctxA", priority = 100 })
   m:bind("c", handler("listB"), nil, { when = "ctxB", priority = 100 })
   live.ctxA, live.ctxB = false, true
   eq(nameOf((m:_onKey(hs.keycodes.map.c, {}))), "listB", "over lists: on meta the open list's key answers past a closed list's")
   live.ctxA, live.ctxB = false, false
 
-  -- A leader on real modifiers is never sealed. The plain leader's combination and a named
-  -- modifier leader's chord fire over an open list as they do anywhere, since the app beneath
-  -- would otherwise lose a key the hotkey still takes, the fix round's first blocker.
+  -- A leader on real modifiers answers the same way. The plain leader's combination and a named
+  -- modifier leader's chord fire over an open list, and one hosting a list key answers that first.
   local modifier = assert(loadfile(lib .. "leader/triggers/modifier.lua"))()
   local plain = newLeader({}, predicates, { listOpen = function() return true end, trigger = modifier.new({ mods = {} }) })
   plain:bind("`", handler("summon"), { "alt" })
   eq(nameOf((plain:_onKey(hs.keycodes.map["`"], { alt = true }))), "summon",
     "over lists: the plain leader's combination fires over an open list")
-  local nav = newLeader({}, predicates, { listOpen = function() return true end,
-    trigger = modifier.new({ mods = { "shift", "ctrl" } }) })
-  nav:bind("a", handler("navA"))
-  eq(nameOf((nav:_onKey(hs.keycodes.map.a, {}))), "navA", "over lists: a named modifier leader's chord fires over an open list")
-  local heldTrigger = assert(loadfile(lib .. "leader/triggers/held.lua"))().new({})
-  eq(heldTrigger.sealsOverLists, true, "over lists: the held trigger is the one that seals")
-
-  -- A modifier leader hosting a list key seals over an open list, the root saying so through the
-  -- trigger once it knows which leaders host one. A key it resolves there that is no list key is the
-  -- bound no op, and a leader hosting none still fires.
   local FOUR = { "shift", "ctrl", "alt", "cmd" }
-  eq(modifier.new({ mods = FOUR }).sealsOverLists, false, "sealing: a modifier trigger says nothing by default")
-  local listUp = true
-  local sealing = newLeader({ ranked = true }, predicates, { name = "hyper", listOpen = function() return listUp end,
-    trigger = modifier.new({ mods = FOUR, sealsOverLists = true }) })
-  sealing:bind("a", handler("toggle"))
-  sealing:bind("b", handler("listB"), nil, { when = "ctxA", priority = 100 })
+  local hosting = newLeader({ ranked = true }, predicates, { name = "hyper", listOpen = function() return true end,
+    trigger = modifier.new({ mods = FOUR }) })
+  hosting:bind("a", handler("toggle"))
+  hosting:bind("b", handler("emoji"))
+  hosting:bind("b", handler("listB"), nil, { when = "ctxA", priority = 100 })
   live.ctxA = true
-  local sealedKey = sealing:_onKey(hs.keycodes.map.a, {})
-  eq(type(sealedKey), "function", "sealing: a modifier leader hosting a list key resolves a global key over a list")
-  eq(nameOf(sealedKey), nil, "sealing: to the bound no op")
-  eq(nameOf((sealing:_onKey(hs.keycodes.map.b, {}))), "listB", "sealing: and its list key still acts")
-  local unbound = sealing:_onKey(hs.keycodes.map.c, {})
-  eq(type(unbound), "function", "sealing: even a key nothing binds is the no op over a list")
+  eq(nameOf((hosting:_onKey(hs.keycodes.map.a, {}))), "toggle", "over lists: a modifier leader hosting a list key fires a global key")
+  eq(nameOf((hosting:_onKey(hs.keycodes.map.b, {}))), "listB", "over lists: and its list key wins on a shared chord")
+  eq(hosting:_onKey(hs.keycodes.map.c, {}), nil, "over lists: and a key nothing binds passes through")
   live.ctxA = false
-  local open = true
-  local firing = newLeader({ ranked = true }, predicates, { name = "hyper", listOpen = function() return open end,
-    trigger = modifier.new({ mods = FOUR, sealsOverLists = false }) })
-  firing:bind("a", handler("toggle"))
-  eq(nameOf((firing:_onKey(hs.keycodes.map.a, {}))), "toggle", "sealing: a modifier leader hosting no list key still fires over a list")
-  listUp = false
-  eq(nameOf((sealing:_onKey(hs.keycodes.map.a, {}))), "toggle", "sealing: with no list open the sealing leader fires as ever")
+  eq(nameOf((hosting:_onKey(hs.keycodes.map.b, {}))), "emoji", "over lists: with its list closed the global key on that chord acts")
 
   -- The default chooser's field tap sees a chord before the hotkey, so the root asks the leader whether
   -- an event is its own, by the flags the event carries rather than the live keyboard.
   local function event(flags) return { getFlags = function() return flags end } end
-  local owner = newLeader({}, predicates, { name = "hyper", trigger = modifier.new({ mods = FOUR, sealsOverLists = true }) })
+  local owner = newLeader({}, predicates, { name = "hyper", trigger = modifier.new({ mods = FOUR }) })
   heldMods = {}
   eq(owner:owns(event({ shift = true, ctrl = true, alt = true, cmd = true })), true,
     "owns: an event holding the whole set is the leader's, whatever the keyboard says")
@@ -870,7 +838,7 @@ do
     registered, engineDown, hotkeysBound, taps, timers, heldMods = {}, false, {}, {}, {}, {}
     local halves = {
       held.new({ chord = (not opts.noEngine) and engine or nil, keyCode = F18, key = "capsLock" }),
-      modifier.new({ mods = opts.mods or FOUR, sealsOverLists = opts.hostsListKey == true, skipOverlap = true }),
+      modifier.new({ mods = opts.mods or FOUR, skipOverlap = true }),
     }
     local leaderOpts = { name = "hyper", trigger = composite.new({ triggers = halves }), keyCode = F18,
       listOpen = opts.listOpen, sheet = opts.sheet, holdDelay = 0.4 }
@@ -927,20 +895,18 @@ do
   eq(h:owns(event(hs.keycodes.map.a, { shift = true, ctrl = true, alt = true })), false,
     "owns: a key carrying part of the set is not")
 
-  -- Sealing follows the half that fired. Over an open list an F18 press seals as a held leader does,
-  -- and a press of the modifiers seals only when the leader hosts a list key.
-  for _, hosts in ipairs({ false, true }) do
+  -- Over an open list both halves fire a global key, an F18 press as a press of the modifiers.
+  do
     local ran = 0
-    local s = build({ hostsListKey = hosts, listOpen = function() return true end })
-    s:bind("a", function() ran = ran + 1 end)
-    s:start()
+    local s2 = build({ listOpen = function() return true end })
+    s2:bind("a", function() ran = ran + 1 end)
+    s2:start()
     local viaHeld = registered[F18].onKey(hs.keycodes.map.a, {})
-    eq(type(viaHeld), "function", "sealing: an F18 press over a list resolves to a function, hosting " .. tostring(hosts))
+    eq(type(viaHeld), "function", "over lists: an F18 press resolves its global key")
     viaHeld()
-    eq(ran, 0, "sealing: and it is the no op, a held leader sealed, hosting " .. tostring(hosts))
+    eq(ran, 1, "over lists: and runs it")
     hotkeysBound[1].press()
-    eq(ran, hosts and 0 or 1, "sealing: a press of the modifiers seals only when the leader hosts a list key, hosting "
-      .. tostring(hosts))
+    eq(ran, 2, "over lists: and a press of the modifiers runs it too")
   end
 
   -- A binding asking for a modifier the set already holds is left to the held half, unclaimed and

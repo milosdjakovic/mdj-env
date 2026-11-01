@@ -341,20 +341,16 @@ reject them; the trade is that the three leaders stay distinct, which one shared
 Hyper modifier combo could not give.
 A key whose bindings are all gated off at that moment is bound rather than unbound, so it is
 swallowed on every leader and never leaks, since a key reserved for a situation is never
-reused for anything else. Only a key nothing binds leaks. Inside an open list the rule reaches
-further, and it is one rule for every held leader. While any list is open a held leader answers
-only its bindings for the open list and swallows every other key, so with the launcher open
-Hyper and A or B or C or E is swallowed alike while the launcher's own Hyper keys act, and META,
-which binds no list key here, is inert. The default chooser's field yields every key pressed under
-a held leader to that leader, so META and a letter over a list is swallowed rather than typed. The
-rule is a leader whose trigger answers `sealsOverLists`, a held leader always and a modifier leader
-when it hosts a list key, so Hyper as four modifiers and a digit over a list does nothing. A plain
-combination such as Option and backtick, or a chord on a modifier leader hosting no list key,
-fires over a list as it does anywhere.
-Outside lists an unbound key still passes through. That
-rule replaced two policy fields, `sealedOverLists` on HYPER and `quietOverLists` on META and
-SUPER, which are refused by name now with `contexts`, the field that once made HYPER the one
-leader list keys could sit on.
+reused for anything else. Only a key nothing binds leaks. Inside an open list it is one rule for
+every leader. The open list's own keys answer first and every other key does what it does with
+no list open, so with the launcher open Hyper and J moves down the list while Hyper and A still
+opens its app, and META still moves windows. That was Milos's call on 2026-11-01, and until then
+every other key was swallowed over a list, `decisions/olm-keymap.md` has both. An app opened this
+way takes focus, and the swift chooser hides when it loses focus, so no list is left over it. The
+chooser fields yield every key pressed under a held leader, and under a modifier leader hosting a
+list key, to that leader, so META and a letter over a list is never typed. The rule replaced two
+policy fields, `sealedOverLists` on HYPER and `quietOverLists` on META and SUPER, which are refused
+by name now with `contexts`, the field that once made HYPER the one leader list keys could sit on.
 
 A bound key may also REPEAT while it stays held, and how it repeats is the leader's choice
 rather than the binding's. A binding says only that it repeats, which is a fact about the
@@ -422,9 +418,9 @@ filtered out; names+icons cached at load, only the running split recomputed per
 show). Holding a leader whose policy states a sheet shows that leader's sheet from the same host, just
 that leader's bindings (META's resizes on the bare arrows and moves on WASD);
 pressing any bound key cancels it. While any Olm list is open, the launcher or
-any plugin picker, no hold reveals a sheet on any leader, and every held leader answers only its
-keys for the open list, META's window keys inert though still swallowed, so no sheet appears over
-an open list and no window action fires underneath one. One gate answers it,
+any plugin picker, no hold reveals a sheet on any leader, and every leader answers the open list's
+keys first and every other key as it does anywhere, so no sheet appears over an open list. One gate
+answers it,
 `lib/listopen.lua`'s `anyShowing`, walking the same `contextOwners` table the predicates
 route through, which the root wraps as `anyListShowing` and hands to every leader as `listOpen`. A leader's rows are every global row the keymap
 holds on it, read by `lib/hints.lua`'s `sheetRows` once in `root/compose.lua` after the keymap is
