@@ -50,16 +50,7 @@ ghostty-new() {
 # Editor
 export EDITOR=nvim
 
-# fzf's options live in one file that fzf rereads at every launch, so the string is written
-# once for this shell, for tmux and for herdr's popups, and a change reaches a picker inside a
-# server without restarting it. The file carries the reasons for every colour. The export is
-# guarded on the file being readable, because fzf treats a file it cannot open as a hard
-# error, exit 2 with no output, rather than as an absent default. The variable is unset first,
-# because fzf applies the file and then the variable, so a string inherited from a server or a
-# shell older than this file would silently win over it, which is exactly what happened on the
-# day the string moved.
-unset FZF_DEFAULT_OPTS
-[[ -r "$HOME/.config/fzf/fzfrc" ]] && export FZF_DEFAULT_OPTS_FILE="$HOME/.config/fzf/fzfrc"
+# fzf's options file is exported in .zshenv, so a zsh that never reads this file has it too.
 
 
 # Tool initializers

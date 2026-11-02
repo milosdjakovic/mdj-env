@@ -2,3 +2,6 @@
 # module's contract with the layer above, so it belongs to the repository rather than to the
 # running configuration.
 DEPENDENCIES
+# The module guidance is notes for a person reading the repository, not anything zsh loads.
+AGENTS.md
+CLAUDE.md
