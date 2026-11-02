@@ -392,7 +392,7 @@ end
 --- itself moved to another physical key. The literal is the answer only when the catalog has
 --- nothing for that role either.
 function obj:_leaderName(role)
-  if not role then return self._leaderNames.app or "Hyper" end
+  if not role then return self._leaderNames.app or "\u{2726}" end
   return self._leaderNames[role] or tostring(role)
 end
 

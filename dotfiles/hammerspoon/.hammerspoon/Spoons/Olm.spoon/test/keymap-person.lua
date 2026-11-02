@@ -692,6 +692,20 @@ end
 -- action panel. pane has no move keys and closes on its own key, the way the launcher does.
 local surface = assert(loadfile(here .. "../lib/surface.lua"))()
 local hints = assert(loadfile(here .. "../lib/hints.lua"))()
+-- The key panel never lists a key the bar already shows. Every footer model any case below builds
+-- is held to that, so the rule is checked on every list shape the cases exercise.
+do
+  local footerModel = hints.footerModel
+  hints.footerModel = function(...)
+    local model = footerModel(...)
+    eq(table.concat(hints.redundantKeys(model), ","), "",
+      "key panel: no key the bar already shows, for " .. tostring((...)))
+    return model
+  end
+end
+eq(table.concat(hints.redundantKeys({ right = { { action = "pick" } }, keysAction = "show",
+  keys = { { action = "pick", label = "Pick" }, { action = "show", label = "Keys" }, { action = "move", label = "Move" } } }), ","),
+  "Pick,Keys", "key panel: the check names an entry the bar's right side or its keys group already shows")
 local labelsLib = assert(loadfile(here .. "../lib/labels.lua"))()
 local LIST_KEYCODES = {}
 do
@@ -1408,8 +1422,8 @@ do
   local keys = {}
   for _, k in ipairs(model.keys) do keys[#keys + 1] = table.concat(k.badges, "+") .. " " .. k.label end
   eq(table.concat(keys, " | "),
-    "return Choose Files | Hyper j+down Move down | Hyper k+up Move up | Hyper d Delete | Hyper p Peek | Hyper x+escape Close | cmd+shift+/ Keys | cmd+1+cmd+9 Choose rows 1 to 9",
-    "footer: every other key in declaration order, the primary reading Return alone, then Command with a digit, and no Back on a level Backspace does not leave")
+    "Hyper j+down Move down | Hyper k+up Move up | Hyper d Delete | Hyper p Peek | Hyper x+escape Close",
+    "footer: every other key in declaration order, nothing the bar or the rows already show, and no Back on a level Backspace does not leave")
   local before = model.state
   gate.open = false
   local gated = hints.footerModel("bar", plan, deps)
@@ -1484,7 +1498,7 @@ do
   eq(panel.right[1].label, "Delete", "panel: Return reads the highlighted panel row's title")
   eq(#panel.right, 2, "panel: no secondary, only Return and the action panel's chord")
   eq(panel.right[2].action, "openActionPanel", "panel: the second entry closes the panel")
-  eq(keyLabels(panel), "Move down,Move up,Close,Back,Choose rows 1 to 9",
+  eq(keyLabels(panel), "Move down,Move up,Close,Back",
     "panel: the key panel lists the shared held keys and Back, not the list's own verbs or its inert field keys")
   openRow = {}
   eq(hints.footerModel("bar", plan, deps).right[1].label, "Run", "panel: Run when no row is highlighted")
@@ -1574,11 +1588,11 @@ do
   for _, k in ipairs(hints.footerModel("bar", { contexts = { bar = block } }, deps).keys) do
     if k.action == "showKeys" then keyPanel = k.badges[1] end
   end
-  eq(keyPanel, "\u{2318}?", "showKeys: the key panel row spells it the same way")
+  eq(keyPanel, nil, "showKeys: the key panel does not list it, the keys group already shows it")
   local model = hints.footerModel("bar", { contexts = { bar = block } }, deps)
   local listed = 0
   for _, k in ipairs(model.keys) do if k.action == "showKeys" then listed = listed + 1 end end
-  eq(listed, 1, "showKeys: its two keys are listed once, as Command and ?")
+  eq(listed, 0, "showKeys: neither of its two keys is listed in the key panel")
   eq(model.keysChord, "\u{2318}?", "showKeys: and the key button carries Command and ? beside it")
   local blockKeys = {}
   for _, b in ipairs(block.bindings) do

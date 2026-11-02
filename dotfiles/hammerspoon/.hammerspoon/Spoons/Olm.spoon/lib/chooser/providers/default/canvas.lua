@@ -500,7 +500,7 @@ end
 local function keyLines(model)
   local lines = {}
   for _, k in ipairs(model.keys or {}) do
-    lines[#lines + 1] = { label = k.label or "", chord = table.concat(k.badges or {}, " ") }
+    lines[#lines + 1] = { label = k.label or "", chord = table.concat(k.badges or {}, " "), section = k.section }
   end
   return lines
 end
@@ -755,6 +755,13 @@ function View:_onMouseDown(point, button)
   if not insideWindow and not insideCompanion then
     if button == "left" then self.engine:hide() end
     return false
+  end
+  -- With the key panel open a press anywhere else in the chooser only closes it, the keys group's
+  -- own press included, and a press on the panel itself lands on nothing, as in swift.
+  if self.engine:scene().keysOpen then
+    self._pressedRowIndex, self._pressedEntry, self._popPressed = nil, nil, false
+    if self:_popoverAt(point) ~= "keys" then self.engine:closeKeys() end
+    return true
   end
   -- A press on the keys group toggles the key panel, wherever the spanning bar put it. A press
   -- on an action entry is kept for its release, which runs the entry's action, the way a press

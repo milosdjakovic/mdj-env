@@ -300,3 +300,20 @@ and allows one on a function key, which the relay in `decisions/olm-chooser-keys
 its arrows, Return and Escape firing there while its text came through the chooser. A held leader on
 a function key stays deaf in a password field, and only a modifier Hyper from below secure input,
 kanata here, reaches one. The Rejected section has it.
+
+2026-11-01 19:26. Every shipped leader is spelled as a symbol wherever a chord is read, at
+Milos's request, Hyper as ✦, META as ◆ and SUPER as ❖, so a launcher row reads `Window · ◆ Z`
+where it read `Window · Meta Z`. ✦ is the star other launchers already use for Hyper, ◆ is the
+Meta key the Sun keyboards printed, and ❖ is the usual Super glyph, chosen so none can be taken
+for one of the four macOS modifier glyphs. `LEADER_SYMBOLS` in `root/compose.lua` is the one
+table and `displayName` reads it, so the launcher, the bar, the key panel, the OLM keys page and
+the secure notice all follow. A leader the person names has no symbol and keeps its word, and
+`lib/labels.lua` puts a thin space, U+2009, between a symbol and the key glyph, since with none
+the two touched, Milos's correction the same evening. The key panel opened by ⌘? lists one line per shipped leader under Olm's name and version,
+its symbol as the chord and its word and physical key as the label, and the keys follow under a
+Keys heading. That legend is the one place a symbol is explained.
+
+2026-11-01 19:40. SUPER is ● rather than ❖, Milos's choice from four offered. ❖ read too close
+to ◆ at row size, and it was never more than a loose stand in for the Windows key, which is what
+Super means on Linux. A star, a diamond and a circle are three shapes none can be taken for
+another. The entry above keeps ❖ as what was first shipped.

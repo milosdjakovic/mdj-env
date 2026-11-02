@@ -208,9 +208,9 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
       guard let self, self.state.actions == nil else { return }
       _ = self.ask("wantIcons", [.string(indices.map { String($0 + 1) }.joined(separator: ","))])
     }
-    list.onHighlight = { [weak self] index in
+    list.onHighlight = { [weak self] index, byPointer in
       guard let self, self.state.actions == nil else { return }
-      _ = self.ask("highlighted", [.int(index)])
+      _ = self.ask("highlighted", [.int(index), .bool(byPointer)])
     }
     list.onScroll = { [weak self] y in
       guard let self, self.state.actions == nil else { return }
@@ -291,7 +291,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
       bar.show(footer, style: style, placement: placement, lit: next.keysOpen)
       keys.isHidden = !next.keysOpen
       if next.keysOpen {
-        keys.show(title: footer.title, lines: footer.keys.map { .init(label: $0.label, chord: $0.chord) },
+        keys.show(title: footer.title, lines: footer.keys.map { .init(label: $0.label, chord: $0.chord, section: $0.section) },
           style: style, outer: placement.barPad, inner: placement.barPillPad, lineH: placement.barPillH,
           gap: placement.barGapWide, radius: style.highlightRadius)
       }
@@ -608,7 +608,19 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
       monitors.append(global)
     }
     if let local = NSEvent.addLocalMonitorForEvents(matching: mask, handler: { [weak self] event in
-      if let self, event.window !== self.window { self.outside(event) }
+      guard let self else { return event }
+      if event.window !== self.window {
+        self.outside(event)
+        return event
+      }
+      // With the key panel open a press anywhere else in this window only closes it, and a press
+      // on the panel itself is the panel's, which does nothing with it.
+      if !self.keys.isHidden, let content = self.window.contentView {
+        let hit = content.hitTest(content.convert(event.locationInWindow, from: nil))
+        if let hit, hit.isDescendant(of: self.keys) { return event }
+        _ = self.ask("closeKeys", [])
+        return nil
+      }
       return event
     }) {
       monitors.append(local)

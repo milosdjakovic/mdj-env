@@ -209,12 +209,18 @@ end
 --- action panel on its chord. A list with no primary binding, one whose key the person freed or
 --- a list no surface describes, still chooses on Return, so the primary is always listed.
 ---
---- keys is the key panel, each { badges, label, action }, every other key the open list answers
---- in declaration order, the primary's own chord among them, then the keys the chooser's field
---- reads for itself. Back on Backspace is listed only when deps.backs(contextName) answers true,
+--- keys is the key panel, the ⌘? popover. Its purpose, Milos's rule of 2026-11-01, is reference
+--- for what the screen does not already say, the leader legend and then the keys the open list
+--- answers that nothing visible shows, never a second listing. It is computed rather than curated,
+--- every key the list answers in declaration order, then Back, minus every action the bar carries,
+--- its right side and the keys group's chord, so the primary, the secondary, Actions and showKeys
+--- drop out by the rule and a new bar entry drops out with no edit here. Command with a digit is
+--- not listed since every row shows its number. Each entry is { badges, label, action, section }. Back on Backspace is listed only when deps.backs(contextName) answers true,
 --- the level a press would leave being a pushed one, and never when the list already lists its own
 --- binding on a plain Backspace, the launcher's way out of a hosted list or a page's way back.
---- One of the first nine rows on Command and a digit is always listed.
+--- When deps.legend holds
+--- lines, each { badges, label }, they lead the list with no section and every key after them
+--- carries section Keys, which both popovers draw as a heading.
 ---
 --- While the action panel is open over the list, deps.actionPanel answers the panel row under the
 --- highlight, or an empty table, and the model describes the panel instead, since the panel
@@ -245,11 +251,9 @@ function obj.footerModel(contextName, plan, deps)
     if b.shared == "primary" and not primary then primary = b end
     if bindingActive(b, deps) then
       if b.key == "delete" and (b.mods == nil or #b.mods == 0) then ownBack = true end
-      if b.shared == "secondary" then
-        secondary = secondary or b
-      elseif b.shared == "openActionPanel" then
-        panel = panel or b
-      elseif b.shared ~= nil and sharedSeen[b.shared] then
+      if b.shared == "secondary" then secondary = secondary or b end
+      if b.shared == "openActionPanel" then panel = panel or b end
+      if b.shared ~= nil and sharedSeen[b.shared] then
         -- The second key of a shared verb already listed.
       -- Over the action panel only the shared keys a held leader answers stay listed, since the
       -- list's field keys, showKeys among them, are inert while the panel is open.
@@ -264,8 +268,6 @@ function obj.footerModel(contextName, plan, deps)
   if panelRow or (not ownBack and deps.backs and deps.backs(contextName)) then
     keys[#keys + 1] = { badges = { glyph("delete") }, label = "Back" }
   end
-  keys[#keys + 1] = { badges = { glyph("1", { "cmd" }), glyph("9", { "cmd" }) }, label = "Choose rows 1 to 9" }
-
   local right = {}
   local primaryLabel
   if panelRow then
@@ -290,6 +292,33 @@ function obj.footerModel(contextName, plan, deps)
   -- The key button's own chord, drawn beside it the way Actions carries its chord, the first key
   -- showKeys sits on, or nil when the person freed it or the action panel leaves it inert.
   local keysChord = show and obj.chordFor(show, deps) or nil
+  local keysAction = show and show.action or nil
+
+  -- The key panel is the reference for what the screen does not show. Every key the list answers
+  -- was collected above, and here every action the bar already carries, an entry on its right side
+  -- or the keys group's own chord, is taken out, so no key is ever listed twice whatever a list
+  -- declares. obj.redundantKeys states the same rule as a check.
+  local onScreen = {}
+  for _, r in ipairs(right) do if r.action ~= nil then onScreen[r.action] = true end end
+  if keysAction ~= nil then onScreen[keysAction] = true end
+  local kept = {}
+  for _, k in ipairs(keys) do
+    if k.action == nil or not onScreen[k.action] then kept[#kept + 1] = k end
+  end
+  keys = kept
+
+  -- The legend the root hands in, what each leader's symbol stands for, leads the key panel under
+  -- its header, and the keys then sit under a heading of their own so the two read apart.
+  if deps.legend and #deps.legend > 0 then
+    for _, k in ipairs(keys) do k.section = "Keys" end
+    local listed = {}
+    for _, line in ipairs(deps.legend) do
+      listed[#listed + 1] = { badges = line.badges, label = line.label }
+    end
+    for _, k in ipairs(keys) do listed[#listed + 1] = k end
+    keys = listed
+  end
+
 
   local parts = { "keys " .. tostring(keysChord) }
   for _, r in ipairs(right) do parts[#parts + 1] = tostring(r.label) .. " " .. tostring(r.chord) end
@@ -299,10 +328,23 @@ function obj.footerModel(contextName, plan, deps)
   -- read against it, so the provider draws it through the icon engine like any row icon.
   local keysIcon = { icon = "keys", owner = deps.panelOwner }
   -- The key panel's header, the name and version of this Olm, handed in by the root.
-  return { right = right, keys = keys, keysChord = keysChord, keysIcon = keysIcon,
+  return { right = right, keys = keys, keysChord = keysChord, keysAction = keysAction, keysIcon = keysIcon,
     title = deps.title, panelOpen = panelRow ~= nil, panelAction = panel and panel.action or nil,
     panelTitle = panelRow and deps.actionPanelTitle and deps.actionPanelTitle() or nil,
     state = (panelRow and "panel | " or "") .. table.concat(parts, " | ") }
+end
+
+--- obj.redundantKeys(model) -> labels. The key panel's rule as a check over a footerModel answer,
+--- every key panel entry whose action the bar already carries, on its right side or as the keys
+--- group's own chord. Empty for every model footerModel builds, which the tests hold it to.
+function obj.redundantKeys(model)
+  local onScreen, out = {}, {}
+  for _, r in ipairs(model.right or {}) do if r.action ~= nil then onScreen[r.action] = true end end
+  if model.keysAction ~= nil then onScreen[model.keysAction] = true end
+  for _, k in ipairs(model.keys or {}) do
+    if k.action ~= nil and onScreen[k.action] then out[#out + 1] = tostring(k.label) end
+  end
+  return out
 end
 
 -- The ordered rows the action panel would show for one context, Back first, then the primary

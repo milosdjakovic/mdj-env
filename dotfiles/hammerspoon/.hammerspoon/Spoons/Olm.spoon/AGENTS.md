@@ -483,7 +483,9 @@ each is mechanism rather than wiring, as the keymap plan's last section named. E
 no hs, and knows only the collaborators its caller hands it, so the root keeps the concrete calls
 and the libs keep the rules. `test/rootmechanism.lua` pins all three over fakes.
 
-`lib/labels.lua` is the one spelling of a chord, a leader's name, a space and the key glyph, and of
+`lib/labels.lua` is the one spelling of a chord, a leader's name, a space and the key glyph, with a
+thin space after a shipped leader's symbol, ✦ Hyper, ◆ META and ● SUPER from `LEADER_SYMBOLS` in
+`root/compose.lua`, which the key panel's legend explains under Olm's name, and of
 a set of aliases, the words in brackets. `chordLabel(glyphFor)` answers the speller every surface is
 handed, and the glyph helper is the shared cheat sheet renderer's, handed in rather than loaded
 because the spoon publishes that renderer once. The launcher and the action bar both spell a chord
@@ -526,7 +528,15 @@ pure data, `right` the bar's right side, the primary's label on the Return glyph
 on its chord when the list declares one and its gate is open, and Actions on the action panel's
 chord, `keys` every other key the list answers in declaration order followed by the keys the field
 reads for itself, Back only where Backspace leaves a pushed level and the list lists no Backspace
-binding of its own, and Command with a digit, and `state` one comparable string. While the action
+binding of its own, led by the root's legend of the leader symbols when it hands one, and `state`
+one comparable string. The key panel, the ⌘? popover, is reference for what the screen does not
+already say, Olm's name and version, the legend of the leader symbols, and the keys the list
+answers that nothing visible shows. It is never a second listing, and that is computed rather than
+curated. Every key the list answers is collected, and every action the bar carries, its right side
+and the keys group's own chord, is taken out, so the primary, the secondary, Actions and showKeys
+drop out by the rule and a future bar entry drops out with no edit. Command with a digit is not
+listed, since every row shows its number. `hints.redundantKeys` states the rule as a check, and
+`test/keymap-person.lua` runs it on every footer model its cases build. While the action
 panel is open over the list the model describes the panel, Return labelled with the highlighted
 panel row's title or Run, no secondary, and only the shared keys and Back in the key panel. It reads the
 bindings, the live gates and the label lookup `rowsFor` reads, so the bar, its key panel and the
@@ -621,8 +631,11 @@ highlight and Return already act on the panel's rows. The pointer over a panel l
 `highlightIndex` and a release on one `chooseIndex`, the calls the swift view's hover and choose
 make, a press anywhere on a popover lands on no row, the rows behind a floating panel take no
 hover, press or right click, as swift's list guards them, and a scroll over a popover scrolls its
-own lines when they overflow and never the list. A press elsewhere closes neither, as in swift,
-Escape and the panel's own chord do. `test/canvaspopover.lua` pins the sizes, the placement and
+own lines when they overflow and never the list. A press elsewhere closes the action panel in
+neither chooser, Escape and its own chord do. The key panel is different since 2026-11-01. Any
+press in the chooser away from it, a row, the field, the bar or the keys group, closes it and does
+nothing else, a press on it does nothing at all, and the pointer moving over the rows never closes
+it, the swift list telling Lua which highlight moves were the pointer's. `test/canvaspopover.lua` pins the sizes, the placement and
 the pointer, in the dry tier.
 
 ## Secure focus, a list opened over a password field

@@ -274,7 +274,7 @@ local function footerData(model)
     right[#right + 1] = { label = r.label or "", chord = r.chord or "", action = r.action }
   end
   for _, k in ipairs(model.keys or {}) do
-    keys[#keys + 1] = { label = k.label or "", chord = table.concat(k.badges or {}, " ") }
+    keys[#keys + 1] = { label = k.label or "", chord = table.concat(k.badges or {}, " "), section = k.section }
   end
   local icon = model.keysIcon
   return { right = right, keys = keys, keysChord = model.keysChord, title = model.title,
@@ -589,10 +589,12 @@ local handlers = {
   -- The native list asks for the icons of rows on screen and of the rows its scroll is heading
   -- into, a comma separated list of one based indices, a dozen at most, during a scroll too.
   wantIcons = function(v, list) v:_wantIcons(list) end,
-  highlighted = function(v, index)
+  highlighted = function(v, index, byPointer)
     v._knownHighlight = index
-    v.engine:followHighlight(index)
+    v.engine:followHighlight(index, byPointer == true)
   end,
+  -- A press in the panel away from the open key panel, which closes it and does nothing else.
+  closeKeys = function(v) v.engine:closeKeys() end,
   choose = function(v, index) v.engine:chooseIndex(index) end,
   rightClick = function(v, index) v.engine:rightClickIndex(index) end,
   -- A native scroll moved the viewport, so the engine's model follows it and the rows it brings

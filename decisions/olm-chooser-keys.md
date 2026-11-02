@@ -507,3 +507,25 @@ Left open, the default chooser's field still measures the caret through
 that leaves a hidden canvas window behind each time. It costs nothing while the swift chooser
 serves, since the default one stands in only during a rebuild, and wants the same bounded cache
 the kit's measurer got if the default chooser is ever the one in use again.
+
+2026-11-01 19:40. The key panel stays open until a press, at Milos's request. In the swift chooser
+moving the pointer over the list closed it, because the native list moves its highlight under the
+pointer and reported that move the way it reports an arrow, and the engine closes the panel on any
+key that acts. The list now says which moves were the pointer's, `onHighlight(index, byPointer)`,
+and `followHighlight` closes the panel only for a key's. A press in the chooser away from the open
+key panel now closes it and is swallowed, in both choosers, and a press on the panel itself does
+nothing, where before such a press reached the row or the field under it and left the panel up.
+The action panel keeps its old rule, since Milos asked only about the key panel.
+
+2026-11-01 19:40. The key panel lists nothing something else on screen already shows, Milos's
+rule. The primary's own chord and showKeys are left out of it, since the bar's Return entry and
+the keys group already show them, and Choose rows 1 to 9 is gone, since every row carries its
+number. The secondary and Actions were already left out for the same reason.
+
+2026-11-01 19:52. The key panel's purpose is written down and its rule is computed, at Milos's
+request that it be deterministic. The panel is reference for what the screen does not already
+say, Olm's name and version, the leader legend, and the keys the list answers that nothing visible
+shows. The exclusions in the entry above were a hand list of shared verbs, which a new bar entry
+would have slipped past. `footerModel` now collects every key the list answers and removes every
+action the bar carries, its right side and the keys group's chord, and `hints.redundantKeys` is the
+same rule as a check that every footer model in the person tests is held to.

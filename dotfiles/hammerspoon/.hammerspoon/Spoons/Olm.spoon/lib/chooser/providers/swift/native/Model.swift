@@ -146,6 +146,8 @@ struct Footer {
     var label: String
     var chord: String
     var action: String? = nil
+    // The heading a key panel line is listed under, nil for the legend that leads it.
+    var section: String? = nil
   }
   var right: [Entry] = []
   var keys: [Entry] = []
@@ -163,7 +165,10 @@ struct Footer {
       right.append(Entry(label: r.string(e, "label") ?? "", chord: r.string(e, "chord") ?? "",
         action: r.string(e, "action")))
     }
-    r.each(t, "keys") { e in keys.append(Entry(label: r.string(e, "label") ?? "", chord: r.string(e, "chord") ?? "")) }
+    r.each(t, "keys") { e in
+      keys.append(Entry(label: r.string(e, "label") ?? "", chord: r.string(e, "chord") ?? "",
+        section: r.string(e, "section")))
+    }
     keysChord = r.string(t, "keysChord")
     keysImage = r.image(t, "keysImage")
     title = r.string(t, "title")

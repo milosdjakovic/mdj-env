@@ -15,10 +15,12 @@ local obj = {}
 
 --- labels.chordLabel(glyphFor) -> function(leader, key, mods) -> string
 --- The speller every surface is handed, a leader's name then a space then the key glyph, the glyph
---- from glyphFor(key, mods).
+--- from glyphFor(key, mods). A leader spelled as a symbol, one with no letter in it, takes a thin
+--- space rather than a full one, so it sits close to the glyph without touching it.
 function obj.chordLabel(glyphFor)
   return function(leader, key, mods)
-    return leader .. " " .. glyphFor(key, mods)
+    local space = leader:find("%a") and " " or "\u{2009}"
+    return leader .. space .. glyphFor(key, mods)
   end
 end
 

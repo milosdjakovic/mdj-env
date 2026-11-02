@@ -249,6 +249,41 @@ local SHIPPED_LEADERS = {
     sheetLayout = { columns = 2, colWidth = 250, badgeWidth = 44, gap = 12 } },
 }
 
+-- The symbol each shipped leader is spelled with wherever a person reads a chord, in the order the
+-- key panel's legend lists them. Hyper takes the four pointed star other launchers already use for
+-- it, Meta the diamond the Sun keyboards printed on their Meta key, and Super a plain circle,
+-- a third shape neither of the others can be taken for. A leader the person named has no symbol and reads as its own word.
+local LEADER_SYMBOLS = {
+  { catalogName = "HYPER", symbol = "\u{2726}" },
+  { catalogName = "META", symbol = "\u{25C6}" },
+  { catalogName = "SUPER", symbol = "\u{25CF}" },
+}
+
+local function leaderSymbol(catalogName)
+  for _, entry in ipairs(LEADER_SYMBOLS) do
+    if entry.catalogName == catalogName then return entry.symbol end
+  end
+  return nil
+end
+
+-- The key panel's legend, one line per shipped leader under Olm's name, its symbol as the chord
+-- and its word and physical key as the label, read from this load's leaders so a leader moved to
+-- another key says so. A key name is its USAGE name spelled as words, capsLock as Caps Lock.
+local function leaderLegend(leaderSpecs)
+  local lines = {}
+  for _, entry in ipairs(LEADER_SYMBOLS) do
+    local word = entry.catalogName:sub(1, 1) .. entry.catalogName:sub(2):lower()
+    for _, spec in ipairs(leaderSpecs) do
+      if spec.catalogName == entry.catalogName then
+        local where = spec.key and tostring(spec.key):gsub("^%l", string.upper):gsub("(%l)(%u)", "%1 %2")
+          or "modifiers"
+        lines[#lines + 1] = { badges = { entry.symbol }, label = word .. " \u{00B7} " .. where }
+      end
+    end
+  end
+  return lines
+end
+
 --------------------------------------------------------------------------------
 -- run(olm, cfg), the one door into all of this
 --------------------------------------------------------------------------------
@@ -1133,8 +1168,11 @@ function obj.run(olm, cfg)
   -- role is the word a manifest uses, app or window, and the catalog name is what that role
   -- resolves to on this machine, so a tool moved to the other leader is described correctly
   -- with no second place to edit. Title cased because these are read as words in a sentence
-  -- rather than as the shouted constants the catalog spells them with.
+  -- rather than as the shouted constants the catalog spells them with. A shipped leader reads as
+  -- its symbol instead, LEADER_SYMBOLS, which the key panel's legend explains.
   local function displayName(catalogName)
+    local symbol = leaderSymbol(catalogName)
+    if symbol then return symbol end
     local word = tostring(catalogName)
     return word:sub(1, 1):upper() .. word:sub(2):lower()
   end
@@ -2042,6 +2080,8 @@ function obj.run(olm, cfg)
     panelOwner = plan.identity.actionpanel or "actionpanel",
     -- The key panel's header, this Olm's name and version.
     title = "Olm " .. tostring(olm.version),
+    -- And the legend under it, what each leader's symbol stands for.
+    legend = leaderLegend(leaderSpecs),
     ui = uiAtom,
     chordLabel = chordLabel,
     -- leaderNames hands over each leader's already resolved word rather than the catalog

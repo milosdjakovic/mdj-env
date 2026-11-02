@@ -258,11 +258,15 @@ final class ListView: FlippedView, NSTableViewDataSource, NSTableViewDelegate {
   // waits on Lua, and flushReports sends them at once before anything Lua acts on.
   private var scrollPending = false
   private var highlightPending = false
+  // Whether the last move of the highlight was the pointer's rather than a key's, told to Lua with
+  // the highlight, since a pointer passing over a row is not a key that acted and leaves an open
+  // key panel up.
+  private var highlightByPointer = false
   private var flushScheduled = false
   private static let scrollInterval = 0.05
   private static let highlightInterval = 0.016
   var onScroll: (CGFloat) -> Void = { _ in }
-  var onHighlight: (Int) -> Void = { _ in }
+  var onHighlight: (Int, Bool) -> Void = { _, _ in }
   var onLive: (Bool) -> Void = { _ in }
   // Asks Lua for the icons of these rows, zero based, nearest first.
   var onWantIcons: ([Int]) -> Void = { _ in }
@@ -538,7 +542,7 @@ final class ListView: FlippedView, NSTableViewDataSource, NSTableViewDelegate {
     }
     if highlightPending {
       highlightPending = false
-      onHighlight(highlight)
+      onHighlight(highlight, highlightByPointer)
     }
   }
 
@@ -556,11 +560,12 @@ final class ListView: FlippedView, NSTableViewDataSource, NSTableViewDelegate {
   // The pointer over a row highlights it and leaves the viewport where it is.
   func hover(_ index: Int) {
     guard index >= 0, index < rows.count, index + 1 != highlight else { return }
-    setHighlight(index + 1)
+    setHighlight(index + 1, byPointer: true)
   }
 
-  private func setHighlight(_ h: Int) {
+  private func setHighlight(_ h: Int, byPointer: Bool = false) {
     highlight = h
+    highlightByPointer = byPointer
     relight()
     highlightPending = true
     scheduleFlush(after: Self.highlightInterval)

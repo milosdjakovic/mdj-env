@@ -471,10 +471,16 @@ function Engine:highlightIndex(index)
   self.view:redraw()
 end
 
---- Engine colon followHighlight, arity one, for a view that moves its own highlight, the swift
---- list's arrows and pointer. The engine's highlight follows to index, counting as activity.
-function Engine:followHighlight(index)
-  self:_noteActivity()
+--- Engine colon followHighlight, arity two, for a view that moves its own highlight, the swift
+--- list's arrows and pointer. The engine's highlight follows to index, counting as activity. A
+--- move byPointer is the pointer passing over a row rather than a key that acted, so it tells
+--- onActivity and leaves an open key panel up.
+function Engine:followHighlight(index, byPointer)
+  if byPointer then
+    if self.config.onActivity then safeCall(self.config.onActivity) end
+  else
+    self:_noteActivity()
+  end
   self:highlightIndex(index)
 end
 

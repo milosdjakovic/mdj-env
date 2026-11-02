@@ -278,7 +278,8 @@ list.update(state(highlight: 1, top: 0))
 check("a shorter list after a scroll shows its rows from the top", listTop() == 0, "\(listTop())")
 
 var heard: [Int] = []
-list.onHighlight = { heard.append($0) }
+var byPointer: [Bool] = []
+list.onHighlight = { heard.append($0); byPointer.append($1) }
 list.setRows(rows(50))
 list.update(state(highlight: 1, top: 0))
 heard = []
@@ -288,6 +289,7 @@ check("the viewport moved only far enough to show it above the bar",
   abs(listTop() - (13 * 47 - shown)) < 0.5, "\(listTop())")
 list.flushReports()
 check("a burst of moves reaches Lua as one report", heard == [13], "\(heard)")
+check("and a key's move is not reported as the pointer's", byPointer == [false], "\(byPointer)")
 list.update(state(highlight: nil, top: nil))
 check("a state with no highlight and no scrollTop leaves the list's own",
   list.highlight == 13 && abs(listTop() - (13 * 47 - shown)) < 0.5)
@@ -296,6 +298,17 @@ check("up from the first row wraps to the last", list.highlight == 50)
 check("and shows it at the bottom", abs(listTop() - (50 * 47 - shown)) < 0.5, "\(listTop())")
 list.move(1)
 check("down from the last row wraps to the first", list.highlight == 1 && listTop() == 0)
+heard = []; byPointer = []
+list.hover(2)
+list.flushReports()
+check("the pointer over a row reports its move as the pointer's", heard == [3] && byPointer == [true],
+  "\(heard) \(byPointer)")
+list.move(1)
+list.flushReports()
+heard = []; byPointer = []
+list.move(1)
+list.flushReports()
+check("a key's move after it is a key's again", byPointer == [false], "\(byPointer)")
 
 var asks: [[Int]] = []
 list.onWantIcons = { asks.append($0) }
