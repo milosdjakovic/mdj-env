@@ -51,7 +51,7 @@ private func closeAll() {
   paneClicks = [:]
   for panel in panels.values {
     panel.stop()
-    panel.hide()
+    panel.hide(animated: false)
   }
   panels = [:]
   callbackRef = olm_noRef()
@@ -242,6 +242,25 @@ private let text: lua_CFunction = { L in
 
 private let setText: lua_CFunction = { L in
   panelAt(L)?.setText(LuaReader(L).string(at: 2) ?? "")
+  return 0
+}
+
+// How every surface comes and goes, the kit's motion tokens, { open, close, rise, scale, openCurve,
+// closeCurve }, each curve four control point numbers. A field left out keeps what Motion holds.
+private let setMotion: lua_CFunction = { L in
+  let reader = LuaReader(L)
+  guard reader.isTable(1) else { return 0 }
+  func curve(_ name: String) -> CAMediaTimingFunction? {
+    var p: [Float] = []
+    reader.each(1, name) { e in if let v = reader.number(at: e) { p.append(Float(v)) } }
+    return p.count == 4 ? CAMediaTimingFunction(controlPoints: p[0], p[1], p[2], p[3]) : nil
+  }
+  if let v = reader.number(1, "open") { Motion.openDuration = CFTimeInterval(v) }
+  if let v = reader.number(1, "close") { Motion.closeDuration = CFTimeInterval(v) }
+  if let v = reader.number(1, "rise") { Motion.rise = v }
+  if let v = reader.number(1, "scale") { Motion.scale = v }
+  if let c = curve("openCurve") { Motion.openCurve = c }
+  if let c = curve("closeCurve") { Motion.closeCurve = c }
   return 0
 }
 
@@ -503,6 +522,7 @@ public func luaopen_olm_swiftchooser(_ L: LuaState?) -> Int32 {
   lua_setmetatable(L, -2)
   lua_setfield(L, -2, "_sentinel")
   olm_setFunction(L, "setCallback", setCallback)
+  olm_setFunction(L, "setMotion", setMotion)
   olm_setFunction(L, "new", new)
   olm_setFunction(L, "style", style)
   olm_setFunction(L, "place", place)

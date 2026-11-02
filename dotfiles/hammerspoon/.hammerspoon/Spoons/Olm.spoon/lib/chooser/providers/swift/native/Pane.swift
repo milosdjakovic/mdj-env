@@ -198,6 +198,8 @@ final class PanePanel {
   private var shown = false
 
   private let config: PaneConfig
+  // How its own window comes and goes, in place since it never takes key, see Motion.swift.
+  private lazy var motion = WindowMotion(window, standIn: false)
 
   init(findHost: @escaping FindHost, config: PaneConfig = PaneConfig()) {
     self.findHost = findHost
@@ -322,7 +324,7 @@ final class PanePanel {
   var isVisible: Bool {
     guard shown else { return false }
     if let host { return host.isVisible }
-    return window.isVisible
+    return motion.isUp
   }
 
   // The id a click at point in the canvas's coordinates reports, for the harness.
@@ -331,12 +333,14 @@ final class PanePanel {
   func hide() {
     shown = false
     host?.hidePane(scroller)
-    window.orderOut(nil)
+    motion.hide()
   }
 
-  // Out of whichever window holds it, for good, on destroy and at a reload.
+  // Out of whichever window holds it, for good, on destroy and at a reload, with no fade.
   func close() {
-    hide()
+    shown = false
+    host?.hidePane(scroller)
+    motion.hide(animated: false)
     host?.releasePane(scroller)
     host = nil
   }
@@ -350,7 +354,7 @@ final class PanePanel {
       host?.releasePane(scroller)
       host = next
       if let next {
-        window.orderOut(nil)
+        motion.hide(animated: false)
         surface.release(scroller)
         next.adoptPane(scroller)
       } else {
@@ -374,8 +378,8 @@ final class PanePanel {
   private func present() {
     if let host {
       host.showPane(scroller)
-    } else if config.panel || !window.isVisible {
-      window.orderFrontRegardless()
+    } else if config.panel || !motion.isUp {
+      motion.show { window.orderFrontRegardless() }
     }
   }
 }

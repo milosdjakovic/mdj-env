@@ -709,3 +709,65 @@ answered both pass, and the Lua view hides through the engine as a press outside
 also keeps first responder for as long as the panel is up with a field, the window refusing every
 other responder, so a click on a row, the bar, a popover or a docked pane's view cannot take the
 caret from it. Milos confirmed it live on 2026-11-01.
+
+### 2026-11-02 14:32
+
+The chooser and its two floating panes animate, asked for by Milos as subtle, snappy and cheap.
+Opening fades the window in through its own alpha over 140 ms while its content rises 4 points and
+grows from 98 percent, and closing fades out over 90 ms travelling half as far. The info pane and
+the actions pane do the same on their own layers. All of it is Core Animation, the window alpha the
+compositor's and the rise and zoom one transform animation whose model value stays the identity, so
+nothing lays out, draws or asks Lua while it plays, and Reduce Motion keeps only the fade. Closing
+could not fade the window itself, since a window still up is still key, and a key typed or posted
+in that tenth of a second, an insert a consumer makes in `onClose`, would land in the list. So the
+window goes down at once and its content moves into a stand in, `FadingPanel` in
+`native/Panel.swift`, which never becomes key and takes no pointer, fades it and hands it back, and
+a show during the fade takes it back at once. A preview pane hidden during the fade keeps its region
+until the fade ends, so the list and the pane leave together. `native/Motion.swift` holds the
+timings. Built with no new warning, `test/swiftpane.sh`, the dry gate and the unit cases pass, and
+loaded live clean. The look is not yet confirmed by Milos.
+
+### 2026-11-02 14:38
+
+Milos saw the chooser sometimes open with no fade, on Hyper and E, menu search. The window's fade
+was its `alphaValue` through AppKit's animator, which steps on the main thread, so a list that does
+heavy work right after it shows, menu search reading the menu bar over accessibility, finished the
+fade before a frame of it drew. The entry above is corrected. The fade is now an opacity animation
+on the content's layer, on the render server like the rise and the zoom, and the stand in fades its
+content the same way, ending on a Core Animation completion. The content rests at zero opacity
+while the window is down, so a window ordered front before the animation is committed shows nothing
+rather than the last list. Not yet confirmed live by Milos.
+
+### 2026-11-02 14:48
+
+Every surface the swift library draws now moves one way, asked for by Milos so nothing surprises
+and the look is tuned in one place. `native/Motion.swift` holds the knobs, the two durations, the
+rise, the scale and the two curves, and the only code that animates. A view comes and goes through
+`Motion.appear` and `Motion.disappear`, which the two floating panes use, and a window through a
+`WindowMotion`, the same two over its content, which the chooser uses with a stand in, since it
+takes key, and every `PanePanel` window uses in place, since none takes key, so the cheat sheets,
+the three toasts and a preview pane standing alone all fade, rise and zoom as the chooser does.
+A window fading out in place answers that it is down from the moment the fade starts, so Lua's
+`isShowing` never sees one on its way out. A surface shown while fading out fades back from where it
+had got to, and the cut short close does nothing when it would have ended, matched by a token on
+its animation rather than a counter per caller. `test/drygate-motion.lua` refuses a window ordered,
+an alpha set, an animator or an animation built in any other source of the library, apart from the
+order handed to a `WindowMotion`, so a second way cannot creep back. Built with no new warning,
+`test/swiftpane.sh`, the dry gate with the new rule and the unit cases pass, and loaded live clean.
+Not yet confirmed live by Milos.
+
+### 2026-11-02 15:01
+
+Two gaps in the entry above, found on reviewing it with Milos, closed. The motion's numbers were
+written in `native/Motion.swift`, against the rule that no size the library draws with is written
+in its Swift sources, and tuning them meant a rebuild. They are the `motion` block of
+`config/settings.lua` now, `open`, `close`, `rise` and `scale`, carried by `root/uispec.lua` into the
+kit's `motion` tokens beside the two curves, and handed to the library once at load through the
+view's `attach` and a new `setMotion`. The library holds no number of its own, and until the tokens
+arrive, or with a duration of zero, a surface comes and goes at once. The coming and going had no
+test either, and `test/swiftpane.swift` now pins a window fading out in place answering down at
+once, a show during a fade coming back from where it got to and the cut short close doing nothing
+when it would have ended, the stand in taking no pointer and giving its content back on a show, on
+a reload's close and when its fade ends, a floating pane reopened during its close staying shown,
+and zero durations. The cases that wait for a fade to end spin the run loop and pass. Loaded live
+clean with the tokens read back as 0.14, 0.09, 4 and 0.98.

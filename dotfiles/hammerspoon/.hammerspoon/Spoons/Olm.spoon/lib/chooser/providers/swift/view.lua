@@ -665,9 +665,13 @@ function M.configure(opts)
   return M
 end
 
---- M.attach(native) registers dispatch as the loaded library's callback, once per load.
+--- M.attach(native) registers dispatch as the loaded library's callback, once per load, and hands
+--- it the kit's motion, how every surface it draws comes and goes, see native/Motion.swift. With no
+--- kit configured nothing is handed and every surface comes and goes at once.
 function M.attach(native)
   native.setCallback(M.dispatch)
+  local motion = UI and UI.tokens().motion
+  if motion then native.setMotion(motion) end
 end
 
 --- View colon spansBottomBar, arity zero. True, since the panel's one shape of glass spans the canvas,

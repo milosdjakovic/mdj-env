@@ -745,7 +745,7 @@ chooser panel's own window. With a preview pane that window and one `NSGlassEffe
 canvas rect, the engine's gap and the preview pane rect at the surface radius, the list's content on
 the canvas rect, the pane's region on the preview pane rect, and a hairline in the kit's border
 colour and border width centred in the gap from the top down to the bottom bar, so the list and
-the pane are one surface that appears and vanishes together, with no window animation. The gap is
+the pane are one surface that appears and vanishes together, fading as one, see `native/Motion.swift`. The gap is
 zero under the swift view, which the engine sets beside `bottomBarSpan`, since the list's margin
 already stands between a row and the hairline and the pane pads by the same inset. A gap there sat
 on top of both and gave a highlighted row more room on its right than on its left, reported on
@@ -896,6 +896,25 @@ To try it, set `chooser.provider` to `chooserProviders.swift` in `config/setting
 then reload once more when the console says the library is built. The shipped value stays
 `default`. `test/swiftview.lua` drives the Lua view under the engine over a fake library and pins
 the fallback, and `decisions/olm-swift-chooser.md` has the measurements and what was turned down.
+
+## Motion, one way every native surface comes and goes
+
+Every surface the swift library draws, the chooser, the info pane and the actions pane, a preview
+pane in a window of its own, the cheat sheets and the toasts, fades in rising a few points and
+growing from a hair smaller, and fades out travelling half as far. The look is the `motion` block of
+`config/settings.lua`, which reaches the kit's `motion` tokens through `root/uispec.lua` and the
+library once at load, through the view's `attach` and `setMotion`, so a change is one edit and a
+reload and reaches every surface, and the Swift sources hold no number of it, the rule every size the
+library draws with keeps. `native/Motion.swift` is the only code that animates. A view goes through `Motion.appear` and `Motion.disappear`, a window
+through a `WindowMotion`. It is all Core Animation on the render server, so a list busy right after
+it shows still plays its fade, and never a window's `alphaValue` animator, which AppKit steps on the
+main thread. The chooser takes key, so it goes down at once and fades out in a stand in that never
+does, and a key typed or posted as it closes reaches the application below. A window that never
+takes key fades out in place and answers that it is down from the moment the fade starts. The dry
+gate refuses a window ordered, an alpha set or an animation built anywhere else in the library,
+`test/drygate-motion.lua`, `test/swiftpane.swift` pins the coming and going, a fade cut short and
+the stand in, and `decisions/olm-swift-chooser.md` has the history. The canvas
+chooser and the canvas backend do not animate.
 
 ## Secure notice, a held leader pressed under secure input
 

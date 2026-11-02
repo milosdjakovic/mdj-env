@@ -981,6 +981,41 @@ do
 end
 
 ----------------------------------------------------------------------------------------
+-- The one motion rule, see test/drygate-motion.lua. Every surface the swift library draws comes
+-- and goes through native/Motion.swift, so a window ordered, faded or animated in any other source of
+-- that library is a finding naming its line, unless the line declares motion-exempt and a
+-- reason, counted as accepted and printed.
+----------------------------------------------------------------------------------------
+
+do
+  local scanner = dofile(scriptDir .. "drygate-motion.lua")
+  local list = os.getenv("DRYGATE_SWIFTSOURCES") or ""
+  if not list:find("%S") then
+    warning("dry gate did not run the motion check, DRYGATE_SWIFTSOURCES names no files, run it through test/drygate.sh")
+  else
+    for path in list:gmatch("[^\n]+") do
+      local rel = path:sub(1, #spoonDir) == spoonDir and path:sub(#spoonDir + 1) or path
+      if scanner.applies(rel) then
+        local found = scanner.scanFile(path)
+        if not found then
+          warning(string.format("dry gate could not read '%s' for the motion check", rel))
+        else
+          for _, hit in ipairs(found) do
+            if hit.exempt then
+              accepted[#accepted + 1] = string.format("accepted, %s:%d, motion-exempt, %s", rel, hit.line, hit.exempt)
+            else
+              findings[#findings + 1] = string.format(
+                "dry gate refused '%s', line %d, %s outside native/Motion.swift, '%s', show and hide it through Motion.appear and Motion.disappear or a WindowMotion, or declare it with a motion-exempt comment and a reason",
+                rel, hit.line, hit.what, hit.source)
+            end
+          end
+        end
+      end
+    end
+  end
+end
+
+----------------------------------------------------------------------------------------
 -- The names rule, see test/drygate-names.lua. Every part a person sees has one name, so a word
 -- retired on 2026-11-02 in any Lua, Swift or Markdown file of the spoon is a finding naming its
 -- line, unless the line declares names-exempt and a reason, counted as accepted and printed.

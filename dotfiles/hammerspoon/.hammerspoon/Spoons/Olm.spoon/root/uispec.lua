@@ -44,6 +44,12 @@ local function padding(value)
   return nil
 end
 
+-- A scale from config, a number above zero up to one, or nil for anything else.
+local function scale(value)
+  if type(value) == "number" and value > 0 and value <= 1 then return value end
+  return nil
+end
+
 function M.spec(policy, colors, typography)
   policy = policy or {}
   return {
@@ -63,6 +69,14 @@ function M.spec(policy, colors, typography)
       outer = padding((policy.spacing or {}).outer),
       inner = padding((policy.spacing or {}).inner),
       bar = padding((policy.spacing or {}).bar),
+    },
+    -- How a surface comes and goes, see motion in lib/ui/style.lua. A value out of range is left
+    -- out, so the kit's shipped one stands in its place.
+    motion = {
+      open = padding((policy.motion or {}).open),
+      close = padding((policy.motion or {}).close),
+      rise = padding((policy.motion or {}).rise),
+      scale = scale((policy.motion or {}).scale),
     },
   }
 end

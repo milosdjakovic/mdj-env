@@ -46,6 +46,7 @@ local olm = spoon.Olm:start({
     chord          = { repeatTiming = settings.keyRepeat },
     surface        = settings.surface,
     spacing        = settings.spacing,
+    motion         = settings.motion,
     chooserProvider = settings.chooser.provider,
     chooserRowLimit = settings.chooser.rowLimit,
     cheatSheet     = settings.cheatSheet,

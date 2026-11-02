@@ -30,7 +30,9 @@
 // the middle of the gap down to the bottom bar, which spans the whole window. With none it is
 // the canvas rect alone. The preview pane's native backend
 // puts its view in the pane's region through the seam in Entry.swift, shown only while a pane is
-// in it and shown. The window never animates, so nothing fades in.
+// in it and shown. AppKit's own window animation is off. The window fades in rising and growing a
+// hair, and fades out through a stand in, see THE MOTION below, so the list and the preview pane
+// come and go together as the one surface they are.
 //
 // THE OUTLINE. The window is titled, with its title bar see through, hidden and empty, rather
 // than borderless. A key window gets an edge drawn along its outline, and a borderless window's
@@ -52,6 +54,10 @@
 // longer hears the keyboard reads as broken. That is what another application's own shortcut does,
 // Antinote's taking key while the list stood over it, seen on 2026-10-31. A pane in a window of its
 // own never becomes key, so a press on it cannot take key from the panel.
+//
+// THE MOTION. The window comes and goes through a WindowMotion in Motion.swift, the one way every
+// surface here does. It takes key, so it goes down at once and fades out through a stand in that
+// never does, and a key typed or posted as a list closes reaches the application below.
 
 import Cocoa
 
@@ -133,6 +139,12 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   // The preview pane's view while one is in the pane's region, and whether it is shown.
   private weak var paneContent: NSView?
   private var paneShown = false
+  // How the window comes and goes, through a stand in since it takes key, see THE MOTION above.
+  private lazy var motion: WindowMotion = {
+    let motion = WindowMotion(window, standIn: true)
+    motion.onDown = { [weak self] in self?.settleDown() }
+    return motion
+  }()
   private var windowSize = NSSize.zero
 
   init(ask: @escaping Ask) {
@@ -298,7 +310,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
       bar.isHidden = false
       bar.show(bottomBar, style: style, placement: placement, lit: next.infoOpen,
         leftHidden: next.infoOpen, actionsHidden: next.actions != nil)
-      keys.isHidden = !next.infoOpen
+      keys.setOpen(next.infoOpen)
       if next.infoOpen {
         keys.show(title: bottomBar.title, lines: bottomBar.keys.map { .init(label: $0.label, chord: $0.chord, section: $0.section) },
           style: style, placement: placement, outer: placement.barPillPad, inner: placement.barPillPad, lineH: placement.barPillH,
@@ -306,20 +318,22 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
       }
     } else {
       bar.isHidden = true
-      keys.isHidden = true
+      keys.setOpen(false)
     }
     if let actions = next.actions, !bar.isHidden {
-      actionsPop.isHidden = false
+      actionsPop.setOpen(true)
       actionsPop.show(title: next.bottomBar?.panelTitle,
         lines: actions.map { .init(label: $0.title, chord: $0.chord, image: $0.image, section: $0.section, enabled: $0.enabled) },
         style: style, placement: placement, outer: placement.barPillPad, inner: placement.barPillPad, lineH: placement.barPillH,
         gap: placement.barGapWide, radius: style.highlightRadius, iconSide: placement.infoIcon,
         highlight: next.actionsHighlight)
     } else {
-      actionsPop.isHidden = true
+      actionsPop.setOpen(false)
     }
     layoutKeys()
     layoutActions()
+    keys.play()
+    actionsPop.play()
   }
 
   var text: String { field.stringValue }
@@ -336,7 +350,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   }
 
   func show() {
-    window.makeKeyAndOrderFront(nil)
+    motion.show { window.makeKeyAndOrderFront(nil) }
     if !state.bare {
       window.makeFirstResponder(field)
       if let editor = field.currentEditor() as? NSTextView {
@@ -346,14 +360,21 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     }
   }
 
-  // The pane's region goes down with the window and comes back only when a pane shows again, so a
-  // reopened list never shows the last pane's content before its pane repaints.
-  func hide() {
+  // animated false goes down at once, which a reload's cleanup asks for.
+  func hide(animated: Bool = true) {
     list.table.forgetPress()
-    window.orderOut(nil)
+    motion.hide(animated: animated)
+  }
+
+  // What a list down forgets, once its fade has ended, the preview pane's region and any floating
+  // pane left open, so a reopened list never shows the last pane's content before its pane repaints.
+  private func settleDown() {
+    keys.closeNow()
+    actionsPop.closeNow()
     paneShown = false
     layoutSurfaces()
   }
+
 
   func start() {
     started = true
@@ -453,10 +474,11 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     layoutSurfaces()
   }
 
+  // While the list fades out the pane's region fades with it, and goes when the fade ends.
   func hidePane(_ view: NSView) {
     guard paneContent === view else { return }
     paneShown = false
-    layoutSurfaces()
+    if !motion.closing { layoutSurfaces() }
   }
 
   // The pane's view leaves, for its own window or for good.
@@ -624,7 +646,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
       }
       // With the info pane open a press anywhere else in this window only closes it, and a press
       // on the panel itself is the panel's, which does nothing with it.
-      if !self.keys.isHidden, let content = self.window.contentView {
+      if self.keys.isOpen, let content = self.window.contentView {
         let hit = content.hitTest(content.convert(event.locationInWindow, from: nil))
         if let hit, hit.isDescendant(of: self.keys) { return event }
         _ = self.ask("closeInfo", [])
@@ -665,7 +687,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   // The actions pane is the same floating pane in the action group's corner, hidden while it is open
   // with the left side staying, its right and bottom edges on the group's, with the same limits.
   private func layoutActions() {
-    guard !actionsPop.isHidden, let stage = actionsPop.superview else { return }
+    guard actionsPop.isOpen, let stage = actionsPop.superview else { return }
     bar.layoutSubtreeIfNeeded()
     let anchor = bar.convert(bar.actions.frame, to: stage)
     let top = toWindow(placement.list)?.minY ?? 0
@@ -677,7 +699,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   }
 
   private func layoutKeys() {
-    guard !keys.isHidden, let stage = keys.superview else { return }
+    guard keys.isOpen, let stage = keys.superview else { return }
     bar.layoutSubtreeIfNeeded()
     let anchor = bar.convert(bar.button.frame, to: stage)
     let top = toWindow(placement.list)?.minY ?? 0

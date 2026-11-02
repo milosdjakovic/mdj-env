@@ -112,6 +112,46 @@ final class FloatingPaneView: FlippedView {
   override func mouseDown(with event: NSEvent) {}
   override func rightMouseDown(with event: NSEvent) {}
 
+  // MARK: Opening and closing, through Motion.swift like every surface
+
+  // Whether the floating pane is open. One closing is no longer open while it fades, so it takes
+  // no pointer and lays nothing out, and it is hidden once the fade ends.
+  private(set) var isOpen = false
+  private var opening = false
+
+  // Shown at once and faded in by play, once the floating pane has been laid out at its size.
+  func setOpen(_ open: Bool) {
+    guard open != isOpen else { return }
+    isOpen = open
+    opening = open
+    if open {
+      isHidden = false
+      return
+    }
+    Motion.disappear(self) { [weak self] in
+      guard let self, !self.isOpen else { return }
+      self.isHidden = true
+    }
+  }
+
+  func play() {
+    guard opening else { return }
+    opening = false
+    Motion.appear(self)
+  }
+
+  // Closed with no fade, for a chooser that has gone down with the floating pane still open.
+  func closeNow() {
+    isOpen = false
+    opening = false
+    Motion.rest(self)
+    isHidden = true
+  }
+
+  override func hitTest(_ point: NSPoint) -> NSView? {
+    isOpen ? super.hitTest(point) : nil
+  }
+
   // title is the header, nil for none. outer and inner are the two paddings, lineH the height of one line,
   // gap the room between a label and its chord and between a picture and its label, iconSide a
   // picture's side, radius the corner and highlight the line lit, from one, or zero for none.

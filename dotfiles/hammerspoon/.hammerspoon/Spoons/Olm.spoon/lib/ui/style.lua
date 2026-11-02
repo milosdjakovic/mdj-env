@@ -123,6 +123,15 @@ local SHIPPED = {
 
   -- swatch is the colour toast's square, the one size the toast draws that no icon shares.
   icon = { row = 28, list = 28, sheet = 32, swatch = 26 },
+
+  -- How a surface comes and goes, opening over open seconds from rise points below its place and
+  -- scale of its size, closing over close seconds and half of both, each along its cubic Bezier
+  -- curve's two control points. The swift chooser's native/Motion.swift plays it. open, close,
+  -- rise and scale are overwritten from settings by the spec, the curves are the kit's alone.
+  motion = {
+    open = 0.14, close = 0.09, rise = 4, scale = 0.98,
+    openCurve = { 0.2, 0.8, 0.2, 1 }, closeCurve = { 0.4, 0, 1, 1 },
+  },
 }
 
 -- The three badge sizes badge(key, size) names, as rules rather than numbers. A badge is its
@@ -437,6 +446,7 @@ function M.new(opts)
         return icon
       end)(),
       stroke = mergeGroup(SHIPPED.stroke, spec.stroke),
+      motion = mergeGroup(SHIPPED.motion, spec.motion),
       badge = mergeGroup(badges, spec.badge),
       inset = inset,
       pad = pad,

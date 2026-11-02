@@ -175,6 +175,8 @@ local SHIPPED_POLICY = {
   surface = {},
   -- The outer and inner paddings, see root/uispec.lua. Empty keeps the kit's shipped steps.
   spacing = {},
+  -- How every native surface comes and goes, see root/uispec.lua. Empty keeps the kit's own.
+  motion = {},
   chooserTheme = {},
   cheatSheet = {},
 
