@@ -24,8 +24,9 @@ explorer_name() { printf 'lf\n'; }
 # opens in its parent with the cursor already on that file.
 explorer_argv() { printf '%s\n' "$LF"; }
 
-# lf's sub-commands, bat, nvim, copy, trash, fzf find, tags, and help, all open
-# their own tmux popups, so it needs the nested session.
+# lf's sub-commands run full screen in lf's own terminal since 2026-11-02, so lf no
+# longer needs a real pane for popups. The nested session stays because it is what lets
+# prefix+b resume lf where it was left.
 explorer_needs_nested_session() { return 0; }
 
 # The tag file format is `path:X` with a single character tag, so the trailing

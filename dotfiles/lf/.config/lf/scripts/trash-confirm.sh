@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Trash confirmation popup for lf
+# Trash confirmation screen for lf
 # Args: $1 = file containing list of items to trash
 # Handles trashing internally if confirmed
 

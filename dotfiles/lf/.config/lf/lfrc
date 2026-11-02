@@ -8,6 +8,10 @@ set previewer ~/.config/lf/scripts/preview.sh
 # ============================================
 # COMMANDS
 # ============================================
+#
+# Every interactive command is a ${{ }} shell command, lf's own way to run a program in its
+# terminal. lf pauses, the program takes the whole screen, and lf comes back when it exits. So
+# nothing here needs a multiplexer, and lf behaves the same in Rex, herdr, tmux or a bare terminal.
 
 # Track previous directory on every cd
 cmd on-cd &{{
@@ -28,8 +32,8 @@ cmd back &{{
 # Disable default open so l does nothing on files but still enters directories
 cmd open
 
-# Preview file with bat in a popup (only text files)
-cmd preview &{{
+# Preview file with bat (only text files)
+cmd preview ${{
   if [ -d "$f" ]; then
     lf -remote "send $id echo 'Cannot preview a directory'"
     sleep 3 && lf -remote "send $id echo" &
@@ -37,35 +41,43 @@ cmd preview &{{
     lf -remote "send $id echo 'Cannot preview binary file: $(basename "$f")'"
     sleep 3 && lf -remote "send $id echo" &
   else
-    tmux display-popup -w 85% -h 85% -E "bat --paging=always --style=numbers \"$f\""
+    bat --paging=always --style=numbers "$f"
   fi
 }}
 
-# Open file in nvim in a popup
-cmd edit-popup &{{
-  tmux display-popup -w 85% -h 85% -E "nvim \"$f\""
+# Open file in nvim
+cmd edit ${{
+  nvim "$f"
 }}
 
-# Copy menu in a popup
-cmd copy-menu &{{
-  tmpfile=$(mktemp)
-  paths_file=$(mktemp)
-  echo "$fx" > "$paths_file"
-  count=$(echo "$fx" | wc -l | tr -d ' ')
-  tmux display-popup -w 24 -h 6 -E "~/.config/lf/scripts/copy-menu.sh $count \"$paths_file\" \"$tmpfile\""
-  choice=$(cat "$tmpfile" 2>/dev/null)
-  rm -f "$tmpfile" "$paths_file"
-  case "$choice" in
-    path) lf -remote "send $id echo 'Copied path to clipboard'";;
-    name) lf -remote "send $id echo 'Copied name to clipboard'";;
-  esac
+# Copy to the system clipboard. Each runs in the background, so nothing takes the screen, and
+# lf says what it copied at the bottom. With files marked, every marked path goes, one per line.
+# Find them by name with :copy and tab, or press the keys mapped below.
+cmd copy-path &{{
+  printf '%s' "$fx" | pbcopy
+  n=$(printf '%s\n' "$fx" | wc -l | tr -d ' ')
+  [ "$n" -gt 1 ] && what="$n paths" || what="path"
+  lf -remote "send $id echo 'Copied $what to clipboard'"
 }}
 
-# Trash with confirmation popup
-cmd trash &{{
+cmd copy-name &{{
+  names=$(printf '%s\n' "$fx" | while IFS= read -r item; do basename "$item"; done)
+  printf '%s' "$names" | pbcopy
+  n=$(printf '%s\n' "$fx" | wc -l | tr -d ' ')
+  [ "$n" -gt 1 ] && what="$n names" || what="name"
+  lf -remote "send $id echo 'Copied $what to clipboard'"
+}}
+
+cmd copy-dir &{{
+  printf '%s' "$PWD" | pbcopy
+  lf -remote "send $id echo 'Copied folder path to clipboard'"
+}}
+
+# Trash with confirmation
+cmd trash ${{
   items_file=$(mktemp)
   echo "$fx" > "$items_file"
-  tmux display-popup -w 70% -h 50% -E "~/.config/lf/scripts/trash-confirm.sh \"$items_file\""
+  ~/.config/lf/scripts/trash-confirm.sh "$items_file"
   if [ $? -eq 0 ]; then
     lf -remote "send $id reload"
     lf -remote "send $id echo 'Moved to trash'"
@@ -73,10 +85,10 @@ cmd trash &{{
   rm -f "$items_file"
 }}
 
-# Recursive fzf finder with scope toggling in a popup
-cmd fzf-find &{{
+# Recursive fzf finder with scope toggling
+cmd fzf-find ${{
   tmpfile=$(mktemp)
-  tmux display-popup -w 80% -h 70% -E "~/.config/lf/scripts/fzf-find.sh all current \"$PWD\" \"$tmpfile\""
+  ~/.config/lf/scripts/fzf-find.sh all current "$PWD" "$tmpfile"
   result=$(cat "$tmpfile" 2>/dev/null)
   rm -f "$tmpfile"
   if [ -n "$result" ]; then
@@ -89,9 +101,9 @@ cmd fzf-find &{{
 }}
 
 # Global fzf finder (starts with global scope)
-cmd fzf-find-global &{{
+cmd fzf-find-global ${{
   tmpfile=$(mktemp)
-  tmux display-popup -w 80% -h 70% -E "~/.config/lf/scripts/fzf-find.sh all global \"$PWD\" \"$tmpfile\""
+  ~/.config/lf/scripts/fzf-find.sh all global "$PWD" "$tmpfile"
   result=$(cat "$tmpfile" 2>/dev/null)
   rm -f "$tmpfile"
   if [ -n "$result" ]; then
@@ -103,23 +115,31 @@ cmd fzf-find-global &{{
   fi
 }}
 
-# Show keybindings cheat sheet in a popup
-cmd help &{{
-  tmux display-popup -w 60% -h 50% -E "~/.config/lf/scripts/help-menu.sh \"$id\""
+# Show keybindings cheat sheet
+cmd help ${{
+  ~/.config/lf/scripts/help-menu.sh "$id"
 }}
 
 # ============================================
 # KEY BINDINGS
 # ============================================
 
+# Tab on the : command line shows every matching command as a menu, shift tab goes back.
+cmap <tab> cmd-menu-complete
+cmap <backtab> cmd-menu-complete-back
+
 map i preview            # Preview file with bat
-map o edit-popup         # Open in nvim
-map c copy-menu          # Copy to clipboard
+map o edit               # Open in nvim
+# c alone does nothing, it starts the copy keys below.
+map c
+map cp copy-path         # Copy path to clipboard
+map cn copy-name         # Copy name to clipboard
+map cd copy-dir          # Copy current folder path to clipboard
 map D trash              # Trash selected items
-# Browse tagged files in a popup, navigate to selected
-cmd tag-browser &{{
+# Browse tagged files, navigate to selected
+cmd tag-browser ${{
   tmpfile=$(mktemp)
-  tmux display-popup -w 80% -h 60% -E "~/.config/lf/scripts/tag-browser.sh current \"$PWD\" \"$tmpfile\""
+  ~/.config/lf/scripts/tag-browser.sh current "$PWD" "$tmpfile"
   result=$(cat "$tmpfile" 2>/dev/null)
   rm -f "$tmpfile"
   if [ -n "$result" ]; then
@@ -132,9 +152,9 @@ cmd tag-browser &{{
 }}
 
 # Global tag browser (starts with all tags)
-cmd tag-browser-global &{{
+cmd tag-browser-global ${{
   tmpfile=$(mktemp)
-  tmux display-popup -w 80% -h 60% -E "~/.config/lf/scripts/tag-browser.sh all \"$PWD\" \"$tmpfile\""
+  ~/.config/lf/scripts/tag-browser.sh all "$PWD" "$tmpfile"
   result=$(cat "$tmpfile" 2>/dev/null)
   rm -f "$tmpfile"
   if [ -n "$result" ]; then
