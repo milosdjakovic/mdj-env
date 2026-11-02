@@ -916,7 +916,9 @@ and goes at once. The dry
 gate refuses a window ordered, an alpha set or an animation built anywhere else in the library,
 `test/drygate-motion.lua`, `test/swiftpane.swift` pins the coming and going, a fade cut short and
 the keys passed on, and `decisions/olm-swift-chooser.md` has the history. The canvas
-chooser and the canvas backend do not animate.
+chooser and the canvas backend do not animate. A plugin never meets any of it, since it puts nothing on screen itself, it hands
+rows to the stage, a preview to the preview pane and a message to the `notify` word, and the dry
+gate refuses a surface a plugin opens on its own, `test/drygate-surfaces.lua`.
 
 ## Secure notice, a held leader pressed under secure input
 

@@ -1016,6 +1016,37 @@ do
 end
 
 ----------------------------------------------------------------------------------------
+-- The surface rule, see test/drygate-surfaces.lua. A plugin says what is shown and the core shows
+-- it, so a plugin file that puts an alert, a dialog, a webview, a drawing, a chooser, a shown canvas
+-- or a native window on screen itself is a finding naming its line, unless the line declares
+-- surface-exempt and a reason, counted as accepted and printed.
+----------------------------------------------------------------------------------------
+
+do
+  local scanner = dofile(scriptDir .. "drygate-surfaces.lua")
+  local list = (os.getenv("DRYGATE_SOURCES") or "") .. "\n" .. (os.getenv("DRYGATE_SWIFTSOURCES") or "")
+  for path in list:gmatch("[^\n]+") do
+    local rel = path:sub(1, #spoonDir) == spoonDir and path:sub(#spoonDir + 1) or path
+    if scanner.applies(rel) then
+      local found = scanner.scanFile(path)
+      if not found then
+        warning(string.format("dry gate could not read '%s' for the surface check", rel))
+      else
+        for _, hit in ipairs(found) do
+          if hit.exempt then
+            accepted[#accepted + 1] = string.format("accepted, %s:%d, surface-exempt, %s", rel, hit.line, hit.exempt)
+          else
+            findings[#findings + 1] = string.format(
+              "dry gate refused '%s', line %d, %s put on screen by a plugin, '%s', hand it to the core instead, a message through the notify word, a preview through the preview pane, rows through the stage, or declare it with a surface-exempt comment and a reason",
+              rel, hit.line, hit.what, hit.source)
+          end
+        end
+      end
+    end
+  end
+end
+
+----------------------------------------------------------------------------------------
 -- The names rule, see test/drygate-names.lua. Every part a person sees has one name, so a word
 -- retired on 2026-11-02 in any Lua, Swift or Markdown file of the spoon is a finding naming its
 -- line, unless the line declares names-exempt and a reason, counted as accepted and printed.

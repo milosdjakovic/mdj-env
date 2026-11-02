@@ -797,3 +797,18 @@ and the pass on, and the cases that wait for a fade wait for its end rather than
 one of them failed one run in five. Built, `test/swiftpane.sh` passes four runs in a row, the dry
 gate passes, loaded live clean, and the look confirmed by Milos at two seconds, the timings then put
 back to 0.14 and 0.09.
+
+### 2026-11-02 17:40
+
+A plugin never puts anything on screen itself now, so every surface it reaches moves the one way
+`native/Motion.swift` moves it and no plugin ever meets an animation, asked for by Milos as the
+motion being part of the core and a plugin saying only what is shown. It held already for rows,
+verbs, previews and toasts, which the core draws, and seven `hs.alert` calls in WiFi,
+WindowManager, TmuxSessions, Processes and Eyedropper were the side door, two of them the hard
+failure exception the Hammerspoon `AGENTS.md` kept, which Milos retired. Each now declares the
+root's `notify` word and says its line through it. `test/drygate-surfaces.lua` refuses an alert, a
+dialog, a webview, a drawing, a chooser, a canvas shown rather than snapshotted into an icon, and a
+window, panel, alert or popover in a plugin's Swift helper, anywhere under `plugins/`. Three system
+surfaces the core has no answer for are declared `surface-exempt` with a reason, the WiFi password
+field, which needs secure input, Quick Look in FileSearch, which needs a window of its own, and the
+system colour sampler. The dry gate passes.

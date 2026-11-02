@@ -154,7 +154,7 @@ chosen. Required is reserved for a spoon that is only a front end onto its tool,
 a dead surface would be worse than no surface, and `Convert` is the one example. The
 choice is about what the user sees rather than how badly the spoon wants the tool, so
 `Eyedropper` is optional even though its sampler cannot be built without a compiler,
-because it already answers a failed build with an alert and its key stays worth
+because it already answers a failed build with a message and its key stays worth
 finding. Every reload logs one summary line, how many tools were declared, how many
 resolved, and what each absent one disables, so a feature that quietly vanished always
 has a stated reason.
@@ -813,11 +813,13 @@ takes an injected callback, the way Eyedropper hands its confirmation out throug
 `onPick`, and the root decides how the message is drawn, the same seam as the
 overlay display screen.
 
-`hs.alert` stays right for one case, a failure that stopped the feature running at
-all. "No focused window!" in WindowManager and the "Color picker unavailable" fallback
-in Eyedropper are that shape, and they stay as they are. The rule governs the working path, not the
-broken one. Vpn carries no `hs.alert` today, so the exception this paragraph used
-to name here no longer applies.
+A failure that stopped the feature running is no exception any more. Until 2026-11-02 it kept
+`hs.alert`, "No focused window!" in WindowManager and "Color picker unavailable" in Eyedropper,
+and Milos retired that so a plugin never puts anything on screen itself and every surface moves
+the core's one way. Every message a plugin says goes through the root's `notify` word, and the Olm
+dry gate refuses `hs.alert` and every other surface a plugin could open on its own,
+`Spoons/Olm.spoon/test/drygate-surfaces.lua`, apart from a system surface declared
+`surface-exempt` with a reason.
 
 **Olm typography, five roles and nothing else.** Every piece of text Olm draws, in the
 default chooser, the side and bottom panes, the toasts, the cheat sheets and every plugin, uses

@@ -68,6 +68,8 @@ return {
     },
 
     data = {
+      notify = { source = "root", policy = "optional",
+        breaks = "a stop that worked or failed says nothing, so the only sign is the row leaving or staying" },
       -- Everything in config/processes.lua, the runtime allowlist, the commands to ignore, the
       -- directory names that mark a dev tree and the ones too vague to name a project, the grace
       -- period before a stop turns forceful, and the sampling weights.

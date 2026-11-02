@@ -140,6 +140,7 @@ final class Preview: NSObject, NSWindowDelegate {
         view.autostarts = true
         view.previewItem = url as NSURL
 
+        // surface-exempt, a Quick Look view needs a window of its own and the core has none that can host it
         panel = NSPanel(contentRect: rect,
                         styleMask: [.titled, .closable, .resizable, .fullSizeContentView,
                                     .nonactivatingPanel],
@@ -250,6 +251,7 @@ final class Preview: NSObject, NSWindowDelegate {
     }
 
     func present() {
+        // surface-exempt, the Quick Look window above, shown once it is built
         panel.orderFrontRegardless()
     }
 

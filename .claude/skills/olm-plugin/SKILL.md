@@ -111,8 +111,15 @@ grid of key badges under a held leader is the shared cheatsheet lib. Verbs come 
 actions pane reads them from the registry declaration, so never build a second list to make
 verbs discoverable.
 
-`hs.alert` is reserved for a hard failure that stopped the action entirely, a missing window, a
-dead binary. Routine feedback while a feature works never goes through an alert.
+A plugin never puts anything on screen itself, so every surface comes and goes the core's one way,
+with the motion in `config/settings.lua`, and the plugin never meets an animation. Every message,
+routine or a failure that stopped the action, goes out through the root's `notify` word declared
+under `needs.data`, never `hs.alert`, and a preview, a toast or a list is handed to the core as above.
+The dry gate refuses `hs.alert`, `hs.dialog`, `hs.webview`, `hs.drawing`, `hs.chooser.new`, a canvas
+shown rather than snapshotted into an icon, and a window, panel, alert or popover in a plugin's own
+Swift helper, `test/drygate-surfaces.lua`. A system surface the core has no answer for, a secure
+password field, Quick Look, the system colour sampler, declares `surface-exempt, <reason>`. Stated by
+Milos on 2026-11-02, retiring the hard failure exception for `hs.alert`.
 
 ## How levels behave
 

@@ -112,7 +112,7 @@ function obj:pick()
   ensureBinary(self._compiler, function(ok)
     if not ok then
       self._active = false
-      hs.alert.show("Color picker unavailable")
+      if self._notify then self._notify("Color picker unavailable") end
       return
     end
     self._task = hs.task.new(BINARY, function(_, out)
@@ -142,6 +142,7 @@ end
 function obj:configure(opts)
   opts = opts or {}
   self._onPick = opts.showColor
+  self._notify = opts.notify
   if opts.storage then
     CACHE_DIR = opts.storage.cacheDir("eyedropper")
     BINARY = CACHE_DIR .. "/sampler"

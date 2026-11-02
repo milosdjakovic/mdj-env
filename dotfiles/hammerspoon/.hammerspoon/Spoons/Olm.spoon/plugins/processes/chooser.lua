@@ -351,7 +351,7 @@ local function rowByKey(key)
 end
 
 local function report(ok, message)
-  if message and message ~= "" then hs.alert.show(message) end
+  if message and message ~= "" and cfg.notify then cfg.notify(message) end
 end
 
 --------------------------------------------------------------------------------

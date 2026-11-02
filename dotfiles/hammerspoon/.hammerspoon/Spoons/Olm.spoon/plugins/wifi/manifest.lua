@@ -49,6 +49,8 @@ return {
         breaks = "the launcher row and this plugin's own open reach nothing, since neither has any other way to ask the shared stage to show this presentation" },
       redrawPresented = { source = "root", policy = "optional",
         breaks = "a finished scan does not appear until the field is touched, since a background answer has no other way to reach the list" },
+      notify = { source = "root", policy = "optional",
+        breaks = "a join that failed says nothing, so it looks exactly like one still trying" },
     },
   },
 

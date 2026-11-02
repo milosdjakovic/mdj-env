@@ -58,6 +58,9 @@ return {
                    breaks = "window animation duration, the resize step, and every named window " ..
                             "size run fine on this plugin's own shipped defaults, and only ignore " ..
                             "the person's own tuning if they set one in settings" },
+      notify = { source = "root", policy = "optional",
+        breaks = "a resize asked for with no window focused does nothing and says nothing, so it " ..
+                 "reads as a key that is broken" },
     },
   },
 

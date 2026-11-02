@@ -52,6 +52,8 @@ return {
       stagePresent = { source = "root", policy = "optional",
         breaks = "the leader key opens nothing, since show has no other way to reach the " ..
                  "shared stage" },
+      notify = { source = "root", policy = "optional",
+        breaks = "a jump that failed says nothing, so it looks exactly like a key that did nothing" },
     },
 
     tools = {

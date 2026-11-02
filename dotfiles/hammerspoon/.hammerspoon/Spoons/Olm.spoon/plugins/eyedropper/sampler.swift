@@ -10,6 +10,7 @@ let app = NSApplication.shared
 // Accessory so no Dock icon or menu bar appears while the sampler is up.
 app.setActivationPolicy(.accessory)
 
+// surface-exempt, macOS draws its own loupe and it is the only way to read a pixel off the screen
 let sampler = NSColorSampler()
 sampler.show { picked in
     guard let color = picked?.usingColorSpace(.sRGB) else {

@@ -56,6 +56,8 @@ return {
       showColor = { source = "root", policy = "optional",
         breaks = "a picked colour is copied with nothing shown, so a pick and a missed pick "
           .. "look exactly the same" },
+      notify = { source = "root", policy = "optional",
+        breaks = "a sampler that could not be built opens nothing and says nothing" },
     },
   },
 

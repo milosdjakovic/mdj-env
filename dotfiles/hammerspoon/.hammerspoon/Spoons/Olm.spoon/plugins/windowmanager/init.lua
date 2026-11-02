@@ -57,6 +57,7 @@ function obj:configure(opts)
   opts = opts or {}
   self._margins = opts.margins or {}
   self._settings = opts.settings or {}
+  self._notify = opts.notify
   hs.window.animationDuration = self._settings.windowAnimationDuration or 0
   return self
 end
@@ -490,7 +491,7 @@ function obj:adjustSize(amount)
 
   local win = hs.window.focusedWindow()
   if not win then
-    hs.alert.show("No focused window!")
+    if self._notify then self._notify("No focused window") end
     return
   end
 
@@ -822,11 +823,11 @@ function obj:_handlers()
       if type(size) ~= "table" then return end
       local w, h = tonumber(size.width), tonumber(size.height)
       if not w or not h then return end
-      -- The one hard failure worth an alert, the same shape adjustSize already uses. A chosen
+      -- The one hard failure worth a message, the same shape adjustSize already uses. A chosen
       -- row that silently does nothing reads as a broken feature, and the ordinary way to get
       -- here with nothing focused is a desktop with no window on it.
       if not hs.window.focusedWindow() then
-        hs.alert.show("No focused window!")
+        if self._notify then self._notify("No focused window") end
         return
       end
       self:resizeByPixels({ width = w, height = h })

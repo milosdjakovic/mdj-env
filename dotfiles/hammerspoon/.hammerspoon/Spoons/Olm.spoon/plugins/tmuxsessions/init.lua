@@ -108,15 +108,14 @@ function obj:configure(opts)
 
   -- The two things this plugin's own picker needs that no manifest could hand it. The engine
   -- is this plugin's own, a self reference nothing outside could name, and the message sink is
-  -- a plain macOS alert, used for the one thing this tool ever has to say, a jump that failed.
-  -- A landed jump is silent by design, so this is a failure that stopped an action rather than
-  -- routine feedback, which is why it stays an alert rather than a shared surface.
+  -- the core's shared message, used for the one thing this tool ever has to say, a jump that
+  -- failed. A landed jump is silent by design.
   --
   -- Set here rather than in the picker's own configure step so whoever composes this can still
   -- override either one, since that step merges its options over these rather than replacing.
   self.chooser.configure({
     api = self.engine,
-    onMessage = function(text) hs.alert.show(text) end,
+    onMessage = opts.notify,
   })
 
   return self

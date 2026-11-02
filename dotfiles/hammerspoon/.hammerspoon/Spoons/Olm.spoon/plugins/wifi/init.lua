@@ -304,6 +304,7 @@ end
 
 local function askPassword(name)
   hs.focus()
+  -- surface-exempt, a password needs a secure field and the core has no secure input
   local button, text = hs.dialog.textPrompt("Join " .. name, "Enter the network password.",
     "", "Join", "Cancel", true)
   if button ~= "Join" or text == "" then return nil end
@@ -312,11 +313,16 @@ end
 
 -- networksetup prints nothing when the join worked and a sentence when it did not, and exits
 -- zero either way, so any output at all is the failure.
+-- A failed join said on the core's shared message, never on a surface of this plugin's own.
+local function say(text)
+  if cfg.notify then cfg.notify(text) end
+end
+
 local function join(name, password, retried)
   local device = iface()
   local tool = cfg.deps and cfg.deps.path("networksetup")
   if not (device and tool) then
-    hs.alert.show("Wi-Fi cannot join without networksetup")
+    say("Wi-Fi cannot join without networksetup")
     return
   end
   local args = { "-setairportnetwork", device, name }
@@ -339,11 +345,11 @@ local function join(name, password, retried)
       return
     end
     cfg.log.w("joining " .. name .. " failed, " .. said)
-    hs.alert.show("Could not join " .. name)
+    say("Could not join " .. name)
   end, args)
   if not task:start() then
     joining = nil
-    hs.alert.show("Could not join " .. name)
+    say("Could not join " .. name)
   end
 end
 
