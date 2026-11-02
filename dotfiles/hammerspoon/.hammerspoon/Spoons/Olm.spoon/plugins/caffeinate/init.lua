@@ -278,12 +278,12 @@ M.rows = rows
 --- Named on the manifest's own presentation block as the contract's onSelect.
 M.select = onSelect
 
--- The spans Stay awake for offers in the action panel, the holds a person reaches for most,
+-- The spans Stay awake for offers in the actions pane, the holds a person reaches for most,
 -- so a common one is a pick rather than something to type. Any other span or a clock is still
 -- typed into the field.
 local PRESET_SPANS = { 30 * 60, 3600, 2 * 3600, 4 * 3600, 8 * 3600 }
 
---- M:spanChoices() -> list. The choices of the action panel's Stay awake for verb, each span
+--- M:spanChoices() -> list. The choices of the actions pane's Stay awake for verb, each span
 --- with the clock it would end at, read when the panel opens so the clock is the real one.
 --- Colon called, since the root hands a surface method its module first.
 function M:spanChoices()

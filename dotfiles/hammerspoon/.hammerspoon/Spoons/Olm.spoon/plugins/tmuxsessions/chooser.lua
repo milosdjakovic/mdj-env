@@ -8,7 +8,7 @@
 --- window name first and the session as the secondary field. Choosing
 --- one jumps straight to that window and closes like any ordinary row.
 ---
---- Which terminal a fresh attach opens into is Terminal, a verb of the action panel with
+--- Which terminal a fresh attach opens into is Terminal, a verb of the actions pane with
 --- choices, docs/PLAN-ACTION-PANEL.md. Until 2026-10-30 it was a second level behind a
 --- Settings row at the foot of the list, and it moved into the panel because a terminal is a
 --- setting of the tool rather than a place in it, so the list now holds windows and nothing
@@ -55,7 +55,7 @@ local function windowRows()
   return out
 end
 
--- The terminal choices, one per provider, for the action panel's Terminal verb. The one in
+-- The terminal choices, one per provider, for the actions pane's Terminal verb. The one in
 -- force carries the panel's current marker, and a terminal this machine does not have is
 -- answered disabled, drawn dimmed and choosing nothing.
 local function terminalChoices()
@@ -145,7 +145,7 @@ M.rows = windowRows
 --- completion, answering nothing.
 M.select = onSelect
 
---- M:terminalChoices() -> list. The choices of the action panel's Terminal verb. Colon called,
+--- M:terminalChoices() -> list. The choices of the actions pane's Terminal verb. Colon called,
 --- since the root hands a surface method its module first.
 function M:terminalChoices()
   return terminalChoices()

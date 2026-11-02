@@ -238,7 +238,7 @@ rather than nil, since a caller asking this needs one answer or the other and ni
 neither.
 
 One caller runs a verb through it and does not branch on hosting. The composition root's own
-`run`, injected into `ActionPanel`, asks `verbFor` first and falls through to its ordinary action
+`run`, injected into `ActionsPane`, asks `verbFor` first and falls through to its ordinary action
 table only when the answer is nil, and a row from a tool's own real picker is never a scope row,
 so it answers nil by construction and the ordinary path runs exactly as it always did. When the
 answer is a verb, the root asks it to close or not exactly as its own closes said, never deciding
@@ -253,7 +253,7 @@ the same bare function or table with a callable `fn` this module's own `verbFor`
 without asking this module anything. A hosted list is still never shown a verb it cannot actually
 run, and still offers no greyed row and no row that does nothing, the honest answer the design
 settled on, it is only reached by reading the same declaration a second way rather than by a
-second call through this one. See `host/actionpanel/AGENTS.md` for the first and
+second call through this one. See `host/actionspane/AGENTS.md` for the first and
 `Spoons/Olm.spoon/AGENTS.md`'s Registry section for where `verbs` itself is declared and
 validated.
 
@@ -295,10 +295,10 @@ way is worse than there being one way in.
 ## What cannot be scoped in place, and why that is a presenter limit
 
 A tool whose list is only half of it, the other half being a canvas docked beside the rows,
-cannot come along. The presenter reserves no companion pane and the pane width is fixed when a
+cannot come along. The presenter reserves no preview pane and the pane width is fixed when a
 chooser is built, so the clipboard and Processes would arrive stripped of the preview that is
 most of what they are. That is a limit of the presenter rather than of this spoon, and lifting
-it means a companion pane a scope can claim and drive, which is a change to the Chooser atom.
+it means a preview pane a scope can claim and drive, which is a change to the Chooser atom.
 Recorded here because the question comes up per tool and the answer is the same every time.
 
 ## Why one file, and what would split it

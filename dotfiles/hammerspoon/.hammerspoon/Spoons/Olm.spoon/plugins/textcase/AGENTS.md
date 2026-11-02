@@ -103,11 +103,11 @@ cannot see, never wrong. The read runs once per launcher open behind the open id
 cache the subtitle keeps, since a scope is asked for rows on every keystroke.
 
 The scope declares Apply and Copy as `registry.scope.verbs`, keyed by the surface's own primary
-and secondary actions, so the action panel over a scoped row offers what the tool's own list
+and secondary actions, so the actions pane over a scoped row offers what the tool's own list
 offers. Without them the panel listed nothing, and with them it still did nothing for Copy,
 because the root ran a panel verb through the dispatch table alone, which routes by the list
 showing, the launcher, and the launcher answers no hosted tool's verbs. The root's `run` now asks
-the query scope's `verbFor` first, as `host/actionpanel/AGENTS.md` always said it did, which is
+the query scope's `verbFor` first, as `host/actionspane/AGENTS.md` always said it did, which is
 also the route File Search's scoped reveal and copy path take.
 
 ## The preview is display only
@@ -125,7 +125,7 @@ shared `choosers` list, and the `textCaseOpen` predicate reads `isShowing()`. It
 context gives it the shared j, k, i navigation with x to close. Rows are a static set per
 open, so the shared fuzzy matcher filters them over title and subtitle with no per-tool
 wiring, unlike the structured-query tools that opt out. Like every list on the stage it
-carries the action bar under its rows.
+carries the bottom bar under its rows.
 
 ## The last applied case leads, and the launcher row tells the truth early
 

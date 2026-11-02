@@ -1,6 +1,6 @@
 --- The docked side panel, one of the two preview providers.
 ---
---- The companion pane docked beside the picker, describing the highlighted row. A row is
+--- The preview pane docked beside the picker, describing the highlighted row. A row is
 --- one line and one line cannot answer the two questions asked before pressing Return.
 --- Which of the four files called init.lua this one is, and whether it is the thing you
 --- had in mind. The subtitle answers the first as far as a line can, and this answers the
@@ -11,11 +11,11 @@
 --- one and reports everything the call already returned.
 ---
 --- The canvas, the dock, the empty state, the scroll, the hide guard and the teardown belong
---- to the shared docked pane, lib/dockedpane.lua, which the root grants because the manifest
---- declares `pane = true`. This file is the painter that pane calls, a fixed header over a
+--- to the shared preview pane, lib/previewpane.lua, which the root grants because the manifest
+--- declares `previewPane = true`. This file is the painter that pane calls, a fixed header over a
 --- scrolled body, and everything that decides what the two say.
 ---
---- Dot called, and it holds no policy. The docked pane, the kit, the limits, the last used
+--- Dot called, and it holds no policy. The preview pane, the kit, the limits, the last used
 --- lookup and the thumbnail chain are all injected by the surface that owns the picker, so
 --- this file names nothing concrete.
 ---
@@ -49,11 +49,11 @@ M.name = "sidepanel"
 --- run a highlight poll and to wire the scroll keys.
 M.followsHighlight = true
 
--- Injected, see M.configure. Empty until then, and with no docked pane injected the pane
+-- Injected, see M.configure. Empty until then, and with no preview pane injected the pane
 -- stays down entirely, which is the whole degradation path, see M.available.
 local cfg = {}
 
-local pane = nil         -- the shared docked pane, made in configure from the root's grant
+local pane = nil         -- the shared preview pane, made in configure from the root's grant
 local model = nil        -- the row on screen, the header's laid out elements and a body node, see buildModel
 local pending = 0        -- the generation of the newest thumbnail request, see requestImage
 
@@ -289,14 +289,14 @@ end
 -- Painting
 --------------------------------------------------------------------------------
 
--- The painter the docked pane calls, the header and the body over the surface it paints first.
+-- The painter the preview pane calls, the header and the body over the surface it paints first.
 --
 -- The header was laid out when the model was built and never moves. The body is laid out in
 -- the rect below it and scrolled by the scroll offset. It is clipped from the header down to
 -- the inside of the pane's border, so a body scrolled up stops at the header and a line cut at
 -- the bottom is cut by the edge of the pane rather than by the padding, the padding being part
 -- of what scrolls.
--- The overflow answered is the body's, against the room under the header, and the docked pane
+-- The overflow answered is the body's, against the room under the header, and the preview pane
 -- clamps the offset against it, which is what lets a key press, a trackpad gesture and a rebuild
 -- at a new height all be written without any of them knowing how tall the content turned out.
 --
@@ -402,7 +402,7 @@ end
 --------------------------------------------------------------------------------
 
 --- preview.configure(opts) - injected by the surface that owns the picker.
---- opts.dockedPane the root's docked pane grant, a function answering a pane. Absent means
+--- opts.previewPane the root's preview pane grant, a function answering a pane. Absent means
 ---                no pane at all, see available.
 --- opts.ui        the UI kit, needs.lib.ui, which every piece of text in the pane is drawn
 ---                through. Absent means no pane at all, see available.
@@ -419,29 +419,29 @@ end
 ---                the shared routine's own generic default. Read once, when the pane is made.
 function M.configure(opts)
   for k, v in pairs(opts or {}) do cfg[k] = v end
-  if not pane and cfg.dockedPane then
-    pane = cfg.dockedPane({ scroll = true, emptyText = cfg.emptyText })
+  if not pane and cfg.previewPane then
+    pane = cfg.previewPane({ scroll = true, emptyText = cfg.emptyText })
   end
   return M
 end
 
 --- viewer.available() -> bool, reason
 --- Whether a pane can be drawn at all, which is to say whether the composition root granted
---- the docked pane and the kit. The picker asks before reserving a companion rect, so a root that wires
+--- the preview pane and the kit. The picker asks before reserving a preview pane rect, so a root that wires
 --- nothing gets the picker exactly as it was rather than a pane of unreadable text floating
 --- over the desktop with no background behind it.
 function M.available()
-  if not (pane and pane.isEnabled()) then return false, "no docked pane was granted" end
+  if not (pane and pane.isEnabled()) then return false, "no preview pane was granted" end
   if cfg.ui == nil then return false, "no UI kit was injected" end
   return true
 end
 
---- viewer.companionWidth(policy) -> the room this provider needs beside the list.
+--- viewer.previewPaneWidth(policy) -> the room this provider needs beside the list.
 --- Answered by the provider rather than read from config by the surface, because how much room
 --- a preview needs is the provider's own business and the other one needs none. Absent an
 --- explicit policy width, the pane inherits the chooser's own width, the atom's default for
---- every companion.
-function M.companionWidth(policy)
+--- every previewPane.
+function M.previewPaneWidth(policy)
   if not M.available() then return 0 end
   return (policy and policy.width) or true
 end
@@ -451,14 +451,14 @@ function M.close()
   return M.destroy()
 end
 
---- preview.dock(companionFrame) - take the rect the Chooser atom reported.
+--- preview.dock(previewPaneFrame) - take the rect the Chooser atom reported.
 --- Fired with a seed rect at show and again once the real window settles, so a re dock is
 --- expected.
-function M.dock(companionFrame)
+function M.dock(previewPaneFrame)
   if not M.available() then return end
   -- The highlight seed the caller runs right after this call is what actually fills the
   -- pane, cold or not, a nil highlight landing in M.clear same as any other.
-  pane.dock(companionFrame)
+  pane.dock(previewPaneFrame)
 end
 
 --- preview.show(row) - describe a row, or clear the pane when handed nothing.
@@ -484,7 +484,7 @@ end
 
 --- preview.scrollBy(points) - move the body by a distance in points, positive being
 --- further down it. The one place the offset changes, so the keys and the trackpad cannot
---- drift apart. The docked pane clamps it and paints once per frame.
+--- drift apart. The preview pane clamps it and paints once per frame.
 function M.scrollBy(points)
   if not (model and pane) then return end
   pane.scrollBy(points)

@@ -20,7 +20,7 @@
 ---
 --- There is one exception to claiming everything, and it is Hyper. Its dispatch sits
 --- downstream of this tap, so a claimed Hyper press never reaches the bindings a list
---- declares, and confirm, move and the action panel would be dead while a picker is up. The
+--- declares, and confirm, move and the actions pane would be dead while a picker is up. The
 --- owner injects opts.yields, a predicate over the event, and a key down it answers true
 --- for is passed on untouched. This file knows only that predicate, never what Hyper is.
 ---

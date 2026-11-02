@@ -25,7 +25,7 @@ return {
   -- by its place in the batch, one to nine and then a shared mark. The thumbnails, the file type
   -- icons and the colour chip on a row are content and are drawn from the entry itself.
   icons = {
-    -- The secondary, Copy, in the action panel.
+    -- The secondary, Copy, in the actions pane.
     copy = { emoji = "📋", sf = "doc.on.doc" },
     url = { emoji = "🔗", sf = "link" },
     text = { emoji = "📝", sf = "doc.text" },
@@ -214,7 +214,7 @@ return {
       { key = "m", action = "manageHistory", description = "Manage history", icon = "sweep" },
       -- A listing rather than a binding. Backspace on an empty field belongs to the Chooser
       -- atom, which reads it directly as its `back` hook, so there is nothing here to bind and
-      -- chord = false says so. It is still declared, because the key panel is where a key
+      -- chord = false says so. It is still declared, because the info pane is where a key
       -- becomes visible and a way out nobody can see is a way out nobody takes, and it is gated
       -- so it appears exactly while there is a page to leave.
       { key = "delete", action = "leaveManageHistory", when = "clipboardManagingHistory",
@@ -225,9 +225,9 @@ return {
     -- and code searched from the inside and fuzzy then cost too much over long bodies. The shared
     -- search now matches a long body by a word start or inside a word over a lowered copy it
     -- keeps, so the clipboard ranks through it like every list, decisions/olm-unified-search.md.
-    -- The docked companion pane is most of what this picker is, the live preview of
+    -- The preview pane is most of what this picker is, the live preview of
     -- whatever is highlighted, so it earns the reserved room rather than going without.
-    pane = true,
+    previewPane = true,
   },
 
   -- The presentation contract, contract v2, docs/BRIEF-CONTRACT-V2.md. rows and select are
@@ -273,7 +273,7 @@ return {
   -- and processes already keep, minus the anchor arithmetic and the cfg.onPositioned call
   -- host/stage now owns for every presenting plugin. onScroll and onRightClick are contract
   -- v2's own third and fourth additions, found by this migration rather than named by either
-  -- brief, since a canvas companion has no scroll callback of its own and a canvas row has no
+  -- brief, since a canvas preview pane has no scroll callback of its own and a canvas row has no
   -- native right click handling either.
   presentation = {
     rows = { member = "manager.rows", call = "dot" },
@@ -290,7 +290,7 @@ return {
     -- true inherits the chooser's own width, matching cfg.previewW = true unconditionally,
     -- the manager's own config, this plugin's only real layout override even before the
     -- migration, consumer map surprise 9.4 naming the other eight as restated atom defaults.
-    paneWidth = true,
+    previewPaneWidth = true,
     searchText = { member = "manager.searchText", call = "dot" },
     -- The most history rows shown, cut after ranking, decided 2026-10-17, so the provider styles
     -- two hundred of a thousand entries on a keystroke and an empty field shows the newest two

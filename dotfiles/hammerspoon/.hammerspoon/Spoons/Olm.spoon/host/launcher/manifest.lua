@@ -152,7 +152,7 @@ return {
       -- several other plugins have configured.
       aliasHint = { source = "root", policy = "optional",
         breaks = "no row ever states the word that would scope the launcher onto it, so a tool's alias still works when typed but is never discovered by reading its row" },
-      -- The one spelling of a chord, shared with the action bar so a row and a hint can
+      -- The one spelling of a chord, shared with the bottom bar so a row and a hint can
       -- never print two different words for the same key. Root computed, since the leader
       -- catalog and the glyph renderer both live there.
       chordLabel = { source = "root", policy = "optional",
@@ -297,7 +297,7 @@ return {
     -- nothing else tells the root where to look.
     member = "_surface",
     -- No panelAs line. It once named the field a docked hint panel's three callbacks arrived
-    -- under, and that panel was retired on 2026-10-23 for the action bar inside the chooser's own
+    -- under, and that panel was retired on 2026-10-23 for the bottom bar inside the chooser's own
     -- canvas, so nothing is handed to this plugin under any name for it.
     primary = { action = "insertSelected", description = "Run" },
     close = { key = "space" },

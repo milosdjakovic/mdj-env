@@ -32,17 +32,17 @@ end
 -- which is how the keymap's lists layer finds the primary and the close of a list whose action
 -- names differ from another's.
 --
--- The action panel's own verb is one of them, named here as plain data with no reference to
--- what the action panel is or does. Every real context carried its chord once a loop at the
+-- The actions pane's own verb is one of them, named here as plain data with no reference to
+-- what the actions pane is or does. Every real context carried its chord once a loop at the
 -- bottom of the old config/keys.lua added it, and this module carries it now, so a context built
 -- here is honest about the whole set of keys live while it is open and no plugin has to declare
 -- a surface of its own to earn a place in every list.
 local MOVE_NEXT = { shared = "selectNext", action = "selectNext", description = "Move down" }
 local MOVE_PREV = { shared = "selectPrev", action = "selectPrev", description = "Move up" }
-local ACTION_PANEL = { shared = "openActionPanel", action = "openActionPanel", description = "Actions" }
--- The key panel's own verb, toggling the list of every key the open list answers above its
--- footer. Like the action panel's it names no plugin and sits in every block this module builds.
-local SHOW_KEYS = { shared = "showKeys", action = "showKeys", description = "Keys" }
+local ACTION_PANEL = { shared = "openActionsPane", action = "openActionsPane", description = "Actions" }
+-- The info pane's own verb, toggling the list of every key the open list answers above its
+-- bottomBar. Like the actions pane's it names no plugin and sits in every block this module builds.
+local SHOW_KEYS = { shared = "showInfo", action = "showInfo", description = "Info" }
 
 -- Where the all layer puts one shared verb, a list of places each holding a key, its modifiers
 -- and its leader. An entry is a bare key name on the list role, a table of key, mods and leader
@@ -123,14 +123,14 @@ local function looksLikeBinding(value)
   return type(value) == "table" and type(value.key) == "string" and type(value.action) == "string"
 end
 
--- A row of extra with no key, an action of the action panel alone, never bound and listed in no
--- key panel, so it needs a description for the panel to show. docs/PLAN-ACTION-PANEL.md.
+-- A row of extra with no key, an action of the actions pane alone, never bound and listed in no
+-- info pane, so it needs a description for the panel to show. docs/PLAN-ACTION-PANEL.md.
 local function looksLikePanelVerb(value)
   return type(value) == "table" and value.key == nil and type(value.action) == "string"
     and value.action ~= "" and type(value.description) == "string"
 end
 
--- Checks the four fields a verb may carry for the action panel, section, applies, choices and
+-- Checks the four fields a verb may carry for the actions pane, section, applies, choices and
 -- confirm, docs/PLAN-ACTION-PANEL.md. applies and choices name a method of the plugin's surface,
 -- so each is a name rather than a function, and confirm is true or the confirm row's own title.
 local function validatePanelFields(label, row)
@@ -152,7 +152,7 @@ end
 -- Checks the three gates a binding may carry beyond its key and action, so a shape nothing
 -- downstream could honour is named here rather than surfacing later as a binding that quietly
 -- keeps a field no caller can make sense of. chord is only ever meaningful set to false, the
--- sentinel that lists a key in the key panel without binding it, so anything else in that
+-- sentinel that lists a key in the info pane without binding it, so anything else in that
 -- field cannot be honoured. needs only ever names a requirement as a string, the name a
 -- caller's available table is asked about. repeats only ever answers whether the key auto
 -- repeats, plainly true or false.
@@ -182,8 +182,8 @@ end
 -- The fields a secondary may carry, the same shape as primary. It names no key, since Command
 -- and Return is Olm's own all layer, so a key, mods or leader written here is refused rather
 -- than read as a second place a list key is set. chord is refused too, since chord false would
--- leave the action bar naming a Command and Return that nothing binds. icon names a key of the
--- manifest's own icons, the way an extra row's does, for its row in the action panel. applies
+-- leave the bottom bar naming a Command and Return that nothing binds. icon names a key of the
+-- manifest's own icons, the way an extra row's does, for its row in the actions pane. applies
 -- names the surface method answering whether the secondary fits the row the panel opened over,
 -- the same field a verb of extra takes, docs/PLAN-ACTION-PANEL.md.
 local SECONDARY_FIELDS = { action = true, description = true, needs = true, repeats = true, icon = true,
@@ -259,7 +259,7 @@ function obj.validate(name, decl)
     for i, row in ipairs(decl.extra) do
       if not looksLikeBinding(row) and not looksLikePanelVerb(row) then
         return false, "extra[" .. i .. "] is not a binding, it needs a key and an action, or an"
-          .. " action and a description with no key for a verb of the action panel alone"
+          .. " action and a description with no key for a verb of the actions pane alone"
       end
       local rok, rerr = validateGates("extra[" .. i .. "]", row)
       if not rok then return false, rerr end
@@ -295,11 +295,11 @@ end
 -- says so by passing priority through decl rather than this module growing a name based
 -- exception for it.
 --
--- The action panel's own binding and the key panel's are appended to every block this module
+-- The actions pane's own binding and the info pane's are appended to every block this module
 -- builds, as plain data naming no plugin, see ACTION_PANEL and SHOW_KEYS above.
 --
 -- keys is Olm's own all layer, a shared verb to the key it sits on, primary, secondary, selectNext,
--- selectPrev, close, openActionPanel and showKeys, lib/keymap.lua's listDefaults in a real load,
+-- selectPrev, close, openActionsPane and showInfo, lib/keymap.lua's listDefaults in a real load,
 -- an entry being a bare key or a key the field answers with modifiers alone. A verb the
 -- layer gives no key is left out of the block, and a close key the manifest states wins over the
 -- layer's, since it is that list's own default. The person's lists section is laid over the built
@@ -349,7 +349,7 @@ function obj.context(name, decl, available, keys)
     bindings[#bindings + 1] = primary
   end
 
-  -- The optional second action, right after the primary so the action panel lists the two
+  -- The optional second action, right after the primary so the actions pane lists the two
   -- together. It is built only when the list declares one, so a list with none binds nothing on
   -- its key and Command and Return keeps choosing the row there. The plugin's surface adapter
   -- answers its action the way it answers any extra row's.
@@ -379,8 +379,8 @@ function obj.context(name, decl, available, keys)
   -- Extra bindings sit between the move keys and close because that is where every context
   -- that has any puts them, scrolling a preview, appending to a batch, walking a folder,
   -- never after the key that closes the list.
-  -- A row with no key is a verb of the action panel alone, kept out of the bindings, since every
-  -- reader of a binding reads its key, and listed in panel for the action panel and the dispatch.
+  -- A row with no key is a verb of the actions pane alone, kept out of the bindings, since every
+  -- reader of a binding reads its key, and listed in panel for the actions pane and the dispatch.
   local panel = {}
   for _, row in ipairs(decl.extra or {}) do
     if take(row) then

@@ -60,7 +60,7 @@ return {
   -- inside its engine, which is where a constant nobody has ever wanted to change belongs.
 
   -- The shared canvas surface. One source for how every canvas panel looks in
-  -- light and dark, the chooser and its action bar, the cheat sheet, the colour toast,
+  -- light and dark, the chooser and its bottom bar, the cheat sheet, the colour toast,
   -- and the clipboard preview pane. Only the shape lives here, the border width and the
   -- corner radius. The colours of the surface and of everything drawn on it come from the
   -- theme files under config/themes, one file per theme, chosen in the Olm Theme list.
@@ -73,10 +73,10 @@ return {
   -- glass, the chooser's field and its highlighted rows, the right pane's content, the action
   -- bar's two groups and the gap between the chooser and the pane, and every panel's padding.
   -- inner is the room inside a highlighted or filled shape, between a row's edge and its icon,
-  -- and inside each action bar group. The corner of a row and of a group is cornerRadius above
+  -- and inside each bottom bar group. The corner of a row and of a group is cornerRadius above
   -- less outer, so more outer padding makes squarer corners and less makes rounder ones.
-  -- bar is the one padding inside the action bar's two groups and inside the key panel and the
-  -- action panel, the same on every side, so a group's height is its tallest part and this twice.
+  -- bar is the one padding inside the bottom bar's two groups and inside the info pane and the
+  -- actions pane, the same on every side, so a group's height is its tallest part and this twice.
   spacing = {
     outer = 9,
     inner = 14,
@@ -96,7 +96,7 @@ return {
   },
 
   -- Overlay display policy. Decides which display every transient overlay appears
-  -- on, every chooser with its action bar, every cheat sheet, and the colour
+  -- on, every chooser with its bottom bar, every cheat sheet, and the colour
   -- toast. init.lua reads this into a small strategy registry and injects the chosen
   -- resolver into the Chooser atom and the CanvasPanel, so one choice moves every
   -- overlay together. Two modes.

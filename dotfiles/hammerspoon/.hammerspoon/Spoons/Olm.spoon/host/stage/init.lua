@@ -29,7 +29,7 @@
 --- docs/PROBE-FINDINGS-2026-08-27.md.
 ---
 --- What a presentation is not asked to carry. Screen policy, the matcher, the theme, the
---- action bar's collaborator, and the poll interval are all atom level policy this host owns for
+--- bottom bar's collaborator, and the poll interval are all atom level policy this host owns for
 --- the life of the one instance, never per presentation, the same list the stage design
 --- brief's own decisions name. A presentation that wants any of those is asking the wrong
 --- layer.
@@ -43,9 +43,9 @@
 --- presentation block alike, closing review finding ten.
 ---
 --- Live geometry, docs/BRIEF-GEOMETRY.md, phase four of the chooser stage track. A
---- presentation may declare paneWidth, the atom's own companionWidth semantics carried one
+--- presentation may declare previewPaneWidth, the atom's own previewPaneWidth semantics carried one
 --- layer up. present, push, and pop alike write the current presentation's own value into
---- the shared instance's layout.companionWidth before touching the window, the one
+--- the shared instance's layout.previewPaneWidth before touching the window, the one
 --- lib/chooser reach this phase keeps beyond setRows, so a cold show computes the pair's
 --- centering natively, through the atom's own _positionAndShow, rather than painting alone
 --- and correcting itself a beat later. A swap or the resize path's own reshow touches no
@@ -71,7 +71,7 @@
 --- A presentation may now declare matcher, false or a strategy name from the same table
 --- root/compose.lua already resolves this word against for every unmigrated consumer,
 --- written onto the shared instance live before every show and swap through setMatcher and
---- _resolveMatcher, the identical discipline paneWidth already keeps for companionWidth. A
+--- _resolveMatcher, the identical discipline previewPaneWidth already keeps for previewPaneWidth. A
 --- presentation may also declare enter, a member handed one function, proceed, instead of
 --- showing immediately, for a tool whose own rows depend on gathering something first and
 --- whose own author already rejected a show then correct flash. present and push both honour
@@ -102,7 +102,7 @@
 
 --- Cycle, the second way a list is shown, beside present. cycle(p, { keyCode }) is what a tool's
 --- cycle key calls, through the keymap, the way its open key calls present. The first press shows
---- p bare, the provider's list alone with no field and no action bar, with the highlight one row
+--- p bare, the provider's list alone with no field and no bottom bar, with the highlight one row
 --- down, since a list a person cycles is ordered by recent use and row one is where they already
 --- are, the way Command and Tab lands on the app used before. Each further press of the same key
 --- steps the highlight down one row, wrapping at the end. The list then completes by itself on
@@ -156,7 +156,7 @@ local RETYPE_DELAY = 0.05
 -- Injected via configure
 obj._chooser = nil          -- the Chooser factory (has .new), the one door this host builds through
 obj._theme = nil
-obj._footer = nil           -- the action bar's model for whatever is showing, fixed for the life of the instance
+obj._bottomBar = nil           -- the bottom bar's model for whatever is showing, fixed for the life of the instance
 
 -- Owned state
 obj._instance = nil         -- the one Chooser instance, built once and never rebuilt
@@ -208,16 +208,16 @@ end
 ---                     lib/icons/rows.lua. It draws nothing, the chooser turns icon and
 ---                     iconOwner into a picture when it paints. Without it a row that names an
 ---                     icon without an owner shows nothing.
---- opts.footer       a function of no arguments answering the action bar's model for whatever
----                     is showing, lib/hints.lua's footerModel, handed to the one instance as
----                     its footer collaborator. Fixed atom level policy rather than something a
+--- opts.bottomBar       a function of no arguments answering the bottom bar's model for whatever
+---                     is showing, lib/hints.lua's bottomBarModel, handed to the one instance as
+---                     its bottom bar collaborator. Fixed atom level policy rather than something a
 ---                     presentation carries, the way the docked shortcut panel triple it
 ---                     replaced was. The root builds it over current and labels below. Without
----                     it the instance draws no action bar.
+---                     it the instance draws no bottom bar.
 function obj:configure(opts)
   -- Decision one of the stage design brief, the one instance this host ever builds is never
   -- rebuilt. A second call here would not merely waste a chooser, it would orphan the first
-  -- one inside ActionPanel's own instance roster, which appends every instance decorate ever
+  -- one inside ActionsPane's own instance roster, which appends every instance decorate ever
   -- sees and never removes one, so an orphan would sit in that roster forever, finding six of
   -- the phase two adversarial review. Not reachable today, this host is configured exactly
   -- once in the ordinary wiring pass and never again, but the guard costs one comparison and
@@ -231,8 +231,8 @@ function obj:configure(opts)
   self._chooser = opts.chooser
   self._theme = opts.theme
   self._stampIcons = opts.stampIcons
-  self._footer = opts.footer
-  self._footerAction = opts.footerAction
+  self._bottomBar = opts.bottomBar
+  self._bottomBarAction = opts.bottomBarAction
 
   self._stack = {}
   self._openId = nil
@@ -262,7 +262,7 @@ function obj:configure(opts)
     rows = function(query) return self:_rows(query) end,
     onSelect = function(item) self:_onSelect(item) end,
     -- Decision five of the stage design brief. This host's own intercept and back are what
-    -- Chooser.new sees, so the ActionPanel decorator wraps these two exactly once, at this
+    -- Chooser.new sees, so the ActionsPane decorator wraps these two exactly once, at this
     -- construction, and answers for the panel first at runtime, falling through to these
     -- otherwise. Under that, the current presentation's own intercept or back is asked
     -- first, and a back the presentation declines pops the stack instead.
@@ -294,15 +294,15 @@ function obj:configure(opts)
     -- Adversarial review finding M2. Routed through this host's own _onPositioned, the
     -- identical function a manual placement uses on a swap, so the current presentation's own
     -- pane hook hears the same frames whichever of the two placed the window.
-    onPositioned = function(chooserFrame, companionFrame) self:_onPositioned(chooserFrame, companionFrame) end,
+    onPositioned = function(chooserFrame, previewPaneFrame) self:_onPositioned(chooserFrame, previewPaneFrame) end,
     onClose = function() self:_onClose() end,
     -- A key typed over a list shown bare, which a cycle answers, see _onBareKey.
     onBareKey = function(ev) return self:_onBareKey(ev) end,
-    -- The action bar's model, asked by the instance on its own schedule. A provider that draws
+    -- The bottom bar's model, asked by the instance on its own schedule. A provider that draws
     -- no bar never asks.
-    footer = self._footer,
+    bottomBar = self._bottomBar,
     -- What a press on an entry of the bar runs, by its action name.
-    footerAction = self._footerAction,
+    bottomBarAction = self._bottomBarAction,
   })
 
   -- Decision two of the geometry brief. The row count the window is currently built for is
@@ -495,11 +495,11 @@ function obj:_show(p, wasShowing, outgoing)
   -- a settle timer left pending by an EARLIER cold show reads this live when it finally
   -- fires, docs/PROBE-FINDINGS-2026-08-27.md section C3, so writing it here keeps that timer
   -- honest too rather than only the show this call might itself trigger. A presentation
-  -- naming no paneWidth writes nil, which the atom's own _resolveCompanionWidth already
+  -- naming no previewPaneWidth writes nil, which the atom's own _resolvePreviewPaneWidth already
   -- treats as no pane, so the window centres itself alone with nothing else asked. Written
-  -- through setPaneWidth() rather than onto layout directly since the contract freeze phase
+  -- through setPreviewPaneWidth() rather than onto layout directly since the contract freeze phase
   -- closed that reach.
-  self._instance:setPaneWidth(p.paneWidth)
+  self._instance:setPreviewPaneWidth(p.previewPaneWidth)
   -- Contract v2 decision one. Written before every show, cold or swap alike, the identical
   -- placement and the identical reasoning the pane width just above already carries, since
   -- legacy.lua's own Chooser:_build reads its own matcher live on every keystroke rather than
@@ -558,7 +558,7 @@ function obj:_show(p, wasShowing, outgoing)
     -- either way, since the atom's own settle recomputes and overwrites, but this is what
     -- makes the comment describe what the code actually does.
     self._lastShowAt = hs.timer.secondsSinceEpoch()
-    -- Nothing further to do here. layout.companionWidth already carries this presentation's
+    -- Nothing further to do here. layout.previewPaneWidth already carries this presentation's
     -- own value, so _positionAndShow and _settleFrames both compute the pair natively and
     -- fire onPositioned, routed to this host's own _onPositioned below, on their own.
   else
@@ -589,7 +589,7 @@ end
 --
 -- Adversarial review finding M3. The hide is wrapped in pcall and the flag is cleared
 -- unconditionally right after, since without that a raise anywhere inside the atom's own
--- teardown, or inside the ActionPanel decorator it calls through on the way, would leave
+-- teardown, or inside the ActionsPane decorator it calls through on the way, would leave
 -- _suppressClose stuck true for the life of the config, silencing every future onClose,
 -- launcher and every presentation alike, with nothing anywhere saying why. Nothing found in
 -- that path is known to raise today, the cost of guarding it anyway is one pcall.
@@ -645,7 +645,7 @@ function obj:_applyPosture(word)
 end
 
 -- Places a presentation's own pane on a swap, decision one of the geometry brief. A cold show
--- no longer reaches this at all, adversarial review finding M6, since layout.companionWidth
+-- no longer reaches this at all, adversarial review finding M6, since layout.previewPaneWidth
 -- already carries this presentation's own value by the time show() runs and the atom computes
 -- the pair natively. A swap touches no frame the atom would reposition on its own, so the
 -- pair still has to be placed by hand here.
@@ -657,7 +657,7 @@ end
 -- Adversarial review finding M1. The deferral that used to gate on whether THIS call was a
 -- cold show is replaced with a gate on the window's own age. A swap landing within the
 -- provider's own settle delay of this instance's last show still races that show's own
--- pending settle timer, which reads layout.companionWidth live and, now that this host
+-- pending settle timer, which reads layout.previewPaneWidth live and, now that this host
 -- writes it honestly, would confirm rather than corrupt the shift, but the window frame this
 -- function reads before that timer fires may not have settled yet, docs/PROBE-FINDINGS-
 -- 2026-08-27.md's own note that a first show renders taller than its steady state, so this
@@ -671,8 +671,8 @@ function obj:_applyPaneGeometry(p, outgoing)
   -- instead, rider N2 of the geometry review, so every door clears a pending timer before
   -- either the cold or the swap path runs, not only the swap path this function itself is
   -- reached from.
-  local hadPane = outgoing and outgoing.paneWidth
-  if not p.paneWidth and not hadPane then return end
+  local hadPane = outgoing and outgoing.previewPaneWidth
+  if not p.previewPaneWidth and not hadPane then return end
   local settleDelay = self._instance:settleDelay()
   local age = hs.timer.secondsSinceEpoch() - (self._lastShowAt or 0)
   if age < settleDelay then
@@ -690,7 +690,7 @@ end
 -- the running application, hunting a window by its own title, and moving it directly.
 -- reposition answers the same two frames this used to compute by hand and stamps the
 -- provider's own paneFrames itself now, the field the atom's own click watcher reads for
--- every hit test, so a click on the new companion keeps testing honestly. What stays here
+-- every hit test, so a click on the new preview pane keeps testing honestly. What stays here
 -- is only what this host itself owns, the guard that the presentation asking is still
 -- current, and the report of the two frames onward to _onPositioned, the one function that
 -- also fires on the atom's own native path, so this presentation's own
@@ -706,9 +706,9 @@ end
 function obj:_positionPane(p)
   if self:_current() ~= p then return end
   if not (self._instance and self._instance:isActive()) then return end
-  local chooserFrame, companionFrame = self._instance:reposition(p.paneWidth)
+  local chooserFrame, previewPaneFrame = self._instance:reposition(p.previewPaneWidth)
   if chooserFrame then
-    self:_onPositioned(chooserFrame, companionFrame)
+    self:_onPositioned(chooserFrame, previewPaneFrame)
   end
 end
 
@@ -719,10 +719,10 @@ end
 -- consumer draws into the real rect or hides when this presentation declares none. A
 -- presentation with no onPositioned of its own is silently skipped, exactly as an ordinary
 -- missing field already is everywhere else in this file. It once re anchored the docked
--- shortcut panel first, which the action bar inside the chooser's own canvas replaced.
-function obj:_onPositioned(chooserFrame, companionFrame)
+-- shortcut panel first, which the bottom bar inside the chooser's own canvas replaced.
+function obj:_onPositioned(chooserFrame, previewPaneFrame)
   local p = self:_current()
-  if p and p.onPositioned then p.onPositioned(chooserFrame, companionFrame) end
+  if p and p.onPositioned then p.onPositioned(chooserFrame, previewPaneFrame) end
 end
 
 -- Told once a presentation has become current, through present or push alike, right after
@@ -1219,7 +1219,7 @@ end
 --- table with primary and secondary strings, either one absent, or nil when nothing is showing,
 --- the level declares no labels, or its labels raised or answered something else. A registered
 --- presentation's labels is the member the registrar resolved, and a child presentation hands
---- its own function, so both are read the same way. Asked live, so the action bar can count
+--- its own function, so both are read the same way. Asked live, so the bottom bar can count
 --- what is checked. A raise is logged and answers nil, so the bar falls back to the declared
 --- descriptions rather than losing its words.
 function obj:labels()
@@ -1233,29 +1233,29 @@ function obj:labels()
   return type(answer) == "table" and answer or nil
 end
 
---- Stage:toggleKeys()
+--- Stage:toggleInfo()
 --- Method
---- Opens or closes the key panel above the action bar of the one instance, what the shared
---- showKeys list verb runs. A provider that draws no action bar has no key panel and is not
+--- Opens or closes the info pane above the bottom bar of the one instance, what the shared
+--- showInfo list verb runs. A provider that draws no bottom bar has no info pane and is not
 --- asked, so this does nothing there.
-function obj:toggleKeys()
+function obj:toggleInfo()
   local instance = self._instance
-  if instance and type(instance.toggleKeys) == "function" then instance:toggleKeys() end
+  if instance and type(instance.toggleInfo) == "function" then instance:toggleInfo() end
 end
 
---- Stage:closeKeys()
+--- Stage:closeInfo()
 --- Method
---- Closes the key panel above the action bar of the one instance, which every list key that acts
---- does first. A provider with no key panel is not asked.
-function obj:closeKeys()
+--- Closes the info pane above the bottom bar of the one instance, which every list key that acts
+--- does first. A provider with no info pane is not asked.
+function obj:closeInfo()
   local instance = self._instance
-  if instance and type(instance.closeKeys) == "function" then instance:closeKeys() end
+  if instance and type(instance.closeInfo) == "function" then instance:closeInfo() end
 end
 
 --- Stage:depth() -> number
 --- Method
 --- How many levels are on the stack, zero when nothing is presented. A level above the first is
---- one Backspace on an empty field leaves, which is what the action bar's key panel asks.
+--- one Backspace on an empty field leaves, which is what the bottom bar's info pane asks.
 function obj:depth()
   return #(self._stack or {})
 end
@@ -1292,7 +1292,7 @@ function obj:world()
 end
 
 -- Contract v2 decision one. A presentation's own matcher field survives the registrar as a
--- plain value, false, a string, or nil, exactly what paneWidth and rowCount already are, the
+-- plain value, false, a string, or nil, exactly what previewPaneWidth and rowCount already are, the
 -- registrar having already refused any string that does not name a strategy this host's own
 -- Chooser factory exports, lib/registrar.lua's own check against deps.matchers. false is
 -- honoured outright, the supplier owns filtering, the same meaning it already carries at
@@ -1321,24 +1321,24 @@ function obj:_searchOf(p)
   return { searchText = p.searchText, rowLimit = p.rowLimit }
 end
 
---- Stage:paneAnchor(chooserFrame, companionFrame) -> table
+--- Stage:paneAnchor(chooserFrame, previewPaneFrame) -> table
 --- Method
 --- The one true copy of the anchor arithmetic three plugins carried a literal copy of before
 --- this phase, decision three of the geometry brief, consumer map sections 7.3 and 9.11,
 --- plugins/clipboard/manager/ui.lua:1180, plugins/filesearch/chooser.lua:454,
---- plugins/processes/chooser.lua:347. Spans the chooser and its companion so a panel docked
+--- plugins/processes/chooser.lua:347. Spans the chooser and its preview pane so a panel docked
 --- beneath sits full width under both rather than stopping short under the list alone.
---- Answers the plain chooser frame when there is no companion, exactly as the three copies
+--- Answers the plain chooser frame when there is no preview pane, exactly as the three copies
 --- already do, so a plugin migrating onto this host in phase five drops its own copy in
 --- favour of this one call with no change in what its own docked panel receives. Pure
 --- arithmetic, kept a method only for the same reason every other member of this host's
 --- public api is one, a plugin that already holds this host through its own needs.siblings
 --- reaches it the same way it reaches present and push.
-function obj:paneAnchor(chooserFrame, companionFrame)
-  if not companionFrame then return chooserFrame end
+function obj:paneAnchor(chooserFrame, previewPaneFrame)
+  if not previewPaneFrame then return chooserFrame end
   return {
     x = chooserFrame.x, y = chooserFrame.y, h = chooserFrame.h,
-    w = (companionFrame.x + companionFrame.w) - chooserFrame.x,
+    w = (previewPaneFrame.x + previewPaneFrame.w) - chooserFrame.x,
   }
 end
 
@@ -1393,7 +1393,7 @@ end
 --- Stage:selectedRow() -> number or nil
 --- Method
 --- The highlighted row NUMBER on the live instance, or nil, the plain public counterpart
---- Chooser:selectedRow() already answers for ActionPanel. Added for the menu search cache,
+--- Chooser:selectedRow() already answers for ActionsPane. Added for the menu search cache,
 --- docs/BRIEF-MENUSEARCH-CACHE.md, whose own background correction has to know whether a
 --- person has moved off row one before it is safe to redraw without disturbing a considered
 --- position, a row number being the whole question rather than the item sitting on it.
@@ -1564,14 +1564,14 @@ function obj:_onHighlight(item)
   -- A highlight the cycle did not move was moved by the person, an arrow or the pointer, so the
   -- list stops completing by itself and waits for them.
   if self._cycle and not self._cycle.stepping then self:_disarmCycle() end
-  -- Remembered for labels below. The action panel answers the instance's highlight for itself
+  -- Remembered for labels below. The actions pane answers the instance's highlight for itself
   -- while it is open and never reaches here, so this stays the row the panel was opened over.
   self._highlighted = item
   local p = self:_current()
   if p and p.onHighlight then p.onHighlight(item) end
 end
 
--- A trackpad or a wheel scrolled over the companion rect, which a canvas cannot report for
+-- A trackpad or a wheel scrolled over the preview pane rect, which a canvas cannot report for
 -- itself, lib/chooser/providers/legacy.lua's own reason this exists at all. Found during the
 -- trickle migrations, filesearch and the clipboard both already wiring one directly into
 -- their own retired Chooser.new calls. Routed the identical way _onHighlight is, the current

@@ -1,17 +1,17 @@
-// The action bar and the key panel above it, a plain faithful rendering of the footer model the
+// The bottom bar and the info pane above it, a plain faithful rendering of the bottom bar model the
 // engine hands over. The bar is two rounded groups standing on the glass, the key group in the
 // bottom left corner and the action group in the bottom right, each the bar pad in from the
 // bottom edge and from its side, the same inset the list and the pane take, so one token moves
-// every gap. Inside a group its entries are cells as tall as an action panel line, edge to edge,
+// every gap. Inside a group its items are items as tall as an actions pane line, edge to edge,
 // standing the panel's outer padding from the group's four edges, so the pointer over one lights
 // it exactly as the panel lights its highlighted line. Each group is the window's own glass and its words and chords are the row title's
-// font and colour. The key group holds the keyboard icon, or a question mark, with the showKeys chord
-// beside it, and the action group holds the model's right side, each entry its label beside its
-// chord. Every chord, here and in the popovers, is a KeyCap, so a key reads as a key and never as
+// font and colour. The key group holds the keyboard icon, or a question mark, with the showInfo chord
+// beside it, and the action group holds the model's right side, each item its label beside its
+// chord. Every chord, here and in the floating panes, is a KeyCap, so a key reads as a key and never as
 // a word or an icon. A group's corner is the highlighted row's, the surface radius less the bar pad,
-// and a cell's is the group's less the padding around it, a panel line's. The key
-// panel the keys group opens is a popover, see Popover.swift. A press on
-// the key group reports toggleKeys and nothing else here reports anything, so a press on the bar
+// and a item's is the group's less the padding around it, a panel line's. The key
+// panel the left side opens is a floating pane, see FloatingPane.swift. A press on
+// the key group reports toggleInfo and nothing else here reports anything, so a press on the bar
 // or the panel lands on no row and never hides the list.
 
 import Cocoa
@@ -222,11 +222,11 @@ final class KeyCap: FlippedView {
 }
 
 // One group of the bar, a shape of exactly the glass the window stands on, untinted, and tinted
-// with the highlight colour only while lit. Its entries are cells, standing the outer padding in
-// from all four edges and touching one another, each a line of the action panel, so the pointer
+// with the highlight colour only while lit. Its items are items, standing the outer padding in
+// from all four edges and touching one another, each a line of the actions pane, so the pointer
 // over one lights it in the highlight colour with the corner a panel line takes. A press anywhere
 // on it reports through onPress when one is set, whatever part of the group is under the pointer.
-final class BarGroup: FlippedView {
+final class BarSide: FlippedView {
   var onPress: (() -> Void)?
   // A press reported with where it landed, in the group's own space, for a group whose parts
   // each do something of their own.
@@ -234,15 +234,15 @@ final class BarGroup: FlippedView {
   var lit = false { didSet { tint() } }
   var color = NSColor.clear { didSet { tint(); shade.color = color } }
   var radius: CGFloat = 0 { didSet { glass.setCornerRadius(radius) } }
-  // The cells, in the group's own space, and the corner of a lit one.
-  var cells: [NSRect] = [] { didSet { shade.cells = cells } }
+  // The items, in the group's own space, and the corner of a lit one.
+  var items: [NSRect] = [] { didSet { shade.items = items } }
   var cellRadius: CGFloat = 0 { didSet { shade.radius = cellRadius } }
   private let glass = Surface(holding: FlippedView())
   private let shade = Shade()
 
-  // The lit cell, drawn over the glass and under the words and chords.
+  // The lit item, drawn over the glass and under the words and chords.
   final class Shade: FlippedView {
-    var cells: [NSRect] = [] { didSet { needsDisplay = true } }
+    var items: [NSRect] = [] { didSet { needsDisplay = true } }
     var hover: Int? { didSet { if hover != oldValue { needsDisplay = true } } }
     var color = NSColor.clear { didSet { needsDisplay = true } }
     var radius: CGFloat = 0 { didSet { needsDisplay = true } }
@@ -250,9 +250,9 @@ final class BarGroup: FlippedView {
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
     override func draw(_ dirtyRect: NSRect) {
-      guard let hover, hover < cells.count else { return }
+      guard let hover, hover < items.count else { return }
       color.setFill()
-      NSBezierPath(roundedRect: cells[hover], xRadius: radius, yRadius: radius).fill()
+      NSBezierPath(roundedRect: items[hover], xRadius: radius, yRadius: radius).fill()
     }
   }
 
@@ -268,9 +268,9 @@ final class BarGroup: FlippedView {
     !isHidden && frame.contains(point) ? self : nil
   }
 
-  // The cell under point, nil between cells and in the padding around them.
-  func cell(at point: NSPoint) -> Int? {
-    cells.firstIndex { $0.contains(point) }
+  // The item under point, nil between items and in the padding around them.
+  func item(at point: NSPoint) -> Int? {
+    items.firstIndex { $0.contains(point) }
   }
 
   override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
@@ -287,7 +287,7 @@ final class BarGroup: FlippedView {
   override func mouseExited(with event: NSEvent) { shade.hover = nil }
 
   private func hover(_ event: NSEvent) {
-    shade.hover = cell(at: convert(event.locationInWindow, from: nil))
+    shade.hover = item(at: convert(event.locationInWindow, from: nil))
   }
 
   override func updateTrackingAreas() {
@@ -315,14 +315,14 @@ final class BarGroup: FlippedView {
 }
 
 final class BarView: FlippedView {
-  let button = BarGroup()
-  let actions = BarGroup()
+  let button = BarSide()
+  let actions = BarSide()
   private var parts: [NSView] = []
   private var rightParts: [NSView] = []
   private var rightActions: [String?] = []
   private var placement = Placement()
-  // A press on an entry of the action group, with the action that entry names.
-  var onEntry: (String) -> Void = { _ in }
+  // A press on an item of the action group, with the action that item names.
+  var onItem: (String) -> Void = { _ in }
   // The key button's picture as it came, drawn again on the pixel grid at every layout.
   private var keysSource: NSImage?
 
@@ -330,13 +330,13 @@ final class BarView: FlippedView {
     super.init(frame: frame)
     addSubview(button)
     addSubview(actions)
-    actions.onPressAt = { [weak self] point in self?.pressEntry(at: point) }
+    actions.onPressAt = { [weak self] point in self?.pressItem(at: point) }
   }
 
-  // The entry whose cell is under point runs the action it names.
-  private func pressEntry(at point: NSPoint) {
-    guard let i = actions.cell(at: point), i < rightActions.count, let action = rightActions[i] else { return }
-    onEntry(action)
+  // The item whose item is under point runs the action it names.
+  private func pressItem(at point: NSPoint) {
+    guard let i = actions.item(at: point), i < rightActions.count, let action = rightActions[i] else { return }
+    onItem(action)
   }
 
   required init?(coder: NSCoder) { nil }
@@ -350,32 +350,32 @@ final class BarView: FlippedView {
     return hit === self ? nil : hit
   }
 
-  // keysHidden and actionsHidden each hide one group whole, while the panel that group opens
+  // leftHidden and actionsHidden each hide one group whole, while the panel that group opens
   // stands in its corner. The other group stays as it is.
-  func show(_ footer: Footer, style: Style, placement: Placement, lit: Bool, keysHidden: Bool = false,
+  func show(_ bottomBar: BottomBar, style: Style, placement: Placement, lit: Bool, leftHidden: Bool = false,
     actionsHidden: Bool = false) {
     self.placement = placement
     for view in parts + rightParts { view.removeFromSuperview() }
     parts = []
     rightParts = []
-    keysSource = footer.keysImage
-    if let image = footer.keysImage {
+    keysSource = bottomBar.keysImage
+    if let image = bottomBar.keysImage {
       let view = NSImageView(image: image)
       view.imageScaling = .scaleProportionallyUpOrDown
       parts.append(view)
     } else {
       parts.append(label("?", style.titleFont, style.text))
     }
-    // A cell's corner, the panel line's, the group's corner less the padding around the cells.
+    // A item's corner, the panel line's, the group's corner less the padding around the items.
     let capRadius = max(0, style.highlightRadius - placement.barPillPad)
-    if !footer.keysChord.isEmpty {
-      parts.append(KeyCap(footer.keysChord, style: style, placement: placement, holderH: placement.barPillH, holderRadius: capRadius))
+    if !bottomBar.keysChord.isEmpty {
+      parts.append(KeyCap(bottomBar.keysChord, style: style, placement: placement, holderH: placement.barPillH, holderRadius: capRadius))
     }
     for view in parts { button.addSubview(view) }
-    rightActions = footer.right.map { $0.action }
-    for entry in footer.right {
-      rightParts.append(label(entry.label, style.titleFont, style.text))
-      rightParts.append(KeyCap(entry.chord, style: style, placement: placement, holderH: placement.barPillH,
+    rightActions = bottomBar.right.map { $0.action }
+    for item in bottomBar.right {
+      rightParts.append(label(item.label, style.titleFont, style.text))
+      rightParts.append(KeyCap(item.chord, style: style, placement: placement, holderH: placement.barPillH,
         holderRadius: capRadius))
     }
     for view in rightParts { actions.addSubview(view) }
@@ -385,8 +385,8 @@ final class BarView: FlippedView {
       group.cellRadius = capRadius
     }
     button.lit = lit
-    actions.lit = footer.panelOpen
-    button.isHidden = keysHidden
+    actions.lit = bottomBar.panelOpen
+    button.isHidden = leftHidden
     actions.isHidden = actionsHidden || rightParts.isEmpty
     needsLayout = true
   }
@@ -396,19 +396,19 @@ final class BarView: FlippedView {
     let pad = placement.barPad
     let inner = placement.barPillPad
     let gap = placement.barGap
-    let side = placement.keysIcon
-    let cellH = placement.barPillH
-    let h = cellH + 2 * inner
-    // The key group, one cell holding its parts side by side, centred in the cell's height.
+    let side = placement.infoIcon
+    let itemH = placement.barPillH
+    let h = itemH + 2 * inner
+    // The key group, one item holding its parts side by side, centred in the item's height.
     var x = 2 * inner
     for view in parts {
       let size = view is NSImageView ? NSSize(width: side, height: side) : view.fittingSize
-      view.frame = NSRect(x: x, y: inner + (cellH - size.height) / 2, width: size.width, height: size.height)
+      view.frame = NSRect(x: x, y: inner + (itemH - size.height) / 2, width: size.width, height: size.height)
       x += size.width + gap
     }
     let buttonW = x - gap + 2 * inner
     button.frame = Crisp.align(NSRect(x: pad, y: 0, width: buttonW, height: h), in: self)
-    button.cells = [NSRect(x: inner, y: inner, width: buttonW - 2 * inner, height: cellH)]
+    button.items = [NSRect(x: inner, y: inner, width: buttonW - 2 * inner, height: itemH)]
     // The picture on whole pixels and drawn for exactly the pixels it covers, see Crisp.
     for case let view as NSImageView in parts {
       view.frame = Crisp.align(view.frame, in: button)
@@ -416,23 +416,23 @@ final class BarView: FlippedView {
         view.image = Crisp.image(keysSource, size: view.frame.size, scale: Crisp.scale(of: self))
       }
     }
-    // The action group, one cell per entry, edge to edge, its label and chord the inner padding
-    // in from the cell's sides, then placed flush with the bar pad from the right edge.
-    var cells: [NSRect] = []
+    // The action group, one item per item, edge to edge, its label and chord the inner padding
+    // in from the item's sides, then placed flush with the bar pad from the right edge.
+    var items: [NSRect] = []
     x = inner
     for i in stride(from: 0, to: rightParts.count - 1, by: 2) {
       let label = rightParts[i].fittingSize
       let chord = rightParts[i + 1].fittingSize
       let w = inner + label.width + (chord.width > 0 ? gap : 0) + chord.width + inner
-      rightParts[i].frame = NSRect(x: x + inner, y: inner + (cellH - label.height) / 2,
+      rightParts[i].frame = NSRect(x: x + inner, y: inner + (itemH - label.height) / 2,
         width: label.width, height: label.height)
-      rightParts[i + 1].frame = NSRect(x: x + w - inner - chord.width, y: inner + (cellH - chord.height) / 2,
+      rightParts[i + 1].frame = NSRect(x: x + w - inner - chord.width, y: inner + (itemH - chord.height) / 2,
         width: chord.width, height: chord.height)
-      cells.append(NSRect(x: x, y: inner, width: w, height: cellH))
+      items.append(NSRect(x: x, y: inner, width: w, height: itemH))
       x += w
     }
     let actionsW = x + inner
     actions.frame = Crisp.align(NSRect(x: bounds.width - pad - actionsW, y: 0, width: actionsW, height: h), in: self)
-    actions.cells = cells
+    actions.items = items
   }
 }

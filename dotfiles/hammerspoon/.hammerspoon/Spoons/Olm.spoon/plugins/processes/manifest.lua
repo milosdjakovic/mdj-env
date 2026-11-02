@@ -197,7 +197,7 @@ return {
     -- The detail pane beside the list is the live sampler's home, the port, the
     -- project, and the process tree that makes pressing stop safe, so it earns the
     -- reserved room.
-    pane = true,
+    previewPane = true,
   },
 
   -- The presentation contract, contract v2, docs/BRIEF-CONTRACT-V2.md. rows and select are
@@ -234,10 +234,10 @@ return {
     onClose = { member = "chooser.onClose", call = "dot" },
     -- Review finding M1. A member spec now, contract v2's own extension, rather than the
     -- static true this migration first shipped, which centred the pair as if the detail pane
-    -- always stood up even when no docked pane was granted. chooser.paneWidth() mirrors
+    -- always stood up even when no preview pane was granted. chooser.previewPaneWidth() mirrors
     -- the retired layout block's own preview.isEnabled() and (cfg.previewWidth or true) or 0
     -- and is resolved once, at register, after M:start has already configured preview.
-    paneWidth = { member = "chooser.paneWidth", call = "dot" },
+    previewPaneWidth = { member = "chooser.previewPaneWidth", call = "dot" },
   },
 
   -- This plugin's own configure already wires the api and the metrics slice onto

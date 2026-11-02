@@ -62,12 +62,12 @@ local M = {}
 -- isVisible() answers whether the surface is genuinely on screen, as a plain boolean.
 --
 -- One capability a view may answer and the engine asks once, right after the view is built.
--- spansFooter() true means the view draws one surface across the canvas, the gap and the
--- companion, so the action bar runs under both and the companion stops above it. A view that
--- answers nothing keeps the bar under the canvas alone and the companion at the canvas's height.
--- footerHeight(tokens) answers the action bar's height in points for a view whose bar is not the
+-- spansBottomBar() true means the view draws one surface across the canvas, the gap and the
+-- preview pane, so the bottom bar runs under both and the preview pane stops above it. A view that
+-- answers nothing keeps the bar under the canvas alone and the preview pane at the canvas's height.
+-- bottomBarHeight(tokens) answers the bottom bar's height in points for a view whose bar is not the
 -- default row, and a view that answers nothing takes the default row's height.
--- floatsActionPanel() true means the view draws the action panel's rows in a popover over the
+-- floatsActionsPane() true means the view draws the actions pane's rows in a floating pane over the
 -- list rather than in place of the list's rows, so the panel offers no Back row.
 M.requiredMethods = {
   "restyle", "place", "presentRows",
@@ -85,7 +85,7 @@ M.requiredArity = {
 -- place. The engine is the one implementation, so these are documented rather than validated.
 --
 -- scene() answers what to draw, a fresh table of rects, layout, drawLayout, tokens, type, list,
--- rankedQuery, placeholder, bare, footer and keysOpen. list is the list model's state, read
+-- rankedQuery, placeholder, bare, bottomBar and infoOpen. list is the list model's state, read
 -- through list/model.lua's pure functions and never written.
 --
 -- isActive() and hide() are the picker contract's own.
@@ -104,9 +104,9 @@ M.requiredArity = {
 --
 -- highlightIndex(index) moves the highlight to a row of the ranked list, a pointer hover.
 -- chooseIndex(index) chooses that row exactly as Return would. rightClickIndex(index) tells the
--- consumer a row was right clicked. toggleKeys() opens or closes the key panel. scrollTo(points)
--- and scrollBy(points) move the list's viewport. companionScroll(points) hands a scroll over the
--- companion pane to the consumer.
+-- consumer a row was right clicked. toggleInfo() opens or closes the info pane. scrollTo(points)
+-- and scrollBy(points) move the list's viewport. previewPaneScroll(points) hands a scroll over the
+-- preview pane to the consumer.
 
 --- M.validate(view) -> ok, reason
 --- Answers true when view carries every required method at its stated arity, or false and one

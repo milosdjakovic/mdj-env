@@ -38,7 +38,7 @@
 -- test/drygate-composewords.lua's own structured scan of root/compose.lua, which names its
 -- own limits in its own header rather than here.
 --
--- Four, call kinds and the type guards, rowCount, paneWidth, and a scope or presentation
+-- Four, call kinds and the type guards, rowCount, previewPaneWidth, and a scope or presentation
 -- matcher against the real Chooser.matchers table, all ride along inside check two, since
 -- lib/registrar.lua's own obj.validatePresentation already makes every one of those checks
 -- as part of resolving a presentation, and lib/registry.lua's own register call, reused
@@ -325,9 +325,9 @@ local function buildOpts(manifest)
       -- anything this gate actually wants to know about.
       opts.matcher = function() return 0 end
     end
-    -- The docked pane a pane declaring surface earns, lib/wire.lua's own grant. An autostub
+    -- The preview pane a pane declaring surface earns, lib/wire.lua's own grant. An autostub
     -- answers another one when called, so a plugin making its pane at configure gets one.
-    if manifest.surface.pane then opts.dockedPane = hsstub.autostub() end
+    if manifest.surface.previewPane then opts.previewPane = hsstub.autostub() end
   end
   if manifest.needs and manifest.needs.tools then
     opts.deps = hsstub.autostub()
@@ -971,6 +971,40 @@ do
             else
               findings[#findings + 1] = string.format(
                 "dry gate refused '%s', line %d, %s outside lib/kbd.lua, '%s', name the key by its kbd constant and spell a chord through kbd, or declare it with a kbd-exempt comment and a reason",
+                rel, hit.line, hit.what, hit.source)
+            end
+          end
+        end
+      end
+    end
+  end
+end
+
+----------------------------------------------------------------------------------------
+-- The names rule, see test/drygate-names.lua. Every part a person sees has one name, so a word
+-- retired on 2026-11-02 in any Lua, Swift or Markdown file of the spoon is a finding naming its
+-- line, unless the line declares names-exempt and a reason, counted as accepted and printed.
+----------------------------------------------------------------------------------------
+
+do
+  local scanner = dofile(scriptDir .. "drygate-names.lua")
+  local list = os.getenv("DRYGATE_NAMESOURCES") or ""
+  if not list:find("%S") then
+    warning("dry gate did not run the names check, DRYGATE_NAMESOURCES names no files, run it through test/drygate.sh")
+  else
+    for path in list:gmatch("[^\n]+") do
+      local rel = path:sub(1, #spoonDir) == spoonDir and path:sub(#spoonDir + 1) or path
+      if scanner.applies(rel) then
+        local found = scanner.scanFile(path)
+        if not found then
+          warning(string.format("dry gate could not read '%s' for the names check", rel))
+        else
+          for _, hit in ipairs(found) do
+            if hit.exempt then
+              accepted[#accepted + 1] = string.format("accepted, %s:%d, names-exempt, %s", rel, hit.line, hit.exempt)
+            else
+              findings[#findings + 1] = string.format(
+                "dry gate refused '%s', line %d, %s, '%s', see the Names section of AGENTS.md, or declare it with a names-exempt comment and a reason",
                 rel, hit.line, hit.what, hit.source)
             end
           end

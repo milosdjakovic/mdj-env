@@ -6,7 +6,7 @@ keeping a plain zsh window still read apart. Typing matches either name, or both
 at once a word at a time in any order, so vic zsh finds the zsh window inside
 vicert. Choosing a row jumps straight to that window.
 
-Terminal in the action panel names the terminal a fresh attach opens into, the
+Terminal in the actions pane names the terminal a fresh attach opens into, the
 one in force marked and any this machine lacks dimmed.
 
 Opens on Hyper and U, appears in the launcher under Tools, and can be searched

@@ -79,8 +79,8 @@ end
 -- routed handler using deps.methodFor's own name for it when one is given and the action name
 -- itself otherwise. deps.exceptions then overrides any of those by name with a closure the
 -- caller already built, which is how the one action that genuinely cannot be expressed as a
--- routed method, opening the action panel, joins the same table without this module ever
--- learning what the action panel is.
+-- routed method, opening the actions pane, joins the same table without this module ever
+-- learning what the actions pane is.
 --
 -- Once every name has an answer, this walks the same bindings a second time and stamps that
 -- answer onto binding.fn, so obj.bindOne, and anything else handed the same plan afterward,
@@ -91,7 +91,7 @@ end
 --
 -- deps.onAction, optional, a function of the action name, is told before every handler in the
 -- table runs, routed and exception alike, so a caller can do one thing for every list key that
--- acts without each surface or exception remembering to. The root closes the action bar's key
+-- acts without each surface or exception remembering to. The root closes the bottom bar's key
 -- panel there. It is folded in after the exceptions, so no handler escapes it.
 function obj.actions(plan, deps)
   deps = deps or {}
@@ -101,7 +101,7 @@ function obj.actions(plan, deps)
   local hideShortcuts = deps.hideShortcuts
   local onAction = deps.onAction
 
-  -- A context's panel verbs, the action panel's alone, get a handler the same way its bindings
+  -- A context's panel verbs, the actions pane's alone, get a handler the same way its bindings
   -- do, since the panel runs them through this same table.
   local built = {}
   for _, block in pairs(plan.contexts or {}) do

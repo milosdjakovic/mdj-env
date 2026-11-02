@@ -1,6 +1,6 @@
--- Unit case for the one wire that carries the action bar from the root to the chooser. The root
--- builds a footer collaborator over lib/hints.lua's footerModel and hands it to the stage, the
--- stage hands it to its one instance, and the default provider sizes a footer row from the kit's
+-- Unit case for the one wire that carries the bottom bar from the root to the chooser. The root
+-- builds a bottom bar collaborator over lib/hints.lua's bottomBarModel and hands it to the stage, the
+-- stage hands it to its one instance, and the default provider sizes a bottom bar row from the kit's
 -- tokens only when it has one, docs/PLAN-ACTION-BAR.md. A rename that reaches only one of those
 -- files leaves every list with no bar and fails here. It runs the composition root itself,
 -- through the dry gate's own stubbed run, Olm.spoon/test/drygate-composerun.lua, which records
@@ -63,14 +63,14 @@ else
   pipe:close()
 end
 
-local stageFooter, instanceFooter, footerH, hintPanels = false, false, nil, 0
+local stageBottomBar, instanceBottomBar, bottomBarH, hintPanels = false, false, nil, 0
 for line in output:gmatch("[^\n]+") do
-  if line:match("^atom host%.stage%.configure%(") and line:find("footer=fn", 1, true) then
-    stageFooter = true
+  if line:match("^atom host%.stage%.configure%(") and line:find("bottomBar=fn", 1, true) then
+    stageBottomBar = true
   end
-  if line:match("stage%._instance%.config%.footer = fn$") then instanceFooter = true end
-  local h = line:match("stage%._instance%.layout%.footerH = ([%d%.]+)$")
-  if h then footerH = tonumber(h) end
+  if line:match("stage%._instance%.config%.bottomBar = fn$") then instanceBottomBar = true end
+  local h = line:match("stage%._instance%.layout%.bottomBarH = ([%d%.]+)$")
+  if h then bottomBarH = tonumber(h) end
   -- The docked hint panel was a panel the root built below a list with a content strategy that
   -- could say what it showed. The placement is read as the snapshot prints it, a word after
   -- placement, never written here as a value handed to anything.
@@ -81,9 +81,9 @@ for line in output:gmatch("[^\n]+") do
 end
 
 check("the root ran to the end under the stub", not output:find("\nraised ", 1, true))
-check("the root hands the stage a footer collaborator", stageFooter)
-check("the stage hands it to its one chooser instance", instanceFooter)
-check("the default provider sizes a footer row from the kit's tokens", footerH ~= nil and footerH > 0,
-  "footerH " .. tostring(footerH))
+check("the root hands the stage a bottom bar collaborator", stageBottomBar)
+check("the stage hands it to its one chooser instance", instanceBottomBar)
+check("the default provider sizes a bottom bar row from the kit's tokens", bottomBarH ~= nil and bottomBarH > 0,
+  "bottomBarH " .. tostring(bottomBarH))
 check("no docked hint panel is built under any list, so nothing draws a second bar", hintPanels == 0,
   hintPanels .. " panel(s)")

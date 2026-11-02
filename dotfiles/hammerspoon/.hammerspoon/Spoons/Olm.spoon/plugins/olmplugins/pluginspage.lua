@@ -2,7 +2,7 @@
 ---
 --- What the Plugins page shows, as plain data and UI kit nodes and nothing else. It holds no
 --- canvas and no state of its own, one function for the rows, one for the state words a row says
---- and one for the detail block the docked pane draws, so init.lua can decide when each is
+--- and one for the detail block the preview pane draws, so init.lua can decide when each is
 --- needed without knowing how any of it is built. The kit arrives as an argument, since this file
 --- never loads it, which also lets the unit case drive it with a bare kit and no canvas.
 ---

@@ -23,9 +23,10 @@ inside the spoon, where a second person installing Olm would also need it. Below
 this file still names `init.lua` for a piece of wiring, configuration, or policy, take the
 true location to be `compose.lua` unless the text says otherwise.
 
-The words for the chooser's parts, chooser, field, list, pane and bar with its keys group and
-actions group, are settled in the Names section of `Spoons/Olm.spoon/AGENTS.md`. Use those and
-no synonym.
+The words for what a person sees in Olm, components such as the chooser, input field, list, row,
+preview pane, bottom bar, bar item, info pane and actions pane, and the two concepts action and
+shortcut, are settled in the Names section of `Spoons/Olm.spoon/AGENTS.md`. Use those in
+conversation, docs and code, and no synonym. The dry gate refuses the retired words.
 
 **The chooser means the default chooser.** When a request says to change or fix something in
 the chooser, the work goes to the default chooser in `Spoons/Olm.spoon/lib/chooser/providers/default/`,
@@ -281,7 +282,7 @@ The keys live while a list is open are the `lists` section, one table per list k
 context name and `all` for every list, a chord to a surface action or `false`. A list chord
 names its leader the way a global chord does, `hyper`, `meta` or `super`, and every default list
 key rides the `list` role, HYPER unless `roles = { list = "meta" }` moves them all. The
-shared verbs, `primary`, `selectNext`, `selectPrev`, `close` and `openActionPanel`, sit on i, j,
+shared verbs, `primary`, `selectNext`, `selectPrev`, `close` and `openActionsPane`, sit on i, j,
 k, x and o by Olm's own `all` layer, `listDefaults` in `lib/keymap.lua`, unless a manifest states
 its own, the launcher closing on space, and `lib/surface.lua` holds no key, which the dry gate
 checks. `all` is read first and each list's table over it, with the keys section's three rules
@@ -289,7 +290,7 @@ inside one list. `all` moves and frees only keys Olm's own layer gave, so a list
 states its own key for a shared verb, the launcher's space close that doubles as its open key,
 keeps it unless the person names that list, and a list's own entry overrides an `all` entry that
 resolves to the same binding, by verb or by action. `keymap.applyLists` lays the section over
-the built lists before the action bar, the action panel, the keymap and the contexts read them, so a moved list key shows its new chord in
+the built lists before the bottom bar, the actions pane, the keymap and the contexts read them, so a moved list key shows its new chord in
 all of them. A list chord may shadow a global one while its list is open, since collisions are
 checked within the global layer and within each list's layer by leader, modifiers and key, never
 across, so `hyper+j` and `meta+j` are two keys of one list. A list chord with no held leader,
@@ -764,7 +765,7 @@ The automatic Workspaces that replaced them ran, and was replaced in turn becaus
 on its own meant remembering whatever macOS or an app last did.
 
 **Overlay display policy.** One place decides which display every transient
-overlay appears on, every chooser with its action bar, both cheat
+overlay appears on, every chooser with its bottom bar, both cheat
 sheets, and the colour toast. The list is not enumerated here on purpose, a hand kept
 roster drifts the moment a picker is added, and the mode to resolver map inside
 `Spoons/Olm.spoon/lib/overlaydisplay.lua` is the authority. This is Strategy wired through
@@ -823,7 +824,7 @@ default chooser, the side and bottom panes, the toasts, the cheat sheets and eve
 one of five roles from the UI kit in `Spoons/Olm.spoon/lib/ui`. title is the chooser's input
 field, the name at the top of a pane, a toast headline or a cheat sheet section title. body is a list row title and pane
 text. caption is a row subtitle, metadata, a description, an empty state and a hint label, the
-words of the default chooser's action bar and of the key panel, which Milos chose over body on
+words of the default chooser's bottom bar and of the info pane, which Milos chose over body on
 2026-10-23, while the swift chooser's floating bar groups use body, chosen on 2026-10-29. section is
 a heading inside a pane and a cheat sheet key badge glyph. Nothing is drawn below 14 points, so caption,
 section and code all ship at 14. code is a path, a command, output,
@@ -841,7 +842,7 @@ than text and take an icon size, and `hs.alert` and `hs.dialog` are system drawn
 this rule. The Olm dry gate, `Spoons/Olm.spoon/test/drygate.sh`, enforces it by reporting any font name, text size or line height written outside `lib/ui` as a finding, and an icon drawn into a canvas declares itself with a `type-exempt, reason` comment on its line or the line above, which counts as accepted. The design and the role table live in `Spoons/Olm.spoon/docs/DESIGN-UI-KIT.md`.
 
 **Olm keys, one vocabulary and a chord is a list.** Every key a person reads, in a key cap of either
-chooser, the key panel, the action panel, a cheat sheet badge, a launcher or keys page subtitle, a
+chooser, the info pane, the actions pane, a cheat sheet badge, a launcher or keys page subtitle, a
 row number shortcut and a menu search row, comes from `Spoons/Olm.spoon/lib/kbd.lua`, settled by
 Milos on 2026-11-02. A key is an object with a name and a glyph, `kbd.Cmd`, `kbd.Return`,
 `kbd.Hyper`, and a chord is a list of them, one entry per key, built with `kbd.of(kbd.Cmd,
@@ -884,8 +885,8 @@ in `Spoons/Olm.spoon/lib/icons`, a Strategy over sources that answer a name and 
 the emoji source and the SF Symbol source today. A plugin never draws a row icon. It declares
 `icons` in its manifest and a row says `icon = "key"`, or `icon = { emoji = glyph }` for content,
 and Olm draws it. The plugin's own identity icon, which
-the launcher row, the action panel and the scoped list wear, is `defaults.icon`, a key into the
-same `icons`, and an action panel verb or a binding names its icon the same way. A string a person
+the launcher row, the actions pane and the scoped list wear, is `defaults.icon`, a key into the
+same `icons`, and an actions pane verb or a binding names its icon the same way. A string a person
 writes over it in config that is not a key the plugin declares reads as an emoji. Every spec carries
 an `sf` entry beside its `emoji` except content, and the dry gate's coverage line says so. `config/icons.toml` holds the only
 two things a person sets, the active set and its fallback, and the colour a symbol is drawn in is
@@ -1051,7 +1052,7 @@ row's selection does something, express it as the action itself, "copy this comm
 "connect to this relay", never as the key that triggers it, since the key is config data
 that drifts the moment it is rebound. The rule covers the spoon's own doc comments too,
 they describe what the tool does, not the keys that reach it. This is the invariant the
-picker wiring below serves, the contexts, the predicates, and the action bar are all
+picker wiring below serves, the contexts, the predicates, and the bottom bar are all
 assembled in the root, so the spoon exposes only a control surface and its rows and
 learns none of it. The payoff is that rebinding a key, or opening the tool another way,
 touches config alone, and the hint and the binding can never disagree because there is
@@ -1090,15 +1091,15 @@ step mirroring what the clipboard already does.
 4. Expose a `surface` function so `root/compose.lua`'s `surfaceAdapterFor` can resolve
    it into the plan, the live equivalent of the retired `choosers` list, so `lib/nav.lua`'s
    `activeSurface` and `routeNav` send the navigation actions to whichever surface is open.
-5. Show the shortcuts. Nothing to wire. The default chooser draws one action bar row at the
+5. Show the shortcuts. Nothing to wire. The default chooser draws one bottom bar row at the
    bottom of its own canvas for every list on the stage, always visible, docs/PLAN-ACTION-BAR.md.
    Its right side reads the primary's label on Return, the secondary's on Command and Return
-   when the surface declares a `secondary`, and Actions on the action panel's chord, and a
-   (?) button on its left, or the shared `showKeys` verb on Command and ?, a key the list's field answers, opens a
-   key panel over the bottom rows listing every other key the list answers. The words are
-   `lib/hints.lua`'s `footerModel`, read from the same context bindings, gates and labels the
-   action panel reads, and a presentation's own `labels` member words the primary and the
-   secondary for the highlighted row. The root hands the stage one footer collaborator and
+   when the surface declares a `secondary`, and Actions on the actions pane's chord, and a
+   (?) button on its left, or the shared `showInfo` verb on Command and ?, a key the list's field answers, opens a
+   info pane over the bottom rows listing every other key the list answers. The words are
+   `lib/hints.lua`'s `bottomBarModel`, read from the same context bindings, gates and labels the
+   actions pane reads, and a presentation's own `labels` member words the primary and the
+   secondary for the highlighted row. The root hands the stage one bottom bar collaborator and
    the stage hands it to its instance, so a plugin declares nothing beyond its `surface` and,
    optionally, `labels`. The legacy chooser draws no bar. `contextOverlays` stays as an empty
    seam, so a context that wants a real hold overlay again can register a model builder there
@@ -1155,26 +1156,26 @@ press, so the key stays bound and does nothing while its predicate is false. Tha
 something that changes while you use the tool, and the launcher's peek key is the example, since
 whether there is anything to preview depends on the row under the cursor. `needs` gates a binding
 on a CHOICE this root made at wiring time, and it is answered once against the `bindingNeeds`
-registry before either the key wiring or the action bar's `footerModel` reads the bindings, so the binding is removed
+registry before either the key wiring or the bottom bar's `bottomBarModel` reads the bindings, so the binding is removed
 from both together and stays removed for the session. File search is that consumer, where the
 preview provider decides whether the two scroll keys or the peek key are the ones that mean
 anything. Config names the requirement and the root answers it, so neither learns the other's
 business, and an unknown name, a requirement or a predicate, keeps its binding and logs, since a
 typo should cost a stray key rather than a silently missing one.
 
-Both gates are honoured by the action bar as well as by the keys, and the second half of that was
+Both gates are honoured by the bottom bar as well as by the keys, and the second half of that was
 added later than the first. The docked shortcut panel the bar replaced once baked its hint list
 when the panel was built, so a binding gated on live state would be unbound at the press and
 printed in the hints anyway, which is precisely the disagreement the two discoverability mandates
-exist to prevent. The hints became a QUESTION rather than a list then, and the action bar keeps
-that, since the default chooser asks `footerModel` for the list showing on every show, after every
-highlight move and on its poll, and `footerModel` drops a binding whose predicate is currently
-false as well as one whose requirement was not met. So a key appears in the bar and its key panel
+exist to prevent. The hints became a QUESTION rather than a list then, and the bottom bar keeps
+that, since the default chooser asks `bottomBarModel` for the list showing on every show, after every
+highlight move and on its poll, and `bottomBarModel` drops a binding whose predicate is currently
+false as well as one whose requirement was not met. So a key appears in the bar and its info pane
 exactly while it does something, and `when` is a real option for a chooser binding rather than a
 trap.
 
-THE ACTION PANEL ASKS IT TOO, which it did not at first. Its rows come from `rowsFor`, which
-reads the same gate and the same labels the action bar reads, and that function once filtered by an
+THE ACTIONS PANE ASKS IT TOO, which it did not at first. Its rows come from `rowsFor`, which
+reads the same gate and the same labels the bottom bar reads, and that function once filtered by an
 action's kind alone, on the stated grounds
 that no verb anywhere carried a `when` for a second gate to disagree with. A picker with a second
 page ended that, since the two clipboard verbs that act on one highlighted entry are gated off
@@ -1183,7 +1184,7 @@ surface further along. The panel's own `verbsIn` is deliberately still unfiltere
 committed snapshot leans on it being a statement about declarations rather than about a moment.
 
 ASKING ON REVEAL IS NOT ENOUGH, and that took a second report to see, against the docked panel
-the action bar replaced. That panel latched visible, so the reveal showed the truth and then
+the bottom bar replaced. That panel latched visible, so the reveal showed the truth and then
 nothing redrew while the state carried on changing underneath. Entering a tool's list after the panel was already up left the way out unlisted, and
 stepping back out of one left it listed, and the same staleness was quietly true of every other
 gated key, the preview one included, since moving the highlight changes whether it means anything.
@@ -1194,7 +1195,7 @@ might matter, because that is a list nobody keeps complete and the entry already
 the reason this exists. Content without `state` runs no timer, and a steady panel costs a string
 comparison and nothing else. The guard is the canvas being up rather than the reveal flag, since
 that flag tracks only the delayed reveal and stays false for a panel configured with no delay.
-The action bar keeps the same rule inside the chooser. The default provider asks its footer
+The bottom bar keeps the same rule inside the chooser. The default provider asks its bottom bar
 collaborator four times a second while the list is up, keeping the timer's handle, and redraws
 only when the model's `state` string differs.
 
@@ -1213,17 +1214,17 @@ action claimed by two plugins is reported rather than one quietly winning.
 to the Chooser atom and are read there directly, Backspace on an empty field being the one, so
 there is nothing for this root to bind. Such an entry still sits in its context's bindings, because
 the panel is where a key becomes visible and a plain key nobody can see is a key nobody presses.
-The wiring loop skips it and the key panel prints the bare key with no `Hyper+` in front, since
+The wiring loop skips it and the info pane prints the bare key with no `Hyper+` in front, since
 binding it as a chord would invent a second way to press it that the hint would then be wrong
 about. It is gated like anything else, so the way out of a hosted list appears exactly while there
 is a list to leave, and is absent in a tool's own picker and absent when a typed word did the
 scoping, where deleting that word is already the way out and says so by itself. The alternative
-tried first was a sentence in the placeholder, which did the key panel's job worse and put wording
+tried first was a sentence in the placeholder, which did the info pane's job worse and put wording
 somewhere nothing else keeps it.
 
 **A rebuilt list tells the highlight poll.** `Chooser:refresh` clears `lastRow` after setting
 choices, because the poll that drives `onHighlight` compares the row NUMBER and the row under a
-given number changes when the list is rebuilt. Without it a companion pane keeps describing
+given number changes when the list is rebuilt. Without it a preview pane keeps describing
 whatever used to sit there, which showed up as browsing into a folder from the first row leaving
 the file search pane on the old first row. Typing already did this in the query callback, so
 refresh was missing the same one line. Any consumer that swaps its list wholesale, a menu
@@ -1325,10 +1326,10 @@ also carries. A new chooser that highlights its active row reuses the green
 circle rather than inventing its own glyph, so the marker stays one thing across
 every list.
 
-**Back is the first row in a chooser menu.** The action panel under the swift chooser and the
-canvas chooser is the one exception, since it is a popover left by Escape over a list that never
+**Back is the first row in a chooser menu.** The actions pane under the swift chooser and the
+canvas chooser is the one exception, since it is a floating pane left by Escape over a list that never
 went away, see
-`Spoons/Olm.spoon/host/actionpanel/AGENTS.md`. For a menu style chooser with levels,
+`Spoons/Olm.spoon/host/actionspane/AGENTS.md`. For a menu style chooser with levels,
 like DisplayProfiles, the Back row is always the first row, not the last, so
 stepping out is the predictable default and the fresh highlight lands on it, and it
 is never hunted for at the bottom. It reads Back and it carries the back icon, one
@@ -1394,7 +1395,7 @@ supplier returns the full candidate list and the atom scores it, keeps the match
 sorts by score, and styles only the survivors, so a supplier no longer writes its own
 `:find` test and the matching logic exists in exactly one place rather than copied into
 each tool. The ranking is `Spoons/Olm.spoon/lib/chooser/rank.lua`, the one engine both
-providers, the stage, the query scope and the action panel rank through, and a host that needs
+providers, the stage, the query scope and the actions pane rank through, and a host that needs
 it is handed it as root data rather than keeping a loop of its own. The launcher calls neither,
 its rows ranked by the stage like any list's. What a row
 is searched by is its title as the name and its subtitle beside it, plus `keywords`, a string or
@@ -1443,7 +1444,7 @@ reports none and a right press on it reaches nobody, and choosing it ranks in th
 the highlight on the first row it added. A new query, a show or a refresh from row one starts from
 one page again. Both choosers read the setting since 2026-10-30, and each draws the row of more in
 the subtext colour, the swift one through a `muted` field on the row it hands its library.
-`decisions/olm-chooser-row-limit.md` has it. The action panel takes the search off the instance while it is open, since its verbs
+`decisions/olm-chooser-row-limit.md` has it. The actions pane takes the search off the instance while it is open, since its verbs
 do not speak a tool's grammar. The DisplayProfiles, Workspaces and
 TmuxSessions lists and the settings page all inherit now, and the query scope and launcher
 query rows mark what a scope hands over as fromQuery. BrowserTabs tabs, the emoji picker,
@@ -1464,7 +1465,7 @@ can see statically, `Spoons/Olm.spoon/test/drygate-search.lua`, over every file 
 call split across lines joined first. It refuses `matcher = false`, and in a plugin or a host a
 matcher declared as anything but absent or false, a quoted `["matcher"]` index included. It
 refuses a call of a matcher, of a strategy of `match` or `matchers`, or of a local aliasing one in
-the same file, a use of `rank.apply` anywhere but the stage, the query scope and the action panel,
+the same file, a use of `rank.apply` anywhere but the stage, the query scope and the actions pane,
 any use of `rank.score` or `rank.before`, through an alias or a quoted index too, a `:find(` or
 `string.find(` in a plugin or a host whose pattern is the typed text, a variable named query, q,
 text, rest, word or w, used as a truth value on something that is not itself typed text, and a
@@ -1536,9 +1537,9 @@ since a check that fails the run is stronger than a diff somebody has to notice,
 themselves are pinned by `test/cases/panel-namedvalues.lua`.
 
 **Clipboard preview.** The clipboard is the third native panel in the pair. Its
-manager reserves a companion pane beside the chooser (`layout.companionWidth`), and
+manager reserves a preview pane beside the chooser (`layout.previewPaneWidth`), and
 the atom polls the highlighted row and fires `onHighlight`, which draws the copied
-data into an `hs.canvas` docked in that companion frame, no webview. Rendering is
+data into an `hs.canvas` docked in that preview pane frame, no webview. Rendering is
 per kind: text and url wrap in a monospace block, image and video show the store's
 downscaled preview PNG loaded straight as an `hs.image`, and a file shows its
 header plus that image or a note. A text entry that is nothing but a single colour
@@ -1551,7 +1552,7 @@ in `ui.lua`, one consumer, so it is inline there with no new module or injection
 Hyper+Cmd+j/k or with a trackpad over the pane, both through one `scrollPreviewBy`,
 clamped to the overflow and clipped to the inner box. The trackpad half is not the
 clipboard's own, a canvas cannot report a scroll, so the atom watches for one over the
-companion rect and calls `onScroll` with a distance in points, normalising a wheel
+preview pane rect and calls `onScroll` with a distance in points, normalising a wheel
 notch against a trackpad's pixels and flipping the sign once so a pane never has an
 opinion about direction. See the file search pane, which was where that gap was found. The canvas
 pane and the chooser share the palette's colour roles so they read as one surface. Crucially the file storage and the preview sizing are
@@ -1691,7 +1692,7 @@ second predicate, and no second surface, and every key the clipboard context alr
 stays live while it is open. A separate chooser would have needed a context of its own, and
 one plugin gets one context here, since `contextOwners` and the open gate both resolve a
 context through its owning plugin's single `surface` declaration. Reusing the page also keeps
-the companion pane, which matters more here than anywhere else in this tool, since it lists
+the preview pane, which matters more here than anywhere else in this tool, since it lists
 what a row would take, newest first, and a count is a promise while that is the evidence for
 it. The one cost is a mode inside the picker, so `d`, `a`, and a right click go inert on the
 page rather than meaning something different there, and the field's placeholder is what says
@@ -1813,7 +1814,7 @@ being told it.
 
 Three wiring facts about it are worth knowing here. It is a scope like the tools it lists rather
 than a second chooser, which is what makes Back ordinary text editing, deleting the space, and
-which is why it needs no context block, no predicate, no `choosers` entry, and no action bar
+which is why it needs no context block, no predicate, no `choosers` entry, and no bottom bar
 of its own. It is this root's policy over `QueryScope:catalog()` rather than something that spoon
 offers about itself, so the resolver still names no scope at all including its own, and its
 alias sits in its manifest defaults like every other rather than as a constant inside a spoon. And
@@ -1848,7 +1849,7 @@ collision can make different.
 
 A chord is spelled the same way, by one function, `lib/labels.lua`'s `chordLabel` handed the
 shared renderer's glyph helper by the root, since the launcher's own
-rows and the action bar both have to say the same key for the same tool. They did not,
+rows and the bottom bar both have to say the same key for the same tool. They did not,
 one writing a plus where the other wrote a space, until this shared speller closed the gap the
 same way `aliasHint` and `aliasLabel` already had for the aliases.
 
@@ -1890,8 +1891,8 @@ read your selection and so cannot preview it, which is the reason to open that t
 rule is that a scope may be smaller than its tool but not smaller than the reason for the tool,
 and an alias reaching a diminished copy of a tool is worse than there being one way in.
 
-A tool whose companion pane IS the reason for the tool cannot be scoped in place, which rules
-out the clipboard and Local Servers. The launcher's chooser reserves no companion pane and the
+A tool whose preview pane IS the reason for the tool cannot be scoped in place, which rules
+out the clipboard and Local Servers. The launcher's chooser reserves no preview pane and the
 width is fixed when a chooser is built, so a scope always shows the rows without the pane. For
 the clipboard that means losing the preview, which is most of what it is, and for Local Servers
 the process tree, which is what makes pressing stop safe. Scoping either would mean teaching
@@ -1905,22 +1906,22 @@ matched. So `/ ` lists rows with no pane, exactly as it did before the pane exis
 nothing the alias was for is missing. The same test the text case scope failed and the browser
 tabs scope passed, applied to a pane instead of to a second level.
 
-**ActionPanel.** Hyper and o opens a searchable list of the live chooser's own verbs,
+**ActionsPane.** Hyper and o opens a searchable list of the live chooser's own verbs,
 the things a person forgets the chord for, never its navigation, the shared moving,
 inserting, closing, and scrolling every context already carries. It is a host spoon like
 Launcher and QueryScope, but a decorator rather than a coordinator, installed once at
 `Chooser.configure`'s decorate seam so every chooser gains it with no edit to any of the
 twelve places one is built and no consumer learning it exists. Opening it swaps a chooser's
 own rows for the panel's, built by `rowsFor`, which reads the bindings, gates and labels the
-action bar's `footerModel` reads, so the two cannot print two different words for the same chord, and choosing a verb restores the
+bottom bar's `bottomBarModel` reads, so the two cannot print two different words for the same chord, and choosing a verb restores the
 highlight to the row the panel was opened over before running it, so the panel and the chord
 act on exactly the same row. Every action is classified first, verb or navigation from a
 named set the root's own `actionKinds` maps an action name onto, and a panel row is never
-navigation, the panel's own chord included, with two exceptions since the action bar landed, the
+navigation, the panel's own chord included, with two exceptions since the bottom bar landed, the
 primary and the secondary, which the panel lists right after Back with their live labels so every
 action on the highlighted row is in one list. What it does not yet reach is a list hosted
 inside the launcher, whose own verbs are still a chord away rather than in this list. The
-decision trail and internals live in `Spoons/Olm.spoon/host/actionpanel/AGENTS.md`.
+decision trail and internals live in `Spoons/Olm.spoon/host/actionspane/AGENTS.md`.
 
 **Emoji.** Hyper+J opens the Emoji & Symbol Picker. Emoji is a facade over interchangeable backends, the same shape as Chooser, so the root names which one the key opens in a priority ordered list by reference and the first available wins. Three backends ship, the built in picker over the Chooser atom, the macos Character Viewer triggered by Ctrl Cmd Space, and a custom backend that runs an injected callback so an external picker reached by a URL scheme or a trigger becomes a backend with no file of its own. The default is the built in picker, which owns one vendored dataset fetched once by its `regenerate.sh` and committed as `data.lua`, merging the GitHub gemoji set with a safe slice of native Unicode symbols from the official Character Database, currency and arrows and math and the Mac modifier keys and more, so a query by name, shortcode, tag, or category finds a glyph without its exact Unicode name. That artifact is a Lua table rather than json because `hs.json.decode` is quadratic in the number of objects in an array, three seconds for that set against six milliseconds through `loadfile`, and a spoon that loads a dataset in `configure` pays it on every reload rather than once. It is worth knowing beyond this spoon, since any file holding thousands of objects meets the same cliff, and `ClipboardHistory` still spends about 176 ms of every reload decoding its history for exactly this reason. Every matching emoji ranks above every matching symbol, so a query lists the emoji first and the plainer glyphs below. A pick is inserted into the focused field through an injected `onInsert`, so the backend never learns the effect, and it follows the picker checklist above. The root wires `onInsert` to the clipboard manager's `pasteText`, which pastes the glyph rather than typing it, because a synthesized keystroke mangles an astral glyph like an emoji in a terminal and in some native apps while a paste carries the real bytes everywhere, and `pasteText` snapshots the clipboard and restores it after so the paste stays invisible. It degrades to typing when the clipboard manager is absent. The provider strategy, the decision trail and internals, the safe symbol selection, the render based tofu filter, and the icon memory behavior, live in `Spoons/Olm.spoon/plugins/emoji/AGENTS.md`.
 
@@ -2006,7 +2007,7 @@ touches the shellouts, live in `Spoons/Olm.spoon/plugins/processes/AGENTS.md`.
 **DockAutoHide.** A launcher row named Dock that is a doorway rather than a toggle, opened
 from the launcher only with no dedicated key, stepping into a page of two rows, one for the
 Dock's own auto hide setting and one for its show delay, covering the Dock alone since
-StageManager, which was meant to be its companion, was removed from the config entirely
+StageManager, which was meant to be its partner, was removed from the config entirely
 before this plugin was written. Choosing either row flips it in place, the chooser stays
 open, and the row's own wording changes because it was rebuilt fresh rather than patched, a
 QueryScope page like any other. The hiding row reads Turn Dock Hiding On while hiding is off
@@ -2062,14 +2063,14 @@ it. The panel is nonactivating and sits at the pop up menu level so the chooser 
 focus and stays visible, which is the whole reason it can be a preview of a list rather than a
 replacement for it.
 
-The side panel reserves a companion pane and describes the row in it, the name, the location, the
+The side panel reserves a preview pane and describes the row in it, the name, the location, the
 kind, the size, both dates and when you last reached for it, then a folder's newest entries, a
 file's head, or a rendered picture of anything Quick Look can draw. The row subtitle deliberately
 carries no size, because reading one costs a call per row and a page is two hundred rows, while
 the pane describes one row and gets every fact from a single stat. What the pane shows is a Chain
 of Responsibility over describers where declining passes the row along, and the pictures behind it
 are a second chain of generators where only Quick Look caches. It exists only because the root
-grants the shared docked pane, `lib/dockedpane.lua`, for the manifest's `pane = true`, and without
+grants the shared preview pane, `lib/previewpane.lua`, for the manifest's `previewPane = true`, and without
 that grant it reports itself unavailable and the chain moves on.
 
 Two wiring choices are the ones worth knowing here. It ranks through the shared search like

@@ -106,9 +106,9 @@ so no open after the first one pays construction, and no handoff closes a window
 can open.
 
 The shared navigation keys are live while you are showing, j, k, i, x, and your primary key,
-routed to the stage through the one nav adapter. The action bar under your rows says what Return,
-Command and Return and the action panel do, its (?) opens a key panel naming every other key, the
-cheat sheet lists you, and the action panel opens over your list and offers your primary, your
+routed to the stage through the one nav adapter. The bottom bar under your rows says what Return,
+Command and Return and the actions pane do, its (?) opens a info pane naming every other key, the
+cheat sheet lists you, and the actions pane opens over your list and offers your primary, your
 secondary and your verbs.
 
 The ambient policy arrives without a word from you. Ten rows, the uniform width, the fuzzy
@@ -131,7 +131,7 @@ The dry gate checks part of that through `test/drygate-search.lua`, over every f
 `plugins/` and `host/` a matcher declared as anything but absent or false, a quoted index such as
 `["matcher"]` read like the field. It refuses a call of a matcher, a strategy of `match` or
 `matchers`, or a local that aliases one in the same file, a call split across lines included, a
-use of `rank.apply` outside the stage, the query scope and the action panel and of `rank.score` or
+use of `rank.apply` outside the stage, the query scope and the actions pane and of `rank.score` or
 `rank.before` anywhere, through an alias or a quoted index too, a `:find(` or `string.find(` of
 the typed text, a variable named query, q, text, rest, word or w, used as a truth value under
 `plugins/` or `host/`, and a sort whose comparator reads the query or a match score. Comments
@@ -179,22 +179,22 @@ Processes does for its scan. Whatever was showing stays up and answerable until 
 `proceed`, which answers true when it really made you current. Arrange your own timeout, since
 an answer that never comes must not strand a person on a row that does nothing.
 
-`paneWidth` reserves the docked companion pane beside your rows, a number of points, `true`
+`previewPaneWidth` reserves the preview pane beside your rows, a number of points, `true`
 to inherit the chooser width, or a member spec resolved once at register when your own wiring
 is what decides whether a pane exists at all. Absent means no pane.
 
-The pane itself is core. Declaring `pane = true` on your surface earns `opts.dockedPane`, a
-function answering a pane from `lib/dockedpane.lua`, which owns the window, the docking, the
+The pane itself is core. Declaring `previewPane = true` on your surface earns `opts.previewPane`, a
+function answering a pane from `lib/previewpane.lua`, which owns the window, the docking, the
 shared surface, the shared empty state, the scroll and the teardown. You make one in configure
 and hand it what to draw, a describer answering one kit node or a painter answering elements,
 and never build a canvas of your own for it. docs/PLUGIN-CONTRACT.md has the calls under "The
-docked pane".
+preview pane".
 
 ```lua
-local pane = opts.dockedPane({ scroll = true })
+local pane = opts.previewPane({ scroll = true })
 
 -- onPositioned
-if companionFrame then pane.dock(companionFrame) else pane.hide() end
+if previewPaneFrame then pane.dock(previewPaneFrame) else pane.hide() end
 -- onHighlight
 if item then pane.show(function(ui) return ui.text(item.title, "title") end) else pane.clear() end
 -- onScroll
@@ -203,7 +203,7 @@ pane.scrollBy(points)
 pane.destroy()
 ```
 
-A docked pane is never hidden while its presentation is showing. A highlight with nothing to
+A preview pane is never hidden while its presentation is showing. A highlight with nothing to
 describe calls `pane.clear()`, which paints the shared empty state, so a reserved rect never sits
 there with nothing drawn in it. The pane genuinely vanishes only when `onPositioned` is told both
 frames as nil, the stage's own swap signal, and when the stage closes, and a late repaint after a
@@ -222,9 +222,9 @@ means the atom's tail cut.
 never on a pop. It exists for a plugin whose rows depend on something async that nothing else
 has warmed.
 
-`onHighlight` is told the row under the highlight, for a companion consumer drawing a preview.
+`onHighlight` is told the row under the highlight, for a preview pane consumer drawing a preview.
 
-`onPositioned` is told the chooser frame and the companion frame whenever the stage moves the
+`onPositioned` is told the chooser frame and the preview pane frame whenever the stage moves the
 pair for you, and is told both as nil, once, when a different presentation becomes current, so
 a pane you drew clears rather than sitting beside a window that already moved past it.
 
@@ -245,7 +245,7 @@ person's own Backspace or Escape.
 `back` is asked on Backspace while the field is empty, and answers first. Only when it declines
 does the stage pop the stack.
 
-`labels` words the action bar and the action panel for the highlighted row, a member answering a
+`labels` words the bottom bar and the actions pane for the highlighted row, a member answering a
 table with `primary` and `secondary` strings, called with the highlighted item every time the bar
 is drawn, so "Uninstall 4" may count what is checked. A string left out keeps your surface's own
 description, and a level declaring nothing reads the descriptions. A child presentation that wants
@@ -256,7 +256,7 @@ mean, on Command and Return and Command and keypad Enter, the same shape as `pri
 `needs` and `repeats` allowed and no key and no `chord`, since the key is Olm's. Your surface adapter answers its action like any
 `extra` row's. A list declaring none keeps Command and Return choosing the row.
 
-What a row offers beyond Return belongs in the action panel rather than in a level of its own. A
+What a row offers beyond Return belongs in the actions pane rather than in a level of its own. A
 row of `surface.extra` with no key is a verb of the panel alone, and it may carry a `section`, an
 `applies` method answering whether it fits the highlighted row, and `choices` or `confirm`, which
 open a level of the panel, a list to pick from or a Cancel and confirm pair. A verb that must open
@@ -271,10 +271,10 @@ Three more exist and are used by exactly the plugins that needed them, `peekPrev
 A level inside your plugin is a child presentation, not hand wired plumbing. Your `select`
 answering a table pushes it, the stage taking the returned table exactly as a launcher row
 pushes a tool, so choosing the row swaps the list in place, backspace pops back to you, and
-the child may declare its own placeholder, matcher, paneWidth, or rowCount and inherit
+the child may declare its own placeholder, matcher, previewPaneWidth, or rowCount and inherit
 whatever it does not. Returning nil or nothing keeps today's meaning, the row completed and
 the window hides. A child needs no name, the stage derives context from you, though it may
-carry one when its level genuinely wants different keys in the action bar.
+carry one when its level genuinely wants different keys in the bottom bar.
 
 This is `docs/BRIEF-CONTRACT-V3.md`, built and landed. BrowserTabs and DisplayProfiles are the
 two plugins that nest this way today, each a settled example worth reading beside the brief.
@@ -358,7 +358,7 @@ defaults = {
 
 Olm turns that row into a key the way it turns an `open` row into one, and the press runs the
 stage's cycle rather than its present. The first press shows your list bare, the rows alone with
-no field and no action bar and as tall as the rows, with the highlight on row two. Each further
+no field and no bottom bar and as tall as the rows, with the highlight on row two. Each further
 press of the same key moves it one row down and wraps. A moment after the last press the list
 completes on the highlighted row through your own `select`, exactly as Return would. An arrow or
 the pointer stops that and the list waits for Return or Escape, and any other key completes the
@@ -409,9 +409,9 @@ by the cascade that already handles a missing plugin.
 - `registrar refused '%s', its presentation.%s does not state call, dot or method, explicitly`
 - `registrar refused '%s', its presentation.%s names '%s', which does not resolve to a function on the real module`
 - `registrar refused '%s', its presentation.rowCount is '%s', not a positive whole number`
-- `registrar refused '%s', its presentation.paneWidth does not state call, dot or method, explicitly`
-- `registrar refused '%s', its presentation.paneWidth names '%s', which does not resolve to a function on the real module`
-- `registrar refused '%s', its presentation.paneWidth is '%s', not a plain number, true, or a member spec`
+- `registrar refused '%s', its presentation.previewPaneWidth does not state call, dot or method, explicitly`
+- `registrar refused '%s', its presentation.previewPaneWidth names '%s', which does not resolve to a function on the real module`
+- `registrar refused '%s', its presentation.previewPaneWidth is '%s', not a plain number, true, or a member spec`
 - `registrar refused '%s', its presentation.matcher is '%s', not false or a string naming a matcher strategy`
 - `registrar refused '%s', its presentation.matcher names '%s', which is not a strategy the Chooser atom exports`
 - `registrar refused '%s', its presentation.titleLineBreak is '%s', not a string`
@@ -419,7 +419,7 @@ by the cascade that already handles a missing plugin.
 And one warning rather than a refusal, worth reading as a real defect, since the routing it
 names really does go quiet.
 
-- `registrar found '%s' presenting under identity '%s' while its surface declares context '%s', the action bar routes by identity and will not follow that context`
+- `registrar found '%s' presenting under identity '%s' while its surface declares context '%s', the bottom bar routes by identity and will not follow that context`
 
 `lib/registry.lua`, on the descriptor the registrar built for you.
 
@@ -534,7 +534,7 @@ window. Nothing audits that.
 Moving the highlight yourself is not forbidden by anything. It is simply wrong.
 
 `surface.context` and your identity agreeing is a warning, not a refusal, and everything keeps
-working until the action bar quietly loses your keys.
+working until the bottom bar quietly loses your keys.
 
 ## Drawing with the kit
 
@@ -547,9 +547,9 @@ needs = { lib = { ui = { from = "ui" } } },
 
 It arrives as `opts.ui`. Build a tree of nodes, each naming a variant and never a colour, a
 font or a size, and hand it to `ui.layout` with the rect you want it in. What comes back is the
-canvas elements and the height the tree wants. A docked companion pane does not need this
-step, since the docked pane lays out the node a describer answers and hands the describer the
-kit itself, so the example below is for a canvas of your own that is not a docked pane.
+canvas elements and the height the tree wants. A preview pane does not need this
+step, since the preview pane lays out the node a describer answers and hands the describer the
+kit itself, so the example below is for a canvas of your own that is not a preview pane.
 
 The layout engine closes its clip with resetClip, which clears every clip on the canvas, so never lay out a clipped subtree inside a clip of your own.
 
@@ -645,7 +645,7 @@ icon. Olm stamps the owner on the row, and the chooser draws the picture when it
 how an icon follows a light and dark switch, so never hold or cache a picture of an icon yourself. A key your manifest
 does not declare logs one warning naming the plugin and the key, and the row shows no icon.
 
-The plugin's own identity icon, the one its launcher row, its action panel and its scoped list
+The plugin's own identity icon, the one its launcher row, its actions pane and its scoped list
 wear, is `defaults.icon`, and it is a key into the same table. Name the key for the plugin and
 declare it like any other.
 
@@ -658,7 +658,7 @@ defaults = { leader = "app", description = "VPN", icon = "vpn",
 A key `defaults.icon` names that `icons` does not declare is refused at register with one console
 line naming your plugin. A table spec is also accepted there, though a key serves the plugin's
 own rows too and is preferred. A person who writes a string over it in `config/plugins.lua` that is
-not a declared key means an emoji, the plain shorthand. An action panel verb or a binding names
+not a declared key means an emoji, the plain shorthand. An actions pane verb or a binding names
 its icon the same way, `icon = "key"` on the binding, read against the plugin that owns the
 context. A computed row source names `icon = "key"` on the rows it answers, and the root
 stamps that plugin as their owner.
@@ -836,7 +836,7 @@ A row is data. Never put a function in a row or its item, since the launcher han
 
 Name the chord rather than spelling it. Give `group` and `chord` with the leader as a role, or
 `false` for a plain combination, and the launcher spells the subtitle with the same speller the
-action bar uses. A finished `subTitle` is for a row with no key, and it is taken as it stands.
+bottom bar uses. A finished `subTitle` is for a row with no key, and it is taken as it stands.
 
 Your run gets the whole item back. Olm stamps your identity on every item as `owner`, and the
 launcher routes a chosen row to your `launcherRun` by it, after the list has closed and focus has

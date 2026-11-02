@@ -61,7 +61,7 @@ function M.new(opts)
 
   --- instance.image(spec, owner) -> hs.image or nil
   --- The one function turning an owner and an icon into an image, which every reader of an icon
-  --- goes through, a row, a launcher row, an action panel verb, a scope's own identity. spec is
+  --- goes through, a row, a launcher row, an actions pane verb, a scope's own identity. spec is
   --- a table of source name to value, drawn as it stands, or a string. A string that is a key the
   --- owner declared in its manifest icons draws that entry. A string that is not an identifier,
   --- an emoji a person wrote over a plugin's default icon in their config, is the documented

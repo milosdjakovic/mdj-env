@@ -1,8 +1,8 @@
 -- The icon door of the hosts that draw rows of their own. It began as the glyph drawer, lifted
--- out of Launcher's private drawing once ActionPanel became a second caller, and the drawing now
+-- out of Launcher's private drawing once ActionsPane became a second caller, and the drawing now
 -- lives in lib/icons while the resolution of an owner and a key or spec lives in
 -- lib/icons/rows.lua. What is left is the small door those two hosts hold, so a launcher row, an
--- action panel verb and a row a plugin names all come out of the same numbers and the same rule.
+-- actions pane verb and a row a plugin names all come out of the same numbers and the same rule.
 --
 -- M.new(resolver) returns an instance with one function, dot called, matching lib/recency.lua
 -- and lib/registry.lua. instance.icon(spec, owner) answers the resolver's image for that icon

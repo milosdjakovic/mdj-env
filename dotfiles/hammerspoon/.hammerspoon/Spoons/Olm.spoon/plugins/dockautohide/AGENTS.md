@@ -13,7 +13,7 @@ every hosted page has since nothing here is ever cached.
 
 ## Why it has no key
 
-StageManager was meant to be its companion and was removed from the config entirely before
+StageManager was meant to be its partner and was removed from the config entirely before
 this plugin was written, so this covers the Dock alone, two settings rather than a family of
 them. The old standalone spoon carried a hotkey, and this plugin drops it rather than
 carrying it forward, since the launcher row already answers the whole need and a dedicated

@@ -79,11 +79,11 @@ return {
       stagePresent = { source = "root", policy = "optional",
         breaks = "the launcher row opens nothing, since the chooser has no other way to reach the shared stage" },
       stagePush = { source = "root", policy = "optional",
-        breaks = "Apps and Rename in the action panel open nothing, since a verb has no other way to open a level" },
+        breaks = "Apps and Rename in the actions pane open nothing, since a verb has no other way to open a level" },
       stageSelectedItem = { source = "root", policy = "optional",
-        breaks = "every verb of the action panel finds no layout to act on and does nothing" },
+        breaks = "every verb of the actions pane finds no layout to act on and does nothing" },
       redrawPresented = { source = "root", policy = "optional",
-        breaks = "an update or a delete from the action panel leaves the list showing what it showed until it is reopened" },
+        breaks = "an update or a delete from the actions pane leaves the list showing what it showed until it is reopened" },
       stagePop = { source = "root", policy = "optional",
         breaks = "every Back row, and every successful rename, delete, remove, and include, all stand on the level they meant to leave rather than returning to its parent" },
     },
@@ -109,7 +109,7 @@ return {
 
   -- A nested menu you navigate, so the primary verb is insertSelected, the atom's real
   -- completion path, which every level's own intercept is asked ahead of. No pane, no level
-  -- here reserves a companion, and no matcher is declared at the top, so the layouts are
+  -- here reserves a preview pane, and no matcher is declared at the top, so the layouts are
   -- searched by the shared strategy. Only the levels whose field is a typed name or a confirm
   -- set matcher false themselves.
   -- Return applies the highlighted layout, and what else a layout offers is a verb of the action
@@ -160,7 +160,7 @@ return {
     row = { category = "Displays", detail = "window layouts you snapshot and put back",
       icon = "workspaces", keywords = "layout, snapshot, arrange windows, restore windows" },
     open = { member = "chooser.show", call = "dot" },
-    -- The submodule the action panel's verbs, isLayout and the four on a layout, are answered by.
+    -- The submodule the actions pane's verbs, isLayout and the four on a layout, are answered by.
     surface = "chooser",
     scope = {
       rows = { member = "chooser.scopeRows", call = "dot" },

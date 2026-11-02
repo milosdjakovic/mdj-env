@@ -117,7 +117,7 @@ local SHIPPED = {
 
   -- muted is the report toast's alpha for a row naming something that was not there, added
   -- in stage two beside the two the design names.
-  -- keycap is the chip a chord stands on in the bar and its popovers, the foreground at this
+  -- keycap is the chip a chord stands on in the bar and its floating panes, the foreground at this
   -- alpha, faint enough to sit on the highlight as well as on the background.
   alpha = { dim = 0.4, fade = 0.55, muted = 0.5, keycap = 0.14 },
 
@@ -131,7 +131,7 @@ local SHIPPED = {
 -- both names of the space scale. Nothing here states a point value, so a size changed in
 -- config/typography.toml reflows every chip. cheat is the cheat sheet chip, its glyph in
 -- body. hint is the key cap, the one chip every chord in a chooser stands on, in the bar, the
--- key panel and the action panel of both choosers, its glyph in code so every key is one width,
+-- info pane and the actions pane of both choosers, its glyph in code so every key is one width,
 -- with no minimum width since the hint bar it came from never had one. Both choosers read the
 -- cap's role, height, padX and gap from here and nowhere else, so a change here reaches every cap.
 -- gap is the room between two keys of one chord, which a cap draws one glyph per key, see
@@ -430,7 +430,7 @@ function M.new(opts)
       radius = radius,
       alpha = alpha,
       icon = (function()
-        -- hint is an icon drawn among the hint badges, the action bar's key button, as tall as
+        -- hint is an icon drawn among the hint badges, the bottom bar's key button, as tall as
         -- the glyph line a hint badge carries, so it reflows with the section role's size.
         local icon = mergeGroup(SHIPPED.icon, spec.icon)
         if icon.hint == nil then icon.hint = text[BADGE_RULES.hint.role].lineHeight end

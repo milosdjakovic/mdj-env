@@ -35,12 +35,12 @@ past reading copies a one line summary of it. Return on Other networks opens tha
 Backspace on an empty field steps back out of it. The pane on the right follows the highlight
 throughout and scrolls under the trackpad when it holds more than fits.
 
-The settings are in the action panel. Under Run, Direction, Measurement, Maximum runtime,
+The settings are in the actions pane. Under Run, Direction, Measurement, Maximum runtime,
 Protocol and iCloud Private Relay each open their few values with the one in force marked. Under
 History, Keep per network does the same, Name this network opens a field for the name, and the
 two clears ask before they forget anything.
 
-Through the alias the list is smaller on purpose. The launcher reserves no companion pane and
+Through the alias the list is smaller on purpose. The launcher reserves no preview pane and
 nothing can be pushed onto its list, so the pane and the settings cannot exist there. What
 the alias carries is taking a reading and seeing the past ones, and a row at the top that opens
 the tool proper. Starting a run from the alias opens it too, since a row in the launcher has
@@ -64,7 +64,7 @@ caption in subtext. The graphs take their colours by rank, the download primary,
 secondary and the latency or responsiveness strip tertiary. What each view is made of is built as
 nodes by `pane-nodes.lua`, which is plain Lua and has a unit case, and `pane.lua` keeps only the
 choice of view. The canvas, the dock, the empty state, the scroll and its thumb are the shared
-docked pane, `lib/dockedpane.lua`, which the manifest's `pane = true` earns.
+preview pane, `lib/previewpane.lua`, which the manifest's `previewPane = true` earns.
 
 A figure is drawn as its number and its unit. The number is right aligned in a slot as wide as the
 widest value the format can make, so the unit beside it stays still while the number changes. The

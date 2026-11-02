@@ -3,7 +3,7 @@
 --- Lists every plugin with a green or red circle and stages a switch on or off, over the four
 --- root words pluginCatalog, pluginCascade, stagePluginSwitch and applyPluginSwitches. A choice
 --- is only staged, the page stays open, and the root applies the staged set with one reload when
---- the stage goes away or the Apply now row is chosen. A docked pane describes the highlighted
+--- the stage goes away or the Apply now row is chosen. A preview pane describes the highlighted
 --- plugin, its description first.
 ---
 --- It was the third page of the OLM settings plugin until 2026-10-27, when that plugin was split
@@ -16,7 +16,7 @@ local M = {}
 local here = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local page = loadfile(here .. "pluginspage.lua")()
 
--- The docked pane beside the list, made in configure from the root's grant. The shared piece
+-- The preview pane beside the list, made in configure from the root's grant. The shared piece
 -- owns the canvas, the dock, the empty state and the teardown, and this file hands it only what
 -- to draw. Nil when no pane was granted, and every use below asks first.
 local pane = nil
@@ -96,10 +96,10 @@ end
 
 M.onHighlight = describe
 
-function M.onPositioned(_, companionFrame)
+function M.onPositioned(_, previewPaneFrame)
   if not pane then return end
-  if companionFrame then
-    pane.dock(companionFrame)
+  if previewPaneFrame then
+    pane.dock(previewPaneFrame)
     -- The stage seeds the highlight before it positions anything, so this is what fills the
     -- pane on open.
     describeHighlighted()
@@ -116,10 +116,10 @@ function M.onPresent()
   lastStaged = nil
 end
 
---- M.paneWidth() -> true or nil
+--- M.previewPaneWidth() -> true or nil
 --- True only when the pane can really draw, so a root that injected no pane surface opens the
---- page with no companion rect instead of reserving one nothing can draw in. Resolved at register.
-function M.paneWidth()
+--- page with no preview pane rect instead of reserving one nothing can draw in. Resolved at register.
+function M.previewPaneWidth()
   return (pane and pane.isEnabled()) and true or nil
 end
 
@@ -185,7 +185,7 @@ end
 --- opts.applyPluginSwitches  optional, a function of a place to reopen, the Apply now row.
 --- opts.notify               optional, one line of routine feedback, used for a refusal.
 --- opts.stageSelectedItem    optional, the highlighted row, which the pane follows.
---- opts.dockedPane           optional, the root's docked pane grant.
+--- opts.previewPane           optional, the root's preview pane grant.
 --- opts.stagePresent         optional, the shared stage door M.show asks through.
 function M:configure(opts)
   opts = opts or {}
@@ -197,7 +197,7 @@ function M:configure(opts)
   cfg.stageSelectedItem = opts.stageSelectedItem
   cfg.stagePresent = opts.stagePresent
   lastStaged = nil
-  if not pane and opts.dockedPane then pane = opts.dockedPane() end
+  if not pane and opts.previewPane then pane = opts.previewPane() end
   if not available() then
     log.w("configured with no plugin switch words, the page will list nothing")
   end

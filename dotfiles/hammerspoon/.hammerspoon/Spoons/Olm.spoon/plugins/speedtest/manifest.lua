@@ -42,7 +42,7 @@ return {
       -- whole value is the comparison has nothing to compare against without it.
       storage = { from = "storage", policy = "required" },
       -- No ui. The kit every piece of text in the pane is drawn through arrives with the
-      -- docked pane, which hands it to the describer on every paint.
+      -- preview pane, which hands it to the describer on every paint.
     },
 
     tools = {
@@ -72,9 +72,9 @@ return {
       stagePop = { source = "root", policy = "optional",
         breaks = "the Back row on every inner page does nothing, leaving Backspace as the only way out of a level" },
       stagePush = { source = "root", policy = "optional",
-        breaks = "Name this network in the action panel opens nothing, since a verb has no other way to open a level" },
+        breaks = "Name this network in the actions pane opens nothing, since a verb has no other way to open a level" },
       stageSelectedItem = { source = "root", policy = "optional",
-        breaks = "the docked pane cannot read the highlighted row when the list is rebuilt under it, so it keeps showing the run that was highlighted before the rebuild" },
+        breaks = "the preview pane cannot read the highlighted row when the list is rebuilt under it, so it keeps showing the run that was highlighted before the rebuild" },
     },
   },
 
@@ -94,7 +94,7 @@ return {
     example = "Try st to measure this network",
   },
 
-  -- A flat list whose settings are verbs of the action panel alone, docs/PLAN-ACTION-PANEL.md.
+  -- A flat list whose settings are verbs of the actions pane alone, docs/PLAN-ACTION-PANEL.md.
   -- What a run does is a pick of one of a few through choices, naming the network opens its
   -- own field through stagePush, and the two clears ask first through the panel's own confirm,
   -- each listed only when there is something to clear. None names a key, since a setting is
@@ -124,7 +124,7 @@ return {
     },
     -- The detail pane beside the list is where every figure the tool returns actually
     -- lands, since a row holds three numbers and a run answers twenty.
-    pane = true,
+    previewPane = true,
   },
 
   -- Every member is a plain dot called function on the chooser submodule, so every one of
@@ -138,25 +138,25 @@ return {
     onHighlight = { member = "chooser.onHighlight", call = "dot" },
     onPositioned = { member = "chooser.onPositioned", call = "dot" },
     onClose = { member = "chooser.onClose", call = "dot" },
-    -- A trackpad scroll over the docked pane, which the pane needs because a finished run says
+    -- A trackpad scroll over the preview pane, which the pane needs because a finished run says
     -- more than one pane holds. It arrives with no binding of its own, the chooser atom
-    -- watching for a scroll over the companion rect, so it costs no key anywhere.
+    -- watching for a scroll over the preview pane rect, so it costs no key anywhere.
     onScroll = { member = "chooser.onScroll", call = "dot" },
     -- A member spec rather than a static true, so a root that injected no pane surface
     -- opens this list exactly as it would without one rather than reserving a rect with
     -- nothing able to draw in it.
-    paneWidth = { member = "chooser.paneWidth", call = "dot" },
+    previewPaneWidth = { member = "chooser.previewPaneWidth", call = "dot" },
   },
 
   registry = {
     row = { category = "Network", detail = "measure this connection and compare it with its own past",
       keywords = "internet speed, bandwidth, latency, ping, network quality, rpm" },
     open = { member = "chooser.show", call = "dot" },
-    -- The submodule the action panel's verbs are answered by.
+    -- The submodule the actions pane's verbs are answered by.
     surface = "chooser",
     hosted = true,
     -- The scope is deliberately not the whole tool. A scope shows its rows inside the
-    -- launcher's own list, which reserves no companion pane and cannot be pushed into, so
+    -- launcher's own list, which reserves no preview pane and cannot be pushed into, so
     -- neither the pane nor the settings can exist here. What it carries is the two
     -- things worth reaching by a typed word, starting a measurement and reading what this
     -- network has done before, plus one row that opens the tool proper for everything else.

@@ -61,6 +61,11 @@ export DRYGATE_SOURCES
 DRYGATE_SWIFTSOURCES="$(find "$spoon" -type f -name '*.swift' -not -path "$spoon/test/*" 2>/dev/null | sort)"
 export DRYGATE_SWIFTSOURCES
 
+# The names rule reads every Lua, Swift and Markdown file of the spoon, tests and docs included,
+# since a comment and a doc are where a name is learned, see drygate-names.lua.
+DRYGATE_NAMESOURCES="$(find "$spoon" -type f \( -name '*.lua' -o -name '*.swift' -o -name '*.md' \) 2>/dev/null | sort)"
+export DRYGATE_NAMESOURCES
+
 # The layer rule reads every Lua file outside plugins/ and test/, lib/ui included, since the
 # kit is core too. The person's config lives above the spoon and is never in this set.
 DRYGATE_LEAKSOURCES="$(find "$spoon" -type f -name '*.lua' -not -path "$spoon/plugins/*" -not -path "$spoon/test/*" 2>/dev/null | sort)"

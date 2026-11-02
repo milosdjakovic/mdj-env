@@ -21,15 +21,15 @@
 --- its key code, its flags and its autorepeat bit, the same object a tap would have handed it.
 ---
 --- A press outside the panel is reported with its point and decided here, against the engine's
---- rects. A press inside the companion rect, or in the gap between it and the canvas, keeps the
+--- rects. A press inside the preview pane rect, or in the gap between it and the canvas, keeps the
 --- list and asks the panel to take key again, and any other left press hides it. The gap is
---- inside on purpose, since with a companion the panel's one shape of glass spans it, which is
+--- inside on purpose, since with a preview pane the panel's one shape of glass spans it, which is
 --- the one place this differs from the canvas view. The panel losing key while up, to another
 --- application's own shortcut or anything else, hides the list too, see native/Panel.swift's THE
---- FOCUS. A scroll over the companion is claimed
+--- FOCUS. A scroll over the preview pane is claimed
 --- by a scroll wheel tap this view runs while it is started, the way the canvas view's mouse tap
 --- claims it, since an event monitor in Swift could only watch it go by and the window under the
---- pointer would scroll too. The one exception is a docked pane drawn in this panel's own window,
+--- pointer would scroll too. The one exception is a preview pane drawn in this panel's own window,
 --- which is a native scroll view, so a scroll over it is left to AppKit, which hands it to that
 --- view with its momentum. View colon _onScroll is the one place the tap and the hosting meet,
 --- and it asks the panel, through native.hostsPane, rather than knowing where a pane is drawn.
@@ -52,7 +52,7 @@ end
 -- which rows are on screen, to number them, and the geometry for the icon's padding in a row.
 local listModel = load("../default/list/model.lua")
 local geometry = load("../default/geometry.lua")
-local footerLib = load("../default/footer.lua")
+local bottomBarLib = load("../default/bottombar.lua")
 -- The one vocabulary of keys. A chord crosses into Swift as lists of glyphs, one entry per key,
 -- through its wire, so the bridge never carries a chord joined into a string.
 local kbd = load("../../../kbd.lua")
@@ -94,27 +94,27 @@ local function toLocal(rect, origin)
   return { x = rect.x - origin.x, y = rect.y - origin.y, w = rect.w, h = rect.h }
 end
 
--- The span from the canvas rect to the companion rect, the gap between them included, or nil
--- with no companion.
-local function spanOf(canvas, companion)
-  if not (canvas and companion) then return nil end
-  local x0, y0 = math.min(canvas.x, companion.x), math.min(canvas.y, companion.y)
-  local x1 = math.max(canvas.x + canvas.w, companion.x + companion.w)
-  local y1 = math.max(canvas.y + canvas.h, companion.y + companion.h)
+-- The span from the canvas rect to the preview pane rect, the gap between them included, or nil
+-- with no previewPane.
+local function spanOf(canvas, previewPane)
+  if not (canvas and previewPane) then return nil end
+  local x0, y0 = math.min(canvas.x, previewPane.x), math.min(canvas.y, previewPane.y)
+  local x1 = math.max(canvas.x + canvas.w, previewPane.x + previewPane.w)
+  local y1 = math.max(canvas.y + canvas.h, previewPane.y + previewPane.h)
   return { x = x0, y = y0, w = x1 - x0, h = y1 - y0 }
 end
 
--- The window the panel stands in, the canvas rect alone or the span to the companion, and where
--- the list's content, the docked pane's region and the hairline divider sit inside it, in the
+-- The window the panel stands in, the canvas rect alone or the span to the preview pane, and where
+-- the list's content, the preview pane's region and the hairline divider sit inside it, in the
 -- window's own space with y measured down. The divider is width points wide, centred in the gap
 -- between the two, from the top of the window to the bottom, since the bar floats over both and
--- the companion keeps the canvas's height, see under in geometry.resolve.
-local function windowRects(canvas, companion, width)
-  local window = spanOf(canvas, companion)
+-- the preview pane keeps the canvas's height, see under in geometry.resolve.
+local function windowRects(canvas, previewPane, width)
+  local window = spanOf(canvas, previewPane)
   if not window then
     return canvas, { x = 0, y = 0, w = canvas.w, h = canvas.h }, nil, nil
   end
-  local list, pane = toLocal(canvas, window), toLocal(companion, window)
+  local list, pane = toLocal(canvas, window), toLocal(previewPane, window)
   local left, right
   if pane.x >= list.x + list.w then left, right = list.x + list.w, pane.x
   else left, right = pane.x + pane.w, list.x end
@@ -180,31 +180,31 @@ function View:restyle()
   })
 end
 
---- View colon place, arity one. With a companion the panel's one shape of glass spans
---- rects.canvas, the gap and rects.companion, the list's content on the canvas rect, the docked
---- pane's region on the companion and a hairline of the kit's border width in the middle of the
+--- View colon place, arity one. With a preview pane the panel's one shape of glass spans
+--- rects.canvas, the gap and rects.previewPane, the list's content on the canvas rect, the docked
+--- pane's region on the preview pane and a hairline of the kit's border width in the middle of the
 --- gap, and with none it is the canvas rect alone. The field, the list and the bar go on the engine's own rects
 --- in the canvas's own space as before, with the row metrics of the layout the list is drawn to.
---- With a companion the bar's rect runs past the canvas under the gap and the pane, see
---- spansFooter, and the pane's region and the divider stop at its top edge. The companion is
---- handed over in screen space too, since a docked pane is matched to this panel on it.
+--- With a preview pane the bar's rect runs past the canvas under the gap and the pane, see
+--- spansBottomBar, and the pane's region and the divider stop at its top edge. The preview pane is
+--- handed over in screen space too, since a preview pane is matched to this panel on it.
 function View:place(rects)
   local s = self.engine:scene()
   local L, T = s.drawLayout, s.tokens
   local origin = rects.canvas
   local iconPad, iconPadLeft = geometry.iconPad(L)
   local window, listFrame, paneFrame, dividerFrame = windowRects(rects.canvas,
-    rects.companion, T.stroke.border)
+    rects.previewPane, T.stroke.border)
   self.native.place(self.id, {
     canvas = rects.canvas,
     window = window,
     listFrame = listFrame,
     paneFrame = paneFrame,
     dividerFrame = dividerFrame,
-    companion = rects.companion,
+    previewPane = rects.previewPane,
     field = toLocal(rects.field, origin),
     list = toLocal(rects.list, origin),
-    footer = toLocal(rects.footer, origin),
+    bottomBar = toLocal(rects.bottomBar, origin),
     rowH = L.rowH,
     iconSize = L.iconSize,
     iconFrame = L.iconFrame or L.iconSize,
@@ -218,15 +218,15 @@ function View:place(rects)
     barInset = s.layout.marginX,
     barGap = T.space.s,
     barGapWide = T.space.l,
-    keysIcon = T.text.section.lineHeight,
+    infoIcon = T.text.section.lineHeight,
     keysPad = T.pad,
     barPad = T.pad,
-    barPillH = footerLib.height(T),
-    barPillPad = footerLib.padding(T),
+    barPillH = bottomBarLib.height(T),
+    barPillPad = bottomBarLib.padding(T),
     keycapH = T.badge.hint.height,
     keycapPadX = T.badge.hint.padX,
     keycapGap = T.badge.hint.gap,
-    keycapOr = footerLib.ALT_WORD,
+    keycapOr = bottomBarLib.ALT_WORD,
   })
 end
 
@@ -279,9 +279,9 @@ local function iconWindow(ns)
   return math.max(1, first - margin), math.min(#ns.filtered, last + margin)
 end
 
--- The footer model flattened for Swift, every chord through kbd.wire, a list of alternatives each a
+-- The bottom bar model flattened for Swift, every chord through kbd.wire, a list of alternatives each a
 -- list of glyphs, which a KeyCap draws as one chip per alternative and one glyph per key.
-local function footerData(model)
+local function bottomBarData(model)
   if not model then return nil end
   local right, keys = {}, {}
   for _, r in ipairs(model.right or {}) do
@@ -290,7 +290,7 @@ local function footerData(model)
   for _, k in ipairs(model.keys or {}) do
     keys[#keys + 1] = { label = k.label or "", chord = kbd.wire(k.badges), section = k.section }
   end
-  local icon = model.keysIcon
+  local icon = model.infoIcon
   return { right = right, keys = keys, keysChord = kbd.wire(model.keysChord), title = model.title,
     panelOpen = model.panelOpen == true, panelTitle = model.panelTitle,
     keysImage = icon and ICON and ICON(icon.icon, icon.owner) or nil }
@@ -398,8 +398,8 @@ function View:redraw()
   local s = self.engine:scene()
   if not s.rects then return end
   local ns = listModel.normalized(s.list)
-  local footer = (not s.bare) and footerData(s.footer) or nil
-  if footer and footer.panelOpen then return self:_redrawPanel(s, ns, footer) end
+  local bottomBar = (not s.bare) and bottomBarData(s.bottomBar) or nil
+  if bottomBar and bottomBar.panelOpen then return self:_redrawPanel(s, ns, bottomBar) end
   local fresh = ns.filtered ~= self._sentRows
   if fresh then
     self._sentRows = ns.filtered
@@ -442,18 +442,18 @@ function View:redraw()
     empty = empty,
     emptyText = NO_RESULTS,
     lineBreak = s.layout.titleLineBreak,
-    footer = footer,
-    keysOpen = s.keysOpen == true,
+    bottomBar = bottomBar,
+    infoOpen = s.infoOpen == true,
   })
-  -- What the list shows, kept for while the action panel is open over it.
+  -- What the list shows, kept for while the actions pane is open over it.
   self._held = { highlight = ns.highlight or 0, scrollTop = ns.scrollTop, slots = slots }
 end
 
--- While the action panel is open the engine's rows are the panel's verbs. The list keeps the rows,
--- the highlight and the scroll it showed when the panel opened, and the verbs go to the popover
+-- While the actions pane is open the engine's rows are the panel's verbs. The list keeps the rows,
+-- the highlight and the scroll it showed when the panel opened, and the verbs go to the floating pane
 -- above the action group with the engine's highlight, each with its icon resolved here, since the
 -- panel holds a handful of rows.
-function View:_redrawPanel(s, ns, footer)
+function View:_redrawPanel(s, ns, bottomBar)
   local held = self._held or {}
   local actions = {}
   for i, row in ipairs(ns.filtered) do
@@ -471,8 +471,8 @@ function View:_redrawPanel(s, ns, footer)
     empty = false,
     emptyText = NO_RESULTS,
     lineBreak = s.layout.titleLineBreak,
-    footer = footer,
-    keysOpen = s.keysOpen == true,
+    bottomBar = bottomBar,
+    infoOpen = s.infoOpen == true,
     actions = actions,
     actionsHighlight = ns.highlight or 0,
   })
@@ -492,22 +492,22 @@ local function scrollDelta(ev)
   return ev:getProperty(props.scrollWheelEventDeltaAxis1)
 end
 
--- A scroll anywhere on screen, claimed and handed to the engine only over the companion rect, the
+-- A scroll anywhere on screen, claimed and handed to the engine only over the preview pane rect, the
 -- canvas view's rule. Everywhere else it passes on untouched, the panel's own list included.
 --
--- THE COUPLING between this tap and where the docked pane is drawn lives here and nowhere else.
--- While this panel's window holds a shown native pane, the companion rect is that window and the
+-- THE COUPLING between this tap and where the preview pane is drawn lives here and nowhere else.
+-- While this panel's window holds a shown native pane, the preview pane rect is that window and the
 -- pane in it is a scroll view, so the event is left alone for AppKit to hand it, momentum and all.
 -- Claiming it would delete it before the window saw it. A canvas pane, or a native pane standing
 -- in a window of its own, is not hosted here, so the scroll is claimed as before, the app
 -- underneath never scrolls, and the engine hands it to the pane's scrollBy.
 function View:_onScroll(ev)
   local rects = self.engine:scene().rects
-  if not pointInRect(ev:location(), rects and rects.companion) then return false end
+  if not pointInRect(ev:location(), rects and rects.previewPane) then return false end
   if self.native.hostsPane(self.id) then return false end
   local dy = scrollDelta(ev)
   if not dy or dy == 0 then return false end
-  self.engine:companionScroll(-dy)
+  self.engine:previewPaneScroll(-dy)
   return true
 end
 
@@ -518,11 +518,11 @@ function View:start()
   -- Only a list with a pane beside it needs the tap, and a tap sits in the path of every scroll
   -- event on the machine, momentum included, so a list without one runs none.
   local rects = self.engine:scene().rects
-  if not self._scrollTap and rects and rects.companion then
+  if not self._scrollTap and rects and rects.previewPane then
     self._scrollTap = hs.eventtap.new({ hs.eventtap.event.types.scrollWheel }, function(ev)
       local ok, claimed = pcall(self._onScroll, self, ev)
       if not ok then
-        print("Olm swift view, a companion scroll failed, " .. tostring(claimed))
+        print("Olm swift view, a preview pane scroll failed, " .. tostring(claimed))
         return false
       end
       return claimed
@@ -562,16 +562,16 @@ end
 -- Events from the panel, each one engine call
 --------------------------------------------------------------------------------
 
--- A left press outside the panel. Inside the companion rect, or in the gap between it and the
+-- A left press outside the panel. Inside the preview pane rect, or in the gap between it and the
 -- canvas, which is glass of this panel's own window, it keeps the list up and gives the panel key
 -- again, since the press may have taken it, and anywhere else it hides the list. The gap is
--- inside only while there is a companion, and only here, since the canvas view draws nothing
+-- inside only while there is a preview pane, and only here, since the canvas view draws nothing
 -- there and still hides for a press in it.
 function View:_pressOutside(x, y)
   local rects = self.engine:scene().rects
   local point = { x = x, y = y }
   if pointInRect(point, rects and rects.canvas) then return end
-  if pointInRect(point, rects and spanOf(rects.canvas, rects.companion)) then
+  if pointInRect(point, rects and spanOf(rects.canvas, rects.previewPane)) then
     self.native.refocus(self.id)
     return
   end
@@ -607,20 +607,20 @@ local handlers = {
     v._knownHighlight = index
     v.engine:followHighlight(index, byPointer == true)
   end,
-  -- A press in the panel away from the open key panel, which closes it and does nothing else.
-  closeKeys = function(v) v.engine:closeKeys() end,
+  -- A press in the panel away from the open info pane, which closes it and does nothing else.
+  closeInfo = function(v) v.engine:closeInfo() end,
   choose = function(v, index) v.engine:chooseIndex(index) end,
   rightClick = function(v, index) v.engine:rightClickIndex(index) end,
   -- A native scroll moved the viewport, so the engine's model follows it and the rows it brings
   -- near get their icons. Nothing else is sent back, so the native list owns the scroll the way
-  -- the docked pane does, and a tick never redraws the list or moves it again.
+  -- the preview pane does, and a tick never redraws the list or moves it again.
   scroll = function(v, y)
     v.engine:scrollTo(y)
     v._knownTop = listModel.normalized(v.engine:scene().list).scrollTop
     v:_scrolled()
   end,
-  toggleKeys = function(v) v.engine:toggleKeys() end,
-  footerAction = function(v, name) v.engine:footerAction(name) end,
+  toggleInfo = function(v) v.engine:toggleInfo() end,
+  bottomBarAction = function(v, name) v.engine:bottomBarAction(name) end,
   pressOutside = function(v, x, y) v:_pressOutside(x, y) end,
   resignedKey = function(v) v.engine:hide() end,
 }
@@ -670,24 +670,24 @@ function M.attach(native)
   native.setCallback(M.dispatch)
 end
 
---- View colon spansFooter, arity zero. True, since the panel's one shape of glass spans the canvas,
---- the gap and the companion, so the action bar runs under the list and the docked pane alike.
-function View:spansFooter()
+--- View colon spansBottomBar, arity zero. True, since the panel's one shape of glass spans the canvas,
+--- the gap and the preview pane, so the bottom bar runs under the list and the preview pane alike.
+function View:spansBottomBar()
   return true
 end
 
---- View colon floatsActionPanel, arity zero. True, since the action panel's verbs are drawn in a
---- popover above the action group while the list keeps its own rows behind it.
-function View:floatsActionPanel()
+--- View colon floatsActionsPane, arity zero. True, since the actions pane's verbs are drawn in a
+--- floating pane above the action group while the list keeps its own rows behind it.
+function View:floatsActionsPane()
   return true
 end
 
---- View colon footerHeight, arity one. The bar's region, a group holding cells as tall as the
---- default bar's row with the bar's padding around them, as an action panel holds its lines, and
+--- View colon bottomBarHeight, arity one. The bar's region, a side holding bar items as tall as the
+--- default bar's row with the bar's padding around them, as an actions pane holds its lines, and
 --- the bar pad below it, so each group stands that pad from the bottom edge. The pad above it is
 --- the list's own bottom margin, the same token.
-function View:footerHeight(tokens)
-  return footerLib.height(tokens) + 2 * footerLib.padding(tokens) + tokens.pad
+function View:bottomBarHeight(tokens)
+  return bottomBarLib.height(tokens) + 2 * bottomBarLib.padding(tokens) + tokens.pad
 end
 
 --- M.new(engine, native) answers a view for one engine instance, with a panel of its own, built

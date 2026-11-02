@@ -331,7 +331,7 @@ end
 
 --- TextCase:scopeCopy(item)
 --- Method
---- Copy, offered over a scope row by the action panel. Puts the case on the pasteboard rather
+--- Copy, offered over a scope row by the actions pane. Puts the case on the pasteboard rather
 --- than pasting it, reading the selection first for a sample row the way scopeRun does.
 function obj:scopeCopy(item)
   self._scopeOpenId = nil

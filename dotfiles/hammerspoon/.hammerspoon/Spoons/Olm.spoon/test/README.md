@@ -14,7 +14,7 @@ Spoons/Olm.spoon/test/systemsettings.lua    # when a System Settings pane action
 Spoons/Olm.spoon/test/rootmechanism.lua     # the chord and alias spelling, the open list test and the launcher row intercept
 Spoons/Olm.spoon/test/keypage.lua           # the OLM keys page, the keymap as words and the presentation built from them
 Spoons/Olm.spoon/test/swiftview.lua         # the swift chooser's Lua view under the engine over a fake native panel, and its fallback
-Spoons/Olm.spoon/test/panebackends.lua      # one docked pane over the canvas and the native backend, handed the same elements
+Spoons/Olm.spoon/test/panebackends.lua      # one preview pane over the canvas and the native backend, handed the same elements
 Spoons/Olm.spoon/test/canvasbar.lua         # the canvas bar's two groups by swift's numbers, the list behind them and the pointer on them
 Spoons/Olm.spoon/test/keys.sh               # every bound chord in the live config, diffed against keys.golden
 Spoons/Olm.spoon/test/keys.sh --bound       # what the binder bound under the stub, diffed against keys.golden
@@ -131,8 +131,8 @@ registrar's descriptor validation, and `keymap-person.lua` is the person's own f
 `config/keymap.lua`, its chord grammar, every problem an entry can raise, displacement, false,
 the leaders, roles and aliases sections, which leaders a keymap puts in use, and the lists
 section, Olm's own all layer under every list, a person's all and per list entries, false, a
-refused clash within one list, a list chord shadowing a global one, the action bar and the action
-panel reading the moved key, and the secondary, showKeys and the action bar's footer model.
+refused clash within one list, a list chord shadowing a global one, the bottom bar and the action
+panel reading the moved key, and the secondary, showInfo and the bottom bar's bottom bar model.
 `suite.sh dry` runs both.
 
 Since the keymap binds, a projection of its rows is not the whole proof, so a second offline

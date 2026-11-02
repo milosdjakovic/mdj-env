@@ -292,7 +292,7 @@ return {
     -- Command and Return reveals the file in Finder, the same verb the f key runs, and the action
     -- panel lists it once, docs/PLAN-ACTION-PANEL.md.
     --
-    -- Each verb that acts on one entry names applies, so the action panel lists it only over a
+    -- Each verb that acts on one entry names applies, so the actions pane lists it only over a
     -- row it fits. isEntry is a real file or folder rather than a status or help row, isFolder a
     -- real folder, and isBrowsing a query browsing a folder, the only time there is a level
     -- above. applies decides the panel alone. A key still reaches its verb, which answers for
@@ -317,7 +317,7 @@ return {
     -- injected for matching.
     -- The pane beside the list is the one place a highlighted file's name, size,
     -- dates and a rendered preview live, so it earns the reserved room.
-    pane = true,
+    previewPane = true,
   },
 
   -- The presentation contract, contract v2, docs/BRIEF-CONTRACT-V2.md. rows and select are
@@ -347,7 +347,7 @@ return {
   -- shape processes' own presentation block already keeps, minus the anchor arithmetic and
   -- the cfg.onPositioned call host/stage now owns for every presenting plugin. onScroll is
   -- contract v2's own third addition, found by this migration rather than named by either
-  -- brief, since a canvas companion has no scroll callback of its own.
+  -- brief, since a canvas preview pane has no scroll callback of its own.
   --
   -- No back. This tool has one level, a flat list with a parent row stepping up rather than an
   -- inner level Backspace steps out of, so it declares no back hook, the identical shape
@@ -371,10 +371,10 @@ return {
     -- Review finding M1. A member spec now, contract v2's own extension, rather than the
     -- static true this migration first shipped, which centred the pair as if a pane always
     -- stood up even when the resolved provider asked for none, quicklook's own
-    -- companionWidth() answering 0, or a person setting previewWith = false to decline the
-    -- seat outright. chooser.paneWidth() mirrors M:start's own arithmetic and is resolved
+    -- previewPaneWidth() answering 0, or a person setting previewWith = false to decline the
+    -- seat outright. chooser.previewPaneWidth() mirrors M:start's own arithmetic and is resolved
     -- once, at register, after wiring has already settled which viewer, if any, won.
-    paneWidth = { member = "chooser.paneWidth", call = "dot" },
+    previewPaneWidth = { member = "chooser.previewPaneWidth", call = "dot" },
     searchText = { member = "chooser.searchText", call = "dot" },
     rowLimit = 200,
     -- Rework rider, restored. Every title here is a filename, and the last few characters of

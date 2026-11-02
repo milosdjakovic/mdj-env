@@ -50,7 +50,7 @@ from that.
 | A plugin gets | when it declares |
 | --- | --- |
 | `chooser`, `theme`, `placeholder`, `matcher` | a `surface` |
-| `dockedPane`, a function answering a docked companion pane, see "The docked pane" below | `surface.pane = true` |
+| `previewPane`, a function answering a preview pane, see "The preview pane" below | `surface.previewPane = true` |
 | `deps`, the scoped adapter that turns a tool name into an absolute path | any `needs.tools` |
 | `recency` | `needs.lib.recency` |
 | `after`, the deferred call helper | nothing, every plugin may ask |
@@ -162,7 +162,7 @@ declaration that is not a table, a key that is not a string, or an entry with no
 any source, and an entry may carry `content = true`, which is not a source and only marks the icon
 for the dry gate's coverage report.
 
-`defaults.icon` is the plugin's identity icon, read by the launcher row, the action panel and the
+`defaults.icon` is the plugin's identity icon, read by the launcher row, the actions pane and the
 scoped list. It is a key into `icons`, or a table spec. The registrar refuses a
 key that `icons` does not declare, naming the plugin. A binding, a row and a `registry.row` name
 an icon the same way with `icon = "key"`, and `defaults.glyph` and every `glyph` field are gone.
@@ -448,7 +448,7 @@ leader holds, `policy.roleTitles` read by `lib/leader.lua`'s `sheetHeading`, and
 for a plugin whose own answer lands after the keystroke that asked for it. `notify`,
 `showColor`, and `report`, one line of feedback, one sampled colour, and one titled list of
 rows each with an icon, a label, and a detail, all drawn on the shared overlay so they read
-as part of the same interface as the cheat sheet and the action bar.
+as part of the same interface as the cheat sheet and the bottom bar.
 `host`, this machine's own identity, for anything a plugin keys per host. `scope`, which
 arrangement of displays is attached right now, as one comparable string, so two plugins
 that both scope memory to the desk agree on what the desk currently is. `storePath`, where
@@ -508,7 +508,7 @@ redraws itself specifically and nothing else, self referential locals, `local ch
 returned. `stageHide()` hides the shared window outright. `stagePush(child)`,
 `docs/PLAN-ACTION-PANEL.md`, pushes a child presentation over the current one exactly as a
 `select` answering it does, named after the current one when it names nothing, for a verb run from
-the action panel, which has no `select` to answer a child through. `stagePop()`, contract v3's own addition, docs/BRIEF-CONTRACT-V3.md, asks the stage
+the actions pane, which has no `select` to answer a child through. `stagePop()`, contract v3's own addition, docs/BRIEF-CONTRACT-V3.md, asks the stage
 to leave the current child the way Backspace on an empty field already does, `Stage:pop`
 restoring the parent and answering false at the bottom exactly as that press does, for a
 row that must leave a level rather than drill into one, the one shape a child returned from
@@ -725,7 +725,7 @@ A row is data and never a function, because the launcher hands every row to `hs.
 which drops a row holding one without a word. The subtitle is either a finished `subTitle` or
 the parts, `group` and `chord` with its leader named by role, or `false` for a plain combination
 the glyph renderer spells whole, which the launcher spells with the shared chord speller so a row
-and the action bar print the same words for one key. The
+and the bottom bar print the same words for one key. The
 root stamps the plugin's identity on every item as `owner`, always, over anything the row
 arrived with, so a plugin cannot route a row into another plugin's runner, and on the row as
 `iconOwner`. The launcher routes a chosen row by that owner, so `launcherRun` is handed the whole
@@ -940,8 +940,8 @@ reads it, so nothing here changes for a plugin. It has five sections.
   leader, `ctrl+j`, a named leader's chord or a bare `tab`, is answered by the open list's own
   default chooser field and never claimed from another app, and one that would type into the field
   or that the field already reads is refused. A shared
-  verb is named `primary`, `secondary`, `selectNext`, `selectPrev`, `close`, `openActionPanel` or
-  `showKeys`, and any other
+  verb is named `primary`, `secondary`, `selectNext`, `selectPrev`, `close`, `openActionsPane` or
+  `showInfo`, and any other
   action by the name its `surface` gives it. `all` is laid first and each list's own table over it,
   and `all` moves and frees only keys from Olm's own layer, so a key a manifest states for a shared
   verb, the launcher's `close.key`, moves only in that list's own table.
@@ -1046,16 +1046,16 @@ surface = {
   secondary = { action = "reveal", description = "Reveal" }, -- optional, Command and Return
   nav     = true,                  -- the two move keys, defaults to true
   extra   = { { key = "d", action = "close", description = "Close tab" } },
-  pane    = true,                  -- the docked companion preview
+  preview pane = true,              -- the preview pane
   when    = nil,                   -- defaults to <context>Open
 }
 ```
 
 The keys of the shared verbs, the primary, the secondary, the two move keys, close, the action
-panel and the key panel, are not the plugin's. They are Olm's own `all` layer, `lib/keymap.lua`'s
+panel and the info pane, are not the plugin's. They are Olm's own `all` layer, `lib/keymap.lua`'s
 `listDefaults`, `i`, `j`, `k`, `x` and `o` on the leader the `list` role lands on, HYPER unless
 the person's `roles` section moves it, and Command and Return for the secondary and Command and ?
-and Command and slash for the key panel, keys the default chooser's field answers with no leader. `lib/surface.lua` builds each verb on its key and holds
+and Command and slash for the info pane, keys the default chooser's field answers with no leader. `lib/surface.lua` builds each verb on its key and holds
 no key itself, which the dry gate checks. A key a manifest states, an `extra` row's or a `close.key`
 such as the launcher's, is that list's default, laid over the `all` layer, and rides the same role,
 so a surface key names no leader. A person moves any of
@@ -1063,19 +1063,19 @@ them in the `lists` section of `config/keymap.lua`, never here and never in `con
 
 `secondary` is optional, the second thing a list does with its highlighted row, the same shape as
 `primary` and checked the same way, with `needs`, `repeats` and `icon` allowed and any other field refused,
-a key among them and `chord`, since `chord = false` would leave the action bar naming a key nothing
+a key among them and `chord`, since `chord = false` would leave the bottom bar naming a key nothing
 binds. It sits on Command and Return and on Command and keypad Enter. `primary.icon` and
-`secondary.icon` name a key of the manifest's `icons` for the two rows in the action panel, checked
+`secondary.icon` name a key of the manifest's `icons` for the two rows in the actions pane, checked
 by the dry gate's scan like an extra row's, and a list naming none shows Olm's own Return and
-Command icons, declared in the action panel's manifest. It is built right after the primary, so the action panel lists the two
+Command icons, declared in the actions pane's manifest. It is built right after the primary, so the actions pane lists the two
 together, and its action is answered by the plugin's surface adapter like any `extra` row's. A list
 declaring none binds nothing on Command and Return, which keeps choosing the row there. The action
-bar under the list names the primary on Return, the secondary on its chord and the action panel on
+bar under the list names the primary on Return, the secondary on its chord and the actions pane on
 its own, `docs/PLAN-ACTION-BAR.md`.
 
-A row of `extra` may carry four fields for the action panel, `docs/PLAN-ACTION-PANEL.md`, and
-may leave out `key`, which makes it a verb of the action panel alone, never bound and listed in no
-key panel, so it needs a `description`. Such a row is kept out of the context's `bindings` and
+A row of `extra` may carry four fields for the actions pane, `docs/PLAN-ACTION-PANEL.md`, and
+may leave out `key`, which makes it a verb of the actions pane alone, never bound and listed in no
+info pane, so it needs a `description`. Such a row is kept out of the context's `bindings` and
 listed in its `panel`, since every reader of a binding reads its key.
 
 - `section`, the heading the verb is listed under in the panel. The primary and the secondary
@@ -1108,11 +1108,11 @@ since phase four the launcher ranks through the shared search too, so no list ma
 its own rows, and the dry gate refuses one that does, `test/drygate-search.lua`. Five want the
 preview pane. The rest want neither and say nothing.
 
-### The docked pane
+### The preview pane
 
-`pane = true` earns `opts.dockedPane`, a function answering a new pane from
-`lib/dockedpane.lua`. Call it once, in configure, with a spec, and keep what it answers. The
-pane owns the canvas, docking it on the companion rect, the shared surface underneath, the
+`previewPane = true` earns `opts.previewPane`, a function answering a new pane from
+`lib/previewpane.lua`. Call it once, in configure, with a spec, and keep what it answers. The
+pane owns the canvas, docking it on the preview pane rect, the shared surface underneath, the
 shared empty state, the scroll and its clamp, the hide guard and the teardown, and draws text
 through the kit the root built it with. A plugin keeps only what it draws.
 
@@ -1123,9 +1123,9 @@ attributes `lib/chooser/providers/swift/native/Pane.swift` lists in its header. 
 still draws on the canvas but is left out of the native pane, with one console line naming it.
 
 ```lua
-local pane = opts.dockedPane({ scroll = true, thumb = false, emptyText = "Highlight a file" })
+local pane = opts.previewPane({ scroll = true, thumb = false, emptyText = "Highlight a file" })
 
-pane.dock(companionFrame)                      -- from onPositioned, repaints what is current
+pane.dock(previewPaneFrame)                      -- from onPositioned, repaints what is current
 pane.show(function(ui, view) return node end)  -- one kit node, laid out in the padded box
 pane.draw(function(view) return els, overflow end) -- several regions drawn by hand
 pane.show(describe, { keepScroll = true })     -- a refresh of the same content
@@ -1145,7 +1145,7 @@ against. The view carries `frame`, `inner`, the padded box content is laid out i
 the box inside the border scrolled content is cut at, and `scrollY`. `pane.inner()` answers the
 padded box once docked and nil before, for a plugin that caches a layout by its size.
 `pane.isEnabled()` answers whether anything can be drawn, which is what a member spec
-`paneWidth` should report, so a root that granted no pane gets the list with no companion rect.
+`previewPaneWidth` should report, so a root that granted no pane gets the list with no preview pane rect.
 
 **`matcher` names a strategy and nothing else.** It does not say whether the shared
 widget filters, and the difference cost a real defect. Which strategy to inject is declared
@@ -1168,7 +1168,7 @@ that name is absent rather than binding a key to nothing. It may carry `repeats`
 `chord = false` to be listed without being bound.
 
 `panelAs` once named the field a docked hint panel's three callbacks arrived under. The panel was
-retired on 2026-10-23 for the action bar drawn inside the chooser's own canvas, so nothing arrives
+retired on 2026-10-23 for the bottom bar drawn inside the chooser's own canvas, so nothing arrives
 under it and a manifest stating it is ignored.
 
 **A user override merges into this block rather than replacing it.** The first attempt
@@ -1204,7 +1204,7 @@ presentation = {
   peekPreview = { member = "peekPreview", call = "dot" },-- optional
   onPositioned = { member = "onPositioned", call = "dot" }, -- optional
   rowCount    = 2,                                       -- optional, a plain number or a member spec
-  paneWidth   = 320,                                     -- optional, a plain number, true, or a member spec
+  previewPaneWidth   = 320,                                     -- optional, a plain number, true, or a member spec
   matcher     = false,                                   -- optional, false only where the field is not a search, with a search-exempt reason
   titleLineBreak = "truncateMiddle",                     -- optional, a plain string
   searchText  = { member = "searchText", call = "dot" }, -- optional
@@ -1213,7 +1213,7 @@ presentation = {
 }
 ```
 
-Every field but `rowCount`, `matcher`, `titleLineBreak` and `rowLimit` is either a member spec or, for `paneWidth`
+Every field but `rowCount`, `matcher`, `titleLineBreak` and `rowLimit` is either a member spec or, for `previewPaneWidth`
 and `rowCount`, may be either one, `rowCount` as a member being asked on every show and clamped to the
 default ten, for a list whose height follows its own length, the same `{ member, call }` shape
 `registry.open` and `registry.scope` already resolve, with one deliberate tightening. **A presentation member
@@ -1231,7 +1231,7 @@ member that leaves `call` unstated, the same refusal named below for a member th
 resolve at all. The words themselves are the presentation contract's own, BRIEF-STAGE.md
 version one plus phase three's own addition, `rows`, `onSelect`, `placeholder`, `onPresent`,
 `intercept`, `back`, `onHighlight`, `onClose`, `peekPreview`, plus the geometry brief's own
-two additions, `onPositioned` and `paneWidth`, docs/BRIEF-GEOMETRY.md, plus contract v2's own
+two additions, `onPositioned` and `previewPaneWidth`, docs/BRIEF-GEOMETRY.md, plus contract v2's own
 pair, `matcher` and `enter`, docs/BRIEF-CONTRACT-V2.md, plus contract v3's own widening of
 `select` itself to answer a child presentation table, docs/BRIEF-CONTRACT-V3.md, with one
 deliberate difference. This block calls the contract's `onSelect` field `select` instead, the same word
@@ -1248,15 +1248,15 @@ choosing a presenting tool used to swap onto whatever the plugin's own module ha
 hold already, empty on a fresh load, since nothing on that path used to call the plugin's
 own fetch at all.
 
-`paneWidth` and `onPositioned` are the geometry brief's own pair, and they arrive together
-because the first is meaningless without the second. `paneWidth` is a plain number in points,
-or `true` to inherit the chooser's own width, the atom's own `layout.companionWidth` semantics
-carried one layer up. `host/stage` writes the current presentation's own `paneWidth` into that
+`previewPaneWidth` and `onPositioned` are the geometry brief's own pair, and they arrive together
+because the first is meaningless without the second. `previewPaneWidth` is a plain number in points,
+or `true` to inherit the chooser's own width, the atom's own `layout.previewPaneWidth` semantics
+carried one layer up. `host/stage` writes the current presentation's own `previewPaneWidth` into that
 same field on the shared instance before every show, present, push, and pop alike, adversarial
 review finding M6, so a cold show computes the pair's centering natively, through the atom's
 own arithmetic, rather than painting a lone chooser first and correcting it by hand a beat
 later. A swap still moves the window itself, since it triggers no show the atom would
-reposition on its own. `_resolvePaneWidth` on the stage reimplements the identical cap at
+reposition on its own. `_resolvePreviewPaneWidth` on the stage reimplements the identical cap at
 `layout.paneMaxW` for that manual arithmetic rather than reaching for the atom's private one.
 Absent, `false`, or a non positive number all mean this presentation reserves no pane. Both
 this field and `rowCount` are checked for their own type at register, a non number, or the
@@ -1264,11 +1264,11 @@ member spec shape every field but `matcher` and `titleLineBreak` takes, refusing
 registration loudly rather than reaching the stage as something that could corrupt the one
 instance it never rebuilds, adversarial review finding H3.
 
-`paneWidth` may also be a member spec, added in the rework following the trickle migrations,
+`previewPaneWidth` may also be a member spec, added in the rework following the trickle migrations,
 review finding M1. A plain `true`, the value every one of the three trickle plugins first
-shipped, papers over a viewer or a companion surface that resolves to no pane at all,
-filesearch's own `quicklook.companionWidth()` answering `0` and Processes' own
-`preview.isEnabled()` answering `false` when no docked pane was granted among the ways.
+shipped, papers over a viewer or a preview pane surface that resolves to no pane at all,
+filesearch's own `quicklook.previewPaneWidth()` answering `0` and Processes' own
+`preview.isEnabled()` answering `false` when no preview pane was granted among the ways.
 A member spec resolves once, at register, the identical moment and the identical reason
 `placeholder` already does, since by register every plugin's own wiring has already settled
 which viewer or which surface won, so the answer is the real reservation rather than a number
@@ -1302,11 +1302,11 @@ plugin or host since the phase four rework, since search never differs per list.
 names one since phase three of the unified search, and absent inherits the root default, the version
 one behaviour, unchanged for every plugin that names nothing here. The registrar checks a
 declared string against the real strategy names at register, the same loud refusal `rowCount`
-and `paneWidth` already get, since a typo left to `host/stage`'s own `_resolveMatcher` would
+and `previewPaneWidth` already get, since a typo left to `host/stage`'s own `_resolveMatcher` would
 fall back to the root default in silence with nothing anywhere naming the misspelling.
 `host/stage` writes the resolved value onto `self._instance.matcher` before every show and
-swap, present, push, and pop alike, the identical live mutation discipline `paneWidth` already
-follows for `layout.companionWidth`, since `legacy.lua`'s own `Chooser:_build` reads `self.matcher`
+swap, present, push, and pop alike, the identical live mutation discipline `previewPaneWidth` already
+follows for `layout.previewPaneWidth`, since `legacy.lua`'s own `Chooser:_build` reads `self.matcher`
 fresh on every keystroke rather than once at construction.
 
 `searchText` and `rowLimit` came with phase three of the unified search,
@@ -1326,13 +1326,13 @@ false. `host/stage` hands both to the
 instance as the second argument of `setMatcher` before every show and swap, so a presentation
 declaring neither clears them, and the instance answers them as the second value of `matcher()`.
 A scope declares the same two under `registry.scope`, and `host/queryscope` refuses either in a
-wrong shape. The action panel takes them off the instance while it is open and gives them back as
+wrong shape. The actions pane takes them off the instance while it is open and gives them back as
 it closes. A row may also carry `names`, a list of further names never shown, which
 `rank.lua` states.
 
-`labels` came with the action bar, `docs/PLAN-ACTION-BAR.md`. It is a member, called with the
-highlighted item, answering a table with `primary` and `secondary` strings, the words the action bar
-under the list and the action panel give the two for that row. It is asked live, every time the bar
+`labels` came with the bottom bar, `docs/PLAN-ACTION-BAR.md`. It is a member, called with the
+highlighted item, answering a table with `primary` and `secondary` strings, the words the bottom bar
+under the list and the actions pane give the two for that row. It is asked live, every time the bar
 is drawn, so "Uninstall 4" can count what is checked. A string left out, an empty one, a raise or
 an answer that is not a table falls back to the next rule, `liveLabels`, then the binding's own
 `description`, then Open for the primary and the action name spelled as words for the secondary.
@@ -1367,14 +1367,14 @@ word for `onSelect`, may answer a presentation table instead of nothing, and ans
 the row was never a completion, it was a drill into a level of its own. `host/stage` pushes the
 answered table as a child of the presentation that produced it, the identical door a launcher row
 already pushes a tool through, so choosing such a row swaps the shared window in place with no
-close and no reopen. Every field on this list may differ per child, its own `paneWidth`, `matcher`,
+close and no reopen. Every field on this list may differ per child, its own `previewPaneWidth`, `matcher`,
 `placeholder`, `rowCount`, or `titleLineBreak`, or be left absent to resolve to the ordinary
 default the way any other presentation's absent field already does, since a child is not a
 distinct kind of table, it is an ordinary presentation table that happened to arrive through a
 return value rather than through a call to `stage.present` or `stage.push`. `name` may be left off
 a child, the one field this contract otherwise requires, and `host/stage` fills it in from the
-parent's own name so the action bar and `stage.current()` still answer something a context can
-be found under, though a child whose own level genuinely wants different keys in the action bar may
+parent's own name so the bottom bar and `stage.current()` still answer something a context can
+be found under, though a child whose own level genuinely wants different keys in the bottom bar may
 still name itself. A child inherits nothing else, so one that wants its own words for the primary
 and the secondary hands its own `labels` function. Backspace on an empty field needs no hook from the plugin, `Stage:pop` already
 restores whatever sits below the top of the stack, which is the parent the moment a child sits
@@ -1419,7 +1419,7 @@ carries any more, keeps the row number exactly as before, so give every row of a
 grow or shrink above the highlight a stable key.
 
 `onScroll` is a third addition the trickle migrations found rather than either contract brief
-naming, `function(points)` for a trackpad or a wheel scrolled over the companion rect, which a
+naming, `function(points)` for a trackpad or a wheel scrolled over the preview pane rect, which a
 canvas cannot report for itself, `lib/chooser/providers/legacy.lua`'s own reason it exists at
 all. filesearch and clipboard both already wired one directly into their own retired
 `Chooser.new` calls, config read live on every scroll exactly the way `onHighlight` already is,
@@ -1430,29 +1430,29 @@ right clicked, which a native chooser row cannot answer for itself either. clipb
 retired `Chooser.new` call is the only consumer anywhere, and `host/stage` routes it the
 identical way.
 
-`onPositioned` is called with `chooserFrame, companionFrame`, the same two frames
+`onPositioned` is called with `chooserFrame, previewPaneFrame`, the same two frames
 `lib/chooser/providers/legacy.lua`'s own `config.onPositioned` already hands its caller, once
 the pair has been repositioned for this presentation, whether the atom placed it natively on a
 cold show or the stage placed it by hand on a swap, both converging on the stage's own
-`_onPositioned`, adversarial review finding M2. `companionFrame` is nil both when this
-presentation declared no `paneWidth` and, once, when this presentation is the one a transition
+`_onPositioned`, adversarial review finding M2. `previewPaneFrame` is nil both when this
+presentation declared no `previewPaneWidth` and, once, when this presentation is the one a transition
 is leaving, told with both frames nil so its own pane consumer hides rather than sitting drawn
 beside a window that already moved on, adversarial review finding H2, fired on every door,
 present, push, and pop, before the incoming side is given anything.
 
-A plugin migrating its own companion pane onto the stage in phase five carries its existing
+A plugin migrating its own preview pane onto the stage in phase five carries its existing
 `onPositioned` function largely intact, not unchanged. Three things still move. It has to
 become a resolvable module member, since a manifest member spec can only name one, and all
 three of today's pane consumers keep theirs as a file local function instead, in
 `plugins/filesearch/chooser.lua`, `plugins/processes/chooser.lua`, and
 `plugins/clipboard/manager/ui.lua`. It drops its own call to `cfg.onPositioned(anchor)`,
 since the docked hint panel that call fed was atom level policy the stage re anchored itself, and
-that panel was retired on 2026-10-23 for the action bar inside the chooser's own canvas. And FileSearch's own seed of the first pane paint
+that panel was retired on 2026-10-23 for the bottom bar inside the chooser's own canvas. And FileSearch's own seed of the first pane paint
 reads `picker:selectedItem()` directly, `plugins/filesearch/chooser.lua:449`, which needs its
 own instance to still exist by the time it runs, an instance that plugin stops holding once it
 migrates. Docking the pane's own content stays this plugin's own business exactly as it is
-today. The canvas that content lands on has since moved into core, see "The docked pane"
-above, and a plugin's `onPositioned` now hands the companion frame to `pane.dock`. `host/stage`'s own `paneAnchor(chooserFrame, companionFrame)` is the one true copy of
+today. The canvas that content lands on has since moved into core, see "The preview pane"
+above, and a plugin's `onPositioned` now hands the preview pane frame to `pane.dock`. `host/stage`'s own `paneAnchor(chooserFrame, previewPaneFrame)` is the one true copy of
 the anchor arithmetic three plugins each carried their own copy of before this phase, the
 single call worth knowing about for the docked panel's own anchor, and it is the stage's own
 call to make now, never a migrating plugin's.
@@ -1500,7 +1500,7 @@ bar still looks a context up in `plan.contexts`, keyed by the context a plugin d
 The two agree today because every presenting plugin spells its context exactly as its
 identity, and the registrar warns, one console line naming both words, phase three review
 finding ten, the moment a plugin ever lets them diverge, since that plugin would route, gate,
-and present correctly while its own action bar silently lost its keys.
+and present correctly while its own bottom bar silently lost its keys.
 
 **A presenting plugin declares `registry.surface` only when it carries verbs beyond the five
 generic ones.** `isShowing`, `selectNext`, `selectPrev`, `insertSelected`, and `hide` for a
@@ -1525,7 +1525,7 @@ for a name it used to answer for.
 **`surface` itself is unchanged and still required.** `context`, `primary`, `nav`, and
 `extra` are what `plan.contexts` is built from and what the navigation bind loop still binds
 a presenting plugin's own keys against, `presentation` only changes which object answers
-for those bindings once they fire, never whether they exist. The action bar is atom level policy
+for those bindings once they fire, never whether they exist. The bottom bar is atom level policy
 `host/stage` owns for the life of its one instance rather than something a presentation carries,
 built once by the composition root over `stage.current()` and asked again on every redraw, so a
 presenting plugin declares nothing for it beyond its `surface` and, optionally, `labels`.

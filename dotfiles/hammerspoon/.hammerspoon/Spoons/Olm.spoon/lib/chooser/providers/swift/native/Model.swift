@@ -57,11 +57,11 @@ struct Style {
   }
 }
 
-// Where things sit. canvas, window and companion are in Hammerspoon's screen space, the top left
+// Where things sit. canvas, window and previewPane are in Hammerspoon's screen space, the top left
 // of the primary display at the origin and y growing down. window spans the canvas and the
-// companion when there is one, listFrame, paneFrame and dividerFrame are where the list's content,
-// the docked pane's region and the hairline between them sit inside it, and companion is the rect a docked pane is matched on. field, list
-// and footer are the canvas's own, the same space and the same rectangles the canvas view draws
+// preview pane when there is one, listFrame, paneFrame and dividerFrame are where the list's content,
+// the preview pane's region and the hairline between them sit inside it, and preview pane is the rect a preview pane is matched on. field, list
+// and bottomBar are the canvas's own, the same space and the same rectangles the canvas view draws
 // into, so nothing inside the list moved when the window grew to hold the pane.
 struct Placement {
   var canvas = NSRect.zero
@@ -69,10 +69,10 @@ struct Placement {
   var listFrame: NSRect?
   var paneFrame: NSRect?
   var dividerFrame: NSRect?
-  var companion: NSRect?
+  var previewPane: NSRect?
   var field: NSRect?
   var list: NSRect?
-  var footer: NSRect?
+  var bottomBar: NSRect?
   var rowH: CGFloat = 1
   var iconSize: CGFloat = 0
   var iconFrame: CGFloat = 0
@@ -86,7 +86,7 @@ struct Placement {
   var barInset: CGFloat = 0
   var barGap: CGFloat = 0
   var barGapWide: CGFloat = 0
-  var keysIcon: CGFloat = 0
+  var infoIcon: CGFloat = 0
   var keysPad: CGFloat = 0
   var barPad: CGFloat = 0
   var barPillH: CGFloat = 0
@@ -96,7 +96,7 @@ struct Placement {
   var keycapH: CGFloat = 0
   var keycapPadX: CGFloat = 0
   var keycapGap: CGFloat = 0
-  // The word between two alternative keys, footer.lua's ALT_WORD.
+  // The word between two alternative keys, bottombar.lua's ALT_WORD.
   var keycapOr = "/"
 
   init() {}
@@ -107,10 +107,10 @@ struct Placement {
     listFrame = r.rect(t, "listFrame")
     paneFrame = r.rect(t, "paneFrame")
     dividerFrame = r.rect(t, "dividerFrame")
-    companion = r.rect(t, "companion")
+    previewPane = r.rect(t, "previewPane")
     field = r.rect(t, "field")
     list = r.rect(t, "list")
-    footer = r.rect(t, "footer")
+    bottomBar = r.rect(t, "bottomBar")
     rowH = max(1, r.number(t, "rowH") ?? rowH)
     iconSize = r.number(t, "iconSize") ?? iconSize
     iconFrame = r.number(t, "iconFrame") ?? iconSize
@@ -124,7 +124,7 @@ struct Placement {
     barInset = r.number(t, "barInset") ?? barInset
     barGap = r.number(t, "barGap") ?? barGap
     barGapWide = r.number(t, "barGapWide") ?? barGapWide
-    keysIcon = r.number(t, "keysIcon") ?? keysIcon
+    infoIcon = r.number(t, "infoIcon") ?? infoIcon
     keysPad = r.number(t, "keysPad") ?? keysPad
     barPad = r.number(t, "barPad") ?? barPad
     barPillH = r.number(t, "barPillH") ?? barPillH
@@ -146,14 +146,14 @@ struct KeyMark {
 struct Row {
   var title = ""
   var subtitle = ""
-  // An action panel row's chord, lib/kbd.lua's wire, empty for a list row.
+  // An actions pane row's chord, lib/kbd.lua's wire, empty for a list row.
   var chord: [[KeyMark]] = []
   var enabled = true
   // The engine's row of more, which ends a list its limit cut, drawn in the subtext colour so it
   // reads as part of the list rather than as one of its results.
   var muted = false
   var image: NSImage?
-  // The heading an action panel row is listed under, nil for a list row.
+  // The heading an actions pane row is listed under, nil for a list row.
   var section: String?
 
   init(_ r: LuaReader, _ t: Int32) {
@@ -167,13 +167,13 @@ struct Row {
   }
 }
 
-// The action bar's model as lib/hints.lua's footerModel shapes it, a chord as kbd's wire.
-struct Footer {
+// The bottom bar's model as lib/hints.lua's bottomBarModel shapes it, a chord as kbd's wire.
+struct BottomBar {
   struct Entry {
     var label: String
     var chord: [[KeyMark]]
     var action: String? = nil
-    // The heading a key panel line is listed under, nil for the legend that leads it.
+    // The heading a info pane line is listed under, nil for the legend that leads it.
     var section: String? = nil
   }
   var right: [Entry] = []
@@ -182,7 +182,7 @@ struct Footer {
   var keysImage: NSImage?
   var title: String?
   var panelOpen = false
-  // The title of a level a verb opened in the action panel, heading the popover, nil at the top.
+  // The title of a level a verb opened in the actions pane, heading the floating pane, nil at the top.
   var panelTitle: String?
 
   init() {}
@@ -217,9 +217,9 @@ struct ViewState {
   var empty = false
   var emptyText = ""
   var lineBreak = NSLineBreakMode.byTruncatingTail
-  var footer: Footer?
-  var keysOpen = false
-  // The action panel's rows and its highlight, one based, while it is open over the list.
+  var bottomBar: BottomBar?
+  var infoOpen = false
+  // The actions pane's rows and its highlight, one based, while it is open over the list.
   var actions: [Row]?
   var actionsHighlight = 0
 
@@ -234,8 +234,8 @@ struct ViewState {
     empty = r.bool(t, "empty") ?? false
     emptyText = r.string(t, "emptyText") ?? ""
     lineBreak = ViewState.lineBreak(r.string(t, "lineBreak"))
-    footer = r.field(t, "footer") { r.isTable($0) ? Footer(r, $0) : nil }
-    keysOpen = r.bool(t, "keysOpen") ?? false
+    bottomBar = r.field(t, "bottomBar") { r.isTable($0) ? BottomBar(r, $0) : nil }
+    infoOpen = r.bool(t, "infoOpen") ?? false
     if r.field(t, "actions", { r.isTable($0) }) == true {
       var rows: [Row] = []
       r.each(t, "actions") { e in rows.append(Row(r, e)) }

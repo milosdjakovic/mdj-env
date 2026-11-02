@@ -9,7 +9,7 @@
 --- theming, row styling, j and k navigation, close on a key, top biased
 --- positioning, and the click away dismissal. It knows nothing about what its
 --- rows mean. Each consumer injects its own rows, the meaning of a selection, the
---- field behavior, and an optional docked companion.
+--- field behavior, and an optional preview pane.
 ---
 --- This is a FACTORY, not a singleton spoon. Call spoon.Chooser.new(config) to
 --- get an independent instance, so two tools never share one chooser. The
@@ -62,27 +62,27 @@
 ---                typed scope steps out of that. Answering true consumes the key and
 ---                rebuilds the list; anything else lets it through untouched.
 ---   onHighlight  function(item) fired when the highlight moves. Drives a
----                companion like the clipboard preview. Omit it and no poll runs.
+---                preview pane like the clipboard preview. Omit it and no poll runs.
 ---   onClose      function() fired once when the chooser tears down for any
 ---                reason (select, escape, click away, programmatic close).
 ---   onActivity   function() fired on every key press while the chooser is open, via a
 ---                passive eventtap (never consuming the key). A caller uses it as an
 ---                idle signal, e.g. to defer a docked hint panel until the user pauses.
 ---   onScroll     function(points) fired when a trackpad or a wheel scrolls over the
----                COMPANION rect, handing over how far to move the content in points,
+---                PREVIEW PANE rect, handing over how far to move the content in points,
 ---                positive being further down it, so a consumer never sees an event and
 ---                never has an opinion about direction. Omit it and no tap runs. A
----                companion is an hs.canvas, which has no scroll callback of its own, so
+---                preview pane is an hs.canvas, which has no scroll callback of its own, so
 ---                this is the only way a pane can be scrolled by hand.
----   onPositioned function(chooserFrame, companionFrame) fired after layout, both
+---   onPositioned function(chooserFrame, previewPaneFrame) fired after layout, both
 ---                a seed frame at show and a corrected frame once the real window
----                settles. A consumer docks its companion into companionFrame.
+---                settles. A consumer docks its preview pane into previewPaneFrame.
 ---   placeholder  the empty field hint.
 ---   layout       sizes: width (chooser width in px, the uniform default 480 unless
 ---                a consumer overrides it, clamped to the screen; set false to use
 ---                the responsive widthPct-of-screen-capped-at-paneMaxW fallback
 ---                instead); plus rowH, baseH, rowCount, gap, topFrac, minVPad,
----                companionWidth (0 for no companion), and the row font (font,
+---                previewPaneWidth (0 for no preview pane), and the row font (font,
 ---                titleSize, subSize). Width is always worked in pixels and converted
 ---                to hs.chooser's percentage internally (see below).
 
@@ -125,7 +125,7 @@ local DEFAULT_LAYOUT = {
   -- fallback (widthPct of the screen, capped at paneMaxW) instead of a fixed width.
   width = 480,
   widthPct = 32,   -- responsive fallback width, used only when width is false/nil
-  paneMaxW = 480,  -- companion pane cap, and the widthPct cap for the fallback
+  paneMaxW = 480,  -- preview pane cap, and the widthPct cap for the fallback
   rowH = 42,
   baseH = 94,
   rowCount = 10,
@@ -135,7 +135,7 @@ local DEFAULT_LAYOUT = {
   -- One width serves the chooser and the pane. true inherits the chooser's own
   -- resolved width for that show. A number overrides it independently, the same as
   -- today. paneMaxW caps both. Zero, nil, and false all mean no pane.
-  companionWidth = 0,
+  previewPaneWidth = 0,
   -- font, titleSize, subFont, subSize and rowH are not here. obj.new fills them from the body
   -- and caption roles, see kitLayout below, and a consumer's own layout still wins.
   -- Where a title too long for its row loses characters. The tail is right for almost
@@ -328,7 +328,7 @@ function Chooser:_teardown()
 end
 
 --------------------------------------------------------------------------------
--- Positioning, with an optional reserved companion pane
+-- Positioning, with an optional reserved preview pane
 --------------------------------------------------------------------------------
 
 -- The display this open should appear on. Injected as config.screen by the root, so
@@ -352,25 +352,25 @@ function Chooser:_topBiasedY(sf, paneH)
   return max(lo, min(sf.y + floor(sf.h * L.topFrac), hi))
 end
 
--- Resolves layout.companionWidth to a pane width in pixels for this show, or 0 for
+-- Resolves layout.previewPaneWidth to a pane width in pixels for this show, or 0 for
 -- no pane, given chooserW, the chooser's own resolved width for this same show. true
 -- means the pane inherits chooserW, capped by paneMaxW exactly as a number is capped.
 -- A number is the independent override, also capped. nil, false, and any number at
 -- or below zero all mean no pane. This is the one place the boolean is turned into a
 -- number, since every comparison downstream is against a number and Lua errors
 -- comparing a boolean to one. All three read sites route through this.
-function Chooser:_resolveCompanionWidth(chooserW)
+function Chooser:_resolvePreviewPaneWidth(chooserW)
   local L = self.layout
-  local cw = L.companionWidth
+  local cw = L.previewPaneWidth
   if cw == true then cw = chooserW end
   if not cw or cw <= 0 then return 0 end
   return math.min(cw, L.paneMaxW)
 end
 
--- Rect to the right of the chooser for the companion, or nil when none.
-function Chooser:_companionFrame(x, y, chooserW, h)
+-- Rect to the right of the chooser for the preview pane, or nil when none.
+function Chooser:_previewPaneFrame(x, y, chooserW, h)
   local L = self.layout
-  local w = self:_resolveCompanionWidth(chooserW)
+  local w = self:_resolvePreviewPaneWidth(chooserW)
   if w <= 0 then return nil end
   return { x = x + chooserW + L.gap, y = y, w = w, h = h }
 end
@@ -378,8 +378,8 @@ end
 -- The chooser clamps its own height to fit the screen, so its rendered height is
 -- known only once it shows. Read the real window a moment after it appears and place
 -- it authoritatively on the target screen, the same one the seed used: centered
--- horizontally (accounting for the companion pane) and top biased, then recompute the
--- companion rect beside it and report both. Forcing the position rather than adapting
+-- horizontally (accounting for the preview pane) and top biased, then recompute the
+-- preview pane rect beside it and report both. Forcing the position rather than adapting
 -- to wherever hs.chooser dropped it is what keeps the chooser on the policy's display,
 -- even when the widget came up shorter than requested or on another screen.
 -- The timer is held in a field, because a Hammerspoon timer is userdata whose finalizer
@@ -398,16 +398,16 @@ function Chooser:_settleFrames()
         local L = self.layout
         local cf = w:frame()
         local sf = (self._targetScreen or w:screen() or hs.screen.mainScreen()):frame()
-        local companionW = self:_resolveCompanionWidth(cf.w)
-        local total = cf.w + (companionW > 0 and (L.gap + companionW) or 0)
+        local previewPaneW = self:_resolvePreviewPaneWidth(cf.w)
+        local total = cf.w + (previewPaneW > 0 and (L.gap + previewPaneW) or 0)
         local x = sf.x + math.floor((sf.w - total) / 2)
         local y = self:_topBiasedY(sf, cf.h)
         w:setTopLeft({ x = x, y = y })
         local chooserFrame = { x = x, y = y, w = cf.w, h = cf.h }
-        local companionFrame = self:_companionFrame(x, y, cf.w, cf.h)
-        self.paneFrames = { chooser = chooserFrame, companion = companionFrame }
+        local previewPaneFrame = self:_previewPaneFrame(x, y, cf.w, cf.h)
+        self.paneFrames = { chooser = chooserFrame, previewPane = previewPaneFrame }
         if self.config.onPositioned then
-          self.config.onPositioned(chooserFrame, companionFrame)
+          self.config.onPositioned(chooserFrame, previewPaneFrame)
         end
         return
       end
@@ -462,8 +462,8 @@ function Chooser:_positionAndShow()
   local paneH = L.baseH + rows * L.rowH
 
   local chooserW = self:_desiredWidthPx(f)
-  local companionW = self:_resolveCompanionWidth(chooserW)
-  local total = chooserW + (companionW > 0 and (L.gap + companionW) or 0)
+  local previewPaneW = self:_resolvePreviewPaneWidth(chooserW)
+  local total = chooserW + (previewPaneW > 0 and (L.gap + previewPaneW) or 0)
   local x = f.x + floor((f.w - total) / 2)
   local y = self:_topBiasedY(f, paneH)
 
@@ -471,13 +471,13 @@ function Chooser:_positionAndShow()
   -- primary screen), so the window is chooserW wide on whatever screen it lands on.
   self.chooser:width(self:_widthPercentFor(chooserW))
 
-  -- Seed the frames so the companion and the click watcher have rects before the
-  -- settle correction lands. Report the seed so a consumer can show its companion.
+  -- Seed the frames so the preview pane and the click watcher have rects before the
+  -- settle correction lands. Report the seed so a consumer can show its previewPane.
   local chooserFrame = { x = x, y = y, w = chooserW, h = paneH }
-  local companionFrame = self:_companionFrame(x, y, chooserW, paneH)
-  self.paneFrames = { chooser = chooserFrame, companion = companionFrame }
+  local previewPaneFrame = self:_previewPaneFrame(x, y, chooserW, paneH)
+  self.paneFrames = { chooser = chooserFrame, previewPane = previewPaneFrame }
   if self.config.onPositioned then
-    self.config.onPositioned(chooserFrame, companionFrame)
+    self.config.onPositioned(chooserFrame, previewPaneFrame)
   end
 
   self.chooser:show({ x = x, y = y })
@@ -697,7 +697,7 @@ end
 -- measured rather than assumed. The release is then swallowed too, so the widget never sees
 -- half a click it might act on once the list under the pointer has changed.
 --
--- Any other click inside the chooser or its companion is a real interaction, passed straight
+-- Any other click inside the chooser or its preview pane is a real interaction, passed straight
 -- through.
 --
 -- A click outside both is a dismissal: tear down, capture the clicked window, hide the chooser
@@ -715,7 +715,7 @@ function Chooser:_startClickWatcher()
       self._swallowMouseUp = false
       return swallow == true
     end
-    if pointInFrame(p, fr.chooser) or pointInFrame(p, fr.companion) then
+    if pointInFrame(p, fr.chooser) or pointInFrame(p, fr.previewPane) then
       if self.config.intercept then
         local row = self:_rowAtPoint(p)
         local choice = row and self.currentChoices[row]
@@ -740,7 +740,7 @@ function Chooser:_startClickWatcher()
 end
 
 --------------------------------------------------------------------------------
--- Scroll over the companion (only when a consumer listens)
+-- Scroll over the preview pane (only when a consumer listens)
 --------------------------------------------------------------------------------
 
 -- What one wheel notch is worth in points. A wheel reports whole notches while a
@@ -749,13 +749,13 @@ end
 -- feeling like the same amount of movement.
 local WHEEL_NOTCH_POINTS = 120
 
--- Watch scrolls while the chooser is up, and answer only for the companion rect.
+-- Watch scrolls while the chooser is up, and answer only for the preview pane rect.
 --
--- A companion is an hs.canvas and a canvas has no scroll callback, so without this a
+-- A preview pane is an hs.canvas and a canvas has no scroll callback, so without this a
 -- trackpad over a preview pane does nothing at all and the pane can only be moved by
 -- the keys bound to it. This lives in the atom rather than in a pane because the atom
 -- is the piece that already owns the rects and already runs taps, so one watcher here
--- gives every companion the same gesture instead of each pane growing its own.
+-- gives every preview pane the same gesture instead of each pane growing its own.
 --
 -- Outside the rect it returns false untouched, which matters twice. A scroll over the
 -- list is hs.chooser's own and must reach it, and a scroll anywhere else on screen
@@ -779,7 +779,7 @@ function Chooser:_startScrollWatcher()
   local props = hs.eventtap.event.properties
   self.scrollWatcher = hs.eventtap.new({ hs.eventtap.event.types.scrollWheel }, function(e)
     local fr = self.paneFrames or {}
-    if not pointInFrame(e:location(), fr.companion) then return false end
+    if not pointInFrame(e:location(), fr.previewPane) then return false end
     local points
     if e:getProperty(props.scrollWheelEventIsContinuous) ~= 0 then
       points = e:getProperty(props.scrollWheelEventPointDeltaAxis1)
@@ -832,7 +832,7 @@ function Chooser:show()
   -- the window is revealed in _positionAndShow, makes every open start at the first row
   -- with no visible jump.
   self.chooser:selectedRow(1)
-  -- Seed the highlight so a companion has content before the first poll tick.
+  -- Seed the highlight so a preview pane has content before the first poll tick.
   if self.config.onHighlight then
     self.config.onHighlight(self.currentChoices[1] and self.currentChoices[1]._item or nil)
   end
@@ -869,7 +869,7 @@ function Chooser:refresh(resetRow)
   end
   -- The list was just rebuilt, so whatever the highlight is sitting on is a different row
   -- than it was, even when the NUMBER has not moved. The poll compares that number, so
-  -- without this a companion pane keeps describing the row that used to be in that
+  -- without this a preview pane keeps describing the row that used to be in that
   -- position. The same clearing the query callback already does, for the same reason.
   self.lastRow = nil
 end
@@ -949,7 +949,7 @@ function Chooser:selectedItem()
 end
 
 --- Chooser:selectedRow() - the highlighted row number, or nil. The plain public counterpart
---- of selectedItem above, added for ActionPanel, phase eight of the build plan, which has to
+--- of selectedItem above, added for ActionsPane, phase eight of the build plan, which has to
 --- put the highlight back on a row number rather than on an item, since the row it restores to
 --- may by then hold a different item than the one captured when the panel opened.
 function Chooser:selectedRow()
@@ -957,7 +957,7 @@ function Chooser:selectedRow()
 end
 
 --- Chooser:selectRow(n) - set the highlighted row, clamped to the number of rows currently
---- built so a caller cannot ask for a row that is not there. Added for ActionPanel alongside
+--- built so a caller cannot ask for a row that is not there. Added for ActionsPane alongside
 --- selectedRow above. Clears self.lastRow afterward, the same clearing refresh already does
 --- and for the same reason, so the highlight poll notices that what is under the cursor
 --- changed rather than describing the row that used to sit at this number.
@@ -1040,7 +1040,7 @@ end
 --------------------------------------------------------------------------------
 -- The picker contract, docs/CONTRACT-PICKER.md, added by the contract freeze phase to
 -- absorb code that used to reach past the facade, host/stage/init.lua and
--- host/actionpanel/init.lua touching this instance's own layout, matcher and active
+-- host/actionspane/init.lua touching this instance's own layout, matcher and active
 -- fields directly. Each of these is a move of code that already existed, not a new
 -- capability.
 --------------------------------------------------------------------------------
@@ -1085,12 +1085,12 @@ function Chooser:setTitleLineBreak(mode)
   self.layout.titleLineBreak = mode
 end
 
---- Chooser:setPaneWidth(w) -> sets the companion width policy for this instance's next
---- placement, fronting self.layout.companionWidth. true inherits the chooser's own
---- resolved width, a number overrides it, nil or zero means no companion, every answer
+--- Chooser:setPreviewPaneWidth(w) -> sets the preview pane width policy for this instance's next
+--- placement, fronting self.layout.previewPaneWidth. true inherits the chooser's own
+--- resolved width, a number overrides it, nil or zero means no preview pane, every answer
 --- capped by this provider's own paneMaxW wherever it is actually resolved.
-function Chooser:setPaneWidth(w)
-  self.layout.companionWidth = w
+function Chooser:setPreviewPaneWidth(w)
+  self.layout.previewPaneWidth = w
 end
 
 --- Chooser:settleDelay() -> seconds. How long after show() returns this provider's own
@@ -1101,10 +1101,10 @@ function Chooser:settleDelay()
   return SETTLE_DELAY
 end
 
---- Chooser:reposition(paneWidth) -> chooserFrame, companionFrame
+--- Chooser:reposition(previewPaneWidth) -> chooserFrame, previewPaneFrame
 ---
 --- Recentres the already shown window for the given pane width and answers both frames,
---- the companion nil when there is none, and nothing at all when this instance is not
+--- the preview pane nil when there is none, and nothing at all when this instance is not
 --- up. Moved here from host/stage/init.lua's own _positionPane, since only a provider
 --- knows how its own surface is drawn and moved. Keeps the window hunt by title, the
 --- frame read, the screen read, the recentre and the setTopLeft, all of it this
@@ -1114,7 +1114,7 @@ end
 --- this way keeps testing honestly. What did not move here is the caller's own guard
 --- that the presentation asking is still current, and the caller's own call to report
 --- the frames onward, both of which stay the caller's concern.
-function Chooser:reposition(paneWidth)
+function Chooser:reposition(previewPaneWidth)
   if not self.active then return nil end
   local app = hs.application.get("Hammerspoon")
   if not app then return nil end
@@ -1129,7 +1129,7 @@ function Chooser:reposition(paneWidth)
 
   local L = self.layout
   local cf = w:frame()
-  local resolved = paneWidth
+  local resolved = previewPaneWidth
   if resolved == true then resolved = cf.w end
   local paneW = 0
   if type(resolved) == "number" and resolved > 0 then
@@ -1142,12 +1142,12 @@ function Chooser:reposition(paneWidth)
   w:setTopLeft({ x = x, y = cf.y })
 
   local chooserFrame = { x = x, y = cf.y, w = cf.w, h = cf.h }
-  local companionFrame = nil
+  local previewPaneFrame = nil
   if paneW > 0 then
-    companionFrame = { x = x + cf.w + L.gap, y = cf.y, w = paneW, h = cf.h }
+    previewPaneFrame = { x = x + cf.w + L.gap, y = cf.y, w = paneW, h = cf.h }
   end
-  self.paneFrames = { chooser = chooserFrame, companion = companionFrame }
-  return chooserFrame, companionFrame
+  self.paneFrames = { chooser = chooserFrame, previewPane = previewPaneFrame }
+  return chooserFrame, previewPaneFrame
 end
 
 --------------------------------------------------------------------------------
@@ -1168,14 +1168,14 @@ function obj.new(config)
     config = config,
     -- Adversarial review finding L4, the geometry phase of the chooser stage build, noted
     -- host/stage/init.lua reading layout.rowCount, layout.gap, and layout.paneMaxW, and
-    -- writing layout.companionWidth and paneFrames, directly, on the one instance it owns.
+    -- writing layout.previewPaneWidth and paneFrames, directly, on the one instance it owns.
     -- The contract freeze phase, docs/BRIEF-CONTRACT-FREEZE.md, closed that reach. rowCount(),
-    -- matcher(), setMatcher(), titleLineBreak(), setTitleLineBreak() and setPaneWidth() now
+    -- matcher(), setMatcher(), titleLineBreak(), setTitleLineBreak() and setPreviewPaneWidth() now
     -- front these fields for any caller outside this file, and reposition() now owns
     -- paneFrames entirely, writing it itself rather than a caller reaching in to stamp it.
     -- Whichever of _positionAndShow and _settleFrames runs next still overwrites paneFrames
     -- on its own terms regardless of what reposition last wrote there, since neither reads
-    -- it back, only companionWidth is ever read live by this file's own arithmetic.
+    -- it back, only previewPaneWidth is ever read live by this file's own arithmetic.
     layout = layout,
     -- The injected filter strategy, resolved by the facade to the module default when
     -- the consumer named none. A function means the atom filters; false or nil means it

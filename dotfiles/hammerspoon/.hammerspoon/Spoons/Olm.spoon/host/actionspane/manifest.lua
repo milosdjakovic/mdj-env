@@ -1,4 +1,4 @@
--- ActionPanel, what it declares about itself.
+-- ActionsPane, what it declares about itself.
 --
 -- A host, and a decorator rather than a coordinator. It is installed once at the chooser
 -- atom's decorate seam, so every list gains it without any of the twelve places a chooser is
@@ -21,7 +21,7 @@ return {
   apiVersion = 1,
 
   about = {
-    title = "Action Panel",
+    title = "Actions Pane",
     author = "Milos Djakovic",
     version = "0.1",
     license = "MIT",
@@ -29,7 +29,7 @@ return {
 
   -- The icons the panel states for itself. back is the Back row it puts first. primary and
   -- secondary are Olm's defaults for the two rows after it, Return and Command, read against this
-  -- manifest when a list's surface names no icon of its own for either. keys is the action bar's
+  -- manifest when a list's surface names no icon of its own for either. keys is the bottom bar's
   -- key button, the outline keyboard. Every other verb names the icons of the plugin that owns its
   -- context and never this one. Every sf name was checked against AppKit on 2026-10-23. primary is
   -- never the Return glyph, since the row's chord already shows Return as a key cap, so Run read

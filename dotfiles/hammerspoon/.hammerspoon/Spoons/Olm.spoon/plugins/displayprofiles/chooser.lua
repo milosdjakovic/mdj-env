@@ -104,7 +104,7 @@ local function profileByName(name)
   return nil
 end
 
--- The displays of one profile, opened by the Displays verb of the action panel. Back leads, then
+-- The displays of one profile, opened by the Displays verb of the actions pane. Back leads, then
 -- one read only row per monitor with resolution, id, refresh, and origin, the main display marked.
 -- The monitor rows are disabled, so a stray Return on one stays put.
 local function displaysRows(name)
@@ -208,7 +208,7 @@ local function buildRenameChild(state)
   }
 end
 
--- The displays screen, pushed by the Displays verb of the action panel. Nothing here acts, so
+-- The displays screen, pushed by the Displays verb of the actions pane. Nothing here acts, so
 -- Back is the one row that answers, leaving for the top level.
 local function buildDisplaysChild(name)
   return {
@@ -280,7 +280,7 @@ M.rows = topRows
 function M.select(item)
   if not item then return nil end
   -- Return on a profile applies it, decided by Milos on 2026-10-29, docs/PLAN-ACTION-PANEL.md,
-  -- and what else a profile offers is in the action panel. Only the profile matching the attached
+  -- and what else a profile offers is in the actions pane. Only the profile matching the attached
   -- displays can take effect, so Return reapplies that one, what Reapply did, and on any other it
   -- runs nothing against monitors that are not there and says why in the console.
   if item.nav and item.to == "profile" then
@@ -296,7 +296,7 @@ function M.select(item)
 end
 
 --------------------------------------------------------------------------------
--- The action panel's verbs on a profile row, docs/PLAN-ACTION-PANEL.md
+-- The actions pane's verbs on a profile row, docs/PLAN-ACTION-PANEL.md
 --------------------------------------------------------------------------------
 
 -- The profile the highlighted row names, or nil. The panel runs a verb after putting the

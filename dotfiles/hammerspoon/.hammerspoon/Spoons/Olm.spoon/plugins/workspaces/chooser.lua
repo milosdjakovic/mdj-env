@@ -192,7 +192,7 @@ end
 local buildAppsChild, buildAppChild, buildRenameChild
 
 -- The name level for a new snapshot, a child of the top level. Save leaves for the top level,
--- where the new layout is listed and everything it offers is in the action panel, so it answers
+-- where the new layout is listed and everything it offers is in the actions pane, so it answers
 -- from intercept and pops like Back does.
 local function buildNewChild()
   return {
@@ -304,7 +304,7 @@ M.rows = topRows
 
 --- M.select(item) -> presentation or nil. The top level's own onSelect. New snapshot drills into
 --- the name level, and a layout row applies the layout, since applying is what a layout is for and
---- everything else it offers is in the action panel, decided by Milos on 2026-10-29,
+--- everything else it offers is in the actions pane, decided by Milos on 2026-10-29,
 --- docs/PLAN-ACTION-PANEL.md. The disabled status rows never reach here.
 function M.select(item)
   if not item then return nil end
@@ -317,7 +317,7 @@ function M.select(item)
 end
 
 --------------------------------------------------------------------------------
--- The action panel's verbs on a layout row, docs/PLAN-ACTION-PANEL.md
+-- The actions pane's verbs on a layout row, docs/PLAN-ACTION-PANEL.md
 --------------------------------------------------------------------------------
 
 -- The layout the highlighted row names, or nil. The panel runs a verb after putting the highlight

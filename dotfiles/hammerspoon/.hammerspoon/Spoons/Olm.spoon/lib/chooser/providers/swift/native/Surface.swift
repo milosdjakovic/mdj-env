@@ -1,6 +1,6 @@
 // The surfaces this library draws on, built in one place. Surface is one shape of glass, the
-// docked pane's own when it stands alone. SharedSurface is the chooser panel's window content,
-// one shape of glass under the list and, when there is one, the docked pane beside it, so the two
+// preview pane's own when it stands alone. SharedSurface is the chooser panel's window content,
+// one shape of glass under the list and, when there is one, the preview pane beside it, so the two
 // are one surface. ScreenSpace is the one conversion between Hammerspoon's screen space and
 // AppKit's.
 
@@ -31,7 +31,7 @@ struct Surface {
   }
 
   // Puts content in the surface in place of whatever it held, taking it from wherever it was,
-  // which is how the docked pane's view moves between its own window and the chooser panel's.
+  // which is how the preview pane's view moves between its own window and the chooser panel's.
   func hold(_ content: NSView) {
     content.removeFromSuperview()
     if #available(macOS 26.0, *), let glass = view as? NSGlassEffectView {
@@ -87,10 +87,10 @@ enum ScreenSpace {
 }
 
 // The chooser panel's window content, one shape of glass at the surface radius. With no
-// companion it is the canvas rect, the list's shape alone. With one, the window and the glass
-// span the canvas rect, the engine's gap and the companion rect, the list's content sits at the
-// canvas rect inside it, the docked pane's view at the companion rect, and a hairline divider
-// stands in the middle of the gap from the top down to the action bar, which runs under both. One shape rather than two because two
+// preview pane it is the canvas rect, the list's shape alone. With one, the window and the glass
+// span the canvas rect, the engine's gap and the preview pane rect, the list's content sits at the
+// canvas rect inside it, the preview pane's view at the preview pane rect, and a hairline divider
+// stands in the middle of the gap from the top down to the bottom bar, which runs under both. One shape rather than two because two
 // shapes side by side each shade their edges and cast their shadow where they meet, which read
 // as a dark band in the gap. The rects come from the Lua view already in the window's own space,
 // y measured down.
@@ -131,7 +131,7 @@ final class SharedSurface {
   }
 
   // Lays the content out in a window of size. The pane's region shows only when there is a rect
-  // for it and a docked pane in it, and the divider whenever there is a rect for it. fadeTop is
+  // for it and a preview pane in it, and the divider whenever there is a rect for it. fadeTop is
   // where the bottom fade begins and fadeListTop where the top fade ends, both measured down from
   // the window's top, the second over the list's column alone, which ends at listColumn.
   func layout(size: NSSize, list listRect: NSRect, pane paneRect: NSRect?, divider dividerRect: NSRect?,
@@ -147,7 +147,7 @@ final class SharedSurface {
     divider.isHidden = dividerRect == nil
   }
 
-  // A docked pane's view goes into the pane's region in place of whatever was there.
+  // A preview pane's view goes into the pane's region in place of whatever was there.
   func holdPane(_ content: NSView) {
     for old in paneSlot.subviews where old !== content { old.removeFromSuperview() }
     if content.superview !== paneSlot {
@@ -167,8 +167,8 @@ final class SharedSurface {
     for old in paneSlot.subviews { old.removeFromSuperview() }
   }
 
-  // A view that stands over the list's content and the pane's region alike, the action bar and
-  // its key panel, placed by its owner in the window's own space and kept above both.
+  // A view that stands over the list's content and the pane's region alike, the bottom bar and
+  // its info pane, placed by its owner in the window's own space and kept above both.
   func addOverlay(_ view: NSView) {
     stage.addSubview(view, positioned: .above, relativeTo: nil)
   }

@@ -20,11 +20,11 @@
 ---
 --- This file is the composition root and the command policy. It loads the engine, loads
 --- every provider, names them, and validates each one against the contract. One provider is
---- active at a time, chosen through the Provider verb of the action panel and remembered
+--- active at a time, chosen through the Provider verb of the actions pane and remembered
 --- across reloads. When the active provider's CLI is not installed it logs the reason and
 --- still presents, to a row naming the missing backend and what provides it, both read from
 --- that provider's own install metadata so the panel never learns the concrete tool, with
---- the Provider verb still in the action panel so the choice can be taken back. The engine is left
+--- the Provider verb still in the actions pane so the choice can be taken back. The engine is left
 --- unwired in that state, so a machine missing a backend degrades to a self explaining row
 --- rather than a dead key. That row is a label and not an action, since how to obtain a tool
 --- is the concern of the layer above this config and no file here may answer it.
@@ -143,7 +143,7 @@ local pending = {}    -- callbacks waiting on that fetch, so none of them is dro
 local generation = 0
 
 -- Defined further down, once onChange exists for them to wire, and forward declared here
--- because the action panel's Provider verb below calls switchTo, which is written after it.
+-- because the actions pane's Provider verb below calls switchTo, which is written after it.
 local activate, switchTo
 
 -- The bound M.prepare gives each of its three reads before treating a leg that has not
@@ -352,10 +352,10 @@ local function actionRow()
 end
 
 --------------------------------------------------------------------------------
--- The provider, a choice of the action panel
+-- The provider, a choice of the actions pane
 --------------------------------------------------------------------------------
 
--- One choice per loaded provider, for the Provider verb of the action panel,
+-- One choice per loaded provider, for the Provider verb of the actions pane,
 -- docs/PLAN-ACTION-PANEL.md. It used to be a page of its own behind a row at the foot of the
 -- list, and it moved into the panel on 2026-10-30, since a backend is a setting of the tool
 -- rather than a place in it, and the panel is where a list keeps what it offers beyond Return.
@@ -393,7 +393,7 @@ end
 -- panel explains the gap instead of opening empty and never names the concrete tool or the
 -- platform.
 --
--- This is the whole list and it is not a dead end, because the action panel's Provider verb
+-- This is the whole list and it is not a dead end, because the actions pane's Provider verb
 -- applies to every row, this one included, so a person whose backend has gone missing can
 -- always switch to one that is installed. Making that reachable is the reason this row is
 -- allowed to stay a label rather than having to grow an action.
@@ -589,7 +589,7 @@ function M.scopeRows(rest, redraw)
   return rows(rest)
 end
 
---- M:providerChoices() -> list. The choices of the action panel's Provider verb, one per
+--- M:providerChoices() -> list. The choices of the actions pane's Provider verb, one per
 --- loaded backend, the one driving marked as in force. Colon called, since the root hands a
 --- surface method its module first.
 function M:providerChoices()
@@ -807,7 +807,7 @@ end
 -- removed keeps standing, so reinstalling that app puts the tool back where the person left
 -- it rather than silently making a temporary fallback permanent. When nothing at all is
 -- available the first provider is still returned, so the list opens to that one's own
--- missing tool row with the Provider verb still in the action panel rather than to nothing.
+-- missing tool row with the Provider verb still in the actions pane rather than to nothing.
 local function chooseInitial()
   local stored = hs.settings.get(PROVIDER_KEY)
   for _, entry in ipairs(providers) do
@@ -819,7 +819,7 @@ local function chooseInitial()
   return providers[1]
 end
 
--- Switch the active backend, from the action panel's Provider verb and nowhere else.
+-- Switch the active backend, from the actions pane's Provider verb and nowhere else.
 --
 -- Everything the previous backend answered is dropped, the status snapshot, the selected
 -- relay, and the whole location list, because none of it means anything under a different
@@ -853,7 +853,7 @@ switchTo = function(id)
   activate(entry)
   hs.settings.set(PROVIDER_KEY, id)
 
-  -- The redraw names this tool's list, so it lands once the action panel has closed back onto
+  -- The redraw names this tool's list, so it lands once the actions pane has closed back onto
   -- it, and a later open re-asks for the rows by which time this round has written the cache.
   M.prepare(function()
     if cfg.redrawPresented then cfg.redrawPresented("vpn") end

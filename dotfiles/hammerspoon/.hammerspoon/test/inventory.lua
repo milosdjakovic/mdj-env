@@ -8,7 +8,7 @@
 --
 -- What it actually reads, now that the config folded from many separate spoons
 -- into one bundled Olm spoon, is the loaded spoon table, the chord key and hyper
--- key atoms reached through spoon.Olm.lib, the launcher, action panel, query
+-- key atoms reached through spoon.Olm.lib, the launcher, actions pane, query
 -- scope hosts each reached through spoon.Olm module, the
 -- context blocks the load plan built from the plugin manifests, the tool registry published at
 -- spoon.Olm.registry, the assembled scope catalog the query scope host actually
@@ -79,7 +79,7 @@ end
 -- run at this line rather than as an empty section well below it.
 local olm = must(spoon.Olm, "spoon.Olm, the loaded core spoon")
 local launcher = must(olm:module("launcher"), "the launcher host through spoon.Olm module")
-local actionPanel = must(olm:module("actionpanel"), "the action panel host through spoon.Olm module")
+local actionsPane = must(olm:module("actionspane"), "the actions pane host through spoon.Olm module")
 local queryScope = must(olm:module("queryscope"), "the query scope host through spoon.Olm module")
 local appToggler = must(olm:module("apptoggler"), "the app toggler plugin through spoon.Olm module")
 local chordKey = must(olm.lib and olm.lib.chordkey, "the chord key atom at spoon.Olm.lib.chordkey")
@@ -161,9 +161,9 @@ for _, l in ipairs(actionLines) do add(l) end
 -- spoon, which is what the plugin manifests actually produced rather than a table kept by hand.
 -- config/keys.lua used to hold a hyperContexts table for this, and nothing at runtime ever read
 -- it, so this section snapshotted a dead copy. Each block has the same name, when, priority and
--- bindings shape that table had, with the action panel chord already carried in it. This is a
+-- bindings shape that table had, with the actions pane chord already carried in it. This is a
 -- source exactly like the module doors above, since it feeds five sections below,
--- hypercontexts, actionpanel, panelrows, hostedrows, and the counts each one prints, so an
+-- hypercontexts, actionspane, panelrows, hostedrows, and the counts each one prints, so an
 -- unreachable plan would otherwise leave all five silently empty rather than failing here.
 local composed = must(olm._composed, "spoon.Olm._composed, the record the composition root published")
 local planContexts = must(composed.plan and composed.plan.contexts, "the plan's contexts, built from the manifests")
@@ -201,7 +201,7 @@ for _, name in ipairs(contextNames) do
     -- been a boundary, what an action classifies as is an ordinary question this
     -- module already answers for anyone asking, so it is asked through that public
     -- door rather than through a private field.
-    local kind = actionPanel:kindOf(b.action)
+    local kind = actionsPane:kindOf(b.action)
     bindingLines[#bindingLines + 1] = string.format(
       "hypercontexts.binding context=%s key=%s mods=%s action=%s kind=%s when=%s chord=%s needs=%s description=%s",
       field(name), field(b.key), join(mods), field(b.action), field(kind), field(b.when),
@@ -221,11 +221,11 @@ end
 local verbsByContext = {}
 for _, name in ipairs(contextNames) do
   local ctx = byName[name]
-  verbsByContext[name] = actionPanel:verbsIn(ctx.bindings or {})
+  verbsByContext[name] = actionsPane:verbsIn(ctx.bindings or {})
 end
-add("registry actionpanel count=" .. #contextNames)
+add("registry actionspane count=" .. #contextNames)
 for _, name in ipairs(contextNames) do
-  add(string.format("actionpanel.context name=%s verbCount=%s", field(name), field(#verbsByContext[name])))
+  add(string.format("actionspane.context name=%s verbCount=%s", field(name), field(#verbsByContext[name])))
 end
 local verbLines = {}
 for _, name in ipairs(contextNames) do
@@ -234,7 +234,7 @@ for _, name in ipairs(contextNames) do
     for _, m in ipairs(b.mods or {}) do mods[#mods + 1] = m end
     table.sort(mods)
     verbLines[#verbLines + 1] = string.format(
-      "actionpanel.verb context=%s key=%s mods=%s action=%s description=%s",
+      "actionspane.verb context=%s key=%s mods=%s action=%s description=%s",
       field(name), field(b.key), join(mods), field(b.action), field(b.description))
   end
 end
@@ -242,10 +242,10 @@ table.sort(verbLines)
 for _, l in ipairs(verbLines) do add(l) end
 
 -- The panel's own row list per context, phase eight's second packet, asked of the live
--- action panel host through its own rowsFor rather than recomputed here, the same public
+-- actions pane host through its own rowsFor rather than recomputed here, the same public
 -- door kindOf and verbsIn above already carry, so this measures exactly what the panel's
 -- toggle would show through the composition root's own rowsFor, through the exact same
--- call, rather than a second opinion built in this file. Unlike the actionpanel section
+-- call, rather than a second opinion built in this file. Unlike the actionspane section
 -- above, this section DOES read the root's bindingApplies filter, since rowsFor applies
 -- it, and it always carries a Back row the panel itself builds, so a context with no
 -- verbs at all still answers one row rather than none. contextNames and byName are
@@ -260,7 +260,7 @@ for _, l in ipairs(verbLines) do add(l) end
 -- of what this section proves.
 local panelRowsByContext = {}
 for _, name in ipairs(contextNames) do
-  panelRowsByContext[name] = actionPanel:rowsFor(name)
+  panelRowsByContext[name] = actionsPane:rowsFor(name)
 end
 add("registry panelrows count=" .. #contextNames)
 for _, name in ipairs(contextNames) do
@@ -302,7 +302,7 @@ for _, l in ipairs(panelRowLines) do add(l) end
 local hostedRowsByContext = {}
 for _, name in ipairs(contextNames) do
   local scope = registry.scopeFor(name)
-  hostedRowsByContext[name] = actionPanel:rowsFor(name, (scope and scope.verbs) or {})
+  hostedRowsByContext[name] = actionsPane:rowsFor(name, (scope and scope.verbs) or {})
 end
 add("registry hostedrows count=" .. #contextNames)
 for _, name in ipairs(contextNames) do
@@ -319,7 +319,7 @@ end
 table.sort(hostedRowLines)
 for _, l in ipairs(hostedRowLines) do add(l) end
 
--- How many instances decorate has actually wrapped, asked of the live action panel host
+-- How many instances decorate has actually wrapped, asked of the live actions pane host
 -- through the small public door built for exactly this, rather than trusted from the fact
 -- that the plugin manifests and the panelrows section above both look right. Neither of those
 -- proves the decorate seam ever ran on a given chooser, only that it would answer correctly if
@@ -327,7 +327,7 @@ for _, l in ipairs(hostedRowLines) do add(l) end
 -- going through the Chooser facade at all, would leave the panel silently dead on it with every
 -- other line in this file still reading exactly as if nothing were wrong. This reads twelve
 -- today, one per context, and would read fewer the moment that stopped being true.
-add("registry actionpaneldecorated count=" .. actionPanel:decoratedCount())
+add("registry actionspanedecorated count=" .. actionsPane:decoratedCount())
 
 -- The choosers registry section that used to live here read one literal line in
 -- init.lua as text, local choosers = registry.surfaces, since that line was once

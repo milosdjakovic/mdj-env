@@ -1,16 +1,16 @@
---- === DockedPane canvas backend ===
+--- === PreviewPane canvas backend ===
 ---
---- The drawing backend a docked pane and a CanvasPanel use whenever the native one is not handed
---- in, which is under every chooser but the swift one. It is the canvas half lib/dockedpane.lua
+--- The drawing backend a preview pane and a CanvasPanel use whenever the native one is not handed
+--- in, which is under every chooser but the swift one. It is the canvas half lib/previewpane.lua
 --- used to hold itself, moved here unchanged, and since 2026-10-28 also the canvas half
 --- lib/panel.lua used to hold, moved the same way, so a pane or a panel under the default chooser
---- draws exactly what it drew before. lib/dockedpane.lua's header states the contract every
+--- draws exactly what it drew before. lib/previewpane.lua's header states the contract every
 --- backend keeps, and this file is one concrete strategy behind it. The composition root picks it
 --- and hands it in, and neither the pane, the panel nor a plugin names it.
 ---
 --- One hs.canvas per pane or panel, made by the factory at the first paint. A pane's floats, and
 --- a click on it activates nothing, so a click on the pane never pulls focus off the search field.
---- The chooser's click watcher already treats a point inside the companion rect as part of the
+--- The chooser's click watcher already treats a point inside the preview pane rect as part of the
 --- picker and passes it through, so between the two a click here changes nothing.
 ---
 --- A panel hands the factory its window as a second argument, its level, its click handler and
@@ -25,7 +25,7 @@
 ---
 --- M.new(deps) -> factory, deps.canvas optional, hs.canvas or a stub with new and windowLevels.
 --- factory(frame, window) -> a backend for one pane or panel, its canvas made at frame. window is
---- absent for a pane and { level, onClick, activates } for a panel, see lib/dockedpane.lua.
+--- absent for a pane and { level, onClick, activates } for a panel, see lib/previewpane.lua.
 
 local M = {}
 

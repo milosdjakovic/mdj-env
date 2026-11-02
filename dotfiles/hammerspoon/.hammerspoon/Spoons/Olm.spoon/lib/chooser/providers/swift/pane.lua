@@ -1,7 +1,7 @@
 --- === Swift pane backend ===
 ---
---- The docked pane's native drawing backend, the Lua half of native/Pane.swift. It keeps the
---- backend contract lib/dockedpane.lua's header states, place, render, show, hide and destroy,
+--- The preview pane's native drawing backend, the Lua half of native/Pane.swift. It keeps the
+--- backend contract lib/previewpane.lua's header states, place, render, show, hide and destroy,
 --- and it is a Humble Object over the same Swift library the chooser panel lives in, so the pane
 --- and the panel are torn down together by that library's reload sentinel. It keeps no pane rule.
 --- The pane hands it the surface and the content as hs.canvas element lists, exactly what the
@@ -15,7 +15,7 @@
 ---
 --- WHERE IT IS DRAWN is decided inside the library and never here, since a pane knows no chooser.
 --- native/Pane.swift asks the seam in native/Entry.swift for the visible chooser panel whose
---- reported companion is the rect this pane is placed on, and draws into the pane's region of that
+--- reported preview pane is the rect this pane is placed on, and draws into the pane's region of that
 --- panel's own window, on the one shape of glass the list stands on, so the two are one surface
 --- and come and go together. With no such panel it stands in a window of its own.
 ---
@@ -38,7 +38,7 @@
 --- since the same pane repaints whenever its content changes.
 ---
 --- M.factory(native, log) -> function(frame, window) -> backend, native the loaded library, log
---- a logger with e, or nil for print. window is absent for a pane, see lib/dockedpane.lua.
+--- a logger with e, or nil for print. window is absent for a pane, see lib/previewpane.lua.
 
 local M = {}
 
@@ -91,7 +91,7 @@ function M.factory(native, log)
 
     function backend.scrollsNatively() return true end
 
-    -- scroll is { height, visible, reset, thumb }, see lib/dockedpane.lua's header.
+    -- scroll is { height, visible, reset, thumb }, see lib/previewpane.lua's header.
     function backend.render(surface, content, scroll)
       report(log, native.paneDraw(id, radiusOf(surface), content, scroll))
     end

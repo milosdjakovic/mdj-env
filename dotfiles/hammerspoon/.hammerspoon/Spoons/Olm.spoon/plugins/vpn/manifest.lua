@@ -7,7 +7,7 @@
 --
 -- Migrated onto the shared stage, phase three of the chooser stage build, the proving
 -- consumer docs/BRIEF-HANDOFF.md decision eight names, chosen for being an ordinary shape,
--- a five function surface, one recency order, one async status refresh, no companion pane,
+-- a five function surface, one recency order, one async status refresh, no preview pane,
 -- no private eventtap. It owns no chooser of its own any more and builds no window, its
 -- presentation block below is the whole of what used to be a Chooser.new call and a hand
 -- built surface adapter.
@@ -106,7 +106,7 @@ return {
   },
 
   -- One flat list, the controls on top and every city below, so it takes the shared
-  -- navigation and one verb of the action panel alone. Provider picks the backend that drives
+  -- navigation and one verb of the actions pane alone. Provider picks the backend that drives
   -- the list, a choice of a few rather than a page of its own, docs/PLAN-ACTION-PANEL.md. It
   -- names no applies, since a backend can be switched from any row, the missing tool row
   -- included, which is what keeps that row from being a dead end. providerChoices and

@@ -113,7 +113,7 @@ return {
   -- Unchanged by the migration, decision eight of the handoff brief kept for every presenting
   -- plugin since VPN. context, primary, and nav are still what plan.contexts is built from and
   -- what the navigation bind loop still binds this plugin's own keys against, only who answers
-  -- for them once fired now differs. The action bar under the list is atom level policy
+  -- for them once fired now differs. The bottom bar under the list is atom level policy
   -- host/stage owns for the life of its one instance, so this plugin declares nothing for it.
   surface = {
     context = "menuSearch",

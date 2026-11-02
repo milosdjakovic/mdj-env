@@ -1,12 +1,12 @@
 --- === Speedtest.pane ===
 ---
---- The companion pane docked beside the list, where every figure a run returns actually lands. A
+--- The preview pane docked beside the list, where every figure a run returns actually lands. A
 --- row holds three numbers and a run answers twenty, which is the whole argument for the pane
 --- existing at all.
 ---
 --- The canvas, the dock, the empty state, the scroll and its thumb, and the teardown all belong to
---- the shared docked pane, lib/dockedpane.lua, which the root grants because the manifest declares
---- `pane = true`. This file keeps only which view is on screen. It draws four different things and
+--- the shared preview pane, lib/previewpane.lua, which the root grants because the manifest declares
+--- `previewPane = true`. This file keeps only which view is on screen. It draws four different things and
 --- knows which by which function was called, a run being taken right now, a finished run, the
 --- trend across a network's history, and a block of explanation. What each looks like is built as
 --- UI kit nodes by pane-nodes.lua, which is also where the two kinds of graph, a curve and bars,
@@ -20,7 +20,7 @@ local nodes = loadfile(panePath .. "pane-nodes.lua")()
 
 local M = {}
 
-local pane = nil  -- the shared docked pane, made in configure from the root's grant
+local pane = nil  -- the shared preview pane, made in configure from the root's grant
 local model = nil -- the view on screen, read by describe on every paint
 
 -- What the model on screen is made of, as one node. Every view is built by pane-nodes.lua. A
@@ -37,12 +37,12 @@ local function describe(ui)
 end
 
 --- pane.configure(opts) - injected by the file that owns the picker.
---- opts.dockedPane  the root's docked pane grant, a function answering a pane. Absent means no
+--- opts.previewPane  the root's preview pane grant, a function answering a pane. Absent means no
 ---                  pane at all, see isEnabled.
 function M.configure(opts)
   opts = opts or {}
-  if not pane and opts.dockedPane then
-    pane = opts.dockedPane({ scroll = true, thumb = true })
+  if not pane and opts.previewPane then
+    pane = opts.previewPane({ scroll = true, thumb = true })
   end
   return M
 end
@@ -52,9 +52,9 @@ function M.isEnabled()
   return pane ~= nil and pane.isEnabled() and true or false
 end
 
---- pane.dock(companionFrame) - take the rect the chooser reported.
-function M.dock(companionFrame)
-  if pane then pane.dock(companionFrame) end
+--- pane.dock(previewPaneFrame) - take the rect the chooser reported.
+function M.dock(previewPaneFrame)
+  if pane then pane.dock(previewPaneFrame) end
 end
 
 -- Every show starts at the top, since the content underneath it changed.

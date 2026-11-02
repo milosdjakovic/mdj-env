@@ -11,7 +11,7 @@
 # systemPurple, systemGreen and systemOrange.
 #
 # background is the one colour kept opaque, windowBackgroundColor as AppKit answers it. On the
-# glass chooser it fills only the key panel, which then hides the rows under it. On the canvas
+# glass chooser it fills only the info pane, which then hides the rows under it. On the canvas
 # chooser it fills the whole panel with no blur behind it, so a translucent fill would show the
 # desktop sharp through the list. Every translucent colour above blends over it there the way
 # it blends over glass, which is what lets one theme serve both choosers.

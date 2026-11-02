@@ -30,7 +30,7 @@ local factory = { matchers = {}, new = function(config)
   function inst:matcher() return nil end
   function inst:titleLineBreak() return "t" end
   function inst:setPlaceholder() end
-  function inst:setPaneWidth() end
+  function inst:setPreviewPaneWidth() end
   function inst:setMatcher() end
   function inst:setTitleLineBreak() end
   function inst:setRows() end

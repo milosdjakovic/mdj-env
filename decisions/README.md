@@ -117,3 +117,4 @@ than discovered.
 - [olm-chooser-row-limit](olm-chooser-row-limit.md), every list shows 50 rows by default and ends a longer one in a row that adds the next 50, set by `chooser.rowLimit`, under both choosers
 - [rex](rex.md), Rex's settings written into its defaults domain from dotfiles/rex/SETTINGS, and the Ghostty theme pair imported through Rex's own action rather than written as its internal JSON
 - [lf](lf.md), every lf picker, preview and confirmation runs as lf's own shell command, so lf needs no multiplexer, after a helper choosing a popup per multiplexer was turned down
+- [olm-names](olm-names.md), every part a person sees has one name, a component for what it is and a concept for what it means, chooser, input field, list, row, preview pane, bottom bar with bar items, info pane, actions pane, action and shortcut, used in code as well and held by the dry gate, after keeping old identifiers, button, shortcuts pane and renaming row were turned down

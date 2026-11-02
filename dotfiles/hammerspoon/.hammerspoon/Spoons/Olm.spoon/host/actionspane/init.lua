@@ -1,6 +1,6 @@
---- === ActionPanel ===
+--- === ActionsPane ===
 ---
---- The measurement phase eight's action panel is built on, and the panel itself, packet two of
+--- The measurement phase eight's actions pane is built on, and the panel itself, packet two of
 --- the phase. It answers one question, given a context's bindings, which of them are verbs, the
 --- things a person forgets the chord for, rather than navigation, every binding the panel does
 --- not list, the shared moving up and down, inserting, closing, and scrolling the preview every
@@ -38,16 +38,16 @@ local obj = {}
 obj.__index = obj
 
 -- Metadata
-obj.name = "ActionPanel"
+obj.name = "ActionsPane"
 obj.version = "1.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
-local log = hs.logger.new("ActionPanel", "info")
+local log = hs.logger.new("ActionsPane", "info")
 
 -- The named set of kinds a binding's action may classify as. Two members, closed, named here
--- so the composition root and this module both write spoon.ActionPanel.kinds.verb or
--- spoon.ActionPanel.kinds.navigation rather than a bare string either side could misspell with
+-- so the composition root and this module both write spoon.ActionsPane.kinds.verb or
+-- spoon.ActionsPane.kinds.navigation rather than a bare string either side could misspell with
 -- nothing to catch it. verbsIn below checks a kind against these two members directly rather
 -- than against a bare string, and that is as far as this table reaches. verbsIn has a branch
 -- for verb and a branch for navigation and nothing else, so a third member added only here
@@ -107,7 +107,7 @@ obj._capturedSearch = nil
 -- composition root never sets this.
 obj._defer = nil
 
---- ActionPanel:init()
+--- ActionsPane:init()
 --- Method
 --- Initialize the spoon. Nothing is built until configure runs, since the whole of this
 --- module's behaviour comes from the one function configure injects.
@@ -115,7 +115,7 @@ function obj:init()
   return self
 end
 
---- ActionPanel:configure(deps)
+--- ActionsPane:configure(deps)
 --- Method
 --- deps.kindOf   required, a function taking an action name and answering a member of
 ---               obj.kinds or nil. A missing or non function value raises, since that is a
@@ -148,13 +148,13 @@ end
 function obj:configure(deps)
   deps = deps or {}
   if type(deps.kindOf) ~= "function" then
-    error("ActionPanel configure requires deps.kindOf, a function from an action name to a member of obj.kinds")
+    error("ActionsPane configure requires deps.kindOf, a function from an action name to a member of obj.kinds")
   end
   if type(deps.rowsFor) ~= "function" then
-    error("ActionPanel configure requires deps.rowsFor, a function from a context name to its panel rows")
+    error("ActionsPane configure requires deps.rowsFor, a function from a context name to its panel rows")
   end
   if type(deps.run) ~= "function" then
-    error("ActionPanel configure requires deps.run, a function running a named action")
+    error("ActionsPane configure requires deps.run, a function running a named action")
   end
   self._kindOf = deps.kindOf
   self._rowsFor = deps.rowsFor
@@ -180,11 +180,11 @@ end
 local function ensureConfigured(self, caller)
   if self._kindOf then return true end
   (self._log or log).w(string.format(
-    "ActionPanel %s was asked before configure ran, answering as though nothing is classified", caller))
+    "ActionsPane %s was asked before configure ran, answering as though nothing is classified", caller))
   return false
 end
 
---- ActionPanel:kindOf(action) -> a member of obj.kinds or nil
+--- ActionsPane:kindOf(action) -> a member of obj.kinds or nil
 --- Method
 --- The injected classifier's own answer for one action name, or nil when this instance has
 --- not been configured yet. Exposed as a public method rather than left on a private field so
@@ -195,7 +195,7 @@ function obj:kindOf(action)
   return self._kindOf(action)
 end
 
---- ActionPanel:rowsFor(contextName, hosted) -> list
+--- ActionsPane:rowsFor(contextName, hosted) -> list
 --- Method
 --- The injected rowsFor's own answer for one context name, or an empty list when this
 --- instance has not been configured yet. Exposed as a public method for the same reason
@@ -213,7 +213,7 @@ function obj:rowsFor(contextName, hosted)
   return self._rowsFor(contextName, hosted)
 end
 
---- ActionPanel:verbsIn(bindings) -> list
+--- ActionsPane:verbsIn(bindings) -> list
 --- Method
 --- A context's binding list in, a new ordered list holding only the bindings whose action
 --- classifies as a verb, in declaration order, out. The list handed in is never mutated,
@@ -241,7 +241,7 @@ function obj:verbsIn(bindings)
       -- Dropped in silence, on purpose, see the note above.
     else
       self._log.w(string.format(
-        "ActionPanel dropped '%s', it classifies as neither a verb nor navigation", tostring(b.action)))
+        "ActionsPane dropped '%s', it classifies as neither a verb nor navigation", tostring(b.action)))
     end
   end
   return out
@@ -274,7 +274,7 @@ end
 -- a chord, or an icon the panel shows is never a second opinion on what deps.rowsFor
 -- answered. The chord rides as the row's subTitle, since a person opening the panel to look
 -- up a verb's chord is exactly this feature's own reason to exist. The row also carries the kbd
--- chord itself, which a popover draws as a key cap, one glyph per key. The row carries the verb's
+-- chord itself, which a floating pane draws as a key cap, one glyph per key. The row carries the verb's
 -- icon and its owner as iconOwner and draws no picture, the chooser turns them into one when it
 -- paints, so the icon follows the light and dark halves. A row with no icon draws none.
 -- item carries the plain row itself back whole, so _choose below can read its action
@@ -285,7 +285,7 @@ function obj:_buildRows(contextName, hosted, floats)
   for _, r in ipairs(self:rowsFor(contextName, hosted)) do
     -- The Back row is the panel's own, so its owner is whose icons a level's rows read too.
     if r.action == nil then self._owner = r.owner end
-    -- A popover over the list is left by Escape and needs no Back row, which is the one row
+    -- A floating pane over the list is left by Escape and needs no Back row, which is the one row
     -- carrying no action, and a verb that does not apply to the row is left out.
     if not (floats and r.action == nil) and self:_applies(r) then
       -- chord is the kbd chord a key cap draws key by key, subTitle its text for a list row.
@@ -306,7 +306,7 @@ function obj:_applies(row)
   local ok, answer, found = pcall(self._call, row.applies, self._capturedItem, self._contextName)
   if ok and found == false then return true end
   if not ok then
-    self._log.w(string.format("ActionPanel applies '%s' raised, the verb stays listed, %s",
+    self._log.w(string.format("ActionsPane applies '%s' raised, the verb stays listed, %s",
       tostring(row.applies), tostring(answer)))
     return true
   end
@@ -333,7 +333,7 @@ function obj:_levelRows(verb)
     ok, choices = pcall(self._call, verb.choices, self._capturedItem, self._contextName)
   end
   if not ok then
-    self._log.w(string.format("ActionPanel choices '%s' raised, %s", tostring(verb.choices), tostring(choices)))
+    self._log.w(string.format("ActionsPane choices '%s' raised, %s", tostring(verb.choices), tostring(choices)))
     choices = nil
   end
   for _, c in ipairs(type(choices) == "table" and choices or {}) do
@@ -422,7 +422,7 @@ function obj:_leave(instance, action, value)
     if not instance:isShowing() then
       if action then
         self._log.w(string.format(
-          "ActionPanel action '%s' found its chooser gone by the time it ran, running nothing",
+          "ActionsPane action '%s' found its chooser gone by the time it ran, running nothing",
           tostring(action)))
       end
       return
@@ -478,14 +478,14 @@ function obj:_stepBack(instance)
   return true
 end
 
---- ActionPanel:levelTitle() -> string or nil
+--- ActionsPane:levelTitle() -> string or nil
 --- Method
 --- The title of the verb whose level is open, for a view that heads the level with it, or nil.
 function obj:levelTitle()
   return self._level and self._level.title or nil
 end
 
---- ActionPanel:decorate(instance, config)
+--- ActionsPane:decorate(instance, config)
 --- Method
 --- The function the root hands to Chooser.configure as opts.decorate, called once for every
 --- instance Chooser.new builds, right after native.new returns and before new hands the
@@ -543,7 +543,7 @@ function obj:decorate(instance, config)
   -- legacy.lua's own Chooser:_build already reads fresh on every keystroke rather than once
   -- at construction, so the panel now filters, or does not, for whichever presentation is
   -- actually current when a key is actually pressed. Eleven tools declared matcher = false
-  -- when this line changed, and every one of them typed into the action panel over their own
+  -- when this line changed, and every one of them typed into the actions pane over their own
   -- rows without narrowing anything until then. Since phase four of the unified search only
   -- input and confirm pages declare it, each with a search-exempt reason, and every list
   -- inherits the shared matcher. Read through the accessor rather than off the field directly since
@@ -597,7 +597,7 @@ function obj:decorate(instance, config)
   config.onSelect = function(item, ...)
     if self._openInstance == instance then
       self._log.w(string.format(
-        "ActionPanel row '%s' reached onSelect, a panel row should complete through intercept and never here",
+        "ActionsPane row '%s' reached onSelect, a panel row should complete through intercept and never here",
         tostring(item and item.action or item)))
       return
     end
@@ -605,7 +605,7 @@ function obj:decorate(instance, config)
   end
 
   -- Deliberately not called at all while the panel is open on this instance, rather than an
-  -- omission. A companion pane keeps showing the item the panel was opened over, which is
+  -- omission. A preview pane keeps showing the item the panel was opened over, which is
   -- exactly what a chosen verb acts on, and leaving the preview on it is more honest than
   -- blanking it or describing a menu row as though it were the thing being previewed. Review
   -- finding N1, the same widening.
@@ -629,7 +629,7 @@ function obj:decorate(instance, config)
   return instance
 end
 
---- ActionPanel:toggle(contextName, hosted)
+--- ActionsPane:toggle(contextName, hosted)
 --- Method
 --- What the panel's chord runs. Closes the panel when it is already open, through _leave with
 --- no action, the same door every other way out uses, and then runs its own refresh(true),
@@ -678,21 +678,21 @@ function obj:toggle(contextName, hosted)
     self._capturedSearch = search
     instance:setMatcher(matcher, nil)
   end
-  local floats = type(instance.floatsActionPanel) == "function" and instance:floatsActionPanel() == true
+  local floats = type(instance.floatsActionsPane) == "function" and instance:floatsActionsPane() == true
   self._panelRows = self:_buildRows(contextName, hosted, floats)
   self._openInstance = instance
   instance:setQuery("")
   instance:refresh(true)
 end
 
---- ActionPanel:isOpen() -> boolean
+--- ActionsPane:isOpen() -> boolean
 --- Method
 --- Whether the panel is currently showing, on any instance.
 function obj:isOpen()
   return self._openInstance ~= nil
 end
 
---- ActionPanel:decoratedCount() -> integer
+--- ActionsPane:decoratedCount() -> integer
 --- Method
 --- How many instances decorate has ever wrapped. Public so test/inventory.lua can prove the
 --- panel is actually installed on every chooser rather than trusting that Chooser.configure's

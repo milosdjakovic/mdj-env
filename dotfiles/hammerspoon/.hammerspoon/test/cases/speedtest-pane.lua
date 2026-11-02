@@ -6,7 +6,7 @@
 -- and layout loaded as plain Lua and a stub measurer, and no canvas is ever made. The stub gives
 -- the digits different widths on purpose, the way the system font does, since the figure slot
 -- exists for exactly that. What pane.lua decides is which view is on screen, and the docking, the
--- scroll and the paint are the shared docked pane's, which test/cases/dockedpane.lua covers.
+-- scroll and the paint are the shared preview pane's, which test/cases/previewpane.lua covers.
 
 local source = debug.getinfo(1, "S").source
 local herePath = source:match("^@(.*)$") or source

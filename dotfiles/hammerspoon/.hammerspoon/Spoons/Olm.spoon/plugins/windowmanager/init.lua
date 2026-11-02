@@ -747,7 +747,7 @@ function obj:smallSize()
 end
 
 -- camelCase action name to a Title Case label, the words every surface shows for an action,
--- the launcher row, the window sheet and the action panel alike.
+-- the launcher row, the window sheet and the actions pane alike.
 local function humanize(name)
   local s = tostring(name):gsub("(%l)(%u)", "%1 %2")
   return s:sub(1, 1):upper() .. s:sub(2)

@@ -3,8 +3,8 @@
 --- The default chooser's drawing and raw input, the view lib/chooser/engine/init.lua is composed
 --- with to make the default provider. It satisfies lib/chooser/view.lua and owns only what is
 --- drawn and how a hand reaches it, the surface, the field with its own editing model and keymap,
---- the caret blink, the list's rows as canvas elements, the action bar and the two popovers above
---- it, the key panel and the action panel, as canvas elements, the mouse tap with its hit tests and
+--- the caret blink, the list's rows as canvas elements, the bottom bar and the two floating panes above
+--- it, the info pane and the actions pane, as canvas elements, the mouse tap with its hit tests and
 --- the wheel easing. Every picker rule,
 --- what a key means, what choosing does, when a callback fires, lives in the engine, and this
 --- file turns raw events into calls on it and draws what its scene says. It was split out of
@@ -12,7 +12,7 @@
 ---
 --- Everything this file stands on already exists. surface.lua owns the window, mouse.lua owns the
 --- mouse tap, field is a complete text field, list/render.lua draws rows, bar.lua draws the bar's
---- two floating groups, popover.lua the key panel and the action panel above them, and the UI kit's
+--- two floating groups, floatingpane.lua the info pane and the actions pane above them, and the UI kit's
 --- tokens give every colour.
 ---
 --- Rows here carry a title turned into an hs.styledtext value before list render ever sees them,
@@ -58,16 +58,16 @@ local Field = fieldInput.Field
 local fieldRender = load("field/render.lua")
 local listModel = load("list/model.lua")
 local listRender = load("list/render.lua")
-local footerLib = load("footer.lua")
+local bottomBarLib = load("bottombar.lua")
 local barLib = load("bar.lua")
-local popoverLib = load("popover.lua")
+local floatingPaneLib = load("floatingpane.lua")
 
 --------------------------------------------------------------------------------
 -- Module level collaborators and constants
 --------------------------------------------------------------------------------
 
 -- The injected UI kit, lib/ui, nil until Canvas.configure runs, read for the nested radius and
--- handed to bar.lua and footer.lua, which draw through it.
+-- handed to bar.lua and bottombar.lua, which draw through it.
 local UI = nil
 
 -- The injected CanvasPanel module, nil until Canvas.configure runs. Every view this file builds
@@ -129,7 +129,7 @@ end
 
 -- Whether point sits inside rect, treated as closed at its own left and top edges and open at
 -- its right and bottom ones, the identical convention geometry.lua's own M.rowAtPoint takes,
--- and answering false outright for a nil rect so a caller need not guard a missing companion.
+-- and answering false outright for a nil rect so a caller need not guard a missing previewPane.
 local function pointInRect(point, rect)
   return rect ~= nil
     and point.x >= rect.x and point.x < rect.x + rect.w
@@ -151,18 +151,18 @@ local function toScreen(rect, origin)
   return { x = rect.x + origin.x, y = rect.y + origin.y, w = rect.w, h = rect.h }
 end
 
--- The span from the canvas rect to the companion rect, the gap between them included, or nil
--- with no companion, the same span the swift view's one shape of glass covers.
-local function spanOf(canvas, companion)
-  if not (canvas and companion) then return nil end
-  local x0, y0 = math.min(canvas.x, companion.x), math.min(canvas.y, companion.y)
-  local x1 = math.max(canvas.x + canvas.w, companion.x + companion.w)
-  local y1 = math.max(canvas.y + canvas.h, companion.y + companion.h)
+-- The span from the canvas rect to the preview pane rect, the gap between them included, or nil
+-- with no preview pane, the same span the swift view's one shape of glass covers.
+local function spanOf(canvas, previewPane)
+  if not (canvas and previewPane) then return nil end
+  local x0, y0 = math.min(canvas.x, previewPane.x), math.min(canvas.y, previewPane.y)
+  local x1 = math.max(canvas.x + canvas.w, previewPane.x + previewPane.w)
+  local y1 = math.max(canvas.y + canvas.h, previewPane.y + previewPane.h)
   return { x = x0, y = y0, w = x1 - x0, h = y1 - y0 }
 end
 
 -- A row's title or subtitle as plain words, since presentRows bakes them into styled values and
--- a popover line draws its own, the swift view's plain.
+-- a floating pane line draws its own, the swift view's plain.
 local function plain(value)
   if value == nil then return "" end
   if type(value) == "string" then return value end
@@ -175,10 +175,10 @@ local function sameRect(a, b)
 end
 
 -- How far the bar reaches below the list rect, the height the list runs on by behind it, from
--- the bottom of the list rect to the bottom of the footer rect, swift's underBar. Zero with no bar.
-local function underBar(list, footer)
-  if not (list and footer) then return 0 end
-  return math.max(0, (footer.y + footer.h) - (list.y + list.h))
+-- the bottom of the list rect to the bottom of the bottom bar rect, swift's underBar. Zero with no bar.
+local function underBar(list, bottomBar)
+  if not (list and bottomBar) then return 0 end
+  return math.max(0, (bottomBar.y + bottomBar.h) - (list.y + list.h))
 end
 
 -- The list's state as it is drawn, the engine's own with its viewport grown by under points, so
@@ -297,40 +297,40 @@ function View:restyle()
   }
 end
 
---- View colon place, arity one. With a companion the surface spans rects.canvas, the gap and
---- rects.companion as one shape, the swift view's layout, and a docked pane placed on that
---- companion rect draws into it, see M.paneBackend. With none it is the canvas rect alone.
+--- View colon place, arity one. With a preview pane the surface spans rects.canvas, the gap and
+--- rects.previewPane as one shape, the swift view's layout, and a preview pane placed on that
+--- preview pane rect draws into it, see M.paneBackend. With none it is the canvas rect alone.
 function View:place(rects)
-  local window = spanOf(rects.canvas, rects.companion)
+  local window = spanOf(rects.canvas, rects.previewPane)
   self._window = window or rects.canvas
-  -- Kept across a hide, the companion rect this view last reported, which a pane's backend
+  -- Kept across a hide, the preview pane rect this view last reported, which a pane's backend
   -- matches its own rect against, so a pane painted as the list reopens lands here.
-  self._companion = window and rects.companion or nil
+  self._previewPane = window and rects.previewPane or nil
   self.surface:setFrame(self._window)
 end
 
---- View colon spansFooter, arity zero. True, since the surface spans the canvas, the gap and the
---- companion, so the action bar runs under the list and the docked pane alike, as in swift.
-function View:spansFooter()
+--- View colon spansBottomBar, arity zero. True, since the surface spans the canvas, the gap and the
+--- preview pane, so the bottom bar runs under the list and the preview pane alike, as in swift.
+function View:spansBottomBar()
   return true
 end
 
---- View colon footerHeight, arity one. The bar's region, a group holding cells as tall as the
+--- View colon bottomBarHeight, arity one. The bar's region, a group holding items as tall as the
 --- default bar's row with the bar's padding around them, and the bar pad below it, the swift
 --- view's own answer, so the two choosers share every rect.
-function View:footerHeight(tokens)
-  return footerLib.height(tokens) + 2 * footerLib.padding(tokens) + tokens.pad
+function View:bottomBarHeight(tokens)
+  return bottomBarLib.height(tokens) + 2 * bottomBarLib.padding(tokens) + tokens.pad
 end
 
---- View colon floatsActionPanel, arity zero. True, since the action panel's verbs are drawn in a
---- popover above the actions group while the list keeps its own rows behind it, as in swift.
-function View:floatsActionPanel()
+--- View colon floatsActionsPane, arity zero. True, since the actions pane's verbs are drawn in a
+--- floating pane above the right side while the list keeps its own rows behind it, as in swift.
+function View:floatsActionsPane()
   return true
 end
 
--- Whether this view hosts a pane placed at rect, its last companion rect while it spans one.
+-- Whether this view hosts a pane placed at rect, its last preview pane rect while it spans one.
 function View:_hostsFrame(rect)
-  return self._companion ~= nil and sameRect(self._companion, rect)
+  return self._previewPane ~= nil and sameRect(self._previewPane, rect)
 end
 
 -- A hosted pane's content, in the pane's own space, or nil to draw none. Redrawn at once while
@@ -367,7 +367,7 @@ function View:feedKey(ev)
   self.field:feed(ev)
 end
 
---- View colon redraw, arity zero. Draws the field, the rows and the action bar from the scene.
+--- View colon redraw, arity zero. Draws the field, the rows and the bottom bar from the scene.
 function View:redraw()
   local s = self.engine:scene()
   if not s.rects then return end
@@ -381,11 +381,11 @@ function View:redraw()
       els[#els + 1] = el
     end
   end
-  -- The bar floats, so the list runs on behind it to the bottom of the footer rect, swift's
+  -- The bar floats, so the list runs on behind it to the bottom of the bottom bar rect, swift's
   -- underBar, its rows drawn from a copy of the engine's state with the viewport grown by that
   -- much. The band is cut at the inside of the border, so a row scrolled past the bottom stops
   -- at the edge of the surface and never draws over the border line.
-  local under = underBar(listRect, toLocal(s.rects.footer, origin))
+  local under = underBar(listRect, toLocal(s.rects.bottomBar, origin))
   local clip = { x = listRect.x, y = listRect.y, w = listRect.w, h = listRect.h + under }
   local interior = self.surface:interior()
   if interior then
@@ -395,7 +395,7 @@ function View:redraw()
     -- along the surface's curve at the corners rather than poking past it.
     if (interior.radius or 0) > 0 then clip.round = interior end
   end
-  -- While the action panel floats, the engine's rows are the panel's, so the list goes on drawing
+  -- While the actions pane floats, the engine's rows are the panel's, so the list goes on drawing
   -- the rows it showed when the panel opened, see _listShown.
   local shownList, shownQuery = self:_listShown(s)
   if shownList then
@@ -406,22 +406,22 @@ function View:redraw()
     end
   end
   self:_paneElements(s, els, origin)
-  self:_footerElements(s, els, origin, interior, listRect)
-  self:_popoverElements(s, els, origin, listRect)
+  self:_bottomBarElements(s, els, origin, interior, listRect)
+  self:_floatingPaneElements(s, els, origin, listRect)
   self.surface:draw(els)
 end
 
--- Appends the hairline between the list and the docked pane and the hosted pane's content to els,
--- in the window's own space, while the surface spans a companion. The hairline is the border role
+-- Appends the hairline between the list and the preview pane and the hosted pane's content to els,
+-- in the window's own space, while the surface spans a preview pane. The hairline is the border role
 -- at the border stroke, centred in the gap from the top of the window to its bottom, since the
 -- bar floats over it as it does in swift, and the content is cut at the pane's own rect, so
 -- nothing it draws reaches the list or past the surface.
 function View:_paneElements(s, els, origin)
-  local companion = self._companion
-  if not companion then return end
+  local previewPane = self._previewPane
+  if not previewPane then return end
   local T = s.tokens
   local canvas = toLocal(s.rects.canvas, origin)
-  local pane = toLocal(companion, origin)
+  local pane = toLocal(previewPane, origin)
   local left, right
   if pane.x >= canvas.x + canvas.w then left, right = canvas.x + canvas.w, pane.x
   else left, right = pane.x + pane.w, canvas.x end
@@ -445,51 +445,51 @@ function View:_paneElements(s, els, origin)
 end
 
 -- Appends the bar's two groups to els, in the canvas's own coordinates. The groups float on the
--- footer rect as swift's do, see bar.lua, and are drawn after the rows so they stand over the rows
--- running on behind them. The groups' rects and each action entry's are kept in screen points,
+-- bottom bar rect as swift's do, see bar.lua, and are drawn after the rows so they stand over the rows
+-- running on behind them. The groups' rects and each action item's are kept in screen points,
 -- the space the mouse handlers test in, and the groups' rects in local ones as the anchors the
--- popovers stand on.
-function View:_footerElements(s, els, origin, interior, listRect)
+-- floating panes stand on.
+function View:_bottomBarElements(s, els, origin, interior, listRect)
   self._keysHit, self._keysCellHit, self._barHits, self._anchors = nil, nil, nil, nil
-  local footerRect = toLocal(s.rects.footer, origin)
-  if not footerRect or not s.footer then return end
+  local bottomBarRect = toLocal(s.rects.bottomBar, origin)
+  if not bottomBarRect or not s.bottomBar then return end
   -- The keyboard icon through the injected icon engine, read at paint like a row's, so it
-  -- follows the light and dark halves. Without an engine the keys group keeps the ? glyph.
-  local keysIcon = s.footer.keysIcon
-  local keysImage = keysIcon and ICON and ICON(keysIcon.icon, keysIcon.owner) or nil
+  -- follows the light and dark halves. Without an engine the left side keeps the ? glyph.
+  local infoIcon = s.bottomBar.infoIcon
+  local keysImage = infoIcon and ICON and ICON(infoIcon.icon, infoIcon.owner) or nil
   local hover = self._barHover
-  local barEls, hits = barLib.elements(UI, s.tokens, s.footer, footerRect, {
+  local barEls, hits = barLib.elements(UI, s.tokens, s.bottomBar, bottomBarRect, {
     radius = self._listStyle and self._listStyle.highlightRadius,
     keysImage = keysImage,
-    keysLit = s.keysOpen,
-    keysHover = hover == "keys",
+    leftLit = s.infoOpen,
+    leftHover = hover == "keys",
     hover = type(hover) == "number" and hover or nil,
-    keysHidden = s.keysOpen,
-    actionsHidden = s.footer.panelOpen == true,
+    leftHidden = s.infoOpen,
+    actionsHidden = s.bottomBar.panelOpen == true,
   })
   -- The anchors are always kept. A group whose panel is open is hidden whole and takes no pointer,
   -- the panel standing in its corner, and the other group stays, as in swift.
   self._anchors = { keys = hits.keys, actions = hits.actions }
   for _, el in ipairs(barEls) do els[#els + 1] = el end
-  local entries = {}
-  for i, entry in ipairs(hits.entries) do
-    entries[i] = { rect = toScreen(entry.rect, origin), action = entry.action }
+  local items = {}
+  for i, item in ipairs(hits.items) do
+    items[i] = { rect = toScreen(item.rect, origin), action = item.action }
   end
-  if s.footer.panelOpen == true then entries = {} end
-  self._keysHit = (not s.keysOpen) and toScreen(hits.keys, origin) or nil
-  -- The pointer lights only the keys group's cell, a press anywhere on the group toggles its panel.
-  self._keysCellHit = (not s.keysOpen) and toScreen(hits.keysCell, origin) or nil
+  if s.bottomBar.panelOpen == true then items = {} end
+  self._keysHit = (not s.infoOpen) and toScreen(hits.keys, origin) or nil
+  -- The pointer lights only the left side's item, a press anywhere on the group toggles its panel.
+  self._keysCellHit = (not s.infoOpen) and toScreen(hits.leftItem, origin) or nil
   self._barHits = { keys = self._keysHit,
-    actions = (s.footer.panelOpen ~= true) and toScreen(hits.actions, origin) or nil, entries = entries }
+    actions = (s.bottomBar.panelOpen ~= true) and toScreen(hits.actions, origin) or nil, items = items }
 end
 
--- Whether the action panel is open and floats over the list, the footer model saying so while the
--- list is not bare. Its rows are then the engine's, see floatsActionPanel.
+-- Whether the actions pane is open and floats over the list, the bottom bar model saying so while the
+-- list is not bare. Its rows are then the engine's, see floatsActionsPane.
 local function panelFloats(s)
-  return not s.bare and s.footer ~= nil and s.footer.panelOpen == true
+  return not s.bare and s.bottomBar ~= nil and s.bottomBar.panelOpen == true
 end
 
--- The list state and query the list draws. While the action panel floats it is the one kept from
+-- The list state and query the list draws. While the actions pane floats it is the one kept from
 -- the last draw before the panel opened, which a scroll over the list moves and nothing else, the
 -- swift view's held rows, and otherwise the engine's, kept for that moment.
 function View:_listShown(s)
@@ -502,8 +502,8 @@ function View:_listShown(s)
   return s.list, s.rankedQuery
 end
 
--- The key panel's lines, every key the footer model lists with its badges, its alternative keys,
--- each a kbd chord, which footer.lua's keycap draws one chip per chord.
+-- The info pane's lines, every key the bottom bar model lists with its badges, its alternative keys,
+-- each a kbd chord, which bottombar.lua's keycap draws one chip per chord.
 local function keyLines(model)
   local lines = {}
   for _, k in ipairs(model.keys or {}) do
@@ -512,7 +512,7 @@ local function keyLines(model)
   return lines
 end
 
--- The action panel's lines, the engine's rows while it floats, each with its icon drawn at paint
+-- The actions pane's lines, the engine's rows while it floats, each with its icon drawn at paint
 -- the way list render draws a row's, its section and whether it is enabled.
 local function actionLines(rows)
   local lines = {}
@@ -534,24 +534,24 @@ local function actionLines(rows)
   return lines
 end
 
--- Appends the key panel above the keys anchor while it is open and the action panel above the
--- actions anchor while it floats, see popover.lua, and keeps each one's rect and lines in screen
--- points for the mouse. A popover not drawn forgets its scroll, so it opens again at its top.
-function View:_popoverElements(s, els, origin, listRect)
-  local previous = self._popovers or {}
-  self._popovers = {}
+-- Appends the info pane above the keys anchor while it is open and the actions pane above the
+-- actions anchor while it floats, see floatingpane.lua, and keeps each one's rect and lines in screen
+-- points for the mouse. A floating pane not drawn forgets its scroll, so it opens again at its top.
+function View:_floatingPaneElements(s, els, origin, listRect)
+  local previous = self._floatingPanes or {}
+  self._floatingPanes = {}
   local anchors = self._anchors
   if not anchors then
     self._popScroll = {}
     return
   end
   local T = s.tokens
-  local style = popoverLib.style(UI, T, s.layout.marginX, footerLib.height(T))
+  local style = floatingPaneLib.style(UI, T, s.layout.marginX, bottomBarLib.height(T))
   local room = { w = (self._window or s.rects.canvas).w, top = listRect.y }
   local function draw(kind, pop, anchor, align, highlight)
-    local rect = popoverLib.place(pop, anchor, align, room)
+    local rect = floatingPaneLib.place(pop, anchor, align, room)
     local reveal = highlight ~= nil and highlight ~= (previous[kind] and previous[kind].highlight)
-    local popEls, info = popoverLib.elements(UI, pop, rect,
+    local popEls, info = floatingPaneLib.elements(UI, pop, rect,
       { highlight = highlight, scroll = self._popScroll[kind], reveal = reveal })
     for _, el in ipairs(popEls) do els[#els + 1] = el end
     self._popScroll[kind] = info.scroll
@@ -559,20 +559,20 @@ function View:_popoverElements(s, els, origin, listRect)
     for _, l in ipairs(info.lines) do
       lines[#lines + 1] = { index = l.index, rect = toScreen(l.rect, origin) }
     end
-    self._popovers[kind] = { rect = toScreen(rect, origin), lines = lines, highlight = highlight,
+    self._floatingPanes[kind] = { rect = toScreen(rect, origin), lines = lines, highlight = highlight,
       maxScroll = info.maxScroll }
   end
-  if s.keysOpen and anchors.keys then
-    draw("keys", popoverLib.layout(UI, style, s.footer.title, keyLines(s.footer), false),
+  if s.infoOpen and anchors.keys then
+    draw("keys", floatingPaneLib.layout(UI, style, s.bottomBar.title, keyLines(s.bottomBar), false),
       anchors.keys, "left", nil)
   end
   if panelFloats(s) and anchors.actions then
     local ns = listModel.normalized(s.list)
-    draw("actions", popoverLib.layout(UI, style, s.footer.panelTitle, actionLines(ns.filtered), true),
+    draw("actions", floatingPaneLib.layout(UI, style, s.bottomBar.panelTitle, actionLines(ns.filtered), true),
       anchors.actions, "right", ns.highlight)
   end
   for kind in pairs(self._popScroll) do
-    if not self._popovers[kind] then self._popScroll[kind] = nil end
+    if not self._floatingPanes[kind] then self._popScroll[kind] = nil end
   end
 end
 
@@ -605,10 +605,10 @@ end
 --- View colon hide, arity zero. Forgets the pointer's press and hover and the hit rects of the
 --- last draw, then hides the surface.
 function View:hide()
-  self._pressedRowIndex, self._pressedEntry = nil, nil
+  self._pressedRowIndex, self._pressedItem = nil, nil
   self._barHover = nil
   self._keysHit, self._keysCellHit, self._barHits, self._anchors = nil, nil, nil, nil
-  self._popovers, self._popScroll, self._popPressed, self._held = nil, {}, false, nil
+  self._floatingPanes, self._popScroll, self._popPressed, self._held = nil, {}, false, nil
   self._paneContent = nil
   self.surface:hide()
 end
@@ -692,23 +692,23 @@ end
 
 -- Whether a screen point is on one of the bar's two groups, which take the pointer, where the
 -- rest of the bar lets it through to the rows behind.
-function View:_onBarGroup(point)
+function View:_onBarSide(point)
   local hits = self._barHits
   return hits ~= nil and (pointInRect(point, hits.keys) or pointInRect(point, hits.actions))
 end
 
--- The action entry a screen point is on, its index and the action it names, or nil.
-function View:_entryAt(point)
+-- The action item a screen point is on, its index and the action it names, or nil.
+function View:_itemAt(point)
   local hits = self._barHits
-  for i, entry in ipairs((hits and hits.entries) or {}) do
-    if pointInRect(point, entry.rect) then return i, entry.action end
+  for i, item in ipairs((hits and hits.items) or {}) do
+    if pointInRect(point, item.rect) then return i, item.action end
   end
   return nil
 end
 
--- The popover a screen point falls on, its kind and what the last draw kept of it, or nil.
-function View:_popoverAt(point)
-  for kind, pop in pairs(self._popovers or {}) do
+-- The floating pane a screen point falls on, its kind and what the last draw kept of it, or nil.
+function View:_floatingPaneAt(point)
+  for kind, pop in pairs(self._floatingPanes or {}) do
     if pointInRect(point, pop.rect) then return kind, pop end
   end
   return nil
@@ -719,12 +719,12 @@ end
 function View:_rowsRect(s)
   local list = s.rects and s.rects.list
   if not list then return nil end
-  return { x = list.x, y = list.y, w = list.w, h = list.h + underBar(list, s.rects.footer) }
+  return { x = list.x, y = list.y, w = list.w, h = list.h + underBar(list, s.rects.bottomBar) }
 end
 
--- The action panel's line a screen point falls on, its index from one, or nil.
-function View:_popoverLineAt(point)
-  local pop = self._popovers and self._popovers.actions
+-- The actions pane's line a screen point falls on, its index from one, or nil.
+function View:_floatingPaneLineAt(point)
+  local pop = self._floatingPanes and self._floatingPanes.actions
   if not (pop and pointInRect(point, pop.rect)) then return nil end
   for _, line in ipairs(pop.lines) do
     if pointInRect(point, line.rect) then return line.index end
@@ -733,72 +733,72 @@ function View:_popoverLineAt(point)
 end
 
 -- The filtered index a screen point falls on, or nil when the point sits outside the rows
--- entirely, on a group of the bar or on an open popover, answered by list model's own rowAtPoint
+-- entirely, on a group of the bar or on an open floating pane, answered by list model's own rowAtPoint
 -- from the point and the scroll. Between the groups the point reaches the row the list shows
--- behind the bar. While the action panel floats no point is on a row, since the rows the list
+-- behind the bar. While the actions pane floats no point is on a row, since the rows the list
 -- shows are the ones it kept and the engine's are the panel's, the swift panel's guard.
 function View:_rowIndexAtPoint(point)
   local s = self.engine:scene()
   local rows = self:_rowsRect(s)
   if not pointInRect(point, rows) then return nil end
-  if self:_onBarGroup(point) or self:_popoverAt(point) or panelFloats(s) then return nil end
+  if self:_onBarSide(point) or self:_floatingPaneAt(point) or panelFloats(s) then return nil end
   return listModel.rowAtPoint(s.list, point.y - rows.y)
 end
 
--- A left or a right press. Outside this surface and outside its companion, if any, a LEFT press
+-- A left or a right press. Outside this surface and outside its preview pane, if any, a LEFT press
 -- hides the picker and does not claim the event, so the same press also reaches whatever the
 -- person actually meant to click. A right press out there is left alone entirely, neither hiding
 -- the picker nor being claimed, matching legacy.lua, whose own click watcher only ever looks at
--- left button events. Inside the companion, which this file draws none of, the press is left for
+-- left button events. Inside the preview pane, which this file draws none of, the press is left for
 -- whatever owns that pane to answer. A right press on a row goes to the engine, which reads
 -- config.onRightClick live. A left press records which row it landed on, for the matching
 -- release to compare against.
 function View:_onMouseDown(point, button)
   local rects = self.engine:scene().rects
-  -- With a companion the window spans the canvas, the gap and the pane, so a press in the gap is
+  -- With a preview pane the window spans the canvas, the gap and the pane, so a press in the gap is
   -- on the surface and inside, as in swift.
   local insideWindow = pointInRect(point, self._window or (rects and rects.canvas))
-  local insideCompanion = pointInRect(point, rects and rects.companion)
-  if not insideWindow and not insideCompanion then
+  local insidePreviewPane = pointInRect(point, rects and rects.previewPane)
+  if not insideWindow and not insidePreviewPane then
     if button == "left" then self.engine:hide() end
     return false
   end
-  -- With the key panel open a press anywhere else in the chooser only closes it, the keys group's
+  -- With the info pane open a press anywhere else in the chooser only closes it, the left side's
   -- own press included, and a press on the panel itself lands on nothing, as in swift.
-  if self.engine:scene().keysOpen then
-    self._pressedRowIndex, self._pressedEntry, self._popPressed = nil, nil, false
-    if self:_popoverAt(point) ~= "keys" then self.engine:closeKeys() end
+  if self.engine:scene().infoOpen then
+    self._pressedRowIndex, self._pressedItem, self._popPressed = nil, nil, false
+    if self:_floatingPaneAt(point) ~= "keys" then self.engine:closeInfo() end
     return true
   end
-  -- A press on the keys group toggles the key panel, wherever the spanning bar put it. A press
-  -- on an action entry is kept for its release, which runs the entry's action, the way a press
+  -- A press on the left side toggles the info pane, wherever the spanning bar put it. A press
+  -- on an action item is kept for its release, which runs the item's action, the way a press
   -- on a row is kept for the release that chooses it. Any other press on a group lands on no
   -- row, so it is claimed and chooses nothing.
-  self._pressedEntry = nil
-  if self:_onBarGroup(point) then
+  self._pressedItem = nil
+  if self:_onBarSide(point) then
     self._pressedRowIndex = nil
     if button == "left" then
       if pointInRect(point, self._keysHit) then
-        self.engine:toggleKeys()
+        self.engine:toggleInfo()
       else
-        self._pressedEntry = self:_entryAt(point)
+        self._pressedItem = self:_itemAt(point)
       end
     end
     return true
   end
-  -- A press on a popover lands on no row and is claimed, and a left one on the action panel is
-  -- remembered so its release chooses the line under it, as swift's popover chooses on mouse up.
-  if self:_popoverAt(point) then
+  -- A press on a floating pane lands on no row and is claimed, and a left one on the actions pane is
+  -- remembered so its release chooses the line under it, as swift's floating pane chooses on mouse up.
+  if self:_floatingPaneAt(point) then
     self._pressedRowIndex = nil
-    self._popPressed = button == "left" and self:_popoverLineAt(point) ~= nil
+    self._popPressed = button == "left" and self:_floatingPaneLineAt(point) ~= nil
     return true
   end
   self._popPressed = false
-  if insideCompanion and not pointInRect(point, rects and rects.footer) then
+  if insidePreviewPane and not pointInRect(point, rects and rects.bottomBar) then
     return false
   end
   if button == "right" then
-    -- The list behind a floating action panel answers no press of its own, as in swift.
+    -- The list behind a floating actions pane answers no press of its own, as in swift.
     if not panelFloats(self.engine:scene()) then
       self.engine:rightClickIndex(self:_rowIndexAtPoint(point))
     end
@@ -810,8 +810,8 @@ end
 
 -- The release chooses the row the matching press landed on, only when the release lands on that
 -- same row, ordinary click behaviour and also what legacy.lua's own click watcher measured the
--- real widget doing, and runs the action entry the press landed on by the same rule, through the
--- engine's footerAction, which swift's bar reaches on its own release. A right release inside
+-- real widget doing, and runs the action item the press landed on by the same rule, through the
+-- engine's bottomBarAction, which swift's bar reaches on its own release. A right release inside
 -- this surface is claimed too, purely so the down and the up of the identical press agree about
 -- whether this surface owns it.
 function View:_onMouseUp(point, button)
@@ -821,26 +821,26 @@ function View:_onMouseUp(point, button)
     return pointInRect(point, window)
   end
   if button ~= "left" then return false end
-  local pressedEntry = self._pressedEntry
-  self._pressedEntry = nil
+  local pressedItem = self._pressedItem
+  self._pressedItem = nil
   if not pointInRect(point, window) then
     self._pressedRowIndex = nil
     return false
   end
-  if pressedEntry then
+  if pressedItem then
     self._pressedRowIndex = nil
     self._popPressed = false
-    local entry, action = self:_entryAt(point)
-    if entry == pressedEntry and action then self.engine:footerAction(action) end
+    local item, action = self:_itemAt(point)
+    if item == pressedItem and action then self.engine:bottomBarAction(action) end
     return true
   end
-  -- A release on an action panel line chooses it, through the engine call the swift view's
-  -- choose makes, when the press began on that popover.
+  -- A release on an actions pane line chooses it, through the engine call the swift view's
+  -- choose makes, when the press began on that floatingPane.
   local popPressed = self._popPressed
   self._popPressed = false
   if popPressed then
     self._pressedRowIndex = nil
-    local line = self:_popoverLineAt(point)
+    local line = self:_floatingPaneLineAt(point)
     if line then self.engine:chooseIndex(line) end
     return true
   end
@@ -857,19 +857,19 @@ end
 -- claimed, mouse.lua's own contract has onMove answer true to claim, and a plain hover claims
 -- nothing.
 function View:_onMouseMove(point)
-  -- The keys group and each action entry light under the pointer the way a row does, redrawn
+  -- The left side and each action item light under the pointer the way a row does, redrawn
   -- only as the pointer moves from one to another, so a move anywhere else costs a comparison.
   local over = nil
-  if pointInRect(point, self._keysCellHit) then over = "keys" else over = self:_entryAt(point) end
+  if pointInRect(point, self._keysCellHit) then over = "keys" else over = self:_itemAt(point) end
   if over ~= self._barHover then
     self._barHover = over
     self:redraw()
   end
-  -- Over the action panel the pointer lights the line under it, through the engine call the swift
+  -- Over the actions pane the pointer lights the line under it, through the engine call the swift
   -- view's hover makes, only when it moves onto another line.
-  local line = self:_popoverLineAt(point)
+  local line = self:_floatingPaneLineAt(point)
   if line then
-    local pop = self._popovers.actions
+    local pop = self._floatingPanes.actions
     if line ~= pop.highlight then self.engine:highlightIndex(line) end
     return
   end
@@ -880,14 +880,14 @@ end
 -- A scroll over the list moves the viewport, never the highlight, a trackpad's continuous delta
 -- followed directly and a wheel's coarse notch eased toward over a few ticks, both settled by
 -- hand in round five. Between the bar's groups it reaches the rows behind them, as in swift. A
--- scroll over the companion rect goes to the engine for config.onScroll.
+-- scroll over the preview pane rect goes to the engine for config.onScroll.
 function View:_onMouseScroll(point, dy, continuous)
   local s = self.engine:scene()
   local rects = s.rects
   local points = continuous and -dy or -dy * WHEEL_NOTCH_POINTS
-  -- A scroll over a popover scrolls its own lines when they overflow and never the list under it,
-  -- followed directly, wheel and trackpad alike, since a popover holds a handful of lines.
-  local kind, pop = self:_popoverAt(point)
+  -- A scroll over a floating pane scrolls its own lines when they overflow and never the list under it,
+  -- followed directly, wheel and trackpad alike, since a floating pane holds a handful of lines.
+  local kind, pop = self:_floatingPaneAt(point)
   if kind then
     local before = self._popScroll[kind] or 0
     local after = math.max(0, math.min(before + points, pop.maxScroll or 0))
@@ -899,8 +899,8 @@ function View:_onMouseScroll(point, dy, continuous)
   end
   -- A group covers the rows behind it, so a scroll over one is claimed and moves nothing, rather
   -- than scrolling a list the person cannot see under it.
-  if self:_onBarGroup(point) then return true end
-  -- While the action panel floats the list shows the rows it kept, which a scroll moves on their
+  if self:_onBarSide(point) then return true end
+  -- While the actions pane floats the list shows the rows it kept, which a scroll moves on their
   -- own, the engine's rows being the panel's, as swift's list scrolls without telling the engine.
   if panelFloats(s) and self._held and pointInRect(point, self:_rowsRect(s)) then
     self:_stopScrollEase()
@@ -918,8 +918,8 @@ function View:_onMouseScroll(point, dy, continuous)
     end
     return true
   end
-  if pointInRect(point, rects and rects.companion) then
-    self.engine:companionScroll(-dy)
+  if pointInRect(point, rects and rects.previewPane) then
+    self.engine:previewPaneScroll(-dy)
     return true
   end
   return false
@@ -986,7 +986,7 @@ function M.iconsChanged()
   end
 end
 
---- M.paneBackend(fallback) -> a docked pane backend factory, see lib/dockedpane.lua, that draws a
+--- M.paneBackend(fallback) -> a preview pane backend factory, see lib/previewpane.lua, that draws a
 --- pane's content inside a canvas chooser spanning its rect, the list and the pane as one surface,
 --- and through fallback, the plain canvas backend's factory, anywhere else. The surface is the
 --- chooser's, so a hosted pane's own surface list is left out. Which one draws is asked again on

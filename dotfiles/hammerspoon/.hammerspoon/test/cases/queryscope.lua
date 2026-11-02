@@ -306,7 +306,7 @@ do
     note[1].icon == "demo-id" and note[1].iconOwner == "demo-owner" and note[1].image == nil)
 end
 
--- payloadOf hands the action panel the row a scope's tool made, out of the wrapper this module
+-- payloadOf hands the actions pane the row a scope's tool made, out of the wrapper this module
 -- puts around it, and answers any other item as it is, docs/PLAN-ACTION-PANEL.md.
 do
   local qs = freshModule()

@@ -1,4 +1,4 @@
-# ActionPanel
+# ActionsPane
 
 A searchable list of the verbs the chooser already on screen can run, borrowed for as long as
 the panel stays open. It never lists navigation, the shared moving, inserting, closing, and

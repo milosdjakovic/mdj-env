@@ -212,7 +212,7 @@ function obj:configure(opts)
   -- opens it without this file deciding what any leader is called. The word Hyper used to be
   -- written into every one of those subtitles literally, which was correct only for as long as
   -- nobody moved a tool to the other leader. Every role is here, the window leader's too, so a
-  -- contributed row names its leader by role and reads the same word the action bar prints.
+  -- contributed row names its leader by role and reads the same word the bottom bar prints.
   self._leaderNames = opts.leaderNames or {}
   -- The rows other plugins add to this catalog, one supplier per contributing plugin in the
   -- order the root's set answer put them, and the runners that take a chosen row back. Each
@@ -231,7 +231,7 @@ function obj:configure(opts)
   -- Kept rather than overwritten, for the reason the chord speller below documents.
   self._kbd = opts.kbd or self._kbd
   -- The shared chord speller, held as data rather than wrapped in a method of its own, so a
-  -- row states the exact same words the action bar and the action panel already agree
+  -- row states the exact same words the bottom bar and the actions pane already agree
   -- on. There is deliberately no fallback function, since inventing one would be a second
   -- speller rather than the shared one, which is the whole defect this closed.
   --
@@ -296,7 +296,7 @@ function obj:configure(opts)
   -- frontmost before the launcher opened, since a window action acts on
   -- hs.window.focusedWindow(). What is gone is the docked shortcut panel triple, onPositioned,
   -- onActivity, and onClose, which this host no longer passes anywhere. The stage owned that
-  -- triple as fixed, atom level policy, and since 2026-10-23 owns the action bar's footer
+  -- triple as fixed, atom level policy, and since 2026-10-23 owns the bottom bar's model
   -- collaborator in its place, which the composition root hands it when it configures the stage.
   self._presentation = {
     name = "launcher",
@@ -792,7 +792,7 @@ function obj:_appRows()
       subTitle = status .. " · " .. glyphs .. (cfg.description and (" " .. cfg.description) or "")
     elseif chord then
       -- Spelled by the shared chord speller every other row's chord goes through, the leader's
-      -- name then the key with its modifiers, so Hyper, Shift and S reads as the action bar reads it.
+      -- name then the key with its modifiers, so Hyper, Shift and S reads as the bottom bar reads it.
       subTitle = self:_chordSuffix(status, self:_leaderName(chord.leader), chord.key, chord.mods)
     end
     rows[#rows + 1] = {
@@ -1603,7 +1603,7 @@ end
 --- stack briefly disagrees, finding two of the phase two adversarial review, a present that
 --- lands in the narrow gap where the widget is still dismissing can leave the stack claiming
 --- the launcher is current with no window behind it, and this predicate must not stay stuck
---- on through that, since launcherOpen gates j, k, space, and the action panel chord.
+--- on through that, since launcherOpen gates j, k, space, and the actions pane chord.
 function obj:isShowing()
   return self._surface ~= nil and self._surface.isShowing()
 end

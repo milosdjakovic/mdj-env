@@ -5,8 +5,8 @@
 --- default provider's own, lib/chooser/engine/init.lua, so every picker rule is shared and none
 --- is copied. view.lua beside this file is the view, a Humble Object over a Swift library whose
 --- sources are in native/, which draws a nonactivating panel on a glass surface with a native
---- field, list and action bar. pane.lua beside it is the docked pane's native drawing backend,
---- the pane's region on the chooser panel's own glass, which the root hands every docked pane
+--- field, list and bottom bar. pane.lua beside it is the preview pane's native drawing backend,
+--- the pane's region on the chooser panel's own glass, which the root hands every preview pane
 --- while this provider serves. decisions/olm-swift-chooser.md has why it exists and what was measured and turned
 --- down.
 ---
@@ -42,8 +42,8 @@
 --- handed them, and opts.swiftc, the resolved compiler,
 --- opts.dir, the cache directory, and opts.log, a logger with i and e. A dir starts the load.
 ---
---- M.paneBackend() answers the docked pane's native drawing backend, pane.lua beside this file,
---- as the factory lib/dockedpane.lua and lib/panel.lua take, while the library is loaded, and nil otherwise, so
+--- M.paneBackend() answers the preview pane's native drawing backend, pane.lua beside this file,
+--- as the factory lib/previewpane.lua and lib/panel.lua take, while the library is loaded, and nil otherwise, so
 --- the composition root hands panes the canvas backend whenever this provider is not serving.
 ---
 --- M.uses(keyCode, mods) answers what the serving field already does with a chord, the native
@@ -67,7 +67,7 @@ local swiftbuild = load("../../../swiftbuild.lua")
 
 -- The Swift sources and the bridging header, in the order the compiler is handed them.
 local NATIVE_DIR = herePath .. "native/"
-local SOURCES = { "Lua.swift", "Model.swift", "Surface.swift", "List.swift", "Bar.swift", "Popover.swift", "Panel.swift",
+local SOURCES = { "Lua.swift", "Model.swift", "Surface.swift", "List.swift", "Bar.swift", "FloatingPane.swift", "Panel.swift",
   "Pane.swift", "Entry.swift" }
 local HEADER = "bridge.h"
 
@@ -188,7 +188,7 @@ function M.paneBackend()
   return SwiftPane.factory(NATIVE, LOG)
 end
 
---- M.paneDebug(id) -> the native library's read only account of a docked pane, where it is
+--- M.paneDebug(id) -> the native library's read only account of a preview pane, where it is
 --- hosted, its frames and what it last drew, or of every pane keyed by id when id is nil. Nil
 --- while the library is not loaded. For a live look through hs, see paneDebug in
 --- native/Entry.swift for the fields.

@@ -176,10 +176,10 @@ function M.available()
   return false, "no helper binary and no Swift compiler at " .. SWIFTC
 end
 
---- viewer.companionWidth(policy) -> 0
+--- viewer.previewPaneWidth(policy) -> 0
 --- No room beside the list. The panel is its own window and lands on top, so reserving anything
 --- would leave a permanent empty strip next to the picker.
-function M.companionWidth()
+function M.previewPaneWidth()
   return 0
 end
 

@@ -25,7 +25,7 @@ return {
   },
 
   needs = {
-    -- No lib. The kit the pane draws through arrives with the docked pane, which hands it to the
+    -- No lib. The kit the pane draws through arrives with the preview pane, which hands it to the
     -- describer on every paint, so nothing here reads opts.ui.
     data = {
       -- The page's words over the one switch, published by the root over lib/pluginswitch.lua.
@@ -71,7 +71,7 @@ return {
     context = "olmplugins",
     primary = { action = "insertSelected", description = "Switch" },
     -- The pane describing the highlighted plugin.
-    pane = true,
+    previewPane = true,
   },
 
   presentation = {
@@ -83,7 +83,7 @@ return {
     onHighlight = { member = "onHighlight", call = "dot" },
     onPositioned = { member = "onPositioned", call = "dot" },
     onClose = { member = "onClose", call = "dot" },
-    paneWidth = { member = "paneWidth", call = "dot" },
+    previewPaneWidth = { member = "previewPaneWidth", call = "dot" },
   },
 
   registry = {

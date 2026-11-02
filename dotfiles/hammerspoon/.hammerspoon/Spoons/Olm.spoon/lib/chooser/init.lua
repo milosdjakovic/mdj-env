@@ -8,9 +8,9 @@
 --- docs/CONTRACT-PICKER.md, show, hide, isShowing, isActive, refresh, selectNext,
 --- selectPrev, insertSelected, selectedItem, selectedRow, selectRow, query,
 --- setPlaceholder, setRows, rowCount, textBudget, textWidth, reposition,
---- settleDelay, matcher, setMatcher, titleLineBreak, setTitleLineBreak, setPaneWidth.
+--- settleDelay, matcher, setMatcher, titleLineBreak, setTitleLineBreak, setPreviewPaneWidth.
 --- selectedRow and selectRow, phase eight of the build plan, are the plain public
---- counterpart of selectedItem, added for ActionPanel, which restores a highlight
+--- counterpart of selectedItem, added for ActionsPane, which restores a highlight
 --- by row number rather than by item. setRows, the geometry phase of the chooser
 --- stage build, docs/BRIEF-GEOMETRY.md, remembers a row count for this instance's
 --- next show, the one lib/chooser change that phase permits, host/stage/init.lua
@@ -94,7 +94,7 @@ local DEFAULT_MATCHER = nil
 -- configured, which differs from the screen and matcher defaults only in what nil means.
 local DEFAULT_PROVIDER = nil
 
--- The one seam ActionPanel, phase eight of the build plan, installs through, so a
+-- The one seam ActionsPane, phase eight of the build plan, installs through, so a
 -- decorator wraps every consumer's config functions without any of the twelve call
 -- sites to Chooser.new changing. Nil until configured, in which case new hands the
 -- instance back undecorated, the pre-injection behaviour.

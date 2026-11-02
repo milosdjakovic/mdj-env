@@ -1,10 +1,10 @@
---- === Action bar ===
+--- === Bottom bar ===
 ---
 --- The bar's height, docs/PLAN-ACTION-BAR.md. The bar itself, the two floating groups, is bar.lua
 --- beside this file since 2026-10-30, when the canvas chooser took the swift chooser's layout, and
---- the key panel is popover.lua, drawn above the keys group. The single row and the key panel over
+--- the info pane is floatingpane.lua, drawn above the left side. The single row and the info pane over
 --- the bottom rows this file drew until then went with them. The height stays here because the
---- engine, the swift view, bar.lua and popover.lua all read it, so every chooser sizes its bar by
+--- engine, the swift view, bar.lua and floatingpane.lua all read it, so every chooser sizes its bar by
 --- one rule. The height is a row, the taller of the key cap and the body line, with the bar's one
 --- padding, the kit's barInner, above and below it, the same padding the groups take on their
 --- left and right and the panels on every side, so a size set in config/typography.toml or
@@ -14,7 +14,7 @@ local M = {}
 
 local herePath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 
--- The word on the keys group where no icon engine draws the keyboard, see bar.lua.
+-- The word on the left side where no icon engine draws the keyboard, see bar.lua.
 M.KEYS_GLYPH = "?"
 
 -- The tallest part of a bar group or a panel line, a key cap or a label in the body role beside it.
@@ -27,14 +27,14 @@ function M.padding(tokens)
   return tokens.barInner or tokens.space.s
 end
 
---- M.height(tokens) -> the footer row's height in points, the row with the bar's padding above
+--- M.height(tokens) -> the bottom bar row's height in points, the row with the bar's padding above
 --- and below it.
 function M.height(tokens)
   return rowHeight(tokens) + 2 * M.padding(tokens)
 end
 
 -- A chord drawn as key caps, the canvas twin of KeyCap in the swift chooser's Bar.swift, so a key
--- reads as a key in the bar and in both popovers and never as a word or an icon. A chord is a kbd
+-- reads as a key in the bar and in both floating panes and never as a word or an icon. A chord is a kbd
 -- chord, lib/kbd.lua, one entry per key, and a cap draws its keys one glyph at a time with the hint
 -- badge's gap between them, so the space between two keys is that token and never a character. A
 -- chip is the kit's hint badge, its height and its padding either side, filled with the foreground

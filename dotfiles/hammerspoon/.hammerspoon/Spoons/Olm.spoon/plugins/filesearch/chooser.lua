@@ -46,7 +46,7 @@ local cfg = {
                       -- learn what is done with that, the same seam as copy above
   usedAt = nil,       -- injected, asks when a path was last used. The read side of onUse, on the
                       -- same seam, so what records a use and what reports one stay together
-  dockedPane = nil,   -- the shared docked pane grant, injected by the main root. Absent means no
+  previewPane = nil,   -- the shared preview pane grant, injected by the main root. Absent means no
                       -- pane at all and the picker opens exactly as it did before there was one
   preview = nil,      -- the preview block from config, split below between the viewer and thumbs
   -- The preview providers, in priority order, injected by the spoon root, which is the only
@@ -89,7 +89,7 @@ local NO_VIEWER = {
   name = "none",
   followsHighlight = false,
   available = function() return false, "no provider was wired" end,
-  companionWidth = function() return 0 end,
+  previewPaneWidth = function() return 0 end,
   configure = function() end,
   dock = function() end,
   show = function() end,
@@ -110,7 +110,7 @@ local peekViewer = NO_VIEWER
 -- The latest chooser frame the atom reported, kept so a later peek can hand it to a provider
 -- that needs to know which screen the picker is actually on. Set every time onPositioned fires
 -- and read only by the peek path, since the docked viewer already gets its own placement
--- straight from the companion rect and never asks for this.
+-- straight from the preview pane rect and never asks for this.
 local lastChooserFrame = nil
 
 -- How a fact is worded lives in util, because the pane beside this list states the same
@@ -474,17 +474,17 @@ local function onHighlight(item)
   end
 end
 
--- Migrated onto host/stage. Docks the pane into the companion rect the stage reserved and
+-- Migrated onto host/stage. Docks the pane into the preview pane rect the stage reserved and
 -- seeds its first paint, exactly as before. Its own call to cfg.onPositioned and the anchor
 -- arithmetic that built it went with the migration, and the docked shortcut panel that call
--- fed is gone too, replaced by the action bar inside the chooser's own canvas.
-local function onPositioned(chooserFrame, companionFrame)
+-- fed is gone too, replaced by the bottom bar inside the chooser's own canvas.
+local function onPositioned(chooserFrame, previewPaneFrame)
   -- Kept for the peek path below, which fires later on a key press rather than on this call, so
   -- it needs its own record of where the picker actually landed rather than the seed it opened
   -- with.
   lastChooserFrame = chooserFrame
-  if companionFrame then
-    viewer.dock(companionFrame)
+  if previewPaneFrame then
+    viewer.dock(previewPaneFrame)
     -- The atom seeds the highlight before it positions anything, so the first onHighlight lands
     -- with nowhere to draw. This is what fills the pane on open. Review finding H6, reads
     -- cfg.stageSelectedItem live, which answers correctly even at this exact moment, before
@@ -538,8 +538,8 @@ end
 --- was, cosmetic rather than functional and named here rather than silently absorbed.
 ---
 --- The provider is resolved and configured FIRST, unchanged, since how much room it wants is
---- still what paneWidth's own static true in the manifest assumes, sidepanel's own
---- companionWidth(policy) answering true whenever it is available and policy.width names
+--- still what previewPaneWidth's own static true in the manifest assumes, sidepanel's own
+--- previewPaneWidth(policy) answering true whenever it is available and policy.width names
 --- nothing, which is every real config today.
 function M:start()
   local policy = cfg.preview or {}
@@ -553,9 +553,9 @@ function M:start()
   -- Everything a provider might want, offered to whichever one is in use. Each takes what it
   -- knows about and ignores the rest, which is what lets one call configure both of them.
   local deps = {
-    -- The shared docked pane the root grants for `pane = true`, which owns the canvas, the
+    -- The shared preview pane the root grants for `previewPane = true`, which owns the canvas, the
     -- surface, the empty state, the scroll and the teardown.
-    dockedPane = cfg.dockedPane,
+    previewPane = cfg.previewPane,
     -- This pane's own guidance, painted rather than any row's own wording, since a
     -- highlight with nothing to describe should read as something to do next rather
     -- than as a label borrowed from whatever the list happened to be showing.
@@ -631,7 +631,7 @@ end
 --- safe. onScroll wraps viewer.scrollBy, the atom's own trackpad and wheel callback and the
 --- two scroll keys both going through the identical verb, so a pane is scrolled the same
 --- amount whichever one asked, gated the identical way onHighlight is, since a provider that
---- is asked for rather than followed reserves no companion rect for a trackpad to scroll
+--- is asked for rather than followed reserves no preview pane rect for a trackpad to scroll
 --- either, the same bug class H7 restores the gate against.
 M.onHighlight = onHighlight
 function M.onScroll(points)
@@ -719,17 +719,17 @@ function M.placeholder()
   return cfg.placeholder
 end
 
---- chooser.paneWidth() -> number, true, or 0. Review finding M1. paneWidth used to flatten to
+--- chooser.previewPaneWidth() -> number, true, or 0. Review finding M1. previewPaneWidth used to flatten to
 --- a static true in the manifest, which centred the pair as if a pane always stood up even
---- when the resolved provider asked for none, quicklook's own companionWidth() answering 0 or
+--- when the resolved provider asked for none, quicklook's own previewPaneWidth() answering 0 or
 --- previewWith = false declining the seat outright. Resolved once, at register, contract v2's
---- own extension letting paneWidth be a member spec the identical way placeholder already is,
+--- own extension letting previewPaneWidth be a member spec the identical way placeholder already is,
 --- by which point M:start has already resolved viewer, so this answers the real reservation
 --- rather than a number frozen before the viewer chain ever ran. Mirrors M:start's own
---- companionWidth = viewer.companionWidth(policy) line exactly, recomputing policy from
+--- previewPaneWidth = viewer.previewPaneWidth(policy) line exactly, recomputing policy from
 --- cfg.preview since that local does not survive past M:start's own return.
-function M.paneWidth()
-  return viewer.companionWidth(cfg.preview or {})
+function M.previewPaneWidth()
+  return viewer.previewPaneWidth(cfg.preview or {})
 end
 
 --- chooser.rowsForQuery(q) -> the rows a query draws, for a surface other than this picker.
@@ -826,7 +826,7 @@ end
 --- asked for rather than followed.
 ---
 --- Inert with no peek viewer resolved, because then there is nothing to ask for. The binding is
---- gated on the same question through a predicate, so the key drops out of the key panel
+--- gated on the same question through a predicate, so the key drops out of the info pane
 --- too rather than being listed and doing nothing.
 function M.peekPreview()
   if peekViewer == NO_VIEWER then return end
@@ -885,7 +885,7 @@ local function goTo(q)
   if cfg.redrawPresented then cfg.redrawPresented("fileSearch", true) end
 end
 
---- chooser:isEntry(item) -> boolean. Whether the row the action panel opened over is a real
+--- chooser:isEntry(item) -> boolean. Whether the row the actions pane opened over is a real
 --- file or folder, the guard every verb acting on one entry already keeps for itself. Colon
 --- called, since the root hands a surface method its module first, as are the two below.
 function M:isEntry(item)

@@ -1,6 +1,6 @@
 -- CanvasPanel's two drawing backends, in plain Lua over a stub canvas and a stub library.
 --
--- Pins that lib/panel.lua drawing through lib/dockedpane/canvas.lua makes exactly the hs.canvas
+-- Pins that lib/panel.lua drawing through lib/previewpane/canvas.lua makes exactly the hs.canvas
 -- calls it made before the backend existed, and that the native backend is handed the very same
 -- element lists. The reference is the canvas code lib/panel.lua's show held until 2026-10-28,
 -- copied below as it was, driven over the same recording canvas stub as the panel. Three panels,
@@ -107,7 +107,7 @@ local function freshPanel()
   return P
 end
 
-local CanvasBackend = dofile(spoon .. "lib/dockedpane/canvas.lua")
+local CanvasBackend = dofile(spoon .. "lib/previewpane/canvas.lua")
 -- The placements and alignments by name, read off the module rather than written as strings.
 local NAMES = dofile(spoon .. "lib/panel.lua")
 local CENTER, BELOW = NAMES.placements.center, NAMES.placements.below
@@ -316,7 +316,7 @@ do
   check("no backend, not showing", panel:isShowing(), false)
 end
 
--- A docked pane still calls the factory with no window, so its canvas floats and never activates.
+-- A preview pane still calls the factory with no window, so its canvas floats and never activates.
 do
   local backend = CanvasBackend.new({ canvas = canvasLib })({ x = 0, y = 0, w = 10, h = 10 })
   local c = canvases[#canvases]

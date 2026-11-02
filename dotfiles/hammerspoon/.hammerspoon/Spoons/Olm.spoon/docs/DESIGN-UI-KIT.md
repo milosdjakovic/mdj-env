@@ -62,7 +62,7 @@ row, is in the alpha group and is not a role. The rule and what each role is for
 other corner Olm draws is derived from it by one formula, inner radius equals outer radius less
 the padding between the two edges, never below zero. `ui.nestedRadius(outer, gap)` is that
 formula and `radius.nested` is it applied once, the surface radius less `pad`, the padding every
-panel and pane takes on all four sides. So the action bar's key badges, the Dismiss chip, the
+panel and pane takes on all four sides. So the bottom bar's key badges, the Dismiss chip, the
 colour toast's swatch, a preview picture in a pane and the clipboard's colour chip all take
 `radius.nested`. Something with its own padding works out its own corner with the same call,
 the chooser's highlighted row from the list margin and the cheat sheet's badges from its doubled
@@ -72,9 +72,9 @@ same rule again, which is what a scroll clip follows.
 `pad` is the outer padding and `inner` the inner one, both set in the `spacing` block of
 `config/settings.lua` and both the `l` space step when it is absent. The outer padding is how far
 content stands from any edge of the glass, the chooser's field and highlighted rows, a pane's
-content, the swift chooser's two action bar groups and the gap between the chooser and its pane.
+content, the swift chooser's two bottom bar groups and the gap between the chooser and its pane.
 The inner padding is the room inside a highlighted or filled shape, a row's edge to its icon and
-the inside of each action bar group. They were one value until 2026 10 29, which made a roomier
+the inside of each bottom bar group. They were one value until 2026 10 29, which made a roomier
 window fatten every row. A row's and a group's corner is `radius.nested`, so the outer padding
 moves it and the inner one never does.
 
@@ -112,7 +112,7 @@ row(children, {gap, align, fillIndex})
 heading(label, facts)         a section label left and optional facts flush right in subtext, see below
 stack(children, {gap})        top to bottom
 flow(children, {gapX, gapY})  left to right, wrapping at the rect width
-grid(children, {columns})     the cheat sheet and the action bar's key panel
+grid(children, {columns})     the cheat sheet and the bottom bar's info pane
 divider()
 spacer(size)
 surface()                     the chrome, CanvasPanel.surfaceElements behind it
@@ -243,8 +243,8 @@ no rows under a typed query. The last one draws the shared empty state,
 `CanvasPanel.emptyStateElements`, caption and subtext, saying No results, centred in the band
 where the rows would be. It is drawn by `lib/chooser/providers/default/list/render.lua` for
 every list rather than offered by each tool, and it is never a row, so nothing highlights it,
-Return and a digit and a click reach nothing, and the action panel, the stage's held highlight
-and the action bar see exactly the zero rows they saw before. An empty query with no rows
+Return and a digit and a click reach nothing, and the actions pane, the stage's held highlight
+and the bottom bar see exactly the zero rows they saw before. An empty query with no rows
 stays blank, since no search was made. The band keeps its height when it is empty, because the
 surface is sized from the row count and never from the rows, which gives the message at least
 one row of room and keeps the surface still as a query empties the list and refills it. Added
@@ -260,7 +260,7 @@ the line height of the role its glyph is drawn in plus twice a space step, with 
 a space step too, so there is no textY and no height literal. The layout engine centres the
 cap height of every text in its line band, from the real font metrics through `measure:metrics`,
 the way the canvas list centres a row, so no caller nudges a frame. The empty state is caption
-and subtext, the hint bar was a section badge beside a caption label, the action bar that replaced it is a section badge beside a caption label, both 14 points, the message toast is
+and subtext, the hint bar was a section badge beside a caption label, the bottom bar that replaced it is a section badge beside a caption label, both 14 points, the message toast is
 title, the colour toast's hex is code, the report toast is title, body and caption, and the
 cheat sheet is body for the row label and the key glyph, caption for the separator and section
 for a title. The cheat sheet's row, badge and title heights are derived from the role line
@@ -268,20 +268,20 @@ heights and the space steps unless a model gives its own. The parity probes for 
 surfaces were removed, since they asserted the old look, and `test/cases/surfaces.lua` pins
 the derived geometry instead.
 
-## The action bar
+## The bottom bar
 
 The default chooser's bar, `docs/PLAN-ACTION-BAR.md`, drawn by
 `lib/chooser/providers/default/bar.lua` through the kit and nothing else since 2026-10-30, when it
 took the swift chooser's layout, described in the next paragraph, with solid theme colours where
 swift has glass. Each group is filled with the background colour role and outlined in the border
 role at `stroke.border`, with no shadow, and lights with the highlight role where swift tints its
-glass, and the keys group and each action entry also light under the pointer. Every measurement is
+glass, and the left side and each action entry also light under the pointer. Every measurement is
 the token swift's view hands Swift, so both choosers put the groups in the same place at the same
-size. `footer.lua` keeps the bar's height, the taller of the hint badge and the caption line with
+size. `bottombar.lua` keeps the bar's height, the taller of the hint badge and the caption line with
 the small space step above and below it, 23 plus twice 6 at the shipped sizes, so a size set in
-`config/typography.toml` reflows it. The key panel and the action panel are popovers above their
+`config/typography.toml` reflows it. The info pane and the actions pane are floating panes above their
 groups, the canvas clone of the swift chooser's described below,
-`lib/chooser/providers/default/popover.lua`, filled with the background role and outlined in the
+`lib/chooser/providers/default/floatingpane.lua`, filled with the background role and outlined in the
 border role at the border stroke rather than glass, with no shadow. Until 2026-10-30 the canvas bar was a single row of caption labels and hint badges with a
 divider along its top. It replaced the docked hint bar, a flow of the same badges under the list in
 a panel of its own, on 2026 10 23.
@@ -289,10 +289,10 @@ a panel of its own, on 2026 10 23.
 The swift chooser draws its own bar, `providers/swift/native/Bar.swift`, and it is not a row. It
 is two groups floating on the glass, the key group in the bottom left corner and the action group
 in the bottom right, each `pad` from the bottom edge and from its side. Each group is the window's
-own glass, untinted, and takes the highlight tint only while the key panel is open, and its words
+own glass, untinted, and takes the highlight tint only while the info pane is open, and its words
 are the row title's font and colour, which Milos chose over caption on 2026 10 29. Its
-corner is `radius.nested`. Every chord, in the bar and in both popovers, is a key cap since
-2026 11 02, `KeyCap` in `Bar.swift` and `footer.lua`'s `keycap` in the canvas chooser, so a key
+corner is `radius.nested`. Every chord, in the bar and in both floating panes, is a key cap since
+2026 11 02, `KeyCap` in `Bar.swift` and `bottombar.lua`'s `keycap` in the canvas chooser, so a key
 never reads as a word or an icon. A cap is the `hint` badge, its height, its `padX` and its `gap`, its
 glyphs in the code role in foreground since 2026 11 02, so every key is one width, the swift
 chooser's `keycapFont` read from the same badge, so a change to `hint` in `lib/ui/style.lua` reaches
@@ -301,34 +301,34 @@ key with `gap` between two keys and never a character, the swift chooser receivi
 `kbd.wire`, on a chip of the foreground at `alpha.keycap`, which reads on
 the background, on the glass and on the highlight alike, where a chip filled with highlight would
 vanish on a lit group or line. Its corner nests in the group or line holding it. One cap holds a
-whole chord, and an empty chord draws none. A key panel line whose key has alternatives, Hyper J or
+whole chord, and an empty chord draws none. A info pane line whose key has alternatives, Hyper J or
 Down, draws one cap per alternative with a slash between them in the caption role, `ALT_WORD`
-in `footer.lua`, chosen over or since it stays one narrow glyph however many alternatives a key
+in `bottombar.lua`, chosen over or since it stays one narrow glyph however many alternatives a key
 has. The padding inside both
-groups and both popovers, on every side, is one token, `barInner`, set as `spacing.bar` in
+groups and both floating panes, on every side, is one token, `barInner`, set as `spacing.bar` in
 `config/settings.lua`, 6 as shipped. Since 2026 11 02 a group holds its entries as cells, each as
-tall as a popover line, its tallest part and the padding twice, edge to edge and standing the
+tall as a floating pane line, its tallest part and the padding twice, edge to edge and standing the
 padding from the group's four edges, a cell's label and chord the padding in from its sides, so a
-group is a cell and the padding twice. The keys group is one cell. The pointer over a cell lights
-it in the highlight at a popover line's corner, the group's less the padding, exactly as a popover
+group is a cell and the padding twice. The left side is one cell. The pointer over a cell lights
+it in the highlight at a floating pane line's corner, the group's less the padding, exactly as a floating pane
 lights its highlighted line, and a press runs the cell's entry while the padding around the cells
-runs nothing. Opening one popover closes the other, so the two are never open together. While
-a popover is open the group it opened from hides whole and the popover stands in that group's
+runs nothing. Opening one floating pane closes the other, so the two are never open together. While
+a floating pane is open the group it opened from hides whole and the floating pane stands in that group's
 corner, its bottom edge and its outer side on the group's, while the other group stays. The list runs on behind the bar to the window's bottom edge, its
 viewport and its bottom content inset both grown by the bar's height, so every numbered row and
 the furthest scroll stay where they were and only the rows past them show between and behind the
 groups. A press between the groups reaches those rows. The pane runs on behind the bar the same
-way. The companion rect keeps the canvas's height and carries `under`, the bar's height, which the
-docked pane leaves out of the box it lays content in, so content stops above the bar, the clip
-reaches the bottom edge behind it, and the last line of a scrolled pane scrolls clear. The key panel
-is a popover, `native/Popover.swift`, the window's glass above the keys group with the version as
-its header and one scrolling column of keys, and its corner the groups'. The action panel is the
-same popover above the actions group, its right edge on the group's, with each verb's icon and a
-highlight the keys and the pointer move. Both popovers follow one padding rule since 2026 11 02,
-the key panel's lines only read and the action panel's chosen. A popover stands its lines the
+way. The preview pane rect keeps the canvas's height and carries `under`, the bar's height, which the
+preview pane leaves out of the box it lays content in, so content stops above the bar, the clip
+reaches the bottom edge behind it, and the last line of a scrolled pane scrolls clear. The info pane
+is a floating pane, `native/FloatingPane.swift`, the window's glass above the left side with the version as
+its header and one scrolling column of keys, and its corner the groups'. The actions pane is the
+same floating pane above the right side, its right edge on the group's, with each verb's icon and a
+highlight the keys and the pointer move. Both floating panes follow one padding rule since 2026 11 02,
+the info pane's lines only read and the actions pane's chosen. A floating pane stands its lines the
 outer padding from all four edges and its text the inner padding inside a line, like the list's
 rows. Its header, in the row title's size and colour, is laid out as one more line, with a rule
-on its bottom edge and the first line right below it. Each entry of the actions group is clickable, running
+on its bottom edge and the first line right below it. Each entry of the right side is clickable, running
 its own action, so Actions opens the panel and the primary runs on the highlighted row.
 `test/cases/surfaces.lua` pins the derived geometry.
 

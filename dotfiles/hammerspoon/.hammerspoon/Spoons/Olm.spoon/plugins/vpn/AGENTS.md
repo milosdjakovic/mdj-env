@@ -82,7 +82,7 @@ person as a side effect of picking a place, which is a surprise nobody asked for
 providers are a choice rather than a union, and the choice is made in the list rather than in a
 config file.
 
-The choice is Provider, a verb of the action panel alone with `choices`,
+The choice is Provider, a verb of the actions pane alone with `choices`,
 `docs/PLAN-ACTION-PANEL.md` in the spoon. Until 2026-10-30 it was a page of its own, a child
 presentation behind a settings row placed last in the location list. Moving it into the panel
 took that row out of the list, so nothing sits among the locations that is not a location or
@@ -251,7 +251,7 @@ A fallback is deliberately not written back. A stored choice whose app has since
 keeps standing, so reinstalling that app puts the tool back where the person left it rather
 than silently making a temporary fallback permanent. When nothing is available at all the
 first provider is still returned, so the list opens to that one's missing tool row with
-Provider still in the action panel rather than to nothing.
+Provider still in the actions pane rather than to nothing.
 
 ## One recency instance is shared across backends
 
@@ -345,7 +345,7 @@ never silently dead, opening it always shows something that explains itself. The
 is only wired when the backend is present, so the unavailable panel makes no provider
 calls and cannot stall.
 
-That row is the whole list and it is not a dead end, because Provider in the action panel
+That row is the whole list and it is not a dead end, because Provider in the actions pane
 applies to it like any row, so somebody whose backend has gone missing can always switch to one
 that is installed. Making that reachable is what lets this row stay a label rather than having
 to grow an action.

@@ -9,7 +9,7 @@ profiles can be edited, the hand written ones stay read only.
 
 Opens only from the launcher, with no dedicated chord and no alias of its own.
 
-Return on the profile matching the attached displays reapplies it, and the action panel on a
+Return on the profile matching the attached displays reapplies it, and the actions pane on a
 profile offers Displays, and Rename and Delete on a captured one. While the list is open, j and
 k move, i applies the highlighted row or drills into
 it, and x closes the whole thing.

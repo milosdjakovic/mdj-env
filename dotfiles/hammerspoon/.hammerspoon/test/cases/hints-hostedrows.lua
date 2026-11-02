@@ -138,7 +138,7 @@ do
 end
 
 -- A nil hosted answers every verb row unfiltered with no closes on any, the ordinary
--- non hosted path every real picker's own action panel still takes.
+-- non hosted path every real picker's own actions pane still takes.
 do
   local hints = freshModule()
   local plan = demoPlan()

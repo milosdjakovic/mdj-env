@@ -25,7 +25,7 @@
 --- and the key badge glyph are the body role, the separator word between alternate keys is
 --- caption, and a section title is the section role in its own colour, so the type, the
 --- chip and the text colours track light and dark through the kit's tokens, matching the
---- action bar under every list. The badge radius is the kit's nested radius, the surface's corner less the panel
+--- bottom bar under every list. The badge radius is the kit's nested radius, the surface's corner less the panel
 --- padding, and there is no font size setting, since the roles carry the sizes.
 ---
 --- The three heights are derived, never literal. The key badge is a body line with the small

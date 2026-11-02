@@ -9,7 +9,7 @@
 ---                timeout, outlives the list, knows nothing about lists or panes.
 ---   store.lua    the history, the network names, and the run settings, one JSON file.
 ---   chooser.lua  the list surface, pure policy over the two above.
----   pane.lua     the docked companion pane, loaded by the chooser since only the chooser
+---   pane.lua     the preview pane, loaded by the chooser since only the chooser
 ---                knows when a window exists to draw beside. It owns the canvas and the scroll.
 ---   pane-nodes.lua  what the pane shows, as UI kit nodes and nothing else, loaded by pane.lua.
 ---   util.lua     stateless formatting and the one question of which network this is.
@@ -43,8 +43,8 @@ obj.chooser = load("chooser.lua")
 --- opts.storage            lib/storage.lua, for the one data directory this plugin owns.
 --- opts.deps               the per plugin dependency adapter, the only way this file learns
 ---                         where networkQuality lives. Nothing here ever names a path.
---- opts.dockedPane         the shared docked pane, a function answering one, granted because the
----                         manifest asks for a pane. Absent means the list opens with no companion
+--- opts.previewPane         the shared preview pane, a function answering one, granted because the
+---                         manifest asks for a pane. Absent means the list opens with no preview pane
 ---                         rect at all.
 --- opts.stagePresent, opts.redrawPresented, opts.stagePop, opts.stageSelectedItem
 ---                         the four root published words this plugin speaks.
@@ -81,7 +81,7 @@ function obj:configure(opts)
   obj.chooser.configure({
     runner = runner,
     store = store,
-    dockedPane = opts.dockedPane,
+    previewPane = opts.previewPane,
     stagePresent = opts.stagePresent,
     redrawPresented = opts.redrawPresented,
     stagePop = opts.stagePop,

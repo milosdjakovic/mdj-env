@@ -2,7 +2,7 @@
 ---
 --- Whether an Olm list is open, one named list or any of them. Every leader asks the second before
 --- a hold reveals a sheet and before a quiet leader acts, the leader with contexts asks it to seal
---- itself over a list, and the wiring, the action panel and the surface adapters ask the first.
+--- itself over a list, and the wiring, the actions pane and the surface adapters ask the first.
 --- Both read the same table of context owners the predicates route through, so the gate and the
 --- modal rule on the leader with contexts can never disagree about what an open list is.
 ---

@@ -10,7 +10,7 @@
 --   The clipboard's own table moves Delete from D to E, a chord the global layer gives menu
 --   search, which a list key may shadow while its list is open, and puts selectPrev on A, which
 --   takes the slot from Append to batch, so A is the clipboard's still and K is free there.
---   File search frees Y, so Copy path has no key and keeps its row in the action panel only
+--   File search frees Y, so Copy path has no key and keeps its row in the actions pane only
 --   where a key reaches it, which is nowhere.
 --   The launcher's close moves from Space to C by the shared verb's name, close.
 --

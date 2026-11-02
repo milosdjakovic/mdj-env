@@ -1,5 +1,5 @@
 -- Unit case for the shared surfaces that moved onto the five type roles, the empty pane
--- state, the default chooser's action bar and its popovers, the three toasts and the cheat sheet. They draw through the real kit
+-- state, the default chooser's bottom bar and its floating panes, the three toasts and the cheat sheet. They draw through the real kit
 -- and the real measurer, since the runner is Hammerspoon's own interpreter, and every
 -- assertion is on a height or a geometry that is arithmetic from the role line heights, so
 -- the assertion text carries the sum. At the shipped sizes the line heights are title 27,
@@ -90,20 +90,20 @@ do
 end
 
 --------------------------------------------------------------------------------
--- action bar, the default chooser's two floating groups and the popovers above them
+-- bottom bar, the default chooser's two floating groups and the floating panes above them
 --------------------------------------------------------------------------------
 
 -- The one vocabulary of keys every chord below is built from, see lib/kbd.lua.
 local kbd = fresh("lib/kbd.lua")
 
 do
-  local footer = fresh("lib/chooser/providers/default/footer.lua")
+  local bottomBar = fresh("lib/chooser/providers/default/bottombar.lua")
   local bar = fresh("lib/chooser/providers/default/bar.lua")
-  local popover = fresh("lib/chooser/providers/default/popover.lua")
+  local floatingPane = fresh("lib/chooser/providers/default/floatingpane.lua")
   local chipH = T.badge.hint.height
-  local barH = footer.height(T)
+  local barH = bottomBar.height(T)
   local captionH = T.text.caption.lineHeight
-  check("the action bar is its row, the taller of the hint chip 23 and the caption line 19, with the small space above and below, 35",
+  check("the bottom bar is its row, the taller of the hint chip 23 and the caption line 19, with the small space above and below, 35",
     chipH == 23 and captionH == 19 and barH == math.max(chipH, captionH) + 2 * T.space.s and barH == 35,
     "height " .. tostring(barH))
 
@@ -120,22 +120,22 @@ do
     },
     keysChord = kbd.of(kbd.Cmd, kbd.Question),
   }
-  -- The footer rect a spanning view is handed, the group's height and the bar pad below it. A
-  -- group is a cell as tall as the bar's row with the bar's padding around it, 47 as shipped.
+  -- The bottom bar rect a spanning view is handed, the group's height and the bar pad below it. A
+  -- group is a bar item as tall as the bar's row with the bar's padding around it, 47 as shipped.
   local groupH = barH + 2 * T.barInner
   local rect = { x = 0, y = 500, w = 900, h = groupH + T.pad }
   local img = hs.image.imageFromName("NSComputer")
   local els, hits = bar.elements(ui, T, model, rect, { radius = 4, keysImage = img })
-  check("the keys group stands the bar pad in from the left at the top of the footer rect, a cell and its padding tall",
+  check("the left side stands the bar pad in from the left at the top of the bottom bar rect, a bar item and its padding tall",
     hits.keys and hits.keys.x == rect.x + T.pad and hits.keys.y == rect.y and hits.keys.h == groupH and groupH == 47,
     hits.keys and string.format("%s,%s h%s", hits.keys.x, hits.keys.y, hits.keys.h) or "no rect")
-  check("the actions group stands the bar pad in from the right",
+  check("the right side stands the bar pad in from the right",
     hits.actions and math.abs(hits.actions.x + hits.actions.w - (rect.x + rect.w - T.pad)) <= 1,
     hits.actions and tostring(hits.actions.x + hits.actions.w) or "no rect")
-  check("each entry on the right is one hit naming its action",
-    #hits.entries == 3 and hits.entries[2].action == "secondary", "entries " .. #hits.entries)
+  check("each bar item on the right is one hit naming its action",
+    #hits.items == 3 and hits.items[2].action == "secondary", "items " .. #hits.items)
   local pictures = frames(els, function(el) return el.type == "image" end)
-  check("the keys group draws its icon at the hint icon size, the section line 19",
+  check("the left side draws its icon at the hint icon size, the section line 19",
     #pictures == 1 and pictures[1].h == T.icon.hint and T.icon.hint == 19, "pictures " .. #pictures)
   -- The body role, measured by the real measurer, since the runner is Hammerspoon's own.
   local labels = frames(els, function(el)
@@ -152,19 +152,19 @@ do
   end)
   check("both groups are filled in the background colour role", #fills == 2, "fills " .. #fills)
 
-  local style = popover.style(ui, T, 13, barH)
+  local style = floatingPane.style(ui, T, 13, barH)
   local lines = {}
   for i, k in ipairs(model.keys) do lines[i] = { label = k.label, chord = k.badges } end
-  local pop = popover.layout(ui, style, "Keys", lines, false)
-  local placed = popover.place(pop, hits.keys, "left", { w = rect.w, top = 60 })
-  check("the key panel takes the keys group's corner, its left and bottom edges on it",
+  local pop = floatingPane.layout(ui, style, "Keys", lines, false)
+  local placed = floatingPane.place(pop, hits.keys, "left", { w = rect.w, top = 60 })
+  check("the info pane takes the left side's corner, its left and bottom edges on it",
     placed.x == hits.keys.x and placed.y + placed.h == hits.keys.y + hits.keys.h,
     string.format("%s,%s %sx%s", placed.x, placed.y, placed.w, placed.h))
-  local low = popover.place(pop, hits.keys, "left", { w = rect.w, top = hits.keys.y + hits.keys.h - 30 })
+  local low = floatingPane.place(pop, hits.keys, "left", { w = rect.w, top = hits.keys.y + hits.keys.h - 30 })
   check("and never rises above the list's top", low.h == 30, "height " .. tostring(low.h))
-  local acts = popover.layout(ui, style, "Actions", { { label = "Open" }, { label = "Reveal" } }, true)
-  local right = popover.place(acts, hits.actions, "right", { w = rect.w, top = 60 })
-  check("the action panel's right edge sits on the actions group's",
+  local acts = floatingPane.layout(ui, style, "Actions", { { label = "Open" }, { label = "Reveal" } }, true)
+  local right = floatingPane.place(acts, hits.actions, "right", { w = rect.w, top = 60 })
+  check("the actions pane's right edge sits on the right side's",
     right.x + right.w == hits.actions.x + hits.actions.w, tostring(right.x + right.w))
 end
 
@@ -200,16 +200,16 @@ do
     { label = "Terminal", detail = "skipped", dim = true },
   } }, function() end)
   local size = list.preferredSize()
-  -- Title band 27 plus 10, a row the 32 icon plus 2 times 6, a footer the 31 chip plus 2 times 6.
+  -- Title band 27 plus 10, a row the 32 icon plus 2 times 6, a bottom row the 31 chip plus 2 times 6.
   local titleH = 27 + 10
   local rowH = 32 + 2 * 6
-  local footerH = (19 + 2 * 6) + 2 * 6
-  check("the report toast is title band 37, two rows of 44 and a footer of 43, 168",
-    size.h == titleH + 2 * rowH + footerH and size.h == 168, "height " .. tostring(size.h))
+  local bottomRowH = (19 + 2 * 6) + 2 * 6
+  check("the report toast is title band 37, two rows of 44 and a bottom row of 43, 168",
+    size.h == titleH + 2 * rowH + bottomRowH and size.h == 168, "height " .. tostring(size.h))
   local els = list.draw(size.w, size.h)
   local dismiss = frames(els, function(el) return el.id == "dismiss" and el.type == "rectangle" end)
-  check("the Dismiss chip is a caption line 19 plus 2 times 6, 31 high, centred in the 43 footer",
-    #dismiss == 1 and dismiss[1].h == 31 and dismiss[1].y == size.h - footerH + (footerH - 31) / 2,
+  check("the Dismiss chip is a caption line 19 plus 2 times 6, 31 high, centred in the 43 bottom row",
+    #dismiss == 1 and dismiss[1].h == 31 and dismiss[1].y == size.h - bottomRowH + (bottomRowH - 31) / 2,
     dismiss[1] and tostring(dismiss[1].y))
   local sizes = {}
   for _, el in ipairs(els) do

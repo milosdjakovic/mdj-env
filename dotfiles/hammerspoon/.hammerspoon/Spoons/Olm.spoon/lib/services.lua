@@ -16,7 +16,7 @@
 -- decides what a plugin is handed once wire.lua's stage two runs.
 --
 -- A per plugin docked hint panel, three callbacks built here in obj.perPlugin, was retired on
--- 2026-10-23 with the hint panel itself, docs/PLAN-ACTION-BAR.md. The action bar is drawn inside
+-- 2026-10-23 with the hint panel itself, docs/PLAN-ACTION-BAR.md. The bottom bar is drawn inside
 -- the one chooser's canvas, so nothing is built per plugin for it.
 
 local obj = {}
@@ -37,7 +37,7 @@ local obj = {}
 --- deps.matchers      the table of named strategies, fuzzy, substring, words and the rest,
 ---                     so a plugin naming a strategy by that name in its own surface
 ---                     declaration resolves against the real function rather than the word.
---- deps.dockedPane    a function answering a new docked companion pane, lib/dockedpane.lua
+--- deps.previewPane    a function answering a new preview pane, lib/previewpane.lua
 ---                     built with the kit, the shared surface and the shared empty state,
 ---                     handed to a plugin whose surface asks for the pane. A function rather
 ---                     than a pane, since every plugin that earns it needs its own canvas.
@@ -71,7 +71,7 @@ function obj.ambient(deps)
     placeholder = deps.placeholder,
     matcher = deps.matcher,
     matchers = deps.matchers,
-    dockedPane = deps.dockedPane,
+    previewPane = deps.previewPane,
     log = deps.log,
     after = after,
   }
@@ -289,7 +289,7 @@ end
 --- value } }, with a later argument winning per field over an earlier one. This is what
 --- lets obj.fanOut's answer, obj.perPlugin's answer, and whatever the composition root
 --- itself assembles for a field none of these two could ever know about, such as
---- ActionPanel's own kindOf and rowsFor, sit in one table with a fixed order rather than
+--- ActionsPane's own kindOf and rowsFor, sit in one table with a fixed order rather than
 --- three tables the caller has to reconcile by hand.
 ---
 --- The order that order matters follows one sentence. Mechanism derived data, what a

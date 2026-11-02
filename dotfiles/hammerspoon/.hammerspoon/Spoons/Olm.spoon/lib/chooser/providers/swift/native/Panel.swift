@@ -1,4 +1,4 @@
-// The native view's window, a field over the list over the action bar on a glass surface. It
+// The native view's window, a field over the list over the bottom bar on a glass surface. It
 // holds no picker rule. It draws what the Lua view hands it and tells Lua, through the one ask
 // function it was built with, every thing a person does, so the engine behind the Lua view
 // decides what each of them means.
@@ -24,11 +24,11 @@
 // keymap reads, and every other Control chord is a leftover. The field's command filter below is
 // a second fence, letting through only the editing commands those keys produce.
 //
-// ONE WINDOW, ONE SHAPE. With a companion the window spans the canvas rect, the engine's gap and
-// the companion rect, and stands on one shape of glass, a SharedSurface, with the list's content
-// at the canvas rect, the docked pane's region at the companion rect and a hairline divider in
-// the middle of the gap down to the action bar, which spans the whole window. With none it is
-// the canvas rect alone. The docked pane's native backend
+// ONE WINDOW, ONE SHAPE. With a preview pane the window spans the canvas rect, the engine's gap and
+// the preview pane rect, and stands on one shape of glass, a SharedSurface, with the list's content
+// at the canvas rect, the preview pane's region at the preview pane rect and a hairline divider in
+// the middle of the gap down to the bottom bar, which spans the whole window. With none it is
+// the canvas rect alone. The preview pane's native backend
 // puts its view in the pane's region through the seam in Entry.swift, shown only while a pane is
 // in it and shown. The window never animates, so nothing fades in.
 //
@@ -41,13 +41,13 @@
 //
 // THE CLICK OUTSIDE. A press outside the panel is heard by two event monitors, a global one for
 // presses delivered to other applications and a local one for presses on Hammerspoon's own other
-// windows, a docked pane in a window of its own among them, and reported with the point. A press
+// windows, a preview pane in a window of its own among them, and reported with the point. A press
 // anywhere in this window, the gap and the pane included, lands on glass and is inside, so it is
 // never reported. The Lua view decides the rest, so a press inside the span from the canvas to
-// the companion keeps the list and asks refocus, and any other hides it.
+// the preview pane keeps the list and asks refocus, and any other hides it.
 //
 // THE FOCUS. The field holds focus for as long as the panel is up. Nothing in the window takes first
-// responder from it, a click on a row, the bar, a popover or a docked pane's view included, and the
+// responder from it, a click on a row, the bar, a floating pane or a preview pane's view included, and the
 // panel losing key hides the list, the way a press outside does, since a list in front that no
 // longer hears the keyboard reads as broken. That is what another application's own shortcut does,
 // Antinote's taking key while the list stood over it, seen on 2026-10-31. A pane in a window of its
@@ -74,7 +74,7 @@ private enum KeyCode {
   static let caret: Set<UInt16> = [123, 124, 115, 119, 116, 121, 117, backspace]
 }
 
-final class KeyPanel: NSPanel {
+final class InfoPane: NSPanel {
   weak var owner: ChooserPanel?
 
   override var canBecomeKey: Bool { true }
@@ -105,7 +105,7 @@ final class KeyPanel: NSPanel {
 final class ChooserPanel: NSObject, NSTextFieldDelegate {
   typealias Ask = (String, [LuaValue]) -> Bool
 
-  private let window: KeyPanel
+  private let window: InfoPane
   private let root: FlippedView
   private let field = NSTextField()
   // The field's clip, the highlighted row's width, so text scrolled past either end is cut where a
@@ -113,8 +113,8 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   private let fieldClip = NSView()
   private let list = ListView()
   private let bar = BarView()
-  private let keys = PopoverView()
-  private let actionsPop = PopoverView()
+  private let keys = FloatingPaneView()
+  private let actionsPop = FloatingPaneView()
   private let ask: Ask
   private let surfaces: SharedSurface
   private var style = Style()
@@ -128,16 +128,16 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   private var controlKeys: Set<UInt16> = []
   private var controlBackspace: Set<UInt16> = []
   var surfaceName: String { surfaces.name }
-  // The companion rect the engine last reported, in Hammerspoon's space, nil when there is none.
-  private(set) var companion: NSRect?
-  // The docked pane's view while one is in the pane's region, and whether it is shown.
+  // The preview pane rect the engine last reported, in Hammerspoon's space, nil when there is none.
+  private(set) var previewPane: NSRect?
+  // The preview pane's view while one is in the pane's region, and whether it is shown.
   private weak var paneContent: NSView?
   private var paneShown = false
   private var windowSize = NSSize.zero
 
   init(ask: @escaping Ask) {
     self.ask = ask
-    window = KeyPanel(
+    window = InfoPane(
       contentRect: NSRect(x: 0, y: 0, width: 1, height: 1),
       styleMask: [.titled, .nonactivatingPanel, .fullSizeContentView],
       backing: .buffered, defer: true)
@@ -184,8 +184,8 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     // The field stands on the window's stage over the list, which runs on up behind it, and out of
     // the content the fades mask, which faded the field with the rows behind it.
     surfaces.addOverlay(fieldClip)
-    // The bar and its key panel stand on the window's stage rather than in the list's content,
-    // since with a companion they run under the gap and the pane too.
+    // The bar and its info pane stand on the window's stage rather than in the list's content,
+    // since with a preview pane they run under the gap and the pane too.
     surfaces.addOverlay(keys)
     surfaces.addOverlay(actionsPop)
     surfaces.addOverlay(bar)
@@ -193,7 +193,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     actionsPop.isHidden = true
     bar.isHidden = true
 
-    // While the action panel is open the engine's rows are the panel's, so the list behind it,
+    // While the actions pane is open the engine's rows are the panel's, so the list behind it,
     // still showing the rows it was opened over, answers no pointer of its own.
     list.table.onHover = { [weak self] index in
       guard let self, self.state.actions == nil else { return }
@@ -222,8 +222,8 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
       guard let self, self.state.actions == nil else { return }
       _ = self.ask("scroll", [.number(Double(y))])
     }
-    bar.button.onPress = { [weak self] in _ = self?.ask("toggleKeys", []) }
-    bar.onEntry = { [weak self] action in _ = self?.ask("footerAction", [.string(action)]) }
+    bar.button.onPress = { [weak self] in _ = self?.ask("toggleInfo", []) }
+    bar.onItem = { [weak self] action in _ = self?.ask("bottomBarAction", [.string(action)]) }
     actionsPop.document.onHover = { [weak self] index in _ = self?.ask("hover", [.int(index)]) }
     actionsPop.document.onChoose = { [weak self] index in _ = self?.ask("choose", [.int(index)]) }
 
@@ -246,7 +246,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
 
   func place(_ next: Placement) {
     placement = next
-    companion = next.companion
+    previewPane = next.previewPane
     let frame = next.window ?? next.canvas
     windowSize = frame.size
     window.setFrame(ScreenSpace.cocoaRect(frame), display: window.isVisible)
@@ -272,14 +272,14 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     // row, seen on 2026-10-31, which no setting turned off. The fade is clear by that edge.
     // It reaches the canvas's bottom edge, below the bar's own padding, so the faded rows touch the
     // window's edge rather than stopping a padding short of it.
-    let under = next.footer.map { _ in next.canvas.height - (next.list?.maxY ?? next.canvas.height) } ?? 0
+    let under = next.bottomBar.map { _ in next.canvas.height - (next.list?.maxY ?? next.canvas.height) } ?? 0
     let over = max(0, (next.list?.minY ?? 0) - titlebarHeight)
     list.frame = next.list ?? .zero
     list.frame.origin.y -= over
     list.frame.size.height += max(0, under) + over
     list.underBar = max(0, under)
     list.overField = over
-    bar.frame = toWindow(next.footer) ?? .zero
+    bar.frame = toWindow(next.bottomBar) ?? .zero
     list.apply(style: style, placement: placement)
     layoutKeys()
     layoutActions()
@@ -294,13 +294,13 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     fieldClip.isHidden = next.bare
     applyPlaceholder()
     list.update(next)
-    if let footer = next.footer, placement.footer != nil {
+    if let bottomBar = next.bottomBar, placement.bottomBar != nil {
       bar.isHidden = false
-      bar.show(footer, style: style, placement: placement, lit: next.keysOpen,
-        keysHidden: next.keysOpen, actionsHidden: next.actions != nil)
-      keys.isHidden = !next.keysOpen
-      if next.keysOpen {
-        keys.show(title: footer.title, lines: footer.keys.map { .init(label: $0.label, chord: $0.chord, section: $0.section) },
+      bar.show(bottomBar, style: style, placement: placement, lit: next.infoOpen,
+        leftHidden: next.infoOpen, actionsHidden: next.actions != nil)
+      keys.isHidden = !next.infoOpen
+      if next.infoOpen {
+        keys.show(title: bottomBar.title, lines: bottomBar.keys.map { .init(label: $0.label, chord: $0.chord, section: $0.section) },
           style: style, placement: placement, outer: placement.barPillPad, inner: placement.barPillPad, lineH: placement.barPillH,
           gap: placement.barGapWide, radius: style.highlightRadius)
       }
@@ -310,10 +310,10 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     }
     if let actions = next.actions, !bar.isHidden {
       actionsPop.isHidden = false
-      actionsPop.show(title: next.footer?.panelTitle,
+      actionsPop.show(title: next.bottomBar?.panelTitle,
         lines: actions.map { .init(label: $0.title, chord: $0.chord, image: $0.image, section: $0.section, enabled: $0.enabled) },
         style: style, placement: placement, outer: placement.barPillPad, inner: placement.barPillPad, lineH: placement.barPillH,
-        gap: placement.barGapWide, radius: style.highlightRadius, iconSide: placement.keysIcon,
+        gap: placement.barGapWide, radius: style.highlightRadius, iconSide: placement.infoIcon,
         highlight: next.actionsHighlight)
     } else {
       actionsPop.isHidden = true
@@ -408,7 +408,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     max(0, window.frame.height - window.contentLayoutRect.maxY)
   }
 
-  // MARK: The docked pane's region
+  // MARK: The preview pane's region
 
   private func layoutSurfaces() {
     let listFrame = placement.listFrame ?? NSRect(origin: .zero, size: placement.canvas.size)
@@ -417,7 +417,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     // The top fade is clear down to the title bar's bottom edge, where the list stops, and rises
     // along one smooth curve to full where the first row rests, over the list's column alone, since the
     // pane's own top is its header and never scrolls under the field.
-    let barTop = toWindow(placement.footer)?.minY ?? windowSize.height
+    let barTop = toWindow(placement.bottomBar)?.minY ?? windowSize.height
     let listTop = toWindow(placement.list)?.minY ?? 0
     surfaces.layout(size: windowSize, list: listFrame, pane: placement.paneFrame,
       divider: placement.dividerFrame, paneShown: paneShown && paneContent != nil,
@@ -426,18 +426,18 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
       listColumn: listFrame.maxX)
   }
 
-  // Whether this panel is up with a companion at rect, the question the seam in Entry.swift asks.
+  // Whether this panel is up with a preview pane at rect, the question the seam in Entry.swift asks.
   func hostsPane(at rect: NSRect) -> Bool {
-    guard window.isVisible, let companion else { return false }
-    return ScreenSpace.same(companion, rect)
+    guard window.isVisible, let previewPane else { return false }
+    return ScreenSpace.same(previewPane, rect)
   }
 
-  // Whether this window is up with a docked pane shown in its region, so a scroll over the
-  // companion lands on the pane's own scroll view. The Lua view's scroll tap asks, through
+  // Whether this window is up with a preview pane shown in its region, so a scroll over the
+  // preview pane lands on the pane's own scroll view. The Lua view's scroll tap asks, through
   // hostsPane in Entry.swift, before it claims one.
   var hostsShownPane: Bool { window.isVisible && paneShown && paneContent != nil }
 
-  // A docked pane's view moves into the pane's region, hidden until it is shown.
+  // A preview pane's view moves into the pane's region, hidden until it is shown.
   func adoptPane(_ view: NSView) {
     if paneContent !== view {
       paneContent = view
@@ -622,12 +622,12 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
         self.outside(event)
         return event
       }
-      // With the key panel open a press anywhere else in this window only closes it, and a press
+      // With the info pane open a press anywhere else in this window only closes it, and a press
       // on the panel itself is the panel's, which does nothing with it.
       if !self.keys.isHidden, let content = self.window.contentView {
         let hit = content.hitTest(content.convert(event.locationInWindow, from: nil))
         if let hit, hit.isDescendant(of: self.keys) { return event }
-        _ = self.ask("closeKeys", [])
+        _ = self.ask("closeInfo", [])
         return nil
       }
       return event
@@ -650,7 +650,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
       attributes: [.font: style.fieldFont, .foregroundColor: style.textDim])
   }
 
-  // A rect in the canvas's own space moved into the window's, where the bar and its key panel
+  // A rect in the canvas's own space moved into the window's, where the bar and its info pane
   // stand, since the canvas sits at the list's frame inside the window.
   private func toWindow(_ rect: NSRect?) -> NSRect? {
     guard let rect else { return nil }
@@ -658,12 +658,12 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     return rect.offsetBy(dx: origin.x, dy: origin.y)
   }
 
-  // The key panel is a popover standing in the keys group's corner, which the bar leaves empty
-  // while it is open, the actions group staying, its left and bottom edges on the group's, as wide as its widest line
+  // The info pane is a floating pane standing in the left side's corner, which the bar leaves empty
+  // while it is open, the right side staying, its left and bottom edges on the group's, as wide as its widest line
   // and never wider than the window less the outer padding on both sides, past which its labels
   // truncate, as tall as its lines and never above the list's top, where it scrolls instead.
-  // The action panel is the same popover in the action group's corner, hidden while it is open
-  // with the keys group staying, its right and bottom edges on the group's, with the same limits.
+  // The actions pane is the same floating pane in the action group's corner, hidden while it is open
+  // with the left side staying, its right and bottom edges on the group's, with the same limits.
   private func layoutActions() {
     guard !actionsPop.isHidden, let stage = actionsPop.superview else { return }
     bar.layoutSubtreeIfNeeded()

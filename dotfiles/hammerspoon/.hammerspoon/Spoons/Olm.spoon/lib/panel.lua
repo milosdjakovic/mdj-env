@@ -41,7 +41,7 @@
 ---                                              origin (0, 0); style overrides the default.
 ---   CanvasPanel.emptyStateElements(w, h, opts?) a quiet empty state for a w x h box,
 ---                                              centred and dim text, existing so the
----                                              several docked panes read as one component
+---                                              several preview panes read as one component
 ---                                              in their empty moments the same way
 ---                                              surfaceElements already makes them one
 ---                                              component in their chrome.
@@ -59,7 +59,7 @@
 --- delay and it becomes idle timed instead. arm(anchor) starts a countdown rather than
 --- drawing, poke() restarts that countdown on each keypress, and when the countdown expires
 --- the panel reveals and latches, staying up until hide() regardless of later pokes. It was
---- built for the deferred hint bar the action bar inside the chooser replaced, hidden while the
+--- built for the deferred hint bar the bottom bar inside the chooser replaced, hidden while the
 --- field is in active use and shown once the user pauses. The panel owns only the timing and
 --- never learns where the pokes come from, so a caller wires its own activity source to poke().
 ---
@@ -102,7 +102,7 @@
 ---                  when the value changes, so what is on screen keeps being true. Omit
 ---                  it for fixed content and no timer runs at all.
 ---
---- THE DRAWING BACKEND IS A STRATEGY, the one lib/dockedpane.lua's header states for a docked
+--- THE DRAWING BACKEND IS A STRATEGY, the one lib/previewpane.lua's header states for a docked
 --- pane, so a panel and a pane are put on screen by the same two backends and the contract has
 --- two consumers. This file keeps every rule, the placement, the sizing, the reveal timing, the
 --- appearance and the surface style, and reduces each show to the same two lists of hs.canvas
@@ -111,7 +111,7 @@
 --- the factory a second argument a pane does not, its window, { level, onClick, activates },
 --- since a panel stacks at its own level and may take a click where a pane does neither. The
 --- composition root injects the factory through configure. Under every chooser but the swift
---- one it is lib/dockedpane/canvas.lua, which makes the very hs.canvas this file used to make,
+--- one it is lib/previewpane/canvas.lua, which makes the very hs.canvas this file used to make,
 --- so every panel is exactly what it was. While the swift chooser serves it is the native
 --- backend, lib/chooser/providers/swift/pane.lua, which draws the content on glass at the
 --- surface's corner radius in a window that never takes key, never activates Hammerspoon and is
@@ -151,8 +151,8 @@ local SCREEN_PROVIDER = hs.screen.mainScreen
 -- place, lib/ui/style.lua, rather than here as well. Nil until then.
 local UI = nil
 
--- The drawing backend factory, injected by the composition root, the strategy lib/dockedpane.lua's
--- header states for a docked pane, so a panel and a pane are drawn by the same two backends. The
+-- The drawing backend factory, injected by the composition root, the strategy lib/previewpane.lua's
+-- header states for a preview pane, so a panel and a pane are drawn by the same two backends. The
 -- canvas one under every chooser but the swift one, and the swift chooser's native glass while it
 -- serves. Nil until then, and a panel then draws nothing, since naming a concrete backend here
 -- would be a second place that chooses one.
@@ -265,11 +265,11 @@ function obj.surfaceInterior(w, h, style)
 end
 
 --- CanvasPanel.emptyStateElements(w, h, opts) - a quiet empty state for a w x h box at
---- origin (0, 0), one line of centered text. A docked pane used to hide itself the
+--- origin (0, 0), one line of centered text. A preview pane used to hide itself the
 --- moment its presentation had nothing to describe, and a reserved rect with nothing
 --- drawn in it reads as a broken layout rather than as an empty one, which is the whole
 --- reason this exists. Drawing the same message from the same place is what lets every
---- docked pane read as one component in this moment too, the way surfaceElements already
+--- preview pane read as one component in this moment too, the way surfaceElements already
 --- makes them one component in their chrome.
 ---
 --- opts, every field optional.

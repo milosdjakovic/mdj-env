@@ -13,14 +13,14 @@ a person opens a picker and it breaks.
 
 Three surveys of 2026-09-11 produced this, one over every call site in the tree, one over
 `lib/chooser/providers/legacy.lua` separating behaviour a caller observes from workaround
-the widget forces, and one over `host/stage/init.lua` and `host/actionpanel/init.lua`
+the widget forces, and one over `host/stage/init.lua` and `host/actionspane/init.lua`
 looking for code above the facade that only works for the legacy chooser. Every claim
 below came from reading a line, not from reading a name.
 
 ## The shape
 
 Strategy. `lib/chooser/init.lua` is the facade and names the concrete provider.
-`host/stage/init.lua` and `host/actionpanel/init.lua` are the engine and know only this
+`host/stage/init.lua` and `host/actionspane/init.lua` are the engine and know only this
 contract. A provider is a new file plus one branch in the facade, and no consumer changes.
 The contract knows nobody.
 
@@ -129,9 +129,9 @@ counting lets a string through that then gets cut. Nothing in that function is c
 
 ### Placement
 
-`reposition(paneWidth)` arity 1, answers a chooser frame and a companion frame, the second
-nil when there is no companion, both in absolute screen points. Recentres the picker and
-its companion for the given pane width, updates the provider's own `paneFrames`, and
+`reposition(previewPaneWidth)` arity 1, answers a chooser frame and a preview pane frame, the second
+nil when there is no preview pane, both in absolute screen points. Recentres the picker and
+its preview pane for the given pane width, updates the provider's own `paneFrames`, and
 answers nil when it is not up. This is the method that replaces the stage reaching into
 `hs.application`, hunting a window titled Chooser, and calling `setTopLeft` on it. Only a
 provider knows how its own surface is drawn and moved.
@@ -149,7 +149,7 @@ instance has to take it before the next show, and today the stage writes them as
 fields on the provider's private struct.
 
 `matcher()` arity 0, answers the current matching strategy, a `match(query, hay)` function,
-or `false` meaning the supplier owns filtering, or nil meaning no matching. The action panel
+or `false` meaning the supplier owns filtering, or nil meaning no matching. The actions pane
 reads this live inside its own wrapped `rows` closure, because `decorate` runs once at the
 shared instance's single construction, long before any presentation exists to capture. Its
 second answer is the search set beside the strategy, see `setMatcher`.
@@ -165,8 +165,8 @@ a presentation declaring neither leaves nothing of the one before it behind.
 
 `setTitleLineBreak(mode)` arity 1, answers nothing.
 
-`setPaneWidth(w)` arity 1, answers nothing. `true` means the companion inherits the
-picker's own resolved width, a number overrides it, nil or zero means no companion. Every
+`setPreviewPaneWidth(w)` arity 1, answers nothing. `true` means the preview pane inherits the
+picker's own resolved width, a number overrides it, nil or zero means no previewPane. Every
 answer is capped by the provider's own pane maximum.
 
 ## The default provider is an engine and a view, since 2026-10-28
@@ -174,7 +174,7 @@ answer is capped by the provider's own pane maximum.
 The default provider is two halves joined at a second, smaller contract, the Bridge pattern.
 `lib/chooser/engine/init.lua` is the engine. It owns every rule this document states and all of a
 picker's state, implements the twenty five methods above and the extras the stage calls,
-`setPosture`, `posture`, `toggleKeys` and `closeKeys`, and answers the static `uses`. A view owns
+`setPosture`, `posture`, `toggleInfo` and `closeKeys`, and answers the static `uses`. A view owns
 only drawing and raw input. `lib/chooser/providers/default/canvas.lua` is the canvas view, and
 `lib/chooser/providers/default/init.lua` composes the two and is the provider the facade names, so
 nothing above the facade changed. The split exists so a second view, a native panel, stands under
@@ -196,10 +196,10 @@ the surface. `start()` begins reading keys and the pointer and starts the view's
 
 A view calls back into the engine through these. `scene()` answers what to draw, the rects, both
 layouts, the tokens and type, the list model's state, the ranked query, the placeholder, the
-posture, the footer model and whether the key panel is open. `fieldChanged(text)` after every
+posture, the bottom bar model and whether the info pane is open. `fieldChanged(text)` after every
 change the field reports. `highlightIndex`, `chooseIndex` and `rightClickIndex` for the pointer on
-a row, `toggleKeys` for the key button, `scrollTo` and `scrollBy` for the viewport,
-`companionScroll` for a scroll over the companion, and `hide` for a press outside.
+a row, `toggleInfo` for the key button, `scrollTo` and `scrollBy` for the viewport,
+`previewPaneScroll` for a scroll over the preview pane, and `hide` for a press outside.
 
 The field's text editing is the view's, so a view whose field edits natively, with its own caret,
 selection, undo and input methods, fits. The engine never edits text. It reads it, sets it, and
@@ -218,7 +218,7 @@ default provider until its library is built, see the Olm `AGENTS.md` section on 
 
 Three modules the engine reads still sit beside the canvas view, and the engine loads them from
 there in one place it names as the seam. `geometry.lua` and `list/model.lua` are pure.
-`footer.lua` holds the bar's height and the key panel's drawing, and the engine reads only the
+`bottombar.lua` holds the bar's height and the info pane's drawing, and the engine reads only the
 height. The canvas view draws the bar's two groups through `bar.lua` beside it.
 
 ## The config table
@@ -242,7 +242,7 @@ refresh, and on every keystroke.
 Afterwards the accessors are the only route.
 
 `onSelect(item)`, `intercept(item, enabled)`, `back()`, `onHighlight(item)`, `onClose()`,
-`onActivity()`, `onPositioned(chooserFrame, companionFrame)`, all read live.
+`onActivity()`, `onPositioned(chooserFrame, previewPaneFrame)`, all read live.
 
 `onScroll(points)` is read when the scroll watcher is installed, which happens on show only
 and not on a bare swap or refresh.
@@ -276,7 +276,7 @@ comments.
 ## What is deliberately not in the contract
 
 `activeTheme()` had no caller anywhere in the tree, confirmed by exhaustive search. It was
-built so a consumer could style its own companion from `theme.preview` and no consumer ever
+built so a consumer could style its own preview pane from `theme.preview` and no consumer ever
 did. It was deleted from the legacy provider on 2026 10 14 along with the dead `preview` set.
 
 `close()`, an alias for `hide`, likewise has no caller. The composition root's own close

@@ -67,7 +67,7 @@ return {
   -- in this comment, since the shared surface wiring adds both move keys to every context
   -- unless told not to.
   --
-  -- Stay awake for is a verb of the action panel alone with choices, docs/PLAN-ACTION-PANEL.md,
+  -- Stay awake for is a verb of the actions pane alone with choices, docs/PLAN-ACTION-PANEL.md,
   -- the common spans as a pick so they need no typing. spanChoices and stayAwakeFor are colon
   -- methods on this plugin's root, which the root reaches with no registry.surface named.
   surface = {

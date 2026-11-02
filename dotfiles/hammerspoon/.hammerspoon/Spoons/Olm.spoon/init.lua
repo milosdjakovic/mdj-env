@@ -61,7 +61,7 @@ end
 --- api.
 ---
 --- Glyphicon arrived in phase eight's third packet, lifted out of Launcher's own private
---- drawing once ActionPanel became a second caller of it, another factory in the same
+--- drawing once ActionsPane became a second caller of it, another factory in the same
 --- style as recency and registry. It is the icon door over lib/icons/rows.lua now. See
 --- lib/glyphicon.lua for its api.
 ---

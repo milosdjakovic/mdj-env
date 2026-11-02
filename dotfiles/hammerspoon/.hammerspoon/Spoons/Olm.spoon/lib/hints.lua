@@ -1,5 +1,5 @@
--- Presentation, and only presentation. What the action bar under a list shows for a live
--- context, what the action panel shows when it borrows one, which context is live, how an action
+-- Presentation, and only presentation. What the bottom bar under a list shows for a live
+-- context, what the actions pane shows when it borrows one, which context is live, how an action
 -- is classified, which tools carry a Hyper chord, and every bound chord as words for a keys page.
 --
 -- This file names no plugin. Every question it answers is asked of the plan a resolved run
@@ -12,7 +12,7 @@
 -- and never a concrete module.
 --   predicates,    name to a zero argument test function, the live gate a binding's own
 --                  when name is checked against. The same table wire.lua installs into the
---                  chord engine, so the key and the action bar never disagree about whether a
+--                  chord engine, so the key and the bottom bar never disagree about whether a
 --                  gate is open.
 --   chordLabel,    the shared speller, lib/labels.lua's, a leader key, a key name and its
 --                  modifier names to a kbd chord. Every chord this file answers is a kbd chord,
@@ -86,7 +86,7 @@ end
 
 -- The generic navigation vocabulary lib/surface.lua itself hands out to every context it
 -- builds, never a plugin's own choice. selectNext and selectPrev are the shared move keys,
--- closeChooser is the shared close default, and openActionPanel is the chord that module
+-- closeChooser is the shared close default, and openActionsPane is the chord that module
 -- appends to every block unconditionally. Naming these four here is not naming a plugin, it
 -- is reading the same fixed vocabulary lib/surface.lua already owns, the same way the key
 -- panel's badges below already have to recognise the move keys to double them with an arrow.
@@ -94,7 +94,7 @@ local GENERIC_NAV = {
   selectNext = true,
   selectPrev = true,
   closeChooser = true,
-  openActionPanel = true,
+  openActionsPane = true,
 }
 
 -- The context name to plugin key index rowsFor's hosted chord qualification needs. Kept
@@ -125,14 +125,14 @@ local function humanize(name)
   return s
 end
 
--- A binding's chord label, shared by footerModel and rowsFor rather than each building its own
--- copy, which is the whole reason the action panel and the action bar cannot print two
+-- A binding's chord label, shared by bottomBarModel and rowsFor rather than each building its own
+-- copy, which is the whole reason the actions pane and the bottom bar cannot print two
 -- different words for the same chord. The spelling itself is asked of deps.chordLabel and of
 -- the leader's word rather than done here, so this file never learns how a leader's name or a
 -- chord's words are put together, only that something answers both. The word is the binding's
 -- own leader's, deps.leaderNames keyed by the name the binding spells its leader with, which a list
 -- key carries once the root has placed it, and deps.leaderName for a binding built by hand that
--- names none, the list role's leader. Either missing degrades to the chord without its leader, the same shape footerModel already
+-- names none, the list role's leader. Either missing degrades to the chord without its leader, the same shape bottomBarModel already
 -- renders for a binding declaring chord = false, so a missing collaborator lands on a shape
 -- this file already knows rather than an invented one.
 function obj.chordFor(binding, deps)
@@ -154,7 +154,7 @@ function obj.chordFor(binding, deps)
   return kbd.binding(binding.key, binding.mods)
 end
 
--- A binding's label, the one lookup the action bar, its key panel and the action panel share,
+-- A binding's label, the one lookup the bottom bar, its info pane and the actions pane share,
 -- so a wording that changes with the situation cannot say one thing in one and another in the
 -- next. The order is the level's own labels for its primary and its secondary, asked live so a
 -- word may follow the highlighted row or count what is checked, then liveLabels, then the
@@ -174,7 +174,7 @@ function obj.labelFor(binding, contextName, liveLabels, labels)
   return humanize(binding.action)
 end
 
--- The badges one binding is spelled with in the key panel. A key the chooser reads for itself,
+-- The badges one binding is spelled with in the info pane. A key the chooser reads for itself,
 -- chord false, is its bare glyph, since there is no chord to print in front of it and listing
 -- it is the only reason it appears in a context at all. Every other binding is its chord, and a
 -- shared verb the field also answers on a plain key carries that key's glyph beside it, the
@@ -195,50 +195,50 @@ local function badgesFor(b, deps)
   return badges
 end
 
---- hints.footerModel(contextName, plan, deps) -> { right, keys, state }
---- What the action bar under a list says for one context, as pure data, answered fresh on every
+--- hints.bottomBarModel(contextName, plan, deps) -> { right, keys, state }
+--- What the bottom bar under a list says for one context, as pure data, answered fresh on every
 --- call since a live gate and a live label both change while the list is open. It reads the same
---- bindings, the same gate and the same label lookup rowsFor reads, so the bar, its key panel and
---- the action panel cannot disagree.
+--- bindings, the same gate and the same label lookup rowsFor reads, so the bar, its info pane and
+--- the actions pane cannot disagree.
 ---
 --- right is the bar's right side, in order, each { label, chord, action }. The primary first on
 --- the Return glyph, since Return chooses the row whichever chord the primary also sits on, then
 --- the secondary on its own chord when the list declares one and its gate is open, then the
---- action panel on its chord. A list with no primary binding, one whose key the person freed or
+--- actions pane on its chord. A list with no primary binding, one whose key the person freed or
 --- a list no surface describes, still chooses on Return, so the primary is always listed.
 ---
---- keys is the key panel, the ⌘? popover. Its purpose, Milos's rule of 2026-11-01, is reference
+--- keys is the info pane, the ⌘? floatingPane. Its purpose, Milos's rule of 2026-11-01, is reference
 --- for what the screen does not already say, the leader legend and then the keys the open list
 --- answers that nothing visible shows, never a second listing. It is Olm's own, so where the list
---- carries Actions its verbs belong to the action panel and are not listed here, Milos's rule of
+--- carries Actions its verbs belong to the actions pane and are not listed here, Milos's rule of
 --- 2026-11-02, which leaves the navigation keys, moving, closing and Back. It is computed rather
 --- than curated, every key the list answers in declaration order, then Back, minus every action
---- the bar carries, its right side and the keys group's chord, so the primary, the secondary,
---- Actions and showKeys drop out by the rule and a new bar entry drops out with no edit here, and
---- minus every action actionKinds calls a verb while the action panel is reachable. Command with a digit is
+--- the bar carries, its right side and the left side's chord, so the primary, the secondary,
+--- Actions and showInfo drop out by the rule and a new bar entry drops out with no edit here, and
+--- minus every action actionKinds calls a verb while the actions pane is reachable. Command with a digit is
 --- not listed since every row shows its number. Each entry is { badges, label, action, section }. Back on Backspace is listed only when deps.backs(contextName) answers true,
 --- the level a press would leave being a pushed one, and never when the list already lists its own
 --- binding on a plain Backspace, the launcher's way out of a hosted list or a page's way back.
 --- When deps.legend holds
 --- lines, each { badges, label }, they lead the list with no section and every key after them
---- carries section Keys, which both popovers draw as a heading.
+--- carries section Keys, which both floating panes draw as a heading.
 ---
---- While the action panel is open over the list, deps.actionPanel answers the panel row under the
+--- While the actions pane is open over the list, deps.actionsPane answers the panel row under the
 --- highlight, or an empty table, and the model describes the panel instead, since the panel
 --- borrows the list's window and current() still names the list. Return runs the highlighted row,
 --- so it is labelled with that row's title, Run when there is none, the secondary is not offered,
---- since a field key acts on the list rather than on a panel row, and the key panel lists only the
+--- since a field key acts on the list rather than on a panel row, and the info pane lists only the
 --- keys that still mean something there, the shared ones and Back.
 ---
---- keysChord is the key button's chord, shown beside it, nil when showKeys has no key, and
---- keysIcon the button's own icon, a key and the manifest owner it is read against.
+--- keysChord is the key button's chord, shown beside it, nil when showInfo has no key, and
+--- infoIcon the button's own icon, a key and the manifest owner it is read against.
 ---
 --- state is the whole answer as one comparable string, so a surface polling this redraws only
 --- when something it would draw changed.
--- The action kinds the key panel reads, kept per plan and overrides, since footerModel is asked
+-- The action kinds the info pane reads, kept per plan and overrides, since bottomBarModel is asked
 -- on a quarter second poll and the plan's bindings do not change once a load has built it.
 local kindsCache = setmetatable({}, { __mode = "k" })
-local function footerKinds(plan, overrides)
+local function bottomBarKinds(plan, overrides)
   plan = plan or {}
   local entry = kindsCache[plan]
   if not entry or entry.overrides ~= overrides then
@@ -248,28 +248,28 @@ local function footerKinds(plan, overrides)
   return entry.kinds
 end
 
-function obj.footerModel(contextName, plan, deps)
+function obj.bottomBarModel(contextName, plan, deps)
   deps = deps or {}
-  local panelRow = deps.actionPanel and deps.actionPanel() or nil
+  local panelRow = deps.actionsPane and deps.actionsPane() or nil
   local labels = (not panelRow) and deps.labelsFor and deps.labelsFor(contextName) or nil
   local ctx = plan and plan.contexts and plan.contexts[contextName]
-  local kinds = footerKinds(plan, deps.kinds)
+  local kinds = bottomBarKinds(plan, deps.kinds)
 
   local primary, secondary, panel, show
   local keys = {}
   local ownBack = false
-  -- A shared verb on two keys, the secondary or showKeys, is listed once, on its first key.
+  -- A shared verb on two keys, the secondary or showInfo, is listed once, on its first key.
   local sharedSeen = {}
   for _, b in ipairs(ctx and ctx.bindings or {}) do
     if b.shared == "primary" and not primary then primary = b end
     if bindingActive(b, deps) then
       if b.key == "delete" and (b.mods == nil or #b.mods == 0) then ownBack = true end
       if b.shared == "secondary" then secondary = secondary or b end
-      if b.shared == "openActionPanel" then panel = panel or b end
+      if b.shared == "openActionsPane" then panel = panel or b end
       if b.shared ~= nil and sharedSeen[b.shared] then
         -- The second key of a shared verb already listed.
-      -- Over the action panel only the shared keys a held leader answers stay listed, since the
-      -- list's field keys are inert while the panel is open, and showKeys, live there, is the keys
+      -- Over the actions pane only the shared keys a held leader answers stay listed, since the
+      -- list's field keys are inert while the panel is open, and showInfo, live there, is the keys
       -- group's own.
       elseif not panelRow or (b.shared ~= nil and b.shared ~= "primary" and b.leader ~= false) then
         keys[#keys + 1] = { badges = badgesFor(b, deps),
@@ -277,8 +277,8 @@ function obj.footerModel(contextName, plan, deps)
           verb = b.shared == nil and kinds[b.action] == "verb" }
       end
       if b.shared ~= nil then sharedSeen[b.shared] = true end
-      -- showKeys stays live over the action panel, so the keys group keeps its chord there.
-      if b.shared == "showKeys" then show = show or b end
+      -- showInfo stays live over the actions pane, so the left side keeps its chord there.
+      if b.shared == "showInfo" then show = show or b end
     end
   end
   if panelRow or (not ownBack and deps.backs and deps.backs(contextName)) then
@@ -306,16 +306,16 @@ function obj.footerModel(contextName, plan, deps)
   end
 
   -- The key button's own chord, drawn beside it the way Actions carries its chord, the first key
-  -- showKeys sits on, or nil when the person freed it. It stays over the action panel, where the
-  -- root leaves showKeys live, so opening one panel never changes the other group.
+  -- showInfo sits on, or nil when the person freed it. It stays over the actions pane, where the
+  -- root leaves showInfo live, so opening one panel never changes the other group.
   local keysChord = show and obj.chordFor(show, deps) or nil
   local keysAction = show and show.action or nil
 
-  -- The key panel is the reference for what the screen does not show. Every key the list answers
+  -- The info pane is the reference for what the screen does not show. Every key the list answers
   -- was collected above, and here every action the bar already carries, an entry on its right side
-  -- or the keys group's own chord, is taken out, so no key is ever listed twice whatever a list
+  -- or the left side's own chord, is taken out, so no key is ever listed twice whatever a list
   -- declares. obj.redundantKeys states the same rule as a check. A verb is taken out too while
-  -- Actions is on the bar, since the action panel lists it with its chord.
+  -- Actions is on the bar, since the actions pane lists it with its chord.
   local onScreen = {}
   for _, r in ipairs(right) do if r.action ~= nil then onScreen[r.action] = true end end
   if keysAction ~= nil then onScreen[keysAction] = true end
@@ -327,7 +327,7 @@ function obj.footerModel(contextName, plan, deps)
   end
   keys = kept
 
-  -- The legend the root hands in, what each leader's symbol stands for, leads the key panel under
+  -- The legend the root hands in, what each leader's symbol stands for, leads the info pane under
   -- its header, and the keys then sit under a heading of their own so the two read apart.
   if deps.legend and #deps.legend > 0 then
     for _, k in ipairs(keys) do k.section = "Keys" end
@@ -349,19 +349,19 @@ function obj.footerModel(contextName, plan, deps)
   for _, r in ipairs(right) do parts[#parts + 1] = tostring(r.label) .. " " .. kbd.text(r.chord) end
   parts[#parts + 1] = "|"
   for _, k in ipairs(keys) do parts[#parts + 1] = alternatives(k.badges) .. " " .. tostring(k.label) end
-  -- The key button's icon, Olm's own, declared in the action panel's manifest beside Back and
+  -- The key button's icon, Olm's own, declared in the actions pane's manifest beside Back and
   -- read against it, so the provider draws it through the icon engine like any row icon.
-  local keysIcon = { icon = "keys", owner = deps.panelOwner }
-  -- The key panel's header, the name and version of this Olm, handed in by the root.
-  return { right = right, keys = keys, keysChord = keysChord, keysAction = keysAction, keysIcon = keysIcon,
+  local infoIcon = { icon = "keys", owner = deps.panelOwner }
+  -- The info pane's header, the name and version of this Olm, handed in by the root.
+  return { right = right, keys = keys, keysChord = keysChord, keysAction = keysAction, infoIcon = infoIcon,
     title = deps.title, panelOpen = panelRow ~= nil, panelAction = panel and panel.action or nil,
-    panelTitle = panelRow and deps.actionPanelTitle and deps.actionPanelTitle() or nil,
+    panelTitle = panelRow and deps.actionsPaneTitle and deps.actionsPaneTitle() or nil,
     state = (panelRow and "panel | " or "") .. table.concat(parts, " | ") }
 end
 
---- obj.redundantKeys(model) -> labels. The key panel's rule as a check over a footerModel answer,
---- every key panel entry whose action the bar already carries, on its right side or as the keys
---- group's own chord. Empty for every model footerModel builds, which the tests hold it to.
+--- obj.redundantKeys(model) -> labels. The info pane's rule as a check over a bottomBarModel answer,
+--- every info pane entry whose action the bar already carries, on its right side or as the keys
+--- group's own chord. Empty for every model bottomBarModel builds, which the tests hold it to.
 function obj.redundantKeys(model)
   local onScreen, out = {}, {}
   for _, r in ipairs(model.right or {}) do if r.action ~= nil then onScreen[r.action] = true end end
@@ -372,10 +372,10 @@ function obj.redundantKeys(model)
   return out
 end
 
--- The ordered rows the action panel would show for one context, Back first, then the primary
+-- The ordered rows the actions pane would show for one context, Back first, then the primary
 -- and the secondary, the two shared verbs that act on the highlighted row, then its verbs in
 -- declaration order. The primary and the secondary come first because lib/surface.lua builds them
--- first, so declaration order is the order wanted. Each wears the same label the action bar does. hosted, when truthy, is not a bare flag, it is the scope's own
+-- first, so declaration order is the order wanted. Each wears the same label the bottom bar does. hosted, when truthy, is not a bare flag, it is the scope's own
 -- verbs table, already resolved by whoever called this against the real registry, since this
 -- file never reads spoon.Olm.registry or any other global. A kept row's chord is qualified
 -- with the tool's own description, read through deps.owners and plan.effective, so the row
@@ -403,7 +403,7 @@ function obj.rowsFor(contextName, plan, deps, hosted)
   local kinds = obj.actionKinds(plan, deps and deps.kinds)
   local labels = deps and deps.labelsFor and deps.labelsFor(contextName) or nil
   local sharedListed = {}
-  -- The context's bindings and then its panel verbs, the action panel's alone, which carry no key.
+  -- The context's bindings and then its panel verbs, the actions pane's alone, which carry no key.
   local candidates, secondaryAction = {}, nil
   for _, b in ipairs(ctx.bindings) do
     if b.shared == "secondary" then secondaryAction = b.action break end
@@ -428,12 +428,12 @@ function obj.rowsFor(contextName, plan, deps, hosted)
     end
     if listed and bindingActive(b, deps)
       and (not hosted or hostedVerbDeclared(hosted, b.action)) then
-      -- The primary's chord is Return, the key a person presses, the way the action bar spells it,
+      -- The primary's chord is Return, the key a person presses, the way the bottom bar spells it,
       -- whichever held chord it also sits on. The secondary's is its own, Command and Return.
       local chord = b.key ~= nil and obj.chordFor(b, deps) or nil
       if b.shared == "primary" then chord = kbd.of(kbd.Return) end
       -- Every row carries an icon. A primary or a secondary naming none takes Olm's own, declared
-      -- beside Back in the action panel's manifest and read against it.
+      -- beside Back in the actions pane's manifest and read against it.
       local icon, iconOwner = b.icon, owner and owner[contextName]
       if icon == nil and (b.shared == "primary" or b.shared == "secondary") then
         icon, iconOwner = b.shared, deps and deps.panelOwner
@@ -496,7 +496,7 @@ end
 -- The kind every action carries, derived from the plan rather than hand kept, since a hand
 -- kept table is exactly what went stale in the live root, missing one plugin's chord by its
 -- own admission. The primary action is navigation, and so are the two move keys, close and the
--- action panel chord, each a binding lib/surface.lua built for a shared verb and marked with it
+-- actions pane chord, each a binding lib/surface.lua built for a shared verb and marked with it
 -- as shared, and recognised by the fixed names GENERIC_NAV above too. A block built by hand that
 -- marks no shared verb has its first binding taken as the primary, which is where lib/surface.lua
 -- puts it, since the person's lists section may free the primary key and leave an extra first.
@@ -507,7 +507,7 @@ end
 --
 -- A shared binding's classification is weak. A shared verb's action is a plugin's own name, a
 -- primary or a secondary, so one list's secondary may share its name with another list's extra
--- verb, and a navigation answer for it would hide that verb from the other list's action panel.
+-- verb, and a navigation answer for it would hide that verb from the other list's actions pane.
 -- So every binding that is not shared is classified first, and a shared binding only fills an
 -- action no other binding classified, never shadowing a verb and never recorded as a conflict.
 --
@@ -551,7 +551,7 @@ function obj.actionKinds(plan, kinds)
   return out, conflicts
 end
 
---- obj.ownVerbs(contextName, plan, kinds) -> actions. Every action the action panel would list for
+--- obj.ownVerbs(contextName, plan, kinds) -> actions. Every action the actions pane would list for
 --- one context beyond the primary and the secondary, read from declarations alone and never from a
 --- live gate or a row, so the answer is the same on every load of the same manifests. An action
 --- with no key, which lives in the panel alone, counts, and so does an unshared binding classed a
@@ -572,16 +572,16 @@ function obj.ownVerbs(contextName, plan, kinds)
   return out
 end
 
---- obj.dropIdleActionPanels(plan, opts) -> names. A list whose action panel would only repeat the
---- bar, its primary and its secondary and nothing of its own, loses its openActionPanel binding,
---- so the bar, the key panel and the keymap all leave Actions out there and its key does nothing.
+--- obj.dropIdleActionsPanes(plan, opts) -> names. A list whose actions pane would only repeat the
+--- bar, its primary and its secondary and nothing of its own, loses its openActionsPane binding,
+--- so the bar, the info pane and the keymap all leave Actions out there and its key does nothing.
 --- It is decided once per load from ownVerbs, so a plugin declares nothing for it, and adding a verb
 --- to a manifest brings Actions back on the next load. opts.kinds is the action kind overrides
 --- actionKinds is handed. Answers the names of the lists that lost it, sorted. A hosted scope adds
 --- no row of its own, since rowsFor only filters the list's own bindings by the scope's verbs, so
 --- the launcher is decided like any list. Should a scope ever carry its tool's verbs into the
 --- launcher, this has to learn about it.
-function obj.dropIdleActionPanels(plan, opts)
+function obj.dropIdleActionsPanes(plan, opts)
   opts = opts or {}
   local kinds = obj.actionKinds(plan, opts.kinds)
   local dropped = {}
@@ -589,7 +589,7 @@ function obj.dropIdleActionPanels(plan, opts)
     if #obj.ownVerbs(name, plan, kinds) == 0 then
       local kept, had = {}, false
       for _, b in ipairs(ctx.bindings or {}) do
-        if b.shared == "openActionPanel" then had = true else kept[#kept + 1] = b end
+        if b.shared == "openActionsPane" then had = true else kept[#kept + 1] = b end
       end
       if had then
         ctx.bindings = kept
@@ -689,7 +689,7 @@ function obj.toast(deps)
     }
   end
 
-  -- A titled list of rows, each an optional icon, a label, and a short detail, with a footer
+  -- A titled list of rows, each an optional icon, a label, and a short detail, with a bottom bar
   -- carrying a countdown and a Dismiss button, for a plugin whose feedback is what happened
   -- to several things at once, the workspaces apply naming the apps in a layout that were not
   -- open. Sized like the Hyper cheat sheet, the same icon size, so the two overlays read as
@@ -701,18 +701,18 @@ function obj.toast(deps)
   --
   -- The geometry is derived from the roles. The title band is the title line plus the medium
   -- space, a row is the taller of the sheet icon and a body line with the small space above
-  -- and below, and the footer is the chip height with the small space above and below.
+  -- and below, and the bottom bar is the chip height with the small space above and below.
   function toast.list(state, onDismiss)
     local minW, maxW = 320, 640
     local function geometry(tokens)
       return {
         titleH = tokens.text.title.lineHeight + tokens.space.m,
         rowH = math.max(tokens.icon.sheet, tokens.text.body.lineHeight) + 2 * tokens.space.s,
-        footerH = tokens.badge.button.height + 2 * tokens.space.s,
+        bottomBarH = tokens.badge.button.height + 2 * tokens.space.s,
       }
     end
     local function rows() return state.rows or {} end
-    local function footerText()
+    local function bottomBarText()
       local n = tonumber(state.secondsLeft)
       if not n or n <= 0 then return "" end
       return "Closing in " .. math.floor(n)
@@ -729,7 +729,7 @@ function obj.toast(deps)
           if rw > w then w = rw end
         end
         return { w = math.min(math.max(w, minW), maxW),
-                 h = g.titleH + #rows() * g.rowH + g.footerH }
+                 h = g.titleH + #rows() * g.rowH + g.bottomBarH }
       end,
       onClick = function(id)
         if id == "dismiss" and onDismiss then onDismiss() end
@@ -762,16 +762,16 @@ function obj.toast(deps)
             { x = w - detailW, y = y + (g.rowH - detail.lineHeight) / 2, w = detailW,
               h = detail.lineHeight }, tokens)
         end
-        -- The footer, the countdown on the left and Dismiss as a chip on the right.
-        local fy = h - g.footerH
+        -- The bottom bar, the countdown on the left and Dismiss as a chip on the right.
+        local fy = h - g.bottomBarH
         local word = "Dismiss"
         local button = tokens.badge.button
         local chipW = textW(word, tokens.text[button.text]) + 2 * button.padX
-        place(els, ui.text(footerText(), "caption", { lineBreak = wordWrap }),
-          { x = 0, y = fy + (g.footerH - detail.lineHeight) / 2, w = w - chipW - gap,
+        place(els, ui.text(bottomBarText(), "caption", { lineBreak = wordWrap }),
+          { x = 0, y = fy + (g.bottomBarH - detail.lineHeight) / 2, w = w - chipW - gap,
             h = detail.lineHeight }, tokens)
         place(els, ui.group({ ui.badge(word, "button") }, { id = "dismiss" }),
-          { x = w - chipW, y = fy + (g.footerH - button.height) / 2, w = chipW, h = button.height },
+          { x = w - chipW, y = fy + (g.bottomBarH - button.height) / 2, w = chipW, h = button.height },
           tokens)
         return els
       end,
@@ -866,10 +866,10 @@ end
 --- cheat sheet draws them and labelled the way the sheet labels them, since sheetRows answers both,
 --- then the plain combinations with no leader. A row the binder leaves unbound, refused or quiet, is
 --- left out, which is whatever deps.bindable refuses, lib/binder.lua's own test. Then every list's own keys, a list at a time in plan order, each in the order its
---- bindings are declared, which is the order the key panel under a list shows them.
+--- bindings are declared, which is the order the info pane under a list shows them.
 ---
 --- A chord is the leader's key and the binding's keys through deps.chordLabel, the speller the
---- launcher and the action bar use, and a plain combination is its keys alone. A row
+--- launcher and the bottom bar use, and a plain combination is its keys alone. A row
 --- standing for an app with no description of its own is named by deps.appName, else its action
 --- spelled out as words, where a sheet would draw the app instead. An owner is named by its own
 --- description, else its manifest's about title, else its identity.

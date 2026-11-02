@@ -113,7 +113,7 @@ local ENTER_TIMEOUT = 5
 -- they name icons the manifest declares, empty, keep and stop, and Olm draws them.
 
 -- The detail pane beside the list inherits the chooser's own width, the manifest's own
--- presentation.paneWidth = true, the atom's own paneMaxW still capping whichever width wins.
+-- presentation.previewPaneWidth = true, the atom's own paneMaxW still capping whichever width wins.
 -- Migrated onto host/stage, this is now a plain declared value rather than something read
 -- off cfg.previewWidth at start, cfg.previewWidth having never been set by anything on the
 -- retired standalone path either, so nothing here loses a capability that was ever exercised.
@@ -397,13 +397,13 @@ local function renderHighlighted()
   onHighlight(cfg.stageSelectedItem and cfg.stageSelectedItem())
 end
 
--- Migrated onto host/stage. Docks the pane into the companion rect the stage reserved and
+-- Migrated onto host/stage. Docks the pane into the preview pane rect the stage reserved and
 -- seeds its first paint, exactly as before. Its own call to cfg.onPositioned and the anchor
 -- arithmetic that built it went with the migration, and the docked shortcut panel that call
--- fed is gone too, replaced by the action bar inside the chooser's own canvas.
-local function onPositioned(chooserFrame, companionFrame)
-  if companionFrame then
-    preview.dock(companionFrame)
+-- fed is gone too, replaced by the bottom bar inside the chooser's own canvas.
+local function onPositioned(chooserFrame, previewPaneFrame)
+  if previewPaneFrame then
+    preview.dock(previewPaneFrame)
     -- The atom seeds the highlight before it positions anything, so the first
     -- onHighlight lands with nowhere to draw. This is what fills the pane on open.
     renderHighlighted()
@@ -492,14 +492,14 @@ function M.placeholder()
   return cfg.placeholder or "Search project, port, runtime"
 end
 
---- M.paneWidth() -> number, true, or 0. Review finding M1. paneWidth used to flatten to a
+--- M.previewPaneWidth() -> number, true, or 0. Review finding M1. previewPaneWidth used to flatten to a
 --- static true in the manifest, which centred the pair as if the detail pane always stood up
---- even when no docked pane was granted. Resolved once, at register, contract v2's own
---- extension letting paneWidth be a member spec the identical way placeholder already is, by
+--- even when no preview pane was granted. Resolved once, at register, contract v2's own
+--- extension letting previewPaneWidth be a member spec the identical way placeholder already is, by
 --- which point M:start has already configured preview, so this answers the real reservation.
---- Mirrors the retired layout block's own companionWidth = preview.isEnabled() and
+--- Mirrors the retired layout block's own previewPaneWidth = preview.isEnabled() and
 --- (cfg.previewWidth or true) or 0 exactly, cfg.previewWidth never set by anything today.
-function M.paneWidth()
+function M.previewPaneWidth()
   return preview.isEnabled() and (cfg.previewWidth or true) or 0
 end
 
@@ -785,15 +785,15 @@ end
 --- rather than computed here, since this plugin never varies it either.
 ---
 --- The pane is configured first, because whether there is one at all used to decide whether
---- the atom reserved room beside the list. It still decides paneWidth's own honesty, true
+--- the atom reserved room beside the list. It still decides previewPaneWidth's own honesty, true
 --- meaning a pane genuinely exists, but the reservation itself is host/stage's concern now.
---- With no docked pane granted the pane stands down and this presentation opens exactly as it
+--- With no preview pane granted the pane stands down and this presentation opens exactly as it
 --- did before one existed, rather than half wired.
 function M:start()
   preview.configure({
-    -- The shared docked pane the root grants for `pane = true`, which owns the canvas, the
+    -- The shared preview pane the root grants for `previewPane = true`, which owns the canvas, the
     -- surface, the empty state and the teardown, so the preview only paints the row.
-    dockedPane = cfg.dockedPane,
+    previewPane = cfg.previewPane,
     -- The UI kit every piece of the pane is drawn through. It follows the system appearance
     -- itself, which is what a palette closure used to do here by hand.
     ui = cfg.ui,

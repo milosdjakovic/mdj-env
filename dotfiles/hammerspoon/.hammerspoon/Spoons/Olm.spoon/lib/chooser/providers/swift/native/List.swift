@@ -260,7 +260,7 @@ final class ListView: FlippedView, NSTableViewDataSource, NSTableViewDelegate {
   private var highlightPending = false
   // Whether the last move of the highlight was the pointer's rather than a key's, told to Lua with
   // the highlight, since a pointer passing over a row is not a key that acted and leaves an open
-  // key panel up.
+  // info pane up.
   private var highlightByPointer = false
   private var flushScheduled = false
   private static let scrollInterval = 0.05

@@ -269,7 +269,7 @@ The presentation and the scope no longer declare matcher false, and the supplier
 every window with no filtering of its own. The old reason for a hand written filter, a
 Settings level that had to opt out of the shared matcher, ended when each level became its own
 presentation, and the level itself ended on 2026-10-30, when the choice of terminal became the
-Terminal verb of the action panel, `docs/PLAN-ACTION-PANEL.md` in the spoon. A window list with a
+Terminal verb of the actions pane, `docs/PLAN-ACTION-PANEL.md` in the spoon. A window list with a
 settings row at its foot carried one row that was not a window, and the panel is where a list
 keeps what it offers beyond Return.
 

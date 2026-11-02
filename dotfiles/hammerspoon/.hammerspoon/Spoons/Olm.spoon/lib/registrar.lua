@@ -242,7 +242,7 @@ function obj.validateIcons(name, manifest, deps)
       end
     end
   end
-  -- The plugin's identity icon, defaults.icon, which the launcher row, the action panel and
+  -- The plugin's identity icon, defaults.icon, which the launcher row, the actions pane and
   -- the scoped list all draw. A string is a key and must be one this manifest declared, since a
   -- key nothing declares would show no icon and say nothing. A table is a spec, a table of
   -- source name to value like an entry of icons. A person's own override in their config is not
@@ -373,7 +373,7 @@ function obj.validatePresentation(name, identity, manifest, modules, deps)
     -- onScroll, found during the trickle migrations rather than named by either contract
     -- brief, filesearch and clipboard both already wiring one directly into their own
     -- retired Chooser.new calls for the identical reason
-    -- lib/chooser/providers/legacy.lua's own header names, a canvas companion has no
+    -- lib/chooser/providers/legacy.lua's own header names, a canvas preview pane has no
     -- scroll callback of its own. A member spec exactly like onHighlight, resolved and
     -- checked the same way.
     "onScroll",
@@ -388,7 +388,7 @@ function obj.validatePresentation(name, identity, manifest, modules, deps)
     -- holds a function itself.
     "searchText",
     -- labels, docs/PLAN-ACTION-BAR.md, a function from the highlighted item to the words the
-    -- action bar and the action panel give the primary and the secondary, a table with primary
+    -- bottom bar and the actions pane give the primary and the secondary, a table with primary
     -- and secondary strings, either one absent meaning the declared description. A member spec
     -- like every other function here, asked live by the stage so a word may count what is checked.
     "labels",
@@ -417,7 +417,7 @@ function obj.validatePresentation(name, identity, manifest, modules, deps)
       end
     end
   end
-  -- Adversarial review finding H3, the phase four geometry rework. rowCount and paneWidth
+  -- Adversarial review finding H3, the phase four geometry rework. rowCount and previewPaneWidth
   -- are the two contract fields that are plain values rather than member specs, so the loop
   -- above never touches either, and until this fix neither was checked at all, anywhere,
   -- between the manifest and the stage. A bad rowCount, a string typed where a number was
@@ -425,7 +425,7 @@ function obj.validatePresentation(name, identity, manifest, modules, deps)
   -- take exactly that shape, reached math.min inside the atom's own _positionAndShow with
   -- nothing to stop it, raised there, and left layout.rowCount corrupted on the one instance
   -- the stage never rebuilds, wedging every future show of every presentation until the
-  -- config reloads. paneWidth already survived a bad value, a provider's own reposition
+  -- config reloads. previewPaneWidth already survived a bad value, a provider's own reposition
   -- refuses anything that is not a positive number or true, but only at
   -- runtime, on every call, with no console line naming the tool, which is a weaker and
   -- quieter protection than refusing the registration once, loudly, here, so it is checked
@@ -456,7 +456,7 @@ function obj.validatePresentation(name, identity, manifest, modules, deps)
         name, tostring(p.rowCount)))
     end
   end
-  -- Review finding M1. paneWidth may now ALSO be a member spec, the identical exception
+  -- Review finding M1. previewPaneWidth may now ALSO be a member spec, the identical exception
   -- placeholder already gets, for a plugin whose own reservation depends on state only its
   -- own wiring resolves, filesearch's own viewer chain and processes' own preview surface
   -- among them. A flat true papered over both, centring the pair as if a pane always stood
@@ -466,31 +466,31 @@ function obj.validatePresentation(name, identity, manifest, modules, deps)
   -- for its own call kind and its own resolution the same way every other member spec in
   -- this loop is, since a wrong default here would silently call the module table where a
   -- policy table belonged.
-  if type(p.paneWidth) == "table" then
-    if not callKindStated(p.paneWidth) then
+  if type(p.previewPaneWidth) == "table" then
+    if not callKindStated(p.previewPaneWidth) then
       broken = true
       if deps.log then
         deps.log("e", string.format(
-          "registrar refused '%s', its presentation.paneWidth does not state call, dot or method, explicitly",
+          "registrar refused '%s', its presentation.previewPaneWidth does not state call, dot or method, explicitly",
           name))
       end
     else
-      local member = memberSpec(p.paneWidth)
+      local member = memberSpec(p.previewPaneWidth)
       if not memberResolves(owner, member) then
         broken = true
         if deps.log then
           deps.log("e", string.format(
-            "registrar refused '%s', its presentation.paneWidth names '%s', which does not resolve to a function on the real module",
+            "registrar refused '%s', its presentation.previewPaneWidth names '%s', which does not resolve to a function on the real module",
             name, tostring(member)))
         end
       end
     end
-  elseif p.paneWidth ~= nil and p.paneWidth ~= true and type(p.paneWidth) ~= "number" then
+  elseif p.previewPaneWidth ~= nil and p.previewPaneWidth ~= true and type(p.previewPaneWidth) ~= "number" then
     broken = true
     if deps.log then
       deps.log("e", string.format(
-        "registrar refused '%s', its presentation.paneWidth is '%s', not a plain number, true, or a member spec",
-        name, tostring(p.paneWidth)))
+        "registrar refused '%s', its presentation.previewPaneWidth is '%s', not a plain number, true, or a member spec",
+        name, tostring(p.previewPaneWidth)))
     end
   end
   -- Contract v2 decision one, docs/BRIEF-CONTRACT-V2.md. matcher is the third contract field
@@ -503,7 +503,7 @@ function obj.validatePresentation(name, identity, manifest, modules, deps)
   -- default in silence rather than raising, so a typo would read as "this presentation just
   -- inherited fuzzy" with nothing anywhere saying a word was misspelled. Checked here, once,
   -- loudly, naming the tool and the unknown strategy, the same discipline rowCount and
-  -- paneWidth just above already keep. deps.matchers absent, which nothing in the ordinary
+  -- previewPaneWidth just above already keep. deps.matchers absent, which nothing in the ordinary
   -- wiring pass ever leaves true, degrades to skipping this one check rather than refusing
   -- every string outright, since a missing dependency of the CHECK is not the same claim as
   -- a bad VALUE from the plugin.
@@ -556,17 +556,17 @@ function obj.validatePresentation(name, identity, manifest, modules, deps)
   end
   -- Finding ten. A presenting plugin routes by identity, isShowingFor and the surface
   -- adapters loop both ask the registry by identity and the stage's own current() answers
-  -- the identity the registrar stamped, but the action bar still looks the answer up in
+  -- the identity the registrar stamped, but the bottom bar still looks the answer up in
   -- plan.contexts, which is keyed by this plugin's own declared surface.context when it
   -- named one. The two agree today because every plugin that presents also spells its
   -- context exactly as its identity, and nothing enforces that agreement, so a plugin that
-  -- ever let them diverge would route, gate, and present correctly while its action bar quietly
+  -- ever let them diverge would route, gate, and present correctly while its bottom bar quietly
   -- went empty. One console line, naming both words, so that divergence cannot happen in
   -- silence even though this phase does not fix the routing itself.
   local declaredContext = manifest.surface and manifest.surface.context
   if declaredContext and declaredContext ~= identity and deps.log then
     deps.log("w", string.format(
-      "registrar found '%s' presenting under identity '%s' while its surface declares context '%s', the action bar routes by identity and will not follow that context",
+      "registrar found '%s' presenting under identity '%s' while its surface declares context '%s', the bottom bar routes by identity and will not follow that context",
       name, identity, declaredContext))
   end
   if broken then
@@ -623,16 +623,16 @@ function obj.validatePresentation(name, identity, manifest, modules, deps)
       -- labels resolved the identical lazy way, asked by host/stage for the level on screen.
       labels = obj.action(modules, identity, name, p.labels, nil),
     }
-    -- paneWidth, review finding M1. A member spec resolves once, right here, the identical
+    -- previewPaneWidth, review finding M1. A member spec resolves once, right here, the identical
     -- moment and the identical reason placeholder does, since a plugin's own reservation
     -- depending on wiring only just finished running wants the real answer rather than one
     -- frozen before it existed. A plain value, true, a number, or nil, carries through
     -- unresolved exactly as rowCount and matcher do.
-    if type(p.paneWidth) == "table" then
-      local resolvePaneWidth = obj.action(modules, identity, name, p.paneWidth, nil)
-      presentation.paneWidth = resolvePaneWidth and resolvePaneWidth()
+    if type(p.previewPaneWidth) == "table" then
+      local resolvePreviewPaneWidth = obj.action(modules, identity, name, p.previewPaneWidth, nil)
+      presentation.previewPaneWidth = resolvePreviewPaneWidth and resolvePreviewPaneWidth()
     else
-      presentation.paneWidth = p.paneWidth
+      presentation.previewPaneWidth = p.previewPaneWidth
     end
     if p.placeholder ~= nil then
       local resolvePlaceholder = obj.action(modules, identity, name, p.placeholder, nil)
@@ -786,12 +786,12 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
   -- push, the seam a plugin whose own rows depend on an async fetch, VPN among them, starts
   -- that fetch from rather than depending on some other door having already warmed it.
   -- onPositioned is the geometry brief's own addition, docs/BRIEF-GEOMETRY.md decision one,
-  -- called by the stage with the chooser and companion frames whenever it repositions the pair
+  -- called by the stage with the chooser and preview pane frames whenever it repositions the pair
   -- for this presentation, mirroring the shape and the name lib/chooser/providers/legacy.lua's
-  -- own config.onPositioned already carries, so a plugin migrating its own companion pane onto
+  -- own config.onPositioned already carries, so a plugin migrating its own preview pane onto
   -- the stage in phase five hands over the identical function it already wrote for that field
-  -- with nothing to rewrite. rowCount and paneWidth are both read as a plain value, a number
-  -- or, for paneWidth, true, never a member, since the contract itself never asks either one to
+  -- with nothing to rewrite. rowCount and previewPaneWidth are both read as a plain value, a number
+  -- or, for previewPaneWidth, true, never a member, since the contract itself never asks either one to
   -- be computed. matcher, contract v2 decision one, joins them as a third plain value, false or
   -- a strategy name, checked below rather than in the loop above for the identical reason.
   -- enter, contract v2 decision two, is a member like rows and the rest, called with one

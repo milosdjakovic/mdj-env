@@ -25,7 +25,7 @@
 --
 -- WHAT THIS DOES NOT SEE, named rather than hidden. `function ... end`, `if ... end`, `for
 -- ... end` and the rest never open a brace, so a plain assignment inside a function VALUE
--- sitting in the literal, `local fn = dispatchTable[action]` inside actionPanelOpts's own
+-- sitting in the literal, `local fn = dispatchTable[action]` inside actionsPaneOpts's own
 -- run, reads as depth one too, indistinguishable from a real key by brace counting alone.
 -- The one cheap guard this file adds, skipping any match immediately preceded by the `local`
 -- keyword, closes the exact case found while this file was being built and documented in the
@@ -44,13 +44,13 @@ local M = {}
 -- The named local table literals in root/compose.lua this scan reads. rootValues is the
 -- generic fan out every ordinary plugin's own root sourced need is answered from. The other
 -- five are root/compose.lua's own hand built option tables for the host modules that bypass
--- that fan out entirely, leadersheet, queryscope, actionpanel, and stage, plus
+-- that fan out entirely, leadersheet, queryscope, actionspane, and stage, plus
 -- queryScopeLate, launcherOpts and leaderSheetLate, built later and folded into lateData
 -- rather than wireData, for queryscope's own second pass, the launcher and the leader sheet,
 -- whose rows are the keymap's and exist only once it is built.
 M.TABLE_NAMES = {
   "rootValues", "leaderSheetOpts", "queryScopeOpts", "queryScopeLate",
-  "actionPanelOpts", "stageOpts", "launcherOpts", "leaderSheetLate",
+  "actionsPaneOpts", "stageOpts", "launcherOpts", "leaderSheetLate",
 }
 
 local function stripCommentsAndStrings(src)

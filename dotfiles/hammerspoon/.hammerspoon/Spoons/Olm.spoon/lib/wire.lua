@@ -166,7 +166,7 @@ function obj.new(deps)
 
     -- Per plugin presentation lives on the surface declaration rather than being ambient,
     -- because these two are genuinely a plugin's own choice. Three plugins want the words
-    -- matcher rather than the shared fuzzy one, and three want the docked preview pane. The
+    -- matcher rather than the shared fuzzy one, and three want the preview pane. The
     -- first attempt defaulted every plugin to fuzzy and declared the pane nowhere, so all
     -- three lost the matcher they were built around and all three came back with no pane.
     local decl = manifest.surface
@@ -176,12 +176,12 @@ function obj.new(deps)
       else
         opts.matcher = services.matcher
       end
-      -- A pane declaring plugin earns the docked pane, a function answering one, which
+      -- A pane declaring plugin earns the preview pane, a function answering one, which
       -- already holds the surface, the empty state and the kit, so the chrome, the quiet
       -- state and the lifecycle around what the plugin draws are written once in
-      -- lib/dockedpane.lua rather than once per plugin.
-      if decl.pane then
-        opts.dockedPane = services.dockedPane
+      -- lib/previewpane.lua rather than once per plugin.
+      if decl.previewPane then
+        opts.previewPane = services.previewPane
       end
     end
 
@@ -429,7 +429,7 @@ function obj.new(deps)
   function self.contexts(engineFor, bindOne)
     for contextName, block in pairs(plan.contexts) do
       for _, binding in ipairs(block.bindings or {}) do
-        -- chord equals false means listed in the key panel but deliberately not bound. The
+        -- chord equals false means listed in the info pane but deliberately not bound. The
         -- first attempt dropped this rule along with the per binding needs gate and the repeat
         -- flag, which is three behaviours lost in one loop.
         if binding.chord == false then

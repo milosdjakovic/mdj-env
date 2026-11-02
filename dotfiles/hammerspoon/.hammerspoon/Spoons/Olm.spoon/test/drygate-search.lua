@@ -64,10 +64,10 @@ local M = {}
 
 -- Which hosts may call rank.apply, each ranking rows it does not own on behalf of the list
 -- that does. The stage ranks a presentation's rows for its highlight hold, the query scope
--- ranks a scope's rows, and the action panel ranks its own verbs. The providers rank too and
+-- ranks a scope's rows, and the actions pane ranks its own verbs. The providers rank too and
 -- sit in lib/chooser. Nothing outside lib/chooser calls rank.score or rank.before since phase
 -- four removed the launcher's own ordering, their last caller.
-local ALLOWED_RANK = { "host/stage/", "host/queryscope/", "host/actionpanel/" }
+local ALLOWED_RANK = { "host/stage/", "host/queryscope/", "host/actionspane/" }
 
 -- The names typed text goes by in this tree, for the self filter rule.
 local QUERY_NAMES = { query = true, q = true, text = true, rest = true, word = true, w = true }
@@ -587,7 +587,7 @@ function M.scan(text, rel)
       elseif aliased then
         what = "a call of a local holding a matcher, which matches rows outside the shared search"
       elseif verb and not rankAllowed(rel, verb) then
-        what = "a use of rank." .. verb .. ", which ranks rows outside the stage, the providers, the query scope and the action panel"
+        what = "a use of rank." .. verb .. ", which ranks rows outside the stage, the providers, the query scope and the actions pane"
       elseif authoring and selfFilters(joined, limit) then
         what = "a find of the typed text deciding a row, which filters rows outside the shared search"
       elseif c:find("table%.sort%s*%(") and sortsByQuery(cs, lines, n, aliases) then

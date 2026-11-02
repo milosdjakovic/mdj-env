@@ -25,7 +25,11 @@ plugin written from a stale mental model registers, reports success, and shows n
    you to, never front to back instead of the recipe.
 3. When changing an existing plugin, read that plugin's own `manifest.lua`, its `README.md`,
    and its `AGENTS.md` where it has one, and treat its stated design record as binding.
-4. Before relying on any behavior a doc describes, open the file it cites and confirm the code
+4. Name every part a person sees with the words in the Names section of
+   `Spoons/Olm.spoon/AGENTS.md`, input field, list, row, preview pane, bottom bar, bar item, info
+   pane, actions pane, action and shortcut, in code, comments, docs and conversation. The dry gate
+   refuses the retired ones.
+5. Before relying on any behavior a doc describes, open the file it cites and confirm the code
    still says that. The settled examples named below are worth reading beside the docs, since
    an example that loads today proves more than prose.
 
@@ -93,18 +97,18 @@ through, `cycle` or `open`, and is never a plugin field. The authoring guide's C
 section has the shape, and Input Sources is the settled example.
 
 A glanceable overlay nothing is typed into, a preview, a toast, a status card, is CanvasPanel
-content, never a window of the plugin's own. A companion preview pane beside the rows is
-declared on the surface, `pane = true`, which earns `opts.dockedPane`, the shared docked pane in
-`lib/dockedpane.lua`. It owns the canvas, the dock, the surface, the empty state, the scroll and
+content, never a window of the plugin's own. A preview pane beside the rows is
+declared on the surface, `previewPane = true`, which earns `opts.previewPane`, the shared preview pane in
+`lib/previewpane.lua`. It owns the canvas, the dock, the surface, the empty state, the scroll and
 the teardown, and the plugin hands it only what to draw, a describer answering a kit node or a
 painter answering elements, so never copy that lifecycle into a plugin. Routine feedback goes out
-through an injected callback the root draws on the shared panel. A docked pane is never hidden
+through an injected callback the root draws on the shared panel. A preview pane is never hidden
 while its presentation is showing, a highlight with nothing to describe calls `pane.clear()`,
 which paints the shared empty state, so a reserved rect never sits there with nothing drawn in
 it. The pane genuinely vanishes only when the stage tells it `onPositioned(nil, nil)`, which is
 `pane.hide()`, and on close, which is `pane.destroy()`. A
 grid of key badges under a held leader is the shared cheatsheet lib. Verbs come free, the
-action panel reads them from the registry declaration, so never build a second list to make
+actions pane reads them from the registry declaration, so never build a second list to make
 verbs discoverable.
 
 `hs.alert` is reserved for a hard failure that stopped the action entirely, a missing window, a
@@ -114,7 +118,7 @@ dead binary. Routine feedback while a feature works never goes through an alert.
 
 These rules are what make every plugin feel like the same instrument.
 
-What a row offers beyond Return goes in the action panel, never in a level of actions pushed for
+What a row offers beyond Return goes in the actions pane, never in a level of actions pushed for
 that row. Return does the thing the row is for, and the rest are verbs of `surface.extra`, keyless
 when they are for the panel alone, with `applies` when they fit only some rows, `confirm` for
 anything destructive and `choices` for a pick of one of a few. A setting of the tool is a verb
@@ -238,7 +242,7 @@ the same `icons`, named for the plugin, and a binding or a verb names its icon t
 entry gets an `sf` name beside its `emoji`, each checked to exist before it is written, and content
 is the only spec without one. A verb's icon, the primary, the secondary and every `extra` row,
 pictures what the verb does, never the key that runs it, so never a return arrow, a command
-glyph or any other key glyph, since the action panel already prints the chord beside the icon
+glyph or any other key glyph, since the actions pane already prints the chord beside the icon
 and the two read as one key twice. Stated by Milos on 2026-10-30. Olm's own fallback for a
 primary or a secondary naming no icon is exactly that key glyph, so a `surface` always names an
 icon on its `primary` and its `secondary`, declared in the manifest's `icons`, Apply a
@@ -254,7 +258,7 @@ person reads. The repository root holds the answer key for where every tool come
 ## What declaring earns
 
 Every plugin receives `after` and `log` without asking. Declaring a `surface` earns the shared
-chooser factory, the theme, and the placeholder, and `pane = true` on it earns the docked pane. The docked panel callbacks are a separate per
+chooser factory, the theme, and the placeholder, and `previewPane = true` on it earns the preview pane. The docked panel callbacks are a separate per
 plugin grant shaped by the plugin's own stated declaration, and the contract holds the detail.
 Declaring
 `needs.tools` earns `deps`. Declaring `needs.lib` earns the named lib instance, and the set in
@@ -324,7 +328,7 @@ keys and never assumes its action sits on the key it suggested. `config/plugins.
 action is reachable from the keymap by its descriptor's `name`, its tool's open row is `open`, and
 a list verb by the action name its `surface` gives it, so name actions as a person would write
 them. The keys every list shares, the primary, the secondary, the two move keys, close, the action
-panel and the key panel, are Olm's own `all` layer and never a plugin's, so a `surface` names only
+panel and the info pane, are Olm's own `all` layer and never a plugin's, so a `surface` names only
 its primary action, an optional `secondary` on Command and Return, and the `extra` rows it adds, and a key listed with `chord = false` stays the plugin's own fact. A surface
 key names no leader. Every default list key rides the `list` role, which the person moves like
 any role, and a person's list chord names its own leader, or none at all for a key the open list's

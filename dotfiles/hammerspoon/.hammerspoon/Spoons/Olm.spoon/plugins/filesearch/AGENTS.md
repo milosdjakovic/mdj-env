@@ -400,7 +400,7 @@ tells you less and costs a key, and reveal moved onto Hyper+O since that is the 
 open to whoever is pressing it. Hyper+F is now unbound and drops off the hint strip with it, so
 one action does not answer to two keys.
 
-Reveal moved back to Hyper+F on 2026-10-14, because the action panel took Hyper+O in every
+Reveal moved back to Hyper+F on 2026-10-14, because the actions pane took Hyper+O in every
 list and F reads as Finder. `decisions/olm-chooser-keys.md` has it.
 
 ## Two mode split on a scope, and why browse is one level
@@ -595,12 +595,12 @@ Two things follow from it that are easy to miss. Room beside the list is asked o
 rather than read from config by the surface, since the panel wants 420 and the window wants none,
 and that number is fixed when the picker is built. And the keys follow the provider, because a
 binding may declare what it `needs` and the root answers it once, so the two scroll keys exist
-only under the panel and the peek key only under Quick Look. The action bar's key panel is filtered by the
+only under the panel and the peek key only under Quick Look. The bottom bar's info pane is filtered by the
 same answer, so a key is never listed while doing nothing, which is the discoverability rule
 holding rather than a nicety.
 
 **That filter is applied to the DATA once rather than evaluated per press, and the reason was the
-shortcut panel the action bar replaced.** A binding gated on live state stays bound and simply does nothing when its
+shortcut panel the bottom bar replaced.** A binding gated on live state stays bound and simply does nothing when its
 predicate is false, which is right for something that changes while you use the tool, like whether
 there is a level above the one you are browsing. A provider is chosen at wiring time and cannot
 change, and the panel is built from a static hint list, so a runtime predicate would have hidden
@@ -872,7 +872,7 @@ rather than more of the file.
 **The pane is drawn through the five typography roles and names no font, size or colour.** The
 shape lives in `viewers/sidepanel-nodes.lua`, which only builds UI kit nodes, and
 `viewers/sidepanel.lua` keeps the stat, the chain of describers, the thumbnails and the painter
-the shared docked pane calls.
+the shared preview pane calls.
 The file name is title, the folder is code in the path colour, each fact is a caption row with
 the label in subtext and the value flush right, a heading is section, and a file head or a folder
 listing is the kit's code block. The head WRAPS, as the clipboard pane's text files do, so a file
@@ -947,17 +947,17 @@ the row is kept for next time and paints nothing.
 
 ## The pane is one canvas docked into a rect it did not choose
 
-The canvas is the shared docked pane, `lib/dockedpane.lua`, the one every pane in Olm uses,
-granted for the manifest's `pane = true`, so the docking, the empty state, the scroll, the hide
+The canvas is the shared preview pane, `lib/previewpane.lua`, the one every pane in Olm uses,
+granted for the manifest's `previewPane = true`, so the docking, the empty state, the scroll, the hide
 guard and the teardown live there once and the side panel hands it a painter. It draws through
 the shared surface so the three read as one component, and it is not a `CanvasPanel` instance
 because that atom computes its own placement from an anchor while this has to land exactly on
-the companion rect the Chooser atom already reserved and reported. That rect is also the one
+the preview pane rect the Chooser atom already reserved and reported. That rect is also the one
 the click watcher counts as part of the picker, so a pane drawn a few points outside it would
 turn a click on itself into a dismissal.
 
 `onPositioned` is composed rather than replaced, docking the pane, which once also handed the
-docked shortcut panel an anchor spanning both panes before the action bar moved inside the
+docked shortcut panel an anchor spanning both panes before the bottom bar moved inside the
 chooser's own canvas. The pane is
 destroyed rather than hidden on the atom's one idempotent teardown, so nothing outlives a
 dismissal.
@@ -981,7 +981,7 @@ The same reasoning found a defect one layer down, in the atom rather than here. 
 rebuilt the list without clearing `lastRow`, so browsing into a folder while the FIRST row was
 highlighted left the pane describing the old first row, since the number had not moved. The
 query callback already cleared it for typing, with a comment saying exactly why, so refresh was
-simply missing the same line. Fixing it there rather than here means every companion pane gets
+simply missing the same line. Fixing it there rather than here means every preview pane gets
 it, and the explicit re render above stays only because it repaints at once rather than on the
 next poll tick.
 
@@ -1003,7 +1003,7 @@ claimed by nothing. All six draw a header and no body rather than raising.
 
 A canvas has no scroll callback, so a trackpad over a pane could not be noticed at all. The
 watcher for it lives in the Chooser atom beside the click watcher that already owns these
-rects, gated on a consumer passing `onScroll`, and it answers only for the companion rect so a
+rects, gated on a consumer passing `onScroll`, and it answers only for the preview pane rect so a
 scroll over the list still reaches the list. The atom normalises both the unit, since a
 trackpad reports pixels and a wheel reports notches, and the direction, since the event
 measures fingers while a pane measures content. One negation there rather than one per
@@ -1014,7 +1014,7 @@ pane could only be moved by its two keys before, and it now takes the same gestu
 same seam. Both surfaces route their keys through their own one scroll verb, which is also
 what the atom calls, so there is one notion of where a pane is scrolled to.
 
-The offset is clamped by the docked pane against the overflow the painter reports, which is what lets a key
+The offset is clamped by the preview pane against the overflow the painter reports, which is what lets a key
 press, a trackpad gesture and a rebuild at a new height all be written without any of them
 knowing how tall the content turned out. It resets whenever the row changes, since an offset
 carried over would open the next file part way down for no reason a reader can see.
@@ -1074,7 +1074,7 @@ lose their picture, and the describer declines rather than promising one. A rast
 the in process generator loses its picture too, since that one steps aside on size and Quick Look
 is what it steps aside TO.
 
-Without the docked pane granted, the side panel reports itself unavailable. That is
+Without the preview pane granted, the side panel reports itself unavailable. That is
 one line in the main root, and it is the same path a provider takes for any other reason, so the
 chain moves to the next one and lands on nothing if there is no next one. With no provider left
 the picker reserves no room, runs no highlight poll and binds neither the scroll keys nor the

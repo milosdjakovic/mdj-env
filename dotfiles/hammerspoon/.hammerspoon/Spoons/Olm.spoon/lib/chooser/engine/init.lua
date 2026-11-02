@@ -2,7 +2,7 @@
 ---
 --- Every rule Olm's picker keeps, and all of its state, with no drawing in it. It implements the
 --- twenty five methods of docs/CONTRACT-PICKER.md and the extras the stage calls, setPosture,
---- posture, toggleKeys and closeKeys, and leaves the surface, the field's text editing, the
+--- posture, toggleInfo and closeInfo, and leaves the surface, the field's text editing, the
 --- pointer and every pixel to a view it is handed at construction. lib/chooser/view.lua is the
 --- contract between the two, and this file knows a view only through it. The canvas view is
 --- lib/chooser/providers/default/canvas.lua, and the default provider is this engine composed
@@ -39,19 +39,19 @@
 --- places in it. lib/chooser/view.lua states the order for any view.
 ---
 --- Every config callback is read live, at the moment it is called, never captured at
---- construction, since the ActionPanel decorator rewrites rows, intercept, back, onSelect,
+--- construction, since the ActionsPane decorator rewrites rows, intercept, back, onSelect,
 --- onHighlight and onClose on the config table after this instance is built. config.onRightClick
 --- is read live too, unlike the legacy provider, as docs/CONTRACT-PICKER.md asks.
 ---
---- The action bar, docs/PLAN-ACTION-BAR.md. A consumer that hands config.footer, a function
---- answering lib/hints.lua's footerModel shape for the list now showing, gets a footer model this
+--- The bottom bar, docs/PLAN-ACTION-BAR.md. A consumer that hands config.bottomBar, a function
+--- answering lib/hints.lua's bottomBarModel shape for the list now showing, gets a bottom bar model this
 --- file asks on every show, after every highlight move and on a quarter second poll while the
 --- list is up, so a gated key or a live label changes the bar without anyone telling this file.
---- This file owns the key panel's open state and which keys close it, and the view draws both
+--- This file owns the info pane's open state and which keys close it, and the view draws both
 --- and owns the key button's hit test and the panel's rect. A consumer handing none gets no bar
 --- and no change to its rows.
 ---
---- The bare posture. setPosture("bare") draws the list alone, no field over it and no action bar
+--- The bare posture. setPosture("bare") draws the list alone, no field over it and no bottom bar
 --- under it, the list's own margin on every side and no peek of a further row. The field's tap
 --- still runs, since the list's own keys are still read, the arrows, Return, keypad Enter and
 --- Escape, and so are the list keys a person bound. Every other key down is handed to
@@ -80,12 +80,12 @@ local viewContract = load("../view.lua")
 -- THE SEAM. Three modules this engine stands on still live beside the canvas view, where they
 -- were written, and are loaded from there in this one place. geometry.lua resolves every
 -- rectangle and the text budget, and list/model.lua holds the highlight and the scroll, both
--- pure and drawing nothing. footer.lua is the view's own drawing of the action bar, and the
--- engine reads only its height, which the layout reserves, never its bar or its key panel. Many
+-- pure and drawing nothing. bottombar.lua is the view's own drawing of the bottom bar, and the
+-- engine reads only its height, which the layout reserves, never its bar or its info pane. Many
 -- tests and probes load all three by these paths, so they stay put.
 local geometry = load("../providers/default/geometry.lua")
 local listModel = load("../providers/default/list/model.lua")
-local footerLib = load("../providers/default/footer.lua")
+local bottomBarLib = load("../providers/default/bottombar.lua")
 
 --------------------------------------------------------------------------------
 -- Module level collaborators
@@ -138,10 +138,10 @@ local KEYCODE_DIGIT = {
   [22] = 6, [26] = 7, [28] = 8, [25] = 9,
 }
 
--- How often a showing list asks its footer collaborator again, so a gated key or a live label
--- changes the action bar without anyone telling this file, the same quarter second CanvasPanel
+-- How often a showing list asks its bottom bar collaborator again, so a gated key or a live label
+-- changes the bottom bar without anyone telling this file, the same quarter second CanvasPanel
 -- polled the hint bar's state at. A redraw happens only when the answer changed.
-local FOOTER_POLL_INTERVAL = 0.25
+local BOTTOM_BAR_POLL_INTERVAL = 0.25
 
 --------------------------------------------------------------------------------
 -- Small stateless helpers, none of them touching self
@@ -278,7 +278,7 @@ end
 
 -- The layout geometry.resolve is handed, the layout itself in the full posture and a copy in
 -- the bare one, with the field's height down to the list's own margin, so the rows sit the same
--- distance from the top edge as from the bottom, and with no action bar and no peek, since a
+-- distance from the top edge as from the bottom, and with no bottom bar and no peek, since a
 -- list shown bare is as tall as its rows and has nothing below them to hint at. It draws no row
 -- numbers either, since a bare list is stepped by its own key and Command and a digit is not read
 -- there, see listReads.
@@ -287,7 +287,7 @@ function Engine:_shapedLayout()
   local L = {}
   for k, v in pairs(self.layout) do L[k] = v end
   L.baseH = self.layout.marginY
-  L.footerH = 0
+  L.bottomBarH = 0
   L.peek = 0
   L.showRowNumbers = false
   return L
@@ -307,8 +307,8 @@ function Engine:scene()
     rankedQuery = self._rankedQuery,
     placeholder = self._placeholder,
     bare = self._bare,
-    footer = self._footerModel,
-    keysOpen = self._keysOpen,
+    bottomBar = self._bottomBarModel,
+    infoOpen = self._infoOpen,
   }
 end
 
@@ -396,60 +396,60 @@ function Engine:_rebuildList(query, resetHighlight)
 end
 
 -- Reports the highlighted row's own opaque item through config.onHighlight, read live on every
--- call, then asks the footer again. There is no highlight poll of any kind, since this file
+-- call, then asks the bottom bar again. There is no highlight poll of any kind, since this file
 -- knows the instant its own highlight moves and calls this directly from wherever that happens.
 function Engine:_fireHighlight()
   if self.config.onHighlight then
     local row = listModel.highlightedRow(self.listState)
     safeCall(self.config.onHighlight, rowItem(row))
   end
-  -- After the consumer heard the move, since a label in the action bar may follow the row. The
+  -- After the consumer heard the move, since a label in the bottom bar may follow the row. The
   -- answer is whether the bar's words changed, for a caller that does not redraw anyway.
-  return self:_refreshFooter()
+  return self:_refreshBottomBar()
 end
 
 --------------------------------------------------------------------------------
--- The action bar's model and its key panel, docs/PLAN-ACTION-BAR.md
+-- The bottom bar's model and its info pane, docs/PLAN-ACTION-BAR.md
 --------------------------------------------------------------------------------
 
--- Asks the footer collaborator for the model of the list now showing and keeps it, answering
--- whether what it says changed. The collaborator is config.footer, a function this file knows
--- only as answering lib/hints.lua's footerModel shape, so no keymap and no plugin is named here.
+-- Asks the bottom bar collaborator for the model of the list now showing and keeps it, answering
+-- whether what it says changed. The collaborator is config.bottomBar, a function this file knows
+-- only as answering lib/hints.lua's bottomBarModel shape, so no keymap and no plugin is named here.
 -- Without one there is no model and no bar.
-function Engine:_refreshFooter()
-  if not self.config.footer or self._bare then
-    self._footerModel = nil
+function Engine:_refreshBottomBar()
+  if not self.config.bottomBar or self._bare then
+    self._bottomBarModel = nil
     return false
   end
-  local model = safeCall(self.config.footer)
+  local model = safeCall(self.config.bottomBar)
   if type(model) ~= "table" then model = nil end
-  local before = self._footerModel and self._footerModel.state
-  self._footerModel = model
+  local before = self._bottomBarModel and self._bottomBarModel.state
+  self._bottomBarModel = model
   return (model and model.state) ~= before
 end
 
--- Polls the footer collaborator while the list is up, the handle kept so the timer can neither
+-- Polls the bottom bar collaborator while the list is up, the handle kept so the timer can neither
 -- be collected before it fires nor outlive the open. Nothing to poll without a collaborator.
-function Engine:_startFooterPoll()
-  self:_stopFooterPoll()
-  if not self.config.footer or self._bare then return end
-  self._footerTimer = hs.timer.doEvery(FOOTER_POLL_INTERVAL, function()
-    if self.active and self:_refreshFooter() then self.view:redraw() end
+function Engine:_startBottomBarPoll()
+  self:_stopBottomBarPoll()
+  if not self.config.bottomBar or self._bare then return end
+  self._bottomBarTimer = hs.timer.doEvery(BOTTOM_BAR_POLL_INTERVAL, function()
+    if self.active and self:_refreshBottomBar() then self.view:redraw() end
   end)
 end
 
-function Engine:_stopFooterPoll()
-  if self._footerTimer then
-    self._footerTimer:stop()
-    self._footerTimer = nil
+function Engine:_stopBottomBarPoll()
+  if self._bottomBarTimer then
+    self._bottomBarTimer:stop()
+    self._bottomBarTimer = nil
   end
 end
 
--- Closes the key panel, redrawing only when it was open. Every key that acts closes it, since a
+-- Closes the info pane, redrawing only when it was open. Every key that acts closes it, since a
 -- key that acts is a person who has found what they were looking for.
 function Engine:_closeKeys()
-  if not self._keysOpen then return end
-  self._keysOpen = false
+  if not self._infoOpen then return end
+  self._infoOpen = false
   self.view:redraw()
 end
 
@@ -476,7 +476,7 @@ end
 --- Engine colon followHighlight, arity two, for a view that moves its own highlight, the swift
 --- list's arrows and pointer. The engine's highlight follows to index, counting as activity. A
 --- move byPointer is the pointer passing over a row rather than a key that acted, so it tells
---- onActivity and leaves an open key panel up.
+--- onActivity and leaves an open info pane up.
 function Engine:followHighlight(index, byPointer)
   if byPointer then
     if self.config.onActivity then safeCall(self.config.onActivity) end
@@ -549,10 +549,10 @@ function Engine:rightClickIndex(index)
   end
 end
 
---- Engine colon companionScroll, arity one, for the view. A scroll over the companion pane,
+--- Engine colon previewPaneScroll, arity one, for the view. A scroll over the preview pane,
 --- handed to config.onScroll with the delta in points, this file having no opinion about what
 --- that pane does with it.
-function Engine:companionScroll(points)
+function Engine:previewPaneScroll(points)
   if self.config.onScroll then safeCall(self.config.onScroll, points) end
 end
 
@@ -594,7 +594,7 @@ function Engine:fieldChanged(text)
     self:_rebuildList(text, true)
     self:_fireHighlight()
   end
-  self._keysOpen = false
+  self._infoOpen = false
   self.view:redraw()
   if self.config.onActivity then safeCall(self.config.onActivity) end
 end
@@ -615,25 +615,25 @@ end
 --- are ever reached and would otherwise be the one key the idle signal never learns about. ev may
 --- be nil for a view that cannot hand over the event, and then it counts as a fresh press.
 function Engine:dismissKey(ev)
-  -- A held Escape that closed the key panel goes on repeating, and its autorepeat must not
+  -- A held Escape that closed the info pane goes on repeating, and its autorepeat must not
   -- close the list too, so every repeat of that press is swallowed until a fresh one.
   local repeating = ev ~= nil and ev:getProperty(hs.eventtap.event.properties.keyboardEventAutorepeat) ~= 0
   if repeating and self._escapeClosedKeys then return end
   self._escapeClosedKeys = false
   if self.config.onActivity then safeCall(self.config.onActivity) end
-  -- Escape over an open key panel closes the panel and leaves the list, the way a popover
+  -- Escape over an open info pane closes the panel and leaves the list, the way a floating pane
   -- answers Escape, and a second Escape closes the list.
-  if self._keysOpen then
+  if self._infoOpen then
     self._escapeClosedKeys = true
     self:_closeKeys()
     return
   end
-  -- The same over an action panel the view floats as a popover, toggled closed through the
-  -- action the footer model names for it, since the panel is the root's and not this file's.
-  local model = self._footerModel
-  if model and model.panelOpen and model.panelAction and self:floatsActionPanel() then
+  -- The same over an actions pane the view floats as a floating pane, toggled closed through the
+  -- action the bottom bar model names for it, since the panel is the root's and not this file's.
+  local model = self._bottomBarModel
+  if model and model.panelOpen and model.panelAction and self:floatsActionsPane() then
     self._escapeClosedKeys = true
-    self:footerAction(model.panelAction)
+    self:bottomBarAction(model.panelAction)
     return
   end
   self:hide()
@@ -651,9 +651,9 @@ end
 --- nothing else with. A key it took counts as activity, since it moved or acted on the list the
 --- way a Hyper key does.
 function Engine:listKey(ev)
-  -- Whether the key panel was up before the key, so a key that opened it, the person's own
-  -- showKeys chord on the field, is not taken as a key that acted and closes it again.
-  local keysWereOpen = self._keysOpen
+  -- Whether the info pane was up before the key, so a key that opened it, the person's own
+  -- showInfo chord on the field, is not taken as a key that acted and closes it again.
+  local keysWereOpen = self._infoOpen
   if LIST_KEYS == nil or LIST_KEYS(ev) ~= true then
     -- A bare list has no field to type into, so a key the list does not read goes to the
     -- consumer, the stage, which claims it or lets the field swallow it as before.
@@ -712,7 +712,7 @@ end
 
 -- Every way this picker can end, a selection, Escape, a click outside, or a programmatic hide,
 -- funnels through here, and onClose fires exactly once per open however it ended. The view's
--- taps are stopped FIRST, then its timers, then the footer poll, then the surface comes down,
+-- taps are stopped FIRST, then its timers, then the bottom bar poll, then the surface comes down,
 -- then the focus hold is released, and only then does onClose fire. The release and onClose
 -- are each guarded so a raise inside either cannot abandon anything below it.
 function Engine:_teardown()
@@ -720,8 +720,8 @@ function Engine:_teardown()
   self.active = false
 
   self.view:stop()
-  self:_stopFooterPoll()
-  self._keysOpen = false
+  self:_stopBottomBarPoll()
+  self._infoOpen = false
   self._escapeClosedKeys = false
   self.view:hide()
 
@@ -751,7 +751,7 @@ end
 --- Engine colon show, arity zero. Reselects the theme and the view's styles, resolves the screen
 --- and the rectangles through geometry.resolve, places the surface, builds rows for an empty
 --- query with the highlight on row one, clears the field, draws, shows, asks the focus hold,
---- starts the view's input and the footer poll, reports onPositioned exactly once with the final
+--- starts the view's input and the bottom bar poll, reports onPositioned exactly once with the final
 --- frames, since the surface is final on its first frame, and only then calls onHighlight with
 --- the first row, synchronously, which is the whole mechanism rather than a seed for a poll.
 function Engine:show()
@@ -763,7 +763,7 @@ function Engine:show()
   local screen = self:_resolveScreen()
   self._targetScreen = screen
   local sf = screen:frame()
-  self._rects = geometry.resolve(sf, self:_shapedLayout(), self._paneWidth)
+  self._rects = geometry.resolve(sf, self:_shapedLayout(), self._previewPaneWidth)
   self:_updateDrawLayout()
   self.view:place(self._rects)
 
@@ -772,8 +772,8 @@ function Engine:show()
   self.view:setText("")
   self._suppressRebuild = false
 
-  self._keysOpen = false
-  self:_refreshFooter()
+  self._infoOpen = false
+  self:_refreshBottomBar()
   self.view:redraw()
   self.view:show()
   -- A show over a list already up keeps the hold it has, since a second would strand the first.
@@ -794,10 +794,10 @@ function Engine:show()
   end
 
   self.view:start()
-  self:_startFooterPoll()
+  self:_startBottomBarPoll()
 
-  self._paneFrames = { chooser = self._rects.chooser, companion = self._rects.companion }
-  safeCall(self.config.onPositioned, self._rects.chooser, self._rects.companion)
+  self._paneFrames = { chooser = self._rects.chooser, previewPane = self._rects.previewPane }
+  safeCall(self.config.onPositioned, self._rects.chooser, self._rects.previewPane)
 
   if self:_fireHighlight() then self.view:redraw() end
 end
@@ -826,10 +826,10 @@ end
 --- Fix round item three. Plain truthiness, as the contract and the legacy provider both read it.
 function Engine:refresh(resetRow)
   if not self.active then return end
-  -- A rebuild from the top is a page change, which closes the key panel the way a key that acts
+  -- A rebuild from the top is a page change, which closes the info pane the way a key that acts
   -- does. A refresh holding the row is a repaint in place, often a background answer arriving,
-  -- and leaves an open key panel alone.
-  if resetRow then self._keysOpen = false end
+  -- and leaves an open info pane alone.
+  if resetRow then self._infoOpen = false end
   self.view:stopScroll()
   self:_rebuildList(self:query(), resetRow)
   self:_fireHighlight()
@@ -852,8 +852,8 @@ end
 --- time inside this very call.
 function Engine:setQuery(text)
   text = text or ""
-  -- A new query is a new page or a seeded word, so the key panel closes with it.
-  self._keysOpen = false
+  -- A new query is a new page or a seeded word, so the info pane closes with it.
+  self._infoOpen = false
   self._suppressRebuild = true
   self.view:setText(text)
   self._suppressRebuild = false
@@ -907,7 +907,7 @@ end
 --- Engine colon selectRow, arity one. Clamps n into the range the filtered set currently
 --- supports and ignores a nil argument rather than raising. Also brings the row into view, fix
 --- round item two, since list model deliberately never pulls scrollTop toward the highlight on
---- its own and host/actionpanel/init.lua restores a row that may sit past the visible band. It
+--- its own and host/actionspane/init.lua restores a row that may sit past the visible band. It
 --- pulls scrollTop up to the row's own top when it starts above the viewport and down to the
 --- row's own bottom less the viewport height when it ends below.
 function Engine:selectRow(n)
@@ -962,40 +962,40 @@ function Engine:_insertHighlighted()
   self:_choose(row, ns.highlight)
 end
 
---- Engine colon toggleKeys, arity zero. Opens the key panel above the action bar, or closes it
+--- Engine colon toggleInfo, arity zero. Opens the info pane above the bottom bar, or closes it
 --- when it is open, the same as a click on the key button. Not part of the picker contract, since
---- only a provider that draws an action bar has a key panel, so a caller asks for it by name and
+--- only a provider that draws an bottom bar has a info pane, so a caller asks for it by name and
 --- a provider without one is simply not asked. Does nothing while the list is down or when this
---- instance draws no bar. The two panels are never open together, so opening the key panel over
---- an action panel the view floats closes that panel first, through the action the footer model
---- names for it as Escape does, and opening the action panel closes this one through closeKeys.
-function Engine:toggleKeys()
-  if not self.active or not (self._rects and self._rects.footer) or not self._footerModel then return end
-  local model = self._footerModel
-  if not self._keysOpen and model.panelOpen and model.panelAction and self:floatsActionPanel() then
-    self:footerAction(model.panelAction)
+--- instance draws no bar. The two panels are never open together, so opening the info pane over
+--- an actions pane the view floats closes that panel first, through the action the bottom bar model
+--- names for it as Escape does, and opening the actions pane closes this one through closeInfo.
+function Engine:toggleInfo()
+  if not self.active or not (self._rects and self._rects.bottomBar) or not self._bottomBarModel then return end
+  local model = self._bottomBarModel
+  if not self._infoOpen and model.panelOpen and model.panelAction and self:floatsActionsPane() then
+    self:bottomBarAction(model.panelAction)
   end
-  self._keysOpen = not self._keysOpen
+  self._infoOpen = not self._infoOpen
   self.view:redraw()
 end
 
---- Engine colon footerAction, arity one. Runs the action a pressed entry of the bar names, through
---- config.footerAction, the same dispatch a key runs. Does nothing while the list is down.
-function Engine:footerAction(name)
+--- Engine colon bottomBarAction, arity one. Runs the action a pressed bar item names, through
+--- config.bottomBarAction, the same dispatch a key runs. Does nothing while the list is down.
+function Engine:bottomBarAction(name)
   if not self.active or type(name) ~= "string" then return end
-  safeCall(self.config.footerAction, name)
+  safeCall(self.config.bottomBarAction, name)
 end
 
---- Engine colon floatsActionPanel, arity zero. True when the view draws the action panel as a
---- popover over the list rather than in place of its rows, see floatsActionPanel in
+--- Engine colon floatsActionsPane, arity zero. True when the view draws the actions pane as a
+--- floating pane over the list rather than in place of its rows, see floatsActionsPane in
 --- lib/chooser/view.lua, so the panel leaves out the Back row a list of its own would need.
-function Engine:floatsActionPanel()
-  return type(self.view.floatsActionPanel) == "function" and self.view:floatsActionPanel() == true
+function Engine:floatsActionsPane()
+  return type(self.view.floatsActionsPane) == "function" and self.view:floatsActionsPane() == true
 end
 
---- Engine colon closeKeys, arity zero. Closes the key panel when it is open and does nothing
+--- Engine colon closeInfo, arity zero. Closes the info pane when it is open and does nothing
 --- otherwise, what the composition root asks before every list key that acts.
-function Engine:closeKeys()
+function Engine:closeInfo()
   self:_closeKeys()
 end
 
@@ -1005,7 +1005,7 @@ function Engine:textBudget()
   if not self._textBudget then
     local screen = self._targetScreen or self:_resolveScreen()
     local sf = screen:frame()
-    local rects = geometry.resolve(sf, self:_shapedLayout(), self._paneWidth)
+    local rects = geometry.resolve(sf, self:_shapedLayout(), self._previewPaneWidth)
     self._textBudget = geometry.textBudget(rects, self.layout)
   end
   return self._textBudget
@@ -1021,20 +1021,20 @@ function Engine:textWidth(str, which)
   return UI.measure:width(str, face.subFont, face.subSize)
 end
 
---- Engine colon reposition, arity one. Recentres the already shown surface for paneWidth and
---- answers both frames, the companion nil when there is none, and nothing at all when this
+--- Engine colon reposition, arity one. Recentres the already shown surface for previewPaneWidth and
+--- answers both frames, the preview pane nil when there is none, and nothing at all when this
 --- instance is not up. Fix round item ten. It reads its argument without storing it, since the
---- stored companion policy is setPaneWidth's alone.
-function Engine:reposition(paneWidth)
+--- stored preview pane policy is setPreviewPaneWidth's alone.
+function Engine:reposition(previewPaneWidth)
   if not self.active then return nil end
   local screen = self._targetScreen or self:_resolveScreen()
   local sf = screen:frame()
-  self._rects = geometry.resolve(sf, self:_shapedLayout(), paneWidth)
+  self._rects = geometry.resolve(sf, self:_shapedLayout(), previewPaneWidth)
   self:_updateDrawLayout()
   self.view:place(self._rects)
   self.view:redraw()
-  self._paneFrames = { chooser = self._rects.chooser, companion = self._rects.companion }
-  return self._rects.chooser, self._rects.companion
+  self._paneFrames = { chooser = self._rects.chooser, previewPane = self._rects.previewPane }
+  return self._rects.chooser, self._rects.previewPane
 end
 
 --- Engine colon settleDelay, arity zero. Zero seconds, the surface is final on its first frame
@@ -1069,16 +1069,16 @@ function Engine:setTitleLineBreak(mode)
   self.layout.titleLineBreak = mode
 end
 
---- Engine colon setPaneWidth, arity one. Sets the companion width policy for this instance's next
+--- Engine colon setPreviewPaneWidth, arity one. Sets the preview pane width policy for this instance's next
 --- placement, true inheriting the surface's own resolved width, a number overriding it, nil or
---- zero meaning no companion, every answer capped at this instance's own paneMaxW wherever
+--- zero meaning no preview pane, every answer capped at this instance's own paneMaxW wherever
 --- geometry.resolve actually reads it.
-function Engine:setPaneWidth(w)
-  self._paneWidth = w
+function Engine:setPreviewPaneWidth(w)
+  self._previewPaneWidth = w
 end
 
 --- Engine colon setPosture, arity one. "bare" draws the list alone and hands every key the list
---- does not read to config.onBareKey, "full" draws the field and the action bar as well, and
+--- does not read to config.onBareKey, "full" draws the field and the bottom bar as well, and
 --- anything else is read as full. Like setRows it takes effect on the next show.
 function Engine:setPosture(word)
   self._bare = word == "bare"
@@ -1172,7 +1172,7 @@ function M.new(config, makeView)
   -- same distance from the bottom edge as from the sides and its corners nest in the
   -- surface's. inset.y stays the text inset inside a row, handed to derivedRows below.
   layout.marginX, layout.marginY = inset.x, inset.x
-  -- The gap between the chooser and its companion is that same inset, so one token moves every
+  -- The gap between the chooser and its preview pane is that same inset, so one token moves every
   -- padding and every gap together.
   layout.gap = inset.x
   local cap = capOf(tokens)
@@ -1187,9 +1187,9 @@ function M.new(config, makeView)
   end
   layout.rowH = derived.rowH
   layout.baseH = derived.baseH
-  -- A consumer handing a footer collaborator gets the action bar, its height from the kit's
+  -- A consumer handing a bottom bar collaborator gets the bottom bar, its height from the kit's
   -- tokens, and one handing none draws no bar and keeps every row it had.
-  if config.footer then layout.footerH = footerLib.height(tokens) end
+  if config.bottomBar then layout.bottomBarH = bottomBarLib.height(tokens) end
   for k, v in pairs(config.layout or {}) do layout[k] = v end
 
   local self = setmetatable({
@@ -1199,7 +1199,7 @@ function M.new(config, makeView)
     _type = nil,
     _matcher = config.matcher,
     _search = config.search,
-    _paneWidth = nil,
+    _previewPaneWidth = nil,
     listState = listModel.newState({}, layout, ""),
     active = false,
     _lastQuery = "",
@@ -1216,20 +1216,20 @@ function M.new(config, makeView)
   if not viewOk then
     error("Chooser engine: the view does not satisfy the view contract, " .. tostring(viewReason))
   end
-  -- A view drawing one surface across the canvas and the companion runs the bar under both,
-  -- see spansFooter in lib/chooser/view.lua and footerSpan in geometry.resolve.
+  -- A view drawing one surface across the canvas and the preview pane runs the bar under both,
+  -- see spansBottomBar in lib/chooser/view.lua and bottomBarSpan in geometry.resolve.
   -- Such a view also takes no gap, since the list's margin already stands between a row and the
   -- divider and the pane pads its content by the same inset, and a gap would sit between them as
   -- well and leave a row wider room on its right than on its left. A consumer's gap still wins.
-  if type(self.view.spansFooter) == "function" and self.view:spansFooter() == true then
-    layout.footerSpan = true
+  if type(self.view.spansBottomBar) == "function" and self.view:spansBottomBar() == true then
+    layout.bottomBarSpan = true
     if not (config.layout and config.layout.gap) then layout.gap = 0 end
   end
-  -- A view whose bar is not the default row answers its own height, see footerHeight in
+  -- A view whose bar is not the default row answers its own height, see bottomBarHeight in
   -- lib/chooser/view.lua, unless the consumer's layout already set one.
-  if config.footer and type(self.view.footerHeight) == "function"
-      and not (config.layout and config.layout.footerH) then
-    layout.footerH = self.view:footerHeight(tokens)
+  if config.bottomBar and type(self.view.bottomBarHeight) == "function"
+      and not (config.layout and config.layout.bottomBarH) then
+    layout.bottomBarH = self.view:bottomBarHeight(tokens)
   end
 
   local ok, reason = contract.validate(self)

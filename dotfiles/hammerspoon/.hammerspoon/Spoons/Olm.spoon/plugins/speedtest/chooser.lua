@@ -63,7 +63,7 @@ local function labelFor(netId, fallback)
 end
 
 -- Said on the Run row and in the pane, so a person can see what a run will actually do
--- without opening the action panel to find out.
+-- without opening the actions pane to find out.
 local function describeRun(settings)
   local parts = {}
   if settings.direction == "down" then
@@ -224,10 +224,10 @@ local function startRun()
 end
 
 --------------------------------------------------------------------------------
--- The settings, verbs of the action panel
+-- The settings, verbs of the actions pane
 --------------------------------------------------------------------------------
 
--- What a run does and how much is kept are verbs of the action panel, docs/PLAN-ACTION-PANEL.md,
+-- What a run does and how much is kept are verbs of the actions pane, docs/PLAN-ACTION-PANEL.md,
 -- each a pick of one of a few through choices, and the two clears behind the panel's own
 -- confirm. Until 2026-10-30 they were a page of their own behind a Settings row, each row
 -- stepping through a ring of values on Return and the pane explaining the highlighted one. The
@@ -481,7 +481,7 @@ local function nameNote(target)
   return "This is a made up label. macOS treats a Wi Fi name as a location and only tells an app "
     .. "that holds Location Services, which Hammerspoon has never been granted. Readings are filed "
     .. "against the network itself rather than its name, so nothing is mixed up by it. Name it "
-    .. "from the action panel, or grant the permission and real names appear on their own."
+    .. "from the actions pane, or grant the permission and real names appear on their own."
 end
 
 local function describe(item)
@@ -525,12 +525,12 @@ local function renderHighlighted()
   describe(cfg.stageSelectedItem and cfg.stageSelectedItem())
 end
 
---- chooser.onPositioned(chooserFrame, companionFrame) - dock the pane where the stage put it.
+--- chooser.onPositioned(chooserFrame, previewPaneFrame) - dock the pane where the stage put it.
 --- Told both frames as nil once when a different presentation becomes current, which is the
 --- signal to erase, never onClose, since that nil pair is a swap rather than a close.
-function M.onPositioned(_, companionFrame)
-  if companionFrame then
-    pane.dock(companionFrame)
+function M.onPositioned(_, previewPaneFrame)
+  if previewPaneFrame then
+    pane.dock(previewPaneFrame)
     -- The atom seeds the highlight before it positions anything, so the first onHighlight
     -- lands with nowhere to draw. This is what fills the pane on open.
     renderHighlighted()
@@ -557,10 +557,10 @@ function M.placeholder()
   return "Measure this connection"
 end
 
---- chooser.paneWidth() - resolved once at register, by which point configure has already run,
+--- chooser.previewPaneWidth() - resolved once at register, by which point configure has already run,
 --- so this answers the real reservation. A root that injected no surface gets the list with no
---- companion rect rather than a rect nothing can draw in.
-function M.paneWidth()
+--- preview pane rect rather than a rect nothing can draw in.
+function M.previewPaneWidth()
   return pane.isEnabled() and true or 0
 end
 
@@ -570,8 +570,8 @@ function M.show()
   if cfg.stagePresent then cfg.stagePresent("speedtest") end
 end
 
---- chooser.onScroll(points) - a trackpad scroll over the docked pane.
---- The atom watches for it over the companion rect and normalises a wheel notch against a
+--- chooser.onScroll(points) - a trackpad scroll over the preview pane.
+--- The atom watches for it over the preview pane rect and normalises a wheel notch against a
 --- trackpad's pixels before calling this, so a pane never has an opinion about direction. A canvas
 --- cannot report a scroll of its own, which is why this arrives from the atom rather than from the
 --- pane noticing anything.
@@ -585,7 +585,7 @@ end
 
 --- chooser.scopeRows(query) - the rows a typed alias shows inside the launcher's own list.
 ---
---- Deliberately not the whole tool. The launcher's list reserves no companion pane and nothing can
+--- Deliberately not the whole tool. The launcher's list reserves no preview pane and nothing can
 --- be pushed onto it, so neither the detail pane nor the settings can exist here, and
 --- pretending otherwise is what made choosing a row from the alias close the list rather than show
 --- anything. What a typed word is genuinely good for is the two things worth reaching in one
@@ -649,7 +649,7 @@ function M.scopeAct(item)
 end
 
 --------------------------------------------------------------------------------
--- The action panel's verbs, colon called, since the root hands a surface method its module first
+-- The actions pane's verbs, colon called, since the root hands a surface method its module first
 --------------------------------------------------------------------------------
 
 function M:directionChoices()
@@ -720,9 +720,9 @@ end
 --- file that names the runner, the store, and the pane.
 function M.configure(opts)
   for k, v in pairs(opts or {}) do cfg[k] = v end
-  -- The shared docked pane the root grants for `pane = true`. It hands the kit to the pane's
+  -- The shared preview pane the root grants for `previewPane = true`. It hands the kit to the pane's
   -- describer on every paint, so the kit is not passed here.
-  pane.configure({ dockedPane = cfg.dockedPane })
+  pane.configure({ previewPane = cfg.previewPane })
   return M
 end
 

@@ -3,7 +3,7 @@
 // view asks of its panel. new makes a panel and answers its id, so every picker instance the
 // engine builds has a panel of its own.
 //
-// The docked pane lives here too, in the same image, so the chooser panel and the panes beside it
+// The preview pane lives here too, in the same image, so the chooser panel and the panes beside it
 // are torn down together. paneNew makes one and answers its id, and the pane functions take that
 // id first the same way. A pane never calls back into Lua, it only draws what it is handed, so it
 // needs no callback and none can reach a closed state through it. A CanvasPanel is drawn by the
@@ -42,7 +42,7 @@ private var generation = 0
 private let sentinelType = "olm.swiftchooser.sentinel"
 
 // Stops, hides and forgets every panel and the callback, the one cleanup both a closing state's
-// sentinel and a fresh luaopen run, the docked panes with them. The reference belongs to a state
+// sentinel and a fresh luaopen run, the preview panes with them. The reference belongs to a state
 // that is going or gone, so it is dropped rather than released.
 private func closeAll() {
   Perf.stop()
@@ -302,7 +302,7 @@ private let surface: lua_CFunction = { L in
   return 1
 }
 
-// MARK: The docked pane
+// MARK: The preview pane
 
 // The pane named by the id in the first argument, or nil for an id this image never made.
 private func paneAt(_ L: LuaState?) -> PanePanel? {
@@ -310,8 +310,8 @@ private func paneAt(_ L: LuaState?) -> PanePanel? {
   return panes[id]
 }
 
-// THE SEAM between a docked pane and the chooser it is drawn into, the one place either knows of
-// the other. A pane knows no chooser, so it is matched here on the companion rect a visible
+// THE SEAM between a preview pane and the chooser it is drawn into, the one place either knows of
+// the other. A pane knows no chooser, so it is matched here on the preview pane rect a visible
 // chooser panel last reported, and drawn into that panel's window. Nil when no visible swift
 // chooser owns the rect, and the pane then stands in a window of its own.
 private func chooserHosting(_ rect: NSRect) -> ChooserPanel? {
@@ -327,7 +327,7 @@ private func paneClicked(_ id: Int, _ element: String) {
   _ = skin.protectedCallAndError("olm swift panel, click", nargs: 1, nresults: 0)
 }
 
-// paneNew() makes a docked pane. paneNew({ panel = true, level, onClick }) makes a CanvasPanel's
+// paneNew() makes a preview pane. paneNew({ panel = true, level, onClick }) makes a CanvasPanel's
 // window instead, at that hs.canvas window level, never drawn into a chooser's window, click
 // through unless onClick is a function, which is then told the id of each clicked element.
 private let paneNew: lua_CFunction = { L in
@@ -351,7 +351,7 @@ private let paneNew: lua_CFunction = { L in
   return 1
 }
 
-// The companion rect, { x, y, w, h } in Hammerspoon's screen space.
+// The preview pane rect, { x, y, w, h } in Hammerspoon's screen space.
 private let panePlace: lua_CFunction = { L in
   let reader = LuaReader(L)
   guard reader.isTable(2), let x = reader.number(2, "x"), let y = reader.number(2, "y"),
@@ -364,7 +364,7 @@ private let panePlace: lua_CFunction = { L in
 // paneDraw(id, radius, elements, scroll) draws the elements on glass of that corner radius and
 // answers an array naming each thing in them that was not drawn, empty when everything was.
 // scroll is { height, reset, thumb }, the content's full height, whether the view goes back to
-// the top, and whether it shows an overlay scroller, lib/dockedpane.lua's native scroll. Without
+// the top, and whether it shows an overlay scroller, lib/previewpane.lua's native scroll. Without
 // it the content is the pane's own height and the view keeps where it is.
 private let paneDraw: lua_CFunction = { L in
   olm_newTable(L)
@@ -394,9 +394,9 @@ private let paneScrollBy: lua_CFunction = { L in
   return 1
 }
 
-// hostsPane(id) answers whether that chooser panel's window holds a shown docked pane, which then
+// hostsPane(id) answers whether that chooser panel's window holds a shown preview pane, which then
 // scrolls natively under the pointer. The Lua view's scroll tap asks it before claiming a scroll
-// over the companion, see View colon _onScroll in view.lua.
+// over the preview pane, see View colon _onScroll in view.lua.
 private let hostsPane: lua_CFunction = { L in
   lua_pushboolean(L, (panelAt(L)?.hostsShownPane ?? false) ? 1 : 0)
   return 1

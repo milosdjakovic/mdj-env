@@ -13,7 +13,7 @@
 ---   util.lua        the shellout runner, the held timer, and row building
 ---   frecency.lua    what you actually use, the one ordering that is not a date or a text score
 ---   chooser.lua     the list surface, pure policy over the engine's api
----   thumbs.lua      pictures of files, a chain of generators behind the docked pane
+---   thumbs.lua      pictures of files, a chain of generators behind the preview pane
 ---   sources/*.lua   the concrete search backends, one self contained file each
 ---   viewers/*.lua   the concrete preview providers, one self contained file each
 ---

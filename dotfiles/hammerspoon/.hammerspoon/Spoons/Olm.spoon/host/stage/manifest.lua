@@ -31,7 +31,7 @@
 -- when this host actually reads what arrives.
 --
 -- All four needs below are delivered by hand into wireData.stage at the composition root
--- rather than through servicesLib.fanOut, the same door host/actionpanel's own kindOf,
+-- rather than through servicesLib.fanOut, the same door host/actionspane's own kindOf,
 -- rowsFor, and run already go through for the identical reason, a value only the root can
 -- compute for one particular host rather than a word many plugins share.
 return {
@@ -60,13 +60,13 @@ return {
       -- whichever presentation is current. The chooser draws the picture when it paints.
       stampIcons = { source = "root", policy = "optional",
         breaks = "a row that names an icon by key has no owner to read the key against, so every plugin that declares its icons in its manifest draws its rows bare" },
-      -- The action bar's model for whatever is showing, lib/hints.lua's footerModel built by the
+      -- The bottom bar's model for whatever is showing, lib/hints.lua's bottomBarModel built by the
       -- root over this host's own current and labels. Fixed for the life of this one instance
       -- rather than carried on a presentation, per the stage design brief's own decision that
       -- such callbacks are atom level policy alongside screen, matcher, and theme. It replaced
       -- the docked shortcut panel triple on 2026-10-23, docs/PLAN-ACTION-BAR.md.
-      footer = { source = "root", policy = "optional",
-        breaks = "the one instance draws no action bar, so no list says what Return, Command and Return and the action panel do, and the key panel never opens" },
+      bottomBar = { source = "root", policy = "optional",
+        breaks = "the one instance draws no bottom bar, so no list says what Return, Command and Return and the actions pane do, and the info pane never opens" },
     },
   },
 

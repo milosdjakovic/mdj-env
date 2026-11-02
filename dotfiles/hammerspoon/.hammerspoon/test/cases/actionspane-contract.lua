@@ -1,4 +1,4 @@
--- Unit case for the action panel's contract, docs/PLAN-ACTION-PANEL.md, the four fields a row of
+-- Unit case for the actions pane's contract, docs/PLAN-ACTION-PANEL.md, the four fields a row of
 -- surface.extra may carry and a verb of the panel alone, validated by lib/surface.lua and ordered
 -- into sections by lib/hints.lua. The runner reaches this file with a dofile call carrying an
 -- absolute path, and this file finds the modules from its own.

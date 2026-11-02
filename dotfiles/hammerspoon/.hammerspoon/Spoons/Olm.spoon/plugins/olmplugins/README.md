@@ -19,7 +19,7 @@ a click away or a choice that closes it, or when Apply now is chosen. After a di
 means done, and one routine line after the reload names what changed. After Apply now the list
 reopens on the plugin last chosen. Staged choices are held in memory until then, so a reload
 from anything else, or quitting Hammerspoon, drops them. A refusal is said through the routine
-feedback line rather than an alert. A docked pane follows the
+feedback line rather than an alert. A preview pane follows the
 highlight. For the highlighted plugin it shows the title and version, its description, the
 author, license and homepage when declared, what the plugin needs in short groups, and a line
 naming what else goes off or comes back with it, measured against everything else staged and
@@ -28,5 +28,5 @@ the pane shows the shared empty state. The four root words behind it, `pluginCat
 `pluginCascade`, `stagePluginSwitch` and `applyPluginSwitches`, come from
 `lib/pluginswitch.lua`, and the place reopened after Apply now is a note this plugin hands the
 root about itself, its own name and the plugin to highlight. `pluginspage.lua` builds the rows and the detail block as plain
-data and kit nodes, and the shared docked pane, `lib/dockedpane.lua`, granted by `pane = true`,
+data and kit nodes, and the shared preview pane, `lib/previewpane.lua`, granted by `previewPane = true`,
 is the canvas that draws them.

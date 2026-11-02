@@ -38,7 +38,7 @@
 --- scroll tap, built and hand judged across round five of the list brief, and the
 --- mechanics below are lifted from there rather than written a second time. It tells a
 --- trackpad from a wheel through hs.eventtap.event.properties.scrollWheelEventIsContinuous,
---- the same property the native provider's own companion pane watcher reads, and hands
+--- the same property the native provider's own preview pane watcher reads, and hands
 --- back the raw continuous point delta for the one and the raw notch delta for the
 --- other, on the axis that probe already reads. Neither is converted or eased here, since
 --- the easing policy, follow a trackpad directly and ease a wheel toward its target over

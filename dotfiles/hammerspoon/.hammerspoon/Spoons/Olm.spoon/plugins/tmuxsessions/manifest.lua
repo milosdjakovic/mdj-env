@@ -100,7 +100,7 @@ return {
     -- insertSelected rather than the retired enter, the atom's own real completion path,
     -- which host/stage's own surfaceFor answers directly.
     primary = { action = "insertSelected", description = "Select" },
-    -- Which terminal a fresh attach opens into, a verb of the action panel alone with choices,
+    -- Which terminal a fresh attach opens into, a verb of the actions pane alone with choices,
     -- docs/PLAN-ACTION-PANEL.md. It replaced a settings level behind the list's last row on
     -- 2026-10-30. terminalChoices and setTerminal are colon methods on the chooser submodule,
     -- which registry.surface below names.

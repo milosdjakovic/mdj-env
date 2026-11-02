@@ -2,7 +2,7 @@
 ---
 --- The one vocabulary of keys a person reads. A key is an object with a name and the glyph it is
 --- drawn as, and a chord is a list of keys, one entry per key, never a string. Every surface that
---- shows a shortcut, the key caps of both choosers, the action panel, the key panel, the cheat
+--- shows a shortcut, the key caps of both choosers, the actions pane, the info pane, the cheat
 --- sheets and the launcher's subtitles, receives a chord and draws or spells it through this file,
 --- so a glyph is written here and nowhere else, and two keys of one chord are never joined by a
 --- space. Settled by Milos on 2026-11-02, see decisions/olm-chooser-keys.md.

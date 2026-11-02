@@ -1,8 +1,8 @@
 -- Unit case for the three search fields phase three of docs/PLAN-UNIFIED-SEARCH.md added, a
 -- row's names, a presentation's searchText and its rowLimit, through the real rank engine in
 -- Olm.spoon/lib/chooser/rank.lua, the real shared search in lib/chooser/match.lua and the real
--- check in lib/registrar.lua. The stage, the provider, the query scope and the action panel
--- threading them are proved in stage-search.lua and actionpanel.lua. The runner reaches this
+-- check in lib/registrar.lua. The stage, the provider, the query scope and the actions pane
+-- threading them are proved in stage-search.lua and actionspane.lua. The runner reaches this
 -- file with a dofile call carrying an absolute path, so this file locates itself through
 -- debug.getinfo, and the modules under test are only loaded.
 --

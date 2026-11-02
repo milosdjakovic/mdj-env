@@ -20,13 +20,13 @@
 --- share with that module. titleLineBreak travels the same way, native's own default of
 --- truncateTail, a question this file never adjudicates.
 ---
---- M.resolve(screenFrame, layout, paneWidth) answers one table of rectangles, canvas,
---- field, list, chooser, companion, footer and rowCount, every rectangle in absolute screen
+--- M.resolve(screenFrame, layout, previewPaneWidth) answers one table of rectangles, canvas,
+--- field, list, chooser, previewPane, bottomBar and rowCount, every rectangle in absolute screen
 --- points, the same space hs.window frames and hs.eventtap event locations already use.
 --- The arithmetic mirrors legacy.lua's own placement functions in shape, a row count
 --- trimmed to the screen, a pair centred as one unit, a top biased vertical position
 --- clamped between two pads with the top pad winning when the surface cannot keep both,
---- and a companion width resolved from true, a number, or nil, every answer capped at
+--- and a preview pane width resolved from true, a number, or nil, every answer capped at
 --- paneMaxW. Nothing here is copied from legacy.lua's own numbers, only the shape of the
 --- reasoning, since the canvas surface's own proportions are its own design.
 ---
@@ -131,10 +131,10 @@ M.DEFAULT_LAYOUT = {
   marginY = 10,
   showRowNumbers = true,
   caretWidth = 2,
-  -- The action bar's height, the footer row the provider draws at the bottom of the canvas when
-  -- it is handed a footer. Zero here, since a caller with no footer draws none, and the provider
-  -- sets it from the kit's tokens when it has one, see footer.lua.
-  footerH = 0,
+  -- The bottom bar's height, the bottom bar row the provider draws at the bottom of the canvas when
+  -- it is handed a bottomBar. Zero here, since a caller with no bottom bar draws none, and the provider
+  -- sets it from the kit's tokens when it has one, see bottombar.lua.
+  bottomBarH = 0,
   -- Borrowed outright from legacy.lua's own DEFAULT_LAYOUT, a placement question the
   -- five rounds behind BRIEF-CANVAS-LIST.md never redesigned. Named here so this file's
   -- own header can say plainly that this is a borrow rather than a fresh design.
@@ -157,24 +157,24 @@ end
 
 -- Trims the requested row count to what the screen can actually hold, the screen
 -- height less twice the minimum vertical padding, less the field height, the edge margin
--- and the action bar, divided by the row height, floored, and never more than what layout
+-- and the bottom bar, divided by the row height, floored, and never more than what layout
 -- itself asked for. Bounded at zero rather than left negative on a screen too short to
 -- hold even the field, the same answer something sane rather than raising posture every
 -- other file in this provider already keeps.
 local function trimmedRowCount(screenFrame, layout)
   local avail = screenFrame.h - 2 * layout.minVPad - layout.baseH - layout.marginY
-    - (layout.footerH or 0) - (layout.peek or 0) * layout.rowH
+    - (layout.bottomBarH or 0) - (layout.peek or 0) * layout.rowH
   local fit = math.floor(avail / layout.rowH)
   return math.max(0, math.min(layout.rowCount, fit))
 end
 
--- Resolves paneWidth into a companion width in points for this call, or zero for no
--- companion. true inherits canvasWidth, a number overrides it independently, nil or
--- zero or a negative number all mean no companion, and every answer is capped at
--- layout.paneMaxW, mirroring legacy.lua's own _resolveCompanionWidth in shape though not
+-- Resolves previewPaneWidth into a preview pane width in points for this call, or zero for no
+-- previewPane. true inherits canvasWidth, a number overrides it independently, nil or
+-- zero or a negative number all mean no preview pane, and every answer is capped at
+-- layout.paneMaxW, mirroring legacy.lua's own _resolvePreviewPaneWidth in shape though not
 -- in the numbers it resolves against.
-local function resolveCompanionWidth(paneWidth, canvasWidth, layout)
-  local w = paneWidth
+local function resolvePreviewPaneWidth(previewPaneWidth, canvasWidth, layout)
+  local w = previewPaneWidth
   if w == true then w = canvasWidth end
   if type(w) ~= "number" or w <= 0 then return 0 end
   return math.min(w, layout.paneMaxW)
@@ -193,19 +193,19 @@ local function topBiasedY(screenFrame, layout, canvasHeight)
   return wanted
 end
 
---- M.resolve(screenFrame, layout, paneWidth) answers one table of rectangles, all in
+--- M.resolve(screenFrame, layout, previewPaneWidth) answers one table of rectangles, all in
 --- absolute screen points. layout falls back to M.DEFAULT_LAYOUT when nil.
-function M.resolve(screenFrame, layout, paneWidth)
+function M.resolve(screenFrame, layout, previewPaneWidth)
   layout = layout or M.DEFAULT_LAYOUT
 
   local rowCount = trimmedRowCount(screenFrame, layout)
   local viewRows = rowCount + ((rowCount > 1) and (layout.peek or 0) or 0)
   local canvasW = layout.width
-  local footerH = layout.footerH or 0
-  local canvasH = layout.marginY + layout.baseH + viewRows * layout.rowH + footerH
+  local bottomBarH = layout.bottomBarH or 0
+  local canvasH = layout.marginY + layout.baseH + viewRows * layout.rowH + bottomBarH
 
-  local companionW = resolveCompanionWidth(paneWidth, canvasW, layout)
-  local total = canvasW + (companionW > 0 and (layout.gap + companionW) or 0)
+  local previewPaneW = resolvePreviewPaneWidth(previewPaneWidth, canvasW, layout)
+  local total = canvasW + (previewPaneW > 0 and (layout.gap + previewPaneW) or 0)
   local x = screenFrame.x + math.floor((screenFrame.w - total) / 2)
   local y = topBiasedY(screenFrame, layout, canvasH)
 
@@ -225,22 +225,22 @@ function M.resolve(screenFrame, layout, paneWidth)
     x = x + layout.marginX, y = y + layout.baseH,
     w = canvasW - 2 * layout.marginX, h = viewRows * layout.rowH + layout.marginY,
   }
-  -- The action bar spans the canvas's full width under the list, so the list stops above it
-  -- and a row cut by the viewport is cut at the bar's top edge. None when footerH is zero.
-  -- With footerSpan, set when the view draws one surface across the canvas, the gap and the
-  -- companion, the bar spans that whole width and floats over both, so the companion keeps the
+  -- The bottom bar spans the canvas's full width under the list, so the list stops above it
+  -- and a row cut by the viewport is cut at the bar's top edge. None when bottomBarH is zero.
+  -- With bottomBarSpan, set when the view draws one surface across the canvas, the gap and the
+  -- preview pane, the bar spans that whole width and floats over both, so the preview pane keeps the
   -- canvas's height and says how much of its bottom the bar covers in under, which the pane
   -- leaves out of the box it lays its content in.
-  local spans = layout.footerSpan == true and companionW > 0 and footerH > 0
-  local footerRect = nil
-  if footerH > 0 then
-    footerRect = { x = x, y = y + canvasH - footerH, w = spans and total or canvasW, h = footerH }
+  local spans = layout.bottomBarSpan == true and previewPaneW > 0 and bottomBarH > 0
+  local bottomBarRect = nil
+  if bottomBarH > 0 then
+    bottomBarRect = { x = x, y = y + canvasH - bottomBarH, w = spans and total or canvasW, h = bottomBarH }
   end
 
-  local companionRect = nil
-  if companionW > 0 then
-    companionRect = { x = x + canvasW + layout.gap, y = y, w = companionW, h = canvasH,
-      under = spans and footerH or nil }
+  local previewPaneRect = nil
+  if previewPaneW > 0 then
+    previewPaneRect = { x = x + canvasW + layout.gap, y = y, w = previewPaneW, h = canvasH,
+      under = spans and bottomBarH or nil }
   end
 
   return {
@@ -248,8 +248,8 @@ function M.resolve(screenFrame, layout, paneWidth)
     field = fieldRect,
     list = listRect,
     chooser = canvasRect,
-    companion = companionRect,
-    footer = footerRect,
+    previewPane = previewPaneRect,
+    bottomBar = bottomBarRect,
     rowCount = rowCount,
     viewRows = viewRows,
   }

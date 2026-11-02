@@ -75,54 +75,54 @@ do
 end
 
 --------------------------------------------------------------------------------
--- Centring the pair, with and without a companion, and paneWidth as true, as a number,
+-- Centring the pair, with and without a preview pane, and previewPaneWidth as true, as a number,
 -- and as nil, every answer capped by paneMaxW.
 --------------------------------------------------------------------------------
 
 do
   local rects = geometry.resolve(ROOMY_SCREEN, geometry.DEFAULT_LAYOUT, nil)
-  check("paneWidth nil answers no companion at all", rects.companion == nil)
+  check("previewPaneWidth nil answers no previewPane at all", rects.previewPane == nil)
   local expectedX = ROOMY_SCREEN.x + math.floor((ROOMY_SCREEN.w - geometry.DEFAULT_LAYOUT.width) / 2)
-  check("with no companion the canvas alone is centred on the screen",
+  check("with no previewPane the canvas alone is centred on the screen",
     rects.canvas.x == expectedX, "got " .. tostring(rects.canvas.x))
 end
 
 do
-  -- paneWidth true inherits the canvas's own width, six hundred twenty, which exceeds
+  -- previewPaneWidth true inherits the canvas's own width, six hundred twenty, which exceeds
   -- paneMaxW of four hundred eighty, so the cap is what actually lands.
   local rects = geometry.resolve(ROOMY_SCREEN, geometry.DEFAULT_LAYOUT, true)
-  check("paneWidth true is capped by paneMaxW rather than truly inheriting the canvas width",
-    rects.companion.w == geometry.DEFAULT_LAYOUT.paneMaxW,
-    "got " .. tostring(rects.companion.w))
-  local total = rects.canvas.w + geometry.DEFAULT_LAYOUT.gap + rects.companion.w
+  check("previewPaneWidth true is capped by paneMaxW rather than truly inheriting the canvas width",
+    rects.previewPane.w == geometry.DEFAULT_LAYOUT.paneMaxW,
+    "got " .. tostring(rects.previewPane.w))
+  local total = rects.canvas.w + geometry.DEFAULT_LAYOUT.gap + rects.previewPane.w
   local expectedX = ROOMY_SCREEN.x + math.floor((ROOMY_SCREEN.w - total) / 2)
-  check("the pair centres as one unit, the canvas plus the gap plus the companion",
+  check("the pair centres as one unit, the canvas plus the gap plus the preview pane",
     rects.canvas.x == expectedX, "got " .. tostring(rects.canvas.x))
-  check("the companion sits directly beside the canvas across the gap",
-    rects.companion.x == rects.canvas.x + rects.canvas.w + geometry.DEFAULT_LAYOUT.gap,
-    "got " .. tostring(rects.companion.x))
+  check("the preview pane sits directly beside the canvas across the gap",
+    rects.previewPane.x == rects.canvas.x + rects.canvas.w + geometry.DEFAULT_LAYOUT.gap,
+    "got " .. tostring(rects.previewPane.x))
 end
 
 do
   -- A number under the cap overrides the width independently rather than inheriting
   -- the canvas's own.
   local rects = geometry.resolve(ROOMY_SCREEN, geometry.DEFAULT_LAYOUT, 300)
-  check("a paneWidth number under the cap is taken as is",
-    rects.companion.w == 300, "got " .. tostring(rects.companion.w))
+  check("a previewPaneWidth number under the cap is taken as is",
+    rects.previewPane.w == 300, "got " .. tostring(rects.previewPane.w))
 end
 
 do
   -- A number over the cap is still capped, exactly as true is.
   local rects = geometry.resolve(ROOMY_SCREEN, geometry.DEFAULT_LAYOUT, 900)
-  check("a paneWidth number over the cap is capped by paneMaxW",
-    rects.companion.w == geometry.DEFAULT_LAYOUT.paneMaxW,
-    "got " .. tostring(rects.companion.w))
+  check("a previewPaneWidth number over the cap is capped by paneMaxW",
+    rects.previewPane.w == geometry.DEFAULT_LAYOUT.paneMaxW,
+    "got " .. tostring(rects.previewPane.w))
 end
 
 do
   local rects = geometry.resolve(ROOMY_SCREEN, geometry.DEFAULT_LAYOUT, 0)
-  check("paneWidth zero answers no companion, matching nil",
-    rects.companion == nil)
+  check("previewPaneWidth zero answers no previewPane, matching nil",
+    rects.previewPane == nil)
 end
 
 --------------------------------------------------------------------------------

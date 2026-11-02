@@ -23,7 +23,7 @@ return {
   -- Each case row names the icon keyed by its transform id, so a case added to
   -- transforms.lua declares its icon here under the same id.
   icons = {
-    -- The primary, Apply, and the secondary, Copy, in the action panel. Each names what the verb
+    -- The primary, Apply, and the secondary, Copy, in the actions pane. Each names what the verb
     -- does, never the key that runs it, since the panel already prints the chord beside it.
     apply = { emoji = "✅", sf = "checkmark.circle" },
     copy = { emoji = "📋", sf = "doc.on.doc" },
@@ -143,7 +143,7 @@ return {
   -- outright, never the bare string shorthand this contract allows everywhere else a
   -- member is not a presentation's own. No matcher, so this presentation inherits the
   -- root default, fuzzy, the one picker in the whole tree that deliberately keeps it,
-  -- stated as such at obj:rows above. No paneWidth, this list reserves no companion pane.
+  -- stated as such at obj:rows above. No previewPaneWidth, this list reserves no preview pane.
   --
   -- enter is contract v2's own second addition and the reason this plugin needed it before
   -- the word for it existed. obj:enter reads the selection and proceeds once the rows built
@@ -169,7 +169,7 @@ return {
             icon = "textcase",
             keywords = "uppercase, lowercase, camel case, snake case, kebab case, capitalize" },
     open = "show",
-    -- verbs are what the action panel offers over a scope row, keyed by the surface actions
+    -- verbs are what the actions pane offers over a scope row, keyed by the surface actions
     -- above, so the scoped list offers Apply and Copy as the tool's own list does.
     scope = {
       rows = { member = "scopeRows", call = "method" },

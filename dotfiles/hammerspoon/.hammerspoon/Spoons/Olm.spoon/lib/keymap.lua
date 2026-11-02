@@ -748,21 +748,21 @@ end
 --- keypad Enter chooses the row as plain Return does, and the field asks the list keys for both
 --- before its own Return handling. A list declaring no secondary builds no binding there, so both
 --- keep choosing the row. A person naming secondary in the lists section moves both at once, since
---- an action named takes exactly the chords listed for it. showKeys is Command and ?, slash with
+--- an action named takes exactly the chords listed for it. showInfo is Command and ?, slash with
 --- Command and Shift, and Command and slash beside it, so a press with or without Shift opens the
---- key panel, two field keys on no leader like the secondary's. The first is the one spelled, ⌘?
+--- info pane, two field keys on no leader like the secondary's. The first is the one spelled, ⌘?
 --- through the shared glyph speller. It is not a held list key because macOS takes Hyper and slash, and Hyper with other
 --- punctuation, before any event tap sees it, see decisions/olm-chooser-keys.md. It reaches a list
---- only where the system's Show Help menu shortcut is off, which src/setup-macos-shortcuts.sh sees to. showKeys sits on slash
+--- only where the system's Show Help menu shortcut is off, which src/setup-macos-shortcuts.sh sees to. showInfo sits on slash
 --- on the list role, shadowing a global slash only while a list is open, which a list key may do
 --- since collisions are checked per layer.
 obj.listDefaults = {
-  primary = "i", selectNext = "j", selectPrev = "k", close = "x", openActionPanel = "o",
+  primary = "i", selectNext = "j", selectPrev = "k", close = "x", openActionsPane = "o",
   secondary = {
     { key = "return", mods = { "cmd" }, leader = false },
     { key = "padenter", mods = { "cmd" }, leader = false },
   },
-  showKeys = {
+  showInfo = {
     { key = "/", mods = { "cmd", "shift" }, leader = false },
     { key = "/", mods = { "cmd" }, leader = false },
   },
@@ -825,8 +825,8 @@ local function reaches(held, b)
 end
 
 --- obj.applyLists(contexts, lists, opts) -> problems, notes
---- The person's lists section laid over every list's built bindings, in place, so the action bar,
---- the action panel, the keymap's rows and the contexts the root binds all read the one answer.
+--- The person's lists section laid over every list's built bindings, in place, so the bottom bar,
+--- the actions pane, the keymap's rows and the contexts the root binds all read the one answer.
 --- First every default binding, one naming no leader, is placed on the leader the list role lands
 --- on, opts.listLeader, so every reader after this reads a binding's own leader. Then all is laid
 --- and each list's own table over it. A list's own table decides every binding

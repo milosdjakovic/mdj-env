@@ -48,7 +48,7 @@ local ARITY = {
   insertSelected = 0,
   textBudget = 0, textWidth = 2,
   reposition = 1, settleDelay = 0,
-  matcher = 0, setMatcher = 1, titleLineBreak = 0, setTitleLineBreak = 1, setPaneWidth = 1,
+  matcher = 0, setMatcher = 1, titleLineBreak = 0, setTitleLineBreak = 1, setPreviewPaneWidth = 1,
 }
 
 -- A plain stub declaring exactly n parameters beyond a leading self, the shape every real

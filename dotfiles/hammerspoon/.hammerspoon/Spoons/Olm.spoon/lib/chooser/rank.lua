@@ -15,7 +15,7 @@
 ---
 --- It is the one rank engine, docs/PLAN-UNIFIED-SEARCH.md. Phase one on 2026-10-17 deleted
 --- the four copies of this loop that had grown elsewhere, in host/queryscope, in the default
---- provider's list model, in host/actionpanel and in the launcher's catalog ranking, and
+--- provider's list model, in host/actionspane and in the launcher's catalog ranking, and
 --- each now scores and sorts through here. A host reaches it as the rank value the
 --- composition root hands over, never by loading this file itself.
 

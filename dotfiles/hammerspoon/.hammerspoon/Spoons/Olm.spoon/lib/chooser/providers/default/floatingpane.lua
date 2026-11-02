@@ -1,37 +1,37 @@
---- === Popover ===
+--- === FloatingPane ===
 ---
---- The canvas chooser's popover, the one shape both the key panel and the action panel are drawn
+--- The canvas chooser's floating pane, the one shape both the info pane and the actions pane are drawn
 --- in, standing over the chooser above one of the bar's groups. It is the canvas clone of the
---- swift chooser's popover, providers/swift/native/Popover.swift, the same parts in the same places
+--- swift chooser's floating pane, providers/swift/native/FloatingPane.swift, the same parts in the same places
 --- at the same sizes, filled with the background colour role and outlined in the border role
 --- rather than glass. It knows neither panel, only the title and the lines it is handed. A line
 --- is a label on the left and its chord on the right, and may carry a picture on its left, a
 --- section heading above the first line of each run naming the same section, and an enabled flag,
 --- a disabled line drawn in the dimmed colours a disabled row takes.
 ---
---- It answers elements and hit rects and opens no canvas, the way footer.lua and list/render.lua
+--- It answers elements and hit rects and opens no canvas, the way bottombar.lua and list/render.lua
 --- do, so the view appends what it answers to its own surface and keeps the rects for its mouse.
 --- Coordinates are the window's own local space, the space the view draws in.
 ---
 --- The padding rules are swift's. Its lines stand the outer padding from all four edges, the way
 --- the list's highlighted rows stand from the window's, a line's picture and words stand the inner
---- padding in from the line's edge, and the highlight's corner is the popover's less the outer
---- padding, the kit's nested radius. The key panel, whose lines are only read, is laid out the
+--- padding in from the line's edge, and the highlight's corner is the floating pane's less the outer
+--- padding, the kit's nested radius. The info pane, whose lines are only read, is laid out the
 --- same, so both panels and the bar's cells share one size, Milos's choice of 2026-11-02. A header
 --- is the row title's role and colour, laid out as one more line, with a rule in the border role
 --- on the header line's bottom edge and the first line right below it. The corner is the
---- highlighted row's, the surface radius less the list margin, as swift hands its popover the
+--- highlighted row's, the surface radius less the list margin, as swift hands its floating pane the
 --- highlight radius.
 ---
 --- Every value is a token. The words and the header are the body role, the row title the swift
---- chooser hands its popover as titleFont, the label in the foreground colour, the chord a key
---- cap, footer.lua's keycap, as swift's KeyCap, a heading is the caption role in its own
+--- chooser hands its floating pane as titleFont, the label in the foreground colour, the chord a key
+--- cap, bottombar.lua's keycap, as swift's KeyCap, a heading is the caption role in its own
 --- colour, the outer padding is the kit's pad, the inner padding its inner, the gap the large space step, a picture's side the
 --- section line height, and a line's height the bar's row, which the view hands in since the bar
 --- owns it. No shadow, swift's glass has none.
 
 local herePath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
-local footerLib = assert(loadfile(herePath .. "footer.lua"))()
+local bottomBarLib = assert(loadfile(herePath .. "bottombar.lua"))()
 
 local M = {}
 
@@ -50,7 +50,7 @@ local function append(out, els)
   for _, el in ipairs(els or {}) do out[#out + 1] = el end
 end
 
---- M.style(ui, tokens, marginX, lineH) -> the popover's style, every colour, role and size read
+--- M.style(ui, tokens, marginX, lineH) -> the floating pane's style, every colour, role and size read
 --- from the kit's tokens. marginX is the list's margin, which the corner nests inside the
 --- surface's by, and lineH the height of one line, the bar's row, both the view's to hand in.
 function M.style(ui, tokens, marginX, lineH)
@@ -58,16 +58,16 @@ function M.style(ui, tokens, marginX, lineH)
   local body, caption = T.text.body, T.text.caption
   local radius = ui.nestedRadius(T.radius.surface, marginX)
   return {
-    -- The bar's one padding on every side inside the panel and inside a line, footer.lua's, and
+    -- The bar's one padding on every side inside the panel and inside a line, bottombar.lua's, and
     -- the outer padding only between the panel and the group it stands above.
-    outer = footerLib.padding(T),
-    inner = footerLib.padding(T),
+    outer = bottomBarLib.padding(T),
+    inner = bottomBarLib.padding(T),
     standoff = T.pad,
     gap = T.space.l,
     iconSide = T.text.section.lineHeight,
     lineH = lineH,
     radius = radius,
-    lineRadius = ui.nestedRadius(radius, footerLib.padding(T)),
+    lineRadius = ui.nestedRadius(radius, bottomBarLib.padding(T)),
     tokens = T,
     stroke = T.stroke.border,
     font = body.font, size = body.size, textH = body.lineHeight,
@@ -83,7 +83,7 @@ function M.style(ui, tokens, marginX, lineH)
   }
 end
 
---- M.layout(ui, style, title, lines, selectable) -> a popover's measured content, its preferred
+--- M.layout(ui, style, title, lines, selectable) -> a floating pane's measured content, its preferred
 --- size among it. title is the header, nil for none. Each line is { label, chord, picture,
 --- section, enabled }, picture a function(frame) -> elements or nil. selectable says the lines
 --- are chosen rather than only read, so a highlight is drawn. The preferred size is every line
@@ -98,7 +98,7 @@ function M.layout(ui, style, title, lines, selectable)
   end
   -- The room a line's picture takes, nothing for lines without one.
   local lead = pictured and (st.iconSide + st.gap) or 0
-  -- How far a line's text stands in from the popover's sides, the inner padding inside a line the
+  -- How far a line's text stands in from the floating pane's sides, the inner padding inside a line the
   -- outer padding from the edge.
   local side = st.outer + st.inner
 
@@ -116,7 +116,7 @@ function M.layout(ui, style, title, lines, selectable)
     tops[i] = y
     y = y + st.lineH
     line.labelW = width(line.label, st.font, st.size)
-    line.chordW = footerLib.keycapWidth(ui, st.tokens, line.chord)
+    line.chordW = bottomBarLib.keycapWidth(ui, st.tokens, line.chord)
     widest = math.max(widest, lead + line.labelW + st.gap + line.chordW)
   end
   local headerH = 0
@@ -134,9 +134,9 @@ function M.layout(ui, style, title, lines, selectable)
   }
 end
 
---- M.place(pop, anchor, align, room) -> the popover's rect. anchor is the rect of the group whose
+--- M.place(pop, anchor, align, room) -> the floating pane's rect. anchor is the rect of the group whose
 --- corner it takes, the bar hiding both groups while a panel is open, align "left" for the key
---- panel, its left and bottom edges on the group's, and "right" for the action panel, its right
+--- panel, its left and bottom edges on the group's, and "right" for the actions pane, its right
 --- and bottom edges on the group's. room is { w, top }, the window's width and the list's top
 --- edge. It is as wide as its widest line and never wider than the window less the outer padding
 --- on its open side, past which its labels truncate, as tall as its lines and never above the
@@ -154,7 +154,7 @@ function M.place(pop, anchor, align, room)
   return { x = anchor.x, y = bottom - h, w = w, h = h }
 end
 
--- Where the lines start inside the popover, from its top, and how much of them shows, the
+-- Where the lines start inside the floating pane, from its top, and how much of them shows, the
 -- scrolled region running from there to the bottom edge with the outer padding kept under the
 -- last line, the bottom inset of swift's scroll view.
 local function region(pop, rect)
@@ -176,8 +176,8 @@ local function centredText(ui, str, font, size, color, x, top, h, w, align)
     frame = { x = px(x), y = px(baseline - m.ascender), w = px(math.max(0, w)), h = px(2 * lineH) } }
 end
 
---- M.elements(ui, pop, rect, opts) -> elements, info. The popover drawn in rect. opts.highlight is
---- the line lit, from one, or nil, drawn only for a popover whose lines are chosen, and
+--- M.elements(ui, pop, rect, opts) -> elements, info. The floating pane drawn in rect. opts.highlight is
+--- the line lit, from one, or nil, drawn only for a floating pane whose lines are chosen, and
 --- opts.scroll how far its lines are scrolled, clamped here. opts.reveal scrolls just enough to
 --- show the lit line, as swift's revealHighlight does. info.scroll is the scroll drawn,
 --- info.maxScroll the furthest it can go, and info.lines each line on screen as { index, rect },
@@ -203,7 +203,7 @@ function M.elements(ui, pop, rect, opts)
     local top = rect.y + st.outer
     els[#els + 1] = centredText(ui, pop.title, st.font, st.size, st.text, rect.x + side, top, st.lineH,
       rect.w - 2 * side)
-    -- The rule on the header line's bottom edge and across the popover inside its outline, the
+    -- The rule on the header line's bottom edge and across the floating pane inside its outline, the
     -- first line right below it.
     els[#els + 1] = { type = "rectangle", action = "fill", fillColor = st.border,
       frame = { x = rect.x + st.stroke, y = top + st.lineH, w = rect.w - 2 * st.stroke, h = st.stroke } }
@@ -222,7 +222,7 @@ function M.elements(ui, pop, rect, opts)
   local origin = rect.y + start - scroll
   local view = { x = rect.x, y = rect.y + start, w = rect.w, h = viewH }
 
-  -- The lines are cut to the region they scroll in, inside the popover's own rounded shape.
+  -- The lines are cut to the region they scroll in, inside the floating pane's own rounded shape.
   els[#els + 1] = { type = "rectangle", action = "clip", roundedRectRadii = { xRadius = r, yRadius = r },
     frame = { x = rect.x, y = rect.y, w = rect.w, h = rect.h } }
   els[#els + 1] = { type = "rectangle", action = "clip", frame = view }
@@ -248,7 +248,7 @@ function M.elements(ui, pop, rect, opts)
       end
       local enabled = line.enabled ~= false
       local chordX = rect.x + rect.w - side - line.chordW
-      append(els, footerLib.keycap(ui, st.tokens, line.chord, chordX, top, st.lineH, st.lineRadius, enabled))
+      append(els, bottomBarLib.keycap(ui, st.tokens, line.chord, chordX, top, st.lineH, st.lineRadius, enabled))
       local labelX = rect.x + side + pop.lead
       els[#els + 1] = centredText(ui, line.label, st.font, st.size, enabled and st.text or st.textDim,
         labelX, top, st.lineH, chordX - st.gap - labelX)

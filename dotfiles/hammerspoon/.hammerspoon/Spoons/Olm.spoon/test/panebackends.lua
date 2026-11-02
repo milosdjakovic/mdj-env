@@ -1,8 +1,8 @@
--- The docked pane's two drawing backends, in plain Lua over a stub canvas and a stub library.
+-- The preview pane's two drawing backends, in plain Lua over a stub canvas and a stub library.
 --
--- Pins that lib/dockedpane.lua hands both backends the same thing, so the native pane can only
+-- Pins that lib/previewpane.lua hands both backends the same thing, so the native pane can only
 -- ever draw what the canvas pane draws. The same pane is driven twice over the same describer
--- and painter, once over lib/dockedpane/canvas.lua on a recording hs.canvas stub and once over
+-- and painter, once over lib/previewpane/canvas.lua on a recording hs.canvas stub and once over
 -- lib/chooser/providers/swift/pane.lua on a recording stand in for the Swift library, for an
 -- empty state, a described pane and a painted pane.
 -- For each, the canvas is handed the surface and then the content as one list, the library is
@@ -23,7 +23,7 @@
 -- called again with the grown viewport, which is how one that cuts at the viewport hands it all.
 --
 -- Then the canvas chooser's hosting backend, lib/chooser/providers/default/canvas.lua
--- paneBackend. A pane placed on the companion rect of a canvas view that spans one draws its
+-- paneBackend. A pane placed on the preview pane rect of a canvas view that spans one draws its
 -- content into that view and makes no window of its own, a pane anywhere else and every panel go
 -- to the plain canvas backend, and a pane that moves between the two hides what it left.
 --
@@ -45,8 +45,8 @@ local function check(name, got, want)
   end
 end
 
-local DockedPane = dofile(spoon .. "lib/dockedpane.lua")
-local CanvasBackend = dofile(spoon .. "lib/dockedpane/canvas.lua")
+local PreviewPane = dofile(spoon .. "lib/previewpane.lua")
+local CanvasBackend = dofile(spoon .. "lib/previewpane/canvas.lua")
 local SwiftPane = dofile(spoon .. "lib/chooser/providers/swift/pane.lua")
 
 --------------------------------------------------------------------------------
@@ -153,7 +153,7 @@ end
 local FRAME = { x = 500, y = 200, w = 300, h = 400 }
 
 local function newPane(backend, spec)
-  return DockedPane.new({ ui = ui, surface = surface, emptyState = emptyState, backend = backend,
+  return PreviewPane.new({ ui = ui, surface = surface, emptyState = emptyState, backend = backend,
     timer = timerLib }, spec)
 end
 
@@ -208,7 +208,7 @@ local function compare(label)
   check(label .. ", equal to the canvas's content, element for element", equal, true)
   check(label .. ", and the very list the pane rendered", p.els, rendered)
   check(label .. ", at the surface's own corner", p.radius, 12)
-  check(label .. ", both at the companion rect", c.at == FRAME and p.at == FRAME, true)
+  check(label .. ", both at the preview pane rect", c.at == FRAME and p.at == FRAME, true)
   check(label .. ", both shown", c.shown == true and p.shown == true, true)
   check(label .. ", in the same order of calls",
     (table.concat(c.calls, " "):gsub("replace", "draw"):gsub("frame", "place")), table.concat(p.calls, " "))
@@ -381,9 +381,9 @@ do
 end
 
 -- The native pane is placed on the very rect it is docked on, every time, since the library
--- matches it to the chooser panel whose reported companion is that rect and draws it into that
+-- matches it to the chooser panel whose reported preview pane is that rect and draws it into that
 -- panel's window, and falls back to the pane's own window when none matches. A redock at a moved
--- companion is placed there before it draws, so the match is made against the rect now current.
+-- preview pane is placed there before it draws, so the match is made against the rect now current.
 do
   local _, b = pair({})
   b.dock(FRAME)
@@ -392,7 +392,7 @@ do
   local moved = { x = 520, y = 200, w = 280, h = 400 }
   p.calls = {}
   b.dock(moved)
-  check("a redock places the native pane on the new companion", p.at, moved)
+  check("a redock places the native pane on the new previewPane", p.at, moved)
   check("and places it before it draws and shows", table.concat(p.calls, " "), "place draw show")
 end
 
@@ -415,7 +415,7 @@ check("the radius of a border alone, widened by half its stroke",
   SwiftPane.radiusOf({ surface(10, 10)[2] }), 12)
 check("no surface, a square pane", SwiftPane.radiusOf({}), 0)
 
--- The canvas chooser hosting a docked pane in its own surface.
+-- The canvas chooser hosting a preview pane in its own surface.
 do
   local surfaceCanvas = { level = function() end, clickActivating = function() end,
     frame = function() end, isShowing = function() return false end }
@@ -427,7 +427,7 @@ do
   local view = Canvas.new(engine)
   local list = { x = 100, y = 100, w = 600, h = 400 }
   local docked = { x = 700, y = 100, w = 400, h = 400, under = 40 }
-  view:place({ canvas = list, companion = docked })
+  view:place({ canvas = list, previewPane = docked })
 
   local made = 0
   local fallback = function(frame, window)
@@ -441,7 +441,7 @@ do
   hosted.place(docked)
   hosted.render({ { type = "rectangle" } }, content)
   hosted.show()
-  check("a pane on a spanning list's companion makes no window of its own", made, 0)
+  check("a pane on a spanning list's previewPane makes no window of its own", made, 0)
   check("and its content is the list's to draw", view._paneContent, content)
   hosted.hide()
   check("hiding it takes the content off the list", view._paneContent, nil)
@@ -464,13 +464,13 @@ do
   hosted.place(docked)
   check("moved back, its own canvas is hidden", moved.shown, false)
 
-  check("a panel is never hosted, even on the companion rect",
+  check("a panel is never hosted, even on the preview pane rect",
     (function() local before = made; factory(docked, { level = "floating" }); return made - before end)(), 1)
 
   view:place({ canvas = list })
   local lone = factory(docked)
   lone.place(docked)
-  check("a list with no companion hosts nothing", made, 4)
+  check("a list with no previewPane hosts nothing", made, 4)
   hs = nil
 end
 

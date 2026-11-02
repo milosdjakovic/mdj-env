@@ -2,17 +2,17 @@
 -- the few hs calls the kit and the view make.
 --
 -- Pins that lib/chooser/providers/default/bar.lua lays the groups out by the numbers swift's
--- view.lua hands Swift, the keys group the bar pad in from the left and the actions group the
--- bar pad in from the right, each as tall as footer.lua's height at the top of the footer rect,
+-- view.lua hands Swift, the left side the bar pad in from the left and the right side the
+-- bar pad in from the right, each as tall as bottombar.lua's height at the top of the bottom bar rect,
 -- the inner padding inside it, the background fill outlined in the border role at the border
 -- stroke with its corner less half the stroke, the words in the body role, every chord a key cap
--- of the hint badge's size in its section role, the icon at the hint size, and that the entries' spans cover the actions group edge to edge in order.
+-- of the hint badge's size in its section role, the icon at the hint size, and that the items' spans cover the right side edge to edge in order.
 --
 -- Then that lib/chooser/providers/default/canvas.lua draws the list on down behind the bar
 -- without moving the engine's scroll, runs the divider the full height of the window, and
--- answers the pointer the way swift does, a press on the keys group toggling the key panel, a
--- press and release on an entry running its action through footerAction, a press between the
--- groups reaching the row behind the bar, and the keys group and each entry lighting under the
+-- answers the pointer the way swift does, a press on the left side toggling the info pane, a
+-- press and release on an item running its action through bottomBarAction, a press between the
+-- groups reaching the row behind the bar, and the left side and each item lighting under the
 -- pointer.
 --
 -- How it looks is seen live, not here.
@@ -54,8 +54,8 @@ hs = {
 
 local ui = dofile(spoon .. "lib/ui/init.lua")
 local T = ui.tokens()
-local footerLib = dofile(spoon .. "lib/chooser/providers/default/footer.lua")
--- Every chord is a kbd chord, lib/kbd.lua, one entry per key.
+local bottomBarLib = dofile(spoon .. "lib/chooser/providers/default/bottombar.lua")
+-- Every chord is a kbd chord, lib/kbd.lua, one item per key.
 local kbd = dofile(spoon .. "lib/kbd.lua")
 local barLib = dofile(spoon .. "lib/chooser/providers/default/bar.lua")
 local listModel = dofile(spoon .. "lib/chooser/providers/default/list/model.lua")
@@ -96,37 +96,37 @@ local model = {
     { label = "Actions", chord = kbd.of(kbd.Cmd, kbd.named("k")), action = "actions" },
   },
 }
-local cellH = footerLib.height(T)
-local groupH = cellH + 2 * T.barInner
+local itemH = bottomBarLib.height(T)
+local groupH = itemH + 2 * T.barInner
 local rect = { x = 0, y = 400, w = 900, h = groupH + T.pad }
 local m = barLib.metrics(T)
-check("a cell is as tall as footer.lua's row, a panel line", m.cellH, cellH)
-check("the group height is the cell and the padding around it", m.height, groupH)
+check("a item is as tall as bottombar.lua's row, a panel line", m.itemH, itemH)
+check("the group height is the item and the padding around it", m.height, groupH)
 check("the bar pad is the kit's pad", m.pad, T.pad)
 check("the padding inside a group is the bar's one padding", m.inner, T.barInner)
-check("which is also above and below the tallest part", footerLib.height(T), math.max(T.badge.hint.height, T.text.body.lineHeight) + 2 * T.barInner)
+check("which is also above and below the tallest part", bottomBarLib.height(T), math.max(T.badge.hint.height, T.text.body.lineHeight) + 2 * T.barInner)
 
 local els, hits = barLib.elements(ui, T, model, rect, { radius = 9 })
 local keys, actions = hits.keys, hits.actions
-check("the keys group stands the bar pad from the left", keys.x, rect.x + T.pad)
-check("at the top of the footer rect", keys.y, rect.y)
-check("as tall as a cell and the padding around it", keys.h, groupH)
+check("the left side stands the bar pad from the left", keys.x, rect.x + T.pad)
+check("at the top of the bottom bar rect", keys.y, rect.y)
+check("as tall as a item and the padding around it", keys.h, groupH)
 -- The ? glyph and the chord's cap, each glyph eight points a byte, the cap its glyphs one per key
 -- with the hint badge's gap between two keys and its padding either side.
 local function capW(chord)
   return 8 * #kbd.text(chord) + (#chord.keys - 1) * T.badge.hint.gap + 2 * T.badge.hint.padX
 end
 check("the hint badge spaces two keys of a chord by its gap, four points", T.badge.hint.gap, 4)
-check("as wide as its parts, the small gap, the padding inside its cell and around it",
+check("as wide as its parts, the small gap, the padding inside its item and around it",
   keys.w, 8 * #"?" + T.space.s + capW(model.keysChord) + 4 * T.barInner)
-check("its one cell stands the padding in from the group", hits.keysCell.x, keys.x + T.barInner)
-check("from the top too", hits.keysCell.y, keys.y + T.barInner)
-check("and is a cell tall", hits.keysCell.h, cellH)
-check("the actions group stands the bar pad from the right", actions.x + actions.w, rect.x + rect.w - T.pad)
+check("its one item stands the padding in from the group", hits.leftItem.x, keys.x + T.barInner)
+check("from the top too", hits.leftItem.y, keys.y + T.barInner)
+check("and is a item tall", hits.leftItem.h, itemH)
+check("the right side stands the bar pad from the right", actions.x + actions.w, rect.x + rect.w - T.pad)
 check("at the same height", actions.y, rect.y)
 local entriesW = 0
 for _, r in ipairs(model.right) do entriesW = entriesW + 8 * #r.label + T.space.s + capW(r.chord) + 2 * T.barInner end
-check("as wide as its cells, each padded inside, and the padding around them",
+check("as wide as its items, each padded inside, and the padding around them",
   actions.w, entriesW + 2 * T.barInner)
 
 local backs = filled(els, T.colors.background)
@@ -165,46 +165,46 @@ for _, el in ipairs(els) do
 end
 check("each on a chip the hint badge's height", #chips, 1 + #model.right)
 check("the chip as wide as its glyphs, the gap and the padding", chips[1].frame.w, capW(model.keysChord))
-check("centred in the cell", chips[1].frame.y, math.floor(rect.y + T.barInner + (cellH - T.badge.hint.height) / 2 + 0.5))
+check("centred in the item", chips[1].frame.y, math.floor(rect.y + T.barInner + (itemH - T.badge.hint.height) / 2 + 0.5))
 
 -- A chord naming alternatives is one chip per key with the alternative word between them.
 local alt = { kbd.of(kbd.named("j")), kbd.of(kbd.Down) }
-local altEls = footerLib.keycap(ui, T, alt, 0, 0, footerLib.height(T), 9)
+local altEls = bottomBarLib.keycap(ui, T, alt, 0, 0, bottomBarLib.height(T), 9)
 local altChips, altWord = 0, false
 for _, el in ipairs(altEls) do
   if el.type == "rectangle" then altChips = altChips + 1 end
-  if el.type == "text" and el.text == footerLib.ALT_WORD then altWord = true end
+  if el.type == "text" and el.text == bottomBarLib.ALT_WORD then altWord = true end
 end
 check("alternatives are one chip per key", altChips, 2)
 check("with the alternative word between them", altWord, true)
 check("as wide as both chips, the word and the small step either side of it",
-  footerLib.keycapWidth(ui, T, alt), capW(alt[1]) + capW(alt[2]) + 8 * #footerLib.ALT_WORD + 2 * T.space.s)
-check("a chord that is a string is refused", pcall(footerLib.keycapWidth, ui, T, "\u{2318}K"), false)
+  bottomBarLib.keycapWidth(ui, T, alt), capW(alt[1]) + capW(alt[2]) + 8 * #bottomBarLib.ALT_WORD + 2 * T.space.s)
+check("a chord that is a string is refused", pcall(bottomBarLib.keycapWidth, ui, T, "\u{2318}K"), false)
 
-check("one cell per entry", #hits.entries, 3)
-check("the first cell stands the padding in from the group's edge", hits.entries[1].rect.x, actions.x + T.barInner)
-check("and the last from its other edge", hits.entries[3].rect.x + hits.entries[3].rect.w, actions.x + actions.w - T.barInner)
-check("the cells meet", hits.entries[1].rect.x + hits.entries[1].rect.w, hits.entries[2].rect.x)
-check("each stands the padding from the group's top", hits.entries[2].rect.y, actions.y + T.barInner)
-check("and is a cell tall", hits.entries[2].rect.h, cellH)
-check("each names its action", hits.entries[2].action, "secondary")
-check("a middle cell starts right after the first",
-  hits.entries[2].rect.x, actions.x + T.barInner + 8 * #"Open" + T.space.s + capW(model.right[1].chord) + 2 * T.barInner)
+check("one item per item", #hits.items, 3)
+check("the first item stands the padding in from the group's edge", hits.items[1].rect.x, actions.x + T.barInner)
+check("and the last from its other edge", hits.items[3].rect.x + hits.items[3].rect.w, actions.x + actions.w - T.barInner)
+check("the items meet", hits.items[1].rect.x + hits.items[1].rect.w, hits.items[2].rect.x)
+check("each stands the padding from the group's top", hits.items[2].rect.y, actions.y + T.barInner)
+check("and is a item tall", hits.items[2].rect.h, itemH)
+check("each names its action", hits.items[2].action, "secondary")
+check("a middle item starts right after the first",
+  hits.items[2].rect.x, actions.x + T.barInner + 8 * #"Open" + T.space.s + capW(model.right[1].chord) + 2 * T.barInner)
 
-els = barLib.elements(ui, T, model, rect, { radius = 9, keysHover = true, hover = 2 })
+els = barLib.elements(ui, T, model, rect, { radius = 9, leftHover = true, hover = 2 })
 local lit = filled(els, T.colors.highlight)
-check("a hovered keys cell and a hovered entry sit on the highlight", #lit, 2)
-check("the keys cell lights over its cell", lit[1].frame.x, hits.keysCell.x)
-check("the hovered entry lights over its cell", lit[2].frame.x, hits.entries[2].rect.x)
-check("and that cell's width", lit[2].frame.w, hits.entries[2].rect.w)
+check("a hovered keys item and a hovered item sit on the highlight", #lit, 2)
+check("the keys item lights over its item", lit[1].frame.x, hits.leftItem.x)
+check("the hovered item lights over its item", lit[2].frame.x, hits.items[2].rect.x)
+check("and that item's width", lit[2].frame.w, hits.items[2].rect.w)
 check("at the panel line's corner, the group's less the padding", lit[2].roundedRectRadii.xRadius,
   ui.nestedRadius(9, T.barInner))
-els = barLib.elements(ui, T, model, rect, { radius = 9, keysLit = true })
-check("a keys group whose panel is open sits on the highlight whole", filled(els, T.colors.highlight)[1].frame.w, keys.w)
+els = barLib.elements(ui, T, model, rect, { radius = 9, leftLit = true })
+check("a left side whose panel is open sits on the highlight whole", filled(els, T.colors.highlight)[1].frame.w, keys.w)
 
 local open = { keysChord = model.keysChord, right = model.right, panelOpen = true }
 els = barLib.elements(ui, T, open, rect, { radius = 9 })
-check("the actions group lights while the action panel is open", #filled(els, T.colors.highlight), 1)
+check("the right side lights while the actions pane is open", #filled(els, T.colors.highlight), 1)
 
 local image = io.stdout
 els, hits = barLib.elements(ui, T, { right = {} }, rect, { radius = 9, keysImage = image })
@@ -212,9 +212,9 @@ local pictures = {}
 for _, el in ipairs(els) do if el.type == "image" then pictures[#pictures + 1] = el end end
 check("the keyboard icon is drawn", #pictures, 1)
 check("at the hint size", pictures[1].frame.w, T.icon.hint)
-check("centred in the cell", pictures[1].frame.y, rect.y + T.barInner + (cellH - T.icon.hint) / 2)
-check("no right side, no actions group", hits.actions, nil)
-check("and no entries", #hits.entries, 0)
+check("centred in the item", pictures[1].frame.y, rect.y + T.barInner + (itemH - T.icon.hint) / 2)
+check("no right side, no right side", hits.actions, nil)
+check("and no items", #hits.items, 0)
 
 --------------------------------------------------------------------------------
 -- The canvas view drawing the bar and the list behind it
@@ -230,10 +230,10 @@ Canvas.configure({ ui = ui, panel = {
 local rowH, rowCount = 40, 5
 local rows = {}
 for i = 1, 12 do rows[i] = { title = "row " .. i } end
-local footerH = footerLib.height(T) + 2 * T.barInner + T.pad
-local canvasRect = { x = 100, y = 100, w = 600, h = 60 + rowH * rowCount + footerH }
+local bottomBarH = bottomBarLib.height(T) + 2 * T.barInner + T.pad
+local canvasRect = { x = 100, y = 100, w = 600, h = 60 + rowH * rowCount + bottomBarH }
 local listRect = { x = 110, y = 160, w = 580, h = rowH * rowCount }
-local footerRect = { x = 100, y = listRect.y + listRect.h, w = 600, h = footerH }
+local bottomBarRect = { x = 100, y = listRect.y + listRect.h, w = 600, h = bottomBarH }
 local scene = {
   bare = true,
   tokens = T,
@@ -243,8 +243,8 @@ local scene = {
     textLine = T.text.body.lineHeight, subFont = T.text.caption.font, subSize = T.text.caption.size,
     subLine = T.text.caption.lineHeight, numFont = T.text.body.font, numSize = T.text.body.size,
     showRowNumbers = false },
-  rects = { canvas = canvasRect, list = listRect, footer = footerRect },
-  footer = model,
+  rects = { canvas = canvasRect, list = listRect, bottomBar = bottomBarRect },
+  bottomBar = model,
 }
 scene.list = listModel.newState(rows, { rowH = rowH, rowCount = rowCount })
 
@@ -252,8 +252,8 @@ local calls = {}
 local engine = {
   scene = function() return scene end,
   isActive = function() return false end,
-  toggleKeys = function() calls[#calls + 1] = "toggleKeys" end,
-  footerAction = function(_, name) calls[#calls + 1] = "footerAction " .. name end,
+  toggleInfo = function() calls[#calls + 1] = "toggleInfo" end,
+  bottomBarAction = function(_, name) calls[#calls + 1] = "bottomBarAction " .. name end,
   chooseIndex = function(_, i) calls[#calls + 1] = "choose " .. i end,
   highlightIndex = function(_, i) calls[#calls + 1] = "highlight " .. i end,
   rightClickIndex = function() end,
@@ -272,7 +272,7 @@ local function rowTitles(drawn)
   return n
 end
 -- Five rows in the viewport and the bar's height, two rows of it, past them.
-check("the list runs on behind the bar", rowTitles(surfaceCanvas.els), rowCount + math.ceil(footerH / rowH))
+check("the list runs on behind the bar", rowTitles(surfaceCanvas.els), rowCount + math.ceil(bottomBarH / rowH))
 check("without moving the engine's scroll", scene.list.scrollTop, 0)
 check("or its furthest scroll", listModel.maxScrollTop(scene.list), (12 - rowCount) * rowH)
 local clip
@@ -282,8 +282,8 @@ end
 check("the rows are cut at the bottom of the window", clip.frame.y + clip.frame.h, canvasRect.h)
 
 local barHits = view._barHits
-check("the keys group is kept in screen points", barHits.keys.x, canvasRect.x + T.pad)
-check("so is the actions group", barHits.actions.x + barHits.actions.w, canvasRect.x + canvasRect.w - T.pad)
+check("the left side is kept in screen points", barHits.keys.x, canvasRect.x + T.pad)
+check("so is the right side", barHits.actions.x + barHits.actions.w, canvasRect.x + canvasRect.w - T.pad)
 check("the groups are drawn after the rows", (function()
   local lastRow, firstGroup = 0, nil
   for i, el in ipairs(surfaceCanvas.els) do
@@ -296,34 +296,34 @@ end)(), true)
 local function centre(r) return { x = r.x + r.w / 2, y = r.y + r.h / 2 } end
 
 calls = {}
-check("a press on the keys group is claimed", view:_onMouseDown(centre(barHits.keys), "left"), true)
-check("and toggles the key panel", calls[1], "toggleKeys")
+check("a press on the left side is claimed", view:_onMouseDown(centre(barHits.keys), "left"), true)
+check("and toggles the info pane", calls[1], "toggleInfo")
 
 calls = {}
-local second = centre(barHits.entries[2].rect)
+local second = centre(barHits.items[2].rect)
 view:_onMouseDown(second, "left")
-check("a press on an entry runs nothing yet", #calls, 0)
+check("a press on an item runs nothing yet", #calls, 0)
 view:_onMouseUp(second, "left")
-check("its release runs the entry's action", calls[1], "footerAction secondary")
+check("its release runs the item's action", calls[1], "bottomBarAction secondary")
 
 calls = {}
 view:_onMouseDown(second, "left")
-view:_onMouseUp(centre(barHits.entries[3].rect), "left")
-check("a release on another entry runs nothing", #calls, 0)
+view:_onMouseUp(centre(barHits.items[3].rect), "left")
+check("a release on another item runs nothing", #calls, 0)
 
 -- Between the groups, ten points into the bar, which is the sixth row behind it.
 calls = {}
-local between = { x = (barHits.keys.x + barHits.keys.w + barHits.actions.x) / 2, y = footerRect.y + 10 }
+local between = { x = (barHits.keys.x + barHits.keys.w + barHits.actions.x) / 2, y = bottomBarRect.y + 10 }
 view:_onMouseDown(between, "left")
 view:_onMouseUp(between, "left")
 check("a press between the groups chooses the row behind the bar", calls[1], "choose 6")
 
 calls = {}
 view:_onMouseMove(centre(barHits.keys))
-check("the keys group lights under the pointer", view._barHover, "keys")
+check("the left side lights under the pointer", view._barHover, "keys")
 check("and the pointer on it highlights no row", #calls, 0)
 view:_onMouseMove(second)
-check("an entry lights under the pointer", view._barHover, 2)
+check("an item lights under the pointer", view._barHover, 2)
 check("drawn on the highlight", #filled(surfaceCanvas.els, T.colors.highlight) >= 1, true)
 view:_onMouseMove(between)
 check("off the groups nothing on the bar is lit", view._barHover, nil)
@@ -334,8 +334,8 @@ check("and moves nothing", scene.list.scrollTop, 0)
 
 -- The divider with a pane, the full height of the window as in swift.
 local pane = { x = canvasRect.x + canvasRect.w, y = canvasRect.y, w = 300, h = canvasRect.h }
-scene.rects = { canvas = canvasRect, list = listRect, companion = pane,
-  footer = { x = canvasRect.x, y = footerRect.y, w = canvasRect.w + pane.w, h = footerH } }
+scene.rects = { canvas = canvasRect, list = listRect, previewPane = pane,
+  bottomBar = { x = canvasRect.x, y = bottomBarRect.y, w = canvasRect.w + pane.w, h = bottomBarH } }
 view:place(scene.rects)
 view:redraw()
 local divider
@@ -346,7 +346,7 @@ for _, el in ipairs(surfaceCanvas.els) do
 end
 check("the divider runs from the top of the window", divider and divider.frame.y, 0)
 check("to its bottom", divider and divider.frame.h, canvasRect.h)
-check("and the actions group floats over the pane", view._barHits.actions.x + view._barHits.actions.w,
+check("and the right side floats over the pane", view._barHits.actions.x + view._barHits.actions.w,
   pane.x + pane.w - T.pad)
 
 if failed then

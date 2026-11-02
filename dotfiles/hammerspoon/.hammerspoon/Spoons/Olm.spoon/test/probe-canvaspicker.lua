@@ -24,7 +24,7 @@
 --
 -- A small placeholder pane is drawn beside the picker purely so a hand has somewhere to
 -- scroll that is not the list itself, config.onScroll firing only for a scroll over a
--- companion rect and this probe otherwise having no consumer of its own wanting one.
+-- preview pane rect and this probe otherwise having no consumer of its own wanting one.
 -- That pane draws nothing but a label, it is not part of the provider under test, and it
 -- comes down the moment the picker does.
 --
@@ -151,26 +151,26 @@ local allRows = buildRows()
 
 --------------------------------------------------------------------------------
 -- A small placeholder pane, purely so a hand has somewhere to scroll that is not the
--- list itself, config.onScroll only ever firing over a companion rect
+-- list itself, config.onScroll only ever firing over a preview pane rect
 --------------------------------------------------------------------------------
 
-local companionCanvas = nil
+local previewPaneCanvas = nil
 
-local function hideCompanion()
-  if companionCanvas then
-    companionCanvas:delete()
-    companionCanvas = nil
+local function hidePreviewPane()
+  if previewPaneCanvas then
+    previewPaneCanvas:delete()
+    previewPaneCanvas = nil
   end
 end
 
-local function showCompanion(frame)
-  hideCompanion()
+local function showPreviewPane(frame)
+  hidePreviewPane()
   if not frame then return end
-  companionCanvas = hs.canvas.new(frame)
-  companionCanvas:level(hs.canvas.windowLevels.popUpMenu)
-  companionCanvas:clickActivating(false)
+  previewPaneCanvas = hs.canvas.new(frame)
+  previewPaneCanvas:level(hs.canvas.windowLevels.popUpMenu)
+  previewPaneCanvas:clickActivating(false)
   local dark = hs.host.interfaceStyle() == "Dark"
-  companionCanvas:replaceElements({
+  previewPaneCanvas:replaceElements({
     { type = "rectangle", action = "fill",
       fillColor = dark and { white = 0.2, alpha = 0.9 } or { white = 0.9, alpha = 0.9 },
       frame = { x = 0, y = 0, w = frame.w, h = frame.h } },
@@ -179,7 +179,7 @@ local function showCompanion(frame)
       textColor = dark and { white = 0.85 } or { white = 0.2 },
       frame = { x = 4, y = frame.h / 2 - 10, w = frame.w - 8, h = 20 } },
   })
-  companionCanvas:show()
+  previewPaneCanvas:show()
 end
 
 --------------------------------------------------------------------------------
@@ -227,15 +227,15 @@ local config = {
     print("Olm canvas picker probe, onScroll fired with " .. string.format("%.1f", points) .. " points")
   end,
 
-  onPositioned = function(chooserFrame, companionFrame)
+  onPositioned = function(chooserFrame, previewPaneFrame)
     print("Olm canvas picker probe, onPositioned fired, chooser " .. fmtFrame(chooserFrame)
-      .. ", companion " .. fmtFrame(companionFrame))
-    showCompanion(companionFrame)
+      .. ", previewPane " .. fmtFrame(previewPaneFrame))
+    showPreviewPane(previewPaneFrame)
   end,
 
   onClose = function()
     print("Olm canvas picker probe, onClose fired, the picker is down")
-    hideCompanion()
+    hidePreviewPane()
     if watchdog then
       watchdog:stop()
       watchdog = nil
@@ -253,7 +253,7 @@ local contractOK, contractReason = contract.validate(instance)
 print("Olm canvas picker probe, contract.validate answered " .. tostring(contractOK)
   .. (contractReason and (", " .. tostring(contractReason)) or ""))
 
-instance:setPaneWidth(220)
+instance:setPreviewPaneWidth(220)
 instance:show()
 
 -- The hard limit the brief asks for, tearing the picker down whatever else has

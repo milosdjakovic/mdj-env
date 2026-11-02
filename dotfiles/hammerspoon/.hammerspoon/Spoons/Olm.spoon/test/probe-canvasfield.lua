@@ -431,7 +431,7 @@ local function scrollByWheelNotch(deltaPoints)
 end
 
 -- The same point in space test legacy.lua's own scroll watcher already uses for its
--- companion pane, restated here rather than reached for since that file is the one this
+-- preview pane, restated here rather than reached for since that file is the one this
 -- whole track leaves untouched, a plain bounds check against a rect in screen
 -- coordinates.
 local function pointInFrame(p, fr)
@@ -444,7 +444,7 @@ end
 -- anywhere else on screen still reaches whatever is actually under the pointer there.
 -- Which kind of event it is comes from the event itself rather than being assumed, a
 -- trackpad's own continuous flag being how legacy.lua already tells the two apart for
--- its own companion pane. A continuous event's point delta moves the viewport directly
+-- its own preview pane. A continuous event's point delta moves the viewport directly
 -- and stops any wheel ease already in flight, since a hand touching the trackpad has
 -- taken over from whatever the wheel queued a moment before. A discrete wheel notch
 -- never touches scrollTop directly at all, it only ever updates the ease target through

@@ -91,7 +91,7 @@ do
   kept = ranked(M.scopeRows("studio"), "studio")
   check("the scope's Apply subtitle is not searched either", #kept == 0, titles(kept))
 
-  -- Return on a layout applies it, and its apps and its name are verbs of the action panel that
+  -- Return on a layout applies it, and its apps and its name are verbs of the actions pane that
   -- push a level through stagePush, docs/PLAN-ACTION-PANEL.md.
   local applied, pushed = nil, nil
   api.apply = function(id) applied = id return true end
@@ -152,7 +152,7 @@ do
   rows = M.rows("")
   check("with a profile active there is no capture row", not has(rows, "Capture current arrangement") and #rows == 2)
 
-  -- Return on a profile applies it, and its displays and its name are verbs of the action panel
+  -- Return on a profile applies it, and its displays and its name are verbs of the actions pane
   -- that push a level through stagePush, docs/PLAN-ACTION-PANEL.md.
   local applied, pushed = nil, nil
   api.reapply = function() applied = active end
@@ -209,7 +209,7 @@ do
   local kept = ranked(M.rows("vic zsh"), "vic zsh")
   check("two words find the window inside its session", kept[1] and kept[1].item.go == "vicert:1"
     and not has(kept, "editor"), titles(kept))
-  -- The terminal is a choice of the action panel's Terminal verb, docs/PLAN-ACTION-PANEL.md.
+  -- The terminal is a choice of the actions pane's Terminal verb, docs/PLAN-ACTION-PANEL.md.
   local choices = M:terminalChoices()
   check("Terminal offers one choice per provider, the one in force marked",
     #choices == 2 and choices[1].current == true and choices[2].current == false)

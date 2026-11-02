@@ -52,10 +52,10 @@ a live one whose title matches exactly, so two Chrome windows go back to their o
 than swapping, and whatever is left pairs in order front to back on both sides, since a title
 that changed with the tab is still most likely the same window in the same place in the stack.
 
-## Return applies, the action panel manages
+## Return applies, the actions pane manages
 
 Since 2026-10-29 Return on a layout applies it and the level of actions it used to open is gone,
-Milos's decision for the programmable action panel, `decisions/olm-action-panel.md`. Update
+Milos's decision for the programmable actions pane, `decisions/olm-action-panel.md`. Update
 snapshot, Apps, Rename and Delete are keyless verbs of the panel, gated by `isLayout` so New
 snapshot offers none of them, Delete behind the panel's confirm, and Apps and Rename open their
 levels through `stagePush`. Save on the name level now pops back to the list, where the new

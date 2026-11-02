@@ -1,14 +1,14 @@
---- === DockedPane ===
+--- === PreviewPane ===
 ---
---- The docked companion pane, the surface beside a list that describes the highlighted row. Every
+--- The preview pane, the surface beside a list that describes the highlighted row. Every
 --- plugin with a pane used to carry its own copy of this lifecycle, the lazy window, the inner
 --- rect, the dock, show, hide and destroy, the shared surface underneath and the shared empty
 --- state, five copies of the same sixty lines that differed only in what they drew. This file
 --- owns all of it once, and a plugin keeps only what it draws.
 ---
 --- WHY A WINDOW OF ITS OWN AND NOT A CANVASPANEL INSTANCE. A CanvasPanel computes its own
---- placement from an anchor and sizes itself from its content, while a docked pane has to land
---- exactly on the companion rect the chooser reserved and reported. Drawing anywhere else would
+--- placement from an anchor and sizes itself from its content, while a preview pane has to land
+--- exactly on the preview pane rect the chooser reserved and reported. Drawing anywhere else would
 --- put it outside the rect the chooser's click watcher treats as part of the picker, so a click
 --- on the pane would dismiss the list instead of passing through. What it does share with
 --- CanvasPanel is the surface and the empty state, both injected, so a pane, the toasts and the
@@ -28,8 +28,8 @@
 --- lists of hs.canvas element tables, the surface and the content, in the pane's own coordinates
 --- with the origin at its top left, and those two lists are the whole contract with whatever
 --- puts them on screen. deps.backend is a factory, called once at the first paint with the
---- companion rect, answering a backend that keeps four promises and holds no rule.
----   backend.place(frame)             move to the companion rect, in screen coordinates.
+--- preview pane rect, answering a backend that keeps four promises and holds no rule.
+---   backend.place(frame)             move to the preview pane rect, in screen coordinates.
 ---   backend.render(surface, content) draw both lists, replacing whatever was drawn before, with
 ---                                 a third argument for a backend that scrolls natively, below.
 ---   backend.show(), backend.hide()   bring it up and take it down without forgetting it.
@@ -53,7 +53,7 @@
 --- A window also tells the native backend this is no pane, so it is never drawn into a chooser
 --- panel's window and is ordered front on every show, as hs.canvas does, where a pane is ordered
 --- front only when it comes up. That is the whole extension, one optional argument.
---- lib/dockedpane/canvas.lua is one, an hs.canvas that paints the surface and the content in
+--- lib/previewpane/canvas.lua is one, an hs.canvas that paints the surface and the content in
 --- order, which is how every pane drew before the backend existed. The swift chooser's
 --- lib/chooser/providers/swift/pane.lua is the other, drawn on the swift chooser panel's own
 --- glass by the same Swift library, which puts glass where the surface elements would be and
@@ -77,8 +77,8 @@
 --- scrolls with the rest under such a backend. The canvas backend answers nothing and keeps the
 --- path above exactly as it was.
 ---
---- Granted rather than loaded. A plugin whose surface declares `pane = true` receives
---- `opts.dockedPane`, a function answering a new pane, built by the composition root with the
+--- Granted rather than loaded. A plugin whose surface declares `previewPane = true` receives
+--- `opts.previewPane`, a function answering a new pane, built by the composition root with the
 --- kit, the surface, the empty state and the backend already in it. The declaration stays the
 --- one gate, so a plugin that never asked for a pane cannot make one, and nothing here names a
 --- plugin.
@@ -91,7 +91,7 @@
 --- PANE API, dot called, every member a closure, so pane.show(x) needs no self.
 ---   pane.isEnabled()            whether anything can be drawn, a surface, a kit and a backend
 ---                               all present.
----   pane.dock(companionFrame)   take the rect the chooser reported and repaint what is current.
+---   pane.dock(previewPaneFrame)   take the rect the chooser reported and repaint what is current.
 ---                               Fired with a seed rect at show and again once the window
 ---                               settles, so a redock is expected.
 ---   pane.inner()                the padded box content is laid out in, in the pane's own
@@ -107,7 +107,7 @@
 ---   pane.destroy()              destroy the backend and forget everything, on close.
 ---
 --- view, what a describer and a painter are handed.
----   frame     the companion rect, in screen coordinates.
+---   frame     the preview pane rect, in screen coordinates.
 ---   inner     the frame less the kit's pad on all four sides, in the pane's own coordinates.
 ---   viewport  the box inside the surface's border, which scrolled content is cut at.
 ---   scrollY   how far the content is scrolled, in points, always zero under a backend that
@@ -143,13 +143,13 @@ local function thumbColor(tokens)
   return color
 end
 
---- DockedPane.new(deps, spec) -> pane
+--- PreviewPane.new(deps, spec) -> pane
 --- deps, from the composition root.
 ---   ui          the UI kit, every piece of text and colour comes through it. Absent means a
 ---               pane that never draws, see isEnabled.
 ---   surface     function(w, h) -> elements, CanvasPanel.surfaceElements.
 ---   emptyState  function(w, h, opts) -> elements, CanvasPanel.emptyStateElements. Absent leaves
----               the bare surface up, since a docked pane is never hidden while it is current.
+---               the bare surface up, since a preview pane is never hidden while it is current.
 ---   backend     function(frame) -> backend, the drawing strategy, see above. Absent means a
 ---               pane that never draws, see isEnabled.
 ---   timer       optional, hs.timer or a stub with doAfter.
@@ -164,7 +164,7 @@ function M.new(deps, spec)
   local pane = {}
 
   local backend = nil  -- built lazily on the first paint and destroyed on destroy
-  local frame = nil    -- the companion rect, nil until the first dock and after destroy
+  local frame = nil    -- the preview pane rect, nil until the first dock and after destroy
   local current = nil  -- what is on screen, { describe = fn }, { painter = fn } or { empty = true }
   local hidden = false -- set by hide, cleared by dock, the guard every late paint reads
   local scrollY = 0    -- how far the content is scrolled, clamped on every paint
@@ -202,7 +202,7 @@ function M.new(deps, spec)
 
   function pane.inner()
     if not (frame and deps.ui) then return nil end
-    -- under is how much of the companion's bottom the chooser's bar floats over, so content is
+    -- under is how much of the preview pane's bottom the chooser's bar floats over, so content is
     -- laid out above the bar while the pane's clip still reaches the bottom edge behind it.
     local pad = deps.ui.tokens().pad
     return { x = pad, y = pad, w = frame.w - 2 * pad, h = frame.h - 2 * pad - (frame.under or 0) }
@@ -332,9 +332,9 @@ function M.new(deps, spec)
     paint()
   end
 
-  function pane.dock(companionFrame)
-    if not (pane.isEnabled() and companionFrame) then return end
-    frame = companionFrame
+  function pane.dock(previewPaneFrame)
+    if not (pane.isEnabled() and previewPaneFrame) then return end
+    frame = previewPaneFrame
     -- A redock is the swap back hide guards against, so the pane may paint again from here on.
     hidden = false
     paint()

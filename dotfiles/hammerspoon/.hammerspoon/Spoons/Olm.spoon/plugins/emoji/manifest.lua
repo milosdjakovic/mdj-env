@@ -20,7 +20,7 @@ return {
   -- The glyphs in the picker's own rows are content, table specs of the emoji alone, and are
   -- never declared here.
   icons = {
-    -- The secondary, Copy, in the action panel.
+    -- The secondary, Copy, in the actions pane.
     copy = { emoji = "📋", sf = "doc.on.doc" },
     emoji = { emoji = "😀", sf = "face.smiling" },
   },
@@ -106,7 +106,7 @@ return {
   },
 
   -- It has a chooser, so it takes the shared navigation, its predicate, its registry
-  -- entry, and its place in the action bar with nothing further stated. Only the primary key
+  -- entry, and its place in the bottom bar with nothing further stated. Only the primary key
   -- is named, since j, k, and x mean the same thing in every list here and the predicate
   -- name and priority follow from the context name.
   surface = {

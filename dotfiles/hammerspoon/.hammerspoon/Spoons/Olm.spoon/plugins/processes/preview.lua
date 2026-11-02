@@ -1,16 +1,16 @@
 --- Processes preview pane.
 ---
---- The companion pane docked beside the picker, showing what a single row has no room
+--- The preview pane docked beside the picker, showing what a single row has no room
 --- to say. The full working directory, every port, the live trend, and above all the
 --- process tree a stop would take, since seeing that one row is five processes and
 --- which five is what makes pressing stop safe.
 ---
 --- The canvas, the dock, the empty state, the hide guard and the teardown belong to the
---- shared docked pane, lib/dockedpane.lua, which the root grants because the manifest
---- declares `pane = true`. This file is the painter that pane calls, the live block over the
+--- shared preview pane, lib/previewpane.lua, which the root grants because the manifest
+--- declares `previewPane = true`. This file is the painter that pane calls, the live block over the
 --- cached static block, and the cache itself.
 ---
---- Dot called, like util and metrics, and it holds no policy of its own. The docked pane,
+--- Dot called, like util and metrics, and it holds no policy of its own. The preview pane,
 --- the UI kit, the sampler's two accessors and the CPU formatter are all injected by the
 --- surface that owns the picker, so this file names nothing concrete and cannot drift from
 --- the row it is describing.
@@ -43,11 +43,11 @@ local nodes = loadfile(previewPath .. "pane-nodes.lua")()
 
 local M = {}
 
--- Injected, see M.configure. Empty until then, and with no docked pane or kit injected the
+-- Injected, see M.configure. Empty until then, and with no preview pane or kit injected the
 -- pane stays dark, which is the whole degradation path, see M.isEnabled.
 local cfg = {}
 
-local pane = nil  -- the shared docked pane, made in configure from the root's grant
+local pane = nil  -- the shared preview pane, made in configure from the root's grant
 local model = nil -- the cached static half of the row on screen, see buildModel
 
 --------------------------------------------------------------------------------
@@ -144,7 +144,7 @@ end
 -- Painting
 --------------------------------------------------------------------------------
 
--- The painter the docked pane calls, the live block and the cached static block, drawn over the
+-- The painter the preview pane calls, the live block and the cached static block, drawn over the
 -- surface the pane paints first. Called by a new highlight and by every sampler tick alike, and
 -- the only work it repeats is the live block, which is two headings and two short polylines. The
 -- sampler ticks every 1.5 seconds while the list is showing, and the pane's own hide guard is
@@ -173,7 +173,7 @@ end
 --------------------------------------------------------------------------------
 
 --- preview.configure(opts) - injected by the surface that owns the picker.
---- opts.dockedPane the root's docked pane grant, a function answering a pane. Absent means
+--- opts.previewPane the root's preview pane grant, a function answering a pane. Absent means
 ---                 no pane at all, see isEnabled.
 --- opts.ui         the UI kit, needs.lib.ui, which every piece of text in the pane is drawn
 ---                 through and which follows the system appearance itself. Absent means no
@@ -186,27 +186,27 @@ end
 ---                 pane and the figure on the row can never round differently.
 function M.configure(opts)
   for k, v in pairs(opts or {}) do cfg[k] = v end
-  if not pane and cfg.dockedPane then pane = cfg.dockedPane() end
+  if not pane and cfg.previewPane then pane = cfg.previewPane() end
   return M
 end
 
 --- preview.isEnabled() -> boolean
 --- Whether a pane can be drawn at all, which is to say whether the composition root
---- granted the docked pane and the kit. The picker asks before reserving a companion
+--- granted the preview pane and the kit. The picker asks before reserving a preview pane
 --- rect, so a root that wires nothing gets the picker exactly as it was rather than a pane
 --- of unreadable text floating over the desktop with no background behind it.
 function M.isEnabled()
   return pane ~= nil and pane.isEnabled() and cfg.ui ~= nil
 end
 
---- preview.dock(companionFrame) - take the rect the Chooser atom reported.
+--- preview.dock(previewPaneFrame) - take the rect the Chooser atom reported.
 --- Fired with a seed rect at show and again once the real window settles, so a re dock
 --- is expected.
-function M.dock(companionFrame)
+function M.dock(previewPaneFrame)
   if not M.isEnabled() then return end
   -- The highlight seed the caller runs right after this call is what actually fills the
   -- pane, cold or not, a nil highlight landing in M.clear same as any other.
-  pane.dock(companionFrame)
+  pane.dock(previewPaneFrame)
 end
 
 --- preview.show(row) - render a row, or clear the pane when handed nothing.

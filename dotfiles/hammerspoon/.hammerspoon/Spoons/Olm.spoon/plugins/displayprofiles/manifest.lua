@@ -80,9 +80,9 @@ return {
       redrawPresented = { source = "root", policy = "optional",
         breaks = "the active marker stays stale after a screen change lands while the tool is open, since M.refresh has no other way to reach whatever is on screen" },
       stagePush = { source = "root", policy = "optional",
-        breaks = "Displays and Rename in the action panel open nothing, since a verb has no other way to open a level" },
+        breaks = "Displays and Rename in the actions pane open nothing, since a verb has no other way to open a level" },
       stageSelectedItem = { source = "root", policy = "optional",
-        breaks = "every verb of the action panel finds no profile to act on and does nothing" },
+        breaks = "every verb of the actions pane finds no profile to act on and does nothing" },
       stagePop = { source = "root", policy = "optional",
         breaks = "every child level's own Back row, and a successful rename, delete, or capture, all stand on the level they meant to leave rather than returning to its parent" },
     },
@@ -102,11 +102,11 @@ return {
   -- go through host/stage's own intercept, the atom's real completion path, asked before
   -- Return, insertSelected, or a click alike are ever let through, so nothing here needs a
   -- private mechanism to keep the window open through a step any more. No pane, this
-  -- plugin's own levels reserve no companion pane, and matcher stays false through
+  -- plugin's own levels reserve no preview pane, and matcher stays false through
   -- presentation.matcher below and every child's own field, since each level's own supplier
   -- morphs its rows from the query rather than filtering a fixed list.
   -- Return applies the highlighted profile, and what else a profile offers is a verb of the
-  -- action panel alone, docs/PLAN-ACTION-PANEL.md. Rename and Delete apply to a captured profile
+  -- actions pane alone, docs/PLAN-ACTION-PANEL.md. Rename and Delete apply to a captured profile
   -- only, since a curated one lives in config/displays.lua, and Delete asks first.
   surface = {
     context = "displayProfiles",
@@ -156,7 +156,7 @@ return {
   registry = {
     row = { category = "Displays", detail = "inspect and manage arrangements", icon = "profile" },
     open = { member = "chooser.show", call = "dot" },
-    -- The submodule the action panel's verbs, isProfile, isCaptured and the three on a
+    -- The submodule the actions pane's verbs, isProfile, isCaptured and the three on a
     -- profile, are answered by.
     surface = "chooser",
   },

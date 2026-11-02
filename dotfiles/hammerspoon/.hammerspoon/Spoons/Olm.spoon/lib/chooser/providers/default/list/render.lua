@@ -246,7 +246,7 @@ function M.showsEmptyState(state, query)
 end
 
 -- A shallow copy of an element with its frame offset, for the shared empty state, which draws
--- in its own box at the origin and is placed in the band here, the same copy lib/dockedpane.lua
+-- in its own box at the origin and is placed in the band here, the same copy lib/previewpane.lua
 -- makes for the same routine.
 local function shifted(el, dx, dy)
   local copy = {}

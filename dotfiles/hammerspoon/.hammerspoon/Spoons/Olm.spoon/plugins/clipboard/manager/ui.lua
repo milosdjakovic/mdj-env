@@ -4,10 +4,10 @@
 --- positioning, and click away dismissal) lives in Chooser.spoon, injected here
 --- as a factory. This file supplies only clipboard policy. The rows, what a
 --- selection pastes, the append batch, right click delete, and the preview that
---- docks in the companion pane the atom reserves beside the chooser.
+--- docks in the preview pane the atom reserves beside the chooser.
 ---
---- The preview is the shared docked pane, lib/dockedpane.lua, granted for the manifest's
---- `pane = true`, which owns the canvas in the companion frame the atom reserves, its dock,
+--- The preview is the shared preview pane, lib/previewpane.lua, granted for the manifest's
+--- `previewPane = true`, which owns the canvas in the preview pane frame the atom reserves, its dock,
 --- the empty state, the scroll and the teardown. It never takes key focus, so typing always
 --- stays in the search field. The atom polls the highlighted row and calls onHighlight, which
 --- hands the pane a new tree here.
@@ -70,7 +70,7 @@ local KIND_PREFIX = {
 }
 
 -- State
-local companion = nil -- the shared docked pane, made in configure from the root's grant
+local previewPane = nil -- the shared preview pane, made in configure from the root's grant
 local renderToken = 0 -- bumped each render; async results check it to avoid stale writes
 local thumbCache = {} -- path -> hs.image (or false), for row thumbnails
 local imageCache = {} -- preview png path -> hs.image (or false), so a re-highlight re-decodes nothing
@@ -114,21 +114,21 @@ local function toggleBatch(e)
   end
 end
 
--- Push a fresh footer whenever the batch count changes, so the injected footer
+-- Push a fresh bottom bar whenever the batch count changes, so the injected bottom bar
 -- supplier can relabel the delete hint ("Delete" vs "Delete marked (N)") to match.
 -- The supplier owns the wording; this only hands it the live count and forwards the
 -- result to the picker. Already a no op before this migration, since the native backend,
--- the only one left since the webview backend was retired, has no setFooter method at all,
+-- the only one left since the webview backend was retired, has no setBottomBar method at all,
 -- and host/stage exposes none either, so this stays exactly as inert as it already was
 -- rather than gaining a new gap the migration would have to answer for.
 --
 -- Review finding L2. A genuine no op body rather than a conditional guarding an empty
 -- block, legal Lua the first version of this fix left behind for a reader to re derive.
--- Nothing calls into this function differently depending on cfg.footerFor, so there is
+-- Nothing calls into this function differently depending on cfg.bottomBarFor, so there is
 -- nothing left to branch on until a future backend, or a future stage capability, answers
--- setFooter, at which point this is the one place that resumes working from rather than
+-- setBottomBar, at which point this is the one place that resumes working from rather than
 -- being rediscovered from nothing.
-local function refreshFooter()
+local function refreshBottomBar()
 end
 
 --------------------------------------------------------------------------------
@@ -403,7 +403,7 @@ end
 --
 -- A render picks what kind of entry it has, asks that kind for its facts and its blocks, and
 -- composes them with manager/pane.lua into one tree of UI kit nodes. paint() hands the tree to
--- the docked pane, which lays it out clipped to the inner box and scrolled by the live offset.
+-- the preview pane, which lays it out clipped to the inner box and scrolled by the live offset.
 -- This file chooses and measures nothing about type, every font, size, line height and colour
 -- is the kit's, see pane.lua. Media comes straight from the store's
 -- downscaled preview PNG (preview.lua sized it with sips or ffmpeg off the main thread),
@@ -432,7 +432,7 @@ local function previewImage(path)
 end
 
 
--- Hand a tree to the docked pane, which draws the shared surface first, then the tree laid out
+-- Hand a tree to the preview pane, which draws the shared surface first, then the tree laid out
 -- in the inner box, scrolled by the live offset and clipped at the inside of the border. The
 -- padding scrolls with the content, so a line cut at the bottom is cut by the edge of the pane
 -- rather than by the padding. A node of nil is the shared empty state. keepScroll is for a
@@ -440,12 +440,12 @@ end
 -- pane's own hide guard keeps a late decode, a store change or an in flight read from bringing
 -- the pane back up after a swap away.
 local function paint(node, keepScroll)
-  if not companion then return end
+  if not previewPane then return end
   if node == nil then
-    companion.clear()
+    previewPane.clear()
     return
   end
-  companion.show(function() return node end, { keepScroll = keepScroll })
+  previewPane.show(function() return node end, { keepScroll = keepScroll })
 end
 
 -- A tree with nothing in it, a manage history row with nothing to say.
@@ -841,7 +841,7 @@ local KINDS = {
 
 -- The atom's onHighlight target. Reset the scroll to the top for the new entry, pick its
 -- kind, then paint what it answers. The atom seeds one call before it has positioned
--- anything, so the very first call of a show can land with no companion rect known yet.
+-- anything, so the very first call of a show can land with no preview pane rect known yet.
 -- Nothing here can size or measure without one, so it defers entirely rather than guessing a
 -- width, the same way the processes and filesearch panes defer their own first paint.
 -- onPositioned calls this again the moment it has a real rect, well before anything is
@@ -849,7 +849,7 @@ local KINDS = {
 -- presentation block. Review finding H6, no longer caches e anywhere, every other caller
 -- that used to read that cache now asks cfg.stageSelectedItem for the live row instead.
 local function renderPreview(e)
-  local inner = companion and companion.inner()
+  local inner = previewPane and previewPane.inner()
   if not inner then return end
   renderToken = renderToken + 1
   if not e then
@@ -891,7 +891,7 @@ end
 -- the top with no frame until the atom reports one, and the per open caches go with it.
 local function hidePreview()
   renderToken = renderToken + 1 -- a read still out must not paint into the destroyed pane
-  if companion then companion.destroy() end
+  if previewPane then previewPane.destroy() end
   imageCache = {} -- drop decoded preview images between opens
   existCache = {} -- recheck linked-file liveness on the next open
 end
@@ -901,7 +901,7 @@ end
 -- existCache alone, the per open caches hidePreview drops between opens, and only takes
 -- the canvas down and raises the pane's guard.
 local function hidePreviewForSwap()
-  if companion then companion.hide() end
+  if previewPane then previewPane.hide() end
 end
 
 --------------------------------------------------------------------------------
@@ -986,36 +986,36 @@ end
 -- Migrated onto host/stage. Drops its own picker:setPlaceholder(PLACEHOLDER.history) call,
 -- since the next cold show already carries that exact string as this presentation's own
 -- static placeholder, resolved once at register, so there is nothing left to reset by hand.
--- Drops its own call to cfg.onClose too, which fed the docked shortcut panel the action bar
+-- Drops its own call to cfg.onClose too, which fed the docked shortcut panel the bottom bar
 -- inside the chooser's own canvas has since replaced.
 local function onClose()
   batch = {}
   -- Leave the page behind, so the next open is the history list. The same reason the launcher
   -- drops a hosted list on show, a page is where you were rather than a setting you chose.
   page = nil
-  -- Reset the footer to its no-batch labels now the batch is cleared, so the next
+  -- Reset the bottom bar to its no-batch labels now the batch is cleared, so the next
   -- open does not come up still reading "Delete marked". The picker is hidden here,
-  -- so setFooter only updates the stored hints the next open renders from.
-  refreshFooter()
+  -- so setBottomBar only updates the stored hints the next open renders from.
+  refreshBottomBar()
   hidePreview()
   showing = false
 end
 
--- The native atom reserved a companion rect beside the chooser. Record it and
+-- The native atom reserved a preview pane rect beside the chooser. Record it and
 -- render the current selection into the canvas (paint places it there). Fired at
 -- show with a seed frame and again once the real chooser window settles, so
 -- re-docking is expected and harmless.
 --
 -- Migrated onto host/stage. Drops its own call to cfg.onPositioned and the anchor
--- arithmetic that built it, which fed the docked shortcut panel the action bar has since
+-- arithmetic that built it, which fed the docked shortcut panel the bottom bar has since
 -- replaced. Review
 -- finding H6. Reads cfg.stageSelectedItem live, which answers correctly even at this exact
 -- moment, before the atom's own isVisible() would say true, host/stage/init.lua's own
 -- Stage:selectedItem() guarding on the stack rather than on that for precisely this call.
-local function onPositioned(chooserFrame, companionFrame)
-  if companionFrame then
+local function onPositioned(chooserFrame, previewPaneFrame)
+  if previewPaneFrame then
     -- A redock is the swap back the pane's hide guards against, so it may paint again.
-    if companion then companion.dock(companionFrame) end
+    if previewPane then previewPane.dock(previewPaneFrame) end
     renderPreview(cfg.stageSelectedItem and cfg.stageSelectedItem())
   else
     -- host/stage/init.lua's own review finding H2 comment, near present's own handoff, says
@@ -1114,13 +1114,13 @@ local PREVIEW_SCROLL_STEP = 120
 
 --- UI.scrollPreviewBy(points) - move the preview by a distance in points, positive being
 --- further down the content. The one place the offset changes, so the keys and the
---- trackpad cannot drift apart. The docked pane clamps it to the content overflow and
+--- trackpad cannot drift apart. The preview pane clamps it to the content overflow and
 --- redraws the last content at the new offset without rebuilding it.
 function UI.scrollPreviewBy(points)
-  if not (companion and showing) then return end
-  -- The docked pane clamps the offset against the content and paints once per frame, however
+  if not (previewPane and showing) then return end
+  -- The preview pane clamps the offset against the content and paints once per frame, however
   -- many events land before it.
-  companion.scrollBy(points)
+  previewPane.scrollBy(points)
 end
 
 --- UI.scrollPreviewDown() / UI.scrollPreviewUp() - one step of the above, for the
@@ -1148,7 +1148,7 @@ function UI.appendSelected()
   toggleBatch(entry)
   if cfg.redrawPresented then cfg.redrawPresented("clipboard") end
   renderPreview(entry) -- update the preview's mark to match the row, without moving
-  refreshFooter()
+  refreshBottomBar()
 end
 
 --- UI.copySelected() - the secondary, Copy, docs/PLAN-ACTION-PANEL.md. Puts the highlighted entry
@@ -1166,7 +1166,7 @@ end
 --- UI.deleteSelected() - delete from history, for the Hyper d binding. With a batch
 --- marked (Hyper a), delete the whole marked set and clear it, matching the "Delete
 --- marked" label; otherwise delete just the highlighted entry. Refreshing redraws the
---- remaining rows, and refreshFooter restores the label once the batch is empty.
+--- remaining rows, and refreshBottomBar restores the label once the batch is empty.
 function UI.deleteSelected()
   -- Inert on the manage history page. Every row there already deletes, on Return, in a slice
   -- whose size the row states, and a d that took the highlighted slice instead would be the one
@@ -1187,7 +1187,7 @@ function UI.deleteSelected()
     store.removeEntry(entry)
   end
   if cfg.redrawPresented then cfg.redrawPresented("clipboard") end
-  refreshFooter()
+  refreshBottomBar()
 end
 
 --- UI.manageHistory() - show the manage history page, or step back off it when it is already
@@ -1248,7 +1248,7 @@ function UI.leaveManageHistory()
 end
 
 --- UI.isManagingHistory() - whether the page is on, read by the plugin's own predicate so the
---- key panel lists the way out exactly while there is one. Migrated onto host/stage, reading
+--- info pane lists the way out exactly while there is one. Migrated onto host/stage, reading
 --- the plain showing flag rather than an instance this file no longer holds.
 function UI.isManagingHistory()
   return page == "prune" and showing
@@ -1282,7 +1282,7 @@ end
 --- widthPct, paneMaxW, rowH, baseH, rowCount, gap, topFrac, and minVPad were eight restated
 --- atom defaults even before this migration, surprise 9.4 of the consumer map, and pollInterval
 --- turns out to equal the atom's own hardcoded fallback of 0.08 exactly, so nothing here was
---- ever a real override beyond companionWidth, which paneWidth = true in the manifest now
+--- ever a real override beyond previewPaneWidth, which previewPaneWidth = true in the manifest now
 --- carries. The injected Chooser factory and the ten now unread layout keys it used to build a
 --- window from were deleted from manager/init.lua's own defaults in the close out sweep,
 --- REVIEW-TRICKLE.md's own L3, rather than left as inert injection nothing reads. Kept as a
@@ -1296,8 +1296,8 @@ end
 --- UI.configure(opts) - inject store, the insertion engine, util, media (for the shared file
 --- state rule fileBadge draws on), prune (the manage history page, whose rows and wording this
 --- file only draws), the UI kit (opts.ui, needs.lib.ui, which every piece of text in the preview
---- is drawn through), the shared docked pane (opts.dockedPane, the root's grant for the
---- manifest's `pane = true`, which draws the preview's background, border, empty state and
+--- is drawn through), the shared preview pane (opts.previewPane, the root's grant for the
+--- manifest's `previewPane = true`, which draws the preview's background, border, empty state and
 --- scroll), and the layout config. stagePresent,
 --- redrawPresented, stageHide, stageSetQuery, and stageSetPlaceholder, the trickle migration's
 --- own root published words, arrive here too, under needs.data in the manifest.
@@ -1308,8 +1308,8 @@ function UI.configure(opts)
   media = opts.media
   prune = opts.prune
   kit = opts.ui
-  if not companion and opts.dockedPane then
-    companion = opts.dockedPane({ scroll = true })
+  if not previewPane and opts.previewPane then
+    previewPane = opts.previewPane({ scroll = true })
   end
   isAccumulator = opts.isAccumulator or isAccumulator
   cfg = opts

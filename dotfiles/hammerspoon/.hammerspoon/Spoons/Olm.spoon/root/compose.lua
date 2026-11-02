@@ -20,7 +20,7 @@
 -- anything a plugin set could answer for itself. The five modules under host are the one
 -- exception, and it is a considered one rather than an oversight. They are Olm's own fixed
 -- apparatus, shipped with the spoon itself rather than installed per person the way a
--- plugin is, so naming ActionPanel, LeaderSheet, Launcher, QueryScope, or Stage here is
+-- plugin is, so naming ActionsPane, LeaderSheet, Launcher, QueryScope, or Stage here is
 -- not the leak naming a swappable plugin would be. Every such seam below is commented as one
 -- and says why, and nowhere else in this file may a plugin's own identity appear as a literal.
 
@@ -88,10 +88,10 @@ local switchLib = load("lib/pluginswitch.lua")
 local resumeLib = load("lib/resume.lua")
 local navLib = load("lib/nav.lua")
 local servicesLib = load("lib/services.lua")
--- The docked companion pane's lifecycle, one copy for every plugin that declares a pane, and
+-- The preview pane's lifecycle, one copy for every plugin that declares a pane, and
 -- its canvas drawing backend, the one every pane draws through unless the swift chooser serves.
-local dockedPaneLib = load("lib/dockedpane.lua")
-local paneCanvasLib = load("lib/dockedpane/canvas.lua")
+local previewPaneLib = load("lib/previewpane.lua")
+local paneCanvasLib = load("lib/previewpane/canvas.lua")
 local uiSpecLib = load("root/uispec.lua")
 local themesLib = load("lib/ui/themes.lua")
 -- The icon engine and the units it is composed from. This file is the one that names the
@@ -253,7 +253,7 @@ local SHIPPED_LEADERS = {
 }
 
 -- The key each shipped leader is spelled with wherever a person reads a chord, in the order the
--- key panel's legend lists them. Each is a kbd constant, whose symbol lib/kbd.lua holds, Hyper the
+-- info pane's legend lists them. Each is a kbd constant, whose symbol lib/kbd.lua holds, Hyper the
 -- four pointed star other launchers already use for it, Meta the diamond the Sun keyboards printed
 -- on their Meta key, and Super a plain circle. A leader the person named has no symbol and reads as
 -- its own word.
@@ -270,7 +270,7 @@ local function leaderSymbol(catalogName)
   return nil
 end
 
--- The key panel's legend, one line per shipped leader under Olm's name, its symbol as the chord
+-- The info pane's legend, one line per shipped leader under Olm's name, its symbol as the chord
 -- and its word and physical key as the label, read from this load's leaders so a leader moved to
 -- another key says so. A key name is its USAGE name spelled as words, capsLock as Caps Lock.
 local function leaderLegend(leaderSpecs)
@@ -306,7 +306,7 @@ local function wireSwiftChooser(chooserAtom, chosen, opts)
   swift.configure(opts)
 end
 
--- The drawing backend every docked pane is handed, the strategy lib/dockedpane.lua's header
+-- The drawing backend every preview pane is handed, the strategy lib/previewpane.lua's header
 -- describes. The swift chooser's native glass pane while that provider is the chosen one and its
 -- library is loaded, so the pane is drawn in the native panel's window as one glass, and the canvas
 -- backend otherwise, wrapped by the default provider's own, which draws a pane docked to an open
@@ -315,7 +315,7 @@ end
 -- made, which is after wireSwiftChooser has run, and the answer cannot change within a session,
 -- since the provider decides once at configure time. It lives outside obj.run for the same reason
 -- wireSwiftChooser does.
-local function dockedPaneBackend(chooserAtom, chosen)
+local function previewPaneBackend(chooserAtom, chosen)
   local swift = chooserAtom.providers and chooserAtom.providers.swift
   if swift and chosen == swift and swift.serving() == "swift" then
     local native = swift.paneBackend()
@@ -331,14 +331,14 @@ local function dockedPaneBackend(chooserAtom, chosen)
 end
 
 -- Hands CanvasPanel the same drawing backend, so the leader sheets and the toasts follow the
--- chooser that serves the way every docked pane does, on the swift chooser's glass while it serves
+-- chooser that serves the way every preview pane does, on the swift chooser's glass while it serves
 -- and on the canvas otherwise. The factory resolves at each panel's first show, through
--- dockedPaneBackend, so a panel is never handed a backend before the swift chooser is wired, and
+-- previewPaneBackend, so a panel is never handed a backend before the swift chooser is wired, and
 -- a panel shown while the library is not loaded draws on canvas. It lives outside obj.run for the
 -- same reason wireSwiftChooser does.
 local function wirePanelBackend(canvasPanel, chooserAtom, chosen)
   canvasPanel.configure({ backend = function(frame, window)
-    return dockedPaneBackend(chooserAtom, chosen)(frame, window)
+    return previewPaneBackend(chooserAtom, chosen)(frame, window)
   end })
 end
 
@@ -509,7 +509,7 @@ function obj.run(olm, cfg)
     end
     return false
   end
-  local decorate = defaultsLib.merge({ installedBy = "actionpanel" }, cfg.decorate)
+  local decorate = defaultsLib.merge({ installedBy = "actionspane" }, cfg.decorate)
   -- The person's per plugin entries, keyed by plugin identity, from config/plugins.lua. One entry
   -- holds that plugin's overrides, its person supplied data and its spoon global, or false to
   -- switch it off. Overrides go to the resolver as they are, and the resolver strips the data and
@@ -693,12 +693,12 @@ function obj.run(olm, cfg)
     provider = chooserProvider,
     ui = uiAtom,
     icon = paintIcon,
-    -- THE SEAM. ActionPanel is one of the five host modules this file is allowed to name.
+    -- THE SEAM. ActionsPane is one of the five host modules this file is allowed to name.
     -- decorate has to be installed before the first Chooser.new call anywhere or every
     -- instance keeps its own rows and the panel decorates nothing, which is Fact 2, and
     -- landing it here, before a manifest is even read, is what stops that constraint from
     -- ever again holding only by the accident of load order. The installer is still named
-    -- through cfg rather than as a literal, so a portable install without ActionPanel
+    -- through cfg rather than as a literal, so a portable install without ActionsPane
     -- clears cfg.decorate and this hook simply finds nothing to call.
     decorate = function(instance, config)
       local installer = modules and decorate.installedBy and modules[decorate.installedBy]
@@ -1175,7 +1175,7 @@ function obj.run(olm, cfg)
   -- with no second place to edit. Title cased because these are read as words in a sentence
   -- rather than as the shouted constants the catalog spells them with. Each is a kbd leader key, so
   -- a chord carries it as one entry. A shipped leader reads as its symbol instead, LEADER_SYMBOLS,
-  -- which the key panel's legend explains.
+  -- which the info pane's legend explains.
   local function displayName(catalogName)
     local symbol = leaderSymbol(catalogName)
     if symbol then return symbol end
@@ -1383,7 +1383,7 @@ function obj.run(olm, cfg)
   -- A titled list, for an action that touched several things at once and owes a line per thing,
   -- the workspaces apply naming the apps in a layout that were not open. Sized like the Hyper
   -- cheat sheet so the two read as one instrument. It stays up five seconds with the count
-  -- shown in its footer, a Dismiss chip takes it down early, and the panel is reused so a
+  -- shown in its bottom row, a Dismiss chip takes it down early, and the panel is reused so a
   -- second apply replaces the first rather than stacking. The countdown redraws the panel once
   -- a second through its own show, since the number is content and nothing else on the panel
   -- changes while it sits there.
@@ -1607,7 +1607,7 @@ function obj.run(olm, cfg)
       return (stageModule and stageModule:pop()) or false
     end,
 
-    -- stagePush, docs/PLAN-ACTION-PANEL.md. A verb run from the action panel opens a level of
+    -- stagePush, docs/PLAN-ACTION-PANEL.md. A verb run from the actions pane opens a level of
     -- its own tool through this, the same push a row's onSelect answering a child gets, since a
     -- verb has no onSelect to answer one through. Rename in Workspaces is the first.
     stagePush = function(child)
@@ -1692,7 +1692,7 @@ function obj.run(olm, cfg)
     end,
 
     -- One line of feedback, one sampled colour, and one titled list, all on the shared overlay
-    -- so they read as part of the same interface as the cheat sheet and the action bar.
+    -- so they read as part of the same interface as the cheat sheet and the bottom bar.
     notify = notify,
     showColor = showColor,
     report = report,
@@ -1799,8 +1799,8 @@ function obj.run(olm, cfg)
     listKeys = keymapLib.listDefaults,
   })
 
-  -- The person's lists section, laid over every list's bindings once, here, before the action bar,
-  -- the action panel, the keymap and the contexts read any of them, so a list key moved there
+  -- The person's lists section, laid over every list's bindings once, here, before the bottom bar,
+  -- the actions pane, the keymap and the contexts read any of them, so a list key moved there
   -- shows its new chord everywhere it is bound. Every default is placed on the list role's leader
   -- first, and a person's chord may open with any held leader in the catalog, a chord opening with
   -- anything else being a problem line. A section naming the list of a
@@ -1903,7 +1903,7 @@ function obj.run(olm, cfg)
   -- table is the override seam actionKinds reserves for exactly that one small correction.
   --
   -- The fourth is the same shape as leavePage above, a step back out of a swapped list, and it
-  -- earns the same correction for the same reason. The action panel draws its own Back row, so
+  -- earns the same correction for the same reason. The actions pane draws its own Back row, so
   -- a step out classified as a verb would be listed twice, once as the panel's Back and once as
   -- a row of its own. These are action names and no plugin is named, which is the only reason
   -- this table may sit in this file at all.
@@ -1915,17 +1915,17 @@ function obj.run(olm, cfg)
   }
 
   local contextOwners = hintsLib.contextOwners(plan, manifests)
-  -- A list whose action panel would only repeat its primary and its secondary loses its Actions
+  -- A list whose actions pane would only repeat its primary and its secondary loses its Actions
   -- binding, decided here once from the manifests, after the person's lists section and before the
-  -- bar, the key panel, the keymap or the contexts read the bindings. The launcher is no exception,
+  -- bar, the info pane, the keymap or the contexts read the bindings. The launcher is no exception,
   -- since a typed scope's verbs only filter the launcher's own bindings and so never add a row.
-  local idleActionPanels = hintsLib.dropIdleActionPanels(plan, { kinds = actionKindOverrides })
-  if #idleActionPanels > 0 then
-    log.i("Olm keymap, " .. #idleActionPanels .. " list(s) declare no verb beyond their primary and "
-      .. "secondary, so they carry no Actions, " .. table.concat(idleActionPanels, ", "))
+  local idleActionsPanes = hintsLib.dropIdleActionsPanes(plan, { kinds = actionKindOverrides })
+  if #idleActionsPanes > 0 then
+    log.i("Olm keymap, " .. #idleActionsPanes .. " list(s) declare no verb beyond their primary and "
+      .. "secondary, so they carry no Actions, " .. table.concat(idleActionsPanes, ", "))
   end
 
-  -- Whether a list is open, lib/listopen.lua, one named list for the wiring, the action panel and
+  -- Whether a list is open, lib/listopen.lua, one named list for the wiring, the actions pane and
   -- the surface adapters, and any list for every leader, since no hold reveals a sheet over an
   -- open list and a leader whose policy goes quiet over lists reads the same answer. Both walk the
   -- contextOwners table the predicates route through, so this gate and the modal rule on the
@@ -2056,7 +2056,7 @@ function obj.run(olm, cfg)
 
   ------------------------------------------------------------------------------
   -- Presentation deps, one shared table for every lib/hints.lua call this file
-  -- makes, the action bar's model and the action panel's rows among them.
+  -- makes, the bottom bar's model and the actions pane's rows among them.
   ------------------------------------------------------------------------------
 
   -- Takes down whichever leader's sheet a hold put up, which each leader answers only for its
@@ -2066,21 +2066,21 @@ function obj.run(olm, cfg)
   end
 
 
-  -- The action panel borrows the one list instance and leaves current() naming the list, so the
-  -- action bar and the list's field keys ask this rather than the stage. It answers the panel row
-  -- under the highlight, an empty table with none, or nil while the panel is closed. ActionPanel is
+  -- The actions pane borrows the one list instance and leaves current() naming the list, so the
+  -- bottom bar and the list's field keys ask this rather than the stage. It answers the panel row
+  -- under the highlight, an empty table with none, or nil while the panel is closed. ActionsPane is
   -- one of the host modules this file may name.
-  local function actionPanelShowingRow()
-    local ap = modules[plan.identity.actionpanel or "actionpanel"]
+  local function actionsPaneShowingRow()
+    local ap = modules[plan.identity.actionspane or "actionspane"]
     if not (ap and type(ap.isOpen) == "function" and ap:isOpen()) then return nil end
     return (stageModule and stageModule:selectedItem()) or {}
   end
 
-  -- The row of more's icon, read against the action panel's manifest like the bar's keys icon,
+  -- The row of more's icon, read against the actions pane's manifest like the bar's keys icon,
   -- handed now since the identity is only known once the plan is resolved. Both providers take
   -- it, since the swift one serves the default when its library is not loaded.
   do
-    local moreIcon = { icon = "more", owner = plan.identity.actionpanel or "actionpanel" }
+    local moreIcon = { icon = "more", owner = plan.identity.actionspane or "actionspane" }
     for _, name in ipairs({ "default", "swift" }) do
       local provider = chooserAtom.providers and chooserAtom.providers[name]
       if provider and provider.configure then provider.configure({ moreIcon = moreIcon }) end
@@ -2091,8 +2091,8 @@ function obj.run(olm, cfg)
     predicates = ownPredicates,
     owners = contextOwners,
     -- The identity whose manifest icons the panel's own Back row reads its key against.
-    panelOwner = plan.identity.actionpanel or "actionpanel",
-    -- The key panel's header, this Olm's name and version.
+    panelOwner = plan.identity.actionspane or "actionspane",
+    -- The info pane's header, this Olm's name and version.
     title = "Olm " .. tostring(olm.version),
     -- And the legend under it, what each leader's symbol stands for.
     legend = leaderLegend(leaderSpecs),
@@ -2110,7 +2110,7 @@ function obj.run(olm, cfg)
     -- overrides the panel's own kindOf uses or the panel rows and verbsIn drift apart.
     kinds = actionKindOverrides,
     -- liveLabels, harvested above off whatever each module offers rather than written here, so
-    -- a word that follows a plugin's own live state reaches the action bar and the action panel
+    -- a word that follows a plugin's own live state reaches the bottom bar and the actions pane
     -- with this file still naming no plugin. It was absent, on the grounds that the only case
     -- then in existence, the launcher's Run reading as Open over an application row, was that
     -- plugin's own business and there was nowhere generic to reach it from. The generic place is
@@ -2127,17 +2127,17 @@ function obj.run(olm, cfg)
       return stageModule:labels()
     end,
     -- Whether Backspace on an empty field leaves the level showing, a level pushed over another,
-    -- so the key panel lists Back only when it does something.
+    -- so the info pane lists Back only when it does something.
     backs = function(contextName)
       return stageModule ~= nil and stageModule:current() == contextName and stageModule:depth() > 1
     end,
-    -- The panel row under the highlight while the action panel is open over the list, an empty
-    -- table when it is open on no row, and nil while it is closed, so the action bar describes the
+    -- The panel row under the highlight while the actions pane is open over the list, an empty
+    -- table when it is open on no row, and nil while it is closed, so the bottom bar describes the
     -- panel the person is looking at rather than the list it borrowed. Read late, like the stage.
-    actionPanel = function() return actionPanelShowingRow() end,
-    -- The title of a level a verb opened in the action panel, which heads it in the popover.
-    actionPanelTitle = function()
-      local panel = modules and modules[plan.identity.actionpanel or "actionpanel"]
+    actionsPane = function() return actionsPaneShowingRow() end,
+    -- The title of a level a verb opened in the actions pane, which heads it in the floatingPane.
+    actionsPaneTitle = function()
+      local panel = modules and modules[plan.identity.actionspane or "actionspane"]
       return panel and panel.levelTitle and panel:levelTitle() or nil
     end,
   }
@@ -2163,7 +2163,7 @@ function obj.run(olm, cfg)
     stampIcons = iconRows.stampAll,
   }
 
-  -- ActionPanel's own three, built here rather than only in step K because the ordinary stage
+  -- ActionsPane's own three, built here rather than only in step K because the ordinary stage
   -- two configure reaches every plugin in the plan and this one REFUSES to be configured
   -- without kindOf. Handing it nothing there and everything later meant one raised problem on
   -- every single run for a plugin that was going to be configured properly a moment later.
@@ -2174,11 +2174,11 @@ function obj.run(olm, cfg)
   -- and reached through the closure at the moment a verb is actually run, which is always long
   -- after the whole pipeline has finished.
   -- surfaceAdapters is declared here and filled further down, the same forward declaration as
-  -- dispatchTable, so the action panel's call below reaches the real list once it exists.
+  -- dispatchTable, so the actions pane's call below reaches the real list once it exists.
   -- surfaceByOwner is the same adapters keyed by the plugin that owns them, filled beside them.
   local dispatchTable, surfaceAdapters, surfaceByOwner
   local actionKinds = hintsLib.actionKinds(plan, actionKindOverrides)
-  local actionPanelOpts = {
+  local actionsPaneOpts = {
     kindOf = function(action) return actionKinds[action] end,
     rowsFor = function(contextName, hosted) return hintsLib.rowsFor(contextName, plan, hintsDeps, hosted) end,
     -- value is a choice made in a level the verb opened, handed to the plugin's method,
@@ -2228,16 +2228,16 @@ function obj.run(olm, cfg)
 
   -- What services.perPlugin builds a plugin's own data from, its scoped tool path adapter and
   -- its recency instance. It once also took the hints deps to build a docked hint panel per
-  -- surfaced plugin, which the action bar inside the chooser's own canvas replaced.
+  -- surfaced plugin, which the bottom bar inside the chooser's own canvas replaced.
   local perPluginDeps = { libs = libs, deps = sharedDepsScope }
 
   local perPluginData = servicesLib.perPlugin(plan, manifests, perPluginDeps)
 
-  -- THE SEAM. Stage's own data, built here for the same reason ActionPanel's own three are at
-  -- actionPanelOpts above, source root in its manifest for a value only the root can compute,
+  -- THE SEAM. Stage's own data, built here for the same reason ActionsPane's own three are at
+  -- actionsPaneOpts above, source root in its manifest for a value only the root can compute,
   -- delivered by hand into wireData.stage below rather than through the fan out, the identical
-  -- door ActionPanel's own kindOf, rowsFor, and run already go through and are declared the
-  -- same way at host/actionpanel/manifest.lua. chooser and theme are exactly what a surfaced
+  -- door ActionsPane's own kindOf, rowsFor, and run already go through and are declared the
+  -- same way at host/actionspane/manifest.lua. chooser and theme are exactly what a surfaced
   -- plugin already receives ambiently, handed over explicitly because this host opens no
   -- context of its own and so earns nothing through that entitlement.
   --
@@ -2251,25 +2251,25 @@ function obj.run(olm, cfg)
   -- so the construction time field is never on screen for a single frame, and host/stage/
   -- init.lua now writes a literal there instead of asking anyone for one.
   --
-  -- THE SEAM, its second half. The action bar under the stage's one window answers for whichever
+  -- THE SEAM, its second half. The bottom bar under the stage's one window answers for whichever
   -- presentation is actually up, VPN's own keys while VPN is presented and the launcher's again
   -- after pop, decision seven of phase three, contexts and hints follow current(). So this builds
-  -- ONE footer collaborator for the stage, here, naming no plugin, asking stageModule:current()
+  -- ONE bottom bar collaborator for the stage, here, naming no plugin, asking stageModule:current()
   -- each time the instance asks for the model, and the stage's labels through hintsDeps above.
   -- It replaced the docked hint panel on 2026-10-23, docs/PLAN-ACTION-BAR.md, a CanvasPanel
   -- under the window that appeared after a pause, built here the same way for the same reason.
-  local function stageFooter()
+  local function stageBottomBar()
     local contextName = (stageModule and stageModule:current()) or (plan.identity.launcher or "launcher")
-    return hintsLib.footerModel(contextName, plan, hintsDeps)
+    return hintsLib.bottomBarModel(contextName, plan, hintsDeps)
   end
   local stageOpts = {
     chooser = chooserAtom,
     theme = policy.chooserTheme,
     stampIcons = iconRows.stampAll,
-    footer = stageFooter,
+    bottomBar = stageBottomBar,
     -- A press on an entry of the bar runs that entry's action, the same dispatch a verb chosen in
-    -- the action panel runs, so Actions opens the panel and the primary chooses the row.
-    footerAction = actionPanelOpts.run,
+    -- the actions pane runs, so Actions opens the panel and the primary chooses the row.
+    bottomBarAction = actionsPaneOpts.run,
   }
 
   -- fannedData WINS, and its absence here altogether was the single worst defect in this build.
@@ -2297,7 +2297,7 @@ function obj.run(olm, cfg)
   local wireData = servicesLib.merge(perPluginData, rootFanned, {
     leadersheet = leaderSheetOpts,
     queryscope = queryScopeOpts,
-    actionpanel = actionPanelOpts,
+    actionspane = actionsPaneOpts,
     stage = stageOpts,
   }, fannedData)
 
@@ -2315,16 +2315,16 @@ function obj.run(olm, cfg)
     placeholder = policy.placeholder,
     matcher = chooserAtom.matchers and chooserAtom.matchers[policy.matcher],
     matchers = chooserAtom.matchers,
-    -- The docked companion pane, one per plugin that asks, so the factory is what is shared.
+    -- The preview pane, one per plugin that asks, so the factory is what is shared.
     -- Its chrome and its quiet state are CanvasPanel's and its text is the kit's, named here
     -- and nowhere else, so a pane in a plugin draws only its own content. Its drawing backend
-    -- follows the chooser that serves, see dockedPaneBackend above obj.run.
-    dockedPane = function(spec)
-      return dockedPaneLib.new({
+    -- follows the chooser that serves, see previewPaneBackend above obj.run.
+    previewPane = function(spec)
+      return previewPaneLib.new({
         ui = uiAtom,
         surface = canvasPanel.surfaceElements,
         emptyState = canvasPanel.emptyStateElements,
-        backend = dockedPaneBackend(chooserAtom, chooserProvider),
+        backend = previewPaneBackend(chooserAtom, chooserProvider),
       }, spec)
     end,
     log = log,
@@ -2363,7 +2363,7 @@ function obj.run(olm, cfg)
   -- The action names satisfied by a closure this file builds rather than by any surface. Kept
   -- beside the map for the same reason, since an action in here needing no surface method is
   -- the difference between a key that is fine and a key that is dead.
-  local navExceptionNames = { openActionPanel = true }
+  local navExceptionNames = { openActionsPane = true }
   local bindOneInContext = navLib.bindOne(repeatableActions)
 
   -- A dot called control surface for every plugin this plan actually built a context for,
@@ -2702,16 +2702,16 @@ function obj.run(olm, cfg)
   -- runs, since lib/nav.lua's own bindOne reads that exact field rather than asking this
   -- table again by name. It is built here, between stages six and seven, rather than left
   -- until step K, for that one reason alone.
-  -- Assigned rather than declared, since it was forward declared far above so ActionPanel's
+  -- Assigned rather than declared, since it was forward declared far above so ActionsPane's
   -- own run closure could be built before the pipeline started and still reach the real table
   -- once it exists.
   dispatchTable = navLib.actions(plan, {
     surfaces = surfaceAdapters,
     hideShortcuts = hideSharedOverlay,
-    -- Every list key that acts closes the action bar's key panel first, the spec's rule, in the
-    -- one place every handler passes through. showKeys is the one that toggles it instead.
+    -- Every list key that acts closes the bottom bar's info pane first, the spec's rule, in the
+    -- one place every handler passes through. showInfo is the one that toggles it instead.
     onAction = function(name)
-      if name ~= "showKeys" and stageModule then stageModule:closeKeys() end
+      if name ~= "showInfo" and stageModule then stageModule:closeInfo() end
     end,
     -- The three action names that do not equal the surface method answering them. Everything
     -- else routes by its own name, which is why lib/nav.lua defaults to that and this table is
@@ -2725,19 +2725,19 @@ function obj.run(olm, cfg)
     -- explicitly and the restructure read the action name as the method name for all of them.
     methodFor = navMethodFor,
     exceptions = {
-      -- THE SEAM. openActionPanel cannot be a routed method on any one surface, since it
+      -- THE SEAM. openActionsPane cannot be a routed method on any one surface, since it
       -- toggles a panel that borrows whichever list is currently open rather than being a
       -- verb that list answers itself, so this is the one closure lib/nav.lua's own design
       -- hands back to this file to build rather than resolving generically.
-      -- THE SEAM, the key panel's own verb. Like the action panel it belongs to whichever list
+      -- THE SEAM, the info pane's own verb. Like the actions pane it belongs to whichever list
       -- is open rather than to that list's surface, and the one list instance is the stage's,
-      -- so it is the stage that is asked, and a provider drawing no action bar does nothing.
-      showKeys = function()
-        if stageModule then stageModule:toggleKeys() end
+      -- so it is the stage that is asked, and a provider drawing no bottom bar does nothing.
+      showInfo = function()
+        if stageModule then stageModule:toggleInfo() end
       end,
-      openActionPanel = function()
-        local actionPanelModule = modules[plan.identity.actionpanel or "actionpanel"]
-        if not actionPanelModule then return end
+      openActionsPane = function()
+        local actionsPaneModule = modules[plan.identity.actionspane or "actionspane"]
+        if not actionsPaneModule then return end
         for contextName in pairs(plan.contexts) do
           if isShowingFor(contextName) then
             -- The hosted argument's meaning moved into the caller when hints.lua stopped
@@ -2751,12 +2751,12 @@ function obj.run(olm, cfg)
               if queryScopeModule and launcherModule then
                 local scope = queryScopeModule:resolve(launcherModule:currentQuery())
                 if scope then
-                  actionPanelModule:toggle(scope.name, scope.verbs or {})
+                  actionsPaneModule:toggle(scope.name, scope.verbs or {})
                   return
                 end
               end
             end
-            actionPanelModule:toggle(contextName)
+            actionsPaneModule:toggle(contextName)
             return
           end
         end
@@ -2777,18 +2777,18 @@ function obj.run(olm, cfg)
   -- a binding whose action repeats, the same table the leaders read. Only the default chooser has
   -- such a field, so with the legacy chooser chosen the keys are said once as not live.
   --
-  -- While the action panel is open over a list the field's keys are inert, so Command and Return
+  -- While the actions pane is open over a list the field's keys are inert, so Command and Return
   -- in the panel chooses the panel row rather than running the list's secondary on whatever the
   -- panel was opened over. That is said through the watcher's own gate. Each list's predicate is
   -- handed over wrapped, answering false while the panel is open, so the watcher keeps knowing
   -- only predicates and the key falls through to the field, which chooses the highlighted row.
-  -- showKeys is the one field key left live over the panel, since the keys group stays on screen
-  -- with its chord while the action panel is open and a chord shown must do what it says.
+  -- showInfo is the one field key left live over the panel, since the left side stays on screen
+  -- with its chord while the actions pane is open and a chord shown must do what it says.
   local fieldPredicates = setmetatable({}, { __index = function(_, name)
     local pred = (w._predicates or ownPredicates)[name]
     if type(pred) ~= "function" then return pred end
     return function(binding)
-      return (actionPanelShowingRow() == nil or (binding ~= nil and binding.shared == "showKeys")) and pred()
+      return (actionsPaneShowingRow() == nil or (binding ~= nil and binding.shared == "showInfo")) and pred()
     end
   end })
   local fieldKeyList
@@ -2834,12 +2834,12 @@ function obj.run(olm, cfg)
   secureNoticeLib.start({ keys = noticeKeys, ioreg = sharedDepsScope.path("ioreg"), notify = notify })
 
   ------------------------------------------------------------------------------
-  -- ActionPanel's own configure. Deferred to here for the identical reason step
+  -- ActionsPane's own configure. Deferred to here for the identical reason step
   -- K's three calls are, deps.rowsFor and deps.run both read plan and registry
   -- state the earlier stages had not produced yet.
   ------------------------------------------------------------------------------
 
-  -- ActionPanel is configured by the ordinary stage two path alone now. Its three values are
+  -- ActionsPane is configured by the ordinary stage two path alone now. Its three values are
   -- built far above and carried in on wireData, so the second call that used to sit here would
   -- only restate what the plugin already holds, and a second call that adds nothing is exactly
   -- the kind of step that later drifts from the first one.
@@ -3142,11 +3142,11 @@ function obj.run(olm, cfg)
       -- which is exactly what it did.
       registry = wiredRegistry,
       -- What every leader role is called, app and window alike, so a contributed row that names
-      -- its leader by role reads the same word the action bar prints, and every leader by the
+      -- its leader by role reads the same word the bottom bar prints, and every leader by the
       -- name a keymap row spells it with, for a row the person put on a leader no role answers.
       leaderNames = leaderDisplayNames,
       -- The shared speller rather than one the launcher owns for itself, so a row states the
-      -- same chord the action bar already agreed on.
+      -- same chord the bottom bar already agreed on.
       chordLabel = chordLabel,
       -- The chord a registered tool's row names, its open row in the keymap, a leader role, else
       -- the leader's own name for a leader no role answers, or false for a plain combination, a key
@@ -3351,7 +3351,7 @@ function obj.run(olm, cfg)
   -- thing most worth inspecting.
   record.predicates = w._predicates or ownPredicates
   -- Exposed for the same reason the predicates above are, so what a plugin offered and what the
-  -- action bar was actually handed can be read from outside rather than only inferred from this
+  -- bottom bar was actually handed can be read from outside rather than only inferred from this
   -- file. A harvest that silently collected nothing looks exactly like a config with nothing to
   -- collect, which is the failure this one line makes answerable.
   record.liveLabels = ownLiveLabels

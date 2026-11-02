@@ -1,4 +1,4 @@
--- Unit case for the shared docked companion pane, Spoons/Olm.spoon/lib/dockedpane.lua. The runner
+-- Unit case for the shared preview pane, Spoons/Olm.spoon/lib/previewpane.lua. The runner
 -- reaches this file with a dofile call carrying an absolute path, so it locates itself through
 -- debug.getinfo and derives every module path from there. It also runs under plain lua, since
 -- the pane takes its backend and its timer from deps and nothing here touches Hammerspoon.
@@ -23,14 +23,14 @@ local function check(description, ok, detail)
   end
 end
 
-local chunk, err = loadfile(olm .. "lib/dockedpane.lua")
-if not chunk then error("could not load lib/dockedpane.lua, " .. tostring(err)) end
-local DockedPane = chunk()
+local chunk, err = loadfile(olm .. "lib/previewpane.lua")
+if not chunk then error("could not load lib/previewpane.lua, " .. tostring(err)) end
+local PreviewPane = chunk()
 
 -- The canvas backend the root hands every pane while the swift chooser does not serve, built
 -- over the stub canvas below, so this case still sees each canvas call the pane causes.
-local backendChunk, backendErr = loadfile(olm .. "lib/dockedpane/canvas.lua")
-if not backendChunk then error("could not load lib/dockedpane/canvas.lua, " .. tostring(backendErr)) end
+local backendChunk, backendErr = loadfile(olm .. "lib/previewpane/canvas.lua")
+if not backendChunk then error("could not load lib/previewpane/canvas.lua, " .. tostring(backendErr)) end
 local CanvasBackend = backendChunk()
 
 -- Every canvas the stub made, newest last.
@@ -98,9 +98,9 @@ local FRAME = { x = 500, y = 100, w = 300, h = 200 }
 -- enabled, docking and the empty state
 --------------------------------------------------------------------------------
 
-local pane = DockedPane.new(deps, { scroll = true })
+local pane = PreviewPane.new(deps, { scroll = true })
 check("a pane with a surface and a kit is enabled", pane.isEnabled())
-check("a pane without a kit is not", not DockedPane.new({ surface = surface }).isEnabled())
+check("a pane without a kit is not", not PreviewPane.new({ surface = surface }).isEnabled())
 check("there is no inner rect before the first dock", pane.inner() == nil)
 
 pane.dock(FRAME)
@@ -111,7 +111,7 @@ check("the inner rect is the frame less the pad, in the canvas's own coordinates
 
 pane.clear()
 local c = canvases[1]
-check("clear paints one canvas at the companion rect", #canvases == 1 and c.frameSet == FRAME and c.shown)
+check("clear paints one canvas at the preview pane rect", #canvases == 1 and c.frameSet == FRAME and c.shown)
 check("the canvas floats and a click on it activates nothing",
   c.lvl == "floating" and c.activating == false)
 check("the empty state is drawn over the surface", kinds(c.els) == "surface,empty")
@@ -120,7 +120,7 @@ check("the empty state is laid into the inner box",
 check("with no emptyText the shared routine is called with no options",
   emptyCalls[#emptyCalls].opts == nil)
 
-local guided = DockedPane.new(deps, { emptyText = "Highlight something" })
+local guided = PreviewPane.new(deps, { emptyText = "Highlight something" })
 guided.dock(FRAME)
 guided.clear()
 check("a pane's own emptyText reaches the shared routine",
@@ -161,7 +161,7 @@ check("content that shrinks underneath clamps the offset", c.els[2].scrollY == 7
 pane.show(function() return tall end)
 check("a new show starts at the top", c.els[2].scrollY == 0)
 
-local short = DockedPane.new(deps, {})
+local short = PreviewPane.new(deps, {})
 short.dock(FRAME)
 short.show(function() return tall end)
 check("a pane that does not scroll lays out with no offset",
@@ -169,7 +169,7 @@ check("a pane that does not scroll lays out with no offset",
 check("and refuses a scroll", short.scrollBy(50) == false)
 short.destroy()
 
-local thumbed = DockedPane.new(deps, { scroll = true, thumb = true })
+local thumbed = PreviewPane.new(deps, { scroll = true, thumb = true })
 thumbed.dock(FRAME)
 thumbed.show(function() return tall end)
 local tc = canvases[#canvases]

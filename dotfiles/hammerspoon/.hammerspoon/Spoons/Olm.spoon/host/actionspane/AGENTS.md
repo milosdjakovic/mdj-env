@@ -1,11 +1,11 @@
-# ActionPanel.spoon
+# ActionsPane.spoon
 
 The decision trail for this spoon. Cross cutting material stays in the hammerspoon
 AGENTS.md, which links here.
 
 ## What it is
 
-The measurement phase eight's action panel is built on, packet one of three, and the panel
+The measurement phase eight's actions pane is built on, packet one of three, and the panel
 itself, packet two, the chooser it opens a chord away from a chooser already open. A panel
 lists a chooser's verbs and never its navigation, and before packet one that distinction did
 not exist anywhere in this repository, every binding in a context was one
@@ -86,21 +86,21 @@ and that function asks the live gate as well as the kind, so a verb whose `when`
 false is no longer offered. `verbsIn` is untouched and stays untouched, for exactly the reason
 the next section gives. The correction was owed the moment a picker grew a page whose two entry
 verbs are gated off, since the panel was listing two rows that did nothing, and it belonged in
-`rowsFor` because that is the function whose gate the hint bar, and now the action bar's
-`footerModel`, already read the same answer from. Since the action bar landed the panel also
+`rowsFor` because that is the function whose gate the hint bar, and now the bottom bar's
+`bottomBarModel`, already read the same answer from. Since the bottom bar landed the panel also
 lists the primary and the secondary right after Back, with the same live labels the bar shows.
 
 Keeping them out here is what makes verbsIn a statement about the declarations themselves,
 a fact that only changes when a manifest or actionKinds changes, rather than a
 statement about a moment that could answer differently from one call to the next with
 nothing in the source having moved. That is exactly what test/inventory.lua's own
-actionpanel section leans on, since it can only be a stable measurement, checked byte for
+actionspane section leans on, since it can only be a stable measurement, checked byte for
 byte across three separate runs, if the function underneath it never asks a question whose
 answer depends on the clock or on what happens to be on screen.
 
 ## Why the snapshot section is unfiltered, and stays that way
 
-test/inventory.lua's actionpanel section calls spoon.ActionPanel:verbsIn directly against
+test/inventory.lua's actionspane section calls spoon.ActionsPane:verbsIn directly against
 each context's raw bindings, with no needs filter and no live predicate layered on top, on
 purpose and permanently. A later packet may add exactly that filtering to the panel itself,
 narrowing what a person actually sees when one context's needs are not met on this
@@ -180,7 +180,7 @@ calling the original, which would otherwise treat a panel row as one of the tool
 in silence.
 
 onHighlight is deliberately not called at all while the panel is open, rather than an
-omission. The item a companion pane was already showing is exactly what a chosen verb acts
+omission. The item a preview pane was already showing is exactly what a chosen verb acts
 on, so leaving the preview on it is more honest than blanking it or describing a menu row as
 though it were a file.
 
@@ -324,17 +324,17 @@ same as false.
 
 ## A view that floats the panel, and why it then has no Back row
 
-The swift chooser draws the panel as a popover over the list rather than in place of its rows,
-which its view says through `floatsActionPanel`, asked through the engine's method of the same
+The swift chooser draws the panel as a floating pane over the list rather than in place of its rows,
+which its view says through `floatsActionsPane`, asked through the engine's method of the same
 name. Nothing in this module changes for it except one row. toggle asks the instance once, and
-`_buildRows` then leaves out the Back row, the one row carrying no action, since a popover is
+`_buildRows` then leaves out the Back row, the one row carrying no action, since a floating pane is
 left by Escape and the list it would step back to never went away. The first verb is then the
 highlighted row, so Return runs the primary as the bar says. The rows, the field, the highlight
 and every way out are otherwise exactly as above, the view keeping the list's own rows on screen
-behind the popover and drawing the panel's rows in it. Escape over a floating panel closes the
-panel and not the list, through the engine asking the footer model's `panelAction`, the panel's
+behind the floating pane and drawing the panel's rows in it. Escape over a floating panel closes the
+panel and not the list, through the engine asking the bottom bar model's `panelAction`, the panel's
 own action name, so the engine never names it. The canvas chooser floats it the same way since
-2026-10-30, in a popover drawn by `lib/chooser/providers/default/popover.lua`. A view that answers
+2026-10-30, in a floating pane drawn by `lib/chooser/providers/default/floatingpane.lua`. A view that answers
 nothing keeps the Back row and the in place panel.
 
 ## Levels, sections and verbs that depend on the row
@@ -349,7 +349,7 @@ the level's rows carry either `run` and a `value` or `cancel`. Choosing a `run` 
 `_leave` with the value, so the verb runs against the restored row with its value, the root's `run`
 handing the value to the plugin's method. Cancel and Backspace on an empty field step back to the
 root rows through `_stepBack`, which leaves the panel only when no level is open. Escape still
-closes the whole panel. `levelTitle` answers the verb whose level is open, which the footer model
-carries as `panelTitle` so the popover heads the level with it. Sections are ordered in
+closes the whole panel. `levelTitle` answers the verb whose level is open, which the bottom bar model
+carries as `panelTitle` so the floating pane heads the level with it. Sections are ordered in
 `lib/hints.lua`'s `sectioned`, so the canvas chooser lists the same order with no headings.
 

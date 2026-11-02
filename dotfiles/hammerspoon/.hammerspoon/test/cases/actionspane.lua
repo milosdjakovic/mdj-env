@@ -1,4 +1,4 @@
--- Unit case for Olm.spoon/host/actionpanel/init.lua, the verb classification phase eight's
+-- Unit case for Olm.spoon/host/actionspane/init.lua, the verb classification phase eight's
 -- first packet builds. The runner reaches this file with a dofile call carrying an absolute
 -- path, so this file in turn locates itself the same way, through debug.getinfo, and derives
 -- the module path from there. No absolute path is ever written down here, and the module
@@ -19,7 +19,7 @@
 local source = debug.getinfo(1, "S").source
 local herePath = source:match("^@(.*)$") or source
 local caseDir = herePath:match("^(.*)/[^/]+$")
-local modulePath = caseDir .. "/../../Spoons/Olm.spoon/host/actionpanel/init.lua"
+local modulePath = caseDir .. "/../../Spoons/Olm.spoon/host/actionspane/init.lua"
 -- The one rank engine and the strategy the root hands the panel for its own rows, the real
 -- modules rather than stand ins, so the panel's filter is the engine's answer.
 local chooserDir = caseDir .. "/../../Spoons/Olm.spoon/lib/chooser/"
@@ -41,7 +41,7 @@ end
 local function freshModule()
   local chunk, err = loadfile(modulePath)
   if not chunk then
-    error("could not load Olm.spoon/host/actionpanel/init.lua, " .. tostring(err))
+    error("could not load Olm.spoon/host/actionspane/init.lua, " .. tostring(err))
   end
   local ap = chunk()
   ap:init()
@@ -333,7 +333,7 @@ do
   check("verbsIn asked before configure ran answers an empty list rather than raising", #kept == 0)
   check(
     "verbsIn asked before configure ran warns naming itself and the module as unconfigured",
-    found(warnings, "verbsIn") and found(warnings, "ActionPanel"),
+    found(warnings, "verbsIn") and found(warnings, "ActionsPane"),
     table.concat(warnings, " | ")
   )
 end
@@ -348,7 +348,7 @@ do
   check("kindOf asked before configure ran answers nil rather than raising", kind == nil)
   check(
     "kindOf asked before configure ran warns naming itself and the module as unconfigured",
-    found(warnings, "kindOf") and found(warnings, "ActionPanel"),
+    found(warnings, "kindOf") and found(warnings, "ActionsPane"),
     table.concat(warnings, " | ")
   )
 end
@@ -656,7 +656,7 @@ do
   )
 end
 
--- onHighlight is not called at all while the panel is open on this instance, so a companion
+-- onHighlight is not called at all while the panel is open on this instance, so a preview pane
 -- pane keeps showing the item the panel was opened over, and reaches the original as always
 -- while the panel is closed.
 do
@@ -885,7 +885,7 @@ end
 -- out of a level before it leaves the panel, and a view that floats the panel gets no Back row.
 do
   local rows = {
-    { title = "Back", chord = "⌫", icon = "back", owner = "actionpanel" },
+    { title = "Back", chord = "⌫", icon = "back", owner = "actionspane" },
     { action = "insertSelected", title = "Apply", shared = "primary" },
     { action = "rename", title = "Rename", applies = "isLayout" },
     { action = "remove", title = "Delete", applies = "isLayout", confirm = "Delete this layout" },
@@ -923,7 +923,7 @@ do
   ap:_close()
 
   instance.item = { layout = true }
-  instance.floatsActionPanel = function() return true end
+  instance.floatsActionsPane = function() return true end
   ap:toggle("demo")
   check("a floating panel has no Back row and keeps the verbs that apply",
     titlesOf(ap._panelRows) == "Apply,Rename,Delete,Provider", titlesOf(ap._panelRows))
@@ -987,7 +987,7 @@ do
     ownRowsMatcher = substring,
   })
   local instance = fakeInstance({ showing = true, item = {} })
-  instance.floatsActionPanel = function() return true end
+  instance.floatsActionsPane = function() return true end
   ap:decorate(instance, fakeConfig())
   ap:toggle("demo")
   local out = {}

@@ -1,5 +1,5 @@
 -- Unit case for Olm.spoon/lib/glyphicon.lua, the icon facade lifted out of
--- Launcher's own private drawing once ActionPanel became a second caller of it, phase
+-- Launcher's own private drawing once ActionsPane became a second caller of it, phase
 -- eight's third packet, and since 2026 10 15 a thin door over the icon engine in lib/icons.
 -- Each instance below is given its own engine built from the real emoji source, so the drawing
 -- under test is the one the root builds. The runner reaches this file with a dofile call carrying an

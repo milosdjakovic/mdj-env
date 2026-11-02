@@ -393,7 +393,7 @@ end
 --- Warm the permission probe so the first settings open is instant. There is nothing else to
 --- start, since the remembered order reads itself on first use and nothing watches the browsers.
 --- The surface itself is built by the main root once it has injected the Chooser factory, the
---- theme, and the action bar.
+--- theme, and the bottom bar.
 function obj:start()
   permissions.warm()
 

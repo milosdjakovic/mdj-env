@@ -6,7 +6,7 @@
 ---
 --- lib/chooser/engine/init.lua owns every picker rule and all state, and implements the
 --- twenty five contract methods and the extras the stage calls. canvas.lua beside this file is
---- the view, the surface, the field, the rows, the action bar, the pointer and the key tap, and
+--- the view, the surface, the field, the rows, the bottom bar, the pointer and the key tap, and
 --- satisfies lib/chooser/view.lua. This file only names the two and wires them, the Bridge
 --- pattern's composition, so the engine never names a concrete view and the view never holds a
 --- rule. Until 2026-10-28 all of it was this one file, and the split changed no behaviour, see
@@ -80,7 +80,7 @@ function M.iconsChanged()
   Canvas.iconsChanged()
 end
 
---- M.paneBackend(fallback) -> the docked pane backend factory that draws a pane inside a canvas
+--- M.paneBackend(fallback) -> the preview pane backend factory that draws a pane inside a canvas
 --- chooser spanning its rect and through fallback anywhere else, see paneBackend in canvas.lua.
 function M.paneBackend(fallback)
   return Canvas.paneBackend(fallback)

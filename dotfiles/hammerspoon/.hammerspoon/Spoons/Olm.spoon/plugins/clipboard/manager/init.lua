@@ -1,6 +1,6 @@
 --- Hammerspoon clipboard manager, the mechanism. Composition root.
 ---
---- A self-contained clipboard history that lives entirely in Lua, no companion
+--- A self-contained clipboard history that lives entirely in Lua, no preview pane
 --- app. It polls the pasteboard, records text, urls, images, and files, shows a
 --- searchable hs.chooser with a live preview pane docked beside it, and pastes
 --- the chosen item back into the frontmost app.
@@ -193,8 +193,8 @@ function M.onRightClick(item, row)
   ui.onRightClick(item, row)
 end
 
-function M.onPositioned(chooserFrame, companionFrame)
-  ui.onPositioned(chooserFrame, companionFrame)
+function M.onPositioned(chooserFrame, previewPaneFrame)
+  ui.onPositioned(chooserFrame, previewPaneFrame)
 end
 
 function M.onClose()
@@ -265,7 +265,7 @@ function M.leaveManageHistory()
 end
 
 --- M.isManagingHistory() - whether that page is on, read by the plugin's own `when` predicate so
---- the key panel lists the way back out exactly while there is one.
+--- the info pane lists the way back out exactly while there is one.
 function M.isManagingHistory()
   return ui.isManagingHistory()
 end

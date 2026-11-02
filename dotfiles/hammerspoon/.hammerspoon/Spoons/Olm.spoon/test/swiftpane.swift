@@ -1,7 +1,7 @@
 // The swift chooser's native pane, in its real classes, with nothing ever on screen.
 //
 // Compiled by swiftpane.sh with the library's own sources and run as a program. It pins what the
-// Lua cases cannot see, the AppKit view tree a docked pane lives in. A pane docked in a chooser
+// Lua cases cannot see, the AppKit view tree a preview pane lives in. A pane docked in a chooser
 // panel's region keeps the region's size through a redock at a new size and the layout after it,
 // which is the blank pane of 2026-10-28, where the scroll view left the pane's own glass placed
 // by constraints with none left and the next layout sized it to nothing. A pane handed back to its
@@ -11,7 +11,7 @@
 // Crisp has exactly the pixels its box covers at the scale asked for, and a template stays one.
 //
 // A CanvasPanel's window, the same class made with a panel config, is never drawn into a chooser's
-// window even on the companion rect, stands at the level asked for, is click through with no click
+// window even on the preview pane rect, stands at the level asked for, is click through with no click
 // handler and takes the mouse with one, hit tests the topmost element built with an id and
 // trackMouseUp and reports _canvas_ off every one, hands a mouse up to its handler, and draws a full
 // bleed surface over every pixel at backing scale 2 as at 1.
@@ -53,22 +53,22 @@ let red = NSColor(srgbRed: 1, green: 0, blue: 0, alpha: 1)
 let elements: [PaneElement] = [.shape(path: NSBezierPath(rect: NSRect(x: 10, y: 10, width: 50, height: 50)),
   fill: red, stroke: nil, clip: false)]
 
-// A chooser panel placed with its companion at rect, its window spanning the list and the pane.
+// A chooser panel placed with its preview pane at rect, its window spanning the list and the pane.
 let panel = ChooserPanel(ask: { _, _ in false })
-func placePanel(companion rect: NSRect) {
+func placePanel(previewPane rect: NSRect) {
   var p = Placement()
   p.canvas = NSRect(x: away, y: rect.minY, width: 480, height: rect.height)
   p.window = NSRect(x: away, y: rect.minY, width: rect.maxX - away, height: rect.height)
   p.listFrame = NSRect(x: 0, y: 0, width: 480, height: rect.height)
   p.paneFrame = NSRect(x: rect.minX - away, y: 0, width: rect.width, height: rect.height)
-  p.companion = rect
+  p.previewPane = rect
   panel.place(p)
 }
 
 // The seam's own comparison, without asking whether the panel is on screen, since none is here.
 var owned = true
 let pane = PanePanel(findHost: { rect in
-  owned && panel.companion.map { ScreenSpace.same($0, rect) } == true ? panel : nil
+  owned && panel.previewPane.map { ScreenSpace.same($0, rect) } == true ? panel : nil
 })
 let view = pane.hostedView
 
@@ -91,13 +91,13 @@ let wider = NSRect(x: away + 500, y: 200, width: 340, height: 420)
 dock(seed, height: 1000, reset: true)
 check("a pane starts in its own window", pane.debug.hosting == "own")
 
-placePanel(companion: first)
+placePanel(previewPane: first)
 dock(first, height: 1000, reset: false)
 check("docked, it is in the chooser's region", pane.debug.hosting == "chooser")
 check("and fills it after layout, though it was sized for the seed", view.frame.size == first.size,
   "\(view.frame)")
 
-placePanel(companion: wider)
+placePanel(previewPane: wider)
 dock(wider, height: 1000, reset: false)
 check("redocked at a new size, it fills the region after layout", view.frame.size == wider.size,
   "\(view.frame)")
@@ -196,7 +196,7 @@ sheet.draw([.shape(path: NSBezierPath(rect: NSRect(origin: .zero, size: sheetRec
   radius: 12, scroll: PaneScroll(height: sheetRect.height, reset: true, thumb: false))
 sheet.show()
 settle()
-check("a panel is never drawn into a chooser, even on its companion rect", sheet.debug.hosting == "own",
+check("a panel is never drawn into a chooser, even on its preview pane rect", sheet.debug.hosting == "own",
   sheet.debug.hosting)
 check("a panel stands at the level it asks for", sheet.debug.level == NSWindow.Level.popUpMenu.rawValue)
 check("a panel with a click handler takes the mouse", !sheet.debug.clickThrough)
@@ -215,7 +215,7 @@ check("and takes the first press on a window that is not key", drawn.acceptsFirs
 let plain = PanePanel(findHost: { _ in nil }, config: PaneConfig(panel: true, level: .popUpMenu, onClick: nil))
 plain.place(sheetRect)
 check("a panel without a click handler is click through", plain.debug.clickThrough)
-check("a docked pane is never click through", !pane.debug.clickThrough && pane.debug.level ==
+check("a preview pane is never click through", !pane.debug.clickThrough && pane.debug.level ==
   NSWindow.Level.floating.rawValue)
 
 // The panel's drawn view rendered into a bitmap at a backing scale, a full bleed surface filling
@@ -340,9 +340,9 @@ do {
   p.window = NSRect(x: 0, y: 100, width: 800, height: 400)
   p.listFrame = NSRect(x: 0, y: 0, width: 480, height: 400)
   p.paneFrame = NSRect(x: 480, y: 0, width: 320, height: 352)
-  p.companion = NSRect(x: 480, y: 100, width: 320, height: 352)
+  p.previewPane = NSRect(x: 480, y: 100, width: 320, height: 352)
   p.list = NSRect(x: 0, y: 60, width: 480, height: 292)
-  p.footer = NSRect(x: 0, y: 352, width: 800, height: 48)
+  p.bottomBar = NSRect(x: 0, y: 352, width: 800, height: 48)
   p.padBottom = 8
   fadePanel.place(p)
   func all(_ v: NSView) -> [NSView] { [v] + v.subviews.flatMap(all) }

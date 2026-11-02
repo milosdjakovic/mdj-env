@@ -1,9 +1,9 @@
 -- Unit case for the one rank engine, docs/PLAN-UNIFIED-SEARCH.md phase one. Four places used to
 -- carry their own copy of the rank loop, host/queryscope, the default provider's list model,
--- host/actionpanel and the launcher's catalog ranking. Each now ranks through
+-- host/actionspane and the launcher's catalog ranking. Each now ranks through
 -- Olm.spoon/lib/chooser/rank.lua, and this case proves three of them answer exactly the order
--- rank.apply answers for the same rows, query and matcher. The action panel's own check lives in
--- actionpanel.lua beside the helpers that open a panel.
+-- rank.apply answers for the same rows, query and matcher. The actions pane's own check lives in
+-- actionspane.lua beside the helpers that open a panel.
 --
 -- The runner reaches this file with a dofile call carrying an absolute path, so this file finds
 -- every module from its own location through debug.getinfo. Nothing under test is edited, and

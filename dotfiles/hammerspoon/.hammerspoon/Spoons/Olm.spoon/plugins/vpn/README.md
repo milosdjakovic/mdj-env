@@ -8,7 +8,7 @@ typed the action row drops out so the top match connects rather than the tunnel
 toggling.
 
 Two backends are supported, Mullvad and IVPN, and one of them drives at a time.
-Provider in the action panel lists every backend, marking the one that is active
+Provider in the actions pane lists every backend, marking the one that is active
 and dimming any this machine cannot reach. Choosing one there switches to it and
 is remembered across reloads.
 
@@ -20,4 +20,4 @@ While the list is open, j and k move, i confirms the highlighted row, and x
 closes it.
 
 Without the active backend's app installed, the list opens to one row explaining
-that, with Provider still in the action panel so the choice can be taken back.
+that, with Provider still in the actions pane so the choice can be taken back.

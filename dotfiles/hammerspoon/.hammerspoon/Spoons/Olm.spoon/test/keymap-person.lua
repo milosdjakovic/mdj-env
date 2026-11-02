@@ -689,24 +689,24 @@ end
 -- Two lists built by the real lib/surface.lua on Olm's own all layer, the way the resolver builds
 -- them, so every case reads blocks of the true shape. clip has a primary, the move keys, an extra
 -- on d, a Command and j extra beside the bare j, a key it lists with chord false, close and the
--- action panel. pane has no move keys and closes on its own key, the way the launcher does.
+-- actions pane. pane has no move keys and closes on its own key, the way the launcher does.
 local surface = assert(loadfile(here .. "../lib/surface.lua"))()
 local hints = assert(loadfile(here .. "../lib/hints.lua"))()
--- The key panel never lists a key the bar already shows. Every footer model any case below builds
+-- The info pane never lists a key the bar already shows. Every bottom bar model any case below builds
 -- is held to that, so the rule is checked on every list shape the cases exercise.
 do
-  local footerModel = hints.footerModel
-  hints.footerModel = function(...)
-    local model = footerModel(...)
+  local bottomBarModel = hints.bottomBarModel
+  hints.bottomBarModel = function(...)
+    local model = bottomBarModel(...)
     eq(table.concat(hints.redundantKeys(model), ","), "",
-      "key panel: no key the bar already shows, for " .. tostring((...)))
+      "info pane: no key the bar already shows, for " .. tostring((...)))
     return model
   end
 end
 eq(table.concat(hints.redundantKeys({ right = { { action = "pick" } }, keysAction = "show",
   keys = { { action = "pick", label = "Pick" }, { action = "show", label = "Keys" }, { action = "move", label = "Move" } } }), ","),
-  "Pick,Keys", "key panel: the check names an entry the bar's right side or its keys group already shows")
--- A list whose action panel would only repeat its primary and its secondary loses Actions, decided
+  "Pick,Keys", "info pane: the check names an entry the bar's right side or its left side already shows")
+-- A list whose actions pane would only repeat its primary and its secondary loses Actions, decided
 -- from declarations alone.
 do
   local function ctx(extra, panel)
@@ -716,7 +716,7 @@ do
       { shared = "selectNext", action = "selectNext", key = "j" },
     }
     for _, b in ipairs(extra or {}) do bindings[#bindings + 1] = b end
-    bindings[#bindings + 1] = { shared = "openActionPanel", action = "openActionPanel", key = "o" }
+    bindings[#bindings + 1] = { shared = "openActionsPane", action = "openActionsPane", key = "o" }
     return { bindings = bindings, panel = panel }
   end
   local plan = { contexts = {
@@ -726,17 +726,17 @@ do
     secondTwice = ctx({ { action = "copy", key = "c" } }),
     scrolls = ctx({ { action = "scrollPreviewDown", key = "n" } }),
   } }
-  local dropped = hints.dropIdleActionPanels(plan, { kinds = { scrollPreviewDown = "navigation" } })
+  local dropped = hints.dropIdleActionsPanes(plan, { kinds = { scrollPreviewDown = "navigation" } })
   eq(table.concat(dropped, ","), "plain,scrolls,secondTwice",
     "idle actions: a list with nothing beyond its primary and secondary loses Actions, the secondary on a second key and navigation not counting")
   local function hasPanel(name)
-    for _, b in ipairs(plan.contexts[name].bindings) do if b.shared == "openActionPanel" then return true end end
+    for _, b in ipairs(plan.contexts[name].bindings) do if b.shared == "openActionsPane" then return true end end
     return false
   end
-  eq(hasPanel("plain"), false, "idle actions: its binding is gone, so the bar, the key panel and the keymap all lack it")
+  eq(hasPanel("plain"), false, "idle actions: its binding is gone, so the bar, the info pane and the keymap all lack it")
   eq(hasPanel("verb"), true, "idle actions: a list with a verb of its own keeps it")
   eq(hasPanel("panelOnly"), true, "idle actions: a verb living in the panel alone counts")
-  eq(#hints.dropIdleActionPanels(plan, { kinds = { scrollPreviewDown = "navigation" } }), 0,
+  eq(#hints.dropIdleActionsPanes(plan, { kinds = { scrollPreviewDown = "navigation" } }), 0,
     "idle actions: a second pass drops nothing, the same manifests giving the same answer")
 end
 local labelsLib = assert(loadfile(here .. "../lib/labels.lua"))()
@@ -802,8 +802,8 @@ do
   local contexts = lists()
   eq(listKeys(contexts, "clip", "insertSelected"), "i", "the primary sits on the all layer's key")
   eq(listKeys(contexts, "clip", "selectNext") .. "|" .. listKeys(contexts, "clip", "selectPrev"), "j|k", "the move keys too")
-  eq(listKeys(contexts, "clip", "closeChooser") .. "|" .. listKeys(contexts, "clip", "openActionPanel"), "x|o",
-    "and close and the action panel")
+  eq(listKeys(contexts, "clip", "closeChooser") .. "|" .. listKeys(contexts, "clip", "openActionsPane"), "x|o",
+    "and close and the actions pane")
   eq(listKeys(contexts, "pane", "closeChooser"), "space", "a close key the manifest states wins over the layer's")
   local bare = surface.context("bare", { primary = { action = "insertSelected" } })
   eq(#bare.bindings, 0, "with no all layer handed in no shared verb is bound")
@@ -836,7 +836,7 @@ do
   eq(moved and moved.entry, "all hyper+n", "and names the entry it came from")
   local order = {}
   for _, b in ipairs(contexts.clip.bindings) do order[#order + 1] = b.action end
-  eq(table.concat(order, ","), "insertSelected,selectNext,selectPrev,scrollDown,deleteSelected,leavePage,closeChooser,openActionPanel,showKeys,showKeys",
+  eq(table.concat(order, ","), "insertSelected,selectNext,selectPrev,scrollDown,deleteSelected,leavePage,closeChooser,openActionsPane,showInfo,showInfo",
     "and the list keeps its order")
   local closed = applied({ all = { ["hyper+c"] = "close" } })
   eq(listKeys(closed, "clip", "closeChooser") .. "|" .. listKeys(closed, "pane", "closeChooser"), "c|space",
@@ -853,13 +853,13 @@ end
 -- A list's own table goes over all, deciding every action and every slot it names.
 do
   local contexts, problems, notes = applied({
-    all = { ["hyper+n"] = "selectNext", ["hyper+e"] = "openActionPanel" },
+    all = { ["hyper+n"] = "selectNext", ["hyper+e"] = "openActionsPane" },
     clip = { ["hyper+p"] = "selectNext", ["hyper+a"] = "selectPrev" },
   })
   eq(#problems, 0, "a per list override is no problem")
   eq(listKeys(contexts, "clip", "selectNext"), "p", "the list's own chord wins over all's for the same action")
   eq(listKeys(contexts, "clip", "selectPrev"), "a", "and its own action moves")
-  eq(listKeys(contexts, "clip", "openActionPanel"), "e", "while all still reaches what the list leaves alone")
+  eq(listKeys(contexts, "clip", "openActionsPane"), "e", "while all still reaches what the list leaves alone")
   eq(#notes, 0, "nothing was displaced")
   local displaced, _, said = applied({ clip = { ["hyper+d"] = "selectPrev" } })
   eq(listKeys(displaced, "clip", "selectPrev"), "d", "a chord on a slot a default holds is the person's")
@@ -897,11 +897,11 @@ end
 do
   local contexts, problems, notes = applied({ clip = { ["hyper+o"] = false } })
   eq(#problems, 0, "freeing a list key is no problem")
-  eq(listKeys(contexts, "clip", "openActionPanel"), "", "the freed key is not bound in that list")
-  eq(listKeys(contexts, "pane", "openActionPanel"), "o", "and stays in every other")
-  eq(has(table.concat(notes, "\n"), "frees the chord in clip, so clip.openActionPanel is not bound there"), true, "said in a note")
+  eq(listKeys(contexts, "clip", "openActionsPane"), "", "the freed key is not bound in that list")
+  eq(listKeys(contexts, "pane", "openActionsPane"), "o", "and stays in every other")
+  eq(has(table.concat(notes, "\n"), "frees the chord in clip, so clip.openActionsPane is not bound there"), true, "said in a note")
   local all = applied({ all = { ["hyper+o"] = false } })
-  eq(listKeys(all, "clip", "openActionPanel") .. listKeys(all, "pane", "openActionPanel"), "", "false in all frees it in every list")
+  eq(listKeys(all, "clip", "openActionsPane") .. listKeys(all, "pane", "openActionsPane"), "", "false in all frees it in every list")
   local _, _, nothing = applied({ clip = { ["hyper+y"] = false } })
   eq(has(table.concat(nothing, "\n"), "frees a chord no key of the list holds"), true, "freeing an empty slot is a note")
 end
@@ -971,19 +971,19 @@ do
   eq(#bad.lists.clip, 0, "and neither unreadable entry is kept")
 end
 
--- The action bar's key panel and the action panel read the bindings the lists section left, so a
+-- The bottom bar's info pane and the actions pane read the bindings the lists section left, so a
 -- moved key shows its new chord there too.
 do
   local contexts = applied({ clip = { ["hyper+e"] = "deleteSelected" }, all = { ["hyper+n"] = "selectNext" } })
   local plan = { contexts = contexts, effective = {}, order = {}, identity = {} }
   local deps = { chordLabel = spell, leaderName = kbd.Hyper }
   local bar = {}
-  for _, h in ipairs(hints.footerModel("clip", plan, deps).keys) do if h.action then bar[h.action] = txt(h.badges[1]) end end
-  eq(bar.deleteSelected, nil, "the key panel leaves the moved verb to the action panel")
+  for _, h in ipairs(hints.bottomBarModel("clip", plan, deps).keys) do if h.action then bar[h.action] = txt(h.badges[1]) end end
+  eq(bar.deleteSelected, nil, "the info pane leaves the moved verb to the actions pane")
   eq(bar.selectNext, "\u{2726}N", "and the moved shared verb too")
   local panel = {}
   for _, row in ipairs(hints.rowsFor("clip", plan, deps)) do panel[row.action or row.title] = txt(row.chord) end
-  eq(panel.deleteSelected, "\u{2726}E", "the action panel shows the same chord")
+  eq(panel.deleteSelected, "\u{2726}E", "the actions pane shows the same chord")
   eq(panel.selectNext, nil, "and lists no navigation verb")
   local kinds = hints.actionKinds({ contexts = applied({ clip = { ["hyper+i"] = false } }) })
   eq(kinds.scrollDown, "verb", "a freed primary leaves an extra a verb")
@@ -997,7 +997,7 @@ local HELD = { hyper = true, meta = true, super = true }
 
 -- The list role moves every default list key at once. readConfig takes list as a role word, and
 -- applyLists places every default binding on the leader the role lands on, so the keymap's list
--- rows, the leaders in use and the key panel all read that leader.
+-- rows, the leaders in use and the info pane all read that leader.
 do
   local cfg = keymap.readConfig({ roles = { list = "meta" } },
     { leaders = SHIPPED, sources = SOURCES, roleWords = { "app", "window", keymap.LIST_ROLE }, keycodes = LIST_KEYCODES })
@@ -1013,7 +1013,7 @@ do
     elseif b.leader == "meta" then onMeta = onMeta + 1 end
   end
   eq(onMeta, #contexts.clip.bindings - 1 - onField, "list role: every bound default of the list sits on meta, the field's own keys apart")
-  eq(onField, 2, "list role: showKeys on its two keys is the one default the field answers on no leader")
+  eq(onField, 2, "list role: showInfo on its two keys is the one default the field answers on no leader")
   eq(listedOnly, nil, "list role: a key the list reads for itself is placed on no leader")
   local result = keymap.build({ plan = { effective = {}, identity = {}, contexts = contexts, order = {} },
     roles = ROLES, keycodes = LIST_KEYCODES, listLeader = "meta" })
@@ -1023,8 +1023,8 @@ do
   eq(table.concat(keymap.leadersInUse(result), ","), "meta", "list role: so meta is in use and hyper is not")
   local deps = { chordLabel = spell, leaderNames = { hyper = kbd.Hyper, meta = kbd.Meta }, leaderName = kbd.Hyper }
   local bar = {}
-  for _, h in ipairs(hints.footerModel("clip", { contexts = contexts }, deps).keys) do if h.action then bar[h.action] = txt(h.badges[1]) end end
-  eq(bar.selectNext, "\u{25C6}J", "list role: the key panel spells the binding's own leader")
+  for _, h in ipairs(hints.bottomBarModel("clip", { contexts = contexts }, deps).keys) do if h.action then bar[h.action] = txt(h.badges[1]) end end
+  eq(bar.selectNext, "\u{25C6}J", "list role: the info pane spells the binding's own leader")
 end
 
 -- An explicit chord moves only itself, onto whichever held leader it names, and the rest stay on
@@ -1134,7 +1134,7 @@ do
   -- Spelling, the glyph and modifiers alone for no leader, the leader's word for a named one.
   local deps = { chordLabel = spell, leaderNames = { hyper = kbd.Hyper, nav = NAV }, leaderName = kbd.Hyper }
   local bar = {}
-  for _, h in ipairs(hints.footerModel("clip", { contexts = contexts }, deps).keys) do if h.action then bar[h.action] = txt(h.badges[1]) end end
+  for _, h in ipairs(hints.bottomBarModel("clip", { contexts = contexts }, deps).keys) do if h.action then bar[h.action] = txt(h.badges[1]) end end
   eq(bar.selectNext, "\u{2303}J", "field spelling: modifiers alone read as the glyph and modifiers")
   eq(bar.selectPrev, "NavK", "field spelling: a named leader reads as its word")
 end
@@ -1353,11 +1353,11 @@ do
 end
 
 --------------------------------------------------------------------------------
--- The action bar, docs/PLAN-ACTION-BAR.md, the secondary, showKeys and the footer model
+-- The bottom bar, docs/PLAN-ACTION-BAR.md, the secondary, showInfo and the bottom bar model
 --------------------------------------------------------------------------------
 
 -- A list declaring a secondary gets it right after the primary on Olm's own Command and Return, a
--- field key on no leader, and every list gets showKeys on the list role. applyLists leaves the
+-- field key on no leader, and every list gets showInfo on the list role. applyLists leaves the
 -- secondary on no leader, and the keymap reads it as a field row.
 local function barList(decl)
   return assert(surface.context("bar", decl, nil, keymap.listDefaults))
@@ -1370,14 +1370,14 @@ do
   })
   local order = {}
   for _, b in ipairs(block.bindings) do order[#order + 1] = b.action end
-  eq(table.concat(order, ","), "insertSelected,uninstall,uninstall,selectNext,selectPrev,deleteSelected,closeChooser,openActionPanel,showKeys,showKeys",
-    "bar: the secondary sits right after the primary, on two keys, and showKeys comes last, on two keys")
+  eq(table.concat(order, ","), "insertSelected,uninstall,uninstall,selectNext,selectPrev,deleteSelected,closeChooser,openActionsPane,showInfo,showInfo",
+    "bar: the secondary sits right after the primary, on two keys, and showInfo comes last, on two keys")
   local secondary, padSecondary, show
   for _, b in ipairs(block.bindings) do
     if b.shared == "secondary" then
       if secondary then padSecondary = b else secondary = b end
     end
-    if b.shared == "showKeys" then show = show or b end
+    if b.shared == "showInfo" then show = show or b end
   end
   eq(secondary and secondary.key, "return", "bar: the secondary sits on Return")
   eq(padSecondary and padSecondary.key, "padenter", "bar: and on keypad Enter, which chooses the row as Return does")
@@ -1386,12 +1386,12 @@ do
   eq(secondary and table.concat(secondary.mods, "+"), "cmd", "bar: with Command")
   eq(secondary and secondary.leader, false, "bar: on no leader, a key the field answers")
   eq(secondary and secondary.layerKey, true, "bar: from Olm's own all layer, so all moves it")
-  eq(show and show.key, "/", "bar: showKeys sits on slash")
+  eq(show and show.key, "/", "bar: showInfo sits on slash")
   eq(show and table.concat(show.mods, "+") .. tostring(show.leader), "cmd+shiftfalse",
     "bar: with Command and Shift on no leader, a key the field answers")
   keymap.applyLists({ bar = block }, {}, { listLeader = "hyper", keycodes = LIST_KEYCODES })
   eq(secondary.leader, false, "bar: applyLists leaves the secondary on no leader")
-  eq(show.leader, false, "bar: and leaves showKeys on no leader too")
+  eq(show.leader, false, "bar: and leaves showInfo on no leader too")
   local nav = assert(loadfile(here .. "../lib/nav.lua"))()
   local _, fieldList = nav.fieldKeys({ bar = block }, { keycodes = { ["return"] = 36, padenter = 76, d = 2 } })
   eq(#fieldList, 2, "bar: the field answers exactly the two secondary keys")
@@ -1425,8 +1425,8 @@ do
   eq(block.unmet and block.unmet.go, "x", "secondary: a need this machine lacks drops it like any binding")
 end
 
--- The footer model reads the bindings, the gates and the labels rowsFor reads. The right side is
--- the primary on Return, the secondary on its chord and the action panel, and the key panel every
+-- The bottom bar model reads the bindings, the gates and the labels rowsFor reads. The right side is
+-- the primary on Return, the secondary on its chord and the actions pane, and the info pane every
 -- other key and the field's own two.
 do
   local gate = { open = true }
@@ -1446,11 +1446,11 @@ do
     predicates = { peekable = function() return gate.open end },
     labelsFor = function(name) return name == "bar" and labels or nil end,
   }
-  local model = hints.footerModel("bar", plan, deps)
+  local model = hints.bottomBarModel("bar", plan, deps)
   local right = {}
   for _, r in ipairs(model.right) do right[#right + 1] = r.label .. " " .. txt(r.chord) end
   eq(table.concat(right, " | "), "Choose Files \u{21A9} | Uninstall \u{2318}\u{21A9} | Actions \u{2726}O",
-    "footer: primary on Return, the secondary on its chord, then Actions")
+    "bottomBar: primary on Return, the secondary on its chord, then Actions")
   local keys = {}
   for _, k in ipairs(model.keys) do
     local spelled = {}
@@ -1459,50 +1459,50 @@ do
   end
   eq(table.concat(keys, " | "),
     "\u{2726}J+\u{2193} Move down | \u{2726}K+\u{2191} Move up | \u{2726}X+esc Close",
-    "footer: the navigation keys in declaration order, nothing the bar or the rows already show, no verb the action panel lists, and no Back on a level Backspace does not leave")
+    "bottomBar: the navigation keys in declaration order, nothing the bar or the rows already show, no verb the actions pane lists, and no Back on a level Backspace does not leave")
   local function panelPeek()
     for _, row in ipairs(hints.rowsFor("bar", plan, deps)) do if row.action == "peek" then return true end end
     return false
   end
-  eq(panelPeek(), true, "action panel: the open gate lists the gated verb")
+  eq(panelPeek(), true, "actions pane: the open gate lists the gated verb")
   gate.open = false
-  local gated = hints.footerModel("bar", plan, deps)
-  eq(panelPeek(), false, "action panel: and a gate closing drops it")
+  local gated = hints.bottomBarModel("bar", plan, deps)
+  eq(panelPeek(), false, "actions pane: and a gate closing drops it")
 
   labels = { primary = "Choose 4 Files", secondary = "Uninstall 4" }
-  local live = hints.footerModel("bar", plan, deps)
-  eq(live.right[1].label, "Choose 4 Files", "footer: the level's labels word the primary")
-  eq(live.right[2].label, "Uninstall 4", "footer: and the secondary")
-  eq(live.state ~= gated.state, true, "footer: and a label changing changes the state")
+  local live = hints.bottomBarModel("bar", plan, deps)
+  eq(live.right[1].label, "Choose 4 Files", "bottomBar: the level's labels word the primary")
+  eq(live.right[2].label, "Uninstall 4", "bottomBar: and the secondary")
+  eq(live.state ~= gated.state, true, "bottomBar: and a label changing changes the state")
   local panel = {}
   for _, row in ipairs(hints.rowsFor("bar", plan, deps)) do panel[#panel + 1] = tostring(row.action) .. "=" .. row.title end
   eq(table.concat(panel, ","), "nil=Back,insertSelected=Choose 4 Files,uninstall=Uninstall 4,deleteSelected=Delete",
-    "action panel: Back, the primary and the secondary with their live labels, then the verbs")
+    "actions pane: Back, the primary and the secondary with their live labels, then the verbs")
   labels = { secondary = "" }
-  eq(hints.footerModel("bar", plan, deps).right[2].label, "Uninstall", "footer: an empty label falls back to the description")
+  eq(hints.bottomBarModel("bar", plan, deps).right[2].label, "Uninstall", "bottomBar: an empty label falls back to the description")
 
   local bare = barList({ primary = { action = "open" } })
   keymap.applyLists({ bare = bare }, {}, { listLeader = "hyper", keycodes = LIST_KEYCODES })
-  local plain = hints.footerModel("bare", { contexts = { bare = bare } }, deps)
-  eq(plain.right[1].label, "Open", "footer: a primary with no description reads Open")
-  eq(#plain.right, 2, "footer: and with no secondary the right side is the primary and Actions")
-  eq(hints.footerModel("nothing", { contexts = {} }, deps).right[1].label, "Open",
-    "footer: a list no surface describes still chooses on Return")
+  local plain = hints.bottomBarModel("bare", { contexts = { bare = bare } }, deps)
+  eq(plain.right[1].label, "Open", "bottomBar: a primary with no description reads Open")
+  eq(#plain.right, 2, "bottomBar: and with no secondary the right side is the primary and Actions")
+  eq(hints.bottomBarModel("nothing", { contexts = {} }, deps).right[1].label, "Open",
+    "bottomBar: a list no surface describes still chooses on Return")
   eq(hints.labelFor({ action = "deleteSelected" }, "bar"), "Delete Selected", "labels: an action with no words is spelled out")
 end
 
 -- Back is listed only where Backspace on an empty field leaves a level, and never beside a list's
--- own binding on Backspace. The action panel open over a list changes what the bar says, and the
--- secondary is listed once in the action panel although it sits on two keys.
+-- own binding on Backspace. The actions pane open over a list changes what the bar says, and the
+-- secondary is listed once in the actions pane although it sits on two keys.
 do
   local backs, openRow = false, nil
   local deps = {
     chordLabel = spell, leaderNames = { hyper = kbd.Hyper }, leaderName = kbd.Hyper,
     predicates = { paged = function() return true end },
     backs = function() return backs end,
-    actionPanel = function() return openRow end,
+    actionsPane = function() return openRow end,
     panelOwner = "panel",
-    -- The root's kind overrides, where leavePage is navigation, so the key panel keeps it.
+    -- The root's kind overrides, where leavePage is navigation, so the info pane keeps it.
     kinds = { leavePage = "navigation" },
   }
   local function keyLabels(model)
@@ -1517,30 +1517,30 @@ do
   })
   keymap.applyLists({ bar = block }, {}, { listLeader = "hyper", keycodes = LIST_KEYCODES })
   local plan = { contexts = { bar = block }, effective = {}, order = {}, identity = {} }
-  eq(has(keyLabels(hints.footerModel("bar", plan, deps)), "Back"), false, "back: none at the bottom of the stack")
+  eq(has(keyLabels(hints.bottomBarModel("bar", plan, deps)), "Back"), false, "back: none at the bottom of the stack")
   backs = true
-  eq(has(keyLabels(hints.footerModel("bar", plan, deps)), "Back"), true, "back: listed on a pushed level")
+  eq(has(keyLabels(hints.bottomBarModel("bar", plan, deps)), "Back"), true, "back: listed on a pushed level")
   local paged = barList({
     primary = { action = "insertSelected" },
     extra = { { key = "delete", action = "leavePage", chord = false, when = "paged", description = "Back to history" } },
   })
   keymap.applyLists({ paged = paged }, {}, { listLeader = "hyper", keycodes = LIST_KEYCODES })
-  local pagedModel = hints.footerModel("paged", { contexts = { paged = paged } }, deps)
+  local pagedModel = hints.bottomBarModel("paged", { contexts = { paged = paged } }, deps)
   local backCount = 0
   for _, k in ipairs(pagedModel.keys) do if k.badges[1].keys[1] == kbd.Delete and #k.badges[1].keys == 1 then backCount = backCount + 1 end end
   eq(backCount, 1, "back: a list listing its own Backspace binding gets no second Back")
 
   openRow = { action = "deleteSelected", title = "Delete" }
-  local panel = hints.footerModel("bar", plan, deps)
+  local panel = hints.bottomBarModel("bar", plan, deps)
   eq(panel.right[1].label, "Delete", "panel: Return reads the highlighted panel row's title")
-  eq(#panel.right, 2, "panel: no secondary, only Return and the action panel's chord")
-  eq(panel.right[2].action, "openActionPanel", "panel: the second entry closes the panel")
-  eq(panel.keysChord ~= nil and txt(panel.keysChord) == txt(hints.footerModel("bar", plan, (function() local d = {} for k, v in pairs(deps) do d[k] = v end d.actionPanel = nil return d end)()).keysChord), true,
-    "panel: the keys group keeps its chord while the action panel is open")
+  eq(#panel.right, 2, "panel: no secondary, only Return and the actions pane's chord")
+  eq(panel.right[2].action, "openActionsPane", "panel: the second entry closes the panel")
+  eq(panel.keysChord ~= nil and txt(panel.keysChord) == txt(hints.bottomBarModel("bar", plan, (function() local d = {} for k, v in pairs(deps) do d[k] = v end d.actionsPane = nil return d end)()).keysChord), true,
+    "panel: the left side keeps its chord while the actions pane is open")
   eq(keyLabels(panel), "Move down,Move up,Close,Back",
-    "panel: the key panel lists the shared held keys and Back, not the list's own verbs or its inert field keys")
+    "panel: the info pane lists the shared held keys and Back, not the list's own verbs or its inert field keys")
   openRow = {}
-  eq(hints.footerModel("bar", plan, deps).right[1].label, "Run", "panel: Run when no row is highlighted")
+  eq(hints.bottomBarModel("bar", plan, deps).right[1].label, "Run", "panel: Run when no row is highlighted")
   openRow = nil
 
   local rows = {}
@@ -1569,7 +1569,7 @@ do
 end
 
 -- A shared binding never shadows another list's verb. One list's secondary named like another
--- list's extra verb leaves that verb a verb, in its action panel, and records no conflict.
+-- list's extra verb leaves that verb a verb, in its actions pane, and records no conflict.
 do
   local one = barList({ primary = { action = "insertSelected" }, secondary = { action = "reveal" } })
   local two = barList({ primary = { action = "insertSelected" }, extra = { { key = "r", action = "reveal", description = "Reveal" } } })
@@ -1577,7 +1577,7 @@ do
   eq(kinds.reveal, "verb", "kinds: the extra verb stays a verb")
   eq(#conflicts, 0, "kinds: and no conflict is recorded")
   eq(kinds.insertSelected, "navigation", "kinds: a shared action no binding claims is navigation")
-  eq(kinds.showKeys, "navigation", "kinds: showKeys too")
+  eq(kinds.showInfo, "navigation", "kinds: showInfo too")
   local rows = {}
   for _, row in ipairs(hints.rowsFor("two", { contexts = { one = one, two = two } }, { leaderName = kbd.Hyper,
     chordLabel = spell })) do rows[#rows + 1] = tostring(row.action) end
@@ -1585,7 +1585,7 @@ do
 end
 
 -- Every handler in the dispatch table tells onAction first, routed and exception alike, which is
--- where the root closes the key panel for every list key that acts.
+-- where the root closes the info pane for every list key that acts.
 do
   local nav = assert(loadfile(here .. "../lib/nav.lua"))()
   local told, ran = {}, {}
@@ -1593,13 +1593,13 @@ do
   local surfaceStub = { isShowing = function() return true end, selectNext = function() ran[#ran + 1] = "selectNext" end }
   local built = nav.actions({ contexts = { bar = block } }, {
     surfaces = { surfaceStub },
-    exceptions = { showKeys = function() ran[#ran + 1] = "showKeys" end },
+    exceptions = { showInfo = function() ran[#ran + 1] = "showInfo" end },
     onAction = function(name) told[#told + 1] = name end,
   })
   built.selectNext()
-  built.showKeys()
-  eq(table.concat(told, ","), "selectNext,showKeys", "dispatch: onAction hears a routed action and an exception")
-  eq(table.concat(ran, ","), "selectNext,showKeys", "dispatch: and each still runs")
+  built.showInfo()
+  eq(table.concat(told, ","), "selectNext,showInfo", "dispatch: onAction hears a routed action and an exception")
+  eq(table.concat(ran, ","), "selectNext,showInfo", "dispatch: and each still runs")
   local stamped
   for _, b in ipairs(block.bindings) do if b.action == "selectNext" then stamped = b.fn end end
   told = {}
@@ -1607,72 +1607,72 @@ do
   eq(told[1], "selectNext", "dispatch: the handler stamped on a binding, what a key runs, tells it too")
 end
 
--- showKeys is Command and ?, slash with Command and Shift, a key the open list's field answers on
+-- showInfo is Command and ?, slash with Command and Shift, a key the open list's field answers on
 -- no leader, since macOS takes Hyper with slash before any tap. The shared speller folds Shift and
 -- slash into a question mark, so it reads ⌘? wherever it is spelled, and a person moves and frees
 -- it like any field key.
 do
   local glyph = assert(loadfile(here .. "../lib/cheatsheet.lua"))().glyphFor
-  eq(txt(glyph("/", { "shift" })), "?", "showKeys: the speller reads Shift and slash as a question mark")
-  eq(txt(glyph("/", { "cmd", "shift" })), "\u{2318}?", "showKeys: and Command, Shift and slash as Command and ?")
-  eq(txt(glyph("/", { "shift", "cmd" })), "\u{2318}?", "showKeys: in either order the keymap sorts them")
-  eq(txt(glyph("/")), "/", "showKeys: and plain slash as itself")
+  eq(txt(glyph("/", { "shift" })), "?", "showInfo: the speller reads Shift and slash as a question mark")
+  eq(txt(glyph("/", { "cmd", "shift" })), "\u{2318}?", "showInfo: and Command, Shift and slash as Command and ?")
+  eq(txt(glyph("/", { "shift", "cmd" })), "\u{2318}?", "showInfo: in either order the keymap sorts them")
+  eq(txt(glyph("/")), "/", "showInfo: and plain slash as itself")
   local block = barList({ primary = { action = "insertSelected" } })
   local show
-  for _, b in ipairs(block.bindings) do if b.shared == "showKeys" then show = show or b end end
+  for _, b in ipairs(block.bindings) do if b.shared == "showInfo" then show = show or b end end
   keymap.applyLists({ bar = block }, {}, { listLeader = "hyper", keycodes = LIST_KEYCODES })
   local deps = { chordLabel = spell, leaderNames = { hyper = kbd.Hyper }, leaderName = kbd.Hyper }
-  eq(txt(hints.chordFor(show, deps)), "\u{2318}?", "showKeys: spelled Command and ?")
-  local keyPanel
-  for _, k in ipairs(hints.footerModel("bar", { contexts = { bar = block } }, deps).keys) do
-    if k.action == "showKeys" then keyPanel = k.badges[1] end
+  eq(txt(hints.chordFor(show, deps)), "\u{2318}?", "showInfo: spelled Command and ?")
+  local infoPane
+  for _, k in ipairs(hints.bottomBarModel("bar", { contexts = { bar = block } }, deps).keys) do
+    if k.action == "showInfo" then infoPane = k.badges[1] end
   end
-  eq(keyPanel, nil, "showKeys: the key panel does not list it, the keys group already shows it")
-  local model = hints.footerModel("bar", { contexts = { bar = block } }, deps)
+  eq(infoPane, nil, "showInfo: the info pane does not list it, the left side already shows it")
+  local model = hints.bottomBarModel("bar", { contexts = { bar = block } }, deps)
   local listed = 0
-  for _, k in ipairs(model.keys) do if k.action == "showKeys" then listed = listed + 1 end end
-  eq(listed, 0, "showKeys: neither of its two keys is listed in the key panel")
-  eq(txt(model.keysChord), "\u{2318}?", "showKeys: and the key button carries Command and ? beside it")
+  for _, k in ipairs(model.keys) do if k.action == "showInfo" then listed = listed + 1 end end
+  eq(listed, 0, "showInfo: neither of its two keys is listed in the info pane")
+  eq(txt(model.keysChord), "\u{2318}?", "showInfo: and the key button carries Command and ? beside it")
   local blockKeys = {}
   for _, b in ipairs(block.bindings) do
-    if b.shared == "showKeys" then blockKeys[#blockKeys + 1] = table.concat(b.mods, "+") end
+    if b.shared == "showInfo" then blockKeys[#blockKeys + 1] = table.concat(b.mods, "+") end
   end
-  eq(table.concat(blockKeys, ","), "cmd+shift,cmd", "showKeys: on Command and ? and on Command and slash")
+  eq(table.concat(blockKeys, ","), "cmd+shift,cmd", "showInfo: on Command and ? and on Command and slash")
   local result = keymap.build({ plan = { effective = {}, identity = {}, contexts = { bar = block }, order = {} },
     roles = ROLES, keycodes = LIST_KEYCODES, listLeader = "hyper" })
   local row
-  for _, r in ipairs(result.rows) do if r.layer == "bar" and r.action == "showKeys" then row = r end end
-  eq(row and row.field, true, "showKeys: the keymap row is a field key")
-  eq(row and txt(glyph(row.key, row.shownMods)), "\u{2318}?", "showKeys: and the keys page spells it Command and ?")
+  for _, r in ipairs(result.rows) do if r.layer == "bar" and r.action == "showInfo" then row = r end end
+  eq(row and row.field, true, "showInfo: the keymap row is a field key")
+  eq(row and txt(glyph(row.key, row.shownMods)), "\u{2318}?", "showInfo: and the keys page spells it Command and ?")
   -- The default chooser reads nothing on Command, Shift and slash or on Control and Y.
   local function fieldUses() return nil end
   local accepted = keymap.applyLists({ bar = barList({ primary = { action = "insertSelected" } }) },
-    readLists({ bar = { ["cmd+shift+/"] = "showKeys" } }).lists,
+    readLists({ bar = { ["cmd+shift+/"] = "showInfo" } }).lists,
     { listLeader = "hyper", keycodes = LIST_KEYCODES, fieldUses = fieldUses })
-  eq(#accepted, 0, "showKeys: applyLists accepts Command, Shift and slash as a field chord")
+  eq(#accepted, 0, "showInfo: applyLists accepts Command, Shift and slash as a field chord")
 
   local moved = { bar = barList({ primary = { action = "insertSelected" } }) }
-  local movedProblems = keymap.applyLists(moved, readLists({ all = { ["ctrl+y"] = "showKeys" } }).lists,
+  local movedProblems = keymap.applyLists(moved, readLists({ all = { ["ctrl+y"] = "showInfo" } }).lists,
     { listLeader = "hyper", keycodes = LIST_KEYCODES, fieldUses = fieldUses })
-  eq(#movedProblems, 0, "showKeys: a person may move it to another field chord")
-  eq(listKeys(moved, "bar", "showKeys"), "ctrl+y", "showKeys: and it takes exactly that chord")
+  eq(#movedProblems, 0, "showInfo: a person may move it to another field chord")
+  eq(listKeys(moved, "bar", "showInfo"), "ctrl+y", "showInfo: and it takes exactly that chord")
   local freed = { bar = barList({ primary = { action = "insertSelected" } }) }
   keymap.applyLists(freed, readLists({ all = { ["cmd+shift+/"] = false } }).lists,
     { listLeader = "hyper", keycodes = LIST_KEYCODES, fieldUses = fieldUses })
-  eq(listKeys(freed, "bar", "showKeys"), "cmd+/", "showKeys: freeing Command and ? leaves Command and slash")
-  local freedModel = hints.footerModel("bar", { contexts = freed }, deps)
-  eq(txt(freedModel.keysChord), "\u{2318}/", "showKeys: and the key button shows the key that is left")
+  eq(listKeys(freed, "bar", "showInfo"), "cmd+/", "showInfo: freeing Command and ? leaves Command and slash")
+  local freedModel = hints.bottomBarModel("bar", { contexts = freed }, deps)
+  eq(txt(freedModel.keysChord), "\u{2318}/", "showInfo: and the key button shows the key that is left")
   local bothFreed = { bar = barList({ primary = { action = "insertSelected" } }) }
   keymap.applyLists(bothFreed, readLists({ all = { ["cmd+shift+/"] = false, ["cmd+/"] = false } }).lists,
     { listLeader = "hyper", keycodes = LIST_KEYCODES, fieldUses = fieldUses })
-  eq(listKeys(bothFreed, "bar", "showKeys"), "", "showKeys: freeing both leaves it unbound")
-  eq(hints.footerModel("bar", { contexts = bothFreed }, deps).keysChord, nil, "showKeys: and the key button shows no chord")
+  eq(listKeys(bothFreed, "bar", "showInfo"), "", "showInfo: freeing both leaves it unbound")
+  eq(hints.bottomBarModel("bar", { contexts = bothFreed }, deps).keysChord, nil, "showInfo: and the key button shows no chord")
   local slash = keymap.applyLists({ bar = barList({ primary = { action = "insertSelected" } }) },
-    readLists({ bar = { ["cmd+/"] = "showKeys" } }).lists,
+    readLists({ bar = { ["cmd+/"] = "showInfo" } }).lists,
     { listLeader = "hyper", keycodes = LIST_KEYCODES, fieldUses = fieldUses })
-  eq(#slash, 0, "showKeys: applyLists accepts Command and slash as a field chord")
-  local movedModel = hints.footerModel("bar", { contexts = moved }, deps)
-  eq(txt(movedModel.keysChord), "\u{2303}Y", "showKeys: a moved showKeys moves the key button's chord with it")
+  eq(#slash, 0, "showInfo: applyLists accepts Command and slash as a field chord")
+  local movedModel = hints.bottomBarModel("bar", { contexts = moved }, deps)
+  eq(txt(movedModel.keysChord), "\u{2303}Y", "showInfo: a moved showInfo moves the key button's chord with it")
 end
 
 -- The Globe key, which lib/keycodes.lua calls standalone, read the same way from both sides. A

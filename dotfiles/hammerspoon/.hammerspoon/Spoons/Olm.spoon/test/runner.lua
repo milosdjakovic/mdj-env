@@ -111,7 +111,7 @@ local function buildWorld(olm)
     if not surface then return nil end
     -- Resolved exactly the way routing resolves it. An action may name a method spelled
     -- differently, closeChooser reaching hide being the real case, and an action may be
-    -- answered by a root built closure rather than by any surface, which openActionPanel is. A
+    -- answered by a root built closure rather than by any surface, which openActionsPane is. A
     -- check that knew neither reported all twelve lists broken when only three keys were.
     local methodFor = composed.navMethodFor or {}
     local exceptions = composed.navExceptions or {}

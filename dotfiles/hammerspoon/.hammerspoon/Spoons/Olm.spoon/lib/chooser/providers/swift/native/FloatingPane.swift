@@ -1,14 +1,14 @@
-// The popover, a shape of the window's own glass standing over the chooser, anchored above one of
+// The floating pane, a shape of the window's own glass standing over the chooser, anchored above one of
 // the bar's groups. It holds an optional header and one column of lines, each a label on the left
 // and its chord on the right as a KeyCap, see Bar.swift, and scrolls when the lines are taller
-// than the room it is given. The key panel is its first user and the action panel its second, so it knows neither, only the
-// lines it is handed. A line may carry a picture, drawn on its left, and a popover may highlight
+// than the room it is given. The info pane is its first user and the actions pane its second, so it knows neither, only the
+// lines it is handed. A line may carry a picture, drawn on its left, and a floating pane may highlight
 // one line, which the pointer moves and a press chooses, reported by its index from one. Its
 // corner is the groups' corner, and it follows the chooser's padding rules. Its lines stand the
 // outer padding from all four edges, the way the list's highlighted rows stand from the window's,
 // a line's picture and words stand the inner padding in from the line's edge, and the highlight's
-// corner is the popover's less the outer padding. The key panel, whose lines are only read, is
-// laid out the same, so both panels and the bar's cells share one size, Milos's choice of
+// corner is the floating pane's less the outer padding. The info pane, whose lines are only read, is
+// laid out the same, so both panels and the bar items share one size, Milos's choice of
 // 2026-11-02. A header is the row title's size and colour, laid out as one more line, its text
 // the inner padding in from a line's edge and centred in a line's height, with the rule on the
 // line's bottom edge and the first line right below it, so the header keeps the room every line
@@ -16,7 +16,7 @@
 
 import Cocoa
 
-final class PopoverView: FlippedView {
+final class FloatingPaneView: FlippedView {
   struct Line {
     var label: String
     var chord: [[KeyMark]]
@@ -77,7 +77,7 @@ final class PopoverView: FlippedView {
   private let rule = NSBox()
   private let scroll = NSScrollView()
   let document = Document()
-  private var cells: [(label: NSTextField, chord: KeyCap, image: NSImageView?)] = []
+  private var rows: [(label: NSTextField, chord: KeyCap, image: NSImageView?)] = []
   private var iconSide: CGFloat = 0
   private var headings: [(field: NSTextField, top: CGFloat)] = []
   // The height of every line and heading together.
@@ -106,7 +106,7 @@ final class PopoverView: FlippedView {
 
   required init?(coder: NSCoder) { nil }
 
-  // Claims the pointer, so a press on the popover lands on no row under it, and keeps the scroll
+  // Claims the pointer, so a press on the floating pane lands on no row under it, and keeps the scroll
   // for its own lines.
   override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
   override func mouseDown(with event: NSEvent) {}
@@ -133,10 +133,10 @@ final class PopoverView: FlippedView {
     header.textColor = style.text
     header.isHidden = title == nil
     rule.isHidden = title == nil
-    for cell in cells {
-      cell.label.removeFromSuperview()
-      cell.chord.removeFromSuperview()
-      cell.image?.removeFromSuperview()
+    for row in rows {
+      row.label.removeFromSuperview()
+      row.chord.removeFromSuperview()
+      row.image?.removeFromSuperview()
     }
     for heading in headings { heading.field.removeFromSuperview() }
     // Each line's top and each heading's, a heading as tall as a line, taken above the first line
@@ -160,7 +160,7 @@ final class PopoverView: FlippedView {
     }
     document.tops = tops
     contentH = y
-    cells = lines.map { line in
+    rows = lines.map { line in
       let label = NSTextField(labelWithString: line.label)
       label.font = style.titleFont
       label.textColor = line.enabled ? style.text : style.textDim
@@ -174,10 +174,10 @@ final class PopoverView: FlippedView {
       }
       return (label, chord, image)
     }
-    for cell in cells {
-      document.addSubview(cell.label)
-      document.addSubview(cell.chord)
-      if let image = cell.image { document.addSubview(image) }
+    for row in rows {
+      document.addSubview(row.label)
+      document.addSubview(row.chord)
+      if let image = row.image { document.addSubview(image) }
     }
     needsLayout = true
     layoutSubtreeIfNeeded()
@@ -193,7 +193,7 @@ final class PopoverView: FlippedView {
 
   // The room a line's picture takes, nothing for lines without one.
   private var lead: CGFloat {
-    cells.contains { $0.image != nil } ? iconSide + gap : 0
+    rows.contains { $0.image != nil } ? iconSide + gap : 0
   }
 
   private var headerH: CGFloat {
@@ -206,7 +206,7 @@ final class PopoverView: FlippedView {
 
   // The size it would take with every line showing, its width the widest label and chord.
   var preferredSize: NSSize {
-    let widest = cells.map { lead + $0.label.fittingSize.width + gap + $0.chord.fittingSize.width }.max() ?? 0
+    let widest = rows.map { lead + $0.label.fittingSize.width + gap + $0.chord.fittingSize.width }.max() ?? 0
     let width = max(widest + 2 * side, header.isHidden ? 0 : header.fittingSize.width + 2 * side)
     return NSSize(width: ceil(width),
       height: ceil(headerH + contentH + 2 * outer))
@@ -233,16 +233,16 @@ final class PopoverView: FlippedView {
       let h = heading.field.fittingSize.height
       heading.field.frame = NSRect(x: side, y: heading.top + (lineH - h) / 2, width: bounds.width - 2 * side, height: h)
     }
-    for (i, cell) in cells.enumerated() {
+    for (i, row) in rows.enumerated() {
       let y = document.tops[i]
-      let chordW = cell.chord.fittingSize.width
-      let labelH = cell.label.fittingSize.height
-      let chordH = cell.chord.fittingSize.height
-      cell.chord.frame = NSRect(x: bounds.width - side - chordW, y: y + (lineH - chordH) / 2,
+      let chordW = row.chord.fittingSize.width
+      let labelH = row.label.fittingSize.height
+      let chordH = row.chord.fittingSize.height
+      row.chord.frame = NSRect(x: bounds.width - side - chordW, y: y + (lineH - chordH) / 2,
         width: chordW, height: chordH)
-      cell.label.frame = NSRect(x: side + lead, y: y + (lineH - labelH) / 2,
+      row.label.frame = NSRect(x: side + lead, y: y + (lineH - labelH) / 2,
         width: max(0, bounds.width - 2 * side - lead - chordW - gap), height: labelH)
-      if let image = cell.image {
+      if let image = row.image {
         image.frame = Crisp.align(NSRect(x: side, y: y + (lineH - iconSide) / 2, width: iconSide, height: iconSide),
           in: document)
       }

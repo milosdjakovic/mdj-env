@@ -7,25 +7,50 @@ rediscover by measuring. The authoring rules live in `docs/PLUGIN-AUTHORING.md`,
 reference in `docs/PLUGIN-CONTRACT.md`, and the workflow for building or changing a plugin in
 the repository's `olm-plugin` skill.
 
-## Names, one word per part of the chooser
+## Names, one word per part a person sees
 
-These are the words for the parts a person sees, settled on 2026-10-29 by Milos. Use them in
-conversation, in docs, in comments and in commit messages, and never a synonym. Code that predates
-them keeps its identifiers, and the old word each one replaced is listed so a reader can find it.
+These are the words for what a person sees, settled by Milos on 2026-11-02, replacing the first
+set of 2026-10-29. Use them in conversation, in docs, in comments, in commit messages and in code,
+and never a synonym. Every part has two kinds of name, what it is on screen, a component, and what
+it means, a concept, and the two are never used for each other. `decisions/olm-names.md` has the
+old words and why each was dropped, and the dry gate refuses the old words in every Lua, Swift and
+Markdown file of the spoon, `test/drygate-names.lua`.
 
-- **chooser** is the whole window, one shape of glass holding everything below. Never the window,
-  the panel or the picker when the whole thing is meant.
-- **field** is where a person types, at the top of the chooser.
-- **list** is the rows under the field. A row under the cursor is the highlighted row.
-- **pane** is the right side, beside the list, when a list shows one. It was the docked pane and
-  the companion, and `companion` is still its rect in the geometry.
-- **bar** is the bottom of the chooser, floating over the list and the pane. It was the action bar
-  and the footer, and `footer` is still its model and its rect. The bar holds two groups, the
-  **keys group** on the left and the **actions group** on the right.
-- **key panel** is what the keys group opens, every key the list answers. **action panel** is what
-  the actions group opens, the list's verbs.
-- **outer padding** and **inner padding** are the two spacing values, `spacing.outer` and
-  `spacing.inner` in `config/settings.lua`, see Corners in `docs/DESIGN-UI-KIT.md`.
+Components, what a person sees.
+
+| Component | What it is | In code |
+|---|---|---|
+| **chooser** | the whole window, one shape of glass holding everything below | `chooser` |
+| **input field** | where a person types, at the top, a search or a typed value alike | `field` |
+| **list** | the rows under the input field, and the rows inside the info pane and the actions pane | `list` |
+| **row** | one line of any list, in the chooser, the info pane or the actions pane | `row` |
+| **selected row** | the row under the cursor | `selected`, `highlighted` |
+| **preview pane** | the chooser's right side, beside the list, when a list declares one | `previewPane` |
+| **bottom bar** | the strip floating at the bottom of the chooser over the list and the preview pane, one bar with a **left side** and a **right side** | `bottomBar` |
+| **bar item** | one thing in the bottom bar, a key cap and a label, side by side rather than stacked like rows | `item` in the bar's files |
+| **info pane** | the floating pane the left side opens, a list of shortcuts | `infoPane` |
+| **actions pane** | the floating pane the right side opens, a list of actions | `actionsPane` |
+| **floating pane** | either of those two, where a rule holds for both | `floatingPane` |
+| **cheat sheet** | what holding a leader shows, the Hyper cheat sheet and the Meta cheat sheet | `cheatsheet` |
+| **toast** | a short message, the colour, message and report toasts | `toast` |
+
+Concepts, what a part means.
+
+| Concept | Meaning | Where it is seen |
+|---|---|---|
+| **action** | something done to the selected row, Open, Copy, Reveal | each row of the actions pane, the Open bar item |
+| **shortcut** | a key and what it does | each row of the info pane, the key cap on every bar item |
+
+So a bar item is never an action or a shortcut itself. It shows a shortcut and does one of two
+things, runs an action or opens a floating pane. The right side holds the Open bar item, which runs
+the main action, and the Actions bar item, which opens the actions pane. The left side holds the
+Info bar item, which opens the info pane.
+
+`CanvasPanel` in `lib/panel.lua` is the mechanism under the toasts and the cheat sheets, and the
+swift chooser's `Panel.swift` is its window, so neither is a component and the word panel names no
+part a person sees. The **outer padding** and the **inner padding** are the two spacing values,
+`spacing.outer` and `spacing.inner` in `config/settings.lua`, see Corners in
+`docs/DESIGN-UI-KIT.md`.
 
 ## Goldens, refreshed in the commit that moves them
 
@@ -440,13 +465,13 @@ retired and named.
 
 The `lists` section holds the keys live while a list is open, read by `readConfig` into one entry
 list per list name and `all`, and laid over the built lists by `keymap.applyLists` in the root,
-right after the plan resolves and before the action bar, the action panel, the keymap and the
+right after the plan resolves and before the bottom bar, the actions pane, the keymap and the
 contexts read them, so all of them read one answer. It first places every default binding, one
 naming no leader, on the leader the `list` role lands on, `keymap.LIST_ROLE`, HYPER unless the
 `roles` section moves it, so every reader after it spells and binds a binding's own leader and
 `w.contexts` binds each on the held leader it names, a list key on a modifier leader being a field key. The shared verbs carry `shared` on their
-binding, `primary`, `secondary`, `selectNext`, `selectPrev`, `close`, `openActionPanel` and
-`showKeys`, and `lib/surface.lua`
+binding, `primary`, `secondary`, `selectNext`, `selectPrev`, `close`, `openActionsPane` and
+`showInfo`, and `lib/surface.lua`
 builds them on the keys of Olm's own `all` layer, `keymap.listDefaults`, handed in through the
 resolver's `listKeys`, so that file holds no key and the dry gate refuses one written there. A
 manifest's own key, an `extra` row's or a `close.key`, is that list's default, and `all` moves and
@@ -485,10 +510,10 @@ and the libs keep the rules. `test/rootmechanism.lua` pins all three over fakes.
 
 `lib/labels.lua` is the one spelling of a chord, a leader's name, a space and the key glyph, with a
 thin space after a shipped leader's symbol, ✦ Hyper, ◆ META and ● SUPER from `LEADER_SYMBOLS` in
-`root/compose.lua`, which the key panel's legend explains under Olm's name, and of
+`root/compose.lua`, which the info pane's legend explains under Olm's name, and of
 a set of aliases, the words in brackets. `chordLabel(glyphFor)` answers the speller every surface is
 handed, and the glyph helper is the shared cheat sheet renderer's, handed in rather than loaded
-because the spoon publishes that renderer once. The launcher and the action bar both spell a chord
+because the spoon publishes that renderer once. The launcher and the bottom bar both spell a chord
 through it, and a launcher row and the alias directory both spell aliases through it, which is
 what ended one key reading two ways.
 
@@ -515,86 +540,86 @@ launcher's. Its rows are `lib/hints.lua`'s `keyEntries`, words only, built on th
 kept for the load, a row listed exactly when `lib/binder.lua`'s `bindable` says it is bound. A key
 row answers stay and does nothing. `test/keypage.lua` pins it.
 
-## The action bar, two floating groups at the bottom of the default chooser
+## The bottom bar, two floating groups at the bottom of the default chooser
 
 Every list on the stage carries the bar at the bottom of the default chooser's own canvas,
-always visible, one footer row until 2026-10-30 and two floating groups since, `docs/PLAN-ACTION-BAR.md`. It replaced the docked shortcut hint pane on 2026-10-23,
+always visible, one bottom bar row until 2026-10-30 and two floating groups since, `docs/PLAN-ACTION-BAR.md`. It replaced the docked shortcut hint pane on 2026-10-23,
 a separate `CanvasPanel` under the list that appeared after an 800 ms pause, and nothing of that
 pane is left, no `shortcutsPanel` policy, no per plugin panel triple and no `shortcutPanelFor`.
 `decisions/olm-chooser-keys.md` has the decision and what was turned down.
 
-The model and the paint stay apart. `lib/hints.lua`'s `footerModel(contextName, plan, deps)` is
+The model and the paint stay apart. `lib/hints.lua`'s `bottomBarModel(contextName, plan, deps)` is
 pure data, `right` the bar's right side, the primary's label on the Return glyph, the secondary's
-on its chord when the list declares one and its gate is open, and Actions on the action panel's
+on its chord when the list declares one and its gate is open, and Actions on the actions pane's
 chord, `keys` every other key the list answers in declaration order followed by the keys the field
 reads for itself, Back only where Backspace leaves a pushed level and the list lists no Backspace
 binding of its own, led by the root's legend of the leader symbols when it hands one, and `state`
-one comparable string. The key panel, the ⌘? popover, is reference for what the screen does not
+one comparable string. The info pane, the ⌘? floating pane, is reference for what the screen does not
 already say, Olm's name and version, the legend of the leader symbols, and the keys the list
 answers that nothing visible shows. It is never a second listing, and that is computed rather than
 curated. Every key the list answers is collected, and every action the bar carries, its right side
-and the keys group's own chord, is taken out, so the primary, the secondary, Actions and showKeys
+and the left side's own chord, is taken out, so the primary, the secondary, Actions and showInfo
 drop out by the rule and a future bar entry drops out with no edit. Where the list carries Actions, every
-verb `actionKinds` names is taken out too, since the action panel lists it, so the key panel is
-Olm's own, its name and version, the legend and the navigation keys. The keys group hides while
-the key panel is open and the actions group stays, so Run and Actions stay on screen, and the key
+verb `actionKinds` names is taken out too, since the actions pane lists it, so the info pane is
+Olm's own, its name and version, the legend and the navigation keys. The left side hides while
+the info pane is open and the right side stays, so Run and Actions stay on screen, and the key
 panel is reference and never stands in for the bar. Command with a digit is not listed, since every row shows its number. `hints.redundantKeys`
-states the rule as a check, and `test/keymap-person.lua` runs it on every footer model its cases
+states the rule as a check, and `test/keymap-person.lua` runs it on every bottom bar model its cases
 build. While the action
 panel is open over the list the model describes the panel, Return labelled with the highlighted
-panel row's title or Run, no secondary, and only the shared keys and Back in the key panel. It reads the
-bindings, the live gates and the label lookup `rowsFor` reads, so the bar, its key panel and the
-action panel cannot disagree. A label is the level's own `labels` first, then `liveLabels`, then
+panel row's title or Run, no secondary, and only the shared keys and Back in the info pane. It reads the
+bindings, the live gates and the label lookup `rowsFor` reads, so the bar, its info pane and the
+actions pane cannot disagree. A label is the level's own `labels` first, then `liveLabels`, then
 the binding's description, then Open for the primary and the action spelled as words otherwise.
 
 The default provider is the chooser engine, `lib/chooser/engine/init.lua`, composed with the
 canvas view, `lib/chooser/providers/default/canvas.lua`, joined at `lib/chooser/view.lua`, and
 `docs/CONTRACT-PICKER.md` says which half owns what. The engine takes the model through one per
-instance collaborator, `config.footer`. Since 2026-10-30 the canvas view draws the bar as swift
-does, two floating groups rather than a row, through `bar.lua` beside the view, while `footer.lua`
+instance collaborator, `config.bottomBar`. Since 2026-10-30 the canvas view draws the bar as swift
+does, two floating groups rather than a row, through `bar.lua` beside the view, while `bottombar.lua`
 keeps the bar's height, which the engine and both views read. The
-keys group stands in the bottom left corner and the actions group in the bottom right, each the
-kit's `pad` in from its side at the top of the footer rect with `pad` below it. A group holds its
-entries as cells, the keys group one, each as tall as `footer.lua`'s height, a popover line's,
+left side stands in the bottom left corner and the right side in the bottom right, each the
+kit's `pad` in from its side at the top of the bottom bar rect with `pad` below it. A group holds its
+entries as cells, the left side one, each as tall as `bottombar.lua`'s height, a floating pane line's,
 edge to edge and standing the bar's one padding, the kit's `barInner` from `spacing.bar`, from the
 group's four edges, a cell's label and chord that padding in from its sides and the small space
-step apart, which both popovers also pad by inside and inside a line, the same tokens swift's view hands
+step apart, which both floating panes also pad by inside and inside a line, the same tokens swift's view hands
 Swift as `barPad`, `barPillPad`, `barGap`, `barGapWide` and `barPillH`. Each group is filled with
 the background colour role and outlined in the border role at `stroke.border`, its corner the
 highlighted row's, `nestedRadius` of the surface radius and the list margin, with no shadow. Every
-word is the body role, as in swift, and every chord a key cap, `footer.lua`'s `keycap`, the twin of
-swift's `KeyCap`, see the bar in `docs/DESIGN-UI-KIT.md`, and the keys group holds the outline keyboard icon,
-Olm's own `keys` in the action panel's manifest, drawn through the injected icon engine at the
+word is the body role, as in swift, and every chord a key cap, `bottombar.lua`'s `keycap`, the twin of
+swift's `KeyCap`, see the bar in `docs/DESIGN-UI-KIT.md`, and the left side holds the outline keyboard icon,
+Olm's own `keys` in the actions pane's manifest, drawn through the injected icon engine at the
 kit's `hint` icon size, the section line height, with the ? glyph only where no engine is
-injected, then the showKeys chord. The geometry gives the footer rect under the list, subtracted
+injected, then the showInfo chord. The geometry gives the bottom bar rect under the list, subtracted
 from the rows a screen can hold, and the list runs on behind the bar to the window's bottom edge,
 drawn from a copy of the engine's list state whose `padEnd` is grown by the bar's height, so the
 engine's scroll, its furthest scroll, the highlight and the numbered rows are untouched and only
-the rows past the viewport show between and behind the groups. The divider beside a docked pane
+the rows past the viewport show between and behind the groups. The divider beside a preview pane
 runs the full height under the bar. The engine asks the model on every
 show, after every highlight move and on a quarter second poll, the timer's handle kept, and owns
-the key panel's open state, and the canvas view owns the groups' hit tests and the popovers' rects.
-The keys group's cell and each action entry's cell sit on the highlight while the pointer is over
-them, at a popover line's corner, the group's less the padding, the keys group whole while its
-panel is open and the actions group while the action panel is, and the view's `_onMouseMove`
-redraws only as the pointer moves from one to another. A press anywhere on the keys group toggles
-the key panel, and a press and release on one action entry's cell runs its action through the
-engine's `footerAction`, as swift's bar does, the padding around the cells running nothing.
-Opening the key panel over a floating action panel closes the action panel first, in
-`Engine:toggleKeys`, and opening the action panel closes the key panel, so the two are never open
+the info pane's open state, and the canvas view owns the groups' hit tests and the floating panes' rects.
+The left side's cell and each action entry's cell sit on the highlight while the pointer is over
+them, at a floating pane line's corner, the group's less the padding, the left side whole while its
+panel is open and the right side while the actions pane is, and the view's `_onMouseMove`
+redraws only as the pointer moves from one to another. A press anywhere on the left side toggles
+the info pane, and a press and release on one action entry's cell runs its action through the
+engine's `bottomBarAction`, as swift's bar does, the padding around the cells running nothing.
+Opening the info pane over a floating actions pane closes the actions pane first, in
+`Engine:toggleInfo`, and opening the actions pane closes the info pane, so the two are never open
 together. A press or a scroll between the groups reaches the row
 behind them, and one on a group reaches no row. A press on the bar never hides the list. The key
-panel and the action panel are popovers above the keys group and the actions group, see below.
+panel and the actions pane are floating panes above the left side and the right side, see below.
 Every list key that acts closes it, through the dispatch table's `onAction`, which the root points at
-the stage's `closeKeys` for every action but `showKeys`, and so does every field key, a new query
+the stage's `closeKeys` for every action but `showInfo`, and so does every field key, a new query
 and a refresh from the top. Escape over an open panel closes the panel and leaves the list, and the
-autorepeat of that held Escape is swallowed so it never closes the list too. With no footer handed in
+autorepeat of that held Escape is swallowed so it never closes the list too. With no bottom bar handed in
 the provider draws no bar and keeps every row, so it stays usable alone, and the legacy chooser
 draws none.
 
-A list whose action panel would only repeat its primary and its secondary carries no Actions.
-`hints.dropIdleActionPanels` removes its `openActionPanel` binding once per load in the root, right
-after `contextOwners` and before the bar, the key panel, the keymap or the contexts read the
+A list whose actions pane would only repeat its primary and its secondary carries no Actions.
+`hints.dropIdleActionsPanes` removes its `openActionsPane` binding once per load in the root, right
+after `contextOwners` and before the bar, the info pane, the keymap or the contexts read the
 bindings, so all of them agree and its key does nothing there. It reads `hints.ownVerbs`, the rows
 `rowsFor` would list beyond the primary and the secondary, from declarations alone with the
 root's action kind overrides, never a live gate or a row, so no plugin declares anything for it and a
@@ -604,65 +629,65 @@ launcher's own bindings and never add a row, so its panel only ever repeats Run.
 ever carry its tool's verbs into the launcher, the rule has to learn about it. Each load logs the
 lists that lost it, and the keys goldens record which lists carry it.
 
-The root builds one footer for the stage over `stageModule:current()`, the way the stage panel
-did, and hands it through the stage's manifest need `footer`. The stage passes it to its instance,
-remembers the item last highlighted outside the action panel, and answers `labels()`, the current
-presentation's `labels` member asked with that item, and `toggleKeys()`, which the shared
-`showKeys` verb's dispatch exception calls. A presentation's `labels` is a registrar member like
+The root builds one bottom bar for the stage over `stageModule:current()`, the way the stage panel
+did, and hands it through the stage's manifest need `bottomBar`. The stage passes it to its instance,
+remembers the item last highlighted outside the actions pane, and answers `labels()`, the current
+presentation's `labels` member asked with that item, and `toggleInfo()`, which the shared
+`showInfo` verb's dispatch exception calls. A presentation's `labels` is a registrar member like
 `searchText`, and a child presentation hands its own function.
 
 Two shared verbs came with it, both in `keymap.listDefaults`. `secondary` is a field key on
 Command and Return and Command and keypad Enter with leader false, the list listDefaults shape,
 built right after the primary only for a surface declaring `secondary`, so both keep choosing the row
-in every other list. Every field key is inert while the action panel is open, since the root hands
+in every other list. Every field key is inert while the actions pane is open, since the root hands
 the field's watcher each list's predicate wrapped to answer false then, so Command and Return there
-chooses the panel row. showKeys is the one exception, the watcher handing each predicate the
-binding it matched, since the keys group stays on screen with its chord while the action panel is
+chooses the panel row. showInfo is the one exception, the watcher handing each predicate the
+binding it matched, since the left side stays on screen with its chord while the actions pane is
 open and opening one panel never changes the other group. A shared binding's kind is weak in `actionKinds`, filling only an action no
 other binding classified, so a secondary named like another list's verb never hides that verb.
-`showKeys` is Command and ?, slash with Command and Shift, and Command and slash beside it, two
+`showInfo` is Command and ?, slash with Command and Shift, and Command and slash beside it, two
 field keys on no leader like the secondary's, in every list, listed once and spelled ⌘? because the
-shared glyph speller folds Shift and slash into a question mark. The keys group draws that chord
-beside the keyboard icon, `footerModel`'s `keysChord`, which follows a person's move and is absent
+shared glyph speller folds Shift and slash into a question mark. The left side draws that chord
+beside the keyboard icon, `bottomBarModel`'s `keysChord`, which follows a person's move and is absent
 when both keys are freed, and the icon and the chord light and hit as one group. It is not a Hyper key since macOS takes Hyper and slash before any event tap, and it
 reaches a list only where the Show Help menu shortcut is off, which `src/setup-macos-shortcuts.sh`
 sees to. Both move and free in the `lists` section like
-every shared verb. The action panel lists Back, the primary, the secondary and then the verbs.
+every shared verb. The actions pane lists Back, the primary, the secondary and then the verbs.
 The primary row reads Return and the secondary row Command and Return, the keys a person presses,
-and the key panel spells the primary as Return alone. Every row carries an icon. A
+and the info pane spells the primary as Return alone. Every row carries an icon. A
 surface's `primary` and `secondary` may name one of the manifest's icons like an extra row, and one
-naming none takes Olm's own, `primary` and `secondary` in the action panel's manifest beside `back`. No icon is the Return glyph, since the row's cap already shows Return, so Olm's own primary is
+naming none takes Olm's own, `primary` and `secondary` in the actions pane's manifest beside `back`. No icon is the Return glyph, since the row's cap already shows Return, so Olm's own primary is
 `play`.
 
-The canvas view draws the key panel and the action panel as popovers since 2026-10-30, the
-canvas clone of the swift chooser's `native/Popover.swift`, one drawing routine for both in
-`providers/default/popover.lua`, which answers elements and hit rects and opens no canvas. Each is
+The canvas view draws the info pane and the actions pane as floating panes since 2026-10-30, the
+canvas clone of the swift chooser's `native/FloatingPane.swift`, one drawing routine for both in
+`providers/default/floatingpane.lua`, which answers elements and hit rects and opens no canvas. Each is
 filled with the background role and outlined in the border role at the border stroke, its corner
 the highlighted row's, the surface radius less the list margin, and a lit line's corner that less
 the outer padding. The words and the header are the body role, the label in foreground, the chord
 a key cap as in the bar, a section heading the caption role, a line the bar's row, a
 picture the section line height, and the paddings follow swift's one rule for both panels, see
-the popover in `docs/DESIGN-UI-KIT.md`. The key panel takes the keys anchor's corner, its left and bottom edges on
-it, while the keys group is hidden and the actions group stays, and the action panel the actions
-anchor's, its right and bottom edges on it, while the actions group is hidden and the keys group
+the floating pane in `docs/DESIGN-UI-KIT.md`. The info pane takes the keys anchor's corner, its left and bottom edges on
+it, while the left side is hidden and the right side stays, and the actions pane the actions
+anchor's, its right and bottom edges on it, while the right side is hidden and the left side
 stays, never above the list's top, where it scrolls, and as wide as its widest line but never
 wider than the window less the outer padding, past which its labels truncate.
 The anchors are the one seam to the bar, the groups' own rects that `bar.lua` answers, kept by
-`View:_footerElements` as `self._anchors = { keys = rect, actions = rect }` in the window's local
+`View:_bottomBarElements` as `self._anchors = { keys = rect, actions = rect }` in the window's local
 coordinates. The view answers
-`floatsActionPanel`, so the panel has no Back row and the engine's rows are the panel's while it is
+`floatsActionsPane`, so the panel has no Back row and the engine's rows are the panel's while it is
 open. The list then goes on drawing the list state it held on the last draw before the panel
 opened, which a scroll over the list moves and nothing else, as the swift view keeps its rows.
 Keys need no routing of their own, since the canvas field hands every key to the engine, whose
 highlight and Return already act on the panel's rows. The pointer over a panel line calls
 `highlightIndex` and a release on one `chooseIndex`, the calls the swift view's hover and choose
-make, a press anywhere on a popover lands on no row, the rows behind a floating panel take no
-hover, press or right click, as swift's list guards them, and a scroll over a popover scrolls its
-own lines when they overflow and never the list. A press elsewhere closes the action panel in
-neither chooser, Escape and its own chord do. The key panel is different since 2026-11-01. Any
-press in the chooser away from it, a row, the field, the bar or the keys group, closes it and does
+make, a press anywhere on a floating pane lands on no row, the rows behind a floating panel take no
+hover, press or right click, as swift's list guards them, and a scroll over a floating pane scrolls its
+own lines when they overflow and never the list. A press elsewhere closes the actions pane in
+neither chooser, Escape and its own chord do. The info pane is different since 2026-11-01. Any
+press in the chooser away from it, a row, the field, the bar or the left side, closes it and does
 nothing else, a press on it does nothing at all, and the pointer moving over the rows never closes
-it, the swift list telling Lua which highlight moves were the pointer's. `test/canvaspopover.lua` pins the sizes, the placement and
+it, the swift list telling Lua which highlight moves were the pointer's. `test/canvasfloatingpane.lua` pins the sizes, the placement and
 the pointer, in the dry tier.
 
 ## Secure focus, a list opened over a password field
@@ -685,16 +710,16 @@ pins the lib over fakes. The provider has no plain test harness,
 only the live probe, so the call order is checked live. `decisions/olm-chooser-keys.md` has the
 measurements.
 
-## The docked pane, one lifecycle over two drawing backends
+## The preview pane, one lifecycle over two drawing backends
 
-`lib/dockedpane.lua` owns everything a docked companion pane does, the lazy build, the inner rect,
+`lib/previewpane.lua` owns everything a preview pane does, the lazy build, the inner rect,
 the dock, the guards, the surface first, the scroll and its clamp, the thumb, the empty state,
 show, hide and destroy, and a plugin hands it only a describer or a painter. Whatever is
 described or painted is reduced there to two lists of `hs.canvas` element tables, the surface
 and the content, in the pane's own coordinates, and those two lists are the whole contract with
 the drawing backend, a Strategy the root injects as `deps.backend`. The backend is a factory
 called once at the first paint, and what it answers keeps five methods and no rule.
-`place(frame)` moves it to the companion rect in screen coordinates, `render(surface, content)`
+`place(frame)` moves it to the preview pane rect in screen coordinates, `render(surface, content)`
 draws both lists in place of what was there, `show()` and `hide()` bring it up and take it down,
 and `destroy()` tears it down on close.
 
@@ -703,7 +728,7 @@ keeps `scrollBy(points)` too. For such a backend a scrolling pane's content is l
 its full height, unshifted and cut only at the viewport grown by the overflow, and handed over as
 `render(surface, content, scroll)` with `scroll = { height, visible, reset, thumb }`, the whole
 height, the pane's own, whether the content changed so the view goes back to the top, and whether
-the pane asked for a thumb. `lib/dockedpane.lua` then keeps no offset, clamps nothing, draws no
+the pane asked for a thumb. `lib/previewpane.lua` then keeps no offset, clamps nothing, draws no
 thumb and runs no scroll timer, and `pane.scrollBy` calls the backend's, so a key that pages the
 pane still pages it. A redraw of the same content, a repaint, a redock or a show with
 `keepScroll`, keeps the view where it is, and new content resets it, exactly when the canvas path
@@ -711,32 +736,32 @@ resets its offset. A painter is called once to learn its overflow and again with
 `view.viewport` grown by it, so a painter that cuts at the viewport hands over everything, and a
 painter's fixed header, the file search preview's, scrolls with the body under such a backend.
 
-There are two. `lib/dockedpane/canvas.lua` paints both lists on one `hs.canvas` at the floating
+There are two. `lib/previewpane/canvas.lua` paints both lists on one `hs.canvas` at the floating
 level with click activation off, exactly what every pane drew before the backend existed.
 `lib/chooser/providers/swift/pane.lua`, over `native/Pane.swift` in the swift chooser's own
 library, draws the content on glass and replaces the surface with glass at the surface's corner
 radius, since the surface's fill painted over glass would hide it. The glass is drawn in the
-chooser panel's own window. With a companion that window and one `NSGlassEffectView` span the
-canvas rect, the engine's gap and the companion rect at the surface radius, the list's content on
-the canvas rect, the pane's region on the companion rect, and a hairline in the kit's border
-colour and border width centred in the gap from the top down to the action bar, so the list and
+chooser panel's own window. With a preview pane that window and one `NSGlassEffectView` span the
+canvas rect, the engine's gap and the preview pane rect at the surface radius, the list's content on
+the canvas rect, the pane's region on the preview pane rect, and a hairline in the kit's border
+colour and border width centred in the gap from the top down to the bottom bar, so the list and
 the pane are one surface that appears and vanishes together, with no window animation. The gap is
-zero under the swift view, which the engine sets beside `footerSpan`, since the list's margin
+zero under the swift view, which the engine sets beside `bottomBarSpan`, since the list's margin
 already stands between a row and the hairline and the pane pads by the same inset. A gap there sat
 on top of both and gave a highlighted row more room on its right than on its left, reported on
 2026-10-30. The action
-bar runs under the list, the gap and the pane alike, since the swift view answers `spansFooter`
-and `geometry.resolve` then widens the footer rect across the span and stops the companion rect
+bar runs under the list, the gap and the pane alike, since the swift view answers `spansBottomBar`
+and `geometry.resolve` then widens the bottom bar rect across the span and stops the preview pane rect
 at the bar's top edge, so a pane is laid out at the height it is shown. The default chooser
-answers `spansFooter` and `footerHeight` the same way since 2026-10-30, as the first step of
+answers `spansBottomBar` and `bottomBarHeight` the same way since 2026-10-30, as the first step of
 making it a layout clone of swift in solid theme colours, so both share every rect, see the
-canvas hosting paragraph below. With no companion the
+canvas hosting paragraph below. With no preview pane the
 window is the canvas rect alone. A pane knows no chooser, so the one seam is `chooserHosting` in
-`native/Entry.swift`, which matches the pane's rect to the companion rect a visible chooser panel
+`native/Entry.swift`, which matches the pane's rect to the preview pane rect a visible chooser panel
 last reported. When none matches, the pane stands in a window of its own, a nonactivating panel
 that never becomes key, at the canvas pane's level. A press in the gap lands on glass and is
 inside, keeping the list and the keyboard as a press on the pane does, and the Lua view's rule
-treats the span from the canvas to the companion as inside while there is a companion, the one
+treats the span from the canvas to the preview pane as inside while there is a preview pane, the one
 place it differs from the canvas, which hides for a press there. It scrolls natively, the drawn
 elements in a flipped document view inside an `NSScrollView` with no scroller unless the pane
 asked for a thumb, then the overlay style, and only the elements that reach the area being drawn
@@ -752,7 +777,7 @@ nothing by the first layout after a redock and the pane drew blank. `test/swiftp
 library's own sources into a program that shows no window and pins that view tree, and
 `suite.sh dry` runs it. `paneDebug` on the library, reached as `paneDebug(id)` on the swift
 provider module, answers read only where a pane is hosted, its frames, the document and the clip.
-Pictures in the list, the action bar and the pane are drawn on whole pixels at the backing scale
+Pictures in the list, the bottom bar and the pane are drawn on whole pixels at the backing scale
 through `Crisp` in `native/List.swift`, never scaled by Core Animation. It
 draws `rectangle` and `segments`
 filled, stroked or clipped, `image`, `text` as a string or an `hs.styledtext`, and `resetClip`,
@@ -760,11 +785,11 @@ with the canvas's semantics and defaults. Any other type, action, scaling or att
 that element out and is named once in the console. It is torn down with the chooser panels by
 the library's reload sentinel, and a pane never calls back into Lua.
 
-The root chooses, in `dockedPaneBackend` beside `wireSwiftChooser`, and no plugin and no line of
-`lib/dockedpane.lua` names a backend. A pane gets the native one only while the swift provider is
+The root chooses, in `previewPaneBackend` beside `wireSwiftChooser`, and no plugin and no line of
+`lib/previewpane.lua` names a backend. A pane gets the native one only while the swift provider is
 the chosen one and its library is loaded, which is fixed for the session, and the canvas one
 otherwise, wrapped by the default provider's `paneBackend`. That wrapper is the canvas
-counterpart of `chooserHosting`. On every place it matches the pane's rect to the companion rect a
+counterpart of `chooserHosting`. On every place it matches the pane's rect to the preview pane rect a
 canvas chooser that spans one last reported, and while one matches, the pane's content is drawn
 inside that chooser's own canvas, shifted into the pane's region and clipped to it, and its
 surface list is dropped, since the chooser's surface already spans the canvas, the gap and the
@@ -778,7 +803,7 @@ drives one pane over both backends with the same describer and painter, and pins
 one is handed the very content list the canvas paints over its surface, and for a scrolling pane
 that the canvas one scrolls as it always did while the native one gets the full height content
 unshifted, scrolls through the library and keeps its place across a redraw of the same content.
-It also pins the canvas wrapper, hosted on a spanning list's companion, on its own canvas
+It also pins the canvas wrapper, hosted on a spanning list's preview pane, on its own canvas
 anywhere else, never for a panel, and hiding what it left when it moves between the two.
 
 ## CanvasPanel, the same two backends
@@ -787,8 +812,8 @@ anywhere else, never for a panel, and hiding what it left when it moves between 
 sizing, reveal timing, the surface style resolved for the current half, and reduces each show to
 the surface and the content shifted by its padding, then places, renders and shows a backend the
 root injects through `CanvasPanel.configure({ backend })`. With none injected a panel draws
-nothing and says so once. The root's `wirePanelBackend`, beside `dockedPaneBackend`, hands it a
-factory that asks `dockedPaneBackend` at each panel's first show, so a panel follows the chooser
+nothing and says so once. The root's `wirePanelBackend`, beside `previewPaneBackend`, hands it a
+factory that asks `previewPaneBackend` at each panel's first show, so a panel follows the chooser
 that serves exactly as a pane does. A panel calls the factory with a second argument a pane never
 passes, its window, `{ level, onClick, activates }`, and `isShowing()` is the one backend method
 only a panel asks. On the canvas this makes the very hs.canvas the panel used to make, at its
@@ -813,12 +838,12 @@ composes `lib/chooser/engine/init.lua` with `providers/swift/view.lua`, and the 
 Object over a Swift library whose sources are `providers/swift/native/`. The library draws a
 nonactivating panel that becomes key without activating Hammerspoon, on `NSGlassEffectView` where
 the system has it and a visual effect view where it does not, with a native `NSTextField`, an
-`NSTableView` list and an action bar of two floating glass groups with its key panel, see the
-action bar section of `docs/DESIGN-UI-KIT.md`. The Lua view turns the engine's scene
+`NSTableView` list and an bottom bar of two floating glass groups with its info pane, see the
+bottom bar section of `docs/DESIGN-UI-KIT.md`. The Lua view turns the engine's scene
 into plain data, colours, fonts, sizes, the radius and the space steps from the kit's tokens and
 every rectangle and row metric from the engine's geometry, so neither half writes a colour or a font
-by hand, and the panel sits exactly on the canvas rect with the docked pane beside it, which is
-drawn on the panel's own glass beside the list, see the docked pane section above, and every
+by hand, and the panel sits exactly on the canvas rect with the preview pane beside it, which is
+drawn on the panel's own glass beside the list, see the preview pane section above, and every
 CanvasPanel is drawn on glass by the same library while it serves, see the CanvasPanel section. The native list owns its scroll and its highlight. The arrows,
 the pointer and a trackpad move them in AppKit, and Lua hears both afterwards, coalesced, and sends
 either back only when the engine moved it, a new list or a list key. Every key or press Lua acts on
@@ -833,8 +858,8 @@ before changing how any chooser scrolls, draws icons or measures text. Swift run
 the view contract's key order, asking Lua synchronously before its field edits, and hands each key
 over as its event's bytes, which `hs.eventtap.event.newEventFromData` turns back into the event the
 engine reads. A press outside the panel is heard by event monitors and decided in Lua against the
-canvas view's own rects, a press in the companion keeping the list and asking the panel for key
-again, and losing key never hides it. A scroll over the companion is claimed by a scroll wheel tap
+canvas view's own rects, a press in the preview pane keeping the list and asking the panel for key
+again, and losing key never hides it. A scroll over the preview pane is claimed by a scroll wheel tap
 the Lua view runs while it is up, as the canvas view's mouse tap claims it, unless the panel's
 window holds a shown native pane, which scrolls itself. Only the Control keys
 the canvas field keymap reads reach the native field, named once in `providers/swift/fieldkeys.lua`,

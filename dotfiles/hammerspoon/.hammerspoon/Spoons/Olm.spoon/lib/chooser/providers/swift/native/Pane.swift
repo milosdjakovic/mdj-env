@@ -1,4 +1,4 @@
-// The docked pane's native view. lib/dockedpane.lua reduces every pane, described through the UI
+// The preview pane's native view. lib/previewpane.lua reduces every pane, described through the UI
 // kit or painted directly, to a list of hs.canvas element tables, and this file draws that list
 // the way hs.canvas documents it, on glass. It holds no pane rule. The lazy build, the inner
 // rect, the layout and the empty state all stay in Lua, and this file only places, draws, scrolls,
@@ -15,13 +15,13 @@
 //
 // WHERE IT IS DRAWN. The pane is made by a plugin, which knows no chooser panel, so it never
 // names one. Each time it is placed or shown it asks the seam in Entry.swift for the visible
-// chooser panel whose reported companion rect is its own rect, and when there is one its view
+// chooser panel whose reported preview pane rect is its own rect, and when there is one its view
 // goes into that panel's pane region, in the chooser's own window, on the same one shape of glass
 // as the list, so the two are one surface and appear and vanish together. When no visible
 // swift chooser owns the rect it falls back to a window of its own, a nonactivating panel that
 // is never key and never main, at the level the canvas pane floats at, with no animation. A
 // click on that window still reaches the chooser panel's local monitor as a press on another
-// Hammerspoon window, which the Lua view finds inside the companion rect and answers by keeping
+// Hammerspoon window, which the Lua view finds inside the preview pane rect and answers by keeping
 // the list up. A scroll over the pane in a chooser's window is left to the scroll view, the Lua
 // view's tap passing it on, and one over the pane's own window is claimed by that tap and comes
 // back as scrollBy, see View colon _onScroll in view.lua.
@@ -55,7 +55,7 @@
 
 import Cocoa
 
-// What the window is for, a docked pane by default and a CanvasPanel when panel is set. onClick
+// What the window is for, a preview pane by default and a CanvasPanel when panel is set. onClick
 // is told the id of a clicked element, and is only ever set for a panel.
 struct PaneConfig {
   var panel = false
@@ -182,7 +182,7 @@ final class PaneCanvas: NSView {
 }
 
 final class PanePanel {
-  // The seam's question, the visible chooser panel whose companion is this rect, if any.
+  // The seam's question, the visible chooser panel whose preview pane is this rect, if any.
   typealias FindHost = (NSRect) -> ChooserPanel?
 
   private let window: PaneWindow
@@ -224,7 +224,7 @@ final class PanePanel {
     window.level = config.level
     // Click through unless something here takes a click, the canvas rule for a canvas with no
     // mouse callback. A pane's window keeps taking the press, which the chooser's local monitor
-    // reads as a press inside the companion.
+    // reads as a press inside the preview pane.
     window.ignoresMouseEvents = config.panel && config.onClick == nil
     canvas.onClick = config.onClick
     window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
@@ -344,7 +344,7 @@ final class PanePanel {
   // Moves the view to the chooser panel that owns this rect now, or to the own window when none
   // does, and leaves it where it is when that has not changed.
   private func rehome() {
-    // A panel is never drawn into a chooser's window, even on a rect that matches a companion.
+    // A panel is never drawn into a chooser's window, even on a rect that matches a preview pane.
     let next = config.panel ? nil : findHost(rect)
     if next !== host {
       host?.releasePane(scroller)

@@ -9,17 +9,17 @@ everyTimers = {}
 -- panel sends reaches the engine call the view contract names for it, a typed text reranking,
 -- dismiss hiding, yields and listKey answering what the engine answers, an empty backspace asking
 -- back, a leftover Down moving the highlight and a leftover Return choosing, a hover highlighting,
--- a press and release choosing, a press outside hiding and a press in the companion keeping the
+-- a press and release choosing, a press outside hiding and a press in the preview pane keeping the
 -- list and asking the panel to take key, a press in the gap before it too while there is one,
 -- with the window spanning both and a hairline of the kit's border centred in the gap. And that
 -- the provider serves the fallback when the
 -- library is missing, while it builds, after a build in the same session, and when it fails,
--- and offers the docked pane's native backend only once its library is loaded.
+-- and offers the preview pane's native backend only once its library is loaded.
 --
 -- And, after the review of 2026-10-28, that a missing command line tools directory, clang or SDK
 -- serves the fallback without running anything, that a finished build removes all but the
 -- newest three outputs, that the view hands the panel exactly the Control keys its field reads,
--- that a scroll over the companion is claimed by the view's own tap and nowhere else, unless the
+-- that a scroll over the preview pane is claimed by the view's own tap and nowhere else, unless the
 -- panel's own window holds a shown native pane, which scrolls itself, that uses
 -- answers for the field that serves, and that a loaded library's module table, which holds the
 -- sentinel whose __gc cleans up when the state closes, stays referenced for the session.
@@ -227,7 +227,7 @@ local picker = Engine.new({
   onClose = function() closed = closed + 1 end,
   back = function() backs = backs + 1 return false end,
 }, function(engine) return View.new(engine, native) end)
-picker:setPaneWidth(300)
+picker:setPreviewPaneWidth(300)
 
 local mark = #calls
 picker:show()
@@ -238,19 +238,19 @@ check("show sends style, place, text, rows, state, then shows and starts",
 local rects = picker:scene().rects
 check("the panel sits on the canvas rect", lastPlace.canvas, rects.canvas)
 check("the list rect is the canvas's own", lastPlace.list.y, rects.list.y - rects.canvas.y)
--- One window holds the list's glass and the docked pane's, spanning both rects. The engine gives
+-- One window holds the list's glass and the preview pane's, spanning both rects. The engine gives
 -- a spanning view no gap since bb69fbc9, the list's margin already standing between a row and the
--- divider, so the companion starts where the canvas ends.
-local gap = rects.companion.x - (rects.canvas.x + rects.canvas.w)
-check("there is no gap between the canvas and the companion", gap, 0)
+-- divider, so the preview pane starts where the canvas ends.
+local gap = rects.previewPane.x - (rects.canvas.x + rects.canvas.w)
+check("there is no gap between the canvas and the preview pane", gap, 0)
 check("the window starts at the canvas", lastPlace.window.x, rects.canvas.x)
-check("the window spans the companion", lastPlace.window.w, rects.canvas.w + gap + rects.companion.w)
+check("the window spans the preview pane", lastPlace.window.w, rects.canvas.w + gap + rects.previewPane.w)
 check("the list's glass is the canvas rect in the window", lastPlace.listFrame.x == 0
   and lastPlace.listFrame.y == 0 and lastPlace.listFrame.w == rects.canvas.w, true)
-check("the pane's glass is the companion rect in the window, past the gap",
+check("the pane's glass is the preview pane rect in the window, past the gap",
   lastPlace.paneFrame.x, rects.canvas.w + gap)
-check("the companion travels in screen space, for a pane to be matched on", lastPlace.companion,
-  rects.companion)
+check("the preview pane travels in screen space, for a pane to be matched on", lastPlace.previewPane,
+  rects.previewPane)
 -- A hairline of the kit's border width, centred in the gap, from the top of the window to the
 -- bottom, in the kit's border colour.
 check("the divider is the kit's border width", lastPlace.dividerFrame.w, 1)
@@ -301,12 +301,12 @@ send("emptyBackspace")
 check("an empty backspace asks back", backs, 1)
 check("a back answering false keeps the list", picker:isActive(), true)
 
--- A press in the companion keeps the list and asks the panel for key, one anywhere else hides.
-local companion = rects.companion
+-- A press in the preview pane keeps the list and asks the panel for key, one anywhere else hides.
+local previewPane = rects.previewPane
 mark = #calls
-send("pressOutside", companion.x + 5, companion.y + 5)
-check("a press in the companion keeps the list", picker:isActive(), true)
-check("a press in the companion asks for key again", since(mark), "refocus")
+send("pressOutside", previewPane.x + 5, previewPane.y + 5)
+check("a press in the preview pane keeps the list", picker:isActive(), true)
+check("a press in the preview pane asks for key again", since(mark), "refocus")
 
 -- Return chooses the highlighted row, onSelect then the teardown, stop before hide.
 mark = #calls
@@ -316,8 +316,8 @@ check("choosing tears down, input stopped before the panel hides", since(mark), 
 check("onClose fires once", closed, 1)
 check("the list is down", picker:isActive(), false)
 
--- A press in the gap between the canvas and the companion is inside on purpose, since the one
--- shape of glass spans it, so it keeps the list and asks for key again, as the companion does.
+-- A press in the gap between the canvas and the preview pane is inside on purpose, since the one
+-- shape of glass spans it, so it keeps the list and asks for key again, as the preview pane does.
 -- The two opens here are left out of the close counts below.
 local closedBefore = closed
 picker:show()
@@ -325,21 +325,21 @@ mark = #calls
 send("pressOutside", rects.canvas.x + rects.canvas.w + 1, rects.canvas.y + 5)
 check("a press in the gap keeps the list", picker:isActive(), true)
 check("a press in the gap asks for key again", since(mark), "refocus")
-send("pressOutside", rects.companion.x + rects.companion.w + 5, rects.canvas.y + 5)
-check("a press past the companion hides the list", picker:isActive(), false)
+send("pressOutside", rects.previewPane.x + rects.previewPane.w + 5, rects.canvas.y + 5)
+check("a press past the preview pane hides the list", picker:isActive(), false)
 
--- With no companion the window is the canvas rect alone, with no pane region and no divider.
-picker:setPaneWidth(nil)
+-- With no preview pane the window is the canvas rect alone, with no pane region and no divider.
+picker:setPreviewPaneWidth(nil)
 picker:show()
-check("without a companion the window is the canvas", lastPlace.window, picker:scene().rects.canvas)
+check("without a preview pane the window is the canvas", lastPlace.window, picker:scene().rects.canvas)
 check("and there is no pane region", lastPlace.paneFrame, nil)
-check("and no companion to match a pane on", lastPlace.companion, nil)
+check("and no previewPane to match a pane on", lastPlace.previewPane, nil)
 check("and no divider", lastPlace.dividerFrame, nil)
 local bare = picker:scene().rects.canvas
 send("pressOutside", bare.x + bare.w + 1, bare.y + 5)
-check("just past the canvas, a press hides the list without a companion", picker:isActive(), false)
+check("just past the canvas, a press hides the list without a preview pane", picker:isActive(), false)
 picker:hide()
-picker:setPaneWidth(300)
+picker:setPreviewPaneWidth(300)
 closed = closedBefore
 
 
@@ -366,7 +366,7 @@ table.sort(sorted)
 check("the panel is handed exactly the field's Control keys", table.concat(sorted, ","), "0,2,3,4,11,14,40")
 check("Control and H stands for Backspace", table.concat(fieldKeysSent and fieldKeysSent.backspace or {}, ","), "4")
 
--- A scroll over the companion is claimed by the view's own tap, which runs only while it is up.
+-- A scroll over the preview pane is claimed by the view's own tap, which runs only while it is up.
 local function scrollEvent(x, y, dy)
   return {
     location = function() return { x = x, y = y } end,
@@ -377,23 +377,23 @@ local function scrollEvent(x, y, dy)
     end,
   }
 end
-local companionScrolls = {}
-picker.config.onScroll = function(points) companionScrolls[#companionScrolls + 1] = points end
+local previewPaneScrolls = {}
+picker.config.onScroll = function(points) previewPaneScrolls[#previewPaneScrolls + 1] = points end
 picker:show()
 local tap = taps[#taps]
 check("a started view runs a scroll wheel tap", tap ~= nil and tap.running, true)
 check("the tap hears scroll wheel events only", tap and tap.types[1], "scrollWheel")
-check("a scroll over the companion is claimed", tap.fn(scrollEvent(companion.x + 5, companion.y + 5, 3)), true)
-check("and handed to the engine inverted", companionScrolls[1], -3)
+check("a scroll over the preview pane is claimed", tap.fn(scrollEvent(previewPane.x + 5, previewPane.y + 5, 3)), true)
+check("and handed to the engine inverted", previewPaneScrolls[1], -3)
 check("a scroll over the list is not claimed", tap.fn(scrollEvent(rects.list.x + 5, rects.list.y + 5, 3)), false)
-check("a zero scroll over the companion is not claimed", tap.fn(scrollEvent(companion.x + 5, companion.y + 5, 0)), false)
--- While the panel's own window holds a shown native pane, a scroll over the companion is left to
+check("a zero scroll over the preview pane is not claimed", tap.fn(scrollEvent(previewPane.x + 5, previewPane.y + 5, 0)), false)
+-- While the panel's own window holds a shown native pane, a scroll over the preview pane is left to
 -- AppKit, which hands it to the pane's scroll view, and the engine never hears it.
 hosted = true
-check("a scroll over a hosted native pane is not claimed", tap.fn(scrollEvent(companion.x + 5, companion.y + 5, 3)), false)
-check("and never reaches the engine", #companionScrolls, 1)
+check("a scroll over a hosted native pane is not claimed", tap.fn(scrollEvent(previewPane.x + 5, previewPane.y + 5, 3)), false)
+check("and never reaches the engine", #previewPaneScrolls, 1)
 hosted = false
-check("claimed again once the pane is not hosted", tap.fn(scrollEvent(companion.x + 5, companion.y + 5, 3)), true)
+check("claimed again once the pane is not hosted", tap.fn(scrollEvent(previewPane.x + 5, previewPane.y + 5, 3)), true)
 picker:hide()
 check("a stopped view stops its scroll tap", tap.running, false)
 
@@ -626,22 +626,22 @@ do
   many:hide()
 end
 
--- With an action bar the view asks for the bar to span, so it runs under the gap and the pane,
--- and the pane's region and the divider run on behind it to the bottom, the companion keeping the
+-- With an bottom bar the view asks for the bar to span, so it runs under the gap and the pane,
+-- and the pane's region and the divider run on behind it to the bottom, the preview pane keeping the
 -- canvas's height with the bar's height as under.
 local barred = Engine.new({
   rows = function() return {} end,
-  footer = function() return { right = {}, keys = {}, state = "" } end,
+  bottomBar = function() return { right = {}, keys = {}, state = "" } end,
 }, function(engine) return View.new(engine, native) end)
-barred:setPaneWidth(300)
+barred:setPreviewPaneWidth(300)
 barred:show()
 local br = barred:scene().rects
-check("the bar spans the whole window", lastPlace.footer.w, lastPlace.window.w)
-check("the bar starts at the window's left edge", lastPlace.footer.x, 0)
+check("the bar spans the whole window", lastPlace.bottomBar.w, lastPlace.window.w)
+check("the bar starts at the window's left edge", lastPlace.bottomBar.x, 0)
 check("the pane's region runs to the bottom", lastPlace.paneFrame.y + lastPlace.paneFrame.h, lastPlace.window.h)
 check("the divider runs to the bottom", lastPlace.dividerFrame.h, lastPlace.window.h)
-check("the companion is as tall as the pane's region", br.companion.h, lastPlace.paneFrame.h)
-check("and the bar covers its bottom", br.companion.under, lastPlace.footer.h)
+check("the preview pane is as tall as the pane's region", br.previewPane.h, lastPlace.paneFrame.h)
+check("and the bar covers its bottom", br.previewPane.under, lastPlace.bottomBar.h)
 barred:hide()
 
 if failed then
