@@ -534,7 +534,9 @@ already say, Olm's name and version, the legend of the leader symbols, and the k
 answers that nothing visible shows. It is never a second listing, and that is computed rather than
 curated. Every key the list answers is collected, and every action the bar carries, its right side
 and the keys group's own chord, is taken out, so the primary, the secondary, Actions and showKeys
-drop out by the rule and a future bar entry drops out with no edit. The keys group hides while
+drop out by the rule and a future bar entry drops out with no edit. Where the list carries Actions, every
+verb `actionKinds` names is taken out too, since the action panel lists it, so the key panel is
+Olm's own, its name and version, the legend and the navigation keys. The keys group hides while
 the key panel is open and the actions group stays, so Run and Actions stay on screen, and the key
 panel is reference and never stands in for the bar. Command with a digit is not listed, since every row shows its number. `hints.redundantKeys`
 states the rule as a check, and `test/keymap-person.lua` runs it on every footer model its cases
@@ -552,10 +554,11 @@ instance collaborator, `config.footer`. Since 2026-10-30 the canvas view draws t
 does, two floating groups rather than a row, through `bar.lua` beside the view, while `footer.lua`
 keeps the bar's height, which the engine and both views read. The
 keys group stands in the bottom left corner and the actions group in the bottom right, each the
-kit's `pad` in from its side at the top of the footer rect, as tall as `footer.lua`'s height with
-`pad` below it, the bar's one padding, the kit's `barInner` from `spacing.bar`, inside it on every
-side, which both popovers also pad by inside and inside a line, a label and its
-chord the small space step apart and two entries the large one, the same tokens swift's view hands
+kit's `pad` in from its side at the top of the footer rect with `pad` below it. A group holds its
+entries as cells, the keys group one, each as tall as `footer.lua`'s height, a popover line's,
+edge to edge and standing the bar's one padding, the kit's `barInner` from `spacing.bar`, from the
+group's four edges, a cell's label and chord that padding in from its sides and the small space
+step apart, which both popovers also pad by inside and inside a line, the same tokens swift's view hands
 Swift as `barPad`, `barPillPad`, `barGap`, `barGapWide` and `barPillH`. Each group is filled with
 the background colour role and outlined in the border role at `stroke.border`, its corner the
 highlighted row's, `nestedRadius` of the surface radius and the list margin, with no shadow. Every
@@ -571,12 +574,15 @@ the rows past the viewport show between and behind the groups. The divider besid
 runs the full height under the bar. The engine asks the model on every
 show, after every highlight move and on a quarter second poll, the timer's handle kept, and owns
 the key panel's open state, and the canvas view owns the groups' hit tests and the popovers' rects.
-The keys group and each action entry sit on the highlight while the pointer is over them, the
-keys group also while its panel is open and the actions group while the action panel is, and the
-view's `_onMouseMove` redraws only as the pointer moves from one to another. A press on the keys
-group toggles the key panel, and a press and release on one action entry runs its action through
-the engine's `footerAction`, as swift's bar does, each entry reaching from half the large gap
-before its label to half after its chord. A press or a scroll between the groups reaches the row
+The keys group's cell and each action entry's cell sit on the highlight while the pointer is over
+them, at a popover line's corner, the group's less the padding, the keys group whole while its
+panel is open and the actions group while the action panel is, and the view's `_onMouseMove`
+redraws only as the pointer moves from one to another. A press anywhere on the keys group toggles
+the key panel, and a press and release on one action entry's cell runs its action through the
+engine's `footerAction`, as swift's bar does, the padding around the cells running nothing.
+Opening the key panel over a floating action panel closes the action panel first, in
+`Engine:toggleKeys`, and opening the action panel closes the key panel, so the two are never open
+together. A press or a scroll between the groups reaches the row
 behind them, and one on a group reaches no row. A press on the bar never hides the list. The key
 panel and the action panel are popovers above the keys group and the actions group, see below.
 Every list key that acts closes it, through the dispatch table's `onAction`, which the root points at
@@ -635,8 +641,8 @@ filled with the background role and outlined in the border role at the border st
 the highlighted row's, the surface radius less the list margin, and a lit line's corner that less
 the outer padding. The words and the header are the body role, the label in foreground, the chord
 a key cap as in the bar, a section heading the caption role, a line the bar's row, a
-picture the section line height, and the paddings follow swift's two ways, see the popover in
-`docs/DESIGN-UI-KIT.md`. The key panel takes the keys anchor's corner, its left and bottom edges on
+picture the section line height, and the paddings follow swift's one rule for both panels, see
+the popover in `docs/DESIGN-UI-KIT.md`. The key panel takes the keys anchor's corner, its left and bottom edges on
 it, while the keys group is hidden and the actions group stays, and the action panel the actions
 anchor's, its right and bottom edges on it, while the actions group is hidden and the keys group
 stays, never above the list's top, where it scrolls, and as wide as its widest line but never

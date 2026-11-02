@@ -4,15 +4,15 @@
 // than the room it is given. The key panel is its first user and the action panel its second, so it knows neither, only the
 // lines it is handed. A line may carry a picture, drawn on its left, and a popover may highlight
 // one line, which the pointer moves and a press chooses, reported by its index from one. Its
-// corner is the groups' corner, and it follows the chooser's padding rules, one of two ways. A
-// popover whose lines are chosen, the action panel, stands its lines the outer padding from all
-// four edges, the way the list's highlighted rows stand from the window's, a line's picture and
-// words stand the inner padding in from the line's edge, and the highlight's corner is the
-// popover's less the outer padding. A popover whose lines are only read, the key panel, has no
-// line edge to see, so its text itself stands the outer padding from all four edges, the header
-// and the labels on one left edge and the chords on one right edge, the top and bottom measured
-// to the text rather than to a line's height. A header is the row title's size and colour, with a
-// rule the outer padding below it and the first line the outer padding below the rule.
+// corner is the groups' corner, and it follows the chooser's padding rules. Its lines stand the
+// outer padding from all four edges, the way the list's highlighted rows stand from the window's,
+// a line's picture and words stand the inner padding in from the line's edge, and the highlight's
+// corner is the popover's less the outer padding. The key panel, whose lines are only read, is
+// laid out the same, so both panels and the bar's cells share one size, Milos's choice of
+// 2026-11-02. A header is the row title's size and colour, laid out as one more line, its text
+// the inner padding in from a line's edge and centred in a line's height, with the rule on the
+// line's bottom edge and the first line right below it, so the header keeps the room every line
+// keeps.
 
 import Cocoa
 
@@ -84,7 +84,6 @@ final class PopoverView: FlippedView {
   private var contentH: CGFloat = 0
   private var outer: CGFloat = 0
   private var inner: CGFloat = 0
-  private var selectable = false
   private var lineH: CGFloat = 0
   private var gap: CGFloat = 0
 
@@ -116,12 +115,10 @@ final class PopoverView: FlippedView {
   // title is the header, nil for none. outer and inner are the two paddings, lineH the height of one line,
   // gap the room between a label and its chord and between a picture and its label, iconSide a
   // picture's side, radius the corner and highlight the line lit, from one, or zero for none.
-  // selectable says the lines are chosen rather than only read, see the paddings above.
   func show(title: String?, lines: [Line], style: Style, placement: Placement, outer: CGFloat, inner: CGFloat, lineH: CGFloat, gap: CGFloat,
-    radius: CGFloat, iconSide: CGFloat = 0, highlight: Int = 0, selectable: Bool = false) {
+    radius: CGFloat, iconSide: CGFloat = 0, highlight: Int = 0) {
     self.outer = outer
     self.inner = inner
-    self.selectable = selectable
     self.lineH = lineH
     self.gap = gap
     self.iconSide = iconSide
@@ -200,27 +197,19 @@ final class PopoverView: FlippedView {
   }
 
   private var headerH: CGFloat {
-    header.isHidden ? 0 : header.fittingSize.height + 2 * outer + 1
+    header.isHidden ? 0 : lineH + 1
   }
 
-  // How far a line's text stands in from its edges. A chosen line's text sits the inner padding
-  // inside a line the outer padding from the edge, a read line's text the outer padding alone.
-  private var side: CGFloat { selectable ? outer + inner : outer }
-
-  // The room above and below a read line's text inside its height, taken off the popover's top
-  // and bottom so the text itself stands the outer padding from them. None for chosen lines.
-  private var slack: CGFloat {
-    guard !selectable else { return 0 }
-    let textH = cells.map { max($0.label.fittingSize.height, $0.chord.fittingSize.height) }.max() ?? lineH
-    return max(0, (lineH - textH) / 2)
-  }
+  // How far a line's text stands in from its edges, the inner padding inside a line the outer
+  // padding from the edge.
+  private var side: CGFloat { outer + inner }
 
   // The size it would take with every line showing, its width the widest label and chord.
   var preferredSize: NSSize {
     let widest = cells.map { lead + $0.label.fittingSize.width + gap + $0.chord.fittingSize.width }.max() ?? 0
     let width = max(widest + 2 * side, header.isHidden ? 0 : header.fittingSize.width + 2 * side)
     return NSSize(width: ceil(width),
-      height: ceil(headerH + contentH - 2 * slack + 2 * outer))
+      height: ceil(headerH + contentH + 2 * outer))
   }
 
   override func layout() {
@@ -229,16 +218,16 @@ final class PopoverView: FlippedView {
     var top = outer
     if !header.isHidden {
       let h = header.fittingSize.height
-      header.frame = NSRect(x: side, y: top, width: bounds.width - 2 * side, height: h)
-      // The rule stands the outer padding below the header and the first line's text the outer
-      // padding below the rule, the same room every edge of the popover keeps.
-      top += h + outer
+      header.frame = NSRect(x: side, y: top + (lineH - h) / 2, width: bounds.width - 2 * side, height: h)
+      // The rule on the header line's bottom edge, the first line right below it, so the text
+      // on either side stands as far from the rule as one line's text from the next.
+      top += lineH
       rule.frame = NSRect(x: 0, y: top, width: bounds.width, height: 1)
-      top += 1 + outer
+      top += 1
     }
-    let start = top - slack
+    let start = top
     scroll.frame = NSRect(x: 0, y: start, width: bounds.width, height: max(0, bounds.height - start))
-    scroll.contentInsets = NSEdgeInsets(top: 0, left: 0, bottom: outer - slack, right: 0)
+    scroll.contentInsets = NSEdgeInsets(top: 0, left: 0, bottom: outer, right: 0)
     document.frame = NSRect(x: 0, y: 0, width: bounds.width, height: contentH)
     for heading in headings {
       let h = heading.field.fittingSize.height

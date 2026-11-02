@@ -211,10 +211,13 @@ end
 ---
 --- keys is the key panel, the ⌘? popover. Its purpose, Milos's rule of 2026-11-01, is reference
 --- for what the screen does not already say, the leader legend and then the keys the open list
---- answers that nothing visible shows, never a second listing. It is computed rather than curated,
---- every key the list answers in declaration order, then Back, minus every action the bar carries,
---- its right side and the keys group's chord, so the primary, the secondary, Actions and showKeys
---- drop out by the rule and a new bar entry drops out with no edit here. Command with a digit is
+--- answers that nothing visible shows, never a second listing. It is Olm's own, so where the list
+--- carries Actions its verbs belong to the action panel and are not listed here, Milos's rule of
+--- 2026-11-02, which leaves the navigation keys, moving, closing and Back. It is computed rather
+--- than curated, every key the list answers in declaration order, then Back, minus every action
+--- the bar carries, its right side and the keys group's chord, so the primary, the secondary,
+--- Actions and showKeys drop out by the rule and a new bar entry drops out with no edit here, and
+--- minus every action actionKinds calls a verb while the action panel is reachable. Command with a digit is
 --- not listed since every row shows its number. Each entry is { badges, label, action, section }. Back on Backspace is listed only when deps.backs(contextName) answers true,
 --- the level a press would leave being a pushed one, and never when the list already lists its own
 --- binding on a plain Backspace, the launcher's way out of a hosted list or a page's way back.
@@ -234,6 +237,19 @@ end
 ---
 --- state is the whole answer as one comparable string, so a surface polling this redraws only
 --- when something it would draw changed.
+-- The action kinds the key panel reads, kept per plan and overrides, since footerModel is asked
+-- on a quarter second poll and the plan's bindings do not change once a load has built it.
+local kindsCache = setmetatable({}, { __mode = "k" })
+local function footerKinds(plan, overrides)
+  plan = plan or {}
+  local entry = kindsCache[plan]
+  if not entry or entry.overrides ~= overrides then
+    entry = { overrides = overrides, kinds = obj.actionKinds(plan, overrides) }
+    kindsCache[plan] = entry
+  end
+  return entry.kinds
+end
+
 function obj.footerModel(contextName, plan, deps)
   deps = deps or {}
   local glyphFor = deps.glyphFor
@@ -241,6 +257,7 @@ function obj.footerModel(contextName, plan, deps)
   local panelRow = deps.actionPanel and deps.actionPanel() or nil
   local labels = (not panelRow) and deps.labelsFor and deps.labelsFor(contextName) or nil
   local ctx = plan and plan.contexts and plan.contexts[contextName]
+  local kinds = footerKinds(plan, deps.kinds)
 
   local primary, secondary, panel, show
   local keys = {}
@@ -260,7 +277,8 @@ function obj.footerModel(contextName, plan, deps)
       -- group's own.
       elseif not panelRow or (b.shared ~= nil and b.shared ~= "primary" and b.leader ~= false) then
         keys[#keys + 1] = { badges = badgesFor(b, deps),
-          label = obj.labelFor(b, contextName, deps.liveLabels, labels), action = b.action }
+          label = obj.labelFor(b, contextName, deps.liveLabels, labels), action = b.action,
+          verb = b.shared == nil and kinds[b.action] == "verb" }
       end
       if b.shared ~= nil then sharedSeen[b.shared] = true end
       -- showKeys stays live over the action panel, so the keys group keeps its chord there.
@@ -300,13 +318,16 @@ function obj.footerModel(contextName, plan, deps)
   -- The key panel is the reference for what the screen does not show. Every key the list answers
   -- was collected above, and here every action the bar already carries, an entry on its right side
   -- or the keys group's own chord, is taken out, so no key is ever listed twice whatever a list
-  -- declares. obj.redundantKeys states the same rule as a check.
+  -- declares. obj.redundantKeys states the same rule as a check. A verb is taken out too while
+  -- Actions is on the bar, since the action panel lists it with its chord.
   local onScreen = {}
   for _, r in ipairs(right) do if r.action ~= nil then onScreen[r.action] = true end end
   if keysAction ~= nil then onScreen[keysAction] = true end
   local kept = {}
   for _, k in ipairs(keys) do
-    if k.action == nil or not onScreen[k.action] then kept[#kept + 1] = k end
+    if (k.action == nil or not onScreen[k.action]) and not (panel and k.verb) then
+      kept[#kept + 1] = { badges = k.badges, label = k.label, action = k.action }
+    end
   end
   keys = kept
 

@@ -975,7 +975,7 @@ do
   end, leaderName = "Hyper" }
   local bar = {}
   for _, h in ipairs(hints.footerModel("clip", plan, deps).keys) do if h.action then bar[h.action] = h.badges[1] end end
-  eq(bar.deleteSelected, "Hyper e", "the key panel spells the moved verb on its new chord")
+  eq(bar.deleteSelected, nil, "the key panel leaves the moved verb to the action panel")
   eq(bar.selectNext, "Hyper n", "and the moved shared verb too")
   local panel = {}
   for _, row in ipairs(hints.rowsFor("clip", plan, deps)) do panel[row.action or row.title] = row.chord end
@@ -1455,15 +1455,16 @@ do
   local keys = {}
   for _, k in ipairs(model.keys) do keys[#keys + 1] = table.concat(k.badges, "+") .. " " .. k.label end
   eq(table.concat(keys, " | "),
-    "Hyper j+down Move down | Hyper k+up Move up | Hyper d Delete | Hyper p Peek | Hyper x+escape Close",
-    "footer: every other key in declaration order, nothing the bar or the rows already show, and no Back on a level Backspace does not leave")
-  local before = model.state
+    "Hyper j+down Move down | Hyper k+up Move up | Hyper x+escape Close",
+    "footer: the navigation keys in declaration order, nothing the bar or the rows already show, no verb the action panel lists, and no Back on a level Backspace does not leave")
+  local function panelPeek()
+    for _, row in ipairs(hints.rowsFor("bar", plan, deps)) do if row.action == "peek" then return true end end
+    return false
+  end
+  eq(panelPeek(), true, "action panel: the open gate lists the gated verb")
   gate.open = false
   local gated = hints.footerModel("bar", plan, deps)
-  eq(gated.state ~= before, true, "footer: a gate closing changes the state")
-  local peek = false
-  for _, k in ipairs(gated.keys) do if k.action == "peek" then peek = true end end
-  eq(peek, false, "footer: and drops the gated key")
+  eq(panelPeek(), false, "action panel: and a gate closing drops it")
 
   labels = { primary = "Choose 4 Files", secondary = "Uninstall 4" }
   local live = hints.footerModel("bar", plan, deps)
@@ -1500,6 +1501,8 @@ do
     backs = function() return backs end,
     actionPanel = function() return openRow end,
     panelOwner = "panel",
+    -- The root's kind overrides, where leavePage is navigation, so the key panel keeps it.
+    kinds = { leavePage = "navigation" },
   }
   local function keyLabels(model)
     local out = {}

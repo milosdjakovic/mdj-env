@@ -94,9 +94,12 @@ local model = {
     { label = "Actions", chord = "⌘K", action = "actions" },
   },
 }
-local rect = { x = 0, y = 400, w = 900, h = footerLib.height(T) + T.pad }
+local cellH = footerLib.height(T)
+local groupH = cellH + 2 * T.barInner
+local rect = { x = 0, y = 400, w = 900, h = groupH + T.pad }
 local m = barLib.metrics(T)
-check("the group height is footer.lua's", m.height, footerLib.height(T))
+check("a cell is as tall as footer.lua's row, a panel line", m.cellH, cellH)
+check("the group height is the cell and the padding around it", m.height, groupH)
 check("the bar pad is the kit's pad", m.pad, T.pad)
 check("the padding inside a group is the bar's one padding", m.inner, T.barInner)
 check("which is also above and below the tallest part", footerLib.height(T), math.max(T.badge.hint.height, T.text.body.lineHeight) + 2 * T.barInner)
@@ -105,18 +108,21 @@ local els, hits = barLib.elements(ui, T, model, rect, { radius = 9 })
 local keys, actions = hits.keys, hits.actions
 check("the keys group stands the bar pad from the left", keys.x, rect.x + T.pad)
 check("at the top of the footer rect", keys.y, rect.y)
-check("as tall as the bar's row", keys.h, footerLib.height(T))
+check("as tall as a cell and the padding around it", keys.h, groupH)
 -- The ? glyph and the chord's cap, each glyph eight points a character, the cap the hint badge's
 -- padding either side of its glyphs, the small step between them.
 local function capW(chord) return 8 * #chord + 2 * T.badge.hint.padX end
-check("as wide as its parts, the small gap and the inner padding twice",
-  keys.w, 8 * #"?" + T.space.s + capW("⌘?") + 2 * T.barInner)
+check("as wide as its parts, the small gap, the padding inside its cell and around it",
+  keys.w, 8 * #"?" + T.space.s + capW("⌘?") + 4 * T.barInner)
+check("its one cell stands the padding in from the group", hits.keysCell.x, keys.x + T.barInner)
+check("from the top too", hits.keysCell.y, keys.y + T.barInner)
+check("and is a cell tall", hits.keysCell.h, cellH)
 check("the actions group stands the bar pad from the right", actions.x + actions.w, rect.x + rect.w - T.pad)
 check("at the same height", actions.y, rect.y)
 local entriesW = 0
-for _, r in ipairs(model.right) do entriesW = entriesW + 8 * #r.label + T.space.s + capW(r.chord) end
-check("as wide as its entries, the wide gap between them and the inner padding twice",
-  actions.w, entriesW + 2 * T.space.l + 2 * T.barInner)
+for _, r in ipairs(model.right) do entriesW = entriesW + 8 * #r.label + T.space.s + capW(r.chord) + 2 * T.barInner end
+check("as wide as its cells, each padded inside, and the padding around them",
+  actions.w, entriesW + 2 * T.barInner)
 
 local backs = filled(els, T.colors.background)
 check("both groups are filled with the background role", #backs, 2)
@@ -150,7 +156,7 @@ for _, el in ipairs(els) do
 end
 check("each on a chip the hint badge's height", #chips, 1 + #model.right)
 check("the chip as wide as its glyphs and the padding", chips[1].frame.w, capW("⌘?"))
-check("centred in the group", chips[1].frame.y, math.floor(rect.y + (footerLib.height(T) - T.badge.hint.height) / 2 + 0.5))
+check("centred in the cell", chips[1].frame.y, math.floor(rect.y + T.barInner + (cellH - T.badge.hint.height) / 2 + 0.5))
 
 -- A chord naming alternatives is one chip per key with the alternative word between them.
 local alt = "J" .. footerLib.ALT_SEP .. "↓"
@@ -165,21 +171,26 @@ check("with the alternative word between them", altWord, true)
 check("as wide as both chips, the word and the small step either side of it",
   footerLib.keycapWidth(ui, T, alt), capW("J") + capW("↓") + 8 * #footerLib.ALT_WORD + 2 * T.space.s)
 
-check("one span per entry", #hits.entries, 3)
-check("the first span starts at the group's edge", hits.entries[1].rect.x, actions.x)
-check("the last ends at its other edge", hits.entries[3].rect.x + hits.entries[3].rect.w, actions.x + actions.w)
-check("the spans meet", hits.entries[1].rect.x + hits.entries[1].rect.w, hits.entries[2].rect.x)
+check("one cell per entry", #hits.entries, 3)
+check("the first cell stands the padding in from the group's edge", hits.entries[1].rect.x, actions.x + T.barInner)
+check("and the last from its other edge", hits.entries[3].rect.x + hits.entries[3].rect.w, actions.x + actions.w - T.barInner)
+check("the cells meet", hits.entries[1].rect.x + hits.entries[1].rect.w, hits.entries[2].rect.x)
+check("each stands the padding from the group's top", hits.entries[2].rect.y, actions.y + T.barInner)
+check("and is a cell tall", hits.entries[2].rect.h, cellH)
 check("each names its action", hits.entries[2].action, "secondary")
--- The second entry's label starts after the first entry, the inner padding and the wide gap,
--- and its span half the wide gap before that.
-check("a middle span starts half the wide gap before its label",
-  hits.entries[2].rect.x, actions.x + T.barInner + 8 * #"Open" + T.space.s + capW("↩") + T.space.l / 2)
+check("a middle cell starts right after the first",
+  hits.entries[2].rect.x, actions.x + T.barInner + 8 * #"Open" + T.space.s + capW("↩") + 2 * T.barInner)
 
-els = barLib.elements(ui, T, model, rect, { radius = 9, keysLit = true, hover = 2 })
+els = barLib.elements(ui, T, model, rect, { radius = 9, keysHover = true, hover = 2 })
 local lit = filled(els, T.colors.highlight)
-check("a lit keys group and a hovered entry sit on the highlight", #lit, 2)
-check("the hovered entry lights across its span", lit[2].frame.x, hits.entries[2].rect.x)
-check("and that span's width", lit[2].frame.w, hits.entries[2].rect.w)
+check("a hovered keys cell and a hovered entry sit on the highlight", #lit, 2)
+check("the keys cell lights over its cell", lit[1].frame.x, hits.keysCell.x)
+check("the hovered entry lights over its cell", lit[2].frame.x, hits.entries[2].rect.x)
+check("and that cell's width", lit[2].frame.w, hits.entries[2].rect.w)
+check("at the panel line's corner, the group's less the padding", lit[2].roundedRectRadii.xRadius,
+  ui.nestedRadius(9, T.barInner))
+els = barLib.elements(ui, T, model, rect, { radius = 9, keysLit = true })
+check("a keys group whose panel is open sits on the highlight whole", filled(els, T.colors.highlight)[1].frame.w, keys.w)
 
 local open = { keysChord = model.keysChord, right = model.right, panelOpen = true }
 els = barLib.elements(ui, T, open, rect, { radius = 9 })
@@ -191,7 +202,7 @@ local pictures = {}
 for _, el in ipairs(els) do if el.type == "image" then pictures[#pictures + 1] = el end end
 check("the keyboard icon is drawn", #pictures, 1)
 check("at the hint size", pictures[1].frame.w, T.icon.hint)
-check("centred in the group", pictures[1].frame.y, rect.y + (footerLib.height(T) - T.icon.hint) / 2)
+check("centred in the cell", pictures[1].frame.y, rect.y + T.barInner + (cellH - T.icon.hint) / 2)
 check("no right side, no actions group", hits.actions, nil)
 check("and no entries", #hits.entries, 0)
 
@@ -209,7 +220,7 @@ Canvas.configure({ ui = ui, panel = {
 local rowH, rowCount = 40, 5
 local rows = {}
 for i = 1, 12 do rows[i] = { title = "row " .. i } end
-local footerH = footerLib.height(T) + T.pad
+local footerH = footerLib.height(T) + 2 * T.barInner + T.pad
 local canvasRect = { x = 100, y = 100, w = 600, h = 60 + rowH * rowCount + footerH }
 local listRect = { x = 110, y = 160, w = 580, h = rowH * rowCount }
 local footerRect = { x = 100, y = listRect.y + listRect.h, w = 600, h = footerH }

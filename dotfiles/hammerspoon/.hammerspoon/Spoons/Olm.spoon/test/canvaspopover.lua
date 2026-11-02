@@ -81,18 +81,19 @@ check("filled with the background role", style.background, T.colors.background)
 check("outlined in the border role", style.border, T.colors.border)
 check("at the border stroke", style.stroke, T.stroke.border)
 
--- The key panel, read lines and a header. Its text stands the outer padding from every edge.
+-- The key panel, read lines and a header, laid out as the action panel's lines are.
 local keys = popover.layout(UI, style, "Keys", {
   { label = "Copy", chord = "⌘ C" },
   { label = "Open in Finder", chord = "⌘ O" },
 }, false)
-local slack = (lineH - T.text.body.lineHeight) / 2
 -- The chord is a key cap, its glyphs and the hint badge's padding either side.
 local widest = 7 * #"Open in Finder" + T.space.l + 7 * #"⌘ O" + 2 * T.badge.hint.padX
-check("a read popover is its widest line and the outer padding on both sides", keys.w,
-  math.ceil(widest + 2 * T.barInner))
-check("and as tall as its header, its lines less the slack, and the outer padding", keys.h,
-  math.ceil(T.text.body.lineHeight + 2 * T.barInner + T.stroke.border + 2 * lineH - 2 * slack + 2 * T.barInner))
+check("a read line's text stands the outer and the inner padding in, as a chosen line's", keys.side,
+  T.barInner + T.barInner)
+check("a read popover is its widest line and both paddings on both sides", keys.w,
+  math.ceil(widest + 4 * T.barInner))
+check("and as tall as its header line, the rule, its lines and the outer padding", keys.h,
+  math.ceil(lineH + T.stroke.border + 2 * lineH + 2 * T.barInner))
 
 -- The action panel, chosen lines with sections and pictures.
 local picture = function(frame) return { { type = "image", frame = frame } } end
@@ -107,7 +108,7 @@ check("a chosen line's text stands the outer and the inner padding in", actions.
 check("a heading starts each run of one section", #actions.headings, 2)
 check("the first heading stands above its first line", actions.headings[1].top, 2 * lineH)
 check("and the line under it is pushed down by a line", actions.tops[3], 3 * lineH)
-check("a chosen popover takes no slack", actions.h, math.ceil(7 * lineH + 2 * T.barInner))
+check("a chosen popover is as tall as its lines and the outer padding", actions.h, math.ceil(7 * lineH + 2 * T.barInner))
 check("a picture takes its side and the gap", actions.lead, T.text.section.lineHeight + T.space.l)
 
 -- Placement, swift's rules.

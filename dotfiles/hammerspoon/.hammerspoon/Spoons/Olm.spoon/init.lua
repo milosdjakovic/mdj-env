@@ -12,7 +12,7 @@ obj.__index = obj
 
 -- Metadata
 obj.name = "Olm"
-obj.version = "0.1"
+obj.version = "0.2"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 

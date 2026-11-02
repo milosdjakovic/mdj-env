@@ -117,12 +117,14 @@ do
     },
     keysChord = "\u{2318}?",
   }
-  -- The footer rect a spanning view is handed, the group's height and the bar pad below it.
-  local rect = { x = 0, y = 500, w = 900, h = barH + T.pad }
+  -- The footer rect a spanning view is handed, the group's height and the bar pad below it. A
+  -- group is a cell as tall as the bar's row with the bar's padding around it, 47 as shipped.
+  local groupH = barH + 2 * T.barInner
+  local rect = { x = 0, y = 500, w = 900, h = groupH + T.pad }
   local img = hs.image.imageFromName("NSComputer")
   local els, hits = bar.elements(ui, T, model, rect, { radius = 4, keysImage = img })
-  check("the keys group stands the bar pad in from the left at the top of the footer rect, as tall as the bar",
-    hits.keys and hits.keys.x == rect.x + T.pad and hits.keys.y == rect.y and hits.keys.h == barH,
+  check("the keys group stands the bar pad in from the left at the top of the footer rect, a cell and its padding tall",
+    hits.keys and hits.keys.x == rect.x + T.pad and hits.keys.y == rect.y and hits.keys.h == groupH and groupH == 47,
     hits.keys and string.format("%s,%s h%s", hits.keys.x, hits.keys.y, hits.keys.h) or "no rect")
   check("the actions group stands the bar pad in from the right",
     hits.actions and math.abs(hits.actions.x + hits.actions.w - (rect.x + rect.w - T.pad)) <= 1,

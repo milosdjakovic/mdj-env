@@ -675,11 +675,12 @@ function View:floatsActionPanel()
   return true
 end
 
---- View colon footerHeight, arity one. The bar's region, a group as tall as the default bar's row
---- and the bar pad below it, so each group stands that pad from the bottom edge. The pad above it
---- is the list's own bottom margin, the same token.
+--- View colon footerHeight, arity one. The bar's region, a group holding cells as tall as the
+--- default bar's row with the bar's padding around them, as an action panel holds its lines, and
+--- the bar pad below it, so each group stands that pad from the bottom edge. The pad above it is
+--- the list's own bottom margin, the same token.
 function View:footerHeight(tokens)
-  return footerLib.height(tokens) + tokens.pad
+  return footerLib.height(tokens) + 2 * footerLib.padding(tokens) + tokens.pad
 end
 
 --- M.new(engine, native) answers a view for one engine instance, with a panel of its own, built

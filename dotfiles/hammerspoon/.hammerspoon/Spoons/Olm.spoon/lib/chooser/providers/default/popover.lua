@@ -13,16 +13,15 @@
 --- do, so the view appends what it answers to its own surface and keeps the rects for its mouse.
 --- Coordinates are the window's own local space, the space the view draws in.
 ---
---- The padding rules are swift's, one of two ways. A popover whose lines are chosen, the action
---- panel, stands its lines the outer padding from all four edges, the way the list's highlighted
---- rows stand from the window's, a line's picture and words stand the inner padding in from the
---- line's edge, and the highlight's corner is the popover's less the outer padding, the kit's
---- nested radius. A popover whose lines are only read, the key panel, has no line edge to see, so
---- its text itself stands the outer padding from all four edges, the top and bottom measured to
---- the text rather than to a line's height. A header is the row title's role and colour, with a
---- rule in the border role the outer padding below it and the first line the outer padding below
---- the rule. The corner is the highlighted row's, the surface radius less the list margin, as
---- swift hands its popover the highlight radius.
+--- The padding rules are swift's. Its lines stand the outer padding from all four edges, the way
+--- the list's highlighted rows stand from the window's, a line's picture and words stand the inner
+--- padding in from the line's edge, and the highlight's corner is the popover's less the outer
+--- padding, the kit's nested radius. The key panel, whose lines are only read, is laid out the
+--- same, so both panels and the bar's cells share one size, Milos's choice of 2026-11-02. A header
+--- is the row title's role and colour, laid out as one more line, with a rule in the border role
+--- on the header line's bottom edge and the first line right below it. The corner is the
+--- highlighted row's, the surface radius less the list margin, as swift hands its popover the
+--- highlight radius.
 ---
 --- Every value is a token. The words and the header are the body role, the row title the swift
 --- chooser hands its popover as titleFont, the label in the foreground colour, the chord a key
@@ -68,7 +67,7 @@ function M.style(ui, tokens, marginX, lineH)
     iconSide = T.text.section.lineHeight,
     lineH = lineH,
     radius = radius,
-    lineRadius = ui.nestedRadius(radius, T.pad),
+    lineRadius = ui.nestedRadius(radius, footerLib.padding(T)),
     tokens = T,
     stroke = T.stroke.border,
     font = body.font, size = body.size, textH = body.lineHeight,
@@ -87,7 +86,7 @@ end
 --- M.layout(ui, style, title, lines, selectable) -> a popover's measured content, its preferred
 --- size among it. title is the header, nil for none. Each line is { label, chord, picture,
 --- section, enabled }, picture a function(frame) -> elements or nil. selectable says the lines
---- are chosen rather than only read, see the paddings above. The preferred size is every line
+--- are chosen rather than only read, so a highlight is drawn. The preferred size is every line
 --- showing, as wide as the widest label and chord, never narrower than the header.
 function M.layout(ui, style, title, lines, selectable)
   local st = style
@@ -99,11 +98,9 @@ function M.layout(ui, style, title, lines, selectable)
   end
   -- The room a line's picture takes, nothing for lines without one.
   local lead = pictured and (st.iconSide + st.gap) or 0
-  -- How far a line's text stands in from the popover's sides.
-  local side = selectable and (st.outer + st.inner) or st.outer
-  -- The room above and below a read line's text inside its height, taken off the top and the
-  -- bottom so the text itself stands the outer padding from them. None for chosen lines.
-  local slack = selectable and 0 or math.max(0, (st.lineH - st.textH) / 2)
+  -- How far a line's text stands in from the popover's sides, the inner padding inside a line the
+  -- outer padding from the edge.
+  local side = st.outer + st.inner
 
   -- Each line's top and each heading's from the top of the lines, a heading as tall as a line,
   -- taken above the first line of a run naming a section different from the line before it.
@@ -125,15 +122,15 @@ function M.layout(ui, style, title, lines, selectable)
   local headerH = 0
   local w = widest + 2 * side
   if title then
-    -- The header, the outer padding, the rule and the outer padding again before the lines.
-    headerH = st.textH + 2 * st.outer + st.stroke
+    -- The header, one line and the rule on its bottom edge.
+    headerH = st.lineH + st.stroke
     w = math.max(w, width(title, st.font, st.size) + 2 * side)
   end
   return {
     style = st, title = title, lines = lines, selectable = selectable == true,
     tops = tops, headings = headings, contentH = y,
-    lead = lead, side = side, slack = slack, headerH = headerH,
-    w = math.ceil(w), h = math.ceil(headerH + y - 2 * slack + 2 * st.outer),
+    lead = lead, side = side, headerH = headerH,
+    w = math.ceil(w), h = math.ceil(headerH + y + 2 * st.outer),
   }
 end
 
@@ -158,13 +155,13 @@ function M.place(pop, anchor, align, room)
 end
 
 -- Where the lines start inside the popover, from its top, and how much of them shows, the
--- scrolled region running from there to the bottom edge with the outer padding less the slack
--- kept under the last line, the bottom inset of swift's scroll view.
+-- scrolled region running from there to the bottom edge with the outer padding kept under the
+-- last line, the bottom inset of swift's scroll view.
 local function region(pop, rect)
   local st = pop.style
-  local start = st.outer + pop.headerH - pop.slack
+  local start = st.outer + pop.headerH
   local viewH = math.max(0, rect.h - start)
-  local inset = st.outer - pop.slack
+  local inset = st.outer
   return start, viewH, math.max(0, pop.contentH + inset - viewH)
 end
 
@@ -204,12 +201,12 @@ function M.elements(ui, pop, rect, opts)
   local side = pop.side
   if pop.title then
     local top = rect.y + st.outer
-    els[#els + 1] = centredText(ui, pop.title, st.font, st.size, st.text, rect.x + side, top, st.textH,
+    els[#els + 1] = centredText(ui, pop.title, st.font, st.size, st.text, rect.x + side, top, st.lineH,
       rect.w - 2 * side)
-    -- The rule stands the outer padding below the header and across the popover inside its
-    -- outline, the first line's text the outer padding below it.
+    -- The rule on the header line's bottom edge and across the popover inside its outline, the
+    -- first line right below it.
     els[#els + 1] = { type = "rectangle", action = "fill", fillColor = st.border,
-      frame = { x = rect.x + st.stroke, y = top + st.textH + st.outer, w = rect.w - 2 * st.stroke, h = st.stroke } }
+      frame = { x = rect.x + st.stroke, y = top + st.lineH, w = rect.w - 2 * st.stroke, h = st.stroke } }
   end
 
   local start, viewH, maxScroll = region(pop, rect)
@@ -218,7 +215,7 @@ function M.elements(ui, pop, rect, opts)
   if lit and not pop.tops[lit] then lit = nil end
   if lit and opts.reveal then
     local t = pop.tops[lit]
-    local visible = viewH - (st.outer - pop.slack)
+    local visible = viewH - st.outer
     if t < scroll then scroll = t
     elseif t + st.lineH > scroll + visible then scroll = math.min(maxScroll, t + st.lineH - visible) end
   end

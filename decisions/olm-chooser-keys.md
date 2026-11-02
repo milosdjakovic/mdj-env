@@ -627,3 +627,41 @@ launcher's panel, which was not measured. Measured live, `rowsFor` for the launc
 an empty query, nothing for the file search scope and Run for the Text Case scope, because a
 scope's verbs only filter the launcher's own bindings, which never hold a tool's verbs. The
 exception and the `hosts` option are gone, and thirteen lists now carry no Actions.
+
+2026-11-02 11:16. The key panel is Olm's own, at Milos's request, who had found the clipboard's key
+panel listing Paste as plain text and the other verbs its action panel lists, and thought the
+19:52 rule had already ruled that out. It had not. That rule took out what the bar shows and kept
+every other key, and a list's verbs are not on the bar. Now, where the list carries Actions, every
+binding `actionKinds` calls a verb is left to the action panel as well, so the key panel holds
+Olm's name and version, the leader legend and the navigation keys, moving, scrolling a preview,
+closing and Back. A list with no Actions loses nothing, since `dropIdleActionPanels` removed
+Actions exactly where the list has no verbs of its own. Measured live, the clipboard's key panel
+reads Move down, Move up, Scroll preview down, Scroll preview up and Close.
+
+2026-11-02 11:16. Trying, at Milos's request, a bar whose entries light under the pointer the way
+an action panel line lights. In the swift chooser each group holds its entries as cells as tall as
+a panel line, edge to edge, standing the panel's outer padding from the group's four edges, and a
+cell's text the inner padding in from its sides, so the group is that padding twice taller than
+before. A press on a cell runs its entry, the padding around the cells runs nothing. The key panel
+takes the action panel's line layout too, the read only variant that stood its text the outer
+padding from the edges is gone from `Popover.swift`. The canvas chooser is not changed yet.
+
+2026-11-02 11:40. The two panels are never open together, at Milos's request. Opening the action
+panel already closed the key panel, since every list key that acts closes it. The other way did
+not, since showKeys stays live over the action panel. `Engine:toggleKeys` now closes a floating
+action panel before it opens the key panel, through the footer model's `panelAction` as Escape
+does, so the ⌘? chord and a press on the keys group both obey it. Each group still hides only
+while its own panel is open, so the other group's entry is how a person switches.
+
+2026-11-02 11:40. A popover's header is laid out as a line, at Milos's request that every item in
+the key panel keep the room the action panel's lines keep, Olm's version included. It stood in a
+box as tall as its text with the outer padding around it, tighter than every line under it. Now
+it is a line's height with its text centred and inset as a line's is, the rule on its bottom edge.
+Olm's own version moved to 0.2 at the same time, which the key panel's header reads.
+
+2026-11-02 11:55. The canvas chooser takes the same bar and popovers, at Milos's request. Its groups
+hold cells as swift's do, the keys group's cell lighting under the pointer while a press anywhere
+on that group still toggles its panel, its footer height grows by the padding around the cells, and
+its popover lays the key panel out as the action panel with the header as a line. Its lit line's
+corner had nested by the list's pad where swift nests by the outer padding, and now nests as swift.
+The panels' exclusivity needed no canvas change, since it lives in the engine both choosers share.

@@ -306,7 +306,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
         lines: actions.map { .init(label: $0.title, chord: $0.subtitle, image: $0.image, section: $0.section, enabled: $0.enabled) },
         style: style, placement: placement, outer: placement.barPillPad, inner: placement.barPillPad, lineH: placement.barPillH,
         gap: placement.barGapWide, radius: style.highlightRadius, iconSide: placement.keysIcon,
-        highlight: next.actionsHighlight, selectable: true)
+        highlight: next.actionsHighlight)
     } else {
       actionsPop.isHidden = true
     }

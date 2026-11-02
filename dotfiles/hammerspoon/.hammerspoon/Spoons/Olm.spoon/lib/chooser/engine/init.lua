@@ -964,9 +964,15 @@ end
 --- when it is open, the same as a click on the key button. Not part of the picker contract, since
 --- only a provider that draws an action bar has a key panel, so a caller asks for it by name and
 --- a provider without one is simply not asked. Does nothing while the list is down or when this
---- instance draws no bar.
+--- instance draws no bar. The two panels are never open together, so opening the key panel over
+--- an action panel the view floats closes that panel first, through the action the footer model
+--- names for it as Escape does, and opening the action panel closes this one through closeKeys.
 function Engine:toggleKeys()
   if not self.active or not (self._rects and self._rects.footer) or not self._footerModel then return end
+  local model = self._footerModel
+  if not self._keysOpen and model.panelOpen and model.panelAction and self:floatsActionPanel() then
+    self:footerAction(model.panelAction)
+  end
   self._keysOpen = not self._keysOpen
   self.view:redraw()
 end

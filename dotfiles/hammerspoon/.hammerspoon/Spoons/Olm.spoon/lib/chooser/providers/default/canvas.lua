@@ -315,10 +315,11 @@ function View:spansFooter()
   return true
 end
 
---- View colon footerHeight, arity one. The bar's region, a row as tall as the default bar's and
---- the bar pad below it, the swift view's own answer, so the two choosers share every rect.
+--- View colon footerHeight, arity one. The bar's region, a group holding cells as tall as the
+--- default bar's row with the bar's padding around them, and the bar pad below it, the swift
+--- view's own answer, so the two choosers share every rect.
 function View:footerHeight(tokens)
-  return footerLib.height(tokens) + tokens.pad
+  return footerLib.height(tokens) + 2 * footerLib.padding(tokens) + tokens.pad
 end
 
 --- View colon floatsActionPanel, arity zero. True, since the action panel's verbs are drawn in a
@@ -449,7 +450,7 @@ end
 -- the space the mouse handlers test in, and the groups' rects in local ones as the anchors the
 -- popovers stand on.
 function View:_footerElements(s, els, origin, interior, listRect)
-  self._keysHit, self._barHits, self._anchors = nil, nil, nil
+  self._keysHit, self._keysCellHit, self._barHits, self._anchors = nil, nil, nil, nil
   local footerRect = toLocal(s.rects.footer, origin)
   if not footerRect or not s.footer then return end
   -- The keyboard icon through the injected icon engine, read at paint like a row's, so it
@@ -460,7 +461,8 @@ function View:_footerElements(s, els, origin, interior, listRect)
   local barEls, hits = barLib.elements(UI, s.tokens, s.footer, footerRect, {
     radius = self._listStyle and self._listStyle.highlightRadius,
     keysImage = keysImage,
-    keysLit = hover == "keys" or s.keysOpen,
+    keysLit = s.keysOpen,
+    keysHover = hover == "keys",
     hover = type(hover) == "number" and hover or nil,
     keysHidden = s.keysOpen,
     actionsHidden = s.footer.panelOpen == true,
@@ -475,6 +477,8 @@ function View:_footerElements(s, els, origin, interior, listRect)
   end
   if s.footer.panelOpen == true then entries = {} end
   self._keysHit = (not s.keysOpen) and toScreen(hits.keys, origin) or nil
+  -- The pointer lights only the keys group's cell, a press anywhere on the group toggles its panel.
+  self._keysCellHit = (not s.keysOpen) and toScreen(hits.keysCell, origin) or nil
   self._barHits = { keys = self._keysHit,
     actions = (s.footer.panelOpen ~= true) and toScreen(hits.actions, origin) or nil, entries = entries }
 end
@@ -603,7 +607,7 @@ end
 function View:hide()
   self._pressedRowIndex, self._pressedEntry = nil, nil
   self._barHover = nil
-  self._keysHit, self._barHits, self._anchors = nil, nil, nil
+  self._keysHit, self._keysCellHit, self._barHits, self._anchors = nil, nil, nil, nil
   self._popovers, self._popScroll, self._popPressed, self._held = nil, {}, false, nil
   self._paneContent = nil
   self.surface:hide()
@@ -856,7 +860,7 @@ function View:_onMouseMove(point)
   -- The keys group and each action entry light under the pointer the way a row does, redrawn
   -- only as the pointer moves from one to another, so a move anywhere else costs a comparison.
   local over = nil
-  if pointInRect(point, self._keysHit) then over = "keys" else over = self:_entryAt(point) end
+  if pointInRect(point, self._keysCellHit) then over = "keys" else over = self:_entryAt(point) end
   if over ~= self._barHover then
     self._barHover = over
     self:redraw()

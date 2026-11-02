@@ -302,7 +302,13 @@ Down, draws one cap per alternative with a slash between them in the caption rol
 in `footer.lua`, chosen over or since it stays one narrow glyph however many alternatives a key
 has. The padding inside both
 groups and both popovers, on every side, is one token, `barInner`, set as `spacing.bar` in
-`config/settings.lua`, 6 as shipped, and a group's height is its tallest part and that twice. While
+`config/settings.lua`, 6 as shipped. Since 2026 11 02 a group holds its entries as cells, each as
+tall as a popover line, its tallest part and the padding twice, edge to edge and standing the
+padding from the group's four edges, a cell's label and chord the padding in from its sides, so a
+group is a cell and the padding twice. The keys group is one cell. The pointer over a cell lights
+it in the highlight at a popover line's corner, the group's less the padding, exactly as a popover
+lights its highlighted line, and a press runs the cell's entry while the padding around the cells
+runs nothing. Opening one popover closes the other, so the two are never open together. While
 a popover is open the group it opened from hides whole and the popover stands in that group's
 corner, its bottom edge and its outer side on the group's, while the other group stays. The list runs on behind the bar to the window's bottom edge, its
 viewport and its bottom content inset both grown by the bar's height, so every numbered row and
@@ -314,12 +320,11 @@ reaches the bottom edge behind it, and the last line of a scrolled pane scrolls 
 is a popover, `native/Popover.swift`, the window's glass above the keys group with the version as
 its header and one scrolling column of keys, and its corner the groups'. The action panel is the
 same popover above the actions group, its right edge on the group's, with each verb's icon and a
-highlight the keys and the pointer move. A popover follows the padding rules one of two ways. One
-whose lines are chosen stands its lines the outer padding from all four edges and its text the
-inner padding inside a line, like the list's rows. One whose lines are only read stands its text
-itself the outer padding from all four edges, with its header in the row title's size and colour,
-a rule the outer padding below it and the first line the outer padding below the rule. Either
-stands the outer padding above its group. Each entry of the actions group is clickable, running
+highlight the keys and the pointer move. Both popovers follow one padding rule since 2026 11 02,
+the key panel's lines only read and the action panel's chosen. A popover stands its lines the
+outer padding from all four edges and its text the inner padding inside a line, like the list's
+rows. Its header, in the row title's size and colour, is laid out as one more line, with a rule
+on its bottom edge and the first line right below it. Each entry of the actions group is clickable, running
 its own action, so Actions opens the panel and the primary runs on the highlighted row.
 `test/cases/surfaces.lua` pins the derived geometry.
 
