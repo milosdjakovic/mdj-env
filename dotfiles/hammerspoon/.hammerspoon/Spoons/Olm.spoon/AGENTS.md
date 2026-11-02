@@ -908,12 +908,14 @@ reload and reaches every surface, and the Swift sources hold no number of it, th
 library draws with keeps. `native/Motion.swift` is the only code that animates. A view goes through `Motion.appear` and `Motion.disappear`, a window
 through a `WindowMotion`. It is all Core Animation on the render server, so a list busy right after
 it shows still plays its fade, and never a window's `alphaValue` animator, which AppKit steps on the
-main thread. The chooser takes key, so it goes down at once and fades out in a stand in that never
-does, and a key typed or posted as it closes reaches the application below. A window that never
-takes key fades out in place and answers that it is down from the moment the fade starts. The dry
+main thread. Every window fades out in place, takes no pointer and answers that it is down from the
+moment the fade starts. The chooser stays key while it fades, since its glass would darken the
+moment it gave key up, so a key it hears then is passed to the application in front through
+`Motion.passOn`, and a key typed or posted as it closes still lands there. A duration of zero comes
+and goes at once. The dry
 gate refuses a window ordered, an alpha set or an animation built anywhere else in the library,
 `test/drygate-motion.lua`, `test/swiftpane.swift` pins the coming and going, a fade cut short and
-the stand in, and `decisions/olm-swift-chooser.md` has the history. The canvas
+the keys passed on, and `decisions/olm-swift-chooser.md` has the history. The canvas
 chooser and the canvas backend do not animate.
 
 ## Secure notice, a held leader pressed under secure input

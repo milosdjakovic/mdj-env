@@ -111,6 +111,13 @@ chooser serves and on the canvas otherwise, built on `olm/native-panel`.
   with no chooser at all. Each clickable panel registers its own function with `paneNew` instead,
   held under the same state guard and dropped by the same cleanup.
 
+- **Fading the chooser out in a stand in window that never takes key.** 2026-11-02 16:04, after
+  Milos watched a two second close. Glass follows its window's key state and has no setting to hold
+  the active look, so the stand in, never key, drew darker and more opaque for the whole fade, and
+  the chooser read as losing focus as it went. Overriding `isKeyWindow` on the stand in to answer
+  true did not change it either, since the glass asks the window server rather than the property.
+  The chooser fades in place now and stays key, passing on the keys it hears.
+
 ## Log
 
 ### 2026-10-27 20:00
@@ -726,6 +733,8 @@ a show during the fade takes it back at once. A preview pane hidden during the f
 until the fade ends, so the list and the pane leave together. `native/Motion.swift` holds the
 timings. Built with no new warning, `test/swiftpane.sh`, the dry gate and the unit cases pass, and
 loaded live clean. The look is not yet confirmed by Milos.
+Corrected 2026-11-02 17:15, the stand in darkened the glass as it faded and is gone, see that
+entry.
 
 ### 2026-11-02 14:38
 
@@ -755,6 +764,7 @@ an alpha set, an animator or an animation built in any other source of the libra
 order handed to a `WindowMotion`, so a second way cannot creep back. Built with no new warning,
 `test/swiftpane.sh`, the dry gate with the new rule and the unit cases pass, and loaded live clean.
 Not yet confirmed live by Milos.
+Corrected 2026-11-02 17:15, the chooser fades in place too now, see that entry.
 
 ### 2026-11-02 15:01
 
@@ -771,3 +781,19 @@ when it would have ended, the stand in taking no pointer and giving its content 
 a reload's close and when its fade ends, a floating pane reopened during its close staying shown,
 and zero durations. The cases that wait for a fade to end spin the run loop and pass. Loaded live
 clean with the tokens read back as 0.14, 0.09, 4 and 0.98.
+
+### 2026-11-02 17:15
+
+The chooser fades out in its own window now, and the stand in is gone. Milos saw the glass darken
+and the launcher look as if it lost focus during a close slowed to two seconds, since glass follows
+its window's key state and the stand in was never key, and an `isKeyWindow` override on it changed
+nothing. So the chooser stays key while it fades, takes no pointer from the moment the fade starts
+and answers down from then too, through `WindowMotion`, which every surface now uses in place. A key
+it hears in that time is not its own, so `InfoPane.sendEvent` hands it to `Motion.passOn`, which
+posts it to the application in front, where it would have gone had the window gone down at once, an
+insert a consumer makes on close included. A close with a duration of zero goes down at once with no
+fade. `test/swiftpane.swift` pins the in place close, its pointer and its reopen, a reload's close
+and the pass on, and the cases that wait for a fade wait for its end rather than a fixed time, since
+one of them failed one run in five. Built, `test/swiftpane.sh` passes four runs in a row, the dry
+gate passes, loaded live clean, and the look confirmed by Milos at two seconds, the timings then put
+back to 0.14 and 0.09.

@@ -382,9 +382,8 @@ check("a cursor update ends at the list", ownCursor != viewCursor)
 
 // Motion, how every surface comes and goes. A window's content rests see through and fades in when
 // it shows. One that never takes key fades out in place and answers down at once, and a show during
-// the fade brings it back from where the fade had got. One that takes key goes down at once and
-// fades in a stand in that takes no pointer and never key, and a show during the fade, or a reload's
-// close, takes its content back. A cut short close does nothing when it would have ended, and with
+// the fade brings it back from where the fade had got, taking no pointer until then, and a reload's
+// close during the fade puts it down at once. A cut short close does nothing when it would have ended, and with
 // no duration a surface comes and goes at once.
 do {
   Motion.openDuration = 0.14
@@ -401,9 +400,15 @@ do {
   }
   func fading(_ v: NSView) -> Bool { v.layer?.animation(forKey: "olm.motion.fade") != nil }
   func spin(_ seconds: Double) { RunLoop.main.run(until: Date().addingTimeInterval(seconds)) }
+  // Runs the loop until done answers true or two seconds pass, since a fade's end arrives from the
+  // render server and its time varies from run to run, which a fixed wait made a flaky case.
+  func spin(until done: () -> Bool) {
+    let limit = Date().addingTimeInterval(2)
+    while !done() && Date() < limit { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
+  }
 
   let (win, content) = panelAway()
-  let inPlace = WindowMotion(win, standIn: false)
+  let inPlace = WindowMotion(win)
   var downs = 0
   inPlace.onDown = { downs += 1 }
   check("a window's content rests see through before it first shows", content.alphaValue == 0)
@@ -417,7 +422,7 @@ do {
   spin(0.3)
   check("and the close cut short does nothing when it would have ended", win.isVisible && inPlace.isUp && downs == 0)
   inPlace.hide()
-  spin(0.3)
+  spin { !win.isVisible }
   check("a close that runs its course orders the window out and says so once",
     !win.isVisible && downs == 1 && content.alphaValue == 0)
   inPlace.show { win.orderFrontRegardless() }
@@ -425,26 +430,19 @@ do {
   check("a close with no fade orders it out at once, see through", !win.isVisible && downs == 2 && content.alphaValue == 0)
 
   let (keyWin, keyContent) = panelAway()
-  let standIn = WindowMotion(keyWin, standIn: true)
-  standIn.show { keyWin.orderFrontRegardless() }
-  standIn.hide()
-  let fader = keyContent.window
-  check("a key window goes down at once", !keyWin.isVisible && !standIn.isUp)
-  check("its content fades in a stand in that takes no pointer and never key",
-    fader != nil && fader !== keyWin && fader?.isVisible == true && fader?.ignoresMouseEvents == true
-      && fader?.canBecomeKey == false)
-  standIn.show { keyWin.orderFrontRegardless() }
-  check("a show during the fade takes the content back and the stand in goes down",
-    keyWin.contentView === keyContent && keyWin.isVisible && fader?.isVisible == false)
-  standIn.hide()
-  standIn.hide(animated: false)
-  check("a reload's close during the fade puts the content back, down and see through",
-    keyWin.contentView === keyContent && !keyWin.isVisible && fader?.isVisible == false && keyContent.alphaValue == 0)
-  standIn.show { keyWin.orderFrontRegardless() }
-  standIn.hide()
-  spin(0.3)
-  check("a stand in fade that runs its course hands the content back",
-    keyWin.contentView === keyContent && !keyWin.isVisible && fader?.isVisible == false)
+  let keyMotion = WindowMotion(keyWin)
+  keyMotion.show { keyWin.orderFrontRegardless() }
+  keyMotion.hide()
+  check("a closing window takes no pointer while it fades",
+    !keyMotion.isUp && keyMotion.closing && keyWin.isVisible && keyWin.ignoresMouseEvents)
+  keyMotion.show { keyWin.orderFrontRegardless() }
+  check("and takes it again when shown during the fade", keyMotion.isUp && !keyWin.ignoresMouseEvents)
+  keyMotion.hide()
+  keyMotion.hide(animated: false)
+  check("a reload's close during the fade puts it down at once, see through, taking the pointer again",
+    !keyWin.isVisible && !keyMotion.closing && keyContent.alphaValue == 0 && !keyWin.ignoresMouseEvents)
+  check("a key is passed on only when it is a key", !Motion.passOn(NSEvent.otherEvent(with: .applicationDefined,
+    location: .zero, modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil, subtype: 0, data1: 0, data2: 0)!))
 
   let floating = FloatingPaneView(frame: NSRect(x: 0, y: 0, width: 100, height: 60))
   content.addSubview(floating)
@@ -462,6 +460,10 @@ do {
 
   Motion.openDuration = 0
   Motion.closeDuration = 0
+  keyMotion.show { keyWin.orderFrontRegardless() }
+  check("with no open duration a window shows opaque at once", keyContent.alphaValue == 1 && !fading(keyContent))
+  keyMotion.hide()
+  check("with no close duration a window goes down at once", !keyWin.isVisible && !keyMotion.closing && keyContent.alphaValue == 0)
   let still = NSView()
   var done = false
   Motion.disappear(still) { done = true }

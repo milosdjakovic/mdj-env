@@ -86,7 +86,7 @@ return {
   -- How every surface comes and goes, the chooser, its info pane and actions pane, the cheat
   -- sheets and the toasts alike. open and close are seconds, 0 for none, rise is how many points
   -- below its place a surface starts and scale how much smaller, 1 for none. A closing surface
-  -- travels half of both. Reduce Motion in System Settings keeps only the fade. Read by the swift
+  -- travels half of both. open and close at 0 turn every animation off. Reduce Motion in System Settings keeps only the fade. Read by the swift
   -- chooser at load, see native/Motion.swift.
   motion = {
     open = 0.14,

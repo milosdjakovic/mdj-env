@@ -31,8 +31,8 @@
 // the canvas rect alone. The preview pane's native backend
 // puts its view in the pane's region through the seam in Entry.swift, shown only while a pane is
 // in it and shown. AppKit's own window animation is off. The window fades in rising and growing a
-// hair, and fades out through a stand in, see THE MOTION below, so the list and the preview pane
-// come and go together as the one surface they are.
+// hair and fades out in place, see THE MOTION below, so the list and the preview pane come and go
+// together as the one surface they are.
 //
 // THE OUTLINE. The window is titled, with its title bar see through, hidden and empty, rather
 // than borderless. A key window gets an edge drawn along its outline, and a borderless window's
@@ -56,8 +56,9 @@
 // own never becomes key, so a press on it cannot take key from the panel.
 //
 // THE MOTION. The window comes and goes through a WindowMotion in Motion.swift, the one way every
-// surface here does. It takes key, so it goes down at once and fades out through a stand in that
-// never does, and a key typed or posted as a list closes reaches the application below.
+// surface here does. It fades out in place and stays key while it does, since its glass drew in the
+// look of a window that is not key for the whole fade when it gave key up at once, through a stand
+// in, seen on 2026-11-02. A key it hears in that time is passed on to the application in front.
 
 import Cocoa
 
@@ -91,6 +92,8 @@ final class InfoPane: NSPanel {
   override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
 
   override func sendEvent(_ event: NSEvent) {
+    // A key heard while the list fades out belongs to the application below, see THE MOTION.
+    if owner?.isClosing == true, Motion.passOn(event) { return }
     guard event.type == .keyDown, let owner else { super.sendEvent(event); return }
     if owner.claim(event) { return }
     owner.throughField { super.sendEvent(event) }
@@ -139,9 +142,9 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   // The preview pane's view while one is in the pane's region, and whether it is shown.
   private weak var paneContent: NSView?
   private var paneShown = false
-  // How the window comes and goes, through a stand in since it takes key, see THE MOTION above.
+  // How the window comes and goes, see THE MOTION above.
   private lazy var motion: WindowMotion = {
-    let motion = WindowMotion(window, standIn: true)
+    let motion = WindowMotion(window)
     motion.onDown = { [weak self] in self?.settleDown() }
     return motion
   }()
@@ -244,7 +247,9 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
 
   // MARK: What the Lua view asks for
 
-  var isVisible: Bool { window.isVisible }
+  // Up and not on its way down, so a list fading out is already closed to Lua and to a pane.
+  var isVisible: Bool { motion.isUp }
+  var isClosing: Bool { motion.closing }
 
   func applyStyle(_ next: Style) {
     style = next
@@ -413,7 +418,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   // finished delivering that press, since the press may have handed key to the window it hit.
   func refocus() {
     DispatchQueue.main.async { [weak self] in
-      guard let self, self.window.isVisible, !self.window.isKeyWindow else { return }
+      guard let self, self.isVisible, !self.window.isKeyWindow else { return }
       self.window.makeKey()
     }
   }
@@ -449,14 +454,14 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
 
   // Whether this panel is up with a preview pane at rect, the question the seam in Entry.swift asks.
   func hostsPane(at rect: NSRect) -> Bool {
-    guard window.isVisible, let previewPane else { return false }
+    guard isVisible, let previewPane else { return false }
     return ScreenSpace.same(previewPane, rect)
   }
 
   // Whether this window is up with a preview pane shown in its region, so a scroll over the
   // preview pane lands on the pane's own scroll view. The Lua view's scroll tap asks, through
   // hostsPane in Entry.swift, before it claims one.
-  var hostsShownPane: Bool { window.isVisible && paneShown && paneContent != nil }
+  var hostsShownPane: Bool { isVisible && paneShown && paneContent != nil }
 
   // A preview pane's view moves into the pane's region, hidden until it is shown.
   func adoptPane(_ view: NSView) {

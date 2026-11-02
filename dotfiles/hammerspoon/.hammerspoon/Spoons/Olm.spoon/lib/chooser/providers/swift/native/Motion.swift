@@ -17,6 +17,8 @@
 // through a window's alphaValue animator, which AppKit steps on the main thread, so menu search,
 // reading the menu bar right after it showed, opened with no fade at all.
 //
+// A KEY WINDOW stays key while it fades out and passes on what it hears, see WindowMotion.
+//
 // TURNING AROUND. A surface shown while it fades out fades back in from where it had got to, and
 // the close that was cut short does nothing when it would have ended.
 //
@@ -33,6 +35,20 @@ enum Motion {
   static var scale: CGFloat = 1
   static var openCurve = CAMediaTimingFunction(name: .linear)
   static var closeCurve = CAMediaTimingFunction(name: .linear)
+
+  // MARK: Keys a closing window hears
+
+  // Posts a key event to the application in front, for a window still key while it fades out, see
+  // WindowMotion. False when there is no other application to post to, Hammerspoon itself in front,
+  // or the event is not a key.
+  static func passOn(_ event: NSEvent) -> Bool {
+    guard [.keyDown, .keyUp, .flagsChanged].contains(event.type), let cg = event.cgEvent,
+      let app = NSWorkspace.shared.frontmostApplication,
+      app.processIdentifier != ProcessInfo.processInfo.processIdentifier
+    else { return false }
+    cg.postToPid(app.processIdentifier)
+    return true
+  }
 
   // MARK: Views
 
@@ -126,37 +142,26 @@ enum Motion {
   }
 }
 
-// The stand in a closing key window fades out in, see WindowMotion, outlined as the window is.
-final class FadingPanel: NSPanel {
-  override var canBecomeKey: Bool { false }
-  override var canBecomeMain: Bool { false }
-  override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
-}
-
 // One window's coming and going, through its content view. The content rests see through while the
 // window is down, so a window ordered front before its fade is committed shows nothing rather than
-// what it showed last time.
+// what it showed last time. A closing window fades out in place, takes no pointer from the moment
+// the fade starts, and answers that it is down from then too.
 //
-// A window that takes key cannot fade out in place, since a window still up is still key, and a key
-// typed or posted in that tenth of a second, an insert a list makes as it closes among them, would
-// land in it rather than in the application below. So with standIn the window goes down at once and
-// its content moves to a FadingPanel, which never becomes key and takes no pointer, fades out there
-// and moves back. A window that never takes key, a CanvasPanel's, fades out in place and says it is
-// down from the moment the fade starts.
+// A window that took key stays key while it fades, since glass follows its window's key state and
+// has no setting to hold the active look, so a window that gave up key at the start of its close
+// drew darker and more opaque for the whole fade, seen at a two second close. A key it hears then
+// is not its own, so its sendEvent hands the key to Motion.passOn, which posts it to the
+// application in front, where it would have gone had the window gone down at once.
 final class WindowMotion {
   let window: NSWindow
-  private let standIn: Bool
-  private var fader: FadingPanel?
-  // Whether the stand in holds the content now.
-  private var lent = false
-  // Whether a close is fading now.
+  // Whether a close is fading now, and whether the window took the pointer before it began.
   private(set) var closing = false
+  private var ignored = false
   // Called once the window is down and its fade has ended, or at once for a close with no fade.
   var onDown: (() -> Void)?
 
-  init(_ window: NSWindow, standIn: Bool) {
+  init(_ window: NSWindow) {
     self.window = window
-    self.standIn = standIn
     if let content = window.contentView { Motion.rest(content) }
   }
 
@@ -166,70 +171,37 @@ final class WindowMotion {
   // order brings the window up, and the content fades in when it was down or going down.
   func show(_ order: () -> Void) {
     let fresh = !isUp
-    closing = false
-    reclaim()
+    endClose()
     order()
     if fresh, let content = window.contentView { Motion.appear(content) }
   }
 
-  // animated false goes down at once, which a reload's cleanup asks for.
+  // animated false goes down at once, which a reload's cleanup asks for, and so does a close
+  // duration of zero.
   func hide(animated: Bool = true) {
+    let animated = animated && Motion.closeDuration > 0
     if animated && closing { return }
     guard animated, isUp, let content = window.contentView else {
-      closing = false
+      endClose()
       window.orderOut(nil)
-      reclaim()
       if let content = window.contentView { Motion.rest(content) }
       onDown?()
       return
     }
     closing = true
-    if standIn {
-      let fader = self.fader ?? makeFader()
-      fader.level = window.level
-      fader.setFrame(window.frame, display: false)
-      // Down first, so a view holding the focus leaves a window that no longer has it.
-      window.orderOut(nil)
-      window.contentView = NSView()
-      fader.contentView = content
-      lent = true
-      fader.orderFrontRegardless()
-    }
+    ignored = window.ignoresMouseEvents
+    window.ignoresMouseEvents = true
     Motion.disappear(content) { [weak self] in
       guard let self, self.closing else { return }
-      self.closing = false
-      if self.standIn { self.reclaim() } else { self.window.orderOut(nil) }
+      self.endClose()
+      self.window.orderOut(nil)
       self.onDown?()
     }
   }
 
-  // The content back from the stand in, which goes down.
-  private func reclaim() {
-    guard lent, let fader, let content = fader.contentView else { return }
-    lent = false
-    fader.orderOut(nil)
-    fader.contentView = NSView()
-    window.contentView = content
-  }
-
-  private func makeFader() -> FadingPanel {
-    let fader = FadingPanel(contentRect: window.frame, styleMask: window.styleMask, backing: .buffered, defer: true)
-    fader.isFloatingPanel = true
-    fader.collectionBehavior = window.collectionBehavior
-    fader.isOpaque = false
-    fader.backgroundColor = .clear
-    fader.hasShadow = window.hasShadow
-    fader.hidesOnDeactivate = false
-    fader.isReleasedWhenClosed = false
-    fader.animationBehavior = .none
-    fader.ignoresMouseEvents = true
-    fader.titlebarAppearsTransparent = window.titlebarAppearsTransparent
-    fader.titleVisibility = window.titleVisibility
-    fader.isMovable = false
-    for button in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
-      fader.standardWindowButton(button)?.isHidden = true
-    }
-    self.fader = fader
-    return fader
+  private func endClose() {
+    guard closing else { return }
+    closing = false
+    window.ignoresMouseEvents = ignored
   }
 }

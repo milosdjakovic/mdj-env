@@ -198,8 +198,8 @@ final class PanePanel {
   private var shown = false
 
   private let config: PaneConfig
-  // How its own window comes and goes, in place since it never takes key, see Motion.swift.
-  private lazy var motion = WindowMotion(window, standIn: false)
+  // How its own window comes and goes, see Motion.swift.
+  private lazy var motion = WindowMotion(window)
 
   init(findHost: @escaping FindHost, config: PaneConfig = PaneConfig()) {
     self.findHost = findHost
