@@ -52,6 +52,7 @@ MDJ_EDITOR="Visual Studio Code" ./setup.sh   # the editor step's answer, for a r
 ./src/setup-ivpn-permissions.sh   # repairs bundle modes the ivpn cask leaves wrong; needs sudo only when repairing
 ./src/setup-claude-settings.sh
 ./src/setup-herdr-plugins.sh
+./src/setup-rex.sh                   # Rex's settings and the Ghostty themes, from a Rex terminal, where the rex piece is on
 ./src/setup-kanata.sh                 # the Karabiner driver and both root daemons, where the kanata piece is on
 ./src/setup-kanata.sh --dry-run       # every change it would make, every sudo command and both plists, changing nothing
 ./src/setup-kanata.sh --upgrade       # move kanata and its driver together, once dotfiles/kanata/DRIVER has the new row
@@ -358,7 +359,7 @@ to drift unnoticed.
 
 **Stowed on every machine:** ghostty, tmux, nvim, zsh, claude, lf, lazygit
 
-**Stowed where machines/ turns them on:** hammerspoon, herdr, mise, kanata
+**Stowed where machines/ turns them on:** hammerspoon, herdr, mise, kanata, rex
 
 ### Rules for an agent working on machines and runtimes
 
@@ -705,6 +706,14 @@ Configuration in `dotfiles/kanata/`, stowed only where the `kanata` piece is on.
 applied, the two root daemons and where they log, the three grants only a person can give, the
 driver pairing in `DRIVER` and the upgrade procedure, and why the config must never enable
 commands.
+
+### Rex
+
+Configuration in `dotfiles/rex/`, where the `rex` piece is on. Its settings live in a defaults
+domain that `src/setup-rex.sh` writes, and only `init.lua` and the tools its floating panes run
+are stowed. Read `dotfiles/rex/AGENTS.md` before changing it, for how a setting is carried, why
+the themes are Ghostty's pair imported through Rex's own action, why a setting shows only after
+Rex restarts, and how a key opens a tool in a floating pane.
 
 ### mise
 

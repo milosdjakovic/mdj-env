@@ -1,0 +1,109 @@
+#!/bin/bash
+set -e
+
+# Give Rex this repository's look, the Ghostty theme pair and the settings in dotfiles/rex/SETTINGS.
+#
+# Rex keeps everything in the defaults domain com.superlogical.rex rather than in a file, so
+# there is nothing to stow. Each settings row is compared and written only where this machine
+# differs. Rex reads them when it launches, so a change made while it runs shows after a restart,
+# which the step says once.
+#
+# The themes go through Rex's own import action, the only stable way in, since the stored form
+# is Rex's internal JSON and moves with its beta. An import needs the running app with Remote
+# Control on and the rex CLI, which Rex puts on PATH only inside its own terminals. Without any
+# of those the step leaves a closing note and still applies the settings. An import of a file
+# already imported replaces it in place rather than adding a copy, but it also reselects themes
+# on its own, once putting the light slot back on Rex's stock theme, so after importing the step
+# points both slots at the imported themes by name. A hash of the two files is kept in Rex's
+# domain under its own key, so an unchanged pair is not imported again. decisions/rex.md has
+# what was measured.
+#
+# Idempotent. A machine already in line is told so in one line per half and nothing is written.
+
+DOMAIN="com.superlogical.rex"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SETTINGS="$ROOT/dotfiles/rex/SETTINGS"
+# The one coupling between two modules, kept here as the seam. Rex reads Ghostty's theme files
+# as they are, so the pair src/check-theme.sh writes for Ghostty is the pair Rex imports, and
+# Rex needs no map or emitter of its own.
+THEMES="$ROOT/dotfiles/ghostty/.config/ghostty/themes"
+STAMP_KEY="mdj-env.themesHash"
+
+# shellcheck source=lib/backup.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/backup.sh"
+
+echo "==> Rex settings and themes"
+
+if [[ -z "$(mdfind -count "kMDItemCFBundleIdentifier == '$DOMAIN'" 2>/dev/null | grep -v '^0$')" ]]; then
+    mdj_note "Rex is not installed, so its settings were not applied. Install it from superlogical.com/rex and run src/setup-rex.sh."
+    exit 0
+fi
+
+# What defaults reads back for a row, in the form the row writes it. A bool reads as 1 or 0.
+current() {
+    local value
+    value="$(defaults read "$DOMAIN" "$1" 2>/dev/null)" || return 0
+    case "$2" in
+        bool) [[ "$value" == 1 ]] && echo true || echo false ;;
+        *)    echo "$value" ;;
+    esac
+}
+
+changed=0
+while IFS='|' read -r key type value; do
+    key="$(echo "$key" | xargs)"; type="$(echo "$type" | xargs)"; value="$(echo "$value" | xargs)"
+    [[ -z "$key" ]] && continue
+    [[ "$(current "$key" "$type")" == "$value" ]] && continue
+    defaults write "$DOMAIN" "$key" "-$type" "$value"
+    echo "    $key set to $value"
+    changed=$((changed + 1))
+done < <(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "$SETTINGS")
+
+if [[ $changed -eq 0 ]]; then
+    echo "    Settings already in line."
+fi
+
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+
+# The id Rex gave an imported theme, found by its name in the stored list. Only the name and the
+# id are read, the least of the internal format this step can depend on. The list is read from
+# an export through PlistBuddy, since defaults read cuts long data short and plutil cannot name
+# a key with dots in it.
+theme_id() {
+    defaults export "$DOMAIN" "$work/rex.plist" 2>/dev/null || return 0
+    /usr/libexec/PlistBuddy -c "Print :Workspace.customThemes" "$work/rex.plist" 2>/dev/null \
+        | jq -r --arg name "$1" 'map(select(.name == $name)) | .[0].id // empty' 2>/dev/null
+}
+
+hash="$(cat "$THEMES/mdj-light" "$THEMES/mdj-dark" | shasum -a 256 | cut -d' ' -f1)"
+light="$(theme_id mdj-light)"
+dark="$(theme_id mdj-dark)"
+
+if [[ -n "$light" && -n "$dark" && "$(defaults read "$DOMAIN" "$STAMP_KEY" 2>/dev/null)" == "$hash" ]]; then
+    echo "    Themes already imported."
+elif ! command -v rex >/dev/null 2>&1; then
+    mdj_note "Rex's themes were not imported, since the rex CLI is on PATH only inside a Rex terminal. Run src/setup-rex.sh from one."
+elif ! rex do client.theme.import path="$THEMES/mdj-light" >/dev/null 2>&1 \
+    || ! rex do client.theme.import path="$THEMES/mdj-dark" >/dev/null 2>&1; then
+    mdj_note "Rex's themes were not imported, since Rex did not take the import. Open Rex, turn on Remote Control in Settings under Rex Server, and run src/setup-rex.sh again."
+else
+    light="$(theme_id mdj-light)"
+    dark="$(theme_id mdj-dark)"
+    defaults write "$DOMAIN" "$STAMP_KEY" -string "$hash"
+    echo "    Imported mdj-light and mdj-dark from the Ghostty themes."
+fi
+
+# Both slots, every run, since an import can move either one and so can a person.
+for slot in light dark; do
+    want="${!slot}"
+    [[ -z "$want" ]] && continue
+    [[ "$(defaults read "$DOMAIN" "Workspace.${slot}ThemeID" 2>/dev/null)" == "$want" ]] && continue
+    defaults write "$DOMAIN" "Workspace.${slot}ThemeID" -string "$want"
+    echo "    The $slot slot now uses mdj-$slot."
+    changed=$((changed + 1))
+done
+
+if [[ $changed -gt 0 ]]; then
+    mdj_note "Rex reads its settings when it launches, so quit and reopen Rex if it was running."
+fi

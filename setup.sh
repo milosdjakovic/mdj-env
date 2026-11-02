@@ -270,6 +270,10 @@ step_if vpn ivpn "$SRC_DIR/setup-ivpn-permissions.sh"
 # Wire the statusline script into Claude Code's settings.json
 step "$SRC_DIR/setup-claude-settings.sh"
 
+# Give Rex the Ghostty theme pair and the settings in dotfiles/rex/SETTINGS, which it keeps in a
+# defaults domain rather than a file stow could link. Writes only on a difference.
+step_if rex on "$SRC_DIR/setup-rex.sh"
+
 # Register the herdr module's local plugin, which stow places but cannot register
 step_if herdr on "$SRC_DIR/setup-herdr-plugins.sh"
 

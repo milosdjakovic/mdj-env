@@ -2,3 +2,4 @@
 mise           | on        # this repository's mise config is stowed
 tools          | canvas,go,lua5.4,node,pnpm,poetry,python,python3.11,python3.12,python3.13,python3.9,ruby,rust,uv,yarn # set by hand, asked for on 2026-10-28
 kanata         | on        # kanata and the Karabiner driver extension active
+rex            | on        # set by hand, asked for on 2026-10-30

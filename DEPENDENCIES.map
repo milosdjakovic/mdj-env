@@ -50,6 +50,7 @@ lf            | brew      | lf
 lazygit       | brew      | lazygit
 herdr         | brew      | herdr
 kanata        | brew      | kanata
+rex           | manual    | Rex Beta, downloaded from superlogical.com/rex, then src/setup-rex.sh run from a Rex terminal with Remote Control on in its Settings under Rex Server
 
 # Command line tools the configurations call.
 fzf           | brew      | fzf
@@ -101,6 +102,9 @@ curl                     | macos     | ships with macOS
 perl                     | macos     | ships with macOS
 defaults                 | macos     | ships with macOS
 plutil                   | macos     | ships with macOS
+PlistBuddy               | macos     | ships with macOS
+mdfind                   | macos     | ships with macOS
+rex-cli                  | manual    | ships inside Rex, which puts it on PATH in its own terminals
 activateSettings         | macos     | ships with macOS, inside the SystemAdministration private framework
 pbcopy                   | macos     | ships with macOS
 osascript                | macos     | ships with macOS

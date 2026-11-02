@@ -1,0 +1,7 @@
+# Repo only files at this package root. Rex keeps its settings in a defaults domain, which
+# src/setup-rex.sh writes, so the only things that travel to the home directory are init.lua and
+# the tools its floating panes run.
+AGENTS.md
+CLAUDE.md
+DEPENDENCIES
+SETTINGS

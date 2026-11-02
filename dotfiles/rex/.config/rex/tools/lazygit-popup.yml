@@ -1,0 +1,5 @@
+# Escape closes this popup. Lazygit reads escape as go back one level, which does nothing
+# once you are at the top, so lazygit is the one tool here that cannot be dismissed the way
+# every other floating pane can. This layer is loaded for the Rex floating pane alone, on top of the real
+# config rather than instead of it, so lazygit in tmux and in a plain terminal is untouched.
+quitOnTopLevelReturn: true

@@ -1,0 +1,38 @@
+# Rex's own preferences, as key | type | value, applied by src/setup-rex.sh.
+#
+# Rex keeps every setting in the macOS defaults domain com.superlogical.rex rather than in a
+# file, so there is nothing for stow to link and this list is written into the domain instead.
+# A row is applied only where the machine differs, and every key not listed is left alone, so a
+# setting changed in Rex's own window survives until it is added here. type is the defaults
+# write type, string, float, int or bool. Values were read from the first machine on 2026-10-30.
+#
+# The two theme slots are not rows here. They name a custom theme by an id Rex makes up when it
+# imports one, so the step imports the Ghostty theme pair and points both slots at what it got.
+# Remote Control is not a row either, since letting local programs drive the app is a choice
+# for the person and not a look to copy, and the step only says when it is off.
+
+# The terminal font, the same face and size as dotfiles/ghostty. The size is a string because
+# Rex stores it as one.
+Workspace.terminalFontName              | string | MesloLGS Nerd Font Mono
+Workspace.terminalFontPointSize         | string | 18
+Workspace.terminalFontSmoothing         | bool   | false
+Workspace.terminalCursorStyle           | string | block
+
+# The window, tabs down a sidebar on the left that takes its colours from the theme.
+Workspace.interfaceStyle                | string | blendTheme
+Workspace.tabStyle                      | string | vertical
+Workspace.sidebarPosition               | string | left
+Workspace.sidebarWidth                  | float  | 205
+Workspace.tabIconTintMode               | string | off
+Workspace.appIconVisibility             | string | dockOnly
+Workspace.animationStyle                | string | snappy
+
+# Panes.
+Workspace.paneDensity                   | string | comfortable
+Workspace.usesPaneGlass                 | bool   | true
+Workspace.showsActivePaneBorder         | bool   | true
+Workspace.inactivePaneFadeMode          | string | both
+Workspace.usesStandardInactiveWindowPaneStyles | bool | true
+
+# Agents running in Rex name their own sessions.
+rex.agents.names-sessions               | bool   | true

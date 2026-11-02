@@ -24,3 +24,4 @@ docker         | on        # the Docker Desktop cask
 vpn            | mullvad   # mullvad, ivpn or none, and only ivpn adds a setup step, the permission repair its daemon needs
 tools          | none      # the mise tools a machine takes, names from dotfiles/mise/TOOLS, comma separated, alphabetical, no spaces, or none
 kanata         | off       # the kanata package and formula, and the step that installs its Karabiner driver and runs both as root daemons, off since a driver extension and a root daemon are a lot to put on a machine unasked
+rex            | off       # Rex's settings, the Ghostty theme pair imported into it, and its init.lua with the floating tools, off since Rex is a beta installed by hand
