@@ -744,3 +744,16 @@ the glyph, and so does the canvas chooser, which draws text only.
 2026-11-02 12:59. The key cap gap is the small step again, `space.xs`, two points ink to ink, at Milos's request for a small gap once keys were placed by their ink and Return and Hyper drawn as symbols.
 
 2026-11-02 13:10. The key cap gap is four points, a new step `space.xss` between xs and s, at Milos's request.
+
+### 2026-11-02 20:05
+
+Milos asked for one key cap component that takes a chord as an array of keys, shift, return,
+hyper, sizes to its content and can be held to a width. Until now the canvas bottom bar measured
+and drew a chord glyph by glyph while the cheat sheet flattened the same chord into one string with
+`kbd.text` and drew it as a plain badge, with "or" and an eight point gap where the bar had `/` and
+the small space step. `lib/ui/keycap.lua` is now the one key cap, the bar's own drawing moved into
+the kit and given a size and a width, `kit.keycap` its node, and the bottom bar and the cheat sheet
+both draw through it, so the cheat sheet's alternatives now read with `/` like the bar. A width is
+a floor a chip grows past rather than a cut, decided by default since a key cut off is worse than a
+wider chip. Unit cases in `test/cases/uikit.lua` hold the sizing, the width, the growth, the
+separator and the fill. `test/parity.sh` does not finish, on main as well as on this branch.

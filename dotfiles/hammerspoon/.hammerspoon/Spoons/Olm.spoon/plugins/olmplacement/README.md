@@ -5,6 +5,6 @@ is or with the active window, the two modes the resolver in `lib/overlaydisplay.
 list is the one place a person sees or changes it.
 
 It opens from the launcher only, as the Olm Placement row, with no key of its own, and the list
-replaces the launcher's rows in place. The two options show the live one with a green circle.
+replaces the launcher's rows in place. The two options wear Olm's radio pair, the live one filled.
 Choosing one writes it at once and the list stays open with the marker moved, so switching back
 and forth costs no reopening, and Backspace or Escape leaves whenever done.

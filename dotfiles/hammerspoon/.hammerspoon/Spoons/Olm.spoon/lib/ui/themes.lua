@@ -16,6 +16,9 @@
 --   specFor    a function of the current colours answering the style spec for the kit.
 --   onChange   called with the new name and colours after a switch has been applied.
 --   log        a table with w, a warning writer. Defaults to print.
+--   default    the name of the theme every other one falls back to, M.DEFAULT when not given,
+--              so a directory a chooser carries for itself can hold its own one file.
+--   settingsKey the hs.settings key the choice persists under, M.SETTINGS_KEY when not given.
 --
 -- A missing [light] half is the theme's own [dark] half. A missing or malformed required key
 -- is the default theme's value for that half and one warning naming the theme and the key.
@@ -63,7 +66,9 @@ function M.new(opts)
   local themes = {}      -- name to { dark = {...}, light = {...} }, raw as the file said
   local resolved = {}    -- name to the colours with every fallback applied, built on demand
   local warned = {}
-  local currentName = M.DEFAULT
+  local DEFAULT = opts.default or M.DEFAULT
+  local SETTINGS_KEY = opts.settingsKey or M.SETTINGS_KEY
+  local currentName = DEFAULT
 
   local function warnOnce(key, message)
     if warned[key] then return end
@@ -87,13 +92,13 @@ function M.new(opts)
         end
       end
     end
-    local stored = store.get(M.SETTINGS_KEY)
+    local stored = store.get(SETTINGS_KEY)
     if stored ~= nil and themes[stored] == nil then
       warnOnce("stored " .. tostring(stored), "the stored theme " .. tostring(stored)
-        .. " has no file, so the " .. M.DEFAULT .. " theme is used")
+        .. " has no file, so the " .. DEFAULT .. " theme is used")
       stored = nil
     end
-    currentName = stored or M.DEFAULT
+    currentName = stored or DEFAULT
     return instance
   end
 
@@ -101,7 +106,7 @@ function M.new(opts)
   local function halfOf(name, half)
     local theme = themes[name]
     local given = (theme and (theme[half] or theme.dark)) or {}
-    local fallback = themes[M.DEFAULT] and (themes[M.DEFAULT][half] or themes[M.DEFAULT].dark) or {}
+    local fallback = themes[DEFAULT] and (themes[DEFAULT][half] or themes[DEFAULT].dark) or {}
     local out = {}
     for _, key in ipairs(M.REQUIRED) do
       local value = given[key]
@@ -109,7 +114,7 @@ function M.new(opts)
         if value ~= nil then
           warnOnce(name .. "/" .. half .. "/" .. key .. "/bad", "theme " .. name .. ", " .. half
             .. " key " .. key .. " is not a #rrggbb or #rrggbbaa colour, so the default theme's is used")
-        elseif name ~= M.DEFAULT then
+        elseif name ~= DEFAULT then
           warnOnce(name .. "/" .. half .. "/" .. key, "theme " .. name .. " has no " .. half
             .. " key " .. key .. ", so the default theme's is used")
         end
@@ -135,7 +140,7 @@ function M.new(opts)
   --- default theme's colours.
   function instance.colors(name)
     name = name or currentName
-    if themes[name] == nil then name = M.DEFAULT end
+    if themes[name] == nil then name = DEFAULT end
     if not resolved[name] then
       local built = {}
       for _, half in ipairs(HALVES) do built[half] = halfOf(name, half) end
@@ -154,7 +159,7 @@ function M.new(opts)
       return false
     end
     currentName = name
-    store.set(M.SETTINGS_KEY, name)
+    store.set(SETTINGS_KEY, name)
     local colors = instance.colors(name)
     if opts.ui and opts.specFor then opts.ui.configure({ spec = opts.specFor(colors) }) end
     if opts.onChange then opts.onChange(name, colors) end

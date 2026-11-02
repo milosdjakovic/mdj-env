@@ -14,11 +14,9 @@ return {
     license = "MIT",
   },
 
-  -- Green marks whichever option is current and red marks the other one.
+  -- The rows say chosen and wear Olm's own radio pair, so the only icon here is the plugin's own.
   icons = {
     placement = { emoji = "🪟", sf = "macwindow.and.cursorarrow" },
-    selected = { emoji = "🟢", sf = "circle.fill" },
-    notSelected = { emoji = "🔴", sf = "circle" },
   },
 
   needs = {

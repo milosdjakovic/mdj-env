@@ -29,7 +29,6 @@ return {
 
   -- The row icons, named by the rows and drawn by Olm.
   icons = {
-    active = { emoji = "🟢", sf = "circle.fill" },  -- the window currently on screen
     window = { emoji = "🪟", sf = "macwindow" },
     terminal = { emoji = "💻", sf = "apple.terminal" },
     tmuxsessions = { emoji = "🗂️", sf = "terminal" },

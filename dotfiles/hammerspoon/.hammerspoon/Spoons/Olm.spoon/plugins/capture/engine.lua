@@ -212,8 +212,8 @@ end
 -- capture and the action name, so a pick a person made before is not forgotten.
 local ACTIONS = {
   { name = "ocrArea", description = "OCR", icon = "ocr" },
-  { name = "captureAreaClipboard", description = "Screenshot (copy)", icon = "screenshot" },
   { name = "captureArea", description = "Screenshot", icon = "screenshot" },
+  { name = "captureAreaClipboard", description = "Screenshot (copy)", icon = "screenshot" },
   { name = "recordArea", description = "Record screen", icon = "record" },
 }
 

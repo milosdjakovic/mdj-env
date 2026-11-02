@@ -621,10 +621,17 @@ in `config/icons.toml`.
 ```lua
 -- manifest.lua
 icons = {
-  on  = { emoji = "🟢", sf = "circle.fill" },
-  off = { emoji = "🔴", sf = "circle" },
+  connect    = { emoji = "🟢", sf = "shield" },
+  disconnect = { emoji = "🔴", sf = "lock.open" },
 },
 ```
+
+A row in a list of choices, which one is in force or which of several are on, never names a
+marker. It says `chosen = true` or `chosen = false` and Olm draws its own radio pair, the filled
+`circle.inset.filled` and the empty `circle`, declared once in the actions pane's manifest. A row
+whose other choices keep a picture of their own, a flag or a device kind, sets `chosen = true` on
+the one in force and leaves it unset on the rest. The dry gate refuses a manifest that declares
+a marker of its own.
 
 Each key is a name your rows use and each value is a table of source name to the value that
 source understands, an emoji string for `emoji` and an SF Symbol name for `sf`. Give every
@@ -635,7 +642,7 @@ with one console line naming your tool.
 
 ```lua
 -- in rows
-{ title = "Deactivate", icon = "off", item = item }
+{ title = "Disconnect", icon = "disconnect", item = item }
 ```
 
 A row says `icon = "key"` to use one of its own plugin's icons. A child presentation your

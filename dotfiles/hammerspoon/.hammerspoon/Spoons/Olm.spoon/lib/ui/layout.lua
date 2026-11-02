@@ -24,6 +24,18 @@
 
 local M = {}
 
+-- The kit's style, read here for one rule only, the fill of a key chip, so a badge is drawn by the
+-- very function the bottom bar and the glass bar call. Pure Lua, loaded beside this file.
+local function sibling(name)
+  local here = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or ""
+  local chunk, err = loadfile(here .. name)
+  if not chunk then error("ui.layout failed to load " .. name .. ", " .. tostring(err)) end
+  return chunk()
+end
+local styleLib = sibling("style.lua")
+-- The key cap, the one way a key is drawn, so the kit's keycap node and the bottom bar share it.
+local keycapLib = sibling("keycap.lua")
+
 -- The surface node is chrome rather than content. It is drawn behind the whole rect the
 -- layout was given, outside any scroll and outside the clip, and it takes no room and no
 -- gap inside its container. The design says only that surface is the chrome with
@@ -226,6 +238,9 @@ function M.new(deps)
         return maxW, #lines * v.lineHeight
       end
       return math.min(math.ceil(widthOf(measure, node.str, v.font, v.size)), maxW), v.lineHeight
+    elseif kind == "keycap" then
+      return keycapLib.width(measure, T, node.chords, node.size, { width = node.width }),
+        T.badge[node.size].height
     elseif kind == "badge" then
       local b = T.badge[node.size]
       if node.fill then return maxW, b.height end
@@ -333,12 +348,22 @@ function M.new(deps)
       local tw = node.width and math.min(node.width, w) or w
       push(ctx, textElement(ctx, node.str, v, node.color or v.color or "foreground",
         node.align or "left", lineBreak, { x = x, y = y, w = tw, h = h }))
+    elseif kind == "keycap" then
+      for _, el in ipairs(keycapLib.elements(measure, T, node.chords, node.size, x, y, h,
+        { width = node.width, alpha = ctx.alpha })) do
+        push(ctx, el)
+      end
     elseif kind == "badge" then
       local b = T.badge[node.size]
       local v = T.text[b.text]
       local bw = sizeOf(node, w, T)
       local r = T.radius[b.radius or "nested"]
-      push(ctx, { type = "rectangle", action = "fill", fillColor = colorOf(ctx, "highlight"),
+      -- A key chip is drawn by the one key cap rule every chip follows, in the bottom bar, its
+      -- floating panes, the glass bar and here on a cheat sheet, the foreground at the keycap
+      -- alpha. It is never the highlight, which is the cursor's colour, so a highlight a person
+      -- picks, the solid accent of macOS among them, never paints a sheet of keys.
+      push(ctx, { type = "rectangle", action = "fill",
+        fillColor = withAlpha(styleLib.keycapColor(T), ctx.alpha),
         roundedRectRadii = { xRadius = r, yRadius = r },
         frame = { x = x, y = y, w = bw, h = b.height } })
       -- The glyph's line box is centred in the chip, and the cap height of the glyph is

@@ -1,7 +1,7 @@
 # Input Sources
 
 Lists the keyboard layouts and input methods enabled in System Settings by recent use, the one
-in use first and marked by a green circle, and makes the chosen one current. An input method,
+in use first and marked by Olm's filled ring, and makes the chosen one current. An input method,
 Japanese or Pinyin, is listed by the mode it types in.
 
 A tap of fn cycles the list the way Command and Tab does, through the `cycle` row in its manifest.

@@ -22,7 +22,7 @@ return {
 
   -- The row icons, named by the rows and drawn by Olm.
   icons = {
-    active = { emoji = "🟢", sf = "circle.fill" },
+    apply = { emoji = "✅", sf = "checkmark.circle" },
     profile = { emoji = "🖥️", sf = "rectangle.on.rectangle" },
     displays = { emoji = "📺", sf = "rectangle" },
     reapply = { emoji = "🔄", sf = "arrow.triangle.2.circlepath" },
@@ -110,7 +110,7 @@ return {
   -- only, since a curated one lives in config/displays.lua, and Delete asks first.
   surface = {
     context = "displayProfiles",
-    primary = { action = "insertSelected", description = "Apply", icon = "active" },
+    primary = { action = "insertSelected", description = "Apply", icon = "apply" },
     extra = {
       { action = "showDisplays", description = "Displays", icon = "displays", section = "Profile",
         applies = "isProfile" },

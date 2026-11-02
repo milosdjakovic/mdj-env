@@ -59,11 +59,11 @@ end
 local rows = page.rows(catalog, row, "settings")
 eq("one row per catalog entry", #rows, 7)
 eq("an on plugin says on", rows[1].subTitle, "on")
-eq("an on plugin carries the green circle", rows[1].icon, "selected")
+eq("an on plugin is the chosen ring", rows[1].chosen, true)
 eq("an off plugin says off", rows[2].subTitle, "off")
-eq("an off plugin carries the red circle", rows[2].icon, "notSelected")
+eq("an off plugin is the empty ring", rows[2].chosen, false)
 eq("a plugin off because of another names its title", rows[3].subTitle, "off because Beta is off")
-eq("an off because plugin carries the red circle", rows[3].icon, "notSelected")
+eq("an off because plugin is the empty ring", rows[3].chosen, false)
 eq("a config locked plugin says so", rows[4].subTitle, "locked off in config")
 check("a plain plugin is toggleable", rows[1].item.toggle == true and rows[2].item.toggle == true)
 check("a locked or dependent plugin is not toggleable",
@@ -98,12 +98,12 @@ local pendingCatalog = staged(catalog, { alpha = true }, { alpha = { off = true 
 pendingCatalog[#pendingCatalog + 1] = { identity = "eta", about = { title = "Eta" }, needs = {},
   disabled = false, after = { off = true, offBecause = { "alpha" } } }
 local afterRows = page.rows(pendingCatalog, row, "settings")
-eq("a staged switch moves the marker", afterRows[1].icon, "notSelected")
+eq("a staged switch moves the marker", afterRows[1].chosen, false)
 eq("a staged switch says what applying does", afterRows[1].subTitle, "off after apply")
 check("a staged row can be toggled back", afterRows[1].item.toggle == true)
 eq("a plugin going off with it says so and why", afterRows[8].subTitle,
   "off after apply, because Alpha is off")
-eq("and carries the red circle", afterRows[8].icon, "notSelected")
+eq("and is the empty ring", afterRows[8].chosen, false)
 check("and cannot be toggled while it is carried along", afterRows[8].item.toggle == false)
 eq("an unchanged row keeps its plain words", afterRows[2].subTitle, "off")
 eq("the summary names every change in catalog order", page.pendingSummary(pendingCatalog),
@@ -113,7 +113,7 @@ local onCatalog = staged(catalog, { beta = false }, { beta = { off = false },
   gamma = { off = false } })
 local onRows = page.rows(onCatalog, row, "settings")
 eq("a plugin staged on says on after apply", onRows[2].subTitle, "on after apply")
-eq("and carries the green circle", onRows[2].icon, "selected")
+eq("and is the chosen ring", onRows[2].chosen, true)
 eq("a plugin coming back with it says on after apply", onRows[3].subTitle, "on after apply")
 
 local function said(node, out)

@@ -1,6 +1,6 @@
 --- === Olm Plugins ===
 ---
---- Lists every plugin with a green or red circle and stages a switch on or off, over the four
+--- Lists every plugin with Olm's radio pair, filled when on, and stages a switch on or off, over the four
 --- root words pluginCatalog, pluginCascade, stagePluginSwitch and applyPluginSwitches. A choice
 --- is only staged, the page stays open, and the root applies the staged set with one reload when
 --- the stage goes away or the Apply now row is chosen. A preview pane describes the highlighted

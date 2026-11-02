@@ -35,7 +35,7 @@ local function row(title, subTitle, icon, item, enabled, pinned)
 end
 
 -- A window is what is genuinely on screen right now, not merely the window that happens
--- to be highlighted inside a detached session, so the green dot marks a window only when
+-- to be highlighted inside a detached session, so the filled ring marks a window only when
 -- its own session is attached and this is the window that session is currently showing.
 local function isLive(w)
   return w.sessionAttached and w.active
@@ -49,8 +49,11 @@ end
 local function windowRows()
   local out = {}
   for _, w in ipairs(cfg.api:windows()) do
-    out[#out + 1] = row(w.name, w.session, isLive(w) and "active" or "window",
+    local r = row(w.name, w.session, "window",
       { go = w.target, label = w.name .. " in " .. w.session }, true)
+    -- The window on screen wears Olm's filled ring, the others keep the window picture.
+    r.chosen = isLive(w) or nil
+    out[#out + 1] = r
   end
   return out
 end

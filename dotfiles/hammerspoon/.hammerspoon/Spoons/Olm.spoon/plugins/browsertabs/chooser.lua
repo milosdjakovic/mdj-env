@@ -306,12 +306,12 @@ local function statusText(s)
   return table.concat(parts, ", ")
 end
 
--- The marker. A switched on browser carries the green circle every chooser here uses for the
--- live choice, and a switched off one a hollow circle, so the column reads as a set of
--- toggles. An uninstalled browser is warned rather than marked, since it cannot be switched on.
+-- The marker. A switched on browser says chosen and a switched off one not, and Olm draws its
+-- radio pair, so the column reads as the same set of rings every list shows. An uninstalled
+-- browser is warned rather than marked, since it cannot be switched on.
 local function settingsIcon(s)
   if not s.installed then return "warn" end
-  return s.enabled and "active" or "off"
+  return nil
 end
 
 -- A browser's permission row, the one extra line under a switched on browser, and only when
@@ -378,6 +378,7 @@ local function settingsRows()
         or { noop = true, key = s.bundleID },
       s.installed)
     r.filterText = s.name
+    if s.installed then r.chosen = s.enabled == true end
     out[#out + 1] = r
     if s.installed and s.enabled then
       local extra = attentionRow(s)

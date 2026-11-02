@@ -9,7 +9,7 @@
 --- The two modes are named here as the bare literals cursor and activeWindow rather than read off
 --- lib/overlaydisplay.lua's own M.modes, since the two closures above are all this plugin ever
 --- receives. A mode renamed inside the resolver leaves the writer refusing the old literal with a
---- log line, while the green marker here goes quietly blank.
+--- log line, while the filled ring here goes quietly blank.
 ---
 --- It was the first page of the OLM settings plugin until 2026-10-27, when that plugin was split
 --- into this, Olm Theme and Olm Plugins, so each opens its list straight from its launcher row.
@@ -24,25 +24,20 @@ local SELF = debug.getinfo(1, "S").source:sub(2):match("([^/]+)/[^/]+$")
 
 local cfg = {}
 
--- The two option rows carry only a circle each, never a checkmark, the one marker convention
--- this codebase uses for which of these is current right now.
-local ICON_SELECTED = "selected"
-local ICON_NOT_SELECTED = "notSelected"
-
 local OPTIONS = {
   { mode = "cursor", title = "Where the mouse cursor is" },
   { mode = "activeWindow", title = "With the active window" },
 }
 
 --- M.rows() -> rows
---- The two options, the live one marked green. Rebuilt on every redraw, so the circle follows the
+--- The two options, the live one chosen. Rebuilt on every redraw, so the ring follows the
 --- choice just made.
 function M.rows()
   local live = cfg.readMode and cfg.readMode()
   local rows = {}
   for _, option in ipairs(OPTIONS) do
     rows[#rows + 1] = { title = option.title,
-      icon = option.mode == live and ICON_SELECTED or ICON_NOT_SELECTED,
+      chosen = option.mode == live,
       item = { commit = option.mode, key = option.mode } }
   end
   return rows

@@ -241,7 +241,7 @@ local nOwn = 4
 eq("every catalog row is listed", #actionRows, nCapture + 1 + nOwn + nWindows + nPanes)
 
 -- The untouched order, which is the order the list has always had, the panes last.
-local wantOrder = { "OCR", "Screenshot (copy)", "Screenshot", "Record screen", "Search Settings",
+local wantOrder = { "OCR", "Screenshot", "Screenshot (copy)", "Record screen", "Search Settings",
   "Aliases", "OLM keys", "Lock Screen", "Sleep", "Previous Display", "Next Display", "Left Half" }
 for i, title in ipairs(wantOrder) do
   eq("row " .. i .. " is " .. title, (actionRows[i] or {}).title, title)
@@ -265,8 +265,8 @@ local function expectRow(label, row, want)
   eq(label .. " carries no image", row.image, nil)
 end
 
-expectRow("capture row", actionRows[3], {
-  title = "Screenshot", subTitle = "Capture · \u{2726}\u{21E7}4", icon = "screenshot",
+expectRow("capture row", actionRows[2], {
+  title = "Screenshot", subTitle = "Capture · \u{2726}3", icon = "screenshot",
   iconOwner = "capture", kind = "capture", id = "captureArea", owner = "capture" })
 -- The scope above would hint this name, and an owned row is never asked, so the subtitle is
 -- exactly what it always was, the real resolver answering nothing for this name either.
@@ -366,7 +366,7 @@ eq("a remembered pane leads", (ordered[1] or {}).title, "Wi-Fi")
 eq("then the remembered search row", (ordered[2] or {}).title, "Search Settings")
 eq("then the remembered capture", (ordered[3] or {}).title, "OCR")
 eq("then the remembered window action", (ordered[4] or {}).title, "Center")
-eq("then the untouched order resumes", (ordered[5] or {}).title, "Screenshot (copy)")
+eq("then the untouched order resumes", (ordered[5] or {}).title, "Screenshot")
 launcher._mru = {}
 launcher._orderedRowsCache = nil
 

@@ -23,6 +23,7 @@ META	i	any	inputsourcesOpen	100	inputsources
 META	i	any	launcherOpen	100	launcher
 META	i	any	menuSearchOpen	100	menuSearch
 META	i	any	obsidianOpen	100	obsidian
+META	i	any	olmchooserOpen	100	olmchooser
 META	i	any	olmplacementOpen	100	olmplacement
 META	i	any	olmpluginsOpen	100	olmplugins
 META	i	any	olmthemeOpen	100	olmtheme
@@ -44,6 +45,7 @@ META	j	any	inputsourcesOpen	100	inputsources
 META	j	any	launcherOpen	100	launcher
 META	j	any	menuSearchOpen	100	menuSearch
 META	j	any	obsidianOpen	100	obsidian
+META	j	any	olmchooserOpen	100	olmchooser
 META	j	any	olmplacementOpen	100	olmplacement
 META	j	any	olmpluginsOpen	100	olmplugins
 META	j	any	olmthemeOpen	100	olmtheme
@@ -66,6 +68,7 @@ META	k	any	inputsourcesOpen	100	inputsources
 META	k	any	launcherOpen	100	launcher
 META	k	any	menuSearchOpen	100	menuSearch
 META	k	any	obsidianOpen	100	obsidian
+META	k	any	olmchooserOpen	100	olmchooser
 META	k	any	olmplacementOpen	100	olmplacement
 META	k	any	olmpluginsOpen	100	olmplugins
 META	k	any	olmthemeOpen	100	olmtheme
@@ -109,6 +112,7 @@ META	x	any	fileSearchOpen	100	fileSearch
 META	x	any	inputsourcesOpen	100	inputsources
 META	x	any	menuSearchOpen	100	menuSearch
 META	x	any	obsidianOpen	100	obsidian
+META	x	any	olmchooserOpen	100	olmchooser
 META	x	any	olmplacementOpen	100	olmplacement
 META	x	any	olmpluginsOpen	100	olmplugins
 META	x	any	olmthemeOpen	100	olmtheme
@@ -133,6 +137,7 @@ field	/	cmd	inputsourcesOpen	100	inputsources
 field	/	cmd	launcherOpen	100	launcher
 field	/	cmd	menuSearchOpen	100	menuSearch
 field	/	cmd	obsidianOpen	100	obsidian
+field	/	cmd	olmchooserOpen	100	olmchooser
 field	/	cmd	olmplacementOpen	100	olmplacement
 field	/	cmd	olmpluginsOpen	100	olmplugins
 field	/	cmd	olmthemeOpen	100	olmtheme
@@ -155,6 +160,7 @@ field	/	cmd+shift	inputsourcesOpen	100	inputsources
 field	/	cmd+shift	launcherOpen	100	launcher
 field	/	cmd+shift	menuSearchOpen	100	menuSearch
 field	/	cmd+shift	obsidianOpen	100	obsidian
+field	/	cmd+shift	olmchooserOpen	100	olmchooser
 field	/	cmd+shift	olmplacementOpen	100	olmplacement
 field	/	cmd+shift	olmpluginsOpen	100	olmplugins
 field	/	cmd+shift	olmthemeOpen	100	olmtheme
@@ -177,10 +183,10 @@ field	return	cmd	textCaseOpen	100	textCase
 hotkey	c	alt+ctrl	-	-	clipboard
 hotkey	globe	none	-	-	inputsources
 hotkey	v	alt+ctrl	-	-	clipboard
-hyper	2	any	-	-	colorPicker
+hyper	1	any	-	-	colorPicker
+hyper	2	any	-	-	capture
 hyper	3	any	-	-	capture
 hyper	4	any	-	-	capture
-hyper	4	shift	-	-	capture
 hyper	5	any	-	-	capture
 hyper	;	any	-	-	fileSearch
 hyper	e	any	-	-	menuSearch

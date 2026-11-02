@@ -31,6 +31,14 @@ struct Style {
   var radius: CGFloat = 0
   var highlightRadius: CGFloat = 0
 
+  // The text of the highlighted row when the highlight is solid, the colour AppKit draws a
+  // selected row's text in, white over the selection colour, as Finder and Spotlight do. A
+  // translucent highlight, a wash over the glass, keeps the row's own colours and answers nil.
+  var litText: NSColor? {
+    let alpha = highlight.usingColorSpace(.sRGB)?.alphaComponent ?? highlight.alphaComponent
+    return alpha >= 0.5 ? NSColor.alternateSelectedControlTextColor : nil
+  }
+
   init() {}
 
   init(_ r: LuaReader, _ t: Int32) {

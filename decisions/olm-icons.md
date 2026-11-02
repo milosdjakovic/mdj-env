@@ -57,8 +57,24 @@ a `defaults.icon` key the manifest does not declare, naming the plugin. The dry 
 coverage line per source, warns for each plugin and key with no entry for it, and refuses a
 literal `icon = "key"` in a plugin's Lua that its manifest does not declare.
 
+A row in a list of choices names no marker. It says `chosen`, true on the choice in force and
+false on the others, and `stamp` in `lib/icons/rows.lua` draws Olm's one radio pair over it,
+`circle.inset.filled` and `circle`, the keys `chosen` and `notChosen` in the actions pane's
+manifest, which the root hands the resolver as its `marks`. A list whose other rows keep a picture
+of their own, Input Sources, Audio, Display Profiles, tmux windows, leaves `chosen` unset on them.
+The dry gate refuses a plugin manifest declaring a marker by key or by a filled circle symbol.
+
 ## Rejected
 
+- **A green circle for the choice in force and a red one for the rest.** 2026-11-02 19:05. Red
+  reads as wrong on a row that is only not picked, and each plugin declared the pair itself under
+  its own keys, selected, current, active, on, so six lists carried three spellings of one marker.
+  Replaced by the radio pair Olm owns.
+- **The checkbox pair, `square` and `checkmark.square.fill`, for lists where several are on.**
+  2026-11-02 19:05. Offered beside the radio pair and not chosen. Milos picked the radio pair for
+  every list, Olm Plugins and the browser switches included.
+- **A marker a plugin declares, even one copied from the shared pair.** 2026-11-02 19:05. A copy
+  drifts the first time one list changes its glyph, which is how the six lists came to differ.
 - **Each plugin drawing its own icons.** 2026-10-15. Twelve plugins each carried an
   `emojiImage` helper over the shared drawer, and three drew canvases of their own with numbers
   that had drifted, the kit's layout at 52 points dropped 8 percent while its comment claimed
@@ -286,3 +302,15 @@ pixels in 0.07 s and 24 MB in its own process, `qlmanage -t` took 0.24 s and 67 
 on an epub, so the sips generator now takes pdf and icns beside the rasters and the hs.image
 generator is deleted. The sips path was checked on an icns too.
 
+### 2026-11-02 19:05
+
+Milos chose the radio pair, `circle.inset.filled` and `circle`, as the one marker of every list,
+after the SF Symbols on offer were listed and checked to exist on this machine. Built on the
+olm-chosen-appearance branch. A row says `chosen` and `stamp` draws the pair from the actions
+pane's manifest, which replaced its `current` green circle. Olm Theme, Olm Placement and Olm
+Plugins wear the pair on every row, the browser switches in BrowserTabs too. Input Sources, Audio,
+Display Profiles and tmux windows wear the filled ring on the one in force and keep their own
+picture on the rest. Display Profiles' Apply verb took `checkmark.circle`, since its icon had been
+the marker. Keep Awake's two rows took a sun and a moon and Workspaces' availability a group of
+rectangles and a dashed one, since neither is a choice and a filled circle now means one. The dry
+gate's new rule found nothing else.

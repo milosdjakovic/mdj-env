@@ -45,6 +45,29 @@ function M.literalKeys(text)
   return out
 end
 
+-- The marker is Olm's own, the radio pair the actions pane's manifest declares, and a row only
+-- says chosen. So a plugin that declares a marker of its own is drawing a second one, whether it
+-- names it by one of the words the old markers used or by one of the symbols a marker is drawn
+-- with. The symbols are the filled circles, a plain outline circle on its own being an ordinary
+-- glyph such as an idle state.
+local MARKER_KEYS = { chosen = true, notChosen = true, selected = true, notSelected = true,
+  current = true, active = true }
+local MARKER_SF = { ["circle.fill"] = true, ["circle.inset.filled"] = true,
+  ["largecircle.fill.circle"] = true, ["smallcircle.filled.circle"] = true,
+  ["record.circle"] = true }
+
+--- M.markerKeys(icons) -> sorted list of the keys in a plugin's icons table that declare a
+--- marker of its own, by its key or by its sf symbol.
+function M.markerKeys(icons)
+  local out = {}
+  for key, spec in pairs(type(icons) == "table" and icons or {}) do
+    local sf = type(spec) == "table" and spec.sf or nil
+    if MARKER_KEYS[key] or (type(sf) == "string" and MARKER_SF[sf]) then out[#out + 1] = key end
+  end
+  table.sort(out)
+  return out
+end
+
 --- M.sourceNames(paths) -> sorted list of the icon source names, the file names under
 --- lib/icons/sources/ in a list of paths, since a source is a file there and nowhere else.
 function M.sourceNames(paths)

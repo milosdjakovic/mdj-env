@@ -16,12 +16,12 @@ return {
     license = "MIT",
   },
 
-  -- A green circle reads as go, a red one as stop, a clock as an absolute time, a timer
+  -- A sun reads as stay awake, a moon as sleep again, a clock as an absolute time, a timer
   -- as a span, a keyboard as the prompt to keep typing and a warning triangle as the error.
   -- The rows name these and Olm draws them, in whichever icon set is active.
   icons = {
-    on = { emoji = "🟢", sf = "circle.fill" },
-    off = { emoji = "🔴", sf = "circle" },
+    on = { emoji = "☀️", sf = "sun.max" },
+    off = { emoji = "💤", sf = "moon.zzz" },
     clock = { emoji = "🕒", sf = "clock" },
     duration = { emoji = "⏳", sf = "timer" },
     hint = { emoji = "⌨️", sf = "keyboard" },

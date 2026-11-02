@@ -250,9 +250,15 @@ do
   check("every key badge is the derived 34 high and square, 34 wide",
     #boxes == 3 and boxes[1].h == 34 and boxes[1].w == 34, boxes[1] and boxes[1].h .. "x" .. boxes[1].w)
 
+  -- A text element is styledtext from the kit's text node, or a plain string with its own font
+  -- and size from the key cap, lib/ui/keycap.lua, which draws a key's glyphs as the bar does.
+  local function sizeOf(el)
+    if type(el.text) == "string" then return el.textSize end
+    return el.text:asTable()[2].attributes.font.size
+  end
   local sizes = {}
   for _, el in ipairs(built.els) do
-    if el.text then sizes[#sizes + 1] = el.text:asTable()[2].attributes.font.size end
+    if el.text then sizes[#sizes + 1] = sizeOf(el) end
   end
   check("the section title is 14 and every label and key glyph is body 16",
     sizes[1] == 14 and sizes[2] == 16 and sizes[3] == 16, table.concat(sizes, ","))
@@ -275,7 +281,7 @@ do
   local ab = alt:_build()
   local altSizes = {}
   for _, el in ipairs(ab.els) do
-    if el.text then altSizes[#altSizes + 1] = el.text:asTable()[2].attributes.font.size end
+    if el.text then altSizes[#altSizes + 1] = sizeOf(el) end
   end
   check("a content sized row draws its separator word in caption 14 between body 16 glyphs",
     altSizes[1] == 16 and altSizes[2] == 14 and altSizes[3] == 16 and altSizes[4] == 16,

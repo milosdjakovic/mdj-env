@@ -164,7 +164,7 @@ function View:restyle()
     badge = T.colors[text.section.color],
     -- The chip every chord stands on, the foreground faded so it reads on the glass, on a lit
     -- group and on a highlighted line alike.
-    keycap = faded(T.colors.foreground, T.alpha.keycap),
+    keycap = UI.keycapColor(T),
     divider = T.colors.border,
     fieldFont = font(face.fieldFont, face.fieldSize),
     titleFont = font(face.font, face.textSize),

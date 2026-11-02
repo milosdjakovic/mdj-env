@@ -15,13 +15,11 @@ return {
     license = "MIT",
   },
 
-  -- The row icons. A plugin row carries only a circle, never a checkmark, the one marker
-  -- convention this codebase uses for which state is current. Green is on and red is off.
+  -- The row icons. A plugin row says chosen when it is on and wears Olm's own radio pair, the
+  -- one marker every list shares, so no marker is declared here.
   icons = {
     plugins = { emoji = "🧩", sf = "puzzlepiece.extension" },
     apply = { emoji = "🔄", sf = "arrow.clockwise" },
-    selected = { emoji = "🟢", sf = "circle.fill" },
-    notSelected = { emoji = "🔴", sf = "circle" },
   },
 
   needs = {

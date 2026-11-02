@@ -229,3 +229,61 @@ do
     c.foreground.red == 1 and math.abs(c.foreground.alpha - 128 / 255) < 1e-6)
   check("style still reads a six digit hex as opaque", c.background.alpha == 1)
 end
+
+--------------------------------------------------------------------------------
+-- a store over a chooser's own palette, and the appearance a chooser declares
+--------------------------------------------------------------------------------
+
+do
+  local s, warnings = store({ ["glass.toml"] = DEFAULT_FILE }, nil, { default = "glass" })
+  check("a store takes its own default theme", s.current() == "glass"
+    and s.colors().dark.foreground == "#111111" and #warnings == 0, tostring(warnings[1]))
+  local keyed, _, set = store({ ["default.toml"] = DEFAULT_FILE }, nil, { settingsKey = "otherKey" })
+  keyed.set("default")
+  check("a store persists under its own settings key", set.otherKey == "default" and set.olmTheme == nil)
+end
+
+local appearanceLib = fresh("appearance.lua")
+
+do
+  local canvas = store({ ["default.toml"] = DEFAULT_FILE, ["aura.toml"] = DEFAULT_FILE })
+  local a = appearanceLib.new({ declared = { kind = "themes", label = "Canvas theme" }, themes = canvas })
+  check("a themes appearance offers every theme file", #a.names() == 2 and a.names()[1] == "aura")
+  check("a themes appearance names itself", a.label() == "Canvas theme")
+  check("a themes appearance answers the store's colours", a.colors() == canvas.colors())
+end
+
+do
+  local palette = store({ ["glass.toml"] = DEFAULT_FILE }, nil, { default = "glass" })
+  local settings, applied = {}, {}
+  local accent = "#0a60ff"
+  local declared = { kind = "highlight", label = "Glass highlight", settingsKey = "glassKey",
+    default = "olm",
+    choices = { { name = "olm", title = "Olm highlight" },
+                { name = "macos", title = "macOS highlight", highlight = "system" } } }
+  local a = appearanceLib.new({ declared = declared, palette = palette,
+    store = { get = function(k) return settings[k] end, set = function(k, v) settings[k] = v end },
+    accent = function() return accent end,
+    apply = function(colors) applied[#applied + 1] = colors end,
+    log = { w = function() end } })
+  check("a highlight appearance offers its choices in order", #a.names() == 2
+    and a.names()[1] == "Olm highlight" and a.names()[2] == "macOS highlight")
+  check("a highlight appearance starts on its default", a.current() == "Olm highlight")
+  check("the palette's own highlight stands before the accent is chosen",
+    a.colors().dark.highlight == "#555555" and a.colors().light.highlight == "#eeeeee")
+  check("refresh does nothing while the accent is not followed", a.refresh() == false and #applied == 0)
+  check("choosing the system highlight persists its name and applies", a.set("macOS highlight")
+    and settings.glassKey == "macos" and #applied == 1)
+  check("the system highlight is the selection colour, solid",
+    a.colors().dark.highlight == "#0a60ff" and a.colors().light.highlight == "#0a60ff")
+  check("every other role is the palette's", a.colors().dark.foreground == "#111111")
+  accent = "#ff2d55"
+  check("refresh applies again with the new accent", a.refresh() == true and #applied == 2
+    and applied[2].dark.highlight == "#ff2d55")
+  accent = nil
+  check("an accent the machine cannot answer leaves the palette's highlight",
+    a.colors().dark.highlight == "#555555")
+  check("a title not offered is refused", a.set("Aura") == false and settings.glassKey == "macos")
+  settings.glassKey = "gone"
+  check("a stored choice no longer offered reads as the default", a.current() == "Olm highlight")
+end

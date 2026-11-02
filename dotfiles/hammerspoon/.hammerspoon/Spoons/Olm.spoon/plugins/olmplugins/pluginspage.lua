@@ -13,10 +13,6 @@
 
 local M = {}
 
--- The icon keys, declared with their glyphs in the manifest.
-M.ICON_ON = "selected"
-M.ICON_OFF = "notSelected"
-
 local function titleOf(entry)
   return tostring((entry.about or {}).title or entry.identity)
 end
@@ -121,10 +117,12 @@ end
 function M.rows(catalog, row, selfIdentity)
   local rows = {}
   for _, entry in ipairs(catalog or {}) do
-    rows[#rows + 1] = row(titleOf(entry), M.words(entry, catalog, selfIdentity),
-      M.isOff(entry) and M.ICON_OFF or M.ICON_ON,
+    local r = row(titleOf(entry), M.words(entry, catalog, selfIdentity), nil,
       { plugin = entry.identity, key = entry.identity, toggle = M.toggleable(entry, selfIdentity) },
       true, titleOf(entry) .. " " .. tostring(entry.identity))
+    -- On or off is the marker Olm draws, a plugin that is on is the chosen ring.
+    r.chosen = not M.isOff(entry)
+    rows[#rows + 1] = r
   end
   return rows
 end

@@ -41,8 +41,11 @@ return {
     keys = { emoji = "⌨️", sf = "keyboard" },
     -- The row of more the chooser's engine ends a list its limit cut with, Show 27 more.
     more = { emoji = "…", sf = "ellipsis" },
-    -- The choice in force in a level a verb opens, the green circle every list marks it with.
-    current = { emoji = "🟢", sf = "circle.fill" },
+    -- Olm's radio pair, the one marker every pick one list shows, the choice in force filled
+    -- and every other choice an empty ring. A row says chosen and lib/icons/rows.lua draws
+    -- these, so no plugin declares a marker of its own. Chosen by Milos on 2026-11-02.
+    chosen = { emoji = "🔘", sf = "circle.inset.filled" },
+    notChosen = { emoji = "⚪", sf = "circle" },
   },
 
   needs = {

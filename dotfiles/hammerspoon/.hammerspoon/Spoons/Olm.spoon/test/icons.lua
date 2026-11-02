@@ -202,6 +202,28 @@ do
   check("the order drops a repeated name", table.concat(configLib.order({ set = "emoji", fallback = "emoji" }), ","), "emoji")
 end
 
+-- The radio pair, Olm's own marker, which a row in a pick one list asks for by saying chosen.
+do
+  local engine = icons.new({ sources = { fake("emoji") }, order = { "emoji" } })
+  local resolver = rowsLib.new({
+    engine = engine, points = 72,
+    declared = function(owner)
+      return owner == "olm" and { chosen = { emoji = "X" }, notChosen = { emoji = "O" } } or nil
+    end,
+    marks = { owner = function() return "olm" end, chosen = "chosen", notChosen = "notChosen" },
+  })
+  local on = { title = "on", chosen = true, icon = "flag" }
+  local stamped = resolver.stamp(on, "plugin")
+  check("a chosen row wears Olm's filled ring over its own icon", stamped.icon, "chosen")
+  check("and reads it against Olm's own manifest", stamped.iconOwner, "olm")
+  check("the plugin's own chosen row is not mutated", on.icon, "flag")
+  check("a row not chosen wears the empty ring", resolver.stamp({ chosen = false }, "plugin").icon, "notChosen")
+  check("a row stamped once is not copied again", resolver.stamp(stamped, "plugin"), stamped)
+  local keep = { icon = "flag" }
+  check("a row with chosen unset keeps its own icon", resolver.stamp(keep, "plugin").icon, "flag")
+  check("the ring resolves through the engine", resolver.image(stamped.icon, stamped.iconOwner).value, "X")
+end
+
 -- The row resolver.
 do
   local engine = icons.new({ sources = { fake("emoji") }, order = { "emoji" } })

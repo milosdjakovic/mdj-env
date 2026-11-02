@@ -14,11 +14,10 @@ return {
     license = "MIT",
   },
 
-  -- The row icons, named by the rows and drawn by Olm. The green circle marks the source in
-  -- use, the marker every list here uses for the live choice.
+  -- The row icons, named by the rows and drawn by Olm. The source in use says chosen and wears
+  -- Olm's own filled ring, the marker every list shares, so none is declared here.
   icons = {
     inputsources = { emoji = "⌨️", sf = "keyboard" },
-    current = { emoji = "🟢", sf = "circle.fill" },
     layout = { emoji = "🔤", sf = "character.textbox" },
     method = { emoji = "💬", sf = "character.bubble" },
   },

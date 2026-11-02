@@ -20,6 +20,7 @@ end
 local styleLib = load("style.lua")
 local measureLib = load("measure.lua")
 local kitLib = load("kit.lua")
+local keycapLib = load("keycap.lua")
 local layoutLib = load("layout.lua")
 
 local style = styleLib.new()
@@ -90,6 +91,17 @@ end
 --- below square. A highlighted row inside a surface takes its radius from here, and so does
 --- anything else drawn near an edge that should follow the surface's rounding.
 ui.nestedRadius = styleLib.nestedRadius
+
+--- ui.keycapColor(T, factor) -> the fill of a key chip, the one rule every chip follows, see
+--- lib/ui/style.lua. The bottom bar, its floating panes and the glass bar call it, and the
+--- kit's own badge does too, so a change to how a key looks reaches all of them at once.
+ui.keycapColor = styleLib.keycapColor
+
+--- ui.keycapWidth(T, chords, size, opts) -> the width a kit.keycap node takes for these chords, so
+--- a caller lining labels up past a column of keys measures them by the one rule that draws them.
+function ui.keycapWidth(T, chords, size, opts)
+  return keycapLib.width(measure, T, chords, size, opts)
+end
 
 --- ui.iconImage(imageOrGlyph, size) -> hs.image or nil, size an icon name. The image an
 --- icon node draws, for a native chooser row that wants the same picture.

@@ -8,7 +8,8 @@ a component names one of them, and a theme file answers exactly those eight.
 The roles are foreground, subtext, background, border, highlight, primary, secondary and
 tertiary. foreground is text you read, subtext is text you glance at, background fills every
 panel, border is an outline, a divider and a graph baseline, and highlight is the bar under the
-list cursor, the tint behind selected text in the field and the fill of a key chip. The three
+list cursor and the tint behind selected text in the field. A key chip, on a cheat sheet as in
+the bottom bar and its panes, is the foreground at the keycap alpha, one rule for every chip. The three
 accents are ranks, so a graph takes its series in that order, and they carry no meaning such as
 success or error. A faded look is an alpha laid over a role, never a ninth colour.
 
@@ -26,8 +27,32 @@ faint baseline into border, surface into background, selection and badge into hi
 into foreground, outline into border since it only draws the edge of the colour toast's swatch,
 and note into an accent by rank or into subtext when it was text.
 
+Which colours are live belongs to the chooser that serves. Each provider declares an
+`appearance`, and `lib/ui/appearance.lua` is its one reader. The canvas declares themes, every file
+under `config/themes`. The glass declares a highlight, its own palette in
+`lib/chooser/providers/swift/palette/glass.toml` with only the highlight role chosen, its own wash
+or the accent colour set in System Settings at alpha 59, reapplied when that accent changes. The
+eight roles are the same eight either way.
+
 ## Rejected
 
+- **The highlight as the fill of a key chip.** 2026-11-02 19:40, reported by Milos once the solid
+  macOS highlight painted every cheat sheet chip blue. A chip is a key, the same thing the bottom
+  bar, the info pane and the actions pane draw, and those already drew it as the foreground at the
+  keycap alpha. The kit's badge was the one chip on the highlight, so the two rules had diverged.
+- **Finder's sidebar selection colour for the macOS highlight.** 2026-11-02 19:30.
+  `selectedContentBackgroundColor` read as a darker blue than a menu's selected item, which is
+  what Milos compared it with. The accent itself, `controlAccentColor`, is what a menu fills.
+- **The macOS highlight as a wash of the accent at alpha 59.** 2026-11-02 19:25. Built first and
+  read as transparent. Milos wanted it solid, as macOS draws a selection, and the lit row's text
+  turns white on it as AppKit's does.
+
+- **One theme list for both choosers, glass among the themes.** 2026-11-02 19:05. A painted
+  theme over glass covers the glass, and the glass palette offered beside Aura on the canvas was a
+  theme made for a surface the canvas does not have. Each chooser now offers its own.
+- **A ninth role for the system accent.** 2026-11-02 19:05. The accent answers the highlight role
+  on the glass and nothing else, so it is a value of a role and not a new name every theme must
+  answer.
 - **A larger set mirroring the whole repository vocabulary.** 2026-10-14. Carrying all sixteen
   roles of `theme/VOCABULARY` into Olm would give more names than Olm has uses for, and every
   name needs an answer in every theme and a decision from every plugin author about which one
@@ -80,3 +105,33 @@ background colour, because the canvas chooser fills its whole panel with it and 
 a translucent fill showed the desktop sharp through the list. On glass it fills only the key
 panel. A first version had it at sixty percent and was changed the same session for that
 reason. The default theme was left as it is, since it also paints the canvas surfaces.
+
+### 2026-11-02 19:05
+
+Milos asked for the look to belong to the chooser, the canvas fully themed and the glass choosing
+only its highlight, Olm's own or the one macOS has, with a setting to switch between the two
+choosers. Built on the olm-chosen-appearance branch. `glass.toml` moved from `config/themes` into
+the swift provider. The store in `lib/ui/themes.lua` takes its own default name and settings key
+so it can serve that one file. The Olm Theme list reads the chooser in use through four root
+words and names what it offers in its field, and the new Olm Chooser list picks the provider,
+persisted under `olmChooser` and applied by one reload. A stored `olmTheme` of glass is forgotten
+once at load, since the canvas no longer offers it. `AppleColorPreferencesChangedNotification`
+reapplies the macOS highlight when the accent changes, through one watcher kept for the life of
+the config.
+
+### 2026-11-02 19:40
+
+Live on the test lock with Milos. The macOS highlight is the accent, solid, and the glass list
+draws the lit row's text in `alternateSelectedControlTextColor` whenever its highlight is solid,
+decided in Swift from the colour's alpha so no colour literal reaches Lua. The kit's badge, the
+cheat sheet's key chip, moved off the highlight onto the key cap rule the bar already used, so the
+highlight role is now the cursor bar and the field's selection tint and nothing else. The first
+wash and the sidebar colour are in Rejected.
+
+### 2026-11-02 19:50
+
+Milos asked for the key cap rule to be deterministic in code rather than three copies that agree.
+`keycapColor` in `lib/ui/style.lua` is now the one fill of a key chip, exposed as `ui.keycapColor`,
+and the canvas bottom bar, the glass view and the kit's badge all call it. The dry gate refuses a
+read of `alpha.keycap` outside `lib/ui`, proven by planting one in `bottombar.lua`, and a unit
+case in `test/cases/uikit.lua` holds that a badge does not change with the highlight.

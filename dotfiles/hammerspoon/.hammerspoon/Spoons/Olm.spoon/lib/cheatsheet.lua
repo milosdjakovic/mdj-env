@@ -117,47 +117,11 @@ function obj.glyphFor(key, mods)
   return kbd.binding(key, mods)
 end
 
--- A badge's text, the chord's glyphs with nothing between them. A badge that is not a chord is
--- refused, since a string would carry its own spacing.
-local function badgeText(b)
-  if not kbd.isChord(b) then
-    error("CheatSheet: a badge is a kbd chord, got " .. type(b) .. " " .. tostring(b), 3)
-  end
-  return kbd.text(b)
-end
-
--- Content-sized badges. A row may carry `badges`, a list of key strings, instead
--- of a single `badge`. Each is drawn as its own box hugging its text, with a
--- separator between, so alternate keys read as distinct boxes rather than one
--- wide badge. This is opt-in: rows with a plain `badge` string keep the fixed
--- width path, so the other overlays are unchanged.
-local BADGE_SEP = "or" -- default word between a row's badges, overridable per row
-local SEP_GAP = 8 -- gap on each side of the separator
-
--- Rendered width of text in one of the kit's text variants, measured whole through the kit,
--- so a box can hug its key.
-local function measureW(ui, text, variant)
-  return ui.measure:exact(tostring(text), variant.font, variant.size)
-end
-
--- Boxes for a `badges` row and the total block width, so labels can align past
--- the widest block. Each box is at least `minH` wide, so a lone glyph stays
--- square rather than a sliver. padX is the cheat badge's own padding token, glyph the text
--- variant the key is drawn in and sepVariant the one the separator word is.
-local function badgeBoxes(ui, r, glyph, sepVariant, padX, minH)
-  local boxes, total = {}, 0
-  for _, b in ipairs(r.badges) do
-    local text = badgeText(b)
-    local w = math.max(minH, math.floor(measureW(ui, text, glyph) + 2 * padX + 0.5))
-    boxes[#boxes + 1] = { text = text, w = w }
-    total = total + w
-  end
-  local sep = r.sep or BADGE_SEP
-  local sepW = math.floor(measureW(ui, sep, sepVariant) + 0.5)
-  total = total + (#boxes - 1) * (SEP_GAP + sepW + SEP_GAP)
-  return boxes, total, sep, sepW
-end
-
+-- A row's keys are a kit key cap, lib/ui/keycap.lua, the one way a key is drawn, the same chips the
+-- bottom bar and its floating panes draw. A row carries `badge`, one kbd chord, drawn in the square
+-- column, or `badges`, a list of chords, the keys a person may press for one thing, drawn as one
+-- chip each with the kit's separator between them and every label in the section aligned past
+-- the widest block. A chip held to the column grows when its keys need more room.
 local function rowsFor(n, columns)
   return math.ceil(n / columns)
 end
@@ -215,7 +179,6 @@ end
 function obj:_rowsElements(els, rows, contentY, L, alpha, T)
   local ui = self._ui
   local v = T.text.body
-  local sepV = T.text.caption
   local wordWrap = ui.lineBreaks.wordWrap
 
   -- The model owns the badge height and the icon size, so the tokens this section draws
@@ -246,7 +209,7 @@ function obj:_rowsElements(els, rows, contentY, L, alpha, T)
   local maxBlock = 0
   for _, r in ipairs(rows) do
     if r.badges then
-      local _, total = badgeBoxes(ui, r, v, sepV, T.badge.cheat.padX, L.badgeHeight)
+      local total = ui.keycapWidth(T, r.badges, "cheat", { width = L.badgeHeight })
       if total > maxBlock then maxBlock = total end
     end
   end
@@ -260,24 +223,14 @@ function obj:_rowsElements(els, rows, contentY, L, alpha, T)
     local labelX
 
     if r.badges then
-      local boxes, _, sep, sepW = badgeBoxes(ui, r, v, sepV, T.badge.cheat.padX, L.badgeHeight)
-      local bx = x
-      for bi, b in ipairs(boxes) do
-        self:_place(els, ui.badge(b.text, "cheat", { fill = true }), bx, badgeTop, b.w,
-          L.badgeHeight, alpha, T)
-        bx = bx + b.w
-        if bi < #boxes then
-          self:_place(els, ui.text(sep, "caption", { align = ui.aligns.center,
-            lineBreak = wordWrap }), bx + SEP_GAP,
-            badgeTop + (L.badgeHeight - sepV.lineHeight) / 2, sepW, sepV.lineHeight, alpha, T)
-          bx = bx + SEP_GAP + sepW + SEP_GAP
-        end
-      end
+      self:_place(els, ui.keycap(r.badges, "cheat", { width = L.badgeHeight }), x, badgeTop, maxBlock,
+        L.badgeHeight, alpha, T)
       labelX = x + maxBlock + L.gap
     else
-      self:_place(els, ui.badge(badgeText(r.badge), "cheat", { fill = true }), x, badgeTop, L.badgeWidth,
+      local w = math.max(L.badgeWidth, ui.keycapWidth(T, r.badge, "cheat", { width = L.badgeWidth }))
+      self:_place(els, ui.keycap(r.badge, "cheat", { width = L.badgeWidth }), x, badgeTop, w,
         L.badgeHeight, alpha, T)
-      labelX = x + L.badgeWidth + L.gap
+      labelX = x + w + L.gap
     end
 
     if L.iconSize > 0 and r.icon then

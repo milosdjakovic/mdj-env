@@ -129,6 +129,10 @@ final class RowCell: NSView {
     needsLayout = true
   }
 
+  // Whether this cell's row is the highlighted one, set by the list before each fill, since the
+  // text of a row lit by a solid highlight is drawn in the selection's text colour.
+  var lit = false
+
   func fill(_ row: Row, slot: Int?, style: Style, lineBreak: NSLineBreakMode) {
     if row.image !== source {
       source = row.image
@@ -148,6 +152,11 @@ final class RowCell: NSView {
     number.textColor = style.number
     number.stringValue = slot.map { "\(style.numberKey)\($0)" } ?? ""
     number.isHidden = slot == nil
+    if lit, let on = style.litText {
+      title.textColor = on
+      subtitle.textColor = on.withAlphaComponent(0.8)
+      number.textColor = on.withAlphaComponent(0.8)
+    }
     needsLayout = true
   }
 
@@ -394,6 +403,7 @@ final class ListView: FlippedView, NSTableViewDataSource, NSTableViewDelegate {
 
   private func fill(_ cell: RowCell, row: Int) {
     cell.placement = placement
+    cell.lit = row == highlight - 1
     let slot = state.slots.firstIndex(of: row + 1).map { $0 + 1 }
     cell.fill(rows[row], slot: placement.showNumbers ? slot : nil, style: style, lineBreak: state.lineBreak)
   }
@@ -585,8 +595,14 @@ final class ListView: FlippedView, NSTableViewDataSource, NSTableViewDelegate {
   }
 
   private func relight() {
+    let recolour = style.litText != nil
     table.enumerateAvailableRowViews { view, index in
       (view as? LitRowView)?.lit = index == self.highlight - 1
+      // A solid highlight changes the lit row's text, so the cells whose lit state moved are
+      // filled again. A translucent one leaves the text alone and costs nothing here.
+      if recolour, let cell = view.view(atColumn: 0) as? RowCell, cell.lit != (index == self.highlight - 1) {
+        self.fill(cell, row: index)
+      }
     }
   }
 

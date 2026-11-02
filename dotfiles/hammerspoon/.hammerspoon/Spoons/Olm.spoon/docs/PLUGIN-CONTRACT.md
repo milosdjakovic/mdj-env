@@ -150,11 +150,16 @@ the rest of the manifest.
 
 ```lua
 icons = {
-  on = { emoji = "🟢", sf = "circle.fill" },
+  connect = { emoji = "🟢", sf = "shield" },
 },
 ```
 
-A row says `icon = "on"` and the stage, and the query scope for launcher scope rows, resolve it
+A row of a list of choices names no marker. It says `chosen = true` or `chosen = false`, and
+stamping draws Olm's own radio pair over it, read against the actions pane's manifest, see
+`lib/icons/rows.lua`. The dry gate refuses a plugin manifest that declares a marker of its own,
+by a marker's key or by a filled circle symbol.
+
+A row says `icon = "connect"` and the stage, and the query scope for launcher scope rows, resolve it
 against the icons of the plugin that owns the presentation or the scope, through
 `lib/icons/rows.lua`. A row may instead carry a table spec such as `icon = { emoji = flag }` for
 a glyph that is content, and a row that carries an `image` keeps it. The registrar refuses a
@@ -1086,7 +1091,7 @@ listed in its `panel`, since every reader of a binding reads its key.
   one shown. The secondary may carry `applies` too.
 - `choices`, the name of a method of the plugin's surface, called with that row, answering a list
   of `{ title, subtitle, icon, value, current, enabled }`. Choosing the verb opens them as a level
-  of the panel, `current` marked with the green circle, and choosing one runs the verb with its
+  of the panel, `current` wearing Olm's filled ring and a choice with no icon the empty one, and choosing one runs the verb with its
   `value`. A choice answering `enabled = false` is drawn dimmed and chooses nothing, for an option
   this machine cannot take, worth seeing rather than hiding. The subtitle sits where a chord does,
   on the right, so it is a word or two.

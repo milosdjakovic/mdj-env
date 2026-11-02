@@ -61,7 +61,9 @@ local function rows()
     out[#out + 1] = {
       title = s.name,
       subTitle = s.current and "In use" or s.kind,
-      icon = s.current and "current" or s.icon,
+      icon = s.icon,
+      -- The source in use wears Olm's filled ring, the others keep their own picture.
+      chosen = s.current or nil,
       filterText = s.name,
       key = s.id,
       item = { id = "source", sourceID = s.id, name = s.name },

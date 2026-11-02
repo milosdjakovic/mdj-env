@@ -28,11 +28,15 @@ local M = {}
 --- opts.declared  function of an owner identity answering that plugin's icons table or nil.
 --- opts.points    the side the image is drawn at, what a chooser row scales down from.
 --- opts.log       optional table with w, the warning sink.
+--- opts.marks     optional { owner, chosen, notChosen }, Olm's own radio pair, the two keys and
+---                the identity whose manifest declares them, a function when the identity is
+---                only known after the resolver is built. A row saying chosen is drawn with it.
 function M.new(opts)
   local engine = assert(opts.engine, "icons.rows, new needs an engine")
   local declared = assert(opts.declared, "icons.rows, new needs a declared function")
   local points = opts.points
   local log = opts.log
+  local marks = opts.marks
   local warned = {}
   local instance = {}
 
@@ -84,7 +88,22 @@ function M.new(opts)
   --- instance.stamp(row, owner) -> row
   --- The row itself when it needs nothing, a shallow copy with iconOwner set when it names an
   --- icon, carries no picture and names no owner yet. It never draws anything.
+  ---
+  --- A row in a pick one list says chosen, true on the choice in force and false on the others,
+  --- and never names the marker. Olm owns it, the radio pair every list shares, so the copy takes
+  --- Olm's own key and owner over whatever icon the row named. A row of such a list that keeps a
+  --- picture of its own on the rows not chosen, a flag or a device kind, leaves chosen unset there.
   function instance.stamp(row, owner)
+    if type(row) == "table" and row.chosen ~= nil and marks then
+      local markOwner = marks.owner
+      if type(markOwner) == "function" then markOwner = markOwner() end
+      local key = row.chosen and marks.chosen or marks.notChosen
+      if row.icon == key and row.iconOwner == markOwner then return row end
+      local copy = {}
+      for k, v in pairs(row) do copy[k] = v end
+      copy.icon, copy.iconOwner = key, markOwner
+      return copy
+    end
     if type(row) ~= "table" or row.icon == nil or row.image ~= nil or row.iconOwner ~= nil then
       return row
     end

@@ -67,7 +67,8 @@ return {
   defaults = {
     leader = "app",
     -- The open key, a bindings row whose action is open, on the leader above.
-    bindings = { { action = "open", key = "2" } },
+    -- 1, first of the capture row, colour picker, OCR, screenshot, screenshot copy, record.
+    bindings = { { action = "open", key = "1" } },
     description = "Color picker",
   },
 

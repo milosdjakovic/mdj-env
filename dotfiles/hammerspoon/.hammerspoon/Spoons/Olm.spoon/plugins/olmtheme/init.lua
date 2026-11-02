@@ -1,8 +1,10 @@
 --- === Olm Theme ===
 ---
---- The colour theme, one row per theme file under config/themes, applied the moment it is chosen.
---- The mechanism lives in lib/ui/themes.lua and reaches this plugin as three root published
---- words, themeName, themeNames and setTheme.
+--- The look of the chooser that serves, applied the moment it is chosen. Each chooser says what it
+--- offers, the canvas every theme file under config/themes and the glass its two highlights, and
+--- this list shows whichever rows the serving one offers without knowing which that is. The
+--- mechanism lives in lib/ui/appearance.lua and reaches this plugin as four root published words,
+--- themeName, themeNames, setTheme and themeLabel.
 ---
 --- It was the second page of the OLM settings plugin until 2026-10-27, when that plugin was split
 --- into Olm Placement, this and Olm Plugins, so each opens its list straight from its launcher row.
@@ -17,19 +19,15 @@ local SELF = debug.getinfo(1, "S").source:sub(2):match("([^/]+)/[^/]+$")
 
 local cfg = {}
 
--- Green marks the live theme and red every other, never a checkmark.
-local ICON_SELECTED = "selected"
-local ICON_NOT_SELECTED = "notSelected"
-
 --- M.rows() -> rows
---- One row per theme the store found, rebuilt on every redraw, so a theme file added since the
---- list opened shows up on the next one and the circle follows whichever name is live.
+--- One row per look the serving chooser offers, rebuilt on every redraw, so a theme file added
+--- since the list opened shows up on the next one and the ring follows whichever name is live.
 function M.rows()
   local live = cfg.readTheme and cfg.readTheme()
   local rows = {}
   for _, name in ipairs((cfg.readThemeNames and cfg.readThemeNames()) or {}) do
     rows[#rows + 1] = { title = name,
-      icon = name == live and ICON_SELECTED or ICON_NOT_SELECTED,
+      chosen = name == live,
       item = { theme = name, key = name } }
   end
   return rows
@@ -53,7 +51,7 @@ function M.intercept(item)
 end
 
 function M.placeholder()
-  return "Theme"
+  return (cfg.label and cfg.label()) or "Theme"
 end
 
 --- M.show()
@@ -72,9 +70,12 @@ end
 --- opts.themeNames    required, a function of no arguments answering the sorted names.
 --- opts.setTheme      required, a function of a theme name, applying it at once and persisting
 ---                    it through lib/ui/themes.lua.
+--- opts.themeLabel    optional, a function answering what the field says, Canvas theme or Glass
+---                    highlight, so the list names what it offers.
 --- opts.stagePresent  optional, the shared stage door M.show asks through.
 function M:configure(opts)
   opts = opts or {}
+  cfg.label = opts.themeLabel
   cfg.readTheme = opts.themeName
   cfg.readThemeNames = opts.themeNames
   cfg.setTheme = opts.setTheme

@@ -14,9 +14,9 @@ return {
     license = "MIT",
   },
 
-  -- The row icons, named by the rows and drawn by Olm.
+  -- The row icons, named by the rows and drawn by Olm. The device in use says chosen and wears
+  -- Olm's own filled ring, the marker every list shares, so none is declared here.
   icons = {
-    current = { emoji = "✅", sf = "checkmark.circle" },
     output = { emoji = "🔊", sf = "speaker.wave.3" },
     input = { emoji = "🎙️", sf = "mic" },
     warn = { emoji = "⚠️", sf = "exclamationmark.triangle" },

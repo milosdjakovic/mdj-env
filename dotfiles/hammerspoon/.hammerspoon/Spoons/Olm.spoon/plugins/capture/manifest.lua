@@ -88,10 +88,12 @@ return {
     -- where the screenshot actions have always been. A person moves them in
     -- config/plugins.lua like any default.
     launcherOrder = 10,
+    -- One key each, in a row after the colour picker on 1, so every capture has a single
+    -- shortcut and none hides behind Shift. Set by Milos on 2026-11-02.
     bindings = {
-      { action = "ocrArea", key = "3" },
+      { action = "ocrArea", key = "2" },
+      { action = "captureArea", key = "3" },
       { action = "captureAreaClipboard", key = "4" },
-      { action = "captureArea", key = "4", mods = { "shift" } },
       { action = "recordArea", key = "5" },
     },
   },

@@ -315,7 +315,8 @@ end
 
 -- The rows of the level a verb opens, its choices or its confirm, docs/PLAN-ACTION-PANEL.md. A
 -- confirm leads with Cancel, since a stray Return then does the harmless thing. A choice in force
--- carries the green circle every list marks its current row with. A choice answering enabled
+-- wears Olm's filled ring and a choice with no icon of its own the empty one, the radio pair every
+-- list marks its choices with. A choice answering enabled
 -- false is shown dimmed and chooses nothing, for an option this machine cannot take right now,
 -- which is worth seeing rather than hiding.
 function obj:_levelRows(verb)
@@ -339,7 +340,11 @@ function obj:_levelRows(verb)
   for _, c in ipairs(type(choices) == "table" and choices or {}) do
     local title = tostring(c.title or c.value or "")
     local icon, owner = c.icon, verb.owner
-    if c.current then icon, owner = "current", self._owner end
+    -- A choice in force wears Olm's filled ring, and a choice with no picture of its own the
+    -- empty one, so a pick of a few reads as a radio group. lib/icons/rows.lua draws both.
+    local chosen = nil
+    if c.current then chosen = true elseif icon == nil then chosen = false end
+    if chosen ~= nil then icon, owner = (chosen and "chosen" or "notChosen"), self._owner end
     local enabled = c.enabled ~= false
     rows[#rows + 1] = { title = title, subTitle = c.subtitle, icon = icon, iconOwner = owner,
                         filterText = title, enabled = enabled,

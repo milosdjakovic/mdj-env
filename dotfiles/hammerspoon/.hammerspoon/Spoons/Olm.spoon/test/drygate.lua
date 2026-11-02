@@ -742,6 +742,22 @@ do
     end
   end
 
+  -- The third is the marker rule. A row in a pick one list says chosen and Olm draws its own
+  -- radio pair, so a plugin's manifest declaring a marker is a second marker. Hosts are Olm and
+  -- the actions pane is where the pair lives, so only plugins are read.
+  for _, path in ipairs(paths) do
+    local rel = path:sub(1, #spoonDir) == spoonDir and path:sub(#spoonDir + 1) or path
+    local dir = rel:match("^plugins/([^/]+)/manifest%.lua$")
+    local manifest = dir and manifestsByDir[dir]
+    if manifest then
+      for _, key in ipairs(iconsScan.markerKeys(manifest.icons)) do
+        finding(string.format(
+          "dry gate refused '%s', icons.%s declares a selection marker, a row says chosen = true or false and Olm draws its own radio pair, see lib/icons/rows.lua",
+          rel, key))
+      end
+    end
+  end
+
   local declared = {}
   local dirs = {}
   for dir in pairs(manifestsByDir) do dirs[#dirs + 1] = dir end
@@ -776,6 +792,35 @@ do
       for _, item in ipairs(report.missing[source]) do
         warning(string.format("icon coverage, '%s' has no %s entry", item, source))
       end
+    end
+  end
+end
+
+----------------------------------------------------------------------------------------
+-- Seven and a half, the key cap rule. Every chip a key stands on is filled by one function,
+-- keycapColor in lib/ui/style.lua, which the bottom bar, its floating panes, the glass bar and the
+-- kit's badge all call, so a change to how a key looks reaches every one of them. A file that
+-- reads the keycap alpha itself is computing a chip on its own and can drift, the way the cheat
+-- sheet's badge once filled with the highlight while every other chip did not. DRYGATE_SOURCES
+-- already leaves lib/ui out, which is where the rule lives.
+----------------------------------------------------------------------------------------
+
+do
+  local list = os.getenv("DRYGATE_SOURCES")
+  for path in (list or ""):gmatch("[^\n]+") do
+    local rel = path:sub(1, #spoonDir) == spoonDir and path:sub(#spoonDir + 1) or path
+    local f = io.open(path, "r")
+    if f then
+      local n = 0
+      for line in f:lines() do
+        n = n + 1
+        if not line:match("^%s*%-%-") and (line:find("alpha%.keycap") or line:find("alpha%[%s*[\"']keycap")) then
+          finding(string.format(
+            "dry gate refused '%s', line %d, reads the keycap alpha itself, a key chip is filled by ui.keycapColor so every chip follows one rule, see lib/ui/style.lua",
+            rel, n))
+        end
+      end
+      f:close()
     end
   end
 end

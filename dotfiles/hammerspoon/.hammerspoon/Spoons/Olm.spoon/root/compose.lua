@@ -94,6 +94,7 @@ local previewPaneLib = load("lib/previewpane.lua")
 local paneCanvasLib = load("lib/previewpane/canvas.lua")
 local uiSpecLib = load("root/uispec.lua")
 local themesLib = load("lib/ui/themes.lua")
+local appearanceLib = load("lib/ui/appearance.lua")
 -- The icon engine and the units it is composed from. This file is the one that names the
 -- concrete sources, the engine itself knows only lib/icons/contract.lua.
 local iconsLib = load("lib/icons/init.lua")
@@ -301,6 +302,25 @@ end
 -- obj.run, which sits near Lua 5.4's limit of two hundred active locals. opts carries the kit,
 -- the icon resolver, the two field predicates, the resolved compiler, the cache directory and
 -- the logger.
+-- The hs.settings key the Olm Chooser list persists its choice under, a provider's name.
+local CHOOSER_SETTINGS_KEY = "olmChooser"
+
+-- The watcher that reapplies a look following the system accent when the accent changes, kept at
+-- file level so it lives as long as the config and never counts against obj.run's locals.
+local appearanceWatcher = nil
+
+-- The accent colour a person set in System Settings, as "#rrggbb", or nil when AppKit does not
+-- answer one. It is the colour a menu fills its selected item with, which is the look Milos asked
+-- this to match. selectedContentBackgroundColor, Finder's sidebar selection, was tried first on
+-- 2026-11-02 and read as a darker blue than the menu bar. Read on every apply, so it is current.
+local function systemAccent()
+  local colors = hs.drawing.color.colorsFor("System")
+  local accent = colors and colors.controlAccentColor
+  if type(accent) ~= "table" or accent.red == nil then return nil end
+  local function byte(v) return math.max(0, math.min(255, math.floor((v or 0) * 255 + 0.5))) end
+  return string.format("#%02x%02x%02x", byte(accent.red), byte(accent.green), byte(accent.blue))
+end
+
 local function wireSwiftChooser(chooserAtom, chosen, opts)
   local swift = chooserAtom.providers and chooserAtom.providers.swift
   if not swift or chosen ~= swift then return end
@@ -606,6 +626,31 @@ function obj.run(olm, cfg)
     end,
     { w = function(message) log.w(message) end })
   local themeLog = { w = function(message) log.w(message) end }
+
+  -- Which chooser serves, decided here rather than where the chooser is configured below,
+  -- because the look a person picked belongs to that chooser and the kit's first spec is built
+  -- from it. The Olm Chooser list's choice, persisted under olmChooser, wins over the provider
+  -- config/settings.lua names, and either way the provider is decided once per load, so a switch
+  -- schedules a reload. Only a provider that declares an appearance can be picked there.
+  local chooserAtom = atoms.chooser
+  do
+    local picked = hs.settings.get(CHOOSER_SETTINGS_KEY)
+    local provider = chooserAtom.providers and chooserAtom.providers[picked]
+    if picked ~= nil and not (provider and provider.appearance) then
+      log.w("the stored chooser " .. tostring(picked) .. " is not one Olm offers, so "
+        .. tostring(policy.chooserProvider) .. " is used")
+    elseif picked ~= nil then
+      policy.chooserProvider = picked
+    end
+  end
+  local chosenAppearance = (chooserAtom.providers and chooserAtom.providers[policy.chooserProvider]
+    and chooserAtom.providers[policy.chooserProvider].appearance) or nil
+
+  -- The glass palette moved out of config/themes into the swift provider on 2026-11-02, so a
+  -- machine whose stored canvas theme was glass would warn on every load. Forgotten once here,
+  -- and the canvas starts from the default theme until another is picked.
+  if hs.settings.get(themesLib.SETTINGS_KEY) == "glass" then hs.settings.set(themesLib.SETTINGS_KEY, nil) end
+
   local themes = themesLib.new({
     dir = (policy.themes or {}).dir,
     list = function(dir)
@@ -633,12 +678,61 @@ function obj.run(olm, cfg)
     end,
     log = themeLog,
   })
+
+  -- The look of the chooser that serves, lib/ui/appearance.lua. A themes kind is the store above,
+  -- whole. A highlight kind is the provider's own palette file in a store of its own, which
+  -- persists nothing, and the choice of highlight over it, applied the way a theme switch is.
+  local function applyColors(colors)
+    if uiAtom then uiAtom.configure({ spec = uiSpecLib.spec(policy, colors, typography) }) end
+    uiSpecLib.chooserView(policy.chooserTheme, colors)
+    uiSpecLib.surfaceView(policy.surface, colors)
+  end
+  local palette = nil
+  if chosenAppearance and chosenAppearance.kind == "highlight" then
+    palette = themesLib.new({
+      dir = chosenAppearance.palette,
+      default = chosenAppearance.paletteName,
+      list = function(dir)
+        local names = {}
+        local ok, iterator, handle = pcall(hs.fs.dir, dir)
+        if ok and iterator then
+          for file in iterator, handle do names[#names + 1] = file end
+        end
+        return names
+      end,
+      read = function(path)
+        local file = io.open(path, "r")
+        if not file then return nil end
+        local text = file:read("a")
+        file:close()
+        return text
+      end,
+      log = themeLog,
+    })
+  end
+  local appearance = appearanceLib.new({
+    declared = chosenAppearance,
+    themes = themes,
+    palette = palette,
+    store = { get = function(key) return hs.settings.get(key) end,
+              set = function(key, value) hs.settings.set(key, value) end },
+    accent = systemAccent,
+    apply = applyColors,
+    log = themeLog,
+  })
+  -- A change of accent colour in System Settings reaches a look that follows it at once. The
+  -- watcher is kept for the life of the config, and does nothing for a look that does not.
+  appearanceWatcher = hs.distributednotifications.new(function()
+    appearance.refresh()
+  end, "AppleColorPreferencesChangedNotification")
+  appearanceWatcher:start()
+
   -- The two views the readers outside the kit still hold, a chooserTheme shaped table for the
   -- legacy provider and the plugin panes and a surface shaped one for the panel. Filled in
   -- place and rewritten in place on every switch, so a reader holding a reference follows
   -- without a reload. Stage four of the kit retires both once those readers draw through it.
-  uiSpecLib.chooserView(policy.chooserTheme, themes.colors())
-  uiSpecLib.surfaceView(policy.surface, themes.colors())
+  uiSpecLib.chooserView(policy.chooserTheme, appearance.colors())
+  uiSpecLib.surfaceView(policy.surface, appearance.colors())
 
   -- The icon engine, see buildIcons above obj.run. prepareIcons is called once the manifests'
   -- icons are read and the dependency door has answered, through wireIconRenders.
@@ -658,7 +752,7 @@ function obj.run(olm, cfg)
   -- empty state draws through it and its surface asks it which half the system is on.
   if uiAtom then
     uiAtom.configure({
-      spec = uiSpecLib.spec(policy, themes.colors(), typography),
+      spec = uiSpecLib.spec(policy, appearance.colors(), typography),
       surfaceElements = canvasPanel.surfaceElements,
       surfaceInterior = canvasPanel.surfaceInterior,
       icon = iconEngine.image,
@@ -666,7 +760,6 @@ function obj.run(olm, cfg)
     canvasPanel.configure({ ui = uiAtom })
   end
 
-  local chooserAtom = atoms.chooser
   chooserAtom:init()
   local chooserProvider = chooserAtom.providers and chooserAtom.providers[policy.chooserProvider]
   if not chooserProvider then
@@ -966,6 +1059,11 @@ function obj.run(olm, cfg)
     declared = function(owner) return declaredIcons[owner] end,
     points = glyphIconLib.POINTS,
     log = themeLog,
+    -- The radio pair every pick one list marks its rows with, declared once in the actions
+    -- pane's manifest beside Olm's other own icons, so no plugin declares a marker of its own.
+    -- The owner is asked late, since the plan that names identities is built after this.
+    marks = { owner = function() return plan and plan.identity.actionspane or "actionspane" end,
+              chosen = "chosen", notChosen = "notChosen" },
   })
   -- The sf source renders every declared symbol it lacks in the background, see wireIconRenders.
   wireIconRenders(prepareIcons, declaredIcons, sharedDepsScope, chooserAtom)
@@ -1736,12 +1834,41 @@ function obj.run(olm, cfg)
       if overlay and overlay.setMode then overlay.setMode(mode) end
     end,
 
-    -- The theme switcher's three words over the themes store built in step B, the live name,
-    -- the sorted names, and a writer that applies a theme at once and answers whether the
-    -- name had a file. The store owns the persisted choice under its own hs.settings key.
-    themeName = function() return themes.current() end,
-    themeNames = function() return themes.names() end,
-    setTheme = function(name) return themes.set(name) end,
+    -- The theme switcher's words over the look of the chooser that serves, lib/ui/appearance.lua,
+    -- the live name, the names on offer, a writer that applies one at once and answers whether
+    -- it was offered, and the label the list's field reads. The canvas offers every theme file
+    -- and the glass its two highlights, and neither the words nor the list know which serves.
+    themeName = function() return appearance.current() end,
+    themeNames = function() return appearance.names() end,
+    setTheme = function(name) return appearance.set(name) end,
+    themeLabel = function() return appearance.label() end,
+
+    -- The Olm Chooser list's three words. The chooser that serves, every chooser that declares an
+    -- appearance by the title it declares, and a writer that persists a choice and schedules one
+    -- reload, since which chooser draws is decided once per load, the way a plugin switch is.
+    chooserName = function()
+      local provider = chooserAtom.providers and chooserAtom.providers[policy.chooserProvider]
+      return provider and provider.appearance and provider.appearance.title or nil
+    end,
+    chooserNames = function()
+      local titles = {}
+      for _, provider in pairs(chooserAtom.providers or {}) do
+        if provider.appearance and provider.appearance.title then titles[#titles + 1] = provider.appearance.title end
+      end
+      table.sort(titles)
+      return titles
+    end,
+    setChooser = function(title)
+      for name, provider in pairs(chooserAtom.providers or {}) do
+        if provider.appearance and provider.appearance.title == title then
+          if name == policy.chooserProvider then return true end
+          hs.settings.set(CHOOSER_SETTINGS_KEY, name)
+          scheduleSwitchReload()
+          return true
+        end
+      end
+      return false
+    end,
 
     -- The plugins page's four words over the one switch, lib/pluginswitch.lua. The catalog lists
     -- only what lives under plugins, since core is not something a person switches, each row

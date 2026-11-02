@@ -89,8 +89,10 @@ local function topRows()
     local isActive = p.name == active
     local n = displayCount(p)
     local sub = (isActive and "Active, " or "") .. n .. (n == 1 and " display" or " displays")
-    out[#out + 1] = row(p.name, sub, isActive and "active" or "profile",
-      { nav = true, to = "profile", name = p.name }, true)
+    local r = row(p.name, sub, "profile", { nav = true, to = "profile", name = p.name }, true)
+    -- The profile in force wears Olm's filled ring, the others keep the profile picture.
+    r.chosen = isActive or nil
+    out[#out + 1] = r
   end
   return out
 end

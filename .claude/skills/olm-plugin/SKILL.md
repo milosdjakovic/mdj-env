@@ -254,8 +254,12 @@ and the two read as one key twice. Stated by Milos on 2026-10-30. Olm's own fall
 primary or a secondary naming no icon is exactly that key glyph, so a `surface` always names an
 icon on its `primary` and its `secondary`, declared in the manifest's `icons`, Apply a
 `checkmark.circle`, Copy a `doc.on.doc`. Every `sf` symbol is an outline glyph, judged by how it renders and not only by its
-name, since some symbols draw a solid body without `.fill` in the name. The one exception is an
-on and off marker, a filled circle beside an outline one, stated by Milos 2026-10-16. A row that carries a real picture keeps its `image`. The
+name, since some symbols draw a solid body without `.fill` in the name. A plugin never declares a
+marker for which choice is in force or which of several are on. The row says `chosen = true` or
+`chosen = false` and Olm draws its one radio pair, `circle.inset.filled` and `circle`, and a row
+whose other choices keep a picture of their own, a flag or a device kind, leaves `chosen` unset on
+those. The dry gate refuses a manifest declaring a marker, stated by Milos on 2026-11-02 and
+replacing the green and red circles of 2026-10-16. A row that carries a real picture keeps its `image`. The
 active icon set is one setting in `config/icons.toml`, and the dry gate refuses a plugin file
 that draws a canvas into an image.
 

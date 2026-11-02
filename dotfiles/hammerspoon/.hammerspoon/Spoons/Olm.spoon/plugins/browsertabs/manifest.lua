@@ -24,8 +24,6 @@ return {
   icons = {
     settings = { emoji = "⚙️", sf = "gearshape" },
     back = { emoji = "⬅️", sf = "chevron.left" },
-    active = { emoji = "🟢", sf = "circle.fill" },
-    off = { emoji = "⚪", sf = "circle" },
     warn = { emoji = "⚠️", sf = "exclamationmark.triangle" },
     locked = { emoji = "🔒", sf = "lock" },
     ask = { emoji = "🔓", sf = "lock.open" },

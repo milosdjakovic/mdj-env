@@ -951,8 +951,8 @@ do
   ap:_choose(instance, ap._panelRows[3].item)
   check("choosing a disabled choice runs nothing and keeps the level open",
     #runs == 1 and ap:isOpen() and titlesOf(ap._panelRows) == "One,Two,Three")
-  check("the choice in force carries the current marker", ap._panelRows[2].icon == "current"
-    and ap._panelRows[1].icon ~= "current")
+  check("the choice in force carries Olm's filled ring", ap._panelRows[2].icon == "chosen"
+    and ap._panelRows[1].icon ~= "chosen")
   local config = fakeConfig()
   ap:decorate(instance, config)
   config.back()

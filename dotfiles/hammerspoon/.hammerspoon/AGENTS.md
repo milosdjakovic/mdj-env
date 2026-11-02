@@ -318,10 +318,10 @@ A sheet on a leader of modifiers is opt in and is revealed once exactly its set 
 onto the one keycode the root configured it with, so a plugin never sees a keycode. Every
 leader shares one resolver that knows modifiers, with optional per binding `mods`, an exact match on shift, ctrl, alt and cmd,
 ignoring the `fn` flag macOS stamps on arrow keys, then a catch-all fallback. A
-binding with no `mods` is the catch-all, so most keys stay a single press. Hyper
-uses it for capture, where Hyper+4 saves an area screenshot to a file and
-Hyper+Shift+4 sends it to the clipboard; the leaders use it so a bare arrow can
-differ from Shift+arrow.
+binding with no `mods` is the catch-all, so most keys stay a single press. The
+leaders use it so a bare arrow can differ from Shift+arrow. Capture used it for
+Hyper+Shift+4 until 2026-11-02, when every capture took one key of its own, colour
+picker on 1, OCR on 2, screenshot on 3, screenshot copy on 4 and record on 5.
 
 Combos the domains do not claim no longer die at the tap. With `passthrough`
 on, a ChordKey `configure` default set once in `root/compose.lua` and inherited by every
@@ -864,16 +864,37 @@ a key glyph written in any Lua or Swift file of the spoon outside `lib/kbd.lua`,
 `Spoons/Olm.spoon/test/drygate-kbd.lua`, unless the line carries `kbd-exempt, <reason>`. A glyph that
 may later be drawn as a picture changes in `lib/kbd.lua` alone.
 
+A key is drawn by one component, the kit's key cap, `kit.keycap(chords, size, opts)` over
+`Spoons/Olm.spoon/lib/ui/keycap.lua`. It takes a chord, the array of keys above, or a list of them
+for alternatives, `size` names a badge, `hint` in the bar and its panes or `cheat` on a sheet, and
+each chip sizes to its keys. `opts.width` constrains a chip to a width, and a chip whose keys need
+more grows to fit them rather than cutting one off, its keys centred in whatever width it takes.
+Alternatives are one chip each with `/` between them. The canvas bottom bar, both floating panes
+and every cheat sheet draw through it, `ui.keycapWidth` measures it for a caller lining labels up,
+and the swift chooser's `KeyCap` draws the same tokens natively. Its fill is `ui.keycapColor`
+below. `kit.badge` is left for a word on a button, never a key.
+
 **Olm colour, eight roles and nothing else.** Every colour Olm draws, in the default chooser,
 the panes, the toasts, the cheat sheets and every plugin, is one of eight roles from the UI kit
 in `Spoons/Olm.spoon/lib/ui`. foreground is text you read, a row title and pane content.
 subtext is text you glance at, a subtitle, a label, a fact, a note, a path or an empty state.
 background is the fill of every panel. border is a panel outline, a divider and a graph
-baseline. highlight is the bar under the list cursor, the tint behind selected text in the field
-and the fill of a key chip. primary, secondary and tertiary are the three accents, the first,
+baseline. highlight is the bar under the list cursor and the tint behind selected text in the field,
+and nothing else. A key chip is not a highlight. Every chip a key stands on, in the bottom bar,
+the info pane, the actions pane, the glass bar and a cheat sheet, is filled by one function,
+`ui.keycapColor` in `Spoons/Olm.spoon/lib/ui/style.lua`, the foreground at the kit's keycap alpha,
+so a change to it reaches all of them and a highlight a person picks reaches none. The dry gate
+refuses any file outside `lib/ui` that reads the keycap alpha itself, and `test/cases/uikit.lua`
+holds that a badge is filled by the rule and does not move with the highlight. primary, secondary and tertiary are the three accents, the first,
 second and third. Accents carry no meaning such as success or error, they are ranks, so a graph
 takes its series in that order, the first line primary, the second secondary and the third
-tertiary, and emphasis comes from colour and never from an extra size. A plugin, a pane, a host
+tertiary, and emphasis comes from colour and never from an extra size. Which colours are live is
+the chooser's business. Each chooser provider declares an `appearance`, read by
+`Spoons/Olm.spoon/lib/ui/appearance.lua` alone, the canvas every theme file under `config/themes`
+and the glass its own palette in `lib/chooser/providers/swift/palette` with a choice of highlight
+only, its own wash or the accent colour set in System Settings. The Olm Chooser list picks the
+chooser, persisted under `olmChooser` over `chooser.provider` and applied by one reload, and the
+Olm Theme list shows whatever the chooser in use offers without knowing which it is. A plugin, a pane, a host
 or a component names a role and never a hex, a colour table or a colour of the palette, and the
 kit refuses a name outside the eight at build time, so a retired word such as dim, path, note or
 badge fails where it was written. A disabled or faded look is an alpha laid over a role and is
@@ -1318,15 +1339,19 @@ one-visible-chooser-window assumption the frame settle already makes. It takes e
 no timer is involved. Doing it in the atom rather than at the caller fixed the file search folder
 browse at the same time, which had the identical bug for the identical reason.
 
-**A green circle marks the active row, never a checkmark.** When a chooser marks
-one row as the live choice, the active display profile, the chosen overlay
-display mode, the pinned display, it shows a green circle in the row's icon slot.
-A checkmark reads as confirm this and a tick as done, while the list is showing
-state, which one of these is current right now, so the green dot reads as that
-status at a glance and never competes with the confirm and commit actions a menu
-also carries. A new chooser that highlights its active row reuses the green
-circle rather than inventing its own glyph, so the marker stays one thing across
-every list.
+**Olm's radio pair marks a choice, and a plugin never draws it.** When a list shows which of its
+rows is in force, the active display profile, the chosen theme, the overlay placement, a plugin
+switched on, the row says `chosen = true` and every other choice `chosen = false`, and stamping in
+`Spoons/Olm.spoon/lib/icons/rows.lua` draws the one pair Olm owns over the row's icon, the filled
+`circle.inset.filled` for the choice in force and the empty `circle` for the rest, declared once
+in the actions pane's manifest. A row whose other choices keep a picture of their own, an input
+source's flag, an audio device's side, a tmux window, sets `chosen = true` on the one in force and
+leaves `chosen` unset on the others, so they keep their picture. A checkmark reads as confirm this
+and a tick as done, while the list is showing which one is current, so the ring is a state and
+never competes with the confirm and commit actions a list also carries. A plugin manifest that
+declares a marker of its own, by a marker's key or by a filled circle symbol, is refused by the dry
+gate. Chosen by Milos on 2026-11-02, replacing the green and red circles,
+`decisions/olm-icons.md`.
 
 **Back is the first row in a chooser menu.** The actions pane under the swift chooser and the
 canvas chooser is the one exception, since it is a floating pane left by Escape over a list that never
@@ -2113,7 +2138,7 @@ no result cache, and four Spotlight predicate facts that will bite anyone who to
 queries, all live in `Spoons/Olm.spoon/plugins/filesearch/AGENTS.md`. Adding it needed a restow, since
 `~/.hammerspoon/Spoons` holds one symlink per spoon.
 
-**Eyedropper.** A screen colour sampler on Hyper+2, on the native macOS
+**Eyedropper.** A screen colour sampler on Hyper+1, on the native macOS
 eyedropper. It is deliberately not a chooser, so the picker checklist above does
 not apply. It is a lone mechanism like lock and sleep in that it needs no Hyper
 context, predicate, or `choosers` entry, but unlike them it is a registered tool,

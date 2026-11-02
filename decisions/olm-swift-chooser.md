@@ -41,6 +41,13 @@ chooser serves and on the canvas otherwise, built on `olm/native-panel`.
 
 ## Rejected
 
+- **Full themes on the glass chooser.** 2026-11-02 19:05. Its palette is Apple's semantic
+  colours chosen to lie over glass, and a painted theme fights it. The glass offers its highlight
+  only, its own wash or the system accent, decided with Milos.
+- **Switching the chooser in place without a reload.** 2026-11-02 19:05. The provider is decided
+  once at configure time and the preview pane backend, the panel backend and the swift library
+  all follow that decision, so the Olm Chooser list persists the choice and schedules one reload,
+  the way a plugin switch does.
 - **Rebuilding Olm as a native app outside Hammerspoon, in MyGo or in Swift.** 2026-10-27.
   Olm is about 89,000 lines of Lua over some forty Hammerspoon modules, event taps, the
   accessibility layer, windows, screens and the pasteboard, and a rewrite rebuilds all of them
@@ -812,3 +819,12 @@ window, panel, alert or popover in a plugin's Swift helper, anywhere under `plug
 surfaces the core has no answer for are declared `surface-exempt` with a reason, the WiFi password
 field, which needs secure input, Quick Look in FileSearch, which needs a window of its own, and the
 system colour sampler. The dry gate passes.
+
+### 2026-11-02 19:05
+
+The provider declares its `appearance`, a highlight kind over its own palette,
+`palette/glass.toml` beside `init.lua`, moved from `config/themes`, with two choices, Olm
+highlight and macOS highlight. The default provider declares the themes kind. The Olm Chooser
+list picks between them by the title each declares, Glass and Canvas, and never learns a
+provider's name, and a choice in `olmChooser` wins over `chooser.provider` in
+`config/settings.lua`.

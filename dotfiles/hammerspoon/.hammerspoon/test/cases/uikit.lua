@@ -212,6 +212,26 @@ do
 end
 
 do
+  -- The key cap rule. A badge, the cheat sheet's key chip, is filled by the one function every
+  -- chip calls, and a highlight of any colour never reaches it.
+  local styleLib = fresh("style.lua")
+  local els = engine.layout(kit.badge("K", "cheat"), RECT, tokens)
+  local fill = els[1].fillColor
+  local want = styleLib.keycapColor(tokens)
+  check("a badge is filled by the key cap rule",
+    fill and want and fill.alpha == want.alpha and fill.red == want.red and fill.blue == want.blue,
+    fill and (tostring(fill.red) .. " " .. tostring(fill.alpha)) or "no fill")
+  local blue = {}
+  for k, v in pairs(tokens) do blue[k] = v end
+  blue.colors = {}
+  for k, v in pairs(tokens.colors) do blue.colors[k] = v end
+  blue.colors.highlight = { red = 0.04, green = 0.38, blue = 1, alpha = 1 }
+  local again = engine.layout(kit.badge("K", "cheat"), RECT, blue)[1].fillColor
+  check("a badge does not change with the highlight",
+    again.alpha == fill.alpha and again.red == fill.red and again.blue == fill.blue)
+end
+
+do
   -- Four hint badges of three characters, each 21 wide plus 12 of padding is 33, as high as the
   -- hint badge the tokens derive, 23 with section at 14, with a gap of 6 between, in a width of 80,
   -- fit two to a line. The height is read from the tokens, so a section size change moves it.
@@ -679,4 +699,47 @@ do
     near(narrowEls[2].frame.w, 280) and narrowEls[1].frame.w < 28 + 0.001
       and near(narrowEls[2].frame.x + narrowEls[2].frame.w, RECT.x + RECT.w),
     "facts w " .. tostring(narrowEls[2].frame.w) .. ", label w " .. tostring(narrowEls[1].frame.w))
+end
+
+--------------------------------------------------------------------------------
+-- the key cap, the one way a key is drawn
+--------------------------------------------------------------------------------
+
+do
+  -- Every glyph measures 7 a character and every font answers the same metrics, so a chip's width
+  -- is arithmetic, the glyphs plus the badge's gap between keys and its padding either side.
+  local kbdLib = fresh("../kbd.lua")
+  local m = setmetatable({}, { __index = stubMeasure })
+  function m:exact(str) return #(str or "") * 7 end
+  function m:metrics() return { ascender = 16, descender = -4, capHeight = 10 } end
+  local capEngine = layoutLib.new({ measure = m })
+  local b = tokens.badge.hint
+  local function chipsOf(els)
+    local out = {}
+    for _, el in ipairs(els) do if el.type == "rectangle" then out[#out + 1] = el.frame end end
+    return out
+  end
+  local shiftReturn = kbdLib.of(kbdLib.Shift, kbdLib.Return)
+  local glyphW = 0
+  for _, g in ipairs(kbdLib.glyphs(shiftReturn)) do glyphW = glyphW + #g * 7 end
+  local natural = glyphW + (b.gap or 0) + 2 * b.padX
+  local one = chipsOf(capEngine.layout(kit.keycap(shiftReturn, "hint"), RECT, tokens))
+  check("a key cap takes an array of keys and sizes its chip to them", #one == 1 and one[1].w == natural,
+    one[1] and (one[1].w .. " wanted " .. natural))
+  local held = chipsOf(capEngine.layout(kit.keycap(shiftReturn, "hint", { width = natural + 40 }), RECT, tokens))
+  check("a width constrains the chip", held[1].w == natural + 40, held[1] and tostring(held[1].w))
+  local grown = chipsOf(capEngine.layout(kit.keycap(shiftReturn, "hint", { width = 4 }), RECT, tokens))
+  check("a chip whose keys need more than the width grows to fit them", grown[1].w == natural,
+    grown[1] and tostring(grown[1].w))
+  local alts = capEngine.layout(kit.keycap({ kbdLib.of(kbdLib.Hyper, kbdLib.named("k")), kbdLib.of(kbdLib.Left) }, "hint"),
+    RECT, tokens)
+  local words = {}
+  for _, el in ipairs(alts) do if el.text == "/" then words[#words + 1] = el end end
+  check("alternatives are one chip each with the separator between them",
+    #chipsOf(alts) == 2 and #words == 1)
+  local hyperGlyph = false
+  for _, el in ipairs(alts) do if el.text == kbdLib.Hyper.glyph then hyperGlyph = true end end
+  check("a key named hyper is drawn as its glyph from lib/kbd.lua", hyperGlyph)
+  check("the chip is filled by the key cap rule", chipsOf(alts) and alts[1].fillColor
+    and alts[1].fillColor.alpha == fresh("style.lua").keycapColor(tokens).alpha)
 end

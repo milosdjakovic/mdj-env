@@ -84,6 +84,27 @@ local LOG = nil
 
 local M = {}
 
+--- M.appearance, how far a person can theme this chooser, read by lib/ui/appearance.lua and
+--- by nothing else. The glass carries its own palette, palette/glass.toml beside this file,
+--- Apple's semantic colours over the glass, and a person chooses only the highlight, the wash
+--- that palette gives a row or the accent colour set in System Settings, solid, as a menu fills
+--- its selected item. A full theme is not offered, since a painted
+--- colour over glass fights it, decisions/olm-swift-chooser.md. title is the word the Olm
+--- Chooser list names it by.
+M.appearance = {
+  title = "Glass",
+  kind = "highlight",
+  label = "Glass highlight",
+  palette = herePath .. "palette",
+  paletteName = "glass",
+  settingsKey = "olmGlassHighlight",
+  default = "olm",
+  choices = {
+    { name = "olm", title = "Olm highlight" },
+    { name = "macos", title = "macOS highlight", highlight = "system" },
+  },
+}
+
 --- M.spec(opts) -> the lib/swiftbuild.lua spec for opts.dir, opts.swiftc, opts.sdk, the SDK
 --- the toolchain check found, and opts.frameworks, the directory holding Hammerspoon's LuaSkin
 --- framework. The flags are the whole compile, so the shell build that checks the sources and

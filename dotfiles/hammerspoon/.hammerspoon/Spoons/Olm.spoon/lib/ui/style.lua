@@ -21,8 +21,8 @@
 --
 -- There are exactly eight colour roles and nothing derives a ninth. The text pair is
 -- foreground and subtext, the fill of every panel is background, border is every outline and
--- divider and a graph baseline, highlight is the bar under the list cursor, the tint behind
--- selected text and the fill of a key chip, and primary, secondary and tertiary are the three
+-- divider and a graph baseline, highlight is the bar under the list cursor and the tint behind
+-- selected text, and primary, secondary and tertiary are the three
 -- accents, ranks that carry no meaning. An alpha a rule needs, such as the dim alpha of a
 -- disabled row, stays an alpha below and is never a role. See "Olm colour, eight roles and
 -- nothing else" in the config's AGENTS.md.
@@ -117,8 +117,9 @@ local SHIPPED = {
 
   -- muted is the report toast's alpha for a row naming something that was not there, added
   -- in stage two beside the two the design names.
-  -- keycap is the chip a chord stands on in the bar and its floating panes, the foreground at this
-  -- alpha, faint enough to sit on the highlight as well as on the background.
+  -- keycap is the chip every key stands on, in the bar, its floating panes and a cheat sheet's
+  -- badge alike, the foreground at this alpha, faint enough to sit on the highlight as well as
+  -- on the background.
   alpha = { dim = 0.4, fade = 0.55, muted = 0.5, keycap = 0.14 },
 
   -- swatch is the colour toast's square, the one size the toast draws that no icon shares.
@@ -244,6 +245,15 @@ function M.withAlpha(color, factor)
   local out = copy(color)
   out.alpha = (color.alpha or 1) * factor
   return out
+end
+
+--- M.keycapColor(T, factor) -> the fill of a key chip, the one rule every chip a key stands on is
+--- drawn by, in the bottom bar, its floating panes, the glass bar and a cheat sheet's badge. The
+--- foreground at the keycap alpha, times factor, the dim alpha of a disabled item, when given. It
+--- never reads the highlight, which is the cursor's colour, so a highlight a person picks never
+--- paints a key. Every reader goes through here, the dry gate refuses alpha.keycap anywhere else.
+function M.keycapColor(T, factor)
+  return M.withAlpha(T.colors.foreground, T.alpha.keycap * (factor or 1))
 end
 
 -- Merge a shallow table of groups, spec over shipped, one level down, so a spec naming one

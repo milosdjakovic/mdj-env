@@ -15,7 +15,7 @@ local M = {}
 -- rather than a bare word, the same shape CanvasPanel.placements already has. A member's
 -- value is its own name.
 M.kinds = {
-  text = "text", badge = "badge", icon = "icon", row = "row", stack = "stack",
+  text = "text", badge = "badge", keycap = "keycap", icon = "icon", row = "row", stack = "stack",
   flow = "flow", grid = "grid", divider = "divider", spacer = "spacer",
   surface = "surface", group = "group", code = "code", raw = "raw", image = "image",
 }
@@ -115,6 +115,18 @@ function M.new(names)
       wrap = opts.wrap and true or false,
       width = opts.width,
     }
+  end
+
+  --- kit.keycap(chords, size, opts) -> node, the one way a key a person presses is drawn, see
+  --- lib/ui/keycap.lua. chords is a kbd chord, an array of keys such as kbd.of(kbd.Shift,
+  --- kbd.Return), or a list of them for alternatives. size names a badge, hint or cheat. Each
+  --- chip sizes to its keys, and opts.width constrains it to a width it grows past only when its
+  --- keys need more.
+  function kit.keycap(chords, size, opts)
+    opts = opts or {}
+    return { kind = M.kinds.keycap, chords = chords,
+             size = member(names.badge, size, "size", "keycap"),
+             width = opts.width }
   end
 
   --- kit.badge(key, size, opts) -> node, size names cheat, hint or button. opts.fill true

@@ -8,17 +8,15 @@ return {
 
   about = {
     title = "Olm Theme",
-    description = "Pick the colour theme every Olm list, pane and sheet is drawn in.",
+    description = "Pick the look of the chooser in use, a theme on the canvas or a highlight on the glass.",
     author = "Milos Djakovic",
-    version = "0.2",
+    version = "0.3",
     license = "MIT",
   },
 
-  -- Green marks the live theme and red every other.
+  -- The rows say chosen and wear Olm's own radio pair, so the only icon here is the plugin's own.
   icons = {
     theme = { emoji = "🎨", sf = "paintpalette" },
-    selected = { emoji = "🟢", sf = "circle.fill" },
-    notSelected = { emoji = "🔴", sf = "circle" },
   },
 
   needs = {
@@ -37,6 +35,9 @@ return {
       setTheme = { source = "root", policy = "required",
         breaks = "choosing a theme changes nothing, since applying and persisting a theme has "
           .. "no other way in from this plugin" },
+      themeLabel = { source = "root", policy = "optional",
+        breaks = "the Olm Theme list's field reads Theme rather than naming what the chooser in "
+          .. "use offers, Canvas theme or Glass highlight" },
       stagePresent = { source = "root", policy = "optional",
         breaks = "the Olm Theme launcher row opens nothing, since M.show has no other way to "
           .. "reach the shared stage" },
@@ -62,8 +63,8 @@ return {
 
   registry = {
     row = { category = "Olm", icon = "theme",
-      detail = "the colour theme Olm is drawn in",
-      keywords = "colour, color, appearance, palette, dark, light" },
+      detail = "the look of the chooser in use",
+      keywords = "colour, color, appearance, palette, dark, light, highlight, accent" },
     open = { member = "show", call = "dot" },
   },
 }
