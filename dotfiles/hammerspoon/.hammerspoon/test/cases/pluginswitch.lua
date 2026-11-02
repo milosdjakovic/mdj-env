@@ -115,7 +115,7 @@ eq("a loaded plugin's base is the part under the spoon", baseFor.emoji, "plugins
 local libNames = {}
 for name in pairs({ leader = true, appfocus = true, recency = true,
   storage = true, paste = true, cheatsheet = true, registry = true, glyphicon = true,
-  chordkey = true, queryassoc = true, ui = true }) do libNames[name] = true end
+  chordkey = true, queryassoc = true, ui = true, kbd = true }) do libNames[name] = true end
 local wmOff = { windowmanager = true }
 local before = switch.loadList(directories, spoonDir, (function()
   local set = { windowmanager = true }

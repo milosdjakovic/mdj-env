@@ -293,8 +293,12 @@ own glass, untinted, and takes the highlight tint only while the key panel is op
 are the row title's font and colour, which Milos chose over caption on 2026 10 29. Its
 corner is `radius.nested`. Every chord, in the bar and in both popovers, is a key cap since
 2026 11 02, `KeyCap` in `Bar.swift` and `footer.lua`'s `keycap` in the canvas chooser, so a key
-never reads as a word or an icon. A cap is the `hint` badge, its height and its `padX`, its glyphs
-in the section role in foreground, on a chip of the foreground at `alpha.keycap`, which reads on
+never reads as a word or an icon. A cap is the `hint` badge, its height, its `padX` and its `gap`, its
+glyphs in the code role in foreground since 2026 11 02, so every key is one width, the swift
+chooser's `keycapFont` read from the same badge, so a change to `hint` in `lib/ui/style.lua` reaches
+every cap. A chord is a kbd chord, `lib/kbd.lua`, one entry per key, and a cap draws one glyph per
+key with `gap` between two keys and never a character, the swift chooser receiving it as
+`kbd.wire`, on a chip of the foreground at `alpha.keycap`, which reads on
 the background, on the glass and on the highlight alike, where a chip filled with highlight would
 vanish on a lit group or line. Its corner nests in the group or line holding it. One cap holds a
 whole chord, and an empty chord draws none. A key panel line whose key has alternatives, Hyper J or

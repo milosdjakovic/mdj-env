@@ -14,9 +14,11 @@
 --                  when name is checked against. The same table wire.lua installs into the
 --                  chord engine, so the key and the action bar never disagree about whether a
 --                  gate is open.
---   glyphFor,      a function of a key and an optional mods list answering the printable
---                  glyph for that chord, the shared renderer the root injects so this file
---                  never names the atom that owns it.
+--   chordLabel,    the shared speller, lib/labels.lua's, a leader key, a key name and its
+--                  modifier names to a kbd chord. Every chord this file answers is a kbd chord,
+--                  lib/kbd.lua, one entry per key and never a string.
+--   leaderNames,   the name a binding spells its leader with to that leader's kbd key, and
+--   leaderName,    the list role's leader key, for a binding built by hand that names none.
 --   liveLabels,    action name to a function of a context name, answering a live relabelling
 --                  of that action's word for that one context, or nil to leave the binding's
 --                  own description standing. The launcher's Run becoming Open while the
@@ -37,6 +39,8 @@
 --                  its tokens answering the type and the colours for the half the system is on.
 
 local obj = {}
+
+local kbd = assert(loadfile(debug.getinfo(1, "S").source:sub(2):match("(.*/)") .. "kbd.lua"))()
 
 -- A plain stub keeps this file loadable outside a running Hammerspoon, the same discipline
 -- lib/surface.lua already holds itself to, and it costs nothing once hs is really present.
@@ -128,31 +132,26 @@ end
 -- chord's words are put together, only that something answers both. The word is the binding's
 -- own leader's, deps.leaderNames keyed by the name the binding spells its leader with, which a list
 -- key carries once the root has placed it, and deps.leaderName for a binding built by hand that
--- names none, the list role's leader. Either missing degrades to the bare glyph, the same shape footerModel already
+-- names none, the list role's leader. Either missing degrades to the chord without its leader, the same shape footerModel already
 -- renders for a binding declaring chord = false, so a missing collaborator lands on a shape
 -- this file already knows rather than an invented one.
 function obj.chordFor(binding, deps)
   -- A list key the open list's own field answers with modifiers alone names no leader, leader
-  -- false, so it is its glyph and modifiers alone, the way a plain combination is spelled.
-  if binding.leader == false then
-    local glyphFor = deps and deps.glyphFor
-    return (glyphFor and glyphFor(binding.key, binding.mods)) or tostring(binding.key)
-  end
-  local mods = binding.mods
+  -- false, so it is its key and modifiers alone, the way a plain combination is spelled.
+  if binding.leader == false then return kbd.binding(binding.key, binding.mods) end
   local chordLabel = deps and deps.chordLabel
   local leaderName = deps and deps.leaderName
   if binding.leader ~= nil and deps and deps.leaderNames then
     leaderName = deps.leaderNames[binding.leader] or leaderName
   end
   if chordLabel and leaderName then
-    return chordLabel(leaderName, binding.key, mods)
+    return chordLabel(leaderName, binding.key, binding.mods)
   end
   if log and not warnedNoChordLabel then
     warnedNoChordLabel = true
-    log.w("hints, chordFor has no chordLabel or leaderName injected, so a chord prints as its bare glyph")
+    log.w("hints, chordFor has no chordLabel or leaderName injected, so a chord prints without its leader")
   end
-  local glyphFor = deps and deps.glyphFor
-  return (glyphFor and glyphFor(binding.key, mods)) or tostring(binding.key)
+  return kbd.binding(binding.key, binding.mods)
 end
 
 -- A binding's label, the one lookup the action bar, its key panel and the action panel share,
@@ -180,20 +179,19 @@ end
 -- it is the only reason it appears in a context at all. Every other binding is its chord, and a
 -- shared verb the field also answers on a plain key carries that key's glyph beside it, the
 -- move keys their arrows and close its Escape.
-local DOUBLED = { selectNext = "down", selectPrev = "up", closeChooser = "escape" }
+local DOUBLED = { selectNext = kbd.Down, selectPrev = kbd.Up, closeChooser = kbd.Escape }
 local function badgesFor(b, deps)
-  local glyphFor = deps and deps.glyphFor
   if b.chord == false then
-    return { (glyphFor and glyphFor(b.key, b.mods)) or tostring(b.key) }
+    return { kbd.binding(b.key, b.mods) }
   end
   -- The primary reads Return alone, the key a person presses, and never its held chord, which
   -- Milos found only added noise once the bar already says Return.
   if b.shared == "primary" then
-    return { (glyphFor and glyphFor("return")) or "return" }
+    return { kbd.of(kbd.Return) }
   end
   local badges = { obj.chordFor(b, deps) }
-  local doubled = DOUBLED[b.action] or (b.shared == "close" and "escape" or nil)
-  if doubled and glyphFor then badges[2] = glyphFor(doubled) end
+  local doubled = DOUBLED[b.action] or (b.shared == "close" and kbd.Escape or nil)
+  if doubled then badges[2] = kbd.of(doubled) end
   return badges
 end
 
@@ -252,8 +250,6 @@ end
 
 function obj.footerModel(contextName, plan, deps)
   deps = deps or {}
-  local glyphFor = deps.glyphFor
-  local function glyph(key, mods) return (glyphFor and glyphFor(key, mods)) or tostring(key) end
   local panelRow = deps.actionPanel and deps.actionPanel() or nil
   local labels = (not panelRow) and deps.labelsFor and deps.labelsFor(contextName) or nil
   local ctx = plan and plan.contexts and plan.contexts[contextName]
@@ -286,7 +282,7 @@ function obj.footerModel(contextName, plan, deps)
     end
   end
   if panelRow or (not ownBack and deps.backs and deps.backs(contextName)) then
-    keys[#keys + 1] = { badges = { glyph("delete") }, label = "Back" }
+    keys[#keys + 1] = { badges = { kbd.of(kbd.Delete) }, label = "Back" }
   end
   local right = {}
   local primaryLabel
@@ -298,7 +294,7 @@ function obj.footerModel(contextName, plan, deps)
   else
     primaryLabel = obj.labelFor({ shared = "primary" }, contextName, nil, labels)
   end
-  right[#right + 1] = { label = primaryLabel, chord = glyph("return"),
+  right[#right + 1] = { label = primaryLabel, chord = kbd.of(kbd.Return),
     action = (not panelRow) and primary and primary.action or nil }
   if secondary then
     right[#right + 1] = { label = obj.labelFor(secondary, contextName, deps.liveLabels, labels),
@@ -344,10 +340,15 @@ function obj.footerModel(contextName, plan, deps)
   end
 
 
-  local parts = { "keys " .. tostring(keysChord) }
-  for _, r in ipairs(right) do parts[#parts + 1] = tostring(r.label) .. " " .. tostring(r.chord) end
+  local function alternatives(badges)
+    local spelled = {}
+    for i, c in ipairs(kbd.alternatives(badges)) do spelled[i] = kbd.text(c) end
+    return table.concat(spelled, "/")
+  end
+  local parts = { "keys " .. kbd.text(keysChord) }
+  for _, r in ipairs(right) do parts[#parts + 1] = tostring(r.label) .. " " .. kbd.text(r.chord) end
   parts[#parts + 1] = "|"
-  for _, k in ipairs(keys) do parts[#parts + 1] = table.concat(k.badges, "+") .. " " .. tostring(k.label) end
+  for _, k in ipairs(keys) do parts[#parts + 1] = alternatives(k.badges) .. " " .. tostring(k.label) end
   -- The key button's icon, Olm's own, declared in the action panel's manifest beside Back and
   -- read against it, so the provider draws it through the icon engine like any row icon.
   local keysIcon = { icon = "keys", owner = deps.panelOwner }
@@ -392,8 +393,7 @@ end
 -- rather than a new idea. The wiring time needs gate is still not repeated, since
 -- lib/surface.lua's own keep answered that before the binding ever reached plan.contexts.
 function obj.rowsFor(contextName, plan, deps, hosted)
-  local glyphFor = deps and deps.glyphFor
-  local backChord = (glyphFor and glyphFor("delete")) or "delete"
+  local backChord = kbd.of(kbd.Delete)
   -- Back belongs to the panel and no plugin, so its icon key is read against the panel's own
   -- manifest, deps.panelOwner, and every verb's against the plugin that owns the context.
   local owner = deps and deps.owners
@@ -430,8 +430,8 @@ function obj.rowsFor(contextName, plan, deps, hosted)
       and (not hosted or hostedVerbDeclared(hosted, b.action)) then
       -- The primary's chord is Return, the key a person presses, the way the action bar spells it,
       -- whichever held chord it also sits on. The secondary's is its own, Command and Return.
-      local chord = b.key ~= nil and obj.chordFor(b, deps) or ""
-      if b.shared == "primary" then chord = (glyphFor and glyphFor("return")) or "return" end
+      local chord = b.key ~= nil and obj.chordFor(b, deps) or nil
+      if b.shared == "primary" then chord = kbd.of(kbd.Return) end
       -- Every row carries an icon. A primary or a secondary naming none takes Olm's own, declared
       -- beside Back in the action panel's manifest and read against it.
       local icon, iconOwner = b.icon, owner and owner[contextName]
@@ -445,7 +445,7 @@ function obj.rowsFor(contextName, plan, deps, hosted)
       -- File Search, which Milos had dropped on 2026-10-30 as noise.
       local closes
       if hosted then
-        if b.shared ~= "primary" then chord = "" end
+        if b.shared ~= "primary" then chord = nil end
         closes = hosted[b.action].closes
       end
       rows[#rows + 1] = { action = b.action, title = obj.labelFor(b, contextName, deps and deps.liveLabels, labels),
@@ -858,7 +858,7 @@ end
 
 --- hints.keyEntries(keymap, plan, deps) -> entries
 --- Every chord the keymap binds, as a person reads it, for a page listing a person's keys. Each
---- entry is { chord, description, owner, list }, every field a string but list, which names the
+--- entry is { chord, description, owner, list }, chord a kbd chord and the rest strings, list naming the
 --- list a list key is live in and is nil for a global key. It reads the keymap the root built and
 --- never the person's file, and it answers words only, so whatever shows them learns no key to bind.
 ---
@@ -868,17 +868,17 @@ end
 --- left out, which is whatever deps.bindable refuses, lib/binder.lua's own test. Then every list's own keys, a list at a time in plan order, each in the order its
 --- bindings are declared, which is the order the key panel under a list shows them.
 ---
---- A chord is a leader's word and the glyph through deps.chordLabel, the spelling the launcher and
---- the action bar use, and a plain combination is the glyph alone, as the launcher spells one. A row
+--- A chord is the leader's key and the binding's keys through deps.chordLabel, the speller the
+--- launcher and the action bar use, and a plain combination is its keys alone. A row
 --- standing for an app with no description of its own is named by deps.appName, else its action
 --- spelled out as words, where a sheet would draw the app instead. An owner is named by its own
 --- description, else its manifest's about title, else its identity.
 ---
 ---   leaders       held and named leaders in the order their keys are listed, by the name a row
 ---                 spells its leader with. A leader not listed has its keys left out.
----   leaderNames   that name to the word a person reads, Hyper or Meta.
+---   leaderNames   that name to the leader's kbd key.
 ---   bindable      required, a row to whether the binder binds it, lib/binder.lua's bindable.
----   chordLabel    the shared speller, glyphFor the shared glyph helper.
+---   chordLabel    the shared speller.
 ---   manifests     directory to manifest, for the owner's about title and which plugin owns a list.
 ---   registry      optional, lends a tool row with no description its launcher detail.
 ---   appName       optional, a bundle id to the app's own name.
@@ -902,8 +902,7 @@ function obj.keyEntries(keymap, plan, deps)
   local function chordOf(leader, key, mods)
     local word = leader and leaderNames[leader]
     if word and deps.chordLabel then return deps.chordLabel(word, key, mods) end
-    if deps.glyphFor then return deps.glyphFor(key, mods) end
-    return tostring(key)
+    return kbd.binding(key, mods)
   end
 
   local out = {}

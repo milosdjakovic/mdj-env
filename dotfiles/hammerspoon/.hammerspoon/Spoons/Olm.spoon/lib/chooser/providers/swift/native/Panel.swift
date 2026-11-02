@@ -108,6 +108,9 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   private let window: KeyPanel
   private let root: FlippedView
   private let field = NSTextField()
+  // The field's clip, the highlighted row's width, so text scrolled past either end is cut where a
+  // highlighted row's edge is rather than at the field editor's own bounds.
+  private let fieldClip = NSView()
   private let list = ListView()
   private let bar = BarView()
   private let keys = PopoverView()
@@ -173,11 +176,14 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     field.cell?.wraps = false
     field.cell?.usesSingleLineMode = true
     field.allowsEditingTextAttributes = false
+    fieldClip.wantsLayer = true
+    fieldClip.layer?.masksToBounds = true
+    fieldClip.addSubview(field)
 
     root.addSubview(list)
     // The field stands on the window's stage over the list, which runs on up behind it, and out of
     // the content the fades mask, which faded the field with the rows behind it.
-    surfaces.addOverlay(field)
+    surfaces.addOverlay(fieldClip)
     // The bar and its key panel stand on the window's stage rather than in the list's content,
     // since with a companion they run under the gap and the pane too.
     surfaces.addOverlay(keys)
@@ -247,12 +253,14 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     layoutSurfaces()
     if let rect = next.field {
       let h = ceil(style.fieldFont.ascender - style.fieldFont.descender + style.fieldFont.leading) + 2
-      // The field editor starts its text one line fragment padding in, so the field stands that
-      // far left of its rect and the caret lands on the rect's edge, the inset every other
-      // surface takes.
+      // The field editor keeps one line fragment padding inside each end, so the field stands
+      // that far past its rect on both sides and the caret lands on the rect's edge, the
+      // highlighted row's edge. Its clip is the rect itself, so text scrolled past either end is
+      // cut on the row's edges too.
       let lead = (window.fieldEditor(true, for: field) as? NSTextView)?.textContainer?.lineFragmentPadding ?? 0
       let inWindow = toWindow(rect) ?? rect
-      field.frame = NSRect(x: inWindow.minX - lead, y: inWindow.midY - h / 2, width: inWindow.width + lead, height: h)
+      fieldClip.frame = NSRect(x: inWindow.minX, y: inWindow.midY - h / 2, width: inWindow.width, height: h)
+      field.frame = NSRect(x: -lead, y: 0, width: inWindow.width + 2 * lead, height: h)
     }
     // The bar floats. The list runs on down behind it to the window's bottom edge, its viewport
     // reaching that far and its content inset by the same height, so the furthest scroll and every
@@ -283,7 +291,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
 
   func update(_ next: ViewState) {
     state = next
-    field.isHidden = next.bare
+    fieldClip.isHidden = next.bare
     applyPlaceholder()
     list.update(next)
     if let footer = next.footer, placement.footer != nil {
@@ -303,7 +311,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     if let actions = next.actions, !bar.isHidden {
       actionsPop.isHidden = false
       actionsPop.show(title: next.footer?.panelTitle,
-        lines: actions.map { .init(label: $0.title, chord: $0.subtitle, image: $0.image, section: $0.section, enabled: $0.enabled) },
+        lines: actions.map { .init(label: $0.title, chord: $0.chord, image: $0.image, section: $0.section, enabled: $0.enabled) },
         style: style, placement: placement, outer: placement.barPillPad, inner: placement.barPillPad, lineH: placement.barPillH,
         gap: placement.barGapWide, radius: style.highlightRadius, iconSide: placement.keysIcon,
         highlight: next.actionsHighlight)

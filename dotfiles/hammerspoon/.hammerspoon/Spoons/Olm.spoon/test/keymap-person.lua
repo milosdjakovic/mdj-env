@@ -740,6 +740,12 @@ do
     "idle actions: a second pass drops nothing, the same manifests giving the same answer")
 end
 local labelsLib = assert(loadfile(here .. "../lib/labels.lua"))()
+-- The one vocabulary of keys. Every chord the hints answer is a kbd chord, so a case reads it as
+-- the text kbd spells it with, its keys with nothing between them.
+local kbd = assert(loadfile(here .. "../lib/kbd.lua"))()
+local spell = labelsLib.chordLabel()
+local function txt(chord) return chord and kbd.text(chord) or nil end
+local NAV = kbd.leader("nav", "Nav")
 local LIST_KEYCODES = {}
 do
   local names = { "a", "c", "d", "e", "i", "j", "k", "n", "o", "space", "x", "y", "delete", "p", "/" }
@@ -970,16 +976,14 @@ end
 do
   local contexts = applied({ clip = { ["hyper+e"] = "deleteSelected" }, all = { ["hyper+n"] = "selectNext" } })
   local plan = { contexts = contexts, effective = {}, order = {}, identity = {} }
-  local deps = { chordLabel = function(leader, key, mods)
-    return leader .. " " .. ((mods and #mods > 0) and (table.concat(mods, "+") .. "+") or "") .. key
-  end, leaderName = "Hyper" }
+  local deps = { chordLabel = spell, leaderName = kbd.Hyper }
   local bar = {}
-  for _, h in ipairs(hints.footerModel("clip", plan, deps).keys) do if h.action then bar[h.action] = h.badges[1] end end
+  for _, h in ipairs(hints.footerModel("clip", plan, deps).keys) do if h.action then bar[h.action] = txt(h.badges[1]) end end
   eq(bar.deleteSelected, nil, "the key panel leaves the moved verb to the action panel")
-  eq(bar.selectNext, "Hyper n", "and the moved shared verb too")
+  eq(bar.selectNext, "\u{2726}N", "and the moved shared verb too")
   local panel = {}
-  for _, row in ipairs(hints.rowsFor("clip", plan, deps)) do panel[row.action or row.title] = row.chord end
-  eq(panel.deleteSelected, "Hyper e", "the action panel shows the same chord")
+  for _, row in ipairs(hints.rowsFor("clip", plan, deps)) do panel[row.action or row.title] = txt(row.chord) end
+  eq(panel.deleteSelected, "\u{2726}E", "the action panel shows the same chord")
   eq(panel.selectNext, nil, "and lists no navigation verb")
   local kinds = hints.actionKinds({ contexts = applied({ clip = { ["hyper+i"] = false } }) })
   eq(kinds.scrollDown, "verb", "a freed primary leaves an extra a verb")
@@ -1017,11 +1021,10 @@ do
   for _, row in ipairs(result.rows) do if row.layer ~= "global" and row.leader then leaders[row.leader] = true end end
   eq(leaders.meta and not leaders.hyper, true, "list role: every list row names meta")
   eq(table.concat(keymap.leadersInUse(result), ","), "meta", "list role: so meta is in use and hyper is not")
-  local deps = { chordLabel = function(leader, key) return leader .. " " .. key end,
-    leaderNames = { hyper = "Hyper", meta = "Meta" }, leaderName = "Hyper" }
+  local deps = { chordLabel = spell, leaderNames = { hyper = kbd.Hyper, meta = kbd.Meta }, leaderName = kbd.Hyper }
   local bar = {}
-  for _, h in ipairs(hints.footerModel("clip", { contexts = contexts }, deps).keys) do if h.action then bar[h.action] = h.badges[1] end end
-  eq(bar.selectNext, "Meta j", "list role: the key panel spells the binding's own leader")
+  for _, h in ipairs(hints.footerModel("clip", { contexts = contexts }, deps).keys) do if h.action then bar[h.action] = txt(h.badges[1]) end end
+  eq(bar.selectNext, "\u{25C6}J", "list role: the key panel spells the binding's own leader")
 end
 
 -- An explicit chord moves only itself, onto whichever held leader it names, and the rest stay on
@@ -1129,13 +1132,11 @@ do
     "field rows: nav and k and ctrl, shift and k are one slot")
 
   -- Spelling, the glyph and modifiers alone for no leader, the leader's word for a named one.
-  local deps = { chordLabel = function(leader, key, mods) return leader .. " " .. key end,
-    glyphFor = function(key, mods) return table.concat(mods or {}, "+") .. "+" .. key end,
-    leaderNames = { hyper = "Hyper", nav = "Nav" }, leaderName = "Hyper" }
+  local deps = { chordLabel = spell, leaderNames = { hyper = kbd.Hyper, nav = NAV }, leaderName = kbd.Hyper }
   local bar = {}
-  for _, h in ipairs(hints.footerModel("clip", { contexts = contexts }, deps).keys) do if h.action then bar[h.action] = h.badges[1] end end
-  eq(bar.selectNext, "ctrl+j", "field spelling: modifiers alone read as the glyph and modifiers")
-  eq(bar.selectPrev, "Nav k", "field spelling: a named leader reads as its word")
+  for _, h in ipairs(hints.footerModel("clip", { contexts = contexts }, deps).keys) do if h.action then bar[h.action] = txt(h.badges[1]) end end
+  eq(bar.selectNext, "\u{2303}J", "field spelling: modifiers alone read as the glyph and modifiers")
+  eq(bar.selectPrev, "NavK", "field spelling: a named leader reads as its word")
 end
 
 -- The watcher the field asks, and the field asking it. It runs a field key only while its list's
@@ -1441,21 +1442,23 @@ do
   local plan = { contexts = { bar = block }, effective = {}, order = {}, identity = {} }
   local labels = nil
   local deps = {
-    chordLabel = function(leader, key, mods) return leader .. " " .. key end,
-    glyphFor = function(key, mods) return ((mods and #mods > 0) and (table.concat(mods, "+") .. "+") or "") .. key end,
-    leaderNames = { hyper = "Hyper" }, leaderName = "Hyper",
+    chordLabel = spell, leaderNames = { hyper = kbd.Hyper }, leaderName = kbd.Hyper,
     predicates = { peekable = function() return gate.open end },
     labelsFor = function(name) return name == "bar" and labels or nil end,
   }
   local model = hints.footerModel("bar", plan, deps)
   local right = {}
-  for _, r in ipairs(model.right) do right[#right + 1] = r.label .. " " .. r.chord end
-  eq(table.concat(right, " | "), "Choose Files return | Uninstall cmd+return | Actions Hyper o",
+  for _, r in ipairs(model.right) do right[#right + 1] = r.label .. " " .. txt(r.chord) end
+  eq(table.concat(right, " | "), "Choose Files \u{21A9} | Uninstall \u{2318}\u{21A9} | Actions \u{2726}O",
     "footer: primary on Return, the secondary on its chord, then Actions")
   local keys = {}
-  for _, k in ipairs(model.keys) do keys[#keys + 1] = table.concat(k.badges, "+") .. " " .. k.label end
+  for _, k in ipairs(model.keys) do
+    local spelled = {}
+    for i, c in ipairs(k.badges) do spelled[i] = txt(c) end
+    keys[#keys + 1] = table.concat(spelled, "+") .. " " .. k.label
+  end
   eq(table.concat(keys, " | "),
-    "Hyper j+down Move down | Hyper k+up Move up | Hyper x+escape Close",
+    "\u{2726}J+\u{2193} Move down | \u{2726}K+\u{2191} Move up | \u{2726}X+esc Close",
     "footer: the navigation keys in declaration order, nothing the bar or the rows already show, no verb the action panel lists, and no Back on a level Backspace does not leave")
   local function panelPeek()
     for _, row in ipairs(hints.rowsFor("bar", plan, deps)) do if row.action == "peek" then return true end end
@@ -1494,9 +1497,7 @@ end
 do
   local backs, openRow = false, nil
   local deps = {
-    chordLabel = function(leader, key) return leader .. " " .. key end,
-    glyphFor = function(key, mods) return ((mods and #mods > 0) and (table.concat(mods, "+") .. "+") or "") .. key end,
-    leaderNames = { hyper = "Hyper" }, leaderName = "Hyper",
+    chordLabel = spell, leaderNames = { hyper = kbd.Hyper }, leaderName = kbd.Hyper,
     predicates = { paged = function() return true end },
     backs = function() return backs end,
     actionPanel = function() return openRow end,
@@ -1526,7 +1527,7 @@ do
   keymap.applyLists({ paged = paged }, {}, { listLeader = "hyper", keycodes = LIST_KEYCODES })
   local pagedModel = hints.footerModel("paged", { contexts = { paged = paged } }, deps)
   local backCount = 0
-  for _, k in ipairs(pagedModel.keys) do if k.badges[1] == "delete" then backCount = backCount + 1 end end
+  for _, k in ipairs(pagedModel.keys) do if k.badges[1].keys[1] == kbd.Delete and #k.badges[1].keys == 1 then backCount = backCount + 1 end end
   eq(backCount, 1, "back: a list listing its own Backspace binding gets no second Back")
 
   openRow = { action = "deleteSelected", title = "Delete" }
@@ -1534,7 +1535,7 @@ do
   eq(panel.right[1].label, "Delete", "panel: Return reads the highlighted panel row's title")
   eq(#panel.right, 2, "panel: no secondary, only Return and the action panel's chord")
   eq(panel.right[2].action, "openActionPanel", "panel: the second entry closes the panel")
-  eq(panel.keysChord ~= nil and panel.keysChord == hints.footerModel("bar", plan, (function() local d = {} for k, v in pairs(deps) do d[k] = v end d.actionPanel = nil return d end)()).keysChord, true,
+  eq(panel.keysChord ~= nil and txt(panel.keysChord) == txt(hints.footerModel("bar", plan, (function() local d = {} for k, v in pairs(deps) do d[k] = v end d.actionPanel = nil return d end)()).keysChord), true,
     "panel: the keys group keeps its chord while the action panel is open")
   eq(keyLabels(panel), "Move down,Move up,Close,Back",
     "panel: the key panel lists the shared held keys and Back, not the list's own verbs or its inert field keys")
@@ -1547,16 +1548,16 @@ do
   eq(table.concat(rows, ","), "nil,insertSelected,uninstall,deleteSelected", "panel rows: the secondary is listed once")
   local spelled = {}
   for _, row in ipairs(hints.rowsFor("bar", plan, deps)) do
-    spelled[#spelled + 1] = tostring(row.chord) .. "/" .. tostring(row.icon) .. "/" .. tostring(row.owner)
+    spelled[#spelled + 1] = tostring(txt(row.chord)) .. "/" .. tostring(row.icon) .. "/" .. tostring(row.owner)
   end
-  eq(table.concat(spelled, ","), "delete/back/panel,return/primary/panel,cmd+return/secondary/panel,Hyper d/nil/nil",
+  eq(table.concat(spelled, ","), "\u{232B}/back/panel,\u{21A9}/primary/panel,\u{2318}\u{21A9}/secondary/panel,\u{2726}D/nil/nil",
     "panel rows: the primary reads Return, the secondary Command and Return, and both take Olm's own icons")
   local mine = barList({ primary = { action = "insertSelected", icon = "paste" },
     secondary = { action = "uninstall", icon = "trash" } })
   keymap.applyLists({ mine = mine }, {}, { listLeader = "hyper", keycodes = LIST_KEYCODES })
   local ownIcons = {}
   for _, row in ipairs(hints.rowsFor("mine", { contexts = { mine = mine } },
-    { glyphFor = deps.glyphFor, chordLabel = deps.chordLabel, leaderName = "Hyper", panelOwner = "panel",
+    { chordLabel = deps.chordLabel, leaderName = kbd.Hyper, panelOwner = "panel",
       owners = { mine = "minePlugin" } })) do
     ownIcons[#ownIcons + 1] = tostring(row.icon) .. "/" .. tostring(row.owner)
   end
@@ -1578,8 +1579,8 @@ do
   eq(kinds.insertSelected, "navigation", "kinds: a shared action no binding claims is navigation")
   eq(kinds.showKeys, "navigation", "kinds: showKeys too")
   local rows = {}
-  for _, row in ipairs(hints.rowsFor("two", { contexts = { one = one, two = two } }, { leaderName = "Hyper",
-    chordLabel = function(l, k) return l .. " " .. k end })) do rows[#rows + 1] = tostring(row.action) end
+  for _, row in ipairs(hints.rowsFor("two", { contexts = { one = one, two = two } }, { leaderName = kbd.Hyper,
+    chordLabel = spell })) do rows[#rows + 1] = tostring(row.action) end
   eq(table.concat(rows, ","), "nil,insertSelected,reveal", "kinds: the other list's panel lists its verb")
 end
 
@@ -1612,16 +1613,16 @@ end
 -- it like any field key.
 do
   local glyph = assert(loadfile(here .. "../lib/cheatsheet.lua"))().glyphFor
-  eq(glyph("/", { "shift" }), "?", "showKeys: the speller reads Shift and slash as a question mark")
-  eq(glyph("/", { "cmd", "shift" }), "\u{2318}?", "showKeys: and Command, Shift and slash as Command and ?")
-  eq(glyph("/", { "shift", "cmd" }), "\u{2318}?", "showKeys: in either order the keymap sorts them")
-  eq(glyph("/"), "/", "showKeys: and plain slash as itself")
+  eq(txt(glyph("/", { "shift" })), "?", "showKeys: the speller reads Shift and slash as a question mark")
+  eq(txt(glyph("/", { "cmd", "shift" })), "\u{2318}?", "showKeys: and Command, Shift and slash as Command and ?")
+  eq(txt(glyph("/", { "shift", "cmd" })), "\u{2318}?", "showKeys: in either order the keymap sorts them")
+  eq(txt(glyph("/")), "/", "showKeys: and plain slash as itself")
   local block = barList({ primary = { action = "insertSelected" } })
   local show
   for _, b in ipairs(block.bindings) do if b.shared == "showKeys" then show = show or b end end
   keymap.applyLists({ bar = block }, {}, { listLeader = "hyper", keycodes = LIST_KEYCODES })
-  local deps = { chordLabel = labelsLib.chordLabel(glyph), leaderNames = { hyper = "Hyper" }, leaderName = "Hyper", glyphFor = glyph }
-  eq(hints.chordFor(show, deps), "\u{2318}?", "showKeys: spelled Command and ?")
+  local deps = { chordLabel = spell, leaderNames = { hyper = kbd.Hyper }, leaderName = kbd.Hyper }
+  eq(txt(hints.chordFor(show, deps)), "\u{2318}?", "showKeys: spelled Command and ?")
   local keyPanel
   for _, k in ipairs(hints.footerModel("bar", { contexts = { bar = block } }, deps).keys) do
     if k.action == "showKeys" then keyPanel = k.badges[1] end
@@ -1631,7 +1632,7 @@ do
   local listed = 0
   for _, k in ipairs(model.keys) do if k.action == "showKeys" then listed = listed + 1 end end
   eq(listed, 0, "showKeys: neither of its two keys is listed in the key panel")
-  eq(model.keysChord, "\u{2318}?", "showKeys: and the key button carries Command and ? beside it")
+  eq(txt(model.keysChord), "\u{2318}?", "showKeys: and the key button carries Command and ? beside it")
   local blockKeys = {}
   for _, b in ipairs(block.bindings) do
     if b.shared == "showKeys" then blockKeys[#blockKeys + 1] = table.concat(b.mods, "+") end
@@ -1642,7 +1643,7 @@ do
   local row
   for _, r in ipairs(result.rows) do if r.layer == "bar" and r.action == "showKeys" then row = r end end
   eq(row and row.field, true, "showKeys: the keymap row is a field key")
-  eq(row and glyph(row.key, row.shownMods), "\u{2318}?", "showKeys: and the keys page spells it Command and ?")
+  eq(row and txt(glyph(row.key, row.shownMods)), "\u{2318}?", "showKeys: and the keys page spells it Command and ?")
   -- The default chooser reads nothing on Command, Shift and slash or on Control and Y.
   local function fieldUses() return nil end
   local accepted = keymap.applyLists({ bar = barList({ primary = { action = "insertSelected" } }) },
@@ -1660,7 +1661,7 @@ do
     { listLeader = "hyper", keycodes = LIST_KEYCODES, fieldUses = fieldUses })
   eq(listKeys(freed, "bar", "showKeys"), "cmd+/", "showKeys: freeing Command and ? leaves Command and slash")
   local freedModel = hints.footerModel("bar", { contexts = freed }, deps)
-  eq(freedModel.keysChord, "\u{2318}/", "showKeys: and the key button shows the key that is left")
+  eq(txt(freedModel.keysChord), "\u{2318}/", "showKeys: and the key button shows the key that is left")
   local bothFreed = { bar = barList({ primary = { action = "insertSelected" } }) }
   keymap.applyLists(bothFreed, readLists({ all = { ["cmd+shift+/"] = false, ["cmd+/"] = false } }).lists,
     { listLeader = "hyper", keycodes = LIST_KEYCODES, fieldUses = fieldUses })
@@ -1671,7 +1672,7 @@ do
     { listLeader = "hyper", keycodes = LIST_KEYCODES, fieldUses = fieldUses })
   eq(#slash, 0, "showKeys: applyLists accepts Command and slash as a field chord")
   local movedModel = hints.footerModel("bar", { contexts = moved }, deps)
-  eq(movedModel.keysChord, "\u{2303}Y", "showKeys: a moved showKeys moves the key button's chord with it")
+  eq(txt(movedModel.keysChord), "\u{2303}Y", "showKeys: a moved showKeys moves the key button's chord with it")
 end
 
 -- The Globe key, which lib/keycodes.lua calls standalone, read the same way from both sides. A

@@ -77,8 +77,9 @@ local function buildLive(section, glyphFor, layout)
   local name = tostring(section.title or "untitled")
   local rows = {}
   for _, r in ipairs(section.rows or {}) do
-    if type(r) == "table" and (r.badge ~= nil or r.key ~= nil) then
-      local badge = r.badge or (glyphFor and glyphFor(r.key, r.mods)) or tostring(r.key)
+    -- A badge is a kbd chord, spelled by the glyph helper, so a sheet with none draws no row.
+    local badge = type(r) == "table" and (r.badge or (r.key ~= nil and glyphFor and glyphFor(r.key, r.mods)))
+    if badge then
       rows[#rows + 1] = { badge = badge, label = r.label or tostring(r.key), icon = r.icon, when = r.when }
     else
       drop("a row of section '" .. name .. "'", "it is not a table with a badge or a key")
@@ -173,10 +174,12 @@ local function sectionsFromRows(rows, glyphFor, layout, resolve)
           plainLayout(section, layout)
         end
         for _, row in ipairs(list) do
-          local badge = glyphFor and glyphFor(row.key, row.mods) or tostring(row.key)
-          section.rows[#section.rows + 1] = { badge = badge,
-            label = row.description or (row.action and humanize(row.action)) or tostring(row.key),
-            icon = found1.apps and row.appIcon or nil, when = row.when }
+          local badge = glyphFor and glyphFor(row.key, row.mods)
+          if badge then
+            section.rows[#section.rows + 1] = { badge = badge,
+              label = row.description or (row.action and humanize(row.action)) or tostring(row.key),
+              icon = found1.apps and row.appIcon or nil, when = row.when }
+          end
         end
         out[#out + 1] = section
       end

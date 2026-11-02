@@ -71,6 +71,9 @@ local contributionsLib = load("lib/contributions.lua")
 -- The one spelling of a chord and of a set of aliases, whether a list is open, and what choosing a
 -- launcher row does in place of closing it. Pure, every collaborator handed in from here.
 local labelsLib = load("lib/labels.lua")
+-- The one vocabulary of keys, every key a person reads as an object and every chord a list of them,
+-- see its header. Pure, and one instance per load, which every lib that loads it shares.
+local kbdLib = load("lib/kbd.lua")
 local listOpenLib = load("lib/listopen.lua")
 local secureFocusLib = load("lib/securefocus.lua")
 local secureNoticeLib = load("lib/securenotice.lua")
@@ -249,19 +252,20 @@ local SHIPPED_LEADERS = {
     sheetLayout = { columns = 2, colWidth = 250, badgeWidth = 44, gap = 12 } },
 }
 
--- The symbol each shipped leader is spelled with wherever a person reads a chord, in the order the
--- key panel's legend lists them. Hyper takes the four pointed star other launchers already use for
--- it, Meta the diamond the Sun keyboards printed on their Meta key, and Super a plain circle,
--- a third shape neither of the others can be taken for. A leader the person named has no symbol and reads as its own word.
+-- The key each shipped leader is spelled with wherever a person reads a chord, in the order the
+-- key panel's legend lists them. Each is a kbd constant, whose symbol lib/kbd.lua holds, Hyper the
+-- four pointed star other launchers already use for it, Meta the diamond the Sun keyboards printed
+-- on their Meta key, and Super a plain circle. A leader the person named has no symbol and reads as
+-- its own word.
 local LEADER_SYMBOLS = {
-  { catalogName = "HYPER", symbol = "\u{2726}" },
-  { catalogName = "META", symbol = "\u{25C6}" },
-  { catalogName = "SUPER", symbol = "\u{25CF}" },
+  { catalogName = "HYPER", key = kbdLib.Hyper },
+  { catalogName = "META", key = kbdLib.Meta },
+  { catalogName = "SUPER", key = kbdLib.Super },
 }
 
 local function leaderSymbol(catalogName)
   for _, entry in ipairs(LEADER_SYMBOLS) do
-    if entry.catalogName == catalogName then return entry.symbol end
+    if entry.catalogName == catalogName then return entry.key end
   end
   return nil
 end
@@ -277,7 +281,7 @@ local function leaderLegend(leaderSpecs)
       if spec.catalogName == entry.catalogName then
         local where = spec.key and tostring(spec.key):gsub("^%l", string.upper):gsub("(%l)(%u)", "%1 %2")
           or "modifiers"
-        lines[#lines + 1] = { badges = { entry.symbol }, label = word .. " \u{00B7} " .. where }
+        lines[#lines + 1] = { badges = { kbdLib.of(entry.key) }, label = word .. " \u{00B7} " .. where }
       end
     end
   end
@@ -980,6 +984,7 @@ function obj.run(olm, cfg)
   local libs = {
     paste = atoms.paste,
     cheatsheet = cheatSheetAtom,
+    kbd = kbdLib,
     registry = registryLib,
     glyphicon = glyphIcon,
     chordkey = chordKeyAtom,
@@ -1168,13 +1173,14 @@ function obj.run(olm, cfg)
   -- role is the word a manifest uses, app or window, and the catalog name is what that role
   -- resolves to on this machine, so a tool moved to the other leader is described correctly
   -- with no second place to edit. Title cased because these are read as words in a sentence
-  -- rather than as the shouted constants the catalog spells them with. A shipped leader reads as
-  -- its symbol instead, LEADER_SYMBOLS, which the key panel's legend explains.
+  -- rather than as the shouted constants the catalog spells them with. Each is a kbd leader key, so
+  -- a chord carries it as one entry. A shipped leader reads as its symbol instead, LEADER_SYMBOLS,
+  -- which the key panel's legend explains.
   local function displayName(catalogName)
     local symbol = leaderSymbol(catalogName)
     if symbol then return symbol end
     local word = tostring(catalogName)
-    return word:sub(1, 1):upper() .. word:sub(2):lower()
+    return kbdLib.leader(word, word:sub(1, 1):upper() .. word:sub(2):lower())
   end
   -- The leaders of real modifiers, claimed through hs.hotkey, a name to its set.
   local modifierLeaderSets = {}
@@ -1201,9 +1207,8 @@ function obj.run(olm, cfg)
   end
   for name, word in pairs(leaderNamesByLeader) do leaderDisplayNames[name] = word end
   -- The one spelling of a chord and of a set of aliases, lib/labels.lua, handed to every surface
-  -- that states one so no surface spells its own. A chord is spelled with the shared renderer's
-  -- glyph helper, reached when a chord is spelled rather than now, as it always was.
-  local chordLabel = labelsLib.chordLabel(function(key, mods) return cheatSheetAtom.glyphFor(key, mods) end)
+  -- that states one so no surface spells its own. A chord is a kbd chord, lib/kbd.lua.
+  local chordLabel = labelsLib.chordLabel()
   local aliasLabel = labelsLib.aliasLabel
 
   -- A leader's cheat sheet rows are not built here. They are the keymap's rows on the leader, so
@@ -2084,7 +2089,6 @@ function obj.run(olm, cfg)
 
   local hintsDeps = {
     predicates = ownPredicates,
-    glyphFor = cheatSheetAtom.glyphFor,
     owners = contextOwners,
     -- The identity whose manifest icons the panel's own Back row reads its key against.
     panelOwner = plan.identity.actionpanel or "actionpanel",
@@ -3097,7 +3101,6 @@ function obj.run(olm, cfg)
         leaders = leaders,
         leaderNames = leaderNamesByLeader,
         chordLabel = chordLabel,
-        glyphFor = cheatSheetAtom and cheatSheetAtom.glyphFor,
         manifests = manifests,
         registry = wiredRegistry,
         appName = function(bundleID) return hs.application.nameForBundleID(bundleID) end,
@@ -3138,7 +3141,6 @@ function obj.run(olm, cfg)
       -- Without this the catalogue asks nothing about any tool and draws no tool row at all,
       -- which is exactly what it did.
       registry = wiredRegistry,
-      glyphFor = cheatSheetAtom and cheatSheetAtom.glyphFor,
       -- What every leader role is called, app and window alike, so a contributed row that names
       -- its leader by role reads the same word the action bar prints, and every leader by the
       -- name a keymap row spells it with, for a row the person put on a leader no role answers.

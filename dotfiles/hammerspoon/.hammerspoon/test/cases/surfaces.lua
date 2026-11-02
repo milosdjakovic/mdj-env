@@ -93,6 +93,9 @@ end
 -- action bar, the default chooser's two floating groups and the popovers above them
 --------------------------------------------------------------------------------
 
+-- The one vocabulary of keys every chord below is built from, see lib/kbd.lua.
+local kbd = fresh("lib/kbd.lua")
+
 do
   local footer = fresh("lib/chooser/providers/default/footer.lua")
   local bar = fresh("lib/chooser/providers/default/bar.lua")
@@ -106,16 +109,16 @@ do
 
   local model = {
     right = {
-      { label = "Choose Files", chord = "\u{21A9}", action = "choose" },
-      { label = "Uninstall", chord = "\u{2318}\u{21A9}", action = "secondary" },
-      { label = "Actions", chord = "Hyper O", action = "actions" },
+      { label = "Choose Files", chord = kbd.of(kbd.Return), action = "choose" },
+      { label = "Uninstall", chord = kbd.of(kbd.Cmd, kbd.Return), action = "secondary" },
+      { label = "Actions", chord = kbd.of(kbd.Hyper, kbd.named("o")), action = "actions" },
     },
     keys = {
-      { badges = { "Hyper J", "\u{2193}" }, label = "Move down" },
-      { badges = { "\u{232B}" }, label = "Back" },
-      { badges = { "\u{2318}1", "\u{2318}9" }, label = "Choose a visible row" },
+      { badges = { kbd.of(kbd.Hyper, kbd.named("j")), kbd.of(kbd.Down) }, label = "Move down" },
+      { badges = { kbd.of(kbd.Delete) }, label = "Back" },
+      { badges = { kbd.of(kbd.Cmd, kbd.named("1")), kbd.of(kbd.Cmd, kbd.named("9")) }, label = "Choose a visible row" },
     },
-    keysChord = "\u{2318}?",
+    keysChord = kbd.of(kbd.Cmd, kbd.Question),
   }
   -- The footer rect a spanning view is handed, the group's height and the bar pad below it. A
   -- group is a cell as tall as the bar's row with the bar's padding around it, 47 as shipped.
@@ -151,7 +154,7 @@ do
 
   local style = popover.style(ui, T, 13, barH)
   local lines = {}
-  for i, k in ipairs(model.keys) do lines[i] = { label = k.label, chord = table.concat(k.badges, " ") } end
+  for i, k in ipairs(model.keys) do lines[i] = { label = k.label, chord = k.badges } end
   local pop = popover.layout(ui, style, "Keys", lines, false)
   local placed = popover.place(pop, hits.keys, "left", { w = rect.w, top = 60 })
   check("the key panel takes the keys group's corner, its left and bottom edges on it",
@@ -228,8 +231,8 @@ do
     obj:configure({ ui = ui, padding = 20, canvasPanel = fakePanel() })
     return obj
   end
-  local rows = { { badge = "A", label = "Alpha" }, { badge = "B", label = "Beta" },
-                 { badge = "C", label = "Gamma" } }
+  local rows = { { badge = kbd.of(kbd.named("a")), label = "Alpha" }, { badge = kbd.of(kbd.named("b")), label = "Beta" },
+                 { badge = kbd.of(kbd.named("c")), label = "Gamma" } }
   local obj = sheet()
   obj._model = { sections = { { title = "KEYS", rows = rows } } }
   local built = obj:_build()
@@ -268,7 +271,7 @@ do
     near(sectionOverride:_build().h, 29 + 2 * 50 - topTrim - (50 - 34) / 2))
 
   local alt = sheet()
-  alt._model = { sections = { { rows = { { badges = { "H", "←" }, label = "Left" } } } } }
+  alt._model = { sections = { { rows = { { badges = { kbd.of(kbd.named("h")), kbd.of(kbd.Left) }, label = "Left" } } } } }
   local ab = alt:_build()
   local altSizes = {}
   for _, el in ipairs(ab.els) do

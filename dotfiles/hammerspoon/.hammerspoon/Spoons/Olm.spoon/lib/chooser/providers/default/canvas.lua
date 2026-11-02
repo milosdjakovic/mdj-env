@@ -503,11 +503,11 @@ function View:_listShown(s)
 end
 
 -- The key panel's lines, every key the footer model lists with its badges, its alternative keys,
--- joined by footer.lua's ALT_SEP into one chord, the swift view's footerData.
+-- each a kbd chord, which footer.lua's keycap draws one chip per chord.
 local function keyLines(model)
   local lines = {}
   for _, k in ipairs(model.keys or {}) do
-    lines[#lines + 1] = { label = k.label or "", chord = table.concat(k.badges or {}, footerLib.ALT_SEP), section = k.section }
+    lines[#lines + 1] = { label = k.label or "", chord = k.badges, section = k.section }
   end
   return lines
 end
@@ -528,7 +528,7 @@ local function actionLines(rows)
         return ICON_ELEMENTS and ICON_ELEMENTS(row.icon, row.iconOwner, frame) or {}
       end
     end
-    lines[i] = { label = plain(row.title), chord = plain(row.subTitle), picture = picture,
+    lines[i] = { label = plain(row.title), chord = row.chord, picture = picture,
       section = row.section, enabled = row.enabled ~= false }
   end
   return lines

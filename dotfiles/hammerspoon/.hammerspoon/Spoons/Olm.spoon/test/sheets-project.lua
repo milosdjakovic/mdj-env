@@ -34,8 +34,12 @@ local obj = {}
 
 local DASH = "-"
 
+-- A badge is a kbd chord, recorded as the text a sheet draws it as.
+local kbd = assert(loadfile(debug.getinfo(1, "S").source:sub(2):match("(.*/)") .. "../lib/kbd.lua"))()
+
 local function clean(s)
   if s == nil then return DASH end
+  if kbd.isChord(s) then s = kbd.text(s) end
   return (tostring(s):gsub("[\t\n]", " "))
 end
 

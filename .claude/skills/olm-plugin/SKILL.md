@@ -224,6 +224,13 @@ colour, accents are ranks that a graph takes in order, and the section of that `
 colour says what each role is for. A pane that needs something the kit cannot draw is a finding
 to report, never a reason for a local literal.
 
+Never write a key glyph. A shortcut a plugin shows, a menu item's or anything else's, is a chord of
+Olm's one key vocabulary, `needs.lib.kbd` from `lib/kbd.lua`, built from its key names with
+`kbd.binding` or from constants such as `kbd.Cmd`, and spelled as text with `kbd.text`, its keys with
+nothing between them. A chord is a list of keys and never a string, so never join glyphs or key
+names into one. The hammerspoon `AGENTS.md` section on Olm keys is the rule, the dry gate refuses a
+key glyph outside `lib/kbd.lua`, and Menu Search is the settled example. Stated by Milos on 2026-11-02.
+
 Never draw a row icon. A plugin declares its icons in its manifest `icons` table and names one
 on a row with `icon = "key"`, or with a table spec such as `icon = { emoji = flag }` for a glyph
 that is content, and Olm draws it. The plugin's own identity icon is `defaults.icon`, a key into

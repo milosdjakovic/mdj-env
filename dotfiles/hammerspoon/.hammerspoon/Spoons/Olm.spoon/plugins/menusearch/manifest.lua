@@ -69,6 +69,9 @@ return {
       -- this config runs in configures storage at start, so this is never genuinely absent,
       -- and the guard would rather be structural than trust that forever.
       storage = { from = "storage", policy = "required" },
+      -- Olm's one vocabulary of keys, lib/kbd.lua, which spells an item's shortcut as text, so
+      -- no key glyph is written in this plugin. Optional, an item then shows no shortcut.
+      kbd = { from = "kbd", policy = "optional" },
     },
 
     data = {

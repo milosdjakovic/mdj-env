@@ -12,6 +12,8 @@
 
 local M = {}
 
+local herePath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
+
 -- The word on the keys group where no icon engine draws the keyboard, see bar.lua.
 M.KEYS_GLYPH = "?"
 
@@ -32,17 +34,19 @@ function M.height(tokens)
 end
 
 -- A chord drawn as key caps, the canvas twin of KeyCap in the swift chooser's Bar.swift, so a key
--- reads as a key in the bar and in both popovers and never as a word or an icon. A chip is the
--- kit's hint badge, its height and its padding either side, filled with the foreground at the
--- keycap alpha so it reads on the background and on the highlight alike, and its glyphs are the
--- badge's section role in the foreground, centred on their capitals. A chord naming alternatives,
--- keys joined by ALT_SEP, is one chip per key with ALT_WORD between them in the caption role, the
--- small space step either side, so it reads as press one or the other, the word the cheat sheet
--- puts between a row's badges. Its corner nests in the line or group that holds it. An empty chord
--- draws nothing and takes no room.
+-- reads as a key in the bar and in both popovers and never as a word or an icon. A chord is a kbd
+-- chord, lib/kbd.lua, one entry per key, and a cap draws its keys one glyph at a time with the hint
+-- badge's gap between them, so the space between two keys is that token and never a character. A
+-- chip is the kit's hint badge, its height and its padding either side, filled with the foreground
+-- at the keycap alpha so it reads on the background and on the highlight alike, and its glyphs are
+-- the badge's role in the foreground, centred on their capitals. Alternatives, a list of chords,
+-- are one chip per chord with ALT_WORD between them in the caption role, the small space step
+-- either side, so it reads as press one or the other, the word the cheat sheet puts between a
+-- row's badges. Its corner nests in the line or group that holds it. No chord draws nothing and
+-- takes no room, and anything that is not a kbd chord is refused by kbd.alternatives.
 
--- What joins alternative keys on the way to a cap, the unit separator, which no key glyph is.
-M.ALT_SEP = "\31"
+local kbd = assert(loadfile(herePath .. "../../../kbd.lua"))()
+
 -- The word drawn between two alternative keys.
 M.ALT_WORD = "/"
 
@@ -53,39 +57,41 @@ local function faded(color, factor)
   return c
 end
 
-local function partsOf(chord)
-  local parts = {}
-  for part in (chord or ""):gmatch("[^" .. M.ALT_SEP .. "]+") do parts[#parts + 1] = part end
-  return parts
-end
-
--- Each chip's width and the separator word's, in the order they are drawn.
-local function measured(ui, tokens, chord)
+-- Each chip's glyphs and their widths and the chip's own width, and the separator word's width,
+-- in the order they are drawn.
+local function measured(ui, tokens, chords)
   local b = tokens.badge.hint
   local v = tokens.text[b.text]
   local c = tokens.text.caption
   local wordW = math.ceil(ui.measure:exact(M.ALT_WORD, c.font, c.size))
   local caps, total = {}, 0
-  for i, part in ipairs(partsOf(chord)) do
+  for i, chord in ipairs(kbd.alternatives(chords)) do
     if i > 1 then total = total + wordW + 2 * tokens.space.s end
-    local w = math.ceil(ui.measure:exact(part, v.font, v.size)) + 2 * b.padX
-    caps[i] = { text = part, w = w }
+    local glyphs, inner = {}, 0
+    for j, glyph in ipairs(kbd.glyphs(chord)) do
+      local gw = math.ceil(ui.measure:exact(glyph, v.font, v.size))
+      glyphs[j] = { text = glyph, w = gw }
+      inner = inner + gw + (j > 1 and (b.gap or 0) or 0)
+    end
+    local w = inner + 2 * b.padX
+    caps[i] = { glyphs = glyphs, w = w }
     total = total + w
   end
   return caps, total, wordW
 end
 
---- M.keycapWidth(ui, tokens, chord) -> the caps' width in points, 0 for an empty chord.
-function M.keycapWidth(ui, tokens, chord)
-  local _, total = measured(ui, tokens, chord)
+--- M.keycapWidth(ui, tokens, chords) -> the caps' width in points, 0 for no chord. chords is a kbd
+--- chord, a list of them for alternatives, or nil.
+function M.keycapWidth(ui, tokens, chords)
+  local _, total = measured(ui, tokens, chords)
   return total
 end
 
---- M.keycap(ui, tokens, chord, x, top, holderH, holderRadius, enabled) -> elements, the caps from
+--- M.keycap(ui, tokens, chords, x, top, holderH, holderRadius, enabled) -> elements, the caps from
 --- x, centred in a holder holderH tall from top whose corner is holderRadius. enabled false dims
 --- them by the kit's dim alpha, as a disabled line is.
-function M.keycap(ui, tokens, chord, x, top, holderH, holderRadius, enabled)
-  local caps, _, wordW = measured(ui, tokens, chord)
+function M.keycap(ui, tokens, chords, x, top, holderH, holderRadius, enabled)
+  local caps, _, wordW = measured(ui, tokens, chords)
   local els = {}
   if #caps == 0 then return els end
   local b = tokens.badge.hint
@@ -111,7 +117,12 @@ function M.keycap(ui, tokens, chord, x, top, holderH, holderRadius, enabled)
     els[#els + 1] = { type = "rectangle", action = "fill",
       fillColor = faded(tokens.colors.foreground, tokens.alpha.keycap * dim),
       roundedRectRadii = { xRadius = r, yRadius = r }, frame = { x = px(x), y = px(y), w = cap.w, h = b.height } }
-    els[#els + 1] = centred(cap.text, v.font, v.size, faded(tokens.colors.foreground, dim), x, cap.w)
+    local gx = x + b.padX
+    for j, glyph in ipairs(cap.glyphs) do
+      if j > 1 then gx = gx + (b.gap or 0) end
+      els[#els + 1] = centred(glyph.text, v.font, v.size, faded(tokens.colors.foreground, dim), gx, glyph.w)
+      gx = gx + glyph.w
+    end
     x = x + cap.w
   end
   return els

@@ -24,7 +24,7 @@ two coordinator in the sense of the lifecycle contract in the hammerspoon
 `AGENTS.md`, built over the Chooser atom, the same widget behind the other list
 tools, and it names no domain spoon and no plugin. The root injects every
 collaborator through `configure`, the stage, the merged app details other
-plugins supply for an app row, a chord glyph resolver and the leader display names, the shared predicate
+plugins supply for an app row, the key vocabulary `lib/kbd.lua` and each leader's kbd key, the shared predicate
 registry, the tool registry, the rows other plugins contribute with the runners
 that take them back, and a small `actions` table of leaf closures that close
 over core alone (app focus or cycle and a URL toggle through `lib/appfocus.lua`,

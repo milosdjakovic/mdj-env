@@ -53,6 +53,9 @@ end
 local listModel = load("../default/list/model.lua")
 local geometry = load("../default/geometry.lua")
 local footerLib = load("../default/footer.lua")
+-- The one vocabulary of keys. A chord crosses into Swift as lists of glyphs, one entry per key,
+-- through its wire, so the bridge never carries a chord joined into a string.
+local kbd = load("../../../kbd.lua")
 local fieldKeys = load("fieldkeys.lua")
 
 -- The injected UI kit, read for the nested radius, nil until View.configure runs.
@@ -167,8 +170,11 @@ function View:restyle()
     titleFont = font(face.font, face.textSize),
     subFont = font(face.subFont, face.subSize),
     numberFont = font(face.numFont, face.numSize),
+    -- The key a row number shortcut is pressed with, drawn before the digit, from lib/kbd.lua.
+    numberKey = kbd.Cmd.glyph,
     captionFont = font(text.caption.font, text.caption.size),
-    badgeFont = font(text.section.font, text.section.size),
+    -- The key cap's glyphs, in the role the kit's hint badge names, see BADGE_RULES in lib/ui/style.lua.
+    keycapFont = font(text[T.badge.hint.text].font, text[T.badge.hint.text].size),
     radius = T.radius.surface,
     highlightRadius = UI.nestedRadius(T.radius.surface, s.layout.marginX),
   })
@@ -219,6 +225,7 @@ function View:place(rects)
     barPillPad = footerLib.padding(T),
     keycapH = T.badge.hint.height,
     keycapPadX = T.badge.hint.padX,
+    keycapGap = T.badge.hint.gap,
     keycapOr = footerLib.ALT_WORD,
   })
 end
@@ -272,19 +279,19 @@ local function iconWindow(ns)
   return math.max(1, first - margin), math.min(#ns.filtered, last + margin)
 end
 
--- The footer model flattened to strings, a key panel entry's badges, its alternative keys, joined
--- by footer.lua's ALT_SEP into one chord, which a KeyCap draws as one chip per key.
+-- The footer model flattened for Swift, every chord through kbd.wire, a list of alternatives each a
+-- list of glyphs, which a KeyCap draws as one chip per alternative and one glyph per key.
 local function footerData(model)
   if not model then return nil end
   local right, keys = {}, {}
   for _, r in ipairs(model.right or {}) do
-    right[#right + 1] = { label = r.label or "", chord = r.chord or "", action = r.action }
+    right[#right + 1] = { label = r.label or "", chord = kbd.wire(r.chord), action = r.action }
   end
   for _, k in ipairs(model.keys or {}) do
-    keys[#keys + 1] = { label = k.label or "", chord = table.concat(k.badges or {}, footerLib.ALT_SEP), section = k.section }
+    keys[#keys + 1] = { label = k.label or "", chord = kbd.wire(k.badges), section = k.section }
   end
   local icon = model.keysIcon
-  return { right = right, keys = keys, keysChord = model.keysChord, title = model.title,
+  return { right = right, keys = keys, keysChord = kbd.wire(model.keysChord), title = model.title,
     panelOpen = model.panelOpen == true, panelTitle = model.panelTitle,
     keysImage = icon and ICON and ICON(icon.icon, icon.owner) or nil }
 end
@@ -452,7 +459,7 @@ function View:_redrawPanel(s, ns, footer)
   for i, row in ipairs(ns.filtered) do
     local image = row.image
     if image == nil and row.icon ~= nil and ICON then image = ICON(row.icon, row.iconOwner) end
-    actions[i] = { title = plain(row.title), subtitle = plain(row.subTitle), image = image or nil,
+    actions[i] = { title = plain(row.title), chord = kbd.wire(row.chord), image = image or nil,
       section = row.section, enabled = row.enabled ~= false }
   end
   self.native.update(self.id, {

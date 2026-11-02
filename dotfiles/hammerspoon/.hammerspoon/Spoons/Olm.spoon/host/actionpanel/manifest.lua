@@ -71,6 +71,11 @@ return {
       ownRowsMatcher = { source = "root", policy = "optional",
         breaks = "typing while the panel is open over a list that owns its own filtering narrows nothing, every verb stays listed" },
     },
+    -- The one vocabulary of keys, lib/kbd.lua. A verb's chord arrives as a kbd chord and its row
+    -- subtitle is that chord spelled as text, which only this lib may do.
+    lib = {
+      kbd = { from = "kbd", policy = "required" },
+    },
   },
 
   -- Its own chord is o, and it is deliberately classified as navigation rather than a verb so

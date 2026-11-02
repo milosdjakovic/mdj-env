@@ -107,19 +107,15 @@ local READ_TIMEOUT = 5
 --------------------------------------------------------------------------------
 
 -- hs decodes AXMenuItemCmdModifiers into a list of modifier names (e.g. { "cmd" }
--- or { "cmd", "shift" }). Turn it plus the command char into a readable glyph for
--- the row subtitle, in the canonical ⌃⌥⇧⌘ order, or nil when the item has no
--- keyboard shortcut. Both alt/option and ctrl/control spellings are accepted.
+-- or { "cmd", "shift" }). Turn it plus the command char into the row subtitle's text through
+-- Olm's one vocabulary of keys, opts.kbd, which writes every glyph and orders the modifiers, or
+-- nil when the item has no keyboard shortcut or no vocabulary was handed in. Both alt/option and
+-- ctrl/control spellings are accepted, kbd names both.
 local function menuShortcutGlyph(char, mods)
   if not char or char == "" then return nil end
-  local has = {}
-  for _, m in ipairs(mods or {}) do has[tostring(m):lower()] = true end
-  local g = ""
-  if has.ctrl or has.control then g = g .. "⌃" end
-  if has.alt or has.option then g = g .. "⌥" end
-  if has.shift then g = g .. "⇧" end
-  if has.cmd or has.command then g = g .. "⌘" end
-  return g .. char:upper()
+  local kbd = cfg and cfg.kbd
+  if not kbd then return nil end
+  return kbd.text(kbd.binding(char, mods))
 end
 
 -- The joined menu path, used only as the raw material an identity is built from below, never

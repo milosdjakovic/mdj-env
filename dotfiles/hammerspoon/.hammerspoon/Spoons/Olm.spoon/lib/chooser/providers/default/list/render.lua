@@ -122,6 +122,8 @@ end
 
 local model = load("model.lua")
 local geometry = load("../geometry.lua")
+-- The one vocabulary of keys, which spells a row's number shortcut, Command and the digit.
+local kbd = load("../../../../kbd.lua")
 
 local M = {}
 
@@ -425,7 +427,7 @@ function M.elements(state, rect, layout, style, clip, query)
       local numTop, numH = centredLine(rowY, layout.rowH, numberMetrics)
       local numW = layout.numW or layout.iconSize
       els[#els + 1] = {
-        type = "text", text = "\u{2318}" .. tostring(number),
+        type = "text", text = kbd.text(kbd.of(kbd.Cmd, kbd.named(tostring(number)))),
         textFont = layout.numFont, textSize = layout.numSize,
         textColor = numberColor,
         textAlignment = "right",

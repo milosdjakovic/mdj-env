@@ -72,6 +72,8 @@ local function load(relPath)
 end
 
 local rank = load("../rank.lua")
+-- The one vocabulary of keys, which spells the widest row number shortcut the column is sized by.
+local kbd = load("../../kbd.lua")
 local contract = load("../contract.lua")
 local viewContract = load("../view.lua")
 
@@ -1180,7 +1182,8 @@ function M.new(config, makeView)
   -- The shortcut column is as wide as the widest shortcut drawn in it, measured in the body
   -- role, so the title's budget is exactly what is left.
   if UI.measure then
-    layout.numW = math.ceil(UI.measure:width("\u{2318}9", tokens.text.body.font, tokens.text.body.size))
+    layout.numW = math.ceil(UI.measure:width(kbd.text(kbd.of(kbd.Cmd, kbd.named("9"))),
+      tokens.text.body.font, tokens.text.body.size))
   end
   layout.rowH = derived.rowH
   layout.baseH = derived.baseH

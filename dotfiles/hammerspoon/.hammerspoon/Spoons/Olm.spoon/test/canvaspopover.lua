@@ -58,6 +58,8 @@ UI.configure({ spec = { radius = { surface = 17 } } })
 local T = UI.tokens()
 local popover = dofile(spoon .. "lib/chooser/providers/default/popover.lua")
 local footerLib = dofile(spoon .. "lib/chooser/providers/default/footer.lua")
+-- Every chord is a kbd chord, lib/kbd.lua, one entry per key.
+local kbd = dofile(spoon .. "lib/kbd.lua")
 local listModel = dofile(spoon .. "lib/chooser/providers/default/list/model.lua")
 
 local MARGIN = 12
@@ -83,11 +85,13 @@ check("at the border stroke", style.stroke, T.stroke.border)
 
 -- The key panel, read lines and a header, laid out as the action panel's lines are.
 local keys = popover.layout(UI, style, "Keys", {
-  { label = "Copy", chord = "⌘ C" },
-  { label = "Open in Finder", chord = "⌘ O" },
+  { label = "Copy", chord = kbd.of(kbd.Cmd, kbd.named("c")) },
+  { label = "Open in Finder", chord = kbd.of(kbd.Cmd, kbd.named("o")) },
 }, false)
--- The chord is a key cap, its glyphs and the hint badge's padding either side.
-local widest = 7 * #"Open in Finder" + T.space.l + 7 * #"⌘ O" + 2 * T.badge.hint.padX
+-- The chord is a key cap, its glyphs one per key with the hint badge's gap between them and its
+-- padding either side.
+local widest = 7 * #"Open in Finder" + T.space.l + 7 * #"\u{2318}" + T.badge.hint.gap + 7 * #"O"
+  + 2 * T.badge.hint.padX
 check("a read line's text stands the outer and the inner padding in, as a chosen line's", keys.side,
   T.barInner + T.barInner)
 check("a read popover is its widest line and both paddings on both sides", keys.w,
@@ -98,11 +102,11 @@ check("and as tall as its header line, the rule, its lines and the outer padding
 -- The action panel, chosen lines with sections and pictures.
 local picture = function(frame) return { { type = "image", frame = frame } } end
 local actions = popover.layout(UI, style, nil, {
-  { label = "Open", chord = "↩", picture = picture },
-  { label = "Reveal", chord = "⌘↩", picture = picture },
-  { label = "Rename", chord = "⌘R", picture = picture, section = "File" },
-  { label = "Delete", chord = "⌘⌫", picture = picture, section = "File", enabled = false },
-  { label = "Share", chord = "⌘S", picture = picture, section = "Send" },
+  { label = "Open", chord = kbd.of(kbd.Return), picture = picture },
+  { label = "Reveal", chord = kbd.of(kbd.Cmd, kbd.Return), picture = picture },
+  { label = "Rename", chord = kbd.of(kbd.Cmd, kbd.named("r")), picture = picture, section = "File" },
+  { label = "Delete", chord = kbd.of(kbd.Cmd, kbd.Delete), picture = picture, section = "File", enabled = false },
+  { label = "Share", chord = kbd.of(kbd.Cmd, kbd.named("s")), picture = picture, section = "Send" },
 }, true)
 check("a chosen line's text stands the outer and the inner padding in", actions.side, T.barInner + T.barInner)
 check("a heading starts each run of one section", #actions.headings, 2)
@@ -191,8 +195,8 @@ local function rows(names)
 end
 local listRows = listModel.newState(rows({ "alpha", "beta", "gamma", "delta" }), drawLayout)
 local panelRows = listModel.newState({
-  { title = "Open", subTitle = "↩", item = "open" },
-  { title = "Rename", subTitle = "⌘R", item = "rename", section = "File" },
+  { title = "Open", chord = kbd.of(kbd.Return), item = "open" },
+  { title = "Rename", chord = kbd.of(kbd.Cmd, kbd.named("r")), item = "rename", section = "File" },
 }, drawLayout)
 
 local scene = {
@@ -210,7 +214,7 @@ local scene = {
   rankedQuery = "",
   placeholder = "",
   bare = false,
-  footer = { keys = { { label = "Copy", badges = { "⌘", "C" } } }, right = { { label = "Open", chord = "↩" } },
+  footer = { keys = { { label = "Copy", badges = { kbd.of(kbd.Cmd, kbd.named("c")) } } }, right = { { label = "Open", chord = kbd.of(kbd.Return) } },
     title = "Keys" },
   keysOpen = false,
 }

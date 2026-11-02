@@ -101,7 +101,9 @@ local SHIPPED = {
 
   -- sm and lg were the retired hint bar's two gaps, eight between lines and sixteen between
   -- hints, added in stage two beside the scale they fall between and still used elsewhere.
-  space = { xs = 2, s = 6, sm = 8, m = 10, l = 14, lg = 16, xl = 20 },
+  -- xss sits between xs and s the way sm sits between s and m, the gap between two keys of a key
+  -- cap, four points, Milos's choice of 2026-11-02.
+  space = { xs = 2, xss = 4, s = 6, sm = 8, m = 10, l = 14, lg = 16, xl = 20 },
 
   -- surface is the one corner a person sets, overwritten from settings by the spec, square for
   -- an unconfigured kit. Every other corner is derived from it, see radius.nested below, so a
@@ -128,8 +130,14 @@ local SHIPPED = {
 -- the glyph is drawn in plus twice padY, and the padding either side of the glyph is padX,
 -- both names of the space scale. Nothing here states a point value, so a size changed in
 -- config/typography.toml reflows every chip. cheat is the cheat sheet chip, its glyph in
--- body. hint is the action bar chip, its glyph in section, with no minimum width since the
--- hint bar it came from never had one. button is the report toast's Dismiss chip, its word in caption, rounded at
+-- body. hint is the key cap, the one chip every chord in a chooser stands on, in the bar, the
+-- key panel and the action panel of both choosers, its glyph in code so every key is one width,
+-- with no minimum width since the hint bar it came from never had one. Both choosers read the
+-- cap's role, height, padX and gap from here and nowhere else, so a change here reaches every cap.
+-- gap is the room between two keys of one chord, which a cap draws one glyph per key, see
+-- lib/kbd.lua, so a chord is spaced by this token and never by a character. It names a space step
+-- and is none when absent. Four points, xss, Milos's choice of 2026-11-02 once the caps placed keys
+-- by their ink. button is the report toast's Dismiss chip, its word in caption, rounded at
 -- the chip radius. minWidth is the narrowest the chip may be, the height when absent, so a
 -- lone glyph stays square. radius names the radius token the chip is rounded with, badge
 -- when absent.
@@ -143,7 +151,7 @@ local INSET_RULE = { x = "l", y = "m" }
 
 local BADGE_RULES = {
   cheat = { role = "body", padY = "s", padX = "m", radius = "nested" },
-  hint = { role = "section", padY = "xs", padX = "s", minWidth = 0, radius = "nested" },
+  hint = { role = "code", padY = "xs", padX = "s", gap = "xss", minWidth = 0, radius = "nested" },
   button = { role = "caption", padY = "s", padX = "l", radius = "nested" },
 }
 
@@ -390,6 +398,7 @@ function M.new(opts)
       badges[name] = {
         height = text[rule.role].lineHeight + 2 * space[rule.padY],
         padX = space[rule.padX],
+        gap = rule.gap and space[rule.gap] or 0,
         text = rule.role,
         minWidth = rule.minWidth,
         radius = rule.radius,

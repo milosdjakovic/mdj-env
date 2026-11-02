@@ -25,7 +25,9 @@ struct Style {
   var subFont = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
   var numberFont = NSFont.systemFont(ofSize: NSFont.systemFontSize)
   var captionFont = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
-  var badgeFont = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+  // The glyph a row number shortcut is pressed with, lib/kbd.lua's Command, drawn before the digit.
+  var numberKey = ""
+  var keycapFont = NSFont.monospacedSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
   var radius: CGFloat = 0
   var highlightRadius: CGFloat = 0
 
@@ -48,7 +50,8 @@ struct Style {
     subFont = r.font(t, "subFont") ?? subFont
     numberFont = r.font(t, "numberFont") ?? numberFont
     captionFont = r.font(t, "captionFont") ?? captionFont
-    badgeFont = r.font(t, "badgeFont") ?? badgeFont
+    keycapFont = r.font(t, "keycapFont") ?? keycapFont
+    numberKey = r.string(t, "numberKey") ?? numberKey
     radius = r.number(t, "radius") ?? radius
     highlightRadius = r.number(t, "highlightRadius") ?? highlightRadius
   }
@@ -88,9 +91,11 @@ struct Placement {
   var barPad: CGFloat = 0
   var barPillH: CGFloat = 0
   var barPillPad: CGFloat = 0
-  // A key cap's height and the room either side of its glyphs, the kit's hint badge.
+  // A key cap's height, the room either side of its glyphs and between two keys, the kit's hint
+  // badge.
   var keycapH: CGFloat = 0
   var keycapPadX: CGFloat = 0
+  var keycapGap: CGFloat = 0
   // The word between two alternative keys, footer.lua's ALT_WORD.
   var keycapOr = "/"
 
@@ -126,13 +131,23 @@ struct Placement {
     barPillPad = r.number(t, "barPillPad") ?? barPillPad
     keycapH = r.number(t, "keycapH") ?? keycapH
     keycapPadX = r.number(t, "keycapPadX") ?? keycapPadX
+    keycapGap = r.number(t, "keycapGap") ?? keycapGap
     keycapOr = r.string(t, "keycapOr") ?? keycapOr
   }
+}
+
+// One key of a chord, lib/kbd.lua's glyph and the SF Symbol a key cap draws in its place, nil for
+// a key drawn as its glyph.
+struct KeyMark {
+  var glyph: String
+  var symbol: String?
 }
 
 struct Row {
   var title = ""
   var subtitle = ""
+  // An action panel row's chord, lib/kbd.lua's wire, empty for a list row.
+  var chord: [[KeyMark]] = []
   var enabled = true
   // The engine's row of more, which ends a list its limit cut, drawn in the subtext colour so it
   // reads as part of the list rather than as one of its results.
@@ -144,6 +159,7 @@ struct Row {
   init(_ r: LuaReader, _ t: Int32) {
     title = r.string(t, "title") ?? ""
     subtitle = r.string(t, "subtitle") ?? ""
+    chord = r.chord(t, "chord")
     enabled = r.bool(t, "enabled") ?? true
     muted = r.bool(t, "muted") ?? false
     image = r.image(t, "image")
@@ -151,18 +167,18 @@ struct Row {
   }
 }
 
-// The action bar's model as lib/hints.lua's footerModel shapes it, flattened to strings.
+// The action bar's model as lib/hints.lua's footerModel shapes it, a chord as kbd's wire.
 struct Footer {
   struct Entry {
     var label: String
-    var chord: String
+    var chord: [[KeyMark]]
     var action: String? = nil
     // The heading a key panel line is listed under, nil for the legend that leads it.
     var section: String? = nil
   }
   var right: [Entry] = []
   var keys: [Entry] = []
-  var keysChord: String?
+  var keysChord: [[KeyMark]] = []
   var keysImage: NSImage?
   var title: String?
   var panelOpen = false
@@ -173,14 +189,14 @@ struct Footer {
 
   init(_ r: LuaReader, _ t: Int32) {
     r.each(t, "right") { e in
-      right.append(Entry(label: r.string(e, "label") ?? "", chord: r.string(e, "chord") ?? "",
+      right.append(Entry(label: r.string(e, "label") ?? "", chord: r.chord(e, "chord"),
         action: r.string(e, "action")))
     }
     r.each(t, "keys") { e in
-      keys.append(Entry(label: r.string(e, "label") ?? "", chord: r.string(e, "chord") ?? "",
+      keys.append(Entry(label: r.string(e, "label") ?? "", chord: r.chord(e, "chord"),
         section: r.string(e, "section")))
     }
-    keysChord = r.string(t, "keysChord")
+    keysChord = r.chord(t, "keysChord")
     keysImage = r.image(t, "keysImage")
     title = r.string(t, "title")
     panelOpen = r.bool(t, "panelOpen") ?? false

@@ -26,12 +26,9 @@ local labels = assert(loadfile(here .. "../lib/labels.lua"))()
 local binder = assert(loadfile(here .. "../lib/binder.lua"))()
 local keyPage = assert(loadfile(here .. "../lib/keypage.lua"))()
 
-local MOD_GLYPH = { shift = "⇧", ctrl = "⌃", alt = "⌥", cmd = "⌘" }
-local function glyphFor(key, mods)
-  local prefix = ""
-  for _, m in ipairs(mods or {}) do prefix = prefix .. (MOD_GLYPH[m] or "") end
-  return prefix .. tostring(key):upper()
-end
+-- The one vocabulary of keys. An entry's chord is a kbd chord, read here as the text kbd spells.
+local kbd = assert(loadfile(here .. "../lib/kbd.lua"))()
+local H, M = "\u{2726}", "\u{25C6}"
 local KEYCODES = { a = 0, b = 1, g = 2, j = 3, k = 4, l = 5, t = 6, x = 7, z = 8, d = 9, y = 10,
   [0] = "a", [1] = "b", [2] = "g", [3] = "j", [4] = "k", [5] = "l", [6] = "t", [7] = "x", [8] = "z",
   [9] = "d", [10] = "y" }
@@ -80,24 +77,23 @@ eq(#keymap.problems, 0, "setup: the keymap builds")
 local entries = hints.keyEntries(keymap, plan, {
   bindable = binder.bindable,
   leaders = { "hyper", "meta" },
-  leaderNames = { hyper = "Hyper", meta = "Meta" },
-  chordLabel = labels.chordLabel(glyphFor),
-  glyphFor = glyphFor,
+  leaderNames = { hyper = kbd.Hyper, meta = kbd.Meta },
+  chordLabel = labels.chordLabel(),
   manifests = manifests,
   appName = function(bundleID) return bundleID == "com.s" and "Safari" or nil end,
 })
 
 local function line(e)
-  return table.concat({ e.chord, e.description, e.owner, e.list or "-" }, " | ")
+  return table.concat({ kbd.text(e.chord), e.description, e.owner, e.list or "-" }, " | ")
 end
 local want = {
-  "Hyper T | Tool | Tool | -",
-  "Meta L | Left half | Window Mover | -",
-  "Meta B | Safari | toggler | -",
-  "⌥Z | Safari placed | toggler | -",
-  "Hyper I | Choose | Picker | Picker",
-  "Hyper J | Move down | Picker | Picker",
-  "Hyper ⇧D | Delete | Picker | Picker",
+  H .. "T | Tool | Tool | -",
+  M .. "L | Left half | Window Mover | -",
+  M .. "B | Safari | toggler | -",
+  "\u{2325}Z | Safari placed | toggler | -",
+  H .. "I | Choose | Picker | Picker",
+  H .. "J | Move down | Picker | Picker",
+  H .. "\u{21E7}D | Delete | Picker | Picker",
 }
 eq(#entries, #want, "entries: every bound chord and nothing freed")
 for i, w in ipairs(want) do eq(entries[i] and line(entries[i]), w, "entries: row " .. i) end
@@ -114,13 +110,13 @@ do
     if copy.action == "open" then copy.run = nil end
     marked.bound[#marked.bound + 1] = copy
   end
-  local some = hints.keyEntries(marked, plan, { bindable = binder.bindable, leaders = { "hyper" }, leaderNames = { hyper = "Hyper" },
-    chordLabel = labels.chordLabel(glyphFor), glyphFor = glyphFor, manifests = manifests })
+  local some = hints.keyEntries(marked, plan, { bindable = binder.bindable, leaders = { "hyper" }, leaderNames = { hyper = kbd.Hyper },
+    chordLabel = labels.chordLabel(), manifests = manifests })
   local chords = {}
-  for _, e in ipairs(some) do chords[#chords + 1] = e.chord end
-  eq(table.concat(chords, ","), "⌥Z,Hyper I,Hyper J,Hyper ⇧D", "entries: a refused row, a row with no function and an unlisted leader are left out")
-  local unnamed = hints.keyEntries(keymap, plan, { bindable = binder.bindable, leaders = { "meta" }, leaderNames = { meta = "Meta" },
-    chordLabel = labels.chordLabel(glyphFor), glyphFor = glyphFor, manifests = manifests })
+  for _, e in ipairs(some) do chords[#chords + 1] = kbd.text(e.chord) end
+  eq(table.concat(chords, ","), "\u{2325}Z," .. H .. "I," .. H .. "J," .. H .. "\u{21E7}D", "entries: a refused row, a row with no function and an unlisted leader are left out")
+  local unnamed = hints.keyEntries(keymap, plan, { bindable = binder.bindable, leaders = { "meta" }, leaderNames = { meta = kbd.Meta },
+    chordLabel = labels.chordLabel(), manifests = manifests })
   eq(unnamed[2] and unnamed[2].description, "Open Safari", "entries: an app row with no app name reads as its action")
   eq(#hints.keyEntries(nil, plan, { bindable = binder.bindable }), 0, "entries: no keymap lists nothing")
   eq(pcall(hints.keyEntries, keymap, plan, {}), false, "entries: with no bindable test it refuses rather than guess")
@@ -132,11 +128,11 @@ eq(#rows, #entries + 1, "rows: Back and one per entry")
 eq(rows[1].title, "Back", "rows: Back leads")
 eq(rows[1].pinned, true, "rows: and is pinned so a search never drops it")
 eq(rows[2].title, "Tool", "rows: titled by what the key does")
-eq(rows[2].subTitle, "Hyper T", "rows: an owner the title already says is not said twice")
-eq(rows[3].subTitle, "Meta L · Window Mover", "rows: a global key reads its chord and owner")
+eq(rows[2].subTitle, H .. "T", "rows: an owner the title already says is not said twice")
+eq(rows[3].subTitle, M .. "L · Window Mover", "rows: a global key reads its chord and owner")
 eq(rows[3].keywords, "Window Mover", "rows: the owner is a keyword")
 eq(rows[2].keywords, nil, "rows: and not where it is the title")
-eq(rows[6].subTitle, "Hyper I in Picker", "rows: a list key reads its chord in its list")
+eq(rows[6].subTitle, H .. "I in Picker", "rows: a list key reads its chord in its list")
 eq(rows[2].filterText, nil, "rows: the subtitle stays searchable, the chord is what is looked up")
 eq(rows[2].icon, keyPage.ICON_KEY, "rows: every key wears the keys icon")
 

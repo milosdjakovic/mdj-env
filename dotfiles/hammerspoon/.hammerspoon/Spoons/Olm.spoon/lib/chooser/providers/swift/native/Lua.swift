@@ -118,6 +118,30 @@ struct LuaReader {
     }
   }
 
+  // A chord as lib/kbd.lua's wire hands it over, a list of alternatives each a list of keys, one
+  // entry per key, each its glyph and the SF Symbol drawn in its place where it names one, so a
+  // chord never crosses the bridge as one joined string.
+  func chord(_ table: Int32, _ name: String) -> [[KeyMark]] {
+    var out: [[KeyMark]] = []
+    each(table, name) { alt in
+      guard isTable(alt) else { return }
+      var keys: [KeyMark] = []
+      let count = lua_rawlen(L, alt)
+      if count > 0 {
+        for i in 1...count {
+          _ = lua_rawgeti(L, alt, lua_Integer(i))
+          let entry = lua_gettop(L)
+          if isTable(entry), let glyph = string(entry, "glyph") {
+            keys.append(KeyMark(glyph: glyph, symbol: string(entry, "symbol")))
+          }
+          olm_pop(L, 1)
+        }
+      }
+      if !keys.isEmpty { out.append(keys) }
+    }
+    return out
+  }
+
   // Calls body once per element of the array at table[name], each pushed while body runs.
   func each(_ table: Int32, _ name: String, _ body: (Int32) -> Void) {
     _ = field(table, name) { index -> Bool? in

@@ -26,11 +26,12 @@ local rowIntercept = assert(loadfile(here .. "../lib/rowintercept.lua"))()
 
 -- Labels.
 do
-  local chord = labels.chordLabel(function(key, mods)
-    return (mods and #mods > 0 and table.concat(mods, "") or "") .. key:upper()
-  end)
-  eq(chord("Hyper", "k"), "Hyper K", "labels: a leader, a space and the glyph")
-  eq(chord("Meta", "k", { "⇧" }), "Meta ⇧K", "labels: the glyph carries the modifiers")
+  local kbd = assert(loadfile(here .. "../lib/kbd.lua"))()
+  local chord = labels.chordLabel()
+  eq(kbd.text(chord(kbd.Hyper, "k")), "\u{2726}K", "labels: a leader and the key, nothing between them")
+  eq(kbd.text(chord(kbd.Meta, "k", { "shift" })), "\u{25C6}\u{21E7}K", "labels: the modifiers between the leader and the key")
+  eq(#chord(kbd.Meta, "k", { "shift", "cmd" }).keys, 4, "labels: one entry per key")
+  eq(pcall(chord, "Hyper", "k"), false, "labels: a leader that is a string is refused")
   eq(labels.aliasLabel({ "v", "vpn" }), "(v, vpn)", "labels: aliases in brackets, comma joined")
   eq(labels.aliasLabel({}), "", "labels: none is the empty string")
   eq(labels.aliasLabel(nil), "", "labels: and so is nil")

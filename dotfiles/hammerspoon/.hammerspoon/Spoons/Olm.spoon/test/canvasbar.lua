@@ -55,6 +55,8 @@ hs = {
 local ui = dofile(spoon .. "lib/ui/init.lua")
 local T = ui.tokens()
 local footerLib = dofile(spoon .. "lib/chooser/providers/default/footer.lua")
+-- Every chord is a kbd chord, lib/kbd.lua, one entry per key.
+local kbd = dofile(spoon .. "lib/kbd.lua")
 local barLib = dofile(spoon .. "lib/chooser/providers/default/bar.lua")
 local listModel = dofile(spoon .. "lib/chooser/providers/default/list/model.lua")
 
@@ -87,11 +89,11 @@ end
 --------------------------------------------------------------------------------
 
 local model = {
-  keysChord = "⌘?",
+  keysChord = kbd.of(kbd.Cmd, kbd.Question),
   right = {
-    { label = "Open", chord = "↩", action = "primary" },
-    { label = "Reveal", chord = "⌘↩", action = "secondary" },
-    { label = "Actions", chord = "⌘K", action = "actions" },
+    { label = "Open", chord = kbd.of(kbd.Return), action = "primary" },
+    { label = "Reveal", chord = kbd.of(kbd.Cmd, kbd.Return), action = "secondary" },
+    { label = "Actions", chord = kbd.of(kbd.Cmd, kbd.named("k")), action = "actions" },
   },
 }
 local cellH = footerLib.height(T)
@@ -109,11 +111,14 @@ local keys, actions = hits.keys, hits.actions
 check("the keys group stands the bar pad from the left", keys.x, rect.x + T.pad)
 check("at the top of the footer rect", keys.y, rect.y)
 check("as tall as a cell and the padding around it", keys.h, groupH)
--- The ? glyph and the chord's cap, each glyph eight points a character, the cap the hint badge's
--- padding either side of its glyphs, the small step between them.
-local function capW(chord) return 8 * #chord + 2 * T.badge.hint.padX end
+-- The ? glyph and the chord's cap, each glyph eight points a byte, the cap its glyphs one per key
+-- with the hint badge's gap between two keys and its padding either side.
+local function capW(chord)
+  return 8 * #kbd.text(chord) + (#chord.keys - 1) * T.badge.hint.gap + 2 * T.badge.hint.padX
+end
+check("the hint badge spaces two keys of a chord by its gap, four points", T.badge.hint.gap, 4)
 check("as wide as its parts, the small gap, the padding inside its cell and around it",
-  keys.w, 8 * #"?" + T.space.s + capW("⌘?") + 4 * T.barInner)
+  keys.w, 8 * #"?" + T.space.s + capW(model.keysChord) + 4 * T.barInner)
 check("its one cell stands the padding in from the group", hits.keysCell.x, keys.x + T.barInner)
 check("from the top too", hits.keysCell.y, keys.y + T.barInner)
 check("and is a cell tall", hits.keysCell.h, cellH)
@@ -144,22 +149,26 @@ for _, t in ipairs(words) do
   if t.text.attrs.font.size ~= T.text.body.size or t.text.attrs.font.name ~= T.text.body.font then allBody = false end
 end
 check("all in the body role", allBody, true)
-check("every chord is a cap", #caps, 1 + #model.right)
-local allSection = true
+local keyCount = #model.keysChord.keys
+for _, r in ipairs(model.right) do keyCount = keyCount + #r.chord.keys end
+check("every key of every chord is a glyph of its own", #caps, keyCount)
+local capRole = T.text[T.badge.hint.text]
+local allCode = true
 for _, t in ipairs(caps) do
-  if t.textSize ~= T.text.section.size or t.textFont ~= T.text.section.font then allSection = false end
+  if t.textSize ~= capRole.size or t.textFont ~= capRole.font then allCode = false end
 end
-check("its glyphs in the hint badge's section role", allSection, true)
+check("its glyphs in the hint badge's role, the mono code role", allCode and T.badge.hint.text == "code", true)
+check("two keys of a chord stand the gap apart", caps[2].frame.x - (caps[1].frame.x + caps[1].frame.w), T.badge.hint.gap)
 local chips = {}
 for _, el in ipairs(els) do
   if el.type == "rectangle" and el.action == "fill" and el.frame.h == T.badge.hint.height then chips[#chips + 1] = el end
 end
 check("each on a chip the hint badge's height", #chips, 1 + #model.right)
-check("the chip as wide as its glyphs and the padding", chips[1].frame.w, capW("⌘?"))
+check("the chip as wide as its glyphs, the gap and the padding", chips[1].frame.w, capW(model.keysChord))
 check("centred in the cell", chips[1].frame.y, math.floor(rect.y + T.barInner + (cellH - T.badge.hint.height) / 2 + 0.5))
 
 -- A chord naming alternatives is one chip per key with the alternative word between them.
-local alt = "J" .. footerLib.ALT_SEP .. "↓"
+local alt = { kbd.of(kbd.named("j")), kbd.of(kbd.Down) }
 local altEls = footerLib.keycap(ui, T, alt, 0, 0, footerLib.height(T), 9)
 local altChips, altWord = 0, false
 for _, el in ipairs(altEls) do
@@ -169,7 +178,8 @@ end
 check("alternatives are one chip per key", altChips, 2)
 check("with the alternative word between them", altWord, true)
 check("as wide as both chips, the word and the small step either side of it",
-  footerLib.keycapWidth(ui, T, alt), capW("J") + capW("↓") + 8 * #footerLib.ALT_WORD + 2 * T.space.s)
+  footerLib.keycapWidth(ui, T, alt), capW(alt[1]) + capW(alt[2]) + 8 * #footerLib.ALT_WORD + 2 * T.space.s)
+check("a chord that is a string is refused", pcall(footerLib.keycapWidth, ui, T, "\u{2318}K"), false)
 
 check("one cell per entry", #hits.entries, 3)
 check("the first cell stands the padding in from the group's edge", hits.entries[1].rect.x, actions.x + T.barInner)
@@ -179,7 +189,7 @@ check("each stands the padding from the group's top", hits.entries[2].rect.y, ac
 check("and is a cell tall", hits.entries[2].rect.h, cellH)
 check("each names its action", hits.entries[2].action, "secondary")
 check("a middle cell starts right after the first",
-  hits.entries[2].rect.x, actions.x + T.barInner + 8 * #"Open" + T.space.s + capW("↩") + 2 * T.barInner)
+  hits.entries[2].rect.x, actions.x + T.barInner + 8 * #"Open" + T.space.s + capW(model.right[1].chord) + 2 * T.barInner)
 
 els = barLib.elements(ui, T, model, rect, { radius = 9, keysHover = true, hover = 2 })
 local lit = filled(els, T.colors.highlight)

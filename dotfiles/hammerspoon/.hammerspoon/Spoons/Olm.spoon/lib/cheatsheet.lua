@@ -43,7 +43,7 @@
 ---   titleHeight, groupGap           -- per-overlay layout, all optional
 ---   sections = {                    -- one or more; empty sections are skipped
 ---     { title = "OPEN", alpha = 1.0, rows = {
----         { badge = "C", label = "Google Chrome", icon = <hs.image?> }, ... } },
+---         { badge = kbd.of(kbd.named("c")), label = "Google Chrome", icon = <hs.image?> }, ... } },
 ---   }
 --- Rows are filled left-to-right, top-to-bottom across `columns`. An icon is
 --- drawn only when iconSize > 0 and the row carries one. A section's `alpha`
@@ -62,6 +62,9 @@
 
 local obj = {}
 obj.__index = obj
+
+-- The one vocabulary of keys, lib/kbd.lua, see its header. A badge here is a chord of its keys.
+local kbd = assert(loadfile(debug.getinfo(1, "S").source:sub(2):match("(.*/)") .. "kbd.lua"))()
 
 -- Metadata
 obj.name = "CheatSheet"
@@ -105,33 +108,22 @@ local function derivedLayout(T)
 end
 
 
--- Key names -> display glyph, and sub-modifier names -> glyph prefixed onto it.
--- Turning a key plus its modifiers into a badge string is pure presentation, so
--- it lives here on the shared renderer rather than in each builder. Both callers
--- use it, one caller styles only its capture rows, the other every row.
--- Anything not mapped is uppercased (letters, =, and so on).
-local KEY_GLYPH = {
-  left = "←", right = "→", up = "↑", down = "↓",
-  ["return"] = "↩", space = "␣", escape = "esc", tab = "⇥", delete = "⌫",
-}
-local MOD_GLYPH = { shift = "⇧", ctrl = "⌃", alt = "⌥", cmd = "⌘" }
--- A key whose shifted character is what a person reads, spelled as that character with Shift
--- folded into it, so slash with Shift reads as a question mark rather than as Shift and slash.
-local SHIFTED_GLYPH = { ["/"] = "?" }
-
---- CheatSheet.glyphFor(key, mods) -> string
---- Render a binding as a badge glyph, so ("left", {"shift"}) becomes "⇧←" and
---- ("/", {"shift"}) becomes "?". A plain function with no state, called as
+--- CheatSheet.glyphFor(key, mods) -> chord
+--- A binding as a badge, a key name and its modifier names as one kbd chord, so ("left",
+--- {"shift"}) is Shift and Left and ("/", {"shift"}) is a question mark. The glyphs live in
+--- lib/kbd.lua and nowhere else. A plain function with no state, called as
 --- CheatSheet.glyphFor(key, mods).
 function obj.glyphFor(key, mods)
-  local k = tostring(key):lower()
-  local g = KEY_GLYPH[k] or tostring(key):upper()
-  local shifted = SHIFTED_GLYPH[k]
-  local prefix = ""
-  for _, m in ipairs(mods or {}) do
-    if m == "shift" and shifted then g = shifted else prefix = prefix .. (MOD_GLYPH[m] or "") end
+  return kbd.binding(key, mods)
+end
+
+-- A badge's text, the chord's glyphs with nothing between them. A badge that is not a chord is
+-- refused, since a string would carry its own spacing.
+local function badgeText(b)
+  if not kbd.isChord(b) then
+    error("CheatSheet: a badge is a kbd chord, got " .. type(b) .. " " .. tostring(b), 3)
   end
-  return prefix .. g
+  return kbd.text(b)
 end
 
 -- Content-sized badges. A row may carry `badges`, a list of key strings, instead
@@ -155,8 +147,9 @@ end
 local function badgeBoxes(ui, r, glyph, sepVariant, padX, minH)
   local boxes, total = {}, 0
   for _, b in ipairs(r.badges) do
-    local w = math.max(minH, math.floor(measureW(ui, b, glyph) + 2 * padX + 0.5))
-    boxes[#boxes + 1] = { text = b, w = w }
+    local text = badgeText(b)
+    local w = math.max(minH, math.floor(measureW(ui, text, glyph) + 2 * padX + 0.5))
+    boxes[#boxes + 1] = { text = text, w = w }
     total = total + w
   end
   local sep = r.sep or BADGE_SEP
@@ -282,7 +275,7 @@ function obj:_rowsElements(els, rows, contentY, L, alpha, T)
       end
       labelX = x + maxBlock + L.gap
     else
-      self:_place(els, ui.badge(r.badge, "cheat", { fill = true }), x, badgeTop, L.badgeWidth,
+      self:_place(els, ui.badge(badgeText(r.badge), "cheat", { fill = true }), x, badgeTop, L.badgeWidth,
         L.badgeHeight, alpha, T)
       labelX = x + L.badgeWidth + L.gap
     end

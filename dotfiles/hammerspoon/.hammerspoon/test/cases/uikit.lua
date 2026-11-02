@@ -100,7 +100,7 @@ do
       and dark.badge.button.height == 19 + 2 * 6,
     dark.badge.hint.height .. " " .. dark.badge.cheat.height .. " " .. dark.badge.button.height)
   check("a badge pads its glyph by a space step and draws it in a role",
-    dark.badge.hint.padX == 6 and dark.badge.hint.text == "section"
+    dark.badge.hint.padX == 6 and dark.badge.hint.text == "code"
       and dark.badge.cheat.padX == 10 and dark.badge.cheat.text == "body"
       and dark.badge.button.padX == 14 and dark.badge.button.text == "caption")
   check("space, radius, alpha and icon carry the settled values",

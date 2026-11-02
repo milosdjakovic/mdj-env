@@ -825,9 +825,10 @@ field, the name at the top of a pane, a toast headline or a cheat sheet section 
 text. caption is a row subtitle, metadata, a description, an empty state and a hint label, the
 words of the default chooser's action bar and of the key panel, which Milos chose over body on
 2026-10-23, while the swift chooser's floating bar groups use body, chosen on 2026-10-29. section is
-a heading inside a pane and a key badge glyph. Nothing is drawn below 14 points, so caption,
+a heading inside a pane and a cheat sheet key badge glyph. Nothing is drawn below 14 points, so caption,
 section and code all ship at 14. code is a path, a command, output,
-or anything a person would copy, and it is the only role in the monospace font. A caller names
+or anything a person would copy, and a chooser's key cap glyph, so every key in the bar and its
+panels is one width, Milos's call on 2026-11-02, and it is the only role in the monospace font. A caller names
 a role and never a font, a size, a line height or a colour literal. Font, line height and
 colour are derived by the kit, the font from the role, the line height as the size times 1.35
 rounded up, and the colour from the role through the active theme, and a caller may pass a
@@ -838,6 +839,27 @@ one size per role, and the kit ships the same values as its fallback. A font or 
 anywhere else is the drift this rule exists to end. Emoji drawn to an image are icons rather
 than text and take an icon size, and `hs.alert` and `hs.dialog` are system drawn and outside
 this rule. The Olm dry gate, `Spoons/Olm.spoon/test/drygate.sh`, enforces it by reporting any font name, text size or line height written outside `lib/ui` as a finding, and an icon drawn into a canvas declares itself with a `type-exempt, reason` comment on its line or the line above, which counts as accepted. The design and the role table live in `Spoons/Olm.spoon/docs/DESIGN-UI-KIT.md`.
+
+**Olm keys, one vocabulary and a chord is a list.** Every key a person reads, in a key cap of either
+chooser, the key panel, the action panel, a cheat sheet badge, a launcher or keys page subtitle, a
+row number shortcut and a menu search row, comes from `Spoons/Olm.spoon/lib/kbd.lua`, settled by
+Milos on 2026-11-02. A key is an object with a name and a glyph, `kbd.Cmd`, `kbd.Return`,
+`kbd.Hyper`, and a chord is a list of them, one entry per key, built with `kbd.of(kbd.Cmd,
+kbd.Return)` or from data with `kbd.binding(key, mods, leader)`. Code names a key by its constant
+and never by its glyph or a bare string, the constants are capitalised because `return` is a Lua
+keyword, and a key name that is data, a binding's key or a word from `config/keymap.lua`, crosses
+in once through `kbd.named`. A chord is never a string anywhere it travels, so the bridge to the
+swift chooser carries `kbd.wire`, lists of glyphs, and a renderer reads a chord through
+`kbd.alternatives` or `kbd.glyphs`, which raise on a string. Two keys of one chord never have a
+character between them. A key cap draws its keys one glyph at a time with the hint badge's `gap`
+between them, the token in `BADGE_RULES` in `lib/ui/style.lua` beside the cap's role, height and
+padding, so one edit there moves every cap in both choosers, and a surface that can only print text
+spells a chord with `kbd.text`, its glyphs with nothing between them. Modifiers are always in the
+menu bar's order, Control, Option, Shift, Command, after the leader and before the key. A plugin or
+a host that shows a shortcut declares `needs.lib.kbd` and spells it through it. The dry gate refuses
+a key glyph written in any Lua or Swift file of the spoon outside `lib/kbd.lua`,
+`Spoons/Olm.spoon/test/drygate-kbd.lua`, unless the line carries `kbd-exempt, <reason>`. A glyph that
+may later be drawn as a picture changes in `lib/kbd.lua` alone.
 
 **Olm colour, eight roles and nothing else.** Every colour Olm draws, in the default chooser,
 the panes, the toasts, the cheat sheets and every plugin, is one of eight roles from the UI kit

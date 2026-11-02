@@ -86,6 +86,9 @@ local function load(rel)
 end
 
 local contributions = load("lib/contributions.lua")
+-- The one vocabulary of keys and the real speller, so a subtitle reads what the live one reads.
+local kbd = load("lib/kbd.lua")
+local labelsLib = load("lib/labels.lua")
 local registrar = load("lib/registrar.lua")
 local keymapLib = load("lib/keymap.lua")
 
@@ -181,11 +184,9 @@ local function actionsOf(plan)
   return actions, order, keymap
 end
 
--- A chord speller that keeps every part visible, so a subtitle that names the wrong leader,
--- key or modifier reads differently here.
-local function chordLabel(leader, key, mods)
-  return leader .. " " .. tostring(key) .. (mods and ("+" .. table.concat(mods, "+")) or "")
-end
+-- The real speller, every part a kbd key, so a subtitle that names the wrong leader, key or
+-- modifier reads differently here.
+local chordLabel = labelsLib.chordLabel()
 
 local leafCalls = {}
 local function buildLauncher(plan, extraSuppliers)
@@ -199,7 +200,8 @@ local function buildLauncher(plan, extraSuppliers)
   local launcher = load("host/launcher/init.lua")
   launcher:init()
   launcher:configure({
-    leaderNames = { app = "Hyper", window = "Meta" },
+    leaderNames = { app = kbd.Hyper, window = kbd.Meta },
+    kbd = kbd,
     chordLabel = chordLabel,
     rowSuppliers = suppliers,
     runners = runners,
@@ -264,7 +266,7 @@ local function expectRow(label, row, want)
 end
 
 expectRow("capture row", actionRows[3], {
-  title = "Screenshot", subTitle = "Capture · Hyper 4+shift", icon = "screenshot",
+  title = "Screenshot", subTitle = "Capture · \u{2726}\u{21E7}4", icon = "screenshot",
   iconOwner = "capture", kind = "capture", id = "captureArea", owner = "capture" })
 -- The scope above would hint this name, and an owned row is never asked, so the subtitle is
 -- exactly what it always was, the real resolver answering nothing for this name either.
@@ -273,17 +275,15 @@ expectRow("search settings row", actionRows[5], {
   icon = "search", iconOwner = "systemsettings", kind = "special", id = "searchSettings",
   owner = "systemsettings" })
 expectRow("own special row", actionRows[8], {
-  title = "Lock Screen", subTitle = "System · Hyper §", icon = "lock", iconOwner = "launcher",
+  title = "Lock Screen", subTitle = "System · \u{2726}§", icon = "lock", iconOwner = "launcher",
   kind = "special", id = "lock", owner = "launcher" })
 expectRow("gated window row", actionRows[10], {
-  title = "Previous Display", subTitle = "Window · Meta ,", icon = "windows",
+  title = "Previous Display", subTitle = "Window · \u{25C6},", icon = "windows",
   iconOwner = "windowmanager", kind = "window", id = "previousDisplay", owner = "windowmanager",
   when = "multipleDisplays" })
--- The key arrives in the keymap's one spelling, lowercased, and the real speller's glyph renderer
--- upper cases a letter, so the live subtitle still reads Meta H. This speller keeps the key as
--- given, which is why the letter is lower here.
+-- The key arrives in the keymap's one spelling, lowercased, and kbd draws a letter upper cased.
 expectRow("window row", actionRows[lastWindow], {
-  title = "Hide All Except Focused", subTitle = "Window · Meta h", icon = "windows",
+  title = "Hide All Except Focused", subTitle = "Window · \u{25C6}H", icon = "windows",
   iconOwner = "windowmanager", kind = "window", id = "hideAllExceptFocused",
   owner = "windowmanager" })
 expectRow("pane row", actionRows[lastWindow + 1], {
@@ -490,11 +490,9 @@ local function appLauncher(details)
   local l = load("host/launcher/init.lua")
   l:init()
   l:configure({
-    leaderNames = { app = "Hyper", window = "Meta" },
-    glyphFor = function(key, mods) return table.concat(mods or {}, "+") .. " " .. tostring(key):upper() end,
-    chordLabel = function(leader, key, mods)
-      return leader .. " " .. table.concat(mods or {}, "+") .. " " .. tostring(key):upper()
-    end,
+    leaderNames = { app = kbd.Hyper, window = kbd.Meta },
+    kbd = details and kbd or nil,
+    chordLabel = labelsLib.chordLabel(),
     appDetails = details,
   })
   l._installedApps = {
@@ -524,14 +522,14 @@ local appDetails = contributions.appChords({ plan = appPlan, actions = { apptogg
   actionOrder = { apptoggler = togglerOrder }, keymap = appKeymap })
 local apps = appLauncher(appDetails)
 eq("an app action's row names the app leader and the key", (apps["olm.test.alpha"] or {}).subTitle,
-  "Not running · Hyper  A")
+  "Not running · \u{2726}A")
 eq("a leader chord with modifiers spells them through the shared speller", (apps["olm.test.delta"] or {}).subTitle,
-  "Not running · Hyper shift D")
+  "Not running · \u{2726}\u{21E7}D")
 eq("a plain combination wins the chord and shows its description", (apps["olm.test.beta"] or {}).subTitle,
-  "Not running · ctrl+alt 8 Placed")
+  "Not running · \u{2303}\u{2325}8 Placed")
 eq("an app row carries no url", (apps["olm.test.beta"] or {}).item.url, nil)
 eq("a later leader chord does not take the row from a combination", (apps["olm.test.gamma"] or {}).subTitle,
-  "Not running · cmd G First")
+  "Not running · \u{2318}G First")
 eq("an app no action names carries no chord", (apps["olm.test.epsilon"] or {}).subTitle, "Not running")
 
 local bare = appLauncher(nil)

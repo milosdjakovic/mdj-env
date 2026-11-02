@@ -24,33 +24,59 @@ private func label(_ text: String, _ font: NSFont, _ color: NSColor) -> NSTextFi
   return field
 }
 
-// A chord drawn as key caps, the glyphs in the badge font on a chip of the keycap fill, the kit's
-// hint badge. A chord naming alternatives, keys joined by the unit separator, is one chip per key
-// with the alternative word between them in the caption colour, so it reads as press one or the
-// other. A chip is the hint badge's height and its glyphs stand padX in from either side. Its
-// corner nests in whatever line or group holds it, radius less the room above the chip. An empty
-// chord draws nothing and takes no room.
+// A chord drawn as key caps, lib/kbd.lua's wire, a list of alternatives each a list of keys. Each
+// alternative is one chip of the keycap fill, the kit's hint badge, its keys drawn here one at a
+// time. A key is its glyph in the keycap font, or the SF Symbol kbd names for it, which a key whose
+// glyph the font lacks takes, since the fallback font drew it at another size than its neighbours.
+// A symbol is tinted the text colour and scaled so its ink is the font's cap height, and centred on
+// the capitals' middle, so it stands in a row of glyphs as one of them. Every key is placed by its
+// ink, the bounds of what it actually draws, and not by its advance, since a monospaced advance
+// leaves room either side of a narrow symbol, which Milos found on 2026-11-02. So two keys stand
+// exactly the badge's gap apart, ink to ink, never a character, and padX is measured from the ink
+// too. Alternatives stand apart with the alternative word between them in the caption colour, so
+// it reads as press one or the other. A chip is the hint badge's height. Its corner nests in
+// whatever line or group holds it, radius less the room above the chip. No chord draws nothing.
 final class KeyCap: FlippedView {
-  static let separator: Character = "\u{1F}"
-  private var keys: [NSTextField] = []
+  // One key, what it draws and its ink. A glyph's ink is measured from its pen position, a
+  // symbol's from the left and top of the box it is drawn in, both already at drawn size.
+  private enum Mark {
+    case text(NSAttributedString)
+    case image(NSImage, NSSize)
+  }
+  private struct Key {
+    let mark: Mark
+    let ink: NSRect
+  }
+  private var caps: [[Key]] = []
   private var words: [NSTextField] = []
   private var padX: CGFloat = 0
+  private var keyGap: CGFloat = 0
   private var gap: CGFloat = 0
   private var height: CGFloat = 0
   private var fill = NSColor.clear
   private var radius: CGFloat = 0
   private var chips: [NSRect] = []
+  // The font's line height and the distance from a line's top to the capitals' middle.
+  private var lineH: CGFloat = 0
+  private var capMiddle: CGFloat = 0
+  // Where each key is drawn, parallel to caps, set by layout, a pen for a glyph, a box for a symbol.
+  private var places: [[NSRect]] = []
 
-  init(_ text: String, style: Style, placement: Placement, holderH: CGFloat, holderRadius: CGFloat,
+  init(_ chord: [[KeyMark]], style: Style, placement: Placement, holderH: CGFloat, holderRadius: CGFloat,
     enabled: Bool = true) {
     super.init(frame: .zero)
     padX = placement.keycapPadX
+    keyGap = placement.keycapGap
     gap = placement.barGap
     height = placement.keycapH
     fill = enabled ? style.keycap : style.keycap.withAlphaComponent(style.keycap.alphaComponent * 0.5)
     radius = max(0, holderRadius - max(0, holderH - height) / 2)
-    let parts = text.split(separator: KeyCap.separator).map(String.init).filter { !$0.isEmpty }
-    for (i, part) in parts.enumerated() {
+    let font = style.keycapFont
+    let color = enabled ? style.text : style.textDim
+    let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
+    lineH = NSAttributedString(string: "X", attributes: attributes).size().height
+    capMiddle = font.ascender - font.capHeight / 2
+    for (i, keys) in chord.enumerated() where !keys.isEmpty {
       if i > 0 {
         let word = NSTextField(labelWithString: placement.keycapOr)
         word.font = style.captionFont
@@ -58,21 +84,86 @@ final class KeyCap: FlippedView {
         words.append(word)
         addSubview(word)
       }
-      let field = NSTextField(labelWithString: part)
-      field.font = style.badgeFont
-      field.textColor = enabled ? style.text : style.textDim
-      field.alignment = .center
-      field.lineBreakMode = .byClipping
-      keys.append(field)
-      addSubview(field)
+      caps.append(keys.map { mark in
+        if let name = mark.symbol, let key = KeyCap.symbol(name, font: font, color: color) { return key }
+        return KeyCap.glyph(mark.glyph, attributes)
+      })
     }
   }
 
   required init?(coder: NSCoder) { nil }
 
+  // A small context Core Text measures a glyph's ink against, made once.
+  private static let measureContext: CGContext? = CGContext(data: nil, width: 8, height: 8,
+    bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
+    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+
+  // A glyph's ink, what Core Text's line actually draws, measured from the pen position. A line is
+  // measured rather than the attributed string's bounding rect, because a glyph the keycap font
+  // lacks is drawn from a fallback font, and the string's own rect answered that font's box rather
+  // than its ink. A glyph that draws nothing keeps its advance, so a blank never has no width.
+  private static func glyph(_ text: String, _ attributes: [NSAttributedString.Key: Any]) -> Key {
+    let string = NSAttributedString(string: text, attributes: attributes)
+    let line = CTLineCreateWithAttributedString(string)
+    var ink = CTLineGetImageBounds(line, measureContext)
+    if ink.isNull || ink.width <= 0 { ink = NSRect(origin: .zero, size: string.size()) }
+    return Key(mark: .text(string), ink: ink)
+  }
+
+  // A symbol's ink at the size it is drawn, measured once per symbol and font size by drawing it
+  // and reading where its pixels are, since a symbol's box carries room the ink does not fill.
+  private static var symbolInks: [String: NSRect] = [:]
+
+  private static func inkOf(_ image: NSImage, key: String) -> NSRect? {
+    if let known = symbolInks[key] { return known }
+    let scale: CGFloat = 4
+    let w = Int(ceil(image.size.width * scale)), h = Int(ceil(image.size.height * scale))
+    guard w > 0, h > 0, let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: w, pixelsHigh: h,
+      bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+      bytesPerRow: 0, bitsPerPixel: 0) else { return nil }
+    rep.size = image.size
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+    image.draw(in: NSRect(origin: .zero, size: image.size))
+    NSGraphicsContext.restoreGraphicsState()
+    var minX = w, maxX = -1, minY = h, maxY = -1
+    for y in 0..<h {
+      for x in 0..<w where (rep.colorAt(x: x, y: y)?.alphaComponent ?? 0) > 0.05 {
+        minX = min(minX, x); maxX = max(maxX, x); minY = min(minY, y); maxY = max(maxY, y)
+      }
+    }
+    guard maxX >= minX, maxY >= minY else { return nil }
+    // Rows count from the top in a bitmap, which is the flipped space the cap draws in.
+    let ink = NSRect(x: CGFloat(minX) / scale, y: CGFloat(minY) / scale,
+      width: CGFloat(maxX - minX + 1) / scale, height: CGFloat(maxY - minY + 1) / scale)
+    symbolInks[key] = ink
+    return ink
+  }
+
+  // A symbol as a key, tinted the text colour and scaled so its ink is as tall as the font's
+  // capitals. nil when the system has no symbol of that name, and the key falls back to its glyph.
+  private static func symbol(_ name: String, font: NSFont, color: NSColor) -> Key? {
+    let config = NSImage.SymbolConfiguration(pointSize: font.pointSize, weight: .regular, scale: .small)
+      .applying(NSImage.SymbolConfiguration(paletteColors: [color]))
+    guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
+      .withSymbolConfiguration(config),
+      let ink = inkOf(image, key: name + "@" + String(describing: font.pointSize)), ink.height > 0
+    else { return nil }
+    let k = font.capHeight / ink.height
+    let size = NSSize(width: image.size.width * k, height: image.size.height * k)
+    let scaled = NSRect(x: ink.minX * k, y: ink.minY * k, width: ink.width * k, height: ink.height * k)
+    return Key(mark: .image(image, size), ink: scaled)
+  }
+
+  // A chip's width, its keys' ink side by side with the key gap between them and padX either side.
+  private func capWidth(_ keys: [Key]) -> CGFloat {
+    let inks = keys.reduce(0) { $0 + $1.ink.width }
+    return ceil(inks + CGFloat(max(0, keys.count - 1)) * keyGap + 2 * padX)
+  }
+
   override var fittingSize: NSSize {
-    guard !keys.isEmpty else { return .zero }
-    let capsW = keys.reduce(0) { $0 + ceil($1.fittingSize.width + 2 * padX) }
+    guard !caps.isEmpty else { return .zero }
+    let capsW = caps.reduce(0) { $0 + capWidth($1) }
     let wordsW = words.reduce(0) { $0 + ceil($1.fittingSize.width) + 2 * gap }
     return NSSize(width: capsW + wordsW, height: height)
   }
@@ -80,8 +171,10 @@ final class KeyCap: FlippedView {
   override func layout() {
     super.layout()
     chips = []
+    places = []
+    let lineTop = (bounds.height - lineH) / 2
     var x: CGFloat = 0
-    for (i, field) in keys.enumerated() {
+    for (i, keys) in caps.enumerated() {
       if i > 0 {
         let word = words[i - 1]
         let size = word.fittingSize
@@ -89,10 +182,25 @@ final class KeyCap: FlippedView {
         word.frame = NSRect(x: x, y: (bounds.height - size.height) / 2, width: ceil(size.width), height: size.height)
         x += ceil(size.width) + gap
       }
-      let w = ceil(field.fittingSize.width + 2 * padX)
-      let h = field.fittingSize.height
+      let w = capWidth(keys)
       chips.append(NSRect(x: x, y: 0, width: w, height: bounds.height))
-      field.frame = NSRect(x: x, y: (bounds.height - h) / 2, width: w, height: h)
+      // The keys' ink centred in the chip, so the rounding of the chip's width splits evenly.
+      let inks = keys.reduce(0) { $0 + $1.ink.width } + CGFloat(max(0, keys.count - 1)) * keyGap
+      var ix = x + (w - inks) / 2
+      var row: [NSRect] = []
+      for (j, key) in keys.enumerated() {
+        if j > 0 { ix += keyGap }
+        switch key.mark {
+        case .text:
+          row.append(NSRect(x: ix - key.ink.minX, y: lineTop, width: 0, height: 0))
+        case .image(_, let size):
+          // The ink's middle on the capitals' middle.
+          let top = lineTop + capMiddle - (key.ink.minY + key.ink.height / 2)
+          row.append(NSRect(x: ix - key.ink.minX, y: top, width: size.width, height: size.height))
+        }
+        ix += key.ink.width
+      }
+      places.append(row)
       x += w
     }
     needsDisplay = true
@@ -101,6 +209,15 @@ final class KeyCap: FlippedView {
   override func draw(_ dirtyRect: NSRect) {
     fill.setFill()
     for chip in chips { NSBezierPath(roundedRect: chip, xRadius: radius, yRadius: radius).fill() }
+    for (keys, row) in zip(caps, places) {
+      for (key, place) in zip(keys, row) {
+        switch key.mark {
+        case .text(let string): string.draw(at: place.origin)
+        case .image(let image, _):
+          image.draw(in: place, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+        }
+      }
+    }
   }
 }
 
@@ -251,8 +368,8 @@ final class BarView: FlippedView {
     }
     // A cell's corner, the panel line's, the group's corner less the padding around the cells.
     let capRadius = max(0, style.highlightRadius - placement.barPillPad)
-    if let chord = footer.keysChord {
-      parts.append(KeyCap(chord, style: style, placement: placement, holderH: placement.barPillH, holderRadius: capRadius))
+    if !footer.keysChord.isEmpty {
+      parts.append(KeyCap(footer.keysChord, style: style, placement: placement, holderH: placement.barPillH, holderRadius: capRadius))
     }
     for view in parts { button.addSubview(view) }
     rightActions = footer.right.map { $0.action }

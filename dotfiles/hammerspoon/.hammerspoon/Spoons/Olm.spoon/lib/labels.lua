@@ -7,20 +7,20 @@
 --- space, and how one set of aliases differed by a leading space.
 ---
 --- It moved here from the composition root, which still hands both functions to every surface
---- that spells one, so no surface spells its own. Pure, no state and no hs. The glyph helper a
---- chord is spelled with is the shared cheat sheet renderer's, handed in by the root rather than
---- loaded, since that renderer is an atom the spoon publishes once.
+--- that spells one, so no surface spells its own. Pure, no state and no hs. A chord is a kbd chord,
+--- lib/kbd.lua, the one vocabulary of keys.
 
 local obj = {}
 
---- labels.chordLabel(glyphFor) -> function(leader, key, mods) -> string
---- The speller every surface is handed, a leader's name then a space then the key glyph, the glyph
---- from glyphFor(key, mods). A leader spelled as a symbol, one with no letter in it, takes a thin
---- space rather than a full one, so it sits close to the glyph without touching it.
-function obj.chordLabel(glyphFor)
+local kbd = assert(loadfile(debug.getinfo(1, "S").source:sub(2):match("(.*/)") .. "kbd.lua"))()
+
+--- labels.chordLabel() -> function(leader, key, mods) -> chord
+--- The speller every surface is handed, a leader key, a key name and its modifier names as one
+--- kbd chord, the leader first. One entry per key and never a string, so how a chord is spaced is
+--- decided where it is drawn, see lib/kbd.lua. A nil leader spells a plain combination.
+function obj.chordLabel()
   return function(leader, key, mods)
-    local space = leader:find("%a") and " " or "\u{2009}"
-    return leader .. space .. glyphFor(key, mods)
+    return kbd.binding(key, mods, leader)
   end
 end
 

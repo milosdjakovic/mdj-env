@@ -165,6 +165,7 @@ function obj:configure(deps)
   -- verb's applies and choices name, docs/PLAN-ACTION-PANEL.md, answering the method's result
   -- and whether the method exists. Without it every verb applies and none has choices.
   self._call = deps.call
+  self._kbd = deps.kbd
   self._log = deps.log or log
   return self
 end
@@ -272,7 +273,8 @@ end
 -- below and test/inventory.lua's own live read through the public rowsFor above, so a title,
 -- a chord, or an icon the panel shows is never a second opinion on what deps.rowsFor
 -- answered. The chord rides as the row's subTitle, since a person opening the panel to look
--- up a verb's chord is exactly this feature's own reason to exist. The row carries the verb's
+-- up a verb's chord is exactly this feature's own reason to exist. The row also carries the kbd
+-- chord itself, which a popover draws as a key cap, one glyph per key. The row carries the verb's
 -- icon and its owner as iconOwner and draws no picture, the chooser turns them into one when it
 -- paints, so the icon follows the light and dark halves. A row with no icon draws none.
 -- item carries the plain row itself back whole, so _choose below can read its action
@@ -286,7 +288,10 @@ function obj:_buildRows(contextName, hosted, floats)
     -- A popover over the list is left by Escape and needs no Back row, which is the one row
     -- carrying no action, and a verb that does not apply to the row is left out.
     if not (floats and r.action == nil) and self:_applies(r) then
-      rows[#rows + 1] = { title = r.title, subTitle = r.chord, icon = r.icon, iconOwner = r.owner,
+      -- chord is the kbd chord a key cap draws key by key, subTitle its text for a list row.
+      rows[#rows + 1] = { title = r.title, chord = r.chord,
+                          subTitle = r.chord and self._kbd and self._kbd.text(r.chord) or nil,
+                          icon = r.icon, iconOwner = r.owner,
                           item = r, filterText = r.title, section = r.section }
     end
   end

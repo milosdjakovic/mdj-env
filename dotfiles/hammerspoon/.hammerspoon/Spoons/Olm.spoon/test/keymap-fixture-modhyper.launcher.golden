@@ -1,54 +1,54 @@
 1	special:audio	Audio devices	System · switch the sound output or the microphone (au, audio)	audio	audio	-	sound output, microphone, mic, speakers, headphones, airpods |  (au, audio)	-
-2	special:browserTabs	Browser tabs	Tools · ✦ W (t, tabs)	browsertabs	browserTabs	-	 (t, tabs)	-
-3	special:caffeinate	Keep awake	System · ✦ K (k, awake)	caffeinate	caffeinate	-	 (k, awake)	-
-4	special:clipboard	Clipboard history	Clipboard · ✦ X	clipboard	clipboard	-	-	-
+2	special:browserTabs	Browser tabs	Tools · ✦W (t, tabs)	browsertabs	browserTabs	-	 (t, tabs)	-
+3	special:caffeinate	Keep awake	System · ✦K (k, awake)	caffeinate	caffeinate	-	 (k, awake)	-
+4	special:clipboard	Clipboard history	Clipboard · ✦X	clipboard	clipboard	-	-	-
 5	special:appendCopy	Append copy	Clipboard · ⌃⌥C	append	clipboard	-	accumulate, add to clipboard, collect	-
 6	special:manageHistory	Manage clipboard history	Clipboard	sweep	clipboard	-	clear history, wipe, prune, delete old	-
 7	special:pasteNext	Paste next	Clipboard · ⌃⌥V	pasteNext	clipboard	-	paste in order, sequential paste, paste stack	-
-8	special:colorPicker	Color picker	Tools · ✦ 2	eyedropper	colorPicker	-	-	-
+8	special:colorPicker	Color picker	Tools · ✦2	eyedropper	colorPicker	-	-	-
 9	special:displayProfiles	Display Profiles	Displays · inspect and manage arrangements	profile	displayProfiles	-	-	-
 10	special:dockAutoHide	Dock	System · hides or reveals the Dock (d, dock)	dockautohide	dockAutoHide	-	autohide, hide dock, show dock |  (d, dock)	-
-11	special:emoji	Emoji & symbol picker	Tools · ✦ J (e, em, emoji)	emoji	emoji	-	 (e, em, emoji)	-
-12	special:fileSearch	File search	Tools · ✦ ; (/)	filesearch	fileSearch	-	find, folders, locate, finder search |  (/)	-
+11	special:emoji	Emoji & symbol picker	Tools · ✦J (e, em, emoji)	emoji	emoji	-	 (e, em, emoji)	-
+12	special:fileSearch	File search	Tools · ✦; (/)	filesearch	fileSearch	-	find, folders, locate, finder search |  (/)	-
 13	special:inputsources	Input sources	Keyboard · switch the keyboard layout or input method (kb, input)	inputsources	inputsources	-	keyboard layout, language, ime, japanese, chinese, pinyin, korean, abc, serbian, cyrillic, latin |  (kb, input)	-
 14	inputsources:previous	Previous Input Source	Keyboard	inputsources	inputsources	-	switch layout, globe, fn, toggle	-
 15	special:obsidian	Search Obsidian	Tools · search and open notes (ob, obsidian)	image	-	-	notes, vault, markdown |  (ob, obsidian)	-
 16	special:speedtest	Speedtest	Network · measure this connection and compare it with its own past (st, speed)	speedtest	speedtest	-	internet speed, bandwidth, latency, ping, network quality, rpm |  (st, speed)	-
 17	special:textCase	Text Case	Text (tc, case) | live	textcase	textCase	-	uppercase, lowercase, camel case, snake case, kebab case, capitalize |  (tc, case)	-
-18	special:tmuxSessions	Tmux Manager	Tools · ✦ U (u, tmux)	tmuxsessions	tmuxSessions	-	sessions, terminal, ghostty |  (u, tmux)	-
+18	special:tmuxSessions	Tmux Manager	Tools · ✦U (u, tmux)	tmuxsessions	tmuxSessions	-	sessions, terminal, ghostty |  (u, tmux)	-
 19	special:volume	Volume	System · see the volume, set it from 0 to 100, mute or unmute (vol)	volume	volume	-	mute, unmute, louder, quieter |  (vol)	-
-20	special:vpn	VPN	Network · ✦ P (v, vpn)	vpn	vpn	-	 (v, vpn)	-
+20	special:vpn	VPN	Network · ✦P (v, vpn)	vpn	vpn	-	 (v, vpn)	-
 21	special:wifi	Wi-Fi	Network · see the current network, disconnect, or join another (wi, wifi)	wifi	wifi	-	wifi, wireless, network, ssid, join network, disconnect, airport |  (wi, wifi)	-
 22	special:workspaces	Workspaces	Displays · window layouts you snapshot and put back (ws, layout)	workspaces	workspaces	-	layout, snapshot, arrange windows, restore windows |  (ws, layout)	-
 23	special:olmplacement	Olm Placement	Olm · which display the launcher appears on	placement	olmplacement	-	position, cursor, display, screen, monitor	-
 24	special:olmplugins	Olm Plugins	Olm · switch plugins on or off	plugins	olmplugins	-	extensions, enable, disable, modules	-
 25	special:olmtheme	Olm Theme	Olm · the colour theme Olm is drawn in	theme	olmtheme	-	colour, color, appearance, palette, dark, light	-
 26	special:processes	Local Servers	Tools · stops a dev server, container, or watcher	processes	processes	-	dev server, port, kill process, node, docker, container	-
-27	capture:ocrArea	OCR	Capture · ✦ 3	ocr	capture	-	-	10
-28	capture:captureAreaClipboard	Screenshot (copy)	Capture · ✦ 4	screenshot	capture	-	-	10
-29	capture:captureArea	Screenshot	Capture · ✦ ⇧4	screenshot	capture	-	-	10
-30	capture:recordArea	Record screen	Capture · ✦ 5	record	capture	-	-	10
+27	capture:ocrArea	OCR	Capture · ✦3	ocr	capture	-	-	10
+28	capture:captureAreaClipboard	Screenshot (copy)	Capture · ✦4	screenshot	capture	-	-	10
+29	capture:captureArea	Screenshot	Capture · ✦⇧4	screenshot	capture	-	-	10
+30	capture:recordArea	Record screen	Capture · ✦5	record	capture	-	-	10
 31	special:searchSettings	Search Settings	System · opens the System Settings search field	search	systemsettings	-	-	20
 32	special:aliasDirectory	Aliases	Tools · every word that scopes this list (?)	aliases	launcher	-	alias, scope, shortcut, prefix |  (?)	30
 33	special:keys	OLM keys	Tools · every key Olm binds	keys	launcher	-	shortcuts, hotkeys, keybindings, chords	30
-34	special:lock	Lock Screen	System · ✦ §	lock	launcher	-	-	30
+34	special:lock	Lock Screen	System · ✦§	lock	launcher	-	-	30
 35	special:sleep	Sleep	System	sleep	launcher	-	-	30
-36	window:previousDisplay	Previous Display	Window · ◆ ,	windows	windowmanager	multipleDisplays	-	40
-37	window:nextDisplay	Next Display	Window · ◆ .	windows	windowmanager	multipleDisplays	-	40
-38	window:leftHalf	Left Half	Window · ◆ ←	windows	windowmanager	-	-	40
-39	window:rightHalf	Right Half	Window · ◆ →	windows	windowmanager	-	-	40
-40	window:fullHeight	Full Height	Window · ◆ ↑	windows	windowmanager	-	-	40
-41	window:reasonableSize	Reasonable Size	Window · ◆ ↓	windows	windowmanager	-	-	40
-42	window:maximize	Maximize	Window · ◆ ↩	windows	windowmanager	-	-	40
-43	window:smallSize	Small Size	Window · ◆ Z	windows	windowmanager	-	-	40
-44	window:increaseSize	Increase Size	Window · ◆ =	windows	windowmanager	-	-	40
-45	window:decreaseSize	Decrease Size	Window · ◆ -	windows	windowmanager	-	-	40
-46	window:moveLeft	Move Left	Window · ◆ A	windows	windowmanager	-	-	40
-47	window:moveRight	Move Right	Window · ◆ D	windows	windowmanager	-	-	40
-48	window:moveUp	Move Up	Window · ◆ W	windows	windowmanager	-	-	40
-49	window:moveDown	Move Down	Window · ◆ S	windows	windowmanager	-	-	40
-50	window:center	Center	Window · ◆ C	windows	windowmanager	-	-	40
-51	window:hideAllExceptFocused	Hide All Except Focused	Window · ◆ H	windows	windowmanager	-	-	40
+36	window:previousDisplay	Previous Display	Window · ◆,	windows	windowmanager	multipleDisplays	-	40
+37	window:nextDisplay	Next Display	Window · ◆.	windows	windowmanager	multipleDisplays	-	40
+38	window:leftHalf	Left Half	Window · ◆←	windows	windowmanager	-	-	40
+39	window:rightHalf	Right Half	Window · ◆→	windows	windowmanager	-	-	40
+40	window:fullHeight	Full Height	Window · ◆↑	windows	windowmanager	-	-	40
+41	window:reasonableSize	Reasonable Size	Window · ◆↓	windows	windowmanager	-	-	40
+42	window:maximize	Maximize	Window · ◆↩	windows	windowmanager	-	-	40
+43	window:smallSize	Small Size	Window · ◆Z	windows	windowmanager	-	-	40
+44	window:increaseSize	Increase Size	Window · ◆=	windows	windowmanager	-	-	40
+45	window:decreaseSize	Decrease Size	Window · ◆-	windows	windowmanager	-	-	40
+46	window:moveLeft	Move Left	Window · ◆A	windows	windowmanager	-	-	40
+47	window:moveRight	Move Right	Window · ◆D	windows	windowmanager	-	-	40
+48	window:moveUp	Move Up	Window · ◆W	windows	windowmanager	-	-	40
+49	window:moveDown	Move Down	Window · ◆S	windows	windowmanager	-	-	40
+50	window:center	Center	Window · ◆C	windows	windowmanager	-	-	40
+51	window:hideAllExceptFocused	Hide All Except Focused	Window · ◆H	windows	windowmanager	-	-	40
 52	settingsPane:x-apple.systempreferences:com.apple.wifi-settings-extension	Wi-Fi	System Settings	wifi	systemsettings	-	wifi, wireless, airport	50
 53	settingsPane:x-apple.systempreferences:com.apple.BluetoothSettings	Bluetooth	System Settings	bluetooth	systemsettings	-	headphones, pairing	50
 54	settingsPane:x-apple.systempreferences:com.apple.Network-Settings.extension	Network	System Settings	network	systemsettings	-	ethernet, vpn, dns, proxy, ip address	50

@@ -665,3 +665,82 @@ on that group still toggles its panel, its footer height grows by the padding ar
 its popover lays the key panel out as the action panel with the header as a line. Its lit line's
 corner had nested by the list's pad where swift nests by the outer padding, and now nests as swift.
 The panels' exclusivity needed no canvas change, since it lives in the engine both choosers share.
+
+2026-11-02 11:50. Every key cap draws its glyphs in the mono font, at Milos's request that the
+shortcuts read uniform. The cap is one token, the `hint` badge in `lib/ui/style.lua`, whose role
+moved from section to code. The canvas chooser's `footer.lua` keycap already read its role, height
+and padX from it, and the swift chooser's `KeyCap` now does too, through `keycapFont` built from the
+same badge where it took the section font directly, so a change to that one rule reaches every cap
+in the bar, the key panel and the action panel of both choosers. The cheat sheet's chips are a
+separate badge, `cheat`, and are not changed. At the same request `spacing.outer` went from 14 to 9,
+about 35 percent less, so the chooser and the pane stand their content closer to the glass and the
+nested corners inside grow rounder by the same five points.
+
+2026-11-02 12:03. The field's text and caret start where a row's icon starts, at Milos's request
+after the smaller outer padding left a long query scrolled against the glass. The field's rect in
+`providers/default/geometry.lua`, which both choosers read, is now inset by the list margin and the
+row's `padX` on both sides, where it was the margin alone, so text scrolled past either end is cut
+at that inset too. The swift field still stands one line fragment padding left of its rect so its
+caret lands on the rect's edge.
+Corrected 2026-11-02 12:06, Milos meant the highlighted row's width, not the icon's inset, and the
+geometry change was reverted before it was committed.
+
+2026-11-02 12:06. The swift field's text is clipped to the highlighted row's edges, at Milos's request.
+The field's rect was already the row's width with the caret on its left edge, but the field stood one
+line fragment padding past the rect, so a long query scrolled out to the glass. The field now sits
+in a clip view the size of its rect, `fieldClip` in `Panel.swift`, the field one line fragment
+padding past it on both sides, so the caret still lands on the row's edge and text is cut on the
+row's left and right edges.
+
+2026-11-02 12:28. Every key a person reads is one vocabulary, `lib/kbd.lua`, at Milos's request that
+the shortcuts be spaced one way everywhere and that a key be named rather than written as its
+symbol. Until now a chord travelled as a string, so its spacing was whatever the string held. The
+leader speller in `lib/labels.lua` put a thin space after a symbol leader and a full one after a
+word, while a plain combination came straight from the cheat sheet's glyph helper with no space at
+all, which is why the clipboard's Command and Return read as one tight pair and Hyper and J did not.
+A key is now an object with a name and a glyph, `kbd.Cmd`, `kbd.Return`, `kbd.Hyper`, a chord a
+list of them, and every producer, the hints, the speller, the cheat sheet helper, the launcher, the
+keys page, the root's leader legend and menu search, answers chords. Every renderer reads a chord
+through `kbd.alternatives` or `kbd.glyphs`, which raise on a string, so a chord passed as text fails
+where it is handed over rather than drawing with its own spacing. A key cap draws one glyph per key
+with the hint badge's `gap` between two keys, none, after Milos halved it from `space.xs`, two points, to one and then set it to nothing the same day, and a
+text surface spells a chord with `kbd.text`, nothing between the keys. The swift chooser receives
+`kbd.wire`, lists of glyphs, in place of the unit separated string it parsed. Modifiers always go in
+the menu bar's order, which the cheat sheet helper did not hold, it kept a binding's own order. The
+dry gate refuses a key glyph in any Lua or Swift file of the spoon outside `lib/kbd.lua`,
+`test/drygate-kbd.lua`, and the hammerspoon `AGENTS.md` and the `olm-plugin` skill state the rule.
+The constants are capitalised because Milos's example `kbd.return` does not parse, `return` being a
+Lua keyword, and one casing for every constant reads better than one exception. A leader the person
+names reads as its word, so it now meets its key with nothing between, NavT, which no shipped config
+has. The cheat sheet's chips stay the `cheat` badge in the body font, spelled with `kbd.text`. The
+offline goldens moved by exactly the space after each leader.
+
+2026-11-02 12:40. A key cap in the swift chooser places each glyph by its ink rather than its advance,
+at Milos's report that with the gap at nothing the symbols still did not touch. The monospaced
+advance leaves room either side of a narrow symbol such as Command or Shift, so no gap token could
+close it. `KeyCap` in `Bar.swift` now draws its glyphs itself, measuring each one's ink from the
+font's outlines, and two keys stand the badge's gap apart ink to ink, with padX measured from the
+ink too. The canvas chooser still places glyphs by advance, since the Lua measurer answers an
+advance and no ink.
+
+2026-11-02 12:47. The ink a key cap measures comes from Core Text's `CTLineGetImageBounds`, after Milos's
+screenshots showed the Return cap twice too wide with its arrow at the left and Command and Return
+overlapping. The attributed string's `boundingRect` with device metrics, used at 12:39,
+answered 1.0 to 18.5 points for the Return arrow in the mono font at 14 points, the fallback font's
+box, where the arrow's ink runs 0.5 to 8.0. For a glyph the font has, Command, the star, O, the two
+agree. Measured in a script against the shipped font, so a glyph from a fallback font is the case to
+check whenever this measuring changes.
+
+2026-11-02 12:52. Return and Hyper are drawn in a key cap as SF Symbols, `return` and `sparkle`, at
+Milos's request. The mono keycap font has neither glyph, and Core Text drew both from Menlo, which
+measured at another size than the font's own keys. A kbd key carries an optional `symbol`, the
+wire carries each key as its glyph and its symbol, and `KeyCap` draws a symbol tinted the text
+colour at the small scale, scaled so its ink is the font's cap height and its ink's middle on the
+capitals' middle, measured once per symbol by drawing it, since a symbol's box carries room its ink
+does not fill. At 14 points the small Return's ink is 11.5 by 10 and the cap height 9.9. A symbol the
+system lacks falls back to the glyph. Text surfaces, a launcher subtitle or a cheat sheet badge, keep
+the glyph, and so does the canvas chooser, which draws text only.
+
+2026-11-02 12:59. The key cap gap is the small step again, `space.xs`, two points ink to ink, at Milos's request for a small gap once keys were placed by their ink and Return and Hyper drawn as symbols.
+
+2026-11-02 13:10. The key cap gap is four points, a new step `space.xss` between xs and s, at Milos's request.

@@ -946,6 +946,41 @@ do
 end
 
 ----------------------------------------------------------------------------------------
+-- The key vocabulary rule, see test/drygate-kbd.lua. Every key a person reads is a constant of
+-- lib/kbd.lua and a chord is a list of them, so a key glyph written in any other Lua or Swift file
+-- of the spoon is a finding naming its line, unless the line declares kbd-exempt and a reason,
+-- which is counted as accepted and still printed.
+----------------------------------------------------------------------------------------
+
+do
+  local scanner = dofile(scriptDir .. "drygate-kbd.lua")
+  local list = (os.getenv("DRYGATE_SOURCES") or "") .. "\n" .. (os.getenv("DRYGATE_SWIFTSOURCES") or "")
+  if not list:find("%S") then
+    warning("dry gate did not run the key vocabulary check, DRYGATE_SOURCES names no files, run it through test/drygate.sh")
+  else
+    for path in list:gmatch("[^\n]+") do
+      local rel = path:sub(1, #spoonDir) == spoonDir and path:sub(#spoonDir + 1) or path
+      if scanner.applies(rel) then
+        local found = scanner.scanFile(path)
+        if not found then
+          warning(string.format("dry gate could not read '%s' for the key vocabulary check", rel))
+        else
+          for _, hit in ipairs(found) do
+            if hit.exempt then
+              accepted[#accepted + 1] = string.format("accepted, %s:%d, kbd-exempt, %s", rel, hit.line, hit.exempt)
+            else
+              findings[#findings + 1] = string.format(
+                "dry gate refused '%s', line %d, %s outside lib/kbd.lua, '%s', name the key by its kbd constant and spell a chord through kbd, or declare it with a kbd-exempt comment and a reason",
+                rel, hit.line, hit.what, hit.source)
+            end
+          end
+        end
+      end
+    end
+  end
+end
+
+----------------------------------------------------------------------------------------
 -- Twelve, no key in lib/surface.lua, see test/drygate-binding.lua's keyLiterals. The keys a
 -- list's shared verbs sit on are Olm's own all layer and the person's lists section since phase 7
 -- of the keymap plan, so a key literal written back into the builder is a finding naming its

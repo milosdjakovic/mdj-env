@@ -78,15 +78,10 @@ return {
       -- configure never asserts on it, it only reads `opts.registry` with no guard. Corrected
       -- from required to optional to match what the code actually does.
       registry  = { from = "registry", policy = "optional" },
-      -- The shared chord glyph renderer, dot called. Read by `_chordLabel` to print a chord as
-      -- words, "Hyper ⌘4", rather than as a bare key. Optional, since configure already falls
-      -- back to `tostring(key)` with no glyph styling.
-      --
-      -- The comment said dot called for a long time while the declaration did not, and saying
-      -- it is not the same as declaring it. Bound as a method instead, every call arrived with
-      -- the cheat sheet module in the key parameter and the real key in the mods parameter, so
-      -- every chord printed in a launcher subtitle was drawn from the wrong two arguments.
-      glyphFor  = { from = "cheatsheet", member = "glyphFor", call = "dot", policy = "optional" },
+      -- The one vocabulary of keys, lib/kbd.lua, which spells every chord a subtitle shows as
+      -- text, its keys with nothing between them. It replaced the cheat sheet's glyph helper on
+      -- 2026-11-02, so a glyph is written in one file. Optional, a row then shows its category.
+      kbd = { from = "kbd", policy = "optional" },
       -- What was picked the last time a query was typed, which is what orders this list once
       -- something has been typed into it. The raw module rather than a built instance, since
       -- lib/services.lua builds one only for a field literally named recency, and configure

@@ -103,7 +103,7 @@ do
   local kept = rows[2]
   check(
     "a kept hosted verb row shows no chord",
-    kept.chord == "",
+    kept.chord == nil,
     "chord was " .. tostring(kept.chord)
   )
 end

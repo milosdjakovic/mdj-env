@@ -19,7 +19,7 @@ import Cocoa
 final class PopoverView: FlippedView {
   struct Line {
     var label: String
-    var chord: String
+    var chord: [[KeyMark]]
     var image: NSImage? = nil
     // The heading the line is listed under. A heading is drawn above the first line of each run
     // of lines naming the same one, docs/PLAN-ACTION-PANEL.md.

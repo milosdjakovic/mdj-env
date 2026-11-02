@@ -22,6 +22,9 @@
 local M = {}
 
 -- The icon keys, declared with their glyphs in the launcher's manifest.
+-- The one vocabulary of keys, which spells an entry's chord as text with nothing between keys.
+local kbd = assert(loadfile(debug.getinfo(1, "S").source:sub(2):match("(.*/)") .. "kbd.lua"))()
+
 M.ICON_KEY = "keys"
 M.ICON_BACK = "back"
 
@@ -31,7 +34,7 @@ M.ICON_BACK = "back"
 --- the middot a launcher row joins its category and chord with. An owner the title already says,
 --- a tool's own open key, is not said twice.
 function M.subtitle(entry)
-  local chord = tostring(entry.chord)
+  local chord = kbd.text(entry.chord)
   if entry.list then return chord .. " in " .. tostring(entry.list) end
   if entry.owner == nil or entry.owner == entry.description then return chord end
   return chord .. " · " .. tostring(entry.owner)

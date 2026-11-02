@@ -146,7 +146,7 @@ final class RowCell: NSView {
     subtitle.isHidden = row.subtitle.isEmpty
     number.font = style.numberFont
     number.textColor = style.number
-    number.stringValue = slot.map { "\u{2318}\($0)" } ?? ""
+    number.stringValue = slot.map { "\(style.numberKey)\($0)" } ?? ""
     number.isHidden = slot == nil
     needsLayout = true
   }

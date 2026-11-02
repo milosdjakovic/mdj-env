@@ -254,8 +254,10 @@ lib = { recency = { from = "recency", policy = "optional" } },
 
 A lib name that does not exist is a repository defect and is reported, never ignored.
 
-Validation admits any name that is the basename of a `.lua` file in the spoon's `lib` directory, but only the keys of the root's `libs` table are delivered, so asking for another lib basename passes validation and arrives as nil. The delivered names are `paste`, `cheatsheet`,
+Validation admits any name that is the basename of a `.lua` file in the spoon's `lib` directory, but only the keys of the root's `libs` table are delivered, so asking for another lib basename passes validation and arrives as nil. The delivered names are `paste`, `cheatsheet`, `kbd`,
 `registry`, `glyphicon`, `chordkey`, `leader`, `recency`, `queryassoc`, `storage` and `ui`.
+`kbd` is the one vocabulary of keys, `lib/kbd.lua`, and any plugin that shows a shortcut spells
+it through it, a chord a list of key objects and its text `kbd.text`, never a glyph of its own.
 `ui` is the UI kit, one style and one set of drawing primitives, and arrives as one table
 holding the primitives, `layout`, `tokens()` for the current light or dark half, and
 `measure`. Ask for it whole, with no member.

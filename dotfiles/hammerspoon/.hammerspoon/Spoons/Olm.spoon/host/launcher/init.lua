@@ -49,7 +49,7 @@ obj._placeholder = nil
 obj._placeholderExamples = nil  -- example field hints, one per computed row source that proposes one
 obj._keys = nil
 obj._appDetails = nil       -- function() -> bundle id to { chord, description }, see _buildConfiguredApps
-obj._glyphFor = nil         -- function(key, mods) -> chord glyph string
+obj._kbd = nil              -- lib/kbd.lua, the one vocabulary of keys, injected
 obj._rowSuppliers = nil     -- functions answering contributed rows, owner already stamped
 obj._runners = nil          -- owner identity -> function(item), runs a chosen contributed row
 obj._predicates = nil       -- shared predicate registry, for `when` gating
@@ -208,7 +208,7 @@ function obj:configure(opts)
   -- when a later call arrives without one, for the reason the chord speller below documents,
   -- this host is configured twice.
   self._appDetails = opts.appDetails or self._appDetails
-  -- The display name for each leader role, so a row's subtitle can say which physical key
+  -- The kbd key for each leader role, so a row's subtitle can say which physical key
   -- opens it without this file deciding what any leader is called. The word Hyper used to be
   -- written into every one of those subtitles literally, which was correct only for as long as
   -- nobody moved a tool to the other leader. Every role is here, the window leader's too, so a
@@ -227,7 +227,9 @@ function obj:configure(opts)
   -- chord speller below documents, this host is configured twice.
   self._specialRows = opts.specialRows or {}
   self._launcherOrder = opts.launcherOrder or self._launcherOrder
-  self._glyphFor = opts.glyphFor or function(key) return tostring(key) end
+  -- The one vocabulary of keys, lib/kbd.lua, which spells a chord as the text a subtitle shows.
+  -- Kept rather than overwritten, for the reason the chord speller below documents.
+  self._kbd = opts.kbd or self._kbd
   -- The shared chord speller, held as data rather than wrapped in a method of its own, so a
   -- row states the exact same words the action bar and the action panel already agree
   -- on. There is deliberately no fallback function, since inventing one would be a second
@@ -376,8 +378,17 @@ end
 --- reads as, so that is exactly what this falls back to when no chord speller was injected.
 --- Otherwise the category joined to the chord by the shared middot.
 function obj:_chordSuffix(category, leader, key, mods)
-  if not self._chordLabel then return category end
-  return category .. " · " .. self._chordLabel(leader, key, mods)
+  if not self._chordLabel or not self._kbd then return category end
+  return category .. " · " .. self._kbd.text(self._chordLabel(leader, key, mods))
+end
+
+--- Launcher:_plainChord(key, mods)
+--- Method
+--- A plain combination on no leader as subtitle text, its keys through lib/kbd.lua with nothing
+--- between them, or the empty string with no vocabulary injected.
+function obj:_plainChord(key, mods)
+  if not self._kbd then return "" end
+  return self._kbd.text(self._kbd.binding(key, mods))
 end
 
 --- Launcher:_leaderName(role)
@@ -392,8 +403,8 @@ end
 --- itself moved to another physical key. The literal is the answer only when the catalog has
 --- nothing for that role either.
 function obj:_leaderName(role)
-  if not role then return self._leaderNames.app or "\u{2726}" end
-  return self._leaderNames[role] or tostring(role)
+  if not role then return self._leaderNames.app or (self._kbd and self._kbd.Hyper) end
+  return self._leaderNames[role] or (self._kbd and self._kbd.leader(role))
 end
 
 --- Launcher:_ensureStaticRows()
@@ -522,7 +533,7 @@ function obj:_buildActionRows()
     elseif chord and chord.leader == false then
       -- A global combination rather than a leader chord, so the subtitle spells the whole
       -- thing out and names no leader, which is the only way it reads correctly.
-      subTitle = row.category .. " · " .. self._glyphFor(chord.key, chord.mods)
+      subTitle = row.category .. " · " .. self:_plainChord(chord.key, chord.mods)
     elseif chord then
       subTitle = self:_chordSuffix(row.category, self:_leaderName(chord.leader), chord.key, chord.mods)
     else
@@ -638,7 +649,7 @@ function obj:_buildActionRows()
     if r.subTitle then return r.subTitle end
     if r.group and type(r.chord) == "table" and r.chord.key then
       if r.chord.leader == false then
-        return r.group .. " · " .. self._glyphFor(r.chord.key, r.chord.mods)
+        return r.group .. " · " .. self:_plainChord(r.chord.key, r.chord.mods)
       end
       return self:_chordSuffix(r.group, self:_leaderName(r.chord.leader), r.chord.key, r.chord.mods)
     end
@@ -777,7 +788,7 @@ function obj:_appRows()
       -- A literal combo on no leader never appears on a cheat sheet, so this row is its only
       -- discoverability surface, and it names its own chord and description rather than a
       -- leader's name, which would describe a modal it was never bound into.
-      local glyphs = self._glyphFor and self._glyphFor(chord.key, chord.mods) or chord.key
+      local glyphs = self:_plainChord(chord.key, chord.mods)
       subTitle = status .. " · " .. glyphs .. (cfg.description and (" " .. cfg.description) or "")
     elseif chord then
       -- Spelled by the shared chord speller every other row's chord goes through, the leader's

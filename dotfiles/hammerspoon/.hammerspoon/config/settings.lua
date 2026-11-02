@@ -78,7 +78,7 @@ return {
   -- bar is the one padding inside the action bar's two groups and inside the key panel and the
   -- action panel, the same on every side, so a group's height is its tallest part and this twice.
   spacing = {
-    outer = 14,
+    outer = 9,
     inner = 14,
     bar = 6,
   },
