@@ -5,8 +5,8 @@
 -- view.lua hands Swift, the keys group the bar pad in from the left and the actions group the
 -- bar pad in from the right, each as tall as footer.lua's height at the top of the footer rect,
 -- the inner padding inside it, the background fill outlined in the border role at the border
--- stroke with its corner less half the stroke, the words in the body role, the icon at the hint
--- size, and that the entries' spans cover the actions group edge to edge in order.
+-- stroke with its corner less half the stroke, the words in the body role, every chord a key cap
+-- of the hint badge's size in its section role, the icon at the hint size, and that the entries' spans cover the actions group edge to edge in order.
 --
 -- Then that lib/chooser/providers/default/canvas.lua draws the list on down behind the bar
 -- without moving the engine's scroll, runs the divider the full height of the window, and
@@ -98,22 +98,25 @@ local rect = { x = 0, y = 400, w = 900, h = footerLib.height(T) + T.pad }
 local m = barLib.metrics(T)
 check("the group height is footer.lua's", m.height, footerLib.height(T))
 check("the bar pad is the kit's pad", m.pad, T.pad)
-check("the inner padding is the kit's", m.inner, T.inner)
+check("the padding inside a group is the bar's one padding", m.inner, T.barInner)
+check("which is also above and below the tallest part", footerLib.height(T), math.max(T.badge.hint.height, T.text.body.lineHeight) + 2 * T.barInner)
 
 local els, hits = barLib.elements(ui, T, model, rect, { radius = 9 })
 local keys, actions = hits.keys, hits.actions
 check("the keys group stands the bar pad from the left", keys.x, rect.x + T.pad)
 check("at the top of the footer rect", keys.y, rect.y)
 check("as tall as the bar's row", keys.h, footerLib.height(T))
--- The ? glyph and the chord, each eight points a character, the small step between them.
+-- The ? glyph and the chord's cap, each glyph eight points a character, the cap the hint badge's
+-- padding either side of its glyphs, the small step between them.
+local function capW(chord) return 8 * #chord + 2 * T.badge.hint.padX end
 check("as wide as its parts, the small gap and the inner padding twice",
-  keys.w, 8 * #"?" + T.space.s + 8 * #"⌘?" + 2 * T.inner)
+  keys.w, 8 * #"?" + T.space.s + capW("⌘?") + 2 * T.barInner)
 check("the actions group stands the bar pad from the right", actions.x + actions.w, rect.x + rect.w - T.pad)
 check("at the same height", actions.y, rect.y)
 local entriesW = 0
-for _, r in ipairs(model.right) do entriesW = entriesW + 8 * #r.label + T.space.s + 8 * #r.chord end
+for _, r in ipairs(model.right) do entriesW = entriesW + 8 * #r.label + T.space.s + capW(r.chord) end
 check("as wide as its entries, the wide gap between them and the inner padding twice",
-  actions.w, entriesW + 2 * T.space.l + 2 * T.inner)
+  actions.w, entriesW + 2 * T.space.l + 2 * T.barInner)
 
 local backs = filled(els, T.colors.background)
 check("both groups are filled with the background role", #backs, 2)
@@ -125,13 +128,42 @@ check("at the border stroke", outlines[1].strokeWidth, T.stroke.border)
 check("drawn inside the shape", outlines[1].frame.x, keys.x + T.stroke.border / 2)
 check("its corner less half the stroke", outlines[1].roundedRectRadii.xRadius, 9 - T.stroke.border / 2)
 check("nothing lit at rest", #filled(els, T.colors.highlight), 0)
-local words = texts(els)
-check("every word and chord is drawn", #words, 2 + 2 * #model.right)
+local words, caps = {}, {}
+for _, t in ipairs(texts(els)) do
+  if type(t.text) == "table" then words[#words + 1] = t else caps[#caps + 1] = t end
+end
+check("every word is drawn", #words, 1 + #model.right)
 local allBody = true
 for _, t in ipairs(words) do
   if t.text.attrs.font.size ~= T.text.body.size or t.text.attrs.font.name ~= T.text.body.font then allBody = false end
 end
 check("all in the body role", allBody, true)
+check("every chord is a cap", #caps, 1 + #model.right)
+local allSection = true
+for _, t in ipairs(caps) do
+  if t.textSize ~= T.text.section.size or t.textFont ~= T.text.section.font then allSection = false end
+end
+check("its glyphs in the hint badge's section role", allSection, true)
+local chips = {}
+for _, el in ipairs(els) do
+  if el.type == "rectangle" and el.action == "fill" and el.frame.h == T.badge.hint.height then chips[#chips + 1] = el end
+end
+check("each on a chip the hint badge's height", #chips, 1 + #model.right)
+check("the chip as wide as its glyphs and the padding", chips[1].frame.w, capW("⌘?"))
+check("centred in the group", chips[1].frame.y, math.floor(rect.y + (footerLib.height(T) - T.badge.hint.height) / 2 + 0.5))
+
+-- A chord naming alternatives is one chip per key with the alternative word between them.
+local alt = "J" .. footerLib.ALT_SEP .. "↓"
+local altEls = footerLib.keycap(ui, T, alt, 0, 0, footerLib.height(T), 9)
+local altChips, altWord = 0, false
+for _, el in ipairs(altEls) do
+  if el.type == "rectangle" then altChips = altChips + 1 end
+  if el.type == "text" and el.text == footerLib.ALT_WORD then altWord = true end
+end
+check("alternatives are one chip per key", altChips, 2)
+check("with the alternative word between them", altWord, true)
+check("as wide as both chips, the word and the small step either side of it",
+  footerLib.keycapWidth(ui, T, alt), capW("J") + capW("↓") + 8 * #footerLib.ALT_WORD + 2 * T.space.s)
 
 check("one span per entry", #hits.entries, 3)
 check("the first span starts at the group's edge", hits.entries[1].rect.x, actions.x)
@@ -141,7 +173,7 @@ check("each names its action", hits.entries[2].action, "secondary")
 -- The second entry's label starts after the first entry, the inner padding and the wide gap,
 -- and its span half the wide gap before that.
 check("a middle span starts half the wide gap before its label",
-  hits.entries[2].rect.x, actions.x + T.inner + 8 * #"Open" + T.space.s + 8 * #"↩" + T.space.l / 2)
+  hits.entries[2].rect.x, actions.x + T.barInner + 8 * #"Open" + T.space.s + capW("↩") + T.space.l / 2)
 
 els = barLib.elements(ui, T, model, rect, { radius = 9, keysLit = true, hover = 2 })
 local lit = filled(els, T.colors.highlight)

@@ -290,8 +290,21 @@ The swift chooser draws its own bar, `providers/swift/native/Bar.swift`, and it 
 is two groups floating on the glass, the key group in the bottom left corner and the action group
 in the bottom right, each `pad` from the bottom edge and from its side. Each group is the window's
 own glass, untinted, and takes the highlight tint only while the key panel is open, and its words
-and chords are the row title's font and colour, which Milos chose over caption on 2026 10 29. Its
-corner is `radius.nested`. The list runs on behind the bar to the window's bottom edge, its
+are the row title's font and colour, which Milos chose over caption on 2026 10 29. Its
+corner is `radius.nested`. Every chord, in the bar and in both popovers, is a key cap since
+2026 11 02, `KeyCap` in `Bar.swift` and `footer.lua`'s `keycap` in the canvas chooser, so a key
+never reads as a word or an icon. A cap is the `hint` badge, its height and its `padX`, its glyphs
+in the section role in foreground, on a chip of the foreground at `alpha.keycap`, which reads on
+the background, on the glass and on the highlight alike, where a chip filled with highlight would
+vanish on a lit group or line. Its corner nests in the group or line holding it. One cap holds a
+whole chord, and an empty chord draws none. A key panel line whose key has alternatives, Hyper J or
+Down, draws one cap per alternative with a slash between them in the caption role, `ALT_WORD`
+in `footer.lua`, chosen over or since it stays one narrow glyph however many alternatives a key
+has. The padding inside both
+groups and both popovers, on every side, is one token, `barInner`, set as `spacing.bar` in
+`config/settings.lua`, 6 as shipped, and a group's height is its tallest part and that twice. While
+a popover is open the group it opened from hides whole and the popover stands in that group's
+corner, its bottom edge and its outer side on the group's, while the other group stays. The list runs on behind the bar to the window's bottom edge, its
 viewport and its bottom content inset both grown by the bar's height, so every numbered row and
 the furthest scroll stay where they were and only the rows past them show between and behind the
 groups. A press between the groups reaches those rows. The pane runs on behind the bar the same

@@ -115,7 +115,9 @@ local SHIPPED = {
 
   -- muted is the report toast's alpha for a row naming something that was not there, added
   -- in stage two beside the two the design names.
-  alpha = { dim = 0.4, fade = 0.55, muted = 0.5 },
+  -- keycap is the chip a chord stands on in the bar and its popovers, the foreground at this
+  -- alpha, faint enough to sit on the highlight as well as on the background.
+  alpha = { dim = 0.4, fade = 0.55, muted = 0.5, keycap = 0.14 },
 
   -- swatch is the colour toast's square, the one size the toast draws that no icon shares.
   icon = { row = 28, list = 28, sheet = 32, swatch = 26 },
@@ -400,6 +402,9 @@ function M.new(opts)
     local spacing = spec.spacing or {}
     local inset = { x = spacing.outer or space[INSET_RULE.x], y = space[INSET_RULE.y] }
     local inner = spacing.inner or space[INSET_RULE.x]
+    -- barInner is the one padding inside the bar's groups and its two panels on every side,
+    -- spacing.bar, the small space step when it is not set.
+    local barInner = spacing.bar or space.s
     local radius = mergeGroup(SHIPPED.radius, spec.radius)
     -- pad is what every panel and pane pads its content by, one value on all four sides, so
     -- content sits as far from the bottom edge as from the sides. inset.y stays the text inset
@@ -427,6 +432,7 @@ function M.new(opts)
       inset = inset,
       pad = pad,
       inner = inner,
+      barInner = barInner,
     }
   end
 

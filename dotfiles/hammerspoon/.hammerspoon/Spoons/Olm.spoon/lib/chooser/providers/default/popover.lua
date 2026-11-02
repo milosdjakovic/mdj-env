@@ -24,12 +24,15 @@
 --- the rule. The corner is the highlighted row's, the surface radius less the list margin, as
 --- swift hands its popover the highlight radius.
 ---
---- Every value is a token. The words, the header and the chords are the body role, the row title
---- the swift chooser hands its popover as titleFont, the label in the foreground colour and the
---- chord in subtext, a heading is the caption role in its own colour, the outer padding is the
---- kit's pad, the inner padding its inner, the gap the large space step, a picture's side the
+--- Every value is a token. The words and the header are the body role, the row title the swift
+--- chooser hands its popover as titleFont, the label in the foreground colour, the chord a key
+--- cap, footer.lua's keycap, as swift's KeyCap, a heading is the caption role in its own
+--- colour, the outer padding is the kit's pad, the inner padding its inner, the gap the large space step, a picture's side the
 --- section line height, and a line's height the bar's row, which the view hands in since the bar
 --- owns it. No shadow, swift's glass has none.
+
+local herePath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
+local footerLib = assert(loadfile(herePath .. "footer.lua"))()
 
 local M = {}
 
@@ -56,13 +59,17 @@ function M.style(ui, tokens, marginX, lineH)
   local body, caption = T.text.body, T.text.caption
   local radius = ui.nestedRadius(T.radius.surface, marginX)
   return {
-    outer = T.pad,
-    inner = T.inner or T.space.sm,
+    -- The bar's one padding on every side inside the panel and inside a line, footer.lua's, and
+    -- the outer padding only between the panel and the group it stands above.
+    outer = footerLib.padding(T),
+    inner = footerLib.padding(T),
+    standoff = T.pad,
     gap = T.space.l,
     iconSide = T.text.section.lineHeight,
     lineH = lineH,
     radius = radius,
     lineRadius = ui.nestedRadius(radius, T.pad),
+    tokens = T,
     stroke = T.stroke.border,
     font = body.font, size = body.size, textH = body.lineHeight,
     headFont = caption.font, headSize = caption.size,
@@ -112,7 +119,7 @@ function M.layout(ui, style, title, lines, selectable)
     tops[i] = y
     y = y + st.lineH
     line.labelW = width(line.label, st.font, st.size)
-    line.chordW = width(line.chord, st.font, st.size)
+    line.chordW = footerLib.keycapWidth(ui, st.tokens, line.chord)
     widest = math.max(widest, lead + line.labelW + st.gap + line.chordW)
   end
   local headerH = 0
@@ -130,15 +137,16 @@ function M.layout(ui, style, title, lines, selectable)
   }
 end
 
---- M.place(pop, anchor, align, room) -> the popover's rect. anchor is the group's rect it stands
---- above, align "left" for the key panel, its left edge on the group's, and "right" for the
---- action panel, its right edge on the group's. room is { w, top }, the window's width and the
---- list's top edge. It stands the outer padding above the group, as wide as its widest line and
---- never wider than the window less the outer padding on its open side, as tall as its lines and
---- never above the list's top, where it scrolls instead, swift's layoutKeys and layoutActions.
+--- M.place(pop, anchor, align, room) -> the popover's rect. anchor is the rect of the group whose
+--- corner it takes, the bar hiding both groups while a panel is open, align "left" for the key
+--- panel, its left and bottom edges on the group's, and "right" for the action panel, its right
+--- and bottom edges on the group's. room is { w, top }, the window's width and the list's top
+--- edge. It is as wide as its widest line and never wider than the window less the outer padding
+--- on its open side, past which its labels truncate, as tall as its lines and never above the
+--- list's top, where it scrolls instead, swift's layoutKeys and layoutActions.
 function M.place(pop, anchor, align, room)
-  local pad = pop.style.outer
-  local bottom = anchor.y - pad
+  local pad = pop.style.standoff
+  local bottom = anchor.y + anchor.h
   local h = math.min(pop.h, math.max(0, bottom - room.top))
   if align == "right" then
     local right = anchor.x + anchor.w
@@ -243,8 +251,7 @@ function M.elements(ui, pop, rect, opts)
       end
       local enabled = line.enabled ~= false
       local chordX = rect.x + rect.w - side - line.chordW
-      els[#els + 1] = centredText(ui, line.chord, st.font, st.size, enabled and st.sub or st.subDim,
-        chordX, top, st.lineH, line.chordW, "right")
+      append(els, footerLib.keycap(ui, st.tokens, line.chord, chordX, top, st.lineH, st.lineRadius, enabled))
       local labelX = rect.x + side + pop.lead
       els[#els + 1] = centredText(ui, line.label, st.font, st.size, enabled and st.text or st.textDim,
         labelX, top, st.lineH, chordX - st.gap - labelX)

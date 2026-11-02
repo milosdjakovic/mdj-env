@@ -5,7 +5,8 @@
 // every gap. Each group is the window's own glass and its words and chords are the row title's
 // font and colour. The key group holds the keyboard icon, or a question mark, with the showKeys chord
 // beside it, and the action group holds the model's right side, each entry its label beside its
-// chord. A group's corner is the highlighted row's, the surface radius less the bar pad. The key
+// chord. Every chord, here and in the popovers, is a KeyCap, so a key reads as a key and never as
+// a word or an icon. A group's corner is the highlighted row's, the surface radius less the bar pad. The key
 // panel the keys group opens is a popover, see Popover.swift. A press on
 // the key group reports toggleKeys and nothing else here reports anything, so a press on the bar
 // or the panel lands on no row and never hides the list.
@@ -18,6 +19,86 @@ private func label(_ text: String, _ font: NSFont, _ color: NSColor) -> NSTextFi
   field.textColor = color
   field.lineBreakMode = .byTruncatingTail
   return field
+}
+
+// A chord drawn as key caps, the glyphs in the badge font on a chip of the keycap fill, the kit's
+// hint badge. A chord naming alternatives, keys joined by the unit separator, is one chip per key
+// with the alternative word between them in the caption colour, so it reads as press one or the
+// other. A chip is the hint badge's height and its glyphs stand padX in from either side. Its
+// corner nests in whatever line or group holds it, radius less the room above the chip. An empty
+// chord draws nothing and takes no room.
+final class KeyCap: FlippedView {
+  static let separator: Character = "\u{1F}"
+  private var keys: [NSTextField] = []
+  private var words: [NSTextField] = []
+  private var padX: CGFloat = 0
+  private var gap: CGFloat = 0
+  private var height: CGFloat = 0
+  private var fill = NSColor.clear
+  private var radius: CGFloat = 0
+  private var chips: [NSRect] = []
+
+  init(_ text: String, style: Style, placement: Placement, holderH: CGFloat, holderRadius: CGFloat,
+    enabled: Bool = true) {
+    super.init(frame: .zero)
+    padX = placement.keycapPadX
+    gap = placement.barGap
+    height = placement.keycapH
+    fill = enabled ? style.keycap : style.keycap.withAlphaComponent(style.keycap.alphaComponent * 0.5)
+    radius = max(0, holderRadius - max(0, holderH - height) / 2)
+    let parts = text.split(separator: KeyCap.separator).map(String.init).filter { !$0.isEmpty }
+    for (i, part) in parts.enumerated() {
+      if i > 0 {
+        let word = NSTextField(labelWithString: placement.keycapOr)
+        word.font = style.captionFont
+        word.textColor = enabled ? style.caption : style.subDim
+        words.append(word)
+        addSubview(word)
+      }
+      let field = NSTextField(labelWithString: part)
+      field.font = style.badgeFont
+      field.textColor = enabled ? style.text : style.textDim
+      field.alignment = .center
+      field.lineBreakMode = .byClipping
+      keys.append(field)
+      addSubview(field)
+    }
+  }
+
+  required init?(coder: NSCoder) { nil }
+
+  override var fittingSize: NSSize {
+    guard !keys.isEmpty else { return .zero }
+    let capsW = keys.reduce(0) { $0 + ceil($1.fittingSize.width + 2 * padX) }
+    let wordsW = words.reduce(0) { $0 + ceil($1.fittingSize.width) + 2 * gap }
+    return NSSize(width: capsW + wordsW, height: height)
+  }
+
+  override func layout() {
+    super.layout()
+    chips = []
+    var x: CGFloat = 0
+    for (i, field) in keys.enumerated() {
+      if i > 0 {
+        let word = words[i - 1]
+        let size = word.fittingSize
+        x += gap
+        word.frame = NSRect(x: x, y: (bounds.height - size.height) / 2, width: ceil(size.width), height: size.height)
+        x += ceil(size.width) + gap
+      }
+      let w = ceil(field.fittingSize.width + 2 * padX)
+      let h = field.fittingSize.height
+      chips.append(NSRect(x: x, y: 0, width: w, height: bounds.height))
+      field.frame = NSRect(x: x, y: (bounds.height - h) / 2, width: w, height: h)
+      x += w
+    }
+    needsDisplay = true
+  }
+
+  override func draw(_ dirtyRect: NSRect) {
+    fill.setFill()
+    for chip in chips { NSBezierPath(roundedRect: chip, xRadius: radius, yRadius: radius).fill() }
+  }
 }
 
 // One group of the bar, a shape of exactly the glass the window stands on, untinted, and tinted
@@ -41,7 +122,7 @@ final class BarGroup: FlippedView {
   required init?(coder: NSCoder) { nil }
 
   override func hitTest(_ point: NSPoint) -> NSView? {
-    frame.contains(point) ? self : nil
+    !isHidden && frame.contains(point) ? self : nil
   }
 
   override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
@@ -109,7 +190,10 @@ final class BarView: FlippedView {
     return hit === self ? nil : hit
   }
 
-  func show(_ footer: Footer, style: Style, placement: Placement, lit: Bool) {
+  // keysHidden and actionsHidden each hide one group whole, while the panel that group opens
+  // stands in its corner. The other group stays as it is.
+  func show(_ footer: Footer, style: Style, placement: Placement, lit: Bool, keysHidden: Bool = false,
+    actionsHidden: Bool = false) {
     self.placement = placement
     for view in parts + rightParts { view.removeFromSuperview() }
     parts = []
@@ -122,12 +206,16 @@ final class BarView: FlippedView {
     } else {
       parts.append(label("?", style.titleFont, style.text))
     }
-    if let chord = footer.keysChord { parts.append(label(chord, style.titleFont, style.text)) }
+    let capRadius = style.highlightRadius
+    if let chord = footer.keysChord {
+      parts.append(KeyCap(chord, style: style, placement: placement, holderH: placement.barPillH, holderRadius: capRadius))
+    }
     for view in parts { button.addSubview(view) }
     rightActions = footer.right.map { $0.action }
     for entry in footer.right {
       rightParts.append(label(entry.label, style.titleFont, style.text))
-      rightParts.append(label(entry.chord, style.titleFont, style.text))
+      rightParts.append(KeyCap(entry.chord, style: style, placement: placement, holderH: placement.barPillH,
+        holderRadius: capRadius))
     }
     for view in rightParts { actions.addSubview(view) }
     for group in [button, actions] {
@@ -136,7 +224,8 @@ final class BarView: FlippedView {
     }
     button.lit = lit
     actions.lit = footer.panelOpen
-    actions.isHidden = rightParts.isEmpty
+    button.isHidden = keysHidden
+    actions.isHidden = actionsHidden || rightParts.isEmpty
     needsLayout = true
   }
 

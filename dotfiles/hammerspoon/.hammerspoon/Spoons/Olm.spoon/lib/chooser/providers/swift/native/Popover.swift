@@ -1,7 +1,7 @@
 // The popover, a shape of the window's own glass standing over the chooser, anchored above one of
 // the bar's groups. It holds an optional header and one column of lines, each a label on the left
-// and its chord on the right, and scrolls when the lines are taller than the room it is given. The
-// key panel is its first user and the action panel its second, so it knows neither, only the
+// and its chord on the right as a KeyCap, see Bar.swift, and scrolls when the lines are taller
+// than the room it is given. The key panel is its first user and the action panel its second, so it knows neither, only the
 // lines it is handed. A line may carry a picture, drawn on its left, and a popover may highlight
 // one line, which the pointer moves and a press chooses, reported by its index from one. Its
 // corner is the groups' corner, and it follows the chooser's padding rules, one of two ways. A
@@ -77,7 +77,7 @@ final class PopoverView: FlippedView {
   private let rule = NSBox()
   private let scroll = NSScrollView()
   let document = Document()
-  private var cells: [(label: NSTextField, chord: NSTextField, image: NSImageView?)] = []
+  private var cells: [(label: NSTextField, chord: KeyCap, image: NSImageView?)] = []
   private var iconSide: CGFloat = 0
   private var headings: [(field: NSTextField, top: CGFloat)] = []
   // The height of every line and heading together.
@@ -117,7 +117,7 @@ final class PopoverView: FlippedView {
   // gap the room between a label and its chord and between a picture and its label, iconSide a
   // picture's side, radius the corner and highlight the line lit, from one, or zero for none.
   // selectable says the lines are chosen rather than only read, see the paddings above.
-  func show(title: String?, lines: [Line], style: Style, outer: CGFloat, inner: CGFloat, lineH: CGFloat, gap: CGFloat,
+  func show(title: String?, lines: [Line], style: Style, placement: Placement, outer: CGFloat, inner: CGFloat, lineH: CGFloat, gap: CGFloat,
     radius: CGFloat, iconSide: CGFloat = 0, highlight: Int = 0, selectable: Bool = false) {
     self.outer = outer
     self.inner = inner
@@ -168,10 +168,8 @@ final class PopoverView: FlippedView {
       label.font = style.titleFont
       label.textColor = line.enabled ? style.text : style.textDim
       label.lineBreakMode = .byTruncatingTail
-      let chord = NSTextField(labelWithString: line.chord)
-      chord.font = style.titleFont
-      chord.textColor = line.enabled ? style.sub : style.subDim
-      chord.alignment = .right
+      let chord = KeyCap(line.chord, style: style, placement: placement, holderH: lineH,
+        holderRadius: document.radius, enabled: line.enabled)
       let image = line.image.map { picture -> NSImageView in
         let view = NSImageView(image: picture)
         view.imageScaling = .scaleProportionallyUpOrDown

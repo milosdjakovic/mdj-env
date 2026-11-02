@@ -180,7 +180,8 @@ local FIELD_MODS = { "shift", "ctrl", "alt", "cmd" }
 --- first, and answers true, or answers false so the field goes on with the key itself.
 ---   deps.keycodes         the keycode table, a key name to its code.
 ---   deps.modifierLeaders  a leader the person named to its set of modifiers.
----   deps.predicates       a predicate name to a function, asked at the press. An unknown or
+---   deps.predicates       a predicate name to a function, asked at the press with the binding
+---                         that matched, which a predicate may read or ignore. An unknown or
 ---                         missing name is not live, since a field key that acts in every list is
 ---                         worse than one that acts in none, and it is warned about once, the way
 ---                         the leaders warn about an unknown predicate.
@@ -225,7 +226,7 @@ function obj.fieldKeys(contexts, deps)
   end
 
   local warned = {}
-  local function live(name, context)
+  local function live(name, context, binding)
     local pred = name and (deps.predicates or {})[name]
     if type(pred) ~= "function" then
       local what = tostring(name or "no predicate")
@@ -235,7 +236,7 @@ function obj.fieldKeys(contexts, deps)
       end
       return false
     end
-    return pred() == true
+    return pred(binding) == true
   end
   local repeats = deps.repeats or {}
 
@@ -250,7 +251,7 @@ function obj.fieldKeys(contexts, deps)
         if (flags[m] and true or false) ~= (c.need[m] or false) then exact = false break end
       end
       local p = c.block.priority or 0
-      if exact and p > bestP and type(c.binding.fn) == "function" and live(c.block.when, c.context) then
+      if exact and p > bestP and type(c.binding.fn) == "function" and live(c.block.when, c.context, c.binding) then
         best, bestP = c, p
       end
     end

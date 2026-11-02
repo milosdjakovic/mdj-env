@@ -706,6 +706,39 @@ end
 eq(table.concat(hints.redundantKeys({ right = { { action = "pick" } }, keysAction = "show",
   keys = { { action = "pick", label = "Pick" }, { action = "show", label = "Keys" }, { action = "move", label = "Move" } } }), ","),
   "Pick,Keys", "key panel: the check names an entry the bar's right side or its keys group already shows")
+-- A list whose action panel would only repeat its primary and its secondary loses Actions, decided
+-- from declarations alone.
+do
+  local function ctx(extra, panel)
+    local bindings = {
+      { shared = "primary", action = "pick", key = "i" },
+      { shared = "secondary", action = "copy", key = "return", mods = { "cmd" }, leader = false },
+      { shared = "selectNext", action = "selectNext", key = "j" },
+    }
+    for _, b in ipairs(extra or {}) do bindings[#bindings + 1] = b end
+    bindings[#bindings + 1] = { shared = "openActionPanel", action = "openActionPanel", key = "o" }
+    return { bindings = bindings, panel = panel }
+  end
+  local plan = { contexts = {
+    plain = ctx(),
+    verb = ctx({ { action = "remove", key = "d" } }),
+    panelOnly = ctx(nil, { { action = "rename" } }),
+    secondTwice = ctx({ { action = "copy", key = "c" } }),
+    scrolls = ctx({ { action = "scrollPreviewDown", key = "n" } }),
+  } }
+  local dropped = hints.dropIdleActionPanels(plan, { kinds = { scrollPreviewDown = "navigation" } })
+  eq(table.concat(dropped, ","), "plain,scrolls,secondTwice",
+    "idle actions: a list with nothing beyond its primary and secondary loses Actions, the secondary on a second key and navigation not counting")
+  local function hasPanel(name)
+    for _, b in ipairs(plan.contexts[name].bindings) do if b.shared == "openActionPanel" then return true end end
+    return false
+  end
+  eq(hasPanel("plain"), false, "idle actions: its binding is gone, so the bar, the key panel and the keymap all lack it")
+  eq(hasPanel("verb"), true, "idle actions: a list with a verb of its own keeps it")
+  eq(hasPanel("panelOnly"), true, "idle actions: a verb living in the panel alone counts")
+  eq(#hints.dropIdleActionPanels(plan, { kinds = { scrollPreviewDown = "navigation" } }), 0,
+    "idle actions: a second pass drops nothing, the same manifests giving the same answer")
+end
 local labelsLib = assert(loadfile(here .. "../lib/labels.lua"))()
 local LIST_KEYCODES = {}
 do
@@ -1498,6 +1531,8 @@ do
   eq(panel.right[1].label, "Delete", "panel: Return reads the highlighted panel row's title")
   eq(#panel.right, 2, "panel: no secondary, only Return and the action panel's chord")
   eq(panel.right[2].action, "openActionPanel", "panel: the second entry closes the panel")
+  eq(panel.keysChord ~= nil and panel.keysChord == hints.footerModel("bar", plan, (function() local d = {} for k, v in pairs(deps) do d[k] = v end d.actionPanel = nil return d end)()).keysChord, true,
+    "panel: the keys group keeps its chord while the action panel is open")
   eq(keyLabels(panel), "Move down,Move up,Close,Back",
     "panel: the key panel lists the shared held keys and Back, not the list's own verbs or its inert field keys")
   openRow = {}

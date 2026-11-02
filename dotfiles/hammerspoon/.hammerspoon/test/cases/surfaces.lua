@@ -152,10 +152,10 @@ do
   for i, k in ipairs(model.keys) do lines[i] = { label = k.label, chord = table.concat(k.badges, " ") } end
   local pop = popover.layout(ui, style, "Keys", lines, false)
   local placed = popover.place(pop, hits.keys, "left", { w = rect.w, top = 60 })
-  check("the key panel stands the outer padding above the keys group, its left edge on it",
-    placed.x == hits.keys.x and placed.y + placed.h == hits.keys.y - T.pad,
+  check("the key panel takes the keys group's corner, its left and bottom edges on it",
+    placed.x == hits.keys.x and placed.y + placed.h == hits.keys.y + hits.keys.h,
     string.format("%s,%s %sx%s", placed.x, placed.y, placed.w, placed.h))
-  local low = popover.place(pop, hits.keys, "left", { w = rect.w, top = hits.keys.y - T.pad - 30 })
+  local low = popover.place(pop, hits.keys, "left", { w = rect.w, top = hits.keys.y + hits.keys.h - 30 })
   check("and never rises above the list's top", low.h == 30, "height " .. tostring(low.h))
   local acts = popover.layout(ui, style, "Actions", { { label = "Open" }, { label = "Reveal" } }, true)
   local right = popover.place(acts, hits.actions, "right", { w = rect.w, top = 60 })

@@ -75,9 +75,12 @@ return {
   -- inner is the room inside a highlighted or filled shape, between a row's edge and its icon,
   -- and inside each action bar group. The corner of a row and of a group is cornerRadius above
   -- less outer, so more outer padding makes squarer corners and less makes rounder ones.
+  -- bar is the one padding inside the action bar's two groups and inside the key panel and the
+  -- action panel, the same on every side, so a group's height is its tallest part and this twice.
   spacing = {
     outer = 14,
     inner = 14,
+    bar = 6,
   },
 
   -- Cheat-sheet overlay content (the Hyper and SUPER modals). One place for the

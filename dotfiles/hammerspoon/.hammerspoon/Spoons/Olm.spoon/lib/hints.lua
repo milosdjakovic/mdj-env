@@ -256,13 +256,15 @@ function obj.footerModel(contextName, plan, deps)
       if b.shared ~= nil and sharedSeen[b.shared] then
         -- The second key of a shared verb already listed.
       -- Over the action panel only the shared keys a held leader answers stay listed, since the
-      -- list's field keys, showKeys among them, are inert while the panel is open.
+      -- list's field keys are inert while the panel is open, and showKeys, live there, is the keys
+      -- group's own.
       elseif not panelRow or (b.shared ~= nil and b.shared ~= "primary" and b.leader ~= false) then
         keys[#keys + 1] = { badges = badgesFor(b, deps),
           label = obj.labelFor(b, contextName, deps.liveLabels, labels), action = b.action }
       end
       if b.shared ~= nil then sharedSeen[b.shared] = true end
-      if b.shared == "showKeys" and not panelRow then show = show or b end
+      -- showKeys stays live over the action panel, so the keys group keeps its chord there.
+      if b.shared == "showKeys" then show = show or b end
     end
   end
   if panelRow or (not ownBack and deps.backs and deps.backs(contextName)) then
@@ -290,7 +292,8 @@ function obj.footerModel(contextName, plan, deps)
   end
 
   -- The key button's own chord, drawn beside it the way Actions carries its chord, the first key
-  -- showKeys sits on, or nil when the person freed it or the action panel leaves it inert.
+  -- showKeys sits on, or nil when the person freed it. It stays over the action panel, where the
+  -- root leaves showKeys live, so opening one panel never changes the other group.
   local keysChord = show and obj.chordFor(show, deps) or nil
   local keysAction = show and show.action or nil
 
@@ -525,6 +528,56 @@ function obj.actionKinds(plan, kinds)
     out[name] = kind
   end
   return out, conflicts
+end
+
+--- obj.ownVerbs(contextName, plan, kinds) -> actions. Every action the action panel would list for
+--- one context beyond the primary and the secondary, read from declarations alone and never from a
+--- live gate or a row, so the answer is the same on every load of the same manifests. An action
+--- with no key, which lives in the panel alone, counts, and so does an unshared binding classed a
+--- verb, unless it is the secondary on a second key, the same rows rowsFor lists. kinds is
+--- actionKinds' answer for the plan.
+function obj.ownVerbs(contextName, plan, kinds)
+  local ctx = plan.contexts and plan.contexts[contextName]
+  local out = {}
+  if not ctx then return out end
+  local secondary
+  for _, b in ipairs(ctx.bindings or {}) do
+    if b.shared == "secondary" then secondary = b.action break end
+  end
+  for _, b in ipairs(ctx.bindings or {}) do
+    if b.shared == nil and kinds[b.action] == "verb" and b.action ~= secondary then out[#out + 1] = b.action end
+  end
+  for _, b in ipairs(ctx.panel or {}) do out[#out + 1] = b.action end
+  return out
+end
+
+--- obj.dropIdleActionPanels(plan, opts) -> names. A list whose action panel would only repeat the
+--- bar, its primary and its secondary and nothing of its own, loses its openActionPanel binding,
+--- so the bar, the key panel and the keymap all leave Actions out there and its key does nothing.
+--- It is decided once per load from ownVerbs, so a plugin declares nothing for it, and adding a verb
+--- to a manifest brings Actions back on the next load. opts.kinds is the action kind overrides
+--- actionKinds is handed. Answers the names of the lists that lost it, sorted. A hosted scope adds
+--- no row of its own, since rowsFor only filters the list's own bindings by the scope's verbs, so
+--- the launcher is decided like any list. Should a scope ever carry its tool's verbs into the
+--- launcher, this has to learn about it.
+function obj.dropIdleActionPanels(plan, opts)
+  opts = opts or {}
+  local kinds = obj.actionKinds(plan, opts.kinds)
+  local dropped = {}
+  for name, ctx in pairs(plan.contexts or {}) do
+    if #obj.ownVerbs(name, plan, kinds) == 0 then
+      local kept, had = {}, false
+      for _, b in ipairs(ctx.bindings or {}) do
+        if b.shared == "openActionPanel" then had = true else kept[#kept + 1] = b end
+      end
+      if had then
+        ctx.bindings = kept
+        dropped[#dropped + 1] = name
+      end
+    end
+  end
+  table.sort(dropped)
+  return dropped
 end
 
 -- Three small CanvasPanel content strategies over a mutable state table, folded into one

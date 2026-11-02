@@ -57,11 +57,12 @@ function M.spec(policy, colors, typography)
       -- Every outline and divider takes this width, see stroke in lib/ui/style.lua.
       border = (policy.surface or {}).borderWidth,
     },
-    -- The outer and inner paddings, see spacing in lib/ui/style.lua. A value that is not a
+    -- The outer, inner and bar paddings, see spacing in lib/ui/style.lua. A value that is not a
     -- number from zero up is left out, so the kit's shipped step stands in its place.
     spacing = {
       outer = padding((policy.spacing or {}).outer),
       inner = padding((policy.spacing or {}).inner),
+      bar = padding((policy.spacing or {}).bar),
     },
   }
 end

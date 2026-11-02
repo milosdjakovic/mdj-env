@@ -1891,7 +1891,34 @@ function obj.run(olm, cfg)
     stageModule:onClosed(function() applySwitches(nil, true) end)
   end
 
+  -- The kind derivation reads a binding's position and the fixed generic navigation set,
+  -- and gets these four wrong on that evidence alone, since each sits below the first
+  -- binding in its own context yet moves the view or leaves a page rather than acting on
+  -- anything selected. The retired root called the first three navigation by hand, and this
+  -- table is the override seam actionKinds reserves for exactly that one small correction.
+  --
+  -- The fourth is the same shape as leavePage above, a step back out of a swapped list, and it
+  -- earns the same correction for the same reason. The action panel draws its own Back row, so
+  -- a step out classified as a verb would be listed twice, once as the panel's Back and once as
+  -- a row of its own. These are action names and no plugin is named, which is the only reason
+  -- this table may sit in this file at all.
+  local actionKindOverrides = {
+    scrollPreviewDown = "navigation",
+    scrollPreviewUp = "navigation",
+    leavePage = "navigation",
+    leaveManageHistory = "navigation",
+  }
+
   local contextOwners = hintsLib.contextOwners(plan, manifests)
+  -- A list whose action panel would only repeat its primary and its secondary loses its Actions
+  -- binding, decided here once from the manifests, after the person's lists section and before the
+  -- bar, the key panel, the keymap or the contexts read the bindings. The launcher is no exception,
+  -- since a typed scope's verbs only filter the launcher's own bindings and so never add a row.
+  local idleActionPanels = hintsLib.dropIdleActionPanels(plan, { kinds = actionKindOverrides })
+  if #idleActionPanels > 0 then
+    log.i("Olm keymap, " .. #idleActionPanels .. " list(s) declare no verb beyond their primary and "
+      .. "secondary, so they carry no Actions, " .. table.concat(idleActionPanels, ", "))
+  end
 
   -- Whether a list is open, lib/listopen.lua, one named list for the wiring, the action panel and
   -- the surface adapters, and any list for every leader, since no hold reveals a sheet over an
@@ -2033,23 +2060,6 @@ function obj.run(olm, cfg)
     for _, leader in ipairs(leaderList) do leader:conceal() end
   end
 
-  -- The kind derivation reads a binding's position and the fixed generic navigation set,
-  -- and gets these four wrong on that evidence alone, since each sits below the first
-  -- binding in its own context yet moves the view or leaves a page rather than acting on
-  -- anything selected. The retired root called the first three navigation by hand, and this
-  -- table is the override seam actionKinds reserves for exactly that one small correction.
-  --
-  -- The fourth is the same shape as leavePage above, a step back out of a swapped list, and it
-  -- earns the same correction for the same reason. The action panel draws its own Back row, so
-  -- a step out classified as a verb would be listed twice, once as the panel's Back and once as
-  -- a row of its own. These are action names and no plugin is named, which is the only reason
-  -- this table may sit in this file at all.
-  local actionKindOverrides = {
-    scrollPreviewDown = "navigation",
-    scrollPreviewUp = "navigation",
-    leavePage = "navigation",
-    leaveManageHistory = "navigation",
-  }
 
   -- The action panel borrows the one list instance and leaves current() naming the list, so the
   -- action bar and the list's field keys ask this rather than the stage. It answers the panel row
@@ -2768,10 +2778,14 @@ function obj.run(olm, cfg)
   -- panel was opened over. That is said through the watcher's own gate. Each list's predicate is
   -- handed over wrapped, answering false while the panel is open, so the watcher keeps knowing
   -- only predicates and the key falls through to the field, which chooses the highlighted row.
+  -- showKeys is the one field key left live over the panel, since the keys group stays on screen
+  -- with its chord while the action panel is open and a chord shown must do what it says.
   local fieldPredicates = setmetatable({}, { __index = function(_, name)
     local pred = (w._predicates or ownPredicates)[name]
     if type(pred) ~= "function" then return pred end
-    return function() return actionPanelShowingRow() == nil and pred() end
+    return function(binding)
+      return (actionPanelShowingRow() == nil or (binding ~= nil and binding.shared == "showKeys")) and pred()
+    end
   end })
   local fieldKeyList
   fieldWatch, fieldKeyList = navLib.fieldKeys(plan.contexts, {

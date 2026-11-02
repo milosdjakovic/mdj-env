@@ -529,3 +529,101 @@ shows. The exclusions in the entry above were a hand list of shared verbs, which
 would have slipped past. `footerModel` now collects every key the list answers and removes every
 action the bar carries, its right side and the keys group's chord, and `hints.redundantKeys` is the
 same rule as a check that every footer model in the person tests is held to.
+
+2026-11-02 09:30. Every chord is a key cap, at Milos's request that a key read uniformly and
+apart from text and icons. In the bar, the key panel and the action panel a chord was plain text,
+in the bar's text colour in one place and subtext in the other, so `Run ↩` read as two words. Now
+each is the kit's hint badge, its glyphs in the section role on a chip of the foreground at a new
+alpha, `keycap`, 0.14, `KeyCap` in the swift chooser's `Bar.swift` and `footer.lua`'s `keycap` in
+the canvas one. The chip is not the highlight the kit's badge fills with, since the keys group, a
+hovered entry and the action panel's lit line all sit on the highlight and a highlight chip there
+would vanish. One cap holds a whole chord rather than one cap per key, because splitting `✦ O` or
+`esc` into keys needs a tokenizer in two languages for little gain. Olm's default primary icon
+was the `return` symbol, so the action panel's Run row read Return twice, icon and cap, and it is
+`play` now, Milos asking that no icon be Return. The launcher row subtitles still spell a chord in
+text, since a subtitle is one string.
+
+2026-11-02 09:32. One padding inside the bar and its panels, at Milos's request. A group stood its
+cap the small space step, 6, from its top and bottom and the inner padding, 14, from its sides,
+and the popovers padded by the outer and inner paddings, 14. Milos asked for the smallest of these
+on every side of both groups and both panels, as one value. It is `spacing.bar` in
+`config/settings.lua`, the kit's `barInner`, 6 as shipped, read by `footer.lua`'s `padding` for the
+group's height and its sides and by both popovers inside and inside a line. `spacing.inner` was not
+lowered, since list rows read it too. The gap between a popover and its group stays the outer
+padding, since it is outside the panel.
+
+2026-11-02 09:32. A key with alternatives draws one cap per key with or between them, at Milos's
+request, since `✦J ↓` in one cap read as one chord to press together. The footer model's badges
+were already separate and were joined with a space for the popover, and they are joined with the
+unit separator now, which both choosers' caps split on. The word is or because the cheat sheet
+already puts or between a row's badges, so alternatives read one way everywhere.
+
+2026-11-02 09:45. Alternatives are joined by a slash, Milos's choice from or, a slash, a middle
+dot, a bar and dimmed extras. Or grew a word per alternative and brought text back between caps,
+the dot means a list and already separates a launcher subtitle, the bar reads as a layout line,
+and dimming reads as disabled. The slash reads as or, stays one narrow glyph at three keys, and
+outside a cap in the caption colour is not taken for the slash key.
+
+2026-11-02 09:45. A panel takes its group's corner and the bar hides while it is open, at Milos's
+request. The key panel stood the outer padding above the keys group and left out every key the bar
+showed. Now both groups hide whole while either panel is open, the panel's bottom edge and outer
+side sit on its group's, and the key panel lists every key the list answers, since the bar's own
+entries are no longer on screen. This replaces the exclusion of 2026-11-01 19:52 by the same
+principle, the panel lists what the screen does not show, and `hints.redundantKeys` became
+`hints.missingBarKeys`, which checks the opposite. Corrected 2026-11-02 09:52, see below. Width was already as Milos asked, the widest
+line up to the window less the outer padding, labels truncating past it.
+
+2026-11-02 09:45. Alternatives are joined by a slash, Milos's choice from or, a slash, a middle
+dot, a bar and dimmed extras. Or grew a word per alternative and brought text back between caps,
+the dot means a list and already separates a launcher subtitle, the bar reads as a layout line,
+and dimming reads as disabled. The slash reads as or, stays one narrow glyph at three keys, and
+outside a cap in the caption colour is not taken for the slash key.
+
+2026-11-02 09:45. A panel takes its group's corner and the bar hides while it is open, at Milos's
+request. The key panel stood the outer padding above the keys group and left out every key the bar
+showed. Now both groups hide whole while either panel is open, the panel's bottom edge and outer
+side sit on its group's, and the key panel lists every key the list answers, since the bar's own
+entries are no longer on screen. This replaces the exclusion of 2026-11-01 19:52 by the same
+principle, the panel lists what the screen does not show, and `hints.redundantKeys` became
+`hints.missingBarKeys`, which checks the opposite. Corrected 2026-11-02 09:52, see below. Width was already as Milos asked, the widest
+line up to the window less the outer padding, labels truncating past it.
+
+2026-11-02 09:52. The key panel lists nothing the bar carries again, reverting part of the 09:45
+entry, which Milos called a regression. Hiding the groups under an open panel was asked for. Putting
+Run, the secondary, Actions and ⌘? back into the key panel was not, it was inferred from the bar
+being hidden and it overrode the 2026-11-01 19:52 rule without asking. The key panel is an
+information pane, it is not a stand in for the bar. The exclusion and `hints.redundantKeys` are
+back as they were, and the corner placement and the hidden groups stay.
+
+2026-11-02 10:05. Only the group whose panel is open hides, Milos's choice from three. With both
+hidden, as at 09:45, Run and Actions were on screen nowhere while the key panel was up. Now the key
+panel replaces the keys group alone and the actions group stays, and the action panel replaces the
+actions group alone and the keys group stays, so nothing goes missing and the key panel still lists
+nothing the bar carries. The two turned down were keeping both groups hidden, and keeping them
+hidden with the panel's own close key in its header.
+
+2026-11-02 10:15. Opening one panel changes nothing in the other group, at Milos's request. With
+the action panel open the keys group lost its ⌘?, because showKeys is a field key and every field
+key was inert over the panel, so `footerModel` dropped the chord. Showing the chord alone would
+have advertised a dead key, so showKeys is now live over the action panel. The field watcher
+hands each predicate the binding it matched, and the root's wrapper exempts showKeys. The key
+panel opening changed nothing on the right already.
+
+2026-11-02 10:27. A list whose action panel only repeats the bar carries no Actions, at Milos's
+request, decided by Olm from the manifests rather than per plugin. `hints.dropIdleActionPanels`
+drops the `openActionPanel` binding once per load where `hints.ownVerbs`, the rows `rowsFor` lists
+beyond the primary and the secondary with no live gate read, is empty, so the bar, the key panel
+and the keymap lose it together and ✦O does nothing there. A row dependent rule was turned down,
+since Actions would come and go as the highlight moved. Hiding only the bar entry was turned down,
+since the key panel would then have listed ✦O. The launcher keeps it through a `hosts` answer, since
+`leavePage` is navigation by the root's overrides and its panel shows a typed scope's verbs. Corrected 2026-11-02 10:33, see below. Twelve
+lists lost it on this machine, audio, browserTabs, emoji, inputsources, menuSearch, obsidian,
+olmplacement, olmplugins, olmtheme, textCase, volume and wifi. The overrides table moved up in the
+root so this and actionKinds read one copy.
+
+2026-11-02 10:33. The launcher loses Actions too, Milos having found its panel listing only Run.
+The `hosts` exception above rested on the belief that a typed scope's verbs add rows to the
+launcher's panel, which was not measured. Measured live, `rowsFor` for the launcher listed Run on
+an empty query, nothing for the file search scope and Run for the Text Case scope, because a
+scope's verbs only filter the launcher's own bindings, which never hold a tool's verbs. The
+exception and the `hosts` option are gone, and thirteen lists now carry no Actions.

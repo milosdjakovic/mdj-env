@@ -534,9 +534,11 @@ already say, Olm's name and version, the legend of the leader symbols, and the k
 answers that nothing visible shows. It is never a second listing, and that is computed rather than
 curated. Every key the list answers is collected, and every action the bar carries, its right side
 and the keys group's own chord, is taken out, so the primary, the secondary, Actions and showKeys
-drop out by the rule and a future bar entry drops out with no edit. Command with a digit is not
-listed, since every row shows its number. `hints.redundantKeys` states the rule as a check, and
-`test/keymap-person.lua` runs it on every footer model its cases build. While the action
+drop out by the rule and a future bar entry drops out with no edit. The keys group hides while
+the key panel is open and the actions group stays, so Run and Actions stay on screen, and the key
+panel is reference and never stands in for the bar. Command with a digit is not listed, since every row shows its number. `hints.redundantKeys`
+states the rule as a check, and `test/keymap-person.lua` runs it on every footer model its cases
+build. While the action
 panel is open over the list the model describes the panel, Return labelled with the highlighted
 panel row's title or Run, no secondary, and only the shared keys and Back in the key panel. It reads the
 bindings, the live gates and the label lookup `rowsFor` reads, so the bar, its key panel and the
@@ -551,12 +553,14 @@ does, two floating groups rather than a row, through `bar.lua` beside the view, 
 keeps the bar's height, which the engine and both views read. The
 keys group stands in the bottom left corner and the actions group in the bottom right, each the
 kit's `pad` in from its side at the top of the footer rect, as tall as `footer.lua`'s height with
-`pad` below it, the kit's `inner` padding inside it on the left and the right, a label and its
+`pad` below it, the bar's one padding, the kit's `barInner` from `spacing.bar`, inside it on every
+side, which both popovers also pad by inside and inside a line, a label and its
 chord the small space step apart and two entries the large one, the same tokens swift's view hands
 Swift as `barPad`, `barPillPad`, `barGap`, `barGapWide` and `barPillH`. Each group is filled with
 the background colour role and outlined in the border role at `stroke.border`, its corner the
 highlighted row's, `nestedRadius` of the surface radius and the list margin, with no shadow. Every
-word and chord is the body role, as in swift, and the keys group holds the outline keyboard icon,
+word is the body role, as in swift, and every chord a key cap, `footer.lua`'s `keycap`, the twin of
+swift's `KeyCap`, see the bar in `docs/DESIGN-UI-KIT.md`, and the keys group holds the outline keyboard icon,
 Olm's own `keys` in the action panel's manifest, drawn through the injected icon engine at the
 kit's `hint` icon size, the section line height, with the ? glyph only where no engine is
 injected, then the showKeys chord. The geometry gives the footer rect under the list, subtracted
@@ -582,6 +586,18 @@ autorepeat of that held Escape is swallowed so it never closes the list too. Wit
 the provider draws no bar and keeps every row, so it stays usable alone, and the legacy chooser
 draws none.
 
+A list whose action panel would only repeat its primary and its secondary carries no Actions.
+`hints.dropIdleActionPanels` removes its `openActionPanel` binding once per load in the root, right
+after `contextOwners` and before the bar, the key panel, the keymap or the contexts read the
+bindings, so all of them agree and its key does nothing there. It reads `hints.ownVerbs`, the rows
+`rowsFor` would list beyond the primary and the secondary, from declarations alone with the
+root's action kind overrides, never a live gate or a row, so no plugin declares anything for it and a
+verb added to a manifest brings Actions back on the next load. A verb living in the panel alone
+counts. The launcher is decided like any list, since a typed scope's verbs only filter the
+launcher's own bindings and never add a row, so its panel only ever repeats Run. Should a scope
+ever carry its tool's verbs into the launcher, the rule has to learn about it. Each load logs the
+lists that lost it, and the keys goldens record which lists carry it.
+
 The root builds one footer for the stage over `stageModule:current()`, the way the stage panel
 did, and hands it through the stage's manifest need `footer`. The stage passes it to its instance,
 remembers the item last highlighted outside the action panel, and answers `labels()`, the current
@@ -594,7 +610,9 @@ Command and Return and Command and keypad Enter with leader false, the list list
 built right after the primary only for a surface declaring `secondary`, so both keep choosing the row
 in every other list. Every field key is inert while the action panel is open, since the root hands
 the field's watcher each list's predicate wrapped to answer false then, so Command and Return there
-chooses the panel row. A shared binding's kind is weak in `actionKinds`, filling only an action no
+chooses the panel row. showKeys is the one exception, the watcher handing each predicate the
+binding it matched, since the keys group stays on screen with its chord while the action panel is
+open and opening one panel never changes the other group. A shared binding's kind is weak in `actionKinds`, filling only an action no
 other binding classified, so a secondary named like another list's verb never hides that verb.
 `showKeys` is Command and ?, slash with Command and Shift, and Command and slash beside it, two
 field keys on no leader like the secondary's, in every list, listed once and spelled ⌘? because the
@@ -607,19 +625,22 @@ every shared verb. The action panel lists Back, the primary, the secondary and t
 The primary row reads Return and the secondary row Command and Return, the keys a person presses,
 and the key panel spells the primary as Return alone. Every row carries an icon. A
 surface's `primary` and `secondary` may name one of the manifest's icons like an extra row, and one
-naming none takes Olm's own, `primary` and `secondary` in the action panel's manifest beside `back`.
+naming none takes Olm's own, `primary` and `secondary` in the action panel's manifest beside `back`. No icon is the Return glyph, since the row's cap already shows Return, so Olm's own primary is
+`play`.
 
 The canvas view draws the key panel and the action panel as popovers since 2026-10-30, the
 canvas clone of the swift chooser's `native/Popover.swift`, one drawing routine for both in
 `providers/default/popover.lua`, which answers elements and hit rects and opens no canvas. Each is
 filled with the background role and outlined in the border role at the border stroke, its corner
 the highlighted row's, the surface radius less the list margin, and a lit line's corner that less
-the outer padding. The words, the header and the chords are the body role, the label in
-foreground and the chord in subtext, a section heading the caption role, a line the bar's row, a
+the outer padding. The words and the header are the body role, the label in foreground, the chord
+a key cap as in the bar, a section heading the caption role, a line the bar's row, a
 picture the section line height, and the paddings follow swift's two ways, see the popover in
-`docs/DESIGN-UI-KIT.md`. The key panel stands above the keys anchor, its left edge on it, and the
-action panel above the actions anchor, its right edge on it, each the outer padding above, never
-above the list's top, where it scrolls, and never wider than the window less the outer padding.
+`docs/DESIGN-UI-KIT.md`. The key panel takes the keys anchor's corner, its left and bottom edges on
+it, while the keys group is hidden and the actions group stays, and the action panel the actions
+anchor's, its right and bottom edges on it, while the actions group is hidden and the keys group
+stays, never above the list's top, where it scrolls, and as wide as its widest line but never
+wider than the window less the outer padding, past which its labels truncate.
 The anchors are the one seam to the bar, the groups' own rects that `bar.lua` answers, kept by
 `View:_footerElements` as `self._anchors = { keys = rect, actions = rect }` in the window's local
 coordinates. The view answers

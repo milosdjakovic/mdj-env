@@ -31,10 +31,12 @@ return {
   -- secondary are Olm's defaults for the two rows after it, Return and Command, read against this
   -- manifest when a list's surface names no icon of its own for either. keys is the action bar's
   -- key button, the outline keyboard. Every other verb names the icons of the plugin that owns its
-  -- context and never this one. Every sf name was checked against AppKit on 2026-10-23.
+  -- context and never this one. Every sf name was checked against AppKit on 2026-10-23. primary is
+  -- never the Return glyph, since the row's chord already shows Return as a key cap, so Run read
+  -- Return twice, play since 2026-11-02.
   icons = {
     back = { emoji = "⬅️", sf = "chevron.left" },
-    primary = { emoji = "↩️", sf = "return" },
+    primary = { emoji = "▶️", sf = "play" },
     secondary = { emoji = "⌘", sf = "command" },
     keys = { emoji = "⌨️", sf = "keyboard" },
     -- The row of more the chooser's engine ends a list its limit cut with, Show 27 more.

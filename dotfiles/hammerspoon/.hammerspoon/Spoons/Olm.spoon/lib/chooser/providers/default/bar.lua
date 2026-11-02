@@ -12,7 +12,8 @@
 ---
 --- The keys group holds the keyboard icon, or the ? glyph where no icon engine is injected, with
 --- the showKeys chord beside it. The actions group holds the footer model's right side, each
---- entry its label beside its chord. Every word and chord is the body role, the row title's font
+--- entry its label beside its chord. Every chord is a key cap, footer.lua's keycap. Every word is
+--- the body role, the row title's font
 --- and colour, which Milos chose for swift's groups on 2026-10-29, and the icon is the kit's hint
 --- icon, the section role's line height, which is the side swift draws it at. The measurements
 --- are the ones swift's view.lua hands Swift in View:place. The bar pad is the kit's pad, the
@@ -80,7 +81,7 @@ end
 function M.metrics(tokens)
   return {
     pad = tokens.pad,
-    inner = tokens.inner or tokens.space.sm,
+    inner = footerLib.padding(tokens),
     gap = tokens.space.s,
     gapWide = tokens.space.l,
     height = footerLib.height(tokens),
@@ -94,6 +95,8 @@ end
 ---   keysImage  the keyboard icon as a picture. Without one the keys group draws the ? glyph.
 ---   keysLit    the keys group sits on the highlight, its panel open or the pointer over it.
 ---   hover      the index of the action entry under the pointer, which sits on the highlight.
+---   keysHidden, actionsHidden  leave that group undrawn, while the panel it opens stands in its
+---              corner, its rect still answered in hits as the panel's anchor.
 --- hits holds keys, the keys group's rect, actions, the actions group's rect or nil when the
 --- model has no right side, and entries, one { rect, action } per entry of the right side in
 --- order. An entry reaches from half the wide gap before its label to half after its chord, the
@@ -111,15 +114,19 @@ function M.elements(ui, tokens, model, rect, opts)
   local bodyRow = { gap = "s", fill = false, align = ui.rowAligns.center }
 
   -- The keys group, its parts side by side from the inner padding in.
-  local keysParts = { opts.keysImage and ui.icon(opts.keysImage, "hint") or ui.text(footerLib.KEYS_GLYPH, "body") }
-  if model.keysChord then keysParts[#keysParts + 1] = ui.text(model.keysChord, "body") end
-  local keysNode = ui.row(keysParts, bodyRow)
-  local keysW, keysH = sizeOf(ui, tokens, keysNode, rect.w)
+  local keysNode = ui.row({ opts.keysImage and ui.icon(opts.keysImage, "hint") or ui.text(footerLib.KEYS_GLYPH, "body") }, bodyRow)
+  local iconW, iconH = sizeOf(ui, tokens, keysNode, rect.w)
+  local capW = footerLib.keycapWidth(ui, tokens, model.keysChord)
+  local keysW = iconW + (capW > 0 and m.gap + capW or 0)
   local keysRect = { x = px(rect.x + m.pad), y = px(top), w = px(keysW + 2 * m.inner), h = px(h) }
-  local fill, outline = groupShape(tokens, keysRect, radius, opts.keysLit)
-  append(els, fill)
-  els[#els + 1] = outline
-  append(els, place(ui, tokens, keysNode, keysRect.x + m.inner, keysRect.y, keysW, keysH, h))
+  if not opts.keysHidden then
+    local fill, outline = groupShape(tokens, keysRect, radius, opts.keysLit)
+    append(els, fill)
+    els[#els + 1] = outline
+    append(els, place(ui, tokens, keysNode, keysRect.x + m.inner, keysRect.y, iconW, iconH, h))
+    append(els, footerLib.keycap(ui, tokens, model.keysChord, keysRect.x + m.inner + iconW + m.gap,
+      keysRect.y, h, radius))
+  end
   hits.keys = keysRect
 
   -- The actions group, its entries measured first so it can stand flush with the bar pad from
@@ -127,9 +134,11 @@ function M.elements(ui, tokens, model, rect, opts)
   local entries = {}
   local total = 0
   for i, r in ipairs(model.right or {}) do
-    local node = ui.row({ ui.text(r.label or "", "body"), ui.text(r.chord or "", "body") }, bodyRow)
-    local w, eh = sizeOf(ui, tokens, node, rect.w)
-    entries[i] = { node = node, w = w, h = eh, action = r.action }
+    local node = ui.row({ ui.text(r.label or "", "body") }, bodyRow)
+    local lw, eh = sizeOf(ui, tokens, node, rect.w)
+    local cw = footerLib.keycapWidth(ui, tokens, r.chord)
+    local w = lw + (cw > 0 and m.gap + cw or 0)
+    entries[i] = { node = node, w = w, labelW = lw, h = eh, chord = r.chord, action = r.action }
     total = total + w + (i > 1 and m.gapWide or 0)
   end
   if #entries == 0 then return els, hits end
@@ -148,7 +157,8 @@ function M.elements(ui, tokens, model, rect, opts)
     x = x + e.w + m.gapWide
   end
 
-  fill, outline = groupShape(tokens, actionsRect, radius, model.panelOpen == true)
+  if opts.actionsHidden then return els, hits end
+  local fill, outline = groupShape(tokens, actionsRect, radius, model.panelOpen == true)
   append(els, fill)
   -- The entry under the pointer lights across its whole span, the way a row lights under it,
   -- beneath the outline so the group's edge stays drawn.
@@ -160,7 +170,8 @@ function M.elements(ui, tokens, model, rect, opts)
   end
   els[#els + 1] = outline
   for i, e in ipairs(entries) do
-    append(els, place(ui, tokens, e.node, spans[i].x, actionsRect.y, e.w, e.h, h))
+    append(els, place(ui, tokens, e.node, spans[i].x, actionsRect.y, e.labelW, e.h, h))
+    append(els, footerLib.keycap(ui, tokens, e.chord, spans[i].x + e.labelW + m.gap, actionsRect.y, h, radius))
   end
   return els, hits
 end

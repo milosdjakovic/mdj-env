@@ -68,13 +68,13 @@ local style = popover.style(UI, T, MARGIN, lineH)
 -- The drawing routine alone
 --------------------------------------------------------------------------------
 
-check("the outer padding is the kit's pad", style.outer, T.pad)
-check("the inner padding is the kit's inner", style.inner, T.inner)
+check("the padding inside is the bar's one padding", style.outer, T.barInner)
+check("and inside a line the same one", style.inner, T.barInner)
 check("a line is the bar's row", style.lineH, lineH)
 check("the corner is the highlighted row's, the surface less the list margin",
   style.radius, UI.nestedRadius(T.radius.surface, MARGIN))
 check("a lit line's corner nests inside the popover's by the outer padding",
-  style.lineRadius, UI.nestedRadius(style.radius, T.pad))
+  style.lineRadius, UI.nestedRadius(style.radius, T.barInner))
 check("the words are the body role", style.font, T.text.body.font)
 check("a heading is the caption role", style.headFont, T.text.caption.font)
 check("filled with the background role", style.background, T.colors.background)
@@ -87,11 +87,12 @@ local keys = popover.layout(UI, style, "Keys", {
   { label = "Open in Finder", chord = "⌘ O" },
 }, false)
 local slack = (lineH - T.text.body.lineHeight) / 2
-local widest = 7 * #"Open in Finder" + T.space.l + 7 * #"⌘ O"
+-- The chord is a key cap, its glyphs and the hint badge's padding either side.
+local widest = 7 * #"Open in Finder" + T.space.l + 7 * #"⌘ O" + 2 * T.badge.hint.padX
 check("a read popover is its widest line and the outer padding on both sides", keys.w,
-  math.ceil(widest + 2 * T.pad))
+  math.ceil(widest + 2 * T.barInner))
 check("and as tall as its header, its lines less the slack, and the outer padding", keys.h,
-  math.ceil(T.text.body.lineHeight + 2 * T.pad + T.stroke.border + 2 * lineH - 2 * slack + 2 * T.pad))
+  math.ceil(T.text.body.lineHeight + 2 * T.barInner + T.stroke.border + 2 * lineH - 2 * slack + 2 * T.barInner))
 
 -- The action panel, chosen lines with sections and pictures.
 local picture = function(frame) return { { type = "image", frame = frame } } end
@@ -102,11 +103,11 @@ local actions = popover.layout(UI, style, nil, {
   { label = "Delete", chord = "⌘⌫", picture = picture, section = "File", enabled = false },
   { label = "Share", chord = "⌘S", picture = picture, section = "Send" },
 }, true)
-check("a chosen line's text stands the outer and the inner padding in", actions.side, T.pad + T.inner)
+check("a chosen line's text stands the outer and the inner padding in", actions.side, T.barInner + T.barInner)
 check("a heading starts each run of one section", #actions.headings, 2)
 check("the first heading stands above its first line", actions.headings[1].top, 2 * lineH)
 check("and the line under it is pushed down by a line", actions.tops[3], 3 * lineH)
-check("a chosen popover takes no slack", actions.h, math.ceil(7 * lineH + 2 * T.pad))
+check("a chosen popover takes no slack", actions.h, math.ceil(7 * lineH + 2 * T.barInner))
 check("a picture takes its side and the gap", actions.lead, T.text.section.lineHeight + T.space.l)
 
 -- Placement, swift's rules.
@@ -114,14 +115,14 @@ local keysAnchor = { x = 20, y = 500, w = 60, h = 30 }
 local room = { w = 800, top = 50 }
 local r = popover.place(keys, keysAnchor, "left", room)
 check("the key panel's left edge is on its group's", r.x, keysAnchor.x)
-check("it stands the outer padding above its group", r.y + r.h, keysAnchor.y - T.pad)
+check("its bottom edge on its group's, whose corner it takes", r.y + r.h, keysAnchor.y + keysAnchor.h)
 check("at its preferred size", r.w, keys.w)
 local actionsAnchor = { x = 700, y = 500, w = 80, h = 30 }
 r = popover.place(actions, actionsAnchor, "right", room)
 check("the action panel's right edge is on its group's", r.x + r.w, actionsAnchor.x + actionsAnchor.w)
 r = popover.place(actions, actionsAnchor, "right", { w = 800, top = 400 })
 check("never above the list's top", r.y, 400)
-check("where it is shorter than its lines", r.h, keysAnchor.y - T.pad - 400)
+check("where it is shorter than its lines", r.h, keysAnchor.y + keysAnchor.h - 400)
 r = popover.place(keys, { x = 700, y = 500, w = 60, h = 30 }, "left", room)
 check("never wider than the window less the outer padding", r.x + r.w, 800 - T.pad)
 r = popover.place(actions, { x = 40, y = 500, w = 20, h = 30 }, "right", room)
@@ -135,10 +136,10 @@ for _, el in ipairs(els) do
   if el.type == "rectangle" and el.fillColor == T.colors.highlight then lit = el end
 end
 check("the lit line is drawn", lit ~= nil, true)
-check("the outer padding in from the popover's side", lit.frame.x, r.x + T.pad)
-check("as wide as the popover less the outer padding twice", lit.frame.w, r.w - 2 * T.pad)
+check("the outer padding in from the popover's side", lit.frame.x, r.x + T.barInner)
+check("as wide as the popover less the outer padding twice", lit.frame.w, r.w - 2 * T.barInner)
 check("as tall as a line", lit.frame.h, lineH)
-check("the outer padding below the popover's top, under the first line", lit.frame.y, r.y + T.pad + lineH)
+check("the outer padding below the popover's top, under the first line", lit.frame.y, r.y + T.barInner + lineH)
 check("at the nested corner", lit.roundedRectRadii.xRadius, style.lineRadius)
 check("every line is a hit rect", #info.lines, 5)
 check("a hit rect names its line", info.lines[3].index, 3)
@@ -242,7 +243,9 @@ local kp = view._popovers.keys
 check("an open key panel is drawn", kp ~= nil, true)
 local anchor = view._anchors.keys
 check("its left edge on the keys anchor", kp.rect.x, anchor.x + scene.rects.canvas.x)
-check("the outer padding above it", kp.rect.y + kp.rect.h, anchor.y + scene.rects.canvas.y - T.pad)
+check("its bottom edge on the keys anchor's", kp.rect.y + kp.rect.h, anchor.y + anchor.h + scene.rects.canvas.y)
+check("the keys group is hidden while it is open", view._barHits.keys, nil)
+check("and the actions group stays", view._barHits.actions ~= nil, true)
 local inPanel = { x = kp.rect.x + 5, y = kp.rect.y + kp.rect.h - 5 }
 check("a point on the key panel is on no row", view:_rowIndexAtPoint(inPanel), nil)
 calls = {}

@@ -462,18 +462,21 @@ function View:_footerElements(s, els, origin, interior, listRect)
     keysImage = keysImage,
     keysLit = hover == "keys" or s.keysOpen,
     hover = type(hover) == "number" and hover or nil,
+    keysHidden = s.keysOpen,
+    actionsHidden = s.footer.panelOpen == true,
   })
+  -- The anchors are always kept. A group whose panel is open is hidden whole and takes no pointer,
+  -- the panel standing in its corner, and the other group stays, as in swift.
+  self._anchors = { keys = hits.keys, actions = hits.actions }
   for _, el in ipairs(barEls) do els[#els + 1] = el end
   local entries = {}
   for i, entry in ipairs(hits.entries) do
     entries[i] = { rect = toScreen(entry.rect, origin), action = entry.action }
   end
-  self._keysHit = toScreen(hits.keys, origin)
-  self._barHits = { keys = self._keysHit, actions = toScreen(hits.actions, origin), entries = entries }
-  -- The seam between the bar and the popovers. The key panel stands above the keys group and the
-  -- action panel above the actions group, each placed from its group's rect, and nothing else of
-  -- the bar is read.
-  self._anchors = { keys = hits.keys, actions = hits.actions }
+  if s.footer.panelOpen == true then entries = {} end
+  self._keysHit = (not s.keysOpen) and toScreen(hits.keys, origin) or nil
+  self._barHits = { keys = self._keysHit,
+    actions = (s.footer.panelOpen ~= true) and toScreen(hits.actions, origin) or nil, entries = entries }
 end
 
 -- Whether the action panel is open and floats over the list, the footer model saying so while the
@@ -495,12 +498,12 @@ function View:_listShown(s)
   return s.list, s.rankedQuery
 end
 
--- The key panel's lines, every key the footer model lists with its badges joined into one chord,
--- the swift view's footerData.
+-- The key panel's lines, every key the footer model lists with its badges, its alternative keys,
+-- joined by footer.lua's ALT_SEP into one chord, the swift view's footerData.
 local function keyLines(model)
   local lines = {}
   for _, k in ipairs(model.keys or {}) do
-    lines[#lines + 1] = { label = k.label or "", chord = table.concat(k.badges or {}, " "), section = k.section }
+    lines[#lines + 1] = { label = k.label or "", chord = table.concat(k.badges or {}, footerLib.ALT_SEP), section = k.section }
   end
   return lines
 end

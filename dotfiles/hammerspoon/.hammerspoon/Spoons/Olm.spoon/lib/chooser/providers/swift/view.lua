@@ -159,6 +159,9 @@ function View:restyle()
     background = T.colors.background,
     caption = T.colors[text.caption.color],
     badge = T.colors[text.section.color],
+    -- The chip every chord stands on, the foreground faded so it reads on the glass, on a lit
+    -- group and on a highlighted line alike.
+    keycap = faded(T.colors.foreground, T.alpha.keycap),
     divider = T.colors.border,
     fieldFont = font(face.fieldFont, face.fieldSize),
     titleFont = font(face.font, face.textSize),
@@ -213,7 +216,10 @@ function View:place(rects)
     keysPad = T.pad,
     barPad = T.pad,
     barPillH = footerLib.height(T),
-    barPillPad = T.inner or T.space.sm,
+    barPillPad = footerLib.padding(T),
+    keycapH = T.badge.hint.height,
+    keycapPadX = T.badge.hint.padX,
+    keycapOr = footerLib.ALT_WORD,
   })
 end
 
@@ -266,7 +272,8 @@ local function iconWindow(ns)
   return math.max(1, first - margin), math.min(#ns.filtered, last + margin)
 end
 
--- The footer model flattened to strings, a key panel entry's badges joined into one chord.
+-- The footer model flattened to strings, a key panel entry's badges, its alternative keys, joined
+-- by footer.lua's ALT_SEP into one chord, which a KeyCap draws as one chip per key.
 local function footerData(model)
   if not model then return nil end
   local right, keys = {}, {}
@@ -274,7 +281,7 @@ local function footerData(model)
     right[#right + 1] = { label = r.label or "", chord = r.chord or "", action = r.action }
   end
   for _, k in ipairs(model.keys or {}) do
-    keys[#keys + 1] = { label = k.label or "", chord = table.concat(k.badges or {}, " "), section = k.section }
+    keys[#keys + 1] = { label = k.label or "", chord = table.concat(k.badges or {}, footerLib.ALT_SEP), section = k.section }
   end
   local icon = model.keysIcon
   return { right = right, keys = keys, keysChord = model.keysChord, title = model.title,

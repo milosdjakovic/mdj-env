@@ -288,11 +288,12 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     list.update(next)
     if let footer = next.footer, placement.footer != nil {
       bar.isHidden = false
-      bar.show(footer, style: style, placement: placement, lit: next.keysOpen)
+      bar.show(footer, style: style, placement: placement, lit: next.keysOpen,
+        keysHidden: next.keysOpen, actionsHidden: next.actions != nil)
       keys.isHidden = !next.keysOpen
       if next.keysOpen {
         keys.show(title: footer.title, lines: footer.keys.map { .init(label: $0.label, chord: $0.chord, section: $0.section) },
-          style: style, outer: placement.barPad, inner: placement.barPillPad, lineH: placement.barPillH,
+          style: style, placement: placement, outer: placement.barPillPad, inner: placement.barPillPad, lineH: placement.barPillH,
           gap: placement.barGapWide, radius: style.highlightRadius)
       }
     } else {
@@ -303,7 +304,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
       actionsPop.isHidden = false
       actionsPop.show(title: next.footer?.panelTitle,
         lines: actions.map { .init(label: $0.title, chord: $0.subtitle, image: $0.image, section: $0.section, enabled: $0.enabled) },
-        style: style, outer: placement.barPad, inner: placement.barPillPad, lineH: placement.barPillH,
+        style: style, placement: placement, outer: placement.barPillPad, inner: placement.barPillPad, lineH: placement.barPillH,
         gap: placement.barGapWide, radius: style.highlightRadius, iconSide: placement.keysIcon,
         highlight: next.actionsHighlight, selectable: true)
     } else {
@@ -649,18 +650,18 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     return rect.offsetBy(dx: origin.x, dy: origin.y)
   }
 
-  // The key panel is a popover standing above the keys group, its left edge on the group's and
-  // the outer padding between them, as wide as its widest line and never wider than the window
-  // less the outer padding on both sides, as tall as its lines and never above the list's top,
-  // where it scrolls instead.
-  // The action panel is the same popover above the action group, its right edge on the group's,
-  // never wider than the window less the outer padding and never above the list's top.
+  // The key panel is a popover standing in the keys group's corner, which the bar leaves empty
+  // while it is open, the actions group staying, its left and bottom edges on the group's, as wide as its widest line
+  // and never wider than the window less the outer padding on both sides, past which its labels
+  // truncate, as tall as its lines and never above the list's top, where it scrolls instead.
+  // The action panel is the same popover in the action group's corner, hidden while it is open
+  // with the keys group staying, its right and bottom edges on the group's, with the same limits.
   private func layoutActions() {
     guard !actionsPop.isHidden, let stage = actionsPop.superview else { return }
     bar.layoutSubtreeIfNeeded()
     let anchor = bar.convert(bar.actions.frame, to: stage)
     let top = toWindow(placement.list)?.minY ?? 0
-    let bottom = anchor.minY - placement.barPad
+    let bottom = anchor.maxY
     let size = actionsPop.preferredSize
     let w = min(size.width, max(0, anchor.maxX - placement.barPad))
     let h = min(size.height, max(0, bottom - top))
@@ -672,7 +673,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     bar.layoutSubtreeIfNeeded()
     let anchor = bar.convert(bar.button.frame, to: stage)
     let top = toWindow(placement.list)?.minY ?? 0
-    let bottom = anchor.minY - placement.barPad
+    let bottom = anchor.maxY
     let size = keys.preferredSize
     let w = min(size.width, max(0, windowSize.width - anchor.minX - placement.barPad))
     let h = min(size.height, max(0, bottom - top))

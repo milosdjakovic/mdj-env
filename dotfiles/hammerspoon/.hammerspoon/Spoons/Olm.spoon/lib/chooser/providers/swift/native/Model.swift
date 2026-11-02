@@ -17,6 +17,8 @@ struct Style {
   var background = NSColor.windowBackgroundColor
   var caption = NSColor.secondaryLabelColor
   var badge = NSColor.secondaryLabelColor
+  // The chip a chord stands on, see KeyCap in Bar.swift.
+  var keycap = NSColor.quaternaryLabelColor
   var divider = NSColor.separatorColor
   var fieldFont = NSFont.systemFont(ofSize: NSFont.systemFontSize)
   var titleFont = NSFont.systemFont(ofSize: NSFont.systemFontSize)
@@ -39,6 +41,7 @@ struct Style {
     background = r.color(t, "background") ?? background
     caption = r.color(t, "caption") ?? caption
     badge = r.color(t, "badge") ?? badge
+    keycap = r.color(t, "keycap") ?? keycap
     divider = r.color(t, "divider") ?? divider
     fieldFont = r.font(t, "fieldFont") ?? fieldFont
     titleFont = r.font(t, "titleFont") ?? titleFont
@@ -85,6 +88,11 @@ struct Placement {
   var barPad: CGFloat = 0
   var barPillH: CGFloat = 0
   var barPillPad: CGFloat = 0
+  // A key cap's height and the room either side of its glyphs, the kit's hint badge.
+  var keycapH: CGFloat = 0
+  var keycapPadX: CGFloat = 0
+  // The word between two alternative keys, footer.lua's ALT_WORD.
+  var keycapOr = "/"
 
   init() {}
 
@@ -116,6 +124,9 @@ struct Placement {
     barPad = r.number(t, "barPad") ?? barPad
     barPillH = r.number(t, "barPillH") ?? barPillH
     barPillPad = r.number(t, "barPillPad") ?? barPillPad
+    keycapH = r.number(t, "keycapH") ?? keycapH
+    keycapPadX = r.number(t, "keycapPadX") ?? keycapPadX
+    keycapOr = r.string(t, "keycapOr") ?? keycapOr
   }
 }
 
