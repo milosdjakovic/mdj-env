@@ -224,6 +224,45 @@ do
   check("the ring resolves through the engine", resolver.image(stamped.icon, stamped.iconOwner).value, "X")
 end
 
+-- The checkbox pair, Olm's marker of a list whose rows are each on or off by itself, asked for by
+-- saying on, and the two ways a list can say the wrong thing, which stamping names in the console.
+do
+  local engine = icons.new({ sources = { fake("emoji") }, order = { "emoji" } })
+  local warnings = {}
+  local resolver = rowsLib.new({
+    engine = engine, points = 72,
+    declared = function(owner)
+      return owner == "olm" and { chosen = { emoji = "X" }, notChosen = { emoji = "O" },
+        checked = { emoji = "V" }, unchecked = { emoji = "U" } } or nil
+    end,
+    log = { w = function(m) warnings[#warnings + 1] = m end },
+    marks = { owner = "olm", chosen = "chosen", notChosen = "notChosen", on = "checked", off = "unchecked" },
+  })
+  local onRow = resolver.stamp({ title = "a", on = true, icon = "flag" }, "plugin")
+  check("a row that is on wears the checked box over its own icon", onRow.icon, "checked")
+  check("and reads it against Olm's own manifest", onRow.iconOwner, "olm")
+  check("a row that is off wears the empty box", resolver.stamp({ on = false }, "plugin").icon, "unchecked")
+  check("the box resolves through the engine", resolver.image(onRow.icon, onRow.iconOwner).value, "V")
+
+  local both = resolver.stamp({ title = "b", chosen = true, on = true, icon = "flag" }, "two")
+  check("a row saying chosen and on shows neither mark", both.icon, "flag")
+  check("and keeps its own owner", both.iconOwner, "two")
+  check("and is named in the console", #warnings == 1 and warnings[1]:find("'two' says both", 1, true) ~= nil, true)
+  resolver.stamp({ chosen = true, on = false }, "two")
+  check("once per plugin", #warnings, 1)
+
+  warnings = {}
+  local several = { { title = "a", chosen = true }, { title = "b", chosen = true }, { title = "c", chosen = false } }
+  local out = resolver.stampAll(several, "many")
+  check("a list with several chosen rows is named in the console",
+    #warnings == 1 and warnings[1]:find("2 rows of 'many' say chosen = true", 1, true) ~= nil, true)
+  check("and still draws its rows", out[1].icon, "chosen")
+  resolver.stampAll(several, "many")
+  check("once per plugin", #warnings, 1)
+  resolver.stampAll({ { on = true }, { on = true }, { chosen = true }, { chosen = false } }, "fine")
+  check("several rows on and one chosen say nothing", #warnings, 1)
+end
+
 -- The row resolver.
 do
   local engine = icons.new({ sources = { fake("emoji") }, order = { "emoji" } })
@@ -358,7 +397,7 @@ do
   end
   check("a marker key is refused", marked({ chosen = { emoji = "🔘", sf = "circle.inset.filled" } }), false)
   check("a checkbox symbol is refused", marked({ inUse = { emoji = "📌", sf = "checkmark.square.fill" } }), false)
-  check("a toggle symbol is refused", marked({ live = { emoji = "📌", sf = "toggle.on" } }), false)
+  check("a toggle symbol is refused", marked({ live = { emoji = "📌", sf = "lightswitch.on" } }), false)
   check("a coloured circle is refused", marked({ go = { emoji = "🟢", sf = "shield" } }), false)
   check("the empty ring emoji is refused", marked({ idle = { emoji = "⚪", sf = "pause.circle" } }), false)
   check("a variation selector is the same emoji", marked({ box = { emoji = "☑️", sf = "tray" } }), false)
@@ -366,8 +405,8 @@ do
   check("a verb's check mark is allowed", marked({ apply = { emoji = "✅", sf = "checkmark.circle" } }), true)
   check("an outline glyph is allowed", marked({ idle = { emoji = "⏸️", sf = "circle" } }), true)
   check("no icons is allowed", registrarLib.validateMarkers("x", {}), true)
-  check("the actions pane's own pair reads as a marker, which is why only plugins are asked",
-    #registrarLib.markerKeys(dofile(here .. "../host/actionspane/manifest.lua").icons), 2)
+  check("the actions pane's own two pairs read as markers, which is why only plugins are asked",
+    #registrarLib.markerKeys(dofile(here .. "../host/actionspane/manifest.lua").icons), 4)
 
   local scan = dofile(here .. "drygate-icons.lua")
   local hits = scan.literalEmoji('local r = { icon = { emoji = "⚪" } }\n-- icon = { emoji = "🟢" }\nx = { emoji = flag }')

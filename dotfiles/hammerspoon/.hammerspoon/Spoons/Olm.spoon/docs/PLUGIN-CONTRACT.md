@@ -150,14 +150,15 @@ the rest of the manifest.
 
 ```lua
 icons = {
-  connect = { emoji = "🟢", sf = "shield" },
+  connect = { emoji = "🔐", sf = "lock" },
 },
 ```
 
-A row of a list of choices names no marker. It says `chosen = true` or `chosen = false`, and
-stamping draws Olm's own radio pair over it, read against the actions pane's manifest, see
-`lib/icons/rows.lua`. The dry gate refuses a plugin manifest that declares a marker of its own,
-by a marker's key or by a filled circle symbol.
+A row that shows a state names no marker. It says `chosen = true` or `false` for one of many,
+and stamping draws Olm's radio pair over it, or `on = true` or `false` for a row on or off by
+itself, and stamping draws Olm's checkbox pair, both read against the actions pane's manifest, see
+`lib/icons/rows.lua`. `validateMarkers` in `lib/registrar.lua` refuses a plugin manifest that
+declares a marker of its own, at register and from the dry gate.
 
 A row says `icon = "connect"` and the stage, and the query scope for launcher scope rows, resolve it
 against the icons of the plugin that owns the presentation or the scope, through

@@ -372,7 +372,7 @@ local function providerChoices()
     local usable = entry.module.available()
     local detail = "Not installed"
     if entry.id == activeId then
-      detail = "Active"
+      detail = "In use"
     elseif usable then
       detail = "Installed"
     end

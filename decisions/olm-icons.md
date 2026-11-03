@@ -57,18 +57,31 @@ a `defaults.icon` key the manifest does not declare, naming the plugin. The dry 
 coverage line per source, warns for each plugin and key with no entry for it, and refuses a
 literal `icon = "key"` in a plugin's Lua that its manifest does not declare.
 
-A row in a list of choices names no marker. It says `chosen`, true on the choice in force and
-false on the others, and `stamp` in `lib/icons/rows.lua` draws Olm's one radio pair over it,
-`circle.inset.filled` and `circle`, the keys `chosen` and `notChosen` in the actions pane's
-manifest, which the root hands the resolver as its `marks`. A list whose other rows keep a picture
-of their own, Input Sources, Audio, Display Profiles, tmux windows, leaves `chosen` unset on them.
+A row that shows a state names no marker. It says what the state means and `stamp` in
+`lib/icons/rows.lua` draws one of Olm's two pairs over it, declared in the actions pane's manifest
+and handed to the resolver as its `marks`. `chosen = true` or `false` is one of many, the radio pair
+`circle.inset.filled` and `circle`, 🔘 and ⚪. `on = true` or `false` is each row on or off by
+itself, the checkbox pair `checkmark.square.fill` and `square`, ☑️ and ⬜. Each pair differs by
+shape, never by colour alone. A list whose other rows keep a picture of their own, Input Sources,
+Audio, Display Profiles, tmux windows, leaves `chosen` unset on them. Stamping names in the console
+a list with more than one row saying `chosen = true`, and a row saying both, which shows neither
+mark. The subtitle says the state in one word, In use for the choice in force, On or Off for a row
+by itself.
+
 `validateMarkers` in `lib/registrar.lua` refuses a plugin declaring a marker, by key, by a filled
-circle, checkbox or toggle symbol, or by the pair's emoji, a coloured circle or a box, at register
-and from the dry gate alike. The gate also refuses a marker emoji written into a row's table spec in
-plugin code. 🔘 and ⚪ are the only marker in the emoji set, and the pair differs by shape, never by
-colour alone. A verb's check mark, ✅ on Apply, is not a marker.
+circle, checkbox or switch symbol, or by either pair's emoji, a coloured circle or a box, at
+register and from the dry gate alike. The gate also refuses a marker emoji written into a row's
+table spec in plugin code. A verb's check mark, ✅ on Apply, is not a marker. Other icons keep one
+meaning each, `hand.raised` ✋ a permission macOS is holding back, and the lock a VPN's secure or not.
 
 ## Rejected
+
+- **A switch for a row on or off by itself.** 2026-11-03 10:06. `lightswitch.on` and
+  `lightswitch.off` differ only by where the knob sits, unreadable at row size in a render of both
+  halves, and SF Symbols has no `toggle.on`. A checkbox differs by the check, a shape.
+- **The radio pair for a row on or off by itself.** 2026-11-03 10:06. Olm Plugins and BrowserTabs
+  wore it from 2026-11-02, and a ring says the rest turn off when one is picked, which is false of a
+  plugin or a browser. Replaced by the checkbox pair.
 
 - **An approved list of SF Symbols a plugin may use.** 2026-11-03 09:34. It would also catch a
   star or a bolt used to mean on, which no list of refused shapes can, but it blocks ordinary icons
@@ -345,4 +358,24 @@ open lock, so connect took the closed lock, 🔒 and `lock`, a pair told apart b
 unavailable workspace layout ➖ in place of a box that read as an empty checkbox. Planted, a
 checkbox symbol and a green circle in a manifest and an empty ring in a row's spec were each
 refused by the gate, and by the registrar on the gate's own load.
+
+Correction 2026-11-03 10:06, to the entry of 09:34. Its refused symbols named `toggle.on` and
+`toggle.off`, which do not exist in SF Symbols on this machine, checked with
+`NSImage(systemSymbolName:)`, so the entries refused nothing. They are `lightswitch.on` and
+`lightswitch.off` now, beside `switch.2`.
+
+### 2026-11-03 10:06
+
+Milos separated the two states a list shows, one of many and each on or off by itself, after a scan
+found Olm Plugins and BrowserTabs' browser list wearing the radio pair for rows each switched by
+itself. Candidates were rendered at row size in both halves before choosing. The second pair is the
+checkbox, `checkmark.square.fill` and `square`, ☑️ and ⬜, which mirrors the radio pair, filled for
+on and empty for off, told apart by the check. ✅ stays a verb's, since it is green and reads as the
+action. Built on the olm-state-marks branch. A row says `on`, the actions pane's manifest declares
+`checked` and `unchecked`, and stamping names a list with several `chosen = true` rows and a row
+saying both. Olm Plugins and BrowserTabs moved to `on`, their subtitles now On and Off in sentence
+case, and Display Profiles, the VPN provider choice, Olm Theme and Olm Placement say In use on the
+choice in force. The scan also found 🔒 meaning a held back permission in Wi-Fi and BrowserTabs and a
+VPN connect at once, so a permission took `hand.raised` ✋, the symbol of Privacy and Security in
+System Settings, and VPN connect took 🔐, since 🔒 and 🔓 differ only by the shackle at row size.
 

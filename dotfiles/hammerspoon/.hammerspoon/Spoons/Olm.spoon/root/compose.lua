@@ -1059,11 +1059,12 @@ function obj.run(olm, cfg)
     declared = function(owner) return declaredIcons[owner] end,
     points = glyphIconLib.POINTS,
     log = themeLog,
-    -- The radio pair every pick one list marks its rows with, declared once in the actions
-    -- pane's manifest beside Olm's other own icons, so no plugin declares a marker of its own.
+    -- The radio pair a pick one list marks its rows with, and the checkbox pair of a list whose
+    -- rows are each on or off by itself, declared once in the actions pane's manifest beside
+    -- Olm's other own icons, so no plugin declares a marker of its own.
     -- The owner is asked late, since the plan that names identities is built after this.
     marks = { owner = function() return plan and plan.identity.actionspane or "actionspane" end,
-              chosen = "chosen", notChosen = "notChosen" },
+              chosen = "chosen", notChosen = "notChosen", on = "checked", off = "unchecked" },
   })
   -- The sf source renders every declared symbol it lacks in the background, see wireIconRenders.
   wireIconRenders(prepareIcons, declaredIcons, sharedDepsScope, chooserAtom)

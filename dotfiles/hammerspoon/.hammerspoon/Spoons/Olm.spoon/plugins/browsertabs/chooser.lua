@@ -204,7 +204,7 @@ local function emptyRows(where)
   end
   if #refused > 0 then
     out[#out + 1] = glyphRow("Hammerspoon may not read " .. table.concat(refused, ", "),
-      "Allow it " .. where, "locked", { noop = true }, false)
+      "Allow it " .. where, "permission", { noop = true }, false)
     return pinnedAll(out)
   end
 
@@ -298,17 +298,17 @@ end
 -- open, and allowed at a glance. A browser that is switched off says only that, since
 -- nothing else about it matters until it is switched on.
 local function statusText(s)
-  if not s.installed then return "not installed" end
-  if not s.enabled then return "switched off" end
-  local parts = { s.running and "open" or "closed" }
+  if not s.installed then return "Not installed" end
+  if not s.enabled then return "Off" end
+  local parts = { "On", s.running and "open" or "closed" }
   local perm = permState[s.bundleID]
   if perm then parts[#parts + 1] = PERMISSION_TEXT[perm] or perm end
   return table.concat(parts, ", ")
 end
 
--- The marker. A switched on browser says chosen and a switched off one not, and Olm draws its
--- radio pair, so the column reads as the same set of rings every list shows. An uninstalled
--- browser is warned rather than marked, since it cannot be switched on.
+-- The marker. Each browser is switched on or off by itself, so its row says on and Olm draws its
+-- checkbox pair, the same boxes every such list shows. An uninstalled browser is warned rather
+-- than marked, since it cannot be switched on.
 local function settingsIcon(s)
   if not s.installed then return "warn" end
   return nil
@@ -349,7 +349,7 @@ local function attentionRow(s)
       "Permission can only be asked while it runs", "warn", { noop = true }, false)
   elseif perm == cfg.api.states.denied then
     return attention("Open Automation settings for " .. s.name,
-      "macOS never asks twice, so this is changed by hand", "locked", { act = "openSettings" }, true)
+      "macOS never asks twice, so this is changed by hand", "permission", { act = "openSettings" }, true)
   elseif perm == cfg.api.states.unknown or perm == cfg.api.states.noTarget then
     -- Nothing here can fix this one, so it is stated rather than offered, and the console
     -- carries the detail.
@@ -378,7 +378,7 @@ local function settingsRows()
         or { noop = true, key = s.bundleID },
       s.installed)
     r.filterText = s.name
-    if s.installed then r.chosen = s.enabled == true end
+    if s.installed then r.on = s.enabled == true end
     out[#out + 1] = r
     if s.installed and s.enabled then
       local extra = attentionRow(s)

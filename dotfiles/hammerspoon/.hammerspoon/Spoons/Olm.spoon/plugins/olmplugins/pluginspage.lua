@@ -79,6 +79,12 @@ end
 --- The state in plain words, the row's subtitle, saying what applying will do when it changes
 --- anything for this row.
 function M.words(entry, catalog, selfIdentity)
+  local said = M.plainWords(entry, catalog, selfIdentity)
+  -- A subtitle starts with a capital, and every list says a state the same way, On and Off.
+  return said:sub(1, 1):upper() .. said:sub(2)
+end
+
+function M.plainWords(entry, catalog, selfIdentity)
   if entry.identity == selfIdentity then return "this page" end
   if entry.lockedBy == "core" then return "needed by the core" end
   if entry.lockedBy == "config" then return "locked off in config" end
@@ -120,8 +126,8 @@ function M.rows(catalog, row, selfIdentity)
     local r = row(titleOf(entry), M.words(entry, catalog, selfIdentity), nil,
       { plugin = entry.identity, key = entry.identity, toggle = M.toggleable(entry, selfIdentity) },
       true, titleOf(entry) .. " " .. tostring(entry.identity))
-    -- On or off is the marker Olm draws, a plugin that is on is the chosen ring.
-    r.chosen = not M.isOff(entry)
+    -- Each plugin is on or off by itself, so the row says on and Olm draws its checkbox pair.
+    r.on = not M.isOff(entry)
     rows[#rows + 1] = r
   end
   return rows

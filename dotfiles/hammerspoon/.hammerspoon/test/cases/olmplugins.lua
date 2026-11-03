@@ -58,24 +58,24 @@ end
 
 local rows = page.rows(catalog, row, "settings")
 eq("one row per catalog entry", #rows, 7)
-eq("an on plugin says on", rows[1].subTitle, "on")
-eq("an on plugin is the chosen ring", rows[1].chosen, true)
-eq("an off plugin says off", rows[2].subTitle, "off")
-eq("an off plugin is the empty ring", rows[2].chosen, false)
-eq("a plugin off because of another names its title", rows[3].subTitle, "off because Beta is off")
-eq("an off because plugin is the empty ring", rows[3].chosen, false)
-eq("a config locked plugin says so", rows[4].subTitle, "locked off in config")
+eq("an on plugin says on", rows[1].subTitle, "On")
+eq("an on plugin is the checked box", rows[1].on, true)
+eq("an off plugin says off", rows[2].subTitle, "Off")
+eq("an off plugin is the empty box", rows[2].on, false)
+eq("a plugin off because of another names its title", rows[3].subTitle, "Off because Beta is off")
+eq("an off because plugin is the empty box", rows[3].on, false)
+eq("a config locked plugin says so", rows[4].subTitle, "Locked off in config")
 check("a plain plugin is toggleable", rows[1].item.toggle == true and rows[2].item.toggle == true)
 check("a locked or dependent plugin is not toggleable",
   rows[3].item.toggle == false and rows[4].item.toggle == false)
 eq("the row carries the identity", rows[1].item.plugin, "alpha")
 eq("the row states the identity as its key, so the stage holds the highlight on it",
   rows[1].item.key, "alpha")
-eq("the page's own row says so", rows[5].subTitle, "this page")
+eq("the page's own row says so", rows[5].subTitle, "This page")
 check("the page's own row is not toggleable", rows[5].item.toggle == false)
-eq("a plugin the core needs says so", rows[6].subTitle, "needed by the core")
+eq("a plugin the core needs says so", rows[6].subTitle, "Needed by the core")
 check("a plugin the core needs is not toggleable", rows[6].item.toggle == false)
-eq("two causes are both named", rows[7].subTitle, "off because Alpha and Beta are off")
+eq("two causes are both named", rows[7].subTitle, "Off because Alpha and Beta are off")
 
 eq("nothing staged has no summary, so no Apply row", page.pendingSummary(catalog), nil)
 
@@ -98,23 +98,23 @@ local pendingCatalog = staged(catalog, { alpha = true }, { alpha = { off = true 
 pendingCatalog[#pendingCatalog + 1] = { identity = "eta", about = { title = "Eta" }, needs = {},
   disabled = false, after = { off = true, offBecause = { "alpha" } } }
 local afterRows = page.rows(pendingCatalog, row, "settings")
-eq("a staged switch moves the marker", afterRows[1].chosen, false)
-eq("a staged switch says what applying does", afterRows[1].subTitle, "off after apply")
+eq("a staged switch moves the box", afterRows[1].on, false)
+eq("a staged switch says what applying does", afterRows[1].subTitle, "Off after apply")
 check("a staged row can be toggled back", afterRows[1].item.toggle == true)
 eq("a plugin going off with it says so and why", afterRows[8].subTitle,
-  "off after apply, because Alpha is off")
-eq("and is the empty ring", afterRows[8].chosen, false)
+  "Off after apply, because Alpha is off")
+eq("and is the empty box", afterRows[8].on, false)
 check("and cannot be toggled while it is carried along", afterRows[8].item.toggle == false)
-eq("an unchanged row keeps its plain words", afterRows[2].subTitle, "off")
+eq("an unchanged row keeps its plain words", afterRows[2].subTitle, "Off")
 eq("the summary names every change in catalog order", page.pendingSummary(pendingCatalog),
   "Alpha off, Eta off")
 
 local onCatalog = staged(catalog, { beta = false }, { beta = { off = false },
   gamma = { off = false } })
 local onRows = page.rows(onCatalog, row, "settings")
-eq("a plugin staged on says on after apply", onRows[2].subTitle, "on after apply")
-eq("and is the chosen ring", onRows[2].chosen, true)
-eq("a plugin coming back with it says on after apply", onRows[3].subTitle, "on after apply")
+eq("a plugin staged on says on after apply", onRows[2].subTitle, "On after apply")
+eq("and is the checked box", onRows[2].on, true)
+eq("a plugin coming back with it says on after apply", onRows[3].subTitle, "On after apply")
 
 local function said(node, out)
   out = out or {}
@@ -146,7 +146,7 @@ local applying = joined(page.detail(ui, pendingCatalog[1], pendingCatalog,
   { off = true, staged = true, others = { "eta" } }))
 check("a staged plugin's cascade says what applying does",
   applying:find("Applying this also turns off Eta.", 1, true) ~= nil)
-check("and its state line says off after apply", applying:find("off after apply", 1, true) ~= nil)
+check("and its state line says Off after apply", applying:find("Off after apply", 1, true) ~= nil)
 local returning = joined(page.detail(ui, onCatalog[2], onCatalog,
   { off = false, staged = true, others = { "gamma" } }))
 check("a plugin staged on says what applying brings back",

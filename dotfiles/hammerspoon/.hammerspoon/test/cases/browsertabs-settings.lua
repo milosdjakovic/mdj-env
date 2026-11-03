@@ -77,12 +77,12 @@ check("Back leads and is pinned", rows[1].title == "Back" and rows[1].pinned == 
   and rows[1].filterText == nil)
 local alpha, ai = find("Alpha")
 check("a browser row filters on its name", alpha ~= nil and alpha.filterText == "Alpha")
-check("a switched off browser is the empty ring", alpha and alpha.chosen == false)
+check("a switched off browser is the empty box", alpha and alpha.on == false)
 local bravo, bi = find("Bravo")
-check("a switched on browser is the chosen ring", bravo and bravo.chosen == true)
+check("a switched on browser is the checked box", bravo and bravo.on == true)
 local charlie = find("Charlie")
 check("an uninstalled browser is a disabled row saying so",
-  charlie ~= nil and charlie.enabled == false and charlie.subTitle == "not installed")
+  charlie ~= nil and charlie.enabled == false and charlie.subTitle == "Not installed")
 
 -- The permission read starts when the level is presented, and lands through a stub that
 -- answers at once.
@@ -104,7 +104,7 @@ check("toggling a browser flips its state", enabled["com.test.a"] == true)
 check("toggling reloads the tab list", reloads >= 1)
 rows = child.rows()
 alpha = find("Alpha")
-check("the list repaints with the new state", alpha and alpha.chosen == true)
+check("the list repaints with the new state", alpha and alpha.on == true)
 
 result = child.intercept(bravo.item)
 check("toggling a second time flips it back", result == "stay" and enabled["com.test.b"] == false)

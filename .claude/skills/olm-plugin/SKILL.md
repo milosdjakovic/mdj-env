@@ -255,16 +255,17 @@ primary or a secondary naming no icon is exactly that key glyph, so a `surface` 
 icon on its `primary` and its `secondary`, declared in the manifest's `icons`, Apply a
 `checkmark.circle`, Copy a `doc.on.doc`. Every `sf` symbol is an outline glyph, judged by how it renders and not only by its
 name, since some symbols draw a solid body without `.fill` in the name. A plugin never declares a
-marker for which choice is in force or which of several are on. The row says `chosen = true` or
-`chosen = false` and Olm draws its one radio pair, `circle.inset.filled` and `circle`, and a row
-whose other choices keep a picture of their own, a flag or a device kind, leaves `chosen` unset on
-those. The pair is the only marker in either set, 🔘 and ⚪ in the emoji set, and its two halves
-differ by shape, the dot inside, never by colour alone. So a plugin never declares the pair, a
-checkbox, a toggle, or a circle told apart from another only by its colour, 🟢 beside 🔴, which reads
-as one shape to a person who cannot tell the colours apart. A verb's check mark, Apply's ✅, is a
-verb icon and stays allowed. The registrar refuses such a plugin at load and the dry gate refuses it
-before, both through `validateMarkers` in `lib/registrar.lua`, and the gate also refuses a marker
-emoji written into a row's table spec in code. Stated by Milos on 2026-11-02 and tightened on
+marker for a state. A row says what the state means and Olm draws the mark. `chosen = true` or
+`false` is one of many, the radio pair `circle.inset.filled` and `circle`, 🔘 and ⚪. `on = true` or
+`false` is each row on or off by itself, the checkbox pair `checkmark.square.fill` and `square`, ☑️
+and ⬜. A row whose other choices keep a picture of their own, a flag or a device kind, leaves
+`chosen` unset on those. Each pair differs by shape, never by colour alone, so a plugin never
+declares either pair, a switch, or a circle told apart from another only by its colour, 🟢 beside 🔴.
+A verb's check mark, Apply's ✅, is a verb icon and stays allowed, a permission is `hand.raised` ✋,
+and the lock is only a VPN's secure or not. The registrar refuses such a plugin at load and the dry
+gate refuses it before, both through `validateMarkers` in `lib/registrar.lua`, the gate also refuses
+a marker emoji written into a row's table spec in code, and stamping names in the console a list
+with several rows saying `chosen = true` and a row saying both. Stated by Milos on 2026-11-02 and
 2026-11-03, replacing the green and red circles of 2026-10-16. A row that carries a real picture keeps its `image`. The
 active icon set is one setting in `config/icons.toml`, and the dry gate refuses a plugin file
 that draws a canvas into an image.
@@ -402,10 +403,10 @@ In order, before anything merges.
    Never drive the screen or the keyboard for a test until Milos says start.
 5. One real key press. Structure has never proven that a key fires.
 
-Before the gates, one question of every list the change touches. Does it show which item is in
-force, or which of several are on? Then each such row says `chosen` and names no icon for it, and
-nothing else in the list says selected by a colour. No check can see a star or a bolt used to mean
-on, so this question is the one place that case is caught.
+Before the gates, one question of every list the change touches. Does it show a state? One of
+many, choosing one turns the rest off, says `chosen`. Each row on or off by itself says `on`.
+Neither keeps its own icon. Nothing in the list says a state by colour alone. No check can see a
+star or a bolt used to mean on, so this question is the one place that case is caught.
 
 ## Style and commits
 

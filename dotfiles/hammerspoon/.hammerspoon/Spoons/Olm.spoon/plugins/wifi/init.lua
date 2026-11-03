@@ -267,7 +267,7 @@ local function rows()
     out[#out + 1] = { title = "Allow Location Services",
       subTitle = "macOS hides network names without it. If nothing asks, turn Hammerspoon on in " ..
                  "System Settings, Privacy and Security, Location Services",
-      icon = "locked", pinned = true, item = { id = "locate" } }
+      icon = "permission", pinned = true, item = { id = "locate" } }
     return out
   end
 

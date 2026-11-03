@@ -282,7 +282,7 @@ obj.MARKER_SF = {
   ["smallcircle.filled.circle"] = true, ["record.circle"] = true,
   ["checkmark.circle.fill"] = true, ["checkmark.square"] = true, ["checkmark.square.fill"] = true,
   ["square"] = true, ["square.fill"] = true, ["xmark.square"] = true, ["xmark.square.fill"] = true,
-  ["toggle.on"] = true, ["toggle.off"] = true, ["switch.2"] = true,
+  ["lightswitch.on"] = true, ["lightswitch.off"] = true, ["switch.2"] = true,
 }
 -- Compared with the emoji variation selector removed, so ☑ and ☑️ are one entry.
 -- A check mark that pictures a verb, Apply or Include, is a verb icon and stays allowed, ✅ among

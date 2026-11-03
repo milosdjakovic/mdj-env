@@ -1339,24 +1339,35 @@ one-visible-chooser-window assumption the frame settle already makes. It takes e
 no timer is involved. Doing it in the atom rather than at the caller fixed the file search folder
 browse at the same time, which had the identical bug for the identical reason.
 
-**Olm's radio pair marks a choice, and a plugin never draws it.** When a list shows which of its
-rows is in force, the active display profile, the chosen theme, the overlay placement, a plugin
-switched on, the row says `chosen = true` and every other choice `chosen = false`, and stamping in
-`Spoons/Olm.spoon/lib/icons/rows.lua` draws the one pair Olm owns over the row's icon, the filled
-`circle.inset.filled` for the choice in force and the empty `circle` for the rest, declared once
-in the actions pane's manifest. A row whose other choices keep a picture of their own, an input
-source's flag, an audio device's side, a tmux window, sets `chosen = true` on the one in force and
-leaves `chosen` unset on the others, so they keep their picture. A checkmark reads as confirm this
-and a tick as done, while the list is showing which one is current, so the ring is a state and
-never competes with the confirm and commit actions a list also carries. In the emoji set the pair is
-🔘 and ⚪, and those two are the only marker there is. Each pair differs by shape, the dot inside,
-never by colour alone, so it reads to a person who cannot tell colours apart. A plugin that declares
-a marker of its own, by a marker's key, by a filled circle, checkbox or toggle symbol, or by the
-pair's emoji, a coloured circle or a box, is refused at load by `validateMarkers` in
-`Spoons/Olm.spoon/lib/registrar.lua`, and the dry gate runs the same function, plus a scan for a
-marker emoji written into a row's table spec in code. A verb's check mark, Apply's ✅, is not a
-marker. Chosen by Milos on 2026-11-02, replacing the green and red circles, and enforced at load
-from 2026-11-03, `decisions/olm-icons.md`.
+**Olm draws every state mark, and a plugin only says what the state means.** Two meanings, two
+pairs, both declared once in the actions pane's manifest and drawn by stamping in
+`Spoons/Olm.spoon/lib/icons/rows.lua`.
+
+| Meaning | The row says | SF Symbol | Emoji |
+|---|---|---|---|
+| One of many, choosing one turns the rest off | `chosen = true` / `false` | `circle.inset.filled` / `circle` | 🔘 / ⚪ |
+| Each on or off by itself | `on = true` / `false` | `checkmark.square.fill` / `square` | ☑️ / ⬜ |
+| Neither, an action or one thing's own state | its own icon | | |
+
+One of many is the active display profile, the chosen theme, the overlay placement, the input
+source in use, and every choice of an actions pane setting. Each by itself is a plugin switched on
+in Olm Plugins and a browser enabled in BrowserTabs. A row whose other choices keep a picture of
+their own, an input source's flag, an audio device's side, a tmux window, sets `chosen = true` on
+the one in force and leaves `chosen` unset on the others, so they keep their picture. Each pair
+differs by shape, the dot or the check, never by colour alone, so it reads to a person who cannot
+tell colours apart, and the subtitle says the state in one word, In use for the choice in force and
+On or Off for a row by itself.
+
+Three things hold it. Stamping names in the console a list with more than one row saying
+`chosen = true`, which is a list of rows each on or off by itself, and a row saying both, which
+shows neither mark. `validateMarkers` in `Spoons/Olm.spoon/lib/registrar.lua` refuses at load a
+plugin that declares a marker of its own, by a marker's key, by a filled circle, checkbox or switch
+symbol, or by either pair's emoji, a coloured circle or a box, and the dry gate runs the same
+function, plus a scan for a marker emoji written into a row's table spec in code. And the olm-plugin
+skill asks the question no check can see, a star or a bolt used to mean on. Other icons keep one
+meaning each across Olm, ✅ an action that confirms such as Apply, `hand.raised` ✋ a permission
+macOS is holding back, and the lock a VPN's secure or not. Chosen by Milos on 2026-11-02 and
+2026-11-03, `decisions/olm-icons.md`.
 
 **Back is the first row in a chooser menu.** The actions pane under the swift chooser and the
 canvas chooser is the one exception, since it is a floating pane left by Escape over a list that never

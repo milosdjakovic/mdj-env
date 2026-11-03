@@ -28,6 +28,9 @@ function M.rows()
   for _, name in ipairs((cfg.readThemeNames and cfg.readThemeNames()) or {}) do
     rows[#rows + 1] = { title = name,
       chosen = name == live,
+      -- The choice in force says so in the one word every list uses, kept out of search.
+      subTitle = name == live and "In use" or nil,
+      filterText = name,
       item = { theme = name, key = name } }
   end
   return rows

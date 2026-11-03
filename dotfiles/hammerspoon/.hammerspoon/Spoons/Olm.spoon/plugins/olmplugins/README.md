@@ -5,12 +5,12 @@ only, as the Olm Plugins row, with no key of its own, and the list replaces the 
 place. It was the third page of the OLM settings plugin until 2026-10-27, when that plugin was
 split into Olm Placement, Olm Theme and this, so each opens its list straight from its own row.
 
-The list has one row per plugin, sorted by title, Olm's filled ring when it is on and the
+The list has one row per plugin, sorted by title, Olm's checked box when it is on and the
 empty one when it is off, with a subtitle saying so in words. A plugin switched off in config says
 so and cannot be changed from here, and one that is off because a plugin it requires is off
 names that plugin and comes back with it. Choosing any other row stages the change and nothing
-else. The page stays open, the highlight stays on the row, the circle moves to the state after
-apply and the subtitle says off after apply or on after apply, and a plugin that goes off or
+else. The page stays open, the highlight stays on the row, the box moves to the state after
+apply and the subtitle says Off after apply or On after apply, and a plugin that goes off or
 comes back with it says so on its own row. Choosing the row again returns it to how it is now
 and drops the staged change. While anything is staged an Apply now row leads the list,
 naming every plugin that changes. Whether a plugin runs is decided once per load, so the staged

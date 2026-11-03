@@ -30,7 +30,7 @@ return {
   -- the location rows are not here, they are content derived from the location and the plugin
   -- hands them over as a table spec.
   icons = {
-    connect = { emoji = "🔒", sf = "lock" },
+    connect = { emoji = "🔐", sf = "lock" },
     disconnect = { emoji = "🔓", sf = "lock.open" },
     settings = { emoji = "⚙️", sf = "gearshape" },
     warn = { emoji = "⚠️", sf = "exclamationmark.triangle" },

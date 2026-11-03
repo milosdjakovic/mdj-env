@@ -25,7 +25,9 @@ return {
     settings = { emoji = "⚙️", sf = "gearshape" },
     back = { emoji = "⬅️", sf = "chevron.left" },
     warn = { emoji = "⚠️", sf = "exclamationmark.triangle" },
-    locked = { emoji = "🔒", sf = "lock" },
+    -- A permission macOS is holding back, the raised hand System Settings shows for Privacy and
+    -- Security. The lock means a VPN's secure or not, never a permission.
+    permission = { emoji = "✋", sf = "hand.raised" },
     ask = { emoji = "🔓", sf = "lock.open" },
     reading = { emoji = "⏳", sf = "clock" },
     none = { emoji = "🚫", sf = "nosign" },

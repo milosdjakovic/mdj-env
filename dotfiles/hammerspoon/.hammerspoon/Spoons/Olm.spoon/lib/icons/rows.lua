@@ -28,9 +28,10 @@ local M = {}
 --- opts.declared  function of an owner identity answering that plugin's icons table or nil.
 --- opts.points    the side the image is drawn at, what a chooser row scales down from.
 --- opts.log       optional table with w, the warning sink.
---- opts.marks     optional { owner, chosen, notChosen }, Olm's own radio pair, the two keys and
+--- opts.marks     optional { owner, chosen, notChosen, on, off }, Olm's own two pairs, the radio
+---                for a row saying chosen and the checkbox for a row saying on, the four keys and
 ---                the identity whose manifest declares them, a function when the identity is
----                only known after the resolver is built. A row saying chosen is drawn with it.
+---                only known after the resolver is built.
 function M.new(opts)
   local engine = assert(opts.engine, "icons.rows, new needs an engine")
   local declared = assert(opts.declared, "icons.rows, new needs a declared function")
@@ -89,15 +90,30 @@ function M.new(opts)
   --- The row itself when it needs nothing, a shallow copy with iconOwner set when it names an
   --- icon, carries no picture and names no owner yet. It never draws anything.
   ---
-  --- A row in a pick one list says chosen, true on the choice in force and false on the others,
-  --- and never names the marker. Olm owns it, the radio pair every list shares, so the copy takes
-  --- Olm's own key and owner over whatever icon the row named. A row of such a list that keeps a
-  --- picture of its own on the rows not chosen, a flag or a device kind, leaves chosen unset there.
+  --- A row states what its state means and never names the marker. Two meanings, two pairs, both
+  --- Olm's own. chosen is one of many, true on the choice in force and false on the others, and
+  --- draws the radio pair. on is each row on or off by itself, a plugin switched on, a browser
+  --- enabled, and draws the checkbox pair. The copy takes Olm's key and owner over whatever icon
+  --- the row named. A row of a pick one list that keeps a picture of its own on the rows not
+  --- chosen, a flag or a device kind, leaves chosen unset there. A row saying both means two
+  --- things at once, so it is refused, warned once per owner, and keeps its own icon.
   function instance.stamp(row, owner)
-    if type(row) == "table" and row.chosen ~= nil and marks then
+    if type(row) == "table" and row.chosen ~= nil and row.on ~= nil then
+      local mark = tostring(owner) .. "\0both"
+      if log and not warned[mark] then
+        warned[mark] = true
+        log.w(string.format("a row of '%s' says both chosen and on, so it shows neither mark, "
+          .. "chosen is one of many and on is each row by itself", tostring(owner)))
+      end
+    elseif type(row) == "table" and (row.chosen ~= nil or row.on ~= nil) and marks then
       local markOwner = marks.owner
       if type(markOwner) == "function" then markOwner = markOwner() end
-      local key = row.chosen and marks.chosen or marks.notChosen
+      local key
+      if row.chosen ~= nil then
+        key = row.chosen and marks.chosen or marks.notChosen
+      else
+        key = row.on and marks.on or marks.off
+      end
       if row.icon == key and row.iconOwner == markOwner then return row end
       local copy = {}
       for k, v in pairs(row) do copy[k] = v end
@@ -116,8 +132,24 @@ function M.new(opts)
   --- instance.stampAll(rows, owner) -> rows, every one stamped. The list itself comes back
   --- when no row needed anything, so a long list of rows that carry images, the emoji picker's,
   --- is walked once and never copied.
+  ---
+  --- It is also where a list is seen whole, so it is where chosen used for the wrong meaning shows.
+  --- One of many has at most one row in force, and a list with several saying chosen = true is a
+  --- list of rows each on or off by itself, which says on. Warned once per owner.
   function instance.stampAll(rows, owner)
     local out
+    local inForce = 0
+    for _, row in ipairs(rows or {}) do
+      if type(row) == "table" and row.chosen == true then inForce = inForce + 1 end
+    end
+    if inForce > 1 then
+      local mark = tostring(owner) .. "\0several"
+      if log and not warned[mark] then
+        warned[mark] = true
+        log.w(string.format("%d rows of '%s' say chosen = true, chosen is one of many, a list "
+          .. "whose rows are each on or off by itself says on", inForce, tostring(owner)))
+      end
+    end
     for i, row in ipairs(rows or {}) do
       local stamped = instance.stamp(row, owner)
       if stamped ~= row then

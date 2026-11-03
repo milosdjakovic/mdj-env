@@ -621,20 +621,28 @@ in `config/icons.toml`.
 ```lua
 -- manifest.lua
 icons = {
-  connect    = { emoji = "🟢", sf = "shield" },
-  disconnect = { emoji = "🔴", sf = "lock.open" },
+  connect    = { emoji = "🔐", sf = "lock" },
+  disconnect = { emoji = "🔓", sf = "lock.open" },
 },
 ```
 
-A row in a list of choices, which one is in force or which of several are on, never names a
-marker. It says `chosen = true` or `chosen = false` and Olm draws its own radio pair, the filled
-`circle.inset.filled` and the empty `circle`, declared once in the actions pane's manifest. A row
-whose other choices keep a picture of their own, a flag or a device kind, sets `chosen = true` on
-the one in force and leaves it unset on the rest. The pair is 🔘 and ⚪ in the emoji set, and it is
-the only marker. A manifest that declares a marker of its own, the pair, a checkbox, a toggle, or a
-circle told apart only by its colour such as 🟢 and 🔴, is refused at register with a console line,
-and the dry gate refuses it first, along with a marker emoji written into a row's table spec in
-code. A verb's check mark, Apply's ✅, is a verb icon and allowed.
+A row that shows a state never names a marker. It says what the state means and Olm draws one of
+its own two pairs, declared once in the actions pane's manifest.
+
+| Meaning | The row says | SF Symbol | Emoji |
+|---|---|---|---|
+| One of many, choosing one turns the rest off | `chosen = true` / `false` | `circle.inset.filled` / `circle` | 🔘 / ⚪ |
+| Each on or off by itself | `on = true` / `false` | `checkmark.square.fill` / `square` | ☑️ / ⬜ |
+| Neither, an action or one thing's own state | its own icon | | |
+
+A row whose other choices keep a picture of their own, a flag or a device kind, sets
+`chosen = true` on the one in force and leaves it unset on the rest. A list with more than one row
+saying `chosen = true` is a list of rows each on or off by itself, and stamping names it in the
+console, as it does a row saying both. Each pair differs by shape, never by colour alone. A manifest
+that declares a marker of its own, either pair, a checkbox, a switch, or a circle told apart only by
+its colour such as 🟢 and 🔴, is refused at register with a console line, and the dry gate refuses it
+first, along with a marker emoji written into a row's table spec in code. A verb's check mark,
+Apply's ✅, is a verb icon and allowed.
 
 Each key is a name your rows use and each value is a table of source name to the value that
 source understands, an emoji string for `emoji` and an SF Symbol name for `sf`. Give every

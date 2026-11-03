@@ -38,6 +38,9 @@ function M.rows()
   for _, option in ipairs(OPTIONS) do
     rows[#rows + 1] = { title = option.title,
       chosen = option.mode == live,
+      -- The choice in force says so in the one word every list uses, kept out of search.
+      subTitle = option.mode == live and "In use" or nil,
+      filterText = option.title,
       item = { commit = option.mode, key = option.mode } }
   end
   return rows

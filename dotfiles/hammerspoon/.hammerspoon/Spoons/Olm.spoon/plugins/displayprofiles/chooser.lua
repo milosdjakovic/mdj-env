@@ -88,7 +88,7 @@ local function topRows()
   for _, p in ipairs(cfg.api.list()) do
     local isActive = p.name == active
     local n = displayCount(p)
-    local sub = (isActive and "Active, " or "") .. n .. (n == 1 and " display" or " displays")
+    local sub = (isActive and "In use, " or "") .. n .. (n == 1 and " display" or " displays")
     local r = row(p.name, sub, "profile", { nav = true, to = "profile", name = p.name }, true)
     -- The profile in force wears Olm's filled ring, the others keep the profile picture.
     r.chosen = isActive or nil

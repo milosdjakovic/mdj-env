@@ -46,6 +46,11 @@ return {
     -- these, so no plugin declares a marker of its own. Chosen by Milos on 2026-11-02.
     chosen = { emoji = "🔘", sf = "circle.inset.filled" },
     notChosen = { emoji = "⚪", sf = "circle" },
+    -- Olm's checkbox pair, the marker of a list whose rows are each on or off by itself, a
+    -- plugin switched on, a browser enabled. A row says on and lib/icons/rows.lua draws these.
+    -- Told apart from off by the check, a shape, never by colour. Chosen by Milos on 2026-11-03.
+    checked = { emoji = "☑️", sf = "checkmark.square.fill" },
+    unchecked = { emoji = "⬜", sf = "square" },
   },
 
   needs = {

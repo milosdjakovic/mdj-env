@@ -21,7 +21,9 @@ return {
     connected = { emoji = "📶", sf = "wifi" },
     network = { emoji = "📡", sf = "antenna.radiowaves.left.and.right" },
     saved = { emoji = "⭐", sf = "star" },
-    locked = { emoji = "🔒", sf = "lock" },
+    -- A permission macOS is holding back, the raised hand System Settings shows for Privacy and
+    -- Security. The lock means a VPN's secure or not, never a permission.
+    permission = { emoji = "✋", sf = "hand.raised" },
     loading = { emoji = "⏳", sf = "clock" },
     warn = { emoji = "⚠️", sf = "exclamationmark.triangle" },
     wifi = { emoji = "📡", sf = "wifi" },
