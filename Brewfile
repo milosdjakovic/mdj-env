@@ -13,7 +13,6 @@ brew "tpm"
 brew "neovim"
 brew "zoxide"
 brew "atuin"
-brew "herdr" if on?(:herdr)
 brew "eza"
 brew "bat"
 brew "fzf"

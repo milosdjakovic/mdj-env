@@ -48,7 +48,7 @@ tmux          | brew      | tmux
 nvim          | brew      | neovim
 lf            | brew      | lf
 lazygit       | brew      | lazygit
-herdr         | brew      | herdr
+herdr         | manual    | installed by src/install-herdr.sh from herdr's own installer, which updates through herdr update. Not the formula, which herdr refuses to update
 kanata        | brew      | kanata
 rex           | manual    | Rex Beta, downloaded from superlogical.com/rex, then src/setup-rex.sh run from a Rex terminal with Remote Control on in its Settings under Rex Server
 

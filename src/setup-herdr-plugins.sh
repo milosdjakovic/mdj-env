@@ -14,6 +14,11 @@ set -e
 # copy the files into a managed checkout, which would fork them away from this repository.
 # Linking points herdr at the stowed path, so an edit here is live with no reinstall.
 
+# herdr's own installer puts it in ~/.local/bin, which a fresh machine's shell may not have on
+# PATH until the generated .zshrc is sourced, so this run looks there too.
+# decisions/herdr-install.md has it.
+PATH="$HOME/.local/bin:$PATH"
+
 PLUGIN_ID="mdj-tools"
 PLUGIN_DIR="$HOME/.config/herdr/tools"
 

@@ -36,6 +36,7 @@ MDJ_EDITOR="Visual Studio Code" ./setup.sh   # the editor step's answer, for a r
 ./src/install-ohmyzsh.sh
 ./src/install-ohmyzsh-plugins.sh
 ./src/install-claude-code.sh
+./src/install-herdr.sh               # herdr from its own installer, where the herdr piece is on
 ./src/install-mise-tools.sh
 ./src/install-tmux-plugins.sh
 ./src/setup-stow-dotfiles.sh
@@ -690,6 +691,11 @@ one frame one name rule, why the tools are a linked plugin rather than keybindin
 requirement that escape closes everything, never typing into a busy pane, the two ways context
 arrives, why registration needs its own setup script, how to read a reload's diagnostics as a
 test, and the current keys.
+
+herdr itself comes from its own installer rather than the Homebrew formula, because herdr refuses
+`herdr update` on a Homebrew install. `src/install-herdr.sh` installs it into `~/.local/bin` once,
+where the herdr piece is on, and `herdr update` keeps it current from then on.
+`decisions/herdr-install.md` has it.
 
 ### Tmux
 

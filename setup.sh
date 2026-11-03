@@ -225,6 +225,9 @@ step "$SRC_DIR/install-ohmyzsh-plugins.sh"
 # Install Claude Code from the native installer, which keeps itself updated
 step "$SRC_DIR/install-claude-code.sh"
 
+# Install herdr from its own installer, which updates through herdr update
+step_if herdr on "$SRC_DIR/install-herdr.sh"
+
 # Stow dotfiles to home directory
 step "$SRC_DIR/setup-stow-dotfiles.sh"
 

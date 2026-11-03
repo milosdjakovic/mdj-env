@@ -18,7 +18,7 @@
 # piece        | value      # reason
 mise           | off       # the mise package, its Homebrew line, the runtime install step, and the shell activation that follows the stowed config
 hammerspoon    | on        # the Hammerspoon package and cask, and the Caps Lock remap its Hyper key stands on
-herdr          | on        # the herdr package and formula, and the step that registers its plugin
+herdr          | on        # the herdr package, the step that installs herdr from its own installer, and the step that registers its plugin
 mole           | on        # the mole formula, the package itself is not stowed yet
 docker         | on        # the Docker Desktop cask
 vpn            | mullvad   # mullvad, ivpn or none, and only ivpn adds a setup step, the permission repair its daemon needs
