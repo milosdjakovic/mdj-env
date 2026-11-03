@@ -359,3 +359,6 @@ Input Sources, Audio Devices, Olm Plugins and Obsidian moved from a bare noun, W
 Search Wi-Fi networks, Search input sources, Search audio devices, Search plugins and Search notes.
 A page that sets one value keeps naming the value, Volume, Time or duration, Where Olm appears,
 Chooser and the theme label. The eyedropper's notification names its plugin as Color Picker.
+
+**2026-11-03 23:34.** Keep Awake's off row reads Stop Keeping Awake where it read Deactivate, at
+Milos's request, so every row of the list says Keep Awake.

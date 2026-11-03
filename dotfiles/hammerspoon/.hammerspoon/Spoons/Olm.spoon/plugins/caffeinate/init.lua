@@ -2,7 +2,7 @@
 ---
 --- A keep awake tool. Hyper+K opens one native chooser whose search field doubles as the
 --- value entry, showing a single row that morphs with what you type. An empty field is the
---- state toggle, Activate while keep awake is off and Deactivate while it is on, its
+--- state toggle, Keep Awake Indefinitely while keep awake is off and Stop Keeping Awake while it is on, its
 --- subtitle carrying the live status. A clock like 15:30 morphs the row into a hold until
 --- that time, and a duration morphs it into a hold for that span, the subtitle naming the
 --- concrete end and its day once the end is not today. A duration is an h or m span like
@@ -190,7 +190,7 @@ local EXAMPLES = "a time like 18:45, or 2h30m as a duration"
 --------------------------------------------------------------------------------
 
 -- The single row, whose shape follows the field. An empty field is the state toggle,
--- Deactivate while a session runs with the live status beneath, and Activate for an
+-- Stop Keeping Awake while a session runs with the live status beneath, and Keep Awake Indefinitely for an
 -- indefinite hold while off with the format examples beneath. A valid clock morphs it into a
 -- hold until that time and a valid duration, an h or m span or a bare number of hours too
 -- large to be a clock, into a hold for that span, each naming the concrete end and its day
@@ -204,7 +204,7 @@ local function rows(query)
 
   if q == "" then
     if s.active then
-      return { { title = "Deactivate", subTitle = statusText(s), icon = "off", item = { id = "off" } } }
+      return { { title = "Stop Keeping Awake", subTitle = statusText(s), icon = "off", item = { id = "off" } } }
     end
     return { { title = "Keep Awake Indefinitely", subTitle = "Specify " .. EXAMPLES, icon = "on", item = { id = "indefinite" } } }
   end
