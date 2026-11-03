@@ -264,7 +264,7 @@ declares either pair, a switch, or a circle told apart from another only by its 
 A verb's check mark, Apply's ✅, is a verb icon and stays allowed, a permission is `hand.raised` ✋,
 and the lock is only a VPN's secure or not. The registrar refuses such a plugin at load and the dry
 gate refuses it before, both through `validateMarkers` in `lib/registrar.lua`, the gate also refuses
-a marker emoji written into a row's table spec in code, and stamping names in the console a list
+a marker emoji or sf symbol written into a row's table spec in code, and stamping names in the console a list
 with several rows saying `chosen = true` and a row saying both. Stated by Milos on 2026-11-02 and
 2026-11-03, replacing the green and red circles of 2026-10-16. A row that carries a real picture keeps its `image`. The
 active icon set is one setting in `config/icons.toml`, and the dry gate refuses a plugin file

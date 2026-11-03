@@ -1363,7 +1363,7 @@ Three things hold it. Stamping names in the console a list with more than one ro
 shows neither mark. `validateMarkers` in `Spoons/Olm.spoon/lib/registrar.lua` refuses at load a
 plugin that declares a marker of its own, by a marker's key, by a filled circle, checkbox or switch
 symbol, or by either pair's emoji, a coloured circle or a box, and the dry gate runs the same
-function, plus a scan for a marker emoji written into a row's table spec in code. And the olm-plugin
+function, plus a scan for a marker emoji or sf symbol written into a row's table spec in code. And the olm-plugin
 skill asks the question no check can see, a star or a bolt used to mean on. Other icons keep one
 meaning each across Olm, ✅ an action that confirms such as Apply, `hand.raised` ✋ a permission
 macOS is holding back, and the lock a VPN's secure or not. Chosen by Milos on 2026-11-02 and

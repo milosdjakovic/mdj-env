@@ -745,9 +745,9 @@ do
   -- The third is the marker rule, lib/registrar.lua's own validateMarkers, the check a plugin
   -- meets at register, so the gate and the load refuse the same thing. A row in a pick one list
   -- says chosen and Olm draws its own radio pair, so a plugin's manifest declaring a marker is a
-  -- second one. The actions pane is a host and owns the pair, so only plugins are read. Beside it,
-  -- a marker emoji written straight into a plugin's code as a row's table spec, which no manifest
-  -- check can see.
+  -- second one. The actions pane is a host and owns the pairs, so only plugins are read. Beside it,
+  -- a marker emoji or sf symbol written straight into a plugin's code as a row's table spec, which
+  -- no manifest check can see.
   for _, path in ipairs(paths) do
     local rel = path:sub(1, #spoonDir) == spoonDir and path:sub(#spoonDir + 1) or path
     local dir = rel:match("^plugins/([^/]+)/")
@@ -766,6 +766,13 @@ do
             finding(string.format(
               "dry gate refused '%s', line %d, emoji = \"%s\" draws a selection marker, a row says chosen = true or false and Olm draws its own radio pair, 🔘 and ⚪, see lib/icons/rows.lua",
               rel, hit.line, hit.emoji))
+          end
+        end
+        for _, hit in ipairs(iconsScan.literalSf(text)) do
+          if registrarLib.MARKER_SF[hit.sf] then
+            finding(string.format(
+              "dry gate refused '%s', line %d, sf = \"%s\" draws a selection marker, a row says chosen = true or false or on = true or false and Olm draws its own pairs, see lib/icons/rows.lua",
+              rel, hit.line, hit.sf))
           end
         end
       end

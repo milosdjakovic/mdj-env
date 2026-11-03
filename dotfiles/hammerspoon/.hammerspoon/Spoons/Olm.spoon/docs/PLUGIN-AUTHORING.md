@@ -641,7 +641,7 @@ saying `chosen = true` is a list of rows each on or off by itself, and stamping 
 console, as it does a row saying both. Each pair differs by shape, never by colour alone. A manifest
 that declares a marker of its own, either pair, a checkbox, a switch, or a circle told apart only by
 its colour such as 🟢 and 🔴, is refused at register with a console line, and the dry gate refuses it
-first, along with a marker emoji written into a row's table spec in code. A verb's check mark,
+first, along with a marker emoji or sf symbol written into a row's table spec in code. A verb's check mark,
 Apply's ✅, is a verb icon and allowed.
 
 Each key is a name your rows use and each value is a table of source name to the value that

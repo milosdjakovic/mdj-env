@@ -412,6 +412,10 @@ do
   local hits = scan.literalEmoji('local r = { icon = { emoji = "⚪" } }\n-- icon = { emoji = "🟢" }\nx = { emoji = flag }')
   check("the emoji scan reads a literal on a code line only", #hits, 1)
   check("the emoji scan finds the glyph", hits[1] and hits[1].emoji, "⚪")
+  local sfHits = scan.literalSf('local r = { icon = { sf = "checkmark.square" } }\n-- icon = { sf = "square" }\nx = { sf = name }')
+  check("the sf scan reads a literal on a code line only", #sfHits, 1)
+  check("the sf scan finds the symbol", sfHits[1] and sfHits[1].sf, "checkmark.square")
+  check("and the registrar's list calls it a marker", registrarLib.MARKER_SF[sfHits[1].sf], true)
 end
 
 -- The two real sources, against a stub of the hs calls they make. The sf source renders out of

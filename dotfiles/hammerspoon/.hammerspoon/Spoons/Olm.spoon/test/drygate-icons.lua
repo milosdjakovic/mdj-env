@@ -45,21 +45,39 @@ function M.literalKeys(text)
   return out
 end
 
---- M.literalEmoji(text) -> list of { line = n, emoji = "..." }
---- Every emoji = "..." on a code line, the literal glyph a row's table spec names. The selection
---- marker check in lib/registrar.lua decides which of them is a marker, so the gate and the load
---- share one list.
-function M.literalEmoji(text)
+--- M.literalSpecs(text, source) -> list of { line = n, value = "..." }
+--- Every source = "..." on a code line, emoji or sf, the literal a row's table spec names. The
+--- selection marker check in lib/registrar.lua decides which of them is a marker, so the gate and
+--- the load share one list.
+function M.literalSpecs(text, source)
   local out = {}
   local n = 0
   for l in (text .. "\n"):gmatch("(.-)\n") do
     n = n + 1
     local code = codeOf(l)
     if code then
-      for glyph in code:gmatch("%f[%w_]emoji%s*=%s*\"([^\"]*)\"") do
-        out[#out + 1] = { line = n, emoji = glyph }
+      for value in code:gmatch("%f[%w_]" .. source .. "%s*=%s*\"([^\"]*)\"") do
+        out[#out + 1] = { line = n, value = value }
       end
     end
+  end
+  return out
+end
+
+--- M.literalEmoji(text) -> list of { line = n, emoji = "..." }, every emoji = "..." on a code line.
+function M.literalEmoji(text)
+  local out = {}
+  for _, hit in ipairs(M.literalSpecs(text, "emoji")) do
+    out[#out + 1] = { line = hit.line, emoji = hit.value }
+  end
+  return out
+end
+
+--- M.literalSf(text) -> list of { line = n, sf = "..." }, every sf = "..." on a code line.
+function M.literalSf(text)
+  local out = {}
+  for _, hit in ipairs(M.literalSpecs(text, "sf")) do
+    out[#out + 1] = { line = hit.line, sf = hit.value }
   end
   return out
 end

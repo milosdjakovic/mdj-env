@@ -379,3 +379,12 @@ choice in force. The scan also found 🔒 meaning a held back permission in Wi-F
 VPN connect at once, so a permission took `hand.raised` ✋, the symbol of Privacy and Security in
 System Settings, and VPN connect took 🔐, since 🔒 and 🔓 differ only by the shackle at row size.
 
+### 2026-11-03 10:40
+
+The gate's scan of plugin code read only emoji, so `icon = { sf = "checkmark.square" }` written in
+a plugin's Lua would have passed while the same symbol in a manifest was refused. Milos asked for
+the sf half. The scan reads every `sf = "..."` literal on a code line beside every `emoji = "..."`,
+both through one `literalSpecs` in `test/drygate-icons.lua`, and refuses a symbol in the
+registrar's `MARKER_SF`. A planted `checkmark.square.fill` in a row's spec was refused. No plugin
+wrote an sf literal in code when it landed.
+
