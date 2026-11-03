@@ -340,7 +340,8 @@ since its rows name their glyph by variable.
 The wider list found five. VPN drew ⚪ itself on a usable Provider choice, a hand made not chosen
 marker, and now names no icon there, so the actions pane draws the pair, and its idle key is gone.
 Its connect and disconnect took 🛡️ and 🔓, matching their shield and open lock, in place of a
-green and a red circle. Bluetooth in System Settings took 📡, dot.case in Text Case 🔹, and an
+green and a red circle. Corrected the same morning, Milos found the shield unclear beside the
+open lock, so connect took the closed lock, 🔒 and `lock`, a pair told apart by shape. Bluetooth in System Settings took 📡, dot.case in Text Case 🔹, and an
 unavailable workspace layout ➖ in place of a box that read as an empty checkbox. Planted, a
 checkbox symbol and a green circle in a manifest and an empty ring in a row's spec were each
 refused by the gate, and by the registrar on the gate's own load.

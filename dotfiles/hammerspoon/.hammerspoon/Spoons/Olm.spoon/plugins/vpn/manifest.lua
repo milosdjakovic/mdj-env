@@ -23,14 +23,14 @@ return {
     license = "MIT",
   },
 
-  -- The action glyphs. Connect is the shield and disconnect the open lock, told apart by shape
+  -- The action glyphs. Connect is the closed lock and disconnect the open one, told apart by shape
   -- rather than by a green and a red circle, which read as one shape to a person who cannot tell
   -- the two colours apart. A Provider choice wears Olm's own radio pair, so none is declared
   -- here, and the warning triangle is something this machine cannot currently reach. The country flags on
   -- the location rows are not here, they are content derived from the location and the plugin
   -- hands them over as a table spec.
   icons = {
-    connect = { emoji = "🛡️", sf = "shield" },
+    connect = { emoji = "🔒", sf = "lock" },
     disconnect = { emoji = "🔓", sf = "lock.open" },
     settings = { emoji = "⚙️", sf = "gearshape" },
     warn = { emoji = "⚠️", sf = "exclamationmark.triangle" },
