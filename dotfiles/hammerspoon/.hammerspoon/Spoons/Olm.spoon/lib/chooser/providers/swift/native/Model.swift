@@ -161,6 +161,9 @@ struct Row {
   // reads as part of the list rather than as one of its results.
   var muted = false
   var image: NSImage?
+  // The image is one colour, an SF Symbol, so a row lit by a solid highlight draws it in the lit
+  // text colour as it does the title. An emoji or a row's own picture keeps its colours.
+  var tint = false
   // The heading an actions pane row is listed under, nil for a list row.
   var section: String?
 
@@ -171,6 +174,7 @@ struct Row {
     enabled = r.bool(t, "enabled") ?? true
     muted = r.bool(t, "muted") ?? false
     image = r.image(t, "image")
+    tint = r.bool(t, "tint") ?? false
     section = r.string(t, "section")
   }
 }

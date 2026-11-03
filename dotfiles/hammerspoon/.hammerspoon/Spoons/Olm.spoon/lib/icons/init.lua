@@ -106,9 +106,10 @@ function M.new(opts)
     return cache[key] or nil
   end
 
-  --- instance.image(spec, points) -> hs.image or nil
+  --- instance.image(spec, points) -> hs.image or nil, and whether it is monochrome
   --- spec is a table keyed by source name, or a string meaning its emoji. points is the square
-  --- side wanted. Answers nil for a spec no source in the order can draw.
+  --- side wanted. Answers nil for a spec no source in the order can draw. The second value is
+  --- true when the source that drew it declares monochrome, so a view may recolour it whole.
   function instance.image(spec, points)
     spec = specOf(spec)
     if not spec then return nil end
@@ -118,7 +119,7 @@ function M.new(opts)
       local value = source and spec[name]
       if value ~= nil then
         local img = drawn(name, source, value, points, colorNow)
-        if img then return img end
+        if img then return img, source.monochrome == true end
       end
     end
     return nil

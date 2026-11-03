@@ -163,6 +163,23 @@ check("an icon is drawn at the pixels its box covers", rep?.pixelsWide == 40 && 
 check("and sized in points", crisp.size == NSSize(width: 20, height: 20))
 check("a template stays a template", crisp.isTemplate)
 
+// A lit row's one colour icon is redrawn whole in the lit text colour, its alpha and pixels kept,
+// so a symbol under the macOS highlight turns white with its title.
+// The symbol arrives in the translucent foreground role, so the white is as opaque as the title.
+let half = NSImage(size: NSSize(width: 72, height: 72), flipped: false) { rect in
+  NSColor.black.withAlphaComponent(0.85).setFill()
+  NSRect(x: 0, y: 0, width: rect.width / 2, height: rect.height).fill()
+  return true
+}
+let lit = Crisp.tinted(Crisp.image(half, size: NSSize(width: 20, height: 20), scale: 2), .white)
+let litRep = lit.representations.first as? NSBitmapImageRep
+let inked = litRep?.colorAt(x: 5, y: 20)?.usingColorSpace(.sRGB)
+let bare = litRep?.colorAt(x: 35, y: 20)
+check("a tinted icon keeps its pixels and size", litRep?.pixelsWide == 40 && lit.size == NSSize(width: 20, height: 20))
+check("its inked pixels take the colour at full strength, as the title does", (inked?.redComponent ?? 0) > 0.99 && (inked?.alphaComponent ?? 0) > 0.99,
+  "\(String(describing: inked))")
+check("and its clear pixels stay clear", (bare?.alphaComponent ?? 1) < 0.01, "\(String(describing: bare))")
+
 // A full bleed opaque square must cover the whole bitmap at either scale. Drawn through a context
 // made before the rep had its size in points, it covered a quarter of it at scale 2.
 func coverage(scale: CGFloat) -> (opaque: Int, total: Int) {

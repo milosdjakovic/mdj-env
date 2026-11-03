@@ -182,7 +182,7 @@ end
 --- the current scale, and remembers the names, so a later miss at another colour queues them all.
 function M.new(opts)
   opts = opts or {}
-  local source = { name = "sf", tinted = true }
+  local source = { name = "sf", tinted = true, monochrome = true }
   local tool, configured, onReady = nil, false, nil
   local known, knownList = {}, {}
   -- The jobs waiting for a run, the same by path, and the paths of the run in flight.

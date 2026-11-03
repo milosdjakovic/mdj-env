@@ -81,6 +81,44 @@ enum Crisp {
   }
 }
 
+extension Crisp {
+  // A one colour picture redrawn whole in color on the same pixels, so a lit row's symbol is the
+  // colour of its title. The symbol arrives in the foreground role, which is translucent, so its
+  // alpha is scaled until its most opaque pixel is fully so, then times color's own alpha, and the
+  // symbol reads exactly as strong as the title's text in either half while its edges keep their
+  // antialiasing. Only the lit row is redrawn, so it is not cached.
+  static func tinted(_ source: NSImage, _ color: NSColor) -> NSImage {
+    guard let rep = source.representations.first as? NSBitmapImageRep,
+      let copy = rep.copy() as? NSBitmapImageRep,
+      copy.bitsPerSample == 8, copy.samplesPerPixel == 4, !copy.isPlanar,
+      let data = copy.bitmapData,
+      let c = color.usingColorSpace(.sRGB)
+    else { return source }
+    let alphaFirst = copy.bitmapFormat.contains(.alphaFirst)
+    let premultiplied = !copy.bitmapFormat.contains(.alphaNonpremultiplied)
+    let alphaAt = alphaFirst ? 0 : 3, colourAt = alphaFirst ? 1 : 0
+    let stride = copy.bytesPerRow, w = copy.pixelsWide, h = copy.pixelsHigh
+    var peak: UInt8 = 0
+    for y in 0..<h { for x in 0..<w { peak = max(peak, data[y * stride + x * 4 + alphaAt]) } }
+    guard peak > 0 else { return source }
+    let rgb = [c.redComponent, c.greenComponent, c.blueComponent]
+    for y in 0..<h {
+      for x in 0..<w {
+        let p = y * stride + x * 4
+        let a = min(1, CGFloat(data[p + alphaAt]) / CGFloat(peak)) * c.alphaComponent
+        for i in 0..<3 {
+          let v = premultiplied ? rgb[i] * a : rgb[i]
+          data[p + colourAt + i] = UInt8((v * 255).rounded())
+        }
+        data[p + alphaAt] = UInt8((a * 255).rounded())
+      }
+    }
+    let out = NSImage(size: source.size)
+    out.addRepresentation(copy)
+    return out
+  }
+}
+
 // A row's background, filled with the highlight colour while the row is the highlighted one.
 final class LitRowView: NSTableRowView {
   static let identifier = NSUserInterfaceItemIdentifier("olm.swiftchooser.rowview")
@@ -107,9 +145,12 @@ final class RowCell: NSView {
   let number = NSTextField(labelWithString: "")
   var placement = Placement()
   // The row's picture as it came, and what it was last drawn for, so a layout redraws the icon
-  // only when the picture, its box or the backing scale changed.
+  // only when the picture, its box, the backing scale or its recolour changed.
   private var source: NSImage?
-  private var drawnFor: (NSImage, NSSize, CGFloat)?
+  private var drawnFor: (NSImage, NSSize, CGFloat, NSColor?)?
+  // The colour a one colour icon is redrawn in while the row is lit by a solid highlight, nil
+  // otherwise, the same lit text colour the title takes.
+  private var iconTint: NSColor?
 
   override var isFlipped: Bool { true }
 
@@ -152,6 +193,7 @@ final class RowCell: NSView {
     number.textColor = style.number
     number.stringValue = slot.map { "\(style.numberKey)\($0)" } ?? ""
     number.isHidden = slot == nil
+    iconTint = (lit && row.tint) ? style.litText : nil
     if lit, let on = style.litText {
       title.textColor = on
       subtitle.textColor = on.withAlphaComponent(0.8)
@@ -174,9 +216,10 @@ final class RowCell: NSView {
     if let source {
       let scale = Crisp.scale(of: self)
       let size = icon.frame.size
-      if !(drawnFor.map { $0.0 === source && $0.1 == size && $0.2 == scale } ?? false) {
-        icon.image = Crisp.cached(source, size: size, scale: scale)
-        drawnFor = (source, size, scale)
+      if !(drawnFor.map { $0.0 === source && $0.1 == size && $0.2 == scale && $0.3 == iconTint } ?? false) {
+        let crisp = Crisp.cached(source, size: size, scale: scale)
+        icon.image = iconTint.map { Crisp.tinted(crisp, $0) } ?? crisp
+        drawnFor = (source, size, scale, iconTint)
       }
     }
     let textX = p.iconPadLeft + p.iconSize + p.iconGap
@@ -392,9 +435,10 @@ final class ListView: FlippedView, NSTableViewDataSource, NSTableViewDelegate {
 
   // Rows that gained their icon after they were sent. Only a row the table holds a view for is
   // filled again, in place, so a scroll that brings icons near reloads nothing.
-  func setImages(_ images: [(Int, NSImage)]) {
-    for (index, image) in images where index >= 0 && index < rows.count {
+  func setImages(_ images: [(Int, NSImage, Bool)]) {
+    for (index, image, tint) in images where index >= 0 && index < rows.count {
       rows[index].image = image
+      rows[index].tint = tint
       if let cell = table.view(atColumn: 0, row: index, makeIfNecessary: false) as? RowCell {
         fill(cell, row: index)
       }

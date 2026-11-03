@@ -913,7 +913,9 @@ same `icons`, and an actions pane verb or a binding names its icon the same way.
 writes over it in config that is not a key the plugin declares reads as an emoji. Every spec carries
 an `sf` entry beside its `emoji` except content, and the dry gate's coverage line says so. `config/icons.toml` holds the only
 two things a person sets, the active set and its fallback, and the colour a symbol is drawn in is
-the foreground role through the kit, so it follows the light and dark halves. The emoji source
+the foreground role through the kit, so it follows the light and dark halves, and on a row the
+glass chooser lights with the solid macOS highlight it turns the lit text colour with the title,
+since the sf source declares `monochrome` and only such an icon is recoloured. The emoji source
 keeps the 72 point canvas with the glyph at 60 that looked right live, and `lib/glyphicon.lua` and
 the kit's `iconImage` both draw through the engine. One function, `image(spec, owner)` in
 `lib/icons/rows.lua`, turns an owner and a key or a spec into an image, and every reader goes

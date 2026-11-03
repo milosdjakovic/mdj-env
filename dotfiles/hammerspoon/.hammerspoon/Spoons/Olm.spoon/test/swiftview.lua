@@ -151,6 +151,10 @@ local UI = {
     }
   end,
   nestedRadius = function(outer, gap) return math.max(0, outer - gap) end,
+  keycapColor = function(T)
+    local c = T.colors.foreground
+    return { red = c.red, green = c.green, blue = c.blue, alpha = T.alpha.keycap }
+  end,
 }
 
 --------------------------------------------------------------------------------
@@ -523,6 +527,25 @@ check("a loaded library answers the native pane backend's factory", type(Loaded.
 --------------------------------------------------------------------------------
 -- Icons are resolved for the rows near the viewport only
 --------------------------------------------------------------------------------
+
+-- An icon the resolver says is one colour goes to Swift with tint, so a row lit by the macOS
+-- highlight draws its symbol white with its title. An emoji and a row's own picture never do.
+do
+  View.attach(native)
+  View.configure({ icon = function(icon) return { picture = icon }, icon == "sf" end })
+  local tinted = Engine.new({
+    rows = function()
+      return { { title = "symbol", item = 1, icon = "sf", iconOwner = "o" },
+        { title = "glyph", item = 2, icon = "emoji", iconOwner = "o" },
+        { title = "app", item = 3, image = { picture = "own" } } }
+    end,
+  }, function(engine) return View.new(engine, native) end)
+  tinted:show()
+  check("a one colour icon is sent with tint", lastRows[1].tint, true)
+  check("an emoji is sent without", lastRows[2].tint, false)
+  check("a row's own picture is sent without", lastRows[3].tint, false)
+  tinted:hide()
+end
 
 -- A long list of rows that each name an icon key, the shape the launcher's catalog has. Opening
 -- it asks the resolver for the visible rows and a page past them, a scroll asks for the rows it

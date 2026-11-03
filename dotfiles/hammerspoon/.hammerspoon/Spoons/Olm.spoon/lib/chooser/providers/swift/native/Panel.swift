@@ -304,7 +304,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
 
   func setRows(_ rows: [Row]) { list.setRows(rows) }
 
-  func setImages(_ images: [(Int, NSImage)]) { list.setImages(images) }
+  func setImages(_ images: [(Int, NSImage, Bool)]) { list.setImages(images) }
 
   func update(_ next: ViewState) {
     state = next

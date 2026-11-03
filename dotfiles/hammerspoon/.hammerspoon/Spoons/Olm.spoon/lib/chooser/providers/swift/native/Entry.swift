@@ -208,10 +208,11 @@ private let setRows: lua_CFunction = { L in
   return 0
 }
 
-// A list of { index, image } pairs, one based, for rows that gained their icon after they were sent.
+// A list of { index, image, tint } entries, one based, for rows that gained their icon after they
+// were sent, tint saying the image is one colour, see Row.
 private let setImages: lua_CFunction = { L in
   let reader = LuaReader(L)
-  var images: [(Int, NSImage)] = []
+  var images: [(Int, NSImage, Bool)] = []
   if reader.isTable(2) {
     let count = lua_rawlen(L, 2)
     if count > 0 {
@@ -219,7 +220,7 @@ private let setImages: lua_CFunction = { L in
         _ = lua_rawgeti(L, 2, lua_Integer(i))
         let t = reader.absolute(-1)
         if reader.isTable(t), let index = reader.integer(t, "index"), let image = reader.image(t, "image") {
-          images.append((index - 1, image))
+          images.append((index - 1, image, reader.bool(t, "tint") ?? false))
         }
         olm_pop(L, 1)
       }

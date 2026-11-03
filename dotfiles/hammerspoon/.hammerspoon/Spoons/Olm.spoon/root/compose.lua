@@ -774,8 +774,11 @@ function obj.run(olm, cfg)
   -- built further down, once the manifests are read, which is why this is forward declared and
   -- read late. Nothing is asked of it before the first row is drawn, and by then it exists.
   local iconRows
+  -- The second value says the picture is one colour, which the swift list recolours on a row lit
+  -- by a solid highlight.
   local function paintIcon(icon, owner)
-    return iconRows and iconRows.image(icon, owner) or nil
+    if not iconRows then return nil end
+    return iconRows.image(icon, owner)
   end
   -- The same icon as canvas elements, for the default chooser, which paints a row's icon into its
   -- own canvas and so can draw an emoji as text rather than keep a picture of it.

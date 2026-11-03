@@ -260,11 +260,13 @@ end
 -- The row a disabled or enabled title and its picture become for Swift. icon is the picture this
 -- view resolved for the row's icon key, or nil while the row has not been near the viewport. The
 -- engine's row of more goes as muted, its title in the subtext colour, as the canvas view draws it.
-local function rowData(row, icon)
-  local image = row.image
-  if image == nil then image = icon or nil end
+-- tint says the resolved icon is one colour, which Swift recolours while a solid highlight lights
+-- the row, as it does the title. A row's own picture in image is never recoloured.
+local function rowData(row, icon, tint)
+  local image, tinted = row.image, false
+  if image == nil then image, tinted = icon or nil, icon and tint == true or false end
   return { title = plain(row.title), subtitle = plain(row.subTitle), enabled = row.enabled ~= false,
-    muted = row.more == true, image = image }
+    muted = row.more == true, image = image, tint = tinted }
 end
 
 -- The rows whose icon is resolved, the ones the viewport shows and one viewport's worth past each
@@ -304,12 +306,13 @@ function View:_resolveIcons(rows, lo, hi)
   for i = lo, hi do
     if self._icons[i] == nil then
       local row = rows[i]
-      local image = nil
+      local image, tint = nil, false
       if row and row.image == nil and row.icon ~= nil and ICON then
-        image = ICON(row.icon, row.iconOwner)
+        image, tint = ICON(row.icon, row.iconOwner)
       end
       self._icons[i] = image or false
-      if image then gained[#gained + 1] = { index = i, image = image } end
+      self._tints[i] = tint == true
+      if image then gained[#gained + 1] = { index = i, image = image, tint = tint == true } end
     end
   end
   return gained
@@ -404,12 +407,13 @@ function View:redraw()
   if fresh then
     self._sentRows = ns.filtered
     self._icons = {}
+    self._tints = {}
   end
   local lo, hi = iconWindow(ns)
   local gained = self:_resolveIcons(ns.filtered, lo, hi)
   if fresh then
     local rows = {}
-    for i, row in ipairs(ns.filtered) do rows[i] = rowData(row, self._icons[i]) end
+    for i, row in ipairs(ns.filtered) do rows[i] = rowData(row, self._icons[i], self._tints[i]) end
     self.native.setRows(self.id, rows)
     self:_startPrefetch()
   elseif #gained > 0 then
@@ -697,7 +701,7 @@ end
 --- M.new(engine, native) answers a view for one engine instance, with a panel of its own, built
 --- and not yet placed or shown.
 function M.new(engine, native)
-  local self = setmetatable({ engine = engine, native = native, _sentRows = nil, _icons = {} }, View)
+  local self = setmetatable({ engine = engine, native = native, _sentRows = nil, _icons = {}, _tints = {} }, View)
   self.id = native.new()
   views[self.id] = self
   native.setFieldKeys(self.id, fieldKeys.controlKeys())

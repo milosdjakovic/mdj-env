@@ -19,6 +19,11 @@
 --                                     colour it is given, so the engine keys its cache on the
 --                                     colour for that source alone and a source that ignores
 --                                     colour is not redrawn on every light and dark switch.
+--   source.monochrome                 optional boolean. True for a source whose every picture is one
+--                                     colour on every pixel, an SF Symbol, so a view may recolour
+--                                     it whole, the white of a row lit by a solid highlight. A
+--                                     source whose pictures hold colours of their own, an emoji,
+--                                     leaves it unset and is never recoloured.
 --   source.variant()                  optional. A function answering a short string for anything
 --                                     besides spec, size and colour that changes the picture, the
 --                                     scale an icon is rasterised at. The engine adds it to its
@@ -58,6 +63,9 @@ function M.validate(source)
   end
   if source.tinted ~= nil and type(source.tinted) ~= "boolean" then
     error("icon source '" .. label .. "' has a tinted field that is not a boolean", 3)
+  end
+  if source.monochrome ~= nil and type(source.monochrome) ~= "boolean" then
+    error("icon source '" .. label .. "' has a monochrome field that is not a boolean", 3)
   end
   if source.variant ~= nil and type(source.variant) ~= "function" then
     error("icon source '" .. label .. "' has a variant field that is not a function", 3)

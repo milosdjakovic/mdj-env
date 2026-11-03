@@ -72,9 +72,11 @@ function M.new(opts)
   --- an emoji a person wrote over a plugin's default icon in their config, is the documented
   --- shorthand and means { emoji = string }. An identifier no manifest declared is a typo and
   --- logs one warning per owner and key, and nothing is drawn.
+  --- The second value is the engine's, true when the picture is one colour a view may recolour.
   function instance.image(spec, owner)
     spec = resolve(spec, owner)
-    return spec and engine.image(spec, points) or nil
+    if not spec then return nil end
+    return engine.image(spec, points)
   end
 
   --- instance.elements(spec, owner, frame) -> array of canvas elements or nil

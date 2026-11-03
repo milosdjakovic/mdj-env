@@ -38,7 +38,11 @@ load the root hands the source every symbol the manifests declare, so a fresh ma
 the declared set in one run. The swift chooser's view resolves icons only for the rows near the
 viewport, a page past each edge. The composition root names both sources and reads `config/icons.toml`,
 shipped as `emoji` for the set and the fallback. The colour is the foreground role, the one a
-row title is drawn in, read from the kit on every draw.
+row title is drawn in, read from the kit on every draw. Under the glass chooser's macOS highlight,
+which is solid, the lit row's title turns white, and so does its symbol. The sf source declares
+`monochrome`, the engine answers it beside the image, and the swift list redraws a monochrome
+icon whole in the lit text colour on the lit row alone. An emoji and a row's own picture keep
+their colours.
 
 `lib/glyphicon.lua` is a thin facade over the engine at 72 points, kept as the door a plugin may
 draw through at its own draw time though no host uses it for a row any more, and the kit's `iconImage` takes the same engine through
@@ -388,3 +392,28 @@ both through one `literalSpecs` in `test/drygate-icons.lua`, and refuses a symbo
 registrar's `MARKER_SF`. A planted `checkmark.square.fill` in a row's spec was refused. No plugin
 wrote an sf literal in code when it landed.
 
+### 2026-11-03 10:25
+
+Under the glass chooser's macOS highlight the lit row's title and subtitle turned white, the
+selection text colour, while its SF Symbol stayed in the foreground role, dark on the accent in
+the light half. Milos asked for the symbol to turn white with the text. The contract gained an
+optional `monochrome`, set by the sf source, meaning every pixel is one colour so a view may
+recolour it whole. Emoji are `tinted` as well, so `tinted` could not tell the two apart. The
+engine's `image` answers the flag as a second value, the swift view sends it as each row's `tint`,
+and `RowCell` redraws such an icon with `Crisp.tinted` in `litText` while the row is lit, only on
+the lit row and uncached. Recolouring in Swift was chosen over drawing a second symbol picture in
+Lua at the white, which would have meant a second osascript render per symbol for one row. The
+Olm highlight is translucent and keeps the row's own colours, so nothing changes there.
+`test/swiftpane.swift` pins the tint keeping pixels and alpha, `test/swiftview.lua` pins which rows
+carry the flag. That case, and `test/rowlimit.lua`, had stopped at their first show on a fake UI
+kit with no `keycapColor`, which the dry suite reported as a crash on main before this change,
+and both fakes gained it.
+
+### 2026-11-03 10:31
+
+Live, the white symbol read fainter than its title. The symbol arrives in the foreground role,
+which is translucent, `#000000d8` and `#ffffffd8` in the glass palette, and the first tint kept
+that alpha, so it came out at about 85 percent white. Milos asked for it to match the text in
+both halves. `Crisp.tinted` now scales the alpha so the symbol's most opaque pixel is fully opaque,
+times the lit colour's own, keeping the antialiased edges, and the case in `test/swiftpane.swift`
+draws its source at 0.85 and asks for full strength.

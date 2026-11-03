@@ -131,6 +131,10 @@ local UI = {
     }
   end,
   nestedRadius = function(outer, gap) return math.max(0, outer - gap) end,
+  keycapColor = function(T)
+    local c = T.colors.foreground
+    return { red = c.red, green = c.green, blue = c.blue, alpha = (T.alpha or {}).keycap or 0.14 }
+  end,
 }
 
 --------------------------------------------------------------------------------
