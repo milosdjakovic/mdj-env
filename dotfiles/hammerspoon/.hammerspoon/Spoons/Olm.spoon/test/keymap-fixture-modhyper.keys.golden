@@ -90,6 +90,7 @@ field	i	alt+cmd+ctrl+shift	wifiOpen	100	wifi
 field	i	alt+cmd+ctrl+shift	workspacesOpen	100	workspaces
 field	j	alt+cmd+ctrl+shift	audioOpen	100	audio
 field	j	alt+cmd+ctrl+shift	browserTabsOpen	100	browserTabs
+field	j	alt+cmd+ctrl+shift	caffeinateOpen	100	caffeinate
 field	j	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
 field	j	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
 field	j	alt+cmd+ctrl+shift	displayProfilesOpen	100	displayProfiles
@@ -108,11 +109,13 @@ field	j	alt+cmd+ctrl+shift	processesOpen	100	processes
 field	j	alt+cmd+ctrl+shift	speedtestOpen	100	speedtest
 field	j	alt+cmd+ctrl+shift	textCaseOpen	100	textCase
 field	j	alt+cmd+ctrl+shift	tmuxSessionsOpen	100	tmuxSessions
+field	j	alt+cmd+ctrl+shift	volumeOpen	100	volume
 field	j	alt+cmd+ctrl+shift	vpnOpen	100	vpn
 field	j	alt+cmd+ctrl+shift	wifiOpen	100	wifi
 field	j	alt+cmd+ctrl+shift	workspacesOpen	100	workspaces
 field	k	alt+cmd+ctrl+shift	audioOpen	100	audio
 field	k	alt+cmd+ctrl+shift	browserTabsOpen	100	browserTabs
+field	k	alt+cmd+ctrl+shift	caffeinateOpen	100	caffeinate
 field	k	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
 field	k	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
 field	k	alt+cmd+ctrl+shift	displayProfilesOpen	100	displayProfiles
@@ -131,12 +134,12 @@ field	k	alt+cmd+ctrl+shift	processesOpen	100	processes
 field	k	alt+cmd+ctrl+shift	speedtestOpen	100	speedtest
 field	k	alt+cmd+ctrl+shift	textCaseOpen	100	textCase
 field	k	alt+cmd+ctrl+shift	tmuxSessionsOpen	100	tmuxSessions
+field	k	alt+cmd+ctrl+shift	volumeOpen	100	volume
 field	k	alt+cmd+ctrl+shift	vpnOpen	100	vpn
 field	k	alt+cmd+ctrl+shift	wifiOpen	100	wifi
 field	k	alt+cmd+ctrl+shift	workspacesOpen	100	workspaces
 field	l	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch
 field	m	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
-field	o	alt+cmd+ctrl+shift	caffeinateOpen	100	caffeinate
 field	o	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
 field	o	alt+cmd+ctrl+shift	displayProfilesOpen	100	displayProfiles
 field	o	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch

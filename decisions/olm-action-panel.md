@@ -109,3 +109,17 @@ and loaded live. Milos found Theme and Placement offered on each other's lists a
 which is navigation rather than an action, and then that the idea itself was not his. The panel
 is the actions of the plugin the list belongs to, the way phases one to 3a built it. The whole of
 phase four was reverted before any of it was committed, and the track ends with phase three.
+
+### 2026-11-03 11:09
+
+Hyper and J over Keep Awake's actions pane opened the emoji picker, while the same key moved
+through the clipboard's pane. The pane borrows the move keys of the list it opens over, and Keep
+Awake declares `nav = false`, so it bound none and the key fell through to its global meaning. Milos
+asked for the guarantee to live in core so no plugin has to think about it. `lib/surface.lua` now
+gives a list declaring no navigation both move keys anyway, gated on `actionsPaneOpen`, which the
+root answers, and `lib/nav.lua` hands that gate to the leader and checks it for field keys, which
+also stay live over the pane for the two move verbs. With the pane closed the keys behave as
+before and the bar does not list them. Milos checked it live.
+
+Keep Awake's Stay awake for verb, the preset spans in the pane, was then removed at his request.
+A span is typed into the field, and with no verb of its own the list carries no Actions.

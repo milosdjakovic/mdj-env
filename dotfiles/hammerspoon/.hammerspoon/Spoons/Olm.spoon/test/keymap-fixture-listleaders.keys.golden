@@ -11,6 +11,7 @@ META	h	any	-	-	windowmanager
 META	left	any	-	-	windowmanager
 META	n	any	audioOpen	100	audio
 META	n	any	browserTabsOpen	100	browserTabs
+META	n	any	caffeinateOpen	100	caffeinate
 META	n	any	clipboardOpen	100	clipboard
 META	n	any	displayProfilesOpen	100	displayProfiles
 META	n	any	emojiOpen	100	emoji
@@ -26,6 +27,7 @@ META	n	any	processesOpen	100	processes
 META	n	any	speedtestOpen	100	speedtest
 META	n	any	textCaseOpen	100	textCase
 META	n	any	tmuxSessionsOpen	100	tmuxSessions
+META	n	any	volumeOpen	100	volume
 META	n	any	vpnOpen	100	vpn
 META	n	any	wifiOpen	100	wifi
 META	n	any	workspacesOpen	100	workspaces
@@ -135,6 +137,7 @@ hyper	j	cmd	fileSearchOpen	100	fileSearch
 hyper	k	any	-	-	caffeinate
 hyper	k	any	audioOpen	100	audio
 hyper	k	any	browserTabsOpen	100	browserTabs
+hyper	k	any	caffeinateOpen	100	caffeinate
 hyper	k	any	displayProfilesOpen	100	displayProfiles
 hyper	k	any	emojiOpen	100	emoji
 hyper	k	any	fileSearchOpen	100	fileSearch
@@ -150,6 +153,7 @@ hyper	k	any	processesOpen	100	processes
 hyper	k	any	speedtestOpen	100	speedtest
 hyper	k	any	textCaseOpen	100	textCase
 hyper	k	any	tmuxSessionsOpen	100	tmuxSessions
+hyper	k	any	volumeOpen	100	volume
 hyper	k	any	vpnOpen	100	vpn
 hyper	k	any	wifiOpen	100	wifi
 hyper	k	any	workspacesOpen	100	workspaces
@@ -157,7 +161,6 @@ hyper	k	cmd	clipboardOpen	100	clipboard
 hyper	k	cmd	fileSearchOpen	100	fileSearch
 hyper	l	any	fileSearchOpen	100	fileSearch
 hyper	m	any	clipboardOpen	100	clipboard
-hyper	o	any	caffeinateOpen	100	caffeinate
 hyper	o	any	clipboardOpen	100	clipboard
 hyper	o	any	displayProfilesOpen	100	displayProfiles
 hyper	o	any	fileSearchOpen	100	fileSearch

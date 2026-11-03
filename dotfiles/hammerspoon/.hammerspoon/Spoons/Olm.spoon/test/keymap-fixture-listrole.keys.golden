@@ -37,6 +37,7 @@ META	i	any	wifiOpen	100	wifi
 META	i	any	workspacesOpen	100	workspaces
 META	j	any	audioOpen	100	audio
 META	j	any	browserTabsOpen	100	browserTabs
+META	j	any	caffeinateOpen	100	caffeinate
 META	j	any	clipboardOpen	100	clipboard
 META	j	any	displayProfilesOpen	100	displayProfiles
 META	j	any	emojiOpen	100	emoji
@@ -53,6 +54,7 @@ META	j	any	processesOpen	100	processes
 META	j	any	speedtestOpen	100	speedtest
 META	j	any	textCaseOpen	100	textCase
 META	j	any	tmuxSessionsOpen	100	tmuxSessions
+META	j	any	volumeOpen	100	volume
 META	j	any	vpnOpen	100	vpn
 META	j	any	wifiOpen	100	wifi
 META	j	any	workspacesOpen	100	workspaces
@@ -60,6 +62,7 @@ META	j	cmd	clipboardOpen	100	clipboard
 META	j	cmd	fileSearchOpen	100	fileSearch
 META	k	any	audioOpen	100	audio
 META	k	any	browserTabsOpen	100	browserTabs
+META	k	any	caffeinateOpen	100	caffeinate
 META	k	any	clipboardOpen	100	clipboard
 META	k	any	displayProfilesOpen	100	displayProfiles
 META	k	any	emojiOpen	100	emoji
@@ -76,6 +79,7 @@ META	k	any	processesOpen	100	processes
 META	k	any	speedtestOpen	100	speedtest
 META	k	any	textCaseOpen	100	textCase
 META	k	any	tmuxSessionsOpen	100	tmuxSessions
+META	k	any	volumeOpen	100	volume
 META	k	any	vpnOpen	100	vpn
 META	k	any	wifiOpen	100	wifi
 META	k	any	workspacesOpen	100	workspaces
@@ -84,7 +88,6 @@ META	k	cmd	fileSearchOpen	100	fileSearch
 META	l	any	fileSearchOpen	100	fileSearch
 META	left	any	-	-	windowmanager
 META	m	any	clipboardOpen	100	clipboard
-META	o	any	caffeinateOpen	100	caffeinate
 META	o	any	clipboardOpen	100	clipboard
 META	o	any	displayProfilesOpen	100	displayProfiles
 META	o	any	fileSearchOpen	100	fileSearch

@@ -62,21 +62,16 @@ return {
   },
 
   -- One morphing row rather than a list, a typed clock or duration, so the context
-  -- binds only the commit and the close. There is no highlight to move, so j and k
-  -- are absent rather than shared. nav is stated as false rather than left to say so only
-  -- in this comment, since the shared surface wiring adds both move keys to every context
-  -- unless told not to.
+  -- binds only the commit and the close. There is no highlight to move, so nav is false and
+  -- the move keys answer only while the actions pane is open over this list, which Olm
+  -- decides in lib/surface.lua with nothing stated here.
   --
-  -- Stay awake for is a verb of the actions pane alone with choices, docs/PLAN-ACTION-PANEL.md,
-  -- the common spans as a pick so they need no typing. spanChoices and stayAwakeFor are colon
-  -- methods on this plugin's root, which the root reaches with no registry.surface named.
+  -- No extra verbs, so the list carries no Actions. The preset spans that once sat in the
+  -- actions pane were removed on 2026-11-03, a span is typed into the field.
   surface = {
     context = "caffeinate",
     primary = { action = "insertSelected", description = "Confirm" },
     nav = false,
-    extra = {
-      { action = "stayAwakeFor", description = "Stay awake for", icon = "duration", choices = "spanChoices" },
-    },
   },
 
   -- configure alone leaves this plugin with no engine and no chooser, both of which

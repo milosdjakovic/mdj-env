@@ -114,6 +114,7 @@ hyper	j	cmd	fileSearchOpen	100	fileSearch
 hyper	k	any	-	-	caffeinate
 hyper	k	any	audioOpen	100	audio
 hyper	k	any	browserTabsOpen	100	browserTabs
+hyper	k	any	caffeinateOpen	100	caffeinate
 hyper	k	any	displayProfilesOpen	100	displayProfiles
 hyper	k	any	emojiOpen	100	emoji
 hyper	k	any	fileSearchOpen	100	fileSearch
@@ -129,6 +130,7 @@ hyper	k	any	processesOpen	100	processes
 hyper	k	any	speedtestOpen	100	speedtest
 hyper	k	any	textCaseOpen	100	textCase
 hyper	k	any	tmuxSessionsOpen	100	tmuxSessions
+hyper	k	any	volumeOpen	100	volume
 hyper	k	any	vpnOpen	100	vpn
 hyper	k	any	wifiOpen	100	wifi
 hyper	k	any	workspacesOpen	100	workspaces
@@ -138,6 +140,7 @@ hyper	l	any	fileSearchOpen	100	fileSearch
 hyper	m	any	clipboardOpen	100	clipboard
 hyper	n	any	audioOpen	100	audio
 hyper	n	any	browserTabsOpen	100	browserTabs
+hyper	n	any	caffeinateOpen	100	caffeinate
 hyper	n	any	clipboardOpen	100	clipboard
 hyper	n	any	displayProfilesOpen	100	displayProfiles
 hyper	n	any	emojiOpen	100	emoji
@@ -154,10 +157,10 @@ hyper	n	any	processesOpen	100	processes
 hyper	n	any	speedtestOpen	100	speedtest
 hyper	n	any	textCaseOpen	100	textCase
 hyper	n	any	tmuxSessionsOpen	100	tmuxSessions
+hyper	n	any	volumeOpen	100	volume
 hyper	n	any	vpnOpen	100	vpn
 hyper	n	any	wifiOpen	100	wifi
 hyper	n	any	workspacesOpen	100	workspaces
-hyper	o	any	caffeinateOpen	100	caffeinate
 hyper	o	any	clipboardOpen	100	clipboard
 hyper	o	any	displayProfilesOpen	100	displayProfiles
 hyper	o	any	fileSearchOpen	100	fileSearch

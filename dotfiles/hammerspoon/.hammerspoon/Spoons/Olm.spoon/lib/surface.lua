@@ -6,13 +6,17 @@
 -- on are Olm's own all layer since phase 7 of the keymap plan, handed in, and this file names none.
 --
 -- Two of the twelve broke the shared pattern once it was checked rather than assumed. The
--- keep awake field is a single morphing row with nothing to move between, so it drops the
--- shared move keys entirely, and the launcher closes on a key of its own because that key is
+-- keep awake field is a single morphing row with nothing to move between, so its own move
+-- keys answer only while the actions pane is open over it, and the launcher closes on a key of its own because that key is
 -- also its own open key. Both are expressed here as fields on the declaration rather than as
 -- a plugin name this module recognises, since a name check here would be exactly the special
 -- casing the twelve were read side by side to avoid.
 
 local obj = {}
+
+-- The predicate the root answers true for while the actions pane is open over a list, named here
+-- because this module stamps it on the move keys of a list that declares no navigation of its own.
+obj.PANE_OPEN = "actionsPaneOpen"
 
 -- hs.logger is the one hs call this module makes, and only to name a bad declaration in the
 -- console, so a plain Lua load with no Hammerspoon running still works for a unit test. A
@@ -368,11 +372,18 @@ function obj.context(name, decl, available, keys)
   -- this module are a list you scroll through. The one exception, a single morphing row with
   -- nothing to move between, sets nav to false rather than this module trying to infer it
   -- from whether decl.extra looks a certain way.
-  if decl.nav ~= false then
-    for _, verb in ipairs({ MOVE_NEXT, MOVE_PREV }) do
-      for _, b in ipairs(sharedBindings(verb, keys)) do
-        if take(b) then bindings[#bindings + 1] = b end
-      end
+  --
+  -- The actions pane overrides that. Its rows are a list wherever it opens, so while it is open
+  -- the move keys move through it in every list, and a list saying nav = false still gets both
+  -- bindings, gated on the pane being open. gate is what the leader asks at the press, so the key
+  -- is the pane's while it is open and does whatever it does globally while it is closed, and
+  -- when is what the bottom bar and the info pane ask, so neither lists it while the pane is
+  -- closed. Without this, Hyper and J over the keep awake actions pane opened the emoji picker,
+  -- since nothing in that list bound it. A plugin never says anything for this.
+  for _, verb in ipairs({ MOVE_NEXT, MOVE_PREV }) do
+    for _, b in ipairs(sharedBindings(verb, keys)) do
+      if decl.nav == false then b.gate, b.when = obj.PANE_OPEN, obj.PANE_OPEN end
+      if take(b) then bindings[#bindings + 1] = b end
     end
   end
 

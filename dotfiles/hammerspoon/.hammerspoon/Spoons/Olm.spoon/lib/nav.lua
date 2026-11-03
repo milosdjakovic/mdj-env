@@ -160,8 +160,14 @@ function obj.bindOne(repeats)
         .. "', which no method map and no exception ever answered")
       return
     end
+    -- gate is the one predicate a binding may carry of its own, asked at the press beside the
+    -- context's when. Only lib/surface.lua sets one, on the move keys of a list declaring no
+    -- navigation, live only while the actions pane is open over it. A binding's own when is not
+    -- passed, since that one is the bar's and the info pane's, and a list verb gated there must
+    -- stay swallowed while gated rather than fall through to a global key.
     engine:bind(binding.key, fn, binding.mods, {
       when = block.when,
+      gate = binding.gate,
       priority = block.priority,
       repeats = repeats[binding.action],
     })
@@ -239,6 +245,14 @@ function obj.fieldKeys(contexts, deps)
     return pred(binding) == true
   end
   local repeats = deps.repeats or {}
+  -- A binding's own gate, the one lib/surface.lua stamps on the move keys of a list with no
+  -- navigation of its own, asked the way the leaders ask it, so a field key and a leader key
+  -- agree. deps.gates is the plain predicate table, with no actions pane wrapping.
+  local function gateOpen(binding)
+    if not binding.gate then return true end
+    local pred = (deps.gates or {})[binding.gate]
+    return type(pred) == "function" and pred() == true
+  end
 
   local function watch(ev)
     local candidates = byCode[ev:getKeyCode()]
@@ -251,7 +265,8 @@ function obj.fieldKeys(contexts, deps)
         if (flags[m] and true or false) ~= (c.need[m] or false) then exact = false break end
       end
       local p = c.block.priority or 0
-      if exact and p > bestP and type(c.binding.fn) == "function" and live(c.block.when, c.context, c.binding) then
+      if exact and p > bestP and type(c.binding.fn) == "function" and live(c.block.when, c.context, c.binding)
+        and gateOpen(c.binding) then
         best, bestP = c, p
       end
     end

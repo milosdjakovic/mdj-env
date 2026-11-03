@@ -2208,6 +2208,10 @@ function obj.run(olm, cfg)
     if not (ap and type(ap.isOpen) == "function" and ap:isOpen()) then return nil end
     return (stageModule and stageModule:selectedItem()) or {}
   end
+  -- The gate lib/surface.lua stamps on the move keys of a list with no navigation of its own, so
+  -- the actions pane moves under the same keys in every list. Added before the predicates are
+  -- installed into the leaders below.
+  ownPredicates[surfaceLib.PANE_OPEN] = function() return actionsPaneShowingRow() ~= nil end
 
   -- The row of more's icon, read against the actions pane's manifest like the bar's keys icon,
   -- handed now since the identity is only known once the plan is resolved. Both providers take
@@ -2916,12 +2920,15 @@ function obj.run(olm, cfg)
   -- handed over wrapped, answering false while the panel is open, so the watcher keeps knowing
   -- only predicates and the key falls through to the field, which chooses the highlighted row.
   -- showInfo is the one field key left live over the panel, since the left side stays on screen
-  -- with its chord while the actions pane is open and a chord shown must do what it says.
+  -- with its chord while the actions pane is open and a chord shown must do what it says. The two
+  -- move verbs stay live too, since the pane's rows are a list and moving through them is the
+  -- same in every list, see lib/surface.lua's PANE_OPEN.
+  local paneLive = { showInfo = true, selectNext = true, selectPrev = true }
   local fieldPredicates = setmetatable({}, { __index = function(_, name)
     local pred = (w._predicates or ownPredicates)[name]
     if type(pred) ~= "function" then return pred end
     return function(binding)
-      return (actionsPaneShowingRow() == nil or (binding ~= nil and binding.shared == "showInfo")) and pred()
+      return (actionsPaneShowingRow() == nil or (binding ~= nil and paneLive[binding.shared] == true)) and pred()
     end
   end })
   local fieldKeyList
@@ -2929,6 +2936,7 @@ function obj.run(olm, cfg)
     keycodes = keyTable,
     modifierLeaders = modifierLeaderSets,
     predicates = fieldPredicates,
+    gates = w._predicates or ownPredicates,
     repeats = repeatableActions,
     isRepeat = function(ev)
       return ev:getProperty(hs.eventtap.event.properties.keyboardEventAutorepeat) ~= 0
