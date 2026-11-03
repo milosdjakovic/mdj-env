@@ -32,7 +32,7 @@ return {
   icons = {
     systemsettings = { emoji = "⚙️", sf = "gearshape" },
     wifi = { emoji = "📶", sf = "wifi" },
-    bluetooth = { emoji = "🔵", sf = "dot.radiowaves.left.and.right" },
+    bluetooth = { emoji = "📡", sf = "dot.radiowaves.left.and.right" },
     network = { emoji = "🌐", sf = "globe" },
     battery = { emoji = "🔋", sf = "battery.0percent" },
     general = { emoji = "⚙️", sf = "gearshape" },

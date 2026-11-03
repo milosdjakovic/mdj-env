@@ -258,8 +258,14 @@ name, since some symbols draw a solid body without `.fill` in the name. A plugin
 marker for which choice is in force or which of several are on. The row says `chosen = true` or
 `chosen = false` and Olm draws its one radio pair, `circle.inset.filled` and `circle`, and a row
 whose other choices keep a picture of their own, a flag or a device kind, leaves `chosen` unset on
-those. The dry gate refuses a manifest declaring a marker, stated by Milos on 2026-11-02 and
-replacing the green and red circles of 2026-10-16. A row that carries a real picture keeps its `image`. The
+those. The pair is the only marker in either set, 🔘 and ⚪ in the emoji set, and its two halves
+differ by shape, the dot inside, never by colour alone. So a plugin never declares the pair, a
+checkbox, a toggle, or a circle told apart from another only by its colour, 🟢 beside 🔴, which reads
+as one shape to a person who cannot tell the colours apart. A verb's check mark, Apply's ✅, is a
+verb icon and stays allowed. The registrar refuses such a plugin at load and the dry gate refuses it
+before, both through `validateMarkers` in `lib/registrar.lua`, and the gate also refuses a marker
+emoji written into a row's table spec in code. Stated by Milos on 2026-11-02 and tightened on
+2026-11-03, replacing the green and red circles of 2026-10-16. A row that carries a real picture keeps its `image`. The
 active icon set is one setting in `config/icons.toml`, and the dry gate refuses a plugin file
 that draws a canvas into an image.
 
@@ -395,6 +401,11 @@ In order, before anything merges.
    devlock, the console read, and the scheduled reload lives in the hammerspoon `AGENTS.md`.
    Never drive the screen or the keyboard for a test until Milos says start.
 5. One real key press. Structure has never proven that a key fires.
+
+Before the gates, one question of every list the change touches. Does it show which item is in
+force, or which of several are on? Then each such row says `chosen` and names no icon for it, and
+nothing else in the list says selected by a colour. No check can see a star or a bolt used to mean
+on, so this question is the one place that case is caught.
 
 ## Style and commits
 

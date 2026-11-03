@@ -345,6 +345,36 @@ do
   check("no log means a quiet refusal", ok, false)
 end
 
+-- The selection marker rule, lib/registrar.lua's validateMarkers, which register and the dry gate
+-- both ask. The pair is Olm's own, so a plugin declaring it, a checkbox, a toggle, or a circle
+-- that differs from another only by colour is refused, and a verb's check mark or an ordinary
+-- outline glyph is not.
+do
+  local logs = {}
+  local function marked(icons)
+    logs = {}
+    return registrarLib.validateMarkers("x", { icons = icons },
+      { log = function(_, message) logs[#logs + 1] = message end })
+  end
+  check("a marker key is refused", marked({ chosen = { emoji = "🔘", sf = "circle.inset.filled" } }), false)
+  check("a checkbox symbol is refused", marked({ inUse = { emoji = "📌", sf = "checkmark.square.fill" } }), false)
+  check("a toggle symbol is refused", marked({ live = { emoji = "📌", sf = "toggle.on" } }), false)
+  check("a coloured circle is refused", marked({ go = { emoji = "🟢", sf = "shield" } }), false)
+  check("the empty ring emoji is refused", marked({ idle = { emoji = "⚪", sf = "pause.circle" } }), false)
+  check("a variation selector is the same emoji", marked({ box = { emoji = "☑️", sf = "tray" } }), false)
+  check("the refusal says what to do", logs[1] and logs[1]:find("chosen = true or false", 1, true) ~= nil, true)
+  check("a verb's check mark is allowed", marked({ apply = { emoji = "✅", sf = "checkmark.circle" } }), true)
+  check("an outline glyph is allowed", marked({ idle = { emoji = "⏸️", sf = "circle" } }), true)
+  check("no icons is allowed", registrarLib.validateMarkers("x", {}), true)
+  check("the actions pane's own pair reads as a marker, which is why only plugins are asked",
+    #registrarLib.markerKeys(dofile(here .. "../host/actionspane/manifest.lua").icons), 2)
+
+  local scan = dofile(here .. "drygate-icons.lua")
+  local hits = scan.literalEmoji('local r = { icon = { emoji = "⚪" } }\n-- icon = { emoji = "🟢" }\nx = { emoji = flag }')
+  check("the emoji scan reads a literal on a code line only", #hits, 1)
+  check("the emoji scan finds the glyph", hits[1] and hits[1].emoji, "⚪")
+end
+
 -- The two real sources, against a stub of the hs calls they make. The sf source renders out of
 -- process, so the stub records every task it is asked to start and every timer, and keeps a
 -- table of files standing for the disk. hs.osascript is a function that fails the run, since the

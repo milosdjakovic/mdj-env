@@ -23,17 +23,16 @@ return {
     license = "MIT",
   },
 
-  -- The action glyphs. A green circle reads as go, a red one as stop. The rest are the shared
-  -- vocabulary the other lists in this config already use for the same meanings. An empty
-  -- circle is a Provider choice that is there to be made, the one in force taking Olm's own
-  -- current marker, and the warning triangle is something this machine cannot currently reach. The country flags on
+  -- The action glyphs. Connect is the shield and disconnect the open lock, told apart by shape
+  -- rather than by a green and a red circle, which read as one shape to a person who cannot tell
+  -- the two colours apart. A Provider choice wears Olm's own radio pair, so none is declared
+  -- here, and the warning triangle is something this machine cannot currently reach. The country flags on
   -- the location rows are not here, they are content derived from the location and the plugin
   -- hands them over as a table spec.
   icons = {
-    connect = { emoji = "🟢", sf = "shield" },
-    disconnect = { emoji = "🔴", sf = "lock.open" },
+    connect = { emoji = "🛡️", sf = "shield" },
+    disconnect = { emoji = "🔓", sf = "lock.open" },
     settings = { emoji = "⚙️", sf = "gearshape" },
-    idle = { emoji = "⚪", sf = "circle" },
     warn = { emoji = "⚠️", sf = "exclamationmark.triangle" },
     loading = { emoji = "⏳", sf = "clock" },
     vpn = { emoji = "🌐", sf = "globe" },

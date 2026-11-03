@@ -1348,10 +1348,15 @@ in the actions pane's manifest. A row whose other choices keep a picture of thei
 source's flag, an audio device's side, a tmux window, sets `chosen = true` on the one in force and
 leaves `chosen` unset on the others, so they keep their picture. A checkmark reads as confirm this
 and a tick as done, while the list is showing which one is current, so the ring is a state and
-never competes with the confirm and commit actions a list also carries. A plugin manifest that
-declares a marker of its own, by a marker's key or by a filled circle symbol, is refused by the dry
-gate. Chosen by Milos on 2026-11-02, replacing the green and red circles,
-`decisions/olm-icons.md`.
+never competes with the confirm and commit actions a list also carries. In the emoji set the pair is
+🔘 and ⚪, and those two are the only marker there is. Each pair differs by shape, the dot inside,
+never by colour alone, so it reads to a person who cannot tell colours apart. A plugin that declares
+a marker of its own, by a marker's key, by a filled circle, checkbox or toggle symbol, or by the
+pair's emoji, a coloured circle or a box, is refused at load by `validateMarkers` in
+`Spoons/Olm.spoon/lib/registrar.lua`, and the dry gate runs the same function, plus a scan for a
+marker emoji written into a row's table spec in code. A verb's check mark, Apply's ✅, is not a
+marker. Chosen by Milos on 2026-11-02, replacing the green and red circles, and enforced at load
+from 2026-11-03, `decisions/olm-icons.md`.
 
 **Back is the first row in a chooser menu.** The actions pane under the swift chooser and the
 canvas chooser is the one exception, since it is a floating pane left by Escape over a list that never

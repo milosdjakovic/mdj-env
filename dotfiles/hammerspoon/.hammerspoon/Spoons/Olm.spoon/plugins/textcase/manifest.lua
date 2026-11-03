@@ -41,7 +41,7 @@ return {
     snake = { emoji = "🐍", sf = "underline" },
     constant = { emoji = "📢", sf = "megaphone" },
     kebab = { emoji = "🍢", sf = "minus" },
-    dot = { emoji = "🔵", sf = "ellipsis" },
+    dot = { emoji = "🔹", sf = "ellipsis" },
   },
 
   name = "textCase",

@@ -62,9 +62,20 @@ false on the others, and `stamp` in `lib/icons/rows.lua` draws Olm's one radio p
 `circle.inset.filled` and `circle`, the keys `chosen` and `notChosen` in the actions pane's
 manifest, which the root hands the resolver as its `marks`. A list whose other rows keep a picture
 of their own, Input Sources, Audio, Display Profiles, tmux windows, leaves `chosen` unset on them.
-The dry gate refuses a plugin manifest declaring a marker by key or by a filled circle symbol.
+`validateMarkers` in `lib/registrar.lua` refuses a plugin declaring a marker, by key, by a filled
+circle, checkbox or toggle symbol, or by the pair's emoji, a coloured circle or a box, at register
+and from the dry gate alike. The gate also refuses a marker emoji written into a row's table spec in
+plugin code. 🔘 and ⚪ are the only marker in the emoji set, and the pair differs by shape, never by
+colour alone. A verb's check mark, ✅ on Apply, is not a marker.
 
 ## Rejected
+
+- **An approved list of SF Symbols a plugin may use.** 2026-11-03 09:34. It would also catch a
+  star or a bolt used to mean on, which no list of refused shapes can, but it blocks ordinary icons
+  every time a plugin wants a new one, and the list becomes a file every plugin edits. The olm
+  plugin skill asks the question by reading instead.
+- **Refusing ✅ with the other markers.** 2026-11-03 09:34. Four plugins name it for a verb,
+  Apply, Choose and Include, beside `checkmark.circle`, which pictures the verb and is not a state.
 
 - **A green circle for the choice in force and a red one for the rest.** 2026-11-02 19:05. Red
   reads as wrong on a row that is only not picked, and each plugin declared the pair itself under
@@ -314,3 +325,23 @@ picture on the rest. Display Profiles' Apply verb took `checkmark.circle`, since
 the marker. Keep Awake's two rows took a sun and a moon and Workspaces' availability a group of
 rectangles and a dashed one, since neither is a choice and a filled circle now means one. The dry
 gate's new rule found nothing else.
+
+### 2026-11-03 09:34
+
+Milos asked that 🔘 and ⚪ be the only marker in the emoji set, and that nothing tell selected
+apart by colour alone, for accessibility. Built on the olm-marker-rule branch. The marker rule
+moved from the dry gate's own scan into `validateMarkers` in `lib/registrar.lua`, which register
+calls beside `validateIcons`, so a plugin that never met the gate is refused at load, and the gate
+calls the same function. The refused shapes widened to checkbox and toggle symbols, the pair's
+emoji, every coloured circle, and the checkbox boxes, and the gate gained a scan for a marker emoji
+written as a literal in a row's table spec in plugin code. The emoji picker's data is untouched,
+since its rows name their glyph by variable.
+
+The wider list found five. VPN drew ⚪ itself on a usable Provider choice, a hand made not chosen
+marker, and now names no icon there, so the actions pane draws the pair, and its idle key is gone.
+Its connect and disconnect took 🛡️ and 🔓, matching their shield and open lock, in place of a
+green and a red circle. Bluetooth in System Settings took 📡, dot.case in Text Case 🔹, and an
+unavailable workspace layout ➖ in place of a box that read as an empty checkbox. Planted, a
+checkbox symbol and a green circle in a manifest and an empty ring in a row's spec were each
+refused by the gate, and by the registrar on the gate's own load.
+

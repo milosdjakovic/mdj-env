@@ -31,7 +31,7 @@ return {
   -- app's own picture instead, and app is only the mark for an app with none.
   icons = {
     available = { emoji = "🗂️", sf = "rectangle.3.group" },
-    unavailable = { emoji = "⬜", sf = "rectangle.dashed" },
+    unavailable = { emoji = "➖", sf = "rectangle.dashed" },
     new = { emoji = "📸", sf = "camera" },
     apply = { emoji = "🪟", sf = "macwindow" },
     apps = { emoji = "📦", sf = "shippingbox" },

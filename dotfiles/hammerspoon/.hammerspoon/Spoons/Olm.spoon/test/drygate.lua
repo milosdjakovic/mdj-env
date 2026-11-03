@@ -742,18 +742,32 @@ do
     end
   end
 
-  -- The third is the marker rule. A row in a pick one list says chosen and Olm draws its own
-  -- radio pair, so a plugin's manifest declaring a marker is a second marker. Hosts are Olm and
-  -- the actions pane is where the pair lives, so only plugins are read.
+  -- The third is the marker rule, lib/registrar.lua's own validateMarkers, the check a plugin
+  -- meets at register, so the gate and the load refuse the same thing. A row in a pick one list
+  -- says chosen and Olm draws its own radio pair, so a plugin's manifest declaring a marker is a
+  -- second one. The actions pane is a host and owns the pair, so only plugins are read. Beside it,
+  -- a marker emoji written straight into a plugin's code as a row's table spec, which no manifest
+  -- check can see.
   for _, path in ipairs(paths) do
     local rel = path:sub(1, #spoonDir) == spoonDir and path:sub(#spoonDir + 1) or path
-    local dir = rel:match("^plugins/([^/]+)/manifest%.lua$")
+    local dir = rel:match("^plugins/([^/]+)/")
     local manifest = dir and manifestsByDir[dir]
-    if manifest then
-      for _, key in ipairs(iconsScan.markerKeys(manifest.icons)) do
-        finding(string.format(
-          "dry gate refused '%s', icons.%s declares a selection marker, a row says chosen = true or false and Olm draws its own radio pair, see lib/icons/rows.lua",
-          rel, key))
+    if manifest and rel == "plugins/" .. dir .. "/manifest.lua" then
+      registrarLib.validateMarkers(rel, manifest, { log = function(_, message)
+        finding((message:gsub("^registrar refused", "dry gate refused")))
+      end })
+    elseif dir and rel:match("%.lua$") and not rel:match("/test/") then
+      local f = io.open(path, "r")
+      if f then
+        local text = f:read("a")
+        f:close()
+        for _, hit in ipairs(iconsScan.literalEmoji(text)) do
+          if registrarLib.isMarkerEmoji(hit.emoji) then
+            finding(string.format(
+              "dry gate refused '%s', line %d, emoji = \"%s\" draws a selection marker, a row says chosen = true or false and Olm draws its own radio pair, 🔘 and ⚪, see lib/icons/rows.lua",
+              rel, hit.line, hit.emoji))
+          end
+        end
       end
     end
   end

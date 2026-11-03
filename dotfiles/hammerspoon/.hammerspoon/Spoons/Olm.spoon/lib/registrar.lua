@@ -267,6 +267,80 @@ function obj.validateIcons(name, manifest, deps)
   return icons, true
 end
 
+-- The selection marker is Olm's own and there is exactly one, the radio pair the actions pane's
+-- manifest declares, circle.inset.filled and circle in the sf set, 🔘 and ⚪ in the emoji set. A
+-- row only says chosen = true or false and lib/icons/rows.lua draws the pair, so a plugin that
+-- declares a marker of its own is a second way to say selected. These are the shapes a marker is
+-- drawn with, refused in a plugin's icons by key, by sf symbol and by emoji. The pair differs by
+-- shape, the dot inside, never by colour alone, which is why the coloured circles are refused
+-- too, since green beside red reads as one shape to a person who cannot tell the two apart. A
+-- plain outline circle on its own stays an ordinary sf glyph, an idle state or a record button.
+obj.MARKER_KEYS = { chosen = true, notChosen = true, selected = true, notSelected = true,
+  current = true, active = true, checked = true, unchecked = true }
+obj.MARKER_SF = {
+  ["circle.fill"] = true, ["circle.inset.filled"] = true, ["largecircle.fill.circle"] = true,
+  ["smallcircle.filled.circle"] = true, ["record.circle"] = true,
+  ["checkmark.circle.fill"] = true, ["checkmark.square"] = true, ["checkmark.square.fill"] = true,
+  ["square"] = true, ["square.fill"] = true, ["xmark.square"] = true, ["xmark.square.fill"] = true,
+  ["toggle.on"] = true, ["toggle.off"] = true, ["switch.2"] = true,
+}
+-- Compared with the emoji variation selector removed, so ☑ and ☑️ are one entry.
+-- A check mark that pictures a verb, Apply or Include, is a verb icon and stays allowed, ✅ among
+-- them. What is refused is the pair itself, every coloured circle, and the box a checkbox draws.
+obj.MARKER_EMOJI = {
+  ["🔘"] = true, ["⚪"] = true, ["⚫"] = true, ["🟢"] = true, ["🔴"] = true, ["🟡"] = true,
+  ["🟠"] = true, ["🔵"] = true, ["🟣"] = true, ["🟤"] = true, ["☑"] = true, ["✔"] = true,
+  ["⬜"] = true, ["⬛"] = true, ["🔲"] = true, ["🔳"] = true,
+}
+
+--- obj.isMarkerEmoji(text) -> bool, whether an emoji is one a marker is drawn with.
+function obj.isMarkerEmoji(text)
+  if type(text) ~= "string" then return false end
+  return obj.MARKER_EMOJI[(text:gsub("\239\184\143", ""))] == true
+end
+
+--- obj.markerKeys(icons) -> sorted list of { key, why }, the entries of an icons table that
+--- declare a selection marker, by key, by sf symbol or by emoji.
+function obj.markerKeys(icons)
+  local out = {}
+  for key, spec in pairs(type(icons) == "table" and icons or {}) do
+    local sf = type(spec) == "table" and spec.sf or nil
+    local why
+    if obj.MARKER_KEYS[key] then why = "its key"
+    elseif type(sf) == "string" and obj.MARKER_SF[sf] then why = "its sf symbol " .. sf
+    elseif type(spec) == "table" then
+      -- Every glyph source beside sf, so a source added later is read the same way.
+      for source, value in pairs(spec) do
+        if source ~= "sf" and obj.isMarkerEmoji(value) then
+          why = "its " .. tostring(source) .. " " .. value
+          break
+        end
+      end
+    end
+    if why then out[#out + 1] = { key = tostring(key), why = why } end
+  end
+  table.sort(out, function(a, b) return a.key < b.key end)
+  return out
+end
+
+--- obj.validateMarkers(name, manifest, deps) -> ok
+--- A plugin's icons declaring a selection marker of its own refuses the plugin, each entry
+--- reported once through deps.log. Asked of plugins only, at register by describe and by the dry
+--- gate over every plugin manifest, never of the actions pane, which owns the pair.
+function obj.validateMarkers(name, manifest, deps)
+  deps = deps or {}
+  local ok = true
+  for _, hit in ipairs(obj.markerKeys(manifest and manifest.icons)) do
+    ok = false
+    if deps.log then
+      deps.log("e", string.format("registrar refused '%s', its icons.%s declares a selection "
+        .. "marker by %s, a row says chosen = true or false and Olm draws its own radio pair, "
+        .. "see lib/icons/rows.lua", name, hit.key, hit.why))
+    end
+  end
+  return ok
+end
+
 --- obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
 --- Builds one registry descriptor for the plugin the plan wired under this directory name, or
 --- answers nil, and the nil case is deliberate rather than a gap. Not every plugin the plan
@@ -821,6 +895,8 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
   -- descriptor would drop the tool with only the console line above as evidence.
   local _, iconsOk = obj.validateIcons(name, manifest, deps)
   if not iconsOk then presentation = {} end
+  -- A selection marker of its own refuses it the same way, since the one marker is Olm's.
+  if not obj.validateMarkers(name, manifest, deps) then presentation = {} end
 
   return {
     name = identity,

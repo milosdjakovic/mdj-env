@@ -379,7 +379,9 @@ local function providerChoices()
     out[#out + 1] = {
       title = entry.module.name or entry.id,
       subtitle = detail,
-      icon = usable and "idle" or "warn",
+      -- A usable provider names no icon, so the actions pane marks it with Olm's radio pair,
+      -- filled for the one in force and empty for the rest.
+      icon = (not usable) and "warn" or nil,
       value = entry.id,
       current = entry.id == activeId,
       enabled = usable,

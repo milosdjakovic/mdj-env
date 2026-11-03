@@ -45,26 +45,22 @@ function M.literalKeys(text)
   return out
 end
 
--- The marker is Olm's own, the radio pair the actions pane's manifest declares, and a row only
--- says chosen. So a plugin that declares a marker of its own is drawing a second one, whether it
--- names it by one of the words the old markers used or by one of the symbols a marker is drawn
--- with. The symbols are the filled circles, a plain outline circle on its own being an ordinary
--- glyph such as an idle state.
-local MARKER_KEYS = { chosen = true, notChosen = true, selected = true, notSelected = true,
-  current = true, active = true }
-local MARKER_SF = { ["circle.fill"] = true, ["circle.inset.filled"] = true,
-  ["largecircle.fill.circle"] = true, ["smallcircle.filled.circle"] = true,
-  ["record.circle"] = true }
-
---- M.markerKeys(icons) -> sorted list of the keys in a plugin's icons table that declare a
---- marker of its own, by its key or by its sf symbol.
-function M.markerKeys(icons)
+--- M.literalEmoji(text) -> list of { line = n, emoji = "..." }
+--- Every emoji = "..." on a code line, the literal glyph a row's table spec names. The selection
+--- marker check in lib/registrar.lua decides which of them is a marker, so the gate and the load
+--- share one list.
+function M.literalEmoji(text)
   local out = {}
-  for key, spec in pairs(type(icons) == "table" and icons or {}) do
-    local sf = type(spec) == "table" and spec.sf or nil
-    if MARKER_KEYS[key] or (type(sf) == "string" and MARKER_SF[sf]) then out[#out + 1] = key end
+  local n = 0
+  for l in (text .. "\n"):gmatch("(.-)\n") do
+    n = n + 1
+    local code = codeOf(l)
+    if code then
+      for glyph in code:gmatch("%f[%w_]emoji%s*=%s*\"([^\"]*)\"") do
+        out[#out + 1] = { line = n, emoji = glyph }
+      end
+    end
   end
-  table.sort(out)
   return out
 end
 
