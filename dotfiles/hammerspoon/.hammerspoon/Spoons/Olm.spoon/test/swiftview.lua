@@ -545,6 +545,27 @@ do
   check("an emoji is sent without", lastRows[2].tint, false)
   check("a row's own picture is sent without", lastRows[3].tint, false)
   tinted:hide()
+
+  -- The actions pane's lines and the bar's keys picture carry the same flag, since they light too.
+  local paneRows = {
+    { title = "symbol", item = 1, icon = "sf", iconOwner = "o" },
+    { title = "glyph", item = 2, icon = "emoji", iconOwner = "o" },
+    { title = "app", item = 3, image = { picture = "own" } },
+  }
+  local panelled = Engine.new({
+    rows = function() return paneRows end,
+    bottomBar = function()
+      return { right = {}, keys = {}, state = "", panelOpen = true, infoIcon = { icon = "sf", owner = "o" } }
+    end,
+  }, function(engine) return View.new(engine, native) end)
+  panelled:show()
+  local actions = lastUpdate and lastUpdate.actions or {}
+  check("an actions pane line with a one colour icon is sent with tint", actions[1] and actions[1].tint, true)
+  check("one with an emoji without", actions[2] and actions[2].tint, false)
+  check("one with its own picture without", actions[3] and actions[3].tint, false)
+  check("the bar's one colour keys picture is sent with tint", lastUpdate and lastUpdate.bottomBar
+    and lastUpdate.bottomBar.keysTint, true)
+  panelled:hide()
 end
 
 -- A long list of rows that each name an icon key, the shape the launcher's catalog has. Opening

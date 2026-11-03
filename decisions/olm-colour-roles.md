@@ -34,6 +34,16 @@ under `config/themes`. The glass declares a highlight, its own palette in
 or the accent colour set in System Settings at alpha 59, reapplied when that accent changes. The
 eight roles are the same eight either way.
 
+What stands on a solid highlight is drawn in the lit ink, `Ink` in the swift chooser's
+`native/Model.swift`, and every surface that lights draws through `Style.ink(lit:)`, the list's
+rows, the actions pane's highlighted line, a bar group lit whole and the bar item under the
+pointer. Its text is `alternateSelectedControlTextColor`, the colour AppKit draws a selected row's
+text in, and every other role, the subtitle, a dimmed word, a row number, the alternative word
+between chords and the key chip, is that colour at the strength the role has against the
+foreground on the glass. So a key chip there is the lit text at the keycap's strength, the key cap
+rule applied to the lit foreground, and a one colour icon, an SF Symbol, is redrawn in the lit text.
+On a translucent highlight, and on anything not lit, the ink is the palette's own.
+
 ## Rejected
 
 - **The highlight as the fill of a key chip.** 2026-11-02 19:40, reported by Milos once the solid
@@ -135,3 +145,19 @@ Milos asked for the key cap rule to be deterministic in code rather than three c
 and the canvas bottom bar, the glass view and the kit's badge all call it. The dry gate refuses a
 read of `alpha.keycap` outside `lib/ui`, proven by planting one in `bottombar.lua`, and a unit
 case in `test/cases/uikit.lua` holds that a badge does not change with the highlight.
+
+### 2026-11-03 10:44
+
+Under the solid macOS highlight only the list's lit row turned white. The actions pane's
+highlighted line kept the palette's dark label, its symbol and its key chip, the chip being the
+foreground at the keycap alpha, a faint dark box on the accent that Milos could barely see, and a
+lit bar group and the bar item under the pointer did the same. Milos asked for all of it to turn
+white, and for the chip to read, as a proper rule rather than a patch per surface. The lit colours
+had been one line in the list's cell, the title at the selection text colour and the subtitle and
+number at a written 0.8. They are now one `Ink`, built by `Style.ink(lit:)` from the palette the
+Lua view sent, each role keeping its alpha ratio to the foreground, so no strength is written in
+Swift and the chip follows `ui.keycapColor`'s rule on the lit foreground. The list's lit subtitle
+moves from 0.8 to the glass subtext's own ratio, about 0.65. A key cap takes an ink and repaints in
+place when its item lights, and the actions pane's lines and the bar's keys picture carry the
+one colour flag the rows already did. `test/swiftpane.swift` pins the rule, `test/swiftview.lua`
+the flags.

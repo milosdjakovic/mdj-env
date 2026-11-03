@@ -293,9 +293,11 @@ local function bottomBarData(model)
     keys[#keys + 1] = { label = k.label or "", chord = kbd.wire(k.badges), section = k.section }
   end
   local icon = model.infoIcon
+  local keysImage, keysTint = nil, false
+  if icon and ICON then keysImage, keysTint = ICON(icon.icon, icon.owner) end
   return { right = right, keys = keys, keysChord = kbd.wire(model.keysChord), title = model.title,
     panelOpen = model.panelOpen == true, panelTitle = model.panelTitle,
-    keysImage = icon and ICON and ICON(icon.icon, icon.owner) or nil }
+    keysImage = keysImage or nil, keysTint = keysImage ~= nil and keysTint == true }
 end
 
 -- Resolves the icon of every row from lo to hi not asked yet, through the injected resolver, and
@@ -461,10 +463,11 @@ function View:_redrawPanel(s, ns, bottomBar)
   local held = self._held or {}
   local actions = {}
   for i, row in ipairs(ns.filtered) do
-    local image = row.image
-    if image == nil and row.icon ~= nil and ICON then image = ICON(row.icon, row.iconOwner) end
+    local image, tint = row.image, false
+    if image == nil and row.icon ~= nil and ICON then image, tint = ICON(row.icon, row.iconOwner) end
     actions[i] = { title = plain(row.title), chord = kbd.wire(row.chord), image = image or nil,
-      section = row.section, enabled = row.enabled ~= false }
+      tint = image ~= nil and row.image == nil and tint == true, section = row.section,
+      enabled = row.enabled ~= false }
   end
   self.native.update(self.id, {
     highlight = nil,

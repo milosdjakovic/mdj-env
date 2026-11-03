@@ -61,34 +61,50 @@ final class KeyCap: FlippedView {
   private var capMiddle: CGFloat = 0
   // Where each key is drawn, parallel to caps, set by layout, a pen for a glyph, a box for a symbol.
   private var places: [[NSRect]] = []
+  private let chord: [[KeyMark]]
+  private let font: NSFont
+  private let enabled: Bool
+  // The colours the chip, its keys and the alternative word are drawn in, the ink of whatever the
+  // cap stands on, so a cap on a lit line or a lit bar item is drawn in the lit ink, see Ink. A
+  // change keeps every key's place, since a colour moves no ink.
+  var ink: Ink { didSet { paint() } }
 
-  init(_ chord: [[KeyMark]], style: Style, placement: Placement, holderH: CGFloat, holderRadius: CGFloat,
-    enabled: Bool = true) {
+  init(_ chord: [[KeyMark]], ink: Ink, style: Style, placement: Placement, holderH: CGFloat,
+    holderRadius: CGFloat, enabled: Bool = true) {
+    self.chord = chord
+    self.ink = ink
+    self.font = style.keycapFont
+    self.enabled = enabled
     super.init(frame: .zero)
     padX = placement.keycapPadX
     keyGap = placement.keycapGap
     gap = placement.barGap
     height = placement.keycapH
-    fill = enabled ? style.keycap : style.keycap.withAlphaComponent(style.keycap.alphaComponent * 0.5)
     radius = max(0, holderRadius - max(0, holderH - height) / 2)
-    let font = style.keycapFont
-    let color = enabled ? style.text : style.textDim
-    let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
-    lineH = NSAttributedString(string: "X", attributes: attributes).size().height
+    lineH = NSAttributedString(string: "X", attributes: [.font: font]).size().height
     capMiddle = font.ascender - font.capHeight / 2
-    for (i, keys) in chord.enumerated() where !keys.isEmpty {
-      if i > 0 {
-        let word = NSTextField(labelWithString: placement.keycapOr)
-        word.font = style.captionFont
-        word.textColor = enabled ? style.caption : style.subDim
-        words.append(word)
-        addSubview(word)
-      }
-      caps.append(keys.map { mark in
+    for (i, keys) in chord.enumerated() where !keys.isEmpty && i > 0 {
+      let word = NSTextField(labelWithString: placement.keycapOr)
+      word.font = style.captionFont
+      words.append(word)
+      addSubview(word)
+    }
+    paint()
+  }
+
+  // The chip's fill, the keys and the alternative word in the current ink.
+  private func paint() {
+    fill = enabled ? ink.keycap : ink.keycap.withAlphaComponent(Ink.alpha(ink.keycap) * 0.5)
+    let color = enabled ? ink.text : ink.textDim
+    let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
+    for word in words { word.textColor = enabled ? ink.caption : ink.subDim }
+    caps = chord.filter { !$0.isEmpty }.map { keys in
+      keys.map { mark in
         if let name = mark.symbol, let key = KeyCap.symbol(name, font: font, color: color) { return key }
         return KeyCap.glyph(mark.glyph, attributes)
-      })
+      }
     }
+    needsDisplay = true
   }
 
   required init?(coder: NSCoder) { nil }
@@ -237,6 +253,10 @@ final class BarSide: FlippedView {
   // The items, in the group's own space, and the corner of a lit one.
   var items: [NSRect] = [] { didSet { shade.items = items } }
   var cellRadius: CGFloat = 0 { didSet { shade.radius = cellRadius } }
+  // Told the item under the pointer whenever it changes, nil for none, so the bar draws that
+  // item's words and chord in the ink of the highlight it stands on.
+  var onHover: ((Int?) -> Void)?
+  var hovered: Int? { shade.hover }
   private let glass = Surface(holding: FlippedView())
   private let shade = Shade()
 
@@ -284,10 +304,16 @@ final class BarSide: FlippedView {
 
   override func mouseMoved(with event: NSEvent) { hover(event) }
   override func mouseEntered(with event: NSEvent) { hover(event) }
-  override func mouseExited(with event: NSEvent) { shade.hover = nil }
+  override func mouseExited(with event: NSEvent) { setHover(nil) }
 
   private func hover(_ event: NSEvent) {
-    shade.hover = item(at: convert(event.locationInWindow, from: nil))
+    setHover(item(at: convert(event.locationInWindow, from: nil)))
+  }
+
+  private func setHover(_ index: Int?) {
+    guard index != shade.hover else { return }
+    shade.hover = index
+    onHover?(index)
   }
 
   override func updateTrackingAreas() {
@@ -297,7 +323,7 @@ final class BarSide: FlippedView {
       options: [.mouseMoved, .mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self, userInfo: nil))
   }
 
-  override var isHidden: Bool { didSet { if isHidden { shade.hover = nil } } }
+  override var isHidden: Bool { didSet { if isHidden { setHover(nil) } } }
 
   override func layout() {
     super.layout()
@@ -323,14 +349,35 @@ final class BarView: FlippedView {
   private var placement = Placement()
   // A press on an item of the action group, with the action that item names.
   var onItem: (String) -> Void = { _ in }
-  // The key button's picture as it came, drawn again on the pixel grid at every layout.
+  // The key button's picture as it came, drawn again on the pixel grid at every layout, and
+  // whether it is one colour, redrawn in the lit ink while its group is.
   private var keysSource: NSImage?
+  private var keysTint = false
+  private var style = Style()
 
   override init(frame: NSRect) {
     super.init(frame: frame)
     addSubview(button)
     addSubview(actions)
     actions.onPressAt = { [weak self] point in self?.pressItem(at: point) }
+    button.onHover = { [weak self] _ in self?.relight() }
+    actions.onHover = { [weak self] _ in self?.relight() }
+  }
+
+  // Each item's words, chord and picture in the ink of what it stands on, the lit ink while its
+  // group is lit whole or the pointer lights it, the glass's otherwise. The key group is one item.
+  private func relight() {
+    let keysInk = style.ink(lit: button.lit || button.hovered == 0)
+    for view in parts {
+      if let cap = view as? KeyCap { cap.ink = keysInk }
+      if let field = view as? NSTextField { field.textColor = keysInk.text }
+    }
+    needsLayout = true
+    for i in stride(from: 0, to: rightParts.count - 1, by: 2) {
+      let ink = style.ink(lit: actions.lit || actions.hovered == i / 2)
+      (rightParts[i] as? NSTextField)?.textColor = ink.text
+      (rightParts[i + 1] as? KeyCap)?.ink = ink
+    }
   }
 
   // The item whose item is under point runs the action it names.
@@ -355,10 +402,12 @@ final class BarView: FlippedView {
   func show(_ bottomBar: BottomBar, style: Style, placement: Placement, lit: Bool, leftHidden: Bool = false,
     actionsHidden: Bool = false) {
     self.placement = placement
+    self.style = style
     for view in parts + rightParts { view.removeFromSuperview() }
     parts = []
     rightParts = []
     keysSource = bottomBar.keysImage
+    keysTint = bottomBar.keysTint
     if let image = bottomBar.keysImage {
       let view = NSImageView(image: image)
       view.imageScaling = .scaleProportionallyUpOrDown
@@ -369,14 +418,15 @@ final class BarView: FlippedView {
     // A item's corner, the panel line's, the group's corner less the padding around the items.
     let capRadius = max(0, style.highlightRadius - placement.barPillPad)
     if !bottomBar.keysChord.isEmpty {
-      parts.append(KeyCap(bottomBar.keysChord, style: style, placement: placement, holderH: placement.barPillH, holderRadius: capRadius))
+      parts.append(KeyCap(bottomBar.keysChord, ink: style.ink(lit: false), style: style, placement: placement,
+        holderH: placement.barPillH, holderRadius: capRadius))
     }
     for view in parts { button.addSubview(view) }
     rightActions = bottomBar.right.map { $0.action }
     for item in bottomBar.right {
       rightParts.append(label(item.label, style.titleFont, style.text))
-      rightParts.append(KeyCap(item.chord, style: style, placement: placement, holderH: placement.barPillH,
-        holderRadius: capRadius))
+      rightParts.append(KeyCap(item.chord, ink: style.ink(lit: false), style: style, placement: placement,
+        holderH: placement.barPillH, holderRadius: capRadius))
     }
     for view in rightParts { actions.addSubview(view) }
     for group in [button, actions] {
@@ -388,7 +438,7 @@ final class BarView: FlippedView {
     actions.lit = bottomBar.panelOpen
     button.isHidden = leftHidden
     actions.isHidden = actionsHidden || rightParts.isEmpty
-    needsLayout = true
+    relight()
   }
 
   override func layout() {
@@ -413,7 +463,9 @@ final class BarView: FlippedView {
     for case let view as NSImageView in parts {
       view.frame = Crisp.align(view.frame, in: button)
       if let keysSource {
-        view.image = Crisp.image(keysSource, size: view.frame.size, scale: Crisp.scale(of: self))
+        let crisp = Crisp.image(keysSource, size: view.frame.size, scale: Crisp.scale(of: self))
+        let tint = keysTint ? style.ink(lit: button.lit || button.hovered == 0).icon : nil
+        view.image = tint.map { Crisp.tinted(crisp, $0) } ?? crisp
       }
     }
     // The action group, one item per item, edge to edge, its label and chord the inner padding

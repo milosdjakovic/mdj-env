@@ -148,8 +148,7 @@ final class RowCell: NSView {
   // only when the picture, its box, the backing scale or its recolour changed.
   private var source: NSImage?
   private var drawnFor: (NSImage, NSSize, CGFloat, NSColor?)?
-  // The colour a one colour icon is redrawn in while the row is lit by a solid highlight, nil
-  // otherwise, the same lit text colour the title takes.
+  // The colour a one colour icon is redrawn in, the lit ink's, nil on the glass.
   private var iconTint: NSColor?
 
   override var isFlipped: Bool { true }
@@ -170,11 +169,12 @@ final class RowCell: NSView {
     needsLayout = true
   }
 
-  // Whether this cell's row is the highlighted one, set by the list before each fill, since the
-  // text of a row lit by a solid highlight is drawn in the selection's text colour.
+  // Whether this cell's row is the highlighted one, set by the list before each fill, since a row
+  // lit by a solid highlight draws in the lit ink, see Ink.
   var lit = false
 
   func fill(_ row: Row, slot: Int?, style: Style, lineBreak: NSLineBreakMode) {
+    let ink = style.ink(lit: lit)
     if row.image !== source {
       source = row.image
       drawnFor = nil
@@ -182,23 +182,18 @@ final class RowCell: NSView {
     }
     title.stringValue = row.title
     title.font = style.titleFont
-    title.textColor = row.muted ? style.sub : (row.enabled ? style.text : style.textDim)
+    title.textColor = row.muted ? ink.sub : (row.enabled ? ink.text : ink.textDim)
     title.lineBreakMode = lineBreak
     subtitle.stringValue = row.subtitle
     subtitle.font = style.subFont
-    subtitle.textColor = row.enabled ? style.sub : style.subDim
+    subtitle.textColor = row.enabled ? ink.sub : ink.subDim
     subtitle.lineBreakMode = .byTruncatingTail
     subtitle.isHidden = row.subtitle.isEmpty
     number.font = style.numberFont
-    number.textColor = style.number
+    number.textColor = ink.number
     number.stringValue = slot.map { "\(style.numberKey)\($0)" } ?? ""
     number.isHidden = slot == nil
-    iconTint = (lit && row.tint) ? style.litText : nil
-    if lit, let on = style.litText {
-      title.textColor = on
-      subtitle.textColor = on.withAlphaComponent(0.8)
-      number.textColor = on.withAlphaComponent(0.8)
-    }
+    iconTint = row.tint ? ink.icon : nil
     needsLayout = true
   }
 

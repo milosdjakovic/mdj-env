@@ -21,6 +21,8 @@ final class FloatingPaneView: FlippedView {
     var label: String
     var chord: [[KeyMark]]
     var image: NSImage? = nil
+    // The image is one colour, see Row's tint, redrawn in the lit ink on the highlighted line.
+    var tint = false
     // The heading the line is listed under. A heading is drawn above the first line of each run
     // of lines naming the same one, docs/PLAN-ACTION-PANEL.md.
     var section: String? = nil
@@ -200,14 +202,18 @@ final class FloatingPaneView: FlippedView {
     }
     document.tops = tops
     contentH = y
-    rows = lines.map { line in
+    // The highlighted line stands on the highlight and draws in its ink, see Ink, every other on
+    // the glass.
+    rows = lines.enumerated().map { index, line in
+      let ink = style.ink(lit: index + 1 == highlight)
       let label = NSTextField(labelWithString: line.label)
       label.font = style.titleFont
-      label.textColor = line.enabled ? style.text : style.textDim
+      label.textColor = line.enabled ? ink.text : ink.textDim
       label.lineBreakMode = .byTruncatingTail
-      let chord = KeyCap(line.chord, style: style, placement: placement, holderH: lineH,
+      let chord = KeyCap(line.chord, ink: ink, style: style, placement: placement, holderH: lineH,
         holderRadius: document.radius, enabled: line.enabled)
-      let image = line.image.map { picture -> NSImageView in
+      let image = line.image.map { source -> NSImageView in
+        let picture = line.tint ? (ink.icon.map { Crisp.tinted(source, $0) } ?? source) : source
         let view = NSImageView(image: picture)
         view.imageScaling = .scaleProportionallyUpOrDown
         return view

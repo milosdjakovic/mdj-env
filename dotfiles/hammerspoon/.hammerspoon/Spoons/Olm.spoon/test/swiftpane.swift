@@ -180,6 +180,30 @@ check("its inked pixels take the colour at full strength, as the title does", (i
   "\(String(describing: inked))")
 check("and its clear pixels stay clear", (bare?.alphaComponent ?? 1) < 0.01, "\(String(describing: bare))")
 
+// What stands on a solid highlight draws in the selection's text colour, each role at the strength
+// it has against the foreground on the glass, the key chip included. A translucent highlight, and
+// anything not lit, keeps the palette's own.
+func srgb(_ c: NSColor) -> NSColor { c.usingColorSpace(.sRGB) ?? c }
+var solid = Style()
+solid.text = NSColor(srgbRed: 0, green: 0, blue: 0, alpha: 0.8)
+solid.sub = NSColor(srgbRed: 0, green: 0, blue: 0, alpha: 0.4)
+solid.keycap = NSColor(srgbRed: 0, green: 0, blue: 0, alpha: 0.12)
+solid.highlight = NSColor(srgbRed: 0, green: 0.4, blue: 1, alpha: 1)
+let litInk = solid.ink(lit: true)
+let on = srgb(NSColor.alternateSelectedControlTextColor)
+check("lit by a solid highlight, the text is the selection's text colour", srgb(litInk.text) == on)
+check("a subtitle keeps its strength against the text", abs(Ink.alpha(litInk.sub) - Ink.alpha(on) * 0.5) < 0.001,
+  "\(Ink.alpha(litInk.sub))")
+check("a key chip is the lit text at the keycap's strength", abs(Ink.alpha(litInk.keycap) - Ink.alpha(on) * 0.15) < 0.001
+  && abs(srgb(litInk.keycap).redComponent - on.redComponent) < 0.001, "\(srgb(litInk.keycap))")
+check("and a one colour icon takes the lit text", litInk.icon.map(srgb) == on)
+let restInk = solid.ink(lit: false)
+check("not lit, the palette's own", restInk.text == solid.text && restInk.keycap == solid.keycap && restInk.icon == nil)
+var wash = solid
+wash.highlight = NSColor(srgbRed: 0, green: 0.4, blue: 1, alpha: 0.2)
+check("a translucent highlight keeps the palette's own", wash.ink(lit: true).text == wash.text
+  && wash.ink(lit: true).icon == nil)
+
 // A full bleed opaque square must cover the whole bitmap at either scale. Drawn through a context
 // made before the rep had its size in points, it covered a quarter of it at scale 2.
 func coverage(scale: CGFloat) -> (opaque: Int, total: Int) {

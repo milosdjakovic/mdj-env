@@ -39,6 +39,23 @@ struct Style {
     return alpha >= 0.5 ? NSColor.alternateSelectedControlTextColor : nil
   }
 
+  // The colours content takes where it stands, see Ink. lit is whether it stands on the highlight,
+  // a lit row, a lit floating pane line, a lit bar group or the bar item under the pointer.
+  func ink(lit: Bool) -> Ink {
+    guard lit, let on = litText else {
+      return Ink(text: text, textDim: textDim, sub: sub, subDim: subDim, caption: caption, number: number,
+        keycap: keycap, icon: nil)
+    }
+    // Each role keeps the strength it has against the foreground on the glass, so a subtitle,
+    // a dimmed word and a key chip stand to the lit text as they stand to the row title.
+    let base = Ink.alpha(text)
+    func over(_ role: NSColor) -> NSColor {
+      on.withAlphaComponent(Ink.alpha(on) * (base > 0 ? min(1, Ink.alpha(role) / base) : 1))
+    }
+    return Ink(text: on, textDim: over(textDim), sub: over(sub), subDim: over(subDim), caption: over(caption),
+      number: over(number), keycap: over(keycap), icon: on)
+  }
+
   init() {}
 
   init(_ r: LuaReader, _ t: Int32) {
@@ -62,6 +79,30 @@ struct Style {
     numberKey = r.string(t, "numberKey") ?? numberKey
     radius = r.number(t, "radius") ?? radius
     highlightRadius = r.number(t, "highlightRadius") ?? highlightRadius
+  }
+}
+
+// The colours of what stands on one surface, the words, the key chips and the one colour icons.
+// On the glass, and on a translucent highlight, they are the palette's own, which the Lua view
+// resolved from the kit. On a solid highlight, the accent colour set in System Settings, they are
+// the selection's text colour, which AppKit draws a selected row's text in, as Finder and
+// Spotlight do, each role at the strength it has against the foreground, so a key chip there is
+// the lit text at the keycap's strength, ui.keycapColor's rule applied to the lit foreground.
+// Every surface that lights, the list's rows, the floating panes' lines and the bar's groups and
+// items, draws through it, so none of them decides a lit colour of its own.
+struct Ink {
+  var text: NSColor
+  var textDim: NSColor
+  var sub: NSColor
+  var subDim: NSColor
+  var caption: NSColor
+  var number: NSColor
+  var keycap: NSColor
+  // The colour a one colour icon is redrawn in, see Crisp.tinted, nil to keep the icon's own.
+  var icon: NSColor?
+
+  static func alpha(_ color: NSColor) -> CGFloat {
+    color.usingColorSpace(.sRGB)?.alphaComponent ?? color.alphaComponent
   }
 }
 
@@ -192,6 +233,8 @@ struct BottomBar {
   var keys: [Entry] = []
   var keysChord: [[KeyMark]] = []
   var keysImage: NSImage?
+  // The keys image is one colour, see Row's tint.
+  var keysTint = false
   var title: String?
   var panelOpen = false
   // The title of a level a verb opened in the actions pane, heading the floating pane, nil at the top.
@@ -210,6 +253,7 @@ struct BottomBar {
     }
     keysChord = r.chord(t, "keysChord")
     keysImage = r.image(t, "keysImage")
+    keysTint = r.bool(t, "keysTint") ?? false
     title = r.string(t, "title")
     panelOpen = r.bool(t, "panelOpen") ?? false
     panelTitle = r.string(t, "panelTitle")

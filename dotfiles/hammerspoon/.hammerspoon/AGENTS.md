@@ -901,7 +901,11 @@ badge fails where it was written. A disabled or faded look is an alpha laid over
 not a ninth colour. A theme is a file, `config/themes/<name>.toml`, with exactly these eight
 keys under `[dark]` and `[light]`. The Aura one is generated, so a colour changes in
 `theme/palettes` or in `theme-map` beside this directory, and the hand written default theme
-changes in its own file. `decisions/olm-colour-roles.md` has what was rejected.
+changes in its own file. On the glass chooser's solid macOS highlight everything that stands on the
+highlight, a lit row, the actions pane's lit line, a lit bar group and the bar item under the
+pointer, draws in one lit ink, `Style.ink(lit:)` in the swift library, the selection text colour
+with every role and the key chip at its own strength against the foreground, so no surface picks a
+lit colour of its own. `decisions/olm-colour-roles.md` has what was rejected.
 
 **Olm icons, one engine and a name on the row.** Every icon Olm draws comes out of the one engine
 in `Spoons/Olm.spoon/lib/icons`, a Strategy over sources that answer a name and a draw function,
@@ -915,7 +919,7 @@ an `sf` entry beside its `emoji` except content, and the dry gate's coverage lin
 two things a person sets, the active set and its fallback, and the colour a symbol is drawn in is
 the foreground role through the kit, so it follows the light and dark halves, and on a row the
 glass chooser lights with the solid macOS highlight it turns the lit text colour with the title,
-since the sf source declares `monochrome` and only such an icon is recoloured. The emoji source
+since the sf source declares `monochrome` and only such an icon is recoloured, see the lit ink below. The emoji source
 keeps the 72 point canvas with the glyph at 60 that looked right live, and `lib/glyphicon.lua` and
 the kit's `iconImage` both draw through the engine. One function, `image(spec, owner)` in
 `lib/icons/rows.lua`, turns an owner and a key or a spec into an image, and every reader goes
