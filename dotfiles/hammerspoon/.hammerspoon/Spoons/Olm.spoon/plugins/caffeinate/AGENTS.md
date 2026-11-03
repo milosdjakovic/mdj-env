@@ -17,7 +17,9 @@ the grammar or the display rules change.
 18:45 or duration 2h30m", which sounded like a value had to be typed. Rewording
 it to "Activate indefinitely" with the time and duration framed as examples
 exposed that the parser itself had holes, so the work grew into a proper grammar
-with defined states.
+with defined states. The rows have read with the plugin's own name since 2026-11-03, Keep Awake
+Indefinitely, Keep Awake for 2h30m and Keep Awake until 18:45, so the list says the
+same words as its launcher row.
 
 **The grammar.** The allowed alphabet is digits, `h`, `m`, and a colon. Three
 shapes resolve, checked in order. A colon means a clock, `HH:MM` or `H:MM`, hours

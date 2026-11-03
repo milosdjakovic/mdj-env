@@ -348,3 +348,7 @@ the launcher under System, Tools or Network, and now say it is a Plugin row, and
 README stopped describing the span verb removed earlier today. A theme choice is stored by its name,
 not its title, so no saved choice moved. Status titles that read as sentences, No matches,
 Building index, keep sentence case.
+
+**2026-11-03 18:06.** Keep Awake's rows read with the plugin's own name, at Milos's request, Keep
+Awake Indefinitely, Keep Awake for and Keep Awake until, where they read Activate Indefinitely and
+Stay Awake for and until, so the list says the words its launcher row says.
