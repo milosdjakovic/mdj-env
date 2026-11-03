@@ -111,7 +111,7 @@ function M.intercept(item)
 end
 
 function M.placeholder()
-  return "Audio devices"
+  return "Search audio devices"
 end
 
 function M:configure(opts)

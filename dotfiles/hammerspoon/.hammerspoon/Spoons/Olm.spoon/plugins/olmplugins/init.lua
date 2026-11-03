@@ -163,7 +163,7 @@ function M.intercept(item)
 end
 
 function M.placeholder()
-  return "Plugins"
+  return "Search plugins"
 end
 
 --- M.show()

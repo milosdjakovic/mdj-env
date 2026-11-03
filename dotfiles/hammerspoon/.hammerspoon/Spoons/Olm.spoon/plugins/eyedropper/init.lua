@@ -112,7 +112,7 @@ function obj:pick()
   ensureBinary(self._compiler, function(ok)
     if not ok then
       self._active = false
-      if self._notify then self._notify("Color picker unavailable") end
+      if self._notify then self._notify("Color Picker unavailable") end
       return
     end
     self._task = hs.task.new(BINARY, function(_, out)

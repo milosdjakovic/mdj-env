@@ -128,7 +128,7 @@ function M.select(item)
 end
 
 function M.placeholder()
-  return "Input sources"
+  return "Search input sources"
 end
 
 function M:configure(opts)

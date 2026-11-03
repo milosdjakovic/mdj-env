@@ -396,7 +396,7 @@ M.rows = rows
 M.select = onSelect
 
 function M.placeholder()
-  return "Wi-Fi networks"
+  return "Search Wi-Fi networks"
 end
 
 -- The launcher scope. A scan landing here redraws through the callback the launcher hands in,

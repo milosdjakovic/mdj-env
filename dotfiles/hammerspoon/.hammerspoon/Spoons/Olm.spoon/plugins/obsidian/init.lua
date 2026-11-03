@@ -324,7 +324,7 @@ function M.select(choice)
 end
 
 function M.placeholder()
-  return "Obsidian notes"
+  return "Search notes"
 end
 
 function M.onPresent()

@@ -352,3 +352,10 @@ Building index, keep sentence case.
 **2026-11-03 18:06.** Keep Awake's rows read with the plugin's own name, at Milos's request, Keep
 Awake Indefinitely, Keep Awake for and Keep Awake until, where they read Activate Indefinitely and
 Stay Awake for and until, so the list says the words its launcher row says.
+
+**2026-11-03 18:53.** A third rescan read the placeholders and the notifications. A list a person
+searches names its placeholder Search and what it holds, as eight lists already did, so Wi-Fi,
+Input Sources, Audio Devices, Olm Plugins and Obsidian moved from a bare noun, Wi-Fi networks, to
+Search Wi-Fi networks, Search input sources, Search audio devices, Search plugins and Search notes.
+A page that sets one value keeps naming the value, Volume, Time or duration, Where Olm appears,
+Chooser and the theme label. The eyedropper's notification names its plugin as Color Picker.
