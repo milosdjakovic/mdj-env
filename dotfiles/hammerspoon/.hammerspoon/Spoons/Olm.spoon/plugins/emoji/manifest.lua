@@ -100,7 +100,7 @@ return {
     leader = "app",
     -- The open key, a bindings row whose action is open, on the leader above.
     bindings = { { action = "open", key = "j" } },
-    description = "Emoji & symbol picker",
+    description = "Emoji & Symbol Picker",
     icon = "emoji",
     aliases = { "e", "em", "emoji" },
   },

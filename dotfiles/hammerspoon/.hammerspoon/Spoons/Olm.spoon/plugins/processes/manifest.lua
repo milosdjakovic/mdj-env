@@ -187,8 +187,8 @@ return {
     context = "processes",
     primary = { action = "insertSelected", description = "Stop" },
     extra = {
-      { key = "s", action = "sortByLoad",  description = "Sort by load", icon = "sortByLoad" },
-      { key = "f", action = "stopForced",  description = "Force stop",  icon = "stopForced" },
+      { key = "s", action = "sortByLoad",  description = "Sort by Load", icon = "sortByLoad" },
+      { key = "f", action = "stopForced",  description = "Force Stop",  icon = "stopForced" },
       { key = "r", action = "refreshList", description = "Rescan",      icon = "rescan" },
     },
     -- No matcher. A query here is a remembered fragment, a port number or a project name,

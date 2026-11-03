@@ -46,7 +46,7 @@ return {
   },
 
   defaults = {
-    description = "Input sources",
+    description = "Input Sources",
     icon = "inputsources",
     aliases = { "kb", "input" },
     example = "Try input to pick a keyboard layout",
@@ -54,7 +54,7 @@ return {
     -- no app reads it. With this plugin switched off nothing binds it and macOS answers the tap
     -- with whatever its own Globe key setting says.
     bindings = {
-      { action = "cycle", key = "globe", leader = false, description = "Cycle input sources" },
+      { action = "cycle", key = "globe", leader = false, description = "Cycle Input Sources" },
     },
   },
 

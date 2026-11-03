@@ -179,7 +179,7 @@ return {
   -- on would be a key to remember for nothing, so its launcher row is how it is found.
   defaults = {
     leader = "app",
-    description = "Clipboard history",
+    description = "Clipboard History",
     bindings = {
       { action = "open", key = "X" },
       { action = "appendCopy", key = "C", mods = { "ctrl", "alt" }, leader = false },
@@ -198,27 +198,27 @@ return {
     extra = {
       -- Cmd is the sub modifier within Hyper, so these scroll the preview pane
       -- while the bare keys still move the highlight.
-      { key = "j", mods = { "cmd" }, action = "scrollPreviewDown", description = "Scroll preview down" },
-      { key = "k", mods = { "cmd" }, action = "scrollPreviewUp",   description = "Scroll preview up" },
+      { key = "j", mods = { "cmd" }, action = "scrollPreviewDown", description = "Scroll Preview Down" },
+      { key = "k", mods = { "cmd" }, action = "scrollPreviewUp",   description = "Scroll Preview Up" },
       -- Both act on one highlighted entry, so both are gated on the list being the history
       -- rather than the manage history page. Inert would have been enough for the keys, and is
       -- not enough for the panel, since a key listed there while it does nothing is exactly the
       -- disagreement between a hint and a binding the two discoverability mandates exist to
       -- prevent. Gated, they leave the panel the moment the page opens and come back with it.
-      { key = "a", action = "appendSelected", description = "Append to batch", icon = "append",
+      { key = "a", action = "appendSelected", description = "Append to Batch", icon = "append",
         when = "clipboardHistoryList" },
       { key = "d", action = "deleteSelected", description = "Delete", icon = "delete",
         when = "clipboardHistoryList" },
       -- The manage history page, where history is deleted by age rather than a row at a time.
       -- The same key steps back off the page, since that is what a person presses again.
-      { key = "m", action = "manageHistory", description = "Manage history", icon = "sweep" },
+      { key = "m", action = "manageHistory", description = "Manage History", icon = "sweep" },
       -- A listing rather than a binding. Backspace on an empty field belongs to the Chooser
       -- atom, which reads it directly as its `back` hook, so there is nothing here to bind and
       -- chord = false says so. It is still declared, because the info pane is where a key
       -- becomes visible and a way out nobody can see is a way out nobody takes, and it is gated
       -- so it appears exactly while there is a page to leave.
       { key = "delete", action = "leaveManageHistory", when = "clipboardManagingHistory",
-        chord = false, description = "Back to history", icon = "back" },
+        chord = false, description = "Back to History", icon = "back" },
     },
     -- No matcher. Until phase three of the unified search on 2026-10-17 this declared the words
     -- strategy, injected for buildChoices to score the free text itself, since entries are prose

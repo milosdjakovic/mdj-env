@@ -91,7 +91,7 @@ return {
     leader = "app",
     -- The open key, a bindings row whose action is open, on the leader above.
     bindings = { { action = "open", key = "U" } },
-    description = "Tmux Manager",
+    description = "Tmux Sessions",
     icon = "tmuxsessions",
     aliases = { "u", "tmux" },
   },

@@ -198,6 +198,13 @@ few words saying what the tool is for, never a list of what it can do, and a sea
 goes in `keywords`. The authoring guide has the measured limit and the dry gate refuses a launcher
 subtitle past it. A status row's subtitle keeps to the same length. Stated by Milos on 2026-11-03.
 
+Names and verbs are in Title Case, the way macOS writes a menu item or a button, with short
+articles and prepositions lowercase, Paste Next, Reveal in Finder, Up a Level. A plugin's
+`defaults.description` is its `about.title` word for word, so the launcher, the cheat sheet and the
+actions pane name it alike. A subtitle a list shows on its own starts with a capital, One moment,
+while a launcher detail stays lowercase, since it follows the word before the middot. A status
+title that reads as a sentence, No matches, keeps sentence case. Stated by Milos on 2026-11-03.
+
 The word that leads a launcher subtitle is never declared. It says what Return does, Application,
 Plugin for a plugin's own row, Olm Settings, System Action, Olm, or the plugin's `about.title` for
 a row it adds, and Olm works it out. A plugin says only `system = true`, on a descriptor or on

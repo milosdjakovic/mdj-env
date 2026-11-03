@@ -69,7 +69,7 @@ return {
     -- The open key, a bindings row whose action is open, on the leader above.
     -- 1, first of the capture row, colour picker, OCR, screenshot, screenshot copy, record.
     bindings = { { action = "open", key = "1" } },
-    description = "Color picker",
+    description = "Color Picker",
   },
 
   -- pick is a colon method, obj:pick(), so open takes the default call rather than stating

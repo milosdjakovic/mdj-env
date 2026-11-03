@@ -37,7 +37,7 @@ return {
   },
 
   defaults = {
-    description = "Audio devices",
+    description = "Audio Devices",
     icon = "audio",
     aliases = { "au", "audio" },
     example = "Try audio to switch output",

@@ -56,7 +56,7 @@ return {
     leader = "app",
     -- The open key, a bindings row whose action is open, on the leader above.
     bindings = { { action = "open", key = "K" } },
-    description = "Keep awake",
+    description = "Keep Awake",
     icon = "caffeinate",
     aliases = { "k", "awake" },
   },

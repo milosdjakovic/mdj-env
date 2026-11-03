@@ -274,7 +274,7 @@ return {
     -- than slash, since macOS takes Hyper and slash before any event tap when Hyper arrives as the
     -- four real modifiers, see decisions/olm-chooser-keys.md. The typed alias stays slash.
     bindings = { { action = "open", key = ";" } },
-    description = "File search",
+    description = "File Search",
     icon = "filesearch",
     aliases = { "/" },
     previewWith = "sidepanel",
@@ -301,15 +301,15 @@ return {
       applies = "isEntry" },
     extra = {
       { key = "j", mods = { "cmd" }, action = "scrollPreviewDown", needs = "scrollablePreview",
-        description = "Scroll preview down" },
+        description = "Scroll Preview Down" },
       { key = "k", mods = { "cmd" }, action = "scrollPreviewUp", needs = "scrollablePreview",
-        description = "Scroll preview up" },
+        description = "Scroll Preview Up" },
       { key = "q", action = "peekPreview", needs = "askedPreview", description = "Quick Look", icon = "peek",
         applies = "isEntry" },
-      { key = "l", action = "browseInto", description = "Into folder", icon = "browse", applies = "isFolder" },
-      { key = "h", action = "browseUp",   description = "Up a level", icon = "up", applies = "isBrowsing" },
+      { key = "l", action = "browseInto", description = "Into Folder", icon = "browse", applies = "isFolder" },
+      { key = "h", action = "browseUp",   description = "Up a Level", icon = "up", applies = "isBrowsing" },
       { key = "f", action = "revealInFinder", description = "Reveal in Finder", icon = "search" },
-      { key = "y", action = "copyPath",   description = "Copy path", icon = "copy", applies = "isEntry" },
+      { key = "y", action = "copyPath",   description = "Copy Path", icon = "copy", applies = "isEntry" },
     },
     -- No matcher. Until phase three of the unified search on 2026-10-17 this declared the words
     -- strategy, injected into the engine to narrow a held result set between round trips over

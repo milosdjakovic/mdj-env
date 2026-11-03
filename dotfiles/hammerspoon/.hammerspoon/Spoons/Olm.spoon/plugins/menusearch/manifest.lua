@@ -105,7 +105,7 @@ return {
     leader = "app",
     -- The open key, a bindings row whose action is open, on the leader above.
     bindings = { { action = "open", key = "e" } },
-    description = "Menu search",
+    description = "Menu Search",
     icon = "menusearch",
     aliases = { "m", "menu" },
   },

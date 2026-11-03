@@ -86,7 +86,7 @@ return {
   },
 
   defaults = {
-    description = "Speedtest",
+    description = "Speed Test",
     icon = "speedtest",
     -- st is the short form a person types, speed is the whole word anybody would try
     -- first. Neither collides with a claimed alias, s belongs to system settings.
@@ -108,18 +108,18 @@ return {
         choices = "directionChoices" },
       { action = "setMeasurement", description = "Measurement", icon = "settings", section = "Run",
         choices = "measurementChoices" },
-      { action = "setRuntime", description = "Maximum runtime", icon = "settings", section = "Run",
+      { action = "setRuntime", description = "Maximum Runtime", icon = "settings", section = "Run",
         choices = "runtimeChoices" },
       { action = "setProtocol", description = "Protocol", icon = "settings", section = "Run",
         choices = "protocolChoices" },
       { action = "setRelay", description = "iCloud Private Relay", icon = "settings", section = "Run",
         choices = "relayChoices" },
-      { action = "setCap", description = "Keep per network", icon = "settings", section = "History",
+      { action = "setCap", description = "Keep per Network", icon = "settings", section = "History",
         choices = "capChoices" },
-      { action = "nameNetwork", description = "Name this network", icon = "name", section = "History" },
-      { action = "clearNetwork", description = "Clear this network", icon = "clear", section = "History",
+      { action = "nameNetwork", description = "Name This Network", icon = "name", section = "History" },
+      { action = "clearNetwork", description = "Clear This Network", icon = "clear", section = "History",
         applies = "hasRuns", confirm = "Forget every run on this network" },
-      { action = "clearEverything", description = "Clear every network", icon = "clear", section = "History",
+      { action = "clearEverything", description = "Clear Every Network", icon = "clear", section = "History",
         applies = "hasHistory", confirm = "Forget every run on every network" },
     },
     -- The detail pane beside the list is where every figure the tool returns actually

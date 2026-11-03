@@ -41,8 +41,8 @@ end
 -- bottom of the old config/keys.lua added it, and this module carries it now, so a context built
 -- here is honest about the whole set of keys live while it is open and no plugin has to declare
 -- a surface of its own to earn a place in every list.
-local MOVE_NEXT = { shared = "selectNext", action = "selectNext", description = "Move down" }
-local MOVE_PREV = { shared = "selectPrev", action = "selectPrev", description = "Move up" }
+local MOVE_NEXT = { shared = "selectNext", action = "selectNext", description = "Move Down" }
+local MOVE_PREV = { shared = "selectPrev", action = "selectPrev", description = "Move Up" }
 local ACTION_PANEL = { shared = "openActionsPane", action = "openActionsPane", description = "Actions" }
 -- The info pane's own verb, toggling the list of every key the open list answers above its
 -- bottomBar. Like the actions pane's it names no plugin and sits in every block this module builds.

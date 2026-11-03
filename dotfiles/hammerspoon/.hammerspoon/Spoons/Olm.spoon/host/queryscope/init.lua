@@ -316,7 +316,7 @@ function obj:rows(query)
     hs.printf("QueryScope: the %s scope failed, %s", scope.name, tostring(rows))
     return { {
       title = scope.title .. " is not answering",
-      subTitle = "the reason is in the Hammerspoon console",
+      subTitle = "The reason is in the Hammerspoon console",
       icon = scopeIcon,
       iconOwner = scopeOwner,
       enabled = false,

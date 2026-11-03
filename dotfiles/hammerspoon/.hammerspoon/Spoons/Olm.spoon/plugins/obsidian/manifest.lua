@@ -103,7 +103,7 @@ return {
   -- a scarce key on something a typed word already reaches. A rowed tool with no chord of
   -- its own is an established shape here rather than a first.
   defaults = {
-    description = "Search Obsidian",
+    description = "Obsidian",
     icon = "obsidian",
     aliases = { "ob", "obsidian" },
   },

@@ -1,13 +1,13 @@
 hyper	supplied	1	RUNNING	1.0	-	icons
 hyper	section	2	ACTIONS	1.0	-	plain columns=4 colWidth=215 iconSize=0
-hyper	row	2	W	Browser tabs	-
-hyper	row	2	K	Keep awake	-
-hyper	row	2	X	Clipboard history	-
-hyper	row	2	1	Color picker	-
-hyper	row	2	J	Emoji & symbol picker	-
-hyper	row	2	;	File search	-
-hyper	row	2	E	Menu search	-
-hyper	row	2	U	Tmux Manager	-
+hyper	row	2	W	Browser Tabs	-
+hyper	row	2	K	Keep Awake	-
+hyper	row	2	X	Clipboard History	-
+hyper	row	2	1	Color Picker	-
+hyper	row	2	J	Emoji & Symbol Picker	-
+hyper	row	2	;	File Search	-
+hyper	row	2	E	Menu Search	-
+hyper	row	2	U	Tmux Sessions	-
 hyper	row	2	P	VPN	-
 hyper	row	2	2	OCR	-
 hyper	row	2	3	Screenshot	-

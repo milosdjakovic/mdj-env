@@ -310,22 +310,22 @@ end
 -- state loses its tailored headline and stays perfectly readable, which is a fair price for not
 -- making every source declare a presentation key it has no interest in.
 local STATUS = {
-  ["searching"]           = { icon = "search", title = "Searching",       detail = "asking the index" },
-  ["building index"]      = { icon = "loading", title = "Building index",  detail = "listing your files, the first run takes a moment" },
-  ["updating index"]      = { icon = "loading", title = "Updating index",  detail = "the list refreshes when it is done" },
-  ["index search failed"] = { icon = "warn",  title = "Search failed",   detail = "the index helper failed, the console says why" },
-  ["loading"]             = { icon = "loading", title = "Recent files",    detail = "gathering what you touched lately" },
-  ["keep typing"]         = { icon = "keyboard",  title = "Keep typing",     detail = "type three characters, or name a folder" },
-  ["nothing to search for"] = { icon = "keyboard", title = "Keep typing",   detail = "add something to search for" },
-  ["nothing found"]       = { icon = "shrug", title = "No matches",      detail = "try fewer words, or a bang for pruned folders" },
-  ["empty folder"]        = { icon = "emptyFolder", title = "Empty folder",    detail = "there is nothing in this one" },
-  ["no such directory"]   = { icon = "folder", title = "No such folder",  detail = "check the path, or give a full one, ~/Documents" },
-  ["no directory"]        = { icon = "folder", title = "No such folder",  detail = "check the path, or give a full one, ~/Documents" },
-  ["no source available"] = { icon = "blocked", title = "Nothing can answer that", detail = "a tool it needs is missing, see the console" },
-  ["type something to search hidden files"] = { icon = "hidden", title = "Search hidden files", detail = "type something to search hidden files" },
-  ["timed out"]           = { icon = "timeout", title = "Timed out",       detail = "that took too long, try narrowing it" },
-  ["listing failed"]      = { icon = "warn",  title = "Could not list that folder", detail = "check its permissions" },
-  ["walk failed"]         = { icon = "warn",  title = "Search failed",   detail = "the walker returned an error" },
+  ["searching"]           = { icon = "search", title = "Searching",       detail = "Asking the index" },
+  ["building index"]      = { icon = "loading", title = "Building index",  detail = "Listing your files, the first run takes a moment" },
+  ["updating index"]      = { icon = "loading", title = "Updating index",  detail = "The list refreshes when it is done" },
+  ["index search failed"] = { icon = "warn",  title = "Search failed",   detail = "The index helper failed, the console says why" },
+  ["loading"]             = { icon = "loading", title = "Recent files",    detail = "Gathering what you touched lately" },
+  ["keep typing"]         = { icon = "keyboard",  title = "Keep typing",     detail = "Type three characters, or name a folder" },
+  ["nothing to search for"] = { icon = "keyboard", title = "Keep typing",   detail = "Add something to search for" },
+  ["nothing found"]       = { icon = "shrug", title = "No matches",      detail = "Try fewer words, or a bang for pruned folders" },
+  ["empty folder"]        = { icon = "emptyFolder", title = "Empty folder",    detail = "There is nothing in this one" },
+  ["no such directory"]   = { icon = "folder", title = "No such folder",  detail = "Check the path, or give a full one, ~/Documents" },
+  ["no directory"]        = { icon = "folder", title = "No such folder",  detail = "Check the path, or give a full one, ~/Documents" },
+  ["no source available"] = { icon = "blocked", title = "Nothing can answer that", detail = "A tool it needs is missing, see the console" },
+  ["type something to search hidden files"] = { icon = "hidden", title = "Search hidden files", detail = "Type something to search hidden files" },
+  ["timed out"]           = { icon = "timeout", title = "Timed out",       detail = "That took too long, try narrowing it" },
+  ["listing failed"]      = { icon = "warn",  title = "Could not list that folder", detail = "Check its permissions" },
+  ["walk failed"]         = { icon = "warn",  title = "Search failed",   detail = "The walker returned an error" },
 }
 local STATUS_FALLBACK = { icon = "warn", title = "Nothing to show" }
 
@@ -346,15 +346,15 @@ end
 -- headline and what it does underneath. Every row is inert, so there is nothing to select by
 -- mistake and Escape or clearing the field returns to searching.
 local HELP = {
-  { "search", "hammerspoon",        "plain text searches names everywhere" },
-  { "tag", ".js hello",          "a dot attached to a token is a type" },
-  { "hidden", ". js",               "a dot alone includes hidden files" },
-  { "hidden", ".zshrc",             "a dotted name is hidden too, with no sigil" },
-  { "browse", "downloads/",         "a trailing slash browses that folder, newest first" },
-  { "searchInside", "downloads/hs",       "with text it searches inside it" },
-  { "combine", ".js src/api",        "a type, a scope and text combine in that order" },
-  { "bang", "! ts node_modules/", "a bang includes what is normally pruned" },
-  { "home", "~/Development/mdj",  "an absolute or tilde path scopes directly" },
+  { "search", "hammerspoon",        "Plain text searches names everywhere" },
+  { "tag", ".js hello",          "A dot attached to a token is a type" },
+  { "hidden", ". js",               "A dot alone includes hidden files" },
+  { "hidden", ".zshrc",             "A dotted name is hidden too, with no sigil" },
+  { "browse", "downloads/",         "A trailing slash browses that folder, newest first" },
+  { "searchInside", "downloads/hs",       "With text it searches inside it" },
+  { "combine", ".js src/api",        "A type, a scope and text combine in that order" },
+  { "bang", "! ts node_modules/", "A bang includes what is normally pruned" },
+  { "home", "~/Development/mdj",  "An absolute or tilde path scopes directly" },
 }
 
 local function helpRows()

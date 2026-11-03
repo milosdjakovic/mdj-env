@@ -162,7 +162,7 @@ return {
     leader = "app",
     -- The open key, a bindings row whose action is open, on the leader above.
     bindings = { { action = "open", key = "W" } },
-    description = "Browser tabs",
+    description = "Browser Tabs",
     icon = "browsertabs",
     aliases = { "t", "tabs" },
     providers = { "safari", "chrome", "arc" },

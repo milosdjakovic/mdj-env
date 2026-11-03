@@ -119,7 +119,7 @@ return {
     context = "workspaces",
     primary = { action = "insertSelected", description = "Apply", icon = "apply" },
     extra = {
-      { action = "updateLayout", description = "Update snapshot", icon = "update",
+      { action = "updateLayout", description = "Update Snapshot", icon = "update",
         section = "Layout", applies = "isLayout" },
       { action = "editApps", description = "Apps", icon = "apps", section = "Layout", applies = "isLayout" },
       { action = "renameLayout", description = "Rename", icon = "rename", section = "Manage", applies = "isLayout" },

@@ -424,7 +424,7 @@ end
 -- show it, so a typed query reads as loading and never as No results for cities that are about
 -- to arrive. Pinned for the same reason the unavailable row is, and disabled so it is a label.
 local function waitingRow()
-  return { title = "Reading the locations", subTitle = "one moment",
+  return { title = "Reading the locations", subTitle = "One moment",
            icon = "loading", enabled = false, pinned = true, item = { id = "waiting" } }
 end
 
@@ -434,7 +434,7 @@ end
 -- disabled and pinned.
 local function refusedRow()
   local name = provider.name or activeId or "VPN"
-  return { title = "The " .. name .. " list breaks the contract", subTitle = "see the console",
+  return { title = "The " .. name .. " list breaks the contract", subTitle = "See the console",
            icon = "warn", enabled = false, pinned = true, item = { id = "refused" } }
 end
 

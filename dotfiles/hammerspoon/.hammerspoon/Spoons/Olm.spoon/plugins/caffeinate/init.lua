@@ -212,12 +212,12 @@ local function rows(query)
   local h, m = parseClock(q)
   if h then
     local ts = nextOccurrence(h, m)
-    return { { title = "Stay awake until " .. endLabel(ts), subTitle = "in " .. humanSpan(ts - os.time()), icon = "clock", item = { id = "until", ts = ts } } }
+    return { { title = "Stay awake until " .. endLabel(ts), subTitle = "In " .. humanSpan(ts - os.time()), icon = "clock", item = { id = "until", ts = ts } } }
   end
 
   local secs = parseDuration(q) or parseBareHours(q)
   if secs then
-    return { { title = "Stay awake for " .. humanSpan(secs), subTitle = "ends " .. endLabel(os.time() + secs), icon = "duration", item = { id = "for", secs = secs } } }
+    return { { title = "Stay awake for " .. humanSpan(secs), subTitle = "Ends " .. endLabel(os.time() + secs), icon = "duration", item = { id = "for", secs = secs } } }
   end
 
   if isIncomplete(q) then

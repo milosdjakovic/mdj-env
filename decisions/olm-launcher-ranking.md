@@ -327,3 +327,14 @@ descriptor's `subtitle` is refused by name, and a `launcherRows` row naming its 
 Paste Next, Append Copy, Manage History, Record Screen and Screenshot to Clipboard, and three
 details were shortened under the fifty character gate the longer words pushed them past. Recency
 and query memory are keyed by kind and name, never by title, so nothing remembered was lost.
+
+**2026-11-03 17:17.** A rescan after the prefix change found the same tool named two ways and labels
+cased two ways, and Milos chose to fix all three. Twelve plugins' `defaults.description` now equal
+their `about.title`, so the cheat sheet reads Browser Tabs and Tmux Sessions where it read Browser
+tabs and Tmux Manager. Twenty one verbs and scope names moved to Title Case, Copy Path, Force Stop,
+Manage History, Window Actions, since the launcher's Manage History sat beside the list's Manage
+history. Every subtitle a list shows on its own now starts with a capital, One moment, Applies right
+away, the File Search statuses and its help lines, while a launcher detail stays lowercase after its
+prefix and a sentence shaped status title keeps sentence case. The rule is in
+`docs/PLUGIN-AUTHORING.md` and the olm-plugin skill. Every memory is keyed by kind and name, so no
+remembered pick moved.

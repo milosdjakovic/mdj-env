@@ -272,7 +272,7 @@ return {
       { name = "apps", kind = "app",
         description = "Applications", icon = "apps", aliases = { "a", "app" } },
       { name = "windowActions", kind = "window",
-        description = "Window actions", icon = "windows", aliases = { "w", "window" } },
+        description = "Window Actions", icon = "windows", aliases = { "w", "window" } },
       { name = "settingsPanes", kind = "settingsPane",
         description = "System Settings", icon = "settingsPanes" },
     },
@@ -303,7 +303,7 @@ return {
     close = { key = "space" },
     extra = {
       { key = "delete", action = "leavePage", when = "launcherHostingList", chord = false,
-        description = "Go back" },
+        description = "Go Back" },
     },
   },
 }

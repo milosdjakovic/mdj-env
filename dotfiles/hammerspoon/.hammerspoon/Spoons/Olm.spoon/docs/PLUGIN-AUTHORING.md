@@ -892,6 +892,13 @@ action that does its plugin's own job, a window move or a paste, leaves it unset
 `row.category` and a descriptor's `subtitle` named the word by hand until 2026-11-03 and both
 are refused now, `decisions/olm-launcher-ranking.md` has why.
 
+Names and verbs are in Title Case, the way macOS writes a menu item or a button, with short
+articles and prepositions lowercase, Paste Next, Reveal in Finder, Up a Level. A plugin's
+`defaults.description` is its `about.title` word for word, so the launcher, the cheat sheet and the
+actions pane name it alike. A subtitle a list shows on its own starts with a capital, One moment,
+while a launcher detail stays lowercase, since it follows the word before the middot. A status
+title that reads as a sentence, No matches, keeps sentence case. Stated by Milos on 2026-11-03.
+
 A subtitle fits on one line. The launcher spells a tool's subtitle as that word, a dot,
 its `row.detail`, the chord and the aliases in brackets, and fifty characters of that is what the
 narrowest row holds beside its shortcut before it ends in an ellipsis, measured on 2026-11-03. So

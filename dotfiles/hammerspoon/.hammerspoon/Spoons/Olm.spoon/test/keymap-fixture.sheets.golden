@@ -1,18 +1,18 @@
 hyper	supplied	1	RUNNING	1.0	-	icons
 hyper	section	2	ACTIONS	1.0	-	plain columns=4 colWidth=215 iconSize=0
-hyper	row	2	W	Browser tabs	-
-hyper	row	2	K	Keep awake	-
-hyper	row	2	1	Color picker	-
-hyper	row	2	J	Emoji & symbol picker	-
-hyper	row	2	;	File search	-
-hyper	row	2	E	Menu search	-
+hyper	row	2	W	Browser Tabs	-
+hyper	row	2	K	Keep Awake	-
+hyper	row	2	1	Color Picker	-
+hyper	row	2	J	Emoji & Symbol Picker	-
+hyper	row	2	;	File Search	-
+hyper	row	2	E	Menu Search	-
 hyper	row	2	2	OCR	-
 hyper	row	2	4	Screenshot to Clipboard	-
 hyper	row	2	5	Record Screen	-
 hyper	row	2	␣	Launcher	-
 hyper	row	2	§	Lock Screen	-
 window	group	META
-window	row	1	Y	Clipboard history	-
+window	row	1	Y	Clipboard History	-
 window	row	2	E	VPN	-
 super	section	1	WINDOW MANAGEMENT	1.0	-	plain columns=2 colWidth=250 iconSize=0
 super	row	1	,	Previous Display	-
