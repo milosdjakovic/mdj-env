@@ -78,7 +78,7 @@ than discovered.
 - [ghostty-aura-theme](ghostty-aura-theme.md), how the terminal palette settled on Aura for both halves after three other pairings
 - [claude-code-theme](claude-code-theme.md), Claude Code draws hex colours per theme and only `auto` asks the terminal, so setup merges it
 - [claude-handoff](claude-handoff.md), `/handoff` is a manual only skill that writes a fresh session prompt to `~/.claude/handoffs/` and the clipboard, the consuming session deletes it and each write prunes the folder, after a command file, a mod pane and a session end hook were turned down
-- [herdr-install](herdr-install.md), herdr comes from its own installer because `herdr update` refuses a Homebrew install, and a setup step installs it where the herdr piece is on, reporting a leftover formula rather than removing it
+- [herdr-install](herdr-install.md), herdr comes from its own installer because `herdr update` refuses a Homebrew install, and a setup step installs it where the herdr piece is on
 - [claude-code-install](claude-code-install.md), Claude Code comes from the native installer because it updates itself and the cask does not, and a setup step installs it on every machine rather than a Brewfile line
 - [homebrew-upgrades](homebrew-upgrades.md), the Brewfile step installs what is missing, upgrades nothing and never adopts an app it did not install, since a version bump is a deliberate act rather than something a setup run does on the way past
 - [homebrew-owner](homebrew-owner.md), where Homebrew belongs to another account, a run borrows the prefix with chown and hands it back to the owner when it ends, after running it as the owner through sudo needed a staged Brewfile

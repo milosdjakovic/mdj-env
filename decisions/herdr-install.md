@@ -10,8 +10,8 @@ the Claude Code step and before stow. It installs once and then leaves the copy 
 `herdr update` moves it from then on, on the stable channel unless `herdr channel set preview`
 says otherwise. The installer checks the binary against the SHA-256 in herdr's release manifest
 and puts it at `~/.local/bin/herdr`, which `setup-zshrc.sh` already puts ahead of the Homebrew
-prefix on PATH. A leftover formula is only reported through `mdj_note`, because nothing in this
-repository removes what a machine has. Removing it is a one off act on each machine.
+prefix on PATH. The step knows nothing about Homebrew. A formula left on a machine from before
+is removed by hand, once, as a one off act on that machine.
 
 ## Rejected
 
@@ -41,3 +41,10 @@ change. Milos installs with the installer and removes the formula by hand on thi
 `setup.sh` may not have `~/.local/bin` yet, since only the generated `.zshrc` adds it. It would
 then skip the plugin with "herdr is not installed". The script now puts `~/.local/bin` first on
 its own PATH.
+
+### 2026-11-03 12:10
+
+The installer's copy went onto this machine and `herdr update` answered "already up to date
+(0.9.5)". Milos asked for the repository to keep only the native installer, so the step no
+longer looks for a leftover formula or reports one, and it no longer sources `lib/backup.sh`.
+The formula on this machine is removed by hand, since Homebrew here belongs to another account.
