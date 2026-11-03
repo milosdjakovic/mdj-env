@@ -6,7 +6,7 @@
 --- the stage goes away or the Apply now row is chosen. A preview pane describes the highlighted
 --- plugin, its description first.
 ---
---- It was the third page of the OLM settings plugin until 2026-10-27, when that plugin was split
+--- It was the third page of the Olm Settings plugin until 2026-10-27, when that plugin was split
 --- into Olm Placement, Olm Theme and this, so each is one launcher row that opens its list
 --- directly rather than a level under a menu of three.
 

@@ -12,7 +12,7 @@ Spoons/Olm.spoon/test/chordkey.lua          # the hold engine, a lost key-up rel
 Spoons/Olm.spoon/test/keyremap.lua          # the one hidutil command the remap runs, never empty for a leader in use
 Spoons/Olm.spoon/test/systemsettings.lua    # when a System Settings pane action hides the app and when it goes to its pane
 Spoons/Olm.spoon/test/rootmechanism.lua     # the chord and alias spelling, the open list test and the launcher row intercept
-Spoons/Olm.spoon/test/keypage.lua           # the OLM keys page, the keymap as words and the presentation built from them
+Spoons/Olm.spoon/test/keypage.lua           # the Olm Keys page, the keymap as words and the presentation built from them
 Spoons/Olm.spoon/test/swiftview.lua         # the swift chooser's Lua view under the engine over a fake native panel, and its fallback
 Spoons/Olm.spoon/test/panebackends.lua      # one preview pane over the canvas and the native backend, handed the same elements
 Spoons/Olm.spoon/test/canvasbar.lua         # the canvas bar's two groups by swift's numbers, the list behind them and the pointer on them
@@ -217,7 +217,7 @@ fakes, since none of them answers anything a golden can see.
 
 `keypage.lua` is plain Lua too, run by `suite.sh dry`. It builds a small keymap through the real
 `lib/keymap.lua`, a person's moved and freed key among it, and pins `lib/hints.lua`'s `keyEntries`,
-which keys the OLM keys page lists and in what order, and `lib/keypage.lua`, how each row spells
+which keys the Olm Keys page lists and in what order, and `lib/keypage.lua`, how each row spells
 its chord, description and owner, that a key row stays and Back pops, and that rows are built once
 per show.
 

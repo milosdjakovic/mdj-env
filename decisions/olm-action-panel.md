@@ -28,6 +28,10 @@ Return in Workspaces and Display Profiles applies the layout or the profile, dec
 2026-10-29, and Rename, Apps, Displays and Delete moved into the panel, Delete behind a confirm.
 This track moves what plugins already do into the panel. New actions follow as separate pieces.
 
+A key a row shows chooses that row while the panel is open, since 2026-11-03, through the dispatch
+table's `claim` and `ActionsPane:chooseAction`, and a list is never left without a key for either
+move verb, which `keymap.navigationProblems` reports as a keymap problem.
+
 ## Rejected
 
 - **Keyless verbs as bindings with `chord = false`.** 2026-10-29. A binding's key is read by the
@@ -123,3 +127,27 @@ before and the bar does not list them. Milos checked it live.
 
 Keep Awake's Stay awake for verb, the preset spans in the pane, was then removed at his request.
 A span is typed into the field, and with no verb of its own the list carries no Actions.
+
+### 2026-11-03 13:36
+
+Milos found that a key the actions pane shows on a row did nothing while the pane was open, and
+only choosing or clicking the row ran it. Two causes. A field key, Command and Return on the
+secondary's row among them, was inert over the pane by design since phase one, so Return and
+Command and Return there chose the panel row, and a leader key ran the list's handler against
+the highlighted panel row rather than the row the pane opened over. That earlier belief, that a
+field key over the pane must be inert so the secondary cannot act on the wrong row, is corrected
+here, since routing the key through the pane restores the row first. The dispatch table now asks
+a `claim` before every list key, and the root answers it with `ActionsPane:chooseAction`, which
+chooses the row the pane lists for that action, so the key does exactly what the row does, a
+level included. The field's wrapped predicates let a binding through when the pane lists its
+action. Nothing is claimed inside a level.
+
+He also asked that a move key never be overlapped. Two defaults on one list slot were already a
+keymap collision, so the gap was a person's `lists` entry taking j or k for another action or
+freeing it, said only as a routine note while the pane over that list then lost its move key and
+fell through to the global, the emoji picker on Hyper and J. `keymap.navigationProblems` now names
+any list left without a key for either move verb as a keymap problem.
+
+Adding a local in the root's composition function hit Lua's limit of two hundred locals and the
+live config failed to load for a few minutes. The helper was inlined into the predicate, and the
+dry gate's rename proof is what reported it.

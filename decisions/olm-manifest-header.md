@@ -54,7 +54,7 @@ repeat it.
   thirty plugins under `plugins/` states one sentence, and the Plugins page's docked pane draws
   it right under the heading. It lives in `about` rather than reusing `defaults.description`,
   because that one is the launcher row's title, which a person can override and which reads
-  as a name, not as what the plugin does. In the same change the OLM settings plugin was split
+  as a name, not as what the plugin does. In the same change the Olm Settings plugin was split
   into Olm Placement, Olm Theme and Olm Plugins, three plugins rather than one plugin
   contributing three launcher rows, because a contributed row runs only after the launcher has
   closed, so its list would open as a second window, while a registered tool's own row is pushed

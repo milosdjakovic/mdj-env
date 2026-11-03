@@ -7,7 +7,7 @@ Phase 7 landed and live on 2026-10-20, so the plan is complete. The keys
 live while a list is open are the `lists` section of `config/keymap.lua` and `config/plugins.lua`
 holds no key. On 2026-10-21 three follow ups were built on `olm/keymap-followups`, pending a live
 load, a sheet's heading following the role its leader holds, the root's generic helpers moved into
-`lib/`, and a read only OLM keys page on its own launcher row. On 2026-10-22 an addendum to the plan,
+`lib/`, and a read only Olm Keys page on its own launcher row. On 2026-10-22 an addendum to the plan,
 phases A and B, list keys on any leader, was agreed and built on `olm/list-contexts`, pending a live
 load. The plan is `dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/docs/PLAN-KEYMAP.md`.
 
@@ -303,9 +303,9 @@ aliases live only in `config/keymap.lua`.
   neither refused nor quiet, while the binder also needs a function to run, so a row it reports and
   leaves unbound would have been listed. `binder.bindable` is the one test, the binder's loop and
   the page both ask it.
-- **The Keys page as a level inside the OLM settings.** 2026-10-21 10:58. It was the plan's wording and the
-  first build, a fourth row under OLM settings. Milos found it buried in his live check, since
-  nobody looks for their keys under a preferences tool, so the page is its own launcher row, OLM
+- **The Keys page as a level inside the Olm Settings.** 2026-10-21 10:58. It was the plan's wording and the
+  first build, a fourth row under Olm Settings. Milos found it buried in his live check, since
+  nobody looks for their keys under a preferences tool, so the page is its own launcher row, Olm
   keys, found by keys, shortcuts, hotkeys, keybindings or chords, and the settings row lost the
   keys and shortcuts keywords so there is one way in.
 - **A second launcher row from the settings plugin.** 2026-10-21 10:58. A plugin registers one tool and so one
@@ -870,7 +870,7 @@ aliases live only in `config/keymap.lua`.
   the presentation and the scope host's two calls. `aliasHint` and the Aliases row's query stay
   in the root as policy. Every golden is byte identical, the dry gate has 0 findings and the rename
   proof 0 differences, and `test/rootmechanism.lua` pins each lib over fakes.
-- 2026-10-21 10:01. A read only Keys page in the OLM settings, the item "Not in this plan" named. The root
+- 2026-10-21 10:01. A read only Keys page in the Olm Settings, the item "Not in this plan" named. The root
   publishes `keyCatalog`, every bound chord as `{ chord, description, owner, list }` built at each
   ask by `hints.keyEntries` from the keymap step J built, the global keys a leader at a time in
   each sheet's order through `sheetRows`, then the plain combinations, then every list's keys in
@@ -878,10 +878,10 @@ aliases live only in `config/keymap.lua`.
   Keys row counting the keys only when it arrives, and builds the page in `keyspage.lua`, Back then
   one row per key titled by what it does with the chord and its owner as subtitle, every choice
   answering stay. `launcher.golden` and `keymap-fixture.launcher.golden` change one line each, the
-  OLM settings row's keywords gaining shortcuts and keys so a person typing either finds the page.
+  Olm Settings row's keywords gaining shortcuts and keys so a person typing either finds the page.
   Every other golden is byte identical. Offline under the stub the catalog lists 159 keys, the 159
   chord lines of `keys.golden`. `test/keyspage.lua` pins both halves. Corrected 2026-10-21 10:58, see below, the
-  page moved out of the OLM settings onto its own launcher row.
+  page moved out of the Olm Settings onto its own launcher row.
 - 2026-10-21 10:09. A fix round on `olm/keymap-followups` from an adversarial review. The olm-plugin skill names
   the class, a page whose rows are the chords themselves, and points here rather than naming the
   page. The key catalog is built once per load on its first ask after the keymap exists, and the
@@ -891,8 +891,8 @@ aliases live only in `config/keymap.lua`.
   replaces, so `roleTitles = {}` would have headed every sheet by its leader's name, and an entry
   that is no word is a problem line. `test/leadersheet.lua` and `test/keyspage.lua` pin both. Every
   golden is byte identical to the previous build.
-- 2026-10-21 10:58. The OLM keys page moved out of the OLM settings to the top of the launcher, after
-  Milos's live check found it buried. The launcher declares an OLM keys row in its `specialRows`
+- 2026-10-21 10:58. The Olm Keys page moved out of the Olm Settings to the top of the launcher, after
+  Milos's live check found it buried. The launcher declares an Olm Keys row in its `specialRows`
   beside Aliases, with the keys icon and a back icon, and keywords shortcuts, hotkeys, keybindings
   and chords, the title answering keys. The root answers that row in `rowIntercept` as it answers
   a registered tool, pushing `lib/keypage.lua`'s presentation over the open launcher, named for
@@ -900,15 +900,15 @@ aliases live only in `config/keymap.lua`.
   catalog is a local of the root now, built once per load, and `keyCatalog` is no root word any
   more. The settings plugin is back to its three pages, its Keys child, `keyspage.lua`, the
   `keyCatalog` need, the keys icon and the shortcuts and keys keywords removed. `launcher.golden`
-  and `keymap-fixture.launcher.golden` gain the OLM keys row at 29, which renumbers every row after
-  it, and the OLM settings row is back to its keywords from main. The two icon lines in the
+  and `keymap-fixture.launcher.golden` gain the Olm Keys row at 29, which renumbers every row after
+  it, and the Olm Settings row is back to its keywords from main. The two icon lines in the
   launcher manifest join `test/drygate-accepted.txt` beside their siblings. `test/keypage.lua`
   replaces `test/keyspage.lua`. `test/cases/launcher-contributions.lua` counts the launcher's own
-  rows as four and expects OLM keys after Aliases, so `units.sh` runs 1980 assertions with none
+  rows as four and expects Olm Keys after Aliases, so `units.sh` runs 1980 assertions with none
   failing.
 - 2026-10-22 08:52. The follow ups landed on main after a live check. Milos held both leaders and
-  saw ACTIONS and WINDOW MANAGEMENT, found OLM keys by typing keys, shortcuts and hotkeys, opened it
-  in place, narrowed it by meta and clipboard, and left it by Backspace, and OLM settings shows its
+  saw ACTIONS and WINDOW MANAGEMENT, found Olm Keys by typing keys, shortcuts and hotkeys, opened it
+  in place, narrowed it by meta and clipboard, and left it by Backspace, and Olm Settings shows its
   three pages again.
 - 2026-10-22 10:31. Phase A of the list keys addendum on `olm/list-contexts` from main at
   5dffd388, agreed with Milos that morning. A list key is an ordinary chord live only while its
@@ -920,7 +920,7 @@ aliases live only in `config/keymap.lua`.
   chose is `ranked`, shipped on HYPER, see Rejected, and list bindings rank on every leader. Every
   default list key rides the `list` role, `keymap.LIST_ROLE`, which `keymap.applyLists` turns into
   a leader by placing every default binding on the role's leader before it lays the person's
-  section, so the hint bar, the action panel, the OLM keys page and the keymap all read a
+  section, so the hint bar, the action panel, the Olm Keys page and the keymap all read a
   binding's own leader. A list slot is leader, key and modifiers. A list chord on a named modifier
   leader or on modifiers alone is refused until phase B. The chooser field yields to the held
   leaders some list key binds on and `leaderHeld` asks the same set, see Rejected. The composed

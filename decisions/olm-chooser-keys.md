@@ -284,7 +284,7 @@ entry at 14:24 said about putting Return in front of the held chord.
 ### 2026-10-23 14:39
 
 At Milos's request the key panel's key is spelled Hyper and ? everywhere it is spelled, the key panel,
-the OLM keys page and any surface reading the keymap's rows, while both Hyper and slash and Hyper,
+the Olm Keys page and any surface reading the keymap's rows, while both Hyper and slash and Hyper,
 Shift and slash open it. The leader's resolver already answers a list binding with no modifiers for
 any modifiers held, so `showKeys` stays one catch all binding on slash and only its spelling
 changed. Its place in `listDefaults` carries `shownMods` Shift, `hints.chordFor` and the keymap's

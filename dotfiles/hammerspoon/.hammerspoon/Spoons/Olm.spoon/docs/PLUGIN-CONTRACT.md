@@ -1405,7 +1405,7 @@ not expected to mix on the same row.
 
 The mandate for that reserved case is answering the string "stay", not true. Answering
 "stay" rebuilds the list without moving the highlight off the row that was chosen, which is
-what a mutation in place owes the person, the clipboard's own prune page and the OLM
+what a mutation in place owes the person, the clipboard's own prune page and the Olm
 settings placement page's own two option rows both being shipped examples, a delete
 redrawing counts in place and a choice moving a marker in place respectively. Answering
 plain true is reserved for a wholesale swap of the list, where the rows before and after

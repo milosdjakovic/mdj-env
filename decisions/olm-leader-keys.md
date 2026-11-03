@@ -306,7 +306,7 @@ Milos's request, Hyper as ✦, META as ◆ and SUPER as ❖, so a launcher row r
 where it read `Window · Meta Z`. ✦ is the star other launchers already use for Hyper, ◆ is the
 Meta key the Sun keyboards printed, and ❖ is the usual Super glyph, chosen so none can be taken
 for one of the four macOS modifier glyphs. `LEADER_SYMBOLS` in `root/compose.lua` is the one
-table and `displayName` reads it, so the launcher, the bar, the key panel, the OLM keys page and
+table and `displayName` reads it, so the launcher, the bar, the key panel, the Olm Keys page and
 the secure notice all follow. A leader the person names has no symbol and keeps its word, and
 `lib/labels.lua` puts a thin space, U+2009, between a symbol and the key glyph, since with none
 the two touched, Milos's correction the same evening. The key panel opened by ⌘? lists one line per shipped leader under Olm's name and version,

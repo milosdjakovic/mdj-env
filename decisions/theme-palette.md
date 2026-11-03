@@ -388,7 +388,7 @@ with it, found while reading the file to write the guide.
 **2026-10-14 10:05.** Hammerspoon is painted now, through themes. The panel chrome and the
 chooser text colours no longer live in `config/settings.lua`. A theme is a file under
 `dotfiles/hammerspoon/.hammerspoon/config/themes`, named for itself, with a `[dark]` and a
-`[light]` section of ten keys, and Olm reads the one chosen on the OLM settings page, applying
+`[light]` section of ten keys, and Olm reads the one chosen on the Olm Settings page, applying
 it on the next draw with no reload. `default.toml` is hand chosen, exactly the colours settings
 held, with the two row text greys written as the hex they come to, white 0.92, 0.55, 0.15 and
 0.42 as ebebeb, 8c8c8c, 262626 and 6b6b6b, so a draw differs from before by at most 0.4 of an 8

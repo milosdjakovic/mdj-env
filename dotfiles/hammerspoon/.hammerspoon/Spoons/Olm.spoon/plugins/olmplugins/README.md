@@ -2,7 +2,7 @@
 
 Decides which plugins run, with one row per plugin under `plugins`. It opens from the launcher
 only, as the Olm Plugins row, with no key of its own, and the list replaces the launcher's rows in
-place. It was the third page of the OLM settings plugin until 2026-10-27, when that plugin was
+place. It was the third page of the Olm Settings plugin until 2026-10-27, when that plugin was
 split into Olm Placement, Olm Theme and this, so each opens its list straight from its own row.
 
 The list has one row per plugin, sorted by title, Olm's checked box when it is on and the
@@ -14,7 +14,7 @@ apply and the subtitle says Off after apply or On after apply, and a plugin that
 comes back with it says so on its own row. Choosing the row again returns it to how it is now
 and drops the staged change. While anything is staged an Apply now row leads the list,
 naming every plugin that changes. Whether a plugin runs is decided once per load, so the staged
-set is applied with one reload, either when the whole OLM window goes away by any route, escape,
+set is applied with one reload, either when the whole Olm window goes away by any route, escape,
 a click away or a choice that closes it, or when Apply now is chosen. After a dismissal nothing reopens, since dismissing
 means done, and one routine line after the reload names what changed. After Apply now the list
 reopens on the plugin last chosen. Staged choices are held in memory until then, so a reload

@@ -1116,7 +1116,41 @@ function obj.applyLists(contexts, lists, opts)
       end
     end
   end
+  for _, problem in ipairs(obj.navigationProblems(contexts)) do problems[#problems + 1] = problem end
   return problems, notes
+end
+
+-- The verbs that move through a list, named once. Every list carries both, live in the list or,
+-- for a list with no navigation of its own, gated on its actions pane, see lib/surface.lua.
+obj.MOVE_VERBS = { "selectNext", "selectPrev" }
+
+--- obj.navigationProblems(contexts) -> list of problems
+--- Every list must keep a key for each move verb, since the actions pane over it moves on the same
+--- keys and a move key nobody holds falls through to whatever global key sits on that chord, which
+--- is how Hyper and J over Keep Awake's pane once opened the emoji picker. A list loses one when a
+--- person's lists entry takes its slot for another action, or frees it, so the slot is taken from
+--- navigation without a word, and both are said as a problem naming the list and the verb. Two
+--- defaults on one slot of a list, a verb declared on a move key, are already the keymap's
+--- collision check. The arrows are the chooser's own and never a binding, so they are not asked.
+function obj.navigationProblems(contexts)
+  local problems = {}
+  for _, listName in ipairs(sortedKeys(contexts or {})) do
+    local has = {}
+    for _, b in ipairs(contexts[listName].bindings or {}) do
+      if b.chord ~= false and b.key ~= nil then
+        has[b.shared or b.action or ""] = true
+        if b.action then has[b.action] = true end
+      end
+    end
+    for _, verb in ipairs(obj.MOVE_VERBS) do
+      if not has[verb] then
+        problems[#problems + 1] = { where = "the list " .. listName .. " " .. verb,
+          why = "has no key, so the list and its actions pane cannot move that way on a key and the chord "
+            .. "falls through to its global meaning, a move key is never taken for another action or freed" }
+      end
+    end
+  end
+  return problems
 end
 
 --- obj.retiredPluginFields

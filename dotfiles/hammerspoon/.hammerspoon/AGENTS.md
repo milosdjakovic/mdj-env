@@ -1421,7 +1421,7 @@ any more. A row has a primary field, its name, and secondary fields, the subtitl
 keywords it declares, and a word never matches across fields. Each query word matches at the
 strongest of five levels. In the name at the start of a word, lose in Loser. In the name in
 pieces, each the start of one of a run of consecutive words in one phrase, lose in LOcal SErvers
-or os in OLM settings, where a camel hump offers a piece start without demanding one and a
+or os in Olm Settings, where a camel hump offers a piece start without demanding one and a
 standalone ampersand is no word. In the name at a word start with exactly one edit, from four
 letters on, never on the first letter and never a wrong or extra last letter, dokcer and docekr
 in Docker while note never finds Notifications. In the name inside a word, from three letters on, so do never finds Window. And in a

@@ -1,5 +1,5 @@
--- The OLM keys page, in plain Lua. lib/hints.lua's keyEntries turns the keymap the root built into
--- words, and lib/keypage.lua turns those words into the presentation the launcher's OLM keys row
+-- The Olm Keys page, in plain Lua. lib/hints.lua's keyEntries turns the keymap the root built into
+-- words, and lib/keypage.lua turns those words into the presentation the launcher's Olm Keys row
 -- pushes. This builds a small keymap through the real lib/keymap.lua and pins both halves, which
 -- keys are listed and in what order, how a chord, a description and an owner are spelled, and
 -- that a row does nothing when chosen while Back pops.

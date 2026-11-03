@@ -621,7 +621,7 @@ entry whose leader is not `opts.listLeader`, the context leader's name. `keymap.
 **Spelling assumes the one leader.** `hints.chordFor` at 131 spells a binding with no leader by
 `deps.leaderName`, the context leader's word handed in at compose 1786, and no list binding names
 a leader. The action panel and the docked hint bar read `chordFor`. `hints.keyEntries`, which the
-OLM keys page lists, spells a list row by `row.leader`, which is always that leader.
+Olm Keys page lists, spells a list row by `row.leader`, which is always that leader.
 
 **The chooser field yields to that leader alone.** The default chooser's field tap claims every
 key down while it is up, `field/input.lua` at 196, and gives away only a key the injected
@@ -657,7 +657,7 @@ nor a modifier, since a bare key bound globally would be taken from every app.
 5. Collisions inside a list compare leader, modifiers and key, so `hyper+j` and `meta+j` in one
    list are two slots. A list chord still shares a slot with a global chord on purpose.
 6. Every reader spells a list chord by its own leader. `chordFor` reads the stamped leader, so the
-   hint bar, the action panel and the OLM keys page say Meta J for a key on META. The cheat sheets
+   hint bar, the action panel and the Olm Keys page say Meta J for a key on META. The cheat sheets
    draw global rows only and are unchanged.
 7. The field yields to every leader that hosts a list key, and `leaderHeld` answers whether any of
    them is held. On this machine that is Hyper alone, as before, so a key typed with Right Option
@@ -706,9 +706,9 @@ the watcher dispatching a modifier chord only while its list's context is live, 
 
 ## Not in this plan
 
-List keys on a leader other than `hyper`, done on 2026-10-22 as phases A and B above. A keys page in the OLM settings, which the keymap makes
-cheap later as a read only list, done on 2026-10-21 as the OLM keys row of the launcher, which
-hosts `lib/keypage.lua` in place, rather than as a level inside the OLM settings.
+List keys on a leader other than `hyper`, done on 2026-10-22 as phases A and B above. A keys page in the Olm Settings, which the keymap makes
+cheap later as a read only list, done on 2026-10-21 as the Olm Keys row of the launcher, which
+hosts `lib/keypage.lua` in place, rather than as a level inside the Olm Settings.
 Moving the generic mechanism still inside `root/compose.lua`, `chordLabel`, `aliasLabel`,
 `rowIntercept` and `anyListShowing`, into `lib/`, which is worth its own plan. Done on 2026-10-21, as
 `lib/labels.lua`, `lib/listopen.lua` and `lib/rowintercept.lua`, with the root handing each its

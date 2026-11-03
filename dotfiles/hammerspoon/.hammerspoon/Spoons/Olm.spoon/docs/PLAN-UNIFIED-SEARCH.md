@@ -34,7 +34,7 @@ never matches across fields. Each query word matches at the strongest of five le
 
 1. In the name, at the start of a word. lose in Loser.
 2. In the name, in pieces, each the start of one of a run of consecutive words in one phrase.
-   lose in LOcal SErvers, os in OLM settings, initials being every piece one letter.
+   lose in LOcal SErvers, os in Olm Settings, initials being every piece one letter.
 3. In the name, 1 with exactly one edit, from four letters on, never on the first letter and
    never a wrong or extra last letter. dokcer and docekr in Docker.
 4. In the name, inside a word, from three letters on. do never finds Window.

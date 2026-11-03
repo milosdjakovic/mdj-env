@@ -189,7 +189,7 @@ refused by name, bound nowhere and shown nowhere.
    harvest skip a disabled plugin, so its code never runs.
 2. A disabled plugin is reported as off, its dependents as off because of it, and its optional
    users stay silent.
-3. A plugins page in the OLM settings plugin lists only `plugins/`, shows each plugin's about
+3. A plugins page in the Olm Settings plugin lists only `plugins/`, shows each plugin's about
    block and needs in the right pane, says what else goes down before confirming, saves and
    reloads. Reworked after the first live try, a choice is staged and the staged set applies
    with one reload when the stage closes or Apply now is chosen, see below.

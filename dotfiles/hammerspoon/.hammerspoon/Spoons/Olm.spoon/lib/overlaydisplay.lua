@@ -8,7 +8,7 @@
 -- pipeline.
 --
 -- Strategy is the shape of the resolver. A small table maps a mode name to a
--- function returning an hs.screen, opts.mode names the seed choice, and the OLM
+-- function returning an hs.screen, opts.mode names the seed choice, and the Olm
 -- settings plugin can move the live choice from whichever mode was seeded to the
 -- other one with no reload. Neither atom, and nothing that calls self.screen,
 -- needs to know the caller is a chooser or a canvas panel, only that a screen

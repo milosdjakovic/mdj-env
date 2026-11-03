@@ -6,7 +6,7 @@
 --- mechanism lives in lib/ui/appearance.lua and reaches this plugin as four root published words,
 --- themeName, themeNames, setTheme and themeLabel.
 ---
---- It was the second page of the OLM settings plugin until 2026-10-27, when that plugin was split
+--- It was the second page of the Olm Settings plugin until 2026-10-27, when that plugin was split
 --- into Olm Placement, this and Olm Plugins, so each opens its list straight from its launcher row.
 
 local M = {}

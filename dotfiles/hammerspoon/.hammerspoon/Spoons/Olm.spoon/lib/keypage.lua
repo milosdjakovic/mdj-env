@@ -1,7 +1,7 @@
 --- === keypage ===
 ---
---- The OLM keys page, every chord Olm binds listed read only, so a person can see their keys. It is
---- Olm's own list rather than a plugin's, reached by the launcher's own OLM keys row, which the
+--- The Olm Keys page, every chord Olm binds listed read only, so a person can see their keys. It is
+--- Olm's own list rather than a plugin's, reached by the launcher's own Olm Keys row, which the
 --- root answers in the launcher's row intercept by pushing this presentation onto the stage over
 --- the open launcher, so the launcher's list becomes this one in place. Back, or Backspace on an
 --- empty field, pops it and the launcher's list comes back.
@@ -67,7 +67,7 @@ function M.presentation(deps)
   local shown = nil
   return {
     name = deps.name,
-    placeholder = "OLM keys",
+    placeholder = "Olm Keys",
     rows = function()
       shown = shown or M.rows(deps.catalog())
       return shown

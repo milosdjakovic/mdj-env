@@ -727,7 +727,7 @@ end
 --- resume finds Résumé, matches at the strongest of five levels.
 ---   A. In the name, at the start of a word. lose in Loser, se in Settings.
 ---   B. In the name, in pieces, each the start of one of a run of consecutive words in one
----      phrase. lose in LOcal SErvers, os in OLM settings, initials being every piece one
+---      phrase. lose in LOcal SErvers, os in Olm Settings, initials being every piece one
 ---      letter. A standalone symbol such as an ampersand is no word.
 ---   C. In the name, A with exactly one edit, from four letters on, never on the first letter
 ---      and never a wrong or extra last letter. dokcer and docekr find Docker.

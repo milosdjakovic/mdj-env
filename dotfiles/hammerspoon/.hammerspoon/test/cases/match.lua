@@ -129,7 +129,7 @@ local function levelOf(query, name) return select(2, M.fuzzy(query, name)) end
 check("lose in Loser is a name word start", levelOf("lose", "Loser") == L.nameStart)
 check("lose in Local Servers is name pieces", levelOf("lose", "Local Servers") == L.namePieces)
 check("lose inside Enclosed is inside a word", levelOf("lose", "Enclosed") == L.nameInside)
-check("os in OLM settings is name pieces", levelOf("os", "OLM settings") == L.namePieces)
+check("os in Olm Settings is name pieces", levelOf("os", "Olm Settings") == L.namePieces)
 check("dd in Docker Desktop is name pieces", levelOf("dd", "Docker Desktop") == L.namePieces)
 check("mb in Menu Bar is name pieces", levelOf("mb", "Menu Bar") == L.namePieces)
 check("ps in Printers & Scanners is name pieces, the ampersand is no word",
@@ -153,7 +153,7 @@ do
 end
 
 for _, pair in ipairs({
-  { "os", "OLM settings", "Photos" },
+  { "os", "Olm Settings", "Photos" },
   { "dd", "Docker Desktop", "Hidden Bar" },
   { "mb", "Menu Bar", "Numbers" },
 }) do
@@ -287,7 +287,7 @@ do
   check("focs does not find Lock Screen or Local Servers",
     M.fuzzy("focs", "Lock Screen") == nil and M.fuzzy("focs", "Local Servers") == nil)
   check("focs does find Focus", M.fuzzy("focs", "Focus") ~= nil)
-  local got = table.concat(order("lose", { "Closet", "Login Items & Extensions", "OLM settings",
+  local got = table.concat(order("lose", { "Closet", "Login Items & Extensions", "Olm Settings",
     "Lock Screen", "Local Servers", "Loser" }), ",")
   check("lose lists Loser, Local Servers, then Closet inside a word, and none of the edit rows",
     got == "Loser,Local Servers,Closet", got)

@@ -690,6 +690,42 @@ function obj:toggle(contextName, hosted)
   instance:refresh(true)
 end
 
+-- The panel's own row for an action, a verb listed at its top level, or nil while the panel is
+-- closed, a level is open, or the panel does not list the action. A disabled row answers nil too.
+function obj:_rowFor(action)
+  if not (self._openInstance and action) or self._level then return nil end
+  for _, row in ipairs(self._panelRows or {}) do
+    local item = row.item
+    if item and item.action == action and not item.disabled then return item end
+  end
+  return nil
+end
+
+--- ActionsPane:listsAction(action) -> boolean
+--- Method
+--- Whether the open panel lists a row for the action, so its key, which the row shows, is the
+--- row's while the panel is open.
+function obj:listsAction(action)
+  return self:_rowFor(action) ~= nil
+end
+
+--- ActionsPane:chooseAction(action) -> boolean
+--- Method
+--- What a key pressed while the panel is open runs when the panel lists that key's action. The key
+--- a row shows does exactly what choosing the row does, through _choose, so the verb runs against
+--- the row the panel opened over and a verb with choices or a confirm opens its level, rather than
+--- the list's own handler acting on whatever panel row is highlighted. The chooser is rebuilt here,
+--- since a key earns no rebuild from intercept, the same reason toggle runs its own. Answers false,
+--- changing nothing, when the panel does not list the action.
+function obj:chooseAction(action)
+  local item = self:_rowFor(action)
+  if not item then return false end
+  local instance = self._openInstance
+  self:_choose(instance, item)
+  instance:refresh(true)
+  return true
+end
+
 --- ActionsPane:isOpen() -> boolean
 --- Method
 --- Whether the panel is currently showing, on any instance.

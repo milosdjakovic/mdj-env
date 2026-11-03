@@ -259,7 +259,7 @@ phase one line also claimed.
 
 Milos decided four levels per word, strongest first. A word start, the word whole at the start of
 the row, after a separator or at a camel hump, se in Settings. Initials, the word's letters as
-the first letters of consecutive words, os in OLM settings, dd in Docker Desktop, ps in Printers &
+the first letters of consecutive words, os in Olm Settings, dd in Docker Desktop, ps in Printers &
 Scanners. Inside a word, contiguous anywhere else, se in Base. Scattered, the old alignment with
 gaps or typos. He accepted that se now ranks Some example above Base. A word starts where the
 scorer's own bonus says one does, so the levels and the scoring agree, and only a letter, a digit
@@ -277,7 +277,7 @@ whose gap is capped at 256 times 0.02. So two rows at one level sum differ by le
 and a row one level higher scores more than the step minus that spread, which is above zero.
 
 Levels for the examples. se gives Settings and Sending a word start, Some example initials, Base
-inside and Safe scattered, so the order is Settings, Some example, Base, Safe. os puts OLM
+inside and Safe scattered, so the order is Settings, Some example, Base, Safe. os puts Olm
 settings at initials above Photos inside, dd Docker Desktop at initials above Hidden Bar inside,
 ps Printers & Scanners at initials, and mb Menu Bar at initials above Numbers inside. settings puts
 Settings at a word start and the four addresses and seven little things scattered, 40.50, 37.44,
@@ -1041,9 +1041,9 @@ harness ranked the right tab to the top on every round, so the ranking under tes
 `top`, which the agent recomputes from the plugin's rows, so it said nothing about the live list.
 The measurement, the fix and what is still open are in `decisions/olm-browsertabs.md`.
 
-### 2026-10-19 15:54, the placement row inside OLM Settings declares four keywords
+### 2026-10-19 15:54, the placement row inside Olm Settings declares four keywords
 
-Measured by reading the row. At Milos's ask the top row of the OLM Settings page, Where the OLM
+Measured by reading the row. At Milos's ask the top row of the Olm Settings page, Where the Olm
 launcher appears, now declares the keywords placement, cursor, window and position, a related task
 and its two options, none a title word, so typing cursor or window inside the page finds it. This is
 the last keyword ask from the track. The vs keyword for Code was dropped by Milos the same day,

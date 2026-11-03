@@ -31,7 +31,7 @@
 31	capture:recordArea	Record screen	Capture · ✦5	record	capture	-	-	10
 32	special:searchSettings	Search Settings	System · opens the System Settings search field	search	systemsettings	-	-	20
 33	special:aliasDirectory	Aliases	Tools · every word that scopes this list (?)	aliases	launcher	-	alias, scope, shortcut, prefix |  (?)	30
-34	special:keys	OLM keys	Tools · every key Olm binds	keys	launcher	-	shortcuts, hotkeys, keybindings, chords	30
+34	special:keys	Olm Keys	Tools · every key Olm binds	keys	launcher	-	shortcuts, hotkeys, keybindings, chords	30
 35	special:lock	Lock Screen	System · ✦§	lock	launcher	-	-	30
 36	special:sleep	Sleep	System	sleep	launcher	-	-	30
 37	window:previousDisplay	Previous Display	Window · ◆,	windows	windowmanager	multipleDisplays	-	40

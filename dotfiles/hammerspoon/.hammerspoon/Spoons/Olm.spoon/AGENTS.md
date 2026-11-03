@@ -530,8 +530,8 @@ and a scope row acting or seeding its word. Its contract is six functions, and t
 absent when no scope host loaded. The query the Aliases row stands for stays in the root, since the
 row's name is root policy, and so does `aliasHint`, which asks the scope host for a tool's aliases.
 
-`lib/keypage.lua` is the OLM keys page, every chord Olm binds listed read only. It is Olm's own list
-and no plugin's, reached by the launcher's own OLM keys row, declared beside the Aliases row in the
+`lib/keypage.lua` is the Olm Keys page, every chord Olm binds listed read only. It is Olm's own list
+and no plugin's, reached by the launcher's own Olm Keys row, declared beside the Aliases row in the
 launcher's `specialRows`. The root answers that row in `rowIntercept` where a registered tool's
 presentation is answered, pushing the page onto the stage over the open launcher, so the list
 becomes the keys list in place and Back or Backspace on an empty field pops back. The page carries
@@ -639,11 +639,22 @@ presentation's `labels` member asked with that item, and `toggleInfo()`, which t
 Two shared verbs came with it, both in `keymap.listDefaults`. `secondary` is a field key on
 Command and Return and Command and keypad Enter with leader false, the list listDefaults shape,
 built right after the primary only for a surface declaring `secondary`, so both keep choosing the row
-in every other list. Every field key is inert while the actions pane is open, since the root hands
-the field's watcher each list's predicate wrapped to answer false then, so Command and Return there
-chooses the panel row. showInfo is the one exception, the watcher handing each predicate the
-binding it matched, since the left side stays on screen with its chord while the actions pane is
-open and opening one panel never changes the other group. A shared binding's kind is weak in `actionKinds`, filling only an action no
+in every other list. A key a row of the open actions pane shows does what choosing that row does,
+since 2026-11-03. The dispatch table's `claim`, asked before every list key's handler in
+`lib/nav.lua`, hands the action to `ActionsPane:chooseAction`, which chooses the row, so the verb
+runs against the row the pane opened over and a verb with choices or a confirm opens its level,
+and Command and Return runs the secondary's row. Every other field key is inert while the pane is
+open, the root handing the field's watcher each list's predicate wrapped to answer false then
+unless the pane lists the binding's action. showInfo and the two move verbs stay live too, the
+watcher handing each predicate the binding it matched, since the left side stays on screen with
+its chord while the actions pane is open and opening one panel never changes the other group.
+
+A move key is navigation and never anything else. `keymap.navigationProblems`, run at the end of
+`applyLists`, names as a keymap problem every list left with no key for `selectNext` or
+`selectPrev`, which a person's `lists` entry taking j or k for another action, or freeing it,
+would cause, since the actions pane moves on the list's keys and a move key nobody holds falls
+through to its global meaning. Two defaults on one slot of a list, a plugin verb declared on a move
+key, are already the keymap's collision check. The arrows are the chooser's own. A shared binding's kind is weak in `actionKinds`, filling only an action no
 other binding classified, so a secondary named like another list's verb never hides that verb.
 `showInfo` is Command and ?, slash with Command and Shift, and Command and slash beside it, two
 field keys on no leader like the secondary's, in every list, listed once and spelled ⌘? because the

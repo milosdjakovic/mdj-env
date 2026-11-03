@@ -93,6 +93,11 @@ end
 -- table runs, routed and exception alike, so a caller can do one thing for every list key that
 -- acts without each surface or exception remembering to. The root closes the bottom bar's key
 -- panel there. It is folded in after the exceptions, so no handler escapes it.
+--
+-- deps.claim, optional, a function of the action name, is asked before every handler too, after
+-- onAction, and a true answer means the press was answered elsewhere and the handler does not run.
+-- The root answers true while the actions pane is open and lists the action, so the key a pane row
+-- shows chooses that row rather than acting on the highlighted pane row.
 function obj.actions(plan, deps)
   deps = deps or {}
   local methodFor = deps.methodFor or {}
@@ -100,6 +105,7 @@ function obj.actions(plan, deps)
   local surfaces = deps.surfaces
   local hideShortcuts = deps.hideShortcuts
   local onAction = deps.onAction
+  local claim = deps.claim
 
   -- A context's panel verbs, the actions pane's alone, get a handler the same way its bindings
   -- do, since the panel runs them through this same table.
@@ -120,10 +126,11 @@ function obj.actions(plan, deps)
     built[name] = fn
   end
 
-  if type(onAction) == "function" then
+  if type(onAction) == "function" or type(claim) == "function" then
     for name, fn in pairs(built) do
       built[name] = function(...)
-        onAction(name)
+        if type(onAction) == "function" then onAction(name) end
+        if type(claim) == "function" and claim(name) == true then return end
         return fn(...)
       end
     end

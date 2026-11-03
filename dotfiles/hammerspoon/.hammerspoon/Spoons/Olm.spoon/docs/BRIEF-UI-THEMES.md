@@ -90,7 +90,7 @@ init.lua and config/settings.lua `paths`.
 
 ## The switcher
 
-A second row on the OLM settings top level, Theme, its subtitle naming the live theme.
+A second row on the Olm Settings top level, Theme, its subtitle naming the live theme.
 Choosing it pushes a child page, Back first, then one row per theme, the current one marked
 with the same green circle the placement page uses. Choosing a theme applies it at once and
 answers stay, so the page keeps the highlight and the marker moves, exactly as the placement

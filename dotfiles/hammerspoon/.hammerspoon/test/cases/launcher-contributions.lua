@@ -236,13 +236,13 @@ local actionRows = launcher._actionRows
 local nWindows = #windowManifest.defaults.bindings
 local nCapture = #captureManifest.defaults.bindings
 local nPanes = #settingsManifest.defaults.panes
--- The launcher's own rows, Aliases, OLM keys, Lock Screen and Sleep.
+-- The launcher's own rows, Aliases, Olm Keys, Lock Screen and Sleep.
 local nOwn = 4
 eq("every catalog row is listed", #actionRows, nCapture + 1 + nOwn + nWindows + nPanes)
 
 -- The untouched order, which is the order the list has always had, the panes last.
 local wantOrder = { "OCR", "Screenshot", "Screenshot (copy)", "Record screen", "Search Settings",
-  "Aliases", "OLM keys", "Lock Screen", "Sleep", "Previous Display", "Next Display", "Left Half" }
+  "Aliases", "Olm Keys", "Lock Screen", "Sleep", "Previous Display", "Next Display", "Left Half" }
 for i, title in ipairs(wantOrder) do
   eq("row " .. i .. " is " .. title, (actionRows[i] or {}).title, title)
 end

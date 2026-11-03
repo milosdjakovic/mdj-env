@@ -11,7 +11,7 @@
 --- receives. A mode renamed inside the resolver leaves the writer refusing the old literal with a
 --- log line, while the filled ring here goes quietly blank.
 ---
---- It was the first page of the OLM settings plugin until 2026-10-27, when that plugin was split
+--- It was the first page of the Olm Settings plugin until 2026-10-27, when that plugin was split
 --- into this, Olm Theme and Olm Plugins, so each opens its list straight from its launcher row.
 
 local M = {}

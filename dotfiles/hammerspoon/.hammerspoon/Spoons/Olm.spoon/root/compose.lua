@@ -78,7 +78,7 @@ local listOpenLib = load("lib/listopen.lua")
 local secureFocusLib = load("lib/securefocus.lua")
 local secureNoticeLib = load("lib/securenotice.lua")
 local rowInterceptLib = load("lib/rowintercept.lua")
--- The OLM keys page, every bound chord listed read only, a presentation the launcher's own row
+-- The Olm Keys page, every bound chord listed read only, a presentation the launcher's own row
 -- pushes. Pure, the catalog and the stage's pop handed in from here.
 local keyPageLib = load("lib/keypage.lua")
 -- Which plugins are switched off, merged from the person's config and the saved set, and the
@@ -2850,6 +2850,14 @@ function obj.run(olm, cfg)
     onAction = function(name)
       if name ~= "showInfo" and stageModule then stageModule:closeInfo() end
     end,
+    -- A key pressed while the actions pane is open, whose action the pane lists, chooses that row,
+    -- so a key a row shows does what the row does, against the row the pane opened over. The pane
+    -- runs the verb only after it has closed, so this answers false then and the verb runs here.
+    claim = function(name)
+      local ap = modules[plan.identity.actionspane or "actionspane"]
+      if not (ap and type(ap.chooseAction) == "function") then return false end
+      return ap:chooseAction(name) == true
+    end,
     -- The three action names that do not equal the surface method answering them. Everything
     -- else routes by its own name, which is why lib/nav.lua defaults to that and this table is
     -- three lines rather than twenty six.
@@ -2922,13 +2930,20 @@ function obj.run(olm, cfg)
   -- showInfo is the one field key left live over the panel, since the left side stays on screen
   -- with its chord while the actions pane is open and a chord shown must do what it says. The two
   -- move verbs stay live too, since the pane's rows are a list and moving through them is the
-  -- same in every list, see lib/surface.lua's PANE_OPEN.
+  -- same in every list, see lib/surface.lua's PANE_OPEN. And a key whose action the pane lists
+  -- stays live, Command and Return on the secondary's row among them, since the row shows that key
+  -- and the dispatch table's claim above turns the press into choosing the row.
   local paneLive = { showInfo = true, selectNext = true, selectPrev = true }
   local fieldPredicates = setmetatable({}, { __index = function(_, name)
     local pred = (w._predicates or ownPredicates)[name]
     if type(pred) ~= "function" then return pred end
     return function(binding)
-      return (actionsPaneShowingRow() == nil or (binding ~= nil and paneLive[binding.shared] == true)) and pred()
+      -- Read here rather than through a local of its own, since this function is at Lua's limit of
+      -- two hundred locals.
+      local ap = modules[plan.identity.actionspane or "actionspane"]
+      return (actionsPaneShowingRow() == nil or (binding ~= nil and paneLive[binding.shared] == true)
+        or (binding ~= nil and ap ~= nil and type(ap.listsAction) == "function" and ap:listsAction(binding.action) == true))
+        and pred()
     end
   end })
   local fieldKeyList
@@ -3219,7 +3234,7 @@ function obj.run(olm, cfg)
     -- list with it and the special fallback can name the same row.
     local aliasRowName = "aliasDirectory"
 
-    -- The launcher's own OLM keys row, root policy with no tool behind it like the Aliases row, and
+    -- The launcher's own Olm Keys row, root policy with no tool behind it like the Aliases row, and
     -- the one place its name is written. Choosing it pushes the keys page over the open launcher,
     -- answered below where a registered tool's presentation is, so the launcher's list becomes the
     -- keys list in place and Back or Backspace on an empty field brings the launcher back. The
@@ -3364,7 +3379,7 @@ function obj.run(olm, cfg)
           [aliasRowName] = function()
             if aliasDirectoryRun then aliasDirectoryRun(aliasRowName) end
           end,
-          -- The same fallback for the OLM keys row. A push that finds the stage hidden opens the
+          -- The same fallback for the Olm Keys row. A push that finds the stage hidden opens the
           -- page on a fresh stack, so the keys still come up after the launcher has gone.
           [keysRowName] = function() stageModule:push(keysPresentation()) end,
         },

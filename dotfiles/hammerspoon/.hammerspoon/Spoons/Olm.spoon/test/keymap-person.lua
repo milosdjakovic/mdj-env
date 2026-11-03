@@ -816,6 +816,26 @@ do
   eq(#scanner.keyLiterals('local b = { key = keys[1], action = "go" }'), 0, "an index is not a literal")
 end
 
+-- A move key is never taken from navigation. A person's chord taking j for another action, or
+-- freeing it, leaves the list and its actions pane with no key moving down, which is a problem,
+-- while moving the verb itself to another chord is not.
+do
+  local function navProblem(problems, list, verb)
+    for _, p in ipairs(problems) do
+      if p.where == "the list " .. list .. " " .. verb then return true end
+    end
+    return false
+  end
+  local _, problems = applied({ clip = { ["hyper+j"] = "deleteSelected" } })
+  eq(navProblem(problems, "clip", "selectNext"), true, "a verb taking the move down key is a problem")
+  eq(navProblem(problems, "clip", "selectPrev"), false, "and names only the move it took")
+  _, problems = applied({ all = { ["hyper+k"] = false } })
+  eq(navProblem(problems, "clip", "selectPrev") and navProblem(problems, "pane", "selectPrev"), true,
+    "freeing the move up key is a problem in every list it leaves without one")
+  _, problems = applied({ clip = { ["hyper+n"] = "selectNext" } })
+  eq(navProblem(problems, "clip", "selectNext"), false, "moving the verb to another chord is not")
+end
+
 -- An empty section changes nothing.
 do
   local contexts, problems, notes = applied({})
@@ -823,13 +843,14 @@ do
   eq(listKeys(contexts, "clip", "selectNext"), "j", "and every key stays where Olm puts it")
 end
 
--- all moves selectNext in every list that answers it, and a list with no move keys is left alone.
+-- all moves selectNext in every list that answers it, a list with no navigation of its own too,
+-- since it carries the move keys gated on its actions pane.
 do
   local contexts, problems = applied({ all = { ["hyper+n"] = "selectNext" } })
   eq(#problems, 0, "moving a shared verb in all is no problem")
   eq(listKeys(contexts, "clip", "selectNext"), "n", "selectNext takes exactly its new chord")
   eq(listKeys(contexts, "clip", "scrollDown"), "cmd+j", "while Command and j, another slot, stays")
-  eq(listKeys(contexts, "pane", "selectNext"), "", "and a list with no move keys gains none")
+  eq(listKeys(contexts, "pane", "selectNext"), "n", "and a list with no navigation moves its actions pane on it too")
   local moved
   for _, b in ipairs(contexts.clip.bindings) do if b.action == "selectNext" then moved = b end end
   eq(moved and moved.description, "Move down", "the moved binding keeps its label")

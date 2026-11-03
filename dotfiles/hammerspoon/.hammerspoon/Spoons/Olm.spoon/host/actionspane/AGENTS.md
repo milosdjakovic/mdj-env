@@ -353,3 +353,14 @@ closes the whole panel. `levelTitle` answers the verb whose level is open, which
 carries as `panelTitle` so the floating pane heads the level with it. Sections are ordered in
 `lib/hints.lua`'s `sectioned`, so the canvas chooser lists the same order with no headings.
 
+
+## A key a row shows chooses the row
+
+Since 2026-11-03 a key pressed while the panel is open, whose action the panel lists at its top
+level, chooses that row through `chooseAction`, the root's `claim` in the dispatch table asking it
+before the list's own handler runs. Before, the list's handler ran against the highlighted panel
+row and a field key was inert, so a chord the row displayed did nothing. `chooseAction` goes
+through `_choose`, so it is exactly choosing the row, and runs its own `refresh(true)` as `toggle`
+does, since a key earns no rebuild from intercept. Inside a level no key is claimed, since a
+level's rows carry no action. The pane runs the verb only after `_close`, so the claim answers
+false then and the dispatch table runs the verb, with no loop.

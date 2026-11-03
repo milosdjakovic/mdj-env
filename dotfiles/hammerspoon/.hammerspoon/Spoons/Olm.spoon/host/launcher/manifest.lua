@@ -247,7 +247,7 @@ return {
     -- What the memory decides is fixed by the shared search rather than by a number here. A
     -- remembered row carries a bonus, which orders only rows matching equally well, so a pick
     -- made at a short spelling never outranks a better match, docs/PLAN-UNIFIED-SEARCH.md.
-    -- Where this host's own rows, the alias directory, OLM keys and then lock and sleep, sit among the rows
+    -- Where this host's own rows, the alias directory, Olm Keys and then lock and sleep, sit among the rows
     -- other plugins contribute, a number compared with each contributor's own launcherOrder.
     -- Thirty puts them after the screenshot actions and the settings search and before the
     -- window actions, where they have always been. docs/PLUGIN-CONTRACT.md lists every
@@ -263,7 +263,7 @@ return {
       { name = "aliasDirectory", description = "Aliases",
         subTitle = "Tools · every word that scopes this list", icon = "aliases",
         keywords = "alias, scope, shortcut, prefix" },
-      { name = "keys", description = "OLM keys",
+      { name = "keys", description = "Olm Keys",
         subTitle = "Tools · every key Olm binds", icon = "keys",
         keywords = "shortcuts, hotkeys, keybindings, chords" },
     },
