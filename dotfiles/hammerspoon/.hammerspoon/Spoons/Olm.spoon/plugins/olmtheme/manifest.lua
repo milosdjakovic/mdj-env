@@ -62,7 +62,7 @@ return {
   },
 
   registry = {
-    row = { category = "Olm", icon = "theme",
+    row = { settings = true, icon = "theme",
       detail = "the look of the chooser in use",
       keywords = "colour, color, appearance, palette, dark, light, highlight, accent" },
     open = { member = "show", call = "dot" },

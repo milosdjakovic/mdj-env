@@ -241,8 +241,8 @@ local nOwn = 4
 eq("every catalog row is listed", #actionRows, nCapture + 1 + nOwn + nWindows + nPanes)
 
 -- The untouched order, which is the order the list has always had, the panes last.
-local wantOrder = { "OCR", "Screenshot", "Screenshot (copy)", "Record screen", "Search Settings",
-  "Aliases", "Olm Keys", "Lock Screen", "Sleep", "Previous Display", "Next Display", "Left Half" }
+local wantOrder = { "OCR", "Screenshot", "Screenshot to Clipboard", "Record Screen", "Search Settings",
+  "Olm Aliases", "Olm Keys", "Lock Screen", "Sleep", "Previous Display", "Next Display", "Left Half" }
 for i, title in ipairs(wantOrder) do
   eq("row " .. i .. " is " .. title, (actionRows[i] or {}).title, title)
 end
@@ -266,24 +266,24 @@ local function expectRow(label, row, want)
 end
 
 expectRow("capture row", actionRows[2], {
-  title = "Screenshot", subTitle = "Capture · \u{2726}3", icon = "screenshot",
+  title = "Screenshot", subTitle = "Screen Capture · \u{2726}3", icon = "screenshot",
   iconOwner = "capture", kind = "capture", id = "captureArea", owner = "capture" })
 -- The scope above would hint this name, and an owned row is never asked, so the subtitle is
 -- exactly what it always was, the real resolver answering nothing for this name either.
 expectRow("search settings row", actionRows[5], {
-  title = "Search Settings", subTitle = "System · opens the System Settings search field",
+  title = "Search Settings", subTitle = "System Settings · opens the search field",
   icon = "search", iconOwner = "systemsettings", kind = "special", id = "searchSettings",
   owner = "systemsettings" })
 expectRow("own special row", actionRows[8], {
-  title = "Lock Screen", subTitle = "System · \u{2726}§", icon = "lock", iconOwner = "launcher",
+  title = "Lock Screen", subTitle = "System Action · \u{2726}§", icon = "lock", iconOwner = "launcher",
   kind = "special", id = "lock", owner = "launcher" })
 expectRow("gated window row", actionRows[10], {
-  title = "Previous Display", subTitle = "Window · \u{25C6},", icon = "windows",
+  title = "Previous Display", subTitle = "Window Manager · \u{25C6},", icon = "windows",
   iconOwner = "windowmanager", kind = "window", id = "previousDisplay", owner = "windowmanager",
   when = "multipleDisplays" })
 -- The key arrives in the keymap's one spelling, lowercased, and kbd draws a letter upper cased.
 expectRow("window row", actionRows[lastWindow], {
-  title = "Hide All Except Focused", subTitle = "Window · \u{25C6}H", icon = "windows",
+  title = "Hide All Except Focused", subTitle = "Window Manager · \u{25C6}H", icon = "windows",
   iconOwner = "windowmanager", kind = "window", id = "hideAllExceptFocused",
   owner = "windowmanager" })
 expectRow("pane row", actionRows[lastWindow + 1], {
@@ -522,18 +522,18 @@ local appDetails = contributions.appChords({ plan = appPlan, actions = { apptogg
   actionOrder = { apptoggler = togglerOrder }, keymap = appKeymap })
 local apps = appLauncher(appDetails)
 eq("an app action's row names the app leader and the key", (apps["olm.test.alpha"] or {}).subTitle,
-  "Not running · \u{2726}A")
+  "Application · \u{2726}A")
 eq("a leader chord with modifiers spells them through the shared speller", (apps["olm.test.delta"] or {}).subTitle,
-  "Not running · \u{2726}\u{21E7}D")
+  "Application · \u{2726}\u{21E7}D")
 eq("a plain combination wins the chord and shows its description", (apps["olm.test.beta"] or {}).subTitle,
-  "Not running · \u{2303}\u{2325}8 Placed")
+  "Application · \u{2303}\u{2325}8 Placed")
 eq("an app row carries no url", (apps["olm.test.beta"] or {}).item.url, nil)
 eq("a later leader chord does not take the row from a combination", (apps["olm.test.gamma"] or {}).subTitle,
-  "Not running · \u{2318}G First")
-eq("an app no action names carries no chord", (apps["olm.test.epsilon"] or {}).subTitle, "Not running")
+  "Application · \u{2318}G First")
+eq("an app no action names carries no chord", (apps["olm.test.epsilon"] or {}).subTitle, "Application")
 
 local bare = appLauncher(nil)
-eq("with nothing injected an app row carries no chord", (bare["olm.test.alpha"] or {}).subTitle, "Not running")
+eq("with nothing injected an app row carries no chord", (bare["olm.test.alpha"] or {}).subTitle, "Application")
 
 -- The launcher lists an app once. An action naming an app is no catalog row of its own.
 local listedSuppliers = contributions.assemble({

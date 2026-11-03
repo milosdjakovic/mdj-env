@@ -55,8 +55,8 @@ return {
   },
 
   registry = {
-    row = { category = "Olm", icon = "placement",
-      detail = "which display the launcher appears on",
+    row = { settings = true, icon = "placement",
+      detail = "which display Olm opens on",
       keywords = "position, cursor, display, screen, monitor" },
     open = { member = "show", call = "dot" },
   },

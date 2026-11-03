@@ -614,9 +614,9 @@ provides = { actions = "actions" },
 function obj:actions()
   return {
     { name = "leftHalf", run = function() self:leftHalf() end,
-      description = "Left Half", subtitle = "Window", icon = "windows", kind = "window" },
+      description = "Left Half", icon = "windows", kind = "window" },
     { name = "moveLeft", run = function(depth) self:moveByPixels("left", self:_moveStep(depth)) end,
-      repeats = true, description = "Move Left", subtitle = "Window", icon = "windows", kind = "window" },
+      repeats = true, description = "Move Left", icon = "windows", kind = "window" },
     { name = "exactSize", run = function(size) self:resizeByPixels(size) end, listed = false },
   }
 end
@@ -642,8 +642,9 @@ binds the binding's key on its leader to that descriptor's `run`, the binding's 
 `repeats` and `description` winning over the descriptor's and the descriptor's answering where the
 binding is silent. A binding naming an action the list does not hold is reported and left unbound.
 Every action that is not `listed = false` is a row of the launcher's own catalog, built by Olm,
-its title the `description` or else the name, its subtitle the `subtitle` followed by the chord
-the keymap binds the action to, its icon the `icon` read against the plugin's own manifest icons,
+its title the `description` or else the name, its subtitle the plugin's `about.title`, or System
+Action where the descriptor says `system = true`, followed by the chord the keymap binds the
+action to, a `subtitle` being refused since 2026-11-03, its icon the `icon` read against the plugin's own manifest icons,
 its search terms the `keywords`, and its `when` hiding it live exactly while its key is gated.
 The row's memory key is the `kind`, else the plugin's identity, joined to the name, so a
 descriptor states `kind` exactly when its rows must keep a key the launcher remembered them by
@@ -707,7 +708,7 @@ same shape Olm builds for an action descriptor, which is why a row that names a 
 way whoever built it.
 
 ```lua
-{ title = "Wi-Fi", group = "System Settings",
+{ title = "Wi-Fi", detail = nil,            -- what follows the middot, optional
   chord = nil,                              -- { leader = role or false, key, mods }, optional
   icon = "wifi",                            -- a key into this plugin's own manifest icons
   when = nil,                               -- a predicate name gating the row live, optional
@@ -728,8 +729,10 @@ query's words match on their own with a bonus when all land in one phrase in ord
 PLUGIN-AUTHORING.md says more.
 
 A row is data and never a function, because the launcher hands every row to `hs.chooser`,
-which drops a row holding one without a word. The subtitle is either a finished `subTitle` or
-the parts, `group` and `chord` with its leader named by role, or `false` for a plain combination
+which drops a row holding one without a word. The subtitle leads with the plugin's `about.title`,
+which the root stamps as `group`, so a row never names it, and a row still carrying `subTitle` or
+`group` is named once and read without it. After it comes the row's `detail`, else its `chord`
+with its leader named by role, or `false` for a plain combination
 the glyph renderer spells whole, which the launcher spells with the shared chord speller so a row
 and the bottom bar print the same words for one key. The
 root stamps the plugin's identity on every item as `owner`, always, over anything the row
@@ -810,7 +813,7 @@ anything captured at declare time would capture nothing, permanently and silentl
 
 ```lua
 registry = {
-  row = { category = "Tools", icon = "filesearch", detail = "...", keywords = "..." },
+  row = { icon = "filesearch", detail = "...", keywords = "..." },  -- system or settings, optional
   open = "show",                                  -- a colon method on this plugin's root
   surface = "chooser",                            -- this plugin's own submodule
   hosted = true,
@@ -830,9 +833,12 @@ A member is a bare string for a colon method on the plugin root, or a table carr
 `member` and `call`. A dotted member reaches a submodule, `chooser.scopeRows`. `surface`
 may be `true` to mean the plugin root itself.
 
-`row` is what a person reads. Its `category` is required for a row to exist at all, and
-`description`, `icon` and `aliases` come from `defaults` rather than being retyped here, so one
-answer serves the row, the cheat sheet and the scope directory. The chord the row names is the
+`row` is what a person reads, and any table earns one, `{}` included. Its title is the plugin's
+`about.title`, and the word before the middot is worked out from what Return does, Plugin, or
+System Action where the row says `system = true`, or Olm Settings where it says `settings = true`,
+the dictionary PLUGIN-AUTHORING.md states. `row.category`, the word a plugin once named itself, is
+retired and refused. `icon` and `aliases` come from `defaults` rather than being retyped here, so
+one answer serves the row, the cheat sheet and the scope directory. The chord the row names is the
 tool's open row in the keymap, the `defaults.bindings` row whose action is `open`, which the
 launcher asks the root for by the tool's name.
 
@@ -1611,7 +1617,7 @@ once in Olm's root and never computed.
    before stage 7, because a leader treats an unknown `when` as always active, so an
    uninstalled table leaves every navigation key live at all times.
 5. **register**, a registry descriptor per tool. It carries `apiVersion` and a
-   `category`, and its `surface` is a function. The registry refuses anything else.
+   `row` table, and its `surface` is a function. The registry refuses anything else.
 6. **activate**. Then the root names every retired field a manifest still declares, asks every
    plugin for its `provides.actions`, builds the keymap from every
    declaration, and binds every global row through the one binder, in the order the paths it
@@ -1648,7 +1654,7 @@ row silently vanished.
   a collision there silently overwrites what the plugin root meant to pass.
 - A surfaced plugin declares `surface` and does not declare `chooser` or `theme`.
 - A plugin that wants a launcher row, a word, or an open key declares `registry`, and its `row`
-  carries a `category`, without which no row is built. The key is a `defaults.bindings` row
+  is a table, without which no row is built. The key is a `defaults.bindings` row
   whose action is `open`.
 - A plugin that shows its own rows through the shared stage rather than building its own
   `Chooser.new` declares `presentation`, with `rows` and `select` required. It declares

@@ -56,6 +56,10 @@ local bottomBarLib = load("../default/bottombar.lua")
 -- The one vocabulary of keys. A chord crosses into Swift as lists of glyphs, one entry per key,
 -- through its wire, so the bridge never carries a chord joined into a string.
 local kbd = load("../../../kbd.lua")
+
+-- Command and each digit one through nine, as the wire, the shortcut of the row in that slot.
+local NUMBER_KEYS = {}
+for i = 1, 9 do NUMBER_KEYS[i] = kbd.wire(kbd.of(kbd.Cmd, kbd.named(tostring(i))))[1] end
 local fieldKeys = load("fieldkeys.lua")
 
 -- The injected UI kit, read for the nested radius, nil until View.configure runs.
@@ -170,11 +174,15 @@ function View:restyle()
     titleFont = font(face.font, face.textSize),
     subFont = font(face.subFont, face.subSize),
     numberFont = font(face.numFont, face.numSize),
-    -- The key a row number shortcut is pressed with, drawn before the digit, from lib/kbd.lua.
-    numberKey = kbd.Cmd.glyph,
+    -- The row shortcuts, drawn as bare key caps, Command and the slot's digit, and Return on the
+    -- selected row, from lib/kbd.lua.
+    numberKeys = NUMBER_KEYS,
+    returnKey = kbd.wire(kbd.of(kbd.Return)),
     captionFont = font(text.caption.font, text.caption.size),
     -- The key cap's glyphs, in the role the kit's hint badge names, see BADGE_RULES in lib/ui/style.lua.
     keycapFont = font(text[T.badge.hint.text].font, text[T.badge.hint.text].size),
+    -- A row's shortcut, the same keys at the row title's size, see lib/ui/keycap.lua's sizeRole.
+    rowKeyFont = font(text[T.badge.hint.text].font, text.body.size),
     radius = T.radius.surface,
     highlightRadius = UI.nestedRadius(T.radius.surface, s.layout.marginX),
   })

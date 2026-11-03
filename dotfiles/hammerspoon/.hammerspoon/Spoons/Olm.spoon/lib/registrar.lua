@@ -742,7 +742,7 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
 
   local rowSpec = info.row
   local row = nil
-  if type(rowSpec) == "table" and rowSpec.category ~= nil then
+  if type(rowSpec) == "table" then
     -- detail is a plain display string for nearly every tool, and may instead be a member
     -- spec, the table form only, resolved through the same lazy shape open takes below, for
     -- a row whose subtitle depends on the world at open time. TextCase is the one consumer,
@@ -752,8 +752,18 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
     if type(detail) == "table" then
       detail = obj.action(modules, identity, name, detail, nil)
     end
+    -- The word before the middot is not declared. It says what Return on the row does, so it is
+    -- worked out here from two flags a row may carry, system for a row that changes the Mac and
+    -- closes, settings for a row that opens a page changing Olm, and Plugin for every other tool
+    -- row, which opens its plugin's list. The title is the plugin's own name, about.title, so the
+    -- row a person picks reads the name the plugin goes by everywhere else. Stated by Milos on
+    -- 2026-11-03, decisions/olm-launcher-ranking.md has the dictionary.
+    local about = type(manifest.about) == "table" and manifest.about or {}
+    local prefix = "Plugin"
+    if rowSpec.system then prefix = "System Action" elseif rowSpec.settings then prefix = "Olm Settings" end
     row = {
-      category = rowSpec.category,
+      prefix = prefix,
+      title = about.title or eff.description,
       detail = detail,
       keywords = rowSpec.keywords,
       icon = rowSpec.icon or eff.icon,
@@ -923,7 +933,11 @@ local DESCRIPTOR_FIELDS = {
   name = { "string" },
   run = { "function" },
   description = { "string" },
-  subtitle = { "string" },
+  -- The action changes the Mac and closes, Lock Screen or Sleep, so its launcher row reads System
+  -- Action where every other action reads its plugin's name, about.title. The one line Olm cannot
+  -- draw by itself, since both kinds run and close. subtitle, the group word a descriptor once
+  -- named for itself, is retired, refused below as an unknown field.
+  system = { "boolean" },
   icon = { "string", "table" },
   keywords = { "string", "table" },
   repeats = { "boolean" },
@@ -982,6 +996,10 @@ function obj.validateDescriptor(descriptor)
   end
   for _, field in ipairs(sortedNames(descriptor)) do
     local allowed = DESCRIPTOR_FIELDS[field]
+    if field == "subtitle" then
+      return false, field, "is retired, the launcher row reads its plugin's name, or System Action "
+        .. "where the descriptor says system = true"
+    end
     if not allowed then
       return false, tostring(field), "is not a descriptor field"
     end
@@ -1100,6 +1118,9 @@ end
 --- defaults.leader is not one of them. It stays, the role every bindings row of the plugin
 --- inherits when the row names none, which is a default for a field rather than a key.
 local RETIRED = {
+  { section = "registry.row", field = "category",
+    now = "nothing, the launcher works the word out from what Return does, Plugin, or System Action "
+      .. "with row.system, or Olm Settings with row.settings" },
   { section = "registry", field = "commands",
     now = "an action descriptor in provides.actions, with its key in a defaults.bindings row" },
   { section = "defaults", field = "key",
@@ -1119,7 +1140,10 @@ local RETIRED = {
 function obj.retiredFields(identity, manifest)
   local problems = {}
   for _, retired in ipairs(RETIRED) do
-    local section = type(manifest) == "table" and manifest[retired.section] or nil
+    local section = type(manifest) == "table" and manifest or nil
+    for part in retired.section:gmatch("[^.]+") do
+      section = type(section) == "table" and section[part] or nil
+    end
     if type(section) == "table" and section[retired.field] ~= nil then
       problems[#problems + 1] = { where = tostring(identity),
         why = retired.section .. "." .. retired.field .. " is retired, replaced by " .. retired.now

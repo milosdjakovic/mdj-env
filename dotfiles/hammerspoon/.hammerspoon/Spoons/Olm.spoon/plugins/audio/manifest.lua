@@ -62,7 +62,7 @@ return {
   -- The scope has its own rows member because a scope has no onPresent, so it reads the
   -- devices itself when what it holds has gone stale.
   registry = {
-    row = { category = "System", detail = "switch the sound output or the microphone",
+    row = { detail = "switch output or microphone",
       keywords = "sound output, microphone, mic, speakers, headphones, airpods" },
     open = { member = "show", call = "dot" },
     hosted = true,

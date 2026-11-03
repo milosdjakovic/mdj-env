@@ -142,7 +142,10 @@ final class RowCell: NSView {
   let icon = NSImageView()
   let title = NSTextField(labelWithString: "")
   let subtitle = NSTextField(labelWithString: "")
-  let number = NSTextField(labelWithString: "")
+  // The row's shortcut, a bare KeyCap, see Bar.swift, Return on the selected row and Command with
+  // its digit on every other one of the first nine. Made again only when the keys or the ink change.
+  private var shortcut: KeyCap?
+  private var shortcutFor: (keys: [String], ink: Ink, font: NSFont)?
   var placement = Placement()
   // The row's picture as it came, and what it was last drawn for, so a layout redraws the icon
   // only when the picture, its box, the backing scale or its recolour changed.
@@ -157,8 +160,7 @@ final class RowCell: NSView {
     super.init(frame: frame)
     identifier = Self.identifier
     icon.imageScaling = .scaleProportionallyUpOrDown
-    number.alignment = .right
-    for view in [icon, title, subtitle, number] as [NSView] { addSubview(view) }
+    for view in [icon, title, subtitle] as [NSView] { addSubview(view) }
   }
 
   required init?(coder: NSCoder) { nil }
@@ -173,7 +175,8 @@ final class RowCell: NSView {
   // lit by a solid highlight draws in the lit ink, see Ink.
   var lit = false
 
-  func fill(_ row: Row, slot: Int?, style: Style, lineBreak: NSLineBreakMode) {
+  // keyed is whether the list shows row shortcuts at all, slot the row's place among the first nine.
+  func fill(_ row: Row, slot: Int?, keyed: Bool, style: Style, lineBreak: NSLineBreakMode) {
     let ink = style.ink(lit: lit)
     if row.image !== source {
       source = row.image
@@ -189,10 +192,26 @@ final class RowCell: NSView {
     subtitle.textColor = row.enabled ? ink.sub : ink.subDim
     subtitle.lineBreakMode = .byTruncatingTail
     subtitle.isHidden = row.subtitle.isEmpty
-    number.font = style.numberFont
-    number.textColor = ink.number
-    number.stringValue = slot.map { "\(style.numberKey)\($0)" } ?? ""
-    number.isHidden = slot == nil
+    // The selected row shows Return, since Return chooses it. Its digit still chooses it, it is
+    // only not drawn there.
+    var keys: [[KeyMark]] = []
+    if keyed {
+      if lit { keys = style.returnKey }
+      else if let slot, slot >= 1, slot <= style.numberKeys.count { keys = [style.numberKeys[slot - 1]] }
+    }
+    let spelled = keys.flatMap { $0.map(\.glyph) }
+    if keys.isEmpty {
+      shortcut?.removeFromSuperview()
+      shortcut = nil
+      shortcutFor = nil
+    } else if shortcutFor.map({ $0.keys != spelled || !Self.same($0.ink, ink) || $0.font != style.rowKeyFont }) ?? true {
+      shortcut?.removeFromSuperview()
+      let cap = KeyCap(keys, ink: ink, style: style, placement: placement, holderH: placement.rowH,
+        holderRadius: 0, bare: true, keyFont: style.rowKeyFont)
+      addSubview(cap)
+      shortcut = cap
+      shortcutFor = (spelled, ink, style.rowKeyFont)
+    }
     iconTint = row.tint ? ink.icon : nil
     needsLayout = true
   }
@@ -218,7 +237,8 @@ final class RowCell: NSView {
       }
     }
     let textX = p.iconPadLeft + p.iconSize + p.iconGap
-    let reserved = number.isHidden ? 0 : p.numW
+    let capW = shortcut.map { ceil($0.fittingSize.width) } ?? 0
+    let reserved = shortcut == nil ? 0 : max(p.numW, capW)
     let textW = max(0, bounds.width - textX - p.padX - reserved)
     let titleH = Self.lineHeight(title.font)
     if subtitle.isHidden {
@@ -229,10 +249,15 @@ final class RowCell: NSView {
       title.frame = NSRect(x: textX, y: top, width: textW, height: titleH)
       subtitle.frame = NSRect(x: textX, y: top + titleH, width: textW, height: subH)
     }
-    let numH = Self.lineHeight(number.font)
-    number.frame = NSRect(x: bounds.width - p.padX - p.numW, y: (bounds.height - numH) / 2,
-      width: p.numW, height: numH)
+    if let shortcut {
+      let capH = shortcut.fittingSize.height
+      shortcut.frame = NSRect(x: bounds.width - p.padX - capW, y: (bounds.height - capH) / 2,
+        width: capW, height: capH)
+    }
   }
+
+  // Whether two inks would draw a bare cap alike, the number colour being the only one it reads.
+  private static func same(_ a: Ink, _ b: Ink) -> Bool { a.number == b.number }
 }
 
 // The table, which keeps the pointer for itself rather than selecting natively, so a press and
@@ -444,7 +469,7 @@ final class ListView: FlippedView, NSTableViewDataSource, NSTableViewDelegate {
     cell.placement = placement
     cell.lit = row == highlight - 1
     let slot = state.slots.firstIndex(of: row + 1).map { $0 + 1 }
-    cell.fill(rows[row], slot: placement.showNumbers ? slot : nil, style: style, lineBreak: state.lineBreak)
+    cell.fill(rows[row], slot: slot, keyed: placement.showNumbers, style: style, lineBreak: state.lineBreak)
   }
 
   func update(_ next: ViewState) {
@@ -634,12 +659,11 @@ final class ListView: FlippedView, NSTableViewDataSource, NSTableViewDelegate {
   }
 
   private func relight() {
-    let recolour = style.litText != nil
     table.enumerateAvailableRowViews { view, index in
       (view as? LitRowView)?.lit = index == self.highlight - 1
-      // A solid highlight changes the lit row's text, so the cells whose lit state moved are
-      // filled again. A translucent one leaves the text alone and costs nothing here.
-      if recolour, let cell = view.view(atColumn: 0) as? RowCell, cell.lit != (index == self.highlight - 1) {
+      // The cells whose lit state moved are filled again, since the selected row's shortcut is
+      // Return and a solid highlight also changes its text. Two cells at most.
+      if let cell = view.view(atColumn: 0) as? RowCell, cell.lit != (index == self.highlight - 1) {
         self.fill(cell, row: index)
       }
     }

@@ -343,8 +343,19 @@ function M.elements(state, rect, layout, style, clip, query)
     -- Subtracting that column from reservedW, only for those rows and only when
     -- showRowNumbers is on, and using reservedW for both lines rather than textW, is
     -- what brings all three back into agreement.
+    -- The row's shortcut, Return on the selected row, since Return is what chooses it, and
+    -- Command with its digit on every other one of the first nine, which still chooses this row
+    -- while it is selected, the digit is only not drawn there.
+    local shortcut = nil
+    if numberMetrics then
+      if entry.index == ns.highlight then
+        shortcut = kbd.of(kbd.Return)
+      elseif number <= 9 then
+        shortcut = kbd.of(kbd.Cmd, kbd.named(tostring(number)))
+      end
+    end
     local reservedW = textW
-    if numberMetrics and number <= 9 then
+    if shortcut then
       reservedW = math.max(0, textW - (layout.numW or layout.iconSize))
     end
 
@@ -416,7 +427,7 @@ function M.elements(state, rect, layout, style, clip, query)
       }
     end
 
-    if numberMetrics and number <= 9 then
+    if shortcut then
       -- Decision four of round four's own consequence, a shortcut nobody can see is a
       -- shortcut nobody presses, so the first nine rows quietly name the digit
       -- cmd would choose them with, written as the shortcut itself, the command sign and the
@@ -424,18 +435,25 @@ function M.elements(state, rect, layout, style, clip, query)
       -- beside the title, the column the native chooser reserves for exactly this,
       -- centred against the same row band the title and the icon both already centre or
       -- align against rather than a fraction of rowH guessed fresh for one more element.
-      local numTop, numH = centredLine(rowY, layout.rowH, numberMetrics)
-      local numW = layout.numW or layout.iconSize
-      els[#els + 1] = {
-        type = "text", text = kbd.text(kbd.of(kbd.Cmd, kbd.named(tostring(number)))),
-        textFont = layout.numFont, textSize = layout.numSize,
-        textColor = numberColor,
-        textAlignment = "right",
-        frame = {
-          x = px(rect.x + rect.w - layout.padX - numW), y = px(numTop),
-          w = px(numW), h = px(2 * numH),
-        },
-      }
+      -- Since 2026-11-03 the shortcut is a bare key cap, style.rowKey, the bar's keys with no
+      -- chip, so it is the code role and reads like every other key Olm shows. A style with no
+      -- rowKey, a caller outside the canvas view, keeps the text it always drew.
+      local rightX = rect.x + rect.w - layout.padX
+      if style.rowKey then
+        for _, el in ipairs(style.rowKey(shortcut, rightX, rowY, layout.rowH, numberColor)) do
+          els[#els + 1] = el
+        end
+      else
+        local numTop, numH = centredLine(rowY, layout.rowH, numberMetrics)
+        local numW = layout.numW or layout.iconSize
+        els[#els + 1] = {
+          type = "text", text = kbd.text(shortcut),
+          textFont = layout.numFont, textSize = layout.numSize,
+          textColor = numberColor,
+          textAlignment = "right",
+          frame = { x = px(rightX - numW), y = px(numTop), w = px(numW), h = px(2 * numH) },
+        }
+      end
     end
   end
 

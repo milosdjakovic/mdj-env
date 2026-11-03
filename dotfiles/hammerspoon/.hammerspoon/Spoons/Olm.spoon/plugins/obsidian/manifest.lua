@@ -136,7 +136,7 @@ return {
     -- icon, since a tool that fronts exactly one application reads fastest wearing that
     -- application's own face. The icon in defaults stays as the fallback everywhere an
     -- app icon cannot go.
-    row = { category = "Tools", detail = "search and open notes", bundle = BUNDLE,
+    row = { detail = "search and open notes", bundle = BUNDLE,
       keywords = "notes, vault, markdown" },
     open = { member = "show", call = "dot" },
     scope = {

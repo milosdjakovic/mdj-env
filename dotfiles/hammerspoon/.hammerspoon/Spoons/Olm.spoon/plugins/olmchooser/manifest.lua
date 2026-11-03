@@ -62,8 +62,8 @@ return {
   },
 
   registry = {
-    row = { category = "Olm", icon = "chooser",
-      detail = "glass or canvas, how every list is drawn",
+    row = { settings = true, icon = "chooser",
+      detail = "how every list is drawn",
       keywords = "glass, canvas, native, provider, picker, look" },
     open = { member = "show", call = "dot" },
   },

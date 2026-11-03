@@ -85,7 +85,7 @@ return {
   },
 
   registry = {
-    row = { category = "Olm", icon = "plugins",
+    row = { settings = true, icon = "plugins",
       detail = "switch plugins on or off",
       keywords = "extensions, enable, disable, modules" },
     open = { member = "show", call = "dot" },

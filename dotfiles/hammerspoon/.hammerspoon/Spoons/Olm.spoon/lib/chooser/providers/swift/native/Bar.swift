@@ -36,6 +36,8 @@ private func label(_ text: String, _ font: NSFont, _ color: NSColor) -> NSTextFi
 // too. Alternatives stand apart with the alternative word between them in the caption colour, so
 // it reads as press one or the other. A chip is the hint badge's height. Its corner nests in
 // whatever line or group holds it, radius less the room above the chip. No chord draws nothing.
+// A bare cap, lib/ui/keycap.lua's opts.bare, draws the same keys with no chip and no padding, in
+// the number ink, the row number shortcut on a list row.
 final class KeyCap: FlippedView {
   // One key, what it draws and its ink. A glyph's ink is measured from its pen position, a
   // symbol's from the left and top of the box it is drawn in, both already at drawn size.
@@ -64,25 +66,29 @@ final class KeyCap: FlippedView {
   private let chord: [[KeyMark]]
   private let font: NSFont
   private let enabled: Bool
+  private let bare: Bool
   // The colours the chip, its keys and the alternative word are drawn in, the ink of whatever the
   // cap stands on, so a cap on a lit line or a lit bar item is drawn in the lit ink, see Ink. A
   // change keeps every key's place, since a colour moves no ink.
   var ink: Ink { didSet { paint() } }
 
   init(_ chord: [[KeyMark]], ink: Ink, style: Style, placement: Placement, holderH: CGFloat,
-    holderRadius: CGFloat, enabled: Bool = true) {
+    holderRadius: CGFloat, enabled: Bool = true, bare: Bool = false, keyFont: NSFont? = nil) {
     self.chord = chord
     self.ink = ink
-    self.font = style.keycapFont
+    self.font = keyFont ?? style.keycapFont
     self.enabled = enabled
+    self.bare = bare
     super.init(frame: .zero)
-    padX = placement.keycapPadX
+    padX = bare ? 0 : placement.keycapPadX
     keyGap = placement.keycapGap
     gap = placement.barGap
     height = placement.keycapH
     radius = max(0, holderRadius - max(0, holderH - height) / 2)
     lineH = NSAttributedString(string: "X", attributes: [.font: font]).size().height
     capMiddle = font.ascender - font.capHeight / 2
+    // A larger font than the badge's, a row's shortcut, stands in a box its own line tall.
+    height = max(height, ceil(lineH))
     for (i, keys) in chord.enumerated() where !keys.isEmpty && i > 0 {
       let word = NSTextField(labelWithString: placement.keycapOr)
       word.font = style.captionFont
@@ -94,8 +100,8 @@ final class KeyCap: FlippedView {
 
   // The chip's fill, the keys and the alternative word in the current ink.
   private func paint() {
-    fill = enabled ? ink.keycap : ink.keycap.withAlphaComponent(Ink.alpha(ink.keycap) * 0.5)
-    let color = enabled ? ink.text : ink.textDim
+    fill = bare ? .clear : (enabled ? ink.keycap : ink.keycap.withAlphaComponent(Ink.alpha(ink.keycap) * 0.5))
+    let color = bare ? ink.number : (enabled ? ink.text : ink.textDim)
     let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
     for word in words { word.textColor = enabled ? ink.caption : ink.subDim }
     caps = chord.filter { !$0.isEmpty }.map { keys in

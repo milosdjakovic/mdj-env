@@ -65,7 +65,7 @@ return {
   -- since choosing a row and clicking one whose row the accessibility tree could not resolve
   -- in time both mean the same thing here, flip the setting in place.
   registry = {
-    row = { category = "System", detail = "hides or reveals the Dock", icon = "dockautohide",
+    row = { system = true, detail = "hide or show the Dock", icon = "dockautohide",
       keywords = "autohide, hide dock, show dock" },
     open = "toggle",
     hosted = true,

@@ -33,10 +33,10 @@
 -- row, added in that same packet, is optional, a table describing this tool's launcher
 -- row, presentation data the launcher reads through rowFor rather than owning itself. A
 -- tool with no row gets none on its launcher row, which is what a tool reachable only as
--- a scope will want. Its one required field, once present, is category, the word before
--- the separator in the subtitle the launcher renders, everything else inside it, keysName,
--- detail, glyph, keywords, and chord, is presentation data this module never reads, opaque
--- to the registry and meaningful only to the launcher on the other end of rowFor.
+-- a scope will want. It has no required field. The word before the separator in the subtitle,
+-- its prefix, is worked out by the registrar from what Return does, and everything inside it
+-- is presentation data this module never reads, opaque to the registry and meaningful only
+-- to the launcher on the other end of rowFor.
 --
 -- scope, added in phase seven's fourth packet, is optional, a table carrying exactly
 -- the fields the composition root's own scope helper passes through today, matcher,
@@ -99,10 +99,7 @@
 -- breaking change and equality is the only check that respects that. A surface that is
 -- present and is not a function is refused, naming the tool, since a surface handed in
 -- already built is exactly the mistake the discipline above exists to catch. A row that
--- is present and is not a table is refused, naming the tool. A row that is present and
--- has no category is refused, naming the tool too, since a subtitle rendered with no
--- category would render wrong rather than absent, and wrong is the worse failure of the
--- two. A scope that is present and is not a table is
+-- is present and is not a table is refused, naming the tool. A scope that is present and is not a table is
 -- refused, naming the tool. A scope present without a rows function, or without a run
 -- function, is refused, naming the tool and which of the two is missing, since QueryScope
 -- requires both and the registration is a better place to learn about the same mistake
@@ -218,7 +215,7 @@ function M.new(opts)
   end
 
   -- A row is optional, and when present it is validated the same way a surface is, a
-  -- table only, one required field inside it. Absent is fine and answers true, since
+  -- table only. Absent is fine and answers true, since
   -- optional means structural, absent rather than empty. name is the tool, used for both
   -- refusals.
   local function rowIsWellFormed(row, name)
@@ -226,11 +223,6 @@ function M.new(opts)
     if type(row) ~= "table" then
       log.w(string.format(
         "Registry refused '%s', its row is present and is not a table", name))
-      return false
-    end
-    if row.category == nil then
-      log.w(string.format(
-        "Registry refused '%s', its row has no category", name))
       return false
     end
     return true

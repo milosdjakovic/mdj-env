@@ -165,7 +165,7 @@ return {
     -- nothing is selected, the answer a person otherwise only learns after opening a tool
     -- whose whole point is the selection. The plugin answers the ordinary words, recase the
     -- selection in place, whenever it cannot tell, so the row never nags on a guess.
-    row = { category = "Text", detail = { member = "launcherDetail", call = "method" },
+    row = { detail = { member = "launcherDetail", call = "method" },
             icon = "textcase",
             keywords = "uppercase, lowercase, camel case, snake case, kebab case, capitalize" },
     open = "show",

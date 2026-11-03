@@ -117,6 +117,13 @@ local SELF_BUNDLE = hs.processInfo and hs.processInfo.bundleID
 -- registrar refuses it only on a tool's name. Keep this in step with the two functions.
 obj.reservedKinds = { app = true, calc = true, scope = true }
 
+-- The word that leads a subtitle this host spells, saying what Return on the row does. A plugin's
+-- own row reads Plugin, Olm Settings or System Action, which the registrar works out, and a row a
+-- plugin adds reads its plugin's name, which the root stamps. These are the words for the rows
+-- this host builds itself, an app and its own rows about Olm. Stated by Milos on 2026-11-03,
+-- decisions/olm-launcher-ranking.md has the whole dictionary.
+local PREFIX = { app = "Application", olm = "Olm", plugin = "Plugin" }
+
 -- What this host runs beside opening itself, answered through provides.actions like any plugin's
 -- descriptors, so Olm binds their keys, builds their rows and runs a chosen one, and a person
 -- moves either in config/keymap.lua as launcher.lock and launcher.sleep. Both are plain macOS
@@ -124,9 +131,9 @@ obj.reservedKinds = { app = true, calc = true, scope = true }
 -- launcher's recency and query memory have always remembered them by, from when they were this
 -- host's special rows.
 obj.actions = {
-  { name = "lock", description = "Lock Screen", subtitle = "System", icon = "lock", kind = "special",
+  { name = "lock", description = "Lock Screen", system = true, icon = "lock", kind = "special",
     run = function() hs.caffeinate.lockScreen() end },
-  { name = "sleep", description = "Sleep", subtitle = "System", icon = "sleep", kind = "special",
+  { name = "sleep", description = "Sleep", system = true, icon = "sleep", kind = "special",
     run = function() hs.caffeinate.systemSleep() end },
 }
 
@@ -372,14 +379,14 @@ function obj:configure(opts)
   return self
 end
 
---- Launcher:_chordSuffix(category, leader, key, mods)
+--- Launcher:_chordSuffix(prefix, leader, key, mods)
 --- Method
---- A row's subtitle tail. The bare category is what a row with no configured chord already
+--- A row's subtitle tail. The bare prefix is what a row with no configured chord already
 --- reads as, so that is exactly what this falls back to when no chord speller was injected.
---- Otherwise the category joined to the chord by the shared middot.
-function obj:_chordSuffix(category, leader, key, mods)
-  if not self._chordLabel or not self._kbd then return category end
-  return category .. " · " .. self._kbd.text(self._chordLabel(leader, key, mods))
+--- Otherwise the prefix joined to the chord by the shared middot.
+function obj:_chordSuffix(prefix, leader, key, mods)
+  if not self._chordLabel or not self._kbd then return prefix end
+  return prefix .. " · " .. self._kbd.text(self._chordLabel(leader, key, mods))
 end
 
 --- Launcher:_plainChord(key, mods)
@@ -436,7 +443,7 @@ function obj:_buildActionRows()
   -- the injected rows already carry. It exists so a row can answer to a word its title
   -- and subtitle have no room for, rather than that word being padded into the visible
   -- subtitle where it would cost a reader something to buy a searcher something.
-  local function add(title, subTitle, item, icon, when, keywords, subTitleFn, image, owner)
+  local function add(title, subTitle, item, icon, when, keywords, subTitleFn, image, owner, prefix)
     -- A tool reachable by typing a word says so on its own row, and it says it here rather
     -- than at each call site. That is the difference between a hint a row can be forgotten
     -- from, which is how file search ended up advertising nothing, and one that cannot be,
@@ -458,6 +465,10 @@ function obj:_buildActionRows()
     elseif type(keywords) == "string" then
       terms[1] = keywords
     end
+    -- The word before the middot says what Return does, so it is a word a person types to list
+    -- every row of that kind, olm settings or system action. It is searched below the title like
+    -- any keyword, and the rest of the subtitle, a detail or a chord, is not.
+    if prefix then terms[#terms + 1] = prefix end
     if item and item.kind == "special" and item.owner == nil then
       local hint = self._aliasHint(item.name)
       subTitle = (subTitle or "") .. hint
@@ -497,7 +508,7 @@ function obj:_buildActionRows()
   -- the mixed loud and quiet failure the calls it replaced actually had.
   --
   -- This file still names no tool. It reads a name handed to it and the keys entry that
-  -- name points at, and everything about how that name's row looks, its category, its
+  -- name points at, and everything about how that name's row looks, its prefix, its
   -- icon, its detail or its chord, now lives on the descriptor rather than here.
   --
   -- The one addTool line per tool this once needed is gone, the registry loop below asks for
@@ -513,10 +524,12 @@ function obj:_buildActionRows()
     -- whichever manifest declared it rather than a state to draw badly, so it is named and
     -- skipped. Everything else a row needs it already carries, since the descriptor is now
     -- built from the plugin's own manifest merged with whatever the root overrode.
-    if not row.description then
-      log.w(string.format("Launcher skipped the row for '%s', its registration carries no description", name))
+    local title = row.title or row.description
+    if not title then
+      log.w(string.format("Launcher skipped the row for '%s', its registration carries no title", name))
       return
     end
+    local prefix = row.prefix or PREFIX.plugin
     -- A detail may arrive as a function rather than a string, the registrar having resolved
     -- a member spec the manifest declared, for a row whose subtitle depends on the world at
     -- open time. Such a row still bakes a static subtitle through the branches below, the
@@ -529,27 +542,27 @@ function obj:_buildActionRows()
     local chord = self._chordOf and self._chordOf(name) or nil
     local subTitle
     if row.detail and not detailFn then
-      subTitle = row.category .. " · " .. row.detail
+      subTitle = prefix .. " · " .. row.detail
     elseif chord and chord.leader == false then
       -- A global combination rather than a leader chord, so the subtitle spells the whole
       -- thing out and names no leader, which is the only way it reads correctly.
-      subTitle = row.category .. " · " .. self:_plainChord(chord.key, chord.mods)
+      subTitle = prefix .. " · " .. self:_plainChord(chord.key, chord.mods)
     elseif chord then
-      subTitle = self:_chordSuffix(row.category, self:_leaderName(chord.leader), chord.key, chord.mods)
+      subTitle = self:_chordSuffix(prefix, self:_leaderName(chord.leader), chord.key, chord.mods)
     else
       -- No chord at all, which is ordinary. Several tools open from this list and nowhere
-      -- else, so the subtitle carries only what kind of thing they are.
-      subTitle = row.category
+      -- else, so the subtitle carries only what Return does.
+      subTitle = prefix
     end
     local subTitleFn
     if detailFn then
       -- The alias hint is appended here exactly as add appends it to the static subtitle,
       -- since a live subtitle replacing the static one must not cost the row its typed word.
-      local category, hint = row.category, self._aliasHint(name)
+      local hint = self._aliasHint(name)
       subTitleFn = function()
         local d = detailFn()
         if type(d) == "string" and d ~= "" then
-          return category .. " · " .. d .. hint
+          return prefix .. " · " .. d .. hint
         end
         return nil
       end
@@ -559,13 +572,13 @@ function obj:_buildActionRows()
     -- whenever the bundle resolves to nothing on this machine.
     local image = row.bundle and hs.image.imageFromAppBundle(row.bundle) or nil
     -- Only the declared keywords are searched beside the name, and the alias words add() puts
-    -- with them. The category word and the chord name a kind of thing and a key, and do inside
+    -- with them, and the prefix add() joins. The chord names a key, and did inside
     -- Window listed every window command. The description is prose, and searching it made
     -- set list Wi-Fi through "see the current network" and the list six tools.
     local terms = {}
     if row.keywords then terms[#terms + 1] = row.keywords end
-    add(row.description, subTitle, { kind = "special", name = name },
-      row.icon, nil, terms, subTitleFn, image, tool or name)
+    add(title, subTitle, { kind = "special", name = name },
+      row.icon, nil, terms, subTitleFn, image, tool or name, prefix)
   end
   -- Rows other plugins contribute, and this host's own declared rows beside them. A contributed
   -- row is plain data, built by Olm from a plugin's action descriptors or by the plugin itself
@@ -640,13 +653,15 @@ function obj:_buildActionRows()
     return a.seq < b.seq
   end)
 
-  -- The subtitle a contributed row shows. A finished one is taken as it stands, otherwise the
-  -- group word joined to the chord, otherwise the group word alone, which is what a row with no
-  -- key reads as everywhere else in this list.
+  -- The subtitle a contributed row shows. The group is the word the root stamped, the owner's
+  -- name or System Action, joined to the row's detail, otherwise to its chord, otherwise alone,
+  -- which is what a row with no key reads as everywhere else in this list.
   -- A chord whose leader is false is a plain combination on no leader, spelled whole by the
   -- glyph renderer the way a registered tool's global combination is.
   local function contributedSubTitle(r)
-    if r.subTitle then return r.subTitle end
+    if r.group and type(r.detail) == "string" and r.detail ~= "" then
+      return r.group .. " · " .. r.detail
+    end
     if r.group and type(r.chord) == "table" and r.chord.key then
       if r.chord.leader == false then
         return r.group .. " · " .. self:_plainChord(r.chord.key, r.chord.mods)
@@ -657,7 +672,7 @@ function obj:_buildActionRows()
   end
   local function addContributed(r)
     add(r.title, contributedSubTitle(r), r.item, r.icon, r.when, r.keywords, nil, nil,
-      r.iconOwner or r.item.owner)
+      r.iconOwner or r.item.owner, r.group)
   end
 
   -- One row per registered tool, asked of the registry in the order it holds rather than listed
@@ -671,12 +686,11 @@ function obj:_buildActionRows()
 
   for _, entry in ipairs(entries) do
     if entry.own then
+      -- This host's own rows are about Olm itself, so they lead with Olm and say what they are.
       local r = entry.own
-      local subTitle = r.subTitle
-      if not subTitle and r.category and r.key then
-        subTitle = self:_chordSuffix(r.category, self:_leaderName(r.leader), r.key)
-      end
-      add(r.description, subTitle, { kind = "special", name = r.name }, r.icon, nil, r.keywords)
+      local subTitle = PREFIX.olm .. ((type(r.detail) == "string" and r.detail ~= "") and (" · " .. r.detail) or "")
+      add(r.description, subTitle, { kind = "special", name = r.name }, r.icon, nil, r.keywords,
+        nil, nil, nil, PREFIX.olm)
     else
       addContributed(entry.contributed)
     end
@@ -782,7 +796,9 @@ function obj:_appRows()
   for _, e in ipairs(list) do
     local cfg = configured[e.bundleID]
     local chord = cfg and type(cfg.chord) == "table" and cfg.chord.key ~= nil and cfg.chord or nil
-    local status = e.running and "Open" or "Not running"
+    -- An app row leads with Application, and a running one says Open after it, the one status a
+    -- person acts on, since choosing it brings a window forward rather than launching.
+    local status = e.running and (PREFIX.app .. " · Open") or PREFIX.app
     local subTitle = status
     if chord and chord.leader == nil then
       -- A literal combo on no leader never appears on a cheat sheet, so this row is its only
@@ -802,6 +818,7 @@ function obj:_appRows()
       -- A stable key so the atom encodes each app icon once and reuses it across opens.
       iconKey = "app:" .. e.bundleID,
       item = { kind = "app", bundleID = e.bundleID },
+      keywords = { PREFIX.app },
     }
   end
   self._appRowsCache = rows
@@ -936,8 +953,8 @@ function obj:_commandRows(query)
   local bonus = self:_memoryBonus(query)
   for _, row in ipairs(self:_orderedRows()) do
     if not (row.when and not (preds[row.when] and preds[row.when]())) then
-      -- The name is searched first and the declared terms after it. The subtitle is not, since
-      -- here it is a category, a status and a chord, which filterText set to the title says,
+      -- The name is searched first and the declared terms after it. The subtitle is not, its prefix
+      -- joining the keywords in add, and the rest a status and a chord, which filterText says,
       -- lib/chooser/rank.lua.
       out[#out + 1] = { title = row.title, subTitle = self:_rowSubTitle(row),
                         image = row.image, icon = row.icon, iconOwner = row.iconOwner,
@@ -1548,7 +1565,7 @@ function obj:show(query)
   -- printing the same line every time rather than the once a genuine gap deserves.
   if not self._chordLabel and not self._chordWarned then
     self._chordWarned = true
-    log.w("no chord wording was injected, so every row that would name a shortcut reads its bare category instead")
+    log.w("no chord wording was injected, so every row that would name a shortcut reads its bare prefix instead")
   end
   self._openId = (self._openId or 0) + 1
   -- The app this launcher covers, which can never be this app. macOS answers with ourselves

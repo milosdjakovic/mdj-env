@@ -234,7 +234,7 @@ return {
   -- matcher, so the query scope ranks the same tab rows against the typed rest through the
   -- shared search, exactly as the tab list does.
   registry = {
-    row = { category = "Tools" },
+    row = {},
     open = "show",
     hosted = true,
     shortcut = "leader",

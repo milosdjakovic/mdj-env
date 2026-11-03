@@ -456,8 +456,8 @@ do
   local ran = {}
   local actions = { clip = {
     append = { name = "append", run = function() ran[#ran + 1] = "append" end, description = "Append copy",
-      subtitle = "Clipboard", icon = "append", keywords = "collect", kind = "special" },
-    manage = { name = "manage", run = function() ran[#ran + 1] = "manage" end, subtitle = "Clipboard" },
+      icon = "append", keywords = "collect", kind = "special" },
+    manage = { name = "manage", run = function() ran[#ran + 1] = "manage" end, system = true },
     hidden = { name = "hidden", run = function() end, listed = false },
   } }
   local own = {}
@@ -465,7 +465,7 @@ do
     host = "launcher",
     plan = { order = { "clip" }, identity = {}, sets = { launcher = { launcherRun = { "clip" } } },
       effective = { clip = { launcherOrder = 25 } } },
-    manifests = { clip = { provides = { launcherRun = "launcherRun" } } },
+    manifests = { clip = { about = { title = "Clip History" }, provides = { launcherRun = "launcherRun" } } },
     modules = { clip = { launcherRun = function(_, item) own[#own + 1] = item.name end } },
     registrar = assert(loadfile(here .. "../lib/registrar.lua"))(),
     actions = actions, actionOrder = { clip = { "append", "manage", "hidden" } },
@@ -476,7 +476,8 @@ do
   eq(#rows, 2, "an unlisted action gets no row")
   eq(rows[1].title, "Append copy", "the title is the descriptor's description")
   eq(rows[2].title, "manage", "and the action's name where it states none")
-  eq(rows[1].group, "Clipboard", "the subtitle is the descriptor's subtitle")
+  eq(rows[1].group, "Clip History", "the subtitle leads with the owner's about.title")
+  eq(rows[2].group, "System Action", "and with System Action for a descriptor saying system")
   eq(rows[1].chord and rows[1].chord.leader, false, "a plain combo's chord names no leader")
   eq(rows[1].chord and table.concat(rows[1].chord.mods, "+"), "ctrl+alt", "and its modifiers as a Mac spells them")
   eq(rows[2].chord, nil, "an action with no key has no chord")

@@ -518,7 +518,7 @@ check("an action bound on the leader is on that leader's sheet", withAction.shee
 local labelled = false
 for _, section in ipairs(withAction.host:sections(withAction.hyperCode)) do
   for _, row in ipairs(section.rows or {}) do
-    if row.badge == "9" and row.label == "Manage clipboard history" then labelled = true end
+    if row.badge == "9" and row.label == "Manage History" then labelled = true end
   end
 end
 check("the action's sheet row wears its descriptor's description", labelled)

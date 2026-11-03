@@ -157,7 +157,7 @@ return {
   -- name, since a bare name is walked against the plugin root and answers nil in silence.
   -- No matcher, so the shared one filters the rows scopeRows returns by the typed rest.
   registry = {
-    row = { category = "Displays", detail = "window layouts you snapshot and put back",
+    row = { detail = "save and restore layouts",
       icon = "workspaces", keywords = "layout, snapshot, arrange windows, restore windows" },
     open = { member = "chooser.show", call = "dot" },
     -- The submodule the actions pane's verbs, isLayout and the four on a layout, are answered by.

@@ -163,15 +163,14 @@ return {
   -- reached only by the scope below, never by the nav registry.
   --
   -- No detail on the row, matching fileSearch rather than displayProfiles, because this tool
-  -- has a real chord and its subtitle should read like every other keyed tool's, the category
+  -- has a real chord and its subtitle should read like every other keyed tool's, the prefix
   -- then the combination, with the alias hint appended by the catalogue itself.
   --
   -- surface names the chooser submodule, where the Terminal verb's two methods live.
   -- host/stage's own surfaceFor still answers the five generic nav verbs, and the root falls
   -- through to this submodule for any verb beyond them.
   registry = {
-    row = { category = "Tools",
-      keywords = "sessions, terminal, ghostty" },
+    row = { keywords = "terminal, ghostty" },
     open = "show",
     surface = "chooser",
     hosted = true,

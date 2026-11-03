@@ -1204,6 +1204,32 @@ do
 end
 
 ----------------------------------------------------------------------------------------
+-- Fourteen, a launcher row's subtitle fits on one line. The subtitle a person reads is the
+-- category, the detail, the chord and the aliases joined, so it is read where it is already
+-- spelled whole, the launcher golden, which the goldens check below holds to the real root.
+-- SUBTITLE_MAX characters of the caption role fit the narrowest row with its shortcut column,
+-- measured on 2026-11-03 at about 354 points, where a longer one ends in an ellipsis. A detail
+-- is a short phrase for that reason, see the subtitle rule in docs/PLUGIN-AUTHORING.md.
+----------------------------------------------------------------------------------------
+
+do
+  local SUBTITLE_MAX = 50
+  local f = io.open(scriptDir .. "launcher.golden", "r")
+  if f then
+    for line in f:lines() do
+      local id, _, subtitle = line:match("^[^\t]*\t([^\t]*)\t([^\t]*)\t([^\t]*)")
+      local n = subtitle and utf8.len(subtitle)
+      if n and n > SUBTITLE_MAX then
+        finding(string.format(
+          "dry gate refused launcher row '%s', its subtitle '%s' is %d characters, more than %d fit on one row, shorten its detail",
+          id, subtitle, n, SUBTITLE_MAX))
+      end
+    end
+    f:close()
+  end
+end
+
+----------------------------------------------------------------------------------------
 -- An accepted line that no longer matches anything this run is itself a finding, appended
 -- straight to the real list rather than through finding() above, so it is never itself
 -- eligible to be accepted away, the one rule that keeps this file from rotting.

@@ -129,7 +129,7 @@ return {
     -- subtitle says what it does rather than naming a chord.
     searchRow = {
       title = "Search Settings",
-      subTitle = "System · opens the System Settings search field",
+      detail = "opens the search field",
       icon = "search",
       -- Its place among the launcher's rows, after the screenshot actions and before the
       -- launcher's own rows, where it has always sat. See launcherOrder below.

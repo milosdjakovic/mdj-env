@@ -430,7 +430,6 @@ names really does go quiet.
 - `Registry refused '%s', its presentation has no rows function`
 - `Registry refused '%s', its presentation has no onSelect function`
 - `Registry refused '%s', its row is present and is not a table`
-- `Registry refused '%s', its row has no category`
 - `Registry refused '%s', its surface is present and is not a function`
 - `Registry refused '%s', its shortcut is '%s', neither 'leader' nor 'global'`
 - `Registry refused '%s', its shortcut has nothing to bind`
@@ -739,9 +738,9 @@ defaults = {
 function obj:actions()
   return {
     { name = "leftHalf", run = function() self:leftHalf() end,
-      description = "Left Half", subtitle = "Window", icon = "windows", kind = "window" },
+      description = "Left Half", icon = "windows", kind = "window" },
     { name = "moveLeft", run = function(depth) self:moveByPixels("left", self:_moveStep(depth)) end,
-      repeats = true, description = "Move Left", subtitle = "Window", icon = "windows", kind = "window" },
+      repeats = true, description = "Move Left", icon = "windows", kind = "window" },
   }
 end
 ```
@@ -878,6 +877,31 @@ The same rules hold for a tool's `row.keywords`, a descriptor's `keywords` and a
 `lib/chooser/rank.lua` states the row vocabulary. A single row may state its own `order` to sit
 apart from the rest of yours.
 
+Every launcher row's subtitle leads with one word saying what Return on it does, and no plugin
+writes that word. An app reads Application, and Application · Open while it runs. A plugin's own
+row reads Plugin, its title the plugin's `about.title`, since Return opens its list. A row whose
+Return changes the Mac and closes, Lock Screen, Sleep or the Dock toggle, reads System Action,
+which a descriptor says with `system = true` and a tool row with `row.system = true`. The four
+plugins that change Olm say `row.settings = true` and read Olm Settings. A row a plugin adds, an
+action or a `launcherRows` row, reads that plugin's `about.title`, Window Manager, Screen Capture,
+System Settings. The launcher's own rows about Olm read Olm, and a row computed from what was
+typed says what Return does, Copy the result. The word is searched below the title, so typing
+olm settings or system action lists every row of that kind. The test for `system` is one
+question, does Return change the Mac itself, its power, sound, network, Dock or sleep, and an
+action that does its plugin's own job, a window move or a paste, leaves it unset.
+`row.category` and a descriptor's `subtitle` named the word by hand until 2026-11-03 and both
+are refused now, `decisions/olm-launcher-ranking.md` has why.
+
+A subtitle fits on one line. The launcher spells a tool's subtitle as that word, a dot,
+its `row.detail`, the chord and the aliases in brackets, and fifty characters of that is what the
+narrowest row holds beside its shortcut before it ends in an ellipsis, measured on 2026-11-03. So
+a detail is a short verb phrase of a few words, about thirty characters, saying what the tool is
+for, `set or mute the volume`, never a list of everything it can do, since the actions pane and
+the info pane say that. A word a person would search by that the shorter detail dropped goes in
+`keywords`. The dry gate reads every subtitle from the launcher golden and refuses one longer than
+fifty characters. A status or empty row a list shows itself, a subtitle under a title such as No
+matches, keeps to the same length, which no check sees.
+
 A query row source owns the rows it computes too, so one that wants a chosen row run by itself
 declares `launcherRun` alone and leaves `launcherRows` out. Window Size is that case.
 
@@ -939,7 +963,7 @@ disagreement between your declaration and the map. The full rule is in the repos
 3. `init.lua` with `configure(opts)`, plus the `rows` and `select` members the presentation
    will name.
 4. `defaults`, its `bindings` holding a row whose action is `open` with the key you suggest,
-   then `registry` with a row `category`, an `open` and a `shortcut`, which earns the launcher
+   then `registry` with a `row`, an `open` and a `shortcut`, which earns the launcher
    row, the word, and the key.
 5. `surface` with a `context` spelled exactly as your identity, and the primary action. The keys
    the shared verbs sit on are Olm's, and a key you state on an `extra` row is a suggestion a

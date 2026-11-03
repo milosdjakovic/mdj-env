@@ -213,8 +213,8 @@ end
 local ACTIONS = {
   { name = "ocrArea", description = "OCR", icon = "ocr" },
   { name = "captureArea", description = "Screenshot", icon = "screenshot" },
-  { name = "captureAreaClipboard", description = "Screenshot (copy)", icon = "screenshot" },
-  { name = "recordArea", description = "Record screen", icon = "record" },
+  { name = "captureAreaClipboard", description = "Screenshot to Clipboard", icon = "screenshot" },
+  { name = "recordArea", description = "Record Screen", icon = "record" },
 }
 
 --- Capture:actions() -> list of descriptors
@@ -229,7 +229,7 @@ function obj:actions()
   for _, a in ipairs(ACTIONS) do
     out[#out + 1] = {
       name = a.name, description = a.description, icon = a.icon,
-      subtitle = "Capture", kind = "capture", afterRelease = true,
+      kind = "capture", afterRelease = true,
       run = function() self:capture(a.name) end,
     }
   end

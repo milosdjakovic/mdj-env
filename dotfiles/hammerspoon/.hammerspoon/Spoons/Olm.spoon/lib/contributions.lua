@@ -103,22 +103,36 @@ local function keymapRowFor(keymap, owner, action)
   return nil
 end
 
---- contributions.actionRow(identity, name, descriptor, keymap) -> row
+-- The word that leads a contributed row's subtitle. A row says what Return on it does, and a row
+-- a plugin adds does that plugin's own job, so it reads the plugin's name, about.title, else its
+-- identity. An action that changes the Mac and closes says system = true and reads System Action.
+-- A plugin never names the word itself. Stated by Milos on 2026-11-03.
+local SYSTEM_ACTION = "System Action"
+M.SYSTEM_ACTION = SYSTEM_ACTION
+
+function M.ownerTitle(manifests, identity, directory)
+  local m = manifests and (manifests[identity] or (directory and manifests[directory])) or nil
+  local about = type(m) == "table" and type(m.about) == "table" and m.about or nil
+  return (about and about.title) or identity
+end
+
+--- contributions.actionRow(identity, name, descriptor, keymap, ownerTitle) -> row
 --- One launcher row built from one action descriptor, the shape a launcherRows member answers.
 --- The title is the descriptor's description, else the action's own name. The subtitle is the
---- descriptor's subtitle followed by the chord the keymap binds the action to, spelled by the
---- launcher, and the subtitle alone where the action has no chord. The item is the descriptor's
+--- owner's name, ownerTitle, else the identity, or System Action for a descriptor saying system,
+--- followed by the chord the keymap binds the action to, spelled by the launcher, and the word
+--- alone where the action has no chord. The item is the descriptor's
 --- kind, else the owner's own identity, joined to the action's name, and that pair is what the
 --- launcher's recency and query memory remember the row by, so a descriptor states kind exactly
 --- when its rows must keep a key they were remembered by before they were descriptors.
 ---
 --- The row's gate is the one its key carries, the binding's own when, else the descriptor's, the
 --- rule the keymap and every leader's sheet follow, so a row and its key are never gated apart.
-function M.actionRow(identity, name, descriptor, keymap)
+function M.actionRow(identity, name, descriptor, keymap, ownerTitle)
   local row = keymapRowFor(keymap, identity, name)
   return {
     title = descriptor.description or name,
-    group = descriptor.subtitle,
+    group = descriptor.system and SYSTEM_ACTION or ownerTitle or identity,
     -- The leader by its role where one answers it, else by its own name for a row the person's
     -- keymap put on a leader no role names, else false for a plain combination.
     chord = row and { leader = row.role or row.leader or false, key = row.key, mods = row.shownMods } or nil,
@@ -172,8 +186,23 @@ function M.assemble(opts)
     local call = modules[identity] and resolve(identity, "launcherRows")
     if call then
       local pluginOrder = ((plan.effective or {})[identity] or {}).launcherOrder
+      local title = M.ownerTitle(opts.manifests, identity)
+      local warned = false
       rowSuppliers[#rowSuppliers + 1] = function()
         local rows = call() or {}
+        -- The word before the middot is the owner's name, stamped here so a plugin answers only
+        -- its row's own detail. A row still naming its own subTitle or group is named once and
+        -- read without it, since a word a plugin picks for itself is what this replaced.
+        for _, r in ipairs(rows) do
+          if type(r) == "table" then
+            if (r.subTitle ~= nil or r.group ~= nil) and not warned and opts.log then
+              warned = true
+              opts.log(string.format("launcherRows of '%s' named a subTitle or a group, which is retired, "
+                .. "a row answers its detail and the launcher leads it with '%s'", identity, title))
+            end
+            r.subTitle, r.group = nil, title
+          end
+        end
         if stampIcons then rows = stampIcons(rows, identity) end
         return stampOrder(M.ownRows(rows, identity), pluginOrder)
       end
@@ -197,10 +226,11 @@ function M.assemble(opts)
     end
     if #listed > 0 then
       local pluginOrder = ((plan.effective or {})[directory] or {}).launcherOrder
+      local title = M.ownerTitle(opts.manifests, identity, directory)
       rowSuppliers[#rowSuppliers + 1] = function()
         local rows = {}
         for _, name in ipairs(listed) do
-          rows[#rows + 1] = M.actionRow(identity, name, answered[name], opts.keymap)
+          rows[#rows + 1] = M.actionRow(identity, name, answered[name], opts.keymap, title)
         end
         if stampIcons then rows = stampIcons(rows, identity) end
         return stampOrder(M.ownRows(rows, identity), pluginOrder)

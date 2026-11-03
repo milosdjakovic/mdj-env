@@ -87,7 +87,7 @@ return {
   -- The scope has its own rows member because a scope is not this presentation, so a scan
   -- landing there needs the redraw callback the launcher hands in rather than redrawPresented.
   registry = {
-    row = { category = "Network", detail = "see the current network, disconnect, or join another",
+    row = { detail = "join or leave a network",
       keywords = "wifi, wireless, network, ssid, join network, disconnect, airport" },
     open = { member = "show", call = "dot" },
     hosted = true,

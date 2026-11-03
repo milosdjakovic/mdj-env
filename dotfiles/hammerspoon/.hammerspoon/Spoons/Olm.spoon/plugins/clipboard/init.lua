@@ -211,11 +211,11 @@ end
 -- plan. The kind is the word the launcher remembered their rows by then, special and the action
 -- name, so a pick a person made before is not forgotten.
 local ACTIONS = {
-  { name = "appendCopy", call = "appendCopy", description = "Append copy", icon = "append",
+  { name = "appendCopy", call = "appendCopy", description = "Append Copy", icon = "append",
     keywords = "accumulate, add to clipboard, collect" },
-  { name = "manageHistory", call = "manageHistory", description = "Manage clipboard history",
+  { name = "manageHistory", call = "manageHistory", description = "Manage History",
     icon = "sweep", keywords = "clear history, wipe, prune, delete old" },
-  { name = "pasteNext", call = "pasteNext", description = "Paste next", icon = "pasteNext",
+  { name = "pasteNext", call = "pasteNext", description = "Paste Next", icon = "pasteNext",
     keywords = "paste in order, sequential paste, paste stack" },
 }
 
@@ -230,7 +230,7 @@ function obj:actions()
   for _, a in ipairs(ACTIONS) do
     out[#out + 1] = {
       name = a.name, description = a.description, icon = a.icon, keywords = a.keywords,
-      subtitle = "Clipboard", kind = "special",
+      kind = "special",
       run = function() obj.manager[a.call]() end,
     }
   end

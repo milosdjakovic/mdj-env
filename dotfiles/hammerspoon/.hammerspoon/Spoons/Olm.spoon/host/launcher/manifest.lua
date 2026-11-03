@@ -80,7 +80,7 @@ return {
       registry  = { from = "registry", policy = "optional" },
       -- The one vocabulary of keys, lib/kbd.lua, which spells every chord a subtitle shows as
       -- text, its keys with nothing between them. It replaced the cheat sheet's glyph helper on
-      -- 2026-11-02, so a glyph is written in one file. Optional, a row then shows its category.
+      -- 2026-11-02, so a glyph is written in one file. Optional, a row then shows its prefix alone.
       kbd = { from = "kbd", policy = "optional" },
       -- What was picked the last time a query was typed, which is what orders this list once
       -- something has been typed into it. The raw module rather than a built instance, since
@@ -156,7 +156,7 @@ return {
       -- never print two different words for the same key. Root computed, since the leader
       -- catalog and the glyph renderer both live there.
       chordLabel = { source = "root", policy = "optional",
-        breaks = "every row that would name a keyboard shortcut shows its bare category instead" },
+        breaks = "every row that would name a keyboard shortcut shows its bare prefix instead" },
       -- The ordered query row sources, QueryScope plus whichever of arithmetic and convert
       -- are present. Root assembled from the `queryRows` set answer above plus QueryScope
       -- itself, which does not appear in that answer since it claims rather than provides.
@@ -260,11 +260,11 @@ return {
     },
 
     specialRows = {
-      { name = "aliasDirectory", description = "Aliases",
-        subTitle = "Tools · every word that scopes this list", icon = "aliases",
+      { name = "aliasDirectory", description = "Olm Aliases",
+        detail = "every word that scopes this list", icon = "aliases",
         keywords = "alias, scope, shortcut, prefix" },
       { name = "keys", description = "Olm Keys",
-        subTitle = "Tools · every key Olm binds", icon = "keys",
+        detail = "every key Olm binds", icon = "keys",
         keywords = "shortcuts, hotkeys, keybindings, chords" },
     },
 

@@ -295,3 +295,35 @@ leader and one half for the last of two and nothing on an empty query, a calc ro
 never recorded, and a hosted page keeps its source's rows and order. Making the bonus nil failed
 eight checks, making it a tier failed five and inverting it five.
 
+### 2026-11-03 15:01
+
+Not ranking, but the launcher row is where it showed. Milos asked for a rule on how long a row's
+description may be after Volume's subtitle ended in an ellipsis. Measured live, the narrowest row
+holds about 354 points of caption text beside its shortcut, about fifty characters, and six tool
+rows ran past it, Speed Test, Wi-Fi, Volume, Input Sources, Workspaces and Audio, between 62 and 78
+characters. Their details became short verb phrases, every dropped search word already in their
+keywords, and the File Search status subtitles over fifty were shortened too. The dry gate now
+reads every subtitle from the launcher golden and refuses one past fifty characters, and the rule
+is in `docs/PLUGIN-AUTHORING.md` and the olm-plugin skill. The plugins' `about.description` was left
+alone, since the Olm Plugins page wraps it in the preview pane and nothing cuts it.
+
+**2026-11-03 17:02.** The word before the middot in a launcher subtitle is no longer declared, it
+says what Return does and Olm works it out, stated by Milos after a scan found eight hand picked
+`row.category` words and four descriptor `subtitle` words that agreed with nothing, Volume read
+System and Keep Awake read System beside Speedtest under Network. The dictionary. Application, and
+Application · Open while the app runs. Plugin, a plugin's own row, titled by its `about.title`
+rather than `defaults.description`, so Search Obsidian is Obsidian, Tmux Manager is Tmux Sessions
+and Speedtest is Speed Test. Olm Settings, the four plugins that change Olm, which say
+`row.settings = true`, with no Olm Settings row of its own, since typing olm settings lists the
+four. System Action, a row whose Return changes the Mac and closes, Lock Screen, Sleep and the Dock
+toggle, said with `system = true` on a descriptor or on the row, the one line Olm cannot draw by
+itself. The plugin's `about.title` for every row it adds, Window Manager, Screen Capture, Clipboard
+History, Input Sources, System Settings. Olm for the launcher's own rows, renamed Olm Aliases and
+Olm Keys. A computed row keeps saying what Return does, Copy the result. The leading word is
+searched as a keyword, below the title, so olm settings and system action list their kind, checked
+through `rank.apply` with the real rows. `row.category` is a retired field the root names, a
+descriptor's `subtitle` is refused by name, and a `launcherRows` row naming its own `subTitle` or
+`group` is named once and read without it. Five action titles moved to title case with the rest,
+Paste Next, Append Copy, Manage History, Record Screen and Screenshot to Clipboard, and three
+details were shortened under the fifty character gate the longer words pushed them past. Recency
+and query memory are keyed by kind and name, never by title, so nothing remembered was lost.

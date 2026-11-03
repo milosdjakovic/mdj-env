@@ -168,7 +168,7 @@ return {
   -- plugin's own navigation through the shared stage instead, once presentation above exists
   -- for it to ask for, so this field would be dead weight rather than a second answer.
   registry = {
-    row = { category = "Network" },
+    row = {},
     open = { member = "show", call = "dot" },
     hosted = true,
     shortcut = "leader",

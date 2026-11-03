@@ -60,4 +60,16 @@ function M.keycap(ui, tokens, chords, x, top, holderH, holderRadius, enabled)
   })
 end
 
+--- M.ROW_KEY_OPTS(color) -> the key cap options a row's shortcut is drawn and measured with.
+function M.ROW_KEY_OPTS(color) return { bare = true, color = color, sizeRole = "body" } end
+
+--- M.rowKey(ui, tokens, chords, rightX, top, holderH, color) -> elements, the keys bare, no chip
+--- and no padding, their right edge on rightX and centred in a holder holderH tall from top, in
+--- color, at the row title's size. A list row's shortcut, which stands on the row and not in a bar.
+function M.rowKey(ui, tokens, chords, rightX, top, holderH, color)
+  local opts = M.ROW_KEY_OPTS(color)
+  local w = keycapLib.width(ui.measure, tokens, chords, "hint", opts)
+  return keycapLib.elements(ui.measure, tokens, chords, "hint", rightX - w, top, holderH, opts)
+end
+
 return M

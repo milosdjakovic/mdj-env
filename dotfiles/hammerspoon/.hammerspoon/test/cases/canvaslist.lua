@@ -601,9 +601,24 @@ do
     end
   end
   check("the first nine visible rows each draw their own shortcut, the command sign and the digit",
-    numbersSeen["\u{2318}1"] and numbersSeen["\u{2318}5"] and numbersSeen["\u{2318}9"])
+    numbersSeen["\u{2318}2"] and numbersSeen["\u{2318}5"] and numbersSeen["\u{2318}9"])
+  check("the selected row draws Return in place of its digit",
+    numbersSeen["\u{21A9}"] and numbersSeen["\u{2318}1"] == nil)
   check("no shortcut is drawn past the ninth visible row",
     numbersSeen["\u{2318}10"] == nil)
+
+  -- With the highlight on the third row, the first row gets its digit back and the third draws
+  -- Return, so exactly one Return is drawn and the other eight keep their own digits.
+  local moved = model.moveDown(model.moveDown(s))
+  local seen, returns = {}, 0
+  for _, el in ipairs(render.elements(moved, rect, layout, {})) do
+    if el.type == "text" and el.textAlignment == "right" then
+      seen[el.text] = true
+      if el.text == "\u{21A9}" then returns = returns + 1 end
+    end
+  end
+  check("a moved highlight gives the row it left its digit and takes Return with it",
+    seen["\u{2318}1"] and seen["\u{2318}3"] == nil and returns == 1)
 end
 
 do

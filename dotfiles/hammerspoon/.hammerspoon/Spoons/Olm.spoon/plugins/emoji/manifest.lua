@@ -154,7 +154,7 @@ return {
   -- always-false isShowing for the macos and custom backends since neither is ever what the
   -- stage is showing.
   registry = {
-    row = { category = "Tools" },
+    row = {},
     open = "show",
     hosted = true,
     shortcut = "leader",

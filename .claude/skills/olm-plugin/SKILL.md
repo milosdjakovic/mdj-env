@@ -165,7 +165,7 @@ separated phrases, each what a person types as one thing. Never a title word, ne
 that would match half a list, never a sentence and never the description. They match at a word
 start or as a phrase typed run together, below any title match, and the words of a query match on
 their own with a bonus for staying in one phrase. The authoring guide carries the detail. A
-subtitle that is a category, a status or a chord is taken out of search by setting `filterText` to
+subtitle that is a prefix, a status or a chord is taken out of search by setting `filterText` to
 the title, except on a page whose rows are the chords themselves, where a chord is what a person
 looks a key up by, which the Rejected section of `decisions/olm-keymap.md` records. `lib/chooser/rank.lua`
 states the vocabulary. No list matches or ranks its own rows, the launcher included, whose learned query
@@ -192,6 +192,18 @@ rank by, so the grammar stays in the plugin and the search stays shared, never a
 list of thousands declares `rowLimit` and hands the engine every row, never capping in the
 supplier, since a cap there cuts before ranking. A false matcher on a long list shows an unfiltered list and nothing
 notices.
+
+A row's subtitle fits on one line, so a launcher row's `row.detail` is a short verb phrase of a
+few words saying what the tool is for, never a list of what it can do, and a search word it drops
+goes in `keywords`. The authoring guide has the measured limit and the dry gate refuses a launcher
+subtitle past it. A status row's subtitle keeps to the same length. Stated by Milos on 2026-11-03.
+
+The word that leads a launcher subtitle is never declared. It says what Return does, Application,
+Plugin for a plugin's own row, Olm Settings, System Action, Olm, or the plugin's `about.title` for
+a row it adds, and Olm works it out. A plugin says only `system = true`, on a descriptor or on
+`registry.row`, when Return changes the Mac itself and closes, and `row.settings = true` when its
+row opens a page that changes Olm. `row.category` and a descriptor's `subtitle` are refused. The
+authoring guide has the dictionary. Stated by Milos on 2026-11-03.
 
 The placeholder names the list, never a key, and no user visible text anywhere names a
 physical key, since bindings live in the manifest and the hint surfaces already say them.
@@ -293,7 +305,7 @@ A plugin never binds a key and never builds a launcher row for something it can 
 `provides.actions`, a list of descriptors each with `name` and `run` required, plus a
 `defaults.bindings` row naming each action, earns every one of those keys bound on its leader
 through the core's one binder, and every action not marked `listed = false` a row in the
-launcher's own catalog built by Olm from the descriptor's description, subtitle, icon, keywords,
+launcher's own catalog built by Olm from the descriptor's description, system flag, icon, keywords,
 gate and kind, with the chord the keymap binds, run through the descriptor when chosen. A
 malformed descriptor is refused by name and the rest is still wired. The list's order is the
 rows' order, and a descriptor states `kind` exactly when its rows must keep a memory key they had

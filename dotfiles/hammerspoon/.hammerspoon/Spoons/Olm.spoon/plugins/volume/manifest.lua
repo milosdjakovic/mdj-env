@@ -66,7 +66,7 @@ return {
   },
 
   registry = {
-    row = { category = "System", detail = "see the volume, set it from 0 to 100, mute or unmute",
+    row = { detail = "set or mute the volume",
       keywords = "mute, unmute, louder, quieter" },
     open = { member = "show", call = "dot" },
     hosted = true,

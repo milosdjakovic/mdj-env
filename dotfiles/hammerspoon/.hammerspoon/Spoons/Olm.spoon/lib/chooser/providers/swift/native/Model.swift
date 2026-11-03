@@ -25,9 +25,13 @@ struct Style {
   var subFont = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
   var numberFont = NSFont.systemFont(ofSize: NSFont.systemFontSize)
   var captionFont = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
-  // The glyph a row number shortcut is pressed with, lib/kbd.lua's Command, drawn before the digit.
-  var numberKey = ""
+  // The row shortcuts, lib/kbd.lua's wire. numberKeys holds Command and each digit, one through
+  // nine, by slot, and returnKey is the selected row's, which Return chooses.
+  var numberKeys: [[KeyMark]] = []
+  var returnKey: [[KeyMark]] = []
   var keycapFont = NSFont.monospacedSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
+  // A list row's shortcut, the key cap's font at the row title's size.
+  var rowKeyFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
   var radius: CGFloat = 0
   var highlightRadius: CGFloat = 0
 
@@ -76,7 +80,11 @@ struct Style {
     numberFont = r.font(t, "numberFont") ?? numberFont
     captionFont = r.font(t, "captionFont") ?? captionFont
     keycapFont = r.font(t, "keycapFont") ?? keycapFont
-    numberKey = r.string(t, "numberKey") ?? numberKey
+    rowKeyFont = r.font(t, "rowKeyFont") ?? rowKeyFont
+    let numbers = r.chord(t, "numberKeys")
+    if !numbers.isEmpty { numberKeys = numbers }
+    let ret = r.chord(t, "returnKey")
+    if !ret.isEmpty { returnKey = ret }
     radius = r.number(t, "radius") ?? radius
     highlightRadius = r.number(t, "highlightRadius") ?? highlightRadius
   }

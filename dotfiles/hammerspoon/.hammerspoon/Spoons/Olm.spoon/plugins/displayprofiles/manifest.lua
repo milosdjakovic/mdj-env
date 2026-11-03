@@ -154,7 +154,7 @@ return {
   -- M.refresh, this plugin's only other public member, was never routed through the nav
   -- registry to begin with, called only from this plugin's own screen watcher.
   registry = {
-    row = { category = "Displays", detail = "inspect and manage arrangements", icon = "profile" },
+    row = { detail = "inspect and manage arrangements", icon = "profile" },
     open = { member = "chooser.show", call = "dot" },
     -- The submodule the actions pane's verbs, isProfile, isCaptured and the three on a
     -- profile, are answered by.

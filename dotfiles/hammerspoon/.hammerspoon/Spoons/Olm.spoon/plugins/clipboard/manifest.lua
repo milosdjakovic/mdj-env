@@ -312,7 +312,7 @@ return {
   -- The base Hyper chord opens this plugin's own root, a colon method, so open needs no
   -- call convention beyond the default.
   registry = {
-    row = { category = "Clipboard", icon = "clipboard" },
+    row = { icon = "clipboard" },
     -- open still stays, and still matters, the hotkey door this plugin's own leader key binds
     -- to, unchanged by the migration since it never called the picker directly. It resolves
     -- the provider chain, native or an external manager, and only the native leg's own

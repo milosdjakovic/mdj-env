@@ -1179,11 +1179,14 @@ function M.new(config, makeView)
   local derived = geometry.derivedRows(tokens.text, cap, inset)
   layout.iconSize = derived.iconSize
   layout.iconFrame = derived.iconFrame
-  -- The shortcut column is as wide as the widest shortcut drawn in it, measured in the body
-  -- role, so the title's budget is exactly what is left.
-  if UI.measure then
-    layout.numW = math.ceil(UI.measure:width(kbd.text(kbd.of(kbd.Cmd, kbd.named("9"))),
-      tokens.text.body.font, tokens.text.body.size))
+  -- The shortcut column is as wide as the widest shortcut drawn in it, a bare key cap, the hint
+  -- badge's keys with no chip at the row title's size, Command and a digit on a numbered row and Return on the selected
+  -- one, so the title's budget is exactly what is left.
+  if UI.keycapWidth then
+    local bare = bottomBarLib.ROW_KEY_OPTS()
+    layout.numW = math.ceil(math.max(
+      UI.keycapWidth(tokens, kbd.of(kbd.Cmd, kbd.named("9")), "hint", bare),
+      UI.keycapWidth(tokens, kbd.of(kbd.Return), "hint", bare)))
   end
   layout.rowH = derived.rowH
   layout.baseH = derived.baseH

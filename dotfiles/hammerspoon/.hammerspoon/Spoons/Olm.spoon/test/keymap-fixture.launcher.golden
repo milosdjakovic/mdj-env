@@ -1,91 +1,91 @@
-1	special:audio	Audio devices	System · switch the sound output or the microphone (au, audio)	audio	audio	-	sound output, microphone, mic, speakers, headphones, airpods |  (au, audio)	-
-2	special:browserTabs	Browser tabs	Tools · ✦W (t, tabs)	browsertabs	browserTabs	-	 (t, tabs)	-
-3	special:caffeinate	Keep awake	System · ✦K (k, awake)	caffeinate	caffeinate	-	 (k, awake)	-
-4	special:clipboard	Clipboard history	Clipboard · ◆Y	clipboard	clipboard	-	-	-
-5	special:appendCopy	Append copy	Clipboard · ⌃⌥C	append	clipboard	-	accumulate, add to clipboard, collect	-
-6	special:manageHistory	Manage clipboard history	Clipboard	sweep	clipboard	-	clear history, wipe, prune, delete old	-
-7	special:pasteNext	Paste next	Clipboard · ⌃⌥V	pasteNext	clipboard	-	paste in order, sequential paste, paste stack	-
-8	special:colorPicker	Color picker	Tools · ✦1	eyedropper	colorPicker	-	-	-
-9	special:displayProfiles	Display Profiles	Displays · inspect and manage arrangements	profile	displayProfiles	-	-	-
-10	special:dockAutoHide	Dock	System · hides or reveals the Dock (d, dock)	dockautohide	dockAutoHide	-	autohide, hide dock, show dock |  (d, dock)	-
-11	special:emoji	Emoji & symbol picker	Tools · ✦J (e, em, emoji)	emoji	emoji	-	 (e, em, emoji)	-
-12	special:fileSearch	File search	Tools · ✦; (/)	filesearch	fileSearch	-	find, folders, locate, finder search |  (/)	-
-13	special:inputsources	Input sources	Keyboard · switch the keyboard layout or input method (kb, input)	inputsources	inputsources	-	keyboard layout, language, ime, japanese, chinese, pinyin, korean, abc, serbian, cyrillic, latin |  (kb, input)	-
-14	inputsources:previous	Previous Input Source	Keyboard	inputsources	inputsources	-	switch layout, globe, fn, toggle	-
-15	special:obsidian	Search Obsidian	Tools · search and open notes (ob, obsidian)	image	-	-	notes, vault, markdown |  (ob, obsidian)	-
-16	special:speedtest	Speedtest	Network · measure this connection and compare it with its own past (st, speed)	speedtest	speedtest	-	internet speed, bandwidth, latency, ping, network quality, rpm |  (st, speed)	-
-17	special:textCase	Text Case	Text (tc, case) | live	textcase	textCase	-	uppercase, lowercase, camel case, snake case, kebab case, capitalize |  (tc, case)	-
-18	special:tmuxSessions	Tmux Manager	Tools · NavT (u, tmux)	tmuxsessions	tmuxSessions	-	sessions, terminal, ghostty |  (u, tmux)	-
-19	special:volume	Volume	System · see the volume, set it from 0 to 100, mute or unmute (vol)	volume	volume	-	mute, unmute, louder, quieter |  (vol)	-
-20	special:vpn	VPN	Network · ◆E (v, vpn, tunnel)	vpn	vpn	-	 (v, vpn, tunnel)	-
-21	special:wifi	Wi-Fi	Network · see the current network, disconnect, or join another (wi, wifi)	wifi	wifi	-	wifi, wireless, network, ssid, join network, disconnect, airport |  (wi, wifi)	-
-22	special:workspaces	Workspaces	Displays · window layouts you snapshot and put back (ws, layout)	workspaces	workspaces	-	layout, snapshot, arrange windows, restore windows |  (ws, layout)	-
-23	special:olmchooser	Olm Chooser	Olm · glass or canvas, how every list is drawn	chooser	olmchooser	-	glass, canvas, native, provider, picker, look	-
-24	special:olmplacement	Olm Placement	Olm · which display the launcher appears on	placement	olmplacement	-	position, cursor, display, screen, monitor	-
-25	special:olmplugins	Olm Plugins	Olm · switch plugins on or off	plugins	olmplugins	-	extensions, enable, disable, modules	-
-26	special:olmtheme	Olm Theme	Olm · the look of the chooser in use	theme	olmtheme	-	colour, color, appearance, palette, dark, light, highlight, accent	-
-27	special:processes	Local Servers	Tools · stops a dev server, container, or watcher	processes	processes	-	dev server, port, kill process, node, docker, container	-
-28	capture:ocrArea	OCR	Capture · ✦2	ocr	capture	-	-	10
-29	capture:captureArea	Screenshot	Capture	screenshot	capture	-	-	10
-30	capture:captureAreaClipboard	Screenshot (copy)	Capture · ✦4	screenshot	capture	-	-	10
-31	capture:recordArea	Record screen	Capture · ✦5	record	capture	-	-	10
-32	special:searchSettings	Search Settings	System · opens the System Settings search field	search	systemsettings	-	-	20
-33	special:aliasDirectory	Aliases	Tools · every word that scopes this list (?)	aliases	launcher	-	alias, scope, shortcut, prefix |  (?)	30
-34	special:keys	Olm Keys	Tools · every key Olm binds	keys	launcher	-	shortcuts, hotkeys, keybindings, chords	30
-35	special:lock	Lock Screen	System · ✦§	lock	launcher	-	-	30
-36	special:sleep	Sleep	System	sleep	launcher	-	-	30
-37	window:previousDisplay	Previous Display	Window · ●,	windows	windowmanager	multipleDisplays	-	40
-38	window:nextDisplay	Next Display	Window · ●.	windows	windowmanager	multipleDisplays	-	40
-39	window:leftHalf	Left Half	Window · ●←	windows	windowmanager	-	-	40
-40	window:rightHalf	Right Half	Window · ●→	windows	windowmanager	-	-	40
-41	window:fullHeight	Full Height	Window · ●↑	windows	windowmanager	-	-	40
-42	window:reasonableSize	Reasonable Size	Window · ●↓	windows	windowmanager	-	-	40
-43	window:maximize	Maximize	Window · ●↩	windows	windowmanager	-	-	40
-44	window:smallSize	Small Size	Window · ●Z	windows	windowmanager	-	-	40
-45	window:increaseSize	Increase Size	Window · ●=	windows	windowmanager	-	-	40
-46	window:decreaseSize	Decrease Size	Window · ●-	windows	windowmanager	-	-	40
-47	window:moveLeft	Move Left	Window · ●A	windows	windowmanager	-	-	40
-48	window:moveRight	Move Right	Window · ●D	windows	windowmanager	-	-	40
-49	window:moveUp	Move Up	Window · ●W	windows	windowmanager	-	-	40
-50	window:moveDown	Move Down	Window · ●S	windows	windowmanager	-	-	40
-51	window:center	Center	Window · ●C	windows	windowmanager	-	-	40
-52	window:hideAllExceptFocused	Hide All Except Focused	Window · ●H	windows	windowmanager	-	-	40
-53	settingsPane:x-apple.systempreferences:com.apple.wifi-settings-extension	Wi-Fi	System Settings	wifi	systemsettings	-	wifi, wireless, airport	50
-54	settingsPane:x-apple.systempreferences:com.apple.BluetoothSettings	Bluetooth	System Settings	bluetooth	systemsettings	-	headphones, pairing	50
-55	settingsPane:x-apple.systempreferences:com.apple.Network-Settings.extension	Network	System Settings	network	systemsettings	-	ethernet, vpn, dns, proxy, ip address	50
-56	settingsPane:x-apple.systempreferences:com.apple.Battery-Settings.extension	Battery	System Settings	battery	systemsettings	-	power, energy saver, low power mode	50
-57	settingsPane:x-apple.systempreferences:com.apple.systempreferences.GeneralSettings	General	System Settings	general	systemsettings	-	about this mac, airdrop, handoff	50
-58	settingsPane:x-apple.systempreferences:com.apple.Accessibility-Settings.extension	Accessibility	System Settings	accessibility	systemsettings	-	a11y, vision, hearing, zoom, voiceover	50
-59	settingsPane:x-apple.systempreferences:com.apple.Appearance-Settings.extension	Appearance	System Settings	appearance	systemsettings	-	dark mode, light mode, accent colour, theme	50
-60	settingsPane:x-apple.systempreferences:com.apple.Siri-Settings.extension	Apple Intelligence & Siri	System Settings	siri	systemsettings	-	ai, assistant, hey siri	50
-61	settingsPane:x-apple.systempreferences:com.apple.Desktop-Settings.extension	Desktop & Dock	System Settings	desktopDock	systemsettings	-	mission control, stage manager, hot corners	50
-62	settingsPane:x-apple.systempreferences:com.apple.Displays-Settings.extension	Displays	System Settings	displays	systemsettings	-	monitor, resolution, brightness, night shift, true tone	50
-63	settingsPane:x-apple.systempreferences:com.apple.ControlCenter-Settings.extension	Menu Bar	System Settings	menuBar	systemsettings	-	control center, status icons	50
-64	settingsPane:x-apple.systempreferences:com.apple.Spotlight-Settings.extension	Spotlight	System Settings	spotlight	systemsettings	-	indexing	50
-65	settingsPane:x-apple.systempreferences:com.apple.Wallpaper-Settings.extension	Wallpaper	System Settings	wallpaper	systemsettings	-	background, desktop picture, screensaver	50
-66	settingsPane:x-apple.systempreferences:com.apple.Notifications-Settings.extension	Notifications	System Settings	notifications	systemsettings	-	alerts, badges, banners	50
-67	settingsPane:x-apple.systempreferences:com.apple.Sound-Settings.extension	Sound	System Settings	sound	systemsettings	-	audio, alert sound, output device, input device	50
-68	settingsPane:x-apple.systempreferences:com.apple.Focus-Settings.extension	Focus	System Settings	focus	systemsettings	-	do not disturb, dnd, quiet hours	50
-69	settingsPane:x-apple.systempreferences:com.apple.Screen-Time-Settings.extension	Screen Time	System Settings	screenTime	systemsettings	-	downtime, app limits, parental controls	50
-70	settingsPane:x-apple.systempreferences:com.apple.Lock-Screen-Settings.extension	Lock Screen	System Settings	lockScreen	systemsettings	-	screensaver, require password	50
-71	settingsPane:x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension	Privacy & Security	System Settings	privacy	systemsettings	-	permissions, filevault, firewall, camera access, microphone access, accessibility access	50
-72	settingsPane:x-apple.systempreferences:com.apple.Touch-ID-Settings.extension	Touch ID & Password	System Settings	touchId	systemsettings	-	fingerprint, login password	50
-73	settingsPane:x-apple.systempreferences:com.apple.systempreferences.AppleIDSettings	Apple Account	System Settings	appleAccount	systemsettings	-	apple id, icloud	50
-74	settingsPane:x-apple.systempreferences:com.apple.Family-Settings.extension	Family	System Settings	family	systemsettings	-	family sharing, kids	50
-75	settingsPane:x-apple.systempreferences:com.apple.Keyboard-Settings.extension	Keyboard	System Settings	keyboard	systemsettings	-	shortcuts, input sources, text replacement, dictation	50
-76	settingsPane:x-apple.systempreferences:com.apple.Mouse-Settings.extension	Mouse	System Settings	mouse	systemsettings	-	pointer, scroll direction, tracking speed	50
-77	settingsPane:x-apple.systempreferences:com.apple.Trackpad-Settings.extension	Trackpad	System Settings	trackpad	systemsettings	-	gestures, tap to click, natural scrolling	50
-78	settingsPane:x-apple.systempreferences:com.apple.Print-Scan-Settings.extension	Printers & Scanners	System Settings	printers	systemsettings	-	add printer	50
-79	settingsPane:x-apple.systempreferences:com.apple.Users-Groups-Settings.extension	Users & Groups	System Settings	users	systemsettings	-	accounts, guest user	50
-80	settingsPane:x-apple.systempreferences:com.apple.Internet-Accounts-Settings.extension	Internet Accounts	System Settings	internetAccounts	systemsettings	-	mail accounts, google, exchange	50
-81	settingsPane:x-apple.systempreferences:com.apple.Game-Center-Settings.extension	Game Center	System Settings	gameCenter	systemsettings	-	friends, achievements	50
-82	settingsPane:x-apple.systempreferences:com.apple.Game-Controller-Settings.extension	Game Controllers	System Settings	gameControllers	systemsettings	-	gamepad, joystick	50
-83	settingsPane:x-apple.systempreferences:com.apple.Date-Time-Settings.extension	Date & Time	System Settings	dateTime	systemsettings	-	clock, timezone, time zone	50
-84	settingsPane:x-apple.systempreferences:com.apple.Localization-Settings.extension	Language & Region	System Settings	language	systemsettings	-	locale, date format, number format	50
-85	settingsPane:x-apple.systempreferences:com.apple.Sharing-Settings.extension	Sharing	System Settings	sharing	systemsettings	-	screen sharing, file sharing, remote login, computer name	50
-86	settingsPane:x-apple.systempreferences:com.apple.Time-Machine-Settings.extension	Time Machine	System Settings	timeMachine	systemsettings	-	backup	50
-87	settingsPane:x-apple.systempreferences:com.apple.Startup-Disk-Settings.extension	Startup Disk	System Settings	startupDisk	systemsettings	-	boot	50
-88	settingsPane:x-apple.systempreferences:com.apple.LoginItems-Settings.extension	Login Items & Extensions	System Settings	loginItems	systemsettings	-	startup apps, open at login, background items	50
-89	settingsPane:x-apple.systempreferences:com.apple.Software-Update-Settings.extension	Software Update	System Settings	softwareUpdate	systemsettings	-	upgrade, macos update	50
-90	settingsPane:x-apple.systempreferences:com.apple.settings.Storage	Storage	System Settings	storage	systemsettings	-	disk space, free space	50
-91	settingsPane:x-apple.systempreferences:com.apple.Profiles-Settings.extension	Device Management	System Settings	deviceManagement	systemsettings	-	profiles, mdm	50
+1	special:audio	Audio Devices	Plugin · switch output or microphone (au, audio)	audio	audio	-	sound output, microphone, mic, speakers, headphones, airpods | Plugin |  (au, audio)	-
+2	special:browserTabs	Browser Tabs	Plugin · ✦W (t, tabs)	browsertabs	browserTabs	-	Plugin |  (t, tabs)	-
+3	special:caffeinate	Keep Awake	Plugin · ✦K (k, awake)	caffeinate	caffeinate	-	Plugin |  (k, awake)	-
+4	special:clipboard	Clipboard History	Plugin · ◆Y	clipboard	clipboard	-	Plugin	-
+5	special:appendCopy	Append Copy	Clipboard History · ⌃⌥C	append	clipboard	-	accumulate, add to clipboard, collect | Clipboard History	-
+6	special:manageHistory	Manage History	Clipboard History	sweep	clipboard	-	clear history, wipe, prune, delete old | Clipboard History	-
+7	special:pasteNext	Paste Next	Clipboard History · ⌃⌥V	pasteNext	clipboard	-	paste in order, sequential paste, paste stack | Clipboard History	-
+8	special:colorPicker	Color Picker	Plugin · ✦1	eyedropper	colorPicker	-	Plugin	-
+9	special:displayProfiles	Display Profiles	Plugin · inspect and manage arrangements	profile	displayProfiles	-	Plugin	-
+10	special:dockAutoHide	Dock	System Action · hide or show the Dock (d, dock)	dockautohide	dockAutoHide	-	autohide, hide dock, show dock | System Action |  (d, dock)	-
+11	special:emoji	Emoji & Symbol Picker	Plugin · ✦J (e, em, emoji)	emoji	emoji	-	Plugin |  (e, em, emoji)	-
+12	special:fileSearch	File Search	Plugin · ✦; (/)	filesearch	fileSearch	-	find, folders, locate, finder search | Plugin |  (/)	-
+13	special:inputsources	Input Sources	Plugin · switch the input source (kb, input)	inputsources	inputsources	-	keyboard layout, language, ime, japanese, chinese, pinyin, korean, abc, serbian, cyrillic, latin | Plugin |  (kb, input)	-
+14	inputsources:previous	Previous Input Source	Input Sources	inputsources	inputsources	-	switch layout, globe, fn, toggle | Input Sources	-
+15	special:obsidian	Obsidian	Plugin · search and open notes (ob, obsidian)	image	-	-	notes, vault, markdown | Plugin |  (ob, obsidian)	-
+16	special:speedtest	Speed Test	Plugin · measure and keep a history (st, speed)	speedtest	speedtest	-	internet speed, bandwidth, latency, ping, network quality, rpm | Plugin |  (st, speed)	-
+17	special:textCase	Text Case	Plugin (tc, case) | live	textcase	textCase	-	uppercase, lowercase, camel case, snake case, kebab case, capitalize | Plugin |  (tc, case)	-
+18	special:tmuxSessions	Tmux Sessions	Plugin · NavT (u, tmux)	tmuxsessions	tmuxSessions	-	terminal, ghostty | Plugin |  (u, tmux)	-
+19	special:volume	Volume	Plugin · set or mute the volume (vol)	volume	volume	-	mute, unmute, louder, quieter | Plugin |  (vol)	-
+20	special:vpn	VPN	Plugin · ◆E (v, vpn, tunnel)	vpn	vpn	-	Plugin |  (v, vpn, tunnel)	-
+21	special:wifi	Wi-Fi	Plugin · join or leave a network (wi, wifi)	wifi	wifi	-	wifi, wireless, network, ssid, join network, disconnect, airport | Plugin |  (wi, wifi)	-
+22	special:workspaces	Workspaces	Plugin · save and restore layouts (ws, layout)	workspaces	workspaces	-	layout, snapshot, arrange windows, restore windows | Plugin |  (ws, layout)	-
+23	special:olmchooser	Olm Chooser	Olm Settings · how every list is drawn	chooser	olmchooser	-	glass, canvas, native, provider, picker, look | Olm Settings	-
+24	special:olmplacement	Olm Placement	Olm Settings · which display Olm opens on	placement	olmplacement	-	position, cursor, display, screen, monitor | Olm Settings	-
+25	special:olmplugins	Olm Plugins	Olm Settings · switch plugins on or off	plugins	olmplugins	-	extensions, enable, disable, modules | Olm Settings	-
+26	special:olmtheme	Olm Theme	Olm Settings · the look of the chooser in use	theme	olmtheme	-	colour, color, appearance, palette, dark, light, highlight, accent | Olm Settings	-
+27	special:processes	Local Servers	Plugin · stops a dev server, container, or watcher	processes	processes	-	dev server, port, kill process, node, docker, container | Plugin	-
+28	capture:ocrArea	OCR	Screen Capture · ✦2	ocr	capture	-	Screen Capture	10
+29	capture:captureArea	Screenshot	Screen Capture	screenshot	capture	-	Screen Capture	10
+30	capture:captureAreaClipboard	Screenshot to Clipboard	Screen Capture · ✦4	screenshot	capture	-	Screen Capture	10
+31	capture:recordArea	Record Screen	Screen Capture · ✦5	record	capture	-	Screen Capture	10
+32	special:searchSettings	Search Settings	System Settings · opens the search field	search	systemsettings	-	System Settings	20
+33	special:aliasDirectory	Olm Aliases	Olm · every word that scopes this list (?)	aliases	launcher	-	alias, scope, shortcut, prefix | Olm |  (?)	30
+34	special:keys	Olm Keys	Olm · every key Olm binds	keys	launcher	-	shortcuts, hotkeys, keybindings, chords | Olm	30
+35	special:lock	Lock Screen	System Action · ✦§	lock	launcher	-	System Action	30
+36	special:sleep	Sleep	System Action	sleep	launcher	-	System Action	30
+37	window:previousDisplay	Previous Display	Window Manager · ●,	windows	windowmanager	multipleDisplays	Window Manager	40
+38	window:nextDisplay	Next Display	Window Manager · ●.	windows	windowmanager	multipleDisplays	Window Manager	40
+39	window:leftHalf	Left Half	Window Manager · ●←	windows	windowmanager	-	Window Manager	40
+40	window:rightHalf	Right Half	Window Manager · ●→	windows	windowmanager	-	Window Manager	40
+41	window:fullHeight	Full Height	Window Manager · ●↑	windows	windowmanager	-	Window Manager	40
+42	window:reasonableSize	Reasonable Size	Window Manager · ●↓	windows	windowmanager	-	Window Manager	40
+43	window:maximize	Maximize	Window Manager · ●↩	windows	windowmanager	-	Window Manager	40
+44	window:smallSize	Small Size	Window Manager · ●Z	windows	windowmanager	-	Window Manager	40
+45	window:increaseSize	Increase Size	Window Manager · ●=	windows	windowmanager	-	Window Manager	40
+46	window:decreaseSize	Decrease Size	Window Manager · ●-	windows	windowmanager	-	Window Manager	40
+47	window:moveLeft	Move Left	Window Manager · ●A	windows	windowmanager	-	Window Manager	40
+48	window:moveRight	Move Right	Window Manager · ●D	windows	windowmanager	-	Window Manager	40
+49	window:moveUp	Move Up	Window Manager · ●W	windows	windowmanager	-	Window Manager	40
+50	window:moveDown	Move Down	Window Manager · ●S	windows	windowmanager	-	Window Manager	40
+51	window:center	Center	Window Manager · ●C	windows	windowmanager	-	Window Manager	40
+52	window:hideAllExceptFocused	Hide All Except Focused	Window Manager · ●H	windows	windowmanager	-	Window Manager	40
+53	settingsPane:x-apple.systempreferences:com.apple.wifi-settings-extension	Wi-Fi	System Settings	wifi	systemsettings	-	wifi, wireless, airport | System Settings	50
+54	settingsPane:x-apple.systempreferences:com.apple.BluetoothSettings	Bluetooth	System Settings	bluetooth	systemsettings	-	headphones, pairing | System Settings	50
+55	settingsPane:x-apple.systempreferences:com.apple.Network-Settings.extension	Network	System Settings	network	systemsettings	-	ethernet, vpn, dns, proxy, ip address | System Settings	50
+56	settingsPane:x-apple.systempreferences:com.apple.Battery-Settings.extension	Battery	System Settings	battery	systemsettings	-	power, energy saver, low power mode | System Settings	50
+57	settingsPane:x-apple.systempreferences:com.apple.systempreferences.GeneralSettings	General	System Settings	general	systemsettings	-	about this mac, airdrop, handoff | System Settings	50
+58	settingsPane:x-apple.systempreferences:com.apple.Accessibility-Settings.extension	Accessibility	System Settings	accessibility	systemsettings	-	a11y, vision, hearing, zoom, voiceover | System Settings	50
+59	settingsPane:x-apple.systempreferences:com.apple.Appearance-Settings.extension	Appearance	System Settings	appearance	systemsettings	-	dark mode, light mode, accent colour, theme | System Settings	50
+60	settingsPane:x-apple.systempreferences:com.apple.Siri-Settings.extension	Apple Intelligence & Siri	System Settings	siri	systemsettings	-	ai, assistant, hey siri | System Settings	50
+61	settingsPane:x-apple.systempreferences:com.apple.Desktop-Settings.extension	Desktop & Dock	System Settings	desktopDock	systemsettings	-	mission control, stage manager, hot corners | System Settings	50
+62	settingsPane:x-apple.systempreferences:com.apple.Displays-Settings.extension	Displays	System Settings	displays	systemsettings	-	monitor, resolution, brightness, night shift, true tone | System Settings	50
+63	settingsPane:x-apple.systempreferences:com.apple.ControlCenter-Settings.extension	Menu Bar	System Settings	menuBar	systemsettings	-	control center, status icons | System Settings	50
+64	settingsPane:x-apple.systempreferences:com.apple.Spotlight-Settings.extension	Spotlight	System Settings	spotlight	systemsettings	-	indexing | System Settings	50
+65	settingsPane:x-apple.systempreferences:com.apple.Wallpaper-Settings.extension	Wallpaper	System Settings	wallpaper	systemsettings	-	background, desktop picture, screensaver | System Settings	50
+66	settingsPane:x-apple.systempreferences:com.apple.Notifications-Settings.extension	Notifications	System Settings	notifications	systemsettings	-	alerts, badges, banners | System Settings	50
+67	settingsPane:x-apple.systempreferences:com.apple.Sound-Settings.extension	Sound	System Settings	sound	systemsettings	-	audio, alert sound, output device, input device | System Settings	50
+68	settingsPane:x-apple.systempreferences:com.apple.Focus-Settings.extension	Focus	System Settings	focus	systemsettings	-	do not disturb, dnd, quiet hours | System Settings	50
+69	settingsPane:x-apple.systempreferences:com.apple.Screen-Time-Settings.extension	Screen Time	System Settings	screenTime	systemsettings	-	downtime, app limits, parental controls | System Settings	50
+70	settingsPane:x-apple.systempreferences:com.apple.Lock-Screen-Settings.extension	Lock Screen	System Settings	lockScreen	systemsettings	-	screensaver, require password | System Settings	50
+71	settingsPane:x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension	Privacy & Security	System Settings	privacy	systemsettings	-	permissions, filevault, firewall, camera access, microphone access, accessibility access | System Settings	50
+72	settingsPane:x-apple.systempreferences:com.apple.Touch-ID-Settings.extension	Touch ID & Password	System Settings	touchId	systemsettings	-	fingerprint, login password | System Settings	50
+73	settingsPane:x-apple.systempreferences:com.apple.systempreferences.AppleIDSettings	Apple Account	System Settings	appleAccount	systemsettings	-	apple id, icloud | System Settings	50
+74	settingsPane:x-apple.systempreferences:com.apple.Family-Settings.extension	Family	System Settings	family	systemsettings	-	family sharing, kids | System Settings	50
+75	settingsPane:x-apple.systempreferences:com.apple.Keyboard-Settings.extension	Keyboard	System Settings	keyboard	systemsettings	-	shortcuts, input sources, text replacement, dictation | System Settings	50
+76	settingsPane:x-apple.systempreferences:com.apple.Mouse-Settings.extension	Mouse	System Settings	mouse	systemsettings	-	pointer, scroll direction, tracking speed | System Settings	50
+77	settingsPane:x-apple.systempreferences:com.apple.Trackpad-Settings.extension	Trackpad	System Settings	trackpad	systemsettings	-	gestures, tap to click, natural scrolling | System Settings	50
+78	settingsPane:x-apple.systempreferences:com.apple.Print-Scan-Settings.extension	Printers & Scanners	System Settings	printers	systemsettings	-	add printer | System Settings	50
+79	settingsPane:x-apple.systempreferences:com.apple.Users-Groups-Settings.extension	Users & Groups	System Settings	users	systemsettings	-	accounts, guest user | System Settings	50
+80	settingsPane:x-apple.systempreferences:com.apple.Internet-Accounts-Settings.extension	Internet Accounts	System Settings	internetAccounts	systemsettings	-	mail accounts, google, exchange | System Settings	50
+81	settingsPane:x-apple.systempreferences:com.apple.Game-Center-Settings.extension	Game Center	System Settings	gameCenter	systemsettings	-	friends, achievements | System Settings	50
+82	settingsPane:x-apple.systempreferences:com.apple.Game-Controller-Settings.extension	Game Controllers	System Settings	gameControllers	systemsettings	-	gamepad, joystick | System Settings	50
+83	settingsPane:x-apple.systempreferences:com.apple.Date-Time-Settings.extension	Date & Time	System Settings	dateTime	systemsettings	-	clock, timezone, time zone | System Settings	50
+84	settingsPane:x-apple.systempreferences:com.apple.Localization-Settings.extension	Language & Region	System Settings	language	systemsettings	-	locale, date format, number format | System Settings	50
+85	settingsPane:x-apple.systempreferences:com.apple.Sharing-Settings.extension	Sharing	System Settings	sharing	systemsettings	-	screen sharing, file sharing, remote login, computer name | System Settings	50
+86	settingsPane:x-apple.systempreferences:com.apple.Time-Machine-Settings.extension	Time Machine	System Settings	timeMachine	systemsettings	-	backup | System Settings	50
+87	settingsPane:x-apple.systempreferences:com.apple.Startup-Disk-Settings.extension	Startup Disk	System Settings	startupDisk	systemsettings	-	boot | System Settings	50
+88	settingsPane:x-apple.systempreferences:com.apple.LoginItems-Settings.extension	Login Items & Extensions	System Settings	loginItems	systemsettings	-	startup apps, open at login, background items | System Settings	50
+89	settingsPane:x-apple.systempreferences:com.apple.Software-Update-Settings.extension	Software Update	System Settings	softwareUpdate	systemsettings	-	upgrade, macos update | System Settings	50
+90	settingsPane:x-apple.systempreferences:com.apple.settings.Storage	Storage	System Settings	storage	systemsettings	-	disk space, free space | System Settings	50
+91	settingsPane:x-apple.systempreferences:com.apple.Profiles-Settings.extension	Device Management	System Settings	deviceManagement	systemsettings	-	profiles, mdm | System Settings	50

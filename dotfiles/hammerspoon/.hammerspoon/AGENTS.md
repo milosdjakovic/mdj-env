@@ -869,8 +869,10 @@ A key is drawn by one component, the kit's key cap, `kit.keycap(chords, size, op
 for alternatives, `size` names a badge, `hint` in the bar and its panes or `cheat` on a sheet, and
 each chip sizes to its keys. `opts.width` constrains a chip to a width, and a chip whose keys need
 more grows to fit them rather than cutting one off, its keys centred in whatever width it takes.
-Alternatives are one chip each with `/` between them. The canvas bottom bar, both floating panes
-and every cheat sheet draw through it, `ui.keycapWidth` measures it for a caller lining labels up,
+Alternatives are one chip each with `/` between them. `opts.bare` draws the same keys with no chip
+and no padding, which is how a list row's shortcut is drawn, Return on the selected row and Command
+with its digit on the other numbered rows. The canvas bottom bar, both floating panes, every cheat
+sheet and the list rows draw through it, `ui.keycapWidth` measures it for a caller lining labels up,
 and the swift chooser's `KeyCap` draws the same tokens natively. Its fill is `ui.keycapColor`
 below. `kit.badge` is left for a word on a button, never a key.
 
@@ -1450,7 +1452,7 @@ its rows ranked by the stage like any list's. What a row
 is searched by is its title as the name and its subtitle beside it, plus `keywords`, a string or
 a list of strings it declares without showing, where a comma ends a phrase. `filterText`, when a
 row sets it, replaces the name and turns the subtitle off, which is how a launcher row whose
-subtitle is a category, a status and a chord says so, and a menu item names itself by its
+subtitle is a prefix, a status and a chord says so, its prefix declared again as a keyword, and a menu item names itself by its
 title and declares its parents as keywords, so its parents stay searchable and no match runs
 from the title into a parent. Description prose is never a search term. `names`, a list of
 strings a row declares and never shows, a tab's host and address or a clipboard entry's body,

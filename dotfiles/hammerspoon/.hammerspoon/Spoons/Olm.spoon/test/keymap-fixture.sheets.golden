@@ -7,8 +7,8 @@ hyper	row	2	J	Emoji & symbol picker	-
 hyper	row	2	;	File search	-
 hyper	row	2	E	Menu search	-
 hyper	row	2	2	OCR	-
-hyper	row	2	4	Screenshot (copy)	-
-hyper	row	2	5	Record screen	-
+hyper	row	2	4	Screenshot to Clipboard	-
+hyper	row	2	5	Record Screen	-
 hyper	row	2	␣	Launcher	-
 hyper	row	2	§	Lock Screen	-
 window	group	META

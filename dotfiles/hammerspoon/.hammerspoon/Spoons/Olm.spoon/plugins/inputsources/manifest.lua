@@ -73,7 +73,7 @@ return {
   },
 
   registry = {
-    row = { category = "Keyboard", detail = "switch the keyboard layout or input method",
+    row = { detail = "switch the input source",
       keywords = "keyboard layout, language, ime, japanese, chinese, pinyin, korean, abc, serbian, cyrillic, latin" },
     open = { member = "show", call = "dot" },
     hosted = true,

@@ -785,7 +785,7 @@ function obj:actions()
   for _, a in ipairs(ORDER) do
     out[#out + 1] = {
       name = a.name, run = handlers[a.name], description = humanize(a.name),
-      subtitle = "Window", icon = "windows", kind = "window",
+      icon = "windows", kind = "window",
       when = a.when, repeats = a.repeats, listed = a.listed,
     }
   end

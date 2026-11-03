@@ -42,7 +42,10 @@ the verbs. The legacy chooser draws no bar.
 
 Command and a digit chooses one of the first nine rows of the list, and those nine rows carry
 the ⌘1 to ⌘9 numbers, fixed however the list is scrolled, `rowAtSlot` in the list model, since
-2026-10-30. The bar's key panel reads Choose rows 1 to 9.
+2026-10-30. The bar's key panel reads Choose rows 1 to 9. Since 2026-11-03 the selected row shows
+Return in place of its number, since Return is what chooses it, and its digit still chooses it.
+Every row shortcut is a bare key cap, the bar's monospace keys with no chip, at the row title's
+size, in both choosers.
 
 The default chooser is the shipped default and the word chooser means it unless legacy is
 named. The legacy chooser, the one wrapping hs.chooser, is deprecated, still selectable
@@ -757,3 +760,27 @@ both draw through it, so the cheat sheet's alternatives now read with `/` like t
 a floor a chip grows past rather than a cut, decided by default since a key cut off is worse than a
 wider chip. Unit cases in `test/cases/uikit.lua` hold the sizing, the width, the growth, the
 separator and the fill. `test/parity.sh` does not finish, on main as well as on this branch.
+
+### 2026-11-03 14:26
+
+Milos asked that the selected row stop showing its ⌘ number and show the Return symbol instead,
+with the other eight rows keeping their own digits and Command with the selected row's digit
+still choosing it. He asked in the same breath that the row shortcuts follow the key cap's rules,
+monospace and one gap between keys, only without the chip. So the key cap gained `bare`, no fill
+and no padding either side, `opts.bare` in `lib/ui/keycap.lua` and `bare:` on `KeyCap` in
+`native/Bar.swift`, and both lists draw the shortcut through it, the canvas list through the
+view's `rowKey` and the swift row cell through a bare `KeyCap`. The column is the widest of a bare
+⌘9 and a bare ↩. A bare cap draws its keys in the row number colour rather than the foreground,
+decided by default to keep the hint as quiet as the number was. The swift list now refills the
+two cells whose lit state moved on every highlight move, not only under a solid highlight, since
+the Return moves with it. `test/cases/canvaslist.lua` holds that the selected row draws Return and
+that a moved highlight gives the row it left its digit back.
+
+### 2026-11-03 14:54
+
+Milos asked for the row shortcut to be the row title's size rather than the actions pane's. The
+key cap gained `sizeRole`, the role whose size the keys take while keeping the badge role's font,
+and a row's shortcut names `body`, through `ROW_KEY_OPTS` in `providers/default/bottombar.lua` for
+the canvas list and the column width, and `rowKeyFont` on the swift style. A bare cap whose font
+is taller than the badge stands in a box its own line tall. The actions pane and the bar keep the
+hint size.

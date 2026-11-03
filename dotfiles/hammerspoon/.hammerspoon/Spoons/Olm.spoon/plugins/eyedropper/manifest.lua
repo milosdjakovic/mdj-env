@@ -76,7 +76,7 @@ return {
   -- one. No surface, since this is a lone mechanism rather than a list, matching the surface
   -- block's own absence above.
   registry = {
-    row = { category = "Tools", icon = "eyedropper" },
+    row = { icon = "eyedropper" },
     open = "pick",
     shortcut = "leader",
   },

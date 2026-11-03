@@ -14,6 +14,12 @@
 -- to fit them rather than cutting a key off, its keys centred in whatever width it takes. The fill is
 -- lib/ui/style.lua's keycapColor, the foreground at the keycap alpha, and never the highlight.
 --
+-- opts.bare draws the keys alone, no chip and no padding either side, the same glyphs in the same
+-- font one gap apart, for a key that stands beside the thing it acts on rather than in a bar, the
+-- row number shortcut on a list row. opts.color is then the keys' colour, the foreground otherwise.
+-- opts.sizeRole names the text role whose size the keys take, keeping the badge role's font, so a
+-- row's shortcut is the monospace keys at the row title's size, body.
+--
 -- Pure Lua over an injected measurer with exact and metrics, so it loads with no hs.
 
 local here = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or ""
@@ -33,13 +39,22 @@ M.ALT_WORD = "/"
 
 local function px(n) return math.floor(n + 0.5) end
 
+--- M.keyType(T, badge, opts) -> { font, size }, the type the keys are drawn in, the badge's role,
+--- at opts.sizeRole's size when one is named.
+function M.keyType(T, b, opts)
+  local v = T.text[b.text]
+  local sized = opts and opts.sizeRole and T.text[opts.sizeRole]
+  if not sized then return v end
+  return { font = v.font, size = sized.size }
+end
+
 --- M.measure(measure, T, chords, size, opts) -> caps, total, wordW
 --- Each chip's glyphs with their widths and the chip's own width, the whole block's width and the
 --- separator word's, in the order they are drawn. size names a badge of the kit, hint or cheat.
 function M.measure(measure, T, chords, size, opts)
   opts = opts or {}
   local b = T.badge[size]
-  local v = T.text[b.text]
+  local v = M.keyType(T, b, opts)
   local c = T.text.caption
   local wordW = math.ceil(measure:exact(M.ALT_WORD, c.font, c.size))
   local caps, total = {}, 0
@@ -51,7 +66,7 @@ function M.measure(measure, T, chords, size, opts)
       glyphs[j] = { text = glyph, w = gw }
       inner = inner + gw + (j > 1 and (b.gap or 0) or 0)
     end
-    local w = math.max(inner + 2 * b.padX, opts.width or 0)
+    local w = math.max(inner + (opts.bare and 0 or 2 * b.padX), opts.width or 0)
     caps[i] = { glyphs = glyphs, inner = inner, w = w }
     total = total + w
   end
@@ -66,15 +81,16 @@ end
 
 --- M.elements(measure, T, chords, size, x, top, holderH, opts) -> elements
 --- The chips from x, centred in a holder holderH tall from top. opts.width constrains each chip,
---- opts.radius is the chip's corner, the badge's own radius token when not given, and opts.alpha
---- multiplies every colour, a disabled line's dim or a fading group's alpha.
+--- opts.radius is the chip's corner, the badge's own radius token when not given, opts.alpha
+--- multiplies every colour, a disabled line's dim or a fading group's alpha, and opts.bare and
+--- opts.color draw the keys with no chip, see the header.
 function M.elements(measure, T, chords, size, x, top, holderH, opts)
   opts = opts or {}
   local caps, _, wordW = M.measure(measure, T, chords, size, opts)
   local els = {}
   if #caps == 0 then return els end
   local b = T.badge[size]
-  local v = T.text[b.text]
+  local v = M.keyType(T, b, opts)
   local c = T.text.caption
   local alpha = opts.alpha or 1
   local y = top + (holderH - b.height) / 2
@@ -93,14 +109,17 @@ function M.elements(measure, T, chords, size, x, top, holderH, opts)
         styleLib.withAlpha(T.colors[c.color or "subtext"], alpha), x, wordW)
       x = x + wordW + T.space.s
     end
-    els[#els + 1] = { type = "rectangle", action = "fill",
-      fillColor = styleLib.keycapColor(T, alpha),
-      roundedRectRadii = { xRadius = r, yRadius = r }, frame = { x = px(x), y = px(y), w = cap.w, h = b.height } }
+    if not opts.bare then
+      els[#els + 1] = { type = "rectangle", action = "fill",
+        fillColor = styleLib.keycapColor(T, alpha),
+        roundedRectRadii = { xRadius = r, yRadius = r }, frame = { x = px(x), y = px(y), w = cap.w, h = b.height } }
+    end
     -- A chip wider than its keys, held to a width, centres them in it.
     local gx = x + (cap.w - cap.inner) / 2
     for j, glyph in ipairs(cap.glyphs) do
       if j > 1 then gx = gx + (b.gap or 0) end
-      els[#els + 1] = centred(glyph.text, v.font, v.size, styleLib.withAlpha(T.colors.foreground, alpha), gx, glyph.w)
+      els[#els + 1] = centred(glyph.text, v.font, v.size,
+        styleLib.withAlpha(opts.color or T.colors.foreground, alpha), gx, glyph.w)
       gx = gx + glyph.w
     end
     x = x + cap.w

@@ -69,7 +69,7 @@ is the Command pattern with the command encoded as data, and the launcher still
 never learns what a row does.
 
 Adding a row for a registered tool is one registration and no edit here. A tool's row
-data, its category, its icon, its detail and its keywords, lives on that tool's `row` in its
+data, its icon, its detail, its keywords and the system or settings flag its prefix is worked out from, lives on that tool's `row` in its
 registration, and `_buildActionRows` asks the registry for every row it holds, in the registry's
 own order, through `listing` and `rowFor`. The chord a tool's row names is not on the row. It is
 the tool's open row in the keymap, asked of the root through the injected `chordOf` by the tool's
@@ -99,7 +99,7 @@ split, and it is that plugin's own contributed row now.
 Every action a plugin answers in `provides.actions` that is listed is a row of this catalog, and
 neither this host nor the plugin builds it. The root's `lib/contributions.lua` builds one row per
 listed descriptor, in the plugin's own order, its title the descriptor's description, its group
-word the descriptor's subtitle, its chord the keymap's row for that action, its icon, keywords and
+word the plugin's `about.title`, or System Action for a descriptor saying `system`, its chord the keymap's row for that action, its icon, keywords and
 gate the descriptor's, and its item the descriptor's kind, else the plugin's identity, joined to
 the action name, and a chosen one runs the descriptor. Capture, the window manager and the
 clipboard reach the list this way. A plugin whose rows are not actions declares
@@ -621,7 +621,7 @@ learns Maps over Mail, both at the start of their name, while `lose` keeps Local
 Servers, spelled in pieces, above a remembered Loes, one typo away. Both rules are
 in `decisions/olm-launcher-ranking.md` under Rejected. The catalog hands each row
 over with its name as `filterText` and its keyword bag and alias words as
-`keywords`, so the category, status, chord and description prose in a subtitle are
+`keywords`, with the subtitle's leading word among them, so the status, chord and description prose in a subtitle are
 never searched. `test/ranking.lua` drives the supplier through `rank.apply` with the
 shared matcher exactly as the stage does.
 

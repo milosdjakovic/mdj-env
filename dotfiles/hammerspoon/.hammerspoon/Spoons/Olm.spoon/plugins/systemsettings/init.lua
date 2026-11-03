@@ -139,7 +139,6 @@ function obj:rows()
   for _, p in ipairs(self.panes) do
     out[#out + 1] = {
       title = p.name,
-      subTitle = "System Settings",
       icon = p.icon,
       keywords = p.keywords,
       item = { kind = "settingsPane", url = SCHEME .. p.id },
@@ -257,7 +256,7 @@ function obj:launcherRows()
   local s = self._searchRow
   if type(s) == "table" and s.title then
     out[#out + 1] = {
-      title = s.title, subTitle = s.subTitle, icon = s.icon, order = s.order,
+      title = s.title, detail = s.detail, icon = s.icon, order = s.order,
       item = { kind = "special", name = SEARCH_ROW },
     }
   end

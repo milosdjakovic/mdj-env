@@ -263,30 +263,25 @@ do
   )
 end
 
--- Refusal, a row that is present and has no category, since a subtitle with no
--- category would render wrong rather than absent.
+-- A row needs no word of its own since 2026-11-03, the registrar works the prefix out from what
+-- Return does, so a row with only a detail is accepted.
 do
   local r, warnings = freshRegistry(1)
   local ok = r.register({ name = "textCase", apiVersion = 1, row = { detail = "recase the selection in place" } })
-  check("a descriptor whose row has no category is refused", ok == false)
-  check(
-    "the refusal names the tool and says its row has no category",
-    found(warnings, "textCase") and found(warnings, "has no category"),
-    table.concat(warnings, " | ")
-  )
+  check("a descriptor whose row names no category is accepted", ok ~= false, table.concat(warnings, " | "))
 end
 
 -- rowFor, a tool's own row, resolved only while the tool is active.
 do
   local r = freshRegistry(1)
-  r.register({ name = "vpn", apiVersion = 1, open = function() end, row = { category = "Network" } })
+  r.register({ name = "vpn", apiVersion = 1, open = function() end, row = { detail = "join a network" } })
   check("rowFor answers nil for a registered but inactive tool", r.rowFor("vpn") == nil)
 
   r.activate({ "vpn" })
   local row = r.rowFor("vpn")
   check(
     "rowFor answers the tool's own row once it is active",
-    row ~= nil and row.category == "Network"
+    row ~= nil and row.detail == "join a network"
   )
 end
 

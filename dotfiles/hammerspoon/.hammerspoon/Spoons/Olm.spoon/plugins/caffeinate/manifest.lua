@@ -124,7 +124,7 @@ return {
   -- them, its own retired three function surface, isShowing, hide, and insertSelected,
   -- having never carried anything past those five in the first place.
   registry = {
-    row = { category = "System" },
+    row = {},
     open = { member = "show", call = "dot" },
     hosted = true,
     shortcut = "leader",

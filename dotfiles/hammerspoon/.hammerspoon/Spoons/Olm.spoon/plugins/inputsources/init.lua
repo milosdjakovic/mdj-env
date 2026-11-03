@@ -95,7 +95,7 @@ end
 function M:actions()
   return {
     { name = "previous", run = function() M.previous() end,
-      description = "Previous Input Source", subtitle = "Keyboard", icon = "inputsources",
+      description = "Previous Input Source", icon = "inputsources",
       keywords = "switch layout, globe, fn, toggle" },
   }
 end

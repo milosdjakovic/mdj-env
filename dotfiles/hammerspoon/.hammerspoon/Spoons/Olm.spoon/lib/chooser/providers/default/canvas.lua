@@ -284,6 +284,10 @@ function View:restyle()
     -- surface's own, one rule for every rounded thing drawn inside a rounded surface.
     highlightRadius = UI.nestedRadius(T.radius.surface, s.layout.marginX),
     numberColor = T.colors[T.text.section.color],
+    -- A row's shortcut, a bare key cap in the bar's key role, see list/render.lua.
+    rowKey = function(chord, rightX, top, holderH, color)
+      return bottomBarLib.rowKey(UI, T, chord, rightX, top, holderH, color)
+    end,
     dimAlpha = T.alpha.dim,
     -- Read late through the module level, so a configure after this view was built applies.
     iconElements = function(icon, owner, frame)

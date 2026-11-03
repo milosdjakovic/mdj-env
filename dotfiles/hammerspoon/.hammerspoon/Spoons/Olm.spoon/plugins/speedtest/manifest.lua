@@ -13,7 +13,7 @@ return {
   apiVersion = 1,
 
   about = {
-    title = "Speedtest",
+    title = "Speed Test",
     description = "Measure this connection and compare it with its own past readings.",
     author = "Milos Djakovic",
     version = "0.1",
@@ -149,7 +149,7 @@ return {
   },
 
   registry = {
-    row = { category = "Network", detail = "measure this connection and compare it with its own past",
+    row = { detail = "measure and keep a history",
       keywords = "internet speed, bandwidth, latency, ping, network quality, rpm" },
     open = { member = "chooser.show", call = "dot" },
     -- The submodule the actions pane's verbs are answered by.

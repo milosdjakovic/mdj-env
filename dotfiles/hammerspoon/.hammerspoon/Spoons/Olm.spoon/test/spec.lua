@@ -99,14 +99,14 @@ function obj.derive(world)
         end,
       })
 
-      if manifest.registry.row and manifest.registry.row.category then
+      if manifest.registry.row then
         add({
           tier = "structure",
           scenario = ("%s has a row a person can find in the launcher"):format(identity),
           expect = function()
             local row = registry.rowFor(identity)
             if not row then return false, "the registry built no row for it" end
-            if not row.description then return false, "its row carries no description to show" end
+            if not (row.title or row.description) then return false, "its row carries no title to show" end
             return true
           end,
         })
