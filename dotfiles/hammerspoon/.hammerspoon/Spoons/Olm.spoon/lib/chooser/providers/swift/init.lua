@@ -94,14 +94,14 @@ local M = {}
 M.appearance = {
   title = "Glass",
   kind = "highlight",
-  label = "Glass highlight",
+  label = "Glass Highlight",
   palette = herePath .. "palette",
   paletteName = "glass",
   settingsKey = "olmGlassHighlight",
   default = "olm",
   choices = {
-    { name = "olm", title = "Olm highlight" },
-    { name = "macos", title = "macOS highlight", highlight = "system" },
+    { name = "olm", title = "Olm Highlight" },
+    { name = "macos", title = "macOS Highlight", highlight = "system" },
   },
 }
 

@@ -10,7 +10,7 @@ modification time. Once something is typed the best match leads, and a note open
 only goes ahead of notes that match equally well. Notes under the vault's own excluded
 files setting sort after every other match rather than disappearing.
 
-Appears in the launcher under Tools as Search Obsidian, wearing the application's own
+Appears in the launcher as Obsidian, a Plugin row, wearing the application's own
 icon, and can be searched without leaving the launcher by typing ob or obsidian. It has
 no key of its own, deliberately, since a typed word already reaches it. Every note row
 carries the note emoji, and the create and search rows each carry their own face.

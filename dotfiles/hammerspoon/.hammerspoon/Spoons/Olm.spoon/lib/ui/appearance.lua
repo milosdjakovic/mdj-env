@@ -16,7 +16,7 @@
 --
 -- The appearance table a provider declares.
 --   kind        "themes" or "highlight".
---   label       what the Olm Theme list's field says, Canvas theme or Glass highlight.
+--   label       what the Olm Theme list's field says, Canvas Theme or Glass Highlight.
 --   default     highlight only, the name of the choice used before one is made.
 --   settingsKey highlight only, the hs.settings key the choice persists under.
 --   alpha       highlight only, optional, the alpha of the system colour, two hex digits.

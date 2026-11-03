@@ -7,7 +7,7 @@ inserts the glyph into whatever field was focused before the picker opened, and
 emoji always rank above plain symbols in the results. It remembers what you pick,
 so an empty field leads with your most used glyphs.
 
-Opens on Hyper and J, appears in the launcher under Tools, and can usually be
+Opens on Hyper and J, appears in the launcher as a Plugin row, and can usually be
 searched without leaving the launcher by typing e or emoji, provided the backend
 in use owns a list of its own to hand over.
 

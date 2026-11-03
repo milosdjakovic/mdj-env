@@ -335,9 +335,9 @@ do
   check("a stop the source wants confirmed asks", stopped == "a")
   rows = M.rows("")
   check("the confirmation leads with the harmless answer and both are pinned",
-    titles(rows) == "Keep it running,Stop anyway" and rows[1].pinned == true and rows[2].pinned == true,
+    titles(rows) == "Keep It Running,Stop Anyway" and rows[1].pinned == true and rows[2].pinned == true,
     titles(rows))
   kept = rank.apply(M.rows("zzz"), "zzz", fuzzy)
-  check("typing on a confirmation never drops an answer", titles(kept) == "Keep it running,Stop anyway",
+  check("typing on a confirmation never drops an answer", titles(kept) == "Keep It Running,Stop Anyway",
     titles(kept))
 end

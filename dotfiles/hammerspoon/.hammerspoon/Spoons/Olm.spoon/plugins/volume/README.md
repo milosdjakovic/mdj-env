@@ -8,7 +8,7 @@ offers only Unmute. These match by their start and never fuzzily. Anything else,
 100, a negative, a decimal or another word, shows a disabled row saying what the field accepts,
 so nothing is applied.
 
-Opens from the launcher under System, and can be used without leaving the launcher by typing
+Opens from the launcher as a Plugin row, and can be used without leaving the launcher by typing
 vol and a space.
 
 While the field is open, i confirms the current row and x closes it.

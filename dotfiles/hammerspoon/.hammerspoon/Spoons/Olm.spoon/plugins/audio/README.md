@@ -6,7 +6,7 @@ side, and the list stays open with the check moved, so an output and an input ca
 switched in one visit. Typing input or output narrows the list to that side. A Bluetooth
 device that is paired but not connected is not listed until it connects.
 
-Opens from the launcher under System, and can be searched without leaving the launcher by
+Opens from the launcher as a Plugin row, and can be searched without leaving the launcher by
 typing au or audio. Choosing there switches and closes.
 
 While the list is open, j and k move, i uses the highlighted device and x closes it.

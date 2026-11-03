@@ -206,18 +206,18 @@ local function rows(query)
     if s.active then
       return { { title = "Deactivate", subTitle = statusText(s), icon = "off", item = { id = "off" } } }
     end
-    return { { title = "Activate indefinitely", subTitle = "Specify " .. EXAMPLES, icon = "on", item = { id = "indefinite" } } }
+    return { { title = "Activate Indefinitely", subTitle = "Specify " .. EXAMPLES, icon = "on", item = { id = "indefinite" } } }
   end
 
   local h, m = parseClock(q)
   if h then
     local ts = nextOccurrence(h, m)
-    return { { title = "Stay awake until " .. endLabel(ts), subTitle = "In " .. humanSpan(ts - os.time()), icon = "clock", item = { id = "until", ts = ts } } }
+    return { { title = "Stay Awake until " .. endLabel(ts), subTitle = "In " .. humanSpan(ts - os.time()), icon = "clock", item = { id = "until", ts = ts } } }
   end
 
   local secs = parseDuration(q) or parseBareHours(q)
   if secs then
-    return { { title = "Stay awake for " .. humanSpan(secs), subTitle = "Ends " .. endLabel(os.time() + secs), icon = "duration", item = { id = "for", secs = secs } } }
+    return { { title = "Stay Awake for " .. humanSpan(secs), subTitle = "Ends " .. endLabel(os.time() + secs), icon = "duration", item = { id = "for", secs = secs } } }
   end
 
   if isIncomplete(q) then

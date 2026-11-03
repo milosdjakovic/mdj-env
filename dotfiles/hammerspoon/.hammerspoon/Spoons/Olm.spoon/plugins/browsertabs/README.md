@@ -14,7 +14,7 @@ says whether it is installed, open and allowed. Directly under a switched on bro
 appears only when its permission asks something, to ask for it, to open the browser first, to
 open Automation settings, or to say the permission cannot be read.
 
-Opens on Hyper and W, appears in the launcher under Tools, and can be searched
+Opens on Hyper and W, appears in the launcher as a Plugin row, and can be searched
 without leaving the launcher by typing t or tabs, which lists the tabs alone with
 the settings row left out.
 

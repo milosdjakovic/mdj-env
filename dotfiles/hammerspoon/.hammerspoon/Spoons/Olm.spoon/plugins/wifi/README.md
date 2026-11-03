@@ -6,7 +6,7 @@ the system has one and a password prompt where it does not. Saved networks are l
 then the rest by signal. A scan runs each time the list opens and the last one stays on
 screen until it lands.
 
-Opens from the launcher under Network, and can be searched without leaving the launcher by
+Opens from the launcher as a Plugin row, and can be searched without leaving the launcher by
 typing wi or wifi.
 
 While the list is open, i joins or disconnects the highlighted network and x closes it.

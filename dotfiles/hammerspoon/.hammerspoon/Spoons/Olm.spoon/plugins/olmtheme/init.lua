@@ -73,8 +73,8 @@ end
 --- opts.themeNames    required, a function of no arguments answering the sorted names.
 --- opts.setTheme      required, a function of a theme name, applying it at once and persisting
 ---                    it through lib/ui/themes.lua.
---- opts.themeLabel    optional, a function answering what the field says, Canvas theme or Glass
----                    highlight, so the list names what it offers.
+--- opts.themeLabel    optional, a function answering what the field says, Canvas Theme or Glass
+---                    Highlight, so the list names what it offers.
 --- opts.stagePresent  optional, the shared stage door M.show asks through.
 function M:configure(opts)
   opts = opts or {}

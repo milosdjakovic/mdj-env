@@ -272,9 +272,9 @@ end
 -- search never drops either answer.
 local function confirmRows()
   return {
-    { title = "Keep it running", subTitle = "", icon = "keep",
+    { title = "Keep It Running", subTitle = "", icon = "keep",
       item = { confirm = false }, pinned = true },
-    { title = "Stop anyway", subTitle = pending.message or "",
+    { title = "Stop Anyway", subTitle = pending.message or "",
       icon = "stop", item = { confirm = true }, pinned = true },
   }
 end

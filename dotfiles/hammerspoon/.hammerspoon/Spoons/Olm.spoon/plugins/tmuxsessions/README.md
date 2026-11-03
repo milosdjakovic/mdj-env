@@ -9,7 +9,7 @@ vicert. Choosing a row jumps straight to that window.
 Terminal in the actions pane names the terminal a fresh attach opens into, the
 one in force marked and any this machine lacks dimmed.
 
-Opens on Hyper and U, appears in the launcher under Tools, and can be searched
+Opens on Hyper and U, appears in the launcher as a Plugin row, and can be searched
 without leaving the launcher by typing u or tmux.
 
 It needs tmux itself, and without it the tool cannot list or switch anything,

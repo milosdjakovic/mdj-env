@@ -143,7 +143,7 @@ local HELP = {
     "",
     "A trend drawn across two different networks would be a number about nowhere, which is why they never share a line.",
   } },
-  name = { title = "Name this network", lines = {
+  name = { title = "Name This Network", lines = {
     "Wi Fi network names are a location on modern macOS, so an app is only told one if it holds Location Services permission, and Hammerspoon has never asked for it. It is not refused outright either, the name simply comes back blank, which is why this shows a made up label instead.",
     "",
     "Nothing is lost by that. Readings are filed against the network profile itself, which needs no permission and does not change, so naming a network here only changes what it is called on screen. Every reading already kept stays exactly where it is.",

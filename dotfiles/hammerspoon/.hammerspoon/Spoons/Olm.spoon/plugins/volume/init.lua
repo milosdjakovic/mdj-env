@@ -63,7 +63,7 @@ local function queryRow(q, dev)
   if q:match("^%d+$") then
     local n = tonumber(q)
     if n > 100 then return invalidRow(q .. " is above 100", dev) end
-    return { title = "Set volume to " .. n .. "%", subTitle = now(dev),
+    return { title = "Set Volume to " .. n .. "%", subTitle = now(dev),
              icon = n == 0 and "quiet" or "loud", item = { id = "set", level = n } }
   end
 

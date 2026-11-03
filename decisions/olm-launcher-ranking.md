@@ -338,3 +338,13 @@ away, the File Search statuses and its help lines, while a launcher detail stays
 prefix and a sentence shaped status title keeps sentence case. The rule is in
 `docs/PLUGIN-AUTHORING.md` and the olm-plugin skill. Every memory is keyed by kind and name, so no
 remembered pick moved.
+
+**2026-11-03 17:58.** A second rescan read every row title a list builds in its own code. A row that
+runs something is a verb and moved to Title Case, Activate Indefinitely, Stay Awake for, Keep It
+Running, Stop Anyway, Set Volume to, and so did every choice a list offers, Last 12 Hours, With the
+Active Window, Olm Highlight, macOS Highlight, Glass Highlight and Canvas Theme. Speed Test's help
+heading for its verb reads Name This Network like the verb. Eleven READMEs still said a tool sat in
+the launcher under System, Tools or Network, and now say it is a Plugin row, and Keep Awake's
+README stopped describing the span verb removed earlier today. A theme choice is stored by its name,
+not its title, so no saved choice moved. Status titles that read as sentences, No matches,
+Building index, keep sentence case.

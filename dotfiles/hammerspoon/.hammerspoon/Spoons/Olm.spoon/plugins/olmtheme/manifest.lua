@@ -37,7 +37,7 @@ return {
           .. "no other way in from this plugin" },
       themeLabel = { source = "root", policy = "optional",
         breaks = "the Olm Theme list's field reads Theme rather than naming what the chooser in "
-          .. "use offers, Canvas theme or Glass highlight" },
+          .. "use offers, Canvas Theme or Glass Highlight" },
       stagePresent = { source = "root", policy = "optional",
         breaks = "the Olm Theme launcher row opens nothing, since M.show has no other way to "
           .. "reach the shared stage" },

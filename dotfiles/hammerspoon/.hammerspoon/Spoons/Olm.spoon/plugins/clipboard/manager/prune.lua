@@ -39,11 +39,11 @@ local UNIT_ORDER = { { "w", 604800 }, { "d", 86400 }, { "h", 3600 }, { "m", 60 }
 -- last hour means what was copied in the last hour goes and everything older stays. It is data
 -- rather than code so changing the rungs is one edit and nothing else has to agree.
 local PRESETS = {
-  { secs = 3600, title = "Last hour" },
-  { secs = 12 * 3600, title = "Last 12 hours" },
-  { secs = 24 * 3600, title = "Last 24 hours" },
-  { secs = 2 * 86400, title = "Last 2 days" },
-  { secs = 7 * 86400, title = "Last 7 days" },
+  { secs = 3600, title = "Last Hour" },
+  { secs = 12 * 3600, title = "Last 12 Hours" },
+  { secs = 24 * 3600, title = "Last 24 Hours" },
+  { secs = 2 * 86400, title = "Last 2 Days" },
+  { secs = 7 * 86400, title = "Last 7 Days" },
 }
 
 -- Both shapes, since the field takes either and a person who typed one may not know the other is

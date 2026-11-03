@@ -336,7 +336,7 @@ was the other way to say it and was not taken, since a tier sorts before how wel
 which is exactly the order Milos ruled out. The place is recorded when a scan lands, so a heat
 sort changes what an empty field shows and never what a typed query prefers.
 
-The two confirmation rows, Keep it running and Stop anyway, are pinned, so typing into the field
+The two confirmation rows, Keep It Running and Stop Anyway, are pinned, so typing into the field
 on a confirmation never drops an answer, and the empty state row was pinned in phase two.
 
 ## The pane exists for the tree

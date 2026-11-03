@@ -12,7 +12,7 @@ Provider in the actions pane lists every backend, marking the one that is active
 and dimming any this machine cannot reach. Choosing one there switches to it and
 is remembered across reloads.
 
-Opens on Hyper and P, appears in the launcher under Network, and can be searched
+Opens on Hyper and P, appears in the launcher as a Plugin row, and can be searched
 without leaving the launcher by typing v or vpn. Provider is reached from the
 list itself rather than from the launcher's scoped rows.
 

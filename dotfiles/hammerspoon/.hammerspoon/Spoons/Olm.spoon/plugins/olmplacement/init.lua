@@ -25,8 +25,8 @@ local SELF = debug.getinfo(1, "S").source:sub(2):match("([^/]+)/[^/]+$")
 local cfg = {}
 
 local OPTIONS = {
-  { mode = "cursor", title = "Where the mouse cursor is" },
-  { mode = "activeWindow", title = "With the active window" },
+  { mode = "cursor", title = "Where the Mouse Cursor Is" },
+  { mode = "activeWindow", title = "With the Active Window" },
 }
 
 --- M.rows() -> rows

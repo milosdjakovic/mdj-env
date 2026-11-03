@@ -48,7 +48,7 @@ local M = {}
 --- M.appearance, how far a person can theme this chooser, read by lib/ui/appearance.lua and
 --- by nothing else. The canvas draws every role itself, so it wears any theme file a person
 --- keeps under config/themes, whole. title is the word the Olm Chooser list names it by.
-M.appearance = { title = "Canvas", kind = "themes", label = "Canvas theme" }
+M.appearance = { title = "Canvas", kind = "themes", label = "Canvas Theme" }
 
 --- M.configure(opts) takes opts.panel, the CanvasPanel module, and opts.ui, the UI kit, and
 --- optionally opts.icon, the icon resolver function(icon, owner) -> hs.image or nil, opts.iconElements,

@@ -254,5 +254,5 @@ do
     setOverlayPlacementMode = function() end,
   })
   kept = ranked(P.rows(), "active")
-  check("a placement option is found by its title", titles(kept) == "With the active window", titles(kept))
+  check("a placement option is found by its title", titles(kept) == "With the Active Window", titles(kept))
 end
