@@ -32,11 +32,15 @@ about a key the app also binds, since a shortcut set in the app wins over this f
 
 ## What the step does
 
-`SETTINGS` lists the preferences this repository carries, as `key | type | value`, and the step
-writes each one only where the machine differs. A key not listed is left alone, so a change made
-in Rex's own Settings window survives on that machine until it is copied into `SETTINGS`. To
-carry a new one, change it in Rex, read it with `defaults read com.superlogical.rex KEY` and
-`defaults read-type com.superlogical.rex KEY`, add the row, and run the step.
+`SETTINGS` is what Rex stores on the machine it was captured on, as `key | type | value`, and
+the step writes each row only where a machine differs. Rex stores a setting only while it
+differs from Rex's default and drops the key when it goes back, so the file is exactly what was
+changed from the defaults. Never edit it by hand. Change a setting in Rex's Settings window, then
+run `src/setup-rex.sh --capture`, which replaces the whole file, so a setting put back to its
+default leaves it, and commit the result. On a machine where a setting was changed in Rex,
+capture before running the step, never after, since the step writes the file's values back into
+Rex and would undo the change. Window frames, the collapsed sidebar, the theme slots and Remote Control
+are never captured.
 
 The themes are Ghostty's generated pair, `dotfiles/ghostty/.config/ghostty/themes/mdj-light` and
 `mdj-dark`, imported through Rex's own `client.theme.import` action. So Rex has no theme map or

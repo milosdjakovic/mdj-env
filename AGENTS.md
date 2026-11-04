@@ -53,6 +53,7 @@ lists both names in its `.stow-local-ignore` so neither lands in the home direct
 ./src/setup-claude-settings.sh
 ./src/setup-herdr-plugins.sh
 ./src/setup-rex.sh                   # Rex's settings and the Ghostty themes, from a Rex terminal, where the rex piece is on
+./src/setup-rex.sh --capture         # replace dotfiles/rex/SETTINGS with what Rex stores now, writes nothing into Rex
 ./src/setup-kanata.sh                 # the Karabiner driver and both root daemons, where the kanata piece is on
 ./src/setup-kanata.sh --dry-run       # every change it would make, every sudo command and both plists, changing nothing
 ./src/setup-kanata.sh --upgrade       # move kanata and its driver together, once dotfiles/kanata/DRIVER has the new row
