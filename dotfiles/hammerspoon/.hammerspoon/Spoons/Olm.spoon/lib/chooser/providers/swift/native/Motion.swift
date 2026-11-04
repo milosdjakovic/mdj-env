@@ -50,6 +50,9 @@ enum Motion {
   // long settle and read as a delay, and it still settles onto its group rather than snapping.
   static var paneCurve = CAMediaTimingFunction(name: .linear)
   static var paneCloseCurve = CAMediaTimingFunction(name: .linear)
+  // How long the chooser's window takes to change shape while it is up, a preview pane arriving
+  // beside the list or leaving it, see ReshapeMotion. It plays on the open curve.
+  static var reshapeDuration: CFTimeInterval = 0
 
   // Where a curve has got at t from 0 to 1, its two control points solved for x by Newton's method
   // and bisection, as Core Animation does, for a motion stepped by hand.
@@ -248,6 +251,89 @@ final class WindowMotion {
     guard closing else { return }
     closing = false
     window.ignoresMouseEvents = ignored
+  }
+}
+
+// The chooser's window changing shape while it stays up, a list with no preview pane becoming one
+// with a pane or the other way round, so the window widens to make room for the pane rather than
+// jumping to its new size. The window stands at the union of both shapes for the motion, laid out
+// once at the new one, and the rest is Core Animation on the render server, a mask on the window's
+// container growing or shrinking from the old shape to the new one at the surface's corner, and the
+// views that moved, the list, the field and each bar group, sliding from where they stood by an
+// additive translation whose model value stays zero. So nothing is laid out, drawn or asked of Lua
+// while it plays, which mattered, since a list switching in place keeps the main thread busy with
+// Lua for the whole fifth of a second, measured on 2026-11-04, and a motion stepped there landed
+// two thirds of the way in on its first frame. The panel restores the window when done is called.
+// With Reduce Motion or a duration of zero it ends at once.
+final class ReshapeMotion {
+  private weak var host: NSView?
+  private var token = 0
+  private var slid: [NSView] = []
+  private static let slideKey = "olm.motion.reshape.slide"
+  private(set) var moving = false
+
+  init(_ host: NSView) { self.host = host }
+
+  // Plays the mask from from to to, both in the host's own coordinates, y measured down, and each
+  // view in slides from dx points to the side of where it stands, then calls done, unless stopped.
+  func play(from: NSRect, to: NSRect, radius: CGFloat, slides: [(NSView, CGFloat)],
+    done: @escaping () -> Void) {
+    stop()
+    guard Motion.reshapeDuration > 0, !Motion.still, let host else { return done() }
+    host.wantsLayer = true
+    guard let layer = host.layer else { return done() }
+    moving = true
+    token += 1
+    let mine = token
+    func down(_ r: NSRect) -> CGRect {
+      layer.contentsAreFlipped() ? r
+        : CGRect(x: r.minX, y: host.bounds.height - r.maxY, width: r.width, height: r.height)
+    }
+    let start = down(from), end = down(to)
+    let mask = CALayer()
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    mask.backgroundColor = NSColor.black.cgColor
+    mask.cornerRadius = radius
+    mask.frame = end
+    layer.mask = mask
+    CATransaction.commit()
+
+    CATransaction.begin()
+    CATransaction.setCompletionBlock { [weak self] in
+      guard let self, self.moving, self.token == mine else { return }
+      self.stop()
+      done()
+    }
+    func animate(_ target: CALayer, _ path: String, _ from: Any, _ to: Any, additive: Bool = false, key: String) {
+      let a = CABasicAnimation(keyPath: path)
+      a.fromValue = from
+      a.toValue = to
+      a.isAdditive = additive
+      a.duration = Motion.reshapeDuration
+      a.timingFunction = Motion.openCurve
+      target.add(a, forKey: key)
+    }
+    animate(mask, "bounds", NSValue(rect: CGRect(origin: .zero, size: start.size)),
+      NSValue(rect: CGRect(origin: .zero, size: end.size)), key: "bounds")
+    animate(mask, "position", NSValue(point: CGPoint(x: start.midX, y: start.midY)),
+      NSValue(point: CGPoint(x: end.midX, y: end.midY)), key: "position")
+    for (view, dx) in slides where abs(dx) > 0.5 {
+      view.wantsLayer = true
+      guard let l = view.layer else { continue }
+      animate(l, "transform.translation.x", dx, 0, additive: true, key: Self.slideKey)
+      slid.append(view)
+    }
+    CATransaction.commit()
+  }
+
+  // Ends at once with no callback, the mask and every slide gone.
+  func stop() {
+    moving = false
+    token += 1
+    host?.layer?.mask = nil
+    for view in slid { view.layer?.removeAnimation(forKey: Self.slideKey) }
+    slid = []
   }
 }
 

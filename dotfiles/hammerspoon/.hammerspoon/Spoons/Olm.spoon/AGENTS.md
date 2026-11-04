@@ -961,7 +961,10 @@ shows two glasses. A group is hidden while its pane covers it and is never lit b
 right side keeps its parts while its pane is open, so a shortcut opening a pane flashes no
 highlight and no width. Closing reverses it, the shape onto the group and then the fade off it.
 The mask is stepped once a display frame by a display link, a timer where the window is on no
-screen, the one motion on the main thread. The small group still reads clearer and its shadow
+screen, the one motion on the main thread. The chooser's window widening or narrowing as a preview
+pane arrives or leaves while it is up is a `ReshapeMotion` over `reshape`, on the render server,
+since Lua holds the main thread through a list switch, a mask on the glass's container and the
+moved views sliding, with the window at the union of both shapes until it ends. The small group still reads clearer and its shadow
 lighter than the open pane's, which is macOS drawing glass by size, accepted.
 The look is the `motion` block of
 `config/settings.lua`, which reaches the kit's `motion` tokens through `root/uispec.lua` and the

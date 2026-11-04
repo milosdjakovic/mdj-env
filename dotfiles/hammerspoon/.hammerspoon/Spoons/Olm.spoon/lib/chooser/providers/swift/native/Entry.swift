@@ -247,7 +247,7 @@ private let setText: lua_CFunction = { L in
 }
 
 // How every surface comes and goes, the kit's motion tokens, { open, close, rise, scale, paneOpen,
-// paneClose, paneFade, openCurve, closeCurve, paneCurve, paneCloseCurve }, each curve four control point numbers. A field left out keeps
+// paneClose, paneFade, reshape, openCurve, closeCurve, paneCurve, paneCloseCurve }, each curve four control point numbers. A field left out keeps
 // what Motion holds.
 private let setMotion: lua_CFunction = { L in
   let reader = LuaReader(L)
@@ -264,6 +264,7 @@ private let setMotion: lua_CFunction = { L in
   if let v = reader.number(1, "paneOpen") { Motion.paneOpenDuration = CFTimeInterval(v) }
   if let v = reader.number(1, "paneClose") { Motion.paneCloseDuration = CFTimeInterval(v) }
   if let v = reader.number(1, "paneFade") { Motion.paneFadeDuration = CFTimeInterval(v) }
+  if let v = reader.number(1, "reshape") { Motion.reshapeDuration = CFTimeInterval(v) }
   if let c = curve("openCurve") { Motion.openCurve = c }
   if let c = curve("closeCurve") { Motion.closeCurve = c }
   if let c = curve("paneCurve") { Motion.paneCurve = c }

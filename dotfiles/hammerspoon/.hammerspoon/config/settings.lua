@@ -99,6 +99,7 @@ return {
     paneOpen = 0.2,
     paneClose = 0.15,
     paneFade = 0.06,
+    reshape = 0.18,
   },
 
   -- Cheat-sheet overlay content (the Hyper and SUPER modals). One place for the

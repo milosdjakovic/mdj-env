@@ -902,3 +902,36 @@ lost its width for a frame, so a pane never lights its group and the right side 
 while its pane is open, `keepRight` in `native/Bar.swift`. The timings are back at 0.2 to open, 0.15
 to close, his choice, and 0.06 to fade. The small group's clearer look and lighter shadow beside the
 open pane are macOS drawing glass by size, accepted, see Rejected.
+
+### 2026-11-04 19:20
+
+The chooser's window widens when a list with a preview pane takes the place of one without, and
+narrows the other way, rather than jumping to its new size, Milos's ask to try and keep if it looks
+right. `ReshapeMotion` in `native/Motion.swift` steps one number along the open curve once a display
+frame, and `ChooserPanel.place` lays the window and every rect in it out at that share of the way
+from what is on screen to what Lua placed, the pane's region and the divider at their own size the
+whole way so the window's edge uncovers them, and the list's style, which reloads its table, only on
+the last step. The window resizes for real rather than under a mask, since the chooser is large and
+glass reads the same across that range, and the system shadow then follows on its own. The preview
+pane rect is the new one at once, since a pane is matched to the panel on it. A place during the
+motion that keeps its target lets it run, any other starts from where it stands, and a close ends
+it on its target. The duration is the `reshape` motion token, 0.18, in `config/settings.lua`, and
+Reduce Motion or zero jumps as before. Built with no new warning, `test/swiftpane.sh`, the dry gate
+and the unit cases pass, and loaded live clean. Not yet confirmed live by Milos.
+Corrected 2026-11-04 19:55, stepped on the main thread it was choppy, see the next entry.
+
+### 2026-11-04 19:55
+
+The reshape was choppy, Milos's report, and the probe said why. A step cost 3 to 4 ms, but a list
+switching in place keeps the main thread on Lua, 54 to 126 ms choosing the row and stalls of 30 to
+44 ms after it, so the first step landed at 66 to 84 percent of the way and the rest came 40 ms
+apart. Stepping it there cannot be smooth, so it plays on the render server now. The window takes
+the union of the old shape and the new one for the motion and is laid out once at the new shape
+inside it. A mask on a plain container that now holds the chooser's glass, the glass keeping its
+own layer for itself, grows from the old shape to the new one at the surface corner, and the list
+with its pane region, the field and each bar group slide from where they stood by an additive
+translation whose model value stays zero. When it ends the window takes the new shape alone. The
+window's shadow is off for the motion, since the window server would draw it for the union while the
+glass is smaller, and the glass's rim is cut on the edges that move, both for 0.18 s. Built with no
+new warning, `test/swiftpane.sh`, the dry gate and the unit cases pass, and loaded live clean. Not
+yet confirmed live by Milos.

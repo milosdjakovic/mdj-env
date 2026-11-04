@@ -248,7 +248,13 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     actionsPop.document.onHover = { [weak self] index in _ = self?.ask("hover", [.int(index)]) }
     actionsPop.document.onChoose = { [weak self] index in _ = self?.ask("choose", [.int(index)]) }
 
-    window.contentView = surfaces.view
+    // The glass stands in a plain container, which a reshape masks, see ReshapeMotion, since the
+    // glass keeps its own layer's mask for itself.
+    let container = FlippedView(frame: surfaces.view.frame)
+    surfaces.view.autoresizingMask = [.width, .height]
+    container.addSubview(surfaces.view)
+    container.wantsLayer = true
+    window.contentView = container
   }
 
   // MARK: What the Lua view asks for
@@ -267,10 +273,83 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     list.apply(style: style, placement: placement)
   }
 
+  // A preview pane arriving or leaving while the list is up widens or narrows the window over a
+  // ReshapeMotion rather than in one jump. The window takes the union of the old shape and the new
+  // one for the motion, laid out once at the new shape inside it, and the motion plays on the render
+  // server from the old shape, see ReshapeMotion, after which the window takes the new shape alone.
+  // The preview pane rect is the new one at once, since a pane is matched to this panel on it.
   func place(_ next: Placement) {
-    placement = next
     previewPane = next.previewPane
-    let frame = next.window ?? next.canvas
+    let from = placement
+    let target = Self.frame(of: next)
+    if reshape.moving {
+      if ScreenSpace.same(target, Self.frame(of: reshapeTarget)) {
+        reshapeTarget = next
+        lay(Self.shifted(next, into: reshapeWindow))
+        return
+      }
+      finishReshape()
+    }
+    let changes = (from.paneFrame == nil) != (next.paneFrame == nil)
+      && !ScreenSpace.same(Self.frame(of: from), target)
+    guard isVisible, window.isVisible, changes, Motion.reshapeDuration > 0, !Motion.still else {
+      lay(next)
+      return
+    }
+    let old = Self.frame(of: from)
+    let union = old.union(target)
+    // Where the list and each bar group stand on screen now, so each slides from there.
+    bar.layoutSubtreeIfNeeded()
+    let listBefore = old.minX + (from.listFrame?.minX ?? 0)
+    let leftBefore = old.minX + bar.convert(bar.button.frame, to: nil).minX
+    let rightBefore = old.minX + bar.convert(bar.actions.frame, to: nil).maxX
+    reshapeTarget = next
+    reshapeWindow = union
+    window.hasShadow = false
+    lay(Self.shifted(next, into: union))
+    bar.layoutSubtreeIfNeeded()
+    let listAfter = target.minX + (next.listFrame?.minX ?? 0)
+    let leftAfter = union.minX + bar.convert(bar.button.frame, to: nil).minX
+    let rightAfter = union.minX + bar.convert(bar.actions.frame, to: nil).maxX
+    let shift = listBefore - listAfter
+    let local = { (r: NSRect) in r.offsetBy(dx: -union.minX, dy: -union.minY) }
+    reshape.play(from: local(old), to: local(target), radius: style.radius,
+      slides: [(surfaces.sliding, shift), (fieldClip, shift),
+        (bar.button, leftBefore - leftAfter), (bar.actions, rightBefore - rightAfter)],
+      done: { [weak self] in self?.finishReshape() })
+  }
+
+  private lazy var reshape = ReshapeMotion(window.contentView ?? root)
+  private var reshapeTarget = Placement()
+  private var reshapeWindow = NSRect.zero
+
+  // The window on its new shape alone, its shadow back.
+  private func finishReshape() {
+    reshape.stop()
+    lay(reshapeTarget)
+    window.hasShadow = true
+    window.invalidateShadow()
+  }
+
+  private static func frame(of p: Placement) -> NSRect { p.window ?? p.canvas }
+
+  // p laid out inside a larger window, every rect in the window's own space moved by where p's own
+  // window stands in it, and the rects in the canvas's space following the list's frame.
+  private static func shifted(_ p: Placement, into window: NSRect) -> Placement {
+    let own = frame(of: p)
+    let dx = own.minX - window.minX, dy = own.minY - window.minY
+    var q = p
+    q.window = window
+    q.listFrame = (p.listFrame ?? NSRect(origin: .zero, size: p.canvas.size)).offsetBy(dx: dx, dy: dy)
+    q.paneFrame = p.paneFrame?.offsetBy(dx: dx, dy: dy)
+    q.dividerFrame = p.dividerFrame?.offsetBy(dx: dx, dy: dy)
+    return q
+  }
+
+  // Lays the window and everything in it out on next.
+  private func lay(_ next: Placement) {
+    placement = next
+    let frame = Self.frame(of: next)
     windowSize = frame.size
     window.setFrame(ScreenSpace.cocoaRect(frame), display: window.isVisible)
     layoutSurfaces()
@@ -378,6 +457,8 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   // animated false goes down at once, which a reload's cleanup asks for.
   func hide(animated: Bool = true) {
     list.table.forgetPress()
+    // A reshape cut short by a close ends on its shape, so the next open starts from it.
+    if reshape.moving { finishReshape() }
     motion.hide(animated: animated)
   }
 

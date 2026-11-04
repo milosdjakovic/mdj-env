@@ -80,6 +80,7 @@ function M.spec(policy, colors, typography)
       paneOpen = padding((policy.motion or {}).paneOpen),
       paneClose = padding((policy.motion or {}).paneClose),
       paneFade = padding((policy.motion or {}).paneFade),
+      reshape = padding((policy.motion or {}).reshape),
     },
   }
 end
