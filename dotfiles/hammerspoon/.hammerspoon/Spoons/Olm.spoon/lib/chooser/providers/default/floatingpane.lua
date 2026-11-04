@@ -133,6 +133,11 @@ function M.layout(ui, style, title, lines, selectable)
   -- A table, the widest first column, the gap and the widest last column, so every label keeps the
   -- gap from every chord rather than only from its own.
   widest = firstCol + st.gap + lastCol
+  -- The least the pane may be, where a label has given up all it may. A label keeps three of the
+  -- body size, about three letters and the ellipsis, and the leads and every chord stay whole.
+  local leadsW = 0
+  for _, line in ipairs(lines) do leadsW = math.max(leadsW, lead + line.leadW) end
+  local least = math.min(firstCol, leadsW + M.LEAST_LABEL * st.size) + st.gap + lastCol + 2 * side
   local headerH = 0
   local w = widest + 2 * side
   if title then
@@ -146,6 +151,7 @@ function M.layout(ui, style, title, lines, selectable)
     tops = tops, headings = headings, contentH = y,
     lead = lead, side = side, headerH = headerH,
     w = math.ceil(w), h = math.ceil(headerH + y + 2 * st.outer),
+    least = math.ceil(math.min(least, w)),
   }
 end
 
@@ -161,9 +167,16 @@ end
 --- than its panel's lines, the clipboard's Paste, Copy and Actions, gives the panel its width,
 --- Milos's call on 2026-11-03. It grows from its group's outer edge toward the other group and
 --- stops the outer padding clear of it, or of the window's far edge where there is no other
---- group, past which its labels truncate, so neither pane ever covers the group that stays. It is
+--- group, past which its labels truncate, so neither pane ever covers the group that stays. Labels
+--- give way first and never below pop.least, about three letters and the ellipsis with every chord
+--- whole, and only a pane that cannot keep even that passes the other group, never the window's
+--- edge less the outer padding, Milos's call on 2026-11-04. It is
 --- as tall as its lines and never above the list's top, where it scrolls instead. swift's
 --- floatingFrame in native/Panel.swift is the twin rule.
+--- M.LEAST_LABEL, how much of a label survives a pane squeezed below its table, in multiples of the
+--- body size, about three letters and the ellipsis. Swift's FloatingPaneView.leastLabel is the twin.
+M.LEAST_LABEL = 3
+
 local function mirrored(r, w)
   if not r then return nil end
   return { x = w - r.x - r.w, y = r.y, w = r.w, h = r.h }
@@ -180,7 +193,10 @@ function M.place(pop, anchor, align, room)
   local bottom = anchor.y + anchor.h
   local h = math.min(pop.h, math.max(0, bottom - room.top))
   local stop = room.other and (room.other.x - pad) or (room.w - pad)
-  local w = math.min(math.max(pop.w, anchor.w), math.max(0, stop - anchor.x))
+  local wanted = math.max(pop.w, anchor.w)
+  local w = math.min(wanted, math.max(0, stop - anchor.x))
+  w = math.max(w, math.min(wanted, pop.least or 0))
+  w = math.min(w, math.max(0, room.w - pad - anchor.x))
   return { x = anchor.x, y = bottom - h, w = w, h = h }
 end
 

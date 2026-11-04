@@ -209,3 +209,16 @@ short chord left a long chord on another line almost touching its own label, Clo
 caps under Move Down in the info pane. It is the widest first column, the large space step and the
 widest last column, in `floatingpane.lua` and `FloatingPane.swift` alike, so every label keeps the
 gap from every chord.
+
+### 2026-11-04 14:26
+
+Reviewed the day's floating pane work and closed what it left open. Measured with the live kit,
+read only, every list's info pane fits beside its right side at 480 points but the clipboard's and
+file search's, which fit only because their bar spans the preview pane, at 960. With less room a
+pane would have drawn its chords over its label, so Milos chose that labels give way first, down to
+three body sizes with every chord whole, and only then does the pane pass the other group, never
+the window's edge. The sparkle's colour was the alpha applied twice, measured 0.25 against the
+glyph's 0.50 in the new swiftpane case with the fix taken out. The Swift half had no case for any
+of the day's rules, and now pins the mirror, the least, the table, the lead and the symbol alpha.
+The legend's builder moved from the root to `labels.leaderLegend` so it can be tested, and the kbd
+checks to `test/kbd.lua`.

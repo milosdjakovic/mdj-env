@@ -338,7 +338,14 @@ highlight the keys and the pointer move. Both floating panes follow one padding 
 the info pane's lines only read and the actions pane's chosen. A floating pane stands its lines the
 outer padding from all four edges and its text the inner padding inside a line, like the list's
 rows. Its header, in the row title's size and colour, is laid out as one more line, with a rule
-on its bottom edge and the first line right below it. Each entry of the right side is clickable, running
+on its bottom edge and the first line right below it. Its lines are one table of two columns, the first left
+aligned holding a line's label and, where it has one, its lead, keys drawn bare before the label as
+the legend's leader symbols are, the leads taking the widest one's room, and the last right
+aligned holding the chords, so the pane is the widest first column, the large space step and the
+widest last column wide. Both panes follow one placement rule, mirrored by side. A pane grows from
+its group's outer edge toward the other group and stops the outer padding clear of it, its labels
+giving way first, never below three body sizes with every chord whole, and only a pane that cannot
+keep even that passes the other group, never the window's edge. Since 2026 11 04. Each entry of the right side is clickable, running
 its own action, so Actions opens the panel and the primary runs on the highlighted row.
 `test/cases/surfaces.lua` pins the derived geometry.
 

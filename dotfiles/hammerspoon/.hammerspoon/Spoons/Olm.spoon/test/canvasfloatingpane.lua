@@ -185,6 +185,22 @@ check("the actions pane is the info pane mirrored, its x", right.x, flip(r).x)
 check("and its width", right.w, r.w)
 check("and its height", right.h, r.h)
 
+-- Labels give way first, never below the least, and only then does a pane pass the other group.
+local table2 = floatingPane.layout(UI, style, nil, {
+  { label = string.rep("A long label ", 6), chord = kbd.of(kbd.Down) },
+  { label = "X", chord = kbd.of(kbd.Cmd, kbd.Shift, kbd.named("x")) },
+}, false)
+check("the least keeps every chord and three body sizes of label", table2.least,
+  math.ceil(floatingPane.LEAST_LABEL * T.text.body.size + T.space.l + table2.lines[2].chordW + 2 * table2.side))
+local tight = { x = keysAnchor.x + table2.least - 40, y = 500, w = 30, h = 30 }
+local squeezed = floatingPane.place(table2, keysAnchor, "left", { w = 2000, top = 50, other = tight })
+check("a pane that cannot keep its least passes the other group", squeezed.w, table2.least)
+local roomy = { x = keysAnchor.x + table2.least + 100, y = 500, w = 30, h = 30 }
+check("one that can stops the pad clear of it", floatingPane.place(table2, keysAnchor, "left",
+  { w = 2000, top = 50, other = roomy }).w, roomy.x - T.pad - keysAnchor.x)
+check("and none passes the window's edge less the pad", floatingPane.place(table2, keysAnchor, "left",
+  { w = keysAnchor.x + 50, top = 50, other = tight }).w, 50 - T.pad)
+
 -- The highlight, and the lines as hit rects.
 r = floatingPane.place(actions, actionsAnchor, "right", room)
 local els, info = floatingPane.elements(UI, actions, r, { highlight = 2 })

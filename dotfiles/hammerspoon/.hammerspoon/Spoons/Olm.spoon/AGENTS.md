@@ -708,7 +708,16 @@ on the left and mirrored for one on the right, `place` in `floatingpane.lua` and
 from its group's outer edge toward the other group and stops the pad clear of it, so the actions
 pane never covers the left side and the info pane never covers the right side, and a long line in
 either ends in an ellipsis rather than widening it. No plugin sizes its bar or its pane, it only
-names its actions.
+names its actions. Labels give way first and never below a least, three
+body sizes of label, about three letters and the ellipsis, with every lead and chord whole, `least`
+in `floatingpane.lua` and `leastWidth` in `FloatingPane.swift`, and only a pane that cannot keep
+even that passes the other group, never the window's edge less the pad. Measured on 2026-11-04 at
+the shipped sizes, every list's info pane fits beside its right side, the clipboard and file search
+only because their bar spans the preview pane, so the least is the rule for a narrow screen or a
+person's wider key, not a case seen today. A line may carry a `lead`, keys drawn bare before its
+label, and the lines are one table, the first column left aligned holding a line's lead and label,
+the leads taking the widest one's room, and the last right aligned holding the chords, the pane
+as wide as the widest first column, the large space step and the widest last column.
 The anchors are the one seam to the bar, the groups' own rects that `bar.lua` answers, kept by
 `View:_bottomBarElements` as `self._anchors = { keys = rect, actions = rect }` in the window's local
 coordinates. The view answers

@@ -513,6 +513,75 @@ do {
   check("with no open duration a view appears at once", still.alphaValue == 1 && !fading(still))
 }
 
+// One placement rule for both floating panes, mirrored by side, floatingpane.lua's place.
+do {
+  let W: CGFloat = 400, pad: CGFloat = 10
+  let keysGroup = NSRect(x: 10, y: 300, width: 60, height: 30)
+  let actionsGroup = NSRect(x: 230, y: 300, width: 160, height: 30)
+  let info = ChooserPanel.floatingFrame(size: NSSize(width: 250, height: 100), least: 120, anchor: keysGroup,
+    floor: 60, other: actionsGroup, leading: true, width: W, top: 0, pad: pad)
+  check("the info pane stops the pad clear of the right side", info.maxX == actionsGroup.minX - pad)
+  check("its left and bottom edges on its group's", info.minX == keysGroup.minX && info.maxY == keysGroup.maxY)
+  func mirror(_ r: NSRect) -> NSRect { NSRect(x: W - r.maxX, y: r.minY, width: r.width, height: r.height) }
+  let actions = ChooserPanel.floatingFrame(size: NSSize(width: 250, height: 100), least: 120, anchor: mirror(keysGroup),
+    floor: 60, other: mirror(actionsGroup), leading: false, width: W, top: 0, pad: pad)
+  check("the actions pane is the info pane mirrored", actions == mirror(info))
+  let squeezed = ChooserPanel.floatingFrame(size: NSSize(width: 250, height: 100), least: 240, anchor: keysGroup,
+    floor: 60, other: actionsGroup, leading: true, width: W, top: 0, pad: pad)
+  check("a pane that cannot keep its least passes the other group rather than crushing its chords",
+    squeezed.width == 240 && squeezed.maxX > actionsGroup.minX - pad)
+  let edge = ChooserPanel.floatingFrame(size: NSSize(width: 500, height: 100), least: 450, anchor: keysGroup,
+    floor: 60, other: actionsGroup, leading: true, width: W, top: 0, pad: pad)
+  check("and never passes the window's edge less the pad", edge.maxX == W - pad)
+}
+
+// A floating pane is sized as a table, and a lead takes a column of its own room.
+do {
+  var p = Placement()
+  p.keycapPadX = 4
+  let style = Style()
+  func pane(_ lines: [FloatingPaneView.Line]) -> FloatingPaneView {
+    let v = FloatingPaneView(frame: NSRect(x: 0, y: 0, width: 400, height: 300))
+    v.show(title: nil, lines: lines, style: style, placement: p, outer: 6, inner: 6, lineH: 28, gap: 16, radius: 10)
+    return v
+  }
+  let longLabel = FloatingPaneView.Line(label: "A long label for the first column", chord: [[KeyMark(glyph: "K", symbol: nil)]])
+  let longChord = FloatingPaneView.Line(label: "X", chord: [[KeyMark(glyph: "WWWW", symbol: nil), KeyMark(glyph: "WWWW", symbol: nil)]])
+  let both = pane([longLabel, longChord]).preferredSize.width
+  check("the widest label and the widest chord on different lines both keep the gap",
+    both > pane([longLabel]).preferredSize.width && both > pane([longChord]).preferredSize.width)
+  var led = longLabel
+  led.lead = [[KeyMark(glyph: "M", symbol: nil)]]
+  check("a lead widens the first column", pane([led]).preferredSize.width > pane([longLabel]).preferredSize.width)
+  let table = pane([longLabel, longChord])
+  check("the least keeps the chords and gives up label", table.leastWidth < table.preferredSize.width
+    && table.leastWidth > pane([FloatingPaneView.Line(label: "", chord: longChord.chord)]).preferredSize.width)
+}
+
+// A symbol in a key cap is drawn at its colour's alpha, as a glyph beside it is.
+do {
+  var style = Style()
+  style.number = NSColor(srgbRed: 0, green: 0, blue: 0, alpha: 0.5)
+  let p = Placement()
+  func peak(_ mark: KeyMark) -> CGFloat {
+    let cap = KeyCap([[mark]], ink: style.ink(lit: false), style: style, placement: p, holderH: 30, holderRadius: 0,
+      bare: true, keyFont: NSFont.systemFont(ofSize: 24, weight: .bold))
+    let stand = FlippedView(frame: NSRect(x: 0, y: 0, width: 60, height: 40))
+    stand.addSubview(cap)
+    cap.frame = NSRect(origin: .zero, size: cap.fittingSize)
+    cap.layoutSubtreeIfNeeded()
+    guard let rep = stand.bitmapImageRepForCachingDisplay(in: stand.bounds) else { return -1 }
+    stand.cacheDisplay(in: stand.bounds, to: rep)
+    var most: CGFloat = 0
+    for y in 0..<rep.pixelsHigh { for x in 0..<rep.pixelsWide { most = max(most, rep.colorAt(x: x, y: y)?.alphaComponent ?? 0) } }
+    return most
+  }
+  let glyph = peak(KeyMark(glyph: "M", symbol: nil))
+  let symbol = peak(KeyMark(glyph: "M", symbol: "square.fill"))
+  check("a symbol's ink is as strong as a glyph's in the same translucent colour", abs(glyph - symbol) < 0.08,
+    "glyph \(glyph) symbol \(symbol)")
+}
+
 if failed {
   print("swiftpane, FAILED")
   exit(1)

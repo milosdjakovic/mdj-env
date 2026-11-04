@@ -693,16 +693,21 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   // under it hidden and the other staying. A pane is as wide as its lines laid out as a table and never narrower
   // than its floor, the group it stands above, grows toward the other group and stops the bar pad
   // clear of it, or of the window's far edge where there is none, past which its labels truncate,
-  // so neither pane covers the group that stays. It is as tall as its lines and never above the
+  // so neither pane covers the group that stays. Labels give way first and never below least, about
+  // three letters and every chord whole, and only a pane that cannot keep even that passes the
+  // other group, never the window's edge less the pad. It is as tall as its lines and never above the
   // list's top, where it scrolls instead.
-  static func floatingFrame(size: NSSize, anchor: NSRect, floor: CGFloat, other: NSRect?,
+  static func floatingFrame(size: NSSize, least: CGFloat, anchor: NSRect, floor: CGFloat, other: NSRect?,
                             leading: Bool, width: CGFloat, top: CGFloat, pad: CGFloat) -> NSRect {
     func mirror(_ r: NSRect) -> NSRect {
       leading ? r : NSRect(x: width - r.maxX, y: r.minY, width: r.width, height: r.height)
     }
     let a = mirror(anchor)
     let stop = other.map { mirror($0).minX - pad } ?? (width - pad)
-    let w = min(max(size.width, floor), max(0, stop - a.minX))
+    let wanted = max(size.width, floor)
+    var w = min(wanted, max(0, stop - a.minX))
+    w = max(w, min(wanted, least))
+    w = min(w, max(0, width - pad - a.minX))
     let h = min(size.height, max(0, a.maxY - top))
     return mirror(NSRect(x: a.minX, y: a.maxY - h, width: w, height: h))
   }
@@ -729,7 +734,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     // The group's width while open is not the floor, since its Return label follows the lit line
     // and would move the pane's width as the highlight moves.
     actionsPop.frame = ChooserPanel.floatingFrame(
-      size: actionsPop.preferredSize, anchor: anchor,
+      size: actionsPop.preferredSize, least: actionsPop.leastWidth, anchor: anchor,
       floor: restActionsWidth > 0 ? restActionsWidth : anchor.width,
       other: sideFrame(bar.button, in: stage), leading: false, width: windowSize.width,
       top: toWindow(placement.list)?.minY ?? 0, pad: placement.barPad)
@@ -742,7 +747,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     bar.layoutSubtreeIfNeeded()
     let anchor = bar.convert(bar.button.frame, to: stage)
     keys.frame = ChooserPanel.floatingFrame(
-      size: keys.preferredSize, anchor: anchor, floor: anchor.width,
+      size: keys.preferredSize, least: keys.leastWidth, anchor: anchor, floor: anchor.width,
       other: sideFrame(bar.actions, in: stage), leading: true, width: windowSize.width,
       top: toWindow(placement.list)?.minY ?? 0, pad: placement.barPad)
   }

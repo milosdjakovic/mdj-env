@@ -277,6 +277,21 @@ final class FloatingPaneView: FlippedView {
     return NSSize(width: ceil(width),
       height: ceil(headerH + contentH + 2 * outer))
   }
+  // How much of a label survives a pane squeezed below its table, in multiples of the body size,
+  // about three letters and the ellipsis, floatingpane.lua's LEAST_LABEL.
+  static let leastLabel: CGFloat = 3
+
+  // The least the pane may be, where a label has given up all it may, the leads and every chord
+  // whole, floatingpane.lua's least. Never more than its preferred width.
+  var leastWidth: CGFloat {
+    guard !rows.isEmpty else { return preferredSize.width }
+    let firstCol = rows.map { lead + leadW($0) + $0.label.fittingSize.width }.max() ?? 0
+    let leads = rows.map { lead + leadW($0) }.max() ?? 0
+    let lastCol = rows.map { $0.chord.fittingSize.width }.max() ?? 0
+    let label = FloatingPaneView.leastLabel * (rows.first?.label.font?.pointSize ?? 0)
+    return min(preferredSize.width, ceil(min(firstCol, leads + label) + gap + lastCol + 2 * side))
+  }
+
 
   override func layout() {
     super.layout()
