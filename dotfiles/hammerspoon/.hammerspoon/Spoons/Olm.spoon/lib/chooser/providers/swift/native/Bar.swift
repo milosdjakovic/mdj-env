@@ -43,7 +43,9 @@ final class KeyCap: FlippedView {
   // symbol's from the left and top of the box it is drawn in, both already at drawn size.
   private enum Mark {
     case text(NSAttributedString)
-    case image(NSImage, NSSize)
+    // A symbol is rendered opaque and drawn at its colour's alpha, as a glyph's colour composites,
+    // since a translucent palette colour does not, and the sparkle read another shade than the diamond beside it.
+    case image(NSImage, NSSize, CGFloat)
   }
   private struct Key {
     let mark: Mark
@@ -166,7 +168,7 @@ final class KeyCap: FlippedView {
   // capitals. nil when the system has no symbol of that name, and the key falls back to its glyph.
   private static func symbol(_ name: String, font: NSFont, color: NSColor) -> Key? {
     let config = NSImage.SymbolConfiguration(pointSize: font.pointSize, weight: .regular, scale: .small)
-      .applying(NSImage.SymbolConfiguration(paletteColors: [color]))
+      .applying(NSImage.SymbolConfiguration(paletteColors: [color.withAlphaComponent(1)]))
     guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
       .withSymbolConfiguration(config),
       let ink = inkOf(image, key: name + "@" + String(describing: font.pointSize)), ink.height > 0
@@ -174,7 +176,7 @@ final class KeyCap: FlippedView {
     let k = font.capHeight / ink.height
     let size = NSSize(width: image.size.width * k, height: image.size.height * k)
     let scaled = NSRect(x: ink.minX * k, y: ink.minY * k, width: ink.width * k, height: ink.height * k)
-    return Key(mark: .image(image, size), ink: scaled)
+    return Key(mark: .image(image, size, Ink.alpha(color)), ink: scaled)
   }
 
   // A chip's width, its keys' ink side by side with the key gap between them and padX either side.
@@ -215,7 +217,7 @@ final class KeyCap: FlippedView {
         switch key.mark {
         case .text:
           row.append(NSRect(x: ix - key.ink.minX, y: lineTop, width: 0, height: 0))
-        case .image(_, let size):
+        case .image(_, let size, _):
           // The ink's middle on the capitals' middle.
           let top = lineTop + capMiddle - (key.ink.minY + key.ink.height / 2)
           row.append(NSRect(x: ix - key.ink.minX, y: top, width: size.width, height: size.height))
@@ -235,8 +237,8 @@ final class KeyCap: FlippedView {
       for (key, place) in zip(keys, row) {
         switch key.mark {
         case .text(let string): string.draw(at: place.origin)
-        case .image(let image, _):
-          image.draw(in: place, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+        case .image(let image, _, let alpha):
+          image.draw(in: place, from: .zero, operation: .sourceOver, fraction: alpha, respectFlipped: true, hints: nil)
         }
       }
     }
