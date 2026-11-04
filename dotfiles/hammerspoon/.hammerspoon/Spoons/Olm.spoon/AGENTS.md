@@ -682,7 +682,23 @@ the floating pane in `docs/DESIGN-UI-KIT.md`. The info pane takes the keys ancho
 it, while the left side is hidden and the right side stays, and the actions pane the actions
 anchor's, its right and bottom edges on it, while the right side is hidden and the left side
 stays, never above the list's top, where it scrolls, and as wide as its widest line but never
-wider than the window less the outer padding, past which its labels truncate.
+narrower than the group it stands above and never wider than the window less the outer padding,
+past which its labels truncate. A group wider than its panel's lines, the clipboard's Paste, Copy
+and Actions, gives the panel its width, each line keeping its picture and left aligned label on
+the left and its chord on the right, Milos's call on 2026-11-03, and swift's `layoutKeys` and
+`layoutActions` in `native/Panel.swift` take the same floor. While the actions pane is open the
+bar's right side describes the panel, its Return label following the lit line, so the floor is the
+width the right side had at rest, kept by the view, and the pane's width holds as the highlight
+moves. A header has the outer padding under its rule, so a lit first line stands off it.
+
+The right side and the actions pane share one ceiling, Milos's call on 2026-11-04. The bar reads
+pad, left side, pad, right side, pad, the three pads equal, so the right side is at most the bar
+less the left side and three pads. Past it the labels the bottom bar model marks `fit`, the
+primary's and the secondary's, give up width, the longest first, until they share what is left
+equally at most, and end in an ellipsis, so a one word label stays whole beside a long one, while
+Actions and every chord stay whole. `fitLabels` in `bar.lua` and in `Bar.swift` are the twin rule.
+The actions pane stops the pad clear of the left side, so a long verb title ends in an ellipsis
+rather than widening it. No plugin sizes its bar or its pane, it only names its actions.
 The anchors are the one seam to the bar, the groups' own rects that `bar.lua` answers, kept by
 `View:_bottomBarElements` as `self._anchors = { keys = rect, actions = rect }` in the window's local
 coordinates. The view answers

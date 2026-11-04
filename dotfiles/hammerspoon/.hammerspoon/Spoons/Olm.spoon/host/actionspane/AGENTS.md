@@ -364,3 +364,9 @@ through `_choose`, so it is exactly choosing the row, and runs its own `refresh(
 does, since a key earns no rebuild from intercept. Inside a level no key is claimed, since a
 level's rows carry no action. The pane runs the verb only after `_close`, so the claim answers
 false then and the dispatch table runs the verb, with no loop.
+
+The primary verb is the one key never claimed, since 2026-11-03. Over an open pane it is Return,
+so Hyper and I chooses the highlighted pane row at the top level and inside a level alike, through
+the list's own `insertSelected`, which asks the pane's intercept as Return does. Claimed, it chose
+the pane's primary row whatever was highlighted, and inside a level, where nothing is claimed, it
+looked dead.

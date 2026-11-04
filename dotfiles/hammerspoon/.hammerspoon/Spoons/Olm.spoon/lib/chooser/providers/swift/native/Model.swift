@@ -236,6 +236,9 @@ struct BottomBar {
     var action: String? = nil
     // The heading a info pane line is listed under, nil for the legend that leads it.
     var section: String? = nil
+    // A bar label that gives up width, ending in an ellipsis, when the right side would reach
+    // past the left side, the primary's and the secondary's.
+    var fit = false
   }
   var right: [Entry] = []
   var keys: [Entry] = []
@@ -253,7 +256,7 @@ struct BottomBar {
   init(_ r: LuaReader, _ t: Int32) {
     r.each(t, "right") { e in
       right.append(Entry(label: r.string(e, "label") ?? "", chord: r.chord(e, "chord"),
-        action: r.string(e, "action")))
+        action: r.string(e, "action"), fit: r.bool(e, "fit") ?? false))
     }
     r.each(t, "keys") { e in
       keys.append(Entry(label: r.string(e, "label") ?? "", chord: r.chord(e, "chord"),

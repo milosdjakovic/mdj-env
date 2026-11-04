@@ -348,6 +348,7 @@ final class BarSide: FlippedView {
 
 final class BarView: FlippedView {
   let button = BarSide()
+  private var rightFit: [Bool] = []
   let actions = BarSide()
   private var parts: [NSView] = []
   private var rightParts: [NSView] = []
@@ -429,6 +430,7 @@ final class BarView: FlippedView {
     }
     for view in parts { button.addSubview(view) }
     rightActions = bottomBar.right.map { $0.action }
+    rightFit = bottomBar.right.map { $0.fit }
     for item in bottomBar.right {
       rightParts.append(label(item.label, style.titleFont, style.text))
       rightParts.append(KeyCap(item.chord, ink: style.ink(lit: false), style: style, placement: placement,
@@ -476,10 +478,25 @@ final class BarView: FlippedView {
     }
     // The action group, one item per item, edge to edge, its label and chord the inner padding
     // in from the item's sides, then placed flush with the bar pad from the right edge.
+    // The right side never reaches past the left side, its widest the bar less the left side and
+    // the bar pad three times, between the edges and the groups. Past it the labels marked fit,
+    // the primary's and the secondary's, give up width, the longest first, and end in an ellipsis,
+    // bar.lua's fitLabels.
+    var natural: [CGFloat] = []
+    var fixed = 2 * inner
+    for i in stride(from: 0, to: rightParts.count - 1, by: 2) {
+      let label = rightParts[i].fittingSize.width
+      let chord = rightParts[i + 1].fittingSize.width
+      natural.append(label)
+      fixed += 2 * inner + (chord > 0 ? gap + chord : 0)
+    }
+    let room = max(0, bounds.width - 3 * pad - buttonW)
+    let widths = Self.fitLabels(natural, fit: rightFit, budget: room - fixed)
     var items: [NSRect] = []
     x = inner
     for i in stride(from: 0, to: rightParts.count - 1, by: 2) {
-      let label = rightParts[i].fittingSize
+      var label = rightParts[i].fittingSize
+      label.width = widths[i / 2]
       let chord = rightParts[i + 1].fittingSize
       let w = inner + label.width + (chord.width > 0 ? gap : 0) + chord.width + inner
       rightParts[i].frame = NSRect(x: x + inner, y: inner + (itemH - label.height) / 2,
@@ -492,5 +509,32 @@ final class BarView: FlippedView {
     let actionsW = x + inner
     actions.frame = Crisp.align(NSRect(x: bounds.width - pad - actionsW, y: 0, width: actionsW, height: h), in: self)
     actions.items = items
+  }
+
+  // The widths the labels take so they fit the budget, every label not marked fit kept whole and
+  // the fit ones cut, the longest first, until they share what is left equally at most.
+  static func fitLabels(_ widths: [CGFloat], fit: [Bool], budget: CGFloat) -> [CGFloat] {
+    var out = widths
+    var left = budget
+    var open: [Int] = []
+    for (i, w) in widths.enumerated() {
+      if i < fit.count && fit[i] { open.append(i) } else { left -= w }
+    }
+    guard !open.isEmpty else { return out }
+    let total = open.reduce(CGFloat(0)) { $0 + widths[$1] }
+    if total <= left { return out }
+    open.sort { widths[$0] < widths[$1] }
+    var n = CGFloat(open.count)
+    for i in open {
+      let share = max(0, left) / n
+      if widths[i] <= share {
+        left -= widths[i]
+      } else {
+        out[i] = floor(share)
+        left -= out[i]
+      }
+      n -= 1
+    }
+    return out
   }
 }

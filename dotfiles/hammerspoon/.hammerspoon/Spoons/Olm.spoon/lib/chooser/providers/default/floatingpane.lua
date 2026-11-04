@@ -122,8 +122,9 @@ function M.layout(ui, style, title, lines, selectable)
   local headerH = 0
   local w = widest + 2 * side
   if title then
-    -- The header, one line and the rule on its bottom edge.
-    headerH = st.lineH + st.stroke
+    -- The header, one line, the rule on its bottom edge and the outer padding under the rule, so
+    -- a lit first line stands off the rule as the last one stands off the bottom edge.
+    headerH = st.lineH + st.stroke + st.outer
     w = math.max(w, width(title, st.font, st.size) + 2 * side)
   end
   return {
@@ -138,19 +139,25 @@ end
 --- corner it takes, the bar hiding both groups while a panel is open, align "left" for the key
 --- panel, its left and bottom edges on the group's, and "right" for the actions pane, its right
 --- and bottom edges on the group's. room is { w, top }, the window's width and the list's top
---- edge. It is as wide as its widest line and never wider than the window less the outer padding
---- on its open side, past which its labels truncate, as tall as its lines and never above the
---- list's top, where it scrolls instead, swift's layoutKeys and layoutActions.
+--- edge. It is as wide as its widest line and never narrower than the group it stands above, so
+--- a bar side wider than its panel's lines, the clipboard's Paste, Copy and Actions, gives the
+--- panel its width and each line's label fills it with the chord on the right, Milos's call on
+--- 2026-11-03. It is never wider than the window less the outer padding on its open side, past
+--- which its labels truncate, as tall as its lines and never above the list's top, where it
+--- scrolls instead, swift's layoutKeys and layoutActions.
 function M.place(pop, anchor, align, room)
   local pad = pop.style.standoff
   local bottom = anchor.y + anchor.h
   local h = math.min(pop.h, math.max(0, bottom - room.top))
+  local wanted = math.max(pop.w, anchor.w)
   if align == "right" then
     local right = anchor.x + anchor.w
-    local w = math.min(pop.w, math.max(0, right - pad))
+    -- Never past room.left, the left side's right edge and the bar pad, when the caller knows it,
+    -- so a long line ends in an ellipsis rather than widening the pane over the left side.
+    local w = math.min(wanted, math.max(0, right - (room.left or pad)))
     return { x = right - w, y = bottom - h, w = w, h = h }
   end
-  local w = math.min(pop.w, math.max(0, room.w - anchor.x - pad))
+  local w = math.min(wanted, math.max(0, room.w - anchor.x - pad))
   return { x = anchor.x, y = bottom - h, w = w, h = h }
 end
 

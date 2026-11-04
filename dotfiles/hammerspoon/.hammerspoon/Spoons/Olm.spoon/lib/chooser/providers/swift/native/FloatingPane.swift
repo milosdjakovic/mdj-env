@@ -243,7 +243,7 @@ final class FloatingPaneView: FlippedView {
   }
 
   private var headerH: CGFloat {
-    header.isHidden ? 0 : lineH + 1
+    header.isHidden ? 0 : lineH + 1 + outer
   }
 
   // How far a line's text stands in from its edges, the inner padding inside a line the outer
@@ -265,11 +265,11 @@ final class FloatingPaneView: FlippedView {
     if !header.isHidden {
       let h = header.fittingSize.height
       header.frame = NSRect(x: side, y: top + (lineH - h) / 2, width: bounds.width - 2 * side, height: h)
-      // The rule on the header line's bottom edge, the first line right below it, so the text
-      // on either side stands as far from the rule as one line's text from the next.
+      // The rule on the header line's bottom edge, and the outer padding under it before the first
+      // line, so a lit first line stands off the rule as the last one stands off the bottom edge.
       top += lineH
       rule.frame = NSRect(x: 0, y: top, width: bounds.width, height: 1)
-      top += 1
+      top += 1 + outer
     }
     let start = top
     scroll.frame = NSRect(x: 0, y: start, width: bounds.width, height: max(0, bounds.height - start))

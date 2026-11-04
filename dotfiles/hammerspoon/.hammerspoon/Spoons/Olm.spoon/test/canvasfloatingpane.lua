@@ -96,8 +96,8 @@ check("a read line's text stands the outer and the inner padding in, as a chosen
   T.barInner + T.barInner)
 check("a read floating pane is its widest line and both paddings on both sides", keys.w,
   math.ceil(widest + 4 * T.barInner))
-check("and as tall as its header line, the rule, its lines and the outer padding", keys.h,
-  math.ceil(lineH + T.stroke.border + 2 * lineH + 2 * T.barInner))
+check("and as tall as its header line, the rule, the padding under it, its lines and the outer padding", keys.h,
+  math.ceil(lineH + T.stroke.border + T.barInner + 2 * lineH + 2 * T.barInner))
 
 -- The actions pane, chosen lines with sections and pictures.
 local picture = function(frame) return { { type = "image", frame = frame } } end
@@ -132,6 +132,12 @@ r = floatingPane.place(keys, { x = 700, y = 500, w = 60, h = 30 }, "left", room)
 check("never wider than the window less the outer padding", r.x + r.w, 800 - T.pad)
 r = floatingPane.place(actions, { x = 40, y = 500, w = 20, h = 30 }, "right", room)
 check("on the left too", r.x, T.pad)
+local wide = { x = 400, y = 500, w = actions.w + 90, h = 30 }
+r = floatingPane.place(actions, wide, "right", room)
+check("never narrower than a wider group under it", r.w, wide.w)
+check("its right edge still on the group's", r.x + r.w, wide.x + wide.w)
+r = floatingPane.place(keys, { x = 20, y = 500, w = keys.w + 40, h = 30 }, "left", room)
+check("the info pane too", r.w, keys.w + 40)
 
 -- The highlight, and the lines as hit rects.
 r = floatingPane.place(actions, actionsAnchor, "right", room)

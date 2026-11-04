@@ -353,4 +353,19 @@ if failed then
   print("canvasbar.lua, FAILED")
   os.exit(1)
 end
+-- The labels marked fit give up width when the right side would reach past the left side, the
+-- longest first, and a label not marked fit is never cut.
+do
+  local items = { { fit = true }, { fit = true }, { fit = false } }
+  local out = barLib.fitLabels({ 40, 200, 60 }, items, 400)
+  check("labels that fit keep their width", out[2], 200)
+  out = barLib.fitLabels({ 40, 200, 60 }, items, 200)
+  check("the short fit label stays whole", out[1], 40)
+  check("the long one takes what is left", out[2], 100)
+  check("a label not marked fit is never cut", out[3], 60)
+  out = barLib.fitLabels({ 150, 200, 60 }, items, 200)
+  check("two long fit labels share what is left", out[1], 70)
+  check("equally", out[2], 70)
+end
+
 print("canvasbar.lua, all passed")

@@ -295,7 +295,7 @@ local function bottomBarData(model)
   if not model then return nil end
   local right, keys = {}, {}
   for _, r in ipairs(model.right or {}) do
-    right[#right + 1] = { label = r.label or "", chord = kbd.wire(r.chord), action = r.action }
+    right[#right + 1] = { label = r.label or "", chord = kbd.wire(r.chord), action = r.action, fit = r.fit == true }
   end
   for _, k in ipairs(model.keys or {}) do
     keys[#keys + 1] = { label = k.label or "", chord = kbd.wire(k.badges), section = k.section }

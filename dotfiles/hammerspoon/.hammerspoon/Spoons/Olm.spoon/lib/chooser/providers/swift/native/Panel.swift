@@ -693,16 +693,34 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   // The actions pane is the same floating pane in the action group's corner, hidden while it is open
   // with the left side staying, its right and bottom edges on the group's, with the same limits.
   private func layoutActions() {
-    guard actionsPop.isOpen, let stage = actionsPop.superview else { return }
+    // While the actions pane is open the bar describes the panel and its right side is shorter, so
+    // the width the right side had at rest, the group the person pressed from, is kept as the floor.
+    if !actionsPop.isOpen {
+      if !bar.isHidden {
+        bar.layoutSubtreeIfNeeded()
+        restActionsWidth = bar.actions.frame.width
+      }
+      return
+    }
+    guard let stage = actionsPop.superview else { return }
     bar.layoutSubtreeIfNeeded()
     let anchor = bar.convert(bar.actions.frame, to: stage)
     let top = toWindow(placement.list)?.minY ?? 0
     let bottom = anchor.maxY
     let size = actionsPop.preferredSize
-    let w = min(size.width, max(0, anchor.maxX - placement.barPad))
+    // Never narrower than the bar side it stands above at rest, floatingpane.lua's place. The
+    // group's width while open is not used, since its Return label follows the lit line and would
+    // move the pane's width as the highlight moves.
+    let floor = restActionsWidth > 0 ? restActionsWidth : anchor.width
+    // Never past the left side, the bar pad clear of it, the most the bar's right side may take,
+    // so a long line ends in an ellipsis rather than widening the pane over the left side.
+    let leftEdge = bar.convert(bar.button.frame, to: stage).maxX + placement.barPad
+    let w = min(max(size.width, floor), max(0, anchor.maxX - leftEdge))
     let h = min(size.height, max(0, bottom - top))
     actionsPop.frame = NSRect(x: anchor.maxX - w, y: bottom - h, width: w, height: h)
   }
+
+  private var restActionsWidth: CGFloat = 0
 
   private func layoutKeys() {
     guard keys.isOpen, let stage = keys.superview else { return }
@@ -711,7 +729,8 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     let top = toWindow(placement.list)?.minY ?? 0
     let bottom = anchor.maxY
     let size = keys.preferredSize
-    let w = min(size.width, max(0, windowSize.width - anchor.minX - placement.barPad))
+    // Never narrower than the bar side it stands above, floatingpane.lua's place.
+    let w = min(max(size.width, anchor.width), max(0, windowSize.width - anchor.minX - placement.barPad))
     let h = min(size.height, max(0, bottom - top))
     keys.frame = NSRect(x: anchor.minX, y: bottom - h, width: w, height: h)
   }

@@ -473,7 +473,17 @@ function View:_bottomBarElements(s, els, origin, interior, listRect)
   })
   -- The anchors are always kept. A group whose panel is open is hidden whole and takes no pointer,
   -- the panel standing in its corner, and the other group stays, as in swift.
-  self._anchors = { keys = hits.keys, actions = hits.actions }
+  -- While the actions pane is open the model describes the panel, its Return label following the
+  -- lit line, so the anchor takes the width the right side had at rest, the group the person
+  -- pressed from, its right edge where it stands, and the pane's width holds as the highlight moves.
+  local actionsAnchor = hits.actions
+  if s.bottomBar.panelOpen ~= true then
+    self._restActionsW = hits.actions and hits.actions.w or nil
+  elseif actionsAnchor and self._restActionsW then
+    local w = self._restActionsW
+    actionsAnchor = { x = actionsAnchor.x + actionsAnchor.w - w, y = actionsAnchor.y, w = w, h = actionsAnchor.h }
+  end
+  self._anchors = { keys = hits.keys, actions = actionsAnchor }
   for _, el in ipairs(barEls) do els[#els + 1] = el end
   local items = {}
   for i, item in ipairs(hits.items) do
@@ -551,7 +561,8 @@ function View:_floatingPaneElements(s, els, origin, listRect)
   end
   local T = s.tokens
   local style = floatingPaneLib.style(UI, T, s.layout.marginX, bottomBarLib.height(T))
-  local room = { w = (self._window or s.rects.canvas).w, top = listRect.y }
+  local room = { w = (self._window or s.rects.canvas).w, top = listRect.y,
+    left = anchors.keys and (anchors.keys.x + anchors.keys.w + T.pad) or nil }
   local function draw(kind, pop, anchor, align, highlight)
     local rect = floatingPaneLib.place(pop, anchor, align, room)
     local reveal = highlight ~= nil and highlight ~= (previous[kind] and previous[kind].highlight)
@@ -613,6 +624,7 @@ function View:hide()
   self._barHover = nil
   self._keysHit, self._keysCellHit, self._barHits, self._anchors = nil, nil, nil, nil
   self._floatingPanes, self._popScroll, self._popPressed, self._held = nil, {}, false, nil
+  self._restActionsW = nil
   self._paneContent = nil
   self.surface:hide()
 end

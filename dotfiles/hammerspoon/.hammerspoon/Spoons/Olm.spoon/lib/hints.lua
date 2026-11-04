@@ -294,11 +294,13 @@ function obj.bottomBarModel(contextName, plan, deps)
   else
     primaryLabel = obj.labelFor({ shared = "primary" }, contextName, nil, labels)
   end
-  right[#right + 1] = { label = primaryLabel, chord = kbd.of(kbd.Return),
+  -- fit marks the labels a chooser cuts with an ellipsis when the right side would reach past the
+  -- left side, the primary's and the secondary's, so no plugin sizes its bar.
+  right[#right + 1] = { label = primaryLabel, chord = kbd.of(kbd.Return), fit = true,
     action = (not panelRow) and primary and primary.action or nil }
   if secondary then
     right[#right + 1] = { label = obj.labelFor(secondary, contextName, deps.liveLabels, labels),
-      chord = obj.chordFor(secondary, deps), action = secondary.action }
+      chord = obj.chordFor(secondary, deps), action = secondary.action, fit = true }
   end
   if panel then
     right[#right + 1] = { label = obj.labelFor(panel, contextName, deps.liveLabels, labels),

@@ -101,6 +101,36 @@ local function itemShape(tokens, rect, radius)
     frame = { x = rect.x, y = rect.y, w = rect.w, h = rect.h } }
 end
 
+local function sumLabels(items)
+  local n = 0
+  for _, e in ipairs(items) do n = n + e.labelW end
+  return n
+end
+
+--- M.fitLabels(widths, items, budget) -> the widths the labels take so they fit budget, a label
+--- whose item is not marked fit kept whole and the fit ones cut, the longest first, until they
+--- share what is left equally at most, the twin of Bar.swift's fitLabels.
+function M.fitLabels(widths, items, budget)
+  local out, open, left = {}, {}, budget
+  for i, w in ipairs(widths) do
+    out[i] = w
+    if items[i] and items[i].fit then open[#open + 1] = i else left = left - w end
+  end
+  if #open == 0 then return out end
+  local sum = 0
+  for _, i in ipairs(open) do sum = sum + widths[i] end
+  if sum <= left then return out end
+  table.sort(open, function(a, b) return widths[a] < widths[b] end)
+  local n = #open
+  for _, i in ipairs(open) do
+    local share = math.max(0, left) / n
+    if widths[i] > share then out[i] = math.floor(share) end
+    left = left - out[i]
+    n = n - 1
+  end
+  return out
+end
+
 --- M.elements(ui, tokens, model, rect, opts) -> elements, hits
 --- The bar inside rect, the bottom bar rect in the caller's canvas space, for the bottom bar model
 --- lib/hints.lua's bottomBarModel answers. opts, every field optional.
@@ -158,10 +188,29 @@ function M.elements(ui, tokens, model, rect, opts)
     local cw = bottomBarLib.keycapWidth(ui, tokens, r.chord)
     -- A item, its label and chord the inner padding in from its sides.
     local w = lw + (cw > 0 and m.gap + cw or 0) + 2 * m.inner
-    items[i] = { node = node, w = w, labelW = lw, h = eh, chord = r.chord, action = r.action }
+    items[i] = { node = node, w = w, labelW = lw, h = eh, chord = r.chord, action = r.action,
+      label = r.label or "", fit = r.fit == true }
     total = total + w
   end
   if #items == 0 then return els, hits end
+  -- The right side never reaches past the left side, its widest the bar less the left side and
+  -- the bar pad three times. Past it the labels marked fit, the primary's and the secondary's,
+  -- give up width, the longest first, and end in an ellipsis, Bar.swift's fitLabels.
+  local room = rect.w - 3 * m.pad - leftRect.w
+  if total + 2 * m.inner > room then
+    local widths = {}
+    for i, e in ipairs(items) do widths[i] = e.labelW end
+    local fitted = M.fitLabels(widths, items, room - 2 * m.inner - (total - sumLabels(items)))
+    total = 0
+    for i, e in ipairs(items) do
+      if fitted[i] < e.labelW then
+        e.node = ui.row({ ui.text(e.label, "body", { width = fitted[i], lineBreak = ui.lineBreaks.truncateTail }) }, bodyRow)
+        e.w = e.w - (e.labelW - fitted[i])
+        e.labelW = fitted[i]
+      end
+      total = total + e.w
+    end
+  end
   local groupW = total + 2 * m.inner
   local actionsRect = { x = px(rect.x + rect.w - m.pad - groupW), y = px(top), w = px(groupW), h = px(h) }
   hits.actions = actionsRect

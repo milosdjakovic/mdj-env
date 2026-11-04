@@ -2853,7 +2853,18 @@ function obj.run(olm, cfg)
     -- A key pressed while the actions pane is open, whose action the pane lists, chooses that row,
     -- so a key a row shows does what the row does, against the row the pane opened over. The pane
     -- runs the verb only after it has closed, so this answers false then and the verb runs here.
+    -- The primary verb is never claimed. Over an open pane it is Return, choosing the highlighted
+    -- pane row at the top level and inside a level alike, so it goes on to the list's own handler,
+    -- whose insertSelected asks the pane's intercept exactly as Return does. Claimed, it chose the
+    -- pane's primary row whatever was highlighted and did nothing visible inside a level.
     claim = function(name)
+      -- Every action some list binds as its primary verb, asked here rather than kept in a
+      -- local, since this function sits at Lua's limit of two hundred locals.
+      for _, block in pairs(plan.contexts or {}) do
+        for _, b in ipairs(block.bindings or {}) do
+          if b.shared == "primary" and b.action == name then return false end
+        end
+      end
       local ap = modules[plan.identity.actionspane or "actionspane"]
       if not (ap and type(ap.chooseAction) == "function") then return false end
       return ap:chooseAction(name) == true
