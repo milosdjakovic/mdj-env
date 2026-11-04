@@ -123,8 +123,8 @@ local trail = {
   { down = 81.14, up = 12.5, rpm = 300 },
 }
 local live = nodes.running(ui, { samples = trail, elapsed = 4, limit = 10, live = true })
-check("a live run has a heading with the seconds, two figures, a responsiveness block and a note",
-  headings(live) == "MEASURING,RESPONSIVENESS", headings(live))
+check("a live run has a heading with the seconds, two figures, a block for each graph and a note",
+  headings(live) == "MEASURING,DOWNLOAD,UPLOAD,RESPONSIVENESS", headings(live))
 check("the figures read number then unit, one decimal",
   sentence(live):find("81.1|Mbps|12.5|Mbps", 1, true) ~= nil, sentence(live))
 check("the responsiveness line gives the rating, the RPM and the milliseconds under load",
@@ -211,13 +211,14 @@ local record = {
 local history = { record, { at = 90, down = 50000000 }, { at = 80, down = 90000000 } }
 local result = nodes.result(ui, record, "Home", history)
 check("a finished run has every section, in reading order",
-  headings(result) == "THROUGH THIS RUN,RESPONSIVENESS,LATENCY UNDER LOAD,LINK,HOME", headings(result))
+  headings(result) == "DOWNLOAD,UPLOAD,RESPONSIVENESS,LATENCY UNDER LOAD,LINK,HOME", headings(result))
 check("the figures use the rate formatter, a decimal under a hundred",
   sentence(result):find("81.1|Mbps|12.5|Mbps", 1, true) ~= nil, sentence(result))
 check("a fast link drops the decimal",
   sentence(nodes.result(ui, { down = 250400000 }, nil, {})):find("250|Mbps", 1, true) ~= nil)
-check("the facts say seconds, RPM, load and idle latency, and the latency range",
-  sentence(result):find("10 seconds", 1, true) ~= nil and sentence(result):find("300 RPM|200 ms under load, 12 ms idle", 1, true) ~= nil
+check("the facts say each curve's peak, RPM, load and idle latency, and the latency range",
+  sentence(result):find("DOWNLOAD|Peak 3.0 Mbps|UPLOAD|Peak 3.0 Mbps", 1, true) ~= nil
+    and sentence(result):find("300 RPM, 200 ms under load, 12 ms idle", 1, true) ~= nil
     and sentence(result):find("10 to 30 ms|Median 20 ms, 95th 28 ms", 1, true) ~= nil, sentence(result))
 check("the link, state and place lines keep their wording",
   sentence(result):find("Wi-Fi, en0, H3|L4S on, not proxied|edge.example, 10 s", 1, true) ~= nil, sentence(result))
@@ -314,6 +315,36 @@ check("series run oldest first although history is newest first",
 local flatGraphs = graphs(nodes.trend(ui, { { at = 2, down = 1e6, up = 1e6 }, { at = 1, down = 1e6, up = 1e6 } }, "x"))
 check("a series that never changes still draws its bars",
   #flatGraphs[1].els >= 3)
+
+--------------------------------------------------------------------------------
+-- every graph is labelled
+--------------------------------------------------------------------------------
+
+-- Every graph in a tree sits in a block whose first child is a heading, the shape seriesBlock
+-- builds, so no curve or run of bars is drawn without saying what it measures.
+local function unlabelled(node, parentFirst)
+  local count = 0
+  for i, child in ipairs(node.children or {}) do
+    if child.kind == "raw" then
+      local head = node.children[1]
+      if i == 1 or not (head and head.kind == "row" and find(head, "text")[1]
+        and find(head, "text")[1].variant == "section") then
+        count = count + 1
+      end
+    else
+      count = count + unlabelled(child)
+    end
+  end
+  return count
+end
+for label, node in pairs({ running = live, result = result, trend = trend, one = one }) do
+  check("every graph of the " .. label .. " view sits under its own heading", unlabelled(node) == 0,
+    tostring(unlabelled(node)))
+end
+check("the check itself counts a graph drawn with no heading over it",
+  unlabelled(ui.stack({ nodes.curve(ui, { 1, 2 }, "primary") })) == 1
+    and unlabelled(ui.stack({ ui.text("x", "body"), nodes.curve(ui, { 1, 2 }, "primary") })) == 1)
+check("a trend's facts carry their unit", sentence(trend):find("Now 90.0, best 90.0 Mbps", 1, true) ~= nil)
 
 --------------------------------------------------------------------------------
 -- a block of explanation

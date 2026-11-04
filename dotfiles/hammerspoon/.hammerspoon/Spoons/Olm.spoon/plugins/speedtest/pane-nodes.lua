@@ -36,9 +36,6 @@ local M = {}
 -- The gap between one block and the next, and between a heading and what it heads.
 M.GAP = "m"
 M.HEADING_GAP = "xs"
--- Between two graphs that are stacked directly, so one's baseline does not touch the next one's
--- peak.
-M.GRAPH_GAP = "s"
 
 -- The geometry of a graph rather than type, so these stay numbers.
 M.GRAPH_H = 30
@@ -238,6 +235,38 @@ local function meta(ui, str)
   return ui.text(str, "caption")
 end
 
+-- A throughput already in Mbps, the way a curve's samples hold it, worded the way util.rate words
+-- one in bits, so a figure, a peak and a trend read alike.
+local function mbpsText(value)
+  if value >= 100 then return string.format("%.0f", value) end
+  return string.format("%.1f", value)
+end
+
+--- M.seriesBlock(ui, label, facts, graph, line) -> node. Every graph in every view is one of these, a
+--- heading naming what it measures with its facts flush right, the graph, and an optional line
+--- under it, so a download, an upload, a responsiveness or a latency graph is labelled the same
+--- way whether the run is live, kept or part of a trend.
+function M.seriesBlock(ui, label, facts, graph, line)
+  local rows = { ui.heading(label, facts), graph }
+  if line then rows[#rows + 1] = meta(ui, line) end
+  return under(ui, rows)
+end
+
+-- The download and the upload of one run's own shape, each its own block with its peak, or an
+-- empty list when the run kept no shape. Shared by the live view and a kept run.
+local function throughput(ui, down, up)
+  local blocks = {}
+  if down and #down > 0 then
+    blocks[#blocks + 1] = M.seriesBlock(ui, "DOWNLOAD", "Peak " .. mbpsText(M.peak(down)) .. " Mbps",
+      M.curve(ui, down, "primary"))
+  end
+  if up and #up > 0 then
+    blocks[#blocks + 1] = M.seriesBlock(ui, "UPLOAD", "Peak " .. mbpsText(M.peak(up)) .. " Mbps",
+      M.curve(ui, up, "secondary"))
+  end
+  return blocks
+end
+
 local function seriesOf(samples, field)
   local out = {}
   for i, s in ipairs(samples or {}) do out[i] = s[field] or 0 end
@@ -270,32 +299,27 @@ function M.running(ui, state)
     })
   end
 
-  local rating = util.rating(latest.rpm)
-  local responsive
-  if latest.rpm and latest.rpm > 0 then
-    responsive = under(ui, {
-      ui.heading("RESPONSIVENESS", rating),
-      ui.text(string.format("%.0f RPM, %.0f ms under load", latest.rpm,
-        util.loadedMs(latest.rpm) or 0), "body"),
-      M.curve(ui, seriesOf(samples, "rpm"), "tertiary", M.STRIP_H),
-    })
-  else
-    responsive = under(ui, { ui.heading("RESPONSIVENESS", rating), meta(ui, "Not measured yet") })
+  -- The same shape a finished run is shown in, the two figures in one row and a block for each
+  -- graph, so a run looks like itself while it is taken and once it is kept.
+  local blocks = { under(ui, {
+    head, M.figures(ui, string.format("%.1f", latest.down), string.format("%.1f", latest.up)),
+  }) }
+  for _, block in ipairs(throughput(ui, seriesOf(samples, "down"), seriesOf(samples, "up"))) do
+    blocks[#blocks + 1] = block
   end
 
-  -- The same shape a finished run is shown in, the two figures in one row and the two curves
-  -- stacked under them, so a run looks like itself while it is taken and once it is kept.
-  return page(ui, {
-    under(ui, {
-      head,
-      M.figures(ui, string.format("%.1f", latest.down), string.format("%.1f", latest.up)),
-      ui.stack({ M.curve(ui, seriesOf(samples, "down"), "primary"),
-                 M.curve(ui, seriesOf(samples, "up"), "secondary") }, { gap = M.GRAPH_GAP }),
-    }),
-    responsive,
-    paragraph(ui, "These are live and still settling. The reading that gets kept is the "
-      .. "tool's own final answer rather than the last of these."),
-  })
+  local rating = util.rating(latest.rpm)
+  if latest.rpm and latest.rpm > 0 then
+    blocks[#blocks + 1] = M.seriesBlock(ui, "RESPONSIVENESS", rating,
+      M.curve(ui, seriesOf(samples, "rpm"), "tertiary", M.STRIP_H),
+      string.format("%.0f RPM, %.0f ms under load", latest.rpm, util.loadedMs(latest.rpm) or 0))
+  else
+    blocks[#blocks + 1] = under(ui, { ui.heading("RESPONSIVENESS", rating), meta(ui, "Not measured yet") })
+  end
+
+  blocks[#blocks + 1] = paragraph(ui, "These are live and still settling. The reading that gets "
+    .. "kept is the tool's own final answer rather than the last of these.")
+  return page(ui, blocks)
 end
 
 --------------------------------------------------------------------------------
@@ -352,40 +376,29 @@ function M.result(ui, record, label, history)
   blocks[#blocks + 1] = M.figures(ui, util.rate(record.down), util.rate(record.up))
     or ui.text("Nothing measured", "title", { color = "subtext" })
 
-  -- The run's own shape while it was being taken, which exists for every run on its own and so
-  -- is never flat for want of history. A run recorded before this was kept simply has none.
-  local shape = record.curve
-  if shape and (shape.down or shape.up) then
-    local curves = {}
-    if shape.down then curves[#curves + 1] = M.curve(ui, shape.down, "primary") end
-    if shape.up then curves[#curves + 1] = M.curve(ui, shape.up, "secondary") end
-    blocks[#blocks + 1] = under(ui, {
-      ui.heading("THROUGH THIS RUN",
-        record.secs and string.format("%.0f seconds", record.secs) or nil),
-      ui.stack(curves, { gap = M.GRAPH_GAP }),
-    })
-  end
+  -- The run's own shape while it was being taken, a block each for the download and the upload,
+  -- which exists for every run on its own and so is never flat for want of history. A run
+  -- recorded before this was kept simply has none. How long it ran is in the link block.
+  local shape = record.curve or {}
+  for _, block in ipairs(throughput(ui, shape.down, shape.up)) do blocks[#blocks + 1] = block end
 
+  -- One line under the heading, the figure first, the same line the live view writes under its
+  -- responsiveness graph. A kept run holds no responsiveness series, so it has no graph here.
   if record.rpm then
-    local rows = { ui.heading("RESPONSIVENESS", util.rating(record.rpm)),
-                   ui.text(string.format("%.0f RPM", record.rpm), "body") }
+    local detail = { string.format("%.0f RPM", record.rpm) }
     local loaded = util.loadedMs(record.rpm)
-    local detail = {}
     if loaded then detail[#detail + 1] = string.format("%.0f ms under load", loaded) end
     if record.idleMs then detail[#detail + 1] = string.format("%.0f ms idle", record.idleMs) end
-    if #detail > 0 then rows[#rows + 1] = meta(ui, table.concat(detail, ", ")) end
-    blocks[#blocks + 1] = under(ui, rows)
+    blocks[#blocks + 1] = under(ui, { ui.heading("RESPONSIVENESS", util.rating(record.rpm)),
+                                      meta(ui, table.concat(detail, ", ")) })
   end
 
   if record.strip and record.lat then
     local range = string.format("%.0f to %.0f ms", record.lat.min or 0, record.lat.max or 0)
-    local rows = { ui.heading("LATENCY UNDER LOAD", range),
-                   M.curve(ui, record.strip, "tertiary", M.STRIP_H) }
-    if record.lat.med then
-      rows[#rows + 1] = meta(ui, string.format("Median %.0f ms, 95th %.0f ms",
-        record.lat.med, record.lat.p95 or record.lat.med))
-    end
-    blocks[#blocks + 1] = under(ui, rows)
+    blocks[#blocks + 1] = M.seriesBlock(ui, "LATENCY UNDER LOAD", range,
+      M.curve(ui, record.strip, "tertiary", M.STRIP_H),
+      record.lat.med and string.format("Median %.0f ms, 95th %.0f ms",
+        record.lat.med, record.lat.p95 or record.lat.med) or nil)
   end
 
   local link = { meta(ui, M.linkLine(record)) }
@@ -427,13 +440,11 @@ end
 -- One direction's block, its heading with now and best flush right, the bars with the newest
 -- marked, and the median under them.
 local function direction(ui, label, values, color)
-  local rows = {
-    ui.heading(label, "Now " .. util.rate(values[#values]) .. ", best " .. util.rate(M.peak(values))),
-    M.bars(ui, values, color, nil, true),
-  }
   local median = util.median(values)
-  if median then rows[#rows + 1] = meta(ui, "Median " .. util.rate(median) .. " Mbps") end
-  return under(ui, rows)
+  return M.seriesBlock(ui, label,
+    "Now " .. util.rate(values[#values]) .. ", best " .. util.rate(M.peak(values)) .. " Mbps",
+    M.bars(ui, values, color, nil, true),
+    median and ("Median " .. util.rate(median) .. " Mbps") or nil)
 end
 
 --- M.trend(ui, history, label, note) -> node, a network's own past. history is newest first,
@@ -462,11 +473,8 @@ function M.trend(ui, history, label, note)
     blocks[#blocks + 1] = paragraph(ui,
       "One reading so far, so this is its own shape rather than a trend.")
     local shape = only.curve
-    if shape and shape.down then
-      blocks[#blocks + 1] = under(ui, { ui.heading("DOWNLOAD", (util.rate(only.down) or "") .. " Mbps"),
-                                        M.curve(ui, shape.down, "primary") })
-      blocks[#blocks + 1] = under(ui, { ui.heading("UPLOAD", (util.rate(only.up) or "") .. " Mbps"),
-                                        M.curve(ui, shape.up, "secondary") })
+    if shape and (shape.down or shape.up) then
+      for _, block in ipairs(throughput(ui, shape.down, shape.up)) do blocks[#blocks + 1] = block end
     else
       blocks[#blocks + 1] = under(ui, {
         ui.heading("THIS READING",
@@ -487,10 +495,8 @@ function M.trend(ui, history, label, note)
   if #ups > 0 then blocks[#blocks + 1] = direction(ui, "UPLOAD", ups, "secondary") end
   if #rpms > 0 then
     local median = util.median(rpms)
-    blocks[#blocks + 1] = under(ui, {
-      ui.heading("RESPONSIVENESS", median and string.format("Median %.0f RPM", median) or nil),
-      M.bars(ui, rpms, "tertiary", M.STRIP_H),
-    })
+    blocks[#blocks + 1] = M.seriesBlock(ui, "RESPONSIVENESS",
+      median and string.format("Median %.0f RPM", median) or nil, M.bars(ui, rpms, "tertiary", M.STRIP_H))
   end
   addNote()
   return page(ui, blocks)
