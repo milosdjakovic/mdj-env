@@ -58,3 +58,31 @@ current tab. The tools are copies of herdr's for now.
   colours, read back as slots 2, 4, 8 and 16 to 18. The three slots the import drops stay for Rex
   to fix, and no OSC 4 painting from our side was added, since it would be a workaround for their
   defect that also goes stale when the appearance switches. The report to Rex is still to be sent.
+- 2026-11-02 14:20, Rex's docs say nothing about theme files. The app describes its import as "a
+  Ghostty or iTerm theme file", and its stored theme holds 16 ANSI colours plus `paletteBase`,
+  `paletteGenerate`, `paletteHarmonious` and `paletteOverrides`, so the model carries per slot
+  overrides above 15 and only the Ghostty importer leaves them empty. iTerm's format has no slots
+  above 15, so importing that instead cannot help.
+- 2026-11-03 10:00, `rex.agents.names-sessions` was written true on 2026-10-30 and was found
+  rewritten by the step again today, so Rex removes or resets that key itself. Its row was
+  dropped from `SETTINGS`, since a row Rex undoes never settles. Nine settings changed in Rex's
+  window since the first pass were added, and the step was run twice with nothing to write.
+- 2026-11-04 09:00, `SETTINGS` keeps only general choices a fresh machine should start with.
+  The sidebar width, dragged to fit one screen, and the cursor blink interval, inert while the
+  custom interval is off, were dropped. Neither is removed from this machine, the step only stops
+  carrying them. Corrected 2026-11-04, see below.
+- 2026-11-04 09:30, the entry above misread the request. What is wanted is every choice made in
+  Rex's Settings window, the colour scheme, the glass interface, the tab sidebar on the left and
+  its width, three tab icons and the rest, so the sidebar width and the cursor blink rows are back.
+  Only runtime state, Remote Control and the key Rex resets itself stay out.
+- 2026-11-04 10:15, settled on carrying only what was changed from Rex's defaults, which is what
+  the domain holds. Every Settings page was read through Hammerspoon's accessibility API to
+  compare. Pressing an option already selected makes Rex store its value, which is how a default
+  could be captured, but defaults need no row on a fresh machine, so it was not used, and the one
+  key that test stored, `Workspace.appearance = system`, was deleted again. The cursor blink pair
+  holds Rex's default and was dropped. The Integrations page shows agent session naming off while
+  `rex.agents.names-sessions` reads true, so that checkbox is not that key. Corrected 2026-11-04, see below.
+- 2026-11-04 10:40, captured again. `rex.agents.names-sessions` now reads false, matching the
+  Integrations checkbox, so it is that key after all, and the row that kept being rewritten on
+  2026-11-03 was this checkbox being changed between runs, not Rex resetting it. It is carried as
+  false. Pane headers off and matching program backgrounds on were stored since and are carried.

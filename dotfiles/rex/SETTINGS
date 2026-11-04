@@ -9,7 +9,15 @@
 # The two theme slots are not rows here. They name a custom theme by an id Rex makes up when it
 # imports one, so the step imports the Ghostty theme pair and points both slots at what it got.
 # Remote Control is not a row either, since letting local programs drive the app is a choice
-# for the person and not a look to copy, and the step only says when it is off.
+# for the person and not a look to copy, and the step only says when it is off. Window frames, the collapsed sidebar and
+# the last focused session are state Rex keeps as it runs, not settings, and are left out too.
+#
+# Only what was changed from Rex's defaults belongs here. Rex stores a setting only once it
+# moves off its default, so the keys it holds are that list, read with
+# `defaults read com.superlogical.rex` after changing one. A setting left on its default, the
+# colour scheme following the system, preserving the window width, gestures and the rest, needs
+# no row, since a fresh Rex starts with it. The cursor blink pair is stored too but holds Rex's
+# own default, Normal in the window, so it is left out.
 
 # The terminal font, the same face and size as dotfiles/ghostty. The size is a string because
 # Rex stores it as one.
@@ -24,6 +32,10 @@ Workspace.tabStyle                      | string | vertical
 Workspace.sidebarPosition               | string | left
 Workspace.sidebarWidth                  | float  | 205
 Workspace.tabIconTintMode               | string | off
+Workspace.tabIconColorMode              | string | always
+Workspace.tabIconCount                  | int    | 3
+Workspace.shellIconTheme                | string | default
+Workspace.sidebarShowsActivity          | bool   | false
 Workspace.appIconVisibility             | string | dockOnly
 Workspace.animationStyle                | string | snappy
 
@@ -31,8 +43,13 @@ Workspace.animationStyle                | string | snappy
 Workspace.paneDensity                   | string | comfortable
 Workspace.usesPaneGlass                 | bool   | true
 Workspace.showsActivePaneBorder         | bool   | true
+Workspace.activePaneBorderColor         | string | blue
+Workspace.activePaneBorderTransition    | string | fade
+Workspace.focusFollowsMouse             | bool   | false
 Workspace.inactivePaneFadeMode          | string | both
 Workspace.usesStandardInactiveWindowPaneStyles | bool | true
+Workspace.showsPaneHeaders              | bool   | false
+Workspace.tintsPanesWithProgramBackground | bool | true
 
-# Agents running in Rex name their own sessions.
-rex.agents.names-sessions               | bool   | true
+# Integrations, agents running in Rex do not name their own sessions.
+rex.agents.names-sessions               | bool   | false
