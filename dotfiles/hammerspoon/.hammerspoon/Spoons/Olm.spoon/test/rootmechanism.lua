@@ -24,6 +24,31 @@ local labels = assert(loadfile(here .. "../lib/labels.lua"))()
 local listOpen = assert(loadfile(here .. "../lib/listopen.lua"))()
 local rowIntercept = assert(loadfile(here .. "../lib/rowintercept.lua"))()
 
+-- The info pane's legend.
+do
+  local kbd = assert(loadfile(here .. "../lib/kbd.lua"))()
+  local symbols = {
+    { catalogName = "HYPER", key = kbd.Hyper },
+    { catalogName = "META", key = kbd.Meta },
+    { catalogName = "SUPER", key = kbd.Super },
+  }
+  local lines = labels.leaderLegend(symbols, {
+    { catalogName = "META", key = "rightOption" },
+    { catalogName = "HYPER", key = "capsLock" },
+    { catalogName = "NAV", mods = { "shift", "ctrl" } },
+  })
+  eq(#lines, 2, "legend: one line per shipped leader of the load, a leader the person named has none")
+  eq(lines[1].label, "Hyper", "legend: in the symbols' order, the word alone")
+  eq(lines[1].lead.keys[1], kbd.Hyper, "legend: the symbol leads the line")
+  eq(lines[1].badges[1].keys[1], kbd.CapsLock, "legend: the physical key is the chord")
+  eq(lines[2].badges[1].keys[2], kbd.Alt, "legend: a right hand key is right and its modifier")
+  local mods = labels.leaderLegend(symbols, { { catalogName = "HYPER", mods = { "cmd", "shift", "ctrl", "alt" } } })
+  eq(kbd.text(mods[1].badges[1]), kbd.text(kbd.of(kbd.Ctrl, kbd.Alt, kbd.Shift, kbd.Cmd)),
+    "legend: a leader of modifiers alone reads as them, in the menu bar's order")
+  local none = labels.leaderLegend(symbols, { { catalogName = "SUPER" } })
+  eq(none[1].badges, nil, "legend: a leader with neither a key nor modifiers has no chord")
+end
+
 -- Labels.
 do
   local kbd = assert(loadfile(here .. "../lib/kbd.lua"))()

@@ -172,6 +172,18 @@ function M.chord(keys)
   })
 end
 
+--- kbd.modifiers(mods) -> chord or nil. Modifier names as one chord in the menu bar's order, the
+--- way a leader of modifiers alone is read, nil when none of them is a modifier.
+function M.modifiers(mods)
+  local held, keys = {}, {}
+  for _, m in ipairs(mods or {}) do held[M.named(m)] = true end
+  for _, m in ipairs(M.MODIFIERS) do
+    if held[m] then keys[#keys + 1] = m end
+  end
+  if #keys == 0 then return nil end
+  return M.chord(keys)
+end
+
 --- kbd.binding(keyName, mods, leader) -> chord. A binding as data, a key name, its modifier names
 --- and an optional leader key, as one chord, the leader first, then the modifiers in the one
 --- order, then the key. Shift on a key with a shifted character is folded into that character.

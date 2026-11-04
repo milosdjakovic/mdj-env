@@ -1006,6 +1006,15 @@ do
   for _, row in ipairs(hints.rowsFor("clip", plan, deps)) do panel[row.action or row.title] = txt(row.chord) end
   eq(panel.deleteSelected, "\u{2726}E", "the actions pane shows the same chord")
   eq(panel.selectNext, nil, "and lists no navigation verb")
+  -- The legend leads the info pane with its lead and chord, and the keys follow it with no heading.
+  local legendDeps = { chordLabel = spell, leaderName = kbd.Hyper,
+    legend = { { lead = kbd.of(kbd.Hyper), label = "Hyper", badges = { kbd.of(kbd.CapsLock) } } } }
+  local withLegend = hints.bottomBarModel("clip", plan, legendDeps).keys
+  eq(withLegend[1].label, "Hyper", "the legend leads the info pane")
+  eq(withLegend[1].lead and withLegend[1].lead.keys[1], kbd.Hyper, "with its symbol as the lead")
+  local headed = false
+  for _, k in ipairs(withLegend) do if k.section ~= nil then headed = true end end
+  eq(headed, false, "and no key after it carries a heading")
   local kinds = hints.actionKinds({ contexts = applied({ clip = { ["hyper+i"] = false } }) })
   eq(kinds.scrollDown, "verb", "a freed primary leaves an extra a verb")
 end

@@ -510,17 +510,20 @@ and the libs keep the rules. `test/rootmechanism.lua` pins all three over fakes.
 
 `lib/labels.lua` is the one spelling of a chord, a leader's name, a space and the key glyph, with a
 thin space after a shipped leader's symbol, ✦ Hyper, ◆ META and ● SUPER from `LEADER_SYMBOLS` in
-`root/compose.lua`, which the info pane's legend explains under Olm's name, one line per leader,
-its symbol drawn bare before its word and its physical key as the line's chord, the Caps Lock
-symbol or right and the modifier's glyph, through `kbd.physical`, the lines a table of two columns,
-a line's symbol and word left aligned and its keys right aligned, with no heading between the
-legend and the keys, Milos's calls on
-2026-11-04, and of
-a set of aliases, the words in brackets. `chordLabel(glyphFor)` answers the speller every surface is
+`root/compose.lua`, which the info pane's legend explains under Olm's name, and of a set of
+aliases, the words in brackets. `chordLabel(glyphFor)` answers the speller every surface is
 handed, and the glyph helper is the shared cheat sheet renderer's, handed in rather than loaded
 because the spoon publishes that renderer once. The launcher and the bottom bar both spell a chord
 through it, and a launcher row and the alias directory both spell aliases through it, which is
 what ended one key reading two ways.
+
+`labels.leaderLegend(symbols, leaderSpecs)` builds that legend, which the root hands the bottom bar
+model with its own `LEADER_SYMBOLS`. One line per shipped leader of the load, its symbol as the
+line's lead drawn bare before its word, and its physical key as the chord, `kbd.physical`, the
+Caps Lock symbol or right and the modifier's glyph read from the key's name, or the modifiers
+alone in the menu bar's order for a leader of modifiers, so a leader moved to another key says so.
+The keys follow with no heading, and the floating pane lays both out as one table, see below.
+Milos's calls on 2026-11-04.
 
 `lib/listopen.lua` answers whether a list is open, `isShowing(contextName, deps)` for one and
 `anyShowing(deps)` for any, walking the context owners the predicates route through. An owner that

@@ -24,6 +24,31 @@ function obj.chordLabel()
   end
 end
 
+--- labels.leaderLegend(symbols, leaderSpecs) -> lines
+--- The info pane's legend, one line per shipped leader in the order symbols lists them, each
+--- { catalogName, key }, for every leader of this load's leaderSpecs that is one of them. A line is
+--- { lead, label, badges }, the leader's symbol drawn before its word, and its physical key as the
+--- chord, read from the load so a leader moved to another key says so. A held key is kbd.physical's,
+--- a leader of modifiers alone is those modifiers, and a leader with neither has no chord.
+function obj.leaderLegend(symbols, leaderSpecs)
+  local lines = {}
+  for _, entry in ipairs(symbols) do
+    local word = entry.catalogName:sub(1, 1) .. entry.catalogName:sub(2):lower()
+    for _, spec in ipairs(leaderSpecs) do
+      if spec.catalogName == entry.catalogName then
+        local where
+        if spec.key then
+          where = kbd.physical(tostring(spec.key))
+        elseif type(spec.mods) == "table" and #spec.mods > 0 then
+          where = kbd.modifiers(spec.mods)
+        end
+        lines[#lines + 1] = { lead = kbd.of(entry.key), label = word, badges = where and { where } or nil }
+      end
+    end
+  end
+  return lines
+end
+
 --- labels.aliasLabel(aliases) -> string
 --- The words alone, in brackets, or the empty string for none. A joining space is the caller's,
 --- since it belongs to whichever surface is joining and not to the wording.

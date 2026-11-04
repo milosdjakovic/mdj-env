@@ -99,16 +99,7 @@ check("a read floating pane is its widest line and both paddings on both sides",
 check("and as tall as its header line, the rule, the padding under it, its lines and the outer padding", keys.h,
   math.ceil(lineH + T.stroke.border + T.barInner + 2 * lineH + 2 * T.barInner))
 
--- The legend, a leader symbol drawn bare before each label and the physical key as the chord.
-check("caps lock is its own key", kbd.physical("capsLock").keys[1], kbd.CapsLock)
-for _, name in ipairs({ "capsLock", "capslock", "caps", "caps_lock", "Caps Lock" }) do
-  check("every spelling of Caps Lock is the one key, " .. name, kbd.named(name), kbd.CapsLock)
-end
-check("a right hand modifier is right and its glyph", #kbd.physical("rightOption").keys, 2)
-check("the second key the modifier itself", kbd.physical("rightOption").keys[2], kbd.Alt)
-check("a function key is itself", kbd.physical("f13").keys[1], kbd.named("f13"))
-check("a right hand modifier is read from its name, rightShift", kbd.physical("rightShift").keys[2], kbd.Shift)
-check("and rightControl", kbd.physical("rightControl").keys[2], kbd.Ctrl)
+-- A lead, a leader symbol drawn bare before a label, the legend's. kbd.physical is pinned in test/kbd.lua.
 local legend = floatingPane.layout(UI, style, nil, {
   { lead = kbd.of(kbd.Hyper), label = "Hyper", chord = kbd.physical("capsLock") },
   { label = "Move Down", chord = kbd.of(kbd.Down) },
