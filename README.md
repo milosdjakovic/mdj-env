@@ -198,9 +198,10 @@ All scripts are idempotent (safe to re-run) and support both Apple Silicon and I
 # Run a specific setup step
 ./src/install-ohmyzsh-plugins.sh
 
-# Set default editor for dev files
-./src/set-dev-defaults.sh "Zed"
-./src/set-dev-defaults.sh "Visual Studio Code"
+# Set default editor for dev files, deliberately, since macOS asks once per file type
+./src/machine.sh set editor com.microsoft.VSCode   # this machine's choice, a bundle id
+./src/set-dev-defaults.sh                          # apply it, one dialog per type
+./src/set-dev-defaults.sh --check                  # confirm, reads only and raises no dialog
 ```
 
 ## Manual Stow Usage

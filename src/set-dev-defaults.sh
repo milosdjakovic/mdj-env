@@ -1,19 +1,39 @@
 #!/bin/bash
 
-# Set default application for common development file extensions
-# Usage: ./set-dev-defaults.sh "App Name"
-# Example: ./set-dev-defaults.sh "Zed"
-#          ./set-dev-defaults.sh "Visual Studio Code"
+# Make one editor the default application for common development file extensions, or only read
+# whether it already is.
+#
+#   set-dev-defaults.sh                 apply this machine's editor row from machines/
+#   set-dev-defaults.sh "App Name"      apply that app, by name or bundle id, whatever the row says
+#   set-dev-defaults.sh --check [APP]   read every handler and change nothing, exit 3 on a difference
+#
+# Applying is deliberate and never part of a setup run, because on macOS 27 every type whose
+# handler moves raises its own dialog, up to forty of them, and nothing can batch or answer
+# them. --check only reads, so it is the way to confirm the dialogs were answered, and the way
+# setup-dev-defaults.sh reports drift without raising one. decisions/dev-defaults.md has why.
 
 set -e
 
-if [ -z "$1" ]; then
-    echo "Usage: $0 \"App Name\""
-    echo "Example: $0 \"Zed\""
-    exit 1
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+MODE=apply
+if [ "${1:-}" = "--check" ]; then
+    MODE=check
+    shift
 fi
 
-APP_NAME="$1"
+# The app this run is about, as a bundle id. An argument wins, otherwise this machine's row,
+# which holds a bundle id since a row value may hold no space. A row of none means this machine
+# has not chosen one, which is an answer rather than an error.
+TARGET="${1:-}"
+if [ -z "$TARGET" ]; then
+    TARGET="$("$SCRIPT_DIR/machine.sh" get editor)"
+    if [ "$TARGET" = "none" ]; then
+        echo "No editor is chosen for $("$SCRIPT_DIR/machine.sh" name). Choose one with"
+        echo "  src/machine.sh set editor BUNDLE_ID   src/setup-dev-defaults.sh --list names the candidates"
+        exit 0
+    fi
+fi
 
 # duti is declared in src/DEPENDENCIES, mapped in DEPENDENCIES.map and carried by the
 # Brewfile, so putting it on the machine is the setup layer's job rather than this script's.
@@ -27,12 +47,20 @@ if ! command -v duti > /dev/null 2>&1; then
     exit 1
 fi
 
-# Get bundle identifier for the app
-BUNDLE_ID=$(osascript -e "id of app \"$APP_NAME\"" 2>/dev/null)
+# The target as a bundle id and a display name. A bundle id is looked up through Spotlight, which
+# finds the app without launching it, and a name goes through AppleScript as it always did.
+APP_PATH="$(mdfind "kMDItemCFBundleIdentifier == '$TARGET'" 2>/dev/null | grep '\.app$' | head -1)"
+if [ -n "$APP_PATH" ]; then
+    BUNDLE_ID="$TARGET"
+    APP_NAME="$(basename "$APP_PATH" .app)"
+else
+    BUNDLE_ID=$(osascript -e "id of app \"$TARGET\"" 2>/dev/null) || true
+    APP_NAME="$TARGET"
+fi
 
 if [ -z "$BUNDLE_ID" ]; then
-    echo "Error: Could not find app \"$APP_NAME\""
-    echo "Make sure the app is installed and the name is correct."
+    echo "Error: Could not find app \"$TARGET\""
+    echo "Make sure the app is installed and the name or bundle id is correct."
     exit 1
 fi
 
@@ -224,6 +252,61 @@ EXTENSIONS=(
     .log
 )
 
+# The extensions that resolve to an invented dyn. type on this machine, one per line. The apply
+# loop reads this off the binding's own error, which a check cannot ask for without asking for
+# the change, so the check asks Launch Services for each type through an empty probe file, in
+# one osascript call, the way setup-dev-defaults.sh lists the editors.
+untyped_extensions() {
+    local probes
+    probes="$(mktemp -d)"
+    osascript -l JavaScript - "$probes" "${EXTENSIONS[@]}" 2>/dev/null << 'JXA' || true
+ObjC.import("AppKit");
+function run(argv) {
+    var dir = argv[0], ws = $.NSWorkspace.sharedWorkspace, out = [];
+    argv.slice(1).forEach(function (ext) {
+        var file = dir + "/probe" + ext;
+        $.NSFileManager.defaultManager.createFileAtPathContentsAttributes(file, $(), $());
+        var type = ws.typeOfFileError(file, null);
+        if (!type || type.isNil() || type.js.indexOf("dyn.") === 0) out.push(ext);
+    });
+    return out.join("\n");
+}
+JXA
+    rm -rf "$probes"
+}
+
+# Reading only. Every typed extension's handler against the target, one line when all match, a
+# line per difference otherwise, and exit 3 for a difference so a caller can tell drift from a
+# fault without parsing words.
+if [ "$MODE" = "check" ]; then
+    UNTYPED_SET="$(untyped_extensions)"
+    MATCH=0
+    UNTYPED=0
+    DIFFER=""
+    DIFFER_COUNT=0
+    for ext in "${EXTENSIONS[@]}"; do
+        if printf '%s\n' "$UNTYPED_SET" | grep -qxF -- "$ext"; then
+            UNTYPED=$((UNTYPED + 1))
+            continue
+        fi
+        handler="$(current_handler "$ext")"
+        if [ "$handler" = "$BUNDLE_ID" ]; then
+            MATCH=$((MATCH + 1))
+        else
+            DIFFER="$DIFFER  $ext, ${handler:-unset}
+"
+            DIFFER_COUNT=$((DIFFER_COUNT + 1))
+        fi
+    done
+    if [ "$DIFFER_COUNT" -eq 0 ]; then
+        echo "$APP_NAME opens all $MATCH typed extension(s), $UNTYPED have no type to bind to"
+        exit 0
+    fi
+    echo "$DIFFER_COUNT extension(s) do not open in $APP_NAME, $MATCH do"
+    printf '%s' "$DIFFER"
+    exit 3
+fi
+
 # Three outcomes, not two, and the middle one is why this used to claim fifty five failures
 # while exiting zero and saying nothing about any of them.
 #
@@ -313,8 +396,9 @@ fi
 if [ "$PENDING" -gt 0 ]; then
     echo
     echo "$PENDING extension(s) are waiting on a dialog. macOS asks before a default handler"
-    echo "  changes and duti does not wait for the answer, so choose $APP_NAME in each one and"
-    echo "  run this again to see them bound."
+    echo "  changes and duti does not wait for the answer, so choose $APP_NAME in each one, then"
+    echo "  confirm with src/set-dev-defaults.sh --check, which reads and raises no dialog. Running"
+    echo "  this again instead asks for every change a second time."
 fi
 
 if [ "$REFUSED" -gt 0 ]; then

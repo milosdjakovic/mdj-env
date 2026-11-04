@@ -1,38 +1,41 @@
 # Default editor for development files, and what a script can and cannot do about it
 
-Status. `src/set-dev-defaults.sh` asks Launch Services to bind every listed extension to the
-editor, reports by reading the handler back rather than by trusting duti's exit code, and says
-one line when nothing changed. On macOS 27 a change is a dialog the person answers, not a call.
+Status. The editor is the machine's `editor` row in `machines/`, a bundle id or none. The setup
+step only reads every handler against it and notes a difference. `src/set-dev-defaults.sh`
+applies it when the person chooses to, since on macOS 27 each type that moves is a dialog the
+person answers, and `--check` confirms without raising one.
 
 ## Now
 
-`setup-dev-defaults.sh` takes the editor from `MDJ_EDITOR` when it is set, which is how a run
-with no terminal is answered, since an agent can ask before `setup.sh` starts but not during
-it. Otherwise it asks which app should open development files, as a numbered list of the apps
-Launch Services has registered as an Editor of more than half of a handful of development
-types, ranked by how many each edits and marking the one that opens `.md` now. The role query
-is deprecated since macOS 12 with no replacement that keeps the role, so when it answers
-nothing the list falls back to every app that can open the types. A number or a typed name answers it, and
-`--list` prints the same list one name per line, so the prompt and anyone asking before a run
-read one answer. The list is read through `osascript` and JavaScript for Automation, which
-needs no compiler. Enter skips, and so does a run with no terminal and no
-variable, each with a note that `setup.sh` repeats at the end and that names
-`set-dev-defaults.sh "App Name"` as the route that needs no terminal. The script asks
-`duti -s` for every extension in its list, then reads the handler back with `duti -x`, and the
-readback is the report. An extension already on Zed is counted as already, one that moved is
-counted as changed, one whose extension resolves to an invented `dyn.` type is counted as
-untyped, since Launch Services will not bind a handler to those, and one still on its old
-handler after the call is counted as pending. On a run where nothing changed and nothing is
-pending the step prints one line, the same shape every other idempotent step in `setup.sh`
-uses, and prints the full listing only when there is something in it to read.
+Which editor a machine wants is its `editor` row in `machines/<name>/pieces`, holding the app's
+bundle id, since a row value holds no space, or `none`, the default. `machine.sh capture`
+proposes whatever opens `.md` now and asks, and `machine.sh set editor BUNDLE_ID` writes the
+person's answer. `setup-dev-defaults.sh --list` names the candidates, the apps Launch Services
+has registered as an Editor of more than half of a handful of development types. The role
+query is deprecated since macOS 12 with no replacement that keeps the role, so when it answers
+nothing the list falls back to every app that can open the types. It is read through
+`osascript` and JavaScript for Automation, which needs no compiler.
+
+The setup step never changes a handler. With a row of none it says one line. Otherwise it runs
+`set-dev-defaults.sh --check`, which reads every handler with `duti -x`, finds the extensions
+that resolve to an invented `dyn.` type by asking Launch Services through empty probe files,
+and exits 3 on a difference. The step prints the count and leaves a closing note naming the
+command that applies it.
+
+Applying is `set-dev-defaults.sh`, with no argument for the row or with an app name or bundle
+id. It asks `duti -s` for every extension, then reads the handler back, and the readback is the
+report. An extension already on the editor is counted as already, one that moved as changed,
+one whose binding fails on a `dyn.` type as untyped, since Launch Services will not bind a
+handler to those, and one still on its old handler after the call as pending. On a run where
+nothing changed and nothing is pending it prints one line.
 
 Pending is the case that matters and it is not a failure. On macOS 27, changing the default
 handler of a type raises a dialog, naming the application that has the type and the one
 asking for it, and the person chooses. `duti -s` returns zero the moment it has asked, before
 the dialog is answered, so a script cannot know the outcome and cannot influence it. A fresh
 machine where Zed is not yet the default will therefore raise one dialog per typed extension,
-up to thirty three of them, on the first run, and the step says so and asks for a second run to
-confirm. That is macOS's design, the same guard that already kept `.html` out of the list
+up to forty of them, on the first run, and the step says so and points at `--check` to
+confirm, since a second apply asks for every change again. That is macOS's design, the same guard that already kept `.html` out of the list
 because it is one of the three records that define the default browser, now applied to every
 type. The step exits zero on pending, since a fact about one machine's screen is a warning and
 never an error, which is the line `check-dependencies.sh` draws for a permission grant.
@@ -76,6 +79,9 @@ first, and the readback is consulted only after.
 - **Remembering the chosen editor in a file on the machine.** 2026-09-25. Per machine state that
   can disagree with what Launch Services holds, when the binding already is the memory and a
   run on a machine already on the editor says one line.
+  Corrected 2026-11-04 17:40, see the log entry of that date. The rejection still holds for a
+  file on the machine. A row in `machines/` is tracked in the repository, and the disagreement
+  it feared is now what the setup step reports.
 - **Reapplying the current `.md` handler to every type when nobody can be asked.** 2026-09-25.
   That is guessing the answer, which is what the step was rebuilt to stop.
 
@@ -86,6 +92,13 @@ first, and the readback is consulted only after.
 - **Taking the Editor role at its word for any one type.** 2026-09-25. Ghostty registers as an
   Editor of shell scripts so that double clicking one runs it, and it cannot edit anything.
   An app now has to edit more than half of the types.
+
+- **Asking which editor on every setup run and applying the answer.** 2026-11-04. Any answer
+  other than the current editor is forty dialogs, and a resetup is not the moment anybody chose
+  to answer forty dialogs. The choice is a fact about a machine and now lives in its row, and
+  applying it is its own command.
+- **Confirming an apply by running the apply again.** 2026-11-04. Every type still pending is
+  asked for again, so the check doubles the dialogs it was meant to count. `--check` reads only.
 
 ## Log
 
@@ -140,3 +153,13 @@ first, and the readback is consulted only after.
   a terminal. The list now keeps Editors of more than half the types. Verified on this machine,
   `--list` answered those four in under a second, and with the role query forced absent the
   fallback answered the eight apps that open the types.
+- **2026-11-04 17:40.** A resetup run by Claude passed `MDJ_EDITOR="Visual Studio Code"` on a
+  machine whose handlers were on Zed, which raised forty dialogs, and Claude then ran the step
+  again to confirm, which asked for every change a second time and raised forty more. Every
+  handler read back as Zed afterwards. Milos asked for the editor to be separate from setup so
+  a run never raises those dialogs. The editor is now the machine's `editor` row, defaulting to
+  none, the setup step only reads and notes a difference, `set-dev-defaults.sh` applies the row
+  when asked, and `--check` confirms by reading. `MDJ_EDITOR` and the per run prompt are gone.
+  Verified on this machine with the row on `com.microsoft.VSCode`, where `--check` exited 3
+  listing forty extensions on Zed, the setup step printed the count and the note and exited
+  zero, a machine with no row said one line, and no dialog was raised by any of it.

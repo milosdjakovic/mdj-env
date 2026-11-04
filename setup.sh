@@ -244,7 +244,8 @@ step "$SRC_DIR/setup-zshrc.sh"
 # Bootstrap Neovim plugins
 step "$SRC_DIR/bootstrap-nvim.sh"
 
-# Ask which editor opens development files from Finder, and make it their default
+# Report whether development files open in the editor machines/ names, and change nothing, since
+# applying it raises a macOS dialog per type and is src/set-dev-defaults.sh run on purpose
 step "$SRC_DIR/setup-dev-defaults.sh"
 
 # Remap Caps Lock -> F18 for the Hammerspoon Hyper key

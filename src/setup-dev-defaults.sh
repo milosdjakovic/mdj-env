@@ -1,27 +1,26 @@
 #!/bin/bash
 set -e
 
-# Choose which editor opens development files from Finder, then hand the answer to
-# set-dev-defaults.sh, which does the binding.
+# Report whether development files open in this machine's editor, and change nothing.
 #
-# This used to pass "Zed" unconditionally, and nothing declared Zed or installed it, so on a
-# machine without Zed the step failed and set -e stopped setup.sh there. The editor is a
-# personal choice rather than something this repository needs, so the step asks instead of
-# declaring one. Enter skips the step, so a run of setup.sh never waits on a choice nobody
-# wants to make that day. Whatever handles .md now is named, so skipping is an informed answer.
+# The editor is a row in machines/<name>/pieces, `editor`, holding the app's bundle id or none.
+# This step reads every handler against it through `set-dev-defaults.sh --check` and, where
+# they differ, leaves a closing note naming the command that applies it. It never applies it
+# itself, because on macOS 27 every type whose handler moves raises its own dialog, up to forty
+# at once, and a setup run that does that on a whim is the bombardment this was rebuilt to end.
+# Applying is `src/set-dev-defaults.sh`, run deliberately. decisions/dev-defaults.md has why.
 #
-# The answer arrives one of two ways. MDJ_EDITOR carries it through a run with no terminal,
-# which is how an agent runs setup.sh, since it can ask before the run but cannot answer a
-# prompt during one. Otherwise the step asks, and with neither it skips with a note.
+# It used to ask which editor on every run and apply the answer, and before that it passed
+# "Zed" unconditionally. Neither is wanted. The choice is a fact about a machine, so it lives
+# where every other such fact lives, and asking it again each run was what turned a stray
+# answer into forty dialogs.
 #
-#   --list   print the apps that can open development files, one name per line, and exit.
-#            The prompt below and anyone asking before a run read the same list.
+#   --list   print the apps that can open development files, one name per line, and exit,
+#            the candidates for the editor row.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/backup.sh
 source "$SCRIPT_DIR/lib/backup.sh"
-
-SKIP_NOTE='Default editor not set. Run src/setup-dev-defaults.sh to choose one, or src/set-dev-defaults.sh "App Name" where there is no terminal.'
 
 # The apps that can edit development files, most capable first, by name.
 #
@@ -35,8 +34,8 @@ SKIP_NOTE='Default editor not set. Run src/setup-dev-defaults.sh to choose one, 
 #
 # The role query is deprecated since macOS 12 with no replacement that keeps the role, and it
 # still answers on macOS 27. If it ever answers nothing, the list falls back to every app that
-# can open the types, which is complete but carries the viewers again. Typing a name at the
-# prompt covers an editor that registers only as a Viewer. This runs through osascript rather
+# can open the types, which is complete but carries the viewers again. An editor that registers only as a
+# Viewer is still accepted by bundle id in the editor row. This runs through osascript rather
 # than a compiled helper, so it needs no toolchain.
 list_editors() {
     local probes
@@ -104,85 +103,21 @@ if [[ "${1:-}" == "--list" ]]; then
     exit 0
 fi
 
-# The one check both routes share, since set-dev-defaults.sh would fail later and less legibly.
-require_app() {
-    if ! osascript -e "id of app \"$1\"" > /dev/null 2>&1; then
-        echo "No app named \"$1\" on this machine. src/setup-dev-defaults.sh --list names the candidates." >&2
-        exit 1
-    fi
-}
+EDITOR_ROW="$("$SCRIPT_DIR/machine.sh" get editor)"
+MACHINE="$("$SCRIPT_DIR/machine.sh" name)"
 
-if [[ -n "${MDJ_EDITOR:-}" ]]; then
-    require_app "$MDJ_EDITOR"
-    "$SCRIPT_DIR/set-dev-defaults.sh" "$MDJ_EDITOR"
+if [[ "$EDITOR_ROW" == "none" ]]; then
+    echo "No editor is chosen for $MACHINE, so development file handlers are left as they are"
     exit 0
 fi
 
-# No terminal and no answer means nobody can answer, and guessing an editor is the thing this
-# replaced.
-if [[ ! -t 0 ]]; then
-    mdj_note "$SKIP_NOTE"
-    exit 0
-fi
-
-# The app that handles .md now, by name, or nothing. Spotlight turns the bundle id into a path
-# without launching anything, which asking AppleScript for the name would do.
-current_editor() {
-    command -v duti > /dev/null 2>&1 || return 0
-    local bundle path
-    bundle="$(duti -x md 2>/dev/null | sed -n 3p)"
-    [[ -n "$bundle" ]] || return 0
-    path="$(mdfind "kMDItemCFBundleIdentifier == '$bundle'" 2>/dev/null | grep '\.app$' | head -1)"
-    [[ -n "$path" ]] && basename "$path" .app
-    return 0
-}
-
-CURRENT="$(current_editor)"
-CANDIDATES=()
-while IFS= read -r name; do
-    [[ -n "$name" ]] && CANDIDATES+=("$name")
-done < <(list_editors)
-
-echo "Which app should open development files, such as .md, .json, .yaml and .sh, from Finder?"
-[[ -n "$CURRENT" ]] && echo "They open in $CURRENT now."
-for i in "${!CANDIDATES[@]}"; do
-    mark=""
-    [[ "${CANDIDATES[$i]}" == "$CURRENT" ]] && mark=", now"
-    printf '  %2d  %s%s\n' "$((i + 1))" "${CANDIDATES[$i]}" "$mark"
-done
-if [[ ${#CANDIDATES[@]} -gt 0 ]]; then
-    echo "Type a number, or an app name as it appears in /Applications without .app."
-else
-    echo "Type the app name as it appears in /Applications, without .app."
-fi
-echo "Press Enter to skip and leave them as they are."
-
-while true; do
-    # End of input, a Ctrl D, stops the step and so the run, since Enter is already the way to
-    # pass the question by. It says so, where a bare read under set -e used to stop in silence.
-    if ! read -r -p "Editor: " answer; then
-        echo
-        echo "Stopped at the editor question." >&2
-        exit 1
-    fi
-    if [[ -z "$answer" ]]; then
-        mdj_note "$SKIP_NOTE"
-        exit 0
-    fi
-
-    if [[ "$answer" =~ ^[0-9]+$ ]]; then
-        if (( answer >= 1 && answer <= ${#CANDIDATES[@]} )); then
-            answer="${CANDIDATES[$((answer - 1))]}"
-            break
-        fi
-        echo "No entry $answer in the list. Pick a number shown, or press Enter to skip."
-        continue
-    fi
-
-    if osascript -e "id of app \"$answer\"" > /dev/null 2>&1; then
-        break
-    fi
-    echo "No app named \"$answer\" on this machine. Check the name in /Applications, or press Enter to skip."
-done
-
-"$SCRIPT_DIR/set-dev-defaults.sh" "$answer"
+# --check exits 3 on a difference, 0 when everything matches, anything else is a fault.
+# Only the first line is shown in a setup run, the count. The full list is one --check away.
+status=0
+report="$("$SCRIPT_DIR/set-dev-defaults.sh" --check "$EDITOR_ROW")" || status=$?
+printf "%s\n" "$report" | head -1
+case "$status" in
+    0) ;;
+    3) mdj_note "Development files do not all open in the editor machines/$MACHINE/pieces names. Run src/set-dev-defaults.sh to apply it, which raises one macOS dialog per type, then src/set-dev-defaults.sh --check to confirm." ;;
+    *) exit "$status" ;;
+esac

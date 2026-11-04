@@ -5,7 +5,7 @@ set -euo pipefail
 #
 #   open-in-terminal.sh [NAME=value ...] COMMAND [ARGS ...]
 #   open-in-terminal.sh ./setup.sh --only kanata
-#   open-in-terminal.sh MDJ_EDITOR=Zed ./setup.sh
+#   open-in-terminal.sh MDJ_SHADOWS=keep ./setup.sh
 #
 # For a session with no terminal of its own, an agent's shell, that has to start a step a person
 # must sit through. Such a step asks sudo for a password and walks the grants, which needs a

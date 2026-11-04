@@ -25,3 +25,4 @@ vpn            | mullvad   # mullvad, ivpn or none, and only ivpn adds a setup s
 tools          | none      # the mise tools a machine takes, names from dotfiles/mise/TOOLS, comma separated, alphabetical, no spaces, or none
 kanata         | off       # the kanata package and formula, and the step that installs its Karabiner driver and runs both as root daemons, off since a driver extension and a root daemon are a lot to put on a machine unasked
 rex            | off       # Rex's settings, the Ghostty theme pair imported into it, and its init.lua with the floating tools, off since Rex is a beta installed by hand
+editor         | none      # the bundle id of the app that opens development files from Finder, which setup only checks and src/set-dev-defaults.sh applies, or none

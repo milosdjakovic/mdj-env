@@ -19,7 +19,6 @@ lists both names in its `.stow-local-ignore` so neither lands in the home direct
 ```bash
 # Full setup (run once on new machine)
 ./setup.sh
-MDJ_EDITOR="Visual Studio Code" ./setup.sh   # the editor step's answer, for a run with no terminal
 ./setup.sh --only kanata                     # one optional piece, its packages, links, grants and the check
 
 # Give this machine an optional piece it does not have yet, then apply it
@@ -43,7 +42,7 @@ MDJ_EDITOR="Visual Studio Code" ./setup.sh   # the editor step's answer, for a r
 ./src/setup-stow-dotfiles.sh --shadows   # files a stowed tool also reads that would override the linked config
 ./src/setup-zshrc.sh
 ./src/bootstrap-nvim.sh
-./src/setup-dev-defaults.sh
+./src/setup-dev-defaults.sh          # reads whether dev files open in the editor row names, changes nothing
 ./src/setup-dev-defaults.sh --list   # the apps that can open development files, one per line
 ./src/setup-capslock-hyper.sh
 ./src/setup-hammerspoon-apps.sh            # this machine's Hyper app keys and display profiles, from machines/<name>/ or the default
@@ -68,9 +67,11 @@ MDJ_EDITOR="Visual Studio Code" ./setup.sh   # the editor step's answer, for a r
 ./src/check-theme.sh
 ./src/check-theme.sh --show
 
-# Set default editor for dev file types manually (setup-dev-defaults.sh asks which app, Enter skips)
-./src/set-dev-defaults.sh "Zed"
-./src/set-dev-defaults.sh "Visual Studio Code"
+# The editor that opens dev files is this machine's editor row, a bundle id or none.
+# Applying it is deliberate, one macOS dialog per type, and never part of setup.sh.
+./src/machine.sh set editor com.microsoft.VSCode
+./src/set-dev-defaults.sh             # apply the row, or pass an app name or bundle id
+./src/set-dev-defaults.sh --check     # read every handler, raise no dialog, exit 3 on a difference
 
 # Manual stow operations (from dotfiles/ directory)
 cd dotfiles
@@ -100,8 +101,6 @@ the result with `src/setup-grants.sh` and `src/check-dependencies.sh` rather tha
 happened. `setup.sh`, `setup.sh --only PIECE`, `setup-kanata.sh` and `setup-grants.sh` are all
 this kind.
 
-- `MDJ_EDITOR`, which app opens development files from Finder. Choices come from
-  `./src/setup-dev-defaults.sh --list`.
 - `MDJ_SHADOWS`, `move` or `keep`, whether files that override a linked config go into the
   backup directory. The files come from `./src/setup-stow-dotfiles.sh --shadows`. Ask only
   when it prints something, and show the person every path and reason it printed.
@@ -571,14 +570,13 @@ other command a cask ships.
 
 What no script can do is the part macOS will not allow, and the default editor is the newest
 of those. On macOS 27 changing a file type's default handler raises a dialog for the person to
-answer, and `duti` returns success the moment it has asked, so `set-dev-defaults.sh` reads
-every handler back rather than trusting that answer, reports an extension still on its old
-handler as pending rather than as bound or failed, and exits zero on it. Which editor is asked
-rather than assumed, since it is a personal choice. The prompt numbers the apps Launch Services
-says can edit the types, `MDJ_EDITOR` answers it for a run with no terminal, and with neither
-the step skips with a note. A fresh machine will see one dialog per typed extension on its first run, up to
-forty, and the step says to run it again once they are answered. On a machine already on the
-chosen editor it says one line. `decisions/dev-defaults.md` has the measurement. Two others are now
+answer, one per type and up to forty at once, and `duti` returns success the moment it has
+asked. So applying an editor is never part of a run. The editor is the machine's `editor` row,
+a bundle id or none, and the setup step only reads every handler against it and leaves a
+closing note on a difference. `src/set-dev-defaults.sh` applies it when the person chooses to,
+reports an extension still on its old handler as pending, and `--check` confirms the dialogs
+were answered without raising any, which running the apply again would. Claude never applies an
+editor as part of a resetup, and confirms with `--check`, never by applying again. `decisions/dev-defaults.md` has the measurement. Two others are now
 declared gates rather than prose. The Accessibility grant, which the whole Hammerspoon module stands on,
 is declared at that module's root and answered by its `grants-probe`. Obsidian's vault registry
 is declared by the Obsidian plugin as a marker path, so a fresh machine is told to open the

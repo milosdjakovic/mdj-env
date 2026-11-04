@@ -166,6 +166,13 @@ probe() {
                 echo "$found|commands found for $found"
             fi
             ;;
+        editor)
+            # What opens .md now, as the bundle id a row holds. Only a fact, since which editor a
+            # person wants is theirs to say, and capture asks before writing it.
+            local bundle
+            bundle="$(duti -x md 2>/dev/null | sed -n 3p)"
+            if [[ -n "$bundle" ]]; then echo "$bundle|.md opens in $bundle now"; else echo "none|nothing answers for .md"; fi
+            ;;
         *) echo "?|no probe for this piece" ;;
     esac
 }
