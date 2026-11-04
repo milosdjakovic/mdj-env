@@ -252,27 +252,23 @@ EXTENSIONS=(
     .log
 )
 
-# The extensions that resolve to an invented dyn. type on this machine, one per line. The apply
-# loop reads this off the binding's own error, which a check cannot ask for without asking for
-# the change, so the check asks Launch Services for each type through an empty probe file, in
-# one osascript call, the way setup-dev-defaults.sh lists the editors.
+# The extensions that resolve to an invented dyn. type, one per line, asked the way duti asks.
+# The apply loop reads this off the binding's own error, which a check cannot ask for without
+# asking for the change. duti resolves an extension to the type that conforms to
+# public.content, so a type an app declares outside public.content, such as the com.adobe.edn
+# that Visual Studio Code adds, is dyn. to duti while Finder sees a real type. Asking any other
+# way made the check report .edn as a difference no apply could ever bind, measured 2026-11-04.
 untyped_extensions() {
-    local probes
-    probes="$(mktemp -d)"
-    osascript -l JavaScript - "$probes" "${EXTENSIONS[@]}" 2>/dev/null << 'JXA' || true
-ObjC.import("AppKit");
+    osascript -l JavaScript - "${EXTENSIONS[@]}" 2>/dev/null << 'JXA' || true
+ObjC.import("CoreServices");
 function run(argv) {
-    var dir = argv[0], ws = $.NSWorkspace.sharedWorkspace, out = [];
-    argv.slice(1).forEach(function (ext) {
-        var file = dir + "/probe" + ext;
-        $.NSFileManager.defaultManager.createFileAtPathContentsAttributes(file, $(), $());
-        var type = ws.typeOfFileError(file, null);
-        if (!type || type.isNil() || type.js.indexOf("dyn.") === 0) out.push(ext);
-    });
-    return out.join("\n");
+    return argv.filter(function (ext) {
+        var ref = $.UTTypeCreatePreferredIdentifierForTag($("public.filename-extension"), $(ext.replace(/^\./, "")), $("public.content"));
+        var type = ref ? ObjC.castRefToObject(ref).js : "";
+        return !type || type.indexOf("dyn.") === 0;
+    }).join("\n");
 }
 JXA
-    rm -rf "$probes"
 }
 
 # Reading only. Every typed extension's handler against the target, one line when all match, a

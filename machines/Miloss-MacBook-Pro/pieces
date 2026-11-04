@@ -2,3 +2,4 @@
 mise           | on        # this repository's mise config is stowed
 tools          | node,python,uv # set by hand, capture found commands found for go,node,python,ruby,uv
 kanata         | on        # set by hand, asked for on 2026-10-24
+editor         | dev.zed.Zed # set by hand, Zed chosen on 2026-11-04

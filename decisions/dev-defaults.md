@@ -163,3 +163,11 @@ first, and the readback is consulted only after.
   Verified on this machine with the row on `com.microsoft.VSCode`, where `--check` exited 3
   listing forty extensions on Zed, the setup step printed the count and the note and exited
   zero, a machine with no row said one line, and no dialog was raised by any of it.
+- **2026-11-04 18:05.** The first `--check` asked Launch Services for each type through a probe
+  file and flagged `.edn` on a machine fully on Zed, while applying called it untyped. duti
+  resolves an extension to the type conforming to `public.content`, and the `com.adobe.edn`
+  Visual Studio Code declares does not conform, so duti gets a `dyn.` type and can never bind
+  it. The check now asks the same way duti does. Verified on this machine, where `--check` and
+  the apply both count forty typed and fifty five untyped. The editor rows were set the same
+  day at Milos's word, Zed here and on Miloss-MacBook-Pro, Visual Studio Code on
+  Jelenas-MacBook-Pro.
