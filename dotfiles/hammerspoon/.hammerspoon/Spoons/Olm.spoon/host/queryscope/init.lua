@@ -101,8 +101,9 @@ end
 --- Method
 --- opts.scopes  the ordered scope list, each a table answering name, title, aliases, rows,
 ---              and run, plus an optional icon, iconOwner, matcher, peek, redirect, act and
----              handOver. handOver is a function of the typed rest that shows the tool's own
----              list in place of the scope, see rows below. icon is the scope's identity
+---              handOver. handOver is a function of the typed rest and the word that entered
+---              the scope, with its separator, that shows the tool's own list in place of the
+---              scope, see rows below. icon is the scope's identity
 ---              icon, a key into the manifest icons of iconOwner, which is the scope's own
 ---              name when it declares none, or a table spec.
 --- opts.stampIcons  function of a list of rows and an owner identity, answering the rows with
@@ -319,17 +320,19 @@ end
 function obj:rows(query)
   local scope, rest = self:resolve(query)
   if not scope then return {}, false end
-  local handOver = self:_handOverFor(scope, rest)
+  local handOver = self:_handOverFor(scope, rest, query:sub(1, #query - #rest))
   local rows, exclusive = self:_claimedRows(scope, rest, query)
   return rows, exclusive, handOver
 end
 
--- The callable a claim answers for a scope that declared handOver, or nil. pcall wrapped like
--- run, peek and act, so a tool that raises while taking the list costs a console line.
-function obj:_handOverFor(scope, rest)
+-- The callable a claim answers for a scope that declared handOver, or nil. The scope is handed
+-- the rest and the word that entered it with its separator, exactly as typed, so the list it
+-- shows can keep the word in its field. pcall wrapped like run, peek and act, so a tool that
+-- raises while taking the list costs a console line.
+function obj:_handOverFor(scope, rest, prefix)
   if not scope.handOver then return nil end
   return function()
-    local ok, err = pcall(scope.handOver, rest)
+    local ok, err = pcall(scope.handOver, rest, prefix)
     if not ok then
       hs.printf("QueryScope: handing the %s scope over failed, %s", scope.name, tostring(err))
     end

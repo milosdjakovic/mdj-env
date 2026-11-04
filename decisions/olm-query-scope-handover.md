@@ -6,18 +6,24 @@ query scope inside the launcher.
 
 ## Now
 
-The root, `root/compose.lua`, gives a scope a `handOver` function when the registry's presentation
-for that tool declares a preview pane, a `previewPaneWidth` of true or a number above zero. The
-query scope answers it as a third value on every claim, `host/queryscope/init.lua`, the launcher
-calls it on the next turn of the run loop through one kept timer, `host/launcher/init.lua`
-`_scheduleHandOver`, and the root's function pushes the presentation onto the stage and puts what
-was typed after the alias into its field. So `/ report` shows File Search's own list, preview pane
-and every key included, exactly as Hyper and semicolon or choosing its launcher row would. Backspace
-on an empty field steps back to the launcher, as it does after choosing the row. File Search and
-Speed Test take it today, and any tool that has an alias and a list with a preview pane takes it
-with no edit, Clipboard and Processes the day either is given an alias. An alias of a tool with no
-pane, Keep Awake, VPN, volume, emoji and the rest, is unchanged, and deleting its space still hands
-the launcher's list back.
+A plugin declares its aliases and nothing more, and Olm does the rest, the rule Milos stated on
+2026-11-04. The root, `root/compose.lua`, gives a scope a `handOver` function when the registry's
+presentation for that tool declares a preview pane, a `previewPaneWidth` of true or a number above
+zero. The query scope answers it as a third value on every claim, handing it the typed rest and the
+word that entered the scope with its separator, `host/queryscope/init.lua`. The launcher calls it
+on the next turn of the run loop through one kept timer, `host/launcher/init.lua`
+`_scheduleHandOver`, and the root's function pushes the presentation onto the stage with that word
+as the level's field prefix, `Stage:push(p, { prefix })` in `host/stage/init.lua`.
+
+The field keeps the word, so `/ report` still reads `/ report` while File Search's own list,
+preview pane and every key are showing. The level's rows, its search, `query()` and `setQuery()`
+only ever see what follows the word, so the tool never learns a word reached it. Deleting into the
+word steps back to the launcher with whatever text is left, the same thing deleting the space does
+in a query scope, so the rule that the alias stays and removing it returns to the launcher holds for
+every alias. File Search and Speed Test take it today, and any tool that has an alias and a list
+with a preview pane takes it with no edit, Clipboard and Processes the day either is given an
+alias. An alias of a tool with no pane stays a query scope inside the launcher, unchanged.
+`test/cases/stage-prefix.lua` pins the prefix.
 
 ## Rejected
 
@@ -36,6 +42,11 @@ Calling the hand over from inside the rows supplier. Rejected 2026-11-04. The st
 the launcher's list when it asks for rows, and asking what a query shows must not change what is
 showing, the rule the launcher's `_replacementFor` already keeps.
 
+Handing over by clearing the word from the field. Rejected 2026-11-04 11:47, after it shipped in
+fd75a009 and was tried live. The field lost the alias the moment the list changed and Backspace on
+an empty field became the way back, which broke the rule every alias keeps, that the word stays and
+deleting it returns to the launcher.
+
 ## Log
 
 ### 2026-11-04 10:59
@@ -48,3 +59,14 @@ its rows through the query scope, and the launcher reserves no pane. The query s
 already named this as a presenter limit, and Speed Test's manifest had worked around it with a row
 opening the tool proper. Built the hand over above, on the query scope's own rule that a scope is
 dropped when what it must leave out is the point of the tool.
+
+### 2026-11-04 11:47
+
+Tried live, the hand over worked and the pane showed, but the field lost `/ ` the moment File
+Search's list took over, since the push cleared the field and only the typed rest went back in.
+Milos's rule is that an alias always stays in the field and deleting it returns to the launcher,
+and that a plugin declares its aliases and Olm handles the rest. The stage gained a field prefix
+per pushed level, kept on the stage rather than on the presentation table the registry shares. The
+swap writes the prefix into the field, `setQuery` puts it in front, `query` and the rows strip it,
+the level's search ranks by what follows it, and a field that no longer starts with it pops the
+level on the next turn and hands the level below the text that was left. No plugin changed.

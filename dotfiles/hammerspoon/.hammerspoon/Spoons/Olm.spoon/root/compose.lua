@@ -3088,21 +3088,22 @@ function obj.run(olm, cfg)
     local scopes = registrarLib.scopeSpec(plan, wiredRegistry, scopeNames, registryMeta) or {}
 
     -- A typed word reaching a tool whose own list carries a preview pane hands the list over to
-    -- that tool, the same push choosing its launcher row makes, with whatever was typed after the
-    -- word in its field. The launcher reserves no pane, so a scope can only ever show such a tool
-    -- without the pane, which is the part of it the tool is for, and handing over is what the
-    -- query scope's own rule says to do when a scope would leave out the point of its tool. A
-    -- tool with no pane keeps its scope, where deleting the space is still the way back.
+    -- that tool, the same push choosing its launcher row makes. The word stays in the field as
+    -- the level's prefix, so the field still reads what was typed, the tool sees only what
+    -- follows the word, and deleting into the word steps back to the launcher, Stage:push. The
+    -- launcher reserves no pane, so a scope can only ever show such a tool without the pane,
+    -- which is the part of it the tool is for. A tool with no pane keeps its scope. A plugin
+    -- declares its aliases and nothing else for any of this.
     -- decisions/olm-query-scope-handover.md has it.
     for _, s in ipairs(scopes) do
       local presentation = wiredRegistry.presentationFor and wiredRegistry.presentationFor(s.name)
       local width = presentation and presentation.previewPaneWidth
       if width == true or (type(width) == "number" and width > 0) then
-        s.handOver = function(rest)
+        s.handOver = function(rest, prefix)
           if not stageModule then return end
-          stageModule:push(presentation)
-          if rest ~= "" and stageModule:current() == presentation.name then
-            stageModule:setQuery(rest)
+          stageModule:push(presentation, { prefix = prefix })
+          if stageModule:current() == presentation.name then
+            stageModule:setQuery(rest or "")
           end
         end
       end

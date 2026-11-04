@@ -301,12 +301,14 @@ is not shown at all. The root gives it a `handOver`, a function of the typed res
 it as a third value on every claim, and the presenter calls it on its own next turn, never while
 building the list, since asking what a query shows must not change what is showing. The root's
 function pushes the tool's presentation onto the stage, the same push choosing its launcher row
-makes, and puts the rest into its field, so `/ report` and choosing File Search then typing
-report are one list. This is the rule above applied by the mechanism rather than per tool, the
-pane being what the scope would have to leave out. Backspace on an empty field steps back, as it
-does after choosing the row, which is the one place a typed word stops being undone by deleting
-its space. The presenter knows only that a claim may hand over, and this spoon knows only that a
-scope may say so. `decisions/olm-query-scope-handover.md` has why a scope that drives a pane of its
+makes, with the typed word and its separator as the level's field prefix. The field keeps the word,
+`/ report` reads `/ report` with File Search's own list and pane showing, the tool sees only what
+follows the word, and deleting into the word steps back to the launcher with the text that is
+left, so the alias behaves exactly as it does in a scope. This is the rule above applied by the
+mechanism rather than per tool, the pane being what the scope would have to leave out, and a
+plugin declares its aliases and nothing else for it. The presenter knows only that a claim may
+hand over, this spoon knows only that a scope may say so, and the stage keeps the prefix.
+`decisions/olm-query-scope-handover.md` has why a scope that drives a pane of its
 own, and handing over every tool that presents, were turned down.
 
 ## Why one file, and what would split it

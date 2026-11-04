@@ -463,7 +463,52 @@ end
 function obj:_freshStack(p, old)
   closeStackExcept(old, p)
   self._stack = { p }
+  self:_prunePrefixes()
   self:_bumpOpenId()
+end
+
+-- The field prefix a level was pushed with, the typed word that reached it, see Stage:push. Kept
+-- per presentation while it is on the stack, never on the presentation table itself, since the
+-- registry hands the same table to every door.
+function obj:_prefixOf(p)
+  return p and self._prefixes and self._prefixes[p] or nil
+end
+
+-- Forgets the prefix of every presentation that is no longer on the stack.
+function obj:_prunePrefixes()
+  if not self._prefixes then return end
+  local on = {}
+  for _, p in ipairs(self._stack) do on[p] = true end
+  for p in pairs(self._prefixes) do
+    if not on[p] then self._prefixes[p] = nil end
+  end
+end
+
+-- The field text with the current level's prefix taken off, or nil when the level has a prefix
+-- and the text no longer starts with it, which is the person deleting into the word that
+-- reached this level. A level with no prefix answers the text as it is.
+function obj:_strip(text)
+  text = text or ""
+  local prefix = self:_prefixOf(self:_current())
+  if not prefix then return text end
+  if text:sub(1, #prefix) ~= prefix then return nil end
+  return text:sub(#prefix + 1)
+end
+
+-- Steps back out of a level whose prefix was deleted, on the next turn of the run loop, since
+-- the stage is inside the instance's rebuild when it finds out. The level below gets whatever
+-- text is left in the field, so deleting the space after a typed word hands the launcher back
+-- with the word still typed, the same thing deleting it does in a query scope. One timer, its
+-- handle kept, and it does nothing when the level it was armed for is no longer on top.
+function obj:_leavePrefixed(p)
+  if self._prefixTimer then self._prefixTimer:stop() end
+  self._prefixTimer = hs.timer.doAfter(0, function()
+    self._prefixTimer = nil
+    if self:_current() ~= p or not self._instance then return end
+    local text = self._instance:query()
+    if self:_strip(text) ~= nil then return end
+    if self:pop() then self._instance:setQuery(text) end
+  end)
 end
 
 -- What every door does once the stack itself has already been decided, placeholder first
@@ -562,7 +607,7 @@ function obj:_show(p, wasShowing, outgoing)
     -- own value, so _positionAndShow and _settleFrames both compute the pair natively and
     -- fire onPositioned, routed to this host's own _onPositioned below, on their own.
   else
-    self._instance:setQuery("")
+    self._instance:setQuery(self:_prefixOf(p) or "")
     self._instance:refresh(true)
     -- A swap touches no frame the atom itself would reposition, refresh only rebuilds rows,
     -- so the pair still has to be placed by hand, decision one of the geometry brief.
@@ -802,8 +847,14 @@ function obj:present(p)
   return true
 end
 
---- Stage:push(p) -> bool
+--- Stage:push(p, opts) -> bool
 --- Method
+--- opts.prefix, optional, is the typed word and its space that reached p, `/ ` for File Search.
+--- The field then shows the prefix in front of whatever is typed, while p's rows, its search,
+--- query() and setQuery() only ever see the text after it, so the tool never learns a word
+--- reached it. Deleting into the prefix steps back to the level below with whatever text is
+--- left, the way deleting the space leaves a query scope.
+---
 --- The row selection door, decision one and two of the handoff brief. Stacks p on top of
 --- whatever is already showing, the shape a launcher row choosing a presenting tool wants,
 --- so drilling into VPN from the launcher is a swap into a window already up rather than a
@@ -822,7 +873,7 @@ end
 --- calls, decision three, "the launcher remains up and responsive until proceed runs, so
 --- choosing processes feels like the list swapping once the scan lands rather than a window
 --- blinking empty." A p with no enter of its own keeps today's synchronous behaviour.
-function obj:push(p)
+function obj:push(p, opts)
   if not isPresentation(p) then
     log.w("Stage push was given something that is not a presentation, name, rows, and onSelect are all required, refusing")
     return false
@@ -848,6 +899,10 @@ function obj:push(p)
     elseif self:_current() ~= p then
       self._stack[#self._stack + 1] = p
     end
+    -- A level reached by a typed word keeps the word in its field, opts.prefix, see the doc above.
+    self._prefixes = self._prefixes or {}
+    self._prefixes[p] = type(opts) == "table" and type(opts.prefix) == "string"
+      and opts.prefix ~= "" and opts.prefix or nil
     self:_announce(p)
     self:_show(p, wasShowing, outgoing)
   end
@@ -996,6 +1051,7 @@ function obj:pop()
   self:_takeCycle()
   self:_bumpEnterGen()
   local leaving = table.remove(self._stack)
+  self:_prunePrefixes()
   if leaving.onClose then leaving.onClose() end
   local below = self:_current()
   if self._instance then
@@ -1021,7 +1077,7 @@ function obj:_shownIndexWhere(match)
   if not (p and self._instance and type(match) == "table" and next(match) ~= nil) then
     return nil
   end
-  local query = self:query()
+  local query = self._instance:query() or ""
   local ok, rows = pcall(self._rows, self, query)
   if not ok then
     log.e("Stage could not rebuild the rows to hold the highlight, " .. tostring(rows))
@@ -1161,6 +1217,11 @@ function obj:hide()
     closeStack(self._stack)
     self._stack = {}
     self:_notifyClosed()
+  end
+  self:_prunePrefixes()
+  if self._prefixTimer then
+    self._prefixTimer:stop()
+    self._prefixTimer = nil
   end
 end
 
@@ -1317,6 +1378,17 @@ end
 -- a child presentation hands its own function, so both are read the same way here. A value
 -- of the wrong type is passed along as it is, since the engine reads it as absent.
 function obj:_searchOf(p)
+  local prefix = self:_prefixOf(p)
+  if prefix then
+    -- A level reached by a typed word ranks by what follows the word, never by the word itself.
+    local own = p.searchText
+    return { rowLimit = p.rowLimit, searchText = function(text)
+      text = tostring(text or "")
+      local rest = text:sub(1, #prefix) == prefix and text:sub(#prefix + 1) or ""
+      if type(own) == "function" then return own(rest) end
+      return rest
+    end }
+  end
   if p.searchText == nil and p.rowLimit == nil then return nil end
   return { searchText = p.searchText, rowLimit = p.rowLimit }
 end
@@ -1353,7 +1425,8 @@ end
 --- call it, but not enforced here, the same trust every other routing closure in this file
 --- already extends to the presentation asking.
 function obj:setQuery(text)
-  if self._instance then self._instance:setQuery(text) end
+  if not self._instance then return end
+  self._instance:setQuery((self:_prefixOf(self:_current()) or "") .. (text or ""))
 end
 
 --- Stage:setPlaceholder(text)
@@ -1417,7 +1490,8 @@ end
 --- setQuery and for the same reason, the launcher's own currentQuery reads what is actually
 --- typed rather than only ever writing to it.
 function obj:query()
-  return self._instance and self._instance:query() or ""
+  local text = self._instance and self._instance:query() or ""
+  return self:_strip(text) or ""
 end
 
 --- Stage:textBudget() -> number
@@ -1447,7 +1521,12 @@ end
 function obj:_rows(query)
   local p = self:_current()
   if not p or not p.rows then return {} end
-  local rows = p.rows(query) or {}
+  local rest = self:_strip(query)
+  if rest == nil then
+    self:_leavePrefixed(p)
+    return {}
+  end
+  local rows = p.rows(rest) or {}
   -- THE ONE PLACE a presentation's rows learn who owns their icon keys. p.name is the owning
   -- plugin, a child presentation taking its parent's name when it declares none, so a level a
   -- plugin pushes is read against that same plugin's manifest icons with nothing more to know.
