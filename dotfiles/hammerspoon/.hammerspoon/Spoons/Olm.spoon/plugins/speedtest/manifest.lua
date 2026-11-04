@@ -155,11 +155,10 @@ return {
     -- The submodule the actions pane's verbs are answered by.
     surface = "chooser",
     hosted = true,
-    -- The scope is deliberately not the whole tool. A scope shows its rows inside the
-    -- launcher's own list, which reserves no preview pane and cannot be pushed into, so
-    -- neither the pane nor the settings can exist here. What it carries is the two
-    -- things worth reaching by a typed word, starting a measurement and reading what this
-    -- network has done before, plus one row that opens the tool proper for everything else.
+    -- The scope is what makes st and speed resolve. This list has a preview pane, so Olm hands
+    -- a typed alias over to the tool's own list with the alias kept in the field, and the
+    -- scope's rows show only for the moment before it does, starting a measurement and reading
+    -- what this network has done before.
     --
     -- act rather than run is what keeps the list open. A scope declaring act has every one of
     -- its rows routed through it, run never being reached, so this one function answers for

@@ -24,8 +24,9 @@ separation is always correct even when macOS refuses to say what a network is ca
 
 ## Opening it
 
-Through the launcher, by its own row or by typing `st` or `speed` and a space to scope the
-launcher to its rows. There is no key of its own, since a speedtest is something reached for
+Through the launcher, by its own row or by typing `st` or `speed` and a space, which opens the
+tool's own list with the word kept in the field, and deleting the word steps back to the
+launcher. There is no key of its own, since a speedtest is something reached for
 when the network feels wrong rather than something used daily.
 
 ## In the list

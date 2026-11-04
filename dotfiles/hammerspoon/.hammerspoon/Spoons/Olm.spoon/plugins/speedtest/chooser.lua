@@ -585,20 +585,15 @@ end
 
 --- chooser.scopeRows(query) - the rows a typed alias shows inside the launcher's own list.
 ---
---- Deliberately not the whole tool. The launcher's list reserves no preview pane and nothing can
---- be pushed onto it, so neither the detail pane nor the settings can exist here, and
---- pretending otherwise is what made choosing a row from the alias close the list rather than show
---- anything. What a typed word is genuinely good for is the two things worth reaching in one
---- gesture, taking a reading and seeing what this network has done before. Everything else is one
---- row away through the door at the top.
+--- This list has a preview pane, so Olm hands a typed alias over to the tool's own list, alias
+--- kept in the field, and these rows show only for the moment before it does. They stay the two
+--- things worth reaching in one gesture, taking a reading and seeing what this network has done
+--- before, so the moment reads right, and nothing here opens the tool, since Olm already does.
 function M.scopeRows()
   local target = currentNet()
   local settings = cfg.store.settings()
   local label = labelFor(target.id, target.label)
   local rows = {}
-
-  rows[#rows + 1] = row("Open Speedtest", "the full tool, with the detail pane", ICON_NETWORKS,
-    { act = "open" }, true)
 
   if not cfg.runner.isAvailable() then
     rows[#rows + 1] = row("networkQuality is not on this Mac",
@@ -627,10 +622,6 @@ end
 --- count up in a row nothing ever repaints, and the live graph is the whole point of watching one.
 function M.scopeAct(item)
   if not item then return end
-  if item.act == "open" then
-    if cfg.stagePresent then cfg.stagePresent("speedtest") end
-    return
-  end
   if item.act == "run" then
     startRun()
     if cfg.stagePresent then cfg.stagePresent("speedtest") end
