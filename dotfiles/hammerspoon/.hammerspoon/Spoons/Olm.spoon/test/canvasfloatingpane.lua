@@ -139,6 +139,20 @@ check("its right edge still on the group's", r.x + r.w, wide.x + wide.w)
 r = floatingPane.place(keys, { x = 20, y = 500, w = keys.w + 40, h = 30 }, "left", room)
 check("the info pane too", r.w, keys.w + 40)
 
+-- One rule for both, mirrored. Each pane stops the outer padding clear of the group that stays.
+local narrowRoom = { w = 2 * keys.w, top = 50 }
+local stays = { x = keys.w, y = 500, w = keys.w - 20, h = 30 }
+narrowRoom.other = stays
+r = floatingPane.place(keys, keysAnchor, "left", narrowRoom)
+check("the info pane stops the pad clear of the right side", r.x + r.w, stays.x - T.pad)
+check("its left edge still on its group's", r.x, keysAnchor.x)
+local W = narrowRoom.w
+local function flip(rect) return { x = W - rect.x - rect.w, y = rect.y, w = rect.w, h = rect.h } end
+local right = floatingPane.place(keys, flip(keysAnchor), "right", { w = W, top = 50, other = flip(stays) })
+check("the actions pane is the info pane mirrored, its x", right.x, flip(r).x)
+check("and its width", right.w, r.w)
+check("and its height", right.h, r.h)
+
 -- The highlight, and the lines as hit rects.
 r = floatingPane.place(actions, actionsAnchor, "right", room)
 local els, info = floatingPane.elements(UI, actions, r, { highlight = 2 })
@@ -262,6 +276,15 @@ check("a point on the info pane is on no row", view:_rowIndexAtPoint(inPanel), n
 calls = {}
 check("a scroll over it is claimed", view:_onMouseScroll(inPanel, -3, true), true)
 check("and never scrolls the list", #calls, 0)
+-- A line longer than the room stops the info pane the bar pad clear of the right side.
+local keptKeys = scene.bottomBar.keys
+scene.bottomBar.keys = { { label = string.rep("A very long shortcut label ", 12), badges = { kbd.of(kbd.Cmd, kbd.named("c")) } } }
+view:redraw()
+local lk = view._floatingPanes.keys.rect
+local actionsLeft = view._anchors.actions.x + scene.rects.canvas.x
+check("a long line stops the info pane the bar pad clear of the right side", lk.x + lk.w, actionsLeft - T.pad)
+check("its left edge still on the keys anchor", lk.x, anchor.x + scene.rects.canvas.x)
+scene.bottomBar.keys = keptKeys
 scene.infoOpen = false
 
 -- The actions pane floats, and the list goes on drawing the rows it had.

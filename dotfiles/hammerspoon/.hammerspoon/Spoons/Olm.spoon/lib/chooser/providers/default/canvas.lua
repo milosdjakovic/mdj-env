@@ -561,10 +561,10 @@ function View:_floatingPaneElements(s, els, origin, listRect)
   end
   local T = s.tokens
   local style = floatingPaneLib.style(UI, T, s.layout.marginX, bottomBarLib.height(T))
-  local room = { w = (self._window or s.rects.canvas).w, top = listRect.y,
-    left = anchors.keys and (anchors.keys.x + anchors.keys.w + T.pad) or nil }
-  local function draw(kind, pop, anchor, align, highlight)
-    local rect = floatingPaneLib.place(pop, anchor, align, room)
+  local W = (self._window or s.rects.canvas).w
+  -- Each pane stops the pad clear of the other group, the one that stays, floatingpane.lua's place.
+  local function draw(kind, pop, anchor, other, align, highlight)
+    local rect = floatingPaneLib.place(pop, anchor, align, { w = W, top = listRect.y, other = other })
     local reveal = highlight ~= nil and highlight ~= (previous[kind] and previous[kind].highlight)
     local popEls, info = floatingPaneLib.elements(UI, pop, rect,
       { highlight = highlight, scroll = self._popScroll[kind], reveal = reveal })
@@ -579,12 +579,12 @@ function View:_floatingPaneElements(s, els, origin, listRect)
   end
   if s.infoOpen and anchors.keys then
     draw("keys", floatingPaneLib.layout(UI, style, s.bottomBar.title, keyLines(s.bottomBar), false),
-      anchors.keys, "left", nil)
+      anchors.keys, anchors.actions, "left", nil)
   end
   if panelFloats(s) and anchors.actions then
     local ns = listModel.normalized(s.list)
     draw("actions", floatingPaneLib.layout(UI, style, s.bottomBar.panelTitle, actionLines(ns.filtered), true),
-      anchors.actions, "right", ns.highlight)
+      anchors.actions, anchors.keys, "right", ns.highlight)
   end
   for kind in pairs(self._popScroll) do
     if not self._floatingPanes[kind] then self._popScroll[kind] = nil end

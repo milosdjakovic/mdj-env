@@ -681,9 +681,9 @@ picture the section line height, and the paddings follow swift's one rule for bo
 the floating pane in `docs/DESIGN-UI-KIT.md`. The info pane takes the keys anchor's corner, its left and bottom edges on
 it, while the left side is hidden and the right side stays, and the actions pane the actions
 anchor's, its right and bottom edges on it, while the right side is hidden and the left side
-stays, never above the list's top, where it scrolls, and as wide as its widest line but never
-narrower than the group it stands above and never wider than the window less the outer padding,
-past which its labels truncate. A group wider than its panel's lines, the clipboard's Paste, Copy
+stays, never above the list's top, where it scrolls, and as wide as its lines laid out as a table, the widest first column, the large space step and the widest last column, but never
+narrower than the group it stands above and never past the pad clear of the other group, or of
+the window's far edge where there is none, past which its labels truncate. A group wider than its panel's lines, the clipboard's Paste, Copy
 and Actions, gives the panel its width, each line keeping its picture and left aligned label on
 the left and its chord on the right, Milos's call on 2026-11-03, and swift's `layoutKeys` and
 `layoutActions` in `native/Panel.swift` take the same floor. While the actions pane is open the
@@ -697,8 +697,13 @@ less the left side and three pads. Past it the labels the bottom bar model marks
 primary's and the secondary's, give up width, the longest first, until they share what is left
 equally at most, and end in an ellipsis, so a one word label stays whole beside a long one, while
 Actions and every chord stay whole. `fitLabels` in `bar.lua` and in `Bar.swift` are the twin rule.
-The actions pane stops the pad clear of the left side, so a long verb title ends in an ellipsis
-rather than widening it. No plugin sizes its bar or its pane, it only names its actions.
+Both floating panes follow one placement rule, Milos's call on 2026-11-04, written once for a pane
+on the left and mirrored for one on the right, `place` in `floatingpane.lua` and `floatingFrame` in
+`native/Panel.swift`, so a change to it reaches both and no pane is decided on its own. A pane grows
+from its group's outer edge toward the other group and stops the pad clear of it, so the actions
+pane never covers the left side and the info pane never covers the right side, and a long line in
+either ends in an ellipsis rather than widening it. No plugin sizes its bar or its pane, it only
+names its actions.
 The anchors are the one seam to the bar, the groups' own rects that `bar.lua` answers, kept by
 `View:_bottomBarElements` as `self._anchors = { keys = rect, actions = rect }` in the window's local
 coordinates. The view answers

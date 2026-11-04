@@ -59,6 +59,18 @@ move verb, which `keymap.navigationProblems` reports as a keymap problem.
   and its own verbs, and nothing another plugin puts there. Theme and Placement stay on their own
   launcher rows, switching a plugin stays on the Olm Plugins page, and the key panel stays on its
   own key and in the action bar.
+- **The info pane covering the right side, or the actions pane the left side.** 2026-11-04,
+  decided by Milos. The info pane had only the window as its limit and ran into Confirm and
+  Actions in the launcher. The side that stays is on screen so its keys stay usable, so neither
+  pane may cover it.
+- **Widening the chooser so the info pane fits.** 2026-11-04. It would fix the launcher alone,
+  about 11 points short, since the right side's width varies by list and the clipboard's is far
+  wider, and the preview pane follows the list's width, so the window would grow twice over.
+- **The chooser always as wide as the list and the preview pane.** 2026-11-04. A list with no
+  preview pane would be about 970 points wide with stretched rows, and a list sets its own preview
+  pane width, so there is no one number to hold.
+- **Raising a pane above the bar when it does not fit beside the other group.** 2026-11-04,
+  decided by Milos. It leaves an empty corner where the hidden group stood.
 
 ## Log
 
@@ -151,3 +163,14 @@ any list left without a key for either move verb as a keymap problem.
 Adding a local in the root's composition function hit Lua's limit of two hundred locals and the
 live config failed to load for a few minutes. The helper was inlined into the predicate, and the
 dry gate's rename proof is what reported it.
+
+### 2026-11-04 13:11
+
+The info pane had no limit but the window and in the launcher ran over Confirm and Actions,
+measured about 236 points against the 225 the matching rule leaves. Milos asked that both floating
+panes follow one rule, mirrored by side, so a later change to it reaches both rather than being
+decided per pane. `place` in `floatingpane.lua` is now written for a pane on the left and mirrors
+its inputs and its answer for one on the right, and `floatingFrame` in `native/Panel.swift` is the
+twin. Each pane stops the pad clear of the other group, or of the window's far edge with none. In
+the launcher the legend's longest line now truncates, and shortening the legend's wording was left
+as a separate question. `test/canvasfloatingpane.lua` pins the mirror and both stops.

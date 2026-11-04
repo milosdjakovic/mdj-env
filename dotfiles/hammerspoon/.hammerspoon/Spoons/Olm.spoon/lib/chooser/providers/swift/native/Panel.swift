@@ -686,12 +686,33 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     return rect.offsetBy(dx: origin.x, dy: origin.y)
   }
 
-  // The info pane is a floating pane standing in the left side's corner, which the bar leaves empty
-  // while it is open, the right side staying, its left and bottom edges on the group's, as wide as its widest line
-  // and never wider than the window less the outer padding on both sides, past which its labels
-  // truncate, as tall as its lines and never above the list's top, where it scrolls instead.
-  // The actions pane is the same floating pane in the action group's corner, hidden while it is open
-  // with the left side staying, its right and bottom edges on the group's, with the same limits.
+  // Both floating panes follow one rule, floatingpane.lua's place, written once for a pane standing
+  // on the left and mirrored for one on the right, so a change to it reaches both, Milos's call on
+  // 2026-11-04. The info pane takes the left side's corner, its left and bottom edges on the
+  // group's, and the actions pane the action group's, its right and bottom edges on it, the group
+  // under it hidden and the other staying. A pane is as wide as its lines laid out as a table and never narrower
+  // than its floor, the group it stands above, grows toward the other group and stops the bar pad
+  // clear of it, or of the window's far edge where there is none, past which its labels truncate,
+  // so neither pane covers the group that stays. It is as tall as its lines and never above the
+  // list's top, where it scrolls instead.
+  static func floatingFrame(size: NSSize, anchor: NSRect, floor: CGFloat, other: NSRect?,
+                            leading: Bool, width: CGFloat, top: CGFloat, pad: CGFloat) -> NSRect {
+    func mirror(_ r: NSRect) -> NSRect {
+      leading ? r : NSRect(x: width - r.maxX, y: r.minY, width: r.width, height: r.height)
+    }
+    let a = mirror(anchor)
+    let stop = other.map { mirror($0).minX - pad } ?? (width - pad)
+    let w = min(max(size.width, floor), max(0, stop - a.minX))
+    let h = min(size.height, max(0, a.maxY - top))
+    return mirror(NSRect(x: a.minX, y: a.maxY - h, width: w, height: h))
+  }
+
+  // A bar side's rect in the stage, or nil while it has nothing on screen to stay clear of.
+  private func sideFrame(_ side: NSView, in stage: NSView) -> NSRect? {
+    guard !side.isHidden, side.frame.width > 0 else { return nil }
+    return bar.convert(side.frame, to: stage)
+  }
+
   private func layoutActions() {
     // While the actions pane is open the bar describes the panel and its right side is shorter, so
     // the width the right side had at rest, the group the person pressed from, is kept as the floor.
@@ -705,19 +726,13 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     guard let stage = actionsPop.superview else { return }
     bar.layoutSubtreeIfNeeded()
     let anchor = bar.convert(bar.actions.frame, to: stage)
-    let top = toWindow(placement.list)?.minY ?? 0
-    let bottom = anchor.maxY
-    let size = actionsPop.preferredSize
-    // Never narrower than the bar side it stands above at rest, floatingpane.lua's place. The
-    // group's width while open is not used, since its Return label follows the lit line and would
-    // move the pane's width as the highlight moves.
-    let floor = restActionsWidth > 0 ? restActionsWidth : anchor.width
-    // Never past the left side, the bar pad clear of it, the most the bar's right side may take,
-    // so a long line ends in an ellipsis rather than widening the pane over the left side.
-    let leftEdge = bar.convert(bar.button.frame, to: stage).maxX + placement.barPad
-    let w = min(max(size.width, floor), max(0, anchor.maxX - leftEdge))
-    let h = min(size.height, max(0, bottom - top))
-    actionsPop.frame = NSRect(x: anchor.maxX - w, y: bottom - h, width: w, height: h)
+    // The group's width while open is not the floor, since its Return label follows the lit line
+    // and would move the pane's width as the highlight moves.
+    actionsPop.frame = ChooserPanel.floatingFrame(
+      size: actionsPop.preferredSize, anchor: anchor,
+      floor: restActionsWidth > 0 ? restActionsWidth : anchor.width,
+      other: sideFrame(bar.button, in: stage), leading: false, width: windowSize.width,
+      top: toWindow(placement.list)?.minY ?? 0, pad: placement.barPad)
   }
 
   private var restActionsWidth: CGFloat = 0
@@ -726,12 +741,9 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     guard keys.isOpen, let stage = keys.superview else { return }
     bar.layoutSubtreeIfNeeded()
     let anchor = bar.convert(bar.button.frame, to: stage)
-    let top = toWindow(placement.list)?.minY ?? 0
-    let bottom = anchor.maxY
-    let size = keys.preferredSize
-    // Never narrower than the bar side it stands above, floatingpane.lua's place.
-    let w = min(max(size.width, anchor.width), max(0, windowSize.width - anchor.minX - placement.barPad))
-    let h = min(size.height, max(0, bottom - top))
-    keys.frame = NSRect(x: anchor.minX, y: bottom - h, width: w, height: h)
+    keys.frame = ChooserPanel.floatingFrame(
+      size: keys.preferredSize, anchor: anchor, floor: anchor.width,
+      other: sideFrame(bar.actions, in: stage), leading: true, width: windowSize.width,
+      top: toWindow(placement.list)?.minY ?? 0, pad: placement.barPad)
   }
 }

@@ -136,28 +136,37 @@ function M.layout(ui, style, title, lines, selectable)
 end
 
 --- M.place(pop, anchor, align, room) -> the floating pane's rect. anchor is the rect of the group whose
---- corner it takes, the bar hiding both groups while a panel is open, align "left" for the key
---- panel, its left and bottom edges on the group's, and "right" for the actions pane, its right
---- and bottom edges on the group's. room is { w, top }, the window's width and the list's top
---- edge. It is as wide as its widest line and never narrower than the group it stands above, so
---- a bar side wider than its panel's lines, the clipboard's Paste, Copy and Actions, gives the
---- panel its width and each line's label fills it with the chord on the right, Milos's call on
---- 2026-11-03. It is never wider than the window less the outer padding on its open side, past
---- which its labels truncate, as tall as its lines and never above the list's top, where it
---- scrolls instead, swift's layoutKeys and layoutActions.
+--- corner it takes, align "left" for the info pane, its left and bottom edges on the group's, and
+--- "right" for the actions pane, its right and bottom edges on the group's. room is
+--- { w, top, other }, the window's width, the list's top edge and the rect of the other group, the
+--- one that stays on screen, or nil where there is none.
+---
+--- Both floating panes follow one rule, written once for a pane standing on the left and mirrored
+--- for one on the right, so a change to it reaches both, Milos's call on 2026-11-04. A pane is as
+--- wide as its lines laid out as a table and never narrower than the group it stands above, so a bar side wider
+--- than its panel's lines, the clipboard's Paste, Copy and Actions, gives the panel its width,
+--- Milos's call on 2026-11-03. It grows from its group's outer edge toward the other group and
+--- stops the outer padding clear of it, or of the window's far edge where there is no other
+--- group, past which its labels truncate, so neither pane ever covers the group that stays. It is
+--- as tall as its lines and never above the list's top, where it scrolls instead. swift's
+--- floatingFrame in native/Panel.swift is the twin rule.
+local function mirrored(r, w)
+  if not r then return nil end
+  return { x = w - r.x - r.w, y = r.y, w = r.w, h = r.h }
+end
+
 function M.place(pop, anchor, align, room)
+  if align == "right" then
+    local W = room.w
+    local r = M.place(pop, mirrored(anchor, W), "left",
+      { w = W, top = room.top, other = mirrored(room.other, W) })
+    return mirrored(r, W)
+  end
   local pad = pop.style.standoff
   local bottom = anchor.y + anchor.h
   local h = math.min(pop.h, math.max(0, bottom - room.top))
-  local wanted = math.max(pop.w, anchor.w)
-  if align == "right" then
-    local right = anchor.x + anchor.w
-    -- Never past room.left, the left side's right edge and the bar pad, when the caller knows it,
-    -- so a long line ends in an ellipsis rather than widening the pane over the left side.
-    local w = math.min(wanted, math.max(0, right - (room.left or pad)))
-    return { x = right - w, y = bottom - h, w = w, h = h }
-  end
-  local w = math.min(wanted, math.max(0, room.w - anchor.x - pad))
+  local stop = room.other and (room.other.x - pad) or (room.w - pad)
+  local w = math.min(math.max(pop.w, anchor.w), math.max(0, stop - anchor.x))
   return { x = anchor.x, y = bottom - h, w = w, h = h }
 end
 
