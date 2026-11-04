@@ -10,7 +10,9 @@
 --- The roles. A large figure and the words that stand where one would be are title, a heading is
 --- the kit's heading, a line a person reads as content is body, and an explanation or a line of
 --- metadata is caption, which is drawn in subtext. Nothing is drawn louder than its role, so
---- emphasis comes from the colour a figure is given and never from an extra size.
+--- emphasis comes from the colour a figure is given and never from an extra size. A heading is in
+--- capitals, the way every Olm pane heads a section, and every other line and fact starts with a
+--- capital.
 ---
 --- EVERY GRAPH HERE IS ONE OF TWO KINDS AND THE DIFFERENCE IS NOT DECORATION. A curve is drawn
 --- for a continuous sample, throughput measured four times a second through one run or latency
@@ -51,11 +53,14 @@ M.MARK_DROP, M.MARK_H = 2, 2
 M.BAR_MIN_W, M.BAR_MAX_W, M.BAR_GAP = 2, 18, 3
 M.MIN_BAR_H = 1.5
 
--- How many digits before the point the slot a figure is drawn in has room for. Three covers every
--- link up to a thousand megabits, which a measurement on this kind of Mac does not reach. A
--- reading above it is drawn whole in a wider slot, so nothing is ever cut, and only that reading
--- moves the unit beside it.
-M.FIGURE_DIGITS = 3
+-- The direction a figure measures, shown as a symbol before its number, so the two figures can
+-- share one row and still say which is which without a word. Specs rather than keys, since the
+-- kit's icon node takes a spec, and the same two are declared in the manifest's icons, so the
+-- symbol source renders them at load.
+M.ARROWS = {
+  down = { emoji = "\u{2B07}\u{FE0F}", sf = "arrow.down" },
+  up = { emoji = "\u{2B06}\u{FE0F}", sf = "arrow.up" },
+}
 
 --------------------------------------------------------------------------------
 -- Figures
@@ -69,42 +74,61 @@ local function widthOf(ui, str, role)
   return measure:width(str, role.font, role.size)
 end
 
--- The widest value a figure can take, per font and size, measured once. A figure is rebuilt about
--- four times a second while a run is on, and a measurement asks the system.
+-- The widest digit, per font and size, measured once. A figure is rebuilt about four times a
+-- second while a run is on, and a measurement asks the system.
 local widest = {}
 
 --- M.figureSlot(ui, number) -> points, how wide the slot a figure's number is drawn in must be.
 ---
---- The title role is the proportional system font, whose digits have different widths, so a
---- figure drawn at its own width pushes the unit beside it sideways every time it changes, from
---- 81.1 to 88.8 and back. The font cannot be asked for tabular digits, the canvas takes a font by
---- name and size and nothing else, and naming another font is not allowed here, so the figure sits
---- right aligned in a slot as wide as the widest value the format can produce, and the unit stands
---- after the slot and never moves. The widest value is the widest digit, found by measuring all
---- ten, repeated for the digits before the point and once after it.
+--- The title role is the proportional system font, whose digits have different widths, measured
+--- on 2026-11-04 at 10.8 points for a 1 and 15.0 for a 9, so a figure drawn at its own width
+--- pushes the unit beside it sideways every time a live reading changes, from 81.1 to 88.8 and
+--- back. The font cannot be asked for tabular digits, the canvas takes a font by name and size
+--- and nothing else, and naming another font is not allowed here, so the number sits right
+--- aligned in a slot as wide as the widest value with the same count of digits, the widest digit
+--- found by measuring all ten. Sized for the digits shown rather than for a fixed three before the
+--- point, which put a whole blank digit in front of a two digit reading, so a figure starts where
+--- the headings below it start and moves only when its count of digits changes, which is a real
+--- change rather than a jitter.
 function M.figureSlot(ui, number)
   local role = ui.tokens().text.title
   local key = role.font .. "\0" .. tostring(role.size)
-  local slot = widest[key]
-  if not slot then
-    local digit, digitW = "0", 0
+  local digit = widest[key]
+  if not digit then
+    local digitW = 0
+    digit = "0"
     for d = 0, 9 do
       local w = widthOf(ui, tostring(d), role)
       if w > digitW then digit, digitW = tostring(d), w end
     end
-    slot = math.ceil(widthOf(ui, digit:rep(M.FIGURE_DIGITS) .. "." .. digit, role))
-    widest[key] = slot
+    widest[key] = digit
   end
-  return math.max(slot, math.ceil(widthOf(ui, number, role)))
+  local own = math.ceil(widthOf(ui, number, role))
+  local whole, fraction = tostring(number):match("^(%d+)%.?(%d*)$")
+  if not whole then return own end
+  local shape = digit:rep(#whole) .. ((#fraction > 0) and ("." .. digit:rep(#fraction)) or "")
+  return math.max(math.ceil(widthOf(ui, shape, role)), own)
 end
 
---- M.figure(ui, number, unit) -> node, a large figure with its unit, "81.1" and "Mbps down". The
---- number is right aligned in its slot, see figureSlot, and the unit takes the rest of the row.
-function M.figure(ui, number, unit)
+--- M.figure(ui, direction, number) -> node, a large figure, an arrow saying which direction it
+--- measures, the number right aligned in its slot, see figureSlot, and the unit after it in
+--- subtext, so the number is what reads first.
+function M.figure(ui, direction, number)
   return ui.row({
+    ui.icon(M.ARROWS[direction], "row"),
     ui.text(number, "title", { align = ui.aligns.right, width = M.figureSlot(ui, number) }),
-    ui.text(unit, "title"),
-  }, { gap = "s" })
+    ui.text("Mbps", "title", { color = "subtext" }),
+  }, { gap = "s", align = ui.rowAligns.center, fill = false })
+end
+
+--- M.figures(ui, down, up) -> node, the download and the upload side by side in one row, the
+--- download first since it is the first series, or nil when neither is known.
+function M.figures(ui, down, up)
+  local row = {}
+  if down then row[#row + 1] = M.figure(ui, "down", down) end
+  if up then row[#row + 1] = M.figure(ui, "up", up) end
+  if #row == 0 then return nil end
+  return ui.row(row, { gap = "xl", align = ui.rowAligns.center, fill = false })
 end
 
 --------------------------------------------------------------------------------
@@ -256,17 +280,18 @@ function M.running(ui, state)
       M.curve(ui, seriesOf(samples, "rpm"), "tertiary", M.STRIP_H),
     })
   else
-    responsive = under(ui, { ui.heading("RESPONSIVENESS", rating), meta(ui, "not measured yet") })
+    responsive = under(ui, { ui.heading("RESPONSIVENESS", rating), meta(ui, "Not measured yet") })
   end
 
+  -- The same shape a finished run is shown in, the two figures in one row and the two curves
+  -- stacked under them, so a run looks like itself while it is taken and once it is kept.
   return page(ui, {
     under(ui, {
       head,
-      under(ui, { M.figure(ui, string.format("%.1f", latest.down), "Mbps down"),
-                  M.curve(ui, seriesOf(samples, "down"), "primary") }),
+      M.figures(ui, string.format("%.1f", latest.down), string.format("%.1f", latest.up)),
+      ui.stack({ M.curve(ui, seriesOf(samples, "down"), "primary"),
+                 M.curve(ui, seriesOf(samples, "up"), "secondary") }, { gap = M.GRAPH_GAP }),
     }),
-    under(ui, { M.figure(ui, string.format("%.1f", latest.up), "Mbps up"),
-                M.curve(ui, seriesOf(samples, "up"), "secondary") }),
     responsive,
     paragraph(ui, "These are live and still settling. The reading that gets kept is the "
       .. "tool's own final answer rather than the last of these."),
@@ -290,13 +315,15 @@ function M.standing(record, history)
     end
   end
   if total == 0 then return nil end
-  return "faster than " .. better .. " of the last " .. total .. " runs here"
+  return "Faster than " .. better .. " of the last " .. total .. " runs here"
 end
 
---- M.linkLine(record) -> the kind of link, its interface and its protocol, "Wi Fi, en0, H3".
+--- M.linkLine(record) -> the kind of link, its interface and its protocol, "Wi-Fi, en0, H3".
+--- The kind is the tool's own word, "wired" or "other", given a capital since it leads the line.
 function M.linkLine(record)
   local parts = {}
-  parts[#parts + 1] = record.kind == "wifi" and "Wi Fi" or (record.kind or "link")
+  local kind = record.kind == "wifi" and "Wi-Fi" or tostring(record.kind or "link")
+  parts[#parts + 1] = kind:sub(1, 1):upper() .. kind:sub(2)
   if record.iface then parts[#parts + 1] = record.iface end
   if record.proto then parts[#parts + 1] = record.proto:upper() end
   return table.concat(parts, ", ")
@@ -320,16 +347,10 @@ end
 function M.result(ui, record, label, history)
   local blocks = {}
 
-  -- The two large figures, or the words that say there are none. The download is the first series
-  -- and the upload the second, the same order the graphs below take their colours in.
-  local figures = {}
-  local down, up = util.rate(record.down), util.rate(record.up)
-  if down then figures[#figures + 1] = M.figure(ui, down, "Mbps down") end
-  if up then figures[#figures + 1] = M.figure(ui, up, "Mbps up") end
-  if #figures == 0 then
-    figures[1] = ui.text("Nothing measured", "title", { color = "subtext" })
-  end
-  blocks[#blocks + 1] = ui.stack(figures)
+  -- The two large figures in one row, or the words that say there are none. The download is the
+  -- first series and the upload the second, the same order the graphs below take their colours in.
+  blocks[#blocks + 1] = M.figures(ui, util.rate(record.down), util.rate(record.up))
+    or ui.text("Nothing measured", "title", { color = "subtext" })
 
   -- The run's own shape while it was being taken, which exists for every run on its own and so
   -- is never flat for want of history. A run recorded before this was kept simply has none.
@@ -361,7 +382,7 @@ function M.result(ui, record, label, history)
     local rows = { ui.heading("LATENCY UNDER LOAD", range),
                    M.curve(ui, record.strip, "tertiary", M.STRIP_H) }
     if record.lat.med then
-      rows[#rows + 1] = meta(ui, string.format("median %.0f ms, 95th %.0f ms",
+      rows[#rows + 1] = meta(ui, string.format("Median %.0f ms, 95th %.0f ms",
         record.lat.med, record.lat.p95 or record.lat.med))
     end
     blocks[#blocks + 1] = under(ui, rows)
@@ -407,11 +428,11 @@ end
 -- marked, and the median under them.
 local function direction(ui, label, values, color)
   local rows = {
-    ui.heading(label, "now " .. util.rate(values[#values]) .. ", best " .. util.rate(M.peak(values))),
+    ui.heading(label, "Now " .. util.rate(values[#values]) .. ", best " .. util.rate(M.peak(values))),
     M.bars(ui, values, color, nil, true),
   }
   local median = util.median(values)
-  if median then rows[#rows + 1] = meta(ui, "median " .. util.rate(median) .. " Mbps") end
+  if median then rows[#rows + 1] = meta(ui, "Median " .. util.rate(median) .. " Mbps") end
   return under(ui, rows)
 end
 
@@ -467,7 +488,7 @@ function M.trend(ui, history, label, note)
   if #rpms > 0 then
     local median = util.median(rpms)
     blocks[#blocks + 1] = under(ui, {
-      ui.heading("RESPONSIVENESS", median and string.format("median %.0f RPM", median) or nil),
+      ui.heading("RESPONSIVENESS", median and string.format("Median %.0f RPM", median) or nil),
       M.bars(ui, rpms, "tertiary", M.STRIP_H),
     })
   end

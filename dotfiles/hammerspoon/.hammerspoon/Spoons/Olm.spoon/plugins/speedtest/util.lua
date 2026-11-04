@@ -40,7 +40,7 @@ function M.rate(bits)
   return string.format("%.1f", mbps)
 end
 
---- util.rating(rpm) -> "low", "medium", "high", or nil
+--- util.rating(rpm) -> "Low", "Medium", "High", or nil
 --- The word the tool prints beside its own responsiveness figure. It is not in the machine
 --- readable output, only in the human summary, so it has to be banded here. The low band is
 --- the one verified against the real tool, 69 RPM printing as Low, and the two above it come
@@ -48,9 +48,9 @@ end
 --- exactly that reason, so a band drawn a little wrong never misleads on its own.
 function M.rating(rpm)
   if type(rpm) ~= "number" then return nil end
-  if rpm < 100 then return "low" end
-  if rpm < 450 then return "medium" end
-  return "high"
+  if rpm < 100 then return "Low" end
+  if rpm < 450 then return "Medium" end
+  return "High"
 end
 
 --- util.loadedMs(rpm) -> number or nil
@@ -190,7 +190,7 @@ function M.currentNetwork()
   if not label then
     -- Four characters of the profile hash, which is enough to tell two saved networks
     -- apart at a glance and short enough to sit in a row beside everything else.
-    label = profile and ("Wi Fi " .. tostring(profile):sub(1, 4)) or "Wi Fi"
+    label = profile and ("Wi-Fi " .. tostring(profile):sub(1, 4)) or "Wi-Fi"
   end
   return { id = id, label = label, kind = "wifi", iface = iface, named = ssid ~= nil }
 end

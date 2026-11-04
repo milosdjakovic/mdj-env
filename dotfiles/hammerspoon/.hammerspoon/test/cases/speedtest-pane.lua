@@ -126,9 +126,9 @@ local live = nodes.running(ui, { samples = trail, elapsed = 4, limit = 10, live 
 check("a live run has a heading with the seconds, two figures, a responsiveness block and a note",
   headings(live) == "MEASURING,RESPONSIVENESS", headings(live))
 check("the figures read number then unit, one decimal",
-  sentence(live):find("81.1|Mbps down|12.5|Mbps up", 1, true) ~= nil, sentence(live))
+  sentence(live):find("81.1|Mbps|12.5|Mbps", 1, true) ~= nil, sentence(live))
 check("the responsiveness line gives the rating, the RPM and the milliseconds under load",
-  sentence(live):find("medium", 1, true) ~= nil and sentence(live):find("300 RPM, 200 ms under load", 1, true) ~= nil,
+  sentence(live):find("Medium", 1, true) ~= nil and sentence(live):find("300 RPM, 200 ms under load", 1, true) ~= nil,
   sentence(live))
 check("the closing sentence says the figures are still settling",
   sentence(live):find("These are live and still settling.", 1, true) ~= nil)
@@ -146,33 +146,57 @@ check("the responsiveness strip is the short one, the throughput curves the tall
 
 local noRpm = nodes.running(ui, { samples = { { down = 1, up = 1 } }, elapsed = 1, limit = 10, live = true })
 check("a sample with no responsiveness yet says so in caption and subtext",
-  sentence(noRpm):find("not measured yet", 1, true) ~= nil and #graphs(noRpm) == 2)
+  sentence(noRpm):find("Not measured yet", 1, true) ~= nil and #graphs(noRpm) == 2)
 
 --------------------------------------------------------------------------------
--- the figure slot
+-- the figures
 --------------------------------------------------------------------------------
 
--- The widest digit is a nine wide one, so three before the point and one after is 4 * 9 + 4.
-check("the slot is as wide as the widest value the format can produce",
-  nodes.figureSlot(ui, "5.0") == 4 * 9 + 4, tostring(nodes.figureSlot(ui, "5.0")))
-check("a value wider than that is drawn whole in a wider slot",
-  nodes.figureSlot(ui, "1234.5") == 5 + 9 + 9 + 9 + 4 + 9,
-  tostring(nodes.figureSlot(ui, "1234.5")))
+-- The widest digit is a nine wide one, so the slot is that digit for every digit the number has,
+-- with the point between, and never the fixed three before the point it once was.
+check("the slot is as wide as the widest value with the same digits",
+  nodes.figureSlot(ui, "5.0") == 9 + 4 + 9 and nodes.figureSlot(ui, "88.8") == 9 + 9 + 4 + 9,
+  tostring(nodes.figureSlot(ui, "5.0")) .. " " .. tostring(nodes.figureSlot(ui, "88.8")))
+check("a value with more digits gets a slot as wide as its own digits",
+  nodes.figureSlot(ui, "1234.5") == 4 * 9 + 4 + 9, tostring(nodes.figureSlot(ui, "1234.5")))
 
-local function unitX(number)
-  local els = ui.layout(nodes.figure(ui, number, "Mbps down"), RECT)
-  return els[2].frame.x, els[1].frame
+-- Where the number's slot and the unit land, for one figure laid out alone.
+local function laid(number)
+  local numberEl, unitEl
+  for _, el in ipairs(ui.layout(nodes.figure(ui, "down", number), RECT)) do
+    local str = textOf(el)
+    if str == number then numberEl = el elseif str == "Mbps" then unitEl = el end
+  end
+  return numberEl and numberEl.frame, unitEl and unitEl.frame
 end
-local x1, f1 = unitX("1.1")
-local x2, f2 = unitX("88.8")
-local x3 = unitX("100.5")
-check("the unit does not move whatever the number is, up to the slot",
-  x1 == x2 and x2 == x3, x1 .. " " .. x2 .. " " .. x3)
-check("the number is right aligned in its slot, so its slot starts at the figure's own left",
-  f1.x == f2.x and f1.w == f2.w and f1.w == nodes.figureSlot(ui, "1.1"))
-local wideX = unitX("12345.6")
-check("a number that outgrows the slot is never cut, it widens it and the unit follows",
-  wideX > x1, tostring(wideX))
+local n1, u1 = laid("11.1")
+local n2, u2 = laid("88.8")
+local n3, u3 = laid("100.5")
+check("the unit does not move while the count of digits stays the same",
+  u1 and u2 and u1.x == u2.x, u1 and u2 and (u1.x .. " " .. u2.x))
+check("the number's slot starts in the same place whatever the number is",
+  n1 and n2 and n3 and n1.x == n2.x and n2.x == n3.x)
+check("the number is right aligned in a slot of its own digits",
+  n2 and n2.w == nodes.figureSlot(ui, "88.8"))
+check("one more digit moves the unit by about one digit, never by a blank one in front",
+  u3 and u2 and u3.x > u2.x and u3.x - u2.x <= 9, u3 and u2 and (u3.x - u2.x))
+check("the unit is drawn in subtext",
+  (function()
+    for _, text in ipairs(find(nodes.figure(ui, "down", "1.0"), "text")) do
+      if text.str == "Mbps" then return text.color == "subtext" and text.variant == "title" end
+    end
+  end)())
+
+local both = nodes.figures(ui, "81.1", "12.5")
+local arrows = find(both, "icon")
+check("the two figures stand in one row, download first, each led by its arrow",
+  both.kind == "row" and #both.children == 2 and #arrows == 2
+    and arrows[1].source.sf == "arrow.down" and arrows[2].source.sf == "arrow.up",
+  tostring(both.kind) .. " " .. #arrows)
+check("a figure missing on one side leaves the other alone in the row",
+  #find(nodes.figures(ui, "81.1", nil), "icon") == 1 and nodes.figures(ui, nil, nil) == nil)
+check("a live run shows its figures in that same row",
+  #find(live, "icon") == 2)
 
 --------------------------------------------------------------------------------
 -- a finished run
@@ -189,16 +213,19 @@ local result = nodes.result(ui, record, "Home", history)
 check("a finished run has every section, in reading order",
   headings(result) == "THROUGH THIS RUN,RESPONSIVENESS,LATENCY UNDER LOAD,LINK,HOME", headings(result))
 check("the figures use the rate formatter, a decimal under a hundred",
-  sentence(result):find("81.1|Mbps down|12.5|Mbps up", 1, true) ~= nil, sentence(result))
+  sentence(result):find("81.1|Mbps|12.5|Mbps", 1, true) ~= nil, sentence(result))
 check("a fast link drops the decimal",
-  sentence(nodes.result(ui, { down = 250400000 }, nil, {})):find("250|Mbps down", 1, true) ~= nil)
+  sentence(nodes.result(ui, { down = 250400000 }, nil, {})):find("250|Mbps", 1, true) ~= nil)
 check("the facts say seconds, RPM, load and idle latency, and the latency range",
   sentence(result):find("10 seconds", 1, true) ~= nil and sentence(result):find("300 RPM|200 ms under load, 12 ms idle", 1, true) ~= nil
-    and sentence(result):find("10 to 30 ms|median 20 ms, 95th 28 ms", 1, true) ~= nil, sentence(result))
+    and sentence(result):find("10 to 30 ms|Median 20 ms, 95th 28 ms", 1, true) ~= nil, sentence(result))
 check("the link, state and place lines keep their wording",
-  sentence(result):find("Wi Fi, en0, H3|L4S on, not proxied|edge.example, 10 s", 1, true) ~= nil, sentence(result))
+  sentence(result):find("Wi-Fi, en0, H3|L4S on, not proxied|edge.example, 10 s", 1, true) ~= nil, sentence(result))
+check("a link kind other than Wi-Fi leads its line with a capital",
+  nodes.linkLine({ kind = "other", iface = "utun8", proto = "h2" }) == "Other, utun8, H2",
+  nodes.linkLine({ kind = "other", iface = "utun8", proto = "h2" }))
 check("the standing sentence counts the runs it beat",
-  sentence(result):find("faster than 1 of the last 2 runs here", 1, true) ~= nil, sentence(result))
+  sentence(result):find("Faster than 1 of the last 2 runs here", 1, true) ~= nil, sentence(result))
 local resultGraphs = graphs(result)
 check("the run's curves are primary then secondary and its latency strip is tertiary",
   #resultGraphs == 3 and sameColor(resultGraphs[1].color, tokens.colors.primary)
@@ -207,7 +234,7 @@ check("the run's curves are primary then secondary and its latency strip is tert
 check("the metadata lines are caption, which is drawn in subtext",
   (function()
     for _, text in ipairs(find(result, "text")) do
-      if text.str == "Wi Fi, en0, H3" then return text.variant == "caption" and text.color == nil end
+      if text.str == "Wi-Fi, en0, H3" then return text.variant == "caption" and text.color == nil end
     end
   end)())
 
@@ -260,8 +287,8 @@ local trend = nodes.trend(ui, many, "Home", "Name it.")
 check("a trend heads its runs and lists download, upload and responsiveness",
   headings(trend) == "TREND,DOWNLOAD,UPLOAD,RESPONSIVENESS", headings(trend))
 check("the facts read now, best and median",
-  sentence(trend):find("now 90.0, best 90.0", 1, true) ~= nil and sentence(trend):find("median 60.0 Mbps", 1, true) ~= nil
-    and sentence(trend):find("median 200 RPM", 1, true) ~= nil, sentence(trend))
+  sentence(trend):find("Now 90.0, best 90.0", 1, true) ~= nil and sentence(trend):find("Median 60.0 Mbps", 1, true) ~= nil
+    and sentence(trend):find("Median 200 RPM", 1, true) ~= nil, sentence(trend))
 check("the note closes the trend", sentence(trend):sub(-8) == "Name it.")
 local barGraphs = graphs(trend)
 check("separate runs are bars, never a joined line, in primary, secondary and tertiary",
@@ -326,5 +353,5 @@ for label, node in pairs({ running = live, result = result, trend = trend, empty
   local els, height = ui.layout(node, RECT)
   check("the " .. label .. " view lays out to elements and a height", #els > 0 and height > 0)
 end
-local first = textOf(ui.layout(nodes.figure(ui, "81.1", "Mbps down"), RECT)[1])
+local first = textOf(ui.layout(nodes.figure(ui, "down", "81.1"), RECT)[1])
 check("a laid out figure is drawn as styled text of its number", first == "81.1", tostring(first))

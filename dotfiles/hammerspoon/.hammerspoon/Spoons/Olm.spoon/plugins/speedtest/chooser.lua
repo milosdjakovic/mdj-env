@@ -144,7 +144,7 @@ local HELP = {
     "A trend drawn across two different networks would be a number about nowhere, which is why they never share a line.",
   } },
   name = { title = "Name This Network", lines = {
-    "Wi Fi network names are a location on modern macOS, so an app is only told one if it holds Location Services permission, and Hammerspoon has never asked for it. It is not refused outright either, the name simply comes back blank, which is why this shows a made up label instead.",
+    "Wi-Fi network names are a location on modern macOS, so an app is only told one if it holds Location Services permission, and Hammerspoon has never asked for it. It is not refused outright either, the name simply comes back blank, which is why this shows a made up label instead.",
     "",
     "Nothing is lost by that. Readings are filed against the network profile itself, which needs no permission and does not change, so naming a network here only changes what it is called on screen. Every reading already kept stays exactly where it is.",
     "",
@@ -478,7 +478,7 @@ end
 local function nameNote(target)
   if target.named then return nil end
   if cfg.store.nameOf(target.id) then return nil end
-  return "This is a made up label. macOS treats a Wi Fi name as a location and only tells an app "
+  return "This is a made up label. macOS treats a Wi-Fi name as a location and only tells an app "
     .. "that holds Location Services, which Hammerspoon has never been granted. Readings are filed "
     .. "against the network itself rather than its name, so nothing is mixed up by it. Name it "
     .. "from the actions pane, or grant the permission and real names appear on their own."

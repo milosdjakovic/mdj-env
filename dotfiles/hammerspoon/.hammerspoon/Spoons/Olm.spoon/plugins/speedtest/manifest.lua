@@ -33,6 +33,11 @@ return {
     name = { emoji = "✏️", sf = "pencil" },
     clear = { emoji = "🗑️", sf = "trash" },
     speedtest = { emoji = "📶", sf = "speedometer" },
+    -- The pane's two figures, which direction each one measures. The pane hands the same specs
+    -- to the kit's icon node, pane-nodes.lua's ARROWS, and declaring them here is what has the
+    -- symbol source render them at load.
+    download = { emoji = "⬇️", sf = "arrow.down" },
+    upload = { emoji = "⬆️", sf = "arrow.up" },
   },
 
   needs = {
