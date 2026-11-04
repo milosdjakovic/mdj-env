@@ -949,7 +949,21 @@ the fallback, and `decisions/olm-swift-chooser.md` has the measurements and what
 
 Every surface the swift library draws, the chooser, the info pane and the actions pane, a preview
 pane in a window of its own, the cheat sheets and the toasts, fades in rising a few points and
-growing from a hair smaller, and fades out travelling half as far. The look is the `motion` block of
+growing from a hair smaller, and fades out travelling half as far. The info pane and the actions
+pane are their bar group growing instead, a `ShapeMotion`, always above the bar. The pane's glass
+stands at its full size the whole way, since glass draws its blur, rim and shadow by its size, and a
+mask on the pane's own layer grows from the group's rect out past the pane's edges by the room its
+shadow takes, its corner carried from the group's to the pane's, on `paneCurve`, and shrinks back
+on `paneCloseCurve`, an ease out so a close moves the moment Escape is pressed. Alongside it, on a
+linear clock, the pane fades in over its group in `paneFade` while the group fades out under it,
+and the pane's content crossfades in after, so the first frame is the group and the bar never
+shows two glasses. A group is hidden while its pane covers it and is never lit by the pane, and the
+right side keeps its parts while its pane is open, so a shortcut opening a pane flashes no
+highlight and no width. Closing reverses it, the shape onto the group and then the fade off it.
+The mask is stepped once a display frame by a display link, a timer where the window is on no
+screen, the one motion on the main thread. The small group still reads clearer and its shadow
+lighter than the open pane's, which is macOS drawing glass by size, accepted.
+The look is the `motion` block of
 `config/settings.lua`, which reaches the kit's `motion` tokens through `root/uispec.lua` and the
 library once at load, through the view's `attach` and `setMotion`, so a change is one edit and a
 reload and reaches every surface, and the Swift sources hold no number of it, the rule every size the

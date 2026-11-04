@@ -413,15 +413,28 @@ final class BarView: FlippedView {
     return hit === self ? nil : hit
   }
 
+  // Hides a group while its floating pane stands over it and shows it once the pane leaves it.
+  func setGroup(left: Bool, hidden: Bool) {
+    if left { button.isHidden = hidden } else { actions.isHidden = hidden || rightParts.isEmpty }
+    relight()
+  }
+
   // leftHidden and actionsHidden each hide one group whole, while the panel that group opens
   // stands in its corner. The other group stays as it is.
+  // keepRight leaves the right side as it stands, which it does while the actions pane is open, so
+  // the group the pane grows out of and shrinks back onto is the one the person pressed rather than
+  // one describing the pane, whose width and words changed under the pane as it moved.
   func show(_ bottomBar: BottomBar, style: Style, placement: Placement, lit: Bool, leftHidden: Bool = false,
-    actionsHidden: Bool = false) {
+    actionsHidden: Bool = false, keepRight: Bool = false) {
     self.placement = placement
     self.style = style
-    for view in parts + rightParts { view.removeFromSuperview() }
+    let keepRight = keepRight && !rightParts.isEmpty
+    for view in parts { view.removeFromSuperview() }
     parts = []
-    rightParts = []
+    if !keepRight {
+      for view in rightParts { view.removeFromSuperview() }
+      rightParts = []
+    }
     keysSource = bottomBar.keysImage
     keysTint = bottomBar.keysTint
     if let image = bottomBar.keysImage {
@@ -438,21 +451,23 @@ final class BarView: FlippedView {
         holderH: placement.barPillH, holderRadius: capRadius))
     }
     for view in parts { button.addSubview(view) }
-    rightActions = bottomBar.right.map { $0.action }
-    rightFit = bottomBar.right.map { $0.fit }
-    for item in bottomBar.right {
-      rightParts.append(label(item.label, style.titleFont, style.text))
-      rightParts.append(KeyCap(item.chord, ink: style.ink(lit: false), style: style, placement: placement,
-        holderH: placement.barPillH, holderRadius: capRadius))
+    if !keepRight {
+      rightActions = bottomBar.right.map { $0.action }
+      rightFit = bottomBar.right.map { $0.fit }
+      for item in bottomBar.right {
+        rightParts.append(label(item.label, style.titleFont, style.text))
+        rightParts.append(KeyCap(item.chord, ink: style.ink(lit: false), style: style, placement: placement,
+          holderH: placement.barPillH, holderRadius: capRadius))
+      }
+      for view in rightParts { actions.addSubview(view) }
     }
-    for view in rightParts { actions.addSubview(view) }
     for group in [button, actions] {
       group.color = style.highlight
       group.radius = style.highlightRadius
       group.cellRadius = capRadius
     }
     button.lit = lit
-    actions.lit = bottomBar.panelOpen
+    actions.lit = false
     button.isHidden = leftHidden
     actions.isHidden = actionsHidden || rightParts.isEmpty
     relight()

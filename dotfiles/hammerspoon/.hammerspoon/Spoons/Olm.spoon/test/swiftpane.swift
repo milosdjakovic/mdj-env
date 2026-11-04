@@ -499,6 +499,50 @@ do {
   floating.closeNow()
   check("a floating pane closed with its chooser is hidden at once", !floating.isOpen && floating.isHidden)
 
+  // A floating pane grows out of its bar group above it, its glass at full size and a mask showing
+  // as much as the motion has reached, the group fading out under it, hidden once the pane is whole,
+  // and closing shows the group again at once and fades it back in under the shrinking pane.
+  Motion.paneOpenDuration = 0.2
+  Motion.paneCloseDuration = 0.1
+  Motion.paneFadeDuration = 0.05
+  var covers: [Bool] = []
+  let groupView = FlippedView(frame: NSRect(x: 0, y: 40, width: 30, height: 20))
+  groupView.wantsLayer = true
+  content.addSubview(groupView)
+  floating.onCover = { covers.append($0) }
+  floating.group = NSRect(x: 0, y: 40, width: 30, height: 20)
+  floating.groupView = groupView
+  floating.setOpen(true)
+  floating.play()
+  let glassOf = { floating.subviews.first?.frame ?? .zero }
+  let maskOf = { floating.layer?.mask?.frame ?? .zero }
+  if Motion.still {
+    check("with Reduce Motion a floating pane opens at once over its group", covers == [true] && floating.layer?.mask == nil)
+  } else {
+    check("a floating pane starts on its group's rect, its glass whole and the group not yet hidden",
+      maskOf() == floating.group && glassOf() == floating.bounds && covers.isEmpty)
+    spin(0.1)
+    check("midway the mask has grown and the group has faded under it",
+      maskOf().height > floating.group.height && (groupView.layer?.opacity ?? 1) < 0.5 && covers.isEmpty)
+    spin(0.25)
+    check("once whole it is unmasked and covers its group", floating.layer?.mask == nil && covers == [true]
+      && (groupView.layer?.opacity ?? 0) == 1)
+    floating.setOpen(false)
+    check("closing shows the group again at once, faded out under the pane", covers == [true, false]
+      && (groupView.layer?.opacity ?? 1) < 0.01)
+    spin(0.05)
+    check("a closing floating pane shrinks toward its group", maskOf().width < floating.bounds.width && !floating.isHidden)
+    spin(0.2)
+    check("and hides once back on it", floating.isHidden && floating.layer?.mask == nil)
+  }
+  floating.closeNow()
+  floating.onCover = nil
+  floating.groupView = nil
+  groupView.removeFromSuperview()
+  Motion.paneOpenDuration = 0
+  Motion.paneCloseDuration = 0
+  Motion.paneFadeDuration = 0
+
   Motion.openDuration = 0
   Motion.closeDuration = 0
   keyMotion.show { keyWin.orderFrontRegardless() }

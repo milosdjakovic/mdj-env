@@ -128,10 +128,17 @@ local SHIPPED = {
   -- How a surface comes and goes, opening over open seconds from rise points below its place and
   -- scale of its size, closing over close seconds and half of both, each along its cubic Bezier
   -- curve's two control points. The swift chooser's native/Motion.swift plays it. open, close,
-  -- rise and scale are overwritten from settings by the spec, the curves are the kit's alone.
+  -- rise, scale, paneOpen, paneClose and paneFade are overwritten from settings by the spec, the
+  -- curves are the kit's alone. A floating pane fades in over its bar group over paneFade, grows out
+  -- of it over paneOpen, shrinks back onto it over paneClose and fades off it over paneFade, see
+  -- native/Motion.swift.
   motion = {
     open = 0.14, close = 0.09, rise = 4, scale = 0.98,
+    paneOpen = 0.2, paneClose = 0.1, paneFade = 0.06,
     openCurve = { 0.2, 0.8, 0.2, 1 }, closeCurve = { 0.4, 0, 1, 1 },
+    -- A floating pane's grow, easing in and out, and its shrink, easing out alone so it moves the
+    -- moment Escape is pressed and still settles onto its group.
+    paneCurve = { 0.4, 0, 0.2, 1 }, paneCloseCurve = { 0.25, 0.6, 0.3, 1 },
   },
 }
 

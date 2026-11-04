@@ -207,6 +207,11 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     surfaces.addOverlay(actionsPop)
     keys.isHidden = true
     actionsPop.isHidden = true
+    // A group is hidden exactly while its pane stands over it.
+    keys.onCover = { [weak self] covers in self?.bar.setGroup(left: true, hidden: covers) }
+    actionsPop.onCover = { [weak self] covers in self?.bar.setGroup(left: false, hidden: covers) }
+    keys.groupView = bar.button
+    actionsPop.groupView = bar.actions
     bar.isHidden = true
 
     // While the actions pane is open the engine's rows are the panel's, so the list behind it,
@@ -314,8 +319,11 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     list.update(next)
     if let bottomBar = next.bottomBar, placement.bottomBar != nil {
       bar.isHidden = false
-      bar.show(bottomBar, style: style, placement: placement, lit: next.infoOpen,
-        leftHidden: next.infoOpen, actionsHidden: next.actions != nil)
+      // Neither group is lit for the pane it opens, which grows out of it and hides it, so a group
+      // fading under its pane keeps the look it had at rest.
+      bar.show(bottomBar, style: style, placement: placement, lit: false,
+        leftHidden: keys.coversGroup, actionsHidden: actionsPop.coversGroup,
+        keepRight: next.actions != nil)
       keys.setOpen(next.infoOpen)
       if next.infoOpen {
         keys.show(title: bottomBar.title, lines: bottomBar.keys.map { .init(label: $0.label, chord: $0.chord, lead: $0.lead, section: $0.section) },
@@ -722,11 +730,16 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     let anchor = bar.convert(bar.actions.frame, to: stage)
     // The group's width while open is not the floor, since its Return label follows the lit line
     // and would move the pane's width as the highlight moves.
+    let rest = restActionsWidth > 0 ? restActionsWidth : anchor.width
     actionsPop.frame = ChooserPanel.floatingFrame(
-      size: actionsPop.preferredSize, anchor: anchor,
-      floor: restActionsWidth > 0 ? restActionsWidth : anchor.width,
+      size: actionsPop.preferredSize, anchor: anchor, floor: rest,
       leading: false, width: windowSize.width,
       top: toWindow(placement.list)?.minY ?? 0, pad: placement.barPad)
+    // The right side as it stood at rest, the group the pane grows out of and folds back onto, on
+    // the pane's bottom right corner.
+    let pane = actionsPop.frame.size
+    actionsPop.group = NSRect(x: pane.width - min(rest, pane.width), y: pane.height - min(anchor.height, pane.height),
+      width: min(rest, pane.width), height: min(anchor.height, pane.height))
   }
 
   private var restActionsWidth: CGFloat = 0
@@ -739,5 +752,9 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
       size: keys.preferredSize, anchor: anchor, floor: anchor.width,
       leading: true, width: windowSize.width,
       top: toWindow(placement.list)?.minY ?? 0, pad: placement.barPad)
+    // The left side, the group the pane grows out of and folds back onto, on its bottom left corner.
+    let pane = keys.frame.size
+    keys.group = NSRect(x: 0, y: pane.height - min(anchor.height, pane.height),
+      width: min(anchor.width, pane.width), height: min(anchor.height, pane.height))
   }
 }

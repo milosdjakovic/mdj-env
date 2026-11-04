@@ -77,6 +77,9 @@ function M.spec(policy, colors, typography)
       close = padding((policy.motion or {}).close),
       rise = padding((policy.motion or {}).rise),
       scale = scale((policy.motion or {}).scale),
+      paneOpen = padding((policy.motion or {}).paneOpen),
+      paneClose = padding((policy.motion or {}).paneClose),
+      paneFade = padding((policy.motion or {}).paneFade),
     },
   }
 end

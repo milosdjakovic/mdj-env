@@ -78,6 +78,20 @@ final class FloatingPaneView: FlippedView {
   }
 
   private let glass = Surface(holding: FlippedView())
+  // Everything drawn over the glass, laid out at the pane's full size and clipped to the glass
+  // while it grows out of its bar group or folds back onto it.
+  private let body = FlippedView()
+  private lazy var motion = ShapeMotion(self, content: body)
+  // The bar group the pane opens from and closes onto, in its own coordinates, set by the panel as
+  // it places the pane.
+  var group = NSRect.zero { didSet { motion.groupRect = group } }
+  // The group's own view, which fades out under the pane as it grows and back in as it shrinks.
+  weak var groupView: NSView? { didSet { motion.group = groupView } }
+  // Told whether the pane stands whole over its group, true once it has opened and false as it
+  // starts to close, so the group is hidden exactly while the pane is whole and fades with it
+  // otherwise.
+  var onCover: ((Bool) -> Void)?
+  private(set) var coversGroup = false
   private let header = NSTextField(labelWithString: "")
   private let rule = NSBox()
   private let scroll = NSScrollView()
@@ -108,7 +122,8 @@ final class FloatingPaneView: FlippedView {
     scroll.scrollerStyle = .overlay
     scroll.horizontalScrollElasticity = .none
     scroll.documentView = document
-    for view in [header, rule, scroll] as [NSView] { addSubview(view) }
+    addSubview(body)
+    for view in [header, rule, scroll] as [NSView] { body.addSubview(view) }
   }
 
   required init?(coder: NSCoder) { nil }
@@ -119,14 +134,15 @@ final class FloatingPaneView: FlippedView {
   override func mouseDown(with event: NSEvent) {}
   override func rightMouseDown(with event: NSEvent) {}
 
-  // MARK: Opening and closing, through Motion.swift like every surface
+  // MARK: Opening and closing, a ShapeMotion out of its bar group and back, see Motion.swift
 
-  // Whether the floating pane is open. One closing is no longer open while it fades, so it takes
-  // no pointer and lays nothing out, and it is hidden once the fade ends.
+  // Whether the floating pane is open. One closing is no longer open while it folds, so it takes
+  // no pointer and lays nothing out, and it is hidden once it is back on its group.
   private(set) var isOpen = false
   private var opening = false
 
-  // Shown at once and faded in by play, once the floating pane has been laid out at its size.
+  // Shown at once and grown out of its group by play, once the floating pane has been laid out at
+  // its size and told its group.
   func setOpen(_ open: Bool) {
     guard open != isOpen else { return }
     isOpen = open
@@ -135,7 +151,11 @@ final class FloatingPaneView: FlippedView {
       isHidden = false
       return
     }
-    Motion.disappear(self) { [weak self] in
+    if coversGroup {
+      coversGroup = false
+      onCover?(false)
+    }
+    motion.close { [weak self] in
       guard let self, !self.isOpen else { return }
       self.isHidden = true
     }
@@ -144,14 +164,19 @@ final class FloatingPaneView: FlippedView {
   func play() {
     guard opening else { return }
     opening = false
-    Motion.appear(self)
+    motion.open { [weak self] in
+      guard let self, self.isOpen else { return }
+      self.coversGroup = true
+      self.onCover?(true)
+    }
   }
 
-  // Closed with no fade, for a chooser that has gone down with the floating pane still open.
+  // Closed with no fold, for a chooser that has gone down with the floating pane still open.
   func closeNow() {
     isOpen = false
     opening = false
-    Motion.rest(self)
+    motion.stop()
+    coversGroup = false
     isHidden = true
   }
 
@@ -176,6 +201,7 @@ final class FloatingPaneView: FlippedView {
     document.radius = max(0, radius - outer)
     document.highlight = highlight
     glass.setCornerRadius(radius)
+    motion.radius = radius
     header.stringValue = title ?? ""
     header.font = style.titleFont
     header.textColor = style.text
@@ -286,6 +312,7 @@ final class FloatingPaneView: FlippedView {
   override func layout() {
     super.layout()
     glass.view.frame = bounds
+    body.frame = bounds
     var top = outer
     if !header.isHidden {
       let h = header.fittingSize.height

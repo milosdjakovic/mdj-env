@@ -124,6 +124,15 @@ chooser serves and on the canvas otherwise, built on `olm/native-panel`.
   the chooser read as losing focus as it went. Overriding `isKeyWindow` on the stand in to answer
   true did not change it either, since the glass asks the window server rather than the property.
   The chooser fades in place now and stays key, passing on the keys it hears.
+- **Stepping a floating pane's glass frame from its group's size to its own.** 2026-11-04 18:45.
+  Glass draws its blur, its rim and its shadow by its size, so a frame grown from the small group
+  turned from clear to frosted on the way out and back on the way in, the look Milos named as
+  weird. The glass stays at its full size and a mask shapes it instead.
+- **Drawing our own fill, rim and shadow so a bar group and its pane match exactly.** 2026-11-04 18:45.
+  Both are the same `Surface` with the same corner and no tint or shadow of ours, and still the
+  small group reads clearer with a lighter shadow, since macOS draws glass by size and offers no
+  setting for it. Matching them would mean giving up native glass on both, and Milos accepted the
+  difference instead.
 
 ## Log
 
@@ -828,3 +837,68 @@ highlight and macOS highlight. The default provider declares the themes kind. Th
 list picks between them by the title each declares, Glass and Canvas, and never learns a
 provider's name, and a choice in `olmChooser` wins over `chooser.provider` in
 `config/settings.lua`.
+
+### 2026-11-04 15:00
+
+The info pane and the actions pane unfold rather than grow, Milos's ask of the day for a little
+more movement, expanding upward, with every line kept at the height and padding it has at rest.
+`Motion.unfold` and `Motion.fold` in `native/Motion.swift` play it. The pane fades in and rises as
+before but is not scaled, a mask at the pane's own corner grows from `unfold` of its height to the
+whole of it held to the bottom edge, which in a flipped view's layer is the far end since AppKit
+sets `isGeometryFlipped` there, measured, and the lines in sight rise into place one `stagger`
+apart from the bottom, at most eight beats, so a long pane takes no longer. Closing folds back half
+as far while it fades. Scaling the pane in y from its bottom edge was turned down, since it draws
+every line shorter than it is for the whole opening, which is the thing asked against. The three
+numbers are motion tokens, `paneOpen`, `unfold` and `stagger`, in `config/settings.lua`, and the
+Swift sources hold none of them.
+
+Corrected 2026-11-04 15:08, the same afternoon, before it was committed, see the next entry.
+
+### 2026-11-04 15:08
+
+The unfold was wrong in two ways Milos named on seeing it. It added effects the bar group does not
+have, the fade, the rising lines and the mask, which cut the glass's rim and its shadow and let the
+shadow appear at the end, and it started from a share of the pane rather than from the group the
+person pressed. A floating pane is now its bar group growing, `ShapeMotion` in
+`native/Motion.swift`. It opens on the group's own rect, opaque, the group hidden in the same
+update, so the first frame is the group. The glass's own frame is stepped once a display frame to
+the pane's, keeping the rim and the corner it has at rest at every size, and the content, laid out
+at full size, is clipped to the glass by a mask at its corner, so no line is ever drawn shorter or
+narrower than it is. It closes back onto the group, which shows again under it. Stepping a frame on
+the main thread breaks the render server rule above for this one motion, accepted since Core
+Animation cannot resize glass and the step moves one small view for a fifth of a second. A timer
+steps it where the window is on no screen and has no display link. The tokens are `paneOpen` and
+`paneClose`, and `unfold` and `stagger` are gone. `test/swiftpane.swift` pins the start on the
+group, the end on the bounds and the fold.
+
+Corrected 2026-11-04 18:45, the frame step changed the glass's look with its size, see that entry.
+
+### 2026-11-04 15:32
+
+The fold snapped at its end, Milos's report. Two causes. It ran on the close curve, which eases in,
+so it reached the group at full speed and stopped dead, and the group showed again under the pane
+the moment the close began, so the pane folded over a second glass and the doubled glass dropped to
+one when the pane hid. The fold now eases out on the open curve, and a group stays hidden while its
+pane is not, shown by the pane's `onDown` once it is down, `showGroup` in `native/Bar.swift`.
+`paneClose` went from 0.14 to 0.1 at his ask.
+
+### 2026-11-04 18:45
+
+A floating pane is a mask on glass at its full size, and it grows above the bar, Milos's asks of the
+afternoon worked through at 1.5 seconds so each step could be seen. Stepping the glass's frame made
+it turn from clear to frosted as it grew, measured in a window of its own, since glass draws its blur,
+rim and shadow by its size with no public setting, the `.clear` style, a container and the corner
+changing none of it. So the pane's glass stands at its full size and a mask on its own layer grows
+from the group's rect to the bounds widened by the shadow's room, 24 points, carrying the corner, so
+the rim and the shadow arrive with the shape. The pane sat behind the bar while the group stayed up,
+which he did not want, so the order is now the one he gave. The pane fades in over the group at its
+size in `paneFade`, grows from the same instant while the group fades out under it, and its content
+crossfades in half a fade later. Closing shrinks it onto the group and fades it off to reveal the
+group. Shape and fades run on two numbers, the shape eased and the fades on a linear clock, so a
+reversal mid motion continues from where it is. The close played the open curve backwards and so
+began on its long settle, which read as a delay after Escape, so it has its own ease out curve,
+`paneCloseCurve`, 0.25 0.6 0.3 1. A shortcut opening a pane lit its group blue and the right side
+lost its width for a frame, so a pane never lights its group and the right side keeps its parts
+while its pane is open, `keepRight` in `native/Bar.swift`. The timings are back at 0.2 to open, 0.15
+to close, his choice, and 0.06 to fade. The small group's clearer look and lighter shadow beside the
+open pane are macOS drawing glass by size, accepted, see Rejected.

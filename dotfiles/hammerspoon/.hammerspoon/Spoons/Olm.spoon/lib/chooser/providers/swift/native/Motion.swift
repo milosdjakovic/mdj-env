@@ -22,7 +22,11 @@
 // TURNING AROUND. A surface shown while it fades out fades back in from where it had got to, and
 // the close that was cut short does nothing when it would have ended.
 //
-// REDUCED MOTION. With Reduce Motion on in System Settings a surface stays still and only fades.
+// A FLOATING PANE grows out of its bar group and shrinks back onto it, always above the bar, its
+// glass at its own size throughout, see ShapeMotion.
+//
+// REDUCED MOTION. With Reduce Motion on in System Settings a surface stays still and only fades,
+// and a floating pane opens and closes at once.
 
 import Cocoa
 
@@ -35,6 +39,47 @@ enum Motion {
   static var scale: CGFloat = 1
   static var openCurve = CAMediaTimingFunction(name: .linear)
   static var closeCurve = CAMediaTimingFunction(name: .linear)
+  // How long a floating pane takes to grow out of its bar group and to fold back onto it.
+  static var paneOpenDuration: CFTimeInterval = 0
+  static var paneCloseDuration: CFTimeInterval = 0
+  // How long a floating pane takes to fade in over its group before it grows, and to fade out off
+  // it once it has shrunk back onto it.
+  static var paneFadeDuration: CFTimeInterval = 0
+  // The floating pane's own curves. It grows easing in and out, and shrinks easing out alone, so a
+  // close moves the moment it is asked for, where the grow played backwards began on the grow's
+  // long settle and read as a delay, and it still settles onto its group rather than snapping.
+  static var paneCurve = CAMediaTimingFunction(name: .linear)
+  static var paneCloseCurve = CAMediaTimingFunction(name: .linear)
+
+  // Where a curve has got at t from 0 to 1, its two control points solved for x by Newton's method
+  // and bisection, as Core Animation does, for a motion stepped by hand.
+  static func progress(_ curve: CAMediaTimingFunction, _ t: CGFloat) -> CGFloat {
+    var p1: [Float] = [0, 0], p2: [Float] = [0, 0]
+    curve.getControlPoint(at: 1, values: &p1)
+    curve.getControlPoint(at: 2, values: &p2)
+    let (x1, y1, x2, y2) = (CGFloat(p1[0]), CGFloat(p1[1]), CGFloat(p2[0]), CGFloat(p2[1]))
+    func bez(_ s: CGFloat, _ a: CGFloat, _ b: CGFloat) -> CGFloat {
+      3 * (1 - s) * (1 - s) * s * a + 3 * (1 - s) * s * s * b + s * s * s
+    }
+    let t = min(1, max(0, t))
+    var s = t
+    for _ in 0..<8 {
+      let x = bez(s, x1, x2) - t
+      let d = 3 * (1 - s) * (1 - s) * x1 + 6 * (1 - s) * s * (x2 - x1) + 3 * s * s * (1 - x2)
+      if abs(x) < 1e-5 { return bez(s, y1, y2) }
+      guard abs(d) > 1e-6 else { break }
+      s = min(1, max(0, s - x / d))
+    }
+    var lo: CGFloat = 0, hi: CGFloat = 1
+    s = t
+    for _ in 0..<30 {
+      let x = bez(s, x1, x2)
+      if abs(x - t) < 1e-5 { break }
+      if x < t { lo = s } else { hi = s }
+      s = (lo + hi) / 2
+    }
+    return bez(s, y1, y2)
+  }
 
   // MARK: Keys a closing window hears
 
@@ -203,5 +248,180 @@ final class WindowMotion {
     guard closing else { return }
     closing = false
     window.ignoresMouseEvents = ignored
+  }
+}
+
+// A floating pane growing out of its bar group and shrinking back onto it, always above the bar.
+// The pane's glass stays at its full size the whole time and a mask at its corner shows as much of
+// it as the motion has reached, since macOS draws glass by its size, frosted when large and clear
+// when small, so a glass resized through the motion changed its look on the way. The mask starts on
+// the group's rect and ends past the pane's edges by its shadow, so the rim and the shadow arrive
+// with the shape rather than at the end. Everything is a function of one number, how open the pane
+// is, so a motion cut short turns around from where it stands. Opening, the pane fades in over the
+// group as it starts to grow and the group fades out under it, and closing does the same at the end
+// of its shrink, the group fading back in under the pane. The pane's contents fade in as it grows.
+// A mask and opacities on layers, stepped once a display frame so the group under it fades with it.
+final class ShapeMotion: NSObject {
+  private weak var view: NSView?
+  private let content: NSView
+  // The group the pane grows out of, faded against the pane, and its rect in the pane's coordinates.
+  weak var group: NSView?
+  var groupRect = NSRect.zero
+  var radius: CGFloat = 0
+  // How far past the pane's edges the mask ends, the room its glass's shadow takes.
+  private let shadowRoom: CGFloat = 24
+
+  private var link: CADisplayLink?
+  // A window on no screen has no display to step by, so a timer steps it instead.
+  private var timer: Timer?
+  private var began: CFTimeInterval = 0
+  private var duration: CFTimeInterval = 0
+  private var curve = CAMediaTimingFunction(name: .linear)
+  private var fromOpen: CGFloat = 0
+  private var toOpen: CGFloat = 0
+  private var fromClock: CGFloat = 0
+  // The whole motion's length the way it is playing, open or close, which the fades are a share of.
+  private var full: CFTimeInterval = 0
+  private var ended: (() -> Void)?
+
+  // How open the pane is, 0 on its group and 1 whole, along the curve, which the shape follows, and
+  // the same along the clock, which the fades follow so each takes its own time in seconds.
+  private(set) var openness: CGFloat = 0
+  private var clock: CGFloat = 0
+  var moving: Bool { link != nil || timer != nil }
+
+  init(_ view: NSView, content: NSView) {
+    self.view = view
+    self.content = content
+  }
+
+  // Opens from wherever it stands and calls done once whole, at once with nothing to play.
+  func open(done: @escaping () -> Void) {
+    move(to: 1, duration: Motion.paneOpenDuration, curve: Motion.paneCurve, done: done)
+  }
+
+  // Closes from wherever it stands and calls done once it has faded off its group.
+  func close(done: @escaping () -> Void) {
+    move(to: 0, duration: Motion.paneCloseDuration, curve: Motion.paneCloseCurve, done: done)
+  }
+
+  // Down at once, with no callback, for a pane closed with its chooser.
+  func stop() {
+    stopClock()
+    ended = nil
+    openness = 0
+    clock = 0
+    rest()
+  }
+
+  private func move(to target: CGFloat, duration full: CFTimeInterval, curve: CAMediaTimingFunction,
+    done: @escaping () -> Void) {
+    guard let view else { return done() }
+    stopClock()
+    ended = nil
+    if !moving, openness == target { return finish(done) }
+    guard full > 0, !Motion.still, !groupRect.isEmpty else {
+      openness = target
+      clock = target
+      return finish(done)
+    }
+    self.full = full
+    fromOpen = openness
+    fromClock = clock
+    toOpen = target
+    duration = full * Double(abs(target - clock))
+    self.curve = curve
+    began = CACurrentMediaTime()
+    ended = done
+    content.wantsLayer = true
+    view.wantsLayer = true
+    group?.wantsLayer = true
+    if view.layer?.mask == nil {
+      let mask = CALayer()
+      mask.backgroundColor = NSColor.black.cgColor
+      view.layer?.mask = mask
+    }
+    apply()
+    if view.window?.screen != nil {
+      let link = view.displayLink(target: self, selector: #selector(tick))
+      link.add(to: .main, forMode: .common)
+      self.link = link
+    } else {
+      let timer = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in self?.step() }
+      RunLoop.main.add(timer, forMode: .common)
+      self.timer = timer
+    }
+  }
+
+  @objc private func tick(_ link: CADisplayLink) { step() }
+
+  private func step() {
+    let t = duration > 0 ? min(1, CGFloat((CACurrentMediaTime() - began) / duration)) : 1
+    openness = fromOpen + (toOpen - fromOpen) * Motion.progress(curve, t)
+    clock = fromClock + (toOpen - fromClock) * t
+    apply()
+    guard t >= 1 else { return }
+    openness = toOpen
+    clock = toOpen
+    stopClock()
+    let done = ended
+    ended = nil
+    finish(done ?? {})
+  }
+
+  private func finish(_ done: () -> Void) {
+    rest()
+    done()
+  }
+
+  // The share of the motion the pane takes to fade over its group, from the fade duration and the
+  // length of the motion playing, so the fade is as long in seconds whichever way it plays.
+  private var fadeShare: CGFloat {
+    let total = max(full, 0.001)
+    return max(0.001, min(1, CGFloat(Motion.paneFadeDuration / total)))
+  }
+
+  private func apply() {
+    guard let view else { return }
+    let whole = view.bounds.insetBy(dx: -shadowRoom, dy: -shadowRoom)
+    let u = openness
+    func mix(_ a: CGFloat, _ b: CGFloat) -> CGFloat { a + (b - a) * u }
+    let rect = NSRect(x: mix(groupRect.minX, whole.minX), y: mix(groupRect.minY, whole.minY),
+      width: mix(groupRect.width, whole.width), height: mix(groupRect.height, whole.height))
+    // The pane fades in over its group in the first fade's worth of the clock, and its contents in
+    // the fade after that, so they are whole for all the time the pane is large and leave only as
+    // it nears the group's size.
+    let f = fadeShare
+    let paneAlpha = min(1, clock / f)
+    let contentAlpha = max(0, min(1, (clock - f / 2) / f))
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    if let mask = view.layer?.mask {
+      mask.cornerRadius = mix(radius, radius + shadowRoom)
+      mask.frame = rect
+    }
+    view.layer?.opacity = Float(paneAlpha)
+    content.layer?.opacity = Float(contentAlpha)
+    group?.layer?.opacity = Float(1 - paneAlpha)
+    CATransaction.commit()
+  }
+
+  private func stopClock() {
+    link?.invalidate()
+    link = nil
+    timer?.invalidate()
+    timer = nil
+  }
+
+  // At rest, whole or down. Unmasked and opaque, and the group opaque, since whether either shows
+  // is then its own isHidden.
+  private func rest() {
+    view?.layer?.mask = nil
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    view?.layer?.opacity = 1
+    content.layer?.opacity = 1
+    group?.layer?.opacity = 1
+    CATransaction.commit()
   }
 }
