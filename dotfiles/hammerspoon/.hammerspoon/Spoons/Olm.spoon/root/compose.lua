@@ -3091,14 +3091,19 @@ function obj.run(olm, cfg)
     -- that tool, the same push choosing its launcher row makes. The word stays in the field as
     -- the level's prefix, so the field still reads what was typed, the tool sees only what
     -- follows the word, and deleting into the word steps back to the launcher, Stage:push. The
-    -- launcher reserves no pane, so a scope can only ever show such a tool without the pane,
-    -- which is the part of it the tool is for. A tool with no pane keeps its scope. A plugin
-    -- declares its aliases and nothing else for any of this.
+    -- launcher reserves no pane, so a scope could only ever show such a tool without the pane,
+    -- which is the part of it the tool is for. The registrar builds the scope for such a tool
+    -- from its aliases alone, and this adds what only the stage can do, so a plugin declares its
+    -- aliases and nothing else for any of this. A tool with no pane keeps its own scope.
     -- decisions/olm-query-scope-handover.md has it.
+    for _, identity in ipairs(scopes.ignored or {}) do
+      log.w("Olm compose, " .. tostring(identity) .. " declares registry.scope, which is ignored, "
+        .. "since its list has a preview pane and Olm builds its scope from its aliases. "
+        .. "Remove the declaration.")
+    end
     for _, s in ipairs(scopes) do
-      local presentation = wiredRegistry.presentationFor and wiredRegistry.presentationFor(s.name)
-      local width = presentation and presentation.previewPaneWidth
-      if width == true or (type(width) == "number" and width > 0) then
+      local presentation = s.presentation
+      if presentation then
         s.handOver = function(rest, prefix)
           if not stageModule then return end
           stageModule:push(presentation, { prefix = prefix })
@@ -3106,6 +3111,12 @@ function obj.run(olm, cfg)
             stageModule:setQuery(rest or "")
           end
         end
+        -- Choosing the one row in the moment before the hand over, a click whose row could not
+        -- be resolved in time, opens the tool's list the way choosing its launcher row does.
+        s.run = function()
+          if stageModule then stageModule:push(presentation) end
+        end
+        s.presentation = nil
       end
     end
 

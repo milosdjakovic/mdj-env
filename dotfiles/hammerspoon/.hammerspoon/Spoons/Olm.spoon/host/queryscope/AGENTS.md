@@ -297,8 +297,11 @@ way is worse than there being one way in.
 A tool whose list is only half of it, the other half being a preview pane beside the rows,
 cannot come along, since the launcher reserves no pane, so File Search, Speed Test, the clipboard
 and Processes would arrive stripped of the preview that is most of what they are. So such a scope
-is not shown at all. The root gives it a `handOver`, a function of the typed rest, `rows` answers
-it as a third value on every claim, and the presenter calls it on its own next turn, never while
+is not shown at all, and the plugin does not write one. `lib/registrar.lua`'s `scopeSpec` builds
+it from the tool's aliases alone, one pinned row naming the tool for the moment before the hand
+over, and ignores with a console line any scope such a plugin still declares. The root gives it a
+`handOver`, a function of the typed rest and the word, and a `run` that opens the tool's list for a
+click in that moment. `rows` answers the hand over as a third value on every claim, and the presenter calls it on its own next turn, never while
 building the list, since asking what a query shows must not change what is showing. The root's
 function pushes the tool's presentation onto the stage, the same push choosing its launcher row
 makes, with the typed word and its separator as the level's field prefix. The field keeps the word,

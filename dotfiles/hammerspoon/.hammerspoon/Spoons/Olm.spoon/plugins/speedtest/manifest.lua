@@ -78,13 +78,6 @@ return {
     },
   },
 
-  -- Scoped by the launcher, typing the alias and a space lists the same rows the
-  -- presentation does and choosing one does the same thing.
-  provides = {
-    rows = "chooser.rows",
-    select = "chooser.select",
-  },
-
   defaults = {
     description = "Speed Test",
     icon = "speedtest",
@@ -155,19 +148,8 @@ return {
     -- The submodule the actions pane's verbs are answered by.
     surface = "chooser",
     hosted = true,
-    -- The scope is what makes st and speed resolve. This list has a preview pane, so Olm hands
-    -- a typed alias over to the tool's own list with the alias kept in the field, and the
-    -- scope's rows show only for the moment before it does, starting a measurement and reading
-    -- what this network has done before.
-    --
-    -- act rather than run is what keeps the list open. A scope declaring act has every one of
-    -- its rows routed through it, run never being reached, so this one function answers for
-    -- the whole scope and run below names it too rather than a second behaviour that would
-    -- only ever disagree with it.
-    scope = {
-      rows = { member = "chooser.scopeRows", call = "dot" },
-      run = { member = "chooser.scopeAct", call = "dot" },
-      act = { member = "chooser.scopeAct", call = "dot" },
-    },
+    -- There is no scope. This list has a preview pane, so Olm builds the scope for st and speed
+    -- and hands a typed alias over to this presentation with the alias kept in the field,
+    -- decisions/olm-query-scope-handover.md, and the plugin declares only its aliases.
   },
 }

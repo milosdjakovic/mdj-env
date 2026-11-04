@@ -73,7 +73,10 @@ consistent, and more discoverable than the one below it.
    scope rows in the list already open rather than opening the tool standalone, and that
    comes from the tool declaring a presentation, never from `registry.hosted`, which is a
    diagnostics flag a listing reads and nothing the stage or the launcher's own row
-   intercept ever consults.
+   intercept ever consults. A list with a preview pane declares no scope at all, only
+   `defaults.aliases`, since Olm builds its scope and opens the presentation for the alias with
+   the alias kept in the field, so a typed word never shows the list without its pane. Stated
+   by Milos on 2026-11-04, a plugin defines its aliases and Olm handles the rest.
 3. A child level. When choosing a row means showing another list, the row's `select` answers
    a presentation table and the stage pushes it in place. BrowserTabs and DisplayProfiles are
    the settled examples.

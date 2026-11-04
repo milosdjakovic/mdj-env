@@ -7,9 +7,12 @@ query scope inside the launcher.
 ## Now
 
 A plugin declares its aliases and nothing more, and Olm does the rest, the rule Milos stated on
-2026-11-04. The root, `root/compose.lua`, gives a scope a `handOver` function when the registry's
-presentation for that tool declares a preview pane, a `previewPaneWidth` of true or a number above
-zero. The query scope answers it as a third value on every claim, handing it the typed rest and the
+2026-11-04. For a tool whose registered presentation declares a preview pane, a `previewPaneWidth`
+of true or a number above zero, `lib/registrar.lua`'s `scopeSpec` builds the scope from the tool's
+aliases alone, with no `registry.scope` and no `provides` from the plugin, one pinned row naming
+the tool for the moment before the hand over, and names in the console any scope such a plugin
+still declares, which it ignores. The root, `root/compose.lua`, gives that scope a `handOver` and a
+`run`. The query scope answers the hand over as a third value on every claim, handing it the typed rest and the
 word that entered the scope with its separator, `host/queryscope/init.lua`. The launcher calls it
 on the next turn of the run loop through one kept timer, `host/launcher/init.lua`
 `_scheduleHandOver`, and the root's function pushes the presentation onto the stage with that word
@@ -22,8 +25,9 @@ word steps back to the launcher with whatever text is left, the same thing delet
 in a query scope, so the rule that the alias stays and removing it returns to the launcher holds for
 every alias. File Search and Speed Test take it today, and any tool that has an alias and a list
 with a preview pane takes it with no edit, Clipboard and Processes the day either is given an
-alias. An alias of a tool with no pane stays a query scope inside the launcher, unchanged.
-`test/cases/stage-prefix.lua` pins the prefix.
+alias. Neither File Search nor Speed Test declares a scope any more. An alias of a tool with no
+pane stays a query scope inside the launcher, unchanged. `test/cases/stage-prefix.lua` pins the
+prefix and `test/cases/registrar-panescope.lua` the scope Olm builds.
 
 ## Rejected
 
@@ -70,3 +74,16 @@ per pushed level, kept on the stage rather than on the presentation table the re
 swap writes the prefix into the field, `setQuery` puts it in front, `query` and the rows strip it,
 the level's search ranks by what follows it, and a field that no longer starts with it pops the
 level on the next turn and hands the level below the text that was left. No plugin changed.
+
+### 2026-11-04 12:16
+
+A plugin with a pane still had to declare a full scope only so its alias would resolve, since
+`scopeSpec` built a scope only from `registry.scope`, and since the hand over every row and verb of
+those scopes was unreachable. `scopeSpec` now builds the scope for such a tool from its aliases, a
+member by having them whatever the set answered, and the root adds its hand over and its run. File
+Search dropped `registry.scope`, `provides`, `scopeRows`, the join verb `ensureSession` in its
+chooser, root and engine, and `closePreview`, and folded `peekRow`, `revealRow` and `copyPathRow`
+back into the one verb each served. Speed Test dropped `registry.scope`, `provides`, `scopeRows` and
+`scopeAct`. Losing `provides` moved Speed Test's row from sixteenth to twenty seventh in the
+untouched launcher list, since the registry lists tools in wiring order and the set question sorts
+its members first, and the launcher goldens were refreshed with every row otherwise unchanged.

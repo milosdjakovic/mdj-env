@@ -13,18 +13,18 @@
 13	special:inputsources	Input Sources	Plugin · switch the input source (kb, input)	inputsources	inputsources	-	keyboard layout, language, ime, japanese, chinese, pinyin, korean, abc, serbian, cyrillic, latin | Plugin |  (kb, input)	-
 14	inputsources:previous	Previous Input Source	Input Sources	inputsources	inputsources	-	switch layout, globe, fn, toggle | Input Sources	-
 15	special:obsidian	Obsidian	Plugin · search and open notes (ob, obsidian)	image	-	-	notes, vault, markdown | Plugin |  (ob, obsidian)	-
-16	special:speedtest	Speed Test	Plugin · measure and keep a history (st, speed)	speedtest	speedtest	-	internet speed, bandwidth, latency, ping, network quality, rpm | Plugin |  (st, speed)	-
-17	special:textCase	Text Case	Plugin (tc, case) | live	textcase	textCase	-	uppercase, lowercase, camel case, snake case, kebab case, capitalize | Plugin |  (tc, case)	-
-18	special:tmuxSessions	Tmux Sessions	Plugin · NavT (u, tmux)	tmuxsessions	tmuxSessions	-	terminal, ghostty | Plugin |  (u, tmux)	-
-19	special:volume	Volume	Plugin · set or mute the volume (vol)	volume	volume	-	mute, unmute, louder, quieter | Plugin |  (vol)	-
-20	special:vpn	VPN	Plugin · ◆E (v, vpn, tunnel)	vpn	vpn	-	Plugin |  (v, vpn, tunnel)	-
-21	special:wifi	Wi-Fi	Plugin · join or leave a network (wi, wifi)	wifi	wifi	-	wifi, wireless, network, ssid, join network, disconnect, airport | Plugin |  (wi, wifi)	-
-22	special:workspaces	Workspaces	Plugin · save and restore layouts (ws, layout)	workspaces	workspaces	-	layout, snapshot, arrange windows, restore windows | Plugin |  (ws, layout)	-
-23	special:olmchooser	Olm Chooser	Olm Settings · how every list is drawn	chooser	olmchooser	-	glass, canvas, native, provider, picker, look | Olm Settings	-
-24	special:olmplacement	Olm Placement	Olm Settings · which display Olm opens on	placement	olmplacement	-	position, cursor, display, screen, monitor | Olm Settings	-
-25	special:olmplugins	Olm Plugins	Olm Settings · switch plugins on or off	plugins	olmplugins	-	extensions, enable, disable, modules | Olm Settings	-
-26	special:olmtheme	Olm Theme	Olm Settings · the look of the chooser in use	theme	olmtheme	-	colour, color, appearance, palette, dark, light, highlight, accent | Olm Settings	-
-27	special:processes	Local Servers	Plugin · stops a dev server, container, or watcher	processes	processes	-	dev server, port, kill process, node, docker, container | Plugin	-
+16	special:textCase	Text Case	Plugin (tc, case) | live	textcase	textCase	-	uppercase, lowercase, camel case, snake case, kebab case, capitalize | Plugin |  (tc, case)	-
+17	special:tmuxSessions	Tmux Sessions	Plugin · NavT (u, tmux)	tmuxsessions	tmuxSessions	-	terminal, ghostty | Plugin |  (u, tmux)	-
+18	special:volume	Volume	Plugin · set or mute the volume (vol)	volume	volume	-	mute, unmute, louder, quieter | Plugin |  (vol)	-
+19	special:vpn	VPN	Plugin · ◆E (v, vpn, tunnel)	vpn	vpn	-	Plugin |  (v, vpn, tunnel)	-
+20	special:wifi	Wi-Fi	Plugin · join or leave a network (wi, wifi)	wifi	wifi	-	wifi, wireless, network, ssid, join network, disconnect, airport | Plugin |  (wi, wifi)	-
+21	special:workspaces	Workspaces	Plugin · save and restore layouts (ws, layout)	workspaces	workspaces	-	layout, snapshot, arrange windows, restore windows | Plugin |  (ws, layout)	-
+22	special:olmchooser	Olm Chooser	Olm Settings · how every list is drawn	chooser	olmchooser	-	glass, canvas, native, provider, picker, look | Olm Settings	-
+23	special:olmplacement	Olm Placement	Olm Settings · which display Olm opens on	placement	olmplacement	-	position, cursor, display, screen, monitor | Olm Settings	-
+24	special:olmplugins	Olm Plugins	Olm Settings · switch plugins on or off	plugins	olmplugins	-	extensions, enable, disable, modules | Olm Settings	-
+25	special:olmtheme	Olm Theme	Olm Settings · the look of the chooser in use	theme	olmtheme	-	colour, color, appearance, palette, dark, light, highlight, accent | Olm Settings	-
+26	special:processes	Local Servers	Plugin · stops a dev server, container, or watcher	processes	processes	-	dev server, port, kill process, node, docker, container | Plugin	-
+27	special:speedtest	Speed Test	Plugin · measure and keep a history (st, speed)	speedtest	speedtest	-	internet speed, bandwidth, latency, ping, network quality, rpm | Plugin |  (st, speed)	-
 28	capture:ocrArea	OCR	Screen Capture · ✦2	ocr	capture	-	Screen Capture	10
 29	capture:captureArea	Screenshot	Screen Capture	screenshot	capture	-	Screen Capture	10
 30	capture:captureAreaClipboard	Screenshot to Clipboard	Screen Capture · ✦4	screenshot	capture	-	Screen Capture	10

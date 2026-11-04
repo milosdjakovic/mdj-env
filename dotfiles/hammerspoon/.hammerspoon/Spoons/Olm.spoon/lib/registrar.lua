@@ -1221,6 +1221,11 @@ end
 --- so a root override of a description reaches the scope directory rather than only the launcher
 --- row.
 ---
+--- A tool whose presentation reserves a preview pane is a member by having aliases, whatever the
+--- set answered, and gets a scope this function builds rather than the one it may declare, which
+--- is named in the returned list's ignored field. Its entry carries the presentation, and the
+--- root adds run and handOver, see decisions/olm-query-scope-handover.md.
+---
 --- What this function does not do. The plain narrowing objects, the launcherCatalogScope
 --- entries and the alias directory, carry no tool identity for names or scopeFor to answer, so
 --- this function never sees them at all, root/compose.lua appending each to the list this
@@ -1252,15 +1257,49 @@ function obj.scopeSpec(plan, registry, names, meta)
   end
   for _, identity in ipairs(names or {}) do add(identity) end
 
+  -- A tool whose list carries a preview pane joins by having aliases, with no scope and no
+  -- provides of its own, since Olm builds its scope below. Walked after the set's members, in
+  -- registration order, so a tool both answers keeps the place the set gave it.
+  for _, identity in ipairs((registry.active and registry.active()) or {}) do
+    if obj.hasPreviewPane(registry.presentationFor and registry.presentationFor(identity)) then
+      add(identity)
+    end
+  end
+
+  out.ignored = {}
   for _, identity in ipairs(ordered) do
     local scope = registry.scopeFor and registry.scopeFor(identity)
-    if scope then
-      local row = registry.rowFor and registry.rowFor(identity)
-      local eff = (plan.effective or {})[directoryOf[identity] or identity] or {}
-      local aliases = (row and row.aliases) or eff.aliases
+    local presentation = registry.presentationFor and registry.presentationFor(identity)
+    local row = registry.rowFor and registry.rowFor(identity)
+    local eff = (plan.effective or {})[directoryOf[identity] or identity] or {}
+    local aliases = (row and row.aliases) or eff.aliases
+    local title = (row and row.description) or eff.description
+    if obj.hasPreviewPane(presentation) then
+      -- Olm's own scope for a list with a preview pane, decisions/olm-query-scope-handover.md.
+      -- A typed alias hands the launcher over to the tool's own list, so the scope only answers
+      -- the moment before that, one pinned row naming the tool, and never asks the plugin
+      -- anything, since a presentation's rows are asked only once the stage presents it. The
+      -- root adds what running it and handing over do, since only the root holds the stage. A
+      -- scope the plugin still declares is ignored and named, so a stale one is seen.
+      if scope then out.ignored[#out.ignored + 1] = identity end
+      if type(aliases) == "table" and #aliases > 0 then
+        local icon = (row and row.icon) or eff.icon
+        out[#out + 1] = {
+          name = identity,
+          title = title,
+          icon = icon,
+          iconOwner = identity,
+          aliases = aliases,
+          presentation = presentation,
+          rows = function()
+            return { { title = title or identity, icon = icon, pinned = true, item = {} } }
+          end,
+        }
+      end
+    elseif scope then
       out[#out + 1] = {
         name = identity,
-        title = (row and row.description) or eff.description,
+        title = title,
         icon = (row and row.icon) or eff.icon,
         iconOwner = identity,
         aliases = aliases,
@@ -1277,6 +1316,15 @@ function obj.scopeSpec(plan, registry, names, meta)
     end
   end
   return out
+end
+
+--- obj.hasPreviewPane(presentation) -> bool
+--- Whether a registered presentation reserves a preview pane beside its list, its resolved
+--- previewPaneWidth being true or a number above zero. The one test of it, so the scope Olm builds
+--- and the root's hand over cannot disagree about which tools take it.
+function obj.hasPreviewPane(presentation)
+  local width = type(presentation) == "table" and presentation.previewPaneWidth or nil
+  return width == true or (type(width) == "number" and width > 0)
 end
 
 --- obj.aliasCollisions(scopes)

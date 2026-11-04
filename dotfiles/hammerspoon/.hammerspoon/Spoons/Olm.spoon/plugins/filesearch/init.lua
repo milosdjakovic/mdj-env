@@ -315,13 +315,6 @@ function obj:configure(opts)
         -- it when it is stale, so an open is the only thing that ever starts a crawl.
         obj.sources.index.warm()
       end,
-      -- For a surface with no open of its own, which must not restart a session it is only
-      -- joining. The warm goes with it, since it is the same beginning either way and doing it
-      -- twice is free.
-      ensureSession = function()
-        obj:ensureSession()
-        obj.sources.index.warm()
-      end,
       cancel = function() obj:cancel() end,
       browseQueryFor = function(row) return obj:browseQueryFor(row) end,
     },

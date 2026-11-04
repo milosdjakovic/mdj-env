@@ -833,6 +833,14 @@ A member is a bare string for a colon method on the plugin root, or a table carr
 `member` and `call`. A dotted member reaches a submodule, `chooser.scopeRows`. `surface`
 may be `true` to mean the plugin root itself.
 
+`scope` is for a list WITHOUT a preview pane, where the typed alias filters the launcher's own
+list and deleting the space steps back out. A plugin whose presentation reserves a preview pane,
+a `previewPaneWidth` of true or above zero, declares no scope and no `provides.rows` or
+`provides.select` for one. Its `defaults.aliases` are the whole of it. Olm builds its scope from
+the aliases and hands a typed alias over to the presentation with the alias kept in the field,
+`lib/registrar.lua`'s `scopeSpec` and the root, and a scope such a plugin still declares is
+ignored with one console line naming it. `decisions/olm-query-scope-handover.md` has why.
+
 `row` is what a person reads, and any table earns one, `{}` included. Its title is the plugin's
 `about.title`, and the word before the middot is worked out from what Return does, Plugin, or
 System Action where the row says `system = true`, or Olm Settings where it says `settings = true`,

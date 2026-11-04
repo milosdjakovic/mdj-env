@@ -394,7 +394,7 @@ end
 --------------------------------------------------------------------------------
 
 --- chooser.rows(query) - the top level list. The widget filters, so the query is not read
---- here, which is also what lets the launcher scope show exactly these rows.
+--- here.
 function M.rows()
   local rows = {}
   local target = currentNet()
@@ -577,66 +577,6 @@ end
 --- pane noticing anything.
 function M.onScroll(points)
   pane.scrollBy(points)
-end
-
---------------------------------------------------------------------------------
--- The launcher scope
---------------------------------------------------------------------------------
-
---- chooser.scopeRows(query) - the rows a typed alias shows inside the launcher's own list.
----
---- This list has a preview pane, so Olm hands a typed alias over to the tool's own list, alias
---- kept in the field, and these rows show only for the moment before it does. They stay the two
---- things worth reaching in one gesture, taking a reading and seeing what this network has done
---- before, so the moment reads right, and nothing here opens the tool, since Olm already does.
-function M.scopeRows()
-  local target = currentNet()
-  local settings = cfg.store.settings()
-  local label = labelFor(target.id, target.label)
-  local rows = {}
-
-  if not cfg.runner.isAvailable() then
-    rows[#rows + 1] = row("networkQuality is not on this Mac",
-      "the tool this measures with ships with macOS", ICON_PROBLEM, { act = "none" }, false)
-  elseif cfg.runner.isRunning() then
-    rows[#rows + 1] = row("Stop", runningSubtitle(), ICON_STOP, { act = "stop" }, true)
-  else
-    rows[#rows + 1] = row("Run test", describeRun(settings) .. ", on " .. label, ICON_RUN,
-      { act = "run" }, true)
-  end
-
-  for _, record in ipairs(cfg.store.forNetwork(target.id)) do
-    rows[#rows + 1] = resultRow(record)
-  end
-
-  return rows
-end
-
---- chooser.scopeAct(item) - what a scope row does, in place, with the launcher's list still open.
----
---- One function for every row rather than a run and an act that could disagree, since a scope
---- declaring act has every one of its rows routed through it and run is never reached.
----
---- Starting a run from here opens the tool as well, which is not a shortcut for its own sake. A
---- scope row cannot ask the launcher to redraw it, so a run started and left in the launcher would
---- count up in a row nothing ever repaints, and the live graph is the whole point of watching one.
-function M.scopeAct(item)
-  if not item then return end
-  if item.act == "run" then
-    startRun()
-    if cfg.stagePresent then cfg.stagePresent("speedtest") end
-    return
-  end
-  if item.act == "stop" then
-    cfg.runner.stop()
-    stopTicker()
-    return
-  end
-  if item.act == "result" then
-    local record = cfg.store.byId(item.rid)
-    if record then hs.pasteboard.setContents(summaryLine(record)) end
-    return
-  end
 end
 
 --------------------------------------------------------------------------------

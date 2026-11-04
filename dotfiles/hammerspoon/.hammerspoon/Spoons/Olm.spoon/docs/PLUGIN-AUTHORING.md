@@ -95,7 +95,9 @@ A launcher row that names you pushes your presentation onto the stack instead of
 second window, so the list swaps in place with no flicker and no field text nobody typed.
 
 Your alias and a space scopes the launcher to your rows, once `provides` or `registry.scope`
-names the two functions, and choosing there does what choosing in your own list does.
+names the two functions, and choosing there does what choosing in your own list does. A list
+with a preview pane declares neither. Its aliases are enough, since Olm opens your presentation
+for the alias with the alias kept in the field, and deleting it steps back to the launcher.
 
 Backspace on an empty field pops back to whatever was underneath, the launcher included, with
 that level's placeholder restored and its highlight at the top. At the bottom of a stack the

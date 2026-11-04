@@ -1025,32 +1025,24 @@ under it at all. That is why the verb is on the contract as optional rather than
 why the trackpad watcher is wired only for a provider that reserved a rect for one to happen
 over.
 
-## A second surface joins a session, it does not begin one, and the difference was a loop
+## One surface, one open, after a second one looped
 
-The engine has an open, and the picker has one, so opening resets the session and refetches the
-recent list. The launcher's alias has no open at all. It is asked for rows on every keystroke and
-again every time it is told the rows changed, and it began a session on each of those asks, which
-looked harmless and was not.
+The launcher's alias used to be a second surface over this engine, a scope asked for rows on every
+keystroke and again every time it was told the rows changed, with no open of its own. It began a
+session on each of those asks, which looked harmless and was not. `reset` clears the parsed query,
+and the parsed query is what `rowsFor` compares against to recognise a repeat and hand back what it
+already drew. Cleared, every ask did the full work again and ended by announcing that the rows had
+changed, the launcher asked again, and the loop ran for as long as the alias sat there with nothing
+typed after it. That was answered then with a second verb, `ensureSession`, which joined a session
+rather than starting one, and a `peekRow`, `revealRow` and `copyPathRow` that acted on a row the
+scope handed over, each owing the scope its own teardown.
 
-`reset` clears the parsed query, and the parsed query is what `rowsFor` compares against to
-recognise a repeat and hand back what it already drew. Cleared, every ask did the full work again
-and ended by announcing that the rows had changed. The launcher answers that announcement by
-asking again, which reset again, which fetched again. A loop with a Spotlight round trip in it,
-running for as long as the alias sat there with nothing typed after it, and the list it left on
-screen was whatever that churn happened to produce rather than the recent files.
-
-So there are two verbs. `beginSession` is what an open calls and it still resets. `ensureSession`
-starts one only when there is neither a list held nor a fetch on the way, and costs nothing
-otherwise, which is what a surface with no open of its own must call. Naming them separately is
-what makes the choice visible at the call site, since both are one line and only one of them is
-right for a caller that will make it a thousand times.
-
-The same split runs through the preview. `peekPreview` acts on this picker's own highlight and
-refuses once this picker has gone, because the window it opens is torn down when this picker
-closes. `peekRow` takes a row it was handed and makes no such refusal, since the caller is a
-different owner with a different close, and it takes on the matching duty instead, calling
-`closePreview` when its own list goes. Two callers, one preview, and whoever asked is whoever
-puts it away.
+Since 2026-11-04 the alias reaches this picker's own presentation, with the slash kept in the
+field, because the list has a preview pane and Olm hands such an alias over rather than scoping it,
+`decisions/olm-query-scope-handover.md`. So there is one surface and one open again, every verb acts
+on this picker's own highlight, and the join verb and the three handed row verbs were removed with
+the scope. A second surface that ever comes back has to join rather than begin, for the reason
+above.
 
 ## What it deliberately does not do
 
@@ -1102,8 +1094,8 @@ is in flight or a short query shows the recent list, and the row is what then sa
 keep typing rather than the list saying no results.
 
 Putting a cap back in the engine. `displayCap` cut the handed over list to two hundred before any
-ranking, so the rows it kept were the source's first rather than the best. The presentation and
-the scope declare `rowLimit` 200 instead, cut after ranking, and `retainCap` stays as the bound
+ranking, so the rows it kept were the source's first rather than the best. The presentation
+declares `rowLimit` 200 instead, cut after ranking, and `retainCap` stays as the bound
 on what is held and handed over.
 
 Searching the full path. A file row filters on its name, and its folder is neither a name nor a
@@ -1120,7 +1112,7 @@ timer half and nothing enforces the handles, so that one is on the reader.
 
 Two surfaces reading the engine at once. There is one engine instance, and the query it is
 answering is state, so two lists driven at the same time would each be changing what the other
-asked about. The launcher scope and the picker are never both on screen, and the failure would be a
+asked about. Only this picker drives it, and a second surface would be a
 confused list rather than a broken one, so this is a note and not a mechanism. It is also the trap
 that ate two probes. Driving the row supplier by hand while the picker was open had the picker's own
 refresh cycle answer with the recent list branch, which cancels the dispatch, so both dumps were

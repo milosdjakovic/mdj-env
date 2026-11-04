@@ -675,17 +675,6 @@ function M.beginSession()
   return M
 end
 
---- chooser.ensureSession() - join a session, starting one only if there is none.
----
---- What a surface with no open of its own calls instead of beginSession. The launcher's scope is
---- asked for rows on every keystroke and again every time it is told the rows changed, and it has
---- no moment it could call a fresh start, so beginning a session there restarts one perpetually.
---- The engine's note on ensureSession has why that is a loop rather than only waste.
-function M.ensureSession()
-  if cfg.api and cfg.api.ensureSession then cfg.api.ensureSession() end
-  return M
-end
-
 --- chooser.show() - present through the shared stage. registry.open's own kept fallback for
 --- this plugin's own leader key, VPN's identical precedent, since a launcher row choosing this
 --- tool pushes the registry's own presentation straight from root/compose.lua's rowIntercept
@@ -745,17 +734,6 @@ end
 --- and not a mechanism.
 function M.rowsForQuery(q)
   return supplier(q)
-end
-
---- chooser.scopeRows(rest) -> the query scope's own rows. Joined rather than started, the
---- same distinction M.ensureSession's own note explains at length, since a scope is asked for
---- rows on every keystroke and has no open of its own to hang a fresh start on, so starting one
---- here would restart it forever. An empty rest is the one moment a session is worth ensuring,
---- the same moment M.show's own path ensures one, and every other keystroke only ever asks for
---- rows over whatever session is already running.
-function M.scopeRows(rest)
-  if rest == "" then M.ensureSession() end
-  return M.rowsForQuery(rest)
 end
 
 --- chooser.choose(row) - do to a row what the primary key does, for a surface with no picker.
@@ -837,34 +815,11 @@ function M.peekPreview()
   -- will ever take down. Cheap to ask, and the alternative is unrecoverable without a kill.
   if not showing then return end
   local row = selectedRow()
-  if not row then return end
-  M.peekRow(row)
-end
-
---- chooser.peekRow(row), show a row this picker was HANDED rather than one it highlighted, for
---- another surface listing the same rows.
----
---- Split out of peekPreview rather than reached by pretending to be it, because the two differ in
---- exactly one thing, who owns the row, and that decides the lifetime guard. peekPreview refuses
---- once this picker has gone, since the panel it opens is torn down when this picker closes. A
---- caller holding its own list is a different owner with a different close, so it must not be
---- held to this picker's, and it takes on the same duty instead, which is to call closePreview
---- when its own list goes.
----
---- The latest chooser frame goes with the row, so the peek viewer can pick the same screen the
---- picker is actually on. A viewer that does not read a second argument simply never asks for it.
-function M.peekRow(row)
-  if peekViewer == NO_VIEWER then return end
   if not (row and row.path) or row.status or row.help then return end
   noteUse(row)
+  -- The latest chooser frame goes with the row, so the peek viewer can pick the screen the picker
+  -- is actually on. A viewer that does not read a second argument simply never asks for it.
   peekViewer.show(row, lastChooserFrame)
-end
-
---- chooser.closePreview(), put away whatever the peek viewer has open. The other half of peekRow,
---- for the surface that asked, since a preview outliving the list it describes is the one failure
---- this provider can leave on screen.
-function M.closePreview()
-  peekViewer.close()
 end
 
 -- insertSelected is gone too, the identical reason isShowing, hide, selectNext, and
@@ -922,64 +877,37 @@ function M.browseUp()
   goTo(cfg.api.upQuery())
 end
 
---- chooser.revealRow(row), show a row this picker was HANDED rather than one it highlighted,
---- for another surface listing the same rows, the launcher's hosted list among them.
----
---- Split out of reveal the way peekPreview and peekRow already are, one implementation and two
---- entry points, so reveal keeps calling straight through and behaves exactly as it did before
---- this split, byte for byte. The guard mirrors peekRow's own, a row with no path, or the status
---- and help rows the supplier hands back when there is nothing to act on, answers nothing rather
---- than reaching for a path that is not there.
----
---- Migrated onto host/stage. cfg.stageHide, guarded on this plugin's own showing flag, replaces
---- the direct M.hide() this used to call unconditionally on an instance it held itself, since
---- an unconditional hide now would close the shared window out from under whatever ELSE is
---- current, the launcher included, when this call arrives through the launcher's hosted scope
---- rather than through this presentation's own primary key. Harmless, and correctly a no op,
---- when this picker was never the one showing, the identical guarantee the retired M.hide()
---- guard gave for free by having nothing active to hide. What a scope caller owes instead,
---- closing itself the way it already does when it runs a scope row directly, is the caller's
---- own business and is wired where that caller's own dispatch lives, not here.
-function M.revealRow(row)
+--- chooser.reveal() - show the highlighted row in Finder instead of opening it. A row with no
+--- path, or a status or help row, answers nothing rather than reaching for a path that is not
+--- there. The list is hidden through cfg.stageHide, guarded on this plugin's own showing flag, so
+--- a call that arrives while another list is current never closes the shared window under it.
+function M.reveal()
+  local row = selectedRow()
   if not (row and row.path) or row.status or row.help then return end
   noteUse(row)
   openPath(row.path, true)
   if showing and cfg.stageHide then cfg.stageHide() end
 end
 
---- chooser.reveal() - show the highlighted row in Finder instead of opening it.
-function M.reveal()
-  M.revealRow(selectedRow())
-end
-
---- chooser.copyPathRow(row), put a row this picker was HANDED on the clipboard through the
---- injected writer, so this file never learns what a clipboard is, mirroring revealRow above for
---- the same reason and with the same guard.
-function M.copyPathRow(row)
+--- chooser.copyPath() - put the highlighted path on the clipboard through the injected writer
+--- when there is one, so a caller may route it through a clipboard manager, and on the plain
+--- system pasteboard otherwise, which is what an ordinary copy is. The guard and the hide are
+--- reveal's above, for the same reasons.
+function M.copyPath()
+  local row = selectedRow()
   if not (row and row.path) or row.status or row.help then return end
   noteUse(row)
-  -- The injected writer if there is one, and the system pasteboard otherwise.
-  --
-  -- Doing nothing when none was injected is what this did, and nothing was injected, so a key
-  -- advertised in the hint panel as Copy path closed the list and put nothing anywhere. The
-  -- fallback is a plain pasteboard write on purpose, matching what the retired root injected, so
-  -- this reads as an ordinary copy to anything watching the clipboard rather than as one of the
-  -- hidden writes the insertion paths use.
+  -- Doing nothing when no writer was injected is what this once did, and nothing was injected,
+  -- so a key advertised as Copy path closed the list and put nothing anywhere. The fallback is a
+  -- plain pasteboard write on purpose, matching what the retired root injected, so this reads as
+  -- an ordinary copy to anything watching the clipboard rather than as one of the hidden writes
+  -- the insertion paths use.
   if cfg.copy then
     cfg.copy(row.path)
   else
     hs.pasteboard.setContents(row.path)
   end
-  -- Migrated onto host/stage, the identical guard revealRow above carries and for the
-  -- identical reason.
   if showing and cfg.stageHide then cfg.stageHide() end
-end
-
---- chooser.copyPath() - put the highlighted path on the clipboard through the injected writer
---- when there is one, so a caller may route it through a clipboard manager, and on the plain
---- system pasteboard otherwise, which is what an ordinary copy is.
-function M.copyPath()
-  M.copyPathRow(selectedRow())
 end
 
 return M

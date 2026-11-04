@@ -6,8 +6,9 @@ in front of a word filters by file type, and a lone dot reaches the files macOS
 refuses to index. The list remembers what you actually open, copy, or reveal, so
 a file you reach for often rises even when it has not changed lately.
 
-Opens on Hyper and semicolon, appears in the launcher as a Plugin row, and can be
-searched without leaving the launcher by typing a slash.
+Opens on Hyper and semicolon, appears in the launcher as a Plugin row, and opens from the
+launcher by typing a slash and a space, which keeps the slash in the field, and deleting it
+steps back to the launcher.
 
 While the list is open, j and k move, i opens the highlighted file, l goes into a
 folder and h comes back up, f reveals it in Finder, y copies its path, q shows a

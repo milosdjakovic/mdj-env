@@ -238,14 +238,6 @@ return {
     },
   },
 
-  -- Scoped by the launcher, the alias is the slash itself, matching the tool's own
-  -- key, so typing it lists the same rows the picker does and choosing one does the
-  -- same thing.
-  provides = {
-    rows = "rows",
-    select = "select",
-  },
-
   -- Slash reads as search, the way it does in vim and in every browser find.
   --
   -- The two viewer seats are named here, BY NAME, and that is what lets this tool preview
@@ -321,10 +313,9 @@ return {
   },
 
   -- The presentation contract, contract v2, docs/BRIEF-CONTRACT-V2.md. rows and select are
-  -- chooser.rowsForQuery and chooser.choose, the identical two functions the launcher's own
-  -- scope path already calls through provides above, so the stage and a typed alias draw from
-  -- one supplier and one dispatcher rather than two that could disagree. placeholder resolves
-  -- once, at register, to whatever chooser.placeholder currently answers.
+  -- chooser.rowsForQuery and chooser.choose, and a typed alias reaches this same presentation,
+  -- so there is one supplier and one dispatcher. placeholder resolves once, at register, to
+  -- whatever chooser.placeholder currently answers.
   --
   -- No matcher, so the shared search ranks the rows, phase three of docs/PLAN-UNIFIED-SEARCH.md
   -- on 2026-10-17. Until then this declared matcher false, since the engine filtered and ordered
@@ -399,15 +390,10 @@ return {
   },
 
   -- Every one of these lives on the chooser submodule as a plain dot called function,
-  -- function M.show(), never a colon method, so open and every scope action below say dot
-  -- rather than taking the default. scopeRows is the one member the chooser did not use to
-  -- expose. It joins M.ensureSession and M.rowsForQuery exactly the way M.show already asks
-  -- for a session, so a scope entered on an empty query gets one going the same way opening
-  -- the real picker does. The scope declares the same searchText and rowLimit as the
-  -- presentation and no matcher, so a typed alias ranks the same rows the same way.
-  -- verbs mirrors the three real actions beyond choosing and previewing a row, each carrying
-  -- closes exactly as the retired root's own registration stated it, since whether running a
-  -- verb should close the list it ran against is this plugin's own fact about that verb.
+  -- function M.show(), never a colon method, so open says dot rather than taking the default.
+  -- There is no scope. This list has a preview pane, so Olm builds the scope for the slash
+  -- itself and hands a typed alias over to this presentation with the alias kept in the field,
+  -- decisions/olm-query-scope-handover.md, and the plugin declares only its aliases.
   --
   -- open still stays, and still matters even after migration, the hotkey door this plugin's
   -- own leader key binds to directly, VPN's identical precedent, chooser.show now asking
@@ -427,17 +413,5 @@ return {
     surface = "chooser",
     hosted = true,
     shortcut = "leader",
-    scope = {
-      rows = { member = "chooser.scopeRows", call = "dot" },
-      searchText = { member = "chooser.searchText", call = "dot" },
-      rowLimit = 200,
-      run = { member = "chooser.choose", call = "dot" },
-      peek = { member = "chooser.peekRow", call = "dot" },
-      verbs = {
-        revealInFinder = { member = "chooser.revealRow", call = "dot", closes = true },
-        copyPath = { member = "chooser.copyPathRow", call = "dot", closes = true },
-        peekPreview = { member = "chooser.peekRow", call = "dot", closes = false },
-      },
-    },
   },
 }

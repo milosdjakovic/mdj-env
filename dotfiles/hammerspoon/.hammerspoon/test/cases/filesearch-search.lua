@@ -106,13 +106,13 @@ chooser:configure({
 })
 
 local manifest = assert(loadfile(fs .. "manifest.lua"))()
-check("the presentation and the scope inherit the shared search",
-  manifest.presentation.matcher == nil and manifest.registry.scope.matcher == nil
-    and manifest.surface.matcher == nil)
-check("both declare searchText", manifest.presentation.searchText.member == "chooser.searchText"
-  and manifest.registry.scope.searchText.member == "chooser.searchText")
-check("both keep two hundred rows after ranking",
-  manifest.presentation.rowLimit == 200 and manifest.registry.scope.rowLimit == 200)
+check("the presentation inherits the shared search",
+  manifest.presentation.matcher == nil and manifest.surface.matcher == nil)
+check("it declares searchText", manifest.presentation.searchText.member == "chooser.searchText")
+check("it keeps two hundred rows after ranking", manifest.presentation.rowLimit == 200)
+-- The list has a preview pane, so Olm builds the scope for the slash from the aliases alone and
+-- hands a typed alias over to this presentation, decisions/olm-query-scope-handover.md.
+check("it declares no scope of its own", manifest.registry.scope == nil)
 local search = { searchText = chooser.searchText, rowLimit = manifest.presentation.rowLimit }
 
 local function titles(list)
