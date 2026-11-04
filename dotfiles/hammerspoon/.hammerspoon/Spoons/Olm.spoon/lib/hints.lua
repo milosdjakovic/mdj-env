@@ -220,8 +220,8 @@ end
 --- the level a press would leave being a pushed one, and never when the list already lists its own
 --- binding on a plain Backspace, the launcher's way out of a hosted list or a page's way back.
 --- When deps.legend holds
---- lines, each { badges, label }, they lead the list with no section and every key after them
---- carries section Keys, which both floating panes draw as a heading.
+--- lines, each { badges, label, lead }, they lead the list and the keys follow them, with no
+--- heading between.
 ---
 --- While the actions pane is open over the list, deps.actionsPane answers the panel row under the
 --- highlight, or an empty table, and the model describes the panel instead, since the panel
@@ -330,12 +330,12 @@ function obj.bottomBarModel(contextName, plan, deps)
   keys = kept
 
   -- The legend the root hands in, what each leader's symbol stands for, leads the info pane under
-  -- its header, and the keys then sit under a heading of their own so the two read apart.
+  -- its header, and the keys follow with no heading, one list of two columns, the words on the left
+  -- and the keys on the right, Milos's call on 2026-11-04.
   if deps.legend and #deps.legend > 0 then
-    for _, k in ipairs(keys) do k.section = "Keys" end
     local listed = {}
     for _, line in ipairs(deps.legend) do
-      listed[#listed + 1] = { badges = line.badges, label = line.label }
+      listed[#listed + 1] = { badges = line.badges, label = line.label, lead = line.lead }
     end
     for _, k in ipairs(keys) do listed[#listed + 1] = k end
     keys = listed

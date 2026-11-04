@@ -510,7 +510,12 @@ and the libs keep the rules. `test/rootmechanism.lua` pins all three over fakes.
 
 `lib/labels.lua` is the one spelling of a chord, a leader's name, a space and the key glyph, with a
 thin space after a shipped leader's symbol, ✦ Hyper, ◆ META and ● SUPER from `LEADER_SYMBOLS` in
-`root/compose.lua`, which the info pane's legend explains under Olm's name, and of
+`root/compose.lua`, which the info pane's legend explains under Olm's name, one line per leader,
+its symbol drawn bare before its word and its physical key as the line's chord, the Caps Lock
+symbol or right and the modifier's glyph, through `kbd.physical`, the lines a table of two columns,
+a line's symbol and word left aligned and its keys right aligned, with no heading between the
+legend and the keys, Milos's calls on
+2026-11-04, and of
 a set of aliases, the words in brackets. `chordLabel(glyphFor)` answers the speller every surface is
 handed, and the glyph helper is the shared cheat sheet renderer's, handed in rather than loaded
 because the spoon publishes that renderer once. The launcher and the bottom bar both spell a chord

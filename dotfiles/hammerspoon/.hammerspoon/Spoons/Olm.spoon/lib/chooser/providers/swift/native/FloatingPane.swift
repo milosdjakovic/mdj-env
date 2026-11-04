@@ -20,6 +20,9 @@ final class FloatingPaneView: FlippedView {
   struct Line {
     var label: String
     var chord: [[KeyMark]]
+    // Keys drawn bare before the label, the legend's leader symbol, floatingpane.lua's lead. The lines
+    // are two columns, a line's lead and label left aligned and its chord right aligned.
+    var lead: [[KeyMark]] = []
     var image: NSImage? = nil
     // The image is one colour, see Row's tint, redrawn in the lit ink on the highlighted line.
     var tint = false
@@ -79,7 +82,7 @@ final class FloatingPaneView: FlippedView {
   private let rule = NSBox()
   private let scroll = NSScrollView()
   let document = Document()
-  private var rows: [(label: NSTextField, chord: KeyCap, image: NSImageView?)] = []
+  private var rows: [(label: NSTextField, chord: KeyCap, image: NSImageView?, lead: KeyCap?)] = []
   private var iconSide: CGFloat = 0
   private var headings: [(field: NSTextField, top: CGFloat)] = []
   // The height of every line and heading together.
@@ -179,6 +182,7 @@ final class FloatingPaneView: FlippedView {
       row.label.removeFromSuperview()
       row.chord.removeFromSuperview()
       row.image?.removeFromSuperview()
+      row.lead?.removeFromSuperview()
     }
     for heading in headings { heading.field.removeFromSuperview() }
     // Each line's top and each heading's, a heading as tall as a line, taken above the first line
@@ -218,12 +222,15 @@ final class FloatingPaneView: FlippedView {
         view.imageScaling = .scaleProportionallyUpOrDown
         return view
       }
-      return (label, chord, image)
+      let lead = line.lead.isEmpty ? nil : KeyCap(line.lead, ink: ink, style: style, placement: placement,
+        holderH: lineH, holderRadius: 0, enabled: line.enabled, bare: true, keyFont: style.rowKeyFont)
+      return (label, chord, image, lead)
     }
     for row in rows {
       document.addSubview(row.label)
       document.addSubview(row.chord)
       if let image = row.image { document.addSubview(image) }
+      if let lead = row.lead { document.addSubview(lead) }
     }
     needsLayout = true
     layoutSubtreeIfNeeded()
@@ -242,6 +249,15 @@ final class FloatingPaneView: FlippedView {
     rows.contains { $0.image != nil } ? iconSide + gap : 0
   }
 
+  // The room a line's leading keys take, the widest lead and the gap, only on a line that has one.
+  private var leadCol: CGFloat {
+    rows.compactMap { $0.lead?.fittingSize.width }.max() ?? 0
+  }
+
+  private func leadW(_ row: (label: NSTextField, chord: KeyCap, image: NSImageView?, lead: KeyCap?)) -> CGFloat {
+    row.lead == nil ? 0 : leadCol + gap
+  }
+
   private var headerH: CGFloat {
     header.isHidden ? 0 : lineH + 1 + outer
   }
@@ -252,7 +268,7 @@ final class FloatingPaneView: FlippedView {
 
   // The size it would take with every line showing, its width the widest label and chord.
   var preferredSize: NSSize {
-    let widest = rows.map { lead + $0.label.fittingSize.width + gap + $0.chord.fittingSize.width }.max() ?? 0
+    let widest = rows.map { lead + leadW($0) + $0.label.fittingSize.width + gap + $0.chord.fittingSize.width }.max() ?? 0
     let width = max(widest + 2 * side, header.isHidden ? 0 : header.fittingSize.width + 2 * side)
     return NSSize(width: ceil(width),
       height: ceil(headerH + contentH + 2 * outer))
@@ -286,8 +302,13 @@ final class FloatingPaneView: FlippedView {
       let chordH = row.chord.fittingSize.height
       row.chord.frame = NSRect(x: bounds.width - side - chordW, y: y + (lineH - chordH) / 2,
         width: chordW, height: chordH)
-      row.label.frame = NSRect(x: side + lead, y: y + (lineH - labelH) / 2,
-        width: max(0, bounds.width - 2 * side - lead - chordW - gap), height: labelH)
+      let lw = leadW(row)
+      row.label.frame = NSRect(x: side + lead + lw, y: y + (lineH - labelH) / 2,
+        width: max(0, bounds.width - 2 * side - lead - lw - chordW - gap), height: labelH)
+      if let cap = row.lead {
+        let size = cap.fittingSize
+        cap.frame = NSRect(x: side + lead, y: y + (lineH - size.height) / 2, width: size.width, height: size.height)
+      }
       if let image = row.image {
         image.frame = Crisp.align(NSRect(x: side, y: y + (lineH - iconSide) / 2, width: iconSide, height: iconSide),
           in: document)

@@ -72,4 +72,16 @@ function M.rowKey(ui, tokens, chords, rightX, top, holderH, color)
   return keycapLib.elements(ui.measure, tokens, chords, "hint", rightX - w, top, holderH, opts)
 end
 
+--- M.leadKeyWidth(ui, tokens, chords) -> the width of keys drawn bare at the row title's size, a
+--- floating pane line's leading keys, the legend's leader symbol.
+function M.leadKeyWidth(ui, tokens, chords)
+  return keycapLib.width(ui.measure, tokens, chords, "hint", M.ROW_KEY_OPTS(nil))
+end
+
+--- M.leadKey(ui, tokens, chords, x, top, holderH, color) -> elements, the keys bare from x, centred
+--- in a holder holderH tall from top, in color, at the row title's size.
+function M.leadKey(ui, tokens, chords, x, top, holderH, color)
+  return keycapLib.elements(ui.measure, tokens, chords, "hint", x, top, holderH, M.ROW_KEY_OPTS(color))
+end
+
 return M

@@ -84,8 +84,12 @@ function M.style(ui, tokens, marginX, lineH)
 end
 
 --- M.layout(ui, style, title, lines, selectable) -> a floating pane's measured content, its preferred
---- size among it. title is the header, nil for none. Each line is { label, chord, picture,
---- section, enabled }, picture a function(frame) -> elements or nil. selectable says the lines
+--- size among it. title is the header, nil for none. Each line is { label, chord, picture, lead,
+--- section, enabled }, picture a function(frame) -> elements or nil, and lead a chord drawn bare
+--- before the label, the legend's leader symbol. The lines are a table of two columns with at least
+--- the large space step between them, the first left aligned, a line's lead and its label, the leads
+--- taking the widest one's room so the words after them line up, and the second right aligned, the
+--- chords, Milos's call on 2026-11-04. selectable says the lines
 --- are chosen rather than only read, so a highlight is drawn. The preferred size is every line
 --- showing, as wide as the widest label and chord, never narrower than the header.
 function M.layout(ui, style, title, lines, selectable)
@@ -98,6 +102,11 @@ function M.layout(ui, style, title, lines, selectable)
   end
   -- The room a line's picture takes, nothing for lines without one.
   local lead = pictured and (st.iconSide + st.gap) or 0
+  -- The room a line's leading keys take, the widest lead and the gap, only on a line that has one.
+  local leadCol = 0
+  for _, line in ipairs(lines) do
+    if line.lead then leadCol = math.max(leadCol, bottomBarLib.leadKeyWidth(ui, st.tokens, line.lead)) end
+  end
   -- How far a line's text stands in from the floating pane's sides, the inner padding inside a line the
   -- outer padding from the edge.
   local side = st.outer + st.inner
@@ -117,7 +126,8 @@ function M.layout(ui, style, title, lines, selectable)
     y = y + st.lineH
     line.labelW = width(line.label, st.font, st.size)
     line.chordW = bottomBarLib.keycapWidth(ui, st.tokens, line.chord)
-    widest = math.max(widest, lead + line.labelW + st.gap + line.chordW)
+    line.leadW = line.lead and (leadCol + st.gap) or 0
+    widest = math.max(widest, lead + line.leadW + line.labelW + st.gap + line.chordW)
   end
   local headerH = 0
   local w = widest + 2 * side
@@ -265,7 +275,11 @@ function M.elements(ui, pop, rect, opts)
       local enabled = line.enabled ~= false
       local chordX = rect.x + rect.w - side - line.chordW
       append(els, bottomBarLib.keycap(ui, st.tokens, line.chord, chordX, top, st.lineH, st.lineRadius, enabled))
-      local labelX = rect.x + side + pop.lead
+      local labelX = rect.x + side + pop.lead + (line.leadW or 0)
+      if line.lead then
+        append(els, bottomBarLib.leadKey(ui, st.tokens, line.lead, rect.x + side + pop.lead, top, st.lineH,
+          enabled and st.sub or st.subDim))
+      end
       els[#els + 1] = centredText(ui, line.label, st.font, st.size, enabled and st.text or st.textDim,
         labelX, top, st.lineH, chordX - st.gap - labelX)
       if line.picture then

@@ -521,7 +521,7 @@ end
 local function keyLines(model)
   local lines = {}
   for _, k in ipairs(model.keys or {}) do
-    lines[#lines + 1] = { label = k.label or "", chord = k.badges, section = k.section }
+    lines[#lines + 1] = { label = k.label or "", chord = k.badges, section = k.section, lead = k.lead }
   end
   return lines
 end

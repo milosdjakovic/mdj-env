@@ -273,18 +273,28 @@ local function leaderSymbol(catalogName)
   return nil
 end
 
--- The info pane's legend, one line per shipped leader under Olm's name, its symbol as the chord
--- and its word and physical key as the label, read from this load's leaders so a leader moved to
--- another key says so. A key name is its USAGE name spelled as words, capsLock as Caps Lock.
+-- The info pane's legend, one line per shipped leader under Olm's name, its symbol leading the line,
+-- its word as the label and its physical key as the chord, read from this load's leaders so a leader
+-- moved to another key says so. A held key is kbd.physical's, caps lock or right and Option, and a
+-- leader of modifiers alone is those modifiers in the menu bar's order.
 local function leaderLegend(leaderSpecs)
   local lines = {}
   for _, entry in ipairs(LEADER_SYMBOLS) do
     local word = entry.catalogName:sub(1, 1) .. entry.catalogName:sub(2):lower()
     for _, spec in ipairs(leaderSpecs) do
       if spec.catalogName == entry.catalogName then
-        local where = spec.key and tostring(spec.key):gsub("^%l", string.upper):gsub("(%l)(%u)", "%1 %2")
-          or "modifiers"
-        lines[#lines + 1] = { badges = { kbdLib.of(entry.key) }, label = word .. " \u{00B7} " .. where }
+        local where
+        if spec.key then
+          where = kbdLib.physical(tostring(spec.key))
+        elseif type(spec.mods) == "table" and #spec.mods > 0 then
+          local held, keys = {}, {}
+          for _, m in ipairs(spec.mods) do held[kbdLib.named(m)] = true end
+          for _, m in ipairs(kbdLib.MODIFIERS) do
+            if held[m] then keys[#keys + 1] = m end
+          end
+          if #keys > 0 then where = kbdLib.chord(keys) end
+        end
+        lines[#lines + 1] = { lead = kbdLib.of(entry.key), label = word, badges = where and { where } or nil }
       end
     end
   end

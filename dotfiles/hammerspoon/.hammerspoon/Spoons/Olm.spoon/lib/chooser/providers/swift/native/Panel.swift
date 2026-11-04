@@ -317,7 +317,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
         leftHidden: next.infoOpen, actionsHidden: next.actions != nil)
       keys.setOpen(next.infoOpen)
       if next.infoOpen {
-        keys.show(title: bottomBar.title, lines: bottomBar.keys.map { .init(label: $0.label, chord: $0.chord, section: $0.section) },
+        keys.show(title: bottomBar.title, lines: bottomBar.keys.map { .init(label: $0.label, chord: $0.chord, lead: $0.lead, section: $0.section) },
           style: style, placement: placement, outer: placement.barPillPad, inner: placement.barPillPad, lineH: placement.barPillH,
           gap: placement.barGapWide, radius: style.highlightRadius)
       }

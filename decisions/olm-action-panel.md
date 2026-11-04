@@ -174,3 +174,30 @@ its inputs and its answer for one on the right, and `floatingFrame` in `native/P
 twin. Each pane stops the pad clear of the other group, or of the window's far edge with none. In
 the launcher the legend's longest line now truncates, and shortening the legend's wording was left
 as a separate question. `test/canvasfloatingpane.lua` pins the mirror and both stops.
+
+### 2026-11-04 13:23
+
+The legend's lines changed shape rather than being cut. Milos asked for the leader symbol first,
+then its word, and the physical key on the right as key caps like every other line. A floating
+pane line may carry `lead`, a chord drawn bare before the label, every lead taking the widest
+one's room so the words line up, in `floatingpane.lua` and `FloatingPane.swift` alike, and
+`kbd.physical` spells a held leader's key, caps lock by name and a right hand modifier as right
+and its glyph. The widest legend line went from Super and its key in words to Super and two caps,
+so the info pane fits beside the right side in the launcher again.
+
+
+### 2026-11-04 13:31
+
+The info pane's lines became a table of three columns at Milos's ask, the leader symbols, the
+words and the keys, with the large space step between columns, every line taking the symbol
+column once any line has a symbol, so Move Down lines up under Hyper. The Keys heading between
+the legend and the keys is gone. Caps Lock draws as its symbol, from its SF Symbol in a key cap,
+and every spelling of it that `kbd.named` meets is that one key, so it draws the same wherever it
+is named. A symbol in a key cap is now rendered opaque and drawn at its colour's alpha, since the
+sparkle drawn in a translucent palette colour read another shade than the glyphs beside it.
+
+### 2026-11-04 13:42
+
+Corrected the 13:31 entry's three columns. Milos meant two, the first left aligned and holding a
+line's symbol and word, the second right aligned holding its keys, at least the large space step
+apart. A line with no symbol, Move Down, starts at the left edge rather than under Hyper's word.

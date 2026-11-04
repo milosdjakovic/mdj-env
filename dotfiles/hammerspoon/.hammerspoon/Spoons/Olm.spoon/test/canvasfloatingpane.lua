@@ -99,6 +99,30 @@ check("a read floating pane is its widest line and both paddings on both sides",
 check("and as tall as its header line, the rule, the padding under it, its lines and the outer padding", keys.h,
   math.ceil(lineH + T.stroke.border + T.barInner + 2 * lineH + 2 * T.barInner))
 
+-- The legend, a leader symbol drawn bare before each label and the physical key as the chord.
+check("caps lock is its own key", kbd.physical("capsLock").keys[1], kbd.CapsLock)
+for _, name in ipairs({ "capsLock", "capslock", "caps", "caps_lock", "Caps Lock" }) do
+  check("every spelling of Caps Lock is the one key, " .. name, kbd.named(name), kbd.CapsLock)
+end
+check("a right hand modifier is right and its glyph", #kbd.physical("rightOption").keys, 2)
+check("the second key the modifier itself", kbd.physical("rightOption").keys[2], kbd.Alt)
+check("a function key is itself", kbd.physical("f13").keys[1], kbd.named("f13"))
+check("a right hand modifier is read from its name, rightShift", kbd.physical("rightShift").keys[2], kbd.Shift)
+check("and rightControl", kbd.physical("rightControl").keys[2], kbd.Ctrl)
+local legend = floatingPane.layout(UI, style, nil, {
+  { lead = kbd.of(kbd.Hyper), label = "Hyper", chord = kbd.physical("capsLock") },
+  { label = "Move Down", chord = kbd.of(kbd.Down) },
+}, false)
+local leadW = bottomBarLib.leadKeyWidth(UI, T, kbd.of(kbd.Hyper))
+check("a line with a lead takes its room and the gap", legend.lines[1].leadW, leadW + T.space.l)
+check("a line without one starts at the left edge", legend.lines[2].leadW, 0)
+local legendEls = floatingPane.elements(UI, legend, { x = 0, y = 0, w = legend.w, h = legend.h }, {})
+local hyperLabel
+for _, el in ipairs(legendEls) do
+  if el.type == "text" and el.text == "Hyper" then hyperLabel = el end
+end
+check("the label stands after the lead", hyperLabel.frame.x, legend.side + leadW + T.space.l)
+
 -- The actions pane, chosen lines with sections and pictures.
 local picture = function(frame) return { { type = "image", frame = frame } } end
 local actions = floatingPane.layout(UI, style, nil, {

@@ -298,7 +298,8 @@ local function bottomBarData(model)
     right[#right + 1] = { label = r.label or "", chord = kbd.wire(r.chord), action = r.action, fit = r.fit == true }
   end
   for _, k in ipairs(model.keys or {}) do
-    keys[#keys + 1] = { label = k.label or "", chord = kbd.wire(k.badges), section = k.section }
+    keys[#keys + 1] = { label = k.label or "", chord = kbd.wire(k.badges), section = k.section,
+      lead = k.lead and kbd.wire(k.lead) or nil }
   end
   local icon = model.infoIcon
   local keysImage, keysTint = nil, false

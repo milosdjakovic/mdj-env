@@ -78,6 +78,12 @@ M.Up = key("up", "\u{2191}", "key")
 M.Down = key("down", "\u{2193}", "key")
 M.Question = key("?", "?", "key")
 
+-- The physical keys a held leader may sit on, which the info pane's legend draws as caps. Caps Lock
+-- is its own glyph, drawn from its SF Symbol in a key cap, and a right hand modifier is the word
+-- right before the modifier's own glyph, two keys of one chord, so it stays the glyph a person knows.
+M.CapsLock = key("capslock", "\u{21EA}", "key", "capslock")
+M.RightHand = key("righthand", "right", "side")
+
 -- The shipped leaders, each a symbol rather than a word so a chord stays a row of glyphs, a star,
 -- a diamond and a dot, three shapes none of which can be taken for another. A leader the person
 -- names has none and reads as its own word, through kbd.leader.
@@ -94,7 +100,11 @@ local NAMED = {
   escape = M.Escape, delete = M.Delete, forwarddelete = M.ForwardDelete,
   left = M.Left, right = M.Right, up = M.Up, down = M.Down, ["?"] = M.Question,
   hyper = M.Hyper, meta = M.Meta, super = M.Super,
+  -- Every spelling of Caps Lock is the one key, so it draws as its symbol wherever it is named.
+  capslock = M.CapsLock, caps = M.CapsLock, caps_lock = M.CapsLock, ["caps lock"] = M.CapsLock,
 }
+
+
 -- A key whose shifted character is what a person reads, so slash with Shift is a question mark
 -- rather than Shift and slash.
 local SHIFTED = { ["/"] = M.Question }
@@ -102,6 +112,19 @@ local SHIFTED = { ["/"] = M.Question }
 -- Every other key, a letter, a digit or a punctuation mark, made once per name so one name is
 -- always the same object. Its glyph is the name upper cased.
 local plain = {}
+
+--- kbd.physical(name) -> chord. A held leader's physical key, a USAGE name from lib/keyremap.lua,
+--- as the keys a person reads. A name of the right hand side and a modifier, rightOption or
+--- rightShift, is right and that modifier's own key, read from the name rather than listed, so a key
+--- added to the allow list draws with no edit here. Every other name is kbd.named's, Caps Lock its
+--- symbol and a function key itself.
+function M.physical(name)
+  assert(type(name) == "string" and name ~= "", "kbd.physical takes a key name, got " .. tostring(name))
+  local side = name:lower():match("^right(.+)$")
+  local modifier = side and NAMED[side]
+  if modifier and modifier.kind == "modifier" then return M.chord({ M.RightHand, modifier }) end
+  return M.chord({ M.named(name) })
+end
 
 --- kbd.named(name) -> key. The one door a key name that is data crosses, a binding's key field or a
 --- word from config/keymap.lua. A known name is its constant and any other is a plain key drawn as

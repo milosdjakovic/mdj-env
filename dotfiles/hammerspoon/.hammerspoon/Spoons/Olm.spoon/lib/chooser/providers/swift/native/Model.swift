@@ -236,6 +236,8 @@ struct BottomBar {
     var action: String? = nil
     // The heading a info pane line is listed under, nil for the legend that leads it.
     var section: String? = nil
+    // Keys drawn bare before an info pane line's label, the legend's leader symbol.
+    var lead: [[KeyMark]] = []
     // A bar label that gives up width, ending in an ellipsis, when the right side would reach
     // past the left side, the primary's and the secondary's.
     var fit = false
@@ -260,7 +262,7 @@ struct BottomBar {
     }
     r.each(t, "keys") { e in
       keys.append(Entry(label: r.string(e, "label") ?? "", chord: r.chord(e, "chord"),
-        section: r.string(e, "section")))
+        section: r.string(e, "section"), lead: r.chord(e, "lead")))
     }
     keysChord = r.chord(t, "keysChord")
     keysImage = r.image(t, "keysImage")
