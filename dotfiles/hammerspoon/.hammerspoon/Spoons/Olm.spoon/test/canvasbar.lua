@@ -349,10 +349,50 @@ check("to its bottom", divider and divider.frame.h, canvasRect.h)
 check("and the right side floats over the pane", view._barHits.actions.x + view._barHits.actions.w,
   pane.x + pane.w - T.pad)
 
-if failed then
-  print("canvasbar.lua, FAILED")
-  os.exit(1)
+-- Drawn in a narrow bar, the right side stops the bar pad clear of the left side, only the long
+-- fit label is cut, ending in an ellipsis, and the short one, Actions and every cap stay whole.
+do
+  local long = "Paste " .. string.rep("and keep going ", 12)
+  local narrow = { x = 0, y = 400, w = 600, h = groupH + T.pad }
+  local fitModel = {
+    keysChord = kbd.of(kbd.Cmd, kbd.Question),
+    right = {
+      { label = long, chord = kbd.of(kbd.Return), action = "primary", fit = true },
+      { label = "Copy", chord = kbd.of(kbd.Cmd, kbd.Return), action = "secondary", fit = true },
+      { label = "Actions", chord = kbd.of(kbd.Cmd, kbd.named("k")), action = "actions" },
+    },
+  }
+  local fEls, fHits = barLib.elements(ui, T, fitModel, narrow, { radius = 9 })
+  check("a long label keeps the right side clear of the left side by the bar pad",
+    fHits.actions.x >= fHits.keys.x + fHits.keys.w + T.pad, true)
+  check("and still flush with the bar pad from the right", fHits.actions.x + fHits.actions.w, narrow.x + narrow.w - T.pad)
+  local byText = {}
+  for _, el in ipairs(texts(fEls)) do
+    local str = type(el.text) == "table" and el.text.str or el.text
+    byText[str] = el
+  end
+  local cut = byText[long]
+  check("the long label is drawn", cut ~= nil, true)
+  check("narrower than it measures", cut and cut.frame.w < 8 * #long, true)
+  local lb = cut and (cut.textLineBreak or (type(cut.text) == "table" and cut.text.attrs
+    and cut.text.attrs.paragraphStyle and cut.text.attrs.paragraphStyle.lineBreak))
+  check("ending in an ellipsis", lb, "truncateTail")
+  check("the short fit label is whole", byText["Copy"] and byText["Copy"].frame.w >= 8 * #"Copy", true)
+  check("Actions is whole", byText["Actions"] and byText["Actions"].frame.w >= 8 * #"Actions", true)
+  -- Every item keeps room for its cap, its label and cap the padding in from its sides.
+  for i, item in ipairs(fHits.items) do
+    local chord = fitModel.right[i].chord
+    check("item " .. i .. " keeps room for its cap", item.rect.w >= capW(chord) + 2 * T.barInner, true)
+  end
+  local wide = barLib.elements(ui, T, fitModel, { x = 0, y = 400, w = 4000, h = groupH + T.pad }, { radius = 9 })
+  local whole = false
+  for _, el in ipairs(texts(wide)) do
+    local str = type(el.text) == "table" and el.text.str or el.text
+    if str == long and el.frame.w >= 8 * #long then whole = true end
+  end
+  check("in a bar wide enough nothing is cut", whole, true)
 end
+
 -- The labels marked fit give up width when the right side would reach past the left side, the
 -- longest first, and a label not marked fit is never cut.
 do
@@ -366,6 +406,11 @@ do
   out = barLib.fitLabels({ 150, 200, 60 }, items, 200)
   check("two long fit labels share what is left", out[1], 70)
   check("equally", out[2], 70)
+end
+
+if failed then
+  print("canvasbar.lua, FAILED")
+  os.exit(1)
 end
 
 print("canvasbar.lua, all passed")

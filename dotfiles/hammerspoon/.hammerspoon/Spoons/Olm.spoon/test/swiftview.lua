@@ -566,6 +566,26 @@ do
   check("the bar's one colour keys picture is sent with tint", lastUpdate and lastUpdate.bottomBar
     and lastUpdate.bottomBar.keysTint, true)
   panelled:hide()
+
+  -- The bar's right side carries which labels give up width, the primary's and the secondary's,
+  -- so Bar.swift cuts those and keeps Actions whole, the same rule bar.lua draws by.
+  local kbd = dofile(spoon .. "lib/kbd.lua")
+  local fitted = Engine.new({
+    rows = function() return paneRows end,
+    bottomBar = function()
+      return { right = {
+        { label = "Paste", chord = kbd.of(kbd.Return), action = "primary", fit = true },
+        { label = "Copy", chord = kbd.of(kbd.Cmd, kbd.Return), action = "secondary", fit = true },
+        { label = "Actions", chord = kbd.of(kbd.Cmd, kbd.named("k")), action = "actions" },
+      }, keys = {}, state = "" }
+    end,
+  }, function(engine) return View.new(engine, native) end)
+  fitted:show()
+  local right = lastUpdate and lastUpdate.bottomBar and lastUpdate.bottomBar.right or {}
+  check("the primary's label is sent to give up width", right[1] and right[1].fit, true)
+  check("the secondary's too", right[2] and right[2].fit, true)
+  check("Actions is sent whole", right[3] and right[3].fit, false)
+  fitted:hide()
 end
 
 -- A long list of rows that each name an icon key, the shape the launcher's catalog has. Opening

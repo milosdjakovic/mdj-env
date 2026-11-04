@@ -314,6 +314,49 @@ check("the actions pane is gone", view._floatingPanes.actions, nil)
 check("its scroll forgotten", view._popScroll.actions, nil)
 check("a row is a row again", view:_rowIndexAtPoint(onRow), 1)
 
+-- The actions pane's width holds while it is open. The right side at rest is Paste, Copy and
+-- Actions, and open it describes the panel, its Return label the lit line's, Mullvad or IVPN,
+-- so the pane keeps the width the right side had at rest and does not follow the label.
+do
+  local Return, CmdReturn, Actions = kbd.of(kbd.Return), kbd.of(kbd.Cmd, kbd.Return), kbd.of(kbd.Cmd, kbd.named("k"))
+  scene.list = listRows
+  scene.bottomBar.panelOpen = false
+  scene.bottomBar.right = {
+    { label = "Paste", chord = Return, action = "primary", fit = true },
+    { label = "Copy", chord = CmdReturn, action = "secondary", fit = true },
+    { label = "Actions", chord = Actions, action = "actions" },
+  }
+  view:redraw()
+  local restW = view._anchors.actions.w
+  local restRight = view._anchors.actions.x + view._anchors.actions.w
+  scene.list = panelRows
+  scene.bottomBar.panelOpen = true
+  scene.bottomBar.right = { { label = "Mullvad", chord = Return, fit = true }, { label = "Actions", chord = Actions } }
+  view:redraw()
+  local first = view._floatingPanes.actions.rect
+  check("open over a shorter right side, the pane keeps the rest width", first.w, restW)
+  check("its right edge where the right side stood", first.x + first.w, restRight + scene.rects.canvas.x)
+  scene.bottomBar.right[1].label = "IVPN"
+  view:redraw()
+  check("the width holds as the Return label follows the lit line", view._floatingPanes.actions.rect.w, first.w)
+  scene.bottomBar.right[1].label = "A much longer lit line title"
+  view:redraw()
+  check("whatever the label", view._floatingPanes.actions.rect.w, first.w)
+
+  -- A pane line longer than the room stops the pane the bar pad clear of the left side.
+  scene.list = listModel.newState({
+    { title = "Open " .. string.rep("with a very long verb title ", 8), chord = Return, item = "open" },
+  }, drawLayout)
+  view:redraw()
+  local lp = view._floatingPanes.actions.rect
+  local keysRight = view._anchors.keys.x + view._anchors.keys.w + scene.rects.canvas.x
+  check("a long line stops the pane the bar pad clear of the left side", lp.x, keysRight + T.pad)
+  check("its right edge still where the right side stands", lp.x + lp.w, restRight + scene.rects.canvas.x)
+  scene.list = listRows
+  scene.bottomBar.panelOpen = false
+  view:redraw()
+end
+
 if failed then
   print("canvasfloatingpane, FAILED")
   os.exit(1)
