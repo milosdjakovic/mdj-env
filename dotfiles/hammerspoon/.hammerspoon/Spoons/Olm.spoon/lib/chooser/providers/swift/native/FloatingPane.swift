@@ -268,7 +268,11 @@ final class FloatingPaneView: FlippedView {
 
   // The size it would take with every line showing, its width the widest label and chord.
   var preferredSize: NSSize {
-    let widest = rows.map { lead + leadW($0) + $0.label.fittingSize.width + gap + $0.chord.fittingSize.width }.max() ?? 0
+    // A table, the widest first column, the gap and the widest last column, so every label keeps the
+    // gap from every chord rather than only from its own, floatingpane.lua's layout.
+    let firstCol = rows.map { lead + leadW($0) + $0.label.fittingSize.width }.max() ?? 0
+    let lastCol = rows.map { $0.chord.fittingSize.width }.max() ?? 0
+    let widest = rows.isEmpty ? 0 : firstCol + gap + lastCol
     let width = max(widest + 2 * side, header.isHidden ? 0 : header.fittingSize.width + 2 * side)
     return NSSize(width: ceil(width),
       height: ceil(headerH + contentH + 2 * outer))

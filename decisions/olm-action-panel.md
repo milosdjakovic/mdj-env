@@ -201,3 +201,11 @@ sparkle drawn in a translucent palette colour read another shade than the glyphs
 Corrected the 13:31 entry's three columns. Milos meant two, the first left aligned and holding a
 line's symbol and word, the second right aligned holding its keys, at least the large space step
 apart. A line with no symbol, Move Down, starts at the left edge rather than under Hyper's word.
+
+### 2026-11-04 13:45
+
+A floating pane is sized as a table now. Its width was its widest line, so a long label beside a
+short chord left a long chord on another line almost touching its own label, Close and its two
+caps under Move Down in the info pane. It is the widest first column, the large space step and the
+widest last column, in `floatingpane.lua` and `FloatingPane.swift` alike, so every label keeps the
+gap from every chord.

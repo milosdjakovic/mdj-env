@@ -123,6 +123,14 @@ for _, el in ipairs(legendEls) do
 end
 check("the label stands after the lead", hyperLabel.frame.x, legend.side + leadW + T.space.l)
 
+-- A table, the widest label and the widest chord on different lines still keep the gap between them.
+local tableLines = floatingPane.layout(UI, style, nil, {
+  { label = "A long label here", chord = kbd.of(kbd.Down) },
+  { label = "X", chord = kbd.of(kbd.Cmd, kbd.Shift, kbd.named("x")) },
+}, false)
+check("the width is the widest first column, the gap and the widest last column", tableLines.w,
+  math.ceil(tableLines.lines[1].labelW + T.space.l + tableLines.lines[2].chordW + 2 * tableLines.side))
+
 -- The actions pane, chosen lines with sections and pictures.
 local picture = function(frame) return { { type = "image", frame = frame } } end
 local actions = floatingPane.layout(UI, style, nil, {

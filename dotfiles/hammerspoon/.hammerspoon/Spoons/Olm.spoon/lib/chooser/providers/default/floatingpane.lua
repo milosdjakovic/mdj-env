@@ -115,7 +115,7 @@ function M.layout(ui, style, title, lines, selectable)
   -- taken above the first line of a run naming a section different from the line before it.
   local tops, headings = {}, {}
   local y, previous = 0, nil
-  local widest = 0
+  local widest, firstCol, lastCol = 0, 0, 0
   for i, line in ipairs(lines) do
     if line.section and line.section ~= previous then
       headings[#headings + 1] = { text = line.section, top = y }
@@ -127,8 +127,12 @@ function M.layout(ui, style, title, lines, selectable)
     line.labelW = width(line.label, st.font, st.size)
     line.chordW = bottomBarLib.keycapWidth(ui, st.tokens, line.chord)
     line.leadW = line.lead and (leadCol + st.gap) or 0
-    widest = math.max(widest, lead + line.leadW + line.labelW + st.gap + line.chordW)
+    firstCol = math.max(firstCol, lead + line.leadW + line.labelW)
+    lastCol = math.max(lastCol, line.chordW)
   end
+  -- A table, the widest first column, the gap and the widest last column, so every label keeps the
+  -- gap from every chord rather than only from its own.
+  widest = firstCol + st.gap + lastCol
   local headerH = 0
   local w = widest + 2 * side
   if title then
