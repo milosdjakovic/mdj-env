@@ -402,7 +402,7 @@ hostedrows.context name=caffeinate rowCount=1
 hostedrows.context name=clipboard rowCount=1
 hostedrows.context name=displayProfiles rowCount=1
 hostedrows.context name=emoji rowCount=1
-hostedrows.context name=fileSearch rowCount=4
+hostedrows.context name=fileSearch rowCount=1
 hostedrows.context name=inputsources rowCount=1
 hostedrows.context name=launcher rowCount=1
 hostedrows.context name=menuSearch rowCount=1
@@ -425,9 +425,6 @@ hostedrows.row context=clipboard action=- title=Back chord=kbd.chord{delete} ico
 hostedrows.row context=displayProfiles action=- title=Back chord=kbd.chord{delete} icon=back closes=-
 hostedrows.row context=emoji action=- title=Back chord=kbd.chord{delete} icon=back closes=-
 hostedrows.row context=fileSearch action=- title=Back chord=kbd.chord{delete} icon=back closes=-
-hostedrows.row context=fileSearch action=copyPath title=Copy Path chord=- icon=copy closes=true
-hostedrows.row context=fileSearch action=peekPreview title=Quick Look chord=- icon=peek closes=false
-hostedrows.row context=fileSearch action=revealInFinder title=Reveal in Finder chord=- icon=search closes=true
 hostedrows.row context=inputsources action=- title=Back chord=kbd.chord{delete} icon=back closes=-
 hostedrows.row context=launcher action=- title=Back chord=kbd.chord{delete} icon=back closes=-
 hostedrows.row context=menuSearch action=- title=Back chord=kbd.chord{delete} icon=back closes=-
@@ -455,7 +452,7 @@ tools.entry name=colorPicker active=true surface=false hosted=false scope=false
 tools.entry name=displayProfiles active=true surface=true hosted=false scope=false
 tools.entry name=dockAutoHide active=true surface=false hosted=true scope=true
 tools.entry name=emoji active=true surface=false hosted=true scope=true
-tools.entry name=fileSearch active=true surface=true hosted=true scope=true
+tools.entry name=fileSearch active=true surface=true hosted=true scope=false
 tools.entry name=inputsources active=true surface=false hosted=true scope=true
 tools.entry name=menuSearch active=true surface=false hosted=false scope=true
 tools.entry name=obsidian active=true surface=false hosted=false scope=true
@@ -464,7 +461,7 @@ tools.entry name=olmplacement active=true surface=false hosted=false scope=false
 tools.entry name=olmplugins active=true surface=false hosted=false scope=false
 tools.entry name=olmtheme active=true surface=false hosted=false scope=false
 tools.entry name=processes active=true surface=true hosted=false scope=false
-tools.entry name=speedtest active=true surface=true hosted=true scope=true
+tools.entry name=speedtest active=true surface=true hosted=true scope=false
 tools.entry name=textCase active=true surface=false hosted=false scope=true
 tools.entry name=volume active=true surface=false hosted=true scope=true
 tools.entry name=vpn active=true surface=false hosted=true scope=true
