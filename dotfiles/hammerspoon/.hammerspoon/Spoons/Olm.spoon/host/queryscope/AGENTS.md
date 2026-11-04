@@ -292,14 +292,22 @@ job from growing four to imitate a whole tool. The second stops the alias list f
 lesser copies, where the same word reaching a tool one way and a diminished version of it another
 way is worse than there being one way in.
 
-## What cannot be scoped in place, and why that is a presenter limit
+## A tool whose list carries a preview pane is handed over rather than scoped
 
-A tool whose list is only half of it, the other half being a canvas docked beside the rows,
-cannot come along. The presenter reserves no preview pane and the pane width is fixed when a
-chooser is built, so the clipboard and Processes would arrive stripped of the preview that is
-most of what they are. That is a limit of the presenter rather than of this spoon, and lifting
-it means a preview pane a scope can claim and drive, which is a change to the Chooser atom.
-Recorded here because the question comes up per tool and the answer is the same every time.
+A tool whose list is only half of it, the other half being a preview pane beside the rows,
+cannot come along, since the launcher reserves no pane, so File Search, Speed Test, the clipboard
+and Processes would arrive stripped of the preview that is most of what they are. So such a scope
+is not shown at all. The root gives it a `handOver`, a function of the typed rest, `rows` answers
+it as a third value on every claim, and the presenter calls it on its own next turn, never while
+building the list, since asking what a query shows must not change what is showing. The root's
+function pushes the tool's presentation onto the stage, the same push choosing its launcher row
+makes, and puts the rest into its field, so `/ report` and choosing File Search then typing
+report are one list. This is the rule above applied by the mechanism rather than per tool, the
+pane being what the scope would have to leave out. Backspace on an empty field steps back, as it
+does after choosing the row, which is the one place a typed word stops being undone by deleting
+its space. The presenter knows only that a claim may hand over, and this spoon knows only that a
+scope may say so. `decisions/olm-query-scope-handover.md` has why a scope that drives a pane of its
+own, and handing over every tool that presents, were turned down.
 
 ## Why one file, and what would split it
 

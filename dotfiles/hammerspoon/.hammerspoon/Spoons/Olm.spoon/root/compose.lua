@@ -3087,6 +3087,27 @@ function obj.run(olm, cfg)
       or (plan.sets.queryscope or {}).scopes
     local scopes = registrarLib.scopeSpec(plan, wiredRegistry, scopeNames, registryMeta) or {}
 
+    -- A typed word reaching a tool whose own list carries a preview pane hands the list over to
+    -- that tool, the same push choosing its launcher row makes, with whatever was typed after the
+    -- word in its field. The launcher reserves no pane, so a scope can only ever show such a tool
+    -- without the pane, which is the part of it the tool is for, and handing over is what the
+    -- query scope's own rule says to do when a scope would leave out the point of its tool. A
+    -- tool with no pane keeps its scope, where deleting the space is still the way back.
+    -- decisions/olm-query-scope-handover.md has it.
+    for _, s in ipairs(scopes) do
+      local presentation = wiredRegistry.presentationFor and wiredRegistry.presentationFor(s.name)
+      local width = presentation and presentation.previewPaneWidth
+      if width == true or (type(width) == "number" and width > 0) then
+        s.handOver = function(rest)
+          if not stageModule then return end
+          stageModule:push(presentation)
+          if rest ~= "" and stageModule:current() == presentation.name then
+            stageModule:setQuery(rest)
+          end
+        end
+      end
+    end
+
     -- Two scopes claiming one typed word, named rather than ranked.
     --
     -- The retired root settled these with a hand written order of every scope, and porting that

@@ -258,6 +258,12 @@ recency timeline for the same reason a computed one is, it belongs to the query 
 produced it, so remembering it would float a stale answer to the top of the next
 fresh open.
 
+A claim may also say it belongs in a list of its own, a third value, a callable that shows that
+list. `_scheduleHandOver` calls it on the next turn of the run loop through one kept timer, never
+inside the rows supplier, and only while this launcher is still the list on screen. The query
+scope answers one for a tool whose list carries a preview pane, which this host reserves none
+for, and what the callable shows is the root's business, see the query scope's `AGENTS.md`.
+
 A claimed row can also be asked about rather than taken. `peekSelected` hands the highlighted
 descriptor back out through an injected action, the same shape as running one, so this learns no
 more about a peek than it does about a run. Only a claimed row has anywhere to send the question,

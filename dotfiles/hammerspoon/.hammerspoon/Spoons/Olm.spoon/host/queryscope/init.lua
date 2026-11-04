@@ -84,6 +84,9 @@ local function admissible(s)
   if s.act ~= nil and type(s.act) ~= "function" then
     return reject(label .. " has an act that is not a function")
   end
+  if s.handOver ~= nil and type(s.handOver) ~= "function" then
+    return reject(label .. " has a handOver that is not a function")
+  end
   if s.searchText ~= nil and type(s.searchText) ~= "function" then
     return reject(label .. " has a searchText that is not a function")
   end
@@ -97,9 +100,11 @@ end
 --- QueryScope:configure(opts)
 --- Method
 --- opts.scopes  the ordered scope list, each a table answering name, title, aliases, rows,
----              and run, plus an optional icon, iconOwner, matcher, peek, redirect, and act. icon
----              is the scope's identity icon, a key into the manifest icons of iconOwner, which
----              is the scope's own name when it declares none, or a table spec.
+---              and run, plus an optional icon, iconOwner, matcher, peek, redirect, act and
+---              handOver. handOver is a function of the typed rest that shows the tool's own
+---              list in place of the scope, see rows below. icon is the scope's identity
+---              icon, a key into the manifest icons of iconOwner, which is the scope's own
+---              name when it declares none, or a table spec.
 --- opts.stampIcons  function of a list of rows and an owner identity, answering the rows with
 ---              iconOwner set on every one that names an icon, lib/icons/rows.lua. The scope's
 ---              own name is the owner, so a scope row names an icon the way a presentation row
@@ -306,10 +311,33 @@ end
 --- the rows it stands in for. The failure row names the scope and not the query, so it is
 --- pinned. Each is the only row of a claimed query, so the kind decides nothing about order
 --- today and says what the row is.
+---
+--- A scope declaring handOver answers a third value on every claim, a callable that hands the
+--- typed rest to the tool's own list in place of these rows. The rows are still answered, so the
+--- list reads right for the moment before the presenter acts on it, and asking never hands over,
+--- since the presenter decides when to call it.
 function obj:rows(query)
   local scope, rest = self:resolve(query)
   if not scope then return {}, false end
+  local handOver = self:_handOverFor(scope, rest)
+  local rows, exclusive = self:_claimedRows(scope, rest, query)
+  return rows, exclusive, handOver
+end
 
+-- The callable a claim answers for a scope that declared handOver, or nil. pcall wrapped like
+-- run, peek and act, so a tool that raises while taking the list costs a console line.
+function obj:_handOverFor(scope, rest)
+  if not scope.handOver then return nil end
+  return function()
+    local ok, err = pcall(scope.handOver, rest)
+    if not ok then
+      hs.printf("QueryScope: handing the %s scope over failed, %s", scope.name, tostring(err))
+    end
+  end
+end
+
+-- The rows a claimed query shows, see rows above.
+function obj:_claimedRows(scope, rest, query)
   local scopeIcon, scopeOwner = self:_identityIcon(scope)
   local ok, rows = pcall(scope.rows, rest)
   if not ok then

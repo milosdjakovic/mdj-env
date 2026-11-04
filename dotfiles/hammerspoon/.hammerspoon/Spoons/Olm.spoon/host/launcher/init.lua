@@ -71,6 +71,7 @@ obj._orderedRowsCache = nil      -- all rows, recency-sorted, invalidated on any
 obj._appRowsWatcher = nil
 obj._appDirWatchers = nil        -- hs.pathwatcher list, one per watched app directory
 obj._warmTimer = nil             -- the debounced disk scan warm up, see _warmAppScan
+obj._handOverTimer = nil         -- a pending hand over of the list to a tool's own, see _scheduleHandOver
 obj._chordWarned = nil           -- one shot flag, so a missing chord speller warns once, at the first open
 obj._mru = nil              -- most-recently-used item keys, front is most recent
 obj._assoc = nil            -- the query association store, what each typed query has come to mean
@@ -882,7 +883,7 @@ function obj:_queryRows(query)
   if not query or query == "" then return {}, false end
   local out = {}
   for _, provider in ipairs(self._queryProviders) do
-    local ok, rows, exclusive = pcall(function() return provider:rows(query) end)
+    local ok, rows, exclusive, handOver = pcall(function() return provider:rows(query) end)
     if not ok then
       hs.printf("Launcher: a query source failed, %s", tostring(rows))
     else
@@ -899,7 +900,9 @@ function obj:_queryRows(query)
           fromQuery = true,
         }
       end
-      if exclusive then return out, true end
+      if exclusive then
+        return out, true, type(handOver) == "function" and handOver or nil
+      end
     end
   end
   return out, false
@@ -943,12 +946,17 @@ function obj:_commandRows(query)
   -- because hosting reuses the mechanism a typed word already goes through rather than adding a
   -- second one, and this spoon still cannot tell what it is hosting.
   if self._page then
-    return (self:_queryRows(self._page .. query))
+    local out, _, handOver = self:_queryRows(self._page .. query)
+    if handOver then self:_scheduleHandOver(handOver) end
+    return out
   end
-  local out, exclusive = self:_queryRows(query)
+  local out, exclusive, handOver = self:_queryRows(query)
   -- A source claimed the query, so its rows are the entire list and the catalog below is
   -- skipped. This one line is the whole of what the launcher knows about being scoped.
-  if exclusive then return out end
+  if exclusive then
+    if handOver then self:_scheduleHandOver(handOver) end
+    return out
+  end
   local preds = self._predicates
   local bonus = self:_memoryBonus(query)
   for _, row in ipairs(self:_orderedRows()) do
@@ -963,6 +971,27 @@ function obj:_commandRows(query)
     end
   end
   return out
+end
+
+--- Launcher:_scheduleHandOver(handOver)
+--- Method
+--- A source that claimed the query may answer that the claim belongs in a list of its own, a
+--- callable that shows it. It is called on the next turn of the run loop, never inside the rows
+--- supplier, since asking what a query shows must not change what is showing, and the stage is
+--- in the middle of building this list when it asks. One timer, its handle kept, restarted by a
+--- newer claim, and it does nothing when the launcher has stopped being the list on screen by
+--- the time it fires, a person who escaped or opened something else in between. This host still
+--- learns nothing about what the callable shows.
+function obj:_scheduleHandOver(handOver)
+  if self._handOverTimer then self._handOverTimer:stop() end
+  self._handOverTimer = hs.timer.doAfter(0, function()
+    self._handOverTimer = nil
+    if not (self._stage and self._stage:isShowing() and self._stage:isCurrent(self._presentation)) then
+      return
+    end
+    self:leavePage()
+    handOver()
+  end)
 end
 
 --- Launcher:_memoryBonus(query) -> { [recencyKey] = bonus }
@@ -1463,6 +1492,10 @@ function obj:stop()
   if self._warmTimer then
     self._warmTimer:stop()
     self._warmTimer = nil
+  end
+  if self._handOverTimer then
+    self._handOverTimer:stop()
+    self._handOverTimer = nil
   end
   if self._appRowsWatcher then
     self._appRowsWatcher:stop()
