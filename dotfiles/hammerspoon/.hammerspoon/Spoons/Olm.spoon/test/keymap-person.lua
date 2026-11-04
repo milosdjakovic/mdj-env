@@ -853,7 +853,7 @@ do
   eq(listKeys(contexts, "pane", "selectNext"), "n", "and a list with no navigation moves its actions pane on it too")
   local moved
   for _, b in ipairs(contexts.clip.bindings) do if b.action == "selectNext" then moved = b end end
-  eq(moved and moved.description, "Move down", "the moved binding keeps its label")
+  eq(moved and moved.description, "Move Down", "the moved binding keeps its label")
   eq(moved and moved.entry, "all hyper+n", "and names the entry it came from")
   local order = {}
   for _, b in ipairs(contexts.clip.bindings) do order[#order + 1] = b.action end
@@ -1479,7 +1479,7 @@ do
     keys[#keys + 1] = table.concat(spelled, "+") .. " " .. k.label
   end
   eq(table.concat(keys, " | "),
-    "\u{2726}J+\u{2193} Move down | \u{2726}K+\u{2191} Move up | \u{2726}X+esc Close",
+    "\u{2726}J+\u{2193} Move Down | \u{2726}K+\u{2191} Move Up | \u{2726}X+esc Close",
     "bottomBar: the navigation keys in declaration order, nothing the bar or the rows already show, no verb the actions pane lists, and no Back on a level Backspace does not leave")
   local function panelPeek()
     for _, row in ipairs(hints.rowsFor("bar", plan, deps)) do if row.action == "peek" then return true end end
@@ -1558,7 +1558,7 @@ do
   eq(panel.right[2].action, "openActionsPane", "panel: the second entry closes the panel")
   eq(panel.keysChord ~= nil and txt(panel.keysChord) == txt(hints.bottomBarModel("bar", plan, (function() local d = {} for k, v in pairs(deps) do d[k] = v end d.actionsPane = nil return d end)()).keysChord), true,
     "panel: the left side keeps its chord while the actions pane is open")
-  eq(keyLabels(panel), "Move down,Move up,Close,Back",
+  eq(keyLabels(panel), "Move Down,Move Up,Close,Back",
     "panel: the info pane lists the shared held keys and Back, not the list's own verbs or its inert field keys")
   openRow = {}
   eq(hints.bottomBarModel("bar", plan, deps).right[1].label, "Run", "panel: Run when no row is highlighted")
