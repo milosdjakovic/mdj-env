@@ -513,26 +513,26 @@ do {
   check("with no open duration a view appears at once", still.alphaValue == 1 && !fading(still))
 }
 
-// One placement rule for both floating panes, mirrored by side, floatingpane.lua's place.
+// One placement rule for both floating panes, mirrored by side, floatingpane.lua's place. A pane
+// takes the width its lines need and stops only the pad clear of the window's edge, standing over
+// the other group rather than cutting its labels.
 do {
   let W: CGFloat = 400, pad: CGFloat = 10
   let keysGroup = NSRect(x: 10, y: 300, width: 60, height: 30)
-  let actionsGroup = NSRect(x: 230, y: 300, width: 160, height: 30)
-  let info = ChooserPanel.floatingFrame(size: NSSize(width: 250, height: 100), least: 120, anchor: keysGroup,
-    floor: 60, other: actionsGroup, leading: true, width: W, top: 0, pad: pad)
-  check("the info pane stops the pad clear of the right side", info.maxX == actionsGroup.minX - pad)
+  let info = ChooserPanel.floatingFrame(size: NSSize(width: 250, height: 100), anchor: keysGroup,
+    floor: 60, leading: true, width: W, top: 0, pad: pad)
+  check("the info pane takes the width its lines need", info.width == 250)
   check("its left and bottom edges on its group's", info.minX == keysGroup.minX && info.maxY == keysGroup.maxY)
   func mirror(_ r: NSRect) -> NSRect { NSRect(x: W - r.maxX, y: r.minY, width: r.width, height: r.height) }
-  let actions = ChooserPanel.floatingFrame(size: NSSize(width: 250, height: 100), least: 120, anchor: mirror(keysGroup),
-    floor: 60, other: mirror(actionsGroup), leading: false, width: W, top: 0, pad: pad)
+  let actions = ChooserPanel.floatingFrame(size: NSSize(width: 250, height: 100), anchor: mirror(keysGroup),
+    floor: 60, leading: false, width: W, top: 0, pad: pad)
   check("the actions pane is the info pane mirrored", actions == mirror(info))
-  let squeezed = ChooserPanel.floatingFrame(size: NSSize(width: 250, height: 100), least: 240, anchor: keysGroup,
-    floor: 60, other: actionsGroup, leading: true, width: W, top: 0, pad: pad)
-  check("a pane that cannot keep its least passes the other group rather than crushing its chords",
-    squeezed.width == 240 && squeezed.maxX > actionsGroup.minX - pad)
-  let edge = ChooserPanel.floatingFrame(size: NSSize(width: 500, height: 100), least: 450, anchor: keysGroup,
-    floor: 60, other: actionsGroup, leading: true, width: W, top: 0, pad: pad)
-  check("and never passes the window's edge less the pad", edge.maxX == W - pad)
+  let edge = ChooserPanel.floatingFrame(size: NSSize(width: 500, height: 100), anchor: keysGroup,
+    floor: 60, leading: true, width: W, top: 0, pad: pad)
+  check("only the window's edge less the pad stops it", edge.maxX == W - pad)
+  let floored = ChooserPanel.floatingFrame(size: NSSize(width: 20, height: 100), anchor: keysGroup,
+    floor: 60, leading: true, width: W, top: 0, pad: pad)
+  check("and it is never narrower than its group", floored.width == 60)
 }
 
 // A floating pane is sized as a table, and a lead takes a column of its own room.
@@ -553,9 +553,6 @@ do {
   var led = longLabel
   led.lead = [[KeyMark(glyph: "M", symbol: nil)]]
   check("a lead widens the first column", pane([led]).preferredSize.width > pane([longLabel]).preferredSize.width)
-  let table = pane([longLabel, longChord])
-  check("the least keeps the chords and gives up label", table.leastWidth < table.preferredSize.width
-    && table.leastWidth > pane([FloatingPaneView.Line(label: "", chord: longChord.chord)]).preferredSize.width)
 }
 
 // A symbol in a key cap is drawn at its colour's alpha, as a glyph beside it is.
@@ -563,9 +560,10 @@ do {
   var style = Style()
   style.number = NSColor(srgbRed: 0, green: 0, blue: 0, alpha: 0.5)
   let p = Placement()
-  func peak(_ mark: KeyMark) -> CGFloat {
+  style.text = NSColor(srgbRed: 0, green: 0, blue: 0, alpha: 0.9)
+  func peak(_ mark: KeyMark, strong: Bool = false) -> CGFloat {
     let cap = KeyCap([[mark]], ink: style.ink(lit: false), style: style, placement: p, holderH: 30, holderRadius: 0,
-      bare: true, keyFont: NSFont.systemFont(ofSize: 24, weight: .bold))
+      bare: true, strong: strong, keyFont: NSFont.systemFont(ofSize: 24, weight: .bold))
     let stand = FlippedView(frame: NSRect(x: 0, y: 0, width: 60, height: 40))
     stand.addSubview(cap)
     cap.frame = NSRect(origin: .zero, size: cap.fittingSize)
@@ -580,6 +578,9 @@ do {
   let symbol = peak(KeyMark(glyph: "M", symbol: "square.fill"))
   check("a symbol's ink is as strong as a glyph's in the same translucent colour", abs(glyph - symbol) < 0.08,
     "glyph \(glyph) symbol \(symbol)")
+  let lead = peak(KeyMark(glyph: "M", symbol: "square.fill"), strong: true)
+  check("a floating pane line's lead is drawn in the text colour, not a row shortcut's", abs(lead - 0.9) < 0.08,
+    "lead \(lead)")
 }
 
 if failed {

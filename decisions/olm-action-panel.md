@@ -63,6 +63,8 @@ move verb, which `keymap.navigationProblems` reports as a keymap problem.
   decided by Milos. The info pane had only the window as its limit and ran into Confirm and
   Actions in the launcher. The side that stays is on screen so its keys stay usable, so neither
   pane may cover it.
+  Reopened 2026-11-04 14:46 by Milos, see the log. Cutting labels to stay clear read worse than
+  covering the group for the moment a pane is open.
 - **Widening the chooser so the info pane fits.** 2026-11-04. It would fix the launcher alone,
   about 11 points short, since the right side's width varies by list and the clipboard's is far
   wider, and the preview pane follows the list's width, so the window would grow twice over.
@@ -222,3 +224,21 @@ glyph's 0.50 in the new swiftpane case with the fix taken out. The Swift half ha
 of the day's rules, and now pins the mirror, the least, the table, the lead and the symbol alpha.
 The legend's builder moved from the root to `labels.leaderLegend` so it can be tested, and the kbd
 checks to `test/kbd.lua`.
+
+### 2026-11-04 14:36
+
+The legend's leader symbols draw in the text colour and stand the small space step before their
+word, Milos's call, rather than in a row shortcut's subtext colour a large step away, so a symbol
+reads as part of its word. A bare key cap takes `strong` in Swift for it, and the Lua lead is
+drawn in the text role.
+
+### 2026-11-04 14:46
+
+Reversed the stop at the other group and the least label width, Milos's call after seeing the
+clipboard with its preview pane off. The info pane there cut Move Down to Move Do and both Scroll
+Preview lines to the same Scroll Previe, and was drawn under the right side, which hid its esc
+cap. A floating pane now takes the width its lines need, capped only at the window's edge less the
+pad, the preview pane included, and stands over the other group when it is wider than the room
+beside it. Both views draw the panes above the bar, the swift overlays reordered so, and a group
+under a pane takes no press or hover, the canvas testing the panes first and swift's bar lighting
+only a point the window hands it, since a tracking area reports the pointer whatever stands above.

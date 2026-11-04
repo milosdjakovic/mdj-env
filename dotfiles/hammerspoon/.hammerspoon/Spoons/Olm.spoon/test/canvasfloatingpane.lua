@@ -105,14 +105,19 @@ local legend = floatingPane.layout(UI, style, nil, {
   { label = "Move Down", chord = kbd.of(kbd.Down) },
 }, false)
 local leadW = bottomBarLib.leadKeyWidth(UI, T, kbd.of(kbd.Hyper))
-check("a line with a lead takes its room and the gap", legend.lines[1].leadW, leadW + T.space.l)
+check("a line with a lead takes its room and the small step", legend.lines[1].leadW, leadW + T.space.s)
 check("a line without one starts at the left edge", legend.lines[2].leadW, 0)
 local legendEls = floatingPane.elements(UI, legend, { x = 0, y = 0, w = legend.w, h = legend.h }, {})
 local hyperLabel
 for _, el in ipairs(legendEls) do
   if el.type == "text" and el.text == "Hyper" then hyperLabel = el end
 end
-check("the label stands after the lead", hyperLabel.frame.x, legend.side + leadW + T.space.l)
+check("the label stands the small step after the lead", hyperLabel.frame.x, legend.side + leadW + T.space.s)
+local leadInk
+for _, el in ipairs(legendEls) do
+  if el.type == "text" and el.text ~= "Hyper" and el.textColor == T.colors.foreground and el.frame.x < hyperLabel.frame.x then leadInk = el end
+end
+check("and the lead is drawn in the text colour, as the label is", leadInk ~= nil, true)
 
 -- A table, the widest label and the widest chord on different lines still keep the gap between them.
 local tableLines = floatingPane.layout(UI, style, nil, {
@@ -162,35 +167,19 @@ check("its right edge still on the group's", r.x + r.w, wide.x + wide.w)
 r = floatingPane.place(keys, { x = 20, y = 500, w = keys.w + 40, h = 30 }, "left", room)
 check("the info pane too", r.w, keys.w + 40)
 
--- One rule for both, mirrored. Each pane stops the outer padding clear of the group that stays.
-local narrowRoom = { w = 2 * keys.w, top = 50 }
-local stays = { x = keys.w, y = 500, w = keys.w - 20, h = 30 }
-narrowRoom.other = stays
-r = floatingPane.place(keys, keysAnchor, "left", narrowRoom)
-check("the info pane stops the pad clear of the right side", r.x + r.w, stays.x - T.pad)
+-- One rule for both, mirrored. A pane takes the width its lines need, stopping only the pad clear of
+-- the window's far edge, so it stands over the other group rather than cutting its labels.
+local W = 2 * keys.w
+r = floatingPane.place(keys, keysAnchor, "left", { w = W, top = 50 })
+check("the info pane takes its width though the other group stands there", r.w, keys.w)
 check("its left edge still on its group's", r.x, keysAnchor.x)
-local W = narrowRoom.w
 local function flip(rect) return { x = W - rect.x - rect.w, y = rect.y, w = rect.w, h = rect.h } end
-local right = floatingPane.place(keys, flip(keysAnchor), "right", { w = W, top = 50, other = flip(stays) })
+local right = floatingPane.place(keys, flip(keysAnchor), "right", { w = W, top = 50 })
 check("the actions pane is the info pane mirrored, its x", right.x, flip(r).x)
 check("and its width", right.w, r.w)
 check("and its height", right.h, r.h)
-
--- Labels give way first, never below the least, and only then does a pane pass the other group.
-local table2 = floatingPane.layout(UI, style, nil, {
-  { label = string.rep("A long label ", 6), chord = kbd.of(kbd.Down) },
-  { label = "X", chord = kbd.of(kbd.Cmd, kbd.Shift, kbd.named("x")) },
-}, false)
-check("the least keeps every chord and three body sizes of label", table2.least,
-  math.ceil(floatingPane.LEAST_LABEL * T.text.body.size + T.space.l + table2.lines[2].chordW + 2 * table2.side))
-local tight = { x = keysAnchor.x + table2.least - 40, y = 500, w = 30, h = 30 }
-local squeezed = floatingPane.place(table2, keysAnchor, "left", { w = 2000, top = 50, other = tight })
-check("a pane that cannot keep its least passes the other group", squeezed.w, table2.least)
-local roomy = { x = keysAnchor.x + table2.least + 100, y = 500, w = 30, h = 30 }
-check("one that can stops the pad clear of it", floatingPane.place(table2, keysAnchor, "left",
-  { w = 2000, top = 50, other = roomy }).w, roomy.x - T.pad - keysAnchor.x)
-check("and none passes the window's edge less the pad", floatingPane.place(table2, keysAnchor, "left",
-  { w = keysAnchor.x + 50, top = 50, other = tight }).w, 50 - T.pad)
+r = floatingPane.place(keys, keysAnchor, "left", { w = keysAnchor.x + 50, top = 50 })
+check("only the window's edge less the pad stops it", r.w, 50 - T.pad)
 
 -- The highlight, and the lines as hit rects.
 r = floatingPane.place(actions, actionsAnchor, "right", room)
@@ -315,13 +304,15 @@ check("a point on the info pane is on no row", view:_rowIndexAtPoint(inPanel), n
 calls = {}
 check("a scroll over it is claimed", view:_onMouseScroll(inPanel, -3, true), true)
 check("and never scrolls the list", #calls, 0)
--- A line longer than the room stops the info pane the bar pad clear of the right side.
+-- A line longer than the room beside the right side stands the info pane over it, to the window's
+-- edge less the pad, and a press on the pane there reaches no bar item.
 local keptKeys = scene.bottomBar.keys
 scene.bottomBar.keys = { { label = string.rep("A very long shortcut label ", 12), badges = { kbd.of(kbd.Cmd, kbd.named("c")) } } }
 view:redraw()
 local lk = view._floatingPanes.keys.rect
-local actionsLeft = view._anchors.actions.x + scene.rects.canvas.x
-check("a long line stops the info pane the bar pad clear of the right side", lk.x + lk.w, actionsLeft - T.pad)
+local windowRight = scene.rects.canvas.x + (view._window or scene.rects.canvas).w
+check("a long line takes the info pane to the window's edge less the pad", lk.x + lk.w, windowRight - T.pad)
+check("over the right side", lk.x + lk.w > view._anchors.actions.x + scene.rects.canvas.x, true)
 check("its left edge still on the keys anchor", lk.x, anchor.x + scene.rects.canvas.x)
 scene.bottomBar.keys = keptKeys
 scene.infoOpen = false
@@ -405,14 +396,23 @@ do
   view:redraw()
   check("whatever the label", view._floatingPanes.actions.rect.w, first.w)
 
-  -- A pane line longer than the room stops the pane the bar pad clear of the left side.
+  -- A pane line longer than the room stands the pane over the left side, and a press there on the
+  -- pane does not toggle the info pane under it.
   scene.list = listModel.newState({
     { title = "Open " .. string.rep("with a very long verb title ", 8), chord = Return, item = "open" },
   }, drawLayout)
   view:redraw()
   local lp = view._floatingPanes.actions.rect
-  local keysRight = view._anchors.keys.x + view._anchors.keys.w + scene.rects.canvas.x
-  check("a long line stops the pane the bar pad clear of the left side", lp.x, keysRight + T.pad)
+  check("a long line takes the pane to the window's edge less the pad", lp.x, scene.rects.canvas.x + T.pad)
+  local overKeys = { x = view._anchors.keys.x + scene.rects.canvas.x + 5,
+    y = view._anchors.keys.y + scene.rects.canvas.y + 5 }
+  calls = {}
+  view:_onMouseDown(overKeys, "left")
+  local toggled = false
+  for _, c in ipairs(calls) do if c == "toggleInfo" then toggled = true end end
+  check("a press on the pane where it covers the left side does not toggle the info pane", toggled, false)
+  view:_onMouseMove(overKeys)
+  check("and the left side under it does not light", view._barHover, nil)
   check("its right edge still where the right side stands", lp.x + lp.w, restRight + scene.rects.canvas.x)
   scene.list = listRows
   scene.bottomBar.panelOpen = false

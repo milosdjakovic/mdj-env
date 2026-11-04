@@ -69,18 +69,21 @@ final class KeyCap: FlippedView {
   private let font: NSFont
   private let enabled: Bool
   private let bare: Bool
+  // A bare cap drawn in the text colour rather than a row shortcut's, a floating pane line's lead.
+  private let strong: Bool
   // The colours the chip, its keys and the alternative word are drawn in, the ink of whatever the
   // cap stands on, so a cap on a lit line or a lit bar item is drawn in the lit ink, see Ink. A
   // change keeps every key's place, since a colour moves no ink.
   var ink: Ink { didSet { paint() } }
 
   init(_ chord: [[KeyMark]], ink: Ink, style: Style, placement: Placement, holderH: CGFloat,
-    holderRadius: CGFloat, enabled: Bool = true, bare: Bool = false, keyFont: NSFont? = nil) {
+    holderRadius: CGFloat, enabled: Bool = true, bare: Bool = false, strong: Bool = false, keyFont: NSFont? = nil) {
     self.chord = chord
     self.ink = ink
     self.font = keyFont ?? style.keycapFont
     self.enabled = enabled
     self.bare = bare
+    self.strong = strong
     super.init(frame: .zero)
     padX = bare ? 0 : placement.keycapPadX
     keyGap = placement.keycapGap
@@ -103,7 +106,7 @@ final class KeyCap: FlippedView {
   // The chip's fill, the keys and the alternative word in the current ink.
   private func paint() {
     fill = bare ? .clear : (enabled ? ink.keycap : ink.keycap.withAlphaComponent(Ink.alpha(ink.keycap) * 0.5))
-    let color = bare ? ink.number : (enabled ? ink.text : ink.textDim)
+    let color = bare && !strong ? ink.number : (enabled ? ink.text : ink.textDim)
     let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
     for word in words { word.textColor = enabled ? ink.caption : ink.subDim }
     caps = chord.filter { !$0.isEmpty }.map { keys in
@@ -314,7 +317,11 @@ final class BarSide: FlippedView {
   override func mouseEntered(with event: NSEvent) { hover(event) }
   override func mouseExited(with event: NSEvent) { setHover(nil) }
 
+  // A tracking area reports the pointer whatever stands above it, so a group a floating pane stands
+  // over would light under the pane. Only a point the window would hand this group lights it.
   private func hover(_ event: NSEvent) {
+    let hit = window?.contentView?.hitTest(event.locationInWindow)
+    guard let hit, hit === self || hit.isDescendant(of: self) else { return setHover(nil) }
     setHover(item(at: convert(event.locationInWindow, from: nil)))
   }
 

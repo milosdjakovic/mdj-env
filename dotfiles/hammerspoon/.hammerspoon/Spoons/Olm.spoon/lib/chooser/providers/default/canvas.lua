@@ -562,9 +562,10 @@ function View:_floatingPaneElements(s, els, origin, listRect)
   local T = s.tokens
   local style = floatingPaneLib.style(UI, T, s.layout.marginX, bottomBarLib.height(T))
   local W = (self._window or s.rects.canvas).w
-  -- Each pane stops the pad clear of the other group, the one that stays, floatingpane.lua's place.
-  local function draw(kind, pop, anchor, other, align, highlight)
-    local rect = floatingPaneLib.place(pop, anchor, align, { w = W, top = listRect.y, other = other })
+  -- Drawn after the bar, so a pane wider than the room beside the other group stands above it,
+  -- floatingpane.lua's place.
+  local function draw(kind, pop, anchor, align, highlight)
+    local rect = floatingPaneLib.place(pop, anchor, align, { w = W, top = listRect.y })
     local reveal = highlight ~= nil and highlight ~= (previous[kind] and previous[kind].highlight)
     local popEls, info = floatingPaneLib.elements(UI, pop, rect,
       { highlight = highlight, scroll = self._popScroll[kind], reveal = reveal })
@@ -579,12 +580,12 @@ function View:_floatingPaneElements(s, els, origin, listRect)
   end
   if s.infoOpen and anchors.keys then
     draw("keys", floatingPaneLib.layout(UI, style, s.bottomBar.title, keyLines(s.bottomBar), false),
-      anchors.keys, anchors.actions, "left", nil)
+      anchors.keys, "left", nil)
   end
   if panelFloats(s) and anchors.actions then
     local ns = listModel.normalized(s.list)
     draw("actions", floatingPaneLib.layout(UI, style, s.bottomBar.panelTitle, actionLines(ns.filtered), true),
-      anchors.actions, anchors.keys, "right", ns.highlight)
+      anchors.actions, "right", ns.highlight)
   end
   for kind in pairs(self._popScroll) do
     if not self._floatingPanes[kind] then self._popScroll[kind] = nil end
@@ -786,11 +787,19 @@ function View:_onMouseDown(point, button)
     if self:_floatingPaneAt(point) ~= "keys" then self.engine:closeInfo() end
     return true
   end
+  self._pressedItem = nil
+  -- A press on a floating pane lands on no row and is claimed, before the bar, since a pane may
+  -- stand over the other group, and a left one on the actions pane is remembered so its release
+  -- chooses the line under it, as swift's floating pane chooses on mouse up.
+  if self:_floatingPaneAt(point) then
+    self._pressedRowIndex = nil
+    self._popPressed = button == "left" and self:_floatingPaneLineAt(point) ~= nil
+    return true
+  end
   -- A press on the left side toggles the info pane, wherever the spanning bar put it. A press
   -- on an action item is kept for its release, which runs the item's action, the way a press
   -- on a row is kept for the release that chooses it. Any other press on a group lands on no
   -- row, so it is claimed and chooses nothing.
-  self._pressedItem = nil
   if self:_onBarSide(point) then
     self._pressedRowIndex = nil
     if button == "left" then
@@ -800,13 +809,6 @@ function View:_onMouseDown(point, button)
         self._pressedItem = self:_itemAt(point)
       end
     end
-    return true
-  end
-  -- A press on a floating pane lands on no row and is claimed, and a left one on the actions pane is
-  -- remembered so its release chooses the line under it, as swift's floating pane chooses on mouse up.
-  if self:_floatingPaneAt(point) then
-    self._pressedRowIndex = nil
-    self._popPressed = button == "left" and self:_floatingPaneLineAt(point) ~= nil
     return true
   end
   self._popPressed = false
@@ -876,7 +878,10 @@ function View:_onMouseMove(point)
   -- The left side and each action item light under the pointer the way a row does, redrawn
   -- only as the pointer moves from one to another, so a move anywhere else costs a comparison.
   local over = nil
-  if pointInRect(point, self._keysCellHit) then over = "keys" else over = self:_itemAt(point) end
+  -- A group under a floating pane that stands over it takes no pointer.
+  if self:_floatingPaneAt(point) then
+    over = nil
+  elseif pointInRect(point, self._keysCellHit) then over = "keys" else over = self:_itemAt(point) end
   if over ~= self._barHover then
     self._barHover = over
     self:redraw()

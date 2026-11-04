@@ -201,9 +201,10 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     surfaces.addOverlay(fieldClip)
     // The bar and its info pane stand on the window's stage rather than in the list's content,
     // since with a preview pane they run under the gap and the pane too.
+    // The bar first, so a floating pane wider than the room beside the other group stands above it.
+    surfaces.addOverlay(bar)
     surfaces.addOverlay(keys)
     surfaces.addOverlay(actionsPop)
-    surfaces.addOverlay(bar)
     keys.isHidden = true
     actionsPop.isHidden = true
     bar.isHidden = true
@@ -690,32 +691,20 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   // on the left and mirrored for one on the right, so a change to it reaches both, Milos's call on
   // 2026-11-04. The info pane takes the left side's corner, its left and bottom edges on the
   // group's, and the actions pane the action group's, its right and bottom edges on it, the group
-  // under it hidden and the other staying. A pane is as wide as its lines laid out as a table and never narrower
-  // than its floor, the group it stands above, grows toward the other group and stops the bar pad
-  // clear of it, or of the window's far edge where there is none, past which its labels truncate,
-  // so neither pane covers the group that stays. Labels give way first and never below least, about
-  // three letters and every chord whole, and only a pane that cannot keep even that passes the
-  // other group, never the window's edge less the pad. It is as tall as its lines and never above the
-  // list's top, where it scrolls instead.
-  static func floatingFrame(size: NSSize, least: CGFloat, anchor: NSRect, floor: CGFloat, other: NSRect?,
+  // under it hidden and the other staying. A pane is as wide as its lines laid out as a table and
+  // never narrower than its floor, the group it stands above, and stops only the bar pad clear of
+  // the window's far edge, past which its labels truncate, so a pane wider than the room beside
+  // the other group stands over it, the panes added above the bar. It is as tall as its lines and
+  // never above the list's top, where it scrolls instead.
+  static func floatingFrame(size: NSSize, anchor: NSRect, floor: CGFloat,
                             leading: Bool, width: CGFloat, top: CGFloat, pad: CGFloat) -> NSRect {
     func mirror(_ r: NSRect) -> NSRect {
       leading ? r : NSRect(x: width - r.maxX, y: r.minY, width: r.width, height: r.height)
     }
     let a = mirror(anchor)
-    let stop = other.map { mirror($0).minX - pad } ?? (width - pad)
-    let wanted = max(size.width, floor)
-    var w = min(wanted, max(0, stop - a.minX))
-    w = max(w, min(wanted, least))
-    w = min(w, max(0, width - pad - a.minX))
+    let w = min(max(size.width, floor), max(0, width - pad - a.minX))
     let h = min(size.height, max(0, a.maxY - top))
     return mirror(NSRect(x: a.minX, y: a.maxY - h, width: w, height: h))
-  }
-
-  // A bar side's rect in the stage, or nil while it has nothing on screen to stay clear of.
-  private func sideFrame(_ side: NSView, in stage: NSView) -> NSRect? {
-    guard !side.isHidden, side.frame.width > 0 else { return nil }
-    return bar.convert(side.frame, to: stage)
   }
 
   private func layoutActions() {
@@ -734,9 +723,9 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     // The group's width while open is not the floor, since its Return label follows the lit line
     // and would move the pane's width as the highlight moves.
     actionsPop.frame = ChooserPanel.floatingFrame(
-      size: actionsPop.preferredSize, least: actionsPop.leastWidth, anchor: anchor,
+      size: actionsPop.preferredSize, anchor: anchor,
       floor: restActionsWidth > 0 ? restActionsWidth : anchor.width,
-      other: sideFrame(bar.button, in: stage), leading: false, width: windowSize.width,
+      leading: false, width: windowSize.width,
       top: toWindow(placement.list)?.minY ?? 0, pad: placement.barPad)
   }
 
@@ -747,8 +736,8 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     bar.layoutSubtreeIfNeeded()
     let anchor = bar.convert(bar.button.frame, to: stage)
     keys.frame = ChooserPanel.floatingFrame(
-      size: keys.preferredSize, least: keys.leastWidth, anchor: anchor, floor: anchor.width,
-      other: sideFrame(bar.actions, in: stage), leading: true, width: windowSize.width,
+      size: keys.preferredSize, anchor: anchor, floor: anchor.width,
+      leading: true, width: windowSize.width,
       top: toWindow(placement.list)?.minY ?? 0, pad: placement.barPad)
   }
 }

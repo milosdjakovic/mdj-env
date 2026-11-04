@@ -64,6 +64,9 @@ function M.style(ui, tokens, marginX, lineH)
     inner = bottomBarLib.padding(T),
     standoff = T.pad,
     gap = T.space.l,
+    -- Between a line's lead and its label, the small step a bar item keeps between its label and
+    -- its chord, so the symbol reads as part of the word it stands before.
+    leadGap = T.space.s,
     iconSide = T.text.section.lineHeight,
     lineH = lineH,
     radius = radius,
@@ -126,18 +129,13 @@ function M.layout(ui, style, title, lines, selectable)
     y = y + st.lineH
     line.labelW = width(line.label, st.font, st.size)
     line.chordW = bottomBarLib.keycapWidth(ui, st.tokens, line.chord)
-    line.leadW = line.lead and (leadCol + st.gap) or 0
+    line.leadW = line.lead and (leadCol + st.leadGap) or 0
     firstCol = math.max(firstCol, lead + line.leadW + line.labelW)
     lastCol = math.max(lastCol, line.chordW)
   end
   -- A table, the widest first column, the gap and the widest last column, so every label keeps the
   -- gap from every chord rather than only from its own.
   widest = firstCol + st.gap + lastCol
-  -- The least the pane may be, where a label has given up all it may. A label keeps three of the
-  -- body size, about three letters and the ellipsis, and the leads and every chord stay whole.
-  local leadsW = 0
-  for _, line in ipairs(lines) do leadsW = math.max(leadsW, lead + line.leadW) end
-  local least = math.min(firstCol, leadsW + M.LEAST_LABEL * st.size) + st.gap + lastCol + 2 * side
   local headerH = 0
   local w = widest + 2 * side
   if title then
@@ -151,32 +149,24 @@ function M.layout(ui, style, title, lines, selectable)
     tops = tops, headings = headings, contentH = y,
     lead = lead, side = side, headerH = headerH,
     w = math.ceil(w), h = math.ceil(headerH + y + 2 * st.outer),
-    least = math.ceil(math.min(least, w)),
   }
 end
 
 --- M.place(pop, anchor, align, room) -> the floating pane's rect. anchor is the rect of the group whose
 --- corner it takes, align "left" for the info pane, its left and bottom edges on the group's, and
---- "right" for the actions pane, its right and bottom edges on the group's. room is
---- { w, top, other }, the window's width, the list's top edge and the rect of the other group, the
---- one that stays on screen, or nil where there is none.
+--- "right" for the actions pane, its right and bottom edges on the group's. room is { w, top }, the
+--- window's width, the preview pane included while it is open, and the list's top edge.
 ---
 --- Both floating panes follow one rule, written once for a pane standing on the left and mirrored
 --- for one on the right, so a change to it reaches both, Milos's call on 2026-11-04. A pane is as
---- wide as its lines laid out as a table and never narrower than the group it stands above, so a bar side wider
---- than its panel's lines, the clipboard's Paste, Copy and Actions, gives the panel its width,
---- Milos's call on 2026-11-03. It grows from its group's outer edge toward the other group and
---- stops the outer padding clear of it, or of the window's far edge where there is no other
---- group, past which its labels truncate, so neither pane ever covers the group that stays. Labels
---- give way first and never below pop.least, about three letters and the ellipsis with every chord
---- whole, and only a pane that cannot keep even that passes the other group, never the window's
---- edge less the outer padding, Milos's call on 2026-11-04. It is
---- as tall as its lines and never above the list's top, where it scrolls instead. swift's
---- floatingFrame in native/Panel.swift is the twin rule.
---- M.LEAST_LABEL, how much of a label survives a pane squeezed below its table, in multiples of the
---- body size, about three letters and the ellipsis. Swift's FloatingPaneView.leastLabel is the twin.
-M.LEAST_LABEL = 3
-
+--- wide as its lines laid out as a table and never narrower than the group it stands above, so a
+--- bar side wider than its panel's lines, the clipboard's Paste, Copy and Actions, gives the panel
+--- its width, Milos's call on 2026-11-03. It grows from its group's outer edge toward the far edge
+--- and stops only the outer padding clear of the window's edge, past which its labels truncate, so
+--- a pane wider than the room beside the other group stands over that group, which the view draws
+--- it above, rather than cutting its labels, Milos's call on 2026-11-04. It is as tall as its lines
+--- and never above the list's top, where it scrolls instead. swift's floatingFrame in
+--- native/Panel.swift is the twin rule.
 local function mirrored(r, w)
   if not r then return nil end
   return { x = w - r.x - r.w, y = r.y, w = r.w, h = r.h }
@@ -185,18 +175,12 @@ end
 function M.place(pop, anchor, align, room)
   if align == "right" then
     local W = room.w
-    local r = M.place(pop, mirrored(anchor, W), "left",
-      { w = W, top = room.top, other = mirrored(room.other, W) })
-    return mirrored(r, W)
+    return mirrored(M.place(pop, mirrored(anchor, W), "left", { w = W, top = room.top }), W)
   end
   local pad = pop.style.standoff
   local bottom = anchor.y + anchor.h
   local h = math.min(pop.h, math.max(0, bottom - room.top))
-  local stop = room.other and (room.other.x - pad) or (room.w - pad)
-  local wanted = math.max(pop.w, anchor.w)
-  local w = math.min(wanted, math.max(0, stop - anchor.x))
-  w = math.max(w, math.min(wanted, pop.least or 0))
-  w = math.min(w, math.max(0, room.w - pad - anchor.x))
+  local w = math.min(math.max(pop.w, anchor.w), math.max(0, room.w - pad - anchor.x))
   return { x = anchor.x, y = bottom - h, w = w, h = h }
 end
 
@@ -298,7 +282,7 @@ function M.elements(ui, pop, rect, opts)
       local labelX = rect.x + side + pop.lead + (line.leadW or 0)
       if line.lead then
         append(els, bottomBarLib.leadKey(ui, st.tokens, line.lead, rect.x + side + pop.lead, top, st.lineH,
-          enabled and st.sub or st.subDim))
+          enabled and st.text or st.textDim))
       end
       els[#els + 1] = centredText(ui, line.label, st.font, st.size, enabled and st.text or st.textDim,
         labelX, top, st.lineH, chordX - st.gap - labelX)

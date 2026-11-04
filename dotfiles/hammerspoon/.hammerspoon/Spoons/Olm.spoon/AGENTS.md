@@ -519,7 +519,7 @@ what ended one key reading two ways.
 
 `labels.leaderLegend(symbols, leaderSpecs)` builds that legend, which the root hands the bottom bar
 model with its own `LEADER_SYMBOLS`. One line per shipped leader of the load, its symbol as the
-line's lead drawn bare before its word, and its physical key as the chord, `kbd.physical`, the
+line's lead drawn bare before its word, in the text colour and the small space step before it, and its physical key as the chord, `kbd.physical`, the
 Caps Lock symbol or right and the modifier's glyph read from the key's name, or the modifiers
 alone in the menu bar's order for a leader of modifiers, so a leader moved to another key says so.
 The keys follow with no heading, and the floating pane lays both out as one table, see below.
@@ -690,8 +690,8 @@ the floating pane in `docs/DESIGN-UI-KIT.md`. The info pane takes the keys ancho
 it, while the left side is hidden and the right side stays, and the actions pane the actions
 anchor's, its right and bottom edges on it, while the right side is hidden and the left side
 stays, never above the list's top, where it scrolls, and as wide as its lines laid out as a table, the widest first column, the large space step and the widest last column, but never
-narrower than the group it stands above and never past the pad clear of the other group, or of
-the window's far edge where there is none, past which its labels truncate. A group wider than its panel's lines, the clipboard's Paste, Copy
+narrower than the group it stands above and never past the pad clear of the window's far edge,
+the preview pane included while it is open, past which its labels truncate. A group wider than its panel's lines, the clipboard's Paste, Copy
 and Actions, gives the panel its width, each line keeping its picture and left aligned label on
 the left and its chord on the right, Milos's call on 2026-11-03, and swift's `layoutKeys` and
 `layoutActions` in `native/Panel.swift` take the same floor. While the actions pane is open the
@@ -707,20 +707,19 @@ equally at most, and end in an ellipsis, so a one word label stays whole beside 
 Actions and every chord stay whole. `fitLabels` in `bar.lua` and in `Bar.swift` are the twin rule.
 Both floating panes follow one placement rule, Milos's call on 2026-11-04, written once for a pane
 on the left and mirrored for one on the right, `place` in `floatingpane.lua` and `floatingFrame` in
-`native/Panel.swift`, so a change to it reaches both and no pane is decided on its own. A pane grows
-from its group's outer edge toward the other group and stops the pad clear of it, so the actions
-pane never covers the left side and the info pane never covers the right side, and a long line in
-either ends in an ellipsis rather than widening it. No plugin sizes its bar or its pane, it only
-names its actions. Labels give way first and never below a least, three
-body sizes of label, about three letters and the ellipsis, with every lead and chord whole, `least`
-in `floatingpane.lua` and `leastWidth` in `FloatingPane.swift`, and only a pane that cannot keep
-even that passes the other group, never the window's edge less the pad. Measured on 2026-11-04 at
-the shipped sizes, every list's info pane fits beside its right side, the clipboard and file search
-only because their bar spans the preview pane, so the least is the rule for a narrow screen or a
-person's wider key, not a case seen today. A line may carry a `lead`, keys drawn bare before its
-label, and the lines are one table, the first column left aligned holding a line's lead and label,
-the leads taking the widest one's room, and the last right aligned holding the chords, the pane
-as wide as the widest first column, the large space step and the widest last column.
+`native/Panel.swift`, so a change to it reaches both and no pane is decided on its own. A pane takes
+the width its lines need, grows from its group's outer edge toward the far edge and stops only the
+pad clear of the window's edge, so a pane wider than the room beside the other group stands over
+that group rather than cutting its labels, which in the clipboard without its preview pane cut two
+Scroll Preview lines to the same Scroll Previe. Both views draw the panes above the bar, the canvas
+after it and swift's overlays added after it, and a group a pane stands over takes no press or
+hover, the canvas testing the panes before the bar and swift's bar lighting only a point the window
+would hand it. That reversed a stop at the other group and a least label width tried earlier the
+same day, see `decisions/olm-action-panel.md`. No plugin sizes its bar or its pane, it only names
+its actions. A line may carry a `lead`, keys drawn bare before its label, and the lines are one
+table, the first column left aligned holding a line's lead and label, the leads taking the widest
+one's room, and the last right aligned holding the chords, the pane as wide as the widest first
+column, the large space step and the widest last column.
 The anchors are the one seam to the bar, the groups' own rects that `bar.lua` answers, kept by
 `View:_bottomBarElements` as `self._anchors = { keys = rect, actions = rect }` in the window's local
 coordinates. The view answers
