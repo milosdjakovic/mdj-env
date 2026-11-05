@@ -109,21 +109,14 @@ local function spanOf(canvas, previewPane)
 end
 
 -- The window the panel stands in, the canvas rect alone or the span to the preview pane, and where
--- the list's content, the preview pane's region and the hairline divider sit inside it, in the
--- window's own space with y measured down. The divider is width points wide, centred in the gap
--- between the two, from the top of the window to the bottom, since the bar floats over both and
--- the preview pane keeps the canvas's height, see under in geometry.resolve.
-local function windowRects(canvas, previewPane, width, inset)
+-- the list's content and the preview pane's region sit inside it, in the window's own space with y
+-- measured down.
+local function windowRects(canvas, previewPane)
   local window = spanOf(canvas, previewPane)
   if not window then
-    return canvas, { x = 0, y = 0, w = canvas.w, h = canvas.h }, nil, nil
+    return canvas, { x = 0, y = 0, w = canvas.w, h = canvas.h }, nil
   end
-  local list, pane = toLocal(canvas, window), toLocal(previewPane, window)
-  local left, right
-  if pane.x >= list.x + list.w then left, right = list.x + list.w, pane.x
-  else left, right = pane.x + pane.w, list.x end
-  local divider = { x = (left + right - width) / 2, y = inset, w = width, h = math.max(0, window.h - 2 * inset) }
-  return window, list, pane, divider
+  return window, toLocal(canvas, window), toLocal(previewPane, window)
 end
 
 local function font(name, size)
@@ -169,7 +162,6 @@ function View:restyle()
     -- The chip every chord stands on, the foreground faded so it reads on the glass, on a lit
     -- group and on a highlighted line alike.
     keycap = UI.keycapColor(T),
-    divider = T.colors.border,
     fieldFont = font(face.fieldFont, face.fieldSize),
     titleFont = font(face.font, face.textSize),
     subFont = font(face.subFont, face.subSize),
@@ -189,26 +181,24 @@ function View:restyle()
 end
 
 --- View colon place, arity one. With a preview pane the panel's one shape of glass spans
---- rects.canvas, the gap and rects.previewPane, the list's content on the canvas rect, the docked
---- pane's region on the preview pane and a hairline of the kit's border width in the middle of the
---- gap, the outer padding short of the window's top and bottom edges, and with none it is the canvas rect alone. The field, the list and the bar go on the engine's own rects
+--- rects.canvas, the gap and rects.previewPane, the list's content on the canvas rect and the
+--- preview pane's region beside it with nothing drawn between them, and with none it is the canvas
+--- rect alone. The field, the list and the bar go on the engine's own rects
 --- in the canvas's own space as before, with the row metrics of the layout the list is drawn to.
 --- With a preview pane the bar's rect runs past the canvas under the gap and the pane, see
---- spansBottomBar, and the pane's region and the divider stop at its top edge. The preview pane is
+--- spansBottomBar, and it floats over the pane's region. The preview pane is
 --- handed over in screen space too, since a preview pane is matched to this panel on it.
 function View:place(rects)
   local s = self.engine:scene()
   local L, T = s.drawLayout, s.tokens
   local origin = rects.canvas
   local iconPad, iconPadLeft = geometry.iconPad(L)
-  local window, listFrame, paneFrame, dividerFrame = windowRects(rects.canvas,
-    rects.previewPane, T.stroke.border, T.pad)
+  local window, listFrame, paneFrame = windowRects(rects.canvas, rects.previewPane)
   self.native.place(self.id, {
     canvas = rects.canvas,
     window = window,
     listFrame = listFrame,
     paneFrame = paneFrame,
-    dividerFrame = dividerFrame,
     previewPane = rects.previewPane,
     field = toLocal(rects.field, origin),
     list = toLocal(rects.list, origin),

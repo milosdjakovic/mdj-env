@@ -26,8 +26,8 @@
 //
 // ONE WINDOW, ONE SHAPE. With a preview pane the window spans the canvas rect, the engine's gap and
 // the preview pane rect, and stands on one shape of glass, a SharedSurface, with the list's content
-// at the canvas rect, the preview pane's region at the preview pane rect and a hairline divider in
-// the middle of the gap down to the bottom bar, which spans the whole window. With none it is
+// at the canvas rect and the preview pane's region at the preview pane rect, nothing drawn between
+// them, and the bottom bar spanning the whole window. With none it is
 // the canvas rect alone. The preview pane's native backend
 // puts its view in the pane's region through the seam in Entry.swift, shown only while a pane is
 // in it and shown. AppKit's own window animation is off. The window fades in rising and growing a
@@ -260,7 +260,6 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   func applyStyle(_ next: Style) {
     style = next
     surfaces.setCornerRadius(style.radius)
-    surfaces.setDividerColor(style.divider)
     field.font = style.fieldFont
     field.textColor = style.text
     applyPlaceholder()
@@ -456,7 +455,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     let barTop = toWindow(placement.bottomBar)?.minY ?? windowSize.height
     let listTop = toWindow(placement.list)?.minY ?? 0
     surfaces.layout(size: windowSize, list: listFrame, pane: placement.paneFrame,
-      divider: placement.dividerFrame, paneShown: paneShown && paneContent != nil,
+      paneShown: paneShown && paneContent != nil,
       fadeTop: max(0, barTop - placement.padBottom), fadeListTop: listTop,
       fadeClearTo: min(titlebarHeight, listTop),
       listColumn: listFrame.maxX, paneTop: placement.paneFrame?.minY ?? 0,

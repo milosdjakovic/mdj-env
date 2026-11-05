@@ -27,7 +27,7 @@
 // The fades mask the list and the pane as one, from the list's bottom padding above the bar to the
 // window's edge, the list's column from the title bar's bottom edge to where the first row rests,
 // the list running on up behind the field and stopping at the title bar, and the pane's column on
-// the same curve from its top edge to where its content rests. The divider stands outside the mask.
+// the same curve from its top edge to where its content rests.
 //
 // Motion's cases are at the end, see their own comment there.
 //
@@ -376,7 +376,7 @@ check("a dozen rows at most per ask", asks.allSatisfy { $0.count <= 12 })
 check("each row asked once", Set(askedRows).count == askedRows.count)
 
 // The fades, the content masked as one, the list and the pane alike, opaque down to the list's
-// bottom padding above the bar and clear at the window's edge, and the divider left out of them.
+// bottom padding above the bar and clear at the window's edge.
 do {
   let fadePanel = ChooserPanel(ask: { _, _ in false })
   var p = Placement()
@@ -389,7 +389,6 @@ do {
   p.bottomBar = NSRect(x: 0, y: 352, width: 800, height: 48)
   p.padBottom = 8
   p.pad = 12
-  p.dividerFrame = NSRect(x: 480, y: 12, width: 1, height: 376)
   fadePanel.place(p)
   func all(_ v: NSView) -> [NSView] { [v] + v.subviews.flatMap(all) }
   let tree = NSApp.windows.compactMap { $0.contentView }.flatMap(all)
@@ -409,10 +408,6 @@ do {
     has(listColumn, 60) && stops(listColumn).count > 6, "\(stops(listColumn))")
   check("the pane's column fades in along the same curve from its top edge to where its content rests",
     has(paneColumn, 12) && stops(paneColumn).count == stops(listColumn).count, "\(stops(paneColumn))")
-  let dividers = tree.filter { $0 is DividerView && !$0.isHidden }
-  check("the divider stands outside the mask, the outer padding short of the top and the bottom",
-    dividers.count == 1 && dividers.allSatisfy { d in !masked.contains { d.isDescendant(of: $0) }
-      && d.frame.minY == 12 && d.frame.maxY == 388 }, "\(dividers.map { $0.frame })")
   let fields = tree.compactMap { $0 as? NSTextField }.filter { $0.isEditable }
   check("the field stands outside the content the fades mask",
     !fields.isEmpty && fields.allSatisfy { f in !masked.contains { f.isDescendant(of: $0) } })

@@ -89,9 +89,8 @@ enum ScreenSpace {
 // The chooser panel's window content, one shape of glass at the surface radius. With no
 // preview pane it is the canvas rect, the list's shape alone. With one, the window and the glass
 // span the canvas rect, the engine's gap and the preview pane rect, the list's content sits at the
-// canvas rect inside it, the preview pane's view at the preview pane rect, and a hairline divider
-// stands in the middle of the gap, the outer padding short of the window's top and bottom edges and
-// outside the fades, with the bottom bar running under both. One shape rather than two because two
+// canvas rect inside it and the preview pane's view at the preview pane rect, nothing drawn
+// between them, with the bottom bar running under both. One shape rather than two because two
 // shapes side by side each shade their edges and cast their shadow where they meet, which read
 // as a dark band in the gap. The rects come from the Lua view already in the window's own space,
 // y measured down.
@@ -99,12 +98,10 @@ final class SharedSurface {
   private let glass: Surface
   private let stage = FlippedView()
   // The list's content and the pane's region, masked together, each column fading on its own.
-  // The divider stands outside the mask, so neither column's fade reaches it.
   private let content = FlippedView()
   private let fade = BottomFade()
   private let list: NSView
   private let paneSlot = FlippedView()
-  private let divider = DividerView()
 
   var view: NSView { glass.view }
   var name: String { glass.name }
@@ -114,29 +111,22 @@ final class SharedSurface {
     self.content.addSubview(content)
     self.content.addSubview(paneSlot)
     stage.addSubview(self.content)
-    stage.addSubview(divider)
     // Both backed by layers of their own from the start, since the content's mask is a layer mask
     // and drew nothing, seen live on 2026-10-31, until a sibling happened to make the stage a layer.
     stage.wantsLayer = true
     self.content.wantsLayer = true
     paneSlot.isHidden = true
-    divider.isHidden = true
     glass = Surface(holding: stage)
   }
 
   func setCornerRadius(_ radius: CGFloat) { glass.setCornerRadius(radius) }
 
-  func setDividerColor(_ color: NSColor) {
-    divider.color = color
-    divider.needsDisplay = true
-  }
-
   // Lays the content out in a window of size. The pane's region shows only when there is a rect
-  // for it and a preview pane in it, and the divider whenever there is a rect for it. fadeTop is
+  // for it and a preview pane in it. fadeTop is
   // where the bottom fade begins and fadeListTop where the top fade ends, both measured down from
   // the window's top, the second over the list's column, which ends at listColumn. The pane's
   // column fades in from paneTop to paneRest, where its content rests.
-  func layout(size: NSSize, list listRect: NSRect, pane paneRect: NSRect?, divider dividerRect: NSRect?,
+  func layout(size: NSSize, list listRect: NSRect, pane paneRect: NSRect?,
     paneShown: Bool, fadeTop: CGFloat, fadeListTop: CGFloat = 0, fadeClearTo: CGFloat = 0,
     listColumn: CGFloat? = nil, paneTop: CGFloat = 0, paneRest: CGFloat = 0) {
     stage.frame = NSRect(origin: .zero, size: size)
@@ -145,8 +135,6 @@ final class SharedSurface {
     list.frame = listRect
     paneSlot.frame = paneRect ?? .zero
     paneSlot.isHidden = paneRect == nil || !paneShown
-    divider.frame = dividerRect ?? .zero
-    divider.isHidden = dividerRect == nil
   }
 
   // A preview pane's view goes into the pane's region in place of whatever was there.
@@ -185,7 +173,7 @@ final class SharedSurface {
 // field's bottom drew a line through a row scrolled half into the band, seen on 2026-10-31. The
 // pane's column rises along the same curve over its own band, from its top edge to where its
 // content rests, since its header rests inside the list's band and would fade there. The mask is
-// one layer holding a gradient per column, and the divider stands outside it. Nothing blurs, see decisions/olm-swift-chooser.md for every blur tried.
+// one layer holding a gradient per column. Nothing blurs, see decisions/olm-swift-chooser.md for every blur tried.
 final class BottomFade {
   private let mask = CALayer()
   private let listColumn = CAGradientLayer()
@@ -251,15 +239,5 @@ final class BottomFade {
     if host?.contentsAreFlipped() == true { return stops.map { NSNumber(value: Double($0)) } }
     layer.colors = layer.colors?.reversed()
     return stops.reversed().map { NSNumber(value: Double(1 - $0)) }
-  }
-}
-
-// The hairline between the list and the pane, filled with the kit's border colour.
-final class DividerView: NSView {
-  var color = NSColor.separatorColor
-
-  override func draw(_ dirtyRect: NSRect) {
-    color.setFill()
-    bounds.fill()
   }
 }
