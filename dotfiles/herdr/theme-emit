@@ -30,7 +30,8 @@ end="$(grep -n '^\[keys\]$' "$OUT" | cut -d: -f1 | head -n 1)"
 [[ "$start" -lt "$end" ]] || { printf '%s has [keys] before [theme.custom.dark], and the region between them is what this owns\n' "$OUT" >&2; exit 1; }
 
 table() {
-    awk -F'\t' '{ printf("%s = \"%s\"\n", $1, $2) }' "$1"
+    # none is the map asking for no colour, which herdr spells reset.
+    awk -F'\t' '{ printf("%s = \"%s\"\n", $1, ($2 == "none" ? "reset" : $2)) }' "$1"
 }
 
 tmp="$(mktemp)"
