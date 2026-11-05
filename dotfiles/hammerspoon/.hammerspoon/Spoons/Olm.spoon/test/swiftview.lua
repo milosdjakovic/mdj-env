@@ -255,12 +255,13 @@ check("the pane's glass is the preview pane rect in the window, past the gap",
   lastPlace.paneFrame.x, rects.canvas.w + gap)
 check("the preview pane travels in screen space, for a pane to be matched on", lastPlace.previewPane,
   rects.previewPane)
--- A hairline of the kit's border width, centred in the gap, from the top of the window to the
--- bottom, in the kit's border colour.
+-- A hairline of the kit's border width, centred in the gap, the outer padding short of the window's
+-- top and bottom edges, in the kit's border colour.
 check("the divider is the kit's border width", lastPlace.dividerFrame.w, 1)
 check("the divider is centred in the gap", lastPlace.dividerFrame.x, rects.canvas.w + (gap - 1) / 2)
-check("the divider runs from the top", lastPlace.dividerFrame.y, 0)
-check("to the bottom", lastPlace.dividerFrame.h, lastPlace.window.h)
+check("the divider starts the outer padding below the top", lastPlace.dividerFrame.y, lastPlace.pad)
+check("and ends the outer padding above the bottom", lastPlace.dividerFrame.y + lastPlace.dividerFrame.h,
+  lastPlace.window.h - lastPlace.pad)
 check("the divider is the kit's border colour", lastStyle.divider.red, 0.45)
 check("every row is sent", #lastRows, 4)
 check("a row's subtitle travels as a string", lastRows[2].subtitle, "sub beta")
@@ -703,7 +704,8 @@ local br = barred:scene().rects
 check("the bar spans the whole window", lastPlace.bottomBar.w, lastPlace.window.w)
 check("the bar starts at the window's left edge", lastPlace.bottomBar.x, 0)
 check("the pane's region runs to the bottom", lastPlace.paneFrame.y + lastPlace.paneFrame.h, lastPlace.window.h)
-check("the divider runs to the bottom", lastPlace.dividerFrame.h, lastPlace.window.h)
+check("the divider ends the outer padding above the bottom", lastPlace.dividerFrame.y + lastPlace.dividerFrame.h,
+  lastPlace.window.h - lastPlace.pad)
 check("the preview pane is as tall as the pane's region", br.previewPane.h, lastPlace.paneFrame.h)
 check("and the bar covers its bottom", br.previewPane.under, lastPlace.bottomBar.h)
 barred:hide()
