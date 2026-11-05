@@ -113,7 +113,7 @@ end
 -- window's own space with y measured down. The divider is width points wide, centred in the gap
 -- between the two, from the top of the window to the bottom, since the bar floats over both and
 -- the preview pane keeps the canvas's height, see under in geometry.resolve.
-local function windowRects(canvas, previewPane, width)
+local function windowRects(canvas, previewPane, width, inset)
   local window = spanOf(canvas, previewPane)
   if not window then
     return canvas, { x = 0, y = 0, w = canvas.w, h = canvas.h }, nil, nil
@@ -122,7 +122,7 @@ local function windowRects(canvas, previewPane, width)
   local left, right
   if pane.x >= list.x + list.w then left, right = list.x + list.w, pane.x
   else left, right = pane.x + pane.w, list.x end
-  local divider = { x = (left + right - width) / 2, y = 0, w = width, h = window.h }
+  local divider = { x = (left + right - width) / 2, y = inset, w = width, h = math.max(0, window.h - 2 * inset) }
   return window, list, pane, divider
 end
 
@@ -191,7 +191,7 @@ end
 --- View colon place, arity one. With a preview pane the panel's one shape of glass spans
 --- rects.canvas, the gap and rects.previewPane, the list's content on the canvas rect, the docked
 --- pane's region on the preview pane and a hairline of the kit's border width in the middle of the
---- gap, and with none it is the canvas rect alone. The field, the list and the bar go on the engine's own rects
+--- gap, the outer padding short of the window's top and bottom edges, and with none it is the canvas rect alone. The field, the list and the bar go on the engine's own rects
 --- in the canvas's own space as before, with the row metrics of the layout the list is drawn to.
 --- With a preview pane the bar's rect runs past the canvas under the gap and the pane, see
 --- spansBottomBar, and the pane's region and the divider stop at its top edge. The preview pane is
@@ -202,7 +202,7 @@ function View:place(rects)
   local origin = rects.canvas
   local iconPad, iconPadLeft = geometry.iconPad(L)
   local window, listFrame, paneFrame, dividerFrame = windowRects(rects.canvas,
-    rects.previewPane, T.stroke.border)
+    rects.previewPane, T.stroke.border, T.pad)
   self.native.place(self.id, {
     canvas = rects.canvas,
     window = window,
@@ -222,6 +222,7 @@ function View:place(rects)
     padX = L.padX,
     numW = L.numW or L.iconSize,
     padBottom = L.padBottom or 0,
+    pad = T.pad,
     showNumbers = L.showRowNumbers == true,
     barInset = s.layout.marginX,
     barGap = T.space.s,

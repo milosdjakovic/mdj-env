@@ -792,8 +792,11 @@ radius, since the surface's fill painted over glass would hide it. The glass is 
 chooser panel's own window. With a preview pane that window and one `NSGlassEffectView` span the
 canvas rect, the engine's gap and the preview pane rect at the surface radius, the list's content on
 the canvas rect, the pane's region on the preview pane rect, and a hairline in the kit's border
-colour and border width centred in the gap from the top down to the bottom bar, so the list and
-the pane are one surface that appears and vanishes together, fading as one, see `native/Motion.swift`. The gap is
+colour and border width centred in the gap, the outer padding short of the window's top and bottom
+edges, so the list and the pane are one surface that appears and vanishes together, fading as one,
+see `native/Motion.swift`. While they scroll, the list and the pane fade at the top and the bottom
+on one curve, each over its own band, and the hairline stands outside the fades, Milos's call on
+2026-11-05. The gap is
 zero under the swift view, which the engine sets beside `bottomBarSpan`, since the list's margin
 already stands between a row and the hairline and the pane pads by the same inset. A gap there sat
 on top of both and gave a highlighted row more room on its right than on its left, reported on

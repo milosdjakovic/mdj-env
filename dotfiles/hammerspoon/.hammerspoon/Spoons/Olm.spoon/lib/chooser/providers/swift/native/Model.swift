@@ -139,6 +139,8 @@ struct Placement {
   var padX: CGFloat = 0
   var numW: CGFloat = 0
   var padBottom: CGFloat = 0
+  // The kit's outer padding, where a preview pane's content rests below the pane's top edge.
+  var pad: CGFloat = 0
   var showNumbers = false
   var barInset: CGFloat = 0
   var barGap: CGFloat = 0
@@ -177,6 +179,7 @@ struct Placement {
     padX = r.number(t, "padX") ?? padX
     numW = r.number(t, "numW") ?? numW
     padBottom = r.number(t, "padBottom") ?? padBottom
+    pad = r.number(t, "pad") ?? pad
     showNumbers = r.bool(t, "showNumbers") ?? showNumbers
     barInset = r.number(t, "barInset") ?? barInset
     barGap = r.number(t, "barGap") ?? barGap

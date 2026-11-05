@@ -451,15 +451,16 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     // The fade begins where the last row stands at the furthest scroll, the list's bottom padding
     // above the bar, so only what has scrolled under the bar softens.
     // The top fade is clear down to the title bar's bottom edge, where the list stops, and rises
-    // along one smooth curve to full where the first row rests, over the list's column alone, since the
-    // pane's own top is its header and never scrolls under the field.
+    // along one smooth curve to full where the first row rests. The pane's column rises along the
+    // same curve from its own top edge to where its content rests, the outer padding below it.
     let barTop = toWindow(placement.bottomBar)?.minY ?? windowSize.height
     let listTop = toWindow(placement.list)?.minY ?? 0
     surfaces.layout(size: windowSize, list: listFrame, pane: placement.paneFrame,
       divider: placement.dividerFrame, paneShown: paneShown && paneContent != nil,
       fadeTop: max(0, barTop - placement.padBottom), fadeListTop: listTop,
       fadeClearTo: min(titlebarHeight, listTop),
-      listColumn: listFrame.maxX)
+      listColumn: listFrame.maxX, paneTop: placement.paneFrame?.minY ?? 0,
+      paneRest: (placement.paneFrame?.minY ?? 0) + placement.pad)
   }
 
   // Whether this panel is up with a preview pane at rect, the question the seam in Entry.swift asks.
