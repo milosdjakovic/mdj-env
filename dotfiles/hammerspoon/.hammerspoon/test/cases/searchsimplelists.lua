@@ -236,17 +236,15 @@ do
     pluginCatalog = function() return catalog end,
     pluginCascade = function() return {} end,
     stagePluginSwitch = function() return true end,
-    applyPluginSwitches = function() end,
   })
   local rows = M.rows()
-  check("the Plugins page leads with Apply now, pinned", rows[1].title == "Apply now"
-    and rows[1].pinned == true, titles(rows))
+  check("the Plugins page lists only plugins, with no apply row even while one is staged",
+    titles(rows) == "Calendar,Clipboard,Olm Plugins", titles(rows))
   local kept = ranked(rows, "clip")
-  check("with clip typed the first row, where Enter lands, is Clipboard and not Apply now",
-    kept[1] and kept[1].title == "Clipboard", titles(kept))
-  check("and Apply now trails it", titles(kept) == "Clipboard,Apply now", titles(kept))
+  check("with clip typed the first row, where Enter lands, is Clipboard",
+    titles(kept) == "Clipboard", titles(kept))
   kept = ranked(rows, "off")
-  check("a plugin's state words are not searched", titles(kept) == "Apply now", titles(kept))
+  check("a plugin's state words are not searched", #kept == 0, titles(kept))
 
   local P = load("plugins/olmplacement/init.lua")
   P:configure({

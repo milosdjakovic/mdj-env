@@ -146,7 +146,7 @@ with the comma, and the gate counts it as accepted. A marker with no comma, no r
 is itself a finding. A memory of what was picked, recency or a learned query, is a `bonus`, never a
 sort. A row that must
 always show comes in two kinds. A door or a placeholder, Back, a capture or new snapshot row,
-Apply now, sets `pinned = true`, keeping its place on an empty query and trailing the matches
+sets `pinned = true`, keeping its place on an empty query and trailing the matches
 under a typed one, so the first row, which takes the highlight and Enter, is the best match. A
 row made from what was typed, a calculator answer or a conversion, sets `fromQuery = true` and
 leads under a typed query. Neither is ever scored or dropped. A row whose subtitle is a status,

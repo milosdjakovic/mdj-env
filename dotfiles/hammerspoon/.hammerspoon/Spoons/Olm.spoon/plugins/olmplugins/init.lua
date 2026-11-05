@@ -1,10 +1,10 @@
 --- === Olm Plugins ===
 ---
---- Lists every plugin with Olm's radio pair, filled when on, and stages a switch on or off, over the four
---- root words pluginCatalog, pluginCascade, stagePluginSwitch and applyPluginSwitches. A choice
---- is only staged, the page stays open, and the root applies the staged set with one reload when
---- the stage goes away or the Apply now row is chosen. A preview pane describes the highlighted
---- plugin, its description first.
+--- Lists every plugin with Olm's checkbox pair, checked when on, and stages a switch on or off, over the
+--- three root words pluginCatalog, pluginCascade and stagePluginSwitch. A choice is only staged,
+--- the page stays open, and the root applies the staged set with one reload when the stage goes
+--- away. There is no apply row, Milos's call on 2026-11-05. A preview pane describes the
+--- highlighted plugin, its description first.
 ---
 --- It was the third page of the Olm Settings plugin until 2026-10-27, when that plugin was split
 --- into Olm Placement, Olm Theme and this, so each is one launcher row that opens its list
@@ -30,12 +30,6 @@ local SELF = here:match("([^/]+)/$")
 
 local cfg = {}
 
--- The plugin last staged, so Apply now can ask for the highlight back on it after the reload.
--- Not the highlight, which this plugin never caches, only the last thing chosen.
-local lastStaged = nil
-
-local ICON_APPLY = "apply"
-
 -- filterText is what the row is searched by, lib/chooser/rank.lua. pluginspage.lua hands its own
 -- through this same constructor, the title and the identity.
 local function row(title, subTitle, icon, item, enabled, filterText)
@@ -52,24 +46,13 @@ local function catalog()
 end
 
 --- M.rows() -> rows
---- Apply now while anything is staged, then one row per plugin. Apply now is pinned, so the
---- shared search never drops it, and it trails the matching plugins under a typed query, so Enter
---- on clip stages the clipboard. A row filters on its title and identity alone and never on its
---- state words, so staging a row never changes whether it matches the query being typed.
+--- One row per plugin. A row filters on its title and identity alone and never on its state
+--- words, so staging a row never changes whether it matches the query being typed.
 function M.rows()
-  local list = catalog()
-  local rows = {}
-  local summary = page.pendingSummary(list)
-  if summary and cfg.applyPluginSwitches then
-    local apply = row("Apply now", summary, ICON_APPLY, { apply = true, key = "apply" }, true)
-    apply.pinned = true
-    rows[#rows + 1] = apply
-  end
-  for _, r in ipairs(page.rows(list, row, SELF)) do rows[#rows + 1] = r end
-  return rows
+  return page.rows(catalog(), row, SELF)
 end
 
--- The pane follows the highlight. A row that is not a plugin, Apply now or no row at all, paints
+-- The pane follows the highlight. A row that is not a plugin, or no row at all, paints
 -- the shared empty state rather than leaving the reserved rect bare.
 local function describe(item)
   if not pane then return end
@@ -112,10 +95,6 @@ function M.onClose()
   if pane then pane.destroy() end
 end
 
-function M.onPresent()
-  lastStaged = nil
-end
-
 --- M.previewPaneWidth() -> true or nil
 --- True only when the pane can really draw, so a root that injected no pane surface opens the
 --- page with no preview pane rect instead of reserving one nothing can draw in. Resolved at register.
@@ -135,22 +114,12 @@ end
 --- switched answers stay too, doing nothing. Nothing is applied here.
 function M.intercept(item)
   if not item then return false end
-  if item.apply and cfg.applyPluginSwitches then
-    -- The place to come back to, described by this plugin about itself, its own registered name
-    -- and the plugin last chosen. The list is the top level, so there is no path to walk.
-    cfg.applyPluginSwitches({
-      tool = SELF,
-      highlight = lastStaged and { key = lastStaged } or nil,
-    })
-    return "stay"
-  end
   if item.plugin then
     if not item.toggle or item.plugin == SELF then return "stay" end
     local entry = page.find(catalog(), item.plugin)
     if not entry then return "stay" end
     local ok, why = cfg.stagePluginSwitch(item.plugin, not page.isOff(entry))
     if ok then
-      lastStaged = item.plugin
       -- The marker moves on the redraw this answer causes, and the pane is repainted by hand so
       -- the cascade line is measured against the new staged set at once.
       describeHighlighted()
@@ -182,7 +151,6 @@ end
 --- opts.pluginCascade        required, a function of an identity answering what else changes.
 --- opts.stagePluginSwitch    required, a function of an identity and an off flag answering ok
 ---                           and why, staging the choice and writing nothing.
---- opts.applyPluginSwitches  optional, a function of a place to reopen, the Apply now row.
 --- opts.notify               optional, one line of routine feedback, used for a refusal.
 --- opts.stageSelectedItem    optional, the highlighted row, which the pane follows.
 --- opts.previewPane           optional, the root's preview pane grant.
@@ -192,11 +160,9 @@ function M:configure(opts)
   cfg.pluginCatalog = opts.pluginCatalog
   cfg.pluginCascade = opts.pluginCascade
   cfg.stagePluginSwitch = opts.stagePluginSwitch
-  cfg.applyPluginSwitches = opts.applyPluginSwitches
   cfg.notify = opts.notify
   cfg.stageSelectedItem = opts.stageSelectedItem
   cfg.stagePresent = opts.stagePresent
-  lastStaged = nil
   if not pane and opts.previewPane then pane = opts.previewPane() end
   if not available() then
     log.w("configured with no plugin switch words, the page will list nothing")
