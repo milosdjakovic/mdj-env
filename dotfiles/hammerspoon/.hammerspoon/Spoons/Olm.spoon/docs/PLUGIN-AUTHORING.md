@@ -633,7 +633,7 @@ its own two pairs, declared once in the actions pane's manifest.
 | Meaning | The row says | SF Symbol | Emoji |
 |---|---|---|---|
 | One of many, choosing one turns the rest off | `chosen = true` / `false` | `circle.inset.filled` / `circle` | 🔘 / ⚪ |
-| Each on or off by itself | `on = true` / `false` | `checkmark.square.fill` / `square` | ☑️ / ⬜ |
+| Each on or off by itself | `on = true` / `false` | `checkmark.square` / `square` | ☑️ / ⬜ |
 | Neither, an action or one thing's own state | its own icon | | |
 
 A row whose other choices keep a picture of their own, a flag or a device kind, sets

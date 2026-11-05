@@ -503,7 +503,9 @@ do
     { name = "circle", color = red, scale = 2, path = "/tmp/a.png" },
     { name = "globe", color = nil, scale = 0.5, path = "/tmp/b.png" },
   })
-  check("the sf script paints every layer with a palette", script:find("configurationWithPaletteColors($([col]))", 1, true) ~= nil, true)
+  check("the sf script draws the monochrome rendering", script:find("configurationPreferringMonochrome", 1, true) ~= nil, true)
+  check("the sf script no longer paints layers with a palette", script:find("PaletteColors", 1, true), nil)
+  check("the sf script fills the colour through the symbol's alpha", script:find("NSRectFillUsingOperation($.NSMakeRect(0, 0, side, side), 3)", 1, true) ~= nil, true)
   check("the sf script no longer asks for a hierarchical colour", script:find("Hierarchical", 1, true), nil)
   check("one script renders every job", select(2, script:gsub("\njob%(", "")), 2)
   check("the colour is spliced into its job", script:find("1.0000, 0.0000, 0.0000, 1.0000", 1, true) ~= nil, true)

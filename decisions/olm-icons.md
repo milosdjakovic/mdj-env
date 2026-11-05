@@ -31,8 +31,8 @@ a 72 point canvas with the glyph at 60, and holds one reused canvas. The sf sour
 in Hammerspoon's process. It keeps each SF Symbol as a PNG in the storage cache directory for
 icons, named for the symbol, the side, the scale and the colour, and a separate `osascript -l
 JavaScript` process started through `hs.task` renders the missing ones in batches, centred in a
-square keeping their aspect, painted with a palette of one colour so every layer is at full
-strength. A picture not on disk yet answers nil and pending, the engine keeps no answer for it,
+square keeping their aspect, drawn in their monochrome rendering and filled with the one colour
+through their own alpha, so every layer is at full strength and a knockout stays a hole. A picture not on disk yet answers nil and pending, the engine keeps no answer for it,
 and when a run finishes the root asks every chooser provider to repaint the lists it shows. At
 load the root hands the source every symbol the manifests declare, so a fresh machine renders
 the declared set in one run. The swift chooser's view resolves icons only for the rows near the
@@ -65,7 +65,8 @@ A row that shows a state names no marker. It says what the state means and `stam
 `lib/icons/rows.lua` draws one of Olm's two pairs over it, declared in the actions pane's manifest
 and handed to the resolver as its `marks`. `chosen = true` or `false` is one of many, the radio pair
 `circle.inset.filled` and `circle`, 🔘 and ⚪. `on = true` or `false` is each row on or off by
-itself, the checkbox pair `checkmark.square.fill` and `square`, ☑️ and ⬜. Each pair differs by
+itself, the checkbox pair `checkmark.square` and `square`, ☑️ and ⬜, both outlines and told apart
+by the check. Each pair differs by
 shape, never by colour alone. A list whose other rows keep a picture of their own, Input Sources,
 Audio, Display Profiles, tmux windows, leaves `chosen` unset on them. Stamping names in the console
 a list with more than one row saying `chosen = true`, and a row saying both, which shows neither
@@ -101,6 +102,8 @@ meaning each, `hand.raised` ✋ a permission macOS is holding back, and the lock
 - **The checkbox pair, `square` and `checkmark.square.fill`, for lists where several are on.**
   2026-11-02 19:05. Offered beside the radio pair and not chosen. Milos picked the radio pair for
   every list, Olm Plugins and the browser switches included.
+- **The filled checkbox, `checkmark.square.fill`, for on.** 2026-11-05. Milos asked for the
+  checkbox as outlines, so on is `checkmark.square`, the same outline as off with the check inside.
 - **A marker a plugin declares, even one copied from the shared pair.** 2026-11-02 19:05. A copy
   drifts the first time one list changes its glyph, which is how the six lists came to differ.
 - **Each plugin drawing its own icons.** 2026-10-15. Twelve plugins each carried an
@@ -153,6 +156,11 @@ meaning each, `hand.raised` ✋ a permission macOS is holding back, and the lock
   layers at reduced opacity, so a multi layer symbol such as `face.smiling` or `globe` looked dim
   beside a single layer one such as `circle.fill`. A palette of one colour gives every layer the
   same strength and was verified to render so.
+- **A palette of one colour for symbols.** 2026-11-05. It replaced the hierarchical colour above
+  and paints each layer over the one under it, so a filled symbol with a knockout,
+  `checkmark.square.fill`, drew its check as a darker stroke on a grey square rather than a hole,
+  and the Olm Plugins checkboxes read as dark blobs on the glass. The monochrome rendering keeps
+  the knockouts and every layer at full strength.
 
 ## Log
 
@@ -417,3 +425,24 @@ that alpha, so it came out at about 85 percent white. Milos asked for it to matc
 both halves. `Crisp.tinted` now scales the alpha so the symbol's most opaque pixel is fully opaque,
 times the lit colour's own, keeping the antialiased edges, and the case in `test/swiftpane.swift`
 draws its source at 0.85 and asks for full strength.
+
+### 2026-11-05 10:52
+
+Milos reported the checkboxes in the Olm Plugins list as hard to see. The cached
+`checkmark.square.fill` picture showed the cause, a black check stroked over a grey square,
+since the palette of one colour chosen on 2026-10-15 paints each layer separately at the glass
+palette's 85 percent alpha and the overlap only darkens. The sf script now applies
+`configurationPreferringMonochrome`, draws the symbol, and fills the colour over it with source in,
+so the colour takes the symbol's alpha, knockouts stay holes and the colour's own alpha is kept.
+Rendered side by side before the change, `checkmark.square.fill`, `circle.inset.filled`, `globe`,
+`face.smiling` and `play` all came out at full strength in monochrome, so the reason the palette
+was chosen still holds. `test/icons.lua` pins the configuration and the fill. The cache was
+cleared so every symbol renders again.
+
+### 2026-11-05 11:02
+
+After the monochrome fix Milos asked for the checkbox as outlines rather than a fill. The `checked`
+mark in the actions pane's manifest is now `checkmark.square`, so on and off are the same outline
+square and the check alone tells them apart, which still differs by shape and not by colour. The
+radio pair is unchanged. The emoji set keeps ☑️ and ⬜. The registrar's `MARKER_SF` already refused
+both checkbox symbols, so no plugin can declare either.

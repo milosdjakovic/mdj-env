@@ -279,7 +279,7 @@ icon on its `primary` and its `secondary`, declared in the manifest's `icons`, A
 name, since some symbols draw a solid body without `.fill` in the name. A plugin never declares a
 marker for a state. A row says what the state means and Olm draws the mark. `chosen = true` or
 `false` is one of many, the radio pair `circle.inset.filled` and `circle`, 🔘 and ⚪. `on = true` or
-`false` is each row on or off by itself, the checkbox pair `checkmark.square.fill` and `square`, ☑️
+`false` is each row on or off by itself, the checkbox pair `checkmark.square` and `square`, ☑️
 and ⬜. A row whose other choices keep a picture of their own, a flag or a device kind, leaves
 `chosen` unset on those. Each pair differs by shape, never by colour alone, so a plugin never
 declares either pair, a switch, or a circle told apart from another only by its colour, 🟢 beside 🔴.
