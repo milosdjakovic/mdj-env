@@ -60,32 +60,6 @@ struct Style {
   }
 
   init() {}
-
-  init(_ r: LuaReader, _ t: Int32) {
-    text = r.color(t, "text") ?? text
-    textDim = r.color(t, "textDim") ?? textDim
-    sub = r.color(t, "sub") ?? sub
-    subDim = r.color(t, "subDim") ?? subDim
-    highlight = r.color(t, "highlight") ?? highlight
-    number = r.color(t, "number") ?? number
-    background = r.color(t, "background") ?? background
-    caption = r.color(t, "caption") ?? caption
-    badge = r.color(t, "badge") ?? badge
-    keycap = r.color(t, "keycap") ?? keycap
-    fieldFont = r.font(t, "fieldFont") ?? fieldFont
-    titleFont = r.font(t, "titleFont") ?? titleFont
-    subFont = r.font(t, "subFont") ?? subFont
-    numberFont = r.font(t, "numberFont") ?? numberFont
-    captionFont = r.font(t, "captionFont") ?? captionFont
-    keycapFont = r.font(t, "keycapFont") ?? keycapFont
-    rowKeyFont = r.font(t, "rowKeyFont") ?? rowKeyFont
-    let numbers = r.chord(t, "numberKeys")
-    if !numbers.isEmpty { numberKeys = numbers }
-    let ret = r.chord(t, "returnKey")
-    if !ret.isEmpty { returnKey = ret }
-    radius = r.number(t, "radius") ?? radius
-    highlightRadius = r.number(t, "highlightRadius") ?? highlightRadius
-  }
 }
 
 // The colours of what stands on one surface, the words, the key chips and the one colour icons.
@@ -156,40 +130,6 @@ struct Placement {
   var keycapOr = "/"
 
   init() {}
-
-  init(_ r: LuaReader, _ t: Int32) {
-    canvas = r.rect(t, "canvas") ?? canvas
-    window = r.rect(t, "window")
-    listFrame = r.rect(t, "listFrame")
-    paneFrame = r.rect(t, "paneFrame")
-    previewPane = r.rect(t, "previewPane")
-    field = r.rect(t, "field")
-    list = r.rect(t, "list")
-    bottomBar = r.rect(t, "bottomBar")
-    rowH = max(1, r.number(t, "rowH") ?? rowH)
-    iconSize = r.number(t, "iconSize") ?? iconSize
-    iconFrame = r.number(t, "iconFrame") ?? iconSize
-    iconPad = r.number(t, "iconPad") ?? iconPad
-    iconPadLeft = r.number(t, "iconPadLeft") ?? iconPadLeft
-    iconGap = r.number(t, "iconGap") ?? iconGap
-    padX = r.number(t, "padX") ?? padX
-    numW = r.number(t, "numW") ?? numW
-    padBottom = r.number(t, "padBottom") ?? padBottom
-    pad = r.number(t, "pad") ?? pad
-    showNumbers = r.bool(t, "showNumbers") ?? showNumbers
-    barInset = r.number(t, "barInset") ?? barInset
-    barGap = r.number(t, "barGap") ?? barGap
-    barGapWide = r.number(t, "barGapWide") ?? barGapWide
-    infoIcon = r.number(t, "infoIcon") ?? infoIcon
-    keysPad = r.number(t, "keysPad") ?? keysPad
-    barPad = r.number(t, "barPad") ?? barPad
-    barPillH = r.number(t, "barPillH") ?? barPillH
-    barPillPad = r.number(t, "barPillPad") ?? barPillPad
-    keycapH = r.number(t, "keycapH") ?? keycapH
-    keycapPadX = r.number(t, "keycapPadX") ?? keycapPadX
-    keycapGap = r.number(t, "keycapGap") ?? keycapGap
-    keycapOr = r.string(t, "keycapOr") ?? keycapOr
-  }
 }
 
 // One key of a chord, lib/kbd.lua's glyph and the SF Symbol a key cap draws in its place, nil for
@@ -214,17 +154,6 @@ struct Row {
   var tint = false
   // The heading an actions pane row is listed under, nil for a list row.
   var section: String?
-
-  init(_ r: LuaReader, _ t: Int32) {
-    title = r.string(t, "title") ?? ""
-    subtitle = r.string(t, "subtitle") ?? ""
-    chord = r.chord(t, "chord")
-    enabled = r.bool(t, "enabled") ?? true
-    muted = r.bool(t, "muted") ?? false
-    image = r.image(t, "image")
-    tint = r.bool(t, "tint") ?? false
-    section = r.string(t, "section")
-  }
 }
 
 // The bottom bar's model as lib/hints.lua's bottomBarModel shapes it, a chord as kbd's wire.
@@ -253,23 +182,6 @@ struct BottomBar {
   var panelTitle: String?
 
   init() {}
-
-  init(_ r: LuaReader, _ t: Int32) {
-    r.each(t, "right") { e in
-      right.append(Entry(label: r.string(e, "label") ?? "", chord: r.chord(e, "chord"),
-        action: r.string(e, "action"), fit: r.bool(e, "fit") ?? false))
-    }
-    r.each(t, "keys") { e in
-      keys.append(Entry(label: r.string(e, "label") ?? "", chord: r.chord(e, "chord"),
-        section: r.string(e, "section"), lead: r.chord(e, "lead")))
-    }
-    keysChord = r.chord(t, "keysChord")
-    keysImage = r.image(t, "keysImage")
-    keysTint = r.bool(t, "keysTint") ?? false
-    title = r.string(t, "title")
-    panelOpen = r.bool(t, "panelOpen") ?? false
-    panelTitle = r.string(t, "panelTitle")
-  }
 }
 
 // What the engine's scene says now, apart from the rows, which travel on their own call.
@@ -292,25 +204,6 @@ struct ViewState {
   var actionsHighlight = 0
 
   init() {}
-
-  init(_ r: LuaReader, _ t: Int32) {
-    highlight = r.integer(t, "highlight")
-    scrollTop = r.number(t, "scrollTop").map { CGFloat($0) }
-    placeholder = r.string(t, "placeholder") ?? ""
-    bare = r.bool(t, "bare") ?? false
-    r.each(t, "slots") { e in slots.append(r.integer(at: e) ?? 0) }
-    empty = r.bool(t, "empty") ?? false
-    emptyText = r.string(t, "emptyText") ?? ""
-    lineBreak = ViewState.lineBreak(r.string(t, "lineBreak"))
-    bottomBar = r.field(t, "bottomBar") { r.isTable($0) ? BottomBar(r, $0) : nil }
-    infoOpen = r.bool(t, "infoOpen") ?? false
-    if r.field(t, "actions", { r.isTable($0) }) == true {
-      var rows: [Row] = []
-      r.each(t, "actions") { e in rows.append(Row(r, e)) }
-      actions = rows
-    }
-    actionsHighlight = r.integer(t, "actionsHighlight") ?? 0
-  }
 
   // The truncation mode names the canvas view hands hs.styledtext, as AppKit spells them.
   static func lineBreak(_ name: String?) -> NSLineBreakMode {

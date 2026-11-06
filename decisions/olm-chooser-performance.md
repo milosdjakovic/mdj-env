@@ -128,3 +128,15 @@ The canvas field's caret measure goes through the kit's cached `exact` now, hand
 the caret cannot move. The standalone field probe hands no measurer and keeps the direct call.
 The dry gate and the goldens pass. The tracker on `hs.canvas.new` has not been run against it
 live yet, and the table says so until it has.
+
+### 2026-11-06 16:57
+
+Typing and leaving a list measured on the swift chooser with `perf`, in ordinary use over about
+three minutes. 32 stalls over 25 ms, most of them 30 to 75 ms and the worst ordinary ones 116 to
+199 ms, and two of 2535 and 2367 ms, each one `lua text` call of 2467 and 2327 ms, one keystroke
+holding the main thread, ending in a `setRows` and an `update`, the second with a `paneShow`. So
+the freeze is one synchronous step in the text path that swaps a list, and not ranking, which took
+2 to 9 ms over 2000 file rows on the live config, nor the helper, about 10 ms, though parsing 2000
+index lines took 55 ms in one run. What the 2.4 seconds is spent on is not known yet. The launcher's
+app scan runs from `_appRows` when its cache is gone, and it is a suspect only, measured at 356 ms
+when it was last measured. A `sample` of Hammerspoon taken across a stall names it.

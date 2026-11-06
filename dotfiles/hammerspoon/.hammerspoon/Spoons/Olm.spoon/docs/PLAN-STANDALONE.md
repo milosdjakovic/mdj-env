@@ -23,11 +23,11 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 0.5, gather LuaSkin into one Swift file.
+Next. 0.2, fixtures for ranking.
 
 Stage 0, contracts
 - [x] 0.1 The decision record, 2026-11-05
-- [ ] 0.5 Gather LuaSkin into one Swift file
+- [x] 0.5 Gather LuaSkin into one Swift file, 2026-11-06
 - [ ] 0.2 Fixtures for ranking
 - [ ] 0.4 The bridge protocol, on paper, with its adversarial review
 - [ ] 0.6 A data source protocol in front of the library, and the package build
@@ -167,9 +167,9 @@ is open. A step that moves search or rows must not make any of the three worse.
 Nothing a person sees changes in this stage. The steps run in the order listed.
 
 **0.5 Gather LuaSkin into one Swift file.** LuaSkin and the Lua C API are used in
-`native/Entry.swift`, `native/Lua.swift` and seven lines of `native/Pane.swift`. The `Pane.swift`
-uses move beside the others, so the Lua facing code is two files commented as the seam, with no
-behaviour change. Test, `test/swiftpane.sh`, `test/swiftview.lua`, a live load with the swift
+`native/Entry.swift`, `native/Lua.swift`, `PaneReader` in `native/Pane.swift` and the five
+initialisers in `native/Model.swift` that take a `LuaReader`. Those last two move into `Lua.swift`,
+so the Lua facing code is two files commented as the seam, with no behaviour change. Test, `test/swiftpane.sh`, `test/swiftview.lua`, a live load with the swift
 chooser serving and a clean console. Back out, revert the commit.
 
 **0.1 The decision record.** Done 2026-11-05, `decisions/olm-standalone.md`.

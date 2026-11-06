@@ -62,3 +62,8 @@ first as language neutral fixtures both sides run.
   because its index is already Swift, so the pilot needs only an `olm://` URL and no socket
   bridge. Stage 0 keeps every step, reordered so the LuaSkin step runs first and the file search
   grammar fixtures come before the pilot.
+- 2026-11-06 16:57. Step 0.5's scope was corrected before it was finished. The plan named seven lines of
+  `native/Pane.swift`, and the whole of `PaneReader` reads Lua, as do five initialisers in
+  `native/Model.swift` it did not name, which take a `LuaReader`. All of them moved into
+  `native/Lua.swift`, so a file outside the seam touches no LuaSkin and no Lua. `LuaValue` is still
+  named by `Panel.swift`'s `Ask`, a plain enum with no Lua in it, left for 0.6's data source protocol.
