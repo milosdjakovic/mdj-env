@@ -91,3 +91,20 @@ answers every OSC 11 that follows a report with the background of the half that 
 
 Not yet reported upstream. A restart of the Claude Code session, or `claude --resume`, repaints
 it correctly until the next switch.
+
+### 2026-11-06 08:29
+
+Rechecked on herdr 0.9.5, Claude Code 2.1.319, macOS 27.0.1, with the same probe in a herdr
+pane and sixteen switches about two seconds apart. Every switch produced a report naming the
+right half, so forwarding is still sound. The OSC 11 answer that followed was wrong eleven times
+out of sixteen, the background of the half just left, and from the fifth switch on it was right
+only twice. So the stale cache is unchanged in 0.9.5, and Claude Code still lands on the wrong
+half more often than not. Still not reported upstream.
+
+**2026-11-06 08:41.** The two lines above saying it was not reported upstream were wrong. Others
+had already reported it at github.com/herdrdev/herdr, as issues 4844 and 4913, both closed by the
+maintainers' bot as duplicates of 4183. Issue 4183 was closed as completed on 2026-10-23, and a
+regular commenter there says the fix is on master and waiting for a release. The newest herdr
+release is 0.9.5 from 2026-10-14, so no release carries it yet. herdr accepts only bug issues from
+outsiders, and closes pull requests from anyone not on its approved list. So nothing here needs
+reporting. The check is to run the probe again once a herdr release after 0.9.5 is installed.
