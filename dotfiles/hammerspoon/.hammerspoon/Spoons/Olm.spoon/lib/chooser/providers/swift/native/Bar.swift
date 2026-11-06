@@ -510,6 +510,11 @@ final class BarView: FlippedView {
     }
   }
 
+  // A morph beside the window's reshape, at u of the way, and its end with the reshape's, see
+  // BarMorph.follow.
+  func followMorph(_ u: CGFloat) { morph.follow(u) }
+  func finishMorph() { morph.finish() }
+
   // The group back on its own width once a morph ends.
   private func settleMorph() {
     morphWidth = 0

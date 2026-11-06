@@ -971,7 +971,7 @@ every frame and the main thread stays free between frames, so a close or a list'
 motion, a close fading out from where the window stands and another shape turning it from there.
 A pane closing stays drawn until the window has narrowed over it. A list switch that changes the
 right group's actions morphs the group, `BarMorph`, its width and its crossfade on the same
-`reshapeCurve` and length as the window. The small group still reads clearer and its shadow
+`reshapeCurve` and length as the window, and on the window's own steps while it reshapes. The small group still reads clearer and its shadow
 lighter than the open pane's, which is macOS drawing glass by size, accepted.
 The look is the `motion` block of
 `config/settings.lua`, which reaches the kit's `motion` tokens through `root/uispec.lua` and the

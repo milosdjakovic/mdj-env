@@ -278,14 +278,14 @@ final class ReshapeMotion: NSObject {
   private var link: CADisplayLink?
   private var began: CFTimeInterval = 0
   private var from = NSRect.zero, to = NSRect.zero
-  private var step: ((NSRect) -> Void)?
+  private var step: ((NSRect, CGFloat) -> Void)?
   private var done: (() -> Void)?
   var moving: Bool { link != nil }
   // Where the window stood on the last frame drawn, which a motion turned mid way starts from.
   private(set) var at = NSRect.zero
 
   // Plays from one frame to another on view's display, both in Hammerspoon's screen space.
-  func play(on view: NSView, from: NSRect, to: NSRect, step: @escaping (NSRect) -> Void,
+  func play(on view: NSView, from: NSRect, to: NSRect, step: @escaping (NSRect, CGFloat) -> Void,
     done: @escaping () -> Void) {
     stop()
     guard Motion.reshapeDuration > 0, !Motion.still else { return done() }
@@ -315,7 +315,7 @@ final class ReshapeMotion: NSObject {
     let minY = mix(from.minY, to.minY), maxY = mix(from.maxY, to.maxY)
     let frame = t >= 1 ? to : NSRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
     at = frame
-    step?(frame)
+    step?(frame, t >= 1 ? 1 : u)
     if Perf.on {
       Perf.note(String(format: "reshape step t %.2f took %.1f ms", t, (CACurrentMediaTime() - start) * 1000), at: start)
     }
@@ -349,6 +349,13 @@ final class BarMorph {
   private var arriving: [NSView] = []
   private static let fadeKey = "olm.motion.morph.fade"
   private(set) var moving = false
+  // While the window reshapes beside it the morph follows the window's own steps rather than a
+  // clock of its own, see follow.
+  private var following = false
+  private var last: CGFloat = 0
+  private var start = CGRect.zero, end = CGRect.zero
+  private weak var mask: CALayer?
+  private var done: (() -> Void)?
 
   // from and to in the group's own space, y measured down, at the group's full height.
   func play(group: NSView, from: NSRect, to: NSRect, radius: CGFloat, leaving: NSView,
@@ -375,7 +382,13 @@ final class BarMorph {
         : CGRect(x: r.minX, y: group.bounds.height - r.maxY, width: r.width, height: r.height)
     }
     let start = down(from), end = down(to)
+    self.start = start
+    self.end = end
+    self.done = done
+    following = false
+    last = 0
     let mask = CALayer()
+    self.mask = mask
     CATransaction.begin()
     CATransaction.setDisableActions(true)
     mask.backgroundColor = NSColor.black.cgColor
@@ -388,9 +401,8 @@ final class BarMorph {
     let d = Motion.reshapeDuration
     CATransaction.begin()
     CATransaction.setCompletionBlock { [weak self] in
-      guard let self, self.moving, self.token == mine else { return }
-      self.stop()
-      done()
+      guard let self, self.moving, !self.following, self.token == mine else { return }
+      self.finish()
     }
     func animate(_ target: CALayer, _ path: String, _ from: Any, _ to: Any, curve: CAMediaTimingFunction,
       length: CFTimeInterval, key: String) {
@@ -442,17 +454,64 @@ final class BarMorph {
   func adopt(_ views: [NSView]) {
     guard moving else { return }
     arriving = views
-    views.forEach(fadeIn)
+    if following {
+      CATransaction.begin()
+      CATransaction.setDisableActions(true)
+      for view in views {
+        view.wantsLayer = true
+        view.layer?.opacity = Float(last)
+      }
+      CATransaction.commit()
+    } else {
+      views.forEach(fadeIn)
+    }
+  }
+
+  // The morph at u of the way, from the window's reshape step, so the group's width and its words
+  // move with the window's edge frame for frame, the way the preview pane is uncovered by it. On a
+  // clock of its own on the render server, beside a window stepped on the main thread, the group
+  // drifted against the edge that carries it, Milos's report on 2026-11-06. The first step takes
+  // the morph off its own clock.
+  func follow(_ u: CGFloat) {
+    guard moving, let mask else { return }
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    if !following {
+      following = true
+      mask.removeAllAnimations()
+      leaving?.layer?.removeAnimation(forKey: Self.fadeKey)
+      for view in arriving { view.layer?.removeAnimation(forKey: Self.fadeKey) }
+    }
+    last = u
+    func mix(_ a: CGFloat, _ b: CGFloat) -> CGFloat { a + (b - a) * u }
+    mask.frame = CGRect(x: mix(start.minX, end.minX), y: mix(start.minY, end.minY),
+      width: mix(start.width, end.width), height: mix(start.height, end.height))
+    leaving?.layer?.opacity = Float(1 - u)
+    for view in arriving { view.layer?.opacity = Float(u) }
+    CATransaction.commit()
+  }
+
+  // Ends where it was going and calls done, the window's reshape having ended, or its own clock.
+  func finish() {
+    guard moving else { return }
+    let then = done
+    stop()
+    then?()
   }
 
   // Ends at once with no callback, the mask, the old items and every fade gone.
   func stop() {
     moving = false
+    following = false
+    done = nil
     token += 1
     group?.layer?.mask = nil
     leaving?.removeFromSuperview()
     leaving = nil
-    for view in arriving { view.layer?.removeAnimation(forKey: Self.fadeKey) }
+    for view in arriving {
+      view.layer?.removeAnimation(forKey: Self.fadeKey)
+      view.layer?.opacity = 1
+    }
     arriving = []
   }
 }

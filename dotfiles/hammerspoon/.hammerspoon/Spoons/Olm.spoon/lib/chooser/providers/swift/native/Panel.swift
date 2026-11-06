@@ -323,7 +323,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     reshapeTarget = next
     lay(wide, at: old)
     reshape.play(on: root, from: old, to: target,
-      step: { [weak self] frame in self?.stepShape(frame) },
+      step: { [weak self] frame, u in self?.stepShape(frame, u) },
       done: { [weak self] in self?.finishReshape() })
   }
 
@@ -340,11 +340,12 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
 
   // The window at one frame of a reshape, everything in it where the wide layout put it but the
   // surfaces' size and the bar's width, which follow the window's.
-  private func stepShape(_ frame: NSRect) {
+  private func stepShape(_ frame: NSRect, _ u: CGFloat) {
     windowSize = frame.size
     window.setFrame(ScreenSpace.cocoaRect(frame), display: true)
     layoutSurfaces()
     layoutBar(at: frame)
+    bar.followMorph(u)
     window.invalidateShadow()
   }
 
@@ -358,6 +359,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   // The window on its new shape alone.
   private func finishReshape() {
     reshape.stop()
+    bar.finishMorph()
     endLinger()
     lay(reshapeTarget)
   }

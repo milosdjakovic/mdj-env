@@ -1040,3 +1040,14 @@ ask. It is added with no begin time of its own, so Core Animation starts it at t
 width's mask and the old items' fade start at, and items the bar builds again mid morph take the
 old items' begin time once it is set. Built with no new warning, `test/swiftpane.sh`, the dry gate
 and the unit cases pass.
+
+### 2026-11-06 14:40
+
+While the window reshapes, the bar's right group morphs on the window's own steps, `BarMorph.follow`,
+each step setting the group's width and the crossfade from the same share of the way the window
+just took, and the morph ends when the reshape does. On a clock of its own on the render server,
+beside a window stepped on the main thread whose edge carries the group, the width drifted against
+that edge, and Milos asked that it expand and collapse the way the preview pane is uncovered. A
+morph with no reshape beside it keeps its own clock. Items the bar builds again mid follow take the
+step's opacity. Built with no new warning, `test/swiftpane.sh`, the dry gate and the unit cases
+pass, and confirmed live by Milos.
