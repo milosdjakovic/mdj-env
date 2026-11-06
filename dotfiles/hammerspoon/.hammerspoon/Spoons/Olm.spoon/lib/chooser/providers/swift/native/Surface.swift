@@ -105,7 +105,7 @@ final class SharedSurface {
 
   var view: NSView { glass.view }
   var name: String { glass.name }
-  // The list's content, the pane's region and the divider together, which a reshape slides.
+  // The list's content and the pane's region together, which a reshape slides.
   var sliding: NSView { content }
 
   init(list content: NSView) {

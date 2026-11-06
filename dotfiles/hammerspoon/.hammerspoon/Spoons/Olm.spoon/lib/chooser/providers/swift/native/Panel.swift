@@ -341,7 +341,6 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     q.window = window
     q.listFrame = (p.listFrame ?? NSRect(origin: .zero, size: p.canvas.size)).offsetBy(dx: dx, dy: dy)
     q.paneFrame = p.paneFrame?.offsetBy(dx: dx, dy: dy)
-    q.dividerFrame = p.dividerFrame?.offsetBy(dx: dx, dy: dy)
     return q
   }
 
