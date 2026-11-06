@@ -481,6 +481,7 @@ final class BarView: FlippedView {
           holderH: placement.barPillH, holderRadius: capRadius))
       }
       for view in rightParts { actions.addSubview(view) }
+      if leaving == nil { morph.adopt(rightParts) }
     }
     for group in [button, actions] {
       group.color = style.highlight

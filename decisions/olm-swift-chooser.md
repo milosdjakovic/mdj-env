@@ -146,6 +146,11 @@ chooser serves and on the canvas otherwise, built on `olm/native-panel`.
 - **A display link stepping the chooser's real frame.** 2026-11-06 10:55. Smooth while the main
   thread is free, each step about 2 ms, but it misses every frame Lua or the list's switch takes,
   since it gives the thread up between frames. AppKit's animated resize keeps it.
+  Taken back 2026-11-06 12:55, it is the reshape again, see the entry of that time.
+- **AppKit's animated resize for the chooser's reshape.** 2026-11-06 12:55. As smooth as Apple's
+  windows, but `setFrame(_:display:animate:)` holds the main thread until it ends, so Escape, a
+  list's key and every event tap waited the motion out, up to its whole length, and nothing could
+  turn it mid way. Its curve also could not be set.
 
 ## Log
 
@@ -979,3 +984,30 @@ with its right edge kept, the old items fading out over the first half and the n
 second, on the same `reshape` length. A label that follows the row with the same actions swaps.
 Built with no new warning, `test/swiftpane.sh`, the dry gate and the unit cases pass, and confirmed
 live by Milos.
+Corrected 2026-11-06 12:55, AppKit's resize held every key until it ended, and the reshape is
+stepped on a display link again, see the entry of that time.
+
+### 2026-11-06 12:55
+
+The reshape is stepped on a display link again, since AppKit's animated resize held the main thread
+for its whole length, so Escape or Hyper+X pressed mid motion waited it out, Milos's ask that a
+close works at any moment. Between frames the thread is free, so a close stops the motion where the
+window stands and fades it out from there, the shape it was going to laid out once it is down, and
+a list's key that asks for another shape turns the motion from the frame the window stands at. It
+plays on `reshapeCurve`, ease in and out, AppKit's curve, which Milos chose, and each edge is still
+rounded on its own to a whole point. The frames AppKit kept and the display link missed this
+morning were the list's switch interleaving, and probed at 1.5 s this afternoon over 322 steps none
+of Lua or the library's own calls held the thread during a motion, each step about 2 ms. 194 steps
+came on the 120 Hz beat and the rest 12 to 24 ms apart, the window server drawing the glass and the
+shadow at the new size, which Milos judged good. The probe saw Escape stop two motions at 16 and 36
+percent with the close at once.
+
+The bar morph moved with it. Its width plays on `reshapeCurve`, so it moves with the window rather
+than ahead of it on the open curve, and the old items and the new crossfade over the whole length
+on the same curve, Milos's two asks, rather than on a linear clock of their own, the old over the
+first half and the new over the second, which ran ahead of the width. The new items had seemed to
+pop in for another reason, since the bar lays itself out again as the selected row changes and
+built them anew at full strength, so items built while a morph plays take its fade where it stands,
+`BarMorph.adopt`. The perf probe also notes the pane's hides and releases and every place. Built
+with no new warning, `test/swiftpane.sh`, the dry gate and the unit cases pass, and confirmed live
+by Milos.

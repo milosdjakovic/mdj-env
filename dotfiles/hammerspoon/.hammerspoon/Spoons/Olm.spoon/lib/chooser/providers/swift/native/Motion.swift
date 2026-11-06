@@ -51,8 +51,14 @@ enum Motion {
   static var paneCurve = CAMediaTimingFunction(name: .linear)
   static var paneCloseCurve = CAMediaTimingFunction(name: .linear)
   // How long the chooser's window takes to change shape while it is up, a preview pane arriving
-  // beside the list or leaving it, see ReshapeMotion. It plays on the open curve.
+  // beside the list or leaving it, see ReshapeMotion, and a bar group morphing as the list switches,
+  // see BarMorph.
   static var reshapeDuration: CFTimeInterval = 0
+  // The curve of a reshape, the window's and a bar group's morphing beside it, so they move
+  // together. It eases in and out, the curve AppKit's own animated resize plays, which Milos chose
+  // on 2026-11-06, and with the group on the open curve it reached its width while the window was
+  // still gathering speed.
+  static let reshapeCurve = CAMediaTimingFunction(name: .easeInEaseOut)
 
   // Where a curve has got at t from 0 to 1, its two control points solved for x by Newton's method
   // and bisection, as Core Animation does, for a motion stepped by hand.
@@ -256,50 +262,84 @@ final class WindowMotion {
 
 // The chooser's window changing shape while it stays up, a list with no preview pane becoming one
 // with a pane or the other way round, so the window widens to make room for the pane rather than
-// jumping to its new size. It is AppKit's own animated resize, the one Apple's windows use, so the
-// window's frame really changes, the window server draws its shadow and its outline for each frame
-// and the glass draws its rim and the bend at its edge for the size it is. AppKit steps it in a loop
-// of its own that nothing else on the main thread runs inside, Lua's timers included, which is why
-// it stays smooth where a display link stepping the frame dropped every frame Lua took, and a mask
-// over glass at a larger size drew neither the shadow nor the edge right, Milos's reports on
-// 2026-11-06, decisions/olm-swift-chooser.md. It starts on the next turn of the run loop, so the Lua
-// that asked for it, which goes on with the list's switch for a tenth of a second, measured on
-// 2026-11-04, has finished first. The window's resize time is reshapeDuration, see the panel's
-// window, and its curve is AppKit's. With Reduce Motion or a duration of zero it ends at once.
-final class ReshapeMotion {
-  private(set) var moving = false
-  private var token = 0
+// jumping to its new size. The window's frame really changes, once a display frame, the way a window
+// a person resizes does, so the window server draws its shadow and its outline for each frame and
+// the glass draws its rim and the bend at its edge for the size it is. A mask over glass at a larger
+// size drew neither right, decisions/olm-swift-chooser.md. It is stepped here rather than by
+// AppKit's animated resize, which was as smooth but held the main thread until it ended, so Escape
+// or a list's key pressed mid motion waited it out, Milos's report on 2026-11-06. Between frames the
+// thread is free, so a key is heard at once, and the panel either ends the motion or turns it from
+// where it stands. The clock starts on the first frame drawn, so a motion asked for while Lua is
+// still busy with a list's switch does not land most of the way in. It plays on reshapeCurve, the
+// bar's morph beside it on the same one. step lays the window out at a frame, in Hammerspoon's
+// screen space, and done is called on the last. With Reduce Motion or a duration of zero it ends
+// at once.
+final class ReshapeMotion: NSObject {
+  private var link: CADisplayLink?
+  private var began: CFTimeInterval = 0
+  private var from = NSRect.zero, to = NSRect.zero
+  private var step: ((NSRect) -> Void)?
+  private var done: (() -> Void)?
+  var moving: Bool { link != nil }
+  // Where the window stood on the last frame drawn, which a motion turned mid way starts from.
+  private(set) var at = NSRect.zero
 
-  // Resizes window to frame, in AppKit's screen space, then calls done, unless stopped first.
-  func play(_ window: NSWindow, to frame: NSRect, done: @escaping () -> Void) {
+  // Plays from one frame to another on view's display, both in Hammerspoon's screen space.
+  func play(on view: NSView, from: NSRect, to: NSRect, step: @escaping (NSRect) -> Void,
+    done: @escaping () -> Void) {
     stop()
     guard Motion.reshapeDuration > 0, !Motion.still else { return done() }
-    moving = true
-    let mine = token
-    DispatchQueue.main.async { [weak self, weak window] in
-      guard let self, let window, self.moving, self.token == mine else { return }
-      let start = CACurrentMediaTime()
-      window.setFrame(frame, display: true, animate: true)
-      if Perf.on { Perf.note(String(format: "reshape ran %.0f ms", (CACurrentMediaTime() - start) * 1000), at: start) }
-      guard self.moving, self.token == mine else { return }
-      self.moving = false
-      done()
+    self.from = from
+    self.to = to
+    self.step = step
+    self.done = done
+    at = from
+    began = 0
+    let link = view.displayLink(target: self, selector: #selector(tick(_:)))
+    link.add(to: .main, forMode: .common)
+    self.link = link
+  }
+
+  @objc private func tick(_ link: CADisplayLink) {
+    let start = CACurrentMediaTime()
+    if began == 0 { began = link.timestamp }
+    let t = min(1, CGFloat((link.targetTimestamp - began) / Motion.reshapeDuration))
+    let u = Motion.progress(Motion.reshapeCurve, t)
+    // Each edge is mixed and rounded to a whole point on its own, so an edge only ever moves the way
+    // it is going. Rounding the origin and the size instead let the far edge, their sum, step back
+    // and forth where the curve moves less than a point a frame, which read as the window trembling
+    // as it settled. Whole points, since a window's frame lands on one, a half point asked on a 2x
+    // display coming back floored, both measured on 2026-11-06.
+    func mix(_ a: CGFloat, _ b: CGFloat) -> CGFloat { (a + (b - a) * u).rounded() }
+    let minX = mix(from.minX, to.minX), maxX = mix(from.maxX, to.maxX)
+    let minY = mix(from.minY, to.minY), maxY = mix(from.maxY, to.maxY)
+    let frame = t >= 1 ? to : NSRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+    at = frame
+    step?(frame)
+    if Perf.on {
+      Perf.note(String(format: "reshape step t %.2f took %.1f ms", t, (CACurrentMediaTime() - start) * 1000), at: start)
+    }
+    if t >= 1 {
+      let finish = done
+      stop()
+      finish?()
     }
   }
 
-  // Ends with no callback. A resize already running runs out, since AppKit holds the thread for it.
+  // Ends at once with no callback, wherever it stood.
   func stop() {
-    moving = false
-    token += 1
+    link?.invalidate()
+    link = nil
+    step = nil
+    done = nil
   }
 }
 
 // A bar group whose actions changed, the list switched in place, morphing from what it held to
 // what it holds now, rather than snapping to its new width and words. The group stands at the wider
 // of its two widths for the motion, and a mask on it, on the edge it is anchored to, goes from the
-// old width to the new at the group's corner, on the open curve, while the old items, kept in a
-// view of their own, fade out over the first half and the new items fade in over the second, so the
-// words never blur into each other. Core Animation on the render server, like ReshapeMotion, over
+// old width to the new at the group's corner, on the reshape curve, while the old items, kept in a
+// view of their own, crossfade with the new items on the same curve. Core Animation on the render server, like ReshapeMotion, over
 // the same reshape duration, so a list switching in place moves the window and the group as one.
 // done is called once it ends, unless stopped, and the group then lays out at its own width.
 final class BarMorph {
@@ -309,6 +349,8 @@ final class BarMorph {
   private var arriving: [NSView] = []
   private static let fadeKey = "olm.motion.morph.fade"
   private(set) var moving = false
+  // When the morph began, so items built again while it plays fade in from where it stands.
+  private var began: CFTimeInterval = 0
 
   // from and to in the group's own space, y measured down, at the group's full height.
   func play(group: NSView, from: NSRect, to: NSRect, radius: CGFloat, leaving: NSView,
@@ -353,30 +395,49 @@ final class BarMorph {
       done()
     }
     func animate(_ target: CALayer, _ path: String, _ from: Any, _ to: Any, curve: CAMediaTimingFunction,
-      delay: CFTimeInterval = 0, length: CFTimeInterval, key: String) {
+      length: CFTimeInterval, key: String) {
       let a = CABasicAnimation(keyPath: path)
       a.fromValue = from
       a.toValue = to
       a.duration = length
       a.timingFunction = curve
-      if delay > 0 {
-        a.beginTime = target.convertTime(CACurrentMediaTime(), from: nil) + delay
-        a.fillMode = .backwards
-      }
       target.add(a, forKey: key)
     }
     animate(mask, "bounds", NSValue(rect: CGRect(origin: .zero, size: start.size)),
-      NSValue(rect: CGRect(origin: .zero, size: end.size)), curve: Motion.openCurve, length: d, key: "bounds")
+      NSValue(rect: CGRect(origin: .zero, size: end.size)), curve: Motion.reshapeCurve, length: d, key: "bounds")
     animate(mask, "position", NSValue(point: CGPoint(x: start.midX, y: start.midY)),
-      NSValue(point: CGPoint(x: end.midX, y: end.midY)), curve: Motion.openCurve, length: d, key: "position")
-    let linear = CAMediaTimingFunction(name: .linear)
-    animate(leavingLayer, "opacity", 1, 0, curve: linear, length: d / 2, key: Self.fadeKey)
-    for view in arriving {
-      view.wantsLayer = true
-      guard let l = view.layer else { continue }
-      animate(l, "opacity", 0, 1, curve: linear, delay: d / 2, length: d / 2, key: Self.fadeKey)
-    }
+      NSValue(point: CGPoint(x: end.midX, y: end.midY)), curve: Motion.reshapeCurve, length: d, key: "position")
+    // The old items and the new crossfade over the whole length on the width's curve, so the words
+    // change as the group does. On a linear clock of their own, the old over the first half and the
+    // new over the second, they ran ahead of a width easing in and the new ones seemed to pop in,
+    // Milos's reports on 2026-11-06.
+    animate(leavingLayer, "opacity", 1, 0, curve: Motion.reshapeCurve, length: d, key: Self.fadeKey)
+    began = CACurrentMediaTime()
+    arriving.forEach(fadeIn)
     CATransaction.commit()
+  }
+
+  // The new items fade in on the morph's clock, from when it began.
+  private func fadeIn(_ view: NSView) {
+    view.wantsLayer = true
+    guard let l = view.layer else { return }
+    let a = CABasicAnimation(keyPath: "opacity")
+    a.fromValue = 0
+    a.toValue = 1
+    a.duration = Motion.reshapeDuration
+    a.timingFunction = Motion.reshapeCurve
+    a.beginTime = l.convertTime(began, from: nil)
+    a.fillMode = .backwards
+    l.add(a, forKey: Self.fadeKey)
+  }
+
+  // Items built again while the morph plays, the bar laying itself out anew as the selected row
+  // changes, take the new items' place and their fade where it stands, rather than standing at full
+  // strength at once, which read as the new words popping in, Milos's report on 2026-11-06.
+  func adopt(_ views: [NSView]) {
+    guard moving else { return }
+    arriving = views
+    views.forEach(fadeIn)
   }
 
   // Ends at once with no callback, the mask, the old items and every fade gone.

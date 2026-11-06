@@ -87,8 +87,6 @@ final class InfoPane: NSPanel {
   override var canBecomeKey: Bool { true }
   override var canBecomeMain: Bool { false }
 
-  // How long AppKit's animated resize takes, which a reshape is, see ReshapeMotion.
-  override func animationResizeTime(_ newFrame: NSRect) -> TimeInterval { Motion.reshapeDuration }
 
   // A titled window is kept below the menu bar and on screen by AppKit, and the Lua view already
   // places this one exactly on the canvas rect, so the frame it is handed is the frame it takes.
@@ -176,8 +174,6 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     window.owner = self
     NotificationCenter.default.addObserver(self, selector: #selector(resignedKey),
       name: NSWindow.didResignKeyNotification, object: window)
-    NotificationCenter.default.addObserver(self, selector: #selector(resized),
-      name: NSWindow.didResizeNotification, object: window)
     window.isFloatingPanel = true
     window.level = .popUpMenu
     window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
@@ -285,22 +281,35 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   // what Lua placed. Everything is laid out once, at the wider of the two shapes, so the list stays
   // where it stands against the window's left edge, which moves with it, and the pane's region is
   // uncovered or covered by the right edge. Only the window's frame and the bar's width, which spans
-  // the window, follow each step, and the new shape is laid out alone when it ends. The preview pane
-  // rect is the new one at once, since a pane is matched to this panel on it.
+  // the window, follow each step, and the new shape is laid out alone when it ends. A place that asks
+  // for another shape mid motion, a list's key pressed while it plays, turns it from where the window
+  // stands rather than jumping to where it was going first. The preview pane rect is the new one at
+  // once, since a pane is matched to this panel on it.
   func place(_ next: Placement) {
     Perf.note("place pane \(next.paneFrame != nil) was \(placement.paneFrame != nil) moving \(reshape.moving)")
+    settleReshape()
     previewPane = next.previewPane
+    var from = placement
+    var old = Self.frame(of: from)
+    var turned = false
     if reshape.moving {
       if ScreenSpace.same(Self.frame(of: next), Self.frame(of: reshapeTarget)) {
         reshapeTarget = next
         return
       }
-      finishReshape()
+      // Turned mid way, from the shape Lua last placed and the frame the window stands at now.
+      from = reshapeTarget
+      from.window = placement.window
+      from.paneFrame = placement.paneFrame ?? reshapeTarget.paneFrame
+      from.bottomBar = placement.bottomBar
+      old = reshape.at
+      reshape.stop()
+      turned = true
     }
-    let from = placement
-    let old = Self.frame(of: from), target = Self.frame(of: next)
-    let changes = (from.paneFrame == nil) != (next.paneFrame == nil) && !ScreenSpace.same(old, target)
+    let target = Self.frame(of: next)
+    let changes = (turned || (from.paneFrame == nil) != (next.paneFrame == nil)) && !ScreenSpace.same(old, target)
     guard isVisible, window.isVisible, changes, Motion.reshapeDuration > 0, !Motion.still else {
+      endLinger()
       lay(next)
       return
     }
@@ -313,21 +322,30 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     }
     reshapeTarget = next
     lay(wide, at: old)
-    reshape.play(window, to: ScreenSpace.cocoaRect(target), done: { [weak self] in self?.finishReshape() })
+    reshape.play(on: root, from: old, to: target,
+      step: { [weak self] frame in self?.stepShape(frame) },
+      done: { [weak self] in self?.finishReshape() })
   }
 
   private lazy var reshape = ReshapeMotion()
   private var reshapeTarget = Placement()
+  // A reshape stopped by a close, whose shape is still to be laid out.
+  private var reshapeOwed = false
 
-  // Each step of a reshape, the window at its new frame, everything in it where the wide layout put
-  // it but the surfaces' size and the bar's width, which follow the window's.
-  @objc private func resized() {
-    guard reshape.moving else { return }
-    let f = window.frame
-    let frame = NSRect(x: f.minX, y: ScreenSpace.primaryHeight - f.maxY, width: f.width, height: f.height)
+  private func settleReshape() {
+    guard reshapeOwed else { return }
+    reshapeOwed = false
+    finishReshape()
+  }
+
+  // The window at one frame of a reshape, everything in it where the wide layout put it but the
+  // surfaces' size and the bar's width, which follow the window's.
+  private func stepShape(_ frame: NSRect) {
     windowSize = frame.size
+    window.setFrame(ScreenSpace.cocoaRect(frame), display: true)
     layoutSurfaces()
     layoutBar(at: frame)
+    window.invalidateShadow()
   }
 
   // The bar spans the window, so a window narrower than its placement's takes as much off the bar.
@@ -445,6 +463,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   }
 
   func show() {
+    settleReshape()
     motion.show { window.makeKeyAndOrderFront(nil) }
     if !state.bare {
       window.makeFirstResponder(field)
@@ -458,9 +477,14 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   // animated false goes down at once, which a reload's cleanup asks for.
   func hide(animated: Bool = true) {
     list.table.forgetPress()
-    // A reshape cut short by a close ends on its shape, so the next open starts from it.
-    if reshape.moving { finishReshape() }
+    // A reshape cut short by a close stops where the window stands and fades out from there, and
+    // the shape it was going to is laid out once the window is down, so the next open starts on it.
+    if reshape.moving {
+      reshape.stop()
+      reshapeOwed = true
+    }
     motion.hide(animated: animated)
+    if !animated { settleReshape() }
   }
 
   // What a list down forgets, once its fade has ended, the preview pane's region and any floating
@@ -470,6 +494,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     actionsPop.closeNow()
     paneShown = false
     endLinger()
+    settleReshape()
     layoutSurfaces()
   }
 
