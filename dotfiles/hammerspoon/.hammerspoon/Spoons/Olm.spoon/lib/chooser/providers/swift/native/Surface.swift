@@ -105,8 +105,6 @@ final class SharedSurface {
 
   var view: NSView { glass.view }
   var name: String { glass.name }
-  // The list's content and the pane's region together, which a reshape slides.
-  var sliding: NSView { content }
 
   init(list content: NSView) {
     list = content
@@ -154,6 +152,9 @@ final class SharedSurface {
     content.frame = paneSlot.bounds
     content.autoresizingMask = [.width, .height]
   }
+
+  // Whether view is the one the pane's region holds.
+  func holdsPane(_ view: NSView) -> Bool { view.superview === paneSlot }
 
   func vacatePane() {
     for old in paneSlot.subviews { old.removeFromSuperview() }

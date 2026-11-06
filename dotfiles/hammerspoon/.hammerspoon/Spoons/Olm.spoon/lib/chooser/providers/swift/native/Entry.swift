@@ -99,6 +99,17 @@ enum Perf {
     on = false
   }
 
+  // Times one call from Lua into the library, noted when it held the thread for more than a
+  // millisecond, so a stall says which call it was.
+  static func timed(_ name: String, _ body: () -> Int32) -> Int32 {
+    guard on else { return body() }
+    let start = CACurrentMediaTime()
+    let answer = body()
+    let took = (CACurrentMediaTime() - start) * 1000
+    if took > 1 { note(String(format: "native %@ %.1f ms", name, took), at: start) }
+    return answer
+  }
+
   static func note(_ text: String, at time: CFTimeInterval = CACurrentMediaTime()) {
     guard on else { return }
     notes.append(String(format: "%7.0f ms  ", (time - origin) * 1000) + text)
@@ -179,19 +190,22 @@ private let new: lua_CFunction = { L in
   return 1
 }
 
-private let style: lua_CFunction = { L in
+private let style: lua_CFunction = { L in Perf.timed("style") { styleBody(L) } }
+private let styleBody: lua_CFunction = { L in
   let reader = LuaReader(L)
   if reader.isTable(2) { panelAt(L)?.applyStyle(Style(reader, 2)) }
   return 0
 }
 
-private let place: lua_CFunction = { L in
+private let place: lua_CFunction = { L in Perf.timed("place") { placeBody(L) } }
+private let placeBody: lua_CFunction = { L in
   let reader = LuaReader(L)
   if reader.isTable(2) { panelAt(L)?.place(Placement(reader, 2)) }
   return 0
 }
 
-private let setRows: lua_CFunction = { L in
+private let setRows: lua_CFunction = { L in Perf.timed("setRows") { setRowsBody(L) } }
+private let setRowsBody: lua_CFunction = { L in
   let reader = LuaReader(L)
   var rows: [Row] = []
   if reader.isTable(2) {
@@ -210,7 +224,8 @@ private let setRows: lua_CFunction = { L in
 
 // A list of { index, image, tint } entries, one based, for rows that gained their icon after they
 // were sent, tint saying the image is one colour, see Row.
-private let setImages: lua_CFunction = { L in
+private let setImages: lua_CFunction = { L in Perf.timed("setImages") { setImagesBody(L) } }
+private let setImagesBody: lua_CFunction = { L in
   let reader = LuaReader(L)
   var images: [(Int, NSImage, Bool)] = []
   if reader.isTable(2) {
@@ -230,7 +245,8 @@ private let setImages: lua_CFunction = { L in
   return 0
 }
 
-private let update: lua_CFunction = { L in
+private let update: lua_CFunction = { L in Perf.timed("update") { updateBody(L) } }
+private let updateBody: lua_CFunction = { L in
   let reader = LuaReader(L)
   if reader.isTable(2) { panelAt(L)?.update(ViewState(reader, 2)) }
   return 0
@@ -241,7 +257,8 @@ private let text: lua_CFunction = { L in
   return 1
 }
 
-private let setText: lua_CFunction = { L in
+private let setText: lua_CFunction = { L in Perf.timed("setText") { setTextBody(L) } }
+private let setTextBody: lua_CFunction = { L in
   panelAt(L)?.setText(LuaReader(L).string(at: 2) ?? "")
   return 0
 }
@@ -292,7 +309,8 @@ private let feedKey: lua_CFunction = { L in
   return 0
 }
 
-private let show: lua_CFunction = { L in
+private let show: lua_CFunction = { L in Perf.timed("show") { showBody(L) } }
+private let showBody: lua_CFunction = { L in
   panelAt(L)?.show()
   return 0
 }
@@ -317,7 +335,8 @@ private let stop: lua_CFunction = { L in
   return 0
 }
 
-private let refocus: lua_CFunction = { L in
+private let refocus: lua_CFunction = { L in Perf.timed("refocus") { refocusBody(L) } }
+private let refocusBody: lua_CFunction = { L in
   panelAt(L)?.refocus()
   return 0
 }
@@ -357,7 +376,8 @@ private func paneClicked(_ id: Int, _ element: String) {
 // paneNew() makes a preview pane. paneNew({ panel = true, level, onClick }) makes a CanvasPanel's
 // window instead, at that hs.canvas window level, never drawn into a chooser's window, click
 // through unless onClick is a function, which is then told the id of each clicked element.
-private let paneNew: lua_CFunction = { L in
+private let paneNew: lua_CFunction = { L in Perf.timed("paneNew") { paneNewBody(L) } }
+private let paneNewBody: lua_CFunction = { L in
   let id = nextID
   nextID += 1
   let reader = LuaReader(L)
@@ -379,7 +399,8 @@ private let paneNew: lua_CFunction = { L in
 }
 
 // The preview pane rect, { x, y, w, h } in Hammerspoon's screen space.
-private let panePlace: lua_CFunction = { L in
+private let panePlace: lua_CFunction = { L in Perf.timed("panePlace") { panePlaceBody(L) } }
+private let panePlaceBody: lua_CFunction = { L in
   let reader = LuaReader(L)
   guard reader.isTable(2), let x = reader.number(2, "x"), let y = reader.number(2, "y"),
     let w = reader.number(2, "w"), let h = reader.number(2, "h")
@@ -393,7 +414,8 @@ private let panePlace: lua_CFunction = { L in
 // scroll is { height, reset, thumb }, the content's full height, whether the view goes back to
 // the top, and whether it shows an overlay scroller, lib/previewpane.lua's native scroll. Without
 // it the content is the pane's own height and the view keeps where it is.
-private let paneDraw: lua_CFunction = { L in
+private let paneDraw: lua_CFunction = { L in Perf.timed("paneDraw") { paneDrawBody(L) } }
+private let paneDrawBody: lua_CFunction = { L in
   olm_newTable(L)
   guard let pane = paneAt(L), let L else { return 1 }
   let reader = LuaReader(L)
@@ -487,12 +509,14 @@ private let paneDebug: lua_CFunction = { L in
   return 1
 }
 
-private let paneShow: lua_CFunction = { L in
+private let paneShow: lua_CFunction = { L in Perf.timed("paneShow") { paneShowBody(L) } }
+private let paneShowBody: lua_CFunction = { L in
   paneAt(L)?.show()
   return 0
 }
 
-private let paneHide: lua_CFunction = { L in
+private let paneHide: lua_CFunction = { L in Perf.timed("paneHide") { paneHideBody(L) } }
+private let paneHideBody: lua_CFunction = { L in
   paneAt(L)?.hide()
   return 0
 }

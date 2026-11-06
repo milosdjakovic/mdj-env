@@ -87,6 +87,9 @@ final class InfoPane: NSPanel {
   override var canBecomeKey: Bool { true }
   override var canBecomeMain: Bool { false }
 
+  // How long AppKit's animated resize takes, which a reshape is, see ReshapeMotion.
+  override func animationResizeTime(_ newFrame: NSRect) -> TimeInterval { Motion.reshapeDuration }
+
   // A titled window is kept below the menu bar and on screen by AppKit, and the Lua view already
   // places this one exactly on the canvas rect, so the frame it is handed is the frame it takes.
   override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
@@ -142,6 +145,15 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   // The preview pane's view while one is in the pane's region, and whether it is shown.
   private weak var paneContent: NSView?
   private var paneShown = false
+  // A pane hidden while the list stays up is still drawn until the window has narrowed over it, so
+  // it is covered by the moving edge the way it is uncovered when the window widens, rather than
+  // leaving the glass empty before the motion starts, Milos's ask on 2026-11-06. Which of the hide
+  // and the narrowing Lua asks for first is not known, so the hide waits one turn of the run loop
+  // for a narrowing to start and goes then if none did.
+  private var paneLingers = false
+  // A pane's view released while the list stays up, kept in the pane's region for the same turn or
+  // narrowing, see paneLingers, and let go after unless something else has taken it since.
+  private var lingeringView: NSView?
   // How the window comes and goes, see THE MOTION above.
   private lazy var motion: WindowMotion = {
     let motion = WindowMotion(window)
@@ -164,6 +176,8 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     window.owner = self
     NotificationCenter.default.addObserver(self, selector: #selector(resignedKey),
       name: NSWindow.didResignKeyNotification, object: window)
+    NotificationCenter.default.addObserver(self, selector: #selector(resized),
+      name: NSWindow.didResizeNotification, object: window)
     window.isFloatingPanel = true
     window.level = .popUpMenu
     window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
@@ -248,13 +262,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     actionsPop.document.onHover = { [weak self] index in _ = self?.ask("hover", [.int(index)]) }
     actionsPop.document.onChoose = { [weak self] index in _ = self?.ask("choose", [.int(index)]) }
 
-    // The glass stands in a plain container, which a reshape masks, see ReshapeMotion, since the
-    // glass keeps its own layer's mask for itself.
-    let container = FlippedView(frame: surfaces.view.frame)
-    surfaces.view.autoresizingMask = [.width, .height]
-    container.addSubview(surfaces.view)
-    container.wantsLayer = true
-    window.contentView = container
+    window.contentView = surfaces.view
   }
 
   // MARK: What the Lua view asks for
@@ -273,81 +281,76 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   }
 
   // A preview pane arriving or leaving while the list is up widens or narrows the window over a
-  // ReshapeMotion rather than in one jump. The window takes the union of the old shape and the new
-  // one for the motion, laid out once at the new shape inside it, and the motion plays on the render
-  // server from the old shape, see ReshapeMotion, after which the window takes the new shape alone.
-  // The preview pane rect is the new one at once, since a pane is matched to this panel on it.
+  // ReshapeMotion rather than in one jump, the window's real frame stepping from what is on screen to
+  // what Lua placed. Everything is laid out once, at the wider of the two shapes, so the list stays
+  // where it stands against the window's left edge, which moves with it, and the pane's region is
+  // uncovered or covered by the right edge. Only the window's frame and the bar's width, which spans
+  // the window, follow each step, and the new shape is laid out alone when it ends. The preview pane
+  // rect is the new one at once, since a pane is matched to this panel on it.
   func place(_ next: Placement) {
+    Perf.note("place pane \(next.paneFrame != nil) was \(placement.paneFrame != nil) moving \(reshape.moving)")
     previewPane = next.previewPane
-    let from = placement
-    let target = Self.frame(of: next)
     if reshape.moving {
-      if ScreenSpace.same(target, Self.frame(of: reshapeTarget)) {
+      if ScreenSpace.same(Self.frame(of: next), Self.frame(of: reshapeTarget)) {
         reshapeTarget = next
-        lay(Self.shifted(next, into: reshapeWindow))
         return
       }
       finishReshape()
     }
-    let changes = (from.paneFrame == nil) != (next.paneFrame == nil)
-      && !ScreenSpace.same(Self.frame(of: from), target)
+    let from = placement
+    let old = Self.frame(of: from), target = Self.frame(of: next)
+    let changes = (from.paneFrame == nil) != (next.paneFrame == nil) && !ScreenSpace.same(old, target)
     guard isVisible, window.isVisible, changes, Motion.reshapeDuration > 0, !Motion.still else {
       lay(next)
       return
     }
-    let old = Self.frame(of: from)
-    let union = old.union(target)
-    // Where the list and each bar group stand on screen now, so each slides from there.
-    bar.layoutSubtreeIfNeeded()
-    let listBefore = old.minX + (from.listFrame?.minX ?? 0)
-    let leftBefore = old.minX + bar.convert(bar.button.frame, to: nil).minX
-    let rightBefore = old.minX + bar.convert(bar.actions.frame, to: nil).maxX
+    // Narrowing keeps the pane's region and the bar's width it had until the right edge has passed.
+    var wide = next
+    if target.width < old.width {
+      wide.window = from.window
+      wide.paneFrame = from.paneFrame
+      wide.bottomBar = from.bottomBar
+    }
     reshapeTarget = next
-    reshapeWindow = union
-    window.hasShadow = false
-    lay(Self.shifted(next, into: union))
-    bar.layoutSubtreeIfNeeded()
-    let listAfter = target.minX + (next.listFrame?.minX ?? 0)
-    let leftAfter = union.minX + bar.convert(bar.button.frame, to: nil).minX
-    let rightAfter = union.minX + bar.convert(bar.actions.frame, to: nil).maxX
-    let shift = listBefore - listAfter
-    let local = { (r: NSRect) in r.offsetBy(dx: -union.minX, dy: -union.minY) }
-    reshape.play(from: local(old), to: local(target), radius: style.radius,
-      slides: [(surfaces.sliding, shift), (fieldClip, shift),
-        (bar.button, leftBefore - leftAfter), (bar.actions, rightBefore - rightAfter)],
-      done: { [weak self] in self?.finishReshape() })
+    lay(wide, at: old)
+    reshape.play(window, to: ScreenSpace.cocoaRect(target), done: { [weak self] in self?.finishReshape() })
   }
 
-  private lazy var reshape = ReshapeMotion(window.contentView ?? root)
+  private lazy var reshape = ReshapeMotion()
   private var reshapeTarget = Placement()
-  private var reshapeWindow = NSRect.zero
 
-  // The window on its new shape alone, its shadow back.
+  // Each step of a reshape, the window at its new frame, everything in it where the wide layout put
+  // it but the surfaces' size and the bar's width, which follow the window's.
+  @objc private func resized() {
+    guard reshape.moving else { return }
+    let f = window.frame
+    let frame = NSRect(x: f.minX, y: ScreenSpace.primaryHeight - f.maxY, width: f.width, height: f.height)
+    windowSize = frame.size
+    layoutSurfaces()
+    layoutBar(at: frame)
+  }
+
+  // The bar spans the window, so a window narrower than its placement's takes as much off the bar.
+  private func layoutBar(at frame: NSRect? = nil) {
+    var rect = toWindow(placement.bottomBar) ?? .zero
+    if let frame { rect.size.width = max(0, rect.width - (Self.frame(of: placement).width - frame.width)) }
+    bar.frame = rect
+  }
+
+  // The window on its new shape alone.
   private func finishReshape() {
     reshape.stop()
+    endLinger()
     lay(reshapeTarget)
-    window.hasShadow = true
-    window.invalidateShadow()
   }
 
   private static func frame(of p: Placement) -> NSRect { p.window ?? p.canvas }
 
-  // p laid out inside a larger window, every rect in the window's own space moved by where p's own
-  // window stands in it, and the rects in the canvas's space following the list's frame.
-  private static func shifted(_ p: Placement, into window: NSRect) -> Placement {
-    let own = frame(of: p)
-    let dx = own.minX - window.minX, dy = own.minY - window.minY
-    var q = p
-    q.window = window
-    q.listFrame = (p.listFrame ?? NSRect(origin: .zero, size: p.canvas.size)).offsetBy(dx: dx, dy: dy)
-    q.paneFrame = p.paneFrame?.offsetBy(dx: dx, dy: dy)
-    return q
-  }
-
-  // Lays the window and everything in it out on next.
-  private func lay(_ next: Placement) {
+  // Lays the window and everything in it out on next, the window standing at shown when one is
+  // given rather than at next's own frame, which is where a reshape starts.
+  private func lay(_ next: Placement, at shown: NSRect? = nil) {
     placement = next
-    let frame = Self.frame(of: next)
+    let frame = shown ?? Self.frame(of: next)
     windowSize = frame.size
     window.setFrame(ScreenSpace.cocoaRect(frame), display: window.isVisible)
     layoutSurfaces()
@@ -379,7 +382,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     list.frame.size.height += max(0, under) + over
     list.underBar = max(0, under)
     list.overField = over
-    bar.frame = toWindow(next.bottomBar) ?? .zero
+    layoutBar(at: shown)
     list.apply(style: style, placement: placement)
     layoutKeys()
     layoutActions()
@@ -466,6 +469,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     keys.closeNow()
     actionsPop.closeNow()
     paneShown = false
+    endLinger()
     layoutSurfaces()
   }
 
@@ -535,7 +539,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     let barTop = toWindow(placement.bottomBar)?.minY ?? windowSize.height
     let listTop = toWindow(placement.list)?.minY ?? 0
     surfaces.layout(size: windowSize, list: listFrame, pane: placement.paneFrame,
-      paneShown: paneShown && paneContent != nil,
+      paneShown: (paneShown && paneContent != nil) || (paneLingers && (paneContent != nil || lingeringView != nil)),
       fadeTop: max(0, barTop - placement.padBottom), fadeListTop: listTop,
       fadeClearTo: min(titlebarHeight, listTop),
       listColumn: listFrame.maxX, paneTop: placement.paneFrame?.minY ?? 0,
@@ -566,22 +570,52 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   func showPane(_ view: NSView) {
     guard paneContent === view else { return }
     paneShown = true
+    endLinger()
     layoutSurfaces()
   }
 
   // While the list fades out the pane's region fades with it, and goes when the fade ends.
   func hidePane(_ view: NSView) {
+    Perf.note("pane hide shown \(paneShown) moving \(reshape.moving)")
     guard paneContent === view else { return }
+    if paneShown { linger() }
     paneShown = false
     if !motion.closing { layoutSurfaces() }
   }
 
+  // Keeps the pane drawn while the list stays up, see paneLingers.
+  private func linger() {
+    guard isVisible, !motion.closing, Motion.reshapeDuration > 0, !Motion.still, !paneLingers else { return }
+    paneLingers = true
+    DispatchQueue.main.async { [weak self] in
+      guard let self, self.paneLingers, !self.reshape.moving else { return }
+      self.endLinger()
+      self.layoutSurfaces()
+    }
+  }
+
+  private func endLinger() {
+    paneLingers = false
+    if let view = lingeringView {
+      lingeringView = nil
+      if paneContent == nil, view.superview != nil, surfaces.holdsPane(view) { surfaces.vacatePane() }
+    }
+  }
+
   // The pane's view leaves, for its own window or for good.
   func releasePane(_ view: NSView) {
+    Perf.note("pane release shown \(paneShown) lingers \(paneLingers) moving \(reshape.moving)")
     guard paneContent === view else { return }
+    let keep = paneShown || paneLingers
     paneContent = nil
     paneShown = false
-    surfaces.vacatePane()
+    if keep, isVisible, !motion.closing, Motion.reshapeDuration > 0, !Motion.still {
+      lingeringView = view
+      linger()
+    } else {
+      endLinger()
+      surfaces.vacatePane()
+    }
     layoutSurfaces()
   }
 
@@ -801,7 +835,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     if !actionsPop.isOpen {
       if !bar.isHidden {
         bar.layoutSubtreeIfNeeded()
-        restActionsWidth = bar.actions.frame.width
+        restActionsWidth = bar.actionsWidth
       }
       return
     }

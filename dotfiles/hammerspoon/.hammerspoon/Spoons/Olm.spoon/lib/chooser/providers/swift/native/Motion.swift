@@ -256,38 +256,83 @@ final class WindowMotion {
 
 // The chooser's window changing shape while it stays up, a list with no preview pane becoming one
 // with a pane or the other way round, so the window widens to make room for the pane rather than
-// jumping to its new size. The window stands at the union of both shapes for the motion, laid out
-// once at the new one, and the rest is Core Animation on the render server, a mask on the window's
-// container growing or shrinking from the old shape to the new one at the surface's corner, and the
-// views that moved, the list, the field and each bar group, sliding from where they stood by an
-// additive translation whose model value stays zero. So nothing is laid out, drawn or asked of Lua
-// while it plays, which mattered, since a list switching in place keeps the main thread busy with
-// Lua for the whole fifth of a second, measured on 2026-11-04, and a motion stepped there landed
-// two thirds of the way in on its first frame. The panel restores the window when done is called.
-// With Reduce Motion or a duration of zero it ends at once.
+// jumping to its new size. It is AppKit's own animated resize, the one Apple's windows use, so the
+// window's frame really changes, the window server draws its shadow and its outline for each frame
+// and the glass draws its rim and the bend at its edge for the size it is. AppKit steps it in a loop
+// of its own that nothing else on the main thread runs inside, Lua's timers included, which is why
+// it stays smooth where a display link stepping the frame dropped every frame Lua took, and a mask
+// over glass at a larger size drew neither the shadow nor the edge right, Milos's reports on
+// 2026-11-06, decisions/olm-swift-chooser.md. It starts on the next turn of the run loop, so the Lua
+// that asked for it, which goes on with the list's switch for a tenth of a second, measured on
+// 2026-11-04, has finished first. The window's resize time is reshapeDuration, see the panel's
+// window, and its curve is AppKit's. With Reduce Motion or a duration of zero it ends at once.
 final class ReshapeMotion {
-  private weak var host: NSView?
+  private(set) var moving = false
   private var token = 0
-  private var slid: [NSView] = []
-  private static let slideKey = "olm.motion.reshape.slide"
+
+  // Resizes window to frame, in AppKit's screen space, then calls done, unless stopped first.
+  func play(_ window: NSWindow, to frame: NSRect, done: @escaping () -> Void) {
+    stop()
+    guard Motion.reshapeDuration > 0, !Motion.still else { return done() }
+    moving = true
+    let mine = token
+    DispatchQueue.main.async { [weak self, weak window] in
+      guard let self, let window, self.moving, self.token == mine else { return }
+      let start = CACurrentMediaTime()
+      window.setFrame(frame, display: true, animate: true)
+      if Perf.on { Perf.note(String(format: "reshape ran %.0f ms", (CACurrentMediaTime() - start) * 1000), at: start) }
+      guard self.moving, self.token == mine else { return }
+      self.moving = false
+      done()
+    }
+  }
+
+  // Ends with no callback. A resize already running runs out, since AppKit holds the thread for it.
+  func stop() {
+    moving = false
+    token += 1
+  }
+}
+
+// A bar group whose actions changed, the list switched in place, morphing from what it held to
+// what it holds now, rather than snapping to its new width and words. The group stands at the wider
+// of its two widths for the motion, and a mask on it, on the edge it is anchored to, goes from the
+// old width to the new at the group's corner, on the open curve, while the old items, kept in a
+// view of their own, fade out over the first half and the new items fade in over the second, so the
+// words never blur into each other. Core Animation on the render server, like ReshapeMotion, over
+// the same reshape duration, so a list switching in place moves the window and the group as one.
+// done is called once it ends, unless stopped, and the group then lays out at its own width.
+final class BarMorph {
+  private var token = 0
+  private weak var group: NSView?
+  private var leaving: NSView?
+  private var arriving: [NSView] = []
+  private static let fadeKey = "olm.motion.morph.fade"
   private(set) var moving = false
 
-  init(_ host: NSView) { self.host = host }
-
-  // Plays the mask from from to to, both in the host's own coordinates, y measured down, and each
-  // view in slides from dx points to the side of where it stands, then calls done, unless stopped.
-  func play(from: NSRect, to: NSRect, radius: CGFloat, slides: [(NSView, CGFloat)],
-    done: @escaping () -> Void) {
+  // from and to in the group's own space, y measured down, at the group's full height.
+  func play(group: NSView, from: NSRect, to: NSRect, radius: CGFloat, leaving: NSView,
+    arriving: [NSView], done: @escaping () -> Void) {
     stop()
-    guard Motion.reshapeDuration > 0, !Motion.still, let host else { return done() }
-    host.wantsLayer = true
-    guard let layer = host.layer else { return done() }
+    guard Motion.reshapeDuration > 0, !Motion.still else {
+      leaving.removeFromSuperview()
+      return done()
+    }
+    group.wantsLayer = true
+    leaving.wantsLayer = true
+    guard let layer = group.layer, let leavingLayer = leaving.layer else {
+      leaving.removeFromSuperview()
+      return done()
+    }
     moving = true
     token += 1
     let mine = token
+    self.group = group
+    self.leaving = leaving
+    self.arriving = arriving
     func down(_ r: NSRect) -> CGRect {
       layer.contentsAreFlipped() ? r
-        : CGRect(x: r.minX, y: host.bounds.height - r.maxY, width: r.width, height: r.height)
+        : CGRect(x: r.minX, y: group.bounds.height - r.maxY, width: r.width, height: r.height)
     }
     let start = down(from), end = down(to)
     let mask = CALayer()
@@ -297,43 +342,52 @@ final class ReshapeMotion {
     mask.cornerRadius = radius
     mask.frame = end
     layer.mask = mask
+    leavingLayer.opacity = 0
     CATransaction.commit()
 
+    let d = Motion.reshapeDuration
     CATransaction.begin()
     CATransaction.setCompletionBlock { [weak self] in
       guard let self, self.moving, self.token == mine else { return }
       self.stop()
       done()
     }
-    func animate(_ target: CALayer, _ path: String, _ from: Any, _ to: Any, additive: Bool = false, key: String) {
+    func animate(_ target: CALayer, _ path: String, _ from: Any, _ to: Any, curve: CAMediaTimingFunction,
+      delay: CFTimeInterval = 0, length: CFTimeInterval, key: String) {
       let a = CABasicAnimation(keyPath: path)
       a.fromValue = from
       a.toValue = to
-      a.isAdditive = additive
-      a.duration = Motion.reshapeDuration
-      a.timingFunction = Motion.openCurve
+      a.duration = length
+      a.timingFunction = curve
+      if delay > 0 {
+        a.beginTime = target.convertTime(CACurrentMediaTime(), from: nil) + delay
+        a.fillMode = .backwards
+      }
       target.add(a, forKey: key)
     }
     animate(mask, "bounds", NSValue(rect: CGRect(origin: .zero, size: start.size)),
-      NSValue(rect: CGRect(origin: .zero, size: end.size)), key: "bounds")
+      NSValue(rect: CGRect(origin: .zero, size: end.size)), curve: Motion.openCurve, length: d, key: "bounds")
     animate(mask, "position", NSValue(point: CGPoint(x: start.midX, y: start.midY)),
-      NSValue(point: CGPoint(x: end.midX, y: end.midY)), key: "position")
-    for (view, dx) in slides where abs(dx) > 0.5 {
+      NSValue(point: CGPoint(x: end.midX, y: end.midY)), curve: Motion.openCurve, length: d, key: "position")
+    let linear = CAMediaTimingFunction(name: .linear)
+    animate(leavingLayer, "opacity", 1, 0, curve: linear, length: d / 2, key: Self.fadeKey)
+    for view in arriving {
       view.wantsLayer = true
       guard let l = view.layer else { continue }
-      animate(l, "transform.translation.x", dx, 0, additive: true, key: Self.slideKey)
-      slid.append(view)
+      animate(l, "opacity", 0, 1, curve: linear, delay: d / 2, length: d / 2, key: Self.fadeKey)
     }
     CATransaction.commit()
   }
 
-  // Ends at once with no callback, the mask and every slide gone.
+  // Ends at once with no callback, the mask, the old items and every fade gone.
   func stop() {
     moving = false
     token += 1
-    host?.layer?.mask = nil
-    for view in slid { view.layer?.removeAnimation(forKey: Self.slideKey) }
-    slid = []
+    group?.layer?.mask = nil
+    leaving?.removeFromSuperview()
+    leaving = nil
+    for view in arriving { view.layer?.removeAnimation(forKey: Self.fadeKey) }
+    arriving = []
   }
 }
 

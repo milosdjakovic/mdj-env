@@ -133,6 +133,19 @@ chooser serves and on the canvas otherwise, built on `olm/native-panel`.
   small group reads clearer with a lighter shadow, since macOS draws glass by size and offers no
   setting for it. Matching them would mean giving up native glass on both, and Milos accepted the
   difference instead.
+- **A mask over glass at the union of both shapes for the chooser's reshape.** 2026-11-06 10:55. It
+  ran on the render server and was smooth, but the window's shadow cannot follow a shape the window
+  server is never asked about, and glass draws its rim and the bend at its edge for the size of its
+  view, so the moving edge showed the glass's flat middle and the bend arrived when it stopped.
+- **Drawing the window's shadow for a reshape ourselves.** 2026-11-06 10:55. One layer's shadow read
+  lighter than the window's at rest and two layers in the system's proportions read darker. Taking
+  a picture of the real shadow through ScreenCaptureKit and stretching it as a nine slice matched it
+  exactly, ScreenCaptureKit fitting the window and its shadow into the size asked so the picture is
+  retaken at full size, but it needed the Screen Recording grant and fixed nothing about the glass's
+  edge. `CGWindowListCreateImage` is obsoleted in the macOS 15 SDK.
+- **A display link stepping the chooser's real frame.** 2026-11-06 10:55. Smooth while the main
+  thread is free, each step about 2 ms, but it misses every frame Lua or the list's switch takes,
+  since it gives the thread up between frames. AppKit's animated resize keeps it.
 
 ## Log
 
@@ -935,3 +948,34 @@ window's shadow is off for the motion, since the window server would draw it for
 glass is smaller, and the glass's rim is cut on the edges that move, both for 0.18 s. Built with no
 new warning, `test/swiftpane.sh`, the dry gate and the unit cases pass, and loaded live clean. Not
 yet confirmed live by Milos.
+Corrected 2026-11-06 10:55, the mask drew neither the window's shadow nor the glass's edge right,
+and the reshape is AppKit's own animated resize now, see the entry of that time.
+
+### 2026-11-06 10:55
+
+The chooser's reshape is AppKit's own animated resize, `setFrame(_:display:animate:)` with the
+panel's `animationResizeTime` answering the `reshape` token, the one Apple's windows use, and Milos
+called it great. The window's frame really changes, so the window server draws its shadow and
+outline for each frame and the glass its rim and the bend at its edge for the size it is. The render
+server version cast no shadow for its motion, and the glass, at the union of both shapes under a
+mask, showed its flat middle on the moving edge and bent the content behind it only once it stopped,
+Milos's reports of the morning. Every way to stand a shadow in for the window's was tried first and
+is in Rejected. A display link stepping the real frame was next, each step about 2 ms, and the end
+trembled because the origin and the size were rounded apart, so each edge is now rounded on its own
+to a whole point, since a frame asked at a half point came back floored, measured. It still missed
+frames, every one Lua or the list's switch took, and Milos pointed out that Apple's own windows
+resize smoothly. AppKit runs its resize in a loop of its own that nothing else on the main thread
+runs inside, and it is started on the next turn of the run loop, after the Lua that asked has
+finished the switch. Each step, the panel hears the window resize and lays out only the surfaces and
+the bar's width, everything else laid out once at the wider shape, so the list stays on the moving
+left edge and the pane's region is uncovered or covered by the right one. A pane hidden or released
+while the list stays up is still drawn for one turn of the run loop and through a narrowing that
+starts in it, so closing a pane covers its content the way opening uncovers it, Milos's ask. The
+curve is AppKit's. The perf probe now times the library's own calls from Lua too.
+
+The bar morph of 2026-11-04 is in the same change. A list switch that changes which actions the
+right group offers morphs the group on the render server, a mask on it from the old width to the new
+with its right edge kept, the old items fading out over the first half and the new in over the
+second, on the same `reshape` length. A label that follows the row with the same actions swaps.
+Built with no new warning, `test/swiftpane.sh`, the dry gate and the unit cases pass, and confirmed
+live by Milos.

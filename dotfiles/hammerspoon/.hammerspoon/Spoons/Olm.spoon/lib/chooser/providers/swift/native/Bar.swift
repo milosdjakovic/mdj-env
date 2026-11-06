@@ -370,6 +370,12 @@ final class BarView: FlippedView {
   private var keysSource: NSImage?
   private var keysTint = false
   private var style = Style()
+  // The right side morphing from the actions it held to new ones, see BarMorph. While it plays the
+  // group stands at the wider of the two widths, morphWidth, its items on its right edge.
+  private let morph = BarMorph()
+  private var morphWidth: CGFloat = 0
+  // The right side's own width, whatever a morph stands it at, which the actions pane is floored on.
+  private(set) var actionsWidth: CGFloat = 0
 
   override init(frame: NSRect) {
     super.init(frame: frame)
@@ -431,7 +437,22 @@ final class BarView: FlippedView {
     let keepRight = keepRight && !rightParts.isEmpty
     for view in parts { view.removeFromSuperview() }
     parts = []
-    if !keepRight {
+    // The right side morphs only when its actions changed while it stood on screen, a list switched
+    // in place, and never for a label alone, which follows the selected row, nor under its pane.
+    let nextActions = bottomBar.right.map { $0.action }
+    let morphs = !keepRight && !actionsHidden && !actions.isHidden && window?.isVisible == true
+      && !rightParts.isEmpty && !bottomBar.right.isEmpty && nextActions != rightActions
+    if morph.moving && (keepRight || actionsHidden || morphs) { endMorph() }
+    var leaving: NSView?
+    var oldWidth: CGFloat = 0
+    if morphs {
+      // The old items carry on in a view of their own on the group's right edge, fading out.
+      oldWidth = actions.bounds.width
+      let hold = FlippedView(frame: actions.bounds)
+      for view in rightParts { hold.addSubview(view) }
+      leaving = hold
+      rightParts = []
+    } else if !keepRight {
       for view in rightParts { view.removeFromSuperview() }
       rightParts = []
     }
@@ -471,6 +492,34 @@ final class BarView: FlippedView {
     button.isHidden = leftHidden
     actions.isHidden = actionsHidden || rightParts.isEmpty
     relight()
+    if let leaving {
+      layoutSubtreeIfNeeded()
+      let newWidth = actionsWidth
+      let h = actions.bounds.height
+      morphWidth = max(oldWidth, newWidth)
+      needsLayout = true
+      layoutSubtreeIfNeeded()
+      leaving.frame = NSRect(x: morphWidth - oldWidth, y: 0, width: oldWidth, height: h)
+      actions.addSubview(leaving)
+      morph.play(group: actions,
+        from: NSRect(x: morphWidth - oldWidth, y: 0, width: oldWidth, height: h),
+        to: NSRect(x: morphWidth - newWidth, y: 0, width: newWidth, height: h),
+        radius: style.highlightRadius, leaving: leaving, arriving: rightParts,
+        done: { [weak self] in self?.settleMorph() })
+    }
+  }
+
+  // The group back on its own width once a morph ends.
+  private func settleMorph() {
+    morphWidth = 0
+    needsLayout = true
+  }
+
+  // A morph cut short, by a new one or by the actions pane, ends where it was going.
+  private func endMorph() {
+    morph.stop()
+    settleMorph()
+    layoutSubtreeIfNeeded()
   }
 
   override func layout() {
@@ -531,7 +580,16 @@ final class BarView: FlippedView {
       x += w
     }
     let actionsW = x + inner
-    actions.frame = Crisp.align(NSRect(x: bounds.width - pad - actionsW, y: 0, width: actionsW, height: h), in: self)
+    actionsWidth = actionsW
+    // While a morph plays the group stands at the wider of its two widths, its items on its right
+    // edge, and the morph's mask shows the width it has reached.
+    let standW = max(actionsW, morphWidth)
+    let shift = standW - actionsW
+    if shift > 0 {
+      for view in rightParts { view.frame.origin.x += shift }
+      items = items.map { $0.offsetBy(dx: shift, dy: 0) }
+    }
+    actions.frame = Crisp.align(NSRect(x: bounds.width - pad - standW, y: 0, width: standW, height: h), in: self)
     actions.items = items
   }
 
