@@ -1032,3 +1032,11 @@ and the Lua that asks goes on with the list's switch for a tenth of a second, so
 length the new items can show part way in on their first frame, where the width's mask and the
 window start from nothing. Clocking it from the first frame drawn, as Core Animation does an
 animation with no begin time of its own, made the nudge's try look smoother at the real length.
+
+### 2026-11-06 14:25
+
+The crossfade's fade in is clocked from its first frame drawn, the finding of 14:05, at Milos's
+ask. It is added with no begin time of its own, so Core Animation starts it at the commit the
+width's mask and the old items' fade start at, and items the bar builds again mid morph take the
+old items' begin time once it is set. Built with no new warning, `test/swiftpane.sh`, the dry gate
+and the unit cases pass.

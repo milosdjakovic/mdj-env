@@ -349,8 +349,6 @@ final class BarMorph {
   private var arriving: [NSView] = []
   private static let fadeKey = "olm.motion.morph.fade"
   private(set) var moving = false
-  // When the morph began, so items built again while it plays fade in from where it stands.
-  private var began: CFTimeInterval = 0
 
   // from and to in the group's own space, y measured down, at the group's full height.
   func play(group: NSView, from: NSRect, to: NSRect, radius: CGFloat, leaving: NSView,
@@ -412,12 +410,17 @@ final class BarMorph {
     // new over the second, they ran ahead of a width easing in and the new ones seemed to pop in,
     // Milos's reports on 2026-11-06.
     animate(leavingLayer, "opacity", 1, 0, curve: Motion.reshapeCurve, length: d, key: Self.fadeKey)
-    began = CACurrentMediaTime()
     arriving.forEach(fadeIn)
     CATransaction.commit()
   }
 
-  // The new items fade in on the morph's clock, from when it began.
+  // The new items fade in on the morph's clock. It starts when the morph is first drawn, as Core
+  // Animation starts an animation with no begin time of its own, rather than when it was asked for,
+  // since the Lua that asks goes on with the list's switch for a tenth of a second, and a clock
+  // started then had the new items part way in on their first frame at the real length while the
+  // width and the window, both clocked from their first frame, started from nothing, measured
+  // against a try on 2026-11-06. Items built again later take the old items' begin time once Core
+  // Animation has set it, so they keep in step.
   private func fadeIn(_ view: NSView) {
     view.wantsLayer = true
     guard let l = view.layer else { return }
@@ -426,8 +429,10 @@ final class BarMorph {
     a.toValue = 1
     a.duration = Motion.reshapeDuration
     a.timingFunction = Motion.reshapeCurve
-    a.beginTime = l.convertTime(began, from: nil)
-    a.fillMode = .backwards
+    if let old = leaving?.layer, let anchor = old.animation(forKey: Self.fadeKey), anchor.beginTime > 0 {
+      a.beginTime = l.convertTime(anchor.beginTime, from: old)
+      a.fillMode = .backwards
+    }
     l.add(a, forKey: Self.fadeKey)
   }
 
