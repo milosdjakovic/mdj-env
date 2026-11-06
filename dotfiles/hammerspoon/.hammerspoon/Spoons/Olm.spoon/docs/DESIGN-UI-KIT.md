@@ -46,7 +46,7 @@ inner    one number                                   points, the room inside a 
 stroke   border graph                                 points, outline and divider, graph line
 alpha    dim fade                                     multipliers, one rule each
 icon     row list sheet                               points
-motion   open close rise scale paneOpen paneClose paneFade openCurve closeCurve paneCurve paneCloseCurve   seconds, points, a fraction, two Bezier control points
+motion   open close rise scale paneOpen paneClose paneFade openCurve closeCurve paneCurve paneCloseCurve reshapeCurve   seconds, points, a fraction, two Bezier control points
 ```
 
 The colours are exactly eight, and nothing derives a ninth. They once numbered fourteen, and
@@ -105,8 +105,9 @@ The `motion` block in `config/settings.lua` sets how every surface comes and goe
 `close` in seconds, `rise` in points and `scale` as a fraction, and for the info pane and the
 actions pane, which grow out of their bar group and shrink back onto it above the bar,
 `paneOpen`, `paneClose` and `paneFade` in seconds, the last the crossfade between a group and its
-pane, and the kit hands them on as the `motion` group with its four curves beside them, the pane
-growing on `paneCurve` and shrinking on `paneCloseCurve`. Only the swift chooser plays them, through
+pane, and the kit hands them on as the `motion` group with its five curves beside them, the pane
+growing on `paneCurve` and shrinking on `paneCloseCurve`, and the chooser widening or narrowing
+with its bar on `reshapeCurve`. Only the swift chooser plays them, through
 `native/Motion.swift`, which is handed the group once at load and holds no number of its own, see
 "Motion" in the spoon's `AGENTS.md`. A duration of zero is no animation, and a value out of range
 leaves the kit's own in place.

@@ -140,6 +140,10 @@ local SHIPPED = {
     -- A floating pane's grow, easing in and out, and its shrink, easing out alone so it moves the
     -- moment Escape is pressed and still settles onto its group.
     paneCurve = { 0.4, 0, 0.2, 1 }, paneCloseCurve = { 0.25, 0.6, 0.3, 1 },
+    -- The window widening or narrowing and the bar's morph beside it, which all step on it, easing
+    -- in and out, the curve AppKit's own animated resize plays, chosen by Milos on 2026-11-06,
+    -- since on the open curve the bar's group reached its width while the window gathered speed.
+    reshapeCurve = { 0.42, 0, 0.58, 1 },
   },
 }
 

@@ -1066,3 +1066,13 @@ through for the whole of it. `root/uispec.lua` spreads `show`, and any of the fi
 still wins over it, the place a per motion formula would go if one is wanted later. The cheat
 sheets and the toasts take `open` and `close` too and so follow `show`. `reshapeCurve` stays fixed
 in `native/Motion.swift`, the only curve not a token. The dry gate passes.
+
+### 2026-11-06 16:36
+
+`reshapeCurve` was the one motion curve written in `native/Motion.swift`, a `static let`, against
+the rule that the library holds no number of its own, so tuning the expand and contract easing
+meant a rebuild. It is now a kit token in `lib/ui/style.lua` beside the other four curves,
+0.42 0 0.58 1, the same `easeInEaseOut` it was, handed through `setMotion` like them, so nothing
+moves differently. It is a kit token rather than a setting in `config/settings.lua`, where only
+durations and distances live, Milos's call after weighing both. Built and loaded live, and
+`test/swiftpane.sh` and the dry gate pass.

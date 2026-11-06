@@ -55,10 +55,8 @@ enum Motion {
   // see BarMorph.
   static var reshapeDuration: CFTimeInterval = 0
   // The curve of a reshape, the window's and a bar group's morphing beside it, so they move
-  // together. It eases in and out, the curve AppKit's own animated resize plays, which Milos chose
-  // on 2026-11-06, and with the group on the open curve it reached its width while the window was
-  // still gathering speed.
-  static let reshapeCurve = CAMediaTimingFunction(name: .easeInEaseOut)
+  // together, the kit's reshapeCurve token, see lib/ui/style.lua.
+  static var reshapeCurve = CAMediaTimingFunction(name: .linear)
 
   // Where a curve has got at t from 0 to 1, its two control points solved for x by Newton's method
   // and bisection, as Core Animation does, for a motion stepped by hand.
