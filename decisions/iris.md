@@ -913,3 +913,14 @@ the screen, because nothing holds the pane's terminal any more.
   completion takes its place under fzf-tab, which loses the flag and value descriptions for
   commands zsh does not describe itself, aws and gcloud among them. The fzf-tab column and
   match settings stay, since zsh's own git completion groups its candidates the same way.
+
+### 2026-11-06 08:55
+
+Rechecked from source rather than by the reproduction, on herdr master at ee5bfb5 of
+2026-10-29, newer than the installed 0.9.5. Not fixed. `foreground_job` in
+`src/platform/macos.rs` still lists only the terminal's foreground process group and walks
+neither parents nor children. The descendant walk exists only on Linux, behind the opt in
+`HERDR_PROCESS_DETECTION=child-groups`, which still runs only when the terminal cannot answer.
+The unreleased `agents.mdx` still says detection does not inspect a tmux started inside a pane,
+and offers `HERDR_AGENT` on a wrapper command as the only route, which is the global marker
+rejected above. Issue 803 is still open. A pty proxy like iris would still hide every session.
