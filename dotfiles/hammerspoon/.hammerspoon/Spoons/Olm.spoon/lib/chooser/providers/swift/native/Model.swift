@@ -19,7 +19,6 @@ struct Style {
   var badge = NSColor.secondaryLabelColor
   // The chip a chord stands on, see KeyCap in Bar.swift.
   var keycap = NSColor.quaternaryLabelColor
-  var divider = NSColor.separatorColor
   var fieldFont = NSFont.systemFont(ofSize: NSFont.systemFontSize)
   var titleFont = NSFont.systemFont(ofSize: NSFont.systemFontSize)
   var subFont = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
@@ -73,7 +72,6 @@ struct Style {
     caption = r.color(t, "caption") ?? caption
     badge = r.color(t, "badge") ?? badge
     keycap = r.color(t, "keycap") ?? keycap
-    divider = r.color(t, "divider") ?? divider
     fieldFont = r.font(t, "fieldFont") ?? fieldFont
     titleFont = r.font(t, "titleFont") ?? titleFont
     subFont = r.font(t, "subFont") ?? subFont
@@ -116,8 +114,8 @@ struct Ink {
 
 // Where things sit. canvas, window and previewPane are in Hammerspoon's screen space, the top left
 // of the primary display at the origin and y growing down. window spans the canvas and the
-// preview pane when there is one, listFrame, paneFrame and dividerFrame are where the list's content,
-// the preview pane's region and the hairline between them sit inside it, and preview pane is the rect a preview pane is matched on. field, list
+// preview pane when there is one, listFrame and paneFrame are where the list's content and the
+// preview pane's region sit inside it, and preview pane is the rect a preview pane is matched on. field, list
 // and bottomBar are the canvas's own, the same space and the same rectangles the canvas view draws
 // into, so nothing inside the list moved when the window grew to hold the pane.
 struct Placement {
@@ -125,7 +123,6 @@ struct Placement {
   var window: NSRect?
   var listFrame: NSRect?
   var paneFrame: NSRect?
-  var dividerFrame: NSRect?
   var previewPane: NSRect?
   var field: NSRect?
   var list: NSRect?
@@ -139,6 +136,8 @@ struct Placement {
   var padX: CGFloat = 0
   var numW: CGFloat = 0
   var padBottom: CGFloat = 0
+  // The kit's outer padding, where a preview pane's content rests below the pane's top edge.
+  var pad: CGFloat = 0
   var showNumbers = false
   var barInset: CGFloat = 0
   var barGap: CGFloat = 0
@@ -163,7 +162,6 @@ struct Placement {
     window = r.rect(t, "window")
     listFrame = r.rect(t, "listFrame")
     paneFrame = r.rect(t, "paneFrame")
-    dividerFrame = r.rect(t, "dividerFrame")
     previewPane = r.rect(t, "previewPane")
     field = r.rect(t, "field")
     list = r.rect(t, "list")
@@ -177,6 +175,7 @@ struct Placement {
     padX = r.number(t, "padX") ?? padX
     numW = r.number(t, "numW") ?? numW
     padBottom = r.number(t, "padBottom") ?? padBottom
+    pad = r.number(t, "pad") ?? pad
     showNumbers = r.bool(t, "showNumbers") ?? showNumbers
     barInset = r.number(t, "barInset") ?? barInset
     barGap = r.number(t, "barGap") ?? barGap

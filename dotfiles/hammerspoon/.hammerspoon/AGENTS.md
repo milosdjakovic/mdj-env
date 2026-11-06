@@ -1354,7 +1354,7 @@ pairs, both declared once in the actions pane's manifest and drawn by stamping i
 | Meaning | The row says | SF Symbol | Emoji |
 |---|---|---|---|
 | One of many, choosing one turns the rest off | `chosen = true` / `false` | `circle.inset.filled` / `circle` | 🔘 / ⚪ |
-| Each on or off by itself | `on = true` / `false` | `checkmark.square.fill` / `square` | ☑️ / ⬜ |
+| Each on or off by itself | `on = true` / `false` | `checkmark.square` / `square` | ☑️ / ⬜ |
 | Neither, an action or one thing's own state | its own icon | | |
 
 One of many is the active display profile, the chosen theme, the overlay placement, the input
@@ -1473,7 +1473,7 @@ a person picks from declares nothing and inherits, and its supplier returns ever
 never filters by hand. A row that must show whatever is typed, a Back row, a capture row, a
 placeholder while a list loads, or the answer to the query itself, never fakes a match through
 `filterText`, and comes in two kinds. A door or a placeholder, Back, a capture or new snapshot
-row, Apply now, sets `pinned = true`. It keeps its place on an empty query, so Back still leads a
+row, sets `pinned = true`. It keeps its place on an empty query, so Back still leads a
 fresh page, and trails every match under a typed query in the supplier's order, since the
 first row is what the highlight and Enter land on, and a leading Back once took Enter from the
 match. A row made from what was typed, a calculator or conversion result, a window size, a

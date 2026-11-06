@@ -16,6 +16,15 @@
 # either layout it was probed against and takes surface so that it holds a sane value if a
 # layout ever reaches it. yellow and peach are both the tertiary accent and teal the secondary,
 # because Aura publishes one shade of each.
+#
+# surface0 is the inactive tabs and takes the page colour, the same as panel_bg, so the whole
+# tab bar is one even strip with only the active chip standing out. It was none for a while
+# on 2026-11-05 and went back to the page colour the same day, a white strip being the look
+# asked for even with Ghostty's glass behind it.
+#
+# panel_bg is the page colour. It paints the one cell gap between tabs and is the active
+# tab's label too, and with none there the label fell back to the terminal ink, which read
+# as grey on a pale chip and was rejected on 2026-11-05.
 accent = fill
 panel_bg = background
 selection_bg = highlight
@@ -34,10 +43,13 @@ blue = quinary
 teal = secondary
 peach = tertiary
 
-# The focused row lifts in purple on the dark half and in neutral on the light one, which is
-# herdr's own recorded decision, the light surfaces are near neutral because a tinted slab on
-# the light page reads as lilac. selection on dark is one step under highlight, and surface
-# on light is the exact grey the row already carried.
+# The focused row lifts in purple on the dark half and in neutral grey on the light one, which
+# is herdr's own recorded decision, the light surfaces are near neutral because a tinted slab on
+# the light page reads as lilac. selection on dark is one step under highlight, and surface on
+# light is the exact grey the row already carried. Three other looks were tried on 2026-11-05
+# and each went back to this. A purple label with no slab was too faint to find, the full
+# purple chip was too strong and hid the secondary line, and a lilac tint on light read as
+# lilac. A terminal colour carries no alpha, so no fainter slab than these exists.
 [dark]
 active_row_bg = selection
 

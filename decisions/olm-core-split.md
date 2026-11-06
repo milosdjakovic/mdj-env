@@ -96,6 +96,11 @@ surface and empty state, the scroll and the teardown, `pane = true` on a surface
   first shape built and it took the list down under the person after each press, so flipping
   two plugins meant reopening the page between them. A choice is staged and the set applies
   once, when the stage closes or Apply now is chosen.
+- **An Apply now row on the Plugins page.** 2026-11-05. A pinned row leading the list while
+  anything was staged, applying with one reload and reopening the page. Milos disliked it, and
+  closing the list already applies, so the row was removed. Switching live without a reload was
+  asked about the same day and kept rejected, see the entry above, and the choice made was apply
+  on close.
 - **Persisting each staged choice as it is made.** 2026-10-16 14:58. It would survive a crash,
   but any other reload, a config file saved while the page is open, would then apply a half
   made set nobody announced. A staged set is a draft, it lives in memory until apply, and a
@@ -570,3 +575,15 @@ surface and empty state, the scroll and the teardown, `pane = true` on a surface
   app row's chord from the descriptors and the keymap. The goal this record set, a sheet and a
   launcher that read no person data and name no plugin, holds without either channel. Both fields
   are refused by name.
+
+### 2026-11-05 11:30
+
+The Apply now row is gone from the Olm Plugins page, Milos's call. Choosing a plugin stages it as
+before, and closing the stage by any route saves the set and reloads once, about one second
+measured from the console the same morning, with the routine line naming what changed. Asked
+whether a switch could apply live without freezing the interface, the answer was that Lua runs
+on one thread and a reload replaces the whole state, so a reload can never run beside the UI, and
+live switching stays rejected for the reason recorded on 2026-10-16. Of apply on close, a reload
+on every choice reopening the page, and live off with a reload only for on, Milos chose apply on
+close. The root word `applyPluginSwitches` and the page's `pendingSummary`, `lastStaged` and
+`onPresent` went with the row.

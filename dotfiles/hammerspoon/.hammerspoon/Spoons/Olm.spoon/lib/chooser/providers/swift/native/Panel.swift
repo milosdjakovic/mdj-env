@@ -26,8 +26,8 @@
 //
 // ONE WINDOW, ONE SHAPE. With a preview pane the window spans the canvas rect, the engine's gap and
 // the preview pane rect, and stands on one shape of glass, a SharedSurface, with the list's content
-// at the canvas rect, the preview pane's region at the preview pane rect and a hairline divider in
-// the middle of the gap down to the bottom bar, which spans the whole window. With none it is
+// at the canvas rect and the preview pane's region at the preview pane rect, nothing drawn between
+// them, and the bottom bar spanning the whole window. With none it is
 // the canvas rect alone. The preview pane's native backend
 // puts its view in the pane's region through the seam in Entry.swift, shown only while a pane is
 // in it and shown. AppKit's own window animation is off. The window fades in rising and growing a
@@ -266,7 +266,6 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   func applyStyle(_ next: Style) {
     style = next
     surfaces.setCornerRadius(style.radius)
-    surfaces.setDividerColor(style.divider)
     field.font = style.fieldFont
     field.textColor = style.text
     applyPlaceholder()
@@ -532,15 +531,16 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     // The fade begins where the last row stands at the furthest scroll, the list's bottom padding
     // above the bar, so only what has scrolled under the bar softens.
     // The top fade is clear down to the title bar's bottom edge, where the list stops, and rises
-    // along one smooth curve to full where the first row rests, over the list's column alone, since the
-    // pane's own top is its header and never scrolls under the field.
+    // along one smooth curve to full where the first row rests. The pane's column rises along the
+    // same curve from its own top edge to where its content rests, the outer padding below it.
     let barTop = toWindow(placement.bottomBar)?.minY ?? windowSize.height
     let listTop = toWindow(placement.list)?.minY ?? 0
     surfaces.layout(size: windowSize, list: listFrame, pane: placement.paneFrame,
-      divider: placement.dividerFrame, paneShown: paneShown && paneContent != nil,
+      paneShown: paneShown && paneContent != nil,
       fadeTop: max(0, barTop - placement.padBottom), fadeListTop: listTop,
       fadeClearTo: min(titlebarHeight, listTop),
-      listColumn: listFrame.maxX)
+      listColumn: listFrame.maxX, paneTop: placement.paneFrame?.minY ?? 0,
+      paneRest: (placement.paneFrame?.minY ?? 0) + placement.pad)
   }
 
   // Whether this panel is up with a preview pane at rect, the question the seam in Entry.swift asks.

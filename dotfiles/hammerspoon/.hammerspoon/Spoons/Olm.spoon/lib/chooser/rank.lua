@@ -51,7 +51,7 @@ local M = {}
 -- Four fields say where a row goes rather than what it answers to, settled 2026-10-17 for
 -- phase two. A field of the wrong type is read as absent.
 -- pinned, when true, means the row is never scored and never dropped. It is a row that always
--- shows whatever is typed, Back, New snapshot, Apply now, a placeholder. On an empty query it
+-- shows whatever is typed, Back, New snapshot, a placeholder. On an empty query it
 -- keeps its place in the supplier's order like every row. Under a typed query every pinned row
 -- trails, after every ranked row, in the supplier's order, wherever the supplier put it, so the
 -- first row, which takes the highlight and Enter, is always the best match and never a door.

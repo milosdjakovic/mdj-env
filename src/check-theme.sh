@@ -379,6 +379,10 @@ resolve_map() {
             {
                 key = $1; role = unquote($2)
                 if (role ~ /^#/) { fail(pkg "/theme-map, " key " is a hex value, and a map may only name a role"); next }
+                # none is the one word that is not a role. It asks for no colour at all, so the
+                # background of the terminal shows through, and each emitter writes it in the
+                # syntax of its tool. No palette answers it, since there is nothing to answer.
+                if (role == "none") { print key "\tnone"; next }
                 hex = roles[role]
                 if (hex == "") {
                     if (role in vocab) fail(pkg "/theme-map, " key " names the role " role ", which the active palette does not answer")

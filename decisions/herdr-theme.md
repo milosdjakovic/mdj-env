@@ -71,3 +71,21 @@ Everything inside herdr asks herdr, so the whole tree froze with it. The cause, 
 confirmed it and the fix on the iris fork are in the iris appearance file, now merged into `iris.md`. Nothing here changed.
 `herdr server reload-config` does not re-ask the terminal, it reapplies config to the appearance
 last heard, which is worth knowing before reaching for it again.
+
+### 2026-11-05 about 14:00
+
+The tab bar stops painting a fill. `surface0`, the inactive tabs, took the page colour, and a
+colour written into a cell is opaque while Ghostty draws only the default background at its
+`background-opacity`, so the bar read as a solid strip over translucent glass. herdr spells no
+colour as `reset`, and the map could only name a role, so the checker gained one word that is
+not a role, `none`, passed through to the emitter, which writes herdr's `reset`. A colour cannot
+be made translucent here at all, since herdr parses hex, named colours and `rgb()` and nothing
+with alpha, so anything meant to show the glass has to be `none`.
+
+### 2026-11-05 about 14:20
+
+The selected sidebar row is made translucent from the Ghostty side, with
+`background-opacity-cells = true`, because herdr has no alpha to give it. That keeps the Aura
+tint exactly as the palette resolves it and blends it at the window opacity, and it applies to
+every coloured background in every program in Ghostty, which was accepted as a trial. If it is
+reverted, the alternatives were a row with no fill or a darker solid tint.

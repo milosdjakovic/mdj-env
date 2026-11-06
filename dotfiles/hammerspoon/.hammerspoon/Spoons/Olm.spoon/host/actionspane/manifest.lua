@@ -49,7 +49,7 @@ return {
     -- Olm's checkbox pair, the marker of a list whose rows are each on or off by itself, a
     -- plugin switched on, a browser enabled. A row says on and lib/icons/rows.lua draws these.
     -- Told apart from off by the check, a shape, never by colour. Chosen by Milos on 2026-11-03.
-    checked = { emoji = "☑️", sf = "checkmark.square.fill" },
+    checked = { emoji = "☑️", sf = "checkmark.square" },
     unchecked = { emoji = "⬜", sf = "square" },
   },
 

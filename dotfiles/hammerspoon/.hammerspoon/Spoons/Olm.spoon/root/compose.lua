@@ -1545,7 +1545,7 @@ function obj.run(olm, cfg)
   -- reload. announce asks instead for one routine line naming what changed, said once the load
   -- is done, for an apply the person did not ask to watch. Nothing staged, or a reload already
   -- on its way, applies nothing.
-  local function applySwitches(resume, announce)
+  local function applySwitches()
     if next(pendingSwitches) == nil or switchReloadTimer then return false end
     local after = switchLib.preview(switchDryRun({ disabled = disabled, pending = pendingSwitches }))
     local line = switchLib.appliedLine(switchLib.changes(switchedOff, after.off), function(identity)
@@ -1564,12 +1564,9 @@ function obj.run(olm, cfg)
     -- The staged set is kept, not cleared, so the page still shows what is about to apply for
     -- the moment before the reload lands, and the scheduled reload is what refuses a second
     -- apply and any further staging.
-    local note = {}
-    if type(resume) == "table" then note.open = resume end
-    if announce then note.notify = line end
-    if (note.open or note.notify) and not resumeLib.write(resumeStore, note) then
-      log.w("Olm compose, the place to reopen after the plugin switch was not a valid note, "
-        .. "so the reload reopens nothing")
+    if line and not resumeLib.write(resumeStore, { notify = line }) then
+      log.w("Olm compose, the line naming what the plugin switch changed was not a valid note, "
+        .. "so the reload says nothing")
     end
     scheduleSwitchReload()
     return true
@@ -1860,9 +1857,9 @@ function obj.run(olm, cfg)
     -- only what lives under plugins, since core is not something a person switches, each row
     -- with what this load has and, while anything is staged, what applying would leave. The
     -- cascade is a dry run of the resolver's own plan with no modules and no probing, so asking
-    -- it is free. Staging writes nothing, and apply saves the whole staged set and schedules
-    -- one reload, since whether a plugin runs is decided once per load. The stage closing
-    -- applies too, see the observer where the stage is wired.
+    -- it is free. Staging writes nothing, and the stage closing saves the whole staged set and
+    -- schedules one reload, since whether a plugin runs is decided once per load, see the
+    -- observer where the stage is wired.
     pluginCatalog = function()
       local preview = next(pendingSwitches) ~= nil
         and switchLib.preview(switchDryRun({ disabled = disabled, pending = pendingSwitches }))
@@ -1891,9 +1888,6 @@ function obj.run(olm, cfg)
         lockedBy = locks,
         current = function(name) return disabled[name] == true end,
       })
-    end,
-    applyPluginSwitches = function(resume)
-      return applySwitches(resume, false)
     end,
   }
 
@@ -2008,7 +2002,7 @@ function obj.run(olm, cfg)
   -- so it applies nothing. Dismissing means done, so nothing is reopened, and one line after the
   -- reload says what changed.
   if stageModule and stageModule.onClosed then
-    stageModule:onClosed(function() applySwitches(nil, true) end)
+    stageModule:onClosed(applySwitches)
   end
 
   -- The kind derivation reads a binding's position and the fixed generic navigation set,

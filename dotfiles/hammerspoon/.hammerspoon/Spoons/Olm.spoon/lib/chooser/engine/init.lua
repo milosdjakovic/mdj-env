@@ -1222,7 +1222,7 @@ function M.new(config, makeView)
   -- A view drawing one surface across the canvas and the preview pane runs the bar under both,
   -- see spansBottomBar in lib/chooser/view.lua and bottomBarSpan in geometry.resolve.
   -- Such a view also takes no gap, since the list's margin already stands between a row and the
-  -- divider and the pane pads its content by the same inset, and a gap would sit between them as
+  -- pane and the pane pads its content by the same inset, and a gap would sit between them as
   -- well and leave a row wider room on its right than on its left. A consumer's gap still wins.
   if type(self.view.spansBottomBar) == "function" and self.view:spansBottomBar() == true then
     layout.bottomBarSpan = true

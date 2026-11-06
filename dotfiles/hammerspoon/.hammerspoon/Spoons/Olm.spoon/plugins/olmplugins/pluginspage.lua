@@ -9,7 +9,7 @@
 --- The catalog is the root's own answer. A choice made on the page is staged in the root and
 --- nothing runs differently until it is applied, so each catalog row carries what this load has
 --- and, while anything is staged, what applying would leave, and the page draws the second. A
---- row that changes on apply says so in words, off after apply or on after apply.
+--- row that changes on apply says so in words, turns off or turns on when Olm closes.
 
 local M = {}
 
@@ -89,28 +89,14 @@ function M.plainWords(entry, catalog, selfIdentity)
   if entry.lockedBy == "core" then return "needed by the core" end
   if entry.lockedBy == "config" then return "locked off in config" end
   if M.changes(entry) then
-    if not entry.after.off then return "on after apply" end
+    if not entry.after.off then return "turns on when Olm closes" end
     if entry.pending == nil and entry.after.offBecause then
-      return "off after apply, because " .. causeWords(entry.after.offBecause, catalog)
+      return "turns off when Olm closes, because " .. causeWords(entry.after.offBecause, catalog)
     end
-    return "off after apply"
+    return "turns off when Olm closes"
   end
   if entry.offBecause ~= nil then return "off because " .. causeWords(entry.offBecause, catalog) end
   return M.isOff(entry) and "off" or "on"
-end
-
---- M.pendingSummary(catalog) -> string or nil
---- What applying would change, every plugin it changes as its title and on or off, in the
---- catalog's own order. Nil when nothing is staged, which is when the page shows no Apply row.
-function M.pendingSummary(catalog)
-  local parts = {}
-  for _, entry in ipairs(catalog or {}) do
-    if M.changes(entry) then
-      parts[#parts + 1] = titleOf(entry) .. (entry.after.off and " off" or " on")
-    end
-  end
-  if #parts == 0 then return nil end
-  return table.concat(parts, ", ")
 end
 
 --- M.rows(catalog, row, selfIdentity) -> rows
@@ -155,7 +141,7 @@ local function cascadeLine(cascade, catalog)
   local names = titleList(cascade.others, catalog)
   local lead
   if cascade.staged then
-    lead = cascade.off and "Applying this also turns off " or "Applying this also brings back "
+    lead = cascade.off and "Closing Olm also turns off " or "Closing Olm also brings back "
   else
     lead = cascade.off and "Turning this off also turns off " or "Turning this on also brings back "
   end

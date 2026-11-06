@@ -25,8 +25,9 @@
 // update ends at the list, so a scroll never sets the cursor again, a third of every frame once.
 //
 // The fades mask the list and the pane as one, from the list's bottom padding above the bar to the
-// window's edge, and the list's column alone from the title bar's bottom edge to where the first
-// row rests, the list running on up behind the field and stopping at the title bar.
+// window's edge, the list's column from the title bar's bottom edge to where the first row rests,
+// the list running on up behind the field and stopping at the title bar, and the pane's column on
+// the same curve from its top edge to where its content rests.
 //
 // Motion's cases are at the end, see their own comment there.
 //
@@ -374,8 +375,8 @@ check("then for rows ahead of the viewport, in the scroll's direction",
 check("a dozen rows at most per ask", asks.allSatisfy { $0.count <= 12 })
 check("each row asked once", Set(askedRows).count == askedRows.count)
 
-// The bottom fade, the content masked as one, the list and the pane alike, opaque down to the
-// list's bottom padding above the bar and clear at the window's edge.
+// The fades, the content masked as one, the list and the pane alike, opaque down to the list's
+// bottom padding above the bar and clear at the window's edge.
 do {
   let fadePanel = ChooserPanel(ask: { _, _ in false })
   var p = Placement()
@@ -387,6 +388,7 @@ do {
   p.list = NSRect(x: 0, y: 60, width: 480, height: 292)
   p.bottomBar = NSRect(x: 0, y: 352, width: 800, height: 48)
   p.padBottom = 8
+  p.pad = 12
   fadePanel.place(p)
   func all(_ v: NSView) -> [NSView] { [v] + v.subviews.flatMap(all) }
   let tree = NSApp.windows.compactMap { $0.contentView }.flatMap(all)
@@ -404,7 +406,8 @@ do {
     "\(stops(listColumn)) \(stops(paneColumn))")
   check("the list's column fades in from the window's top to where the first row rests",
     has(listColumn, 60) && stops(listColumn).count > 6, "\(stops(listColumn))")
-  check("the pane's column has no top fade, since its top is its header", stops(paneColumn).count == 3)
+  check("the pane's column fades in along the same curve from its top edge to where its content rests",
+    has(paneColumn, 12) && stops(paneColumn).count == stops(listColumn).count, "\(stops(paneColumn))")
   let fields = tree.compactMap { $0 as? NSTextField }.filter { $0.isEditable }
   check("the field stands outside the content the fades mask",
     !fields.isEmpty && fields.allSatisfy { f in !masked.contains { f.isDescendant(of: $0) } })

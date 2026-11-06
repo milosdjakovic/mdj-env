@@ -22,8 +22,14 @@ colour name and never a hex, so a palette that answers the vocabulary can be dro
 map stays true. A key under `[dark]` or `[light]` answers only that half, which is how Ghostty
 says ANSI black is the page on one half and the ink on the other.
 
+One word in a map is not a role. `none` asks for no colour at all, so the terminal's own
+background shows through, and on a translucent terminal that is the only way a cell stays
+translucent, since a colour painted into a cell is opaque. No palette answers it. The checker
+passes it through as the word `none`, and an emitter whose map uses it writes it in its tool's
+syntax, herdr's `reset` for one.
+
 **An emitter knows one tool's file syntax.** `dotfiles/<pkg>/theme-emit` is handed the map
-already resolved, one file per half of `key TAB hex` lines, and writes the tool's file. It never
+already resolved, one file per half of `key TAB hex` lines, or `key TAB none`, and writes the tool's file. It never
 sees a role, a colour name, or the palette. `--list` prints the files it owns, relative to the
 package root, which is how the checker knows what to snapshot.
 

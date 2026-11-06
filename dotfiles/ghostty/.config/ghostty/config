@@ -10,6 +10,15 @@ theme = light:mdj-light,dark:mdj-dark
 # === Window settings ===
 # window-decoration = false
 macos-titlebar-style = hidden
+window-title-font-family = "MesloLGS Nerd Font Mono"
+background-opacity = 0.95
+background-blur = macos-glass-regular
+# Coloured cells take the window opacity too, so a program's own backgrounds, herdr's
+# selected sidebar row among them, show the glass in their palette colour instead of
+# painting a solid slab over it. It changes no colour, only how a coloured cell is blended.
+background-opacity-cells = true
+cursor-style = block
+shell-integration-features = no-cursor
 window-save-state = never
 window-inherit-working-directory = true
 window-padding-y = 8

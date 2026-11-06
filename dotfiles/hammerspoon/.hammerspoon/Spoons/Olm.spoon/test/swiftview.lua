@@ -11,7 +11,7 @@ everyTimers = {}
 -- back, a leftover Down moving the highlight and a leftover Return choosing, a hover highlighting,
 -- a press and release choosing, a press outside hiding and a press in the preview pane keeping the
 -- list and asking the panel to take key, a press in the gap before it too while there is one,
--- with the window spanning both and a hairline of the kit's border centred in the gap. And that
+-- with the window spanning both and nothing drawn between them. And that
 -- the provider serves the fallback when the
 -- library is missing, while it builds, after a build in the same session, and when it fails,
 -- and offers the preview pane's native backend only once its library is loaded.
@@ -244,7 +244,7 @@ check("the panel sits on the canvas rect", lastPlace.canvas, rects.canvas)
 check("the list rect is the canvas's own", lastPlace.list.y, rects.list.y - rects.canvas.y)
 -- One window holds the list's glass and the preview pane's, spanning both rects. The engine gives
 -- a spanning view no gap since bb69fbc9, the list's margin already standing between a row and the
--- divider, so the preview pane starts where the canvas ends.
+-- pane, so the preview pane starts where the canvas ends.
 local gap = rects.previewPane.x - (rects.canvas.x + rects.canvas.w)
 check("there is no gap between the canvas and the preview pane", gap, 0)
 check("the window starts at the canvas", lastPlace.window.x, rects.canvas.x)
@@ -255,13 +255,7 @@ check("the pane's glass is the preview pane rect in the window, past the gap",
   lastPlace.paneFrame.x, rects.canvas.w + gap)
 check("the preview pane travels in screen space, for a pane to be matched on", lastPlace.previewPane,
   rects.previewPane)
--- A hairline of the kit's border width, centred in the gap, from the top of the window to the
--- bottom, in the kit's border colour.
-check("the divider is the kit's border width", lastPlace.dividerFrame.w, 1)
-check("the divider is centred in the gap", lastPlace.dividerFrame.x, rects.canvas.w + (gap - 1) / 2)
-check("the divider runs from the top", lastPlace.dividerFrame.y, 0)
-check("to the bottom", lastPlace.dividerFrame.h, lastPlace.window.h)
-check("the divider is the kit's border colour", lastStyle.divider.red, 0.45)
+check("nothing is drawn between the list and the pane", lastPlace.dividerFrame, nil)
 check("every row is sent", #lastRows, 4)
 check("a row's subtitle travels as a string", lastRows[2].subtitle, "sub beta")
 check("the highlight starts on row one", sentHighlight, 1)
@@ -332,13 +326,12 @@ check("a press in the gap asks for key again", since(mark), "refocus")
 send("pressOutside", rects.previewPane.x + rects.previewPane.w + 5, rects.canvas.y + 5)
 check("a press past the preview pane hides the list", picker:isActive(), false)
 
--- With no preview pane the window is the canvas rect alone, with no pane region and no divider.
+-- With no preview pane the window is the canvas rect alone, with no pane region.
 picker:setPreviewPaneWidth(nil)
 picker:show()
 check("without a preview pane the window is the canvas", lastPlace.window, picker:scene().rects.canvas)
 check("and there is no pane region", lastPlace.paneFrame, nil)
 check("and no previewPane to match a pane on", lastPlace.previewPane, nil)
-check("and no divider", lastPlace.dividerFrame, nil)
 local bare = picker:scene().rects.canvas
 send("pressOutside", bare.x + bare.w + 1, bare.y + 5)
 check("just past the canvas, a press hides the list without a preview pane", picker:isActive(), false)
@@ -691,7 +684,7 @@ do
 end
 
 -- With an bottom bar the view asks for the bar to span, so it runs under the gap and the pane,
--- and the pane's region and the divider run on behind it to the bottom, the preview pane keeping the
+-- and the pane's region runs on behind it to the bottom, the preview pane keeping the
 -- canvas's height with the bar's height as under.
 local barred = Engine.new({
   rows = function() return {} end,
@@ -703,7 +696,6 @@ local br = barred:scene().rects
 check("the bar spans the whole window", lastPlace.bottomBar.w, lastPlace.window.w)
 check("the bar starts at the window's left edge", lastPlace.bottomBar.x, 0)
 check("the pane's region runs to the bottom", lastPlace.paneFrame.y + lastPlace.paneFrame.h, lastPlace.window.h)
-check("the divider runs to the bottom", lastPlace.dividerFrame.h, lastPlace.window.h)
 check("the preview pane is as tall as the pane's region", br.previewPane.h, lastPlace.paneFrame.h)
 check("and the bar covers its bottom", br.previewPane.under, lastPlace.bottomBar.h)
 barred:hide()

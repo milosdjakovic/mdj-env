@@ -10,23 +10,18 @@ empty one when it is off, with a subtitle saying so in words. A plugin switched 
 so and cannot be changed from here, and one that is off because a plugin it requires is off
 names that plugin and comes back with it. Choosing any other row stages the change and nothing
 else. The page stays open, the highlight stays on the row, the box moves to the state after
-apply and the subtitle says Off after apply or On after apply, and a plugin that goes off or
+apply and the subtitle says Turns off when Olm closes or Turns on when Olm closes, and a plugin that goes off or
 comes back with it says so on its own row. Choosing the row again returns it to how it is now
-and drops the staged change. While anything is staged an Apply now row leads the list,
-naming every plugin that changes. Whether a plugin runs is decided once per load, so the staged
-set is applied with one reload, either when the whole Olm window goes away by any route, escape,
-a click away or a choice that closes it, or when Apply now is chosen. After a dismissal nothing reopens, since dismissing
-means done, and one routine line after the reload names what changed. After Apply now the list
-reopens on the plugin last chosen. Staged choices are held in memory until then, so a reload
+and drops the staged change. There is no apply row, Milos's call on 2026-11-05. Whether a plugin
+runs is decided once per load, so the staged set is applied with one reload when the whole Olm
+window goes away by any route, escape, a click away or a choice that closes it. Nothing reopens,
+since dismissing means done, and one routine line after the reload names what changed. Staged choices are held in memory until then, so a reload
 from anything else, or quitting Hammerspoon, drops them. A refusal is said through the routine
 feedback line rather than an alert. A preview pane follows the
 highlight. For the highlighted plugin it shows the title and version, its description, the
 author, license and homepage when declared, what the plugin needs in short groups, and a line
 naming what else goes off or comes back with it, measured against everything else staged and
-taken from the root's own dry run of the plan. On Apply now,
-the pane shows the shared empty state. The four root words behind it, `pluginCatalog`,
-`pluginCascade`, `stagePluginSwitch` and `applyPluginSwitches`, come from
-`lib/pluginswitch.lua`, and the place reopened after Apply now is a note this plugin hands the
-root about itself, its own name and the plugin to highlight. `pluginspage.lua` builds the rows and the detail block as plain
+taken from the root's own dry run of the plan. The three root words behind it, `pluginCatalog`,
+`pluginCascade` and `stagePluginSwitch`, come from `lib/pluginswitch.lua`. `pluginspage.lua` builds the rows and the detail block as plain
 data and kit nodes, and the shared preview pane, `lib/previewpane.lua`, granted by `previewPane = true`,
 is the canvas that draws them.

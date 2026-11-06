@@ -15,11 +15,10 @@ return {
     license = "MIT",
   },
 
-  -- The row icons. A plugin row says chosen when it is on and wears Olm's own radio pair, the
-  -- one marker every list shares, so no marker is declared here.
+  -- The row icons. A plugin row says on when it is on and wears Olm's own checkbox pair, the
+  -- one marker every list of switches shares, so no marker is declared here.
   icons = {
     plugins = { emoji = "🧩", sf = "puzzlepiece.extension" },
-    apply = { emoji = "🔄", sf = "arrow.clockwise" },
   },
 
   needs = {
@@ -40,11 +39,6 @@ return {
       stagePluginSwitch = { source = "root", policy = "required",
         breaks = "choosing a plugin stages nothing, since the staged set lives in the root and "
           .. "has no other way in from this plugin" },
-      -- Saves the staged set and schedules the one reload, with the place this page describes
-      -- reopened after it. Optional, since the root also applies when the stage goes away.
-      applyPluginSwitches = { source = "root", policy = "optional",
-        breaks = "the page cannot offer Apply now, so staged choices apply only when the stage "
-          .. "is dismissed and nothing reopens after the reload" },
 
       -- One line of routine feedback, which is how a refused switch says why, and the stage word
       -- the pane follows the highlight through. Both optional.
@@ -76,7 +70,6 @@ return {
     rows = { member = "rows", call = "dot" },
     select = { member = "select", call = "dot" },
     placeholder = { member = "placeholder", call = "dot" },
-    onPresent = { member = "onPresent", call = "dot" },
     intercept = { member = "intercept", call = "dot" },
     onHighlight = { member = "onHighlight", call = "dot" },
     onPositioned = { member = "onPositioned", call = "dot" },

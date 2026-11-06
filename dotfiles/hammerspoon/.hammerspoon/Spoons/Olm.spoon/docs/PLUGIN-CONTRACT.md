@@ -478,16 +478,11 @@ a dry run of the resolver's plan that loads and probes nothing.
 plugin and one the core needs, and once a reload is on its way it refuses everything. It writes
 nothing. A choice equal to what this load has drops the staged entry, so choosing a row twice
 leaves nothing staged.
-`applyPluginSwitches(resume)` saves the staged set under `Olm.disabledPlugins` in
-`hs.settings`, holding only identities that are still switchable, schedules one reload, and
-answers whether anything was staged. `resume`, optional, is the place to reopen after the
-reload, described by the caller about itself, `{ tool, path, highlight }`, `tool` the name it
-registered under, `path` a list of items its own `select` answers a child for, one per level
-down, and `highlight` a flat table of item fields the row to highlight carries. The root leaves
-it in a one shot note under `Olm.resume`, `lib/resume.lua`, takes the note once at the end of
-the next load and hands it to `stage.presentAt`. The root also applies by itself when the stage
-goes away, through `stage.onClosed`, reopening nothing and saying one routine line after the
-reload naming what changed, so a page never has to ask for it.
+The root applies by itself when the stage goes away, through `stage.onClosed`. It saves the
+staged set under `Olm.disabledPlugins` in `hs.settings`, holding only identities that are still
+switchable, schedules one reload, reopens nothing, and says one routine line after the reload
+naming what changed, left in a one shot note under `Olm.resume`, `lib/resume.lua`. There is no
+word for applying sooner, since the Apply now row it served was removed on 2026-11-05.
 
 And the presenting plugin's own set, review finding L4, none of these named here until the
 rework following the trickle migrations, which is what let one of them, `stageSetPlaceholder`,
@@ -1432,8 +1427,8 @@ A row number is the chosen row only while nothing above it moves, so the stage h
 highlight on the same item instead whenever the item states a `key`. That holds across every
 repaint that keeps the person on the same level, a "stay", a `redrawPresented` without
 `resetRow`, and any other refresh, and it holds under a typed query, where the item is found in
-the list as filtered and ranked, the order the provider shows. A row appearing above, the
-Plugins page's own Apply now row after Back or a permission line landing in a settings list,
+the list as filtered and ranked, the order the provider shows. A row appearing above, a
+permission line landing in a settings list,
 then leaves the highlight where the person put it. An item with no `key`, or a key no row
 carries any more, keeps the row number exactly as before, so give every row of a list that can
 grow or shrink above the highlight a stable key.

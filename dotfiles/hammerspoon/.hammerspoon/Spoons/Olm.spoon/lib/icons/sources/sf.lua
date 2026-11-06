@@ -27,11 +27,14 @@
 -- queue has not seen, the other half after a switch, queues every symbol the source has been told
 -- about at that colour, so a switch costs one run and not one per row.
 --
--- The configuration is a palette of one colour and not a hierarchical one, on purpose. A
--- hierarchical colour draws a symbol's secondary layers at reduced opacity, so a multi layer
--- symbol such as face.smiling or globe came out dim beside a single layer one such as
--- circle.fill. A palette hands every layer the same colour at full strength, which was checked
--- on 2026 10 15 by rendering both kinds and reading the pixels, so every icon has one contrast.
+-- The symbol is drawn in its monochrome rendering and then filled with the colour through its own
+-- alpha, source in, so every pixel is the one colour at the colour's own alpha. A hierarchical
+-- colour draws a symbol's secondary layers at reduced opacity, so a multi layer symbol such as
+-- face.smiling or globe came out dim beside a single layer one such as circle.fill. A palette of
+-- one colour fixed that but paints each layer over the one under it, so a filled symbol with a
+-- knockout, checkmark.square.fill, drew its check as a darker stroke on the square rather than a
+-- hole through it. Monochrome draws the knockouts the symbol was designed with, every layer at full
+-- strength, checked on 2026 11 05 by rendering both kinds side by side.
 --
 -- Symbols are not square, cup.and.saucer.fill comes out wider than it is tall, so the script
 -- draws the symbol into a square bitmap, centred, keeping its aspect, and its longest side fills
@@ -124,8 +127,7 @@ function M.script(jobs)
     "ObjC.import('AppKit');",
     "function render(name, col, scale, path) {",
     "  var cfg = $.NSImageSymbolConfiguration.configurationWithPointSizeWeightScale(64, 0, 2)",
-    "    .configurationByApplyingConfiguration(",
-    "      $.NSImageSymbolConfiguration.configurationWithPaletteColors($([col])));",
+    "    .configurationByApplyingConfiguration($.NSImageSymbolConfiguration.configurationPreferringMonochrome);",
     "  var img = $.NSImage.imageWithSystemSymbolNameAccessibilityDescription(name, $('x'));",
     "  if (img.isNil()) return 'unknown';",
     "  img = img.imageWithSymbolConfiguration(cfg);",
@@ -142,6 +144,8 @@ function M.script(jobs)
     "  var w = sz.width * k, h = sz.height * k;",
     "  img.drawInRectFromRectOperationFraction($.NSMakeRect((side - w) / 2, (side - h) / 2, w, h),",
     "    $.NSZeroRect, 2, 1);",
+    "  col.set;",
+    "  $.NSRectFillUsingOperation($.NSMakeRect(0, 0, side, side), 3);",
     "  $.NSGraphicsContext.restoreGraphicsState;",
     "  var ok = rep.representationUsingTypeProperties(4, $()).writeToFileAtomically(path, true);",
     "  return ok ? 'ok' : 'failed';",

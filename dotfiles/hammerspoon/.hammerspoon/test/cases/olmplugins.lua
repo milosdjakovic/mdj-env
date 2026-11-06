@@ -77,7 +77,6 @@ eq("a plugin the core needs says so", rows[6].subTitle, "Needed by the core")
 check("a plugin the core needs is not toggleable", rows[6].item.toggle == false)
 eq("two causes are both named", rows[7].subTitle, "Off because Alpha and Beta are off")
 
-eq("nothing staged has no summary, so no Apply row", page.pendingSummary(catalog), nil)
 
 -- The same catalog with alpha staged off, the root's preview taking zeta off because of alpha
 -- and leaving every other row as it is. Each row carries after while anything is staged.
@@ -99,22 +98,20 @@ pendingCatalog[#pendingCatalog + 1] = { identity = "eta", about = { title = "Eta
   disabled = false, after = { off = true, offBecause = { "alpha" } } }
 local afterRows = page.rows(pendingCatalog, row, "settings")
 eq("a staged switch moves the box", afterRows[1].on, false)
-eq("a staged switch says what applying does", afterRows[1].subTitle, "Off after apply")
+eq("a staged switch says what applying does", afterRows[1].subTitle, "Turns off when Olm closes")
 check("a staged row can be toggled back", afterRows[1].item.toggle == true)
 eq("a plugin going off with it says so and why", afterRows[8].subTitle,
-  "Off after apply, because Alpha is off")
+  "Turns off when Olm closes, because Alpha is off")
 eq("and is the empty box", afterRows[8].on, false)
 check("and cannot be toggled while it is carried along", afterRows[8].item.toggle == false)
 eq("an unchanged row keeps its plain words", afterRows[2].subTitle, "Off")
-eq("the summary names every change in catalog order", page.pendingSummary(pendingCatalog),
-  "Alpha off, Eta off")
 
 local onCatalog = staged(catalog, { beta = false }, { beta = { off = false },
   gamma = { off = false } })
 local onRows = page.rows(onCatalog, row, "settings")
-eq("a plugin staged on says on after apply", onRows[2].subTitle, "On after apply")
+eq("a plugin staged on says it turns on when Olm closes", onRows[2].subTitle, "Turns on when Olm closes")
 eq("and is the checked box", onRows[2].on, true)
-eq("a plugin coming back with it says on after apply", onRows[3].subTitle, "On after apply")
+eq("a plugin coming back with it says it turns on when Olm closes", onRows[3].subTitle, "Turns on when Olm closes")
 
 local function said(node, out)
   out = out or {}
@@ -145,12 +142,12 @@ check("an empty cascade says nothing about it", none:find("Turning this", 1, tru
 local applying = joined(page.detail(ui, pendingCatalog[1], pendingCatalog,
   { off = true, staged = true, others = { "eta" } }))
 check("a staged plugin's cascade says what applying does",
-  applying:find("Applying this also turns off Eta.", 1, true) ~= nil)
-check("and its state line says Off after apply", applying:find("Off after apply", 1, true) ~= nil)
+  applying:find("Closing Olm also turns off Eta.", 1, true) ~= nil)
+check("and its state line says it turns off when Olm closes", applying:find("Turns off when Olm closes", 1, true) ~= nil)
 local returning = joined(page.detail(ui, onCatalog[2], onCatalog,
   { off = false, staged = true, others = { "gamma" } }))
 check("a plugin staged on says what applying brings back",
-  returning:find("Applying this also brings back Gamma.", 1, true) ~= nil)
+  returning:find("Closing Olm also brings back Gamma.", 1, true) ~= nil)
 
 local bare = joined(page.detail(ui, catalog[2], catalog, nil))
 check("a plugin with no description draws none", bare:find("Does alpha", 1, true) == nil)
