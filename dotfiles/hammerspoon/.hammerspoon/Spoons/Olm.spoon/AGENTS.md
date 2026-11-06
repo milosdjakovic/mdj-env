@@ -977,7 +977,10 @@ The look is the `motion` block of
 `config/settings.lua`, which reaches the kit's `motion` tokens through `root/uispec.lua` and the
 library once at load, through the view's `attach` and `setMotion`, so a change is one edit and a
 reload and reaches every surface, and the Swift sources hold no number of it, the rule every size the
-library draws with keeps. `native/Motion.swift` is the only code that animates. A view goes through `Motion.appear` and `Motion.disappear`, a window
+library draws with keeps. Its timings are two groups of one number each. `show` is every showing
+and hiding, flat, the window's `open` and `close` and a pane's `paneOpen` and `paneClose`, and
+`paneFade` is 0.3 of it, spread by `root/uispec.lua`, where one of those keys set in settings wins
+over `show`. `reshape` is the expanding and contracting, the window and the bar's morph beside it. `native/Motion.swift` is the only code that animates. A view goes through `Motion.appear` and `Motion.disappear`, a window
 through a `WindowMotion`. It is all Core Animation on the render server, so a list busy right after
 it shows still plays its fade, and never a window's `alphaValue` animator, which AppKit steps on the
 main thread. Every window fades out in place, takes no pointer and answers that it is down from the

@@ -83,22 +83,21 @@ return {
     bar = 6,
   },
 
-  -- How every surface comes and goes, the chooser, its info pane and actions pane, the cheat
-  -- sheets and the toasts alike. open and close are seconds, 0 for none, rise is how many points
-  -- below its place a surface starts and scale how much smaller, 1 for none. A closing surface
-  -- travels half of both. The info pane and the actions pane grow out of their bar group instead,
-  -- always above the bar. One fades in over its group over paneFade seconds, grows over paneOpen,
-  -- and closing shrinks back onto the group over paneClose and fades off it over paneFade.
-  -- open and close at 0 turn every animation off. Reduce Motion in System Settings keeps only the fade. Read by the swift
-  -- chooser at load, see native/Motion.swift.
+  -- How every surface comes and goes, in two groups.
+  --   show     seconds every showing and hiding takes, the chooser's window, the cheat sheets
+  --            and the toasts coming and going, and the info and actions panes growing out of
+  --            their bar group and shrinking back onto it, always above the bar. One number for
+  --            all of them, both ways. A pane fades over its group in 0.3 of it.
+  --   reshape  seconds the chooser takes to widen or narrow while it is up, a preview pane
+  --            arriving or leaving, with the bar's actions and their labels morphing beside it.
+  -- rise is how many points below its place a surface starts and scale how much smaller, 1 for
+  -- none, a closing surface travelling half of both. open, close, paneOpen, paneClose or paneFade
+  -- set here override show for that one motion. 0 turns a group off. Reduce Motion in System
+  -- Settings keeps only the fade. Read by the swift chooser at load, see native/Motion.swift.
   motion = {
-    open = 0.14,
-    close = 0.09,
+    show = 0.15,
     rise = 4,
     scale = 0.98,
-    paneOpen = 0.2,
-    paneClose = 0.15,
-    paneFade = 0.06,
     reshape = 0.18,
   },
 

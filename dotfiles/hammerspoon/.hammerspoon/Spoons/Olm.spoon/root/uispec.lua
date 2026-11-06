@@ -72,16 +72,25 @@ function M.spec(policy, colors, typography)
     },
     -- How a surface comes and goes, see motion in lib/ui/style.lua. A value out of range is left
     -- out, so the kit's shipped one stands in its place.
-    motion = {
-      open = padding((policy.motion or {}).open),
-      close = padding((policy.motion or {}).close),
-      rise = padding((policy.motion or {}).rise),
-      scale = scale((policy.motion or {}).scale),
-      paneOpen = padding((policy.motion or {}).paneOpen),
-      paneClose = padding((policy.motion or {}).paneClose),
-      paneFade = padding((policy.motion or {}).paneFade),
-      reshape = padding((policy.motion or {}).reshape),
-    },
+    -- show is the one length every showing and hiding takes, the chooser's window coming and
+    -- going and its info and actions panes growing and shrinking, flat, so one number moves them
+    -- all. A pane's fade over its group is a share of its grow, 0.3 of it, the share the separate
+    -- timings had. A per motion key in settings still wins over show, for a formula later.
+    motion = (function()
+      local m = policy.motion or {}
+      local show = padding(m.show)
+      local function each(key) return padding(m[key]) or show end
+      return {
+        open = each("open"),
+        close = each("close"),
+        rise = padding(m.rise),
+        scale = scale(m.scale),
+        paneOpen = each("paneOpen"),
+        paneClose = each("paneClose"),
+        paneFade = padding(m.paneFade) or (show and show * 0.3),
+        reshape = padding(m.reshape),
+      }
+    end)(),
   }
 end
 

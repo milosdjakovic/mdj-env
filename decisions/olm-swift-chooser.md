@@ -1051,3 +1051,18 @@ that edge, and Milos asked that it expand and collapse the way the preview pane 
 morph with no reshape beside it keeps its own clock. Items the bar builds again mid follow take the
 step's opacity. Built with no new warning, `test/swiftpane.sh`, the dry gate and the unit cases
 pass, and confirmed live by Milos.
+
+### 2026-11-06 16:14
+
+The motion timings were mapped with Milos into two groups, and each is now one number. Expanding
+and contracting, the window widening or narrowing for a preview pane with the bar's width, its
+actions group's mask and its labels' crossfade, was already one, `reshape`, the bar following the
+window's own steps. Showing and hiding was five, `open` 0.14, `close` 0.09, `paneOpen` 0.2,
+`paneClose` 0.15 and `paneFade` 0.06, the window and the two floating panes each on their own, so
+speeding one left the others behind. They are now `show` in `config/settings.lua`, flat at his
+ask, 0.15 for all four both ways, which he tried live and kept. `paneFade` is not flat but 0.3 of
+`show`, the share it had of a grow, since a fade as long as the grow would leave the pane see
+through for the whole of it. `root/uispec.lua` spreads `show`, and any of the five set in settings
+still wins over it, the place a per motion formula would go if one is wanted later. The cheat
+sheets and the toasts take `open` and `close` too and so follow `show`. `reshapeCurve` stays fixed
+in `native/Motion.swift`, the only curve not a token. The dry gate passes.
