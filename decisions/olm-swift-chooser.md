@@ -152,6 +152,17 @@ chooser serves and on the canvas otherwise, built on `olm/native-panel`.
   list's key and every event tap waited the motion out, up to its whole length, and nothing could
   turn it mid way. Its curve also could not be set.
 
+- **Pushing the bar's right group's new actions in, edge to edge with the old.** 2026-11-06 14:05.
+  The old and new items stood side by side and travelled one set's width on the window's curve,
+  the new in from the left as the window widened and from the right as it narrowed, tucked under
+  the group's edges. Slowed down it read well, and at the real length it strobed, since text
+  covering a hundred and fifty points in a fifth of a second has no blur to carry it. A first try
+  that masked the glass alone let the items run on beside the pill, which Milos did not want.
+- **A short nudge under the crossfade.** 2026-11-06 14:05. The old and new items crossfading while
+  both moved twelve points the way the window went, a `nudge` motion token, still read as jumping
+  at the real length, and Milos chose the plain crossfade back. Both tries were committed and taken
+  out of the history at his ask, so this record is where they stay.
+
 ## Log
 
 ### 2026-10-27 20:00
@@ -1011,3 +1022,13 @@ built them anew at full strength, so items built while a morph plays take its fa
 `BarMorph.adopt`. The perf probe also notes the pane's hides and releases and every place. Built
 with no new warning, `test/swiftpane.sh`, the dry gate and the unit cases pass, and confirmed live
 by Milos.
+
+### 2026-11-06 14:05
+
+The bar's right group keeps the crossfade of 12:55, Milos's call after trying a push and a short
+nudge in its place, both in Rejected and both taken out of the history at his ask. One finding
+from them is not in this crossfade yet. Its fade in starts its clock when the morph is asked for,
+and the Lua that asks goes on with the list's switch for a tenth of a second, so at the real
+length the new items can show part way in on their first frame, where the width's mask and the
+window start from nothing. Clocking it from the first frame drawn, as Core Animation does an
+animation with no begin time of its own, made the nudge's try look smoother at the real length.
