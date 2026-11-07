@@ -23,7 +23,7 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 0.3b, fixtures for the bottom bar model.
+Next. 1.1, the app shell. Stage 0 is done.
 
 Stage 0, contracts
 - [x] 0.1 The decision record, 2026-11-05
@@ -32,10 +32,10 @@ Stage 0, contracts
 - [x] 0.4 The bridge protocol, on paper, with its adversarial review, 2026-11-07
 - [x] 0.6 A data source protocol in front of the library, and the package build, 2026-11-07
 - [x] 0.3a Fixtures for the file search grammar, 2026-11-07
-- [ ] 0.3b Fixtures for the bottom bar model
-- [ ] 0.3c Fixtures for keymap resolution
-- [ ] 0.3d Fixtures for `KeyRemap.allocate`
-- [ ] 0.3e Fixtures for list keys
+- [x] 0.3b Fixtures for the bottom bar model, 2026-11-07
+- [x] 0.3c Fixtures for keymap resolution, 2026-11-07
+- [x] 0.3d Fixtures for `KeyRemap.allocate`, 2026-11-07
+- [x] 0.3e Fixtures for list keys, 2026-11-07
 
 Stage 1, the file search pilot
 - [ ] 1.1 The app shell

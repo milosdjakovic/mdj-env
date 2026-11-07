@@ -122,6 +122,21 @@ line read before it is committed. A rule fixture is never recorded.
 launcher's learned memory, and the launcher's ordering, which is that memory reaching the engine
 as a bonus. `ranking.lua` still runs beside it until the fixtures are trusted to replace it.
 
+A third sort is lifted rather than written. `fixtures-record.lua` runs an existing test with a
+module's functions wrapped and writes down every call the test makes, what it passed and what the
+module answered, which the test's own assertions checked, as kind `calls`, and `fixtures.lua`
+replays each call and compares the answer. A function handed in is recorded with every question it
+was asked and answered from the recording on replay, a key and a chord of `lib/kbd.lua` are typed
+values, and `fixtures-encode.lua` states the whole shape, which is all a second implementation
+needs to read them. `fixtures-record.sh` records every one again and runs from
+`goldens.sh --update`, since the bottom bar's are recorded from `keymap-person.lua`, which reads
+the person's own keymap the way `keys.golden` does.
+
+`fixtures/keys/` is keymap resolution, from `keymap.lua`'s rules and from the seven fixture
+keymaps run through the composition root, `readConfig`, `build`, `applyLists` and
+`leadersInUse`, the list keys, `nav.fieldKeys` in the same runs, and the remap, `remap.json` from
+`keyremap.lua`. `fixtures/bar/` is the bottom bar model, `hints.bottomBarModel`.
+
 `fixtures/filesearch/` is file search's grammar, how `plugins/filesearch/query.lua` reads what was
 typed and when a query may be answered from the rows already held. It had no test of its own, so
 its cases come from the rules its header states.

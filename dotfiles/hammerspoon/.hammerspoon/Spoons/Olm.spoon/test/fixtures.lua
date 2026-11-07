@@ -20,6 +20,8 @@
 --   filesearch.parse    a typed query through plugins/filesearch/query.lua's parse, with the
 --                  file's own types table, expecting each field named, a field left out unchecked.
 --   filesearch.narrows  two typed queries, expecting sameShape and narrows between their parses.
+--   calls          calls an existing test made into a module, recorded by fixtures-record.lua,
+--                  each replayed and its answer compared, see fixtures-encode.lua for the shape.
 --
 -- A step is an object whose one name says what it does, see STEPS below. null in a fixture is
 -- json.null and means absent, so a lead of null expects no leader.
@@ -56,6 +58,8 @@ local rank = assert(loadfile(spoon .. "lib/chooser/rank.lua"))()
 local Q = assert(loadfile(spoon .. "lib/queryassoc.lua"))()
 local Launcher = assert(loadfile(spoon .. "host/launcher/init.lua"))()
 local fsquery = assert(loadfile(spoon .. "plugins/filesearch/query.lua"))()
+local enc = assert(loadfile(here .. "fixtures-encode.lua"))()
+enc.use(json, assert(loadfile(spoon .. "lib/kbd.lua"))())
 
 local SETTINGS_KEY = "fixtures.queryassoc"
 
@@ -327,7 +331,39 @@ local function runNarrows(case, file)
   return problems
 end
 
+--------------------------------------------------------------------------------
+-- calls.
+--------------------------------------------------------------------------------
+
+-- A module named on a case, loaded once from the spoon.
+local modules = {}
+local function moduleAt(path)
+  if modules[path] == nil then modules[path] = assert(loadfile(spoon .. path))() end
+  return modules[path]
+end
+
+local function runCall(case)
+  local m = moduleAt(case.module)
+  local fn = type(m) == "table" and m[case.fn]
+  if type(fn) ~= "function" then return { case.module .. " has no function " .. tostring(case.fn) } end
+  local args = table.pack(enc.unpackTree(case.args))
+  local returns = table.pack(fn(table.unpack(args, 1, args.n)))
+  local got, want = enc.text(enc.encode(returns)), enc.text(case.returns)
+  if got == want and case.after ~= nil then
+    got, want = enc.text(enc.encode(args)), enc.text(case.after)
+  end
+  if got ~= want then
+    local at = 1
+    while at <= #want and got:sub(at, at) == want:sub(at, at) do at = at + 1 end
+    local from = math.max(1, at - 60)
+    return { "answer differs at character " .. at .. ", wanted ..." .. want:sub(from, at + 60)
+      .. "... got ..." .. got:sub(from, at + 60) .. "..." }
+  end
+  return {}
+end
+
 local KINDS = {
+  calls = function(case) return runCall(case) end,
   ["filesearch.parse"] = runParse,
   ["filesearch.narrows"] = runNarrows,
   ["rank.order"] = function(case) return runOrder(case) end,

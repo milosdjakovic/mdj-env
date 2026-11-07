@@ -134,4 +134,22 @@ first as language neutral fixtures both sides run.
   chooser served the new image with the probe answering, and the console held no error, only the
   five warnings this machine always has, IVPN absent, a screen with no display profile and two keys
   the layout lacks.
+- 2026-11-07 12:04. Steps 0.3b to 0.3e were finished together, and stage 0 with them. Lifting the bottom bar,
+  keymap resolution, the remap and the list keys by hand meant transcribing a 1900 line module's
+  tests, so they were lifted mechanically instead. `test/fixtures-record.lua` runs an existing test
+  with a module's functions wrapped and writes each call it makes and the answer as kind `calls`,
+  a function handed in recorded with its whole dialogue, and `fixtures.lua` replays them, 276 cases
+  in all. Four things had to be learned to make a recording faithful. A module changes the tables
+  it is handed, so it is called with the real tables, recorders swapped in place and back, and the
+  arguments after the call are kept when they changed. A table inheriting through `__index`, the
+  keycodes, is read through its chain, and one whose `__index` is a function is carried as lazy,
+  raising on replay if read. A `kbd` key or chord is a typed value. And the dry gate's stand in
+  keycode table invents codes as names are asked, so the recordings use a real table dumped from
+  Hammerspoon into `test/fixtures/keys/keycodes.lua`, and each composition run under the recorder
+  is checked against its keymap's golden. Two recordings then differed, because `lib/resolve.lua`
+  filled `plan.obligations` and each `degraded` list in pairs order, which changes per run, so both
+  are now sorted once filled, which changes nothing but their order and makes the plan the same on
+  every load. The bottom bar is recorded from `keymap-person.lua`, the only plain test that calls it,
+  so it moves with the person's keymap as `keys.golden` does, and `goldens.sh --update` records the
+  fixtures again. They take 2.4 MB, nearly all of it the plan each fixture keymap's run builds.
 

@@ -51,7 +51,10 @@ case "${1:-}" in
     done
     DRYGATE_CLAIMS=1 run "$here/keys.sh" --fixture keymap-fixture-composite --update
     run "$here/views.sh" --fixture keymap-fixture --update
-    run "$here/views.sh" --fixture keymap-fixture-modhyper --update ;;
+    run "$here/views.sh" --fixture keymap-fixture-modhyper --update
+    # The calls fixtures are recorded from the same keymaps and the person's own, so they are
+    # recorded again with them, see fixtures-record.sh.
+    run "$here/fixtures-record.sh" ;;
   *) echo "goldens.sh: unknown argument $1" >&2; exit 2 ;;
 esac
 exit $status

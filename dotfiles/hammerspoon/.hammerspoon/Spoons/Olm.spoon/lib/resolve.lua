@@ -282,6 +282,11 @@ function obj.new(deps)
     end
 
     out.blocked = blocked
+    -- The two loops above walk tables with pairs, whose order changes from one run to the next, so
+    -- the lists they fill are sorted, which keeps the report line and the plan the same on every
+    -- load, and lets a recorded fixture of the plan stay what it was, docs/PLAN-STANDALONE.md 0.3.
+    table.sort(out.obligations)
+    for _, list in pairs(out.degraded) do table.sort(list) end
 
     -- 5. Order. A cycle is fatal for the whole plan rather than for one plugin, because there
     -- is no correct subset to wire and picking one would be inventing an answer.

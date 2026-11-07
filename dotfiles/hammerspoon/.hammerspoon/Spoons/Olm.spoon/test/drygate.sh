@@ -110,7 +110,8 @@ else
   echo "fixtures, a case disagrees with the Lua, every line below names one:" >&2
   sed 's/^/  /' "$work/fixtures.txt" >&2
   echo "  A rule fixture states the rule, so fix the code or, when the rule changed, the case. A" >&2
-  echo "  recorded corpus is refreshed with lua test/fixtures.lua --record, each line read first." >&2
+  echo "  recorded corpus is refreshed with lua test/fixtures.lua --record, and a calls fixture with" >&2
+  echo "  test/fixtures-record.sh, which test/goldens.sh --update runs, each changed line read first." >&2
   [ "$gate" -eq 0 ] && gate=1
 fi
 exit "$gate"
