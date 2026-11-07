@@ -158,6 +158,12 @@ olm-fixtures`, which reads the same JSON files as `test/fixtures.lua`. A kind th
 yet is reported as not ported, never as passed, so the count of ported kinds only grows as the
 plan's steps land. `suite.sh dry` runs it.
 
+`test/olmindex.sh` checks the app's file index, `app/Sources/OlmSearch/Index.swift`. It compiles
+the index helper from the plugin's own `fileindex.swift`, indexes a small folder it makes, and asks
+it the way the app does: words, types, the prune list, hidden paths, bundles and the recent list.
+It also checks that an answer always arrives later rather than while the ask is made, and that a
+newer ask supersedes an older one. `suite.sh dry` runs it.
+
 ## The key inventory
 
 `keys.golden` is every chord the running configuration has bound, one line each, and every

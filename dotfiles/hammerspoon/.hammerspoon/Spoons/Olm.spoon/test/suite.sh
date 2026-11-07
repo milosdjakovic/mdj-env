@@ -77,6 +77,10 @@ if [ "$tiers" = "dry" ]; then
   "$here/olmfixtures.sh"
   rc=$?
   [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ] || exit 1
+  # Olm.app's file index over a small folder of its own, see olmindex.sh. Exit 2 is the same skip.
+  "$here/olmindex.sh"
+  rc=$?
+  [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ] || exit 1
   echo
   exec "$here/drygate.sh" "$@"
 fi

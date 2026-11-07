@@ -45,6 +45,14 @@ cleanup() {
 trap cleanup EXIT
 
 cleanup
+# Another copy of the app, the installed one in ~/.olm/app among them, shares the bundle id, so
+# LaunchServices would hand it the test's URLs and the checks below would be about that copy.
+others="$(pgrep -fl 'Olm\.app/Contents/MacOS/Olm$' | grep -vF "$exe" || true)"
+if [ -n "$others" ]; then
+  echo "olmapp: another Olm.app is running, so this run cannot check its own copy. Quit it first:"
+  echo "$others" | sed 's/^/  /'
+  exit 2
+fi
 rm -f "$ping"
 first="t$$a$RANDOM"
 open -g -a "$app" "olm://ping?nonce=$first"
@@ -61,6 +69,9 @@ check $? "one instance answers both"
 # A copy started by hand, not through LaunchServices, leaves at once.
 perl -e 'alarm 5; exec @ARGV' "$exe" >/dev/null 2>&1
 check $? "a second copy started by hand leaves by itself"
+
+[ -x "$app/Contents/Resources/fileindex" ]
+check $? "the bundle carries file search's index helper"
 
 pid="$(pids | head -1)"
 lsappinfo info -only applicationType "$pid" 2>/dev/null | grep -q UIElement

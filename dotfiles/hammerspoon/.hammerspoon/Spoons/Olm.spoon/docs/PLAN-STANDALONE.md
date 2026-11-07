@@ -43,7 +43,7 @@ Stage 1, the file search pilot
 - [ ] 1.3 Search, open and reveal, shadow then flip, in six parts
   - [x] 1.3a The file search grammar in Swift, its fixtures passing, 2026-11-07
   - [ ] 1.3b Ranking in Swift, `match.lua` and `rank.lua`, the rule and corpus fixtures passing
-  - [ ] 1.3c The index in the app, the helper's sources searching on background work
+  - [x] 1.3c The index in the app, the helper's sources searching on background work, 2026-11-07
   - [ ] 1.3d The app's own list, rows ranked as typed, open and reveal, the panel's API public
   - [ ] 1.3e The shadow, both sides answering each query and the differences logged
   - [ ] 1.3f The flip, the three timings against the Lua file search, and the trial
@@ -258,6 +258,34 @@ off.
 Result: all 45 grammar cases pass in Swift, 29 parse and 16 narrows. Broken copies of both files
 failed 7 cases, and the runner exited nonzero. No issues. The 231 cases of the other kinds are
 reported as not ported.
+
+**1.3c, the index in the app, 2026-11-07.** Built:
+- `app/build.sh` compiles the file search plugin's own `sources/fileindex.swift` into the app's
+  bundle, so the app and the Lua side ask the same program. The plugin is unchanged.
+- `app/Sources/OlmSearch/Index.swift`, `FileIndex`. It builds the same arguments `index.lua`'s
+  `argsFor` builds, runs the helper on a queue of its own and answers on the main queue. A newer
+  ask ends the older one's process, and drops its answer by generation.
+- The app reads the index the Lua side builds, `~/.olm/cache/filesearch/file-index.txt`, and
+  never builds one. So the index keeps one owner until a later step moves it.
+- `test/olmindex.sh` and `olm-index-check`, 18 checks over a small folder, in the dry suite.
+  `test/olmapp.sh` also checks the bundle carries the helper.
+
+Issues:
+- The command line tools' `swiftc` could not find the standard library when run directly. Fixed:
+  it is given the SDK, `-sdk $tools/SDKs/MacOSX.sdk`.
+- Two of the check's own expectations were wrong at first: "report" matches `Reports.app` too,
+  since the helper ignores case. The test was fixed, not the code.
+- `test/olmapp.sh` failed two checks because the installed app from the 1.2 trial was still
+  running. It shares the bundle id, so LaunchServices handed it the test's URLs. Fixed: the test
+  stops with exit 2 and names the other copy. The leftover was quit. Worth knowing: the app stays
+  running after its panel closes, as an accessory app should.
+
+Decided: the helper is reused as a program, not as a library. Its source is one file with
+top-level code, which a package library cannot compile, and splitting it would have changed the
+Lua plugin's build in a step that should leave the plugin alone.
+
+Measured: a search of the real index, 170,196 entries, takes about 10 ms including the process
+start.
 
 ## Where the facts come from
 

@@ -182,4 +182,10 @@ first as language neutral fixtures both sides run.
   the grammar is `app/Sources/OlmSearch/Query.swift`, read in UTF-8 bytes as Lua reads it, and
   `olm-fixtures` runs the shared JSON fixtures in Swift from the dry suite. A kind not ported yet
   is reported, never counted as a pass.
-
+- 2026-11-07 20:58. Step 1.3c was finished. The app searches file search's index by running the
+  plugin's own helper, `fileindex.swift` compiled into the app's bundle, rather than by compiling
+  that source into the app as a library. The file has top level code, which a library target cannot
+  hold, and splitting it would have changed how the Lua plugin builds its helper in a step meant to
+  leave the plugin alone. The app reads the index the Lua side builds and never builds one, so the
+  index has one owner. A search of the real index, 170,196 entries, measured about 10 milliseconds
+  with the process start. The ranking port, step 1.3b, runs in parallel in a worktree of its own.
