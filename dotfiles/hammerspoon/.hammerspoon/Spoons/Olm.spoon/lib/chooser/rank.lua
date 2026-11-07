@@ -207,7 +207,7 @@ end
 -- How the presentation asks its rows to be searched, beside the matcher, settled 2026-10-17 for
 -- phase three. search is a table or nil, and a field of the wrong type is read as absent.
 -- searchText is a function taking the raw text of the field and answering the text the engine
--- ranks by, for a list whose field carries its own grammar, FileSearch ranking ~/dev .js foo by
+-- ranks by, for a list whose field carries its own grammar, FileSearch ranking .js ~/dev/ foo by
 -- foo, the clipboard ranking img cat by cat. The grammar stays in the plugin. An empty answer,
 -- or one of spaces only, ranks nothing and keeps the supplier's order, the same as an empty
 -- query. An answer that raises or is not a string is treated as empty, and M.apply hands the

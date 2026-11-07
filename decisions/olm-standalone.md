@@ -82,3 +82,8 @@ first as language neutral fixtures both sides run.
 - 2026-11-07 10:51. `test/swiftpane.sh` failed once inside `suite.sh dry` on the 0.2 worktree and
   passed on the next suite run and on three runs alone, with no Swift changed. The failing output
   was not kept, so the cause is not known. Recheck it if it fails again, keeping the output.
+- 2026-11-07 11:13. Step 0.3a was finished, `test/fixtures/filesearch/`, the grammar of
+  `plugins/filesearch/query.lua` as 29 parse cases and 16 cases of when a query narrows the held
+  rows, each with a types table of its own so a change to `config/filesearch.lua` never moves them.
+  The grammar had no test of its own, so the cases are its header's rules rather than a lifted test.
+  A broken case failed the gate.

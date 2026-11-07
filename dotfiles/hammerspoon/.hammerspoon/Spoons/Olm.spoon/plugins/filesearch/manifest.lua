@@ -321,7 +321,7 @@ return {
   -- on 2026-10-17. Until then this declared matcher false, since the engine filtered and ordered
   -- its own held rows and a second ranking over a structured, sigil bearing query would have
   -- fought that order and hidden the status row. The grammar stays in the plugin now. searchText
-  -- answers the free text the engine parses out of the query, so `~/dev .js foo` ranks by foo
+  -- answers the free text the engine parses out of the query, so `.js ~/dev/ foo` ranks by foo
   -- while the sources still fetch by the whole parse, a file row names itself by its file name and
   -- carries frecency as its bonus, and every status, help and up row is pinned. rowLimit is the
   -- two hundred rows the engine's display cap used to cut, now cut after ranking, since the

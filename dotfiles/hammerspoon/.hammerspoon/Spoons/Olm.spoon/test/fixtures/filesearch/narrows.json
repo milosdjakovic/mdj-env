@@ -1,0 +1,26 @@
+{
+  "kind": "filesearch.narrows",
+  "about": "When file search may answer a query from the rows it already holds, plugins/filesearch/query.lua sameShape and narrows. Two parses have the same shape when they ask about the same files, the same hidden and ignored, the same scope and the same extensions in the same order, whatever their text. One narrows the other when the shape is the same and the text only grew. narrows says nothing about the two conditions only the engine knows, that the held rows came from a search rather than the recent list and were not cut by the cap, so an empty query narrows to any text here and the engine refuses it.",
+  "types": {
+    "js": ["js", "mjs", "cjs", "jsx"],
+    "img": ["png", "jpg"]
+  },
+  "cases": [
+    { "name": "a longer text narrows", "prev": "foo", "next": "foob", "sameShape": true, "narrows": true },
+    { "name": "a shorter text does not", "prev": "foob", "next": "foo", "sameShape": true, "narrows": false },
+    { "name": "an edited text does not", "prev": "foo", "next": "fxoo", "sameShape": true, "narrows": false },
+    { "name": "the same text does not", "prev": "foo", "next": "foo", "sameShape": true, "narrows": false },
+    { "name": "a word added narrows", "prev": "foo", "next": "foo bar", "sameShape": true, "narrows": true },
+    { "name": "a second space is no growth, since whitespace collapses", "prev": "foo bar", "next": "foo  bar", "sameShape": true, "narrows": false },
+    { "name": "a longer text under one type narrows", "prev": ".js foo", "next": ".js foob", "sameShape": true, "narrows": true },
+    { "name": "another type is another shape", "prev": ".js foo", "next": ".img foob", "sameShape": false, "narrows": false },
+    { "name": "a type added is another shape", "prev": "foo", "next": ".js foob", "sameShape": false, "narrows": false },
+    { "name": "the same types in another order are another shape", "prev": ".js .img a", "next": ".img .js ab", "sameShape": false, "narrows": false },
+    { "name": "asking for hidden paths is another shape", "prev": "foo", "next": ". foob", "sameShape": false, "narrows": false },
+    { "name": "asking for ignored paths is another shape", "prev": "foo", "next": "! foob", "sameShape": false, "narrows": false },
+    { "name": "a longer text in one scope narrows", "prev": "src/ foo", "next": "src/ foob", "sameShape": true, "narrows": true },
+    { "name": "another scope is another shape", "prev": "src/ foo", "next": "lib/ foob", "sameShape": false, "narrows": false },
+    { "name": "an empty query narrows to any text, which the engine refuses", "prev": "", "next": "a", "sameShape": true, "narrows": true },
+    { "name": "a browse narrows to a search in its scope", "prev": "src/", "next": "src/a", "sameShape": true, "narrows": true }
+  ]
+}

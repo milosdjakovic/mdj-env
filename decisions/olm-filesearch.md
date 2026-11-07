@@ -114,3 +114,13 @@ typing, arrows and backspace gave 43 stalls over 25 ms, median 43 ms, largest 16
 two stalls past 100 ms, 135 and 150 ms, sat around opening the chooser. The trial was short and the
 stalls were not attributed to a step, and the ordinary dropped frames in the list swap, the redraw
 and the bottom bar are separate work and were not changed.
+
+### 2026-11-07 11:13, the example the searchText comments gave was not what the grammar does
+
+Five comments and docs said `~/dev .js foo` ranks by foo, `engine.lua`, `chooser.lua`,
+`manifest.lua`, `lib/chooser/rank.lua` and the hammerspoon `AGENTS.md`. It does not. Types and
+sigils are read only in the leading slot, before the scope, as `query.lua`'s own header says, so that
+query is the scope `~/` with the text `dev .js foo`. Writing the grammar's fixtures for step 0.3a of
+the standalone plan found it. The comments now say `.js ~/dev/ foo`, which does rank by foo, and the
+grammar was not changed. Reading a type after the scope too would be a change of grammar, for Milos
+to decide, and the fixture case for `~/dev .js foo` pins today's reading until then.

@@ -17,6 +17,9 @@
 --   queryassoc     steps over lib/queryassoc.lua, the launcher's learned memory.
 --   launcher       the same steps plus the launcher's own, run through host/launcher's supplier
 --                  and rank.apply exactly as the stage does.
+--   filesearch.parse    a typed query through plugins/filesearch/query.lua's parse, with the
+--                  file's own types table, expecting each field named, a field left out unchecked.
+--   filesearch.narrows  two typed queries, expecting sameShape and narrows between their parses.
 --
 -- A step is an object whose one name says what it does, see STEPS below. null in a fixture is
 -- json.null and means absent, so a lead of null expects no leader.
@@ -52,6 +55,7 @@ local fuzzy = assert(loadfile(spoon .. "lib/chooser/match.lua"))().fuzzy
 local rank = assert(loadfile(spoon .. "lib/chooser/rank.lua"))()
 local Q = assert(loadfile(spoon .. "lib/queryassoc.lua"))()
 local Launcher = assert(loadfile(spoon .. "host/launcher/init.lua"))()
+local fsquery = assert(loadfile(spoon .. "plugins/filesearch/query.lua"))()
 
 local SETTINGS_KEY = "fixtures.queryassoc"
 
@@ -295,7 +299,37 @@ end
 -- Finding and running the files.
 --------------------------------------------------------------------------------
 
+--------------------------------------------------------------------------------
+-- filesearch.parse and filesearch.narrows.
+--------------------------------------------------------------------------------
+
+local function runParse(case, file)
+  local got = fsquery.parse(case.raw, plain(file.types))
+  local problems = {}
+  local names = {}
+  for k in pairs(case.expect) do names[#names + 1] = k end
+  table.sort(names)
+  for _, k in ipairs(names) do
+    if not same(got[k], case.expect[k]) then
+      problems[#problems + 1] = k .. " wanted " .. show(case.expect[k]) .. ", got " .. show(got[k])
+    end
+  end
+  return problems
+end
+
+local function runNarrows(case, file)
+  local types = plain(file.types)
+  local a, b = fsquery.parse(case.prev, types), fsquery.parse(case.next, types)
+  local problems = {}
+  local shape, narrows = fsquery.sameShape(a, b), fsquery.narrows(a, b)
+  if shape ~= case.sameShape then problems[#problems + 1] = "sameShape wanted " .. show(case.sameShape) .. ", got " .. show(shape) end
+  if narrows ~= case.narrows then problems[#problems + 1] = "narrows wanted " .. show(case.narrows) .. ", got " .. show(narrows) end
+  return problems
+end
+
 local KINDS = {
+  ["filesearch.parse"] = runParse,
+  ["filesearch.narrows"] = runNarrows,
   ["rank.order"] = function(case) return runOrder(case) end,
   queryassoc = function(case) return runSteps(case, false) end,
   launcher = function(case) return runSteps(case, true) end,
@@ -380,7 +414,7 @@ for _, path in ipairs(files) do
   elseif KINDS[file.kind] then
     for _, case in ipairs(file.cases or {}) do
       cases = cases + 1
-      local okRun, problems = pcall(KINDS[file.kind], case)
+      local okRun, problems = pcall(KINDS[file.kind], case, file)
       if not okRun then problems = { "raised " .. tostring(problems) } end
       if #problems > 0 then
         failed = failed + 1

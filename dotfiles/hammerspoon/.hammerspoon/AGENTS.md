@@ -1489,7 +1489,7 @@ vocabulary added, and `rank.lua` states all of them. A presentation, or a scope 
 `registry.scope`, may declare two more beside its matcher, and the stage writes them onto the
 instance with it before every show. `searchText`, a member spec resolving to a function from the
 raw field text to the text the engine ranks by, keeps a field's own grammar in its plugin, so
-FileSearch can rank ~/dev .js foo by foo, and an empty answer keeps the supplier's order like an
+FileSearch can rank .js ~/dev/ foo by foo, and an empty answer keeps the supplier's order like an
 empty query. `rowLimit`, a positive whole number, cuts the rows that are neither pinned nor
 fromQuery after ranking, since the provider styles every row it is handed, at about 17
 microseconds an `hs.styledtext`, so the emoji set's 5648 rows would cost about 190 milliseconds a

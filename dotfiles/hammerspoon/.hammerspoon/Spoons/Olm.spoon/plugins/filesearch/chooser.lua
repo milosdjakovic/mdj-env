@@ -771,7 +771,7 @@ end
 
 --- chooser.searchText(raw) -> the text the shared search ranks this list by, named on the
 --- manifest's presentation and scope as their searchText. The engine's own parse answers it, the
---- free text once the sigils, the types and the scope are taken off, so `~/dev .js foo` ranks by
+--- free text once the sigils, the types and the scope are taken off, so `.js ~/dev/ foo` ranks by
 --- foo, and a query with no free text answers empty, which keeps the order the rows came in.
 --- The help screen's question mark answers itself, and every help row is pinned, so it stays.
 function M.searchText(raw)

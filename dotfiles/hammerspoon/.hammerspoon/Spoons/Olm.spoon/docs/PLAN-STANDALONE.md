@@ -31,7 +31,7 @@ Stage 0, contracts
 - [x] 0.2 Fixtures for ranking, 2026-11-07
 - [ ] 0.4 The bridge protocol, on paper, with its adversarial review
 - [ ] 0.6 A data source protocol in front of the library, and the package build
-- [ ] 0.3a Fixtures for the file search grammar
+- [x] 0.3a Fixtures for the file search grammar, 2026-11-07
 - [ ] 0.3b Fixtures for the bottom bar model
 - [ ] 0.3c Fixtures for keymap resolution
 - [ ] 0.3d Fixtures for `KeyRemap.allocate`

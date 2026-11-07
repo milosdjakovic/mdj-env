@@ -122,6 +122,10 @@ line read before it is committed. A rule fixture is never recorded.
 launcher's learned memory, and the launcher's ordering, which is that memory reaching the engine
 as a bonus. `ranking.lua` still runs beside it until the fixtures are trusted to replace it.
 
+`fixtures/filesearch/` is file search's grammar, how `plugins/filesearch/query.lua` reads what was
+typed and when a query may be answered from the rows already held. It had no test of its own, so
+its cases come from the rules its header states.
+
 ## The key inventory
 
 `keys.golden` is every chord the running configuration has bound, one line each, and every

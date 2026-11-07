@@ -236,7 +236,7 @@ end
 -- word, then a shorter path, with frecency added under the gaps between those tiers.
 
 --- engine:searchTextFor(raw) -> the free text of a query, what the shared search ranks by.
---- The grammar stays here, so `~/dev .js foo` ranks by foo, and a query with no free text, a
+--- The grammar stays here, so `.js ~/dev/ foo` ranks by foo, and a query with no free text, a
 --- browse, a bare type or the recent list, answers empty, which keeps the order rows arrive in.
 function obj:searchTextFor(raw)
   return query.parse(raw or "", self.types).text
