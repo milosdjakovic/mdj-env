@@ -37,6 +37,23 @@ first as language neutral fixtures both sides run.
   descriptors and the compiled keymap as JSON, so the app never needs to read a Lua manifest, and
   converting them would move every reader of a manifest, `dependencies-collect` among them, for no
   gain the app needs yet. It can come later for files the app reads itself.
+- **One generation for the typed query and the highlight together.** 2026-11-07, the bridge
+  protocol's first draft. Every arrow key made an in flight rows answer stale, so a list arrowed
+  through while a slow supplier answered was never refreshed. The second draft then raised the
+  highlight's on every keystroke too, which dropped every preview drawn while typing over one row.
+  `docs/PROTOCOL-BRIDGE.md` keeps two, `q` per change of the input field and `h` per change of the
+  highlighted row.
+- **The Lua side acting on the highlight it last heard of.** 2026-11-07, the first draft. A Hyper
+  chord heard by Hammerspoon and the app's highlight report travel on two channels nothing orders,
+  so a delete could land on the row above. Every request that acts on a row names it, and a list key
+  Hammerspoon hears is forwarded to the app, which owns the highlight.
+- **A describe request answered with a preview per highlight.** 2026-11-07, the first draft. No
+  plugin has such a member, each draws its preview pane itself from `onHighlight` and
+  `onPositioned`, so the bridge is a backend of the shared preview pane instead.
+- **One outcome word for what choosing did.** 2026-11-07, the first draft. The launcher's
+  `intercept` answers true for a seeded query, a pushed tool and an action alike, and a plugin may
+  pop and redraw in one handler, so the answer is the ordered list of stage effects the handler
+  caused, recorded by a facade of the `Stage` the composition root hands out.
 
 ## Log
 
@@ -87,3 +104,16 @@ first as language neutral fixtures both sides run.
   rows, each with a types table of its own so a change to `config/filesearch.lua` never moves them.
   The grammar had no test of its own, so the cases are its header's rules rather than a lifted test.
   A broken case failed the gate.
+- 2026-11-07 11:10. Open question 1 was decided by Milos. Olm.app's code lives in this repository
+  until Olm is decoupled, the resting point at the end of stage 3, in his words keep everything
+  here until it is completely decoupled. A repository of its own, which the plan recommended, is
+  not rejected, only deferred to after the resting point. The folder is chosen at step 1.1.
+- 2026-11-07 11:24. Step 0.4 was finished, `docs/PROTOCOL-BRIDGE.md` in the spoon, after two rounds of
+  adversarial review by a reviewer reading the code, who found fourteen problems in the first draft,
+  two critical, and nine more in the second, three of them high. Every one was answered in the text,
+  and the four designs turned down are under Rejected. The ones that held were checked against the
+  code before being accepted, `root/compose.lua`'s `run` ignoring the row, `stageTextBudget` being
+  pixels, the launcher's exclusive query sources and its own calls on `_stage`. What the protocol
+  leaves to the step that serves each tool is said there, among it a plugin that defers work of its
+  own and reads the stage words later, Clipboard History's paste behind a nonactivating panel, and
+  how a supplier that builds fresh item tables on every call costs once rows are sent as changes.
