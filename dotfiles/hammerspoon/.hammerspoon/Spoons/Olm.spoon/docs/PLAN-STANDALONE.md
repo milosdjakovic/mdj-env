@@ -23,15 +23,14 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 0.6, a data source protocol in front of the library, and the package build.
+Next. 0.3b, fixtures for the bottom bar model.
 
 Stage 0, contracts
 - [x] 0.1 The decision record, 2026-11-05
 - [x] 0.5 Gather LuaSkin into one Swift file, 2026-11-06
 - [x] 0.2 Fixtures for ranking, 2026-11-07
 - [x] 0.4 The bridge protocol, on paper, with its adversarial review, 2026-11-07
-- [ ] 0.6 A data source protocol in front of the library, and the package build
-  Built and gated offline on branch olm-swift-package, waiting for the live load with the swift chooser serving.
+- [x] 0.6 A data source protocol in front of the library, and the package build, 2026-11-07
 - [x] 0.3a Fixtures for the file search grammar, 2026-11-07
 - [ ] 0.3b Fixtures for the bottom bar model
 - [ ] 0.3c Fixtures for keymap resolution

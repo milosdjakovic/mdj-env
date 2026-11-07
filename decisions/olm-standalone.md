@@ -129,4 +129,9 @@ first as language neutral fixtures both sides run.
   XCTest nor Swift Testing, so the check is an executable, and `swift test` for the app, which the
   plan names, works only with a full Xcode, which this machine has. Whether the app's tests need
   Xcode or stay executables is for step 1.1 to decide.
+- 2026-11-07 11:43. Step 0.6's live load passed. Through the test lock the worktree's library built
+  in the background, the fallback served until the reload as it should, and after it the swift
+  chooser served the new image with the probe answering, and the console held no error, only the
+  five warnings this machine always has, IVPN absent, a screen with no display profile and two keys
+  the layout lacks.
 
