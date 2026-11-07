@@ -134,6 +134,11 @@ first as language neutral fixtures both sides run.
   chooser served the new image with the probe answering, and the console held no error, only the
   five warnings this machine always has, IVPN absent, a screen with no display profile and two keys
   the layout lacks.
+- 2026-11-07 20:50. Step 1.2 was finished. Milos tried it with the olmapp piece on, and file
+  search's key showed the app's chooser, which closed on Escape and on a press outside, while the
+  launcher's file search scope still searched in Lua. With the piece off again the key opened the
+  Lua file search, so the back out holds. The first reload with the piece on came up on the fallback
+  chooser, the swift library rebuilding itself with no Swift source changed, cause not known.
 - 2026-11-07 20:30. Step 1.2 was built, waiting for its hand trial. A machine's piece reaches the
   running config as `~/.hammerspoon/machine-pieces.lua`, written by `src/setup-hammerspoon-apps.sh`
   from `src/machine.sh` beside the two machine files it already copies, since Hammerspoon cannot

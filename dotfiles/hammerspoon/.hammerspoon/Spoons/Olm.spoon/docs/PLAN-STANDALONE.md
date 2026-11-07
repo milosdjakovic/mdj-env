@@ -23,7 +23,7 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 1.2, the trigger.
+Next. 1.3, search, open and reveal.
 
 Stage 0, contracts
 - [x] 0.1 The decision record, 2026-11-05
@@ -39,8 +39,7 @@ Stage 0, contracts
 
 Stage 1, the file search pilot
 - [x] 1.1 The app shell, 2026-11-07
-- [ ] 1.2 The trigger
-  Built and committed on main, waiting for Milos's hand trial with the olmapp piece on.
+- [x] 1.2 The trigger, 2026-11-07
 - [ ] 1.3 Search, open and reveal, shadow then flip
 - [ ] 1.4a Preview pane
 - [ ] 1.4b Thumbnails
@@ -197,7 +196,7 @@ Result: all eight checks pass. Quitting the app leaves Hammerspoon answering.
 Open: `src/setup-olmapp.sh` has not run with the piece on, since switching it on for a machine
 is Milos's call. It first runs at 1.2.
 
-**1.2, the trigger, 2026-11-07, waiting for the hand trial.** Built:
+**1.2, the trigger, `9d531b5e`, 2026-11-07.** Built:
 - `host/bridge`, a host with one question, `serves(identity)`. Where this machine's `olmapp` piece
   is on, the app is built and `open` resolved, it answers the function a served tool's open key
   runs instead, `open -g -a ~/.olm/app/Olm.app olm://filesearch?query=`, run as a task with its
@@ -228,7 +227,18 @@ Result: the dry suite and the goldens pass unchanged, the unit cases pass, the d
 passes, and a live reload on main with the piece off has a clean console, nothing served and
 swift serving.
 
-Open: the trial with the piece on, and the back out by switching it off again.
+Trial, by Milos with the piece on. Hyper and `;` showed the app's glass chooser, and Escape and a
+press outside closed it. It showed no files, which is expected, since search arrives with 1.3.
+File search in the launcher, typed `/`, still searched on the Lua side. Back out: with the piece off
+again the same key opened the Lua file search. Both verdicts: it works.
+
+Issue: the first reload with the piece on came up on the fallback chooser, because the swift
+library rebuilt itself in the background, and a second reload brought swift back. Why it rebuilt
+with no Swift source changed is not known. Open: watch for it at the next reload.
+
+Left on this machine: `~/.olm/app/Olm.app` stays built and registered for `olm://`, since switching
+a piece off removes nothing. The machine's pieces file has no `olmapp` row, so it takes the default,
+off.
 
 ## Where the facts come from
 
