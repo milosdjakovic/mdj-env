@@ -67,6 +67,11 @@ if [ "$tiers" = "dry" ]; then
   "$here/swiftpane.sh"
   rc=$?
   [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ] || exit 1
+  # The same sources as the Swift package Olm.app builds on, with no Lua in it, and a list shown
+  # from a fake source with no window, see swiftpackage.sh. Exit 2 is the same skip.
+  "$here/swiftpackage.sh"
+  rc=$?
+  [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ] || exit 1
   echo
   exec "$here/drygate.sh" "$@"
 fi

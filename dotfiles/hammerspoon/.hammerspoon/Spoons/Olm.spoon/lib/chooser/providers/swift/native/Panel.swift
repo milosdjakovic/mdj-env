@@ -113,8 +113,6 @@ final class InfoPane: NSPanel {
 }
 
 final class ChooserPanel: NSObject, NSTextFieldDelegate {
-  typealias Ask = (String, [LuaValue]) -> Bool
-
   private let window: InfoPane
   private let root: FlippedView
   private let field = NSTextField()
@@ -125,7 +123,8 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   private let bar = BarView()
   private let keys = FloatingPaneView()
   private let actionsPop = FloatingPaneView()
-  private let ask: Ask
+  // The side that drives this panel, Source.swift, Lua's adapter in Entry.swift inside Hammerspoon.
+  private let source: ChooserSource
   private let surfaces: SharedSurface
   private var style = Style()
   private var placement = Placement()
@@ -160,8 +159,8 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   }()
   private var windowSize = NSSize.zero
 
-  init(ask: @escaping Ask) {
-    self.ask = ask
+  init(source: ChooserSource) {
+    self.source = source
     window = InfoPane(
       contentRect: NSRect(x: 0, y: 0, width: 1, height: 1),
       styleMask: [.titled, .nonactivatingPanel, .fullSizeContentView],
@@ -725,9 +724,13 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     }
   }
 
+  // Tells the driver an event, see Source.swift.
+  @discardableResult
+  private func ask(_ event: String, _ args: [PanelValue]) -> Bool { source.ask(event, args) }
+
   // The key event as the bytes hs.eventtap.event.newEventFromData reads, so Lua hands the engine
   // an event with the key code, the flags and the autorepeat bit the event tap would have seen.
-  private static func data(of event: NSEvent) -> LuaValue {
+  private static func data(of event: NSEvent) -> PanelValue {
     guard let cg = event.cgEvent, let bytes = cg.data else { return .none }
     return .bytes(bytes as Data)
   }

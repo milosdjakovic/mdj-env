@@ -21,6 +21,11 @@
 --- the compiler. Without them the default chooser serves and one line says why, and nothing is
 --- run, since running a compiler whose tools are missing raises Apple's install dialog.
 ---
+--- THE SEAM. Lua.swift and Entry.swift are the only files that touch LuaSkin or Lua. The panel
+--- tells whoever drives it through ChooserSource in native/Source.swift, which Entry.swift answers
+--- for Lua, so Package.swift beside this file builds every other file as a Swift package with no
+--- Lua in it, which Olm.app is built on, and test/swiftpackage.sh shows a list from a fake source.
+---
 --- WHEN IT SERVES. The one shared picker is built once at startup, and a build takes a second or
 --- more, so the choice is made at configure time and never changes during a session. A library
 --- already on disk for the current inputs is loaded there and then, and every new builds through
@@ -67,8 +72,8 @@ local swiftbuild = load("../../../swiftbuild.lua")
 
 -- The Swift sources and the bridging header, in the order the compiler is handed them.
 local NATIVE_DIR = herePath .. "native/"
-local SOURCES = { "Lua.swift", "Model.swift", "Surface.swift", "Motion.swift", "List.swift", "Bar.swift", "FloatingPane.swift", "Panel.swift",
-  "Pane.swift", "Entry.swift" }
+local SOURCES = { "Lua.swift", "Source.swift", "Model.swift", "Surface.swift", "Motion.swift", "List.swift", "Bar.swift", "FloatingPane.swift", "Panel.swift",
+  "Pane.swift", "Perf.swift", "Entry.swift" }
 local HEADER = "bridge.h"
 
 -- The library's stem in the cache directory and the symbol package.loadlib opens it by.
@@ -220,7 +225,7 @@ end
 
 --- M.perf(action) starts, reads or stops the native main thread probe, action "start", "read" or
 --- "stop", read answering every frame drop and every slow call into Lua since the last read, one
---- per line. Nil while the library is not loaded. See Perf in native/Entry.swift.
+--- per line. Nil while the library is not loaded. See Perf in native/Perf.swift.
 function M.perf(action)
   if not NATIVE then return nil end
   if action == "start" then return NATIVE.perfStart() end

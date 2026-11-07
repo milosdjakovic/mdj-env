@@ -57,7 +57,11 @@ let elements: [PaneElement] = [.shape(path: NSBezierPath(rect: NSRect(x: 10, y: 
   fill: red, stroke: nil, clip: false)]
 
 // A chooser panel placed with its preview pane at rect, its window spanning the list and the pane.
-let panel = ChooserPanel(ask: { _, _ in false })
+// A driver that claims nothing, Source.swift.
+final class NoSource: ChooserSource {
+  func ask(_ event: String, _ args: [PanelValue]) -> Bool { false }
+}
+let panel = ChooserPanel(source: NoSource())
 func placePanel(previewPane rect: NSRect) {
   var p = Placement()
   p.canvas = NSRect(x: away, y: rect.minY, width: 480, height: rect.height)
@@ -378,7 +382,7 @@ check("each row asked once", Set(askedRows).count == askedRows.count)
 // The fades, the content masked as one, the list and the pane alike, opaque down to the list's
 // bottom padding above the bar and clear at the window's edge.
 do {
-  let fadePanel = ChooserPanel(ask: { _, _ in false })
+  let fadePanel = ChooserPanel(source: NoSource())
   var p = Placement()
   p.canvas = NSRect(x: 0, y: 100, width: 480, height: 400)
   p.window = NSRect(x: 0, y: 100, width: 800, height: 400)

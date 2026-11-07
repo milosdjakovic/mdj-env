@@ -10,17 +10,8 @@ import Cocoa
 // Lua's state arrives as a typed pointer here, since LuaSkin's headers make its struct complete.
 public typealias LuaState = UnsafeMutablePointer<lua_State>
 
-// One argument of an event Swift sends to Lua.
-enum LuaValue {
-  case string(String)
-  case bytes(Data)
-  case int(Int)
-  case number(Double)
-  case bool(Bool)
-  case none
-}
-
-func pushValue(_ L: LuaState?, _ value: LuaValue) {
+// One argument of an event the panel sends, Source.swift, pushed onto the Lua stack.
+func pushValue(_ L: LuaState?, _ value: PanelValue) {
   switch value {
   case .string(let text): _ = lua_pushstring(L, text)
   case .bytes(let data): data.withUnsafeBytes { raw in olm_pushBytes(L, raw.baseAddress, raw.count) }

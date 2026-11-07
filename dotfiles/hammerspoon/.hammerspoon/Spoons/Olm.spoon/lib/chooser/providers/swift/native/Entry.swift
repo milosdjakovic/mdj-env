@@ -66,58 +66,8 @@ private func mainThread(of L: LuaState?) -> LuaState? {
   return lua_tothread(L, -1)
 }
 
-// A probe of the main thread, off until perfStart. A timer in the common modes, which run during a
-// scroll's tracking too, notes every gap between its ticks long enough to drop frames, and every
-// call into Lua is timed, so a stall shows what held the thread or that Lua was not it. perfRead
-// answers the notes since the last read.
-enum Perf {
-  static var on = false
-  static var notes: [String] = []
-  private static var timer: Timer?
-  private static var last: CFTimeInterval = 0
-  private static var origin: CFTimeInterval = 0
-
-  static func start() {
-    stop()
-    on = true
-    notes = []
-    origin = CACurrentMediaTime()
-    last = origin
-    let t = Timer(timeInterval: 1.0 / 120, repeats: true) { _ in
-      let now = CACurrentMediaTime()
-      let gap = (now - last) * 1000
-      if gap > 25 { note(String(format: "stall %.0f ms", gap), at: last) }
-      last = now
-    }
-    RunLoop.main.add(t, forMode: .common)
-    timer = t
-  }
-
-  static func stop() {
-    timer?.invalidate()
-    timer = nil
-    on = false
-  }
-
-  // Times one call from Lua into the library, noted when it held the thread for more than a
-  // millisecond, so a stall says which call it was.
-  static func timed(_ name: String, _ body: () -> Int32) -> Int32 {
-    guard on else { return body() }
-    let start = CACurrentMediaTime()
-    let answer = body()
-    let took = (CACurrentMediaTime() - start) * 1000
-    if took > 1 { note(String(format: "native %@ %.1f ms", name, took), at: start) }
-    return answer
-  }
-
-  static func note(_ text: String, at time: CFTimeInterval = CACurrentMediaTime()) {
-    guard on else { return }
-    notes.append(String(format: "%7.0f ms  ", (time - origin) * 1000) + text)
-    if notes.count > 400 { notes.removeFirst(notes.count - 400) }
-  }
-}
-
-private func timedCallLua(_ id: Int, _ event: String, _ args: [LuaValue]) -> Bool {
+// Every call into Lua timed by the probe in Perf.swift while it is on.
+private func timedCallLua(_ id: Int, _ event: String, _ args: [PanelValue]) -> Bool {
   guard Perf.on else { return callLua(id, event, args) }
   let start = CACurrentMediaTime()
   let answer = callLua(id, event, args)
@@ -142,7 +92,7 @@ private let perfStop: lua_CFunction = { _ in
   return 0
 }
 
-private func callLua(_ id: Int, _ event: String, _ args: [LuaValue]) -> Bool {
+private func callLua(_ id: Int, _ event: String, _ args: [PanelValue]) -> Bool {
   guard callbackRef != olm_noRef(), let L = LuaSkin.mainLuaState, L == callbackState else { return false }
   let skin = LuaSkin.shared(with: L) as! LuaSkin
   _ = lua_rawgeti(L, olm_registryIndex(), lua_Integer(callbackRef))
@@ -154,6 +104,14 @@ private func callLua(_ id: Int, _ event: String, _ args: [LuaValue]) -> Bool {
   let answer = lua_toboolean(L, -1) != 0
   olm_pop(L, 1)
   return answer
+}
+
+// Lua as a panel's driver, Source.swift. Every event goes to the one callback setCallback
+// registered, with the panel's id first.
+private final class LuaSource: ChooserSource {
+  let id: Int
+  init(id: Int) { self.id = id }
+  func ask(_ event: String, _ args: [PanelValue]) -> Bool { timedCallLua(id, event, args) }
 }
 
 // The panel named by the id in the first argument, or nil for an id this image never made.
@@ -185,7 +143,7 @@ private let sentinelGC: lua_CFunction = { L in
 private let new: lua_CFunction = { L in
   let id = nextID
   nextID += 1
-  panels[id] = ChooserPanel(ask: { event, args in timedCallLua(id, event, args) })
+  panels[id] = ChooserPanel(source: LuaSource(id: id))
   lua_pushinteger(L, lua_Integer(id))
   return 1
 }
@@ -472,7 +430,7 @@ private func pushPaneDebug(_ L: LuaState?, _ pane: PanePanel) {
     }
     lua_setfield(L, -2, name)
   }
-  func set(_ name: String, _ value: LuaValue) {
+  func set(_ name: String, _ value: PanelValue) {
     pushValue(L, value)
     lua_setfield(L, -2, name)
   }

@@ -117,3 +117,16 @@ first as language neutral fixtures both sides run.
   leaves to the step that serves each tool is said there, among it a plugin that defers work of its
   own and reads the stage words later, Clipboard History's paste behind a nonactivating panel, and
   how a supplier that builds fresh item tables on every call costs once rows are sent as changes.
+- 2026-11-07 11:31. Step 0.6 was built, waiting only for its live load. The panel tells its driver through
+  `ChooserSource` in the new `native/Source.swift`, with `PanelValue` in place of `LuaValue`, and
+  Entry.swift answers it for Lua. The main thread probe moved out of Entry.swift into
+  `native/Perf.swift`, since the drawing code calls it and the package has no Entry.swift.
+  `Package.swift` beside `native/` builds every file but `Lua.swift`, `Entry.swift` and `bridge.h`,
+  and `test/swiftpackage.sh`, run by `suite.sh dry`, builds it and runs `olm-chooser-smoke`, a list
+  from a fake source with no window. Two facts about macOS 27's command line tools shaped it. Their
+  SwiftPM's default build system fails to start, `Could not initialize build system`, and the older
+  native one, deprecated, works, so the gate passes `--build-system native`. And they ship neither
+  XCTest nor Swift Testing, so the check is an executable, and `swift test` for the app, which the
+  plan names, works only with a full Xcode, which this machine has. Whether the app's tests need
+  Xcode or stay executables is for step 1.1 to decide.
+

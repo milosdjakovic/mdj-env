@@ -903,7 +903,7 @@ asks Lua for the icons of the rows on screen and of the rows its velocity is car
 dozen at most per ask, during a scroll as well, and an idle prefetch fills the rest. A cursor update
 ends at the list, since setting the cursor on every frame of a scroll went through the
 accessibility cursor generator and was a third of the main thread. `perf` on the provider module
-starts and reads a probe of main thread stalls and slow Lua calls, `Perf` in `native/Entry.swift`. `decisions/olm-chooser-performance.md` has the
+starts and reads a probe of main thread stalls and slow Lua calls, `Perf` in `native/Perf.swift`. `decisions/olm-chooser-performance.md` has the
 measurements and which of the faults fixed here the canvas and legacy choosers still carry, read it
 before changing how any chooser scrolls, draws icons or measures text. Swift runs
 the view contract's key order, asking Lua synchronously before its field edits, and hands each key

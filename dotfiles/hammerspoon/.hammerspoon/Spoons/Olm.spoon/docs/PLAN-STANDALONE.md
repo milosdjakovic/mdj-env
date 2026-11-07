@@ -31,6 +31,7 @@ Stage 0, contracts
 - [x] 0.2 Fixtures for ranking, 2026-11-07
 - [x] 0.4 The bridge protocol, on paper, with its adversarial review, 2026-11-07
 - [ ] 0.6 A data source protocol in front of the library, and the package build
+  Built and gated offline on branch olm-swift-package, waiting for the live load with the swift chooser serving.
 - [x] 0.3a Fixtures for the file search grammar, 2026-11-07
 - [ ] 0.3b Fixtures for the bottom bar model
 - [ ] 0.3c Fixtures for keymap resolution
