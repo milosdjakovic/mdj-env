@@ -134,6 +134,16 @@ first as language neutral fixtures both sides run.
   chooser served the new image with the probe answering, and the console held no error, only the
   five warnings this machine always has, IVPN absent, a screen with no display profile and two keys
   the layout lacks.
+- 2026-11-07 20:30. Step 1.2 was built, waiting for its hand trial. A machine's piece reaches the
+  running config as `~/.hammerspoon/machine-pieces.lua`, written by `src/setup-hammerspoon-apps.sh`
+  from `src/machine.sh` beside the two machine files it already copies, since Hammerspoon cannot
+  ask `machines/` and a difference between machines is a piece, never a branch. The open key is
+  taken by swapping the function its keymap row runs, in the root between the keymap and the
+  binder, rather than by a keymap entry naming the chord, which would have had to repeat file
+  search's chord on that machine and drift from it. So the keymap, the cheat sheets and the goldens
+  are the same with the piece on or off. Which tools the app serves is a list in
+  `config/plugins.lua`, since the dry gate keeps a host from naming a plugin. The key opens the app
+  with `open -g`, which does not bring the app forward, since its chooser is a nonactivating panel.
 - 2026-11-07 12:21. Step 1.1 was finished. Olm.app's code is `app/` inside the spoon, beside the
   Lua it replaces piece by piece, so the spoon stays the one thing that is Olm, and its package
   depends on the swift chooser's by path. It is built into `~/.olm/app`, beside Olm's data and out

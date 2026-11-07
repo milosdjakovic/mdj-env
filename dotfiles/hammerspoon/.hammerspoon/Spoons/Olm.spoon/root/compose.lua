@@ -2798,6 +2798,29 @@ function obj.run(olm, cfg)
     end
   end
 
+  -- A tool Olm.app serves on this machine keeps its open key, and the key opens the app's list
+  -- through host/bridge rather than the Lua one, step 1.2 of docs/PLAN-STANDALONE.md. The bridge
+  -- answers only where this machine's olmapp piece is on and the app is built, so on every other
+  -- machine nothing changes. Only the function a row runs is swapped, never its chord or its
+  -- words, so the keymap, the cheat sheets and the goldens read the same, and the composed record
+  -- says which rows the app serves. The list is kept on the keymap, since this function is at
+  -- Lua's limit of locals.
+  keymap.servedByApp = {}
+  do
+    local bridgeModule = modules[plan.identity.bridge or "bridge"]
+    if bridgeModule and type(bridgeModule.serves) == "function" then
+      for _, row in ipairs(keymap.bound or {}) do
+        if row.action == "open" then
+          local run = bridgeModule:serves(row.owner)
+          if type(run) == "function" then
+            row.run = run
+            keymap.servedByApp[#keymap.servedByApp + 1] = tostring(row.owner)
+          end
+        end
+      end
+    end
+  end
+
   -- The binder, the one place a global key is bound. Each row lands on the leader named the way
   -- the row spells it, the catalog name lowercased, and a row with no leader lands on the plain
   -- leader. The order the leaders receive the rows in is the order the paths it replaced bound
@@ -3509,6 +3532,9 @@ function obj.run(olm, cfg)
   -- no engine and no hotkey holds. The offline bound recording, drygate-composerun.lua, writes them
   -- into a fixture's golden from here, and the live key probe does not read them yet.
   record.fieldKeys = fieldKeyList
+  -- The tools whose open key Olm.app serves this load, host/bridge, empty where the olmapp piece is
+  -- off, step 1.2 of docs/PLAN-STANDALONE.md.
+  record.servedByApp = keymap.servedByApp
   -- The catalog names the remap was applied with, so the key inventory's last line can say which
   -- held leaders this load claimed without reading the hardware.
   record.remap = activeLeaderNames

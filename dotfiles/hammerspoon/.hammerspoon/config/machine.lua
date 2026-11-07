@@ -2,6 +2,7 @@
 --
 --   ~/.hammerspoon/machine-apps.lua      { keys = { [chord] = action }, apps = { [Name] = bundleID } }
 --   ~/.hammerspoon/machine-displays.lua  { profiles = { { name = ..., command = ... }, ... } }
+--   ~/.hammerspoon/machine-pieces.lua    { olmapp = "on" }, the pieces of machines/ the config reads
 --
 -- Neither is in this package. src/setup-hammerspoon-apps.sh copies each there from
 -- machines/<LocalHostName>/hammerspoon-<kind>.lua at the repository root, or from
@@ -12,7 +13,8 @@
 --
 -- config/keymap.lua adds the keys to its own, config/apps.lua lays the ids over its catalog, which
 -- is how an app whose id differs per install, a Chrome web app, gets the right one here, and
--- config/displays.lua hands the profiles to DisplayProfiles.
+-- config/displays.lua hands the profiles to DisplayProfiles. The pieces file is not a copy but
+-- written by the same step from src/machine.sh, and config/plugins.lua hands it to host/bridge.
 --
 -- A missing file means setup has not run here, so that part is empty, said once in the console
 -- with the command that writes it. A file that does not load is said the same way.
@@ -40,9 +42,11 @@ local function tableOr(value) return type(value) == "table" and value or {} end
 
 local apps = read("apps")
 local displays = read("displays")
+local pieces = read("pieces")
 
 return {
   keys = tableOr(apps.keys),
   apps = tableOr(apps.apps),
   profiles = tableOr(displays.profiles),
+  pieces = pieces,
 }

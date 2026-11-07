@@ -106,6 +106,22 @@ for kind in $KINDS; do
     echo "Hammerspoon $kind copied from $label"
 done
 
+# The pieces of this machine the running config reads, which Hammerspoon cannot ask machines/ for,
+# written as ~/.hammerspoon/machine-pieces.lua and read by config/machine.lua. It is this step's
+# output rather than a copy, so it is rewritten whenever it differs and never refused. Today that is
+# olmapp alone, whether file search's key opens Olm.app, Olm's docs/PLAN-STANDALONE.md step 1.2.
+pieces="$CONFIG_DIR/machine-pieces.lua"
+want="$(printf -- '-- Written by src/setup-hammerspoon-apps.sh from machines/, never by hand.\nreturn {\n  olmapp = "%s",\n}\n' "$("$SCRIPT_DIR/machine.sh" get olmapp)")"
+if [[ -f "$pieces" ]] && [[ "$(cat "$pieces")" == "$want" ]]; then
+    echo "Hammerspoon pieces already match machines/"
+else
+    tmp="$(mktemp "$CONFIG_DIR/.machine-pieces.XXXXXX")"
+    printf '%s\n' "$want" > "$tmp"
+    chmod 644 "$tmp"
+    mv "$tmp" "$pieces"
+    echo "Hammerspoon pieces written from machines/"
+fi
+
 # An app key in the shared keymap reaches every machine, which is what these files exist to avoid.
 if grep -nE '^[[:space:]]*\["[^"]+"\][[:space:]]*=[[:space:]]*"apptoggler\.' "$KEYMAP" > /dev/null; then
     lines="$(grep -nE '^[[:space:]]*\["[^"]+"\][[:space:]]*=[[:space:]]*"apptoggler\.' "$KEYMAP" | cut -d: -f1 | paste -sd, -)"

@@ -40,6 +40,7 @@ Stage 0, contracts
 Stage 1, the file search pilot
 - [x] 1.1 The app shell, 2026-11-07
 - [ ] 1.2 The trigger
+  Built and committed on main, waiting for Milos's hand trial with the olmapp piece on.
 - [ ] 1.3 Search, open and reveal, shadow then flip
 - [ ] 1.4a Preview pane
 - [ ] 1.4b Thumbnails
@@ -195,6 +196,39 @@ Result: all eight checks pass. Quitting the app leaves Hammerspoon answering.
 
 Open: `src/setup-olmapp.sh` has not run with the piece on, since switching it on for a machine
 is Milos's call. It first runs at 1.2.
+
+**1.2, the trigger, 2026-11-07, waiting for the hand trial.** Built:
+- `host/bridge`, a host with one question, `serves(identity)`. Where this machine's `olmapp` piece
+  is on, the app is built and `open` resolved, it answers the function a served tool's open key
+  runs instead, `open -g -a ~/.olm/app/Olm.app olm://filesearch?query=`, run as a task with its
+  handle kept.
+- The root swaps only that function on the keymap's open rows, after the keymap is built and
+  before the binder binds, so the chord, the cheat sheet, the launcher row and every golden read
+  the same. The composed record lists the swapped tools as `servedByApp`.
+- How the machine's piece reaches Hammerspoon, decided in this step:
+  `src/setup-hammerspoon-apps.sh` writes `~/.hammerspoon/machine-pieces.lua` from
+  `src/machine.sh`, `config/machine.lua` reads it, and `config/plugins.lua` hands it to the
+  bridge with the list of served tools, `{ "fileSearch" }`. There is no per machine keymap.
+- Olm.app answers `olm://filesearch?query=TEXT` by showing the swift chooser's own panel with the
+  text in its input field and an empty list, which says that search arrives with 1.3. It hides on
+  Escape, on a press outside and when it loses key. Its layout is fixed in the app until 1.3.
+- `test/bridge.lua`, 14 checks, in the dry suite.
+
+Issues:
+- `root/compose.lua`'s main function is at Lua's limit of 200 locals, so the first try failed to
+  load under the dry gate. Fixed: the list is kept on the keymap table rather than in a new local.
+- The dry gate refuses a host that names a plugin. Fixed: the served tools are a list in
+  `config/plugins.lua`, and the URL is the identity lowercased.
+- The rename proof found that the bridge asked about the piece only for a tool it served, so
+  renaming plugins changed what was asked. Fixed: it asks about the piece first.
+- The app reaches the panel's internal types through `@testable import`. Open: 1.3 makes the
+  panel's API public.
+
+Result: the dry suite and the goldens pass unchanged, the unit cases pass, the dependency check
+passes, and a live reload on main with the piece off has a clean console, nothing served and
+swift serving.
+
+Open: the trial with the piece on, and the back out by switching it off again.
 
 ## Where the facts come from
 
