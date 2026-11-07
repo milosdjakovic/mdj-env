@@ -45,13 +45,16 @@ Stage 1, the file search pilot
   - [x] 1.3b Ranking in Swift, `match.lua` and `rank.lua`, the rule and corpus fixtures passing, 2026-11-07
   - [x] 1.3c The index in the app, the helper's sources searching on background work, 2026-11-07
   - [ ] 1.3d The app's own list, rows ranked as typed, open and reveal
-    Built and committed on main, waiting for Milos's hand trial with the olmapp piece on.
+    Trial on 2026-11-08 passed for typing and Return, the icon flicker it found is fixed, the second trial is open.
   - [ ] 1.3e The shadow, both sides answering each query and the differences logged
-  - [ ] 1.3f The flip, the three timings against the Lua file search, and the trial
-- [ ] 1.4a Preview pane
+  - [ ] 1.3f The three timings against the Lua file search, and a trial, with no flip
+- [ ] 1.4a Preview pane, with its scroll keys
 - [ ] 1.4b Thumbnails
 - [ ] 1.4c Quick Look
-- [ ] 1.4d Frecency, one owner
+- [ ] 1.4d Frecency, one owner, the history read but not yet owned
+- [ ] 1.4e Folder search, the scope, the folder aliases, Into Folder and Up a Level
+- [ ] 1.4f The bottom bar, the actions pane, the info pane, Copy Path, and the person's list keys
+- [ ] 1.5 Parity, every feature of the Lua file search checked in the app, then the flip
 
 Stage 2, the bridge, read only
 - [ ] 2.1 Probe the transport
@@ -349,7 +352,16 @@ signing in stage 6 needs it.
 Result: the dry suite, the unit cases, `test/olmapp.sh` and the dependency check pass. A live
 reload with the piece off has a clean console, nothing served, and no share written.
 
-Open: the trial, typing into the app's list over the real index.
+Trial, 2026-11-08, with the piece on. Typing listed results as it went and Return opened the
+file. Two findings.
+- Every icon flickered on each keystroke, even when the results did not change. The app sent
+  each row without its icon, and the list fetched icons only once the row was on screen, so every
+  answer drew a frame of blank icons. Fixed: the app keeps each file's icon in a cache and sends
+  it with the row, and an answer with the same files in the same order redraws nothing.
+- The window has no preview pane, which is 1.4a. Milos stated rule 9 from this, that no feature is
+  lost as the plan moves. 1.3f no longer flips, and 1.4e, 1.4f and 1.5 were added.
+
+Open: a second trial for the flicker fix and for Command and Return.
 
 ## Where the facts come from
 
@@ -389,6 +401,11 @@ runs them from programs rather than `swift test`, decided at 1.1. A part moves
    nothing else. Ranking runs on a search actor cancelled by every keystroke, and indexing,
    walking, thumbnails and every answer from Hammerspoon arrive on background work and stream
    into the list. A step that puts other work on the main thread is not finished.
+9. **Nothing is lost at a flip.** Stated by Milos on 2026-11-08. A person using the machine
+   never loses a feature as the plan moves. The app may be tried with fewer features while the
+   piece is on for a trial, but the app becomes the daily path only when every feature of what it
+   replaces works in it, checked one by one against a written list of those features. A feature
+   the app does not have yet keeps the Lua path, so a flip that would drop one waits.
 
 ## How we test
 
@@ -493,12 +510,24 @@ built from the same Swift sources the helper uses, the walk on background work, 
 the Swift port of `rank.lua` and the file search grammar. Gate, the ranking and grammar fixtures
 pass in Swift before the flip. Shadow, for a few days each query is answered by both, the Lua one
 through a command line ask, and the differences are logged. Test, the three timings measured
-against the Lua file search, and a live trial of a large result set while typing.
+against the Lua file search, and a live trial of a large result set while typing. There is no flip
+in 1.3. The app still lacks the preview pane and the rest of 1.4, and rule 9 holds the flip until
+1.5.
 
 **1.4 The rest of file search, one per step.** The preview pane, thumbnails, Quick Look and
 frecency, each its own step and trial. Frecency is a store, so it has one owner. The app reads the
 Lua history once at its flip and owns it from then on, and the Lua side keeps its copy so the back
-out loses nothing that came before.
+out loses nothing that came before. Two more steps came out of rule 9 on 2026-11-08. 1.4e is
+the folder search, the scope with a folder walk, the directory aliases from `config/filesearch.lua`,
+Into Folder and Up a Level. 1.4f is the bottom bar, the actions pane and the info pane, Copy Path,
+Reveal in Finder on its own key, Command and a digit, and the person's `lists` keys for file
+search read over the bridge.
+
+**1.5 Parity, then the flip.** A written list of every feature the Lua file search has, read from
+its manifest, its README and `config/filesearch.lua`, each one tried in the app by hand and ticked.
+Only when every line is ticked does the piece open the app as the daily path, and going back is
+still the piece. The launcher's slash scope stays on the Lua file search until stage 3, as 1.2
+says.
 
 ## Stage 2, the bridge, read only
 

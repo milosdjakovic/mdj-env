@@ -54,6 +54,10 @@ final class FileSearch: ChooserSource {
   private let engine: FileSearchEngine
   private var rows: [IndexRow] = []
   private var highlight = 1
+  // Each file's icon once it has been drawn, so a row is sent with its icon whenever it has one.
+  // A row sent without one is drawn blank until the list asks for it, which flickered every icon
+  // on every keystroke, reported in the 1.3d trial on 2026-11-08.
+  private let icons = NSCache<NSString, NSImage>()
 
   init() {
     let helper = Bundle.main.resourceURL?.appendingPathComponent("fileindex").path ?? "fileindex"
@@ -110,8 +114,12 @@ final class FileSearch: ChooserSource {
   private func search(_ text: String) {
     engine.query(text) { [weak self] answer in
       guard let self else { return }
-      self.rows = answer.rows
-      self.panel.setRows(answer.rows.map(Self.row))
+      // The same files in the same order are left as they are drawn, so a keystroke that does
+      // not change the results redraws nothing.
+      if answer.rows.map(\.path) != self.rows.map(\.path) {
+        self.rows = answer.rows
+        self.panel.setRows(answer.rows.map(self.row))
+      }
       self.highlight = answer.rows.isEmpty ? 0 : 1
       self.apply(status: answer.status)
     }
@@ -126,12 +134,20 @@ final class FileSearch: ChooserSource {
     panel.update(state)
   }
 
-  private static func row(_ r: IndexRow) -> Row {
+  private func row(_ r: IndexRow) -> Row {
     var row = Row()
     row.title = r.name
     let dir = (r.path as NSString).deletingLastPathComponent
-    row.subtitle = dir.hasPrefix(home) ? "~" + dir.dropFirst(home.count) : dir
+    row.subtitle = dir.hasPrefix(Self.home) ? "~" + dir.dropFirst(Self.home.count) : dir
+    row.image = icons.object(forKey: r.path as NSString)
     return row
+  }
+
+  private func icon(_ path: String) -> NSImage {
+    if let image = icons.object(forKey: path as NSString) { return image }
+    let image = NSWorkspace.shared.icon(forFile: path)
+    icons.setObject(image, forKey: path as NSString)
+    return image
   }
 
   private func act(on index: Int, reveal: Bool) {
@@ -159,7 +175,7 @@ final class FileSearch: ChooserSource {
       guard case .string(let list)? = args.first else { break }
       let images = list.split(separator: ",").compactMap { Int($0) }
         .filter { $0 >= 1 && $0 <= rows.count }
-        .map { ($0 - 1, NSWorkspace.shared.icon(forFile: rows[$0 - 1].path), false) }
+        .map { ($0 - 1, icon(rows[$0 - 1].path), false) }
       if !images.isEmpty { panel.setImages(images) }
     case "listKey":
       guard case .bytes(let data)? = args.first,

@@ -14,7 +14,9 @@ though not compatible with Raycast's extensions. Olm.app is built first and runs
 Hammerspoon, kanata and the Karabiner driver. A bridge between the two processes is the one seam,
 and each step moves one responsibility across it, a shadow comparison first and a flip that one
 switch takes back, until nothing is left on the Hammerspoon side. Behaviour that moves is pinned
-first as language neutral fixtures both sides run.
+first as language neutral fixtures both sides run. No flip drops a feature. The app becomes the
+daily path for a list only when every feature of the Lua one works in it, checked against a written
+list, and until then that list stays on Lua.
 
 ## Rejected
 
@@ -27,6 +29,10 @@ first as language neutral fixtures both sides run.
 - **Cutting over in one move.** 2026-11-05 14:37. It is the rewrite `decisions/olm-swift-chooser.md`
   turned down on 2026-10-27, every Hammerspoon module rebuilt before one plugin works, and it breaks
   everything at once. Milos asked for steps that break as little as possible.
+- **Flipping file search to the app at the end of 1.3, before the rest of it.** 2026-11-08 00:23.
+  The plan as first written flipped at 1.3f, with the preview pane, thumbnails, Quick Look,
+  frecency and the folder search still to come in 1.4. Milos turned it down, every feature must be
+  kept as the plan moves.
 - **An app picker provider beside default, swift and legacy.** 2026-11-05 14:37. It would keep the
   Lua engine and put the view in another process, which is the helper process
   `decisions/olm-swift-chooser.md` turned down on 2026-10-27, since the picker contract asks
@@ -202,3 +208,11 @@ first as language neutral fixtures both sides run.
   `~/.olm/run/filesearch.json` where the piece is on, so the Lua config stays its one owner and the
   app holds a copy it never edits. The panel's types stay reached through a testable import rather
   than made public, since making them public touches every file Hammerspoon loads for no behaviour.
+- 2026-11-08 00:23. The 1.3d trial, with the piece on. Typing listed results and Return opened the
+  file. Every icon flickered on each keystroke, since the app sent each row without its icon and the
+  list fetched icons only once a row was on screen. Fixed: the app caches each file's icon and sends
+  it with the row, and an answer with the same files in the same order redraws nothing. The window
+  having no preview pane led Milos to state that all functionality must be preserved as the plan
+  moves. That is rule 9 of the plan now. 1.3f keeps its timings and trial and loses the flip,
+  1.4e adds the folder search, 1.4f the bottom bar, the actions and info panes and the remaining
+  keys, and 1.5 checks every feature against a written list before the flip.
