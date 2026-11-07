@@ -23,7 +23,7 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 1.3b, ranking in Swift.
+Next. 1.3d, the app's own list.
 
 Stage 0, contracts
 - [x] 0.1 The decision record, 2026-11-05
@@ -42,7 +42,7 @@ Stage 1, the file search pilot
 - [x] 1.2 The trigger, 2026-11-07
 - [ ] 1.3 Search, open and reveal, shadow then flip, in six parts
   - [x] 1.3a The file search grammar in Swift, its fixtures passing, 2026-11-07
-  - [ ] 1.3b Ranking in Swift, `match.lua` and `rank.lua`, the rule and corpus fixtures passing
+  - [x] 1.3b Ranking in Swift, `match.lua` and `rank.lua`, the rule and corpus fixtures passing, 2026-11-07
   - [x] 1.3c The index in the app, the helper's sources searching on background work, 2026-11-07
   - [ ] 1.3d The app's own list, rows ranked as typed, open and reveal, the panel's API public
   - [ ] 1.3e The shadow, both sides answering each query and the differences logged
@@ -286,6 +286,36 @@ Lua plugin's build in a step that should leave the plugin alone.
 
 Measured: a search of the real index, 170,196 entries, takes about 10 ms including the process
 start.
+
+**1.3b, ranking in Swift, `6770799f`, 2026-11-07.** Done by an agent in a worktree of its own
+while 1.3c was built, then checked and cherry-picked onto main. Built:
+- `app/Sources/OlmSearch/Match.swift`, the shared fuzzy matcher as `Fuzzy`.
+- `app/Sources/OlmSearch/Rank.swift`, `RankRow` and `Rank.apply`, which answers the order as
+  indices into the rows, plus the cut for the row of more.
+- The `rank.order` and `rank.corpus` runners in `olm-fixtures`.
+
+Details that mattered:
+- JSON booleans are told apart from numbers by their Core Foundation type. Otherwise
+  `"bonus": 1` reads as true and `"pinned": true` as 1, and the Lua checks depend on the
+  difference.
+- The sort ends on the row's place in the supplier's list. That makes it a total order, so
+  Swift's sort answers the same as Lua's unstable `table.sort`.
+- Numbers are doubles, added in Lua's order and grouping.
+- `RankCut.at` is 0-based in Swift, where Lua's is 1-based.
+
+Result:
+- All 100 ranking cases pass, 26 order and 74 corpus, so `olm-fixtures` passes 145, with 131
+  not ported, the launcher's and the calls kinds.
+- A broken corpus case failed when checked by hand.
+- The agent also compared 5176 generated queries over 77 hard rows against the Lua answers, and
+  all agreed. The rows covered long fields, separators, camel humps, accents and symbol words.
+
+Left imperfect:
+- The long-field memo is not ported, so a field over 256 bytes is folded again on every call.
+  Results are the same, only slower. The clipboard will want it.
+- `Fuzzy` keeps per-instance caches and is not thread-safe, so the search queue owns one.
+- A `searchText` that raises, and the `substring` and `words` strategies, are not ported, and
+  nothing in the app needs them.
 
 ## Where the facts come from
 

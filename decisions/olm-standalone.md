@@ -189,3 +189,10 @@ first as language neutral fixtures both sides run.
   leave the plugin alone. The app reads the index the Lua side builds and never builds one, so the
   index has one owner. A search of the real index, 170,196 entries, measured about 10 milliseconds
   with the process start. The ranking port, step 1.3b, runs in parallel in a worktree of its own.
+- 2026-11-07 21:04. Step 1.3b was finished, the shared ranking ported to Swift as `Match.swift` and
+  `Rank.swift` in `OlmSearch`, by an agent in a worktree and checked here before it was taken. Every
+  rank.order and rank.corpus case passes, and 5176 generated queries over 77 hard rows agreed with
+  the Lua answers. The JSON reader tells a boolean from a number by its Core Foundation type, since
+  `"bonus": 1` and `"pinned": true` otherwise read as each other and the engine's checks depend on
+  the difference. The long field memo was left out, which costs time on a body over 256 bytes and
+  changes no answer.
