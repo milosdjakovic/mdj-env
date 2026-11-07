@@ -83,9 +83,83 @@ func runNarrows(_ file: String, _ doc: [String: Any]) {
   }
 }
 
+// A JSON boolean, which JSONSerialization hands over as an NSNumber like any number, so it is told
+// apart by its Core Foundation type, the way Lua tells true from 1.
+func isBool(_ v: Any?) -> Bool {
+  guard let n = v as? NSNumber else { return false }
+  return CFGetTypeID(n) == CFBooleanGetTypeID()
+}
+
+// A JSON number that is not a boolean, the only thing Lua's type(x) == "number" accepts.
+func number(_ v: Any?) -> Double? {
+  guard let n = v as? NSNumber, !isBool(n) else { return nil }
+  return n.doubleValue
+}
+
+// A row as a fixture writes it, each field read the way rank.lua reads it, a field of the wrong
+// type being absent. pinned and fromQuery count only when they are the boolean true.
+func rankRow(_ d: [String: Any]) -> RankRow {
+  var keywords: [String] = []
+  if let k = d["keywords"] as? String { keywords = [k] }
+  else if let list = d["keywords"] as? [Any] { keywords = list.compactMap { $0 as? String } }
+  return RankRow(
+    title: d["title"] as? String,
+    subTitle: d["subTitle"] as? String,
+    filterText: d["filterText"] as? String,
+    keywords: keywords,
+    names: (d["names"] as? [Any]).map { $0.compactMap { $0 as? String } },
+    pinned: isBool(d["pinned"]) && (d["pinned"] as? Bool) == true,
+    fromQuery: isBool(d["fromQuery"]) && (d["fromQuery"] as? Bool) == true,
+    tier: number(d["tier"]) ?? 0,
+    bonus: number(d["bonus"]) ?? 0
+  )
+}
+
+// rank.order, a case's rows ranked for its query, the titles shown in order and, where the case
+// names more, what the limit cut, null meaning nothing.
+func runOrder(_ file: String, _ doc: [String: Any]) {
+  for case let c as [String: Any] in (doc["cases"] as? [Any]) ?? [] {
+    let name = c["name"] as? String ?? "?"
+    let dicts = ((c["rows"] as? [Any]) ?? []).compactMap { $0 as? [String: Any] }
+    var limit: Int? = nil
+    if let n = number(c["rowLimit"]), n >= 1, n.rounded(.towardZero) == n { limit = Int(n) }
+    let got = Rank.apply(dicts.map(rankRow), query: c["query"] as? String ?? "", rowLimit: limit)
+    let titles: [Any] = got.order.map { dicts[$0]["title"] ?? NSNull() }
+    var ok = true
+    if !same(titles, c["expect"]) {
+      fail(file, name, "wanted \(show(c["expect"])), got \(show(titles))"); ok = false
+    }
+    if c.keys.contains("more") {
+      let cut: Any = got.more.map { ["count": $0.count, "at": $0.at + 1] as [String: Any] } ?? NSNull()
+      if !same(cut, c["more"]) {
+        fail(file, name, "cut wanted \(show(c["more"])), got \(show(cut))"); ok = false
+      }
+    }
+    if ok { passed += 1 }
+  }
+}
+
+// rank.corpus, one list and many queries, each expecting the 1 based places of the rows shown.
+// One matcher serves every query, as one list asks it on every keystroke.
+func runCorpus(_ file: String, _ doc: [String: Any]) {
+  let rows = ((doc["rows"] as? [Any]) ?? []).compactMap { $0 as? [String: Any] }.map(rankRow)
+  let fuzzy = Fuzzy()
+  for case let c as [String: Any] in (doc["cases"] as? [Any]) ?? [] {
+    let query = c["query"] as? String ?? ""
+    let places = Rank.apply(rows, query: query, using: fuzzy).order.map { $0 + 1 }
+    if same(places, c["expect"]) {
+      passed += 1
+    } else {
+      fail(file, "query \(show(query))", "wanted \(show(c["expect"])), got \(show(places))")
+    }
+  }
+}
+
 let runners: [String: (String, [String: Any]) -> Void] = [
   "filesearch.parse": runParse,
   "filesearch.narrows": runNarrows,
+  "rank.order": runOrder,
+  "rank.corpus": runCorpus,
 ]
 
 guard CommandLine.arguments.count == 2 else {
