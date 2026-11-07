@@ -26,7 +26,9 @@ hs = {
     i = function(m) said[#said + 1] = m end,
     w = function(m) said[#said + 1] = m end,
   } end },
-  fs = { attributes = function(path) return present[path] and "directory" or nil end },
+  fs = { attributes = function(path) return present[path] and "directory" or nil end,
+    mkdir = function() return true end },
+  json = { encode = function(v) return "{\"types\":" .. tostring(v.types and "t" or "none") .. "}" end },
   task = { new = function(path, done, args)
     local t = { path = path, args = args, done = done }
     function t:start() started[#started + 1] = self; return self end
@@ -74,6 +76,18 @@ eq(table.concat(t.args, " "), "-g -a " .. APP .. " olm://filesearch?query=", "op
 eq(b._tasks[t], true, "the task's handle is kept while it runs")
 t.done(0, "", "")
 eq(b._tasks[t], nil, "and let go when it ends")
+
+-- The shares the app reads are written only where the piece is on.
+local run = os.tmpname() .. ".d"
+os.execute("mkdir -p '" .. run .. "'")
+fresh({ pieces = { olmapp = "off" }, deps = deps, app = APP, run = run, shares = { filesearch = { types = {} } } })
+eq(io.open(run .. "/filesearch.json") == nil, true, "olmapp off writes no share")
+fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, shares = { filesearch = { types = {} }, ["../x"] = {} } })
+local f = io.open(run .. "/filesearch.json")
+eq(f and f:read("a"), '{"types":t}', "olmapp on writes each share as its name")
+if f then f:close() end
+eq(io.open(run .. "/../x.json") == nil, true, "a share name that is not a plain word is not written")
+os.execute("rm -rf '" .. run .. "'")
 
 print(string.format("bridge: %d checks, %d failed", checks, failures))
 os.exit(failures == 0 and 0 or 1)

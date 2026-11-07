@@ -98,5 +98,10 @@ return {
   -- This machine's pieces, from config/machine.lua, which the bridge host reads to know whether
   -- Olm.app takes a key here, and the tools whose open key it takes where it does, Olm's
   -- docs/PLAN-STANDALONE.md from step 1.2. A tool joins this list in the step that serves it.
-  bridge = { data = { pieces = require("config.machine").pieces, serves = { "fileSearch" } } },
+  -- shares is what the app reads of this config, written beside it where the piece is on.
+  bridge = { data = {
+    pieces = require("config.machine").pieces,
+    serves = { "fileSearch" },
+    shares = { filesearch = { types = filesearch.types, limits = filesearch.limits } },
+  } },
 }

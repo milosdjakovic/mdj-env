@@ -27,6 +27,7 @@ local log = hs.logger.new("Bridge", "info")
 local function urlFor(identity) return "olm://" .. identity:lower() .. "?query=" end
 
 local APP = os.getenv("HOME") .. "/.olm/app/Olm.app"
+local RUN = os.getenv("HOME") .. "/.olm/run"
 
 obj._pieces = {}
 obj._serves = {}
@@ -45,6 +46,8 @@ function obj:configure(opts)
   end
   if opts.deps ~= nil then self._deps = opts.deps end
   if opts.app ~= nil then self._app = opts.app end
+  if opts.run ~= nil then self._run = opts.run end
+  if type(opts.shares) == "table" then self:_share(opts.shares) end
   return self
 end
 
@@ -68,6 +71,29 @@ function obj:_ready()
     return nil
   end
   return open, app
+end
+
+-- Writes each share the app reads as <run>/<name>.json, only where the olmapp piece is on, so a
+-- machine without the app gets no file. Written through a temporary file and a rename, so the app
+-- never reads half of one. A name is a plain word, so it cannot reach outside the folder.
+function obj:_share(shares)
+  if self._pieces.olmapp ~= "on" then return end
+  local run = self._run or RUN
+  hs.fs.mkdir(run)
+  for name, value in pairs(shares) do
+    if type(name) == "string" and name:match("^%a%w*$") and type(value) == "table" then
+      local text = hs.json.encode(value)
+      local tmp = run .. "/." .. name .. ".json.tmp"
+      local f = text and io.open(tmp, "w")
+      if f then
+        f:write(text)
+        f:close()
+        os.rename(tmp, run .. "/" .. name .. ".json")
+      else
+        log.w("could not write " .. run .. "/" .. name .. ".json for Olm.app")
+      end
+    end
+  end
 end
 
 --- obj:serves(identity) -> function or nil

@@ -44,7 +44,8 @@ Stage 1, the file search pilot
   - [x] 1.3a The file search grammar in Swift, its fixtures passing, 2026-11-07
   - [x] 1.3b Ranking in Swift, `match.lua` and `rank.lua`, the rule and corpus fixtures passing, 2026-11-07
   - [x] 1.3c The index in the app, the helper's sources searching on background work, 2026-11-07
-  - [ ] 1.3d The app's own list, rows ranked as typed, open and reveal, the panel's API public
+  - [ ] 1.3d The app's own list, rows ranked as typed, open and reveal
+    Built and committed on main, waiting for Milos's hand trial with the olmapp piece on.
   - [ ] 1.3e The shadow, both sides answering each query and the differences logged
   - [ ] 1.3f The flip, the three timings against the Lua file search, and the trial
 - [ ] 1.4a Preview pane
@@ -316,6 +317,39 @@ Left imperfect:
 - `Fuzzy` keeps per-instance caches and is not thread-safe, so the search queue owns one.
 - A `searchText` that raises, and the `substring` and `words` strategies, are not ported, and
   nothing in the app needs them.
+
+**1.3d, the app's own list, 2026-11-07, waiting for the hand trial.** Built:
+- `app/Sources/OlmSearch/FileSearch.swift`, `FileSearchEngine`, the counterpart of
+  `plugins/filesearch/engine.lua` for the unscoped search and the recent list.
+  - It parses with the grammar, asks the index on its queue and ranks on a queue of its own,
+    with the file name as the one searched field, as the Lua rows set `filterText`.
+  - It narrows as the Lua engine does, so a grown text over the same files asks the index
+    nothing.
+  - Below `minChars` it ranks the recent list by the text typed so far.
+  - A newer query drops an older answer.
+- The app's chooser lists what the engine answers, with each file's icon fetched as its row
+  comes on screen. Return opens the highlighted file, Command and Return shows it in Finder, and
+  either closes the list.
+- The bridge writes what the app reads of the config, file search's types and limits, to
+  `~/.olm/run/filesearch.json`, only where the piece is on. The app reads it on every show, so
+  `config/filesearch.lua` stays the one owner.
+- 8 engine checks in `olm-index-check`, and 3 share checks in `test/bridge.lua`.
+
+Not in this part:
+- A scoped query, a folder walk on the Lua side, says it comes later.
+- Frecency is 1.4d, so every bonus is zero.
+- The preview pane is 1.4a.
+- The row of more is not drawn.
+
+Decided: the panel's API stays reached through `@testable import`. The package compiles it with
+testing enabled, which a release build accepts, and making some forty types public would touch
+every file of the swift chooser that Hammerspoon loads, for no behaviour. It comes back when
+signing in stage 6 needs it.
+
+Result: the dry suite, the unit cases, `test/olmapp.sh` and the dependency check pass. A live
+reload with the piece off has a clean console, nothing served, and no share written.
+
+Open: the trial, typing into the app's list over the real index.
 
 ## Where the facts come from
 

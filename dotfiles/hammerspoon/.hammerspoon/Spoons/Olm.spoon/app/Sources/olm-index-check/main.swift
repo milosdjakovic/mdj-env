@@ -76,5 +76,32 @@ check(first == 0 && second == 1, "a newer ask supersedes the one before it")
 
 check(files.arguments(for: FileQueryGrammar.parse(". ", types: types), cap: 5) == nil,
   "a lone dot with nothing typed asks nothing, as the Lua side")
+// The engine over the same index, step 1.3d.
+var settings = FileSearchSettings()
+settings.types = types
+settings.minChars = 3
+let engine = FileSearchEngine(index: files, settings: settings)
+func engineAnswer(_ raw: String) -> FileSearchAnswer? {
+  var got: FileSearchAnswer?
+  engine.query(raw) { got = $0 }
+  let deadline = Date().addingTimeInterval(5)
+  while got == nil, Date() < deadline { RunLoop.main.run(until: Date().addingTimeInterval(0.01)) }
+  return got
+}
+let first3 = engineAnswer("rep")
+check((first3?.rows ?? []).map(\.name).sorted() == ["Reports.app", "report-old.md", "report.md"],
+  "the engine answers a search from the index")
+let asked = engine.asks
+let grown = engineAnswer("repo")
+check(engine.asks == asked, "a grown text over the same files asks the index nothing")
+check(grown?.rows.first?.name.lowercased().hasPrefix("report") == true, "and is ranked again")
+check(engineAnswer("report.md")?.rows.first?.name == "report.md", "the name that matches best leads")
+_ = engineAnswer("app")
+check(engine.asks == asked + 1, "an edited text asks again")
+let short = engineAnswer("ap")
+check((short?.rows ?? []).contains { $0.name == "app.js" }, "a text below minChars ranks the recent list")
+check(engineAnswer("x/ foo")?.status != nil, "a scoped query says it is not answered yet")
+check(engineAnswer("zzzz")?.status == "No matches", "no match says so")
+
 print(failures == 0 ? "olm-index-check, every check passed" : "olm-index-check, \(failures) FAILED")
 exit(failures == 0 ? 0 : 1)

@@ -196,3 +196,9 @@ first as language neutral fixtures both sides run.
   `"bonus": 1` and `"pinned": true` otherwise read as each other and the engine's checks depend on
   the difference. The long field memo was left out, which costs time on a body over 256 bytes and
   changes no answer.
+- 2026-11-07 21:10. Step 1.3d was built, waiting for its hand trial. The app's file search engine
+  narrows, ranks and answers off the main thread over the index, and the app's chooser lists it.
+  What the app reads of the config, file search's types and limits, the bridge writes to
+  `~/.olm/run/filesearch.json` where the piece is on, so the Lua config stays its one owner and the
+  app holds a copy it never edits. The panel's types stay reached through a testable import rather
+  than made public, since making them public touches every file Hammerspoon loads for no behaviour.

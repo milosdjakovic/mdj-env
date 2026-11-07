@@ -22,6 +22,10 @@ return {
       -- This machine's pieces, from config/machine.lua through config/plugins.lua.
       pieces = { source = "user", policy = "optional",
         breaks = "no tool's key opens Olm.app, so every key opens the Lua list as before" },
+      -- Settings the app reads, by name, each written as ~/.olm/run/<name>.json where the olmapp
+      -- piece is on, so the config keeps one owner and the app a copy it never edits.
+      shares = { source = "user", policy = "optional",
+        breaks = "the app runs on its own defaults rather than this config's" },
       -- The tools Olm.app serves, by identity, from config/plugins.lua.
       serves = { source = "user", policy = "optional",
         breaks = "no tool's key opens Olm.app, so every key opens the Lua list as before" },

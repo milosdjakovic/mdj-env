@@ -10,6 +10,7 @@
 
 import AppKit
 @testable import OlmChooser
+import OlmSearch
 
 enum Ping {
   /// The nonce a ping carries, or nil when the URL is not a well formed ping. A nonce is what a
@@ -38,32 +39,66 @@ enum Ping {
   }
 }
 
-// The file search's chooser, step 1.2. It shows the panel with the query in its input field and a
-// list that says search arrives in the next step, so the trigger can be tried before the search
-// exists. It hides on Escape, on a press outside it and when it loses key. The layout is fixed
-// here until step 1.3 brings the engine's geometry over.
+// The file search's chooser, steps 1.2 and 1.3d. The panel is the swift chooser's own, and what it
+// lists comes from FileSearchEngine in OlmSearch, which parses, asks the index and ranks off the
+// main thread, so this class only hands the panel what the engine answered. Return opens the
+// highlighted file, Command and Return shows it in Finder, and either closes the list. It hides on
+// Escape, on a press outside it and when it loses key. The layout is fixed here, the engine's
+// geometry on the Lua side being Lua's.
+//
+// The settings, file search's types and limits, are the ones config/filesearch.lua holds. The
+// bridge host writes them to ~/.olm/run/filesearch.json on every load where the olmapp piece is
+// on, and the app reads that file on every show, so the config keeps one owner.
 final class FileSearch: ChooserSource {
+  private static let home = FileManager.default.homeDirectoryForCurrentUser.path
+  private let engine: FileSearchEngine
+  private var rows: [IndexRow] = []
+  private var highlight = 1
+
+  init() {
+    let helper = Bundle.main.resourceURL?.appendingPathComponent("fileindex").path ?? "fileindex"
+    let index = Self.home + "/.olm/cache/filesearch/file-index.txt"
+    engine = FileSearchEngine(index: FileIndex(helper: helper, index: index), settings: Self.settings())
+  }
+
   private lazy var panel: ChooserPanel = {
     let panel = ChooserPanel(source: self)
     var style = Style()
     style.radius = 18
     style.highlightRadius = 10
     style.fieldFont = NSFont.systemFont(ofSize: 22)
+    style.titleFont = NSFont.systemFont(ofSize: 14)
+    style.subFont = NSFont.systemFont(ofSize: 12)
     panel.applyStyle(style)
     return panel
   }()
 
+  // config/filesearch.lua's types and limits, as the bridge wrote them, or the Lua defaults.
+  private static func settings() -> FileSearchSettings {
+    var settings = FileSearchSettings()
+    let url = URL(fileURLWithPath: home + "/.olm/run/filesearch.json")
+    guard let data = try? Data(contentsOf: url),
+      let doc = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return settings }
+    if let types = doc["types"] as? [String: [String]] { settings.types = types }
+    let limits = doc["limits"] as? [String: Any] ?? [:]
+    if let n = limits["retainCap"] as? Int { settings.retainCap = n }
+    if let n = limits["minChars"] as? Int { settings.minChars = n }
+    if let n = limits["recentDays"] as? Int { settings.recentDays = n }
+    if let n = limits["recentCount"] as? Int { settings.recentCount = n }
+    return settings
+  }
+
   func show(query: String) {
+    engine.settings = Self.settings()
+    engine.reset()
     panel.place(Self.placement())
-    var state = ViewState()
-    state.placeholder = "Search Files"
-    state.empty = true
-    state.emptyText = "Search arrives with step 1.3"
+    rows = []
     panel.setRows([])
-    panel.update(state)
+    apply(status: nil)
     panel.start()
     panel.show()
     panel.setText(query)
+    search(query)
   }
 
   func hide() {
@@ -72,32 +107,97 @@ final class FileSearch: ChooserSource {
     panel.stop()
   }
 
+  private func search(_ text: String) {
+    engine.query(text) { [weak self] answer in
+      guard let self else { return }
+      self.rows = answer.rows
+      self.panel.setRows(answer.rows.map(Self.row))
+      self.highlight = answer.rows.isEmpty ? 0 : 1
+      self.apply(status: answer.status)
+    }
+  }
+
+  private func apply(status: String?) {
+    var state = ViewState()
+    state.placeholder = "Search Files"
+    state.highlight = highlight
+    state.empty = rows.isEmpty
+    state.emptyText = status ?? ""
+    panel.update(state)
+  }
+
+  private static func row(_ r: IndexRow) -> Row {
+    var row = Row()
+    row.title = r.name
+    let dir = (r.path as NSString).deletingLastPathComponent
+    row.subtitle = dir.hasPrefix(home) ? "~" + dir.dropFirst(home.count) : dir
+    return row
+  }
+
+  private func act(on index: Int, reveal: Bool) {
+    guard index >= 1, index <= rows.count else { return }
+    let url = URL(fileURLWithPath: rows[index - 1].path)
+    hide()
+    if reveal {
+      NSWorkspace.shared.activateFileViewerSelecting([url])
+    } else {
+      NSWorkspace.shared.open(url)
+    }
+  }
+
   func ask(_ event: String, _ args: [PanelValue]) -> Bool {
     switch event {
-    case "dismiss", "resignedKey", "pressOutside": hide()
-    default: break
+    case "dismiss", "resignedKey", "pressOutside":
+      hide()
+    case "text":
+      if case .string(let text)? = args.first { search(text) }
+    case "highlighted":
+      if case .int(let index)? = args.first { highlight = index }
+    case "choose":
+      if case .int(let index)? = args.first { act(on: index, reveal: false) }
+    case "wantIcons":
+      guard case .string(let list)? = args.first else { break }
+      let images = list.split(separator: ",").compactMap { Int($0) }
+        .filter { $0 >= 1 && $0 <= rows.count }
+        .map { ($0 - 1, NSWorkspace.shared.icon(forFile: rows[$0 - 1].path), false) }
+      if !images.isEmpty { panel.setImages(images) }
+    case "listKey":
+      guard case .bytes(let data)? = args.first,
+        let event = CGEvent(withDataAllocator: nil, data: data as CFData) else { return false }
+      let code = event.getIntegerValueField(.keyboardEventKeycode)
+      guard code == 36 || code == 76 else { return false }
+      act(on: highlight, reveal: event.flags.contains(.maskCommand))
+      return true
+    default:
+      break
     }
     return false
   }
 
-  // A chooser 640 points wide a fifth of the way down the screen under the pointer, in
+  // A chooser 680 points wide a fifth of the way down the screen under the pointer, in
   // Hammerspoon's space, y measured down from the top of the primary screen, which is what the
-  // panel is placed in.
+  // panel is placed in. Eight rows show at once.
   private static func placement() -> Placement {
     let mouse = NSEvent.mouseLocation
     let screen = NSScreen.screens.first { NSMouseInRect(mouse, $0.frame, false) } ?? NSScreen.main
     let visible = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
     let primary = NSScreen.screens.first?.frame.height ?? visible.maxY
-    let width: CGFloat = 640
-    let height: CGFloat = 160
-    let top = primary - visible.maxY + visible.height * 0.2
+    let width: CGFloat = 680
+    let rowH: CGFloat = 44
+    let height: CGFloat = 64 + rowH * 8 + 8
+    let top = primary - visible.maxY + visible.height * 0.18
     var p = Placement()
     p.canvas = NSRect(x: visible.midX - width / 2, y: top, width: width, height: height)
     p.window = p.canvas
     p.listFrame = NSRect(x: 0, y: 0, width: width, height: height)
     p.field = NSRect(x: 20, y: 14, width: width - 40, height: 40)
     p.list = NSRect(x: 8, y: 64, width: width - 16, height: height - 72)
-    p.rowH = 40
+    p.rowH = rowH
+    p.iconSize = 28
+    p.iconFrame = 32
+    p.iconPad = (rowH - 28) / 2
+    p.iconPadLeft = 12
+    p.iconGap = 10
     p.padX = 12
     p.pad = 8
     return p
