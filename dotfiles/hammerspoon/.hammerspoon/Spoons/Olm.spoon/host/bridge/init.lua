@@ -23,8 +23,12 @@ local log = hs.logger.new("Bridge", "info")
 
 -- Which tools Olm.app serves is the person's config, config/plugins.lua, since only that and a
 -- plugin may name a plugin. A served tool's open key hands the app olm://<identity lowercased>,
--- docs/PROTOCOL-BRIDGE.md, file search's being olm://filesearch.
-local function urlFor(identity) return "olm://" .. identity:lower() .. "?query=" end
+-- docs/PROTOCOL-BRIDGE.md, file search's being olm://filesearch. The screen is Olm's placement
+-- choice read at the press, since the Placement page changes it with no reload.
+local function urlFor(identity, mode)
+  local screen = (type(mode) == "string" and mode:match("^%a+$")) and ("screen=" .. mode .. "&") or ""
+  return "olm://" .. identity:lower() .. "?" .. screen .. "query="
+end
 
 local APP = os.getenv("HOME") .. "/.olm/app/Olm.app"
 local RUN = os.getenv("HOME") .. "/.olm/run"
@@ -34,6 +38,7 @@ obj._serves = {}
 obj._deps = nil
 obj._tasks = {}
 obj._said = {}
+obj._screenMode = nil
 
 function obj:configure(opts)
   opts = opts or {}
@@ -73,27 +78,54 @@ function obj:_ready()
   return open, app
 end
 
--- Writes each share the app reads as <run>/<name>.json, only where the olmapp piece is on, so a
+-- Writes one share the app reads as <run>/<name>.json, only where the olmapp piece is on, so a
 -- machine without the app gets no file. Written through a temporary file and a rename, so the app
--- never reads half of one. A name is a plain word, so it cannot reach outside the folder.
-function obj:_share(shares)
+-- never reads half of one. A name is a plain word, so it cannot reach outside the folder. A value
+-- may be a function, asked only here, so what costs work to build is built only where it is read,
+-- and its nil and reason are said once rather than written.
+function obj:_write(name, value)
   if self._pieces.olmapp ~= "on" then return end
+  if type(name) ~= "string" or not name:match("^%a%w*$") then return end
+  if type(value) == "function" then
+    local ok, built, why = pcall(value)
+    if not ok then why, built = built, nil end
+    if type(built) ~= "table" then
+      sayOnce(self, "Olm.app is not handed " .. name .. ", " .. tostring(why))
+      return
+    end
+    value = built
+  end
+  if type(value) ~= "table" then return end
   local run = self._run or RUN
   hs.fs.mkdir(run)
-  for name, value in pairs(shares) do
-    if type(name) == "string" and name:match("^%a%w*$") and type(value) == "table" then
-      local text = hs.json.encode(value)
-      local tmp = run .. "/." .. name .. ".json.tmp"
-      local f = text and io.open(tmp, "w")
-      if f then
-        f:write(text)
-        f:close()
-        os.rename(tmp, run .. "/" .. name .. ".json")
-      else
-        log.w("could not write " .. run .. "/" .. name .. ".json for Olm.app")
-      end
-    end
+  local text = hs.json.encode(value)
+  local tmp = run .. "/." .. name .. ".json.tmp"
+  local f = text and io.open(tmp, "w")
+  if f then
+    f:write(text)
+    f:close()
+    os.rename(tmp, run .. "/" .. name .. ".json")
+  else
+    log.w("could not write " .. run .. "/" .. name .. ".json for Olm.app")
   end
+end
+
+-- Every share the person's config names, config/plugins.lua.
+function obj:_share(shares)
+  for name, value in pairs(shares) do self:_write(name, value) end
+end
+
+--- obj:share(name, value) writes a share the root builds rather than the config, the chooser's
+--- look today, value a table or a function answering one, or nil and why.
+function obj:share(name, value)
+  self:_write(name, value)
+end
+
+--- obj:placeWith(fn) takes the function answering Olm's placement choice, activeWindow or cursor,
+--- lib/overlaydisplay.lua's mode, asked at every press so a URL opens the app's list on the screen
+--- the Lua one would open on.
+function obj:placeWith(fn)
+  if type(fn) == "function" then self._screenMode = fn end
 end
 
 --- obj:serves(identity) -> function or nil
@@ -103,9 +135,14 @@ function obj:serves(identity)
   local open, app = self:_ready()
   if not open then return nil end
   if type(identity) ~= "string" or not self._serves[identity] then return nil end
-  local url = urlFor(identity)
   sayOnce(self, identity .. "'s open key opens Olm.app, the olmapp piece is on")
   return function()
+    local mode = nil
+    if self._screenMode then
+      local ok, answer = pcall(self._screenMode)
+      if ok then mode = answer end
+    end
+    local url = urlFor(identity, mode)
     local task
     task = hs.task.new(open, function(code, _, err)
       self._tasks[task] = nil

@@ -221,30 +221,11 @@ private let setTextBody: lua_CFunction = { L in
   return 0
 }
 
-// How every surface comes and goes, the kit's motion tokens, { open, close, rise, scale, paneOpen,
-// paneClose, paneFade, reshape, openCurve, closeCurve, paneCurve, paneCloseCurve, reshapeCurve }, each curve four control point numbers. A field left out keeps
-// what Motion holds.
+// How every surface comes and goes, the kit's motion tokens, read by Motion.apply in Fields.swift.
 private let setMotion: lua_CFunction = { L in
   let reader = LuaReader(L)
   guard reader.isTable(1) else { return 0 }
-  func curve(_ name: String) -> CAMediaTimingFunction? {
-    var p: [Float] = []
-    reader.each(1, name) { e in if let v = reader.number(at: e) { p.append(Float(v)) } }
-    return p.count == 4 ? CAMediaTimingFunction(controlPoints: p[0], p[1], p[2], p[3]) : nil
-  }
-  if let v = reader.number(1, "open") { Motion.openDuration = CFTimeInterval(v) }
-  if let v = reader.number(1, "close") { Motion.closeDuration = CFTimeInterval(v) }
-  if let v = reader.number(1, "rise") { Motion.rise = v }
-  if let v = reader.number(1, "scale") { Motion.scale = v }
-  if let v = reader.number(1, "paneOpen") { Motion.paneOpenDuration = CFTimeInterval(v) }
-  if let v = reader.number(1, "paneClose") { Motion.paneCloseDuration = CFTimeInterval(v) }
-  if let v = reader.number(1, "paneFade") { Motion.paneFadeDuration = CFTimeInterval(v) }
-  if let v = reader.number(1, "reshape") { Motion.reshapeDuration = CFTimeInterval(v) }
-  if let c = curve("openCurve") { Motion.openCurve = c }
-  if let c = curve("closeCurve") { Motion.closeCurve = c }
-  if let c = curve("paneCurve") { Motion.paneCurve = c }
-  if let c = curve("paneCloseCurve") { Motion.paneCloseCurve = c }
-  if let c = curve("reshapeCurve") { Motion.reshapeCurve = c }
+  Motion.apply(LuaFields(reader, 1))
   return 0
 }
 

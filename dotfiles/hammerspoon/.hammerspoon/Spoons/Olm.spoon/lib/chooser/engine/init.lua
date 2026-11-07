@@ -234,9 +234,26 @@ Engine.__index = Engine
 
 -- Resolves the kit's tokens for the half the system is on now, the same moment the old theme
 -- pick ran, so a light and dark switch is picked up at the next open rather than mid session.
-function Engine:_selectTheme()
-  self._tokens = UI.tokens()
+function Engine:_selectTheme(half)
+  self._tokens = half and UI.tokensFor(half) or UI.tokens()
   self._type = typeOf(self._tokens)
+end
+
+--- Engine colon describe, arity two. Runs the view's restyle and place for the half named, "dark"
+--- or "light", on a screen of the frame given, exactly as a show would, and shows nothing, then
+--- puts the current half back. It is how Olm.app is handed the look this engine would draw, see
+--- look in providers/swift/init.lua, so the view's own tables stay the one description of it.
+function Engine:describe(half, screenFrame)
+  self:_selectTheme(half)
+  self.view:restyle()
+  local rects = geometry.resolve(screenFrame, self:_shapedLayout(), nil)
+  local saved = self._rects
+  self._rects = rects
+  self:_updateDrawLayout()
+  self.view:place(rects)
+  self._rects = saved
+  if saved then self:_updateDrawLayout() end
+  self:_selectTheme()
 end
 
 -- The display this open should appear on, config.screen called once per show, falling back to

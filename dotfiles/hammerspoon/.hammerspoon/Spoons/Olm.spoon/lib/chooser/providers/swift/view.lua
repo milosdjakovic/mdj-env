@@ -701,6 +701,13 @@ function View:bottomBarHeight(tokens)
   return bottomBarLib.height(tokens) + 2 * bottomBarLib.padding(tokens) + tokens.pad
 end
 
+--- M.detached(engine, native) answers a view with no panel and no place among the views the
+--- callback finds, over a native table that only records what it is handed. look in init.lua runs
+--- restyle and place on one through Engine colon describe, so Olm.app is handed these very tables.
+function M.detached(engine, native)
+  return setmetatable({ engine = engine, native = native, id = 0, _sentRows = nil, _icons = {}, _tints = {} }, View)
+end
+
 --- M.new(engine, native) answers a view for one engine instance, with a panel of its own, built
 --- and not yet placed or shown.
 function M.new(engine, native)

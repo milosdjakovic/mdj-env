@@ -6,6 +6,7 @@
 //   olm-fixtures DIR    every fixture file under DIR, test/fixtures in the spoon
 
 import Foundation
+import OlmLook
 import OlmSearch
 
 var failures = 0, passed = 0, skipped = 0
@@ -155,9 +156,49 @@ func runCorpus(_ file: String, _ doc: [String: Any]) {
   }
 }
 
+// A rectangle as the fixtures write one, under only where it is set.
+func rectFields(_ r: LayoutRect?) -> Any {
+  guard let r else { return NSNull() }
+  var out: [String: Any] = ["x": r.x, "y": r.y, "w": r.w, "h": r.h]
+  if let under = r.under { out["under"] = under }
+  return out
+}
+
+func rect(_ v: Any?) -> LayoutRect {
+  let d = v as? [String: Any] ?? [:]
+  func n(_ k: String) -> Double { (d[k] as? NSNumber)?.doubleValue ?? 0 }
+  return LayoutRect(x: n("x"), y: n("y"), w: n("w"), h: n("h"))
+}
+
+func runGeometry(_ file: String, _ doc: [String: Any]) {
+  let base = doc["layout"] as? [String: Any] ?? [:]
+  for case let c as [String: Any] in (doc["cases"] as? [Any]) ?? [] {
+    let name = c["name"] as? String ?? "?"
+    var fields = base
+    for (k, v) in c["layout"] as? [String: Any] ?? [:] { fields[k] = v }
+    var width = PreviewPaneWidth.none
+    if let n = c["previewPaneWidth"] as? NSNumber {
+      width = CFGetTypeID(n) == CFBooleanGetTypeID() ? (n.boolValue ? .list : .none) : .points(n.doubleValue)
+    }
+    let r = Geometry.resolve(screen: rect(c["screen"]), layout: ChooserLayout(fields), previewPaneWidth: width)
+    let got: [String: Any] = [
+      "canvas": rectFields(r.canvas), "field": rectFields(r.field), "list": rectFields(r.list),
+      "previewPane": rectFields(r.previewPane), "bottomBar": rectFields(r.bottomBar),
+      "rowCount": r.rowCount, "viewRows": r.viewRows,
+    ]
+    var ok = true
+    for (key, want) in (c["expect"] as? [String: Any]) ?? [:] where !same(got[key], want) {
+      fail(file, name, "\(key) wanted \(show(want)), got \(show(got[key]))")
+      ok = false
+    }
+    if ok { passed += 1 }
+  }
+}
+
 let runners: [String: (String, [String: Any]) -> Void] = [
   "filesearch.parse": runParse,
   "filesearch.narrows": runNarrows,
+  "chooser.geometry": runGeometry,
   "rank.order": runOrder,
   "rank.corpus": runCorpus,
 ]

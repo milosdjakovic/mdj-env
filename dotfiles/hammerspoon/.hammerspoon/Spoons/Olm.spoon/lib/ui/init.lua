@@ -64,6 +64,11 @@ function ui.tokens()
   return style.tokens()
 end
 
+--- ui.tokensFor(half) -> the resolved token table for the half named, "dark" or "light".
+function ui.tokensFor(half)
+  return style.tokensFor(half)
+end
+
 --- ui.half() -> "dark" | "light", which half the system is on now, without building tokens.
 function ui.half()
   return style.half()

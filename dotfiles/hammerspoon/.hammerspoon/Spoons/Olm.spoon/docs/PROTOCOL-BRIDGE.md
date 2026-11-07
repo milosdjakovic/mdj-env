@@ -553,7 +553,7 @@ The pilot, stage 1, reaches the app before any bridge exists, through URLs Hamme
 
 | URL | What the app does |
 |---|---|
-| `olm://filesearch?query=TEXT` | shows its file search with TEXT in the input field |
+| `olm://filesearch?screen=MODE&query=TEXT` | shows its file search with TEXT in the input field, on the screen MODE names, `activeWindow` or `cursor`, Olm's placement choice at the press, the active window's screen when it is left out |
 | `olm://launcher?query=TEXT` | shows its launcher, from step 3.2 |
 | `olm://ping?nonce=N` | writes N and the time to `~/.olm/run/ping`, the test step 1.1 names |
 

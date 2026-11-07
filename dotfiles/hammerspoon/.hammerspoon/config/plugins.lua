@@ -102,6 +102,6 @@ return {
   bridge = { data = {
     pieces = require("config.machine").pieces,
     serves = { "fileSearch" },
-    shares = { filesearch = { types = filesearch.types, limits = filesearch.limits } },
+    shares = { filesearch = { types = filesearch.types, limits = filesearch.limits, placeholder = filesearch.placeholder } },
   } },
 }

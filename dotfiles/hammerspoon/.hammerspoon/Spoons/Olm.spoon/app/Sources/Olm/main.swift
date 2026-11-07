@@ -43,8 +43,8 @@ enum Ping {
 // lists comes from FileSearchEngine in OlmSearch, which parses, asks the index and ranks off the
 // main thread, so this class only hands the panel what the engine answered. Return opens the
 // highlighted file, Command and Return shows it in Finder, and either closes the list. It hides on
-// Escape, on a press outside it and when it loses key. The layout is fixed here, the engine's
-// geometry on the Lua side being Lua's.
+// Escape, on a press outside it and when it loses key. How it looks and where it stands is the swift
+// chooser's own, Look.swift, handed over by the bridge.
 //
 // The settings, file search's types and limits, are the ones config/filesearch.lua holds. The
 // bridge host writes them to ~/.olm/run/filesearch.json on every load where the olmapp piece is
@@ -62,40 +62,45 @@ final class FileSearch: ChooserSource {
   init() {
     let helper = Bundle.main.resourceURL?.appendingPathComponent("fileindex").path ?? "fileindex"
     let index = Self.home + "/.olm/cache/filesearch/file-index.txt"
-    engine = FileSearchEngine(index: FileIndex(helper: helper, index: index), settings: Self.settings())
+    engine = FileSearchEngine(index: FileIndex(helper: helper, index: index), settings: Self.settings().0)
   }
 
-  private lazy var panel: ChooserPanel = {
-    let panel = ChooserPanel(source: self)
-    var style = Style()
-    style.radius = 18
-    style.highlightRadius = 10
-    style.fieldFont = NSFont.systemFont(ofSize: 22)
-    style.titleFont = NSFont.systemFont(ofSize: 14)
-    style.subFont = NSFont.systemFont(ofSize: 12)
-    panel.applyStyle(style)
-    return panel
-  }()
+  private lazy var panel = ChooserPanel(source: self)
+  // The swift chooser's look as the bridge last wrote it, read on every show, Look.swift.
+  private var look: Look?
+  private var placeholder = ""
+  private var text = ""
 
-  // config/filesearch.lua's types and limits, as the bridge wrote them, or the Lua defaults.
-  private static func settings() -> FileSearchSettings {
+  // config/filesearch.lua's types, limits and placeholder, as the bridge wrote them, or the Lua
+  // defaults.
+  private static func settings() -> (FileSearchSettings, String) {
     var settings = FileSearchSettings()
     let url = URL(fileURLWithPath: home + "/.olm/run/filesearch.json")
     guard let data = try? Data(contentsOf: url),
-      let doc = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return settings }
+      let doc = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return (settings, "") }
     if let types = doc["types"] as? [String: [String]] { settings.types = types }
     let limits = doc["limits"] as? [String: Any] ?? [:]
     if let n = limits["retainCap"] as? Int { settings.retainCap = n }
     if let n = limits["minChars"] as? Int { settings.minChars = n }
     if let n = limits["recentDays"] as? Int { settings.recentDays = n }
     if let n = limits["recentCount"] as? Int { settings.recentCount = n }
-    return settings
+    return (settings, doc["placeholder"] as? String ?? "")
   }
 
-  func show(query: String) {
-    engine.settings = Self.settings()
+  // screen is the placement choice the URL carried, lib/overlaydisplay.lua's mode.
+  func show(query: String, screen mode: String? = nil) {
+    (engine.settings, placeholder) = Self.settings()
     engine.reset()
-    panel.place(Self.placement())
+    look = Look.read()
+    if let look, let screen = Look.screen(for: mode) {
+      panel.applyStyle(look.style())
+      panel.place(look.placement(on: screen))
+    } else {
+      // No look has been written yet, so the panel draws on its own defaults until Hammerspoon
+      // loads with the piece on.
+      NSLog("Olm: no chooser look at %@, the panel's defaults are used", Look.path)
+      panel.place(Self.placement())
+    }
     rows = []
     panel.setRows([])
     apply(status: nil)
@@ -112,6 +117,7 @@ final class FileSearch: ChooserSource {
   }
 
   private func search(_ text: String) {
+    self.text = text
     engine.query(text) { [weak self] answer in
       guard let self else { return }
       // The same files in the same order are left as they are drawn, so a keystroke that does
@@ -125,12 +131,17 @@ final class FileSearch: ChooserSource {
     }
   }
 
+  // The state the Lua view sends, providers/swift/view.lua's redraw. The first nine rows carry
+  // Command and their digit wherever the list scrolls, the selected row Return, and a typed query
+  // with no rows says so in the canvas view's words, or the engine's status where it has one.
   private func apply(status: String?) {
     var state = ViewState()
-    state.placeholder = "Search Files"
+    state.placeholder = placeholder
     state.highlight = highlight
-    state.empty = rows.isEmpty
-    state.emptyText = status ?? ""
+    state.lineBreak = look?.lineBreak ?? .byTruncatingTail
+    if look?.showNumbers == true, !rows.isEmpty { state.slots = Array(1...min(9, rows.count)) }
+    state.empty = rows.isEmpty && (status != nil || !text.isEmpty)
+    state.emptyText = status ?? "No results"
     panel.update(state)
   }
 
@@ -181,6 +192,13 @@ final class FileSearch: ChooserSource {
       guard case .bytes(let data)? = args.first,
         let event = CGEvent(withDataAllocator: nil, data: data as CFData) else { return false }
       let code = event.getIntegerValueField(.keyboardEventKeycode)
+      // Command and a digit opens the row in that slot, as the engine's _chooseSlot does, where
+      // the list shows its numbers.
+      if event.flags.contains(.maskCommand), look?.showNumbers == true,
+        let slot = Self.digitKeys.firstIndex(of: code) {
+        act(on: slot + 1, reveal: false)
+        return true
+      }
       guard code == 36 || code == 76 else { return false }
       act(on: highlight, reveal: event.flags.contains(.maskCommand))
       return true
@@ -190,7 +208,10 @@ final class FileSearch: ChooserSource {
     return false
   }
 
-  // A chooser 680 points wide a fifth of the way down the screen under the pointer, in
+  // The digit keys one through nine, as virtual key codes.
+  private static let digitKeys: [Int64] = [18, 19, 20, 21, 23, 22, 26, 28, 25]
+
+  // Only while no look has been written. A chooser 680 points wide a fifth of the way down the screen under the pointer, in
   // Hammerspoon's space, y measured down from the top of the primary screen, which is what the
   // panel is placed in. Eight rows show at once.
   private static func placement() -> Placement {
@@ -242,7 +263,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Ping.answer(nonce)
       } else if url.scheme == "olm", url.host == "filesearch" {
         let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
-        fileSearch.show(query: items?.first(where: { $0.name == "query" })?.value ?? "")
+        fileSearch.show(query: items?.first(where: { $0.name == "query" })?.value ?? "",
+          screen: items?.first(where: { $0.name == "screen" })?.value)
       } else {
         NSLog("Olm: an olm URL this app does not know, %@", url.absoluteString)
       }

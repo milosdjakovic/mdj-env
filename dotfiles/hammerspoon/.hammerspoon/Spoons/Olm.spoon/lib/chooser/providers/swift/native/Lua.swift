@@ -154,68 +154,37 @@ struct LuaReader {
 
 // MARK: The model, built from the tables the Lua view hands over
 
-extension Style {
+// A table on the Lua stack read through Fields.swift's one list of field names, so the panel here
+// and Olm.app, which reads the same fields out of JSON, read a look alike.
+struct LuaFields: Fields {
+  let r: LuaReader
+  let t: Int32
+
   init(_ r: LuaReader, _ t: Int32) {
-    text = r.color(t, "text") ?? text
-    textDim = r.color(t, "textDim") ?? textDim
-    sub = r.color(t, "sub") ?? sub
-    subDim = r.color(t, "subDim") ?? subDim
-    highlight = r.color(t, "highlight") ?? highlight
-    number = r.color(t, "number") ?? number
-    background = r.color(t, "background") ?? background
-    caption = r.color(t, "caption") ?? caption
-    badge = r.color(t, "badge") ?? badge
-    keycap = r.color(t, "keycap") ?? keycap
-    fieldFont = r.font(t, "fieldFont") ?? fieldFont
-    titleFont = r.font(t, "titleFont") ?? titleFont
-    subFont = r.font(t, "subFont") ?? subFont
-    numberFont = r.font(t, "numberFont") ?? numberFont
-    captionFont = r.font(t, "captionFont") ?? captionFont
-    keycapFont = r.font(t, "keycapFont") ?? keycapFont
-    rowKeyFont = r.font(t, "rowKeyFont") ?? rowKeyFont
-    let numbers = r.chord(t, "numberKeys")
-    if !numbers.isEmpty { numberKeys = numbers }
-    let ret = r.chord(t, "returnKey")
-    if !ret.isEmpty { returnKey = ret }
-    radius = r.number(t, "radius") ?? radius
-    highlightRadius = r.number(t, "highlightRadius") ?? highlightRadius
+    self.r = r
+    self.t = r.absolute(t)
+  }
+
+  func number(_ name: String) -> CGFloat? { r.number(t, name) }
+  func bool(_ name: String) -> Bool? { r.bool(t, name) }
+  func string(_ name: String) -> String? { r.string(t, name) }
+  func color(_ name: String) -> NSColor? { r.color(t, name) }
+  func font(_ name: String) -> NSFont? { r.font(t, name) }
+  func rect(_ name: String) -> NSRect? { r.rect(t, name) }
+  func chord(_ name: String) -> [[KeyMark]] { r.chord(t, name) }
+  func numbers(_ name: String) -> [Double] {
+    var out: [Double] = []
+    r.each(t, name) { e in if let v = r.number(at: e) { out.append(v) } }
+    return out
   }
 }
 
+extension Style {
+  init(_ r: LuaReader, _ t: Int32) { self.init(LuaFields(r, t)) }
+}
+
 extension Placement {
-  init(_ r: LuaReader, _ t: Int32) {
-    canvas = r.rect(t, "canvas") ?? canvas
-    window = r.rect(t, "window")
-    listFrame = r.rect(t, "listFrame")
-    paneFrame = r.rect(t, "paneFrame")
-    previewPane = r.rect(t, "previewPane")
-    field = r.rect(t, "field")
-    list = r.rect(t, "list")
-    bottomBar = r.rect(t, "bottomBar")
-    rowH = max(1, r.number(t, "rowH") ?? rowH)
-    iconSize = r.number(t, "iconSize") ?? iconSize
-    iconFrame = r.number(t, "iconFrame") ?? iconSize
-    iconPad = r.number(t, "iconPad") ?? iconPad
-    iconPadLeft = r.number(t, "iconPadLeft") ?? iconPadLeft
-    iconGap = r.number(t, "iconGap") ?? iconGap
-    padX = r.number(t, "padX") ?? padX
-    numW = r.number(t, "numW") ?? numW
-    padBottom = r.number(t, "padBottom") ?? padBottom
-    pad = r.number(t, "pad") ?? pad
-    showNumbers = r.bool(t, "showNumbers") ?? showNumbers
-    barInset = r.number(t, "barInset") ?? barInset
-    barGap = r.number(t, "barGap") ?? barGap
-    barGapWide = r.number(t, "barGapWide") ?? barGapWide
-    infoIcon = r.number(t, "infoIcon") ?? infoIcon
-    keysPad = r.number(t, "keysPad") ?? keysPad
-    barPad = r.number(t, "barPad") ?? barPad
-    barPillH = r.number(t, "barPillH") ?? barPillH
-    barPillPad = r.number(t, "barPillPad") ?? barPillPad
-    keycapH = r.number(t, "keycapH") ?? keycapH
-    keycapPadX = r.number(t, "keycapPadX") ?? keycapPadX
-    keycapGap = r.number(t, "keycapGap") ?? keycapGap
-    keycapOr = r.string(t, "keycapOr") ?? keycapOr
-  }
+  init(_ r: LuaReader, _ t: Int32) { self.init(LuaFields(r, t)) }
 }
 
 extension Row {

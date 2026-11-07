@@ -943,6 +943,15 @@ would take key from this panel. The swift provider loads its own copy of the eng
 provider's copy keeps the hold for the fallback. Whether typing reaches the panel while another
 application holds secure input is measured live, not assumed.
 
+Olm.app draws with this chooser's look, `docs/PLAN-STANDALONE.md` rule 9. `M.look` builds an
+engine over a view whose native table only records, `View.detached`, and has it describe each half,
+`Engine:describe`, which runs the restyle and the place a show runs and shows nothing. The bridge
+writes the result to `~/.olm/run/chooser.json`. `native/Fields.swift` is the one list of field names
+a style, a placement and the motion are read by, through `LuaFields` here and `JSONFields` in the
+app, so a field added to `restyle` or `place` is added there once and both sides read it. The app
+places the rectangles with its port of `geometry.resolve`, which `test/fixtures/chooser/geometry.json`
+pins, so a change to that file's arithmetic records the fixture again and the app's port follows.
+
 To try it, set `chooser.provider` to `chooserProviders.swift` in `config/settings.lua` and reload,
 then reload once more when the console says the library is built. The shipped value stays
 `default`. `test/swiftview.lua` drives the Lua view under the engine over a fake library and pins

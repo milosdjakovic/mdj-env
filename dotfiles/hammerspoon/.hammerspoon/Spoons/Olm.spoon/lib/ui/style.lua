@@ -382,7 +382,13 @@ function M.new(opts)
   --- caller that changes one, a colour or a text variant, copies that group first. The light
   --- half falls back to the dark half's colours when the spec gives no light colours.
   function instance.tokens()
-    local half = instance.half()
+    return instance.tokensFor(instance.half())
+  end
+
+  --- instance.tokensFor(half) -> the resolved token table for the half named, "dark" or "light",
+  --- whichever half the system is on. Olm.app is handed both halves, docs/PLAN-STANDALONE.md, so
+  --- it can follow the system's switch with no Lua running.
+  function instance.tokensFor(half)
     local built = cache[half]
     if not built then
       built = instance._build(half)

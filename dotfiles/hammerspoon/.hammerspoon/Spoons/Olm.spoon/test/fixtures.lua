@@ -20,6 +20,9 @@
 --   filesearch.parse    a typed query through plugins/filesearch/query.lua's parse, with the
 --                  file's own types table, expecting each field named, a field left out unchecked.
 --   filesearch.narrows  two typed queries, expecting sameShape and narrows between their parses.
+--   chooser.geometry  a screen frame, a previewPaneWidth and layout fields over the file's layout,
+--                  through lib/chooser/providers/default/geometry.lua's resolve, expecting every
+--                  rectangle it answers, the row count and the rows the viewport holds.
 --   calls          calls an existing test made into a module, recorded by fixtures-record.lua,
 --                  each replayed and its answer compared, see fixtures-encode.lua for the shape.
 --
@@ -58,6 +61,7 @@ local rank = assert(loadfile(spoon .. "lib/chooser/rank.lua"))()
 local Q = assert(loadfile(spoon .. "lib/queryassoc.lua"))()
 local Launcher = assert(loadfile(spoon .. "host/launcher/init.lua"))()
 local fsquery = assert(loadfile(spoon .. "plugins/filesearch/query.lua"))()
+local geometry = assert(loadfile(spoon .. "lib/chooser/providers/default/geometry.lua"))()
 local enc = assert(loadfile(here .. "fixtures-encode.lua"))()
 enc.use(json, assert(loadfile(spoon .. "lib/kbd.lua"))())
 
@@ -331,6 +335,26 @@ local function runNarrows(case, file)
   return problems
 end
 
+local function runGeometry(case, file)
+  local layout = plain(file.layout)
+  for k, v in pairs(plain(case.layout) or {}) do layout[k] = v end
+  local pp = case.previewPaneWidth
+  if pp == null then pp = nil end
+  local got = geometry.resolve(plain(case.screen), layout, pp)
+  local problems = {}
+  local names = {}
+  for k in pairs(case.expect) do names[#names + 1] = k end
+  table.sort(names)
+  for _, k in ipairs(names) do
+    local want = case.expect[k]
+    if want ~= null then want = plain(want) end
+    if not same(got[k], want) then
+      problems[#problems + 1] = k .. " wanted " .. show(case.expect[k]) .. ", got " .. show(got[k])
+    end
+  end
+  return problems
+end
+
 --------------------------------------------------------------------------------
 -- calls.
 --------------------------------------------------------------------------------
@@ -366,6 +390,7 @@ local KINDS = {
   calls = function(case) return runCall(case) end,
   ["filesearch.parse"] = runParse,
   ["filesearch.narrows"] = runNarrows,
+  ["chooser.geometry"] = runGeometry,
   ["rank.order"] = function(case) return runOrder(case) end,
   queryassoc = function(case) return runSteps(case, false) end,
   launcher = function(case) return runSteps(case, true) end,

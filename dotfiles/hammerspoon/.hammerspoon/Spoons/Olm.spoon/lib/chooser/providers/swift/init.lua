@@ -72,7 +72,7 @@ local swiftbuild = load("../../../swiftbuild.lua")
 
 -- The Swift sources and the bridging header, in the order the compiler is handed them.
 local NATIVE_DIR = herePath .. "native/"
-local SOURCES = { "Lua.swift", "Source.swift", "Model.swift", "Surface.swift", "Motion.swift", "List.swift", "Bar.swift", "FloatingPane.swift", "Panel.swift",
+local SOURCES = { "Fields.swift", "Lua.swift", "Source.swift", "Model.swift", "Surface.swift", "Motion.swift", "List.swift", "Bar.swift", "FloatingPane.swift", "Panel.swift",
   "Pane.swift", "Perf.swift", "Entry.swift" }
 local HEADER = "bridge.h"
 
@@ -83,6 +83,9 @@ local OPEN_SYMBOL = "luaopen_olm_swiftchooser"
 -- The provider served while the library is not loaded, and the loaded library once it is.
 local FALLBACK = nil
 local NATIVE = nil
+
+-- The UI kit configure was handed, which look reads the motion from.
+local UIKIT = nil
 
 -- The logger configure was handed, for the pane backend's one line per element it cannot draw.
 local LOG = nil
@@ -181,6 +184,7 @@ end
 
 function M.configure(opts)
   opts = opts or {}
+  if opts.ui ~= nil then UIKIT = opts.ui end
   if opts.fallback ~= nil then FALLBACK = opts.fallback end
   if opts.log ~= nil then LOG = opts.log end
   Engine.configure({ ui = opts.ui, yields = opts.yields, listKeys = opts.listKeys,
@@ -231,6 +235,43 @@ function M.perf(action)
   if action == "start" then return NATIVE.perfStart() end
   if action == "read" then return NATIVE.perfRead() end
   if action == "stop" then return NATIVE.perfStop() end
+end
+
+-- The screen look describes on. Olm.app works out every rectangle for its own screen from the
+-- layout, so only the sizes the view hands over are kept, and they do not depend on the screen.
+local LOOK_SCREEN = { x = 0, y = 0, w = 1920, h = 1200 }
+
+--- M.look(config) -> the look Olm.app draws a list with, docs/PLAN-STANDALONE.md, or nil and why.
+--- An engine is built over config, as Chooser.new would, under a view that records the tables it
+--- hands the native panel rather than drawing, and asked to describe each half. So the look is
+--- what restyle and place send the panel here, never a second description of it.
+---   style    { dark = t, light = t }, each the table restyle hands native.style
+---   metrics  the sizes place hands native.place, every rectangle left out
+---   layout   the engine's layout, which the app's port of geometry.resolve places by
+---   motion   the kit's motion, which attach hands native.setMotion
+--- It needs neither the library nor a screen, so it answers whichever chooser serves.
+function M.look(config)
+  if not UIKIT then return nil, "the provider was configured without the UI kit" end
+  local seen = {}
+  local recorder = {
+    new = function() return 0 end,
+    setFieldKeys = function() end,
+    style = function(_, t) seen.style = t end,
+    place = function(_, t) seen.place = t end,
+  }
+  local ok, engine = pcall(Engine.new, config or {}, function(e) return SwiftView.detached(e, recorder) end)
+  if not ok then return nil, tostring(engine) end
+  local look = { style = {}, layout = {}, metrics = {}, motion = UIKIT.tokens().motion }
+  for k, v in pairs(engine.layout) do look.layout[k] = v end
+  for _, half in ipairs({ "dark", "light" }) do
+    local described, why = pcall(engine.describe, engine, half, LOOK_SCREEN)
+    if not described then return nil, tostring(why) end
+    look.style[half] = seen.style
+  end
+  for k, v in pairs(seen.place or {}) do
+    if type(v) ~= "table" then look.metrics[k] = v end
+  end
+  return look
 end
 
 --- M.new(config) answers an instance satisfying lib/chooser/contract.lua, the engine over the

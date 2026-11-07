@@ -13,13 +13,16 @@ let package = Package(
   targets: [
     .executableTarget(
       name: "Olm",
-      dependencies: ["OlmSearch", .product(name: "OlmChooser", package: "swift")],
+      dependencies: ["OlmSearch", "OlmLook", .product(name: "OlmChooser", package: "swift")],
       path: "Sources/Olm"
     ),
     // The app's search, ported from the Lua side one part at a time, each part checked against
     // the shared fixtures by olm-fixtures before the app uses it, step 1.3 of the plan.
     .target(name: "OlmSearch", path: "Sources/OlmSearch"),
-    .executableTarget(name: "olm-fixtures", dependencies: ["OlmSearch"], path: "Sources/olm-fixtures"),
+    // Where a chooser stands on a screen, ported from the Lua so the app's list stands where the
+    // swift chooser's does, test/fixtures/chooser/geometry.json.
+    .target(name: "OlmLook", path: "Sources/OlmLook"),
+    .executableTarget(name: "olm-fixtures", dependencies: ["OlmSearch", "OlmLook"], path: "Sources/olm-fixtures"),
     .executableTarget(name: "olm-index-check", dependencies: ["OlmSearch"], path: "Sources/olm-index-check"),
   ]
 )

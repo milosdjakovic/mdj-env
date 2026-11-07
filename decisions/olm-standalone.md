@@ -33,6 +33,11 @@ list, and until then that list stays on Lua.
   The plan as first written flipped at 1.3f, with the preview pane, thumbnails, Quick Look,
   frecency and the folder search still to come in 1.4. Milos turned it down, every feature must be
   kept as the plan moves.
+- **Writing the app's chooser look again in Swift.** 2026-11-08 00:58. The 1.3d window was drawn on
+  sizes and fonts typed into the app by guess, and Milos saw the difference at once. A second copy
+  of the look, however carefully matched, drifts the first time a setting, the theme or the
+  typography changes. The app is handed the Lua view's own tables instead, until the app owns the
+  look outright in a later stage.
 - **An app picker provider beside default, swift and legacy.** 2026-11-05 14:37. It would keep the
   Lua engine and put the view in another process, which is the helper process
   `decisions/olm-swift-chooser.md` turned down on 2026-10-27, since the picker contract asks
@@ -216,3 +221,12 @@ list, and until then that list stays on Lua.
   moves. That is rule 9 of the plan now. 1.3f keeps its timings and trial and loses the flip,
   1.4e adds the folder search, 1.4f the bottom bar, the actions and info panes and the remaining
   keys, and 1.5 checks every feature against a written list before the flip.
+- 2026-11-08 00:58. The 1.3d second trial passed, the icons steady and Command and Return revealing
+  the file. Milos said he does not want to see a difference in the core's UI, so the look is part
+  of rule 9. The app's chooser now draws with the swift chooser's own style and sizes, which the
+  swift provider's look builds by running the Lua view's restyle and place against a recording
+  native table for each half, and the bridge writes to `~/.olm/run/chooser.json`. Both
+  Hammerspoon's panel and the app read those tables through one field list, `native/Fields.swift`,
+  and the app places them with a port of `geometry.resolve` pinned by a recorded fixture. Writing
+  the look again in Swift was not done, since two descriptions of one look drift. The open key's
+  URL now carries Olm's placement choice, since it changes with no reload.

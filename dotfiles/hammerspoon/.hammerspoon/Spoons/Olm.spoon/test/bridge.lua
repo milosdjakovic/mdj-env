@@ -73,6 +73,15 @@ eq(#started, 1, "the key starts one task")
 local t = started[1] or { args = {} }
 eq(t.path, "/usr/bin/open", "the task runs open")
 eq(table.concat(t.args, " "), "-g -a " .. APP .. " olm://filesearch?query=", "open hands the URL to the app in the background")
+b:placeWith(function() return "cursor" end)
+run()
+eq(started[2] and started[2].args[4], "olm://filesearch?screen=cursor&query=", "the placement choice is asked at the press")
+b:placeWith(function() return "not a word!" end)
+run()
+eq(started[3] and started[3].args[4], "olm://filesearch?query=", "a choice that is not a word is left out")
+b:placeWith(function() error("boom") end)
+run()
+eq(started[4] and started[4].args[4], "olm://filesearch?query=", "a choice that raises is left out")
 eq(b._tasks[t], true, "the task's handle is kept while it runs")
 t.done(0, "", "")
 eq(b._tasks[t], nil, "and let go when it ends")
@@ -87,6 +96,25 @@ local f = io.open(run .. "/filesearch.json")
 eq(f and f:read("a"), '{"types":t}', "olmapp on writes each share as its name")
 if f then f:close() end
 eq(io.open(run .. "/../x.json") == nil, true, "a share name that is not a plain word is not written")
+
+-- A share the root builds is asked for only where the piece is on, and a nil answer is said once.
+local asked = 0
+b = fresh({ pieces = { olmapp = "off" }, deps = deps, app = APP, run = run })
+b:share("chooser", function() asked = asked + 1; return { types = {} } end)
+eq(asked, 0, "olmapp off never builds a share")
+b = fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run })
+b:share("chooser", function() asked = asked + 1; return { types = {} } end)
+eq(asked, 1, "olmapp on builds it once")
+f = io.open(run .. "/chooser.json")
+eq(f and f:read("a"), '{"types":t}', "and writes it as its name")
+if f then f:close() end
+said = {}
+b:share("look", function() return nil, "no kit" end)
+b:share("look", function() return nil, "no kit" end)
+eq(io.open(run .. "/look.json") == nil, true, "a share that answers nil is not written")
+eq(#said, 1, "its reason is said once")
+b:share("raises", function() error("boom") end)
+eq(io.open(run .. "/raises.json") == nil, true, "a share that raises is not written")
 os.execute("rm -rf '" .. run .. "'")
 
 print(string.format("bridge: %d checks, %d failed", checks, failures))

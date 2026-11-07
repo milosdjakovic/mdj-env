@@ -134,10 +134,12 @@ hs = {
 local function color(v) return { red = v, green = v, blue = v, alpha = 1 } end
 local function role(c) return { font = "UI", size = 14, lineHeight = 18, color = c } end
 
-local UI = {
-  tokens = function()
+local UI
+UI = {
+  tokens = function(half)
     return {
-      colors = { foreground = color(0.9), subtext = color(0.6), highlight = color(0.3),
+      motion = { open = 0.2 },
+      colors = { foreground = color(half == "light" and 0.05 or 0.9), subtext = color(0.6), highlight = color(0.3),
         background = color(0.1), border = color(0.45) },
       text = { title = role("foreground"), body = role("foreground"), caption = role("subtext"),
         section = role("subtext"), code = role("foreground") },
@@ -150,6 +152,7 @@ local UI = {
       badge = { hint = { height = 20, padX = 6, gap = 2, text = "code" } },
     }
   end,
+  tokensFor = function(half) return UI.tokens(half) end,
   nestedRadius = function(outer, gap) return math.max(0, outer - gap) end,
   keycapColor = function(T)
     local c = T.colors.foreground
@@ -166,6 +169,7 @@ local lastPlace, lastRows, lastUpdate = nil, nil, nil
 local native = {}
 local function record(name) calls[#calls + 1] = name end
 function native.setCallback(fn) callback = fn end
+function native.setMotion() end
 function native.new() return 7 end
 local lastStyle = nil
 function native.style(_, t) record("style"); lastStyle = t end
@@ -699,6 +703,29 @@ check("the pane's region runs to the bottom", lastPlace.paneFrame.y + lastPlace.
 check("the preview pane is as tall as the pane's region", br.previewPane.h, lastPlace.paneFrame.h)
 check("and the bar covers its bottom", br.previewPane.under, lastPlace.bottomBar.h)
 barred:hide()
+
+-- The look Olm.app is handed is what this view sends the panel, each half's style, the sizes with
+-- no rectangle, and the layout the rectangles come from, and building it shows nothing and
+-- leaves no view behind for the callback to find.
+do
+  local LookProvider = dofile(spoon .. "lib/chooser/providers/swift/init.lua")
+  check("look with no kit says why", select(2, LookProvider.look({})) ~= nil, true)
+  LookProvider.configure({ ui = UI, fallback = fallback, log = log })
+  local before = #calls
+  local look = LookProvider.look({ bottomBar = function() return nil end })
+  check("look answers", type(look), "table")
+  look = look or { style = {}, metrics = {}, layout = {} }
+  check("look draws nothing on the panel", #calls, before)
+  check("the dark half is the dark tokens", look.style.dark and look.style.dark.text.red, 0.9)
+  check("the light half is the light tokens", look.style.light and look.style.light.text.red, 0.05)
+  check("a half carries the fonts", look.style.dark and look.style.dark.titleFont.size, 14)
+  check("the sizes are place's", look.metrics.rowH, look.layout.rowH)
+  check("no rectangle is kept", look.metrics.canvas, nil)
+  check("the layout has the bar's height", (look.layout.bottomBarH or 0) > 0, true)
+  check("the layout spans the bar", look.layout.bottomBarSpan, true)
+  check("the motion comes along", look.motion and look.motion.open, 0.2)
+  check("no view is left for the callback", send("dismiss"), false)
+end
 
 if failed then
   print("swiftview, FAILED")

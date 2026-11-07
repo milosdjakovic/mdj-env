@@ -45,7 +45,8 @@ Stage 1, the file search pilot
   - [x] 1.3b Ranking in Swift, `match.lua` and `rank.lua`, the rule and corpus fixtures passing, 2026-11-07
   - [x] 1.3c The index in the app, the helper's sources searching on background work, 2026-11-07
   - [ ] 1.3d The app's own list, rows ranked as typed, open and reveal
-    Trial on 2026-11-08 passed for typing and Return, the icon flicker it found is fixed, the second trial is open.
+    Trial on 2026-11-08 passed, typing, Return and Command and Return, with the flicker it found fixed.
+    The shared look is built on main, waiting for a trial, so the app's list looks like the swift chooser's.
   - [ ] 1.3e The shadow, both sides answering each query and the differences logged
   - [ ] 1.3f The three timings against the Lua file search, and a trial, with no flip
 - [ ] 1.4a Preview pane, with its scroll keys
@@ -361,7 +362,40 @@ file. Two findings.
 - The window has no preview pane, which is 1.4a. Milos stated rule 9 from this, that no feature is
   lost as the plan moves. 1.3f no longer flips, and 1.4e, 1.4f and 1.5 were added.
 
-Open: a second trial for the flicker fix and for Command and Return.
+Second trial, 2026-11-08. The icons stayed steady, and Command and Return showed the file in
+Finder. Milos asked why the window looked different, and said he does not want to see a
+difference in the core's UI. The app had drawn on sizes, fonts and a corner typed into
+`main.swift` by guess. Built next, the shared look:
+- `look` on the swift provider builds an engine over a view whose native table only records, and
+  asks it to describe each half through `Engine:describe`, the restyle and the place a show runs,
+  with nothing shown. So what the app is handed is the very style and size tables the Lua view
+  sends Hammerspoon's panel, never a second description of them. The kit gained `tokensFor(half)`
+  for it.
+- The bridge writes it to `~/.olm/run/chooser.json` through the new `share`, built only where the
+  piece is on.
+- `native/Fields.swift` is the one list of field names a style, a placement and the motion are
+  read by. Hammerspoon's panel reads them off the Lua stack through `LuaFields` and the app out of
+  the JSON through `JSONFields`, so the two cannot read a look two ways.
+- `OlmLook` ports `geometry.resolve`, pinned by `test/fixtures/chooser/geometry.json`, 16 cases
+  recorded from the Lua answer and checked by both runners. A copy with one value changed fails
+  14 of them in Swift.
+- The open key's URL carries Olm's placement choice at the press, `screen=activeWindow` or
+  `screen=cursor`, since the Placement page changes it with no reload. The app finds the active
+  window's screen through the window list, which needs no grant.
+- The app now shows the row numbers and the Return key cap the Lua list shows. Command and a digit
+  opens that row. A typed query with no rows says No results. The placeholder is file search's,
+  shared with its settings, which is empty today, as the Lua list's is.
+
+Still different, each one its own step: the preview pane, 1.4a. The bottom bar, 1.4f. The app
+keeps the bar's height so its window is the Lua one's size, with its rows running on where the
+bar will stand.
+
+Result: the dry suite, 2124 unit cases, every Swift check and the dependency check pass. Two
+reloads, the first building the changed library while the default chooser served, then swift
+serving with a clean console. A live call of `look` answered both halves, the motion and a layout
+of 480 by rows of 47 with a bar of 56.
+
+Open: the trial of the shared look.
 
 ## Where the facts come from
 
@@ -405,7 +439,10 @@ runs them from programs rather than `swift test`, decided at 1.1. A part moves
    never loses a feature as the plan moves. The app may be tried with fewer features while the
    piece is on for a trial, but the app becomes the daily path only when every feature of what it
    replaces works in it, checked one by one against a written list of those features. A feature
-   the app does not have yet keeps the Lua path, so a flip that would drop one waits.
+   the app does not have yet keeps the Lua path, so a flip that would drop one waits. The core's
+   look is a feature too, stated by Milos the same day. The app's chooser draws with the swift
+   chooser's own style, sizes and placement, handed over by the bridge rather than written again
+   in Swift, so the only difference a trial shows is a part not built yet, each named in its step.
 
 ## How we test
 

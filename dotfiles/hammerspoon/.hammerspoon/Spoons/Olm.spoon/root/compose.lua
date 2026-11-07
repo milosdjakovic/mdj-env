@@ -2819,6 +2819,17 @@ function obj.run(olm, cfg)
         end
       end
     end
+    -- The look Olm.app draws its lists with, the swift chooser's own, handed as the very tables its
+    -- view sends the native panel for each half and the layout they are placed by, so the app's
+    -- list and this one cannot look different. The bridge writes it only where the piece is on.
+    -- The bar's height is in the layout, as the stage's list has one.
+    if bridgeModule and type(bridgeModule.placeWith) == "function" then
+      bridgeModule:placeWith(function() return overlay and overlay.mode() end)
+    end
+    local swift = chooserAtom.providers and chooserAtom.providers.swift
+    if bridgeModule and type(bridgeModule.share) == "function" and swift and swift.look then
+      bridgeModule:share("chooser", function() return swift.look({ bottomBar = function() return nil end }) end)
+    end
   end
 
   -- The binder, the one place a global key is bound. Each row lands on the leader named the way
