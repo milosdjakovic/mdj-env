@@ -648,7 +648,9 @@ is read by a script, run through `hs -q -c "return dofile('<script>')"`, that wr
 `hs.console.getConsole()` to a file in the scratchpad, and the file is grepped. The console
 text is never returned over the port. Each call runs in the background and is killed after a
 few seconds, `( hs -q -c '...' & p=$!; sleep 4; kill $p ) 2>/dev/null`, since an ipc reply can
-go missing and `timeout` is not on this machine. A reload is scheduled rather than called
+go missing and `timeout` is not on this machine. Its stdin is closed, `hs -q -c '...' </dev/null`,
+because `hs` reads commands from a stdin that is no terminal and waits on it, which in a captured
+`$(...)` looks exactly like a call that printed nothing, found on 2026-11-07. A reload is scheduled rather than called
 inline, `hs -q -c 'hs.timer.doAfter(0.2, hs.reload)'`, because a reload called inside the ipc
 request tears down the port that is answering it.
 

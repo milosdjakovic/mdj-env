@@ -260,6 +260,10 @@ step_if hammerspoon on "$SRC_DIR/setup-macos-shortcuts.sh"
 # ~/.hammerspoon/machine-apps.lua, where the config reads them. Writes only on a difference.
 step_if hammerspoon on "$SRC_DIR/setup-hammerspoon-apps.sh"
 
+# Build Olm.app from the spoon's own sources into ~/.olm/app and register it for olm:// URLs, where
+# the olmapp piece is on. Nothing starts it yet, docs/PLAN-STANDALONE.md in the spoon, step 1.1.
+step_if olmapp on "$SRC_DIR/setup-olmapp.sh"
+
 # Install the Karabiner driver kanata types through, at the version dotfiles/kanata/DRIVER pairs
 # with the installed kanata, and run both as launchd daemons. Needs root, which the run already
 # holds. Its grants are left to the grants step below, which is what MDJ_GRANTS_LATER says.

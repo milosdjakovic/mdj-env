@@ -141,6 +141,18 @@ keymaps run through the composition root, `readConfig`, `build`, `applyLists` an
 typed and when a query may be answered from the rows already held. It had no test of its own, so
 its cases come from the rules its header states.
 
+## Olm.app
+
+`test/olmapp.sh` checks the app shell of `docs/PLAN-STANDALONE.md`, step 1.1. It builds the app
+from `app/` into `~/.olm/cache/olmapp-test`, starts it in the background with an `olm://ping`, and
+checks that the ping is answered, that a second ping reaches the same single instance, that a copy
+started by hand leaves, that the app has no Dock icon, that a bad URL writes nothing, and that
+Hammerspoon still answers once the app has quit. It shows no window and takes no key, so it needs
+no test lock, and it takes the bundle out of LaunchServices when it ends. It launches an app, so
+`suite.sh dry` does not run it. Run it after a change under `app/` or to the swift chooser's
+package. The app's checks are programs like this rather than `swift test`, since the command line
+tools ship no test framework, `decisions/olm-standalone.md`.
+
 ## The key inventory
 
 `keys.golden` is every chord the running configuration has bound, one line each, and every

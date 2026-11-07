@@ -138,6 +138,7 @@ probe() {
                 echo "off|kanata without an active Karabiner driver extension"
             fi
             ;;
+        olmapp) [[ -d "$HOME/.olm/app/Olm.app" ]] && echo "on|Olm.app built in ~/.olm/app" || echo "off|no Olm.app" ;;
         docker) [[ -d /Applications/Docker.app ]] && echo "on|Docker Desktop installed" || echo "off|no Docker Desktop" ;;
         vpn)
             if command -v mullvad >/dev/null 2>&1 || [[ -d "/Applications/Mullvad VPN.app" ]]; then

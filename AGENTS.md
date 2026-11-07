@@ -45,6 +45,7 @@ lists both names in its `.stow-local-ignore` so neither lands in the home direct
 ./src/setup-dev-defaults.sh          # reads whether dev files open in the editor row names, changes nothing
 ./src/setup-dev-defaults.sh --list   # the apps that can open development files, one per line
 ./src/setup-capslock-hyper.sh
+./src/setup-olmapp.sh                # Olm.app built into ~/.olm/app and registered for olm:// URLs, where the olmapp piece is on
 ./src/setup-hammerspoon-apps.sh            # this machine's Hyper app keys and display profiles, from machines/<name>/ or the default
 ./src/setup-hammerspoon-apps.sh --capture  # give this machine its own files, from what it has now
 ./src/setup-hammerspoon-apps.sh --discard  # overwrite a copy that was edited by hand

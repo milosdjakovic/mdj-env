@@ -23,7 +23,7 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 1.1, the app shell. Stage 0 is done.
+Next. 1.2, the trigger.
 
 Stage 0, contracts
 - [x] 0.1 The decision record, 2026-11-05
@@ -38,7 +38,7 @@ Stage 0, contracts
 - [x] 0.3e Fixtures for list keys, 2026-11-07
 
 Stage 1, the file search pilot
-- [ ] 1.1 The app shell
+- [x] 1.1 The app shell, 2026-11-07
 - [ ] 1.2 The trigger
 - [ ] 1.3 Search, open and reveal, shadow then flip
 - [ ] 1.4a Preview pane
@@ -92,6 +92,110 @@ Open questions
 - [ ] 5 The calculator
 - [ ] 6 Lua after Hammerspoon
 
+## Ledger
+
+Kept at Milos's request, 2026-11-07, as the running account of each step. It says what went wrong
+along the way, what fixed it, and what was left open. Each entry is a few lines and names its
+commit. The reasoning behind a decision goes into `decisions/olm-standalone.md`, and this ledger
+only points there. An entry is added in the same commit as the work it describes, and an item that
+gets closed later is marked closed with the date. It is never deleted.
+
+**Before 1.1, the file search freeze, `b08d43cf`, 2026-11-07.** This was not a plan step, and rule
+7 welcomes it. Typing in file search froze because the preview pane stat-ed, read or listed the
+highlighted path on the main thread on every keystroke. That took 1643 ms of one 1728 ms stall.
+Fixed: reads go through `fileindex peek` in the helper, after the highlight has rested for
+`preview.settleMs`. Issue: the first live trial ran on the fallback chooser, because a new build
+serves only after a reload. Fixed: the Hammerspoon `AGENTS.md` now says to check
+`providers.swift.serving()` before a trial. Result: the worst stall fell to 169 ms, median 43 ms.
+Open:
+- The trial lasted only about 20 s.
+- These stalls were measured before the fix and not since:
+  - `stage._show` up to 161 ms
+  - `view.redraw` up to 27 ms
+  - `native show` 47 ms
+  - `native update` 28 ms, much of it the bottom bar's layout
+  - thumbnails decoded on the main thread
+  - `rowsOf` 55 ms per 2000 index lines
+
+**0.5, `a0dcde27`, 2026-11-06.** Issue: the plan named too little. The plan listed seven lines of
+`Pane.swift`, but all of `PaneReader` reads Lua, and so do five initialisers in `Model.swift`.
+Fixed: all of them moved into `Lua.swift`.
+
+**0.2, `178e05f1`, 2026-11-07.**
+- Issue: the dry gate has no `hs.json`. Fixed: a reader of its own, `test/json.lua`.
+- Issue: the ranking rules alone are about 60 cases, which is too few to check a Swift port of the
+  matcher. Fixed: a recorded corpus of 74 queries.
+- Issue: cases that use a hand-written matcher have no JSON form. Left: they stay in Lua tests.
+- Open: `test/swiftpane.sh` failed once inside `suite.sh dry`, and it passed every run since. The
+  output was not kept. If it fails again, keep the output.
+
+**0.3a, `38781569`, 2026-11-07.** Issue: the grammar had no test of its own. Fixed: its cases are
+taken from the rules in `query.lua`'s header. Issue: five comments claimed that `~/dev .js foo`
+ranks by foo, which is false. Fixed: they now say `.js ~/dev/ foo`. Open, for Milos: should a
+type after the scope filter? Today it does not, and `parse.json` pins that.
+
+**0.4, `672d0bdc`, 2026-11-07.** Issue: the first adversarial review found 14 problems, 2 of them
+critical. One of them: a single counter raised by typing starved the previews. The second review
+found 9 more. Fixed: every one of them is answered in the text, and the designs turned down are
+under Rejected in the decisions file. Left to the step that serves each tool:
+- plugins that defer work and read the stage words later
+- Clipboard's paste behind a nonactivating panel
+- suppliers that build fresh item tables on every call
+- fixed-header painters lagging on scroll
+
+**0.6, `a7ac1b76` and `06c2f32f`, 2026-11-07.**
+- Issue: SwiftPM in the command line tools fails with "Could not initialize build system". Fixed:
+  the gate passes `--build-system native`, which is deprecated.
+- Issue: the tools ship neither XCTest nor Swift Testing. Fixed: the smoke test is an executable.
+- Issue: the package could not find `Perf`. Fixed: the probe moved out of `Entry.swift` into
+  `Perf.swift`.
+- Issue: `test/swiftpane.swift` still used the old initialiser. Fixed: it uses `NoSource`.
+- Check: the live load served the swift chooser, and the console was clean.
+
+**0.3b to 0.3e, `b74821b8`, 2026-11-07.** Issue: lifting these by hand meant transcribing a
+1900-line module's tests. Fixed: `test/fixtures-record.lua` records the calls the existing tests
+make. The recorder had these bugs:
+- `dofile` was not hooked.
+- The sandbox refused `io.open`.
+- The module changes the tables it is handed, and copies broke that. Fixed: recorders are swapped
+  in place and put back.
+- The keycode proxies were not faithful, and the chords were hidden behind protected metatables.
+- A callback that raised left no record.
+- The dry gate's stand-in keycode table invents codes. Fixed: a table dumped from Hammerspoon,
+  `test/fixtures/keys/keycodes.lua`.
+
+Issue: two recordings differed between runs, because `lib/resolve.lua` filled its lists in `pairs`
+order. Fixed: they are sorted. Result: 276 cases. Open: the live Hammerspoon has not been reloaded
+since that sort. Recordings take 2.4 MB.
+
+**1.1, the app shell, 2026-11-07.** Built:
+- `app/` in the spoon, a Swift package with one executable, `Olm`, that depends on the swift
+  chooser's package, so a change there that breaks the app fails its build.
+- `app/build.sh` wraps it into `Olm.app`, signed ad hoc. The app has no Dock icon
+  (`LSUIElement`), keeps one instance, and answers `olm://ping?nonce=N` by writing N to
+  `~/.olm/run/ping`. Any other URL is logged and dropped.
+- The `olmapp` machine piece, off by default. Where it is on, `src/setup-olmapp.sh` builds the
+  app into `~/.olm/app` and registers it for `olm://`. Its tools are declared in
+  `src/DEPENDENCIES`.
+- `test/olmapp.sh`, eight checks.
+
+Issues:
+- The swift chooser's package passes unsafe flags. SwiftPM accepts that from a local path
+  dependency, so nothing had to change.
+- The release build takes about 56 s the first time.
+- The test's check that Hammerspoon still answers failed at first, because `hs` read commands
+  from a stdin that is no terminal and waited on it. Fixed: stdin is closed for it, and the
+  Hammerspoon `AGENTS.md` now says so. This is probably also why `hs -q` seemed to print nothing
+  earlier in the session.
+
+Decided: the app's checks are programs, not `swift test`, so every machine with the command line
+tools runs them.
+
+Result: all eight checks pass. Quitting the app leaves Hammerspoon answering.
+
+Open: `src/setup-olmapp.sh` has not run with the piece on, since switching it on for a machine
+is Milos's call. It first runs at 1.2.
+
 ## Where the facts come from
 
 The facts below were checked on 2026-11-05 by three read only sweeps of the spoon. Recheck any
@@ -114,7 +218,8 @@ until it can.
    one and logs every difference, and nothing is shown. The flip comes only when the log has
    stayed empty over real use.
 4. **Fixtures are the gate.** Behaviour that moves is pinned first as language neutral fixtures,
-   input and expected output in JSON, that the Lua side and the Swift side both run. A part moves
+   input and expected output in JSON, that the Lua side and the Swift side both run. The Swift side
+runs them from programs rather than `swift test`, decided at 1.1. A part moves
    only when its fixtures pass in Swift.
 5. **Plugins do not learn they are bridged.** The Lua side of the bridge is one core host the
    composition root names, wrapping the registry and the stage presentations, so no plugin file
@@ -215,7 +320,10 @@ says show file search, through an `olm://` URL.
 instance, and answers `olm://` URLs. It is the machine piece `olmapp`, off by default, built on the
 machine from source the way the swift chooser library is, with its toolchain declared like every
 other tool. Test, it starts and answers a test URL, and quitting it changes nothing in
-Hammerspoon. Where its code lives is open question 1, decided before this step.
+Hammerspoon. Where its code lives is open question 1, decided before this step. Done as `app/` in
+the spoon, a package depending on the swift chooser's, wrapped into a bundle by `app/build.sh`,
+built into `~/.olm/app` by `src/setup-olmapp.sh` where the piece is on, and checked by
+`test/olmapp.sh`.
 
 **1.2 The trigger.** A core action in `host/bridge` opens the app's file search through the URL,
 and only where the `olmapp` piece is on. It takes file search's open key on that machine, how it

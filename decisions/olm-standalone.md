@@ -134,6 +134,16 @@ first as language neutral fixtures both sides run.
   chooser served the new image with the probe answering, and the console held no error, only the
   five warnings this machine always has, IVPN absent, a screen with no display profile and two keys
   the layout lacks.
+- 2026-11-07 12:21. Step 1.1 was finished. Olm.app's code is `app/` inside the spoon, beside the
+  Lua it replaces piece by piece, so the spoon stays the one thing that is Olm, and its package
+  depends on the swift chooser's by path. It is built into `~/.olm/app`, beside Olm's data and out
+  of the Applications folder, since it is a part of Olm rather than an app a person opens, by
+  `src/setup-olmapp.sh` where the `olmapp` piece is on, off by default. Its bundle id is
+  `local.olm.Olm`, a placeholder until signing in stage 6 needs a real one. The app's checks are
+  programs, `test/olmapp.sh` today, rather than `swift test`, because the command line tools ship
+  no test framework and a check only a full Xcode can run would leave the other machines
+  unchecked. `hs` was found to wait on a stdin that is no terminal, which made a captured call look
+  as if it printed nothing.
 - 2026-11-07 12:04. Steps 0.3b to 0.3e were finished together, and stage 0 with them. Lifting the bottom bar,
   keymap resolution, the remap and the list keys by hand meant transcribing a 1900 line module's
   tests, so they were lifted mechanically instead. `test/fixtures-record.lua` runs an existing test

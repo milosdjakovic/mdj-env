@@ -27,3 +27,6 @@ open         | system | /usr/bin/open         | optional | setup-grants.sh, open
 mdfind       | system | /usr/bin/mdfind       | required | setup-rex.sh, machine.sh | finding whether Rex is installed by its bundle id, wherever it was put
 PlistBuddy   | system | /usr/libexec/PlistBuddy | required | setup-rex.sh | reading Rex's stored theme list, a key with dots in its name that plutil cannot address and defaults read cuts short
 rex-cli      | path   | rex                   | optional | setup-rex.sh | importing the Ghostty theme pair into Rex, the settings are still applied without it
+swift-clt    | system | /Library/Developer/CommandLineTools/usr/bin/swift | optional | setup-olmapp.sh | building Olm.app from its Swift package, with the toolchain the swift chooser already builds with, Olm.app is not built without it
+codesign     | system | /usr/bin/codesign     | optional | setup-olmapp.sh | signing the Olm.app bundle ad hoc, which macOS needs before it runs a bundle built on this machine
+lsregister   | system | /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister | optional | setup-olmapp.sh | registering Olm.app with LaunchServices so olm:// URLs reach it

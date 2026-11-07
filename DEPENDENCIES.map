@@ -92,6 +92,7 @@ brew                     | manual    | installed by src/install-homebrew.sh from
 karabiner-vhid-driver    | manual    | installed by src/setup-kanata.sh from the package pinned in dotfiles/kanata/DRIVER, verified by its sha256, its notarization and its developer team, then activated, which the person approves in System Settings
 swiftc                   | xcode-clt | installed by src/install-xcode-clt.sh, which makes sure the command line tools carry an SDK for the running macOS
 swiftc-clt               | xcode-clt | installed by src/install-xcode-clt.sh, which makes sure the command line tools carry an SDK for the running macOS
+swift-clt                | xcode-clt | installed by src/install-xcode-clt.sh, which makes sure the command line tools carry an SDK for the running macOS
 cc                       | xcode-clt | installed by src/install-xcode-clt.sh, which makes sure the command line tools carry an SDK for the running macOS
 xcode-select             | macos     | ships with macOS
 sw_vers                  | macos     | ships with macOS
@@ -115,6 +116,8 @@ killall                  | macos     | ships with macOS
 lsof                     | macos     | ships with macOS
 ioreg                    | macos     | ships with macOS
 open                     | macos     | ships with macOS
+codesign                 | macos     | ships with macOS
+lsregister               | macos     | ships with macOS
 qlmanage                 | macos     | ships with macOS
 scutil                   | macos     | ships with macOS
 hidutil                  | macos     | ships with macOS

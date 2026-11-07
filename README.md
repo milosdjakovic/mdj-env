@@ -31,8 +31,8 @@ machine takes. See [Capturing a machine](#capturing-a-machine).
 Machines differ, and the `machines/` directory at the repository root says how. Its `default`
 folder has one default row per optional piece, and each machine that differs has a folder of its
 own, named by the machine's local hostname, with a `pieces` file of the rows that differ. The
-pieces are `mise`, `hammerspoon`, `herdr`, `mole`, `docker`, `vpn`, `tools` and `kanata`. A machine
-with no rows gets every default, which keeps its own setup alone and leaves mise and kanata off.
+pieces are `mise`, `hammerspoon`, `herdr`, `mole`, `docker`, `vpn`, `tools`, `kanata` and `olmapp`. A machine
+with no rows gets every default, which keeps its own setup alone and leaves mise, kanata and olmapp off.
 
 Do this once on every machine, and again whenever a machine changes.
 
@@ -188,6 +188,7 @@ machine already has, that is always done by hand.
 | `machine.sh` | Reads and writes which optional pieces this machine takes, `get`, `set` and `capture` |
 | `open-in-terminal.sh` | Opens a Terminal window running a command of this repository, for a step a person has to sit through |
 | `setup-kanata.sh` | Installs the Karabiner driver kanata needs and runs both as root daemons, where the kanata piece is on, with `--dry-run` and `--upgrade` |
+| `setup-olmapp.sh` | Builds Olm.app from the Olm spoon's sources into `~/.olm/app` and registers it for `olm://` URLs, where the olmapp piece is on |
 | `setup-macos-shortcuts.sh` | Turns off the macOS keyboard shortcuts that take a chord Olm uses, Show Help menu on Command and ? today, where the hammerspoon piece is on |
 
 All scripts are idempotent (safe to re-run) and support both Apple Silicon and Intel Macs.
