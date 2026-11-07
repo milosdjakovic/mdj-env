@@ -219,6 +219,81 @@ local function argsFor(parsed, cap)
   return args
 end
 
+-- What the helper wrote for one path, as the preview pane reads it, or nil for an answer of no
+-- recognisable shape. attrs is nil for a path that is gone, folder is nil for anything but a folder
+-- that could be opened, and blob is the head of a file, the bytes as they are.
+function M.parsePeek(text)
+  if type(text) ~= "string" then return nil end
+  local first, rest = text:match("^([^\n]*)\n(.*)$")
+  if not first then return nil end
+  if first == "missing" then return {} end
+  local kind, size, mtime, birth = first:match("^(%a+)\t(%d+)\t(%-?%d+)\t(%-?%d+)$")
+  if not kind then return nil end
+  local answer = { attrs = {
+    mode = kind == "dir" and "directory" or "file",
+    size = tonumber(size), modification = tonumber(mtime), creation = tonumber(birth),
+  } }
+  if kind ~= "dir" then
+    answer.blob = rest
+    return answer
+  end
+  local scanned, truncated, listing = rest:match("^(%d+)\t([01])\n(.*)$")
+  if not scanned then return answer end
+  local entries = {}
+  for at, flag, name in listing:gmatch("(%-?%d+)\t([d%-])\t([^\n]*)\n") do
+    entries[#entries + 1] = { name = flag == "d" and (name .. "/") or name, at = tonumber(at) }
+  end
+  answer.folder = { scanned = tonumber(scanned), truncated = truncated == "1", entries = entries }
+  return answer
+end
+
+-- Each peek writes a file of its own, so a cancelled helper finishing late can never be read as
+-- the answer to a newer one.
+local peekCount = 0
+
+--- index.peek(path, opts, cb) -> handle carrying cancel()
+--- What the preview pane shows for one path, found by the helper, so a stat, a folder scan and a
+--- read never touch Hammerspoon's main thread. cb gets an answer as parsePeek shapes it, or nil when
+--- the helper could not answer, and is not called once the handle is cancelled.
+--- opts.readCap, opts.scanCap, opts.entries  the bounds the helper works to
+--- opts.timeoutSeconds                       how long a file that is not on this disk may take
+function M.peek(path, opts, cb)
+  local cancelled, run, out = false, nil, nil
+  local function forget()
+    if out then
+      os.remove(out)
+      os.remove(out .. ".tmp")
+    end
+  end
+  local handle = { cancel = function()
+    cancelled = true
+    if run then run.cancel() end
+    forget()
+  end }
+  if not cacheDir() then
+    cb(nil)
+    return handle
+  end
+  ensureBinary(function(ok)
+    if cancelled then return end
+    if not ok then cb(nil) return end
+    peekCount = peekCount + 1
+    out = cacheDir() .. "/peek-" .. peekCount
+    run = util.run(binaryPath(), { "peek", path, out, tostring(opts.readCap),
+      tostring(opts.scanCap), tostring(opts.entries) }, opts.timeoutSeconds or 5, function(_, err)
+      local answer = nil
+      local f = not err and io.open(out, "rb") or nil
+      if f then
+        answer = M.parsePeek(f:read("a"))
+        f:close()
+      end
+      forget()
+      cb(answer)
+    end)
+  end)
+  return handle
+end
+
 --- index.search(parsed, ctx, cb) -> handle or nil
 --- Nil only while the helper or the first index is being made, since that search has nothing to
 --- cancel yet, and the engine's generation guard drops its answer if the person has moved on.

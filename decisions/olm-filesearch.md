@@ -12,7 +12,9 @@ map that file and print at most the cap, then exit. A rebuild runs only when the
 index older than `indexMaxAgeSeconds`, in the background, and the engine answers again when it
 lands, with Updating index or Building index in the pinned status row meanwhile. The walk still
 answers a scoped query live. `util.run` replaces its chunk tables and clears its timers and task
-when it finishes or is cancelled. This agrees with the plugin AGENTS.md.
+when it finishes or is cancelled. The preview pane's stat, folder scan and text head are the same
+helper's `peek`, one run per row the highlight settled on, cancelled by the next, so nothing the
+pane shows is read on Hammerspoon's main thread. This agrees with the plugin AGENTS.md.
 
 ## Rejected
 
@@ -35,6 +37,14 @@ list answered from the same index, and its FSEvents watcher was left out to keep
 A helper that stays running between searches. Rejected 2026-10-30. A search measured about 10 ms
 including the process start, so a resident process would save nothing a person can feel and would
 put the index pages back into a long lived process.
+
+Reading the text head on the main thread because a task per highlight fire costs too much.
+Rejected 2026-11-06, after holding since the pane was written. A helper run is about 7 ms in a
+process of its own, and the highlight fires for every key, so the settle timer removes most of them
+anyway, while the read it replaced held the keyboard for 1.6 seconds.
+
+The answer on stdout rather than in a file. Rejected 2026-11-06. `hs.task` hands stdout over as text,
+and a head need not be valid UTF-8 or be cut on a character boundary.
 
 ## Log
 
@@ -78,3 +88,29 @@ phone photo near 48 MB, and Lua sees the hs.image as a few bytes, so it never hu
 The pane now collects just after the picker closes when it held a picture, measured at 14 to 24 ms,
 and the in process cap went from 20 MB to 1 MB, so a photo goes to Quick Look and comes back the
 size of the pane, near 1.4 MB decoded, at the price of a moment on its first preview.
+
+### 2026-11-06 17:59, a preview held the keyboard for 1.6 seconds
+
+Timers wrapped around the steps of a keystroke in the running config caught one stall of 1728 ms
+while typing, 1643 ms of it in the presentation's `onHighlight`, reached from `fieldChanged` through
+the row supplier and the engine's refresh. Building the launcher's rows took under 1 ms and ranking
+them under 5 ms, so neither the catalog nor the shared search was it. `onHighlight` stated the
+highlighted row, read its head or listed up to 2000 entries with a stat each, all on the main thread
+and on every key, since each list has a new first row. Which row it was was not recorded, so
+whether a folder scan, a read or a stat took the time is not known. The fix does not depend on it,
+since all three moved. The highlight now arms `preview.settleMs`, and `fileindex peek` does the
+reads. Still on the main thread for a pane are the decode of a small image and the load of a cached
+render, and every paint, none of them a read of an unknown file.
+
+
+### 2026-11-07 10:08, the trial of the helper read, on glass
+
+The first hand trial ran on the default chooser without anyone meaning it to. Taking the test lock
+for a worktree built that worktree's own swift library in the background, so the provider served
+its fallback until a reload, and the only signs were the look of the window and a probe that read
+nil. After a reload `serving()` said swift and the trial was repeated. About twenty seconds of
+typing, arrows and backspace gave 43 stalls over 25 ms, median 43 ms, largest 169 ms against the
+1728 ms before, and the person called it decent. No keystroke's `lua text` passed 28 ms. The other
+two stalls past 100 ms, 135 and 150 ms, sat around opening the chooser. The trial was short and the
+stalls were not attributed to a step, and the ordinary dropped frames in the list swap, the redraw
+and the bottom bar are separate work and were not changed.

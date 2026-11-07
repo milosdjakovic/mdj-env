@@ -328,6 +328,9 @@ function obj:configure(opts)
     -- surface owns the provider and the thumbnail chain, so it is the layer that knows which of
     -- these numbers belongs to which, and this root stays the only place that reads the config.
     preview = policy.preview,
+    -- The helper's read of one path, which only the index source can run, since it owns the
+    -- helper, handed down so a viewer names no source.
+    peek = function(path, bounds, cb) return obj.sources.index.peek(path, bounds, cb) end,
     -- The storage lib, carried through to whichever viewer builds a helper binary, the Quick
     -- Look one, since the surface is the layer that configures a viewer and the lib is the
     -- only thing that knows where a cache goes.

@@ -818,10 +818,21 @@ you. Text is claimed last and gated on looking rather than on a table, a NUL byt
 block being what says a file is not text, so a source file, a json, a markdown and a config
 with no extension at all are all covered without any of them being listed anywhere.
 
-The text head is read synchronously with `io.open`, bounded by the configured cap. That is a
-deliberate exception to this spoon's rule that nothing blocks, and it is affordable because
-the read is a few tens of kilobytes off a local disk and going asynchronous would mean a task
-per highlight fire. The case it would cost is a file on a slow network mount.
+Nothing the pane shows is read on Hammerspoon's main thread. The stat, the folder scan and the
+text head are `fileindex peek`, a process per settled row, and the pane paints when it answers,
+with what it showed before staying up until then. A newer row cancels the read and the generation
+drops an answer already on its way. The answer comes back in a file rather than on stdout, since
+`hs.task` hands stdout over as text and a head need not be valid UTF-8 or cut on a character.
+
+The highlight moves on every key while you type, so `onHighlight` only arms the settle timer,
+`preview.settleMs`, and a row passed on the way costs one timer. `onPositioned` skips it, since
+nothing is being typed past when a list opens.
+
+This was once a deliberate exception to the rule that nothing blocks, on the reasoning that a head
+is a few tens of kilobytes off a local disk and a task per highlight fire was too dear. A helper run
+is about ten milliseconds in its own process, and a single highlight held the main thread for 1.6
+seconds on 2026-11-06, so the exception is gone. What still runs on this thread for a picture is the
+decode of a small image and the load of a cached render, `thumbs.lua`, bounded by `nativeMaxBytes`.
 
 ## A budget in source lines bounds nothing, and a clip does not bound layout
 

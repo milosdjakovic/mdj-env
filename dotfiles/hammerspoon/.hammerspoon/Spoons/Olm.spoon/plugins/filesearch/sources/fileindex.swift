@@ -5,6 +5,16 @@
 //   fileindex build  OUT PRUNE ROOT...      walk ROOTs into the index file OUT
 //   fileindex search INDEX LIMIT [-h] [-e EXT]... WORD...
 //   fileindex recent INDEX LIMIT SINCE [-e EXT]...
+//   fileindex peek   PATH OUT READCAP SCANCAP ENTRIES
+//
+// peek is what the preview pane knows about one path. It stands here because a stat, a folder scan
+// or a read can take seconds on a file that is not on this disk yet, and on Hammerspoon's main
+// thread that is seconds of no typing and no leader keys. It writes OUT rather than printing, since
+// hs.task hands stdout over as text and a file's head need not be valid UTF-8, nor be cut on a
+// character boundary. OUT is one header line, `file|dir TAB size TAB mtime TAB birthtime`, or the
+// word `missing`. After it comes the first READCAP bytes of a file, or for a folder a line
+// `scanned TAB truncated` and then `mtime TAB d-or-dash TAB name`, newest first, at most ENTRIES of
+// the first SCANCAP entries, with no second line at all for a folder that could not be opened.
 //
 // The index is one line per entry, `mtime TAB flags TAB path`. flags holds `d` for a folder and
 // `h` for a path with a dot segment below its root, which is how a search leaves hidden files
@@ -245,6 +255,67 @@ func options(_ args: ArraySlice<String>) -> (flags: Set<String>, exts: [[UInt8]]
   return (flags, exts, words)
 }
 
+// MARK: peek
+
+func folderListing(_ path: String, scanCap: Int, entries: Int) -> String? {
+  guard let dir = opendir(path) else { return nil }
+  defer { closedir(dir) }
+  var found: [(at: Int, isDir: Bool, name: String)] = []
+  var scanned = 0
+  var truncated = false
+  let base = path.hasSuffix("/") ? path : path + "/"
+  while let entry = readdir(dir) {
+    let name = withUnsafePointer(to: &entry.pointee.d_name) {
+      $0.withMemoryRebound(to: CChar.self, capacity: Int(NAME_MAX) + 1) { String(cString: $0) }
+    }
+    if name == "." || name == ".." { continue }
+    scanned += 1
+    if scanned > scanCap {
+      truncated = true
+      break
+    }
+    var info = stat()
+    let known = stat(base + name, &info) == 0
+    found.append((
+      at: known ? Int(info.st_mtimespec.tv_sec) : 0,
+      isDir: known && (info.st_mode & S_IFMT) == S_IFDIR,
+      name: name.replacingOccurrences(of: "\n", with: " ")
+    ))
+  }
+  found.sort { $0.at > $1.at }
+  var text = "\(min(scanned, scanCap))\t\(truncated ? 1 : 0)\n"
+  for item in found.prefix(entries) {
+    text += "\(item.at)\t\(item.isDir ? "d" : "-")\t\(item.name)\n"
+  }
+  return text
+}
+
+func peek(path: String, out: String, readCap: Int, scanCap: Int, entries: Int) -> Int32 {
+  var answer = Data()
+  var info = stat()
+  if stat(path, &info) != 0 {
+    answer.append(Data("missing\n".utf8))
+  } else {
+    let isDir = (info.st_mode & S_IFMT) == S_IFDIR
+    let times = "\(info.st_mtimespec.tv_sec)\t\(info.st_birthtimespec.tv_sec)"
+    answer.append(Data("\(isDir ? "dir" : "file")\t\(info.st_size)\t\(times)\n".utf8))
+    if isDir {
+      if let listing = folderListing(path, scanCap: scanCap, entries: entries) {
+        answer.append(Data(listing.utf8))
+      }
+    } else if let handle = FileHandle(forReadingAtPath: path) {
+      if let head = try? handle.read(upToCount: readCap) { answer.append(head) }
+      try? handle.close()
+    }
+  }
+  do {
+    try answer.write(to: URL(fileURLWithPath: out), options: .atomic)
+    return 0
+  } catch {
+    return 1
+  }
+}
+
 func main() -> Int32 {
   let a = CommandLine.arguments
   guard a.count >= 2 else { return 2 }
@@ -259,6 +330,9 @@ func main() -> Int32 {
   case "recent" where a.count >= 5:
     guard let limit = Int(a[3]), let since = Int(a[4]) else { return 2 }
     return recent(index: a[2], limit: limit, since: since, exts: options(a[5...]).exts)
+  case "peek" where a.count >= 7:
+    guard let readCap = Int(a[4]), let scanCap = Int(a[5]), let entries = Int(a[6]) else { return 2 }
+    return peek(path: a[2], out: a[3], readCap: readCap, scanCap: scanCap, entries: entries)
   default:
     return 2
   }

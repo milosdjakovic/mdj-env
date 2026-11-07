@@ -55,19 +55,13 @@ local cfg = {}
 
 local pane = nil         -- the shared preview pane, made in configure from the root's grant
 local model = nil        -- the row on screen, the header's laid out elements and a body node, see buildModel
-local pending = 0        -- the generation of the newest thumbnail request, see requestImage
+local pending = 0        -- the generation of the newest row asked for, see M.show and M._image
+local asking = nil       -- the path the helper is reading, and its handle, see M.show
+local askHandle = nil
 
 --------------------------------------------------------------------------------
 -- What the row is
 --------------------------------------------------------------------------------
-
--- One stat per row, held for as long as the pane is describing it. The highlight fires
--- from a poll, so this must not be asked again on every fire, and the answer cannot go
--- stale under a pane that is only up for a few seconds.
-local function statOf(row)
-  if not (row and row.path) then return nil end
-  return hs.fs.attributes(row.path)
-end
 
 -- What kind of thing this is, in one word.
 --
@@ -96,48 +90,22 @@ end
 local DIR_SCAN_CAP = 2000
 
 -- A directory, listed newest first, the same order the picker's own browse uses so the
--- pane and the list never disagree about what the top of a folder is.
---
--- Newest first needs a date per entry, so this stats what it lists. That is a real cost
--- and it is affordable only because it is bounded twice, by the scan cap above and by the
--- entry count from config, and because it happens for one row rather than for a page.
-local function folderBody(row, attrs, ctx)
+-- pane and the list never disagree about what the top of a folder is. The helper found it, and a
+-- folder it could not open, a row naming one that is gone or one this user may not read, is
+-- ordinary, since the index can be stale, so that row is described by its header.
+local function folderBody(row, seen, ctx)
   if not row.isDir then return nil end
-  -- The whole read is guarded, because hs.fs.dir RAISES on a directory it cannot open rather
-  -- than returning nil, and the iterator can raise part way through as well. A row naming a
-  -- folder that no longer exists is ordinary here, since the index can be stale and the recent
-  -- list outlives what it lists, and this runs inside the highlight poll where an error would
-  -- be an unhandled one. Failing means declining, so such a row is described by its header.
-  local entries, scanned, truncated = {}, 0, false
-  local ok = pcall(function()
-    local iter, dirObj = hs.fs.dir(row.path)
-    for name in iter, dirObj do
-      if name ~= "." and name ~= ".." then
-        scanned = scanned + 1
-        if scanned > DIR_SCAN_CAP then
-          truncated = true
-          break
-        end
-        local full = row.path:gsub("/+$", "") .. "/" .. name
-        local a = hs.fs.attributes(full)
-        entries[#entries + 1] = {
-          name = (a and a.mode == "directory") and (name .. "/") or name,
-          at = (a and a.modification) or 0,
-        }
-      end
-    end
-  end)
-  if not ok then return nil end
+  local folder = seen.folder
+  if not folder then return nil end
+  local entries = folder.entries
   if #entries == 0 then
     return { label = "FOLDER", facts = "empty", lines = {} }
   end
-  table.sort(entries, function(a, b) return a.at > b.at end)
-
-  local cap = ctx.folderEntries
   local lines = {}
-  for i = 1, math.min(cap, #entries) do
+  for i = 1, math.min(ctx.folderEntries, #entries) do
     lines[#lines + 1] = entries[i].name
   end
+  local scanned, truncated = folder.scanned, folder.truncated
   local facts = string.format("%d%s item%s", scanned, truncated and "+" or "",
     (scanned == 1 and not truncated) and "" or "s")
   return { label = "FOLDER", facts = facts, lines = lines, wrap = false }
@@ -150,10 +118,10 @@ end
 --
 -- The image is asked for asynchronously and may not be ready, in which case the section
 -- says so and the pane repaints itself when it lands. See requestImage.
-local function imageBody(row, attrs, ctx)
+local function imageBody(row, seen, ctx)
   if row.isDir or not cfg.thumbs then return nil end
   if not cfg.thumbs.handles(row.ext or "") then return nil end
-  local img, note = ctx.image(row, attrs)
+  local img, note = ctx.image(row, seen.attrs)
   if img then return { label = "PREVIEW", image = img } end
   return { label = "PREVIEW", facts = note }
 end
@@ -163,18 +131,14 @@ end
 -- any of them being listed anywhere. A NUL byte in the first block is what says otherwise,
 -- since text does not contain one and nearly every binary format does.
 --
--- Read synchronously and bounded to the configured cap. That is a deliberate exception to
--- this spoon's rule that nothing blocks, because the read is a few tens of kilobytes off a
--- local disk and going asynchronous would mean a task per highlight fire. The case it
--- would cost is a file on a slow network mount, where the pane would stall for as long as
--- the read takes.
-local function textBody(row, attrs, ctx)
+-- The helper read it, bounded to the configured cap. It was read here until 2026-11-06, as a
+-- deliberate exception to this spoon's rule that nothing blocks, and one highlight then held the
+-- main thread for 1.6 seconds, decisions/olm-filesearch.md.
+local function textBody(row, seen, ctx)
   if row.isDir then return nil end
+  local attrs = seen.attrs
   if attrs and attrs.size == 0 then return { label = "HEAD", facts = "empty file", lines = {} } end
-  local f = io.open(row.path, "rb")
-  if not f then return nil end
-  local blob = f:read(ctx.readCap)
-  f:close()
+  local blob = seen.blob
   if not blob or blob == "" then return nil end
   if blob:find("\0", 1, true) then return nil end
 
@@ -258,9 +222,11 @@ end
 -- nothing here changes under it. Keyed on the path and the box, so a re dock at the
 -- corrected frame rebuilds and a poll that has not moved pays nothing. inner is the pane's
 -- padded box, the width the text is laid out and wrapped at, and its height only keys the cache.
-local function buildModel(row, inner)
+-- seen is what the helper answered for this path, kept on the model so a rebuild asks it nothing.
+local function buildModel(row, inner, seen)
   local w, h = inner.w, inner.h
-  local attrs = statOf(row)
+  seen = seen or {}
+  local attrs = seen.attrs
   local body = nil
   local limits = cfg.limits or {}
   local ctx = {
@@ -271,7 +237,7 @@ local function buildModel(row, inner)
     image = function(r, a) return M._image(r, a) end,
   }
   for _, describe in ipairs(BODIES) do
-    body = describe(row, attrs, ctx)
+    body = describe(row, seen, ctx)
     if body then break end
   end
   -- The header is laid out here, once, since it never scrolls and a paint happens on every
@@ -279,7 +245,7 @@ local function buildModel(row, inner)
   -- changing them.
   local headEls, headH = cfg.ui.layout(headerNode(row, attrs), inner, { clip = true })
   return {
-    row = row, path = row.path, w = w, h = h,
+    row = row, path = row.path, w = w, h = h, seen = seen,
     headEls = headEls, headH = headH,
     body = body and nodes.body(cfg.ui, body, w) or nil,
   }
@@ -314,7 +280,7 @@ local function paintRow(view)
   local ui = cfg.ui
   local inner = view.inner
   if not (model.w == inner.w and model.h == inner.h) then
-    model = buildModel(model.row, inner)
+    model = buildModel(model.row, inner, model.seen)
   end
 
   local els = {}
@@ -388,7 +354,7 @@ function M._image(row, attrs)
     -- keeps this from drawing after a swap away.
     local inner = pane and pane.inner()
     if not inner then return end
-    model = buildModel(model.row, inner)
+    model = buildModel(model.row, inner, model.seen)
     pane.repaint()
   end)
   settled = true
@@ -411,6 +377,8 @@ end
 ---                this file invented.
 --- opts.usedAt    function(path) -> when that path was last acted on, the same seam the
 ---                row subtitle reads, so the pane and the row cannot disagree about it.
+--- opts.peek      function(path, bounds, cb) -> handle, the helper's read of one path, see
+---                sources/index.lua. Absent means every row is described by its name alone.
 --- opts.thumbs    the thumbnail chain. Absent means the image describer declines every
 ---                row and a picture simply never appears, which is a working pane.
 --- opts.emptyText  the line the shared empty state paints, this pane's own guidance rather
@@ -461,9 +429,20 @@ function M.dock(previewPaneFrame)
   pane.dock(previewPaneFrame)
 end
 
+-- Abandons the read in flight, so a row left behind costs nothing more and a helper stuck on a
+-- file that is not on this disk is ended rather than left running.
+local function dropAsk()
+  if askHandle then askHandle.cancel() end
+  askHandle, asking = nil, nil
+end
+
 --- preview.show(row) - describe a row, or clear the pane when handed nothing.
---- Called straight from the atom's highlight poll, so it is cheap when nothing moved. The
---- layout is rebuilt only when the row or its box changed.
+--- Cheap when nothing moved, since the layout is rebuilt only when the row or its box changed.
+---
+--- NOTHING HERE TOUCHES THE DISK. The helper reads the row in a process of its own and the pane
+--- paints when it answers, with what it showed before staying up until then, so a slow file holds
+--- up its own preview and never a key. A newer row cancels the read, and the generation drops an
+--- answer already on its way.
 ---
 --- The scroll goes back to the top whenever the row changes, because an offset carried
 --- over would open the next file part way down for no reason the reader can see.
@@ -474,12 +453,33 @@ function M.show(row)
     M.clear()
     return
   end
-  local same = model and model.path == row.path and model.w == inner.w and model.h == inner.h
-  if not same then
-    pending = pending + 1
-    model = buildModel(row, inner)
+  if model and model.path == row.path and model.w == inner.w and model.h == inner.h then
+    dropAsk()
+    pane.draw(paintRow, { keepScroll = true })
+    return
   end
-  pane.draw(paintRow, { keepScroll = same })
+  if asking == row.path then return end
+  dropAsk()
+  pending = pending + 1
+  local generation = pending
+  asking = row.path
+  local function landed(seen)
+    if generation ~= pending then return end
+    askHandle, asking = nil, nil
+    local box = pane and pane.inner()
+    if not box then return end
+    model = buildModel(row, box, seen)
+    pane.draw(paintRow, { keepScroll = false })
+  end
+  local limits = cfg.limits or {}
+  if not cfg.peek then return landed(nil) end
+  local handle = cfg.peek(row.path, {
+    readCap = limits.readCap or 64 * 1024,
+    scanCap = DIR_SCAN_CAP,
+    entries = limits.folderEntries or 100,
+    timeoutSeconds = limits.peekSeconds,
+  }, landed)
+  if asking == row.path then askHandle = handle end
 end
 
 --- preview.scrollBy(points) - move the body by a distance in points, positive being
@@ -500,6 +500,8 @@ end
 --- in for the empty state, and that read as a content label rather than as guidance, Recent
 --- files painted where a person expects to be told what to do next.
 function M.clear()
+  pending = pending + 1
+  dropAsk()
   model = nil
   if pane then pane.clear() end
 end
@@ -513,6 +515,7 @@ function M.hide()
   -- flight for the row this pane was last showing cannot land after the hide and rebuild a
   -- model nobody can see. The swap back through M.dock repaints properly.
   pending = pending + 1
+  dropAsk()
   if pane then pane.hide() end
 end
 
@@ -530,6 +533,7 @@ local collectTimer = nil
 function M.destroy()
   model = nil
   pending = pending + 1
+  dropAsk()
   local held = next(images) ~= nil
   images = {}
   if pane then pane.destroy() end

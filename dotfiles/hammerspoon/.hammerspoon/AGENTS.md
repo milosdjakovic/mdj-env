@@ -593,6 +593,11 @@ so a waiting session gets it. Never hold it speculatively. Whoever acquires must
 release and restore afterward, whether the test was run automatically or handed
 to the user to confirm.
 
+A worktree can come up on the wrong chooser. Taking the lock can build that worktree's own swift
+library in the background, and the default chooser serves until the next reload. So before handing
+a chooser to anyone, read `spoon.Olm.lib.chooser.providers.swift.serving()`, and reload until it
+answers swift, since a trial on the fallback says nothing about the glass one.
+
 The human in the loop exception. When you hand a feature to the user to try by
 hand, to see how it looks, works, and feels, acquire with `bin/hs-devlock acquire
 --manual` and keep the lock with no timer until the user gives an explicit green

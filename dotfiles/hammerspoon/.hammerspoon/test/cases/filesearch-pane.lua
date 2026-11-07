@@ -4,8 +4,8 @@
 --
 -- The nodes file is pure, it only builds UI kit nodes, so it is driven with the real kit and
 -- style loaded as plain Lua and a stub measurer at seven points a character, and no canvas is
--- ever made. What sidepanel.lua decides, the stat, the chain of describers and the thumbnails,
--- needs the file system and is outside this case, and the canvas is the shared preview pane's,
+-- ever made. What sidepanel.lua decides, the chain of describers, the reads and the thumbnails,
+-- is test/cases/filesearch-peek.lua, and the canvas is the shared preview pane's,
 -- which test/cases/previewpane.lua covers.
 
 local source = debug.getinfo(1, "S").source

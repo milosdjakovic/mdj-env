@@ -461,7 +461,7 @@ end
 -- one seam that reaches every caller, this function itself, rather than only at the call
 -- sites the migration happened to touch, M.refresh's own gate at :709 and onPositioned's own
 -- seed gate below being the two that already survived.
-local function onHighlight(item)
+local function describe(item)
   if not viewer.followsHighlight then return end
   if item and item.path and not (item.status or item.help) then
     viewer.show(item)
@@ -472,6 +472,26 @@ local function onHighlight(item)
     -- default every non file highlight gets, cfg.emptyText below.
     viewer.clear()
   end
+end
+
+-- The highlight moves on every key while a person types, since each list has a new first row, and
+-- a pane is laid out and painted on the main thread. So it describes the row the highlight
+-- settled on, and every row passed on the way costs one timer. The handle is held for the reason
+-- util.after gives, and let go on close so nothing paints after the list is gone.
+local settle = nil
+local function dropSettle()
+  if settle then settle.cancel() end
+  settle = nil
+end
+
+local function onHighlight(item)
+  if not viewer.followsHighlight then return end
+  dropSettle()
+  local ms = (cfg.preview and cfg.preview.settleMs) or 60
+  settle = util.after(ms / 1000, function()
+    settle = nil
+    describe(item)
+  end)
 end
 
 -- Migrated onto host/stage. Docks the pane into the preview pane rect the stage reserved and
@@ -495,8 +515,11 @@ local function onPositioned(chooserFrame, previewPaneFrame)
     -- its own copy of this gate too, review finding H7, so this outer one is belt and braces
     -- rather than the only thing standing between a highlight event and a provider that is
     -- supposed to be asked rather than followed.
+    --
+    -- Straight to the pane rather than through the settle, since nothing is being typed past yet.
     if viewer.followsHighlight then
-      onHighlight(cfg.stageSelectedItem and cfg.stageSelectedItem())
+      dropSettle()
+      describe(cfg.stageSelectedItem and cfg.stageSelectedItem())
     end
   elseif type(viewer.hide) == "function" then
     -- host/stage/init.lua's own review finding H2 comment, near present's own handoff, says
@@ -556,6 +579,8 @@ function M:start()
     -- The shared preview pane the root grants for `previewPane = true`, which owns the canvas, the
     -- surface, the empty state, the scroll and the teardown.
     previewPane = cfg.previewPane,
+    -- The helper's read of one path, so what a pane shows never touches the disk on this thread.
+    peek = cfg.peek,
     -- This pane's own guidance, painted rather than any row's own wording, since a
     -- highlight with nothing to describe should read as something to do next rather
     -- than as a label borrowed from whatever the list happened to be showing.
@@ -645,6 +670,7 @@ M.onPositioned = onPositioned
 --- what the atom's own teardown already meant for the standalone picker this used to be
 --- attached to directly.
 function M.onClose()
+  dropSettle()
   -- Abandon anything in flight, so a search for a picker nobody is looking at is not
   -- still running, and the root's overlay teardown runs through the injected handler.
   if cfg.api then cfg.api.cancel() end

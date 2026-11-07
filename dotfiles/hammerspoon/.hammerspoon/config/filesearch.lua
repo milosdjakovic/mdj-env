@@ -122,6 +122,15 @@ return {
   -- bounds work that happens once per highlighted row rather than once per row on
   -- screen, which is why reading a file at all is affordable here and is not in a list.
   preview = {
+    -- How long the highlight rests on a row before the pane describes it, in milliseconds. It
+    -- moves on every key while you type, and arrowing down a list, so a row you only passed costs
+    -- nothing. Longer is calmer and a beat later, and shorter follows closer and paints more.
+    settleMs = 60,
+
+    -- How long the helper may take to read one path, in seconds, before the row is described by
+    -- its name alone. A slow file costs its own preview and never a key, whatever this says.
+    peekSeconds = 5,
+
     -- How much of a file is read to show its head. Two hundred lines of source is around
     -- eight kilobytes, so this is generous enough that the cut is never what you are
     -- looking at, and small enough that the read stays imperceptible on a local disk.
