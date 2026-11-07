@@ -6,6 +6,7 @@ Run it.
 Spoons/Olm.spoon/test/suite.sh              # everything
 Spoons/Olm.spoon/test/suite.sh dry          # plain lua, no Hammerspoon, no lock, see below
 Spoons/Olm.spoon/test/ranking.lua           # one of the three dry runs, standalone, see below
+Spoons/Olm.spoon/test/fixtures.lua          # the language neutral fixtures, the dry gate runs them, see below
 Spoons/Olm.spoon/test/icons.lua             # the icon engine, the config file, the row resolver and the two sources
 Spoons/Olm.spoon/test/leaders.lua           # the two leader adapters' resolvers as they stand, see below
 Spoons/Olm.spoon/test/chordkey.lua          # the hold engine, a lost key-up released by the blind stream check
@@ -99,6 +100,27 @@ still says by then. An accepted line a migration makes true again for a differen
 than the one written beside it is still worth a person's own second look, exact text
 matching alone cannot tell the difference, only catch the ones where the words no longer
 match at all.
+
+## The fixtures
+
+`fixtures/` holds cases written as JSON, an input and the answer expected for it, so that a second
+implementation reads the very same files. Olm.app is that implementation, by
+`docs/PLAN-STANDALONE.md`, and a behaviour moves into it only when its fixtures pass there under
+`swift test`. `fixtures.lua` runs every one against the Lua and the dry gate runs it, so the
+fixtures stay true of the code that runs today. Each file names its kind, and `fixtures.lua`'s
+header says how each kind is read.
+
+Two sorts of file live there and are kept apart. A rule fixture states the answer a rule gives,
+taken from a test or a decision, never from whatever the code printed, so a failure means the
+code or the rule moved. A corpus records what the code answered on the day it was written, many
+queries over one realistic list, so a port can prove it answers the same everywhere and not only
+where a rule was written down. Its file says so, and `lua test/fixtures.lua --record` refreshes it
+after a change made on purpose, the way `goldens.sh --update` refreshes a golden, every changed
+line read before it is committed. A rule fixture is never recorded.
+
+`fixtures/ranking/` is the first area, the one rank engine through the shared fuzzy matcher, the
+launcher's learned memory, and the launcher's ordering, which is that memory reaching the engine
+as a bonus. `ranking.lua` still runs beside it until the fixtures are trusted to replace it.
 
 ## The key inventory
 

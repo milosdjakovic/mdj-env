@@ -67,3 +67,18 @@ first as language neutral fixtures both sides run.
   `native/Model.swift` it did not name, which take a `LuaReader`. All of them moved into
   `native/Lua.swift`, so a file outside the seam touches no LuaSkin and no Lua. `LuaValue` is still
   named by `Panel.swift`'s `Ask`, a plain enum with no Lua in it, left for 0.6's data source protocol.
+- 2026-11-07 10:51. Step 0.2 was finished. The fixtures are JSON under the spoon's
+  `test/fixtures/<area>/`, read in Lua by `test/fixtures.lua` with a JSON reader of its own,
+  `test/json.lua`, since the dry gate has no `hs.json`, and the dry gate runs them. Two sorts are
+  kept apart. A rule fixture states the answer a rule gives and is never recorded. A corpus records
+  what the Lua answered, 74 queries over one launcher shaped list using every field of the row
+  vocabulary, because the rule cases alone are about 60 and the Swift port of the 878 line matcher
+  needs to be checked far wider than that. It is refreshed with `--record` after a change made on
+  purpose. Only the shared fuzzy matcher is pinned, since the rule cases written with a hand made
+  matcher in `test/cases/rankvocabulary.lua` have no language neutral form, and the case with a
+  150 character title in `test/ranking.lua` is covered by the bonus rule rather than copied.
+  `test/ranking.lua` stays beside the fixtures. A broken rule case and a broken memory case each
+  failed the gate, and bad JSON is refused with its offset.
+- 2026-11-07 10:51. `test/swiftpane.sh` failed once inside `suite.sh dry` on the 0.2 worktree and
+  passed on the next suite run and on three runs alone, with no Swift changed. The failing output
+  was not kept, so the cause is not known. Recheck it if it fails again, keeping the output.

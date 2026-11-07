@@ -1,0 +1,157 @@
+{
+  "kind": "launcher",
+  "about": "The launcher's ordering end to end, its memory reaching the one rank engine as a bonus on each row, from test/ranking.lua. A catalog row is an app, keyed app:<bundleID>, with a status subtitle the launcher does not search. The memory orders only rows that match equally well, Milos's decision of 2026-10-17. The bonus is one for the leader down to one over the count for the last. A row with no identity, a calculator answer, is never recorded, and nothing is recorded while another tool's rows are hosted.",
+  "cases": [
+    {
+      "name": "one pick orders two rows matching at one level",
+      "steps": [
+        { "catalog": [{ "title": "Mail", "bundleID": "com.apple.mail", "subTitle": "Open" }, { "title": "Maps", "bundleID": "com.apple.Maps", "subTitle": "Not running" }] },
+        { "shown": ["ma", ["Mail", "Maps"]] },
+        { "note": ["ma", "app:com.apple.Maps"] },
+        { "shown": ["ma", ["Maps", "Mail"]] }
+      ]
+    },
+    {
+      "name": "a pick at a longer query orders the shorter one too",
+      "steps": [
+        { "catalog": [{ "title": "Mail", "bundleID": "com.apple.mail" }, { "title": "Maps", "bundleID": "com.apple.Maps" }] },
+        { "note": ["map", "app:com.apple.Maps"] },
+        { "shown": ["ma", ["Maps", "Mail"]] }
+      ]
+    },
+    {
+      "name": "the fourth pick overturns a settled leader in the list as in the store",
+      "steps": [
+        { "catalog": [{ "title": "Maps", "bundleID": "com.apple.Maps" }, { "title": "Mail", "bundleID": "com.apple.mail" }] },
+        { "note": ["ma", "app:com.apple.mail"], "times": 10 },
+        { "note": ["ma", "app:com.apple.Maps"], "times": 3 },
+        { "shown": ["ma", ["Mail", "Maps"]] },
+        { "note": ["ma", "app:com.apple.Maps"] },
+        { "catalog": [{ "title": "Mail", "bundleID": "com.apple.mail" }, { "title": "Maps", "bundleID": "com.apple.Maps" }] },
+        { "shown": ["ma", ["Maps", "Mail"]] }
+      ]
+    },
+    {
+      "name": "spelling a name out wins whatever was picked at a shorter spelling",
+      "steps": [
+        { "catalog": [{ "title": "Mail", "bundleID": "com.apple.mail" }, { "title": "Maps", "bundleID": "com.apple.Maps" }] },
+        { "note": ["ma", "app:com.apple.Maps"], "times": 20 },
+        { "shown": ["mail", ["Mail"]] },
+        { "shown": ["ma", ["Maps", "Mail"]] }
+      ]
+    },
+    {
+      "name": "lose keeps Local Servers above a remembered Loes",
+      "steps": [
+        { "catalog": [{ "title": "Loes", "bundleID": "loes" }, { "title": "Local Servers", "bundleID": "servers" }] },
+        { "note": ["lose", "app:loes"], "times": 20 },
+        { "shown": ["lose", ["Local Servers", "Loes"]] }
+      ]
+    },
+    {
+      "name": "at one level the remembered row leads whatever the score inside the level",
+      "steps": [
+        { "catalog": [{ "title": "Mail", "bundleID": "mail" }, { "title": "Some other words then Map", "bundleID": "deep" }] },
+        { "note": ["ma", "app:deep"] },
+        { "shown": ["ma", ["Some other words then Map", "Mail"]] }
+      ]
+    },
+    {
+      "name": "a remembered row that does not match is not in the list",
+      "steps": [
+        { "catalog": [{ "title": "Mail", "bundleID": "com.apple.mail" }, { "title": "Maps", "bundleID": "com.apple.Maps" }, { "title": "Safari", "bundleID": "com.apple.Safari" }] },
+        { "note": ["s", "app:com.apple.Safari"] },
+        { "shown": ["ma", ["Mail", "Maps"]] }
+      ]
+    },
+    {
+      "name": "an empty query keeps the recency order whatever is remembered",
+      "steps": [
+        { "catalog": [{ "title": "Mail", "bundleID": "com.apple.mail" }, { "title": "Maps", "bundleID": "com.apple.Maps" }] },
+        { "note": ["ma", "app:com.apple.Maps"] },
+        { "shown": ["", ["Mail", "Maps"]] }
+      ]
+    },
+    {
+      "name": "the bonus is one for the leader and one over the count for the last, none for an empty query",
+      "steps": [
+        { "catalog": [{ "title": "Mail", "bundleID": "com.apple.mail" }, { "title": "Maps", "bundleID": "com.apple.Maps" }] },
+        { "note": ["ma", "app:com.apple.mail"], "times": 3 },
+        { "note": ["ma", "app:com.apple.Maps"] },
+        { "bonus": ["ma", { "app:com.apple.mail": 1, "app:com.apple.Maps": 0.5 }] },
+        { "bonus": ["", {}] },
+        { "supplierBonus": ["ma", 1, 1] }
+      ]
+    },
+    {
+      "name": "a calculator row leads, the memory orders the rest, and it is never recorded",
+      "steps": [
+        { "catalog": [{ "title": "Mail", "bundleID": "com.apple.mail" }, { "title": "Maps", "bundleID": "com.apple.Maps" }] },
+        { "note": ["ma", "app:com.apple.Maps"], "times": 5 },
+        { "queryRows": { "when": "ma", "rows": [{ "title": "ma = 42", "item": { "kind": "calc", "value": "42" } }] } },
+        { "shown": ["ma", ["ma = 42", "Maps", "Mail"]] },
+        { "pick": ["ma", { "kind": "calc", "value": "42" }] },
+        { "order": ["ma", ["app:com.apple.Maps"]] }
+      ]
+    },
+    {
+      "name": "a hosted page shows only its source's rows, in the source's order",
+      "steps": [
+        { "catalog": [{ "title": "Mail", "bundleID": "com.apple.mail" }, { "title": "Maps", "bundleID": "com.apple.Maps" }] },
+        { "page": "vpn " },
+        { "queryRows": { "prefix": "vpn ", "hosted": true, "rows": [{ "title": "Zurich", "item": { "kind": "scope" } }, { "title": "Amsterdam", "item": { "kind": "scope" } }] } },
+        { "shown": ["am", ["Zurich", "Amsterdam"]] }
+      ]
+    },
+    {
+      "name": "an app row is recorded against what was typed, a computed row never",
+      "steps": [
+        { "pick": ["2+2", { "kind": "calc", "name": "4" }] },
+        { "order": ["2+2", []] },
+        { "pick": ["ma", { "kind": "app", "bundleID": "com.apple.Maps" }] },
+        { "lead": ["ma", "app:com.apple.Maps"] }
+      ]
+    },
+    {
+      "name": "nothing is recorded while another tool's list is hosted",
+      "steps": [
+        { "page": "vpn " },
+        { "pick": ["x", { "kind": "app", "bundleID": "com.apple.Maps" }] },
+        { "order": ["vpn x", []] },
+        { "order": ["x", []] }
+      ]
+    },
+    {
+      "name": "an uninstalled app is forgotten and a tool's own memory survives",
+      "steps": [
+        { "note": ["ma", "app:com.apple.Maps"] },
+        { "note": ["te", "special:textCase"] },
+        { "installed": [] },
+        { "running": [] },
+        { "pruneApps": true },
+        { "order": ["ma", []] },
+        { "lead": ["te", "special:textCase"] }
+      ]
+    },
+    {
+      "name": "an installed app is kept",
+      "steps": [
+        { "note": ["ma", "app:com.apple.Maps"] },
+        { "installed": ["com.apple.Maps"] },
+        { "running": [] },
+        { "pruneApps": true },
+        { "lead": ["ma", "app:com.apple.Maps"] }
+      ]
+    },
+    {
+      "name": "a running app outside the scanned roots is kept",
+      "steps": [
+        { "note": ["ma", "app:com.apple.Maps"] },
+        { "installed": [] },
+        { "running": ["com.apple.Maps"] },
+        { "pruneApps": true },
+        { "lead": ["ma", "app:com.apple.Maps"] }
+      ]
+    }
+  ]
+}

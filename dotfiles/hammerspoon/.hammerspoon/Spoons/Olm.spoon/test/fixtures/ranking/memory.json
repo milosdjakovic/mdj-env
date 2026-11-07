@@ -1,0 +1,156 @@
+{
+  "kind": "queryassoc",
+  "about": "The launcher's learned memory of which row was picked under which query, lib/queryassoc.lua, at its default decay 0.80, margin and floor 0.05. The numbers are the ones the design was chosen for, from test/ranking.lua, and a store written elsewhere has to answer the same. stored is what hs.settings held before the case, in the shape the Lua store writes, which is what the app reads once when it takes the memory over.",
+  "cases": [
+    {
+      "name": "a settled favourite is overturned on the fourth pick of a challenger, not before",
+      "steps": [
+        { "note": ["ma", "app:Maps"], "times": 30 },
+        { "lead": ["ma", "app:Maps"] },
+        { "note": ["ma", "app:Mail"] },
+        { "lead": ["ma", "app:Maps"] },
+        { "note": ["ma", "app:Mail"] },
+        { "lead": ["ma", "app:Maps"] },
+        { "note": ["ma", "app:Mail"] },
+        { "lead": ["ma", "app:Maps"] },
+        { "note": ["ma", "app:Mail"] },
+        { "lead": ["ma", "app:Mail"] }
+      ]
+    },
+    {
+      "name": "with no margin the scores still cross on the fourth pick",
+      "options": { "margin": 0 },
+      "steps": [
+        { "note": ["ma", "app:Maps"], "times": 30 },
+        { "note": ["ma", "app:Mail"], "times": 3 },
+        { "lead": ["ma", "app:Maps"] },
+        { "note": ["ma", "app:Mail"] },
+        { "lead": ["ma", "app:Mail"] }
+      ]
+    },
+    {
+      "name": "one stray pick does not hand an overturned lead straight back",
+      "steps": [
+        { "note": ["ma", "app:Maps"], "times": 30 },
+        { "note": ["ma", "app:Mail"], "times": 4 },
+        { "lead": ["ma", "app:Mail"] },
+        { "note": ["ma", "app:Maps"] },
+        { "lead": ["ma", "app:Mail"] }
+      ]
+    },
+    {
+      "name": "with no margin the same stray pick does hand it back",
+      "options": { "margin": 0 },
+      "steps": [
+        { "note": ["ma", "app:Maps"], "times": 30 },
+        { "note": ["ma", "app:Mail"], "times": 4 },
+        { "note": ["ma", "app:Maps"] },
+        { "lead": ["ma", "app:Maps"] }
+      ]
+    },
+    {
+      "name": "a thing no longer picked is forgotten after about twenty four picks of anything else",
+      "steps": [
+        { "note": ["ma", "app:Maps"], "times": 30 },
+        { "note": ["ma", "app:Mail"], "times": 24 },
+        { "order": ["ma", ["app:Mail"]] }
+      ]
+    },
+    {
+      "name": "a pick teaches the query and its prefixes down to two letters, never one",
+      "steps": [
+        { "note": ["slac", "app:Slack"] },
+        { "lead": ["slac", "app:Slack"] },
+        { "lead": ["sla", "app:Slack"] },
+        { "lead": ["sl", "app:Slack"] },
+        { "lead": ["s", null] }
+      ]
+    },
+    {
+      "name": "a one letter query that was the whole query records itself",
+      "steps": [
+        { "note": ["s", "app:Safari"] },
+        { "lead": ["s", "app:Safari"] }
+      ]
+    },
+    {
+      "name": "a longer query falls back to its longest known prefix, each branch to its own",
+      "steps": [
+        { "note": ["ma", "app:Maps"] },
+        { "note": ["mail", "app:Mail"] },
+        { "lead": ["mailbox", "app:Mail"] },
+        { "lead": ["map", "app:Maps"] }
+      ]
+    },
+    {
+      "name": "a query is remembered case folded",
+      "steps": [
+        { "note": ["Ma", "app:Maps"] },
+        { "lead": ["ma", "app:Maps"] }
+      ]
+    },
+    {
+      "name": "a prune drops a key the caller claims and says is gone, and keeps one it does not claim",
+      "steps": [
+        { "note": ["ma", "app:Maps"] },
+        { "note": ["te", "special:textCase"] },
+        { "prune": { "present": [], "claims": "app:" } },
+        { "lead": ["ma", null] },
+        { "lead": ["te", "special:textCase"] }
+      ]
+    },
+    {
+      "name": "a prune keeps a claimed key that is still present",
+      "steps": [
+        { "note": ["ma", "app:Maps"] },
+        { "prune": { "present": ["app:Maps"], "claims": "app:" } },
+        { "lead": ["ma", "app:Maps"] }
+      ]
+    },
+    {
+      "name": "the memory survives a reload",
+      "steps": [
+        { "note": ["ma", "app:Maps"], "times": 5 },
+        { "reload": true },
+        { "lead": ["ma", "app:Maps"] }
+      ]
+    },
+    {
+      "name": "a malformed stored entry costs that entry and not its neighbours",
+      "stored": {
+        "ma": { "lead": "app:Maps", "n": 3, "s": { "app:Maps": { "v": 2, "k": 3 } } },
+        "junk": { "n": 1, "s": { "app:X": { "v": "not a number", "k": 1 } } },
+        "alsojunk": "not a table"
+      },
+      "steps": [
+        { "lead": ["ma", "app:Maps"] },
+        { "lead": ["junk", null] },
+        { "lead": ["alsojunk", null] }
+      ]
+    },
+    {
+      "name": "an unknown or empty query answers an empty order",
+      "steps": [
+        { "order": ["nothing", []] },
+        { "order": ["", []] }
+      ]
+    },
+    {
+      "name": "the cap is on queries, the weakest dropped",
+      "options": { "maxQueries": 5 },
+      "steps": [
+        { "note": ["q1", "app:Thing1"] }, { "note": ["q2", "app:Thing2"] },
+        { "note": ["q3", "app:Thing3"] }, { "note": ["q4", "app:Thing4"] },
+        { "note": ["q5", "app:Thing5"] }, { "note": ["q6", "app:Thing6"] },
+        { "note": ["q7", "app:Thing7"] }, { "note": ["q8", "app:Thing8"] },
+        { "note": ["q9", "app:Thing9"] }, { "note": ["q10", "app:Thing10"] },
+        { "note": ["q11", "app:Thing11"] }, { "note": ["q12", "app:Thing12"] },
+        { "note": ["q13", "app:Thing13"] }, { "note": ["q14", "app:Thing14"] },
+        { "note": ["q15", "app:Thing15"] }, { "note": ["q16", "app:Thing16"] },
+        { "note": ["q17", "app:Thing17"] }, { "note": ["q18", "app:Thing18"] },
+        { "note": ["q19", "app:Thing19"] }, { "note": ["q20", "app:Thing20"] },
+        { "storedQueriesAtMost": 5 }
+      ]
+    }
+  ]
+}

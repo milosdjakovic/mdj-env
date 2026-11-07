@@ -16,6 +16,9 @@
 -- leader on the fourth pick is the behaviour asked for, and a test that reads the constant and
 -- recomputes the expectation from it would pass just as happily if the constant were wrong.
 --
+-- Every case here is also a JSON fixture under test/fixtures/ranking, which Olm.app's own tests
+-- read, see fixtures.lua. A case added here is added there too, until the fixtures replace this.
+--
 -- Run it.
 --   lua test/ranking.lua
 

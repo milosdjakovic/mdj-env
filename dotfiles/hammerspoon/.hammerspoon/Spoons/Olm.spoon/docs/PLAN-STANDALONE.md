@@ -23,12 +23,12 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 0.2, fixtures for ranking.
+Next. 0.4, the bridge protocol, on paper.
 
 Stage 0, contracts
 - [x] 0.1 The decision record, 2026-11-05
 - [x] 0.5 Gather LuaSkin into one Swift file, 2026-11-06
-- [ ] 0.2 Fixtures for ranking
+- [x] 0.2 Fixtures for ranking, 2026-11-07
 - [ ] 0.4 The bridge protocol, on paper, with its adversarial review
 - [ ] 0.6 A data source protocol in front of the library, and the package build
 - [ ] 0.3a Fixtures for the file search grammar
@@ -177,7 +177,10 @@ chooser serving and a clean console. Back out, revert the commit.
 **0.2 Fixtures for ranking.** The cases in `test/ranking.lua` are written as JSON in a fixtures
 directory, and a Lua runner in the dry gate reads them. The old test stays until the runner covers
 everything it did. Blast radius, test code only. Test, the runner and the old test agree on every
-case, and a deliberately broken case fails the gate.
+case, and a deliberately broken case fails the gate. Done as `test/fixtures.lua` and
+`test/fixtures/ranking/`, rule cases for the rank engine, the launcher's memory and its ordering, and a
+recorded corpus of 74 queries over one launcher shaped list, so the Swift port is checked beyond the
+rules. Only the shared fuzzy matcher is pinned, since a hand written test matcher has no JSON form.
 
 **0.4 The bridge protocol, on paper.** `docs/PROTOCOL-BRIDGE.md`. Line delimited JSON RPC. The
 messages are the catalog, rows for a query tagged with a generation so a stale answer is

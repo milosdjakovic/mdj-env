@@ -1,0 +1,221 @@
+{
+  "kind": "rank.order",
+  "about": "How the one rank engine orders a list, through the shared fuzzy matcher. Each expectation is the rule lib/chooser/rank.lua states, taken from test/cases/rankvocabulary.lua, test/cases/searchfields.lua and test/ranking.lua, never what the code happened to answer.",
+  "cases": [
+    {
+      "name": "with nothing set, two rows matching at one level keep the supplier's order",
+      "query": "ma",
+      "rows": [{ "title": "Mail" }, { "title": "Maps" }],
+      "expect": ["Mail", "Maps"]
+    },
+    {
+      "name": "and the other supplier order the other way",
+      "query": "ma",
+      "rows": [{ "title": "Maps" }, { "title": "Mail" }],
+      "expect": ["Maps", "Mail"]
+    },
+    {
+      "name": "pinned rows trail the ranked rows under a typed query, in the supplier's order",
+      "query": "ma",
+      "rows": [
+        { "title": "Back", "pinned": true },
+        { "title": "Up", "pinned": true },
+        { "title": "Mail" },
+        { "title": "Settings", "pinned": true },
+        { "title": "Maps" },
+        { "title": "New", "pinned": true }
+      ],
+      "expect": ["Mail", "Maps", "Back", "Up", "Settings", "New"]
+    },
+    {
+      "name": "a pinned row survives a query that drops every other row",
+      "query": "zzz",
+      "rows": [{ "title": "Alpha" }, { "title": "Save as", "pinned": true }, { "title": "Beta" }],
+      "expect": ["Save as"]
+    },
+    {
+      "name": "an empty query leaves pinned and fromQuery rows where the supplier put them",
+      "query": "",
+      "rows": [
+        { "title": "Back", "pinned": true },
+        { "title": "Alpha" },
+        { "title": "42", "fromQuery": true },
+        { "title": "Beta" }
+      ],
+      "expect": ["Back", "Alpha", "42", "Beta"]
+    },
+    {
+      "name": "fromQuery rows lead the ranked rows and pinned rows trail them, a row setting both being fromQuery",
+      "query": "doc",
+      "rows": [
+        { "title": "Back", "pinned": true },
+        { "title": "Docs" },
+        { "title": "128", "fromQuery": true },
+        { "title": "Doc Viewer" },
+        { "title": "Converting", "fromQuery": true, "pinned": true }
+      ],
+      "expect": ["128", "Converting", "Docs", "Doc Viewer", "Back"]
+    },
+    {
+      "name": "fromQuery rows survive a query nothing matches, and pinned rows after them",
+      "query": "zzz",
+      "rows": [
+        { "title": "Back", "pinned": true },
+        { "title": "Docs" },
+        { "title": "128", "fromQuery": true },
+        { "title": "Doc Viewer" },
+        { "title": "Converting", "fromQuery": true, "pinned": true }
+      ],
+      "expect": ["128", "Converting", "Back"]
+    },
+    {
+      "name": "Ockham, a name start, leads Docker, inside a word",
+      "query": "ock",
+      "rows": [{ "title": "Docker" }, { "title": "Ockham" }],
+      "expect": ["Ockham", "Docker"]
+    },
+    {
+      "name": "a smaller tier leads a row that matched better",
+      "query": "ock",
+      "rows": [{ "title": "Ockham", "tier": 1 }, { "title": "Docker" }],
+      "expect": ["Docker", "Ockham"]
+    },
+    {
+      "name": "Docs scores above Doc Viewer at one level",
+      "query": "doc",
+      "rows": [{ "title": "Doc Viewer" }, { "title": "Docs" }],
+      "expect": ["Docs", "Doc Viewer"]
+    },
+    {
+      "name": "a bonus leads inside one level sum against a better score",
+      "query": "doc",
+      "rows": [{ "title": "Docs" }, { "title": "Doc Viewer", "bonus": 0.5 }],
+      "expect": ["Doc Viewer", "Docs"]
+    },
+    {
+      "name": "a full bonus never lifts a lower level row over a higher one",
+      "query": "ock",
+      "rows": [{ "title": "Docker", "bonus": 1 }, { "title": "Ockham" }],
+      "expect": ["Ockham", "Docker"]
+    },
+    {
+      "name": "a full bonus never lifts a row over one with the phrase bonus",
+      "query": "do disturb",
+      "rows": [
+        { "title": "Beta", "keywords": ["do", "disturb"], "bonus": 1 },
+        { "title": "Alpha", "keywords": "do not disturb" }
+      ],
+      "expect": ["Alpha", "Beta"]
+    },
+    {
+      "name": "a bonus above one counts as one",
+      "query": "doc",
+      "rows": [{ "title": "Docs", "bonus": 1 }, { "title": "Doc Viewer", "bonus": 5 }],
+      "expect": ["Docs", "Doc Viewer"]
+    },
+    {
+      "name": "a bonus below zero counts as zero",
+      "query": "doc",
+      "rows": [{ "title": "Doc Viewer" }, { "title": "Docs", "bonus": -3 }],
+      "expect": ["Docs", "Doc Viewer"]
+    },
+    {
+      "name": "a wrongly typed pinned, tier or bonus is ignored",
+      "query": "doc",
+      "rows": [
+        { "title": "Doc Viewer", "bonus": "1", "tier": "-1" },
+        { "title": "Back", "pinned": "true" },
+        { "title": "Docs" }
+      ],
+      "expect": ["Docs", "Doc Viewer"]
+    },
+    {
+      "name": "spelling a name out drops the rows it no longer matches",
+      "query": "mail",
+      "rows": [{ "title": "Maps" }, { "title": "Mail" }],
+      "expect": ["Mail"]
+    },
+    {
+      "name": "lose keeps Local Servers, spelled in pieces, above Loes with its bonus, one edit away",
+      "query": "lose",
+      "rows": [{ "title": "Loes", "bonus": 1 }, { "title": "Local Servers" }],
+      "expect": ["Local Servers", "Loes"]
+    },
+    {
+      "name": "at one level a bonus leads whatever the score inside the level",
+      "query": "ma",
+      "rows": [{ "title": "Mail" }, { "title": "Some other words then Map", "bonus": 1 }],
+      "expect": ["Some other words then Map", "Mail"]
+    },
+    {
+      "name": "a filterText of the title keeps the subtitle out of search",
+      "query": "running",
+      "rows": [
+        { "title": "Docker", "subTitle": "Running", "filterText": "Docker" },
+        { "title": "Running Club" }
+      ],
+      "expect": ["Running Club"]
+    },
+    {
+      "name": "a keyword answers a word the title does not hold",
+      "query": "dnd",
+      "rows": [
+        { "title": "Display" },
+        { "title": "Focus", "keywords": "focus, do not disturb, dnd" }
+      ],
+      "expect": ["Focus"]
+    },
+    {
+      "name": "two words land in two names, each at a word start",
+      "query": "github pull",
+      "rows": [
+        { "title": "Fix the parser", "names": ["github.com", "github.com/owner/repo/pull/12"] },
+        { "title": "Inbox" }
+      ],
+      "expect": ["Fix the parser"]
+    },
+    {
+      "name": "a limit keeps the best rows under a typed query and every kept row",
+      "query": "doc",
+      "rowLimit": 1,
+      "rows": [
+        { "title": "Back", "pinned": true },
+        { "title": "Doc Viewer" },
+        { "title": "128", "fromQuery": true },
+        { "title": "Docs" }
+      ],
+      "expect": ["128", "Docs", "Back"],
+      "more": { "count": 1, "at": 3 }
+    },
+    {
+      "name": "an empty query keeps the first rows up to the limit and every kept row in place",
+      "query": "",
+      "rowLimit": 2,
+      "rows": [
+        { "title": "Back", "pinned": true },
+        { "title": "Docs" },
+        { "title": "128", "fromQuery": true },
+        { "title": "Doc Viewer" },
+        { "title": "Downloads" }
+      ],
+      "expect": ["Back", "Docs", "128", "Doc Viewer"],
+      "more": { "count": 1, "at": 5 }
+    },
+    {
+      "name": "a limit above the matches cuts nothing",
+      "query": "doc",
+      "rowLimit": 10,
+      "rows": [{ "title": "Docs" }, { "title": "Doc Viewer" }],
+      "expect": ["Docs", "Doc Viewer"],
+      "more": null
+    },
+    {
+      "name": "a limit that is not a positive whole number is read as absent",
+      "query": "doc",
+      "rowLimit": 1.5,
+      "rows": [{ "title": "Docs" }, { "title": "Doc Viewer" }],
+      "expect": ["Docs", "Doc Viewer"],
+      "more": null
+    }
+  ]
+}

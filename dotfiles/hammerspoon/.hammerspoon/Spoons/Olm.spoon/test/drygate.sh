@@ -101,4 +101,16 @@ else
   echo "  test/goldens.sh --update and read every changed line before committing it." >&2
   [ "$gate" -eq 0 ] && gate=1
 fi
+# The language neutral fixtures ride along too, see fixtures.lua. They are the cases Olm.app's own
+# tests read, docs/PLAN-STANDALONE.md, so a Lua change that moves an answer fails here before the
+# two implementations can drift. A failing case is printed with what it wanted and what it got.
+if "$OLM_LUA" "$here/fixtures.lua" >"$work/fixtures.txt" 2>&1; then
+  tail -n 1 "$work/fixtures.txt"
+else
+  echo "fixtures, a case disagrees with the Lua, every line below names one:" >&2
+  sed 's/^/  /' "$work/fixtures.txt" >&2
+  echo "  A rule fixture states the rule, so fix the code or, when the rule changed, the case. A" >&2
+  echo "  recorded corpus is refreshed with lua test/fixtures.lua --record, each line read first." >&2
+  [ "$gate" -eq 0 ] && gate=1
+fi
 exit "$gate"
