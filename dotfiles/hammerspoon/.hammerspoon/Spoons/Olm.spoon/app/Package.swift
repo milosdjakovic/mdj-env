@@ -13,8 +13,12 @@ let package = Package(
   targets: [
     .executableTarget(
       name: "Olm",
-      dependencies: [.product(name: "OlmChooser", package: "swift")],
+      dependencies: ["OlmSearch", .product(name: "OlmChooser", package: "swift")],
       path: "Sources/Olm"
     ),
+    // The app's search, ported from the Lua side one part at a time, each part checked against
+    // the shared fixtures by olm-fixtures before the app uses it, step 1.3 of the plan.
+    .target(name: "OlmSearch", path: "Sources/OlmSearch"),
+    .executableTarget(name: "olm-fixtures", dependencies: ["OlmSearch"], path: "Sources/olm-fixtures"),
   ]
 )

@@ -153,6 +153,11 @@ no test lock, and it takes the bundle out of LaunchServices when it ends. It lau
 package. The app's checks are programs like this rather than `swift test`, since the command line
 tools ship no test framework, `decisions/olm-standalone.md`.
 
+`test/olmfixtures.sh` runs the shared fixtures through the app's Swift ports, `app/Sources/
+olm-fixtures`, which reads the same JSON files as `test/fixtures.lua`. A kind the app has not ported
+yet is reported as not ported, never as passed, so the count of ported kinds only grows as the
+plan's steps land. `suite.sh dry` runs it.
+
 ## The key inventory
 
 `keys.golden` is every chord the running configuration has bound, one line each, and every

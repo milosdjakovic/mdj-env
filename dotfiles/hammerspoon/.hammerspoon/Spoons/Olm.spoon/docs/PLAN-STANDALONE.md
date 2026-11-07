@@ -23,7 +23,7 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 1.3, search, open and reveal.
+Next. 1.3b, ranking in Swift.
 
 Stage 0, contracts
 - [x] 0.1 The decision record, 2026-11-05
@@ -40,7 +40,13 @@ Stage 0, contracts
 Stage 1, the file search pilot
 - [x] 1.1 The app shell, 2026-11-07
 - [x] 1.2 The trigger, 2026-11-07
-- [ ] 1.3 Search, open and reveal, shadow then flip
+- [ ] 1.3 Search, open and reveal, shadow then flip, in six parts
+  - [x] 1.3a The file search grammar in Swift, its fixtures passing, 2026-11-07
+  - [ ] 1.3b Ranking in Swift, `match.lua` and `rank.lua`, the rule and corpus fixtures passing
+  - [ ] 1.3c The index in the app, the helper's sources searching on background work
+  - [ ] 1.3d The app's own list, rows ranked as typed, open and reveal, the panel's API public
+  - [ ] 1.3e The shadow, both sides answering each query and the differences logged
+  - [ ] 1.3f The flip, the three timings against the Lua file search, and the trial
 - [ ] 1.4a Preview pane
 - [ ] 1.4b Thumbnails
 - [ ] 1.4c Quick Look
@@ -239,6 +245,19 @@ with no Swift source changed is not known. Open: watch for it at the next reload
 Left on this machine: `~/.olm/app/Olm.app` stays built and registered for `olm://`, since switching
 a piece off removes nothing. The machine's pieces file has no `olmapp` row, so it takes the default,
 off.
+
+**1.3a, the grammar in Swift, 2026-11-07.** Built:
+- `app/Sources/OlmSearch/Query.swift`, the port of `plugins/filesearch/query.lua`. It reads the
+  query as UTF-8 bytes, the way Lua does: Lua's six whitespace characters, ASCII-only lowercasing,
+  and lengths and prefixes in bytes. So a word with an accent stays exactly as typed.
+- `app/Sources/olm-fixtures`, the Swift side of the shared fixtures. It reads the same JSON files
+  `test/fixtures.lua` reads, runs each kind the app has ported, and counts the rest as not ported
+  yet, never as passed.
+- `test/olmfixtures.sh` builds and runs it, and `suite.sh dry` runs it after `swiftpackage.sh`.
+
+Result: all 45 grammar cases pass in Swift, 29 parse and 16 narrows. Broken copies of both files
+failed 7 cases, and the runner exited nonzero. No issues. The 231 cases of the other kinds are
+reported as not ported.
 
 ## Where the facts come from
 

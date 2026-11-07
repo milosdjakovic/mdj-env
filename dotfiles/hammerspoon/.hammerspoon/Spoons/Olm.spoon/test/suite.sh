@@ -73,6 +73,10 @@ if [ "$tiers" = "dry" ]; then
   "$here/swiftpackage.sh"
   rc=$?
   [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ] || exit 1
+  # The shared fixtures through Olm.app's Swift ports, see olmfixtures.sh. Exit 2 is the same skip.
+  "$here/olmfixtures.sh"
+  rc=$?
+  [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ] || exit 1
   echo
   exec "$here/drygate.sh" "$@"
 fi

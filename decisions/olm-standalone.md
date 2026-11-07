@@ -134,31 +134,6 @@ first as language neutral fixtures both sides run.
   chooser served the new image with the probe answering, and the console held no error, only the
   five warnings this machine always has, IVPN absent, a screen with no display profile and two keys
   the layout lacks.
-- 2026-11-07 20:50. Step 1.2 was finished. Milos tried it with the olmapp piece on, and file
-  search's key showed the app's chooser, which closed on Escape and on a press outside, while the
-  launcher's file search scope still searched in Lua. With the piece off again the key opened the
-  Lua file search, so the back out holds. The first reload with the piece on came up on the fallback
-  chooser, the swift library rebuilding itself with no Swift source changed, cause not known.
-- 2026-11-07 20:30. Step 1.2 was built, waiting for its hand trial. A machine's piece reaches the
-  running config as `~/.hammerspoon/machine-pieces.lua`, written by `src/setup-hammerspoon-apps.sh`
-  from `src/machine.sh` beside the two machine files it already copies, since Hammerspoon cannot
-  ask `machines/` and a difference between machines is a piece, never a branch. The open key is
-  taken by swapping the function its keymap row runs, in the root between the keymap and the
-  binder, rather than by a keymap entry naming the chord, which would have had to repeat file
-  search's chord on that machine and drift from it. So the keymap, the cheat sheets and the goldens
-  are the same with the piece on or off. Which tools the app serves is a list in
-  `config/plugins.lua`, since the dry gate keeps a host from naming a plugin. The key opens the app
-  with `open -g`, which does not bring the app forward, since its chooser is a nonactivating panel.
-- 2026-11-07 12:21. Step 1.1 was finished. Olm.app's code is `app/` inside the spoon, beside the
-  Lua it replaces piece by piece, so the spoon stays the one thing that is Olm, and its package
-  depends on the swift chooser's by path. It is built into `~/.olm/app`, beside Olm's data and out
-  of the Applications folder, since it is a part of Olm rather than an app a person opens, by
-  `src/setup-olmapp.sh` where the `olmapp` piece is on, off by default. Its bundle id is
-  `local.olm.Olm`, a placeholder until signing in stage 6 needs a real one. The app's checks are
-  programs, `test/olmapp.sh` today, rather than `swift test`, because the command line tools ship
-  no test framework and a check only a full Xcode can run would leave the other machines
-  unchecked. `hs` was found to wait on a stdin that is no terminal, which made a captured call look
-  as if it printed nothing.
 - 2026-11-07 12:04. Steps 0.3b to 0.3e were finished together, and stage 0 with them. Lifting the bottom bar,
   keymap resolution, the remap and the list keys by hand meant transcribing a 1900 line module's
   tests, so they were lifted mechanically instead. `test/fixtures-record.lua` runs an existing test
@@ -177,4 +152,34 @@ first as language neutral fixtures both sides run.
   every load. The bottom bar is recorded from `keymap-person.lua`, the only plain test that calls it,
   so it moves with the person's keymap as `keys.golden` does, and `goldens.sh --update` records the
   fixtures again. They take 2.4 MB, nearly all of it the plan each fixture keymap's run builds.
+- 2026-11-07 12:21. Step 1.1 was finished. Olm.app's code is `app/` inside the spoon, beside the
+  Lua it replaces piece by piece, so the spoon stays the one thing that is Olm, and its package
+  depends on the swift chooser's by path. It is built into `~/.olm/app`, beside Olm's data and out
+  of the Applications folder, since it is a part of Olm rather than an app a person opens, by
+  `src/setup-olmapp.sh` where the `olmapp` piece is on, off by default. Its bundle id is
+  `local.olm.Olm`, a placeholder until signing in stage 6 needs a real one. The app's checks are
+  programs, `test/olmapp.sh` today, rather than `swift test`, because the command line tools ship
+  no test framework and a check only a full Xcode can run would leave the other machines
+  unchecked. `hs` was found to wait on a stdin that is no terminal, which made a captured call look
+  as if it printed nothing.
+- 2026-11-07 20:30. Step 1.2 was built, waiting for its hand trial. A machine's piece reaches the
+  running config as `~/.hammerspoon/machine-pieces.lua`, written by `src/setup-hammerspoon-apps.sh`
+  from `src/machine.sh` beside the two machine files it already copies, since Hammerspoon cannot
+  ask `machines/` and a difference between machines is a piece, never a branch. The open key is
+  taken by swapping the function its keymap row runs, in the root between the keymap and the
+  binder, rather than by a keymap entry naming the chord, which would have had to repeat file
+  search's chord on that machine and drift from it. So the keymap, the cheat sheets and the goldens
+  are the same with the piece on or off. Which tools the app serves is a list in
+  `config/plugins.lua`, since the dry gate keeps a host from naming a plugin. The key opens the app
+  with `open -g`, which does not bring the app forward, since its chooser is a nonactivating panel.
+- 2026-11-07 20:50. Step 1.2 was finished. Milos tried it with the olmapp piece on, and file
+  search's key showed the app's chooser, which closed on Escape and on a press outside, while the
+  launcher's file search scope still searched in Lua. With the piece off again the key opened the
+  Lua file search, so the back out holds. The first reload with the piece on came up on the fallback
+  chooser, the swift library rebuilding itself with no Swift source changed, cause not known.
+- 2026-11-07 20:53. Step 1.3 was split into six parts in the plan, since it ports the grammar, the
+  ranking and the index and also moves a list, each of which has its own gate. 1.3a was finished:
+  the grammar is `app/Sources/OlmSearch/Query.swift`, read in UTF-8 bytes as Lua reads it, and
+  `olm-fixtures` runs the shared JSON fixtures in Swift from the dry suite. A kind not ported yet
+  is reported, never counted as a pass.
 
