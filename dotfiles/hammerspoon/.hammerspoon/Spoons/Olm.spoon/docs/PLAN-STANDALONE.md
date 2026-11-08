@@ -48,8 +48,7 @@ Stage 1, the file search pilot
   - [ ] 1.3e The shadow, both sides answering each query and the differences logged
     Built on main 2026-11-08, the Lua file search asking the app, running over a few days of real use with the piece on.
   - [ ] 1.3f The three timings against the Lua file search, and a trial, with no flip
-  - [ ] 1.3g The app's structure, `docs/DESIGN-APP.md`, file search moved onto it with nothing a person can see changed
-    Built on main 2026-11-08, every check passing, waiting for its trial by hand.
+  - [x] 1.3g The app's structure, `docs/DESIGN-APP.md`, file search moved onto it with nothing a person can see changed, 2026-11-08
 - [ ] 1.4a Preview pane, with its scroll keys
 - [ ] 1.4b Thumbnails
 - [ ] 1.4c Quick Look
@@ -452,6 +451,11 @@ One change a person can see: a long file name now loses its middle rather than i
 `truncateMiddle` the Lua file search declares, which the pilot never read.
 Result: the dry suite, 161 fixtures, 24 index and source checks, and the dependency check pass.
 Open: the trial by hand.
+
+**1.3g ticked, 2026-11-08.** The trial by hand passed, with the app serving file search's key for
+the trial alone. Typing, steady icons, a long name cut in the middle, Return opening, Command and
+Return revealing and Command and a digit opening its slot all worked, and Milos called it good.
+Its key went back to the Lua file search after, and the shadow runs on.
 
 ## Where the facts come from
 
