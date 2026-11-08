@@ -19,16 +19,25 @@ local function eq(got, want, what)
   end
 end
 
-local said, started = {}, {}
+local said, started, timers = {}, {}, {}
 local present = {}
 hs = {
+  timer = { doAfter = function(_, fn)
+    local t = { fn = fn }
+    function t:stop() self.stopped = true end
+    timers[#timers + 1] = t
+    return t
+  end },
   logger = { new = function() return {
     i = function(m) said[#said + 1] = m end,
     w = function(m) said[#said + 1] = m end,
   } end },
   fs = { attributes = function(path) return present[path] and "directory" or nil end,
     mkdir = function() return true end },
-  json = { encode = function(v) return "{\"types\":" .. tostring(v.types and "t" or "none") .. "}" end },
+  json = { encode = function(v)
+    if v.query then return "{\"id\":" .. v.id .. ",\"query\":\"" .. v.query .. "\",\"keys\":" .. #v.keys .. "}" end
+    return "{\"types\":" .. tostring(v.types and "t" or "none") .. "}"
+  end },
   task = { new = function(path, done, args)
     local t = { path = path, args = args, done = done }
     function t:start() started[#started + 1] = self; return self end
@@ -115,6 +124,49 @@ eq(io.open(run .. "/look.json") == nil, true, "a share that answers nil is not w
 eq(#said, 1, "its reason is said once")
 b:share("raises", function() error("boom") end)
 eq(io.open(run .. "/raises.json") == nil, true, "a share that raises is not written")
+
+-- The shadow of step 1.3e. It is off unless the piece is on and the app built, it hands a list over
+-- only once it has settled, never while it searches, and never the same query twice running.
+eq(#fresh({ pieces = { olmapp = "off" }, deps = deps, app = APP, shadows = { "fileSearch" } }):shadowed(), 0,
+  "olmapp off shadows nothing")
+b = fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, shadows = { "fileSearch", "../x" } })
+eq(#b:shadowed(), 1, "olmapp on shadows each plain identity the config lists")
+eq(b:shadowed()[1], "fileSearch", "and names it")
+local changed
+local answer = { query = "report", status = nil, keys = { "/a/report.pdf", "/b/report.txt" } }
+timers = {}
+b:shadowWith("fileSearch", { watch = function(fn) changed = fn end, answer = function() return answer end })
+eq(type(changed), "function", "the shadow watches the tool's list")
+changed()
+changed()
+eq(#timers, 2, "each change waits for the list to settle")
+eq(timers[1].stopped, true, "and a newer change replaces the wait before it")
+local before = #started
+timers[2].fn()
+eq(#started, before + 1, "a settled list is handed to the app")
+eq(started[#started].args[4], "olm://shadow?tool=filesearch&id=1", "through olm://shadow with the tool and an id")
+f = io.open(run .. "/filesearchshadow.json")
+eq(f and f:read("a"), '{"id":1,"query":"report","keys":2}', "the answer is written for the app to read")
+if f then f:close() end
+changed()
+timers[#timers].fn()
+eq(#started, before + 1, "the same query is not handed over twice running")
+answer = { query = "reports", status = "searching", keys = {} }
+changed()
+timers[#timers].fn()
+eq(#started, before + 1, "a list still searching is not handed over")
+answer = { query = "reports", status = nil, keys = {} }
+changed()
+timers[#timers].fn()
+eq(started[#started].args[4], "olm://shadow?tool=filesearch&id=2", "the next settled query is")
+answer = nil
+changed()
+timers[#timers].fn()
+eq(#started, before + 2, "an answer that is not a table is dropped")
+local watched = false
+b:shadowWith("../x", { watch = function() watched = true end, answer = function() return answer end })
+eq(watched, false, "an identity that is not a plain word is not watched")
+
 os.execute("rm -rf '" .. run .. "'")
 
 print(string.format("bridge: %d checks, %d failed", checks, failures))

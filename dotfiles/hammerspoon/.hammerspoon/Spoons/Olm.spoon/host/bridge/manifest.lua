@@ -26,6 +26,10 @@ return {
       -- piece is on, so the config keeps one owner and the app a copy it never edits.
       shares = { source = "user", policy = "optional",
         breaks = "the app runs on its own defaults rather than this config's" },
+      -- The tools whose answers are handed to Olm.app to answer again and compare, step 1.3e, by
+      -- identity, from config/plugins.lua. Each must offer watch and held.
+      shadows = { source = "user", policy = "optional",
+        breaks = "no answer is compared with the app's, which changes nothing a person sees" },
       -- The tools Olm.app serves, by identity, from config/plugins.lua.
       serves = { source = "user", policy = "optional",
         breaks = "no tool's key opens Olm.app, so every key opens the Lua list as before" },

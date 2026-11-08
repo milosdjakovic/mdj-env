@@ -319,6 +319,39 @@ end
 -- made, which is after wireSwiftChooser has run, and the answer cannot change within a session,
 -- since the provider decides once at configure time. It lives outside obj.run for the same reason
 -- wireSwiftChooser does.
+-- The shadow of step 1.3e of docs/PLAN-STANDALONE.md. Each tool the bridge shadows hands it its
+-- list as it settles, ranked by the shared search exactly as the stage ranks it, the presentation's
+-- searchText and rowLimit included, and named by each row's key, so the app can answer the same
+-- query and log what differs. A tool must offer watch and held, which the line below says when it
+-- does not. The root names no tool here, the config's shadows list does.
+local function wireShadows(bridge, modules, registry, rank, matcher)
+  if not (bridge and type(bridge.shadowed) == "function" and type(bridge.shadowWith) == "function") then return end
+  for _, identity in ipairs(bridge:shadowed()) do
+    local tool = modules[identity]
+    local presentation = registry and registry.presentationFor and registry.presentationFor(identity)
+    -- search-exempt, the shadow ranks a tool's held rows as the stage does only to compare them with the app's, and shows nothing
+    local ranks = rank and type(rank.apply) == "function"
+    if not (ranks and tool and type(tool.watch) == "function" and type(tool.held) == "function" and presentation) then
+      log.w("the shadow of " .. identity .. " is off, the tool offers no watch and held or has no presentation")
+    else
+      bridge:shadowWith(identity, {
+        watch = function(fn) tool:watch(fn) end,
+        answer = function()
+          local held = tool:held()
+          -- search-exempt, the stage's own ranking, run again only to hand the app what the list a person sees holds
+          local ranked = rank.apply(held.items or {}, held.query or "", matcher,
+            { searchText = presentation.searchText, rowLimit = presentation.rowLimit })
+          local keys = {}
+          for _, row in ipairs(ranked or {}) do
+            if not row.pinned and not row.fromQuery and row.key ~= nil then keys[#keys + 1] = row.key end
+          end
+          return { query = held.query or "", status = held.status, keys = keys }
+        end,
+      })
+    end
+  end
+end
+
 local function previewPaneBackend(chooserAtom, chosen)
   local swift = chooserAtom.providers and chooserAtom.providers.swift
   if swift and chosen == swift and swift.serving() == "swift" then
@@ -2830,6 +2863,8 @@ function obj.run(olm, cfg)
     if bridgeModule and type(bridgeModule.share) == "function" and swift and swift.look then
       bridgeModule:share("chooser", function() return swift.look({ bottomBar = function() return nil end }) end)
     end
+    wireShadows(bridgeModule, modules, wiredRegistry, chooserAtom.rank,
+      chooserAtom.matchers and chooserAtom.matchers[policy.matcher])
   end
 
   -- The binder, the one place a global key is bound. Each row lands on the leader named the way

@@ -46,6 +46,7 @@ Stage 1, the file search pilot
   - [x] 1.3c The index in the app, the helper's sources searching on background work, 2026-11-07
   - [x] 1.3d The app's own list, rows ranked as typed, open and reveal, in the swift chooser's own look, 2026-11-08
   - [ ] 1.3e The shadow, both sides answering each query and the differences logged
+    Built on main 2026-11-08, the Lua file search asking the app, running over a few days of real use with the piece on.
   - [ ] 1.3f The three timings against the Lua file search, and a trial, with no flip
   - [ ] 1.3g The app's structure, `docs/DESIGN-APP.md`, file search moved onto it with nothing a person can see changed
 - [ ] 1.4a Preview pane, with its scroll keys
@@ -413,6 +414,22 @@ search with the Lua one and found it good, the only difference the preview pane,
 The swift library rebuilt itself once after the lock relaunched Hammerspoon, so the first reload
 served the fallback and a second one served swift, as the Hammerspoon `AGENTS.md` warns. Then the
 piece was switched off again, the app quit and the lock released, and Hammerspoon is on main.
+
+**1.3e built, the shadow, 2026-11-08.** The plan had the app ask Lua through the command line.
+Milos chose to keep the Lua file search as the daily one while the shadow runs, rule 9, so the
+asking runs the other way. Each answer the Lua list settles on is ranked as the stage ranks it and
+handed to the app, through `~/.olm/run/filesearchshadow.json` and `olm://shadow`. The app answers
+it with an engine of its own and logs one line per query to `~/.olm/log/shadow-filesearch.jsonl`.
+`serves` is empty while it runs, so file search's key opens the Lua list, and a trial adds the tool
+back for the trial alone. A search leaves out frecency's bonus on both sides, and the recent list
+and a folder search are logged as skipped, steps 1.4d and 1.4e.
+Issue: the dry gate refused the shadow's `rank.apply` in `root/compose.lua`. Fixed: it ranks only
+to compare and shows nothing, so both lines carry a search-exempt reason.
+Result: the dry suite, 2124 unit cases and 40 bridge checks pass. A live check, with no screen
+and no key, ran the Lua engine headless: `report` gave the same 155 files in the same order on
+both sides, `invoice` nothing on both, and the empty query was skipped.
+Open: a few days of real use. Then the log is read, and every line that is not `same` is a bug
+fixed before 1.3e is ticked.
 
 ## Where the facts come from
 

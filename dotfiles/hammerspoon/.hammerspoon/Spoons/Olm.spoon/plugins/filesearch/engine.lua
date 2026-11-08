@@ -398,6 +398,7 @@ function obj:_redraw(_, status)
   self._display = self._holding and {} or self._retained
   self._status = status
   if self.onResults then self.onResults() end
+  for _, fn in ipairs(self._watchers or {}) do pcall(fn) end
 end
 
 --------------------------------------------------------------------------------
@@ -663,6 +664,30 @@ function obj:refresh()
   end
   self:_fetchRecents()
   if self._parsed and self._narrowable then self:_dispatch(self._parsed) end
+end
+
+--- engine:watch(fn) - fn is called with nothing after every change of the rows or the status,
+--- for a reader beside the picker, the root's comparison with Olm.app among them. Each one is
+--- kept for the life of the engine, and one that raises does not stop the others.
+function obj:watch(fn)
+  if type(fn) ~= "function" then return self end
+  self._watchers = self._watchers or {}
+  self._watchers[#self._watchers + 1] = fn
+  return self
+end
+
+--- engine:held() -> { query, status, items }, what the list holds now as the shared search reads
+--- it. items are the rows in their source's order, each searched by its file name as the list's
+--- own rows are, chooser.searchName, and keyed by its path, without the bonus a person's use adds,
+--- since that is the one part of the order the history decides rather than the query.
+function obj:held()
+  local name = obj.chooser and obj.chooser.searchName or function(r) return r.name or r.path end
+  local items = {}
+  for _, r in ipairs(self._display or {}) do
+    local title = name(r)
+    items[#items + 1] = { title = title, filterText = title, key = r.path, item = r }
+  end
+  return { query = self._parsed and self._parsed.raw or "", status = self._status, items = items }
 end
 
 --- engine:rows() -> the current display rows, for a caller redrawing after onResults.

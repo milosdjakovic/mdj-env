@@ -101,7 +101,11 @@ return {
   -- shares is what the app reads of this config, written beside it where the piece is on.
   bridge = { data = {
     pieces = require("config.machine").pieces,
-    serves = { "fileSearch" },
+    -- Empty while the shadow runs, so file search's own key opens the Lua list with every feature,
+    -- rule 9 of the plan. A trial adds "fileSearch" here for the trial alone.
+    serves = {},
+    -- The tools whose every settled answer the app answers again and compares, step 1.3e.
+    shadows = { "fileSearch" },
     shares = { filesearch = { types = filesearch.types, limits = filesearch.limits, placeholder = filesearch.placeholder } },
   } },
 }

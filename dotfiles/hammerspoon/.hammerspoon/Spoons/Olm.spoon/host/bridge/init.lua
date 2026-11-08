@@ -10,6 +10,13 @@
 -- forward, since its chooser is a panel that takes key without activating the app. It runs as a
 -- task, so a slow LaunchServices never holds the main thread, and the task's handle is kept until
 -- it ends, since a task nothing refers to can be collected before it runs.
+--
+-- It also runs the shadow of step 1.3e, for each tool the config lists under shadows. The Lua list
+-- stays the one a person uses, and each answer it settles on is handed to the app through
+-- `<run>/<tool>shadow.json` and olm://shadow, and the app answers the same query with its own
+-- engine and logs every difference to ~/.olm/log/shadow-<tool>.jsonl. The Lua side asks rather
+-- than the app, since rule 9 of the plan keeps the daily path on the list with every feature, so
+-- that is where real queries are typed. Nothing is shown and nothing waits on the app.
 
 local obj = {}
 obj.__index = obj
@@ -39,6 +46,14 @@ obj._deps = nil
 obj._tasks = {}
 obj._said = {}
 obj._screenMode = nil
+obj._shadows = {}
+obj._shadowTimers = {}
+obj._shadowLast = {}
+obj._shadowId = 0
+
+-- How long a list's answer must stay put before the shadow hands it over, so typing sends one
+-- request per pause rather than one per key.
+obj.SHADOW_SETTLE = 0.8
 
 function obj:configure(opts)
   opts = opts or {}
@@ -47,6 +62,12 @@ function obj:configure(opts)
     self._serves = {}
     for _, identity in ipairs(opts.serves) do
       if type(identity) == "string" and identity:match("^%a%w*$") then self._serves[identity] = true end
+    end
+  end
+  if type(opts.shadows) == "table" then
+    self._shadows = {}
+    for _, identity in ipairs(opts.shadows) do
+      if type(identity) == "string" and identity:match("^%a%w*$") then self._shadows[#self._shadows + 1] = identity end
     end
   end
   if opts.deps ~= nil then self._deps = opts.deps end
@@ -142,17 +163,62 @@ function obj:serves(identity)
       local ok, answer = pcall(self._screenMode)
       if ok then mode = answer end
     end
-    local url = urlFor(identity, mode)
-    local task
-    task = hs.task.new(open, function(code, _, err)
-      self._tasks[task] = nil
-      if code ~= 0 then log.w("Olm.app did not take " .. url .. ", " .. tostring(err)) end
-    end, { "-g", "-a", app, url })
-    if task then
-      self._tasks[task] = true
-      task:start()
-    end
+    self:_open(open, app, urlFor(identity, mode))
   end
+end
+
+-- Hands one URL to the app in the background, as a task whose handle is kept until it ends.
+function obj:_open(open, app, url)
+  local task
+  task = hs.task.new(open, function(code, _, err)
+    self._tasks[task] = nil
+    if code ~= 0 then log.w("Olm.app did not take " .. url .. ", " .. tostring(err)) end
+  end, { "-g", "-a", app, url })
+  if task then
+    self._tasks[task] = true
+    task:start()
+  end
+end
+
+--- obj:shadowed() -> the identities whose answers the shadow hands the app on this machine, from
+--- the config's shadows list, empty unless the piece is on and the app is built.
+function obj:shadowed()
+  if not self:_ready() then return {} end
+  return self._shadows
+end
+
+--- obj:shadowWith(identity, source) runs the shadow for one tool. source.watch(fn) calls fn after
+--- every change of the tool's list, and source.answer() says what the list settled on, { query,
+--- status, keys }, keys naming its rows in the order the shared search ranked them. A list still
+--- searching is not handed over, and neither is the query sent last.
+function obj:shadowWith(identity, source)
+  if type(identity) ~= "string" or not identity:match("^%a%w*$") then return end
+  if type(source) ~= "table" or type(source.watch) ~= "function" or type(source.answer) ~= "function" then return end
+  source.watch(function()
+    if self._shadowTimers[identity] then self._shadowTimers[identity]:stop() end
+    self._shadowTimers[identity] = hs.timer.doAfter(self.SHADOW_SETTLE, function()
+      self._shadowTimers[identity] = nil
+      self:_shadow(identity, source)
+    end)
+  end)
+end
+
+function obj:_shadow(identity, source)
+  local open, app = self:_ready()
+  if not open then return end
+  local ok, answer = pcall(source.answer)
+  if not ok or type(answer) ~= "table" or type(answer.query) ~= "string" then
+    if not ok then log.w("the " .. identity .. " shadow could not read its list, " .. tostring(answer)) end
+    return
+  end
+  if answer.status == "searching" or answer.status == "loading" then return end
+  if self._shadowLast[identity] == answer.query then return end
+  self._shadowLast[identity] = answer.query
+  self._shadowId = self._shadowId + 1
+  local name = identity:lower() .. "shadow"
+  self:_write(name, { id = self._shadowId, tool = identity:lower(), query = answer.query,
+    status = answer.status, keys = answer.keys or {} })
+  self:_open(open, app, "olm://shadow?tool=" .. identity:lower() .. "&id=" .. self._shadowId)
 end
 
 return obj

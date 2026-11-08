@@ -15,3 +15,13 @@ config keeps one owner. `filesearch.json` is file search's types, limits and pla
 sizes, its layout and its motion, which the root builds through the swift provider's `look` and
 hands over with `share`, so the app's list looks like the Lua one. The open key's URL carries
 Olm's placement choice at the press, which the root hands over with `placeWith`.
+
+It runs the shadow of step 1.3e for each tool `config/plugins.lua` lists under `shadows`, file
+search today, where the piece is on. The Lua list stays the daily one, so `serves` is empty while
+the shadow runs. Each answer the list settles on, after it has stayed put for `SHADOW_SETTLE`, is
+ranked as the stage ranks it, without the bonus a person's use adds, and written to
+`~/.olm/run/filesearchshadow.json`. Then `olm://shadow` asks the app to answer the same query with
+its own engine, and the app appends what it found to `~/.olm/log/shadow-filesearch.jsonl`, one line
+per query, `same` true or what differs. The root wires it through `shadowWith`, from the tool's
+`watch` and `held` and its presentation's `searchText` and `rowLimit`, and names no tool.
+

@@ -246,3 +246,9 @@ list, and until then that list stays on Lua.
 - 2026-11-08 08:05. The look trial of 1.3d passed. Milos found the app's file search matching the
   Lua one apart from the preview pane, step 1.4a, so handing the app the swift chooser's own
   tables holds, and 1.3d is ticked.
+- 2026-11-08 08:45. The shadow of 1.3e runs from the Lua side. The plan had the app ask Lua for
+  each query, which needs the app to be the list a person types into for those days. Milos chose to
+  keep the Lua file search as the daily one, rule 9, so the Lua list hands each settled answer to
+  the app, `olm://shadow`, and the app answers it with an engine of its own and logs the
+  difference. While it runs, the bridge serves no key, and a trial adds file search back for the
+  trial alone.

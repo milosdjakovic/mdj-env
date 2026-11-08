@@ -1,7 +1,8 @@
 // Olm.app's shell, steps 1.1 and 1.2 of docs/PLAN-STANDALONE.md. It runs as an accessory, so it has
 // no Dock icon and no menu bar, keeps one instance, and answers olm:// URLs, docs/PROTOCOL-BRIDGE.md.
 // olm://ping?nonce=N writes N to ~/.olm/run/ping so a test can tell this app answered it, and
-// olm://filesearch?query=TEXT shows the file search's chooser with TEXT in its input field. An
+// olm://filesearch?query=TEXT shows the file search's chooser with TEXT in its input field, and
+// olm://shadow?tool=filesearch&id=N compares the Lua file search's answer with the app's, Shadow.swift. An
 // olm:// URL never runs anything, and one this app does not know is logged and dropped.
 //
 // The chooser is the swift chooser's own panel from the OlmChooser package. Its types are internal
@@ -60,9 +61,13 @@ final class FileSearch: ChooserSource {
   private let icons = NSCache<NSString, NSImage>()
 
   init() {
+    engine = FileSearchEngine(index: Self.index(), settings: Self.settings().0)
+  }
+
+  // The index the helper keeps, asked through the helper bundled in the app.
+  static func index() -> FileIndex {
     let helper = Bundle.main.resourceURL?.appendingPathComponent("fileindex").path ?? "fileindex"
-    let index = Self.home + "/.olm/cache/filesearch/file-index.txt"
-    engine = FileSearchEngine(index: FileIndex(helper: helper, index: index), settings: Self.settings().0)
+    return FileIndex(helper: helper, index: home + "/.olm/cache/filesearch/file-index.txt")
   }
 
   private lazy var panel = ChooserPanel(source: self)
@@ -73,7 +78,7 @@ final class FileSearch: ChooserSource {
 
   // config/filesearch.lua's types, limits and placeholder, as the bridge wrote them, or the Lua
   // defaults.
-  private static func settings() -> (FileSearchSettings, String) {
+  static func settings() -> (FileSearchSettings, String) {
     var settings = FileSearchSettings()
     let url = URL(fileURLWithPath: home + "/.olm/run/filesearch.json")
     guard let data = try? Data(contentsOf: url),
@@ -243,6 +248,7 @@ final class FileSearch: ChooserSource {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
   private let fileSearch = FileSearch()
+  private lazy var shadow = FileSearchShadow(index: FileSearch.index())
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     // LaunchServices keeps one instance for a bundle it opens, LSMultipleInstancesProhibited in
@@ -261,6 +267,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     for url in urls {
       if let nonce = Ping.nonce(url) {
         Ping.answer(nonce)
+      } else if url.scheme == "olm", url.host == "shadow" {
+        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
+        guard items?.first(where: { $0.name == "tool" })?.value == "filesearch",
+          let id = items?.first(where: { $0.name == "id" })?.value.flatMap({ Int($0) })
+        else {
+          NSLog("Olm: a shadow URL this app does not know, %@", url.absoluteString)
+          continue
+        }
+        shadow.run(id: id, settings: FileSearch.settings().0)
       } else if url.scheme == "olm", url.host == "filesearch" {
         let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
         fileSearch.show(query: items?.first(where: { $0.name == "query" })?.value ?? "",
