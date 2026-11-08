@@ -46,12 +46,14 @@ public enum PanePainter {
     return PanePaint(items: items.map { shifted($0, inner.x, inner.y) }, height: frame.h)
   }
 
-  /// One row's preview, the header over the body, at the content's full height.
-  public static func paint(_ preview: Preview, frame: PaneFrame, tokens: PaneTokens, measure: PaneMeasure) -> PanePaint {
+  /// One row's preview, the header over the body, at the content's full height. image is the body's
+  /// picture, read off the main thread by PanePicture, nil to draw its heading alone.
+  public static func paint(_ preview: Preview, frame: PaneFrame, tokens: PaneTokens, measure: PaneMeasure,
+                           image: PaneImage? = nil) -> PanePaint {
     let engine = PaneLayoutEngine(T: tokens, measure: measure)
     let inner = innerBox(frame, tokens)
     let (head, headH) = engine.layout(header(preview), inner, clip: true)
-    let body = preview.body.map { self.body($0, inner.w, tokens, measure) }
+    let body = preview.body.map { self.body($0, inner.w, tokens, measure, image: image) }
     let bw = tokens.interiorInset
     let interior = PaneRect(x: bw, y: bw, w: frame.w - 2 * bw, h: frame.h - 2 * bw)
 
@@ -74,6 +76,9 @@ public enum PanePainter {
     return PanePaint(items: items, height: frame.h + overflow)
   }
 
+  /// The width a body's picture is laid out in, so PanePicture decodes it at the size it is drawn.
+  public static func bodyWidth(_ frame: PaneFrame, tokens: PaneTokens) -> Double { innerBox(frame, tokens).w }
+
   // pane.inner, the frame less the pad, and less the bar where it floats over the pane's bottom.
   static func innerBox(_ frame: PaneFrame, _ T: PaneTokens) -> PaneRect {
     PaneRect(x: T.pad, y: T.pad, w: frame.w - 2 * T.pad, h: frame.h - 2 * T.pad - frame.under)
@@ -86,6 +91,8 @@ public enum PanePainter {
     case .text(var t):
       t.frame = PaneRect(x: t.frame.x + dx, y: t.frame.y + dy, w: t.frame.w, h: t.frame.h)
       return .text(t)
+    case .image(let img, let r, let alpha):
+      return .image(img, PaneRect(x: r.x + dx, y: r.y + dy, w: r.w, h: r.h), alpha: alpha)
     }
   }
 
@@ -118,7 +125,13 @@ public enum PanePainter {
 
   // sidepanel-nodes.lua's body, wrapped at w before the heading is written, so the heading can say
   // what the budget left out.
-  static func body(_ b: Preview.Body, _ w: Double, _ T: PaneTokens, _ measure: PaneMeasure) -> PaneNode {
+  static func body(_ b: Preview.Body, _ w: Double, _ T: PaneTokens, _ measure: PaneMeasure,
+                   image: PaneImage? = nil) -> PaneNode {
+    // A picture under its heading, as sidepanel-nodes.lua's body draws one.
+    if let picture = b.picture {
+      guard let image else { return heading(b.label, b.facts) }
+      return .stack([heading(b.label, b.facts), .image(image, upscale: picture.upscale)], gap: headingGap)
+    }
     var lines = b.lines
     if b.wrap {
       let code = T.role("code")

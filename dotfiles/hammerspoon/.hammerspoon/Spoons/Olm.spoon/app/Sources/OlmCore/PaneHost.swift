@@ -25,7 +25,8 @@ final class PaneHost {
   /// Onto the preview pane rect, in Hammerspoon's space.
   func place(_ rect: NSRect) { pane.place(rect) }
 
-  /// Draws a laid out pane and shows it, back at the top when reset says the content changed.
+  /// Draws a laid out pane and shows it, back at the top when reset says the content changed, or
+  /// where it is scrolled for a repaint of the same row, a picture landing.
   func draw(_ paint: PanePaint, radius: CGFloat, reset: Bool) {
     pane.draw(paint.items.map(Self.element), radius: radius,
       scroll: PaneScroll(height: CGFloat(paint.height), reset: reset, thumb: false))
@@ -50,6 +51,10 @@ final class PaneHost {
       return .resetClip
     case .text(let t):
       return .text(attributed(t), NSRect(x: t.frame.x, y: t.frame.y, width: t.frame.w, height: t.frame.h))
+    case .image(let img, let r, let alpha):
+      // The frame already holds the picture's aspect, imageFit's, so scaleProportionally at the top
+      // left draws it to the frame, as PaneReader reads the Lua element.
+      return .image(img.image ?? NSImage(), NSRect(x: r.x, y: r.y, width: r.w, height: r.h), CGFloat(alpha))
     }
   }
 

@@ -299,3 +299,17 @@ list, and until then that list stays on Lua.
 - 2026-11-08 23:40. Step 1.4h is added at Milos's request. `.app` listing Safari alone, seen in the
   1.4a trial, is the shared helper's `recent` skipping every folder, so a folder named with the type
   asked for is kept. It changes the helper both file searches ask, so both move in one step.
+- 2026-11-08 23:45. Step 1.4b, built and not yet tried by hand. Olm.app's file search keeps its
+  Quick Look renders in a directory of its own, `~/.olm/cache/filesearch/previews-app`, named and
+  swept as `thumbs.lua` names and sweeps its own, and only reads the Lua side's `cacheDir`, rather
+  than sharing one directory. Rule 1 asks one owner per store, and the Lua side's scratch folder
+  for a render is named after the render, so a second writer running the same render would rename
+  the result out from under the first, and two sweeps would each count the other's files. Reading
+  costs nothing and saves a second render of a file the Lua side already drew, and a file swept
+  between the look and the read is only a miss. The renders are `qlmanage -t -s imageEdge`, the Lua
+  invocation, rather than `QLThumbnailGenerator`, so both panes are handed the same pixels, 72 dpi
+  and 600 on the larger edge, and the same type answers the same way. A raster within
+  `nativeMaxBytes` is drawn from its own file as on the Lua side, though the app has no main thread
+  reason for the cap, since a picture through Quick Look is 600 pixels and one drawn from its file
+  is its own size, and keeping the cap is what keeps the two panes alike. Unlike the Lua side a
+  render is bounded at 20 s and ended once no row waits on it.

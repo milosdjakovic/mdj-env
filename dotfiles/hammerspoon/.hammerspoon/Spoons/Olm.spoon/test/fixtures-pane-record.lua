@@ -1,7 +1,8 @@
 -- Records test/fixtures/chooser/pane.json, the file search preview pane laid out by the Lua code for
--- a handful of rows, step 1.4a of docs/PLAN-STANDALONE.md. It runs inside the live Hammerspoon,
--- since only there do the fonts measure as they draw, and it is read only. It loads this checkout's
--- own files in an environment of its own through test/panefixture.lua, asks the running Olm's
+-- a handful of rows, step 1.4a of docs/PLAN-STANDALONE.md, and their pictures since step 1.4b. It
+-- runs inside the live Hammerspoon, since only there do the fonts measure as they draw, and it is
+-- read only. It loads this checkout's own files in an environment of its own through
+-- test/panefixture.lua, asks the running Olm's
 -- measurer for every width and font metric the layout needs, writes each answer into the fixture
 -- with what the layout made of it, and shows nothing, reloads nothing and changes nothing the
 -- running config holds beyond the measurer's own cache.
@@ -78,9 +79,21 @@ M.cases = {
   { name = "an application bundle", path = "/Applications/Safari.app", isDir = true,
     seen = folder(20 * DAY, 1, false, { "Contents/" }) },
   { name = "a path that is gone", path = HOME .. "/gone.md", seen = {} },
-  { name = "a picture type, which has no picture before step 1.4b", path = HOME .. "/Pictures/photo.png",
+  { name = "a picture type no generator could draw, no preview", path = HOME .. "/Pictures/photo.png",
     seen = file(2 * 1024 * 1024, 120, 400 * DAY, "") },
-  { name = "a document type Quick Look draws", path = HOME .. "/doc.pdf", seen = file(1536, -100, 10, "%PDF") },
+  { name = "a document type Quick Look could not draw", path = HOME .. "/doc.pdf", seen = file(1536, -100, 10, "%PDF") },
+  { name = "a wide picture, drawn at the pane's width", path = HOME .. "/Pictures/wide.jpg",
+    seen = file(500 * 1024, 600, 30 * DAY, ""), picture = { w = 1600, h = 900 } },
+  { name = "a tall picture, taller than the pane so it scrolls", path = HOME .. "/Pictures/tall.png",
+    seen = file(300 * 1024, 600, 30 * DAY, ""), picture = { w = 600, h = 1800 } },
+  { name = "a picture smaller than the pane, never upscaled", path = HOME .. "/icon.png",
+    seen = file(4096, 600, 30 * DAY, ""), picture = { w = 120, h = 80 } },
+  { name = "a document Quick Look is still rendering", path = HOME .. "/report.pdf",
+    seen = file(80 * 1024, 600, 30 * DAY, "%PDF"), picture = { rendering = true } },
+  { name = "a render that lands after the pane first drew, repainted", path = HOME .. "/clip.mov",
+    seen = file(9 * 1024 * 1024, 600, 30 * DAY, ""), picture = { w = 600, h = 338, late = true } },
+  { name = "a wide picture on the light half", half = "light", path = HOME .. "/Pictures/wide.jpg",
+    seen = file(500 * 1024, 600, 30 * DAY, ""), picture = { w = 1600, h = 900 } },
   { name = "a binary with a NUL byte", path = HOME .. "/bin/tool", seen = file(5000, 86399, 86400, "ab\0cd") },
   { name = "a read that never answered", path = HOME .. "/slow.txt" },
   { name = "a dotfile at the root, with no folder line", path = "/.zshrc", seen = file(500, 10, 10, "export X=1\n") },
@@ -143,14 +156,17 @@ function M.record(spoon, out)
     for j, el in ipairs(got.elements) do els[j] = "        " .. enc.text(el) end
     lines[#lines + 1] = "    { \"name\": " .. enc.text(case.name) .. ", \"half\": " .. enc.text(half)
       .. ", \"path\": " .. enc.text(case.path) .. ", \"isDir\": " .. enc.text(case.isDir == true)
-      .. ", \"seen\": " .. enc.text(case.seen) .. ",\n      \"expect\": { \"height\": " .. enc.text(got.height)
+      .. ", \"seen\": " .. enc.text(case.seen) .. (case.picture and (", \"picture\": " .. enc.text(case.picture)) or "")
+      .. ",\n      \"expect\": { \"height\": " .. enc.text(got.height)
       .. ", \"reset\": " .. enc.text(got.reset) .. ", \"elements\": [\n" .. table.concat(els, ",\n")
       .. " ] } }" .. (i < #M.cases and "," or "")
   end
   local about = "The file search preview pane, plugins/filesearch/viewers/sidepanel.lua under lib/previewpane.lua's "
-    .. "native scroll path, which Olm.app ports, step 1.4a of docs/PLAN-STANDALONE.md. A case is a row, its path "
+    .. "native scroll path, which Olm.app ports, steps 1.4a and 1.4b of docs/PLAN-STANDALONE.md. A case is a row, its path "
     .. "and whether the index calls it a folder, or no row for the empty state, and what the helper's peek found, "
-    .. "as sources/index.lua's parsePeek shapes it, or null for a read that never answered. The tokens are each "
+    .. "as sources/index.lua's parsePeek shapes it, or null for a read that never answered, and for a picture type "
+    .. "what the thumbnail chain answers, picture, absent for nothing, w and h for a picture of that size in points, "
+    .. "late for that answer after the pane first drew, rendering for none yet. The tokens are each "
     .. "half's as lib/chooser/providers/swift/pane.lua hands them to the app, measured holds every width and font "
     .. "metric the layout asked the system for, and the elements expected are what the Lua layout drew, all "
     .. "recorded from the live Hammerspoon on " .. os.date("%Y-%m-%d") .. " by test/fixtures-pane-record.lua. "

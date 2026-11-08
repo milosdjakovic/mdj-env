@@ -7,8 +7,9 @@
 // run by olm-fixtures.
 //
 // What is ported is what a pane uses, text with its wrap, width, alignment and line break, a row
-// with its filling child, a stack with its gaps, and a code block with the visible slice rule, plus
-// the clip a layout opens and closes. The arithmetic is the Lua's in the same order, since the
+// with its filling child, a stack with its gaps, a code block with the visible slice rule, and since
+// step 1.4b a picture, kit.image, with imageFit's size and its nested radius clip, plus the clip a
+// layout opens and closes. The arithmetic is the Lua's in the same order, since the
 // fixtures compare frames.
 //
 // MEASURING. A width is what hs.drawing.getTextDrawingSize answers, which is NSString's size with
@@ -60,12 +61,31 @@ public struct PaneText: Equatable, Sendable {
   public var tight: Bool
 }
 
+/// A picture a pane draws, its own size in points as hs.image's size answers it, and the image
+/// decoded off the main thread, PanePicture, or nil where only the size is known, as in a fixture.
+public struct PaneImage: @unchecked Sendable, Equatable {
+  public var path: String
+  public var w, h: Double
+  public let image: NSImage?
+
+  public init(path: String, w: Double, h: Double, image: NSImage? = nil) {
+    self.path = path
+    self.w = w
+    self.h = h
+    self.image = image
+  }
+
+  public static func == (a: PaneImage, b: PaneImage) -> Bool { a.path == b.path && a.w == b.w && a.h == b.h }
+}
+
 /// One element of a laid out pane, the hs.canvas element the Lua layout answers.
 public enum PaneItem: Equatable, Sendable {
   /// A rectangle added to the clip, rounded by radius when it is above zero.
   case clip(PaneRect, radius: Double)
   case resetClip
   case text(PaneText)
+  /// A picture scaled proportionally into its frame at the top left, at alpha.
+  case image(PaneImage, PaneRect, alpha: Double)
 }
 
 /// The tokens a pane is laid out with, one half's, as pane.lua's tokens hands them over.
@@ -291,6 +311,8 @@ indirect enum PaneNode {
   case stack([PaneNode], gap: String? = nil)
   /// The lines with their tabs expanded, as kit.code holds them.
   case code([String])
+  /// kit.image, drawn at the width of its slot, or its own where it may not be upscaled.
+  case image(PaneImage, upscale: Bool)
 
   static func text(_ str: String, _ variant: String, color: String? = nil, align: String? = nil,
                    lineBreak: String? = nil, wrap: Bool = false) -> PaneNode {
@@ -314,6 +336,16 @@ struct PaneLayoutEngine {
   private struct Context {
     var items: [PaneItem] = []
     var window: (top: Double, bottom: Double)?
+    // The clip the layout opened, put back after a picture's own.
+    var clip: PaneItem?
+  }
+
+  // layout.lua's imageFit, the slot's width or the picture's own where it may not be upscaled and
+  // is narrower, the height following its aspect, and a square of the width for one with no size.
+  private func imageFit(_ img: PaneImage, _ upscale: Bool, _ maxW: Double) -> (Double, Double) {
+    guard img.w > 0, img.h > 0 else { return (maxW, maxW) }
+    let w = upscale ? maxW : min(maxW, img.w)
+    return (w, w * img.h / img.w)
   }
 
   private func spaceOf(_ name: String?) -> Double { name.flatMap { T.space[$0] } ?? 0 }
@@ -380,6 +412,8 @@ struct PaneLayoutEngine {
       return (used, rowH)
     case .stack(let kids, let gap):
       return stackSize(kids, spaceOf(gap), maxW)
+    case .image(let img, let upscale):
+      return imageFit(img, upscale, maxW)
     }
   }
 
@@ -447,6 +481,18 @@ struct PaneLayoutEngine {
       }
     case .stack(let kids, let gap):
       emitStack(kids, spaceOf(gap), x, y, w, &ctx)
+    case .image(let img, let upscale):
+      // A picture sits a pad inside its pane, so its corners take the nested radius, and the
+      // canvas has one clip region, so the layout's own clip is put back after it.
+      let (iw, ih) = imageFit(img, upscale, w)
+      let frame = PaneRect(x: x, y: y, w: iw, h: ih)
+      let r = T.nestedRadius
+      if r > 0 { ctx.items.append(.clip(frame, radius: r)) }
+      ctx.items.append(.image(img, frame, alpha: 1))
+      if r > 0 {
+        ctx.items.append(.resetClip)
+        if let clip = ctx.clip { ctx.items.append(clip) }
+      }
     }
   }
 
@@ -458,7 +504,10 @@ struct PaneLayoutEngine {
     var ctx = Context()
     let clipped = scrollY != nil || clip || viewport != nil
     let box = viewport ?? rect
-    if clipped { ctx.items.append(.clip(box, radius: viewport != nil ? viewportRadius : 0)) }
+    if clipped {
+      ctx.clip = .clip(box, radius: viewport != nil ? viewportRadius : 0)
+      ctx.items.append(ctx.clip!)
+    }
     let (_, contentH) = sizeOf(node, rect.w)
     if scrollY != nil { ctx.window = (top: box.y, bottom: box.y + box.h) }
     emit(node, rect.x, rect.y - (scrollY ?? 0), rect.w, contentH, &ctx)

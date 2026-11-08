@@ -9,10 +9,12 @@
 // the same chain the Lua pane runs, a folder, then a picture type, then text, and a row nothing
 // answers for is described by its header alone.
 //
-// Pictures are step 1.4b, so a type the Lua thumbnail chain draws shows its PREVIEW heading with
-// "no preview", the words the Lua pane shows when no generator answers. Frecency is 1.4d, so the
-// header has no USED fact. test/fixtures/chooser/pane.json pins both this and the layout, run by
-// olm-fixtures, its expectations recorded from the Lua pane.
+// A type the thumbnail chain covers, Thumbs.swift, is described by its picture since step 1.4b,
+// the PREVIEW heading over the picture, over "rendering" while Quick Look draws it, the preview
+// then pending so the stage asks again, and over "no preview" when nothing could, the words and the
+// states of the Lua pane's imageBody and _image. Frecency is 1.4d, so the header has no USED fact.
+// test/fixtures/chooser/pane.json pins both this and the layout, run by olm-fixtures, its
+// expectations recorded from the Lua pane.
 
 import Foundation
 import OlmKit
@@ -25,6 +27,14 @@ public struct PreviewLimits: Equatable, Sendable {
   public var headLines = 400
   public var headSlack = 20
   public var folderEntries = 100
+  /// The largest raster drawn from the file itself, thumbs.lua's nativeMaxBytes.
+  public var nativeMaxBytes = 1024 * 1024
+  /// The larger edge of a Quick Look render, in pixels.
+  public var imageEdge = 600
+  /// How many renders are kept before the oldest are swept.
+  public var cacheFiles = 400
+  /// The Lua side's renders, read and never written by the app, nil for none.
+  public var cacheDir: String?
   public init() {}
 
   /// The block as the bridge wrote it, each field the Lua default when it is missing.
@@ -36,6 +46,12 @@ public struct PreviewLimits: Equatable, Sendable {
     headLines = int("headLines") ?? headLines
     headSlack = int("headSlack") ?? headSlack
     folderEntries = int("folderEntries") ?? folderEntries
+    nativeMaxBytes = int("nativeMaxBytes") ?? nativeMaxBytes
+    imageEdge = int("imageEdge") ?? imageEdge
+    cacheFiles = int("cacheFiles") ?? cacheFiles
+    if let dir = object["cacheDir"] as? String {
+      cacheDir = dir.hasPrefix("~/") ? NSHomeDirectory() + dir.dropFirst(1) : dir
+    }
   }
 }
 
@@ -139,17 +155,9 @@ public struct Peek: Equatable, Sendable {
 
 /// sidepanel.lua's describers and util.lua's wording, the same strings with the same rounding.
 public enum PreviewDescriber {
-  /// The types the Lua thumbnail chain draws, thumbs.lua's NATIVE_EXT and QL_EXT, which the
-  /// picture describer claims ahead of text, so an svg is never printed as markup.
-  public static let pictureExtensions: Set<String> = [
-    "png", "jpg", "jpeg", "gif", "bmp", "tiff", "tif", "heic", "webp", "icns", "ico",
-    "pdf", "svg", "eps", "ai", "psd",
-    "mp4", "mov", "m4v", "mkv", "avi", "webm",
-    "doc", "docx", "pages", "rtf", "odt", "epub",
-    "xls", "xlsx", "numbers", "csv",
-    "ppt", "pptx", "key",
-    "app",
-  ]
+  /// The types the thumbnail chain draws, thumbs.lua's NATIVE_EXT and QL_EXT, which the picture
+  /// describer claims ahead of text, so an svg is never printed as markup.
+  public static let pictureExtensions = ThumbChain.extensions
 
   /// util.basename, the last component with trailing slashes dropped.
   public static func basename(_ path: String) -> String {
@@ -221,9 +229,10 @@ public enum PreviewDescriber {
   }
 
   /// Everything the pane says about one row, path being its key and isDir the index's word for
-  /// it. peek nil is a read that never answered, which leaves the row described by its name.
+  /// it. peek nil is a read that never answered, which leaves the row described by its name. picture
+  /// is what the thumbnail chain answered for a type it covers, nil for nothing.
   public static func describe(path: String, isDir: Bool, peek: Peek?, limits: PreviewLimits, now: Int,
-                              home: String) -> Preview {
+                              home: String, picture: PictureState? = nil) -> Preview {
     let name = basename(path)
     let ext = isDir ? "" : Self.ext(path)
     let attrs = peek?.attrs
@@ -234,9 +243,17 @@ public enum PreviewDescriber {
       facts.append(Preview.Fact(label: "ADDED", value: humanAge(attrs.creation, now: now)))
     }
     let body = folderBody(isDir: isDir, peek: peek, limits: limits)
-      ?? pictureBody(isDir: isDir, ext: ext)
+      ?? pictureBody(isDir: isDir, ext: ext, picture: picture)
       ?? textBody(isDir: isDir, peek: peek, limits: limits)
-    return Preview(name: name, dir: shortDir(dirname(path), home: home), facts: facts, body: body)
+    return Preview(name: name, dir: shortDir(dirname(path), home: home), facts: facts, body: body,
+      pending: body?.label == "PREVIEW" && picture == .rendering)
+  }
+
+  /// The file the thumbnail chain is asked a picture of, nil for a row it does not cover.
+  public static func thumbSpec(path: String, isDir: Bool, peek: Peek?) -> ThumbSpec? {
+    let ext = isDir ? "" : Self.ext(path)
+    guard !isDir, pictureExtensions.contains(ext) else { return nil }
+    return ThumbSpec(path: path, ext: ext, size: peek?.attrs?.size, modification: peek?.attrs?.modification)
   }
 
   static func folderBody(isDir: Bool, peek: Peek?, limits: PreviewLimits) -> Preview.Body? {
@@ -248,10 +265,14 @@ public enum PreviewDescriber {
     return Preview.Body(label: "FOLDER", facts: facts, lines: Array(lines), wrap: false)
   }
 
-  // Pictures are step 1.4b, so this says what the Lua pane says when no generator answers.
-  static func pictureBody(isDir: Bool, ext: String) -> Preview.Body? {
+  // imageBody, the picture never drawn wider than it is, or a word for where it stands.
+  static func pictureBody(isDir: Bool, ext: String, picture: PictureState?) -> Preview.Body? {
     guard !isDir, !ext.isEmpty, pictureExtensions.contains(ext) else { return nil }
-    return Preview.Body(label: "PREVIEW", facts: "no preview")
+    switch picture {
+    case .ready(let path): return Preview.Body(label: "PREVIEW", picture: Preview.Picture(path: path, upscale: false))
+    case .rendering: return Preview.Body(label: "PREVIEW", facts: "rendering")
+    case .failed, nil: return Preview.Body(label: "PREVIEW", facts: "no preview")
+    }
   }
 
   static func textBody(isDir: Bool, peek: Peek?, limits: PreviewLimits) -> Preview.Body? {

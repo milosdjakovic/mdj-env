@@ -51,6 +51,7 @@ Stage 1, the file search pilot
   - [x] 1.3g The app's structure, `docs/DESIGN-APP.md`, file search moved onto it with nothing a person can see changed, 2026-11-08
 - [x] 1.4a Preview pane, with its scroll keys, the keys themselves carried by 1.4f, 2026-11-08
 - [ ] 1.4b Thumbnails
+  Built in a worktree 2026-11-08, on branch `olm/thumbnails`, the app's file search pane drawing the Lua thumbnail chain's pictures, rendering then the picture or no preview, its fixtures passing, waiting for its trial by hand.
 - [ ] 1.4c Quick Look
 - [ ] 1.4d Frecency, one owner, the history read but not yet owned
 - [ ] 1.4e Folder search, the scope, the folder aliases, Into Folder and Up a Level
@@ -540,6 +541,39 @@ good and the open slow, a blank window, then the list, then the preview, and the
 - Seen, not a fault of this step: `.app` lists Safari alone in both file searches, since the helper's
   recent list skips folders and Safari's bundle is the one the index does not mark as one.
 Open: the trial by hand, after a reload writes the new run files.
+
+**1.4b built, thumbnails, 2026-11-08.** File search's pane draws the picture the Lua pane draws for
+every type `thumbs.lua` covers. `Thumbs.swift` in the plugin ports the chain, a raster or an icon
+set no larger than `nativeMaxBytes` drawn from the file, everything else the chain covers, a larger
+raster among it, rendered by `qlmanage -t -s imageEdge -o SCRATCH FILE`, the Lua invocation, so
+both panes are handed the same pixels, checked at 72 dpi and 600 pixels on the larger edge. A
+plugin hands a path, `Preview.Body.picture` in `OlmKit`, never an image. A render not made yet
+answers PREVIEW and "rendering" with the preview `pending`, and the stage then asks
+`previewLanded` on the same generation and repaints where the pane is scrolled, the picture or
+"no preview", as `sidepanel.lua`'s `_image` repaints. A raster the system cannot read says no
+preview at once. OlmCore's `PanePicture` reads the file through NSImage, the size `hs.image`
+reports, and decodes it once into a bitmap at the pixels it is shown at, on the task the pane is
+laid out on, so the main thread draws decoded pixels. `PaneLayout` ports `kit.image` and
+`imageFit`, the slot's width or the picture's own with upscale false, the nested radius clip and
+the layout's own clip put back after it.
+- The renders keep one owner each, rule 1. The app writes its own under
+  `~/.olm/cache/filesearch/previews-app`, named and swept as the Lua side names and sweeps its own,
+  and only reads the Lua side's `cacheDir`, so a file rendered there is not rendered twice.
+- A render is bounded at 20 s, two asks for one file join one render, and the last row to stop
+  waiting ends it, which is not remembered as a failure. A failure is remembered for the open.
+- `pane.json` gains six picture cases, wide, tall past the pane so it scrolls, smaller than the
+  pane, rendering, a render landing after the first paint, and wide on the light half, recorded
+  read only from the live Hammerspoon, the old cases unchanged. `olm-index-check` pins the
+  cache name against one the Lua side made, the Quick Look arguments, the chain's choice, a real
+  raster, a real svg rendered into its own folder, a cancelled wait, and the decode's size.
+
+Not in this part:
+- The Lua pane holds a picture for the open, the app decodes it again on each return to a row.
+
+Result: the dry suite, `olm-fixtures` with 26 pane checks, `olm-index-check` and a release build of
+the app into a scratch folder pass. `test/units.sh` was not run, since it runs through the live
+Hammerspoon on main.
+Open: the trial by hand.
 
 ## Where the facts come from
 

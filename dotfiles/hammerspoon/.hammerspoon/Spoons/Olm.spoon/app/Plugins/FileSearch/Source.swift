@@ -15,7 +15,9 @@
 // so. Frecency, the row's bonus on the Lua side, is step 1.4d, so every bonus here is zero.
 //
 // It answers the preview pane too, step 1.4a, Preview.swift, the highlighted row read in process on
-// a thread of its own and described as the Lua side pane describes it.
+// a thread of its own and described as the Lua side pane describes it, and since step 1.4b its
+// picture, Thumbs.swift, a preview saying rendering pending until previewLanded answers the same
+// row with the picture or no preview.
 //
 // The settings, file search's types, limits and preview block and its placeholder, are
 // config/filesearch.lua's,
@@ -73,9 +75,18 @@ public actor FileSearchSource: ListSource {
   private var folders: Set<String>?
   /// How many times the index was asked, for a check that narrowing asks nothing.
   public private(set) var asks = 0
+  private let thumbs: Thumbs
+  // The rows whose preview said rendering, what was read for each, for previewLanded.
+  private var rendering: [String: (spec: ThumbSpec, isDir: Bool, peek: Peek?)] = [:]
+
+  /// Where the app keeps its own renders, under the cache handed in.
+  public static func previewsDir(_ context: PluginContext) -> URL {
+    context.cache.appendingPathComponent("filesearch/previews-app")
+  }
 
   public init(context: PluginContext, index: FileIndex? = nil, settings: FileSearchSettings? = nil) {
     self.context = context
+    thumbs = Thumbs(dir: Self.previewsDir(context))
     self.index = index ?? FileIndex(
       helper: context.resources.appendingPathComponent("fileindex").path,
       index: context.cache.appendingPathComponent("filesearch/file-index.txt").path)
@@ -86,6 +97,8 @@ public actor FileSearchSource: ListSource {
   public func open(query: String) async -> Level {
     settings = FileSearchSettings.read(from: context.run)
     held = nil
+    rendering = [:]
+    await thumbs.forget()
     return Level(placeholder: settings.placeholder, ranking: .app, rowLimit: settings.rowLimit,
       titleLineBreak: "truncateMiddle", previewSettleMs: settings.preview.settleMs)
   }
@@ -157,8 +170,32 @@ public actor FileSearchSource: ListSource {
     let peek = await Self.peek(pick.key, limits: limits)
     if Task.isCancelled { return nil }
     let isDir = listed ? (folders?.contains(pick.key) ?? false) : (peek?.attrs?.isDir ?? false)
-    return PreviewDescriber.describe(path: pick.key, isDir: isDir, peek: peek, limits: limits,
-      now: Int(Date().timeIntervalSince1970), home: FileManager.default.homeDirectoryForCurrentUser.path)
+    var picture: PictureState?
+    let spec = PreviewDescriber.thumbSpec(path: pick.key, isDir: isDir, peek: peek)
+    if let spec {
+      picture = await thumbs.picture(spec, limits: limits)
+      if Task.isCancelled { return nil }
+      if picture == .rendering { rendering[pick.key] = (spec, isDir, peek) }
+    }
+    return Self.describe(pick.key, isDir: isDir, peek: peek, limits: limits, picture: picture)
+  }
+
+  /// The row whose preview said rendering, once its render lands, sidepanel.lua's rebuild when the
+  /// thumbnail chain answers late. Cancelled when the highlight moves on, which leaves the render.
+  public func previewLanded(_ pick: Pick) async -> Preview? {
+    guard let row = rendering[pick.key] else { return nil }
+    let limits = settings.preview
+    let picture = await thumbs.landed(row.spec, limits: limits)
+    if Task.isCancelled || picture == .rendering { return nil }
+    rendering[pick.key] = nil
+    return Self.describe(pick.key, isDir: row.isDir, peek: row.peek, limits: limits, picture: picture)
+  }
+
+  private static func describe(_ path: String, isDir: Bool, peek: Peek?, limits: PreviewLimits,
+                               picture: PictureState?) -> Preview {
+    PreviewDescriber.describe(path: path, isDir: isDir, peek: peek, limits: limits,
+      now: Int(Date().timeIntervalSince1970), home: FileManager.default.homeDirectoryForCurrentUser.path,
+      picture: picture)
   }
 
   // The read, or nil once peekSeconds pass first. A read stuck on a disk that is not there finishes

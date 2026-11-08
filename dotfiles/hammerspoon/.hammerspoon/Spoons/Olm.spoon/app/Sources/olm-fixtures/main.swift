@@ -275,6 +275,15 @@ func runPane(_ file: String, _ doc: [String: Any]) {
       if !near(w, r) { return "clip wanted \(describe(w)), got \(describe(r))" }
       if abs((num(want["radius"]) ?? 0) - radius) > 0.5 { return "clip radius wanted \(show(want["radius"])), got \(radius)" }
       return nil
+    case .image(_, let r, let alpha):
+      guard want["type"] as? String == "image", let w = rect(want["frame"]) else { return "wanted \(show(want["type"])), got an image" }
+      if !near(w, r) { return "image wanted \(describe(w)), got \(describe(r))" }
+      if abs((num(want["alpha"]) ?? 1) - alpha) > 1e-9 { return "image alpha wanted \(show(want["alpha"])), got \(alpha)" }
+      // PaneHost draws every picture scaled proportionally at the top left, PaneReader's reading.
+      if want["scaling"] as? String != "scaleProportionally" || want["alignment"] as? String != "topLeft" {
+        return "image drawn \(show(want["scaling"])) \(show(want["alignment"])), the app draws scaleProportionally topLeft"
+      }
+      return nil
     case .text(let t):
       guard want["type"] as? String == "text", let w = rect(want["frame"]) else { return "wanted \(show(want["type"])), got a text" }
       if want["text"] as? String != t.string { return "text wanted \(show(want["text"])), got \(show(t.string))" }
@@ -304,9 +313,28 @@ func runPane(_ file: String, _ doc: [String: Any]) {
     }
     let paint: PanePaint
     if let path = c["path"] as? String {
-      let preview = PreviewDescriber.describe(path: path, isDir: c["isDir"] as? Bool ?? false, peek: peek(c["seen"]),
-        limits: limits, now: now, home: home)
-      paint = PanePainter.paint(preview, frame: frame, tokens: T, measure: measure)
+      // What the thumbnail chain answered, the picture's own size standing in for its file, and a
+      // late answer being the preview the stage draws once previewLanded answers.
+      let pic = c["picture"] as? [String: Any]
+      var picture: PictureState? = nil
+      var image: PaneImage? = nil
+      if let pic {
+        if pic["rendering"] as? Bool == true {
+          picture = .rendering
+        } else if let w = num(pic["w"]), let h = num(pic["h"]) {
+          picture = .ready(path)
+          image = PaneImage(path: path, w: w, h: h)
+        }
+      }
+      let isDir = c["isDir"] as? Bool ?? false
+      let seen = peek(c["seen"])
+      if pic != nil, PreviewDescriber.thumbSpec(path: path, isDir: isDir, peek: seen) == nil {
+        fail(file, name, "the plugin's thumbnail chain does not cover this type")
+      }
+      let preview = PreviewDescriber.describe(path: path, isDir: isDir, peek: seen,
+        limits: limits, now: now, home: home, picture: picture)
+      if preview.pending != (picture == .rendering) { fail(file, name, "the preview's pending is \(preview.pending)") }
+      paint = PanePainter.paint(preview, frame: frame, tokens: T, measure: measure, image: image)
     } else {
       paint = PanePainter.empty(emptyText, frame: frame, tokens: T, measure: measure)
     }

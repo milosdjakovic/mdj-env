@@ -165,9 +165,12 @@ public struct Preview: Sendable, Equatable {
     public var total: Int?
     /// Whether a count of lines left out would mean anything.
     public var hasLines: Bool
+    /// A picture under the heading in place of lines, nil for none.
+    public var picture: Picture?
 
     public init(label: String, facts: String? = nil, lines: [String] = [], wrap: Bool = false,
-                budget: Int? = nil, slack: Int = 0, total: Int? = nil, hasLines: Bool = false) {
+                budget: Int? = nil, slack: Int = 0, total: Int? = nil, hasLines: Bool = false,
+                picture: Picture? = nil) {
       self.label = label
       self.facts = facts
       self.lines = lines
@@ -176,6 +179,22 @@ public struct Preview: Sendable, Equatable {
       self.slack = slack
       self.total = total
       self.hasLines = hasLines
+      self.picture = picture
+    }
+  }
+
+  /// A picture a body shows, kit.image, as a file the core reads, decodes and scales off the main
+  /// thread, so a plugin hands a path and never holds an image. It is drawn at the width of its
+  /// slot, keeping its aspect, at the top left, its corners the nested radius.
+  public struct Picture: Sendable, Equatable {
+    /// A picture file the system can read, a raster or a rendered thumbnail.
+    public var path: String
+    /// Whether it may be drawn wider than its own size, kit.image's upscale.
+    public var upscale: Bool
+
+    public init(path: String, upscale: Bool = true) {
+      self.path = path
+      self.upscale = upscale
     }
   }
 
@@ -185,12 +204,16 @@ public struct Preview: Sendable, Equatable {
   public var dir: String
   public var facts: [Fact]
   public var body: Body?
+  /// Whether something this preview says is still on its way, a picture being rendered, which the
+  /// stage asks for with previewLanded once this one is drawn.
+  public var pending: Bool
 
-  public init(name: String, dir: String = "", facts: [Fact] = [], body: Body? = nil) {
+  public init(name: String, dir: String = "", facts: [Fact] = [], body: Body? = nil, pending: Bool = false) {
     self.name = name
     self.dir = dir
     self.facts = facts
     self.body = body
+    self.pending = pending
   }
 }
 
@@ -269,6 +292,11 @@ public protocol ListSource: Actor {
   /// has a preview pane. A source reads what it needs off its own actor's thread, so the rows it
   /// answers never wait on a preview.
   func preview(_ pick: Pick) async -> Preview?
+  /// The same row's preview again once what its last preview said was pending has landed, asked
+  /// only after a preview with pending set and cancelled when the highlight moves on, nil when
+  /// nothing more is coming. The stage draws it where the pane is scrolled, as the Lua pane's
+  /// repaint does.
+  func previewLanded(_ pick: Pick) async -> Preview?
   /// The list was closed.
   func close() async
 }
@@ -276,4 +304,6 @@ public protocol ListSource: Actor {
 extension ListSource {
   /// A source with no preview pane says nothing.
   public func preview(_ pick: Pick) async -> Preview? { nil }
+  /// A source whose previews are never pending has nothing more to say.
+  public func previewLanded(_ pick: Pick) async -> Preview? { nil }
 }

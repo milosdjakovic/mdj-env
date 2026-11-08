@@ -15,8 +15,11 @@
 -- and layout, every one of them the file itself loaded fresh in an environment of its own. Only four
 -- things stand in. The measurer's two system calls, a backend that keeps what it is handed rather
 -- than drawing it, hs.styledtext.new, which keeps the string and its attributes as a table, and the
--- thumbnail chain's render, which answers no picture, since pictures are step 1.4b. Time and the
--- home folder are the case file's, so an age and a short folder are the same on every run.
+-- thumbnail chain's render, which answers what the case's picture says, step 1.4b. No picture is no
+-- generator answering, a picture's w and h one answering at once with an image of that size in
+-- points, late as well the same answer after the pane first drew, so the repaint is what is
+-- recorded, and rendering one that never answers. Time and the home folder are the case file's, so
+-- an age and a short folder are the same on every run.
 --
 -- The tokens are the shape lib/chooser/providers/swift/pane.lua hands Olm.app, so the app is checked
 -- against the very tokens it is handed.
@@ -105,6 +108,17 @@ function M.new(spoon, measured, opts)
     local deps = { ui = ui, surface = function() return {} end, emptyState = Panel.emptyStateElements,
       backend = backend }
     local viewer = assert(env.loadfile(sidepanelPath))()
+    local picture, late = case.picture, nil
+    local function render(_, cb)
+      if not picture then return cb(nil) end
+      if picture.rendering then return end
+      local img = { size = function() return { w = picture.w, h = picture.h } end }
+      if picture.late then
+        late = function() cb(img) end
+        return
+      end
+      cb(img)
+    end
     viewer.configure({
       previewPane = function(spec) return PreviewPane.new(deps, spec) end,
       ui = ui,
@@ -114,7 +128,7 @@ function M.new(spoon, measured, opts)
         cb(case.seen)
         return { cancel = function() end }
       end,
-      thumbs = { handles = thumbs.handles, image = function(_, cb) cb(nil) end },
+      thumbs = { handles = thumbs.handles, image = render },
     })
     viewer.dock(copy(file.frame))
     if case.path then
@@ -122,6 +136,7 @@ function M.new(spoon, measured, opts)
     else
       viewer.clear()
     end
+    if late then late() end
     viewer.destroy()
     assert(rendered, "the pane drew nothing")
     local out = {}
@@ -142,11 +157,15 @@ local function color(c)
 end
 
 --- M.element(el) -> one hs.canvas element as plain data, the fields the app's PaneItem carries. A
---- clip and its radius, a resetClip, or a text with its string, frame, font, size, colour,
---- alignment, line break, pinned line height and whether it tightens. Anything else raises, since
---- the pane has never drawn one.
+--- clip and its radius, a resetClip, a picture with its frame, alpha, scaling and alignment, or a
+--- text with its string, frame, font, size, colour, alignment, line break, pinned line height and
+--- whether it tightens. Anything else raises, since the pane has never drawn one.
 function M.element(el)
   if el.type == "resetClip" then return { type = "resetClip" } end
+  if el.type == "image" then
+    return { type = "image", frame = rect(el.frame), alpha = el.imageAlpha, scaling = el.imageScaling,
+      alignment = el.imageAlignment }
+  end
   if el.type == "rectangle" and el.action == "clip" then
     return { type = "clip", frame = rect(el.frame), radius = el.roundedRectRadii and el.roundedRectRadii.xRadius or 0 }
   end

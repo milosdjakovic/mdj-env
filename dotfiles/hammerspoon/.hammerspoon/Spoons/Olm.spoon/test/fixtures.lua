@@ -385,7 +385,7 @@ local function runPane(case, file)
   end
   local spec = { frame = plain(file.frame), limits = plain(file.limits), emptyText = file.emptyText }
   local input = { path = case.path ~= null and case.path or nil, isDir = case.isDir == true,
-    seen = paneHarness.plain(case.seen, null) }
+    seen = paneHarness.plain(case.seen, null), picture = paneHarness.plain(case.picture, null) }
   local got = runner.run(input, paneHarness.plain(file.tokens[case.half], null), spec)
   return paneHarness.compare(paneHarness.plain(case.expect, null), got)
 end

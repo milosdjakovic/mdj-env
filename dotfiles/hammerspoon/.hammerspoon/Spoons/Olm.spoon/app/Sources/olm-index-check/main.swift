@@ -6,6 +6,7 @@
 //
 //   olm-index-check HELPER
 
+import AppKit
 import Foundation
 import FileSearchPlugin
 import OlmCore
@@ -159,6 +160,80 @@ let bundle = await source.preview(Pick(key: kinds["Reports.app"]?.path ?? "", qu
 check(bundle?.facts.first?.value == "Application" && bundle?.body?.label == "FOLDER"
   && bundle?.body?.lines == ["Contents/"], "and a bundle it listed as a folder")
 check(source.manifest.previewPane?.emptyText == FileSearchSource.paneEmptyText, "its manifest has a preview pane")
+
+// Pictures, step 1.4b. The chain, the name a render is kept under and the Quick Look invocation are
+// thumbs.lua's, then a real raster drawn from itself, a real svg rendered by Quick Look into a cache
+// folder of the check's own, and the core reading both at the size the Lua layout is handed.
+// The name the Lua side gave one file on 2026-11-08, hs.hash.MD5 of path, size and time.
+check(ThumbChain.cacheName(ThumbSpec(path: "/Users/milosdjakovic/Downloads/00 Paketi po timovima.pdf", ext: "pdf",
+  size: 66547, modification: 1792910115)) == "c5d9e634b4dec9cfc63652623be03b4d.png", "and named as the Lua side names it")
+check(ThumbChain.cacheName(ThumbSpec(path: "/x.pdf", ext: "pdf", size: nil, modification: nil))
+  == ThumbChain.cacheName(ThumbSpec(path: "/x.pdf", ext: "pdf", size: nil, modification: nil)), "a gone file still has a name")
+check(ThumbChain.quickLookArguments(edge: 600, scratch: "/s.d", path: "/f.pdf") == ["-t", "-s", "600", "-o", "/s.d", "/f.pdf"]
+  && ThumbChain.qlmanage == "/usr/bin/qlmanage", "Quick Look is asked as the Lua side asks it")
+let mb = 1024 * 1024
+check(ThumbChain.generator(for: ThumbSpec(path: "/p.png", ext: "png", size: mb, modification: 0), nativeMaxBytes: mb) == .native
+  && ThumbChain.generator(for: ThumbSpec(path: "/p.png", ext: "png", size: mb + 1, modification: 0), nativeMaxBytes: mb) == .quickLook
+  && ThumbChain.generator(for: ThumbSpec(path: "/p.svg", ext: "svg", size: 10, modification: 0), nativeMaxBytes: mb) == .quickLook
+  && ThumbChain.generator(for: ThumbSpec(path: "/p.txt", ext: "txt", size: 10, modification: 0), nativeMaxBytes: mb) == nil,
+  "a raster over nativeMaxBytes goes to Quick Look, as nativeGen's accepts steps aside")
+check(PreviewDescriber.pictureExtensions == ThumbChain.extensions && ThumbChain.extensions.count == 36,
+  "the describer claims every type the chain covers")
+
+let pictures = root.appendingPathComponent("pictures")
+try? fm.createDirectory(at: pictures, withIntermediateDirectories: true)
+let png = pictures.appendingPathComponent("wide.png")
+if let ctx = CGContext(data: nil, width: 320, height: 180, bitsPerComponent: 8, bytesPerRow: 0,
+  space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) {
+  ctx.setFillColor(red: 0, green: 0.5, blue: 1, alpha: 1)
+  ctx.fill(CGRect(x: 0, y: 0, width: 320, height: 180))
+  if let cg = ctx.makeImage() { try? NSBitmapImageRep(cgImage: cg).representation(using: .png, properties: [:])?.write(to: png) }
+}
+let svg = pictures.appendingPathComponent("box.svg")
+try? Data(#"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><rect width="200" height="100" fill="red"/></svg>"#.utf8).write(to: svg)
+fm.createFile(atPath: pictures.appendingPathComponent("broken.png").path, contents: Data("not a png".utf8))
+
+let pictureContext = PluginContext(run: root, cache: root.appendingPathComponent("cache"), resources: root)
+var pictureSettings = settings
+pictureSettings.preview.cacheDir = nil
+let pictureSource = FileSearchSource(context: pictureContext, index: files, settings: pictureSettings)
+let wide = await pictureSource.preview(Pick(key: png.path, query: ""))
+check(wide?.body?.picture == Preview.Picture(path: png.path, upscale: false) && wide?.pending == false,
+  "a small raster is its own picture at once")
+let unreadable = await pictureSource.preview(Pick(key: pictures.appendingPathComponent("broken.png").path, query: ""))
+check(unreadable?.body == Preview.Body(label: "PREVIEW", facts: "no preview") && unreadable?.pending == false,
+  "a raster the system cannot read says no preview")
+let first = await pictureSource.preview(Pick(key: svg.path, query: ""))
+check(first?.body == Preview.Body(label: "PREVIEW", facts: "rendering") && first?.pending == true,
+  "an svg says rendering while Quick Look draws it")
+let landed = await pictureSource.previewLanded(Pick(key: svg.path, query: ""))
+let rendered = landed?.body?.picture?.path ?? ""
+check(rendered.hasPrefix(FileSearchSource.previewsDir(pictureContext).path) && rendered.hasSuffix(".png")
+  && fm.fileExists(atPath: rendered) && landed?.pending == false, "and lands as its render in the app's own folder")
+let again = await pictureSource.preview(Pick(key: svg.path, query: ""))
+check(again?.body?.picture?.path == rendered && again?.pending == false, "a render made once is drawn at once")
+check(!((try? fm.contentsOfDirectory(atPath: FileSearchSource.previewsDir(pictureContext).path)) ?? []).contains { $0.hasSuffix(".d") },
+  "no scratch folder is left behind")
+// A render the highlight moved on from is ended and is not remembered as a failure.
+let pdfLike = pictures.appendingPathComponent("other.svg")
+try? Data(#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="40"><rect width="10" height="40"/></svg>"#.utf8).write(to: pdfLike)
+_ = await pictureSource.preview(Pick(key: pdfLike.path, query: ""))
+let waiting = Task { await pictureSource.previewLanded(Pick(key: pdfLike.path, query: "")) }
+waiting.cancel()
+check(await waiting.value == nil, "a wait the highlight moved on from answers nothing")
+
+func pixels(_ img: PaneImage?) -> Int {
+  var r = NSRect(origin: .zero, size: img?.image?.size ?? .zero)
+  return img?.image?.cgImage(forProposedRect: &r, context: nil, hints: nil)?.width ?? 0
+}
+let decoded = PanePicture.load(Preview.Picture(path: png.path, upscale: false), width: 462, scale: 2)
+check(decoded?.w == 320 && decoded?.h == 180 && decoded?.image?.size == NSSize(width: 320, height: 180)
+  && pixels(decoded) == 320, "the core reads a raster at its own size")
+let shrunk = PanePicture.load(Preview.Picture(path: rendered, upscale: false), width: 300, scale: 1)
+check(shrunk?.w == 600 && pixels(shrunk) == 300,
+  "and decodes a render only at the pixels it is drawn at")
+check(PanePicture.load(Preview.Picture(path: pictures.appendingPathComponent("broken.png").path), width: 100, scale: 2) == nil,
+  "and answers nothing for a file it cannot read")
 
 print(failures == 0 ? "olm-index-check, every check passed" : "olm-index-check, \(failures) FAILED")
 exit(failures == 0 ? 0 : 1)

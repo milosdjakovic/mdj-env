@@ -104,12 +104,15 @@ public protocol ListSource: Actor {
   func choose(_ pick: Pick) async -> [Effect]
   func run(_ action: String, on pick: Pick) async -> [Effect]
   func preview(_ pick: Pick) async -> Preview?
+  func previewLanded(_ pick: Pick) async -> Preview?
   func close() async
 }
 ```
 
-That is what `OlmKit` holds after 1.4a, the part file search uses. `preview` joined with the
-preview pane at 1.4a, answering nil by default for a source with no pane. The rest of the bridge's
+That is what `OlmKit` holds after 1.4b, the part file search uses. `preview` joined with the
+preview pane at 1.4a, answering nil by default for a source with no pane. `previewLanded` joined
+with the thumbnails at 1.4b, asked only after a preview that says it is `pending`, a picture still
+being rendered, and answering the same row once it lands, nil by default. The rest of the bridge's
 requests join it with the step that first needs each, a level's id and `back` with the folder
 search at 1.4e, which is the first list with levels, and an action's choice with the actions pane
 at 1.4f.
@@ -169,8 +172,10 @@ derives what follows from a declaration rather than asking for it twice.
 A plugin's work runs on its own actor. Work that touches the system and closes the list, opening
 a file or showing it in Finder, is an effect the stage performs after it hides, `openFile` and
 `revealFile`, so the work never lands in Olm.app's own window and a plugin's check reads the
-effects with no AppKit. Work that answers something, Quick Look or a picture, is a small service
-`OlmKit` will declare and the root provide, when the step that needs it lands.
+effects with no AppKit. A picture is the plugin's own work and arrives as a file, since 1.4b, the
+file itself or a render the plugin made with a system tool it runs, so the plugin needs no AppKit
+and holds no image. Work that answers something on screen, Quick Look, is a small service `OlmKit`
+will declare and the root provide, when the step that needs it lands.
 
 ## The look
 
@@ -189,6 +194,11 @@ role at most, and a body of lines with a heading. OlmCore lays it out, `PaneLayo
 and draws it through the swift chooser's own pane view, `PaneHost.swift`. The kit is ported rather
 than handed over as elements, since the app lays out a row Hammerspoon never sees.
 
+Since 1.4b a body may hold a `Preview.Picture`, a path and whether it may be upscaled, kit.image.
+`PanePicture.swift` reads the file and decodes it at the pixels it is shown at on the task the pane
+is laid out on, so the main thread only draws, and a preview whose picture is still on its way is
+drawn as it stands, `pending`, and drawn again where it is scrolled once `previewLanded` answers.
+
 ## Keys
 
 The panel hears every key while a list is open. The stage owns the list keys the keymap names, the
@@ -200,7 +210,9 @@ Hammerspoon until stage 5 of the plan.
 ## Where the app keeps things
 
 - `~/.olm/run/`, what Hammerspoon hands the app, rewritten on every load, never edited by the app.
-- `~/.olm/cache/`, what can be rebuilt, the file index, thumbnails, pictures the bridge wrote.
+- `~/.olm/cache/`, what can be rebuilt, the file index, thumbnails, pictures the bridge wrote. File
+  search's renders are the app's own under `filesearch/previews-app`, and the Lua side's
+  `filesearch/previews` is only read, one owner each.
 - `~/.olm/state/<owner>/`, what cannot, frecency and each plugin's own store, one owner each, and
   a store whose owner is still Lua is only read by the app, 1.4d of the plan.
 - `~/.olm/app/`, the built app.

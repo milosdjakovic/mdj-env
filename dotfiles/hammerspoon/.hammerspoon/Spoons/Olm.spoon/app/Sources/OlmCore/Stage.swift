@@ -19,6 +19,13 @@
 // for twice, and no row, a status in place of the rows, shows the pane's empty state. Command and J
 // or K scroll it by a wheel notch, the step the Lua pane's scroll keys move, and a scroll over it is
 // the native view's own.
+//
+// PICTURES, step 1.4b. A body's picture is a file the source names, read and decoded at the pixels
+// it is shown at by PanePicture on the same task the pane is laid out on, so the main thread draws
+// pixels already decoded. A preview that says something is still pending, a picture being rendered,
+// is drawn as it stands and the same row is then asked again, previewLanded, on the same generation,
+// and drawn where it is scrolled, as the Lua pane repaints when its thumbnail lands. A newer row
+// cancels the wait, which drops the late answer and lets the source end a render nobody waits on.
 
 import AppKit
 import OlmKit
@@ -137,13 +144,27 @@ public final class Stage {
   private var paneRadius: CGFloat { CGFloat(look?.style().radius ?? 0) }
 
   // A paint for the pane, held while an open is waiting to show the window, which it then shows.
-  private func drawPane(_ paint: PanePaint) {
+  // reset false keeps where the pane is scrolled, for the same row painted again.
+  private func drawPane(_ paint: PanePaint, reset: Bool = true) {
     if revealPending {
       heldPaint = paint
       reveal()
       return
     }
-    paneHost?.draw(paint, radius: paneRadius, reset: true)
+    paneHost?.draw(paint, radius: paneRadius, reset: reset)
+  }
+
+  // The pixels to the point of the screens the pane can stand on, which a picture is decoded at.
+  private var paneScale: Double { Double(NSScreen.screens.map(\.backingScaleFactor).max() ?? 2) }
+
+  // A preview laid out off the main thread, its picture read there first.
+  private nonisolated static func paint(_ preview: OlmKit.Preview, pane: (frame: PaneFrame, tokens: PaneTokens, emptyText: String),
+                                        measure: PaneMeasure, scale: Double) async -> PanePaint {
+    await Task.detached(priority: .userInitiated) {
+      let width = PanePainter.bodyWidth(pane.frame, tokens: pane.tokens)
+      let image = preview.body?.picture.flatMap { PanePicture.load($0, width: width, scale: scale) }
+      return PanePainter.paint(preview, frame: pane.frame, tokens: pane.tokens, measure: measure, image: image)
+    }.value
   }
 
   public func hide() {
@@ -241,19 +262,24 @@ public final class Stage {
     previewAsking = key
     let pick = Pick(key: key, query: text)
     let measure = paneMeasure
+    let scale = paneScale
     previewTask = Task {
       guard let preview = await source.preview(pick) else {
         if mine == self.previewGeneration { self.reveal() }
         return
       }
       guard mine == self.previewGeneration else { return }
-      let paint = await Task.detached(priority: .userInitiated) {
-        PanePainter.paint(preview, frame: pane.frame, tokens: pane.tokens, measure: measure)
-      }.value
+      let paint = await Self.paint(preview, pane: pane, measure: measure, scale: scale)
       guard mine == self.previewGeneration else { return }
       self.previewAsking = nil
       self.previewShown = key
       self.drawPane(paint)
+      // What the preview said was on its way, drawn where the pane is scrolled once it lands.
+      guard preview.pending, let landed = await source.previewLanded(pick),
+        !Task.isCancelled, mine == self.previewGeneration else { return }
+      let repaint = await Self.paint(landed, pane: pane, measure: measure, scale: scale)
+      guard mine == self.previewGeneration else { return }
+      self.drawPane(repaint, reset: false)
     }
   }
 
