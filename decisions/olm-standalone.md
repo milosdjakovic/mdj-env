@@ -276,3 +276,7 @@ list, and until then that list stays on Lua.
   hidden app's panel takes key but is never drawn, so with the app serving file search's key the
   key took focus and showed nothing. The stage now unhides the app as it opens a list, so the
   hidden start stays and a list is drawn however the app was started.
+- 2026-11-08 21:45. Step 1.3f is ticked on its trial, the app's echo steadier and its worst
+  settle 172 ms against the Lua file search's 9 s. The three character minimum on an unscoped
+  file search is kept for now and became step 1.4g, since the shadow of 1.3e compares both sides
+  and a limit lowered on one side would log every short query as a difference.

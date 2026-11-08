@@ -47,8 +47,7 @@ Stage 1, the file search pilot
   - [x] 1.3d The app's own list, rows ranked as typed, open and reveal, in the swift chooser's own look, 2026-11-08
   - [ ] 1.3e The shadow, both sides answering each query and the differences logged
     Built on main 2026-11-08, the Lua file search asking the app, running over a few days of real use with the piece on.
-  - [ ] 1.3f The three timings against the Lua file search, and a trial, with no flip
-    Built on main 2026-11-08, the panel timing both sides, waiting for its trial by hand.
+  - [x] 1.3f The three timings against the Lua file search, and a trial, with no flip, 2026-11-08
   - [x] 1.3g The app's structure, `docs/DESIGN-APP.md`, file search moved onto it with nothing a person can see changed, 2026-11-08
 - [ ] 1.4a Preview pane, with its scroll keys
 - [ ] 1.4b Thumbnails
@@ -56,6 +55,7 @@ Stage 1, the file search pilot
 - [ ] 1.4d Frecency, one owner, the history read but not yet owned
 - [ ] 1.4e Folder search, the scope, the folder aliases, Into Folder and Up a Level
 - [ ] 1.4f The bottom bar, the actions pane, the info pane, Copy Path, and the person's list keys
+- [ ] 1.4g Short queries, file search answering under three characters now the app's index can
 - [ ] 1.5 Parity, every feature of the Lua file search checked in the app, then the flip
 
 Stage 2, the bridge, read only
@@ -480,6 +480,14 @@ drawn. Cause: the bridge starts the app with `open -j`, hidden, and a hidden app
 but is never drawn. Fixed: the stage unhides the app as it opens a list, checked by starting the
 app hidden and Milos opening file search by its key.
 
+**1.3f ticked, 2026-11-08.** The trial by hand ran the same searches in each, five lists in the
+Lua file search and two with typing in the app, which is a first look rather than a large sample.
+In milliseconds, median, 95th percentile and worst. Echo, Lua 46, 90 and 99, the app 28, 39 and
+39. First rows, Lua 46, 90 and 99, the app 67, 172 and 172, since Lua draws its rows in the key's
+own turn and the field waits for them. Settled, Lua 57, 198 and 9133, the app 67, 172 and 172.
+Stall, Lua 58 and 95, the app 48 and 71, likely the window opening and not measured further.
+Typing in the app never waited on the search, and Milos called it good. Short queries became 1.4g.
+
 ## Where the facts come from
 
 The facts below were checked on 2026-11-05 by three read only sweeps of the spoon. Recheck any
@@ -649,6 +657,14 @@ the folder search, the scope with a folder walk, the directory aliases from `con
 Into Folder and Up a Level. 1.4f is the bottom bar, the actions pane and the info pane, Copy Path,
 Reveal in Finder on its own key, Command and a digit, and the person's `lists` keys for file
 search read over the bridge.
+
+1.4g came out of the 1.3f trial on 2026-11-08. File search holds an unscoped query under three
+characters on the recent list with a keep typing row, `minChars` in `plugins/filesearch/engine.lua`
+and the app's copy in its `Source.swift`, a limit from when every search ran Spotlight and one
+letter matched nearly every file. The app's index answers in memory, so it no longer needs it. It
+waits for 1.3e, since a limit changed on one side only would log every short query as a
+difference. Both sides then lower it together where the Lua side's Spotlight keeps up, measured
+with the 1.3f timings, and otherwise the app alone once it serves file search for good.
 
 **1.5 Parity, then the flip.** A written list of every feature the Lua file search has, read from
 its manifest, its README and `config/filesearch.lua`, each one tried in the app by hand and ticked.
