@@ -10,9 +10,9 @@ key, its cheat sheet row and its launcher row stay where they are, and the Lua f
 reached from the launcher. Switching the piece off gives the key back on the next load.
 
 Where the piece is on it also writes what the app reads of this config into `~/.olm/run/`, so the
-config keeps one owner. `filesearch.json` is file search's types, limits and placeholder, from
+config keeps one owner. `filesearch.json` is file search's types, limits, preview block and placeholder, from
 `config/plugins.lua`. `chooser.json` is the swift chooser's look, both halves of its style, its
-sizes, its layout and its motion, which the root builds through the swift provider's `look` and
+sizes, its layout, its motion and what a preview pane is laid out with, each half's under `pane`, which the root builds through the swift provider's `look` and
 hands over with `share`, so the app's list looks like the Lua one. The open key's URL carries
 Olm's placement choice at the press, which the root hands over with `placeWith`.
 

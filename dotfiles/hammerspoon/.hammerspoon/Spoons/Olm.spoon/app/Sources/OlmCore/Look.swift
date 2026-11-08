@@ -6,6 +6,12 @@
 // change in config/settings.lua, the theme or the typography reaches the app on the next load.
 //
 // The file holds both halves, so the app follows the system's light and dark switch by itself.
+//
+// A list whose manifest has a preview pane is placed with one as wide as the list, as the Lua
+// presentation's previewPaneWidth answers true, so the window opens at its full width, and the
+// window, the list's frame and the pane's region inside it are View colon place's, windowRects in
+// lib/chooser/providers/swift/view.lua. The pane is laid out with the pane tokens the bridge wrote
+// beside the style, step 1.4a.
 
 import AppKit
 @preconcurrency @testable import OlmChooser
@@ -19,6 +25,9 @@ struct Look {
   let layout: ChooserLayout
   // lib/chooser/providers/default/geometry.lua's titleLineBreak, the engine's lineBreak.
   let lineBreak: NSLineBreakMode
+  // What a preview pane is laid out with, each half's, nil in a look written before step 1.4a.
+  let paneDark: PaneTokens?
+  let paneLight: PaneTokens?
 
   static let path = FileManager.default.homeDirectoryForCurrentUser.path + "/.olm/run/chooser.json"
 
@@ -35,31 +44,39 @@ struct Look {
       "truncateTail": .byTruncatingTail, "truncateMiddle": .byTruncatingMiddle,
       "truncateHead": .byTruncatingHead, "clip": .byClipping,
     ]
+    let pane = doc["pane"] as? [String: Any]
     return Look(
       dark: Style(JSONFields(style["dark"])),
       light: Style(JSONFields(style["light"])),
       metrics: doc["metrics"] as? [String: Any] ?? [:],
       layout: ChooserLayout(layout),
-      lineBreak: breaks[layout["titleLineBreak"] as? String ?? ""] ?? .byTruncatingTail
+      lineBreak: breaks[layout["titleLineBreak"] as? String ?? ""] ?? .byTruncatingTail,
+      paneDark: PaneTokens(pane?["dark"]),
+      paneLight: PaneTokens(pane?["light"])
     )
   }
 
-  // The half the system is on, as lib/ui/style.lua asks hs.host.interfaceStyle.
-  func style() -> Style {
-    let dark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-    return dark ? self.dark : self.light
+  private static var isDark: Bool {
+    NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
   }
+
+  // The half the system is on, as lib/ui/style.lua asks hs.host.interfaceStyle.
+  func style() -> Style { Self.isDark ? dark : light }
+
+  // The pane tokens of the same half, nil when the look carries none.
+  func paneTokens() -> PaneTokens? { Self.isDark ? paneDark : paneLight }
 
   var showNumbers: Bool { JSONFields(metrics).bool("showNumbers") ?? false }
 
-  // The placement the Lua view's place would hand the panel on this screen, with no preview pane,
-  // the screen's frame less the menu bar and the Dock as hs.screen's frame is, in Hammerspoon's
-  // space.
-  func placement(on screen: NSScreen) -> Placement {
+  // The placement the Lua view's place would hand the panel on this screen, with a preview pane
+  // as wide as the list when pane is true, the screen's frame less the menu bar and the Dock as
+  // hs.screen's frame is, in Hammerspoon's space. The pane's size goes with it, and how much of its
+  // bottom the bar covers, which the pane's content is laid out above.
+  func placement(on screen: NSScreen, pane: Bool = false) -> (Placement, PaneFrame?) {
     let primary = NSScreen.screens.first?.frame.height ?? screen.frame.maxY
     let v = screen.visibleFrame
     let frame = LayoutRect(x: v.minX, y: primary - v.maxY, w: v.width, h: v.height)
-    let r = Geometry.resolve(screen: frame, layout: layout)
+    let r = Geometry.resolve(screen: frame, layout: layout, previewPaneWidth: pane ? .list : .none)
     func fields(_ rect: LayoutRect?, from origin: LayoutRect? = nil) -> Any {
       guard let rect else { return NSNull() }
       let o = origin ?? LayoutRect(x: 0, y: 0, w: 0, h: 0)
@@ -67,12 +84,24 @@ struct Look {
     }
     var table = metrics
     table["canvas"] = fields(r.canvas)
-    table["window"] = fields(r.canvas)
-    table["listFrame"] = ["x": 0, "y": 0, "w": r.canvas.w, "h": r.canvas.h]
+    if let p = r.previewPane {
+      // spanOf in view.lua, the canvas, the gap and the pane in one window.
+      let x0 = min(r.canvas.x, p.x), y0 = min(r.canvas.y, p.y)
+      let x1 = max(r.canvas.x + r.canvas.w, p.x + p.w), y1 = max(r.canvas.y + r.canvas.h, p.y + p.h)
+      let window = LayoutRect(x: x0, y: y0, w: x1 - x0, h: y1 - y0)
+      table["window"] = fields(window)
+      table["listFrame"] = fields(r.canvas, from: window)
+      table["paneFrame"] = fields(p, from: window)
+      table["previewPane"] = fields(p)
+    } else {
+      table["window"] = fields(r.canvas)
+      table["listFrame"] = ["x": 0, "y": 0, "w": r.canvas.w, "h": r.canvas.h]
+    }
     table["field"] = fields(r.field, from: r.canvas)
     table["list"] = fields(r.list, from: r.canvas)
     table["bottomBar"] = fields(r.bottomBar, from: r.canvas)
-    return Placement(JSONFields(table))
+    let paneFrame = r.previewPane.map { PaneFrame(w: $0.w, h: $0.h, under: $0.under ?? 0) }
+    return (Placement(JSONFields(table)), paneFrame)
   }
 
   // Only while no look has been written. A chooser 680 points wide a fifth of the way down the

@@ -6,6 +6,8 @@
 //   olm-fixtures DIR    every fixture file under DIR, test/fixtures in the spoon
 
 import Foundation
+import OlmCore
+import OlmKit
 import OlmLook
 import OlmSearch
 import FileSearchPlugin
@@ -196,10 +198,135 @@ func runGeometry(_ file: String, _ doc: [String: Any]) {
   }
 }
 
+// chooser.pane, a file search row and what the helper's peek found, described by the file search
+// plugin and laid out by OlmCore's port of the Lua pane with the app's own measurer, against the
+// elements the Lua pane drew, frames and the height within half a point. Every width Hammerspoon
+// measured is measured again first, since a pane can only lay out alike when the two measure alike.
+func runPane(_ file: String, _ doc: [String: Any]) {
+  func num(_ v: Any?) -> Double? {
+    guard let n = v as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID() else { return nil }
+    return n.doubleValue
+  }
+  let home = doc["home"] as? String ?? ""
+  let now = Int(num(doc["now"]) ?? 0)
+  let f = doc["frame"] as? [String: Any] ?? [:]
+  let frame = PaneFrame(w: num(f["w"]) ?? 0, h: num(f["h"]) ?? 0, under: num(f["under"]) ?? 0)
+  let limits = PreviewLimits(doc["limits"] as? [String: Any] ?? [:])
+  let tokens = doc["tokens"] as? [String: Any] ?? [:]
+  let measure = PaneMeasure()
+  let emptyText = FileSearchSource.paneEmptyText
+  if emptyText != doc["emptyText"] as? String {
+    fail(file, "the empty text", "wanted \(show(doc["emptyText"])), the plugin says \(show(emptyText))")
+  }
+
+  // The widths first.
+  var off = 0, measuredCount = 0
+  for (key, raw) in (doc["measured"] as? [String: Any])?["sizes"] as? [String: Any] ?? [:] {
+    let parts = key.split(separator: "|", maxSplits: 1)
+    guard parts.count == 2, let size = Double(parts[1]) else { continue }
+    for (str, w) in raw as? [String: Any] ?? [:] {
+      measuredCount += 1
+      let got = PaneMeasure.measure(str, font: String(parts[0]), size: size)
+      if let w = num(w), abs(got - w) > 1e-9 {
+        off += 1
+        if off <= 5 { fail(file, "the measurer", "\(show(str)) in \(key) wanted \(w), got \(got)") }
+      }
+    }
+  }
+  if off == 0 { passed += 1 }
+
+  func peek(_ v: Any?) -> Peek? {
+    guard let v, !(v is NSNull) else { return nil }
+    guard let seen = v as? [String: Any] else { return Peek() }
+    var p = Peek()
+    if let a = seen["attrs"] as? [String: Any] {
+      p.attrs = Peek.Attrs(isDir: a["mode"] as? String == "directory", size: Int(num(a["size"]) ?? 0),
+        modification: Int(num(a["modification"]) ?? 0), creation: Int(num(a["creation"]) ?? 0))
+    }
+    if let blob = seen["blob"] as? String { p.blob = Data(blob.utf8) }
+    if let fo = seen["folder"] as? [String: Any] {
+      let entries = (fo["entries"] as? [Any] ?? []).compactMap { e -> Peek.Entry? in
+        guard let e = e as? [String: Any], let name = e["name"] as? String else { return nil }
+        return Peek.Entry(name: name, at: Int(num(e["at"]) ?? 0))
+      }
+      p.folder = Peek.Folder(scanned: Int(num(fo["scanned"]) ?? 0), truncated: fo["truncated"] as? Bool ?? false,
+        entries: entries)
+    }
+    return p
+  }
+
+  func rect(_ v: Any?) -> PaneRect? {
+    guard let r = v as? [String: Any], let x = num(r["x"]), let y = num(r["y"]), let w = num(r["w"]), let h = num(r["h"])
+    else { return nil }
+    return PaneRect(x: x, y: y, w: w, h: h)
+  }
+  func near(_ a: PaneRect, _ b: PaneRect) -> Bool {
+    abs(a.x - b.x) <= 0.5 && abs(a.y - b.y) <= 0.5 && abs(a.w - b.w) <= 0.5 && abs(a.h - b.h) <= 0.5
+  }
+  func describe(_ r: PaneRect) -> String { "{\(r.x), \(r.y), \(r.w), \(r.h)}" }
+
+  // One element against the one the Lua drew, nil when they agree.
+  func differs(_ want: [String: Any], _ got: PaneItem) -> String? {
+    switch got {
+    case .resetClip:
+      return want["type"] as? String == "resetClip" ? nil : "wanted \(show(want["type"])), got resetClip"
+    case .clip(let r, let radius):
+      guard want["type"] as? String == "clip", let w = rect(want["frame"]) else { return "wanted \(show(want["type"])), got a clip" }
+      if !near(w, r) { return "clip wanted \(describe(w)), got \(describe(r))" }
+      if abs((num(want["radius"]) ?? 0) - radius) > 0.5 { return "clip radius wanted \(show(want["radius"])), got \(radius)" }
+      return nil
+    case .text(let t):
+      guard want["type"] as? String == "text", let w = rect(want["frame"]) else { return "wanted \(show(want["type"])), got a text" }
+      if want["text"] as? String != t.string { return "text wanted \(show(want["text"])), got \(show(t.string))" }
+      if !near(w, t.frame) { return "\(show(t.string)) frame wanted \(describe(w)), got \(describe(t.frame))" }
+      if want["font"] as? String != t.font || num(want["size"]) != t.size {
+        return "\(show(t.string)) font wanted \(show(want["font"])) \(show(want["size"])), got \(t.font) \(t.size)"
+      }
+      if want["align"] as? String != t.align || want["lineBreak"] as? String != t.lineBreak {
+        return "\(show(t.string)) wanted \(show(want["align"])) \(show(want["lineBreak"])), got \(t.align) \(t.lineBreak)"
+      }
+      if num(want["lineHeight"]) != t.lineHeight || (want["tight"] as? Bool ?? false) != t.tight {
+        return "\(show(t.string)) line height or tightening differs"
+      }
+      let c = want["color"] as? [String: Any] ?? [:]
+      let wc = [num(c["red"]) ?? 0, num(c["green"]) ?? 0, num(c["blue"]) ?? 0, num(c["alpha"]) ?? 1]
+      let gc = [t.color.red, t.color.green, t.color.blue, t.color.alpha]
+      if zip(wc, gc).contains(where: { abs($0 - $1) > 1e-6 }) { return "\(show(t.string)) colour wanted \(wc), got \(gc)" }
+      return nil
+    }
+  }
+
+  for case let c as [String: Any] in (doc["cases"] as? [Any]) ?? [] {
+    let name = c["name"] as? String ?? "?"
+    let half = c["half"] as? String ?? "dark"
+    guard let T = PaneTokens(tokens[half]) else {
+      fail(file, name, "the fixture has no tokens for \(half)"); continue
+    }
+    let paint: PanePaint
+    if let path = c["path"] as? String {
+      let preview = PreviewDescriber.describe(path: path, isDir: c["isDir"] as? Bool ?? false, peek: peek(c["seen"]),
+        limits: limits, now: now, home: home)
+      paint = PanePainter.paint(preview, frame: frame, tokens: T, measure: measure)
+    } else {
+      paint = PanePainter.empty(emptyText, frame: frame, tokens: T, measure: measure)
+    }
+    let expect = c["expect"] as? [String: Any] ?? [:]
+    let want = expect["elements"] as? [[String: Any]] ?? []
+    var problems: [String] = []
+    if let h = num(expect["height"]), abs(h - paint.height) > 0.5 { problems.append("height wanted \(h), got \(paint.height)") }
+    if want.count != paint.items.count { problems.append("wanted \(want.count) elements, got \(paint.items.count)") }
+    for (i, (w, g)) in zip(want, paint.items).enumerated() {
+      if let why = differs(w, g) { problems.append("element \(i + 1), \(why)") }
+    }
+    if problems.isEmpty { passed += 1 } else { fail(file, name, problems.prefix(4).joined(separator: "; ")) }
+  }
+}
+
 let runners: [String: (String, [String: Any]) -> Void] = [
   "filesearch.parse": runParse,
   "filesearch.narrows": runNarrows,
   "chooser.geometry": runGeometry,
+  "chooser.pane": runPane,
   "rank.order": runOrder,
   "rank.corpus": runCorpus,
 ]

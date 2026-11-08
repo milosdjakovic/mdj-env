@@ -249,6 +249,7 @@ local LOOK_SCREEN = { x = 0, y = 0, w = 1920, h = 1200 }
 ---   metrics  the sizes place hands native.place, every rectangle left out
 ---   layout   the engine's layout, which the app's port of geometry.resolve places by
 ---   motion   the kit's motion, which attach hands native.setMotion
+---   pane     { dark = t, light = t }, what a preview pane is laid out with, pane.lua's tokens
 --- It needs neither the library nor a screen, so it answers whichever chooser serves.
 function M.look(config)
   if not UIKIT then return nil, "the provider was configured without the UI kit" end
@@ -270,6 +271,13 @@ function M.look(config)
   end
   for k, v in pairs(seen.place or {}) do
     if type(v) ~= "table" then look.metrics[k] = v end
+  end
+  -- What a preview pane is laid out with, each half's, pane.lua's tokens, step 1.4a. The interior
+  -- of any box carries the same inset and radius, so one box answers both.
+  local interior = type(UIKIT.interior) == "function" and UIKIT.interior(100, 100) or nil
+  look.pane = {}
+  for _, half in ipairs({ "dark", "light" }) do
+    look.pane[half] = SwiftPane.tokens(UIKIT.tokensFor(half), interior)
   end
   return look
 end

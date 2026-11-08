@@ -60,6 +60,37 @@ local function radiusOf(surface)
 end
 M.radiusOf = radiusOf
 
+--- M.tokens(T, interior) -> the part of one half's tokens a preview pane is laid out with, the
+--- shape Olm.app is handed in `~/.olm/run/chooser.json` under pane, docs/PLAN-STANDALONE.md step
+--- 1.4a. T is a resolved table from lib/ui/style.lua and interior the kit's interior of any box,
+--- whose inset and radius are the same for every size. The app lays the file search pane out with
+--- these through its port of lib/ui/layout.lua, so its pane draws with the very fonts, sizes, line
+--- heights, colours and spaces this one does, and test/fixtures/chooser/pane.json is laid out with
+--- them too. Plain data, every colour already resolved for the half.
+function M.tokens(T, interior)
+  T = T or {}
+  local text = {}
+  for role, v in pairs(T.text or {}) do
+    text[role] = { font = v.font, size = v.size, lineHeight = v.lineHeight, color = v.color }
+  end
+  local space = {}
+  for name, v in pairs(T.space or {}) do space[name] = v end
+  local colors = {}
+  for name, c in pairs(T.colors or {}) do
+    colors[name] = { red = c.red, green = c.green, blue = c.blue, alpha = c.alpha or 1 }
+  end
+  interior = interior or {}
+  return {
+    pad = T.pad or 0,
+    space = space,
+    radius = { nested = (T.radius and T.radius.nested) or 0 },
+    interior = { inset = interior.x or 0, radius = interior.radius or 0 },
+    fonts = { mono = T.fonts and T.fonts.mono, ui = T.fonts and T.fonts.ui },
+    text = text,
+    colors = colors,
+  }
+end
+
 local function report(log, names)
   for _, name in ipairs(names or {}) do
     if not reported[name] then

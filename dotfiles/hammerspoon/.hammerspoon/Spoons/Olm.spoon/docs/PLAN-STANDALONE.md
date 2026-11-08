@@ -50,6 +50,7 @@ Stage 1, the file search pilot
   - [x] 1.3f The three timings against the Lua file search, and a trial, with no flip, 2026-11-08
   - [x] 1.3g The app's structure, `docs/DESIGN-APP.md`, file search moved onto it with nothing a person can see changed, 2026-11-08
 - [ ] 1.4a Preview pane, with its scroll keys
+  Built in a worktree 2026-11-08, the pane laid out by a port of the Lua kit and drawn in the swift chooser's own pane view, its fixture recorded from the Lua pane, waiting for its trial by hand.
 - [ ] 1.4b Thumbnails
 - [ ] 1.4c Quick Look
 - [ ] 1.4d Frecency, one owner, the history read but not yet owned
@@ -487,6 +488,42 @@ In milliseconds, median, 95th percentile and worst. Echo, Lua 46, 90 and 99, the
 own turn and the field waits for them. Settled, Lua 57, 198 and 9133, the app 67, 172 and 172.
 Stall, Lua 58 and 95, the app 48 and 71, likely the window opening and not measured further.
 Typing in the app never waited on the search, and Milos called it good. Short queries became 1.4g.
+
+**1.4a built, the preview pane, 2026-11-08.** File search's manifest has a preview pane, so the
+app's window opens as wide as the Lua one, the window, the list and the pane's region placed as
+`windowRects` in `view.lua` places them. The highlight resting for `settleMs` asks the source's new
+`preview`, which reads the row in process, the helper's own stat, folder scan and head read, on a
+thread of its own and bounded by `peekSeconds`, and answers a `Preview`, the header's facts and a
+body, ported from `sidepanel.lua`'s describers. OlmCore lays it out with a port of the parts of
+`lib/ui` a pane uses, `measure.lua`, `tabs.lua`, `layout.lua` and `sidepanel-nodes.lua`, off the main
+thread, along `previewpane.lua`'s native scroll path, so the header scrolls with the body as it does
+under the swift chooser. The elements are drawn by the swift chooser's own `PanePanel`, in the
+chooser's window. No row, or a status in its place, shows the empty state. Command and J or K
+scroll it by 120 points, a scroll over it is the view's own.
+- The bridge hands what the app lacked. `chooser.json` has a `pane` section, each half's type roles,
+  colours, spaces, pad, nested radius and the interior's inset and radius, from
+  `providers/swift/pane.lua`'s `tokens`. `filesearch.json` has the `preview` block.
+- A width is NSString's size with the font alone, which is what `hs.drawing.getTextDrawingSize`
+  answers, equal to the last bit for every role's font on this machine.
+- `test/fixtures/chooser/pane.json`, 19 cases recorded from the live Hammerspoon read only by
+  `test/fixtures-pane-record.lua`: wrapped lines and tabs, a long word, a carriage return, a head
+  past its budget, two cut by the read cap, an empty file, three folders, a bundle, a gone path, two
+  picture types, a binary, a read that never answered, a dotfile, a deep folder, and the empty state,
+  both halves. `test/fixtures.lua` lays them out again through the Lua files over the recorded
+  widths, and `olm-fixtures` through the app's port with its own measurer, frames within half a
+  point. `olm-index-check` checks the in process read against the helper's peek.
+
+Not in this part:
+- Pictures are 1.4b. A type the thumbnail chain draws shows PREVIEW and "no preview", the words
+  the Lua pane shows when no generator answers.
+- The USED fact is frecency, 1.4d.
+- What reaches the app for the scroll keys is believed and not seen. The list's leader is held in
+  Hammerspoon, and with no Lua list open Hyper with Command and J is unbound there, so ChordKey's
+  passthrough posts the leader's key and then Command and J, which is what the app reads.
+
+Result: the dry suite, `olm-fixtures` with 20 pane checks, `olm-index-check` and a release build of
+the app pass. `test/units.sh` was not run, since it runs through the live Hammerspoon on main.
+Open: the trial by hand, after a reload writes the new run files.
 
 ## Where the facts come from
 

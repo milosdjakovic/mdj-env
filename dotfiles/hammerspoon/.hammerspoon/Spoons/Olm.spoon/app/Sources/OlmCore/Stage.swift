@@ -9,6 +9,16 @@
 // docs/PLAN-STANDALONE.md. A source answers on its own actor and the search ranks on its own, so
 // typing never waits on either. Every keystroke raises the generation and cancels the task before
 // it, and an answer for an older generation is dropped.
+//
+// THE PREVIEW PANE, step 1.4a. A list whose manifest has one opens with the window already wide,
+// Look's placement, and the pane follows the highlight as the Lua file search's does,
+// plugins/filesearch/chooser.lua's onHighlight. The highlight resting for the level's settle time
+// asks the source for the row's Preview on the source's own actor, PanePainter lays it out on a
+// task off the main thread, and only the drawing lands here, dropped when a newer row was asked
+// for since. A row already on screen is left where it is scrolled, a row being read is not asked
+// for twice, and no row, a status in place of the rows, shows the pane's empty state. Command and J
+// or K scroll it by a wheel notch, the step the Lua pane's scroll keys move, and a scroll over it is
+// the native view's own.
 
 import AppKit
 import OlmKit
@@ -31,6 +41,18 @@ public final class Stage {
   // A row sent without one is drawn blank until the list asks for it, which flickered every icon
   // on every keystroke, reported in the 1.3d trial on 2026-11-08.
   private let icons = NSCache<NSString, NSImage>()
+  // The preview pane, made with the panel the first time a list with one opens.
+  private var paneHost: PaneHost?
+  // The pane of the list open now, its size and its tokens, nil for a list with none.
+  private var pane: (frame: PaneFrame, tokens: PaneTokens, emptyText: String)?
+  private let paneMeasure = PaneMeasure()
+  private var settleTask: Task<Void, Never>?
+  private var previewTask: Task<Void, Never>?
+  // Raised by every row asked for and every clear, so a late answer is dropped.
+  private var previewGeneration = 0
+  // The row on the pane, and the row being read for it.
+  private var previewShown: String?
+  private var previewAsking: String?
 
   public init(searcher: Searcher = Searcher()) {
     self.searcher = searcher
@@ -45,15 +67,26 @@ public final class Stage {
     generation += 1
     task?.cancel()
     look = Look.read()
+    resetPane()
+    pane = nil
     if let look, let screen = Look.screen(for: mode) {
       panel.applyStyle(look.style())
-      panel.place(look.placement(on: screen))
+      let tokens = next.manifest.previewPane != nil ? look.paneTokens() : nil
+      let (placement, frame) = look.placement(on: screen, pane: tokens != nil)
+      panel.place(placement)
+      if let tokens, let frame, let rect = placement.previewPane, let spec = next.manifest.previewPane {
+        pane = (frame, tokens, spec.emptyText)
+        if paneHost == nil { paneHost = PaneHost(panel: panel) }
+        paneHost?.place(rect)
+      }
     } else {
       // No look has been written yet, so the panel draws on its own defaults until Hammerspoon
       // loads with the piece on.
       NSLog("Olm: no chooser look at %@, the panel's defaults are used", Look.path)
       panel.place(Look.fallback())
     }
+    // A list with no pane opened over one that had it leaves no pane behind.
+    if pane == nil { paneHost?.close() }
     rows = []
     text = query
     panel.setRows([])
@@ -63,6 +96,8 @@ public final class Stage {
     // panel takes key but is never drawn, found in the 1.3f trial on 2026-11-08.
     if NSApp.isHidden { NSApp.unhide(nil) }
     panel.show()
+    // Nothing is highlighted yet, so the pane opens on its empty state, as the Lua pane's first dock.
+    clearPane()
     panel.setText(query)
     let mine = generation
     task = Task {
@@ -77,7 +112,10 @@ public final class Stage {
     guard panel.isVisible else { return }
     generation += 1
     task?.cancel()
+    resetPane()
     panel.hide()
+    // After the hide, as the Lua file search's onClose destroys its pane once the stage hid.
+    paneHost?.close()
     panel.stop()
     if let source { Task { await source.close() } }
   }
@@ -107,6 +145,66 @@ public final class Stage {
     }
     highlight = next.isEmpty ? 0 : 1
     apply(status: status)
+    settlePreview()
+  }
+
+  // MARK: The preview pane
+
+  // Forgets the row on the pane and any read on its way, so nothing late is drawn.
+  private func resetPane() {
+    settleTask?.cancel()
+    previewTask?.cancel()
+    previewGeneration += 1
+    previewShown = nil
+    previewAsking = nil
+  }
+
+  // The empty state, for no highlight or a status in place of the rows.
+  private func clearPane() {
+    guard let pane, let paneHost else { return }
+    resetPane()
+    let paint = PanePainter.empty(pane.emptyText, frame: pane.frame, tokens: pane.tokens, measure: paneMeasure)
+    paneHost.draw(paint, radius: CGFloat(look?.style().radius ?? 0), reset: true)
+  }
+
+  // The highlight moved or the rows changed, so the row it rests on is described once it settles.
+  private func settlePreview() {
+    guard pane != nil else { return }
+    settleTask?.cancel()
+    let ms = level?.previewSettleMs ?? 60
+    settleTask = Task {
+      try? await Task.sleep(nanoseconds: UInt64(max(0, ms)) * 1_000_000)
+      if Task.isCancelled { return }
+      self.describe()
+    }
+  }
+
+  private func describe() {
+    guard let pane, let paneHost, let source else { return }
+    guard highlight >= 1, highlight <= rows.count else {
+      clearPane()
+      return
+    }
+    let key = rows[highlight - 1].key
+    // Already on the pane, where it is scrolled, or already being read.
+    if key == previewShown || key == previewAsking { return }
+    previewTask?.cancel()
+    previewGeneration += 1
+    let mine = previewGeneration
+    previewAsking = key
+    let pick = Pick(key: key, query: text)
+    let measure = paneMeasure
+    let radius = CGFloat(look?.style().radius ?? 0)
+    previewTask = Task {
+      guard let preview = await source.preview(pick), mine == self.previewGeneration else { return }
+      let paint = await Task.detached(priority: .userInitiated) {
+        PanePainter.paint(preview, frame: pane.frame, tokens: pane.tokens, measure: measure)
+      }.value
+      guard mine == self.previewGeneration else { return }
+      self.previewAsking = nil
+      self.previewShown = key
+      paneHost.draw(paint, radius: radius, reset: true)
+    }
   }
 
   // The state the Lua view sends, providers/swift/view.lua's redraw. The first nine rows carry
@@ -161,6 +259,9 @@ public final class Stage {
     }
   }
 
+  // How far one scroll key moves the pane, chooser.lua's PANE_SCROLL_STEP.
+  private static let paneScrollStep: CGFloat = 120
+
   // The digit keys one through nine, as virtual key codes.
   private static let digitKeys: [Int64] = [18, 19, 20, 21, 23, 22, 26, 28, 25]
 
@@ -172,6 +273,14 @@ public final class Stage {
     // list shows its numbers.
     if event.flags.contains(.maskCommand), look?.showNumbers == true, let slot = Self.digitKeys.firstIndex(of: code) {
       act(on: slot + 1)
+      return true
+    }
+    // Command and J or K scroll the preview pane, the keys the Lua file search binds for
+    // scrollPreviewDown and scrollPreviewUp with the list's leader held, which Hammerspoon passes on
+    // as Command and the key while it is the app's list that is open.
+    if pane != nil, code == 38 || code == 40, event.flags.contains(.maskCommand),
+      event.flags.isDisjoint(with: [.maskControl, .maskAlternate, .maskShift]) {
+      if previewShown != nil { paneHost?.scrollBy(code == 38 ? Self.paneScrollStep : -Self.paneScrollStep) }
       return true
     }
     guard code == 36 || code == 76 else { return false }
@@ -192,7 +301,10 @@ public final class Stage {
     case "text":
       if case .string(let text)? = args.first { search(text) }
     case "highlighted":
-      if case .int(let index)? = args.first { highlight = index }
+      if case .int(let index)? = args.first, index != highlight {
+        highlight = index
+        settlePreview()
+      }
     case "choose":
       if case .int(let index)? = args.first { act(on: index) }
     case "wantIcons":

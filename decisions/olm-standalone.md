@@ -280,3 +280,14 @@ list, and until then that list stays on Lua.
   settle 172 ms against the Lua file search's 9 s. The three character minimum on an unscoped
   file search is kept for now and became step 1.4g, since the shadow of 1.3e compares both sides
   and a limit lowered on one side would log every short query as a difference.
+- 2026-11-08 22:35. Step 1.4a ports the parts of the Lua UI kit a preview pane uses into the app,
+  `measure.lua`, `tabs.lua`, `layout.lua` and `sidepanel-nodes.lua`, rather than having Hammerspoon
+  lay the pane out and hand the app its elements, since the app describes rows Hammerspoon never
+  sees and rule 8 keeps that work off any main thread but the app's own. The tokens are not ported,
+  they come from the kit through the bridge, `chooser.json` under `pane`, so the look keeps one
+  owner as rule 9 asks. A width is NSString's size with the font alone, which equals
+  `hs.drawing.getTextDrawingSize` to the last bit for every role's font, so the two sides break a
+  line at the same character. The fixture `test/fixtures/chooser/pane.json` records every width the
+  Lua layout asked for with what it drew, so the Lua runner checks the Lua code offline and the
+  Swift runner checks the port and its measurer against the same answers. The read is the helper's
+  peek done in process on a thread of its own, checked against the helper by `olm-index-check`.

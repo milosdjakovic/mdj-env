@@ -14,7 +14,11 @@
 // rows to the shared search. A scoped query, a folder walk on the Lua side, is step 1.4e and says
 // so. Frecency, the row's bonus on the Lua side, is step 1.4d, so every bonus here is zero.
 //
-// The settings, file search's types and limits and its placeholder, are config/filesearch.lua's,
+// It answers the preview pane too, step 1.4a, Preview.swift, the highlighted row read in process on
+// a thread of its own and described as the Lua side pane describes it.
+//
+// The settings, file search's types, limits and preview block and its placeholder, are
+// config/filesearch.lua's,
 // written by the bridge to ~/.olm/run/filesearch.json where the olmapp piece is on and read on
 // every open, so the config keeps one owner.
 
@@ -29,6 +33,8 @@ public struct FileSearchSettings: Equatable, Sendable {
   public var recentDays = 7
   public var recentCount = 40
   public var placeholder = ""
+  /// The preview block, what one highlighted row may cost.
+  public var preview = PreviewLimits()
   public init() {}
 
   /// config/filesearch.lua's settings as the bridge wrote them, or the Lua defaults.
@@ -43,6 +49,7 @@ public struct FileSearchSettings: Equatable, Sendable {
     if let n = limits["recentDays"] as? Int { settings.recentDays = n }
     if let n = limits["recentCount"] as? Int { settings.recentCount = n }
     settings.placeholder = doc["placeholder"] as? String ?? ""
+    settings.preview = PreviewLimits(doc["preview"] as? [String: Any] ?? [:])
     return settings
   }
 }
@@ -50,13 +57,20 @@ public struct FileSearchSettings: Equatable, Sendable {
 public actor FileSearchSource: ListSource {
   public nonisolated let manifest = Manifest(name: "filesearch", title: "File Search", actions: [
     Action(id: "reveal", title: "Reveal in Finder", chord: ["cmd", "return"]),
-  ])
+  ], previewPane: PreviewPane(emptyText: FileSearchSource.paneEmptyText))
+
+  /// What the pane says while nothing is highlighted, plugins/filesearch/chooser.lua's emptyText.
+  public static let paneEmptyText = "Highlight a file to preview it"
 
   private let context: PluginContext
   private let index: FileIndex
   public private(set) var settings: FileSearchSettings
   // What the rows held answer, set only from an index answer.
-  private var held: (query: FileQuery, rows: [IndexRow], narrowable: Bool)?
+  private var held: (query: FileQuery, rows: [IndexRow], narrowable: Bool)? {
+    didSet { folders = nil }
+  }
+  // Which held rows are folders, by path, built the first time a preview asks.
+  private var folders: Set<String>?
   /// How many times the index was asked, for a check that narrowing asks nothing.
   public private(set) var asks = 0
 
@@ -73,7 +87,7 @@ public actor FileSearchSource: ListSource {
     settings = FileSearchSettings.read(from: context.run)
     held = nil
     return Level(placeholder: settings.placeholder, ranking: .app, rowLimit: settings.rowLimit,
-      titleLineBreak: "truncateMiddle")
+      titleLineBreak: "truncateMiddle", previewSettleMs: settings.preview.settleMs)
   }
 
   /// The same with settings handed in rather than read, for a check and for the shadow.
@@ -128,6 +142,51 @@ public actor FileSearchSource: ListSource {
 
   public func run(_ action: String, on pick: Pick) async -> [Effect] {
     action == "reveal" ? [.hide, .revealFile(pick.key)] : []
+  }
+
+  /// What the pane beside the list says about a row, sidepanel.lua's show. The read runs on a
+  /// thread of its own rather than on this actor, so the rows of the next keystroke never wait on
+  /// it, and it is bounded by peekSeconds, after which the row is described by its name alone, as
+  /// the Lua pane does when the helper does not answer in time.
+  public func preview(_ pick: Pick) async -> Preview? {
+    // A folder by the index's word for it, as the Lua row's isDir, and by the read's own stat for a
+    // row the rows held no longer name.
+    if folders == nil { folders = Set(held?.rows.filter(\.isDir).map(\.path) ?? []) }
+    let listed = held?.rows.contains { $0.path == pick.key } ?? false
+    let limits = settings.preview
+    let peek = await Self.peek(pick.key, limits: limits)
+    if Task.isCancelled { return nil }
+    let isDir = listed ? (folders?.contains(pick.key) ?? false) : (peek?.attrs?.isDir ?? false)
+    return PreviewDescriber.describe(path: pick.key, isDir: isDir, peek: peek, limits: limits,
+      now: Int(Date().timeIntervalSince1970), home: FileManager.default.homeDirectoryForCurrentUser.path)
+  }
+
+  // The read, or nil once peekSeconds pass first. A read stuck on a disk that is not there finishes
+  // on its own thread and is dropped.
+  static func peek(_ path: String, limits: PreviewLimits) async -> Peek? {
+    let once = Once()
+    return await withCheckedContinuation { (done: CheckedContinuation<Peek?, Never>) in
+      DispatchQueue.global(qos: .userInitiated).async {
+        let peek = Peek.read(path, readCap: limits.readCap, entries: limits.folderEntries)
+        if once.claim() { done.resume(returning: peek) }
+      }
+      DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + max(0, limits.peekSeconds)) {
+        if once.claim() { done.resume(returning: nil) }
+      }
+    }
+  }
+
+  // The first of two answers to arrive, the other dropped.
+  private final class Once: @unchecked Sendable {
+    private let lock = NSLock()
+    private var done = false
+    func claim() -> Bool {
+      lock.withLock {
+        if done { return false }
+        done = true
+        return true
+      }
+    }
   }
 
   public func close() async {}

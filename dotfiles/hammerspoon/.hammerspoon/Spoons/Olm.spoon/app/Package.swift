@@ -43,7 +43,7 @@ let package = Package(
       dependencies: ["OlmKit", "OlmCore", "FileSearchPlugin"],
       path: "Sources/Olm"
     ),
-    .executableTarget(name: "olm-fixtures", dependencies: ["OlmSearch", "OlmLook", "FileSearchPlugin"],
+    .executableTarget(name: "olm-fixtures", dependencies: ["OlmKit", "OlmSearch", "OlmLook", "OlmCore", "FileSearchPlugin"],
       path: "Sources/olm-fixtures", swiftSettings: v5),
     .executableTarget(name: "olm-index-check", dependencies: ["OlmKit", "OlmCore", "FileSearchPlugin"],
       path: "Sources/olm-index-check", swiftSettings: v5),

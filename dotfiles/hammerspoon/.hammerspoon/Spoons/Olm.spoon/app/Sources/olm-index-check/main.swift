@@ -113,5 +113,52 @@ check(FileSearchSource.shadowSkip("report", settings: settings) == nil
   && FileSearchSource.shadowSkip("~/x/ foo", settings: settings) != nil,
   "the shadow compares a search and skips the recent list and a folder")
 
+// The preview's read, step 1.4a, which is the helper's peek done in process, so the two must find
+// the same thing. The helper's answer is parsed as plugins/filesearch/sources/index.lua's parsePeek
+// reads it.
+func helperPeek(_ path: String) -> Peek? {
+  let out = root.appendingPathComponent("peek-\(UUID().uuidString)").path
+  let p = Process()
+  p.executableURL = URL(fileURLWithPath: helper)
+  p.arguments = ["peek", path, out, "4096", String(Peek.scanCap), "100"]
+  try? p.run()
+  p.waitUntilExit()
+  guard let data = fm.contents(atPath: out), let nl = data.firstIndex(of: 10) else { return nil }
+  let first = String(decoding: data[..<nl], as: UTF8.self)
+  let rest = data[(nl + 1)...]
+  if first == "missing" { return Peek() }
+  let f = first.split(separator: "\t")
+  guard f.count == 4, let size = Int(f[1]), let m = Int(f[2]), let c = Int(f[3]) else { return nil }
+  let attrs = Peek.Attrs(isDir: f[0] == "dir", size: size, modification: m, creation: c)
+  guard attrs.isDir else { return Peek(attrs: attrs, blob: Data(rest)) }
+  let lines = String(decoding: rest, as: UTF8.self).split(separator: "\n", omittingEmptySubsequences: false)
+  guard let head = lines.first?.split(separator: "\t"), head.count == 2, let scanned = Int(head[0]) else {
+    return Peek(attrs: attrs)
+  }
+  let entries = lines.dropFirst().compactMap { line -> Peek.Entry? in
+    let e = line.split(separator: "\t", maxSplits: 2, omittingEmptySubsequences: false)
+    guard e.count == 3, let at = Int(e[0]) else { return nil }
+    return Peek.Entry(name: e[1] == "d" ? e[2] + "/" : String(e[2]), at: at)
+  }
+  return Peek(attrs: attrs, folder: Peek.Folder(scanned: scanned, truncated: head[1] == "1", entries: entries))
+}
+fm.createFile(atPath: tree.appendingPathComponent("notes/long.txt").path,
+  contents: Data(String(repeating: "a line of text\n", count: 600).utf8))
+for (path, what) in [("notes/long.txt", "a file's head"), ("notes", "a folder, newest first"),
+                     ("gone.md", "a path that is gone")] {
+  let full = tree.appendingPathComponent(path).path
+  check(Peek.read(full, readCap: 4096, entries: 100) == helperPeek(full), "the preview reads \(what) as the helper does")
+}
+// The source knows a row is a folder from the rows it last answered, as the Lua row carries isDir.
+_ = await answer("rep")
+let previewed = await source.preview(Pick(key: kinds["report.md"]?.path ?? "", query: "rep"))
+check(previewed?.name == "report.md" && previewed?.facts.first == Preview.Fact(label: "KIND", value: "MD")
+  && previewed?.body == Preview.Body(label: "HEAD", lines: ["x"], wrap: true, budget: 400, slack: 20, total: 1,
+    hasLines: false), "the source describes a file it listed")
+let bundle = await source.preview(Pick(key: kinds["Reports.app"]?.path ?? "", query: "rep"))
+check(bundle?.facts.first?.value == "Application" && bundle?.body?.label == "FOLDER"
+  && bundle?.body?.lines == ["Contents/"], "and a bundle it listed as a folder")
+check(source.manifest.previewPane?.emptyText == FileSearchSource.paneEmptyText, "its manifest has a preview pane")
+
 print(failures == 0 ? "olm-index-check, every check passed" : "olm-index-check, \(failures) FAILED")
 exit(failures == 0 ? 0 : 1)

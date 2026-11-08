@@ -103,14 +103,16 @@ public protocol ListSource: Actor {
   func rows(_ query: Query) async throws -> RowsAnswer
   func choose(_ pick: Pick) async -> [Effect]
   func run(_ action: String, on pick: Pick) async -> [Effect]
+  func preview(_ pick: Pick) async -> Preview?
   func close() async
 }
 ```
 
-That is what `OlmKit` holds after 1.3g, the part file search uses. The rest of the bridge's
-requests join it with the step that first needs each, `preview` with the preview pane at 1.4a, a
-level's id and `back` with the folder search at 1.4e, which is the first list with levels, and an
-action's choice with the actions pane at 1.4f.
+That is what `OlmKit` holds after 1.4a, the part file search uses. `preview` joined with the
+preview pane at 1.4a, answering nil by default for a source with no pane. The rest of the bridge's
+requests join it with the step that first needs each, a level's id and `back` with the folder
+search at 1.4e, which is the first list with levels, and an action's choice with the actions pane
+at 1.4f.
 
 `Query` carries the text and its generation, `Pick` names the row by its key, the query and the
 highlight's generation, exactly as `choose` does on the wire, so a source always answers about the
@@ -179,6 +181,13 @@ colour, a font or a size, as the Lua UI kit rule says, and `OlmKit` has no type 
 one. A preview is a description of kit nodes, text, a picture, a table of fields, a code block,
 which the core draws, the same split `lib/previewpane.lua` keeps between the pane's lifecycle and
 what a plugin hands it.
+
+Since 1.4a that description is `Preview` in `OlmKit`, a name, a folder, facts that name a colour
+role at most, and a body of lines with a heading. OlmCore lays it out, `PaneLayout.swift` and
+`PanePainter.swift`, a port of the parts of `lib/ui` a pane uses, pinned by
+`test/fixtures/chooser/pane.json`, with the tokens the bridge writes beside the style under `pane`,
+and draws it through the swift chooser's own pane view, `PaneHost.swift`. The kit is ported rather
+than handed over as elements, since the app lays out a row Hammerspoon never sees.
 
 ## Keys
 

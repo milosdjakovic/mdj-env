@@ -56,12 +56,17 @@ public struct Level: Sendable, Equatable {
   /// How a title too long for its row loses characters, a lib/chooser/providers/default
   /// geometry name, nil for the look's own.
   public var titleLineBreak: String?
+  /// How long the highlight rests on a row before its preview is asked for, in milliseconds, the
+  /// file search config's preview.settleMs. Read only where the manifest has a preview pane.
+  public var previewSettleMs: Int
 
-  public init(placeholder: String = "", ranking: Ranking = .app, rowLimit: Int? = nil, titleLineBreak: String? = nil) {
+  public init(placeholder: String = "", ranking: Ranking = .app, rowLimit: Int? = nil, titleLineBreak: String? = nil,
+              previewSettleMs: Int = 60) {
     self.placeholder = placeholder
     self.ranking = ranking
     self.rowLimit = rowLimit
     self.titleLineBreak = titleLineBreak
+    self.previewSettleMs = previewSettleMs
   }
 }
 
@@ -117,6 +122,88 @@ public enum Effect: Sendable, Equatable {
   case revealFile(String)
 }
 
+/// One of the eight colour roles lib/ui/style.lua resolves for the half the system is on. A plugin
+/// names a role and never a colour, so this is the only colour a preview can carry.
+public enum ColorRole: String, Sendable, Equatable {
+  case foreground, subtext, background, border, highlight, primary, secondary, tertiary
+}
+
+/// What the preview pane beside a list says about one row, as a plugin describes it and never as it
+/// is drawn. The core lays it out with the swift chooser's own type roles and spaces, the port of
+/// plugins/filesearch/viewers/sidepanel-nodes.lua, so a plugin holds no font, size or colour.
+public struct Preview: Sendable, Equatable {
+  /// One fact under the name, a label at the left and its value flush right.
+  public struct Fact: Sendable, Equatable {
+    public var label: String
+    public var value: String
+    /// The value's colour, the foreground when nil.
+    public var color: ColorRole?
+
+    public init(label: String, value: String, color: ColorRole? = nil) {
+      self.label = label
+      self.value = value
+      self.color = color
+    }
+  }
+
+  /// What is drawn under the facts, a section heading with what it heads, sidepanel.lua's body as
+  /// a describer answers it.
+  public struct Body: Sendable, Equatable {
+    /// The section's heading, HEAD, FOLDER or PREVIEW.
+    public var label: String
+    /// What the heading says at its right, nil for none.
+    public var facts: String?
+    /// The lines of a file's head or a folder's names, as they are, tabs and all.
+    public var lines: [String]
+    /// Whether each line wraps at the pane's width rather than being cut.
+    public var wrap: Bool
+    /// How many drawn lines are kept once more than budget and slack are there, nil for no limit.
+    public var budget: Int?
+    /// How far past the budget a body is still shown whole.
+    public var slack: Int
+    /// The file's whole size in bytes, which the note of what is left out counts against.
+    public var total: Int?
+    /// Whether a count of lines left out would mean anything.
+    public var hasLines: Bool
+
+    public init(label: String, facts: String? = nil, lines: [String] = [], wrap: Bool = false,
+                budget: Int? = nil, slack: Int = 0, total: Int? = nil, hasLines: Bool = false) {
+      self.label = label
+      self.facts = facts
+      self.lines = lines
+      self.wrap = wrap
+      self.budget = budget
+      self.slack = slack
+      self.total = total
+      self.hasLines = hasLines
+    }
+  }
+
+  /// The row's name, in the title role.
+  public var name: String
+  /// Where it lives, said as a person reads it, empty for nowhere worth saying.
+  public var dir: String
+  public var facts: [Fact]
+  public var body: Body?
+
+  public init(name: String, dir: String = "", facts: [Fact] = [], body: Body? = nil) {
+    self.name = name
+    self.dir = dir
+    self.facts = facts
+    self.body = body
+  }
+}
+
+/// A list's preview pane, as its manifest declares one.
+public struct PreviewPane: Sendable, Equatable {
+  /// What the pane says while the highlight has nothing to describe.
+  public var emptyText: String
+
+  public init(emptyText: String) {
+    self.emptyText = emptyText
+  }
+}
+
 /// An action a row offers beyond Return, an actions pane verb. chord names its keys in
 /// lib/kbd.lua's names, ["cmd", "return"].
 public struct Action: Sendable, Equatable {
@@ -137,11 +224,14 @@ public struct Manifest: Sendable, Equatable {
   public var name: String
   public var title: String
   public var actions: [Action]
+  /// The pane beside the list, nil for a list with none, the Lua manifest's previewPane.
+  public var previewPane: PreviewPane?
 
-  public init(name: String, title: String, actions: [Action] = []) {
+  public init(name: String, title: String, actions: [Action] = [], previewPane: PreviewPane? = nil) {
     self.name = name
     self.title = title
     self.actions = actions
+    self.previewPane = previewPane
   }
 }
 
@@ -175,6 +265,15 @@ public protocol ListSource: Actor {
   func choose(_ pick: Pick) async -> [Effect]
   /// An action of the manifest on a row.
   func run(_ action: String, on pick: Pick) async -> [Effect]
+  /// What the preview pane says about a row, nil for nothing to say, asked only where the manifest
+  /// has a preview pane. A source reads what it needs off its own actor's thread, so the rows it
+  /// answers never wait on a preview.
+  func preview(_ pick: Pick) async -> Preview?
   /// The list was closed.
   func close() async
+}
+
+extension ListSource {
+  /// A source with no preview pane says nothing.
+  public func preview(_ pick: Pick) async -> Preview? { nil }
 }

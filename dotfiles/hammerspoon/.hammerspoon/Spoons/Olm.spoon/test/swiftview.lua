@@ -153,6 +153,7 @@ UI = {
     }
   end,
   tokensFor = function(half) return UI.tokens(half) end,
+  interior = function(w, h) return { x = 1, y = 1, w = w - 2, h = h - 2, radius = 11 } end,
   nestedRadius = function(outer, gap) return math.max(0, outer - gap) end,
   keycapColor = function(T)
     local c = T.colors.foreground
@@ -724,6 +725,13 @@ do
   check("the layout has the bar's height", (look.layout.bottomBarH or 0) > 0, true)
   check("the layout spans the bar", look.layout.bottomBarSpan, true)
   check("the motion comes along", look.motion and look.motion.open, 0.2)
+  local pane = look.pane or {}
+  check("the pane's dark half has its colours", pane.dark and pane.dark.colors.foreground.red, 0.9)
+  check("the pane's light half has its colours", pane.light and pane.light.colors.foreground.red, 0.05)
+  check("the pane carries each role's line height", pane.dark and pane.dark.text.code.lineHeight, 18)
+  check("the pane carries the pad", pane.dark and pane.dark.pad, 14)
+  check("the pane carries the interior", pane.dark and pane.dark.interior.inset, 1)
+  check("and its radius", pane.dark and pane.dark.interior.radius, 11)
   check("no view is left for the callback", send("dismiss"), false)
 end
 

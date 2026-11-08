@@ -23,6 +23,9 @@
 --   chooser.geometry  a screen frame, a previewPaneWidth and layout fields over the file's layout,
 --                  through lib/chooser/providers/default/geometry.lua's resolve, expecting every
 --                  rectangle it answers, the row count and the rows the viewport holds.
+--   chooser.pane   a file search row and what the helper's peek found, through the preview pane's
+--                  own Lua files over the widths the fixture measured, test/panefixture.lua,
+--                  expecting every element the pane drew and its height.
 --   calls          calls an existing test made into a module, recorded by fixtures-record.lua,
 --                  each replayed and its answer compared, see fixtures-encode.lua for the shape.
 --
@@ -355,6 +358,38 @@ local function runGeometry(case, file)
   return problems
 end
 
+-- chooser.pane, the file search preview pane laid out again by the Lua code over the widths and font
+-- metrics the fixture recorded, test/panefixture.lua, one runner per file since it loads the pane's
+-- files fresh. A width the recording never measured fails the case, since the layout then asked
+-- something new and the fixture is to be recorded again, test/fixtures-pane-record.lua.
+local paneHarness = assert(loadfile(here .. "panefixture.lua"))()
+local paneRunners = {}
+local function runPane(case, file)
+  local runner = paneRunners[file]
+  if not runner then
+    local sizes, fonts = file.measured.sizes, file.measured.fonts
+    local function key(font, size) return tostring(font) .. "|" .. string.format("%g", size) end
+    runner = paneHarness.new(spoon, {
+      size = function(str, style)
+        local w = (sizes[key(style.font, style.size)] or {})[str]
+        if w == nil then error("the recording never measured " .. show(str) .. " in " .. key(style.font, style.size), 0) end
+        return { w = w, h = 0 }
+      end,
+      info = function(f)
+        local m = fonts[key(f.name, f.size)]
+        if m == nil then error("the recording holds no metrics for " .. key(f.name, f.size), 0) end
+        return m
+      end,
+    }, { home = file.home, now = file.now })
+    paneRunners[file] = runner
+  end
+  local spec = { frame = plain(file.frame), limits = plain(file.limits), emptyText = file.emptyText }
+  local input = { path = case.path ~= null and case.path or nil, isDir = case.isDir == true,
+    seen = paneHarness.plain(case.seen, null) }
+  local got = runner.run(input, paneHarness.plain(file.tokens[case.half], null), spec)
+  return paneHarness.compare(paneHarness.plain(case.expect, null), got)
+end
+
 --------------------------------------------------------------------------------
 -- calls.
 --------------------------------------------------------------------------------
@@ -391,6 +426,7 @@ local KINDS = {
   ["filesearch.parse"] = runParse,
   ["filesearch.narrows"] = runNarrows,
   ["chooser.geometry"] = runGeometry,
+  ["chooser.pane"] = runPane,
   ["rank.order"] = function(case) return runOrder(case) end,
   queryassoc = function(case) return runSteps(case, false) end,
   launcher = function(case) return runSteps(case, true) end,
