@@ -57,6 +57,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // Lua list was up left it with no rows, found in the 1.3f trial on 2026-11-08.
     DistributedNotificationCenter.default().addObserver(self, selector: #selector(shadowNote(_:)),
       name: Notification.Name("local.olm.Olm.shadow"), object: nil, suspensionBehavior: .deliverImmediately)
+    // A served key tells the running app its olm:// URL the same way, host/bridge's serves, some
+    // fifty milliseconds sooner than open, measured in the 1.4a trial on 2026-11-08.
+    DistributedNotificationCenter.default().addObserver(self, selector: #selector(openNote(_:)),
+      name: Notification.Name("local.olm.Olm.open"), object: nil, suspensionBehavior: .deliverImmediately)
+  }
+
+  @objc private func openNote(_ note: Notification) {
+    guard let object = note.object as? String, let url = URL(string: object) else { return }
+    application(NSApp, open: [url])
   }
 
   @objc private func shadowNote(_ note: Notification) {

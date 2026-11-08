@@ -53,6 +53,15 @@ public final class Stage {
   // The row on the pane, and the row being read for it.
   private var previewShown: String?
   private var previewAsking: String?
+  // An open waits to show the window until its first rows have landed and, with a pane, the first
+  // row is described, so it never shows blank and then fills in two steps, reported in the 1.4a
+  // trial on 2026-11-08. The wait is capped, revealCapMs, so a slow read still shows the window.
+  // A pane draws only into a visible window, so a paint made while waiting is held and drawn as the
+  // window shows.
+  private var revealPending = false
+  private var revealTask: Task<Void, Never>?
+  private var heldPaint: PanePaint?
+  private static let revealCapMs: UInt64 = 150
 
   public init(searcher: Searcher = Searcher()) {
     self.searcher = searcher
@@ -92,13 +101,15 @@ public final class Stage {
     panel.setRows([])
     apply(status: nil)
     panel.start()
-    // The bridge starts the app hidden, `open -j`, as the shadow is wired, and a hidden app's
-    // panel takes key but is never drawn, found in the 1.3f trial on 2026-11-08.
-    if NSApp.isHidden { NSApp.unhide(nil) }
-    panel.show()
-    // Nothing is highlighted yet, so the pane opens on its empty state, as the Lua pane's first dock.
-    clearPane()
     panel.setText(query)
+    revealPending = true
+    heldPaint = nil
+    revealTask?.cancel()
+    revealTask = Task {
+      try? await Task.sleep(nanoseconds: Self.revealCapMs * 1_000_000)
+      if Task.isCancelled { return }
+      self.reveal()
+    }
     let mine = generation
     task = Task {
       let level = await next.open(query: query)
@@ -108,8 +119,39 @@ public final class Stage {
     }
   }
 
+  // Shows the window an open is holding back, with the paint it held or the pane's empty state.
+  private func reveal() {
+    guard revealPending else { return }
+    revealPending = false
+    revealTask?.cancel()
+    // The bridge starts the app hidden, `open -j`, as the shadow is wired, and a hidden app's
+    // panel takes key but is never drawn, found in the 1.3f trial on 2026-11-08.
+    if NSApp.isHidden { NSApp.unhide(nil) }
+    panel.show()
+    guard let pane, let paneHost else { return }
+    let paint = heldPaint ?? PanePainter.empty(pane.emptyText, frame: pane.frame, tokens: pane.tokens, measure: paneMeasure)
+    heldPaint = nil
+    paneHost.draw(paint, radius: paneRadius, reset: true)
+  }
+
+  private var paneRadius: CGFloat { CGFloat(look?.style().radius ?? 0) }
+
+  // A paint for the pane, held while an open is waiting to show the window, which it then shows.
+  private func drawPane(_ paint: PanePaint) {
+    if revealPending {
+      heldPaint = paint
+      reveal()
+      return
+    }
+    paneHost?.draw(paint, radius: paneRadius, reset: true)
+  }
+
   public func hide() {
-    guard panel.isVisible else { return }
+    let waiting = revealPending
+    revealPending = false
+    revealTask?.cancel()
+    heldPaint = nil
+    guard panel.isVisible || waiting else { return }
     generation += 1
     task?.cancel()
     resetPane()
@@ -145,6 +187,12 @@ public final class Stage {
     }
     highlight = next.isEmpty ? 0 : 1
     apply(status: status)
+    // The first rows of an open show the window, at once without a pane and once the first row is
+    // described with one, which the open asks for without the settle, as the Lua pane's first dock.
+    if revealPending {
+      if pane == nil { reveal() } else { describe() }
+      return
+    }
     settlePreview()
   }
 
@@ -161,10 +209,9 @@ public final class Stage {
 
   // The empty state, for no highlight or a status in place of the rows.
   private func clearPane() {
-    guard let pane, let paneHost else { return }
+    guard let pane else { return }
     resetPane()
-    let paint = PanePainter.empty(pane.emptyText, frame: pane.frame, tokens: pane.tokens, measure: paneMeasure)
-    paneHost.draw(paint, radius: CGFloat(look?.style().radius ?? 0), reset: true)
+    drawPane(PanePainter.empty(pane.emptyText, frame: pane.frame, tokens: pane.tokens, measure: paneMeasure))
   }
 
   // The highlight moved or the rows changed, so the row it rests on is described once it settles.
@@ -180,7 +227,7 @@ public final class Stage {
   }
 
   private func describe() {
-    guard let pane, let paneHost, let source else { return }
+    guard let pane, let source else { return }
     guard highlight >= 1, highlight <= rows.count else {
       clearPane()
       return
@@ -194,16 +241,19 @@ public final class Stage {
     previewAsking = key
     let pick = Pick(key: key, query: text)
     let measure = paneMeasure
-    let radius = CGFloat(look?.style().radius ?? 0)
     previewTask = Task {
-      guard let preview = await source.preview(pick), mine == self.previewGeneration else { return }
+      guard let preview = await source.preview(pick) else {
+        if mine == self.previewGeneration { self.reveal() }
+        return
+      }
+      guard mine == self.previewGeneration else { return }
       let paint = await Task.detached(priority: .userInitiated) {
         PanePainter.paint(preview, frame: pane.frame, tokens: pane.tokens, measure: measure)
       }.value
       guard mine == self.previewGeneration else { return }
       self.previewAsking = nil
       self.previewShown = key
-      paneHost.draw(paint, radius: radius, reset: true)
+      self.drawPane(paint)
     }
   }
 

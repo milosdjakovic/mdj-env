@@ -291,3 +291,8 @@ list, and until then that list stays on Lua.
   Lua layout asked for with what it drew, so the Lua runner checks the Lua code offline and the
   Swift runner checks the port and its measurer against the same answers. The read is the helper's
   peek done in process on a thread of its own, checked against the helper by `olm-index-check`.
+- 2026-11-08 23:55. Step 1.4a is ticked on its trial. A served key reaches a running app by the
+  distributed notification `local.olm.Olm.open` rather than `open`, some fifty milliseconds sooner,
+  and `open` stays for an app not running. The stage shows a window only once its first rows and
+  first preview are drawn, capped at 150 ms. The pane's scroll keys move to 1.4f with every other
+  list key, since Hammerspoon holds the leader and no Hyper chord reaches the app's list today.

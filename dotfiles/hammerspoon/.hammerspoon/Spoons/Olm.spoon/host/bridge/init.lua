@@ -163,8 +163,34 @@ function obj:serves(identity)
       local ok, answer = pcall(self._screenMode)
       if ok then mode = answer end
     end
-    self:_open(open, app, urlFor(identity, mode))
+    local url = urlFor(identity, mode)
+    -- A running app is told by a notification, which reaches it some fifty milliseconds sooner
+    -- than open does, measured in the 1.4a trial on 2026-11-08, and an app not running is
+    -- started by open, which hands it the URL as it launches.
+    if self:_running() then
+      self:_post(self.OPEN_NOTE, url)
+    else
+      self:_open(open, app, url)
+    end
   end
+end
+
+-- The app's bundle id, app/build.sh's, and the name of the notification a served key opens it by.
+obj.BUNDLE_ID = "local.olm.Olm"
+obj.OPEN_NOTE = "local.olm.Olm.open"
+
+-- Whether the app is running now, asked on every press since it can have quit.
+function obj:_running()
+  local apps = hs.application
+  if not (apps and type(apps.applicationsForBundleID) == "function") then return false end
+  local ok, list = pcall(apps.applicationsForBundleID, self.BUNDLE_ID)
+  return ok and type(list) == "table" and #list > 0
+end
+
+function obj:_post(name, object)
+  local notes = hs.distributednotifications
+  if not (notes and type(notes.post) == "function") then return false end
+  return pcall(notes.post, name, object)
 end
 
 -- Hands one URL to the app in the background, as a task whose handle is kept until it ends, or
@@ -238,9 +264,7 @@ obj.SHADOW_NOTE = "local.olm.Olm.shadow"
 -- 2026-11-08, since running open while the list was up left file search's own list, the one its
 -- open key shows, with no rows for whatever was typed, found in the 1.3f trial.
 function obj:_tell(tool, id)
-  local notes = hs.distributednotifications
-  if not (notes and type(notes.post) == "function") then return end
-  pcall(notes.post, self.SHADOW_NOTE, tool .. ":" .. tostring(id))
+  self:_post(self.SHADOW_NOTE, tool .. ":" .. tostring(id))
 end
 
 return obj

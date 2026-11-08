@@ -2,7 +2,8 @@
 
 The Lua side of Olm.app, the native app `docs/PLAN-STANDALONE.md` moves Olm into. Today it does one
 thing, step 1.2. Where this machine's `olmapp` piece is on and the app is built, file search's open
-key opens the app's file search through `olm://filesearch` rather than the Lua one.
+key opens the app's file search through `olm://filesearch` rather than the Lua one, told to a running
+app by the distributed notification `local.olm.Olm.open` and handed to one not running by `open`.
 
 It shows nothing and binds nothing itself. The root asks it which tools the app serves, after the
 keymap is built, and hands each such tool's open key its function. The keymap is unchanged, so the

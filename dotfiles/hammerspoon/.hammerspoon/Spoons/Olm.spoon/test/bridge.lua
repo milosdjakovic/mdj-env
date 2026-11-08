@@ -93,6 +93,23 @@ b:placeWith(function() error("boom") end)
 run()
 eq(started[4] and started[4].args[4], "olm://filesearch?query=", "a choice that raises is left out")
 eq(b._tasks[t], true, "the task's handle is kept while it runs")
+-- A running app is told by a notification rather than started by open.
+local running = false
+hs.application = { applicationsForBundleID = function(id)
+  return (running and id == "local.olm.Olm") and { {} } or {}
+end }
+running, posted = true, {}
+local before = #started
+b:placeWith(function() return "cursor" end)
+run()
+eq(#started, before, "a running app starts no open")
+eq(posted[1] and posted[1].name, "local.olm.Olm.open", "a running app is told by a notification")
+eq(posted[1] and posted[1].object, "olm://filesearch?screen=cursor&query=", "naming the URL")
+running, posted = false, {}
+run()
+eq(#started, before + 1, "an app not running is started by open")
+eq(#posted, 0, "and told nothing")
+hs.application = nil
 t.done(0, "", "")
 eq(b._tasks[t], nil, "and let go when it ends")
 

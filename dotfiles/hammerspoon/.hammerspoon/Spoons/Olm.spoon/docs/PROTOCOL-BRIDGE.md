@@ -553,7 +553,7 @@ The pilot, stage 1, reaches the app before any bridge exists, through URLs Hamme
 
 | URL | What the app does |
 |---|---|
-| `olm://filesearch?screen=MODE&query=TEXT` | shows its file search with TEXT in the input field, on the screen MODE names, `activeWindow` or `cursor`, Olm's placement choice at the press, the active window's screen when it is left out |
+| `olm://filesearch?screen=MODE&query=TEXT` | shows its file search with TEXT in the input field, on the screen MODE names, `activeWindow` or `cursor`, Olm's placement choice at the press, the active window's screen when it is left out. host/bridge hands a running app the same URL as the object of the distributed notification `local.olm.Olm.open`, some fifty milliseconds sooner than `open`, and starts an app not running with `open`, 2026-11-08 |
 | `olm://launcher?query=TEXT` | shows its launcher, from step 3.2 |
 | `olm://shadow?tool=filesearch&id=N` | answers the query in `~/.olm/run/filesearchshadow.json` with its own engine, compares its rows with the Lua answer written there and appends one line to `~/.olm/log/shadow-filesearch.jsonl`, the shadow of step 1.3e, showing nothing. host/bridge asks it by the distributed notification `local.olm.Olm.shadow` with the object `filesearch:N` instead, since running `open` while the Lua list was up left it with no rows, 2026-11-08 |
 | `olm://ping?nonce=N` | writes N and the time to `~/.olm/run/ping`, the test step 1.1 names |

@@ -49,13 +49,12 @@ Stage 1, the file search pilot
     Built on main 2026-11-08, the Lua file search asking the app, running over a few days of real use with the piece on.
   - [x] 1.3f The three timings against the Lua file search, and a trial, with no flip, 2026-11-08
   - [x] 1.3g The app's structure, `docs/DESIGN-APP.md`, file search moved onto it with nothing a person can see changed, 2026-11-08
-- [ ] 1.4a Preview pane, with its scroll keys
-  Built in a worktree 2026-11-08, the pane laid out by a port of the Lua kit and drawn in the swift chooser's own pane view, its fixture recorded from the Lua pane, waiting for its trial by hand.
+- [x] 1.4a Preview pane, with its scroll keys, the keys themselves carried by 1.4f, 2026-11-08
 - [ ] 1.4b Thumbnails
 - [ ] 1.4c Quick Look
 - [ ] 1.4d Frecency, one owner, the history read but not yet owned
 - [ ] 1.4e Folder search, the scope, the folder aliases, Into Folder and Up a Level
-- [ ] 1.4f The bottom bar, the actions pane, the info pane, Copy Path, and the person's list keys
+- [ ] 1.4f The bottom bar, the actions pane, the info pane, Copy Path, and the person's list keys, the preview pane's scroll keys among them
 - [ ] 1.4g Short queries, file search answering under three characters now the app's index can
 - [ ] 1.5 Parity, every feature of the Lua file search checked in the app, then the flip
 
@@ -523,6 +522,22 @@ Not in this part:
 
 Result: the dry suite, `olm-fixtures` with 20 pane checks, `olm-index-check` and a release build of
 the app pass. `test/units.sh` was not run, since it runs through the live Hammerspoon on main.
+
+**1.4a ticked, 2026-11-08.** Committed as `b987dafd`, then the trial by hand. Milos found the pane
+good and the open slow, a blank window, then the list, then the preview, and the scroll keys dead.
+- Issue: the slow open. Cause: three steps of fifty to a hundred milliseconds each, `open` handing
+  the key to the app, measured at 55 ms a round trip, the window shown before its first rows, and the
+  first preview waiting out the settle. Fixed: host/bridge tells a running app by the distributed
+  notification `local.olm.Olm.open` and starts one not running with `open`, the stage holds the
+  window until its first rows land and the first row is described, at most 150 ms, and that first
+  row skips the settle, as the Lua pane's first dock does. Milos saw it open in one go.
+- Issue: Hyper with J or K, and with Command and J or K, reach nothing in the app's list. Cause: the
+  leader is held in Hammerspoon, which with no Lua list open swallows the list keys whose list is
+  closed and runs Hyper and J's global binding, so the passthrough the build believed in never
+  happens. Open: the list keys over the bridge, 1.4f, the scroll keys among them. The arrows and the
+  trackpad work.
+- Seen, not a fault of this step: `.app` lists Safari alone in both file searches, since the helper's
+  recent list skips folders and Safari's bundle is the one the index does not mark as one.
 Open: the trial by hand, after a reload writes the new run files.
 
 ## Where the facts come from
