@@ -19,7 +19,7 @@ local function eq(got, want, what)
   end
 end
 
-local said, started, timers = {}, {}, {}
+local said, started, timers, posted = {}, {}, {}, {}
 local present = {}
 hs = {
   timer = { doAfter = function(_, fn)
@@ -38,6 +38,7 @@ hs = {
     if v.query then return "{\"id\":" .. v.id .. ",\"query\":\"" .. v.query .. "\",\"keys\":" .. #v.keys .. "}" end
     return "{\"types\":" .. tostring(v.types and "t" or "none") .. "}"
   end },
+  distributednotifications = { post = function(name, object) posted[#posted + 1] = { name = name, object = object } end },
   task = { new = function(path, done, args)
     local t = { path = path, args = args, done = done }
     function t:start() started[#started + 1] = self; return self end
@@ -135,34 +136,41 @@ eq(b:shadowed()[1], "fileSearch", "and names it")
 local changed
 local answer = { query = "report", status = nil, keys = { "/a/report.pdf", "/b/report.txt" } }
 timers = {}
+local launched = #started
 b:shadowWith("fileSearch", { watch = function(fn) changed = fn end, answer = function() return answer end })
 eq(type(changed), "function", "the shadow watches the tool's list")
+eq(#started, launched + 1, "the app is started once as the shadow is wired")
+eq(started[#started].args[2], "-j", "hidden and in the background, with no URL")
+eq(started[#started].args[4], APP, "and names the app")
 changed()
 changed()
 eq(#timers, 2, "each change waits for the list to settle")
 eq(timers[1].stopped, true, "and a newer change replaces the wait before it")
 local before = #started
+posted = {}
 timers[2].fn()
-eq(#started, before + 1, "a settled list is handed to the app")
-eq(started[#started].args[4], "olm://shadow?tool=filesearch&id=1", "through olm://shadow with the tool and an id")
+eq(#started, before, "a settled list runs no open, which left file search's own list with no rows")
+eq(#posted, 1, "a settled list is told to the app")
+eq(posted[1] and posted[1].name, "local.olm.Olm.shadow", "by a distributed notification")
+eq(posted[1] and posted[1].object, "filesearch:1", "naming the tool and the id")
 f = io.open(run .. "/filesearchshadow.json")
 eq(f and f:read("a"), '{"id":1,"query":"report","keys":2}', "the answer is written for the app to read")
 if f then f:close() end
 changed()
 timers[#timers].fn()
-eq(#started, before + 1, "the same query is not handed over twice running")
+eq(#posted, 1, "the same query is not handed over twice running")
 answer = { query = "reports", status = "searching", keys = {} }
 changed()
 timers[#timers].fn()
-eq(#started, before + 1, "a list still searching is not handed over")
+eq(#posted, 1, "a list still searching is not handed over")
 answer = { query = "reports", status = nil, keys = {} }
 changed()
 timers[#timers].fn()
-eq(started[#started].args[4], "olm://shadow?tool=filesearch&id=2", "the next settled query is")
+eq(posted[#posted] and posted[#posted].object, "filesearch:2", "the next settled query is")
 answer = nil
 changed()
 timers[#timers].fn()
-eq(#started, before + 2, "an answer that is not a table is dropped")
+eq(#posted, 2, "an answer that is not a table is dropped")
 local watched = false
 b:shadowWith("../x", { watch = function() watched = true end, answer = function() return answer end })
 eq(watched, false, "an identity that is not a plain word is not watched")

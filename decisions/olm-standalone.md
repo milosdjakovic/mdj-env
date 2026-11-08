@@ -264,3 +264,11 @@ list, and until then that list stays on Lua.
   on one clock times both, which is what makes the numbers comparable. A signpost on the stage
   would have timed the app alone. It is off unless `~/.olm/run/timings` exists, so neither process
   pays for it outside a trial. The design file was corrected in the same change.
+- 2026-11-08 17:40. Corrected. The entry of 08:45 had the bridge hand each settled answer to the
+  app through `open -g` and `olm://shadow`. Running `open` while the Lua file search was up, opened
+  by its own key, left that list with no rows for anything typed, while the same list reached
+  through the launcher worked, found in the 1.3f trial and narrowed live, the shadow off and then
+  only its open left out. The mechanism inside AppKit was not traced. The bridge now starts the app
+  once, hidden, when the shadow is wired, and tells it each answer by the distributed notification
+  `local.olm.Olm.shadow`. The note of 09:10 under 1.3g blaming a test for the same symptom was this
+  fault too.

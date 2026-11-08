@@ -167,13 +167,15 @@ function obj:serves(identity)
   end
 end
 
--- Hands one URL to the app in the background, as a task whose handle is kept until it ends.
+-- Hands one URL to the app in the background, as a task whose handle is kept until it ends, or
+-- with no URL starts the app hidden and in the background.
 function obj:_open(open, app, url)
   local task
+  local args = url and { "-g", "-a", app, url } or { "-g", "-j", "-a", app }
   task = hs.task.new(open, function(code, _, err)
     self._tasks[task] = nil
-    if code ~= 0 then log.w("Olm.app did not take " .. url .. ", " .. tostring(err)) end
-  end, { "-g", "-a", app, url })
+    if code ~= 0 then log.w("Olm.app did not take " .. tostring(url or "a start") .. ", " .. tostring(err)) end
+  end, args)
   if task then
     self._tasks[task] = true
     task:start()
@@ -194,6 +196,13 @@ end
 function obj:shadowWith(identity, source)
   if type(identity) ~= "string" or not identity:match("^%a%w*$") then return end
   if type(source) ~= "table" or type(source.watch) ~= "function" or type(source.answer) ~= "function" then return end
+  -- The app is started once here, while no list is open, since each settled answer only tells a
+  -- running app, see _tell.
+  local open, app = self:_ready()
+  if open and not self._shadowLaunched then
+    self._shadowLaunched = true
+    self:_open(open, app, nil)
+  end
   source.watch(function()
     if self._shadowTimers[identity] then self._shadowTimers[identity]:stop() end
     self._shadowTimers[identity] = hs.timer.doAfter(self.SHADOW_SETTLE, function()
@@ -218,7 +227,20 @@ function obj:_shadow(identity, source)
   local name = identity:lower() .. "shadow"
   self:_write(name, { id = self._shadowId, tool = identity:lower(), query = answer.query,
     status = answer.status, keys = answer.keys or {} })
-  self:_open(open, app, "olm://shadow?tool=" .. identity:lower() .. "&id=" .. self._shadowId)
+  self:_tell(identity:lower(), self._shadowId)
+end
+
+-- The name of the notification each settled answer is told to the app by.
+obj.SHADOW_NOTE = "local.olm.Olm.shadow"
+
+-- Tells the running app an answer is waiting, as a distributed notification whose object is the
+-- tool and the id, "filesearch:12". Not through open and olm://shadow, which it did until
+-- 2026-11-08, since running open while the list was up left file search's own list, the one its
+-- open key shows, with no rows for whatever was typed, found in the 1.3f trial.
+function obj:_tell(tool, id)
+  local notes = hs.distributednotifications
+  if not (notes and type(notes.post) == "function") then return end
+  pcall(notes.post, self.SHADOW_NOTE, tool .. ":" .. tostring(id))
 end
 
 return obj

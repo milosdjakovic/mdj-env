@@ -5,7 +5,9 @@
 // It runs as an accessory, so it has no Dock icon and no menu bar, and keeps one instance.
 // olm://ping?nonce=N answers a test, Ping.swift. olm://<name>?screen=MODE&query=TEXT opens the
 // source registered under that name with TEXT in its input field, on the screen MODE names.
-// olm://shadow?tool=<name>&id=N compares the Lua list's answer with the app's, OlmCore's Shadow.
+// olm://shadow?tool=<name>&id=N compares the Lua list's answer with the app's, OlmCore's Shadow, and
+// the distributed notification local.olm.Olm.shadow, object "<name>:<N>", asks the same, which is
+// how host/bridge asks it.
 // An olm:// URL never runs anything, and one this app does not know is logged and dropped.
 
 import AppKit
@@ -48,7 +50,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     if !others.isEmpty {
       NSLog("Olm: another instance is running, pid %d, leaving", others[0].processIdentifier)
       NSApp.terminate(nil)
+      return
     }
+    // Each answer the Lua list settles on is told by a distributed notification whose object is
+    // "<tool>:<id>", host/bridge's _tell, rather than olm://shadow, since running open while the
+    // Lua list was up left it with no rows, found in the 1.3f trial on 2026-11-08.
+    DistributedNotificationCenter.default().addObserver(self, selector: #selector(shadowNote(_:)),
+      name: Notification.Name("local.olm.Olm.shadow"), object: nil, suspensionBehavior: .deliverImmediately)
+  }
+
+  @objc private func shadowNote(_ note: Notification) {
+    guard let object = note.object as? String else { return }
+    let parts = object.split(separator: ":")
+    guard parts.count == 2, let shadow = shadows[String(parts[0])], let id = Int(parts[1]) else { return }
+    shadow.run(id: id)
   }
 
   func application(_ application: NSApplication, open urls: [URL]) {

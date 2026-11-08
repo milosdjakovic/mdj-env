@@ -469,6 +469,12 @@ whose rows did not change sends none, so it has no rows time. It runs only while
 Result: the dry suite, 2124 unit cases, the swift pane and package checks, 161 fixtures and the
 index check pass, and the reader was checked on lines written by hand.
 Open: the trial by hand, the same searches typed in each, large result sets among them.
+Issue: in the trial, file search opened by its own key showed no rows for anything typed, while
+the launcher's route to it worked. Cause: the shadow of 1.3e ran `open` to hand each answer to the
+app, and running it while that list was up emptied it. The headless check of 1.3g that stopped
+writing lines was the same fault, not the test. Fixed: the bridge starts the app once when the
+shadow is wired and tells it each answer by a distributed notification, so nothing runs `open`
+while a list is up. Milos checked file search by its own key with the shadow on.
 
 ## Where the facts come from
 
