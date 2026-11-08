@@ -8,6 +8,7 @@
 import Foundation
 import OlmLook
 import OlmSearch
+import FileSearchPlugin
 
 var failures = 0, passed = 0, skipped = 0
 

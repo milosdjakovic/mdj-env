@@ -252,3 +252,9 @@ list, and until then that list stays on Lua.
   the app, `olm://shadow`, and the app answers it with an engine of its own and logs the
   difference. While it runs, the bridge serves no key, and a trial adds file search back for the
   trial alone.
+- 2026-11-08 09:10. Step 1.3g put the pilot on docs/DESIGN-APP.md's structure. Two choices came
+  out of the code rather than the design. Opening a file and revealing it are effects the stage
+  performs after hiding, not services a plugin calls, so the work never lands in Olm.app's window
+  and a plugin is checked with no AppKit. And the index ask is cancelled with its task rather than
+  superseded by a generation, since an async ask that never answers leaks its continuation. The
+  design file was corrected in the same change.

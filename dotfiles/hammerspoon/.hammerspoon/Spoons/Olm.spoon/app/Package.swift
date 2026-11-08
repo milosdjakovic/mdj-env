@@ -1,28 +1,51 @@
-// swift-tools-version:5.9
-// Olm.app, the app of its own docs/PLAN-STANDALONE.md moves Olm into, step 1.1. It builds on the
-// swift chooser's package beside the Lua side, lib/chooser/providers/swift, which compiles the
-// panel with no Lua, and build.sh beside this file wraps the executable into a bundle. Today it is
-// a shell, no Dock icon, one instance, and an answer to olm://ping, docs/PROTOCOL-BRIDGE.md.
+// swift-tools-version:6.0
+// Olm.app, the app of its own docs/PLAN-STANDALONE.md moves Olm into, built in the layers
+// docs/DESIGN-APP.md names, so a dependency the other way does not build. build.sh beside this file
+// wraps the executable into a bundle.
+//
+//   OlmKit       the vocabulary every part speaks and the ListSource every list answers through
+//   OlmSearch    the shared search, ported from lib/chooser/match.lua and rank.lua
+//   OlmLook      where a chooser stands, ported from the Lua geometry
+//   OlmChooser   the swift chooser's own panel, the package beside the Lua side
+//   OlmCore      the stage, the searcher, the look and the shadow
+//   plugins      one module each under Plugins/, depending on OlmKit alone
+//   Olm          the composition root
+//
+// The new layers build in Swift 6's language mode, so the compiler checks which thread each piece
+// runs on, rule 8 of the plan. The ported search and geometry and the check programs keep Swift 5's,
+// since they hold no state across threads and the fixtures pin them.
 
 import PackageDescription
+
+let v5: [SwiftSetting] = [.swiftLanguageMode(.v5)]
 
 let package = Package(
   name: "OlmApp",
   platforms: [.macOS(.v14)],
   dependencies: [.package(path: "../lib/chooser/providers/swift")],
   targets: [
-    .executableTarget(
-      name: "Olm",
-      dependencies: ["OlmSearch", "OlmLook", .product(name: "OlmChooser", package: "swift")],
-      path: "Sources/Olm"
-    ),
+    .target(name: "OlmKit", path: "Sources/OlmKit"),
     // The app's search, ported from the Lua side one part at a time, each part checked against
     // the shared fixtures by olm-fixtures before the app uses it, step 1.3 of the plan.
-    .target(name: "OlmSearch", path: "Sources/OlmSearch"),
+    .target(name: "OlmSearch", path: "Sources/OlmSearch", swiftSettings: v5),
     // Where a chooser stands on a screen, ported from the Lua so the app's list stands where the
     // swift chooser's does, test/fixtures/chooser/geometry.json.
-    .target(name: "OlmLook", path: "Sources/OlmLook"),
-    .executableTarget(name: "olm-fixtures", dependencies: ["OlmSearch", "OlmLook"], path: "Sources/olm-fixtures"),
-    .executableTarget(name: "olm-index-check", dependencies: ["OlmSearch"], path: "Sources/olm-index-check"),
+    .target(name: "OlmLook", path: "Sources/OlmLook", swiftSettings: v5),
+    .target(
+      name: "OlmCore",
+      dependencies: ["OlmKit", "OlmSearch", "OlmLook", .product(name: "OlmChooser", package: "swift")],
+      path: "Sources/OlmCore"
+    ),
+    // File search, the first native plugin. Its grammar and its index are its own.
+    .target(name: "FileSearchPlugin", dependencies: ["OlmKit"], path: "Plugins/FileSearch"),
+    .executableTarget(
+      name: "Olm",
+      dependencies: ["OlmKit", "OlmCore", "FileSearchPlugin"],
+      path: "Sources/Olm"
+    ),
+    .executableTarget(name: "olm-fixtures", dependencies: ["OlmSearch", "OlmLook", "FileSearchPlugin"],
+      path: "Sources/olm-fixtures", swiftSettings: v5),
+    .executableTarget(name: "olm-index-check", dependencies: ["OlmKit", "OlmCore", "FileSearchPlugin"],
+      path: "Sources/olm-index-check", swiftSettings: v5),
   ]
 )

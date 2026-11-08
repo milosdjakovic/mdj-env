@@ -49,6 +49,7 @@ Stage 1, the file search pilot
     Built on main 2026-11-08, the Lua file search asking the app, running over a few days of real use with the piece on.
   - [ ] 1.3f The three timings against the Lua file search, and a trial, with no flip
   - [ ] 1.3g The app's structure, `docs/DESIGN-APP.md`, file search moved onto it with nothing a person can see changed
+    Built on main 2026-11-08, every check passing, waiting for its trial by hand.
 - [ ] 1.4a Preview pane, with its scroll keys
 - [ ] 1.4b Thumbnails
 - [ ] 1.4c Quick Look
@@ -430,6 +431,27 @@ and no key, ran the Lua engine headless: `report` gave the same 155 files in the
 both sides, `invoice` nothing on both, and the empty query was skipped.
 Open: a few days of real use. Then the log is read, and every line that is not `same` is a bug
 fixed before 1.3e is ticked.
+
+**1.3g built, the app's structure, 2026-11-08.** The pilot is on `docs/DESIGN-APP.md`'s layers.
+`OlmKit` holds the vocabulary and `ListSource`. `OlmCore` holds the stage, which took the
+highlight, the slots, the keys, the icon cache and the redraw that skips an unchanged answer out of
+`main.swift`, the searcher that ranks every list on an actor of its own, the look and the shadow,
+now written once for any source. File search is the module `FileSearchPlugin` under
+`app/Plugins/FileSearch`, its grammar, its index and its source, depending on `OlmKit` alone, and
+it answers rows unranked, the stage ranking them, and Return and reveal as effects. `main.swift` is
+the composition root alone. The new layers build in Swift 6's language mode, the ported search,
+the geometry and the check programs in Swift 5's.
+Issue: a superseded index ask never answered, which an async ask cannot do without leaking its
+continuation. Fixed: a cancelled ask ends the helper and throws, and the stage cancels the task
+before it on every keystroke.
+Issue: the shadow's headless check stopped writing lines. Cause: with no list open, the Lua stage
+refreshes file search with its own empty query right after a search started from the console, so
+the test, not the code, lost its query. The app half was checked with a request written by hand
+instead, `report` answered with 155 files as before, and a folder query skipped.
+One change a person can see: a long file name now loses its middle rather than its end, the
+`truncateMiddle` the Lua file search declares, which the pilot never read.
+Result: the dry suite, 161 fixtures, 24 index and source checks, and the dependency check pass.
+Open: the trial by hand.
 
 ## Where the facts come from
 

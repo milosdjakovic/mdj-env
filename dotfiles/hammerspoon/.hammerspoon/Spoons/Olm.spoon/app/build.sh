@@ -43,7 +43,7 @@ mkdir -p "$stage/Contents/MacOS"
 cp "$scratch/release/Olm" "$stage/Contents/MacOS/Olm"
 cp "$here/Info.plist" "$stage/Contents/Info.plist"
 # File search's index helper, compiled from the plugin's own source so the app and the Lua side
-# ask the same program, OlmSearch's Index.swift.
+# ask the same program, the file search plugin's Plugins/FileSearch/Index.swift.
 mkdir -p "$stage/Contents/Resources"
 if ! DEVELOPER_DIR="$tools" "$tools/usr/bin/swiftc" -sdk "$tools/SDKs/MacOSX.sdk" -O "$here/../plugins/filesearch/sources/fileindex.swift" \
   -o "$stage/Contents/Resources/fileindex" >"$log" 2>&1; then

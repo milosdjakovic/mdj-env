@@ -8,9 +8,10 @@
 // The file holds both halves, so the app follows the system's light and dark switch by itself.
 
 import AppKit
-@testable import OlmChooser
+@preconcurrency @testable import OlmChooser
 import OlmLook
 
+@MainActor
 struct Look {
   let dark: Style
   let light: Style
@@ -72,6 +73,35 @@ struct Look {
     table["list"] = fields(r.list, from: r.canvas)
     table["bottomBar"] = fields(r.bottomBar, from: r.canvas)
     return Placement(JSONFields(table))
+  }
+
+  // Only while no look has been written. A chooser 680 points wide a fifth of the way down the
+  // screen under the pointer, in Hammerspoon's space, y measured down from the top of the primary
+  // screen, which is what the panel is placed in. Eight rows show at once.
+  static func fallback() -> Placement {
+    let mouse = NSEvent.mouseLocation
+    let screen = NSScreen.screens.first { NSMouseInRect(mouse, $0.frame, false) } ?? NSScreen.main
+    let visible = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+    let primary = NSScreen.screens.first?.frame.height ?? visible.maxY
+    let width: CGFloat = 680
+    let rowH: CGFloat = 44
+    let height: CGFloat = 64 + rowH * 8 + 8
+    let top = primary - visible.maxY + visible.height * 0.18
+    var p = Placement()
+    p.canvas = NSRect(x: visible.midX - width / 2, y: top, width: width, height: height)
+    p.window = p.canvas
+    p.listFrame = NSRect(x: 0, y: 0, width: width, height: height)
+    p.field = NSRect(x: 20, y: 14, width: width - 40, height: 40)
+    p.list = NSRect(x: 8, y: 64, width: width - 16, height: height - 72)
+    p.rowH = rowH
+    p.iconSize = 28
+    p.iconFrame = 32
+    p.iconPad = (rowH - 28) / 2
+    p.iconPadLeft = 12
+    p.iconGap = 10
+    p.padX = 12
+    p.pad = 8
+    return p
   }
 
   // The screen the Lua chooser opens on for the placement choice the URL carries,

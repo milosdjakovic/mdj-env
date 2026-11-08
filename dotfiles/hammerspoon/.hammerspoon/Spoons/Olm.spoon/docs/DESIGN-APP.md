@@ -6,9 +6,11 @@ the app is built as, so every step lands in the same structure rather than in a 
 The plan's rules hold here unchanged, and the decision record is `decisions/olm-standalone.md` at
 the repository root.
 
-Today the app is a pilot. `app/Sources/Olm/main.swift` holds the URL handling, the file search
-list and its key handling in one class, and that was right for proving the path. It is not what
-the plan's later steps can stand on, since every list after file search would grow the same class.
+The pilot held the URL handling, the file search list and its key handling in one class in
+`app/Sources/Olm/main.swift`, which was right for proving the path and not what the plan's later
+steps can stand on, since every list after file search would have grown the same class. Step 1.3g
+moved it onto the structure below, and where the code and this file differ, the code is what is
+true and this file is corrected in the same change.
 
 ## What carries over from the Lua Olm, and why
 
@@ -96,16 +98,19 @@ reviewed.
 
 ```swift
 public protocol ListSource: Actor {
-  var manifest: Manifest { get }
-  func open(_ what: Open, query: String) async throws -> Level
-  func rows(level: Level.ID, query: Query) async throws -> RowsAnswer
-  func choose(_ pick: Pick) async throws -> [Effect]
-  func run(_ action: Action.ID, on pick: Pick, choice: String?) async throws -> [Effect]
-  func preview(_ pick: Pick) async throws -> Preview?
-  func back(level: Level.ID, query: Query) async throws -> [Effect]
-  func close(level: Level.ID) async
+  nonisolated var manifest: Manifest { get }
+  func open(query: String) async -> Level
+  func rows(_ query: Query) async throws -> RowsAnswer
+  func choose(_ pick: Pick) async -> [Effect]
+  func run(_ action: String, on pick: Pick) async -> [Effect]
+  func close() async
 }
 ```
+
+That is what `OlmKit` holds after 1.3g, the part file search uses. The rest of the bridge's
+requests join it with the step that first needs each, `preview` with the preview pane at 1.4a, a
+level's id and `back` with the folder search at 1.4e, which is the first list with levels, and an
+action's choice with the actions pane at 1.4f.
 
 `Query` carries the text and its generation, `Pick` names the row by its key, the query and the
 highlight's generation, exactly as `choose` does on the wire, so a source always answers about the
@@ -159,9 +164,11 @@ derives what follows from a declaration rather than asking for it twice.
 - `open`, a word that asks the stage to open another plugin's level by name, which is the only way
   one plugin leads to another.
 
-A plugin's work runs on its own actor. Work that touches the system, opening a file, Quick Look,
-the pasteboard, is done through small services `OlmKit` declares and the root provides, so a
-plugin is tested with fakes and never imports AppKit to do it.
+A plugin's work runs on its own actor. Work that touches the system and closes the list, opening
+a file or showing it in Finder, is an effect the stage performs after it hides, `openFile` and
+`revealFile`, so the work never lands in Olm.app's own window and a plugin's check reads the
+effects with no AppKit. Work that answers something, Quick Look or a picture, is a small service
+`OlmKit` will declare and the root provide, when the step that needs it lands.
 
 ## The look
 
@@ -213,6 +220,8 @@ The checks stay programs rather than `swift test`, decided at 1.1 of the plan.
 ## Moving the pilot onto this
 
 Step 1.3g of the plan, after the 1.3d trial and before 1.4a, with no change a person can see.
+
+Done 2026-11-08, as follows.
 
 1. `OlmKit` is made, with the types file search needs today, `Row`, `Icon`, `Level`, `Effect`,
    `Query`, `Pick`, `ListSource` and `Manifest`.

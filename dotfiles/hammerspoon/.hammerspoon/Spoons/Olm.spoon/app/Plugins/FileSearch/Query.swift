@@ -9,7 +9,7 @@
 
 import Foundation
 
-public struct FileQuery: Equatable {
+public struct FileQuery: Equatable, Sendable {
   public var raw: String
   public var hidden = false
   public var ignored = false
@@ -22,7 +22,7 @@ public struct FileQuery: Equatable {
   public var words: [String] = []
   public var kind: Kind = .recent
 
-  public enum Kind: String { case recent, browse, search }
+  public enum Kind: String, Sendable { case recent, browse, search }
 
   public init(raw: String) { self.raw = raw }
 }
