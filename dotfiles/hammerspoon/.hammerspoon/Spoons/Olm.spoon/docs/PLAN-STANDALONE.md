@@ -23,7 +23,7 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 1.3d, the app's own list.
+Next. 1.3e, the shadow.
 
 Stage 0, contracts
 - [x] 0.1 The decision record, 2026-11-05
@@ -44,9 +44,7 @@ Stage 1, the file search pilot
   - [x] 1.3a The file search grammar in Swift, its fixtures passing, 2026-11-07
   - [x] 1.3b Ranking in Swift, `match.lua` and `rank.lua`, the rule and corpus fixtures passing, 2026-11-07
   - [x] 1.3c The index in the app, the helper's sources searching on background work, 2026-11-07
-  - [ ] 1.3d The app's own list, rows ranked as typed, open and reveal
-    Trial on 2026-11-08 passed, typing, Return and Command and Return, with the flicker it found fixed.
-    The shared look is built on main, waiting for a trial, so the app's list looks like the swift chooser's.
+  - [x] 1.3d The app's own list, rows ranked as typed, open and reveal, in the swift chooser's own look, 2026-11-08
   - [ ] 1.3e The shadow, both sides answering each query and the differences logged
   - [ ] 1.3f The three timings against the Lua file search, and a trial, with no flip
   - [ ] 1.3g The app's structure, `docs/DESIGN-APP.md`, file search moved onto it with nothing a person can see changed
@@ -397,6 +395,7 @@ serving with a clean console. A live call of `look` answered both halves, the mo
 of 480 by rows of 47 with a bar of 56.
 
 Open: the trial of the shared look.
+Closed 2026-11-08, the trial passed, below.
 
 **The app's design, before 1.4, 2026-11-08.** Milos asked whether there is a plan for the app's
 own architecture, better than the Lua Olm's. There was none, and the pilot lives in one
@@ -408,6 +407,12 @@ answered through one protocol, so a plugin going native is a second source under
 and the shadow is written once. Step 1.3g moves the pilot onto it before 1.4a.
 
 Open: the design is on paper. 1.3g is the first time it meets code.
+
+**1.3d ticked, the look trial, 2026-11-08.** With the piece on, Milos compared the app's file
+search with the Lua one and found it good, the only difference the preview pane, which is 1.4a.
+The swift library rebuilt itself once after the lock relaunched Hammerspoon, so the first reload
+served the fallback and a second one served swift, as the Hammerspoon `AGENTS.md` warns. Then the
+piece was switched off again, the app quit and the lock released, and Hammerspoon is on main.
 
 ## Where the facts come from
 

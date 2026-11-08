@@ -243,3 +243,6 @@ list, and until then that list stays on Lua.
   bridged, answers through one `ListSource` protocol shaped like the bridge's requests, so a
   plugin's flip is which source the registry hands the stage. Step 1.3g moves the pilot onto it
   before 1.4a.
+- 2026-11-08 08:05. The look trial of 1.3d passed. Milos found the app's file search matching the
+  Lua one apart from the preview pane, step 1.4a, so handing the app the swift chooser's own
+  tables holds, and 1.3d is ticked.
