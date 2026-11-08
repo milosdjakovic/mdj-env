@@ -296,3 +296,6 @@ list, and until then that list stays on Lua.
   and `open` stays for an app not running. The stage shows a window only once its first rows and
   first preview are drawn, capped at 150 ms. The pane's scroll keys move to 1.4f with every other
   list key, since Hammerspoon holds the leader and no Hyper chord reaches the app's list today.
+- 2026-11-08 23:40. Step 1.4h is added at Milos's request. `.app` listing Safari alone, seen in the
+  1.4a trial, is the shared helper's `recent` skipping every folder, so a folder named with the type
+  asked for is kept. It changes the helper both file searches ask, so both move in one step.

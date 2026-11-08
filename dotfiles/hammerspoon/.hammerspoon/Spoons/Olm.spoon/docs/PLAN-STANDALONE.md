@@ -56,6 +56,7 @@ Stage 1, the file search pilot
 - [ ] 1.4e Folder search, the scope, the folder aliases, Into Folder and Up a Level
 - [ ] 1.4f The bottom bar, the actions pane, the info pane, Copy Path, and the person's list keys, the preview pane's scroll keys among them
 - [ ] 1.4g Short queries, file search answering under three characters now the app's index can
+- [ ] 1.4h A type naming a bundle, `.app` listing every app rather than Safari alone, in both file searches
 - [ ] 1.5 Parity, every feature of the Lua file search checked in the app, then the flip
 
 Stage 2, the bridge, read only
@@ -717,6 +718,14 @@ letter matched nearly every file. The app's index answers in memory, so it no lo
 waits for 1.3e, since a limit changed on one side only would log every short query as a
 difference. Both sides then lower it together where the Lua side's Spotlight keeps up, measured
 with the 1.3f timings, and otherwise the app alone once it serves file search for good.
+
+1.4h came out of the 1.4a trial on 2026-11-08, asked for by Milos. A bare type token is the recent
+list of that type, and the helper's `recent` in `plugins/filesearch/sources/fileindex.swift` skips
+every folder, so `.app` lists only Safari, whose bundle the index does not mark as a folder, and
+leaves out the sixty other apps in `/Applications`. A folder whose name ends in the type asked for is
+a file to the person, a bundle, so `recent` keeps it when a type is given. The helper is the one
+both file searches ask, so both change in the same step and the shadow of 1.3e sees no difference.
+A bundle's row and its preview pane stay a folder's, KIND Application for an app.
 
 **1.5 Parity, then the flip.** A written list of every feature the Lua file search has, read from
 its manifest, its README and `config/filesearch.lua`, each one tried in the app by hand and ticked.
