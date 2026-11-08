@@ -3,3 +3,4 @@ tools          | firebase,flutter,java,lua5.4,node,pnpm,python,uv,yarn # picked 
 kanata         | on        # kanata and the Karabiner driver extension active
 mise           | on        # turned on 2026-10-30, mise already ran here unmanaged with node, flutter, java and firebase-tools
 editor         | com.microsoft.VSCode # set by hand, Visual Studio Code chosen by Milos on 2026-11-04
+olmapp         | on        # set by hand, asked for on 2026-11-08
