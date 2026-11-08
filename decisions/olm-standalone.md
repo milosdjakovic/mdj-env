@@ -258,3 +258,9 @@ list, and until then that list stays on Lua.
   and a plugin is checked with no AppKit. And the index ask is cancelled with its task rather than
   superseded by a generation, since an async ask that never answers leaks its continuation. The
   design file was corrected in the same change.
+- 2026-11-08 12:30. The three timings of step 1.3f are measured inside the swift chooser's panel,
+  `native/Timings.swift`, not by signposts on the app's stage as docs/DESIGN-APP.md had it. The
+  Lua file search inside Hammerspoon and Olm.app draw through the same panel, so one piece of code
+  on one clock times both, which is what makes the numbers comparable. A signpost on the stage
+  would have timed the app alone. It is off unless `~/.olm/run/timings` exists, so neither process
+  pays for it outside a trial. The design file was corrected in the same change.

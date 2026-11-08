@@ -407,7 +407,10 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     layoutActions()
   }
 
-  func setRows(_ rows: [Row]) { list.setRows(rows) }
+  func setRows(_ rows: [Row]) {
+    list.setRows(rows)
+    Timings.rowsSent()
+  }
 
   func setImages(_ images: [(Int, NSImage, Bool)]) { list.setImages(images) }
 
@@ -503,9 +506,11 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   func start() {
     started = true
     startMonitors()
+    Timings.begin()
   }
 
   func stop() {
+    if started { Timings.finish(list: state.placeholder) }
     started = false
     for monitor in monitors { NSEvent.removeMonitor(monitor) }
     monitors = []
@@ -738,9 +743,12 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   // Runs an edit through the field, then tells Lua the text once, however many change
   // notifications the edit raised. Text still being composed by an input method is not told.
   func throughField(_ body: () -> Void) {
+    let before = field.stringValue
+    let key = NSApp.currentEvent.flatMap { $0.type == .keyDown ? $0.timestamp : nil }
     inField = true
     body()
     inField = false
+    if field.stringValue != before { Timings.typed(at: key) }
     reportText()
   }
 

@@ -202,8 +202,9 @@ The app logs through `os_log` under the subsystem `local.olm.Olm`, with one cate
 one per plugin, so `log stream --predicate 'subsystem == "local.olm.Olm"'` shows what it did. The
 root validates every manifest before anything starts and reports each refusal by name, as the Lua
 wiring layer does, rather than failing on the first keystroke. The three timings the plan records,
-keystroke to drawn rows among them, come from signposts on the stage, so Instruments shows them
-with no extra code.
+keystroke to drawn rows among them, are timed by the chooser panel itself,
+`lib/chooser/providers/swift/native/Timings.swift`, so the app and the Lua side it replaces are
+measured by the same code, decided in step 1.3f.
 
 ## How it is tested
 

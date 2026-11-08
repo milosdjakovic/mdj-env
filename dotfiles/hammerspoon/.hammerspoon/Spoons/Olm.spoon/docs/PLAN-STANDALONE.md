@@ -48,6 +48,7 @@ Stage 1, the file search pilot
   - [ ] 1.3e The shadow, both sides answering each query and the differences logged
     Built on main 2026-11-08, the Lua file search asking the app, running over a few days of real use with the piece on.
   - [ ] 1.3f The three timings against the Lua file search, and a trial, with no flip
+    Built on main 2026-11-08, the panel timing both sides, waiting for its trial by hand.
   - [x] 1.3g The app's structure, `docs/DESIGN-APP.md`, file search moved onto it with nothing a person can see changed, 2026-11-08
 - [ ] 1.4a Preview pane, with its scroll keys
 - [ ] 1.4b Thumbnails
@@ -456,6 +457,18 @@ Open: the trial by hand.
 the trial alone. Typing, steady icons, a long name cut in the middle, Return opening, Command and
 Return revealing and Command and a digit opening its slot all worked, and Milos called it good.
 Its key went back to the Lua file search after, and the shadow runs on.
+
+**1.3f built, the three timings, 2026-11-08.** The swift chooser's panel times itself,
+`native/Timings.swift`, so the Lua file search inside Hammerspoon and Olm.app's are measured by the
+same code on the same clock. Echo is a key down to the commit that draws the field with it, rows a
+key down to the commit that draws the first rows sent after it, settled to the last rows sent
+before the next key, and stall the longest gap on the main thread while the list is open. A key
+whose rows did not change sends none, so it has no rows time. It runs only while
+`~/.olm/run/timings` exists, each open writes one line to `~/.olm/log/timings.jsonl`, and
+`test/timings.lua` reads it as a table per process and list.
+Result: the dry suite, 2124 unit cases, the swift pane and package checks, 161 fixtures and the
+index check pass, and the reader was checked on lines written by hand.
+Open: the trial by hand, the same searches typed in each, large result sets among them.
 
 ## Where the facts come from
 
