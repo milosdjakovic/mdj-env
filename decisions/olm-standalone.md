@@ -38,6 +38,12 @@ list, and until then that list stays on Lua.
   of the look, however carefully matched, drifts the first time a setting, the theme or the
   typography changes. The app is handed the Lua view's own tables instead, until the app owns the
   look outright in a later stage.
+- **Loading compiled Swift plugins while the app runs.** 2026-11-08 01:40. Milos asked whether a
+  plugin could be Swift code dropped in. Loading it as a bundle is possible and fragile, since every
+  plugin must match the app's Swift and build exactly, macOS signing refuses a library it did not
+  see signed, and a fault in one takes the launcher down with it. A native plugin is built into the
+  app, one rerun of `src/setup-olmapp.sh`, and a plugin someone else hands over is an extension in
+  a process of its own, `docs/DESIGN-APP.md` in the spoon.
 - **An app picker provider beside default, swift and legacy.** 2026-11-05 14:37. It would keep the
   Lua engine and put the view in another process, which is the helper process
   `decisions/olm-swift-chooser.md` turned down on 2026-10-27, since the picker contract asks
@@ -230,3 +236,10 @@ list, and until then that list stays on Lua.
   and the app places them with a port of `geometry.resolve` pinned by a recorded fixture. Writing
   the look again in Swift was not done, since two descriptions of one look drift. The open key's
   URL now carries Olm's placement choice, since it changes with no reload.
+- 2026-11-08 01:40. Milos asked for the app's structure to be designed before more of file search
+  lands in it, and better than the Lua Olm's. `docs/DESIGN-APP.md` in the spoon is that design.
+  Every plugin Olm ships becomes Swift, each a module that can import only the shared vocabulary,
+  and JavaScript is kept for extensions someone else writes, only if wanted. Every list, native or
+  bridged, answers through one `ListSource` protocol shaped like the bridge's requests, so a
+  plugin's flip is which source the registry hands the stage. Step 1.3g moves the pilot onto it
+  before 1.4a.

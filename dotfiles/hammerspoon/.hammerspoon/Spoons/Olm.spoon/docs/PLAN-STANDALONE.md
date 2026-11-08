@@ -49,6 +49,7 @@ Stage 1, the file search pilot
     The shared look is built on main, waiting for a trial, so the app's list looks like the swift chooser's.
   - [ ] 1.3e The shadow, both sides answering each query and the differences logged
   - [ ] 1.3f The three timings against the Lua file search, and a trial, with no flip
+  - [ ] 1.3g The app's structure, `docs/DESIGN-APP.md`, file search moved onto it with nothing a person can see changed
 - [ ] 1.4a Preview pane, with its scroll keys
 - [ ] 1.4b Thumbnails
 - [ ] 1.4c Quick Look
@@ -397,6 +398,17 @@ of 480 by rows of 47 with a bar of 56.
 
 Open: the trial of the shared look.
 
+**The app's design, before 1.4, 2026-11-08.** Milos asked whether there is a plan for the app's
+own architecture, better than the Lua Olm's. There was none, and the pilot lives in one
+`main.swift`. `docs/DESIGN-APP.md` is that design now. It keeps the Lua Olm's principles, a
+composition root, a plugin handed its whole world, a manifest as data and a plugin that never
+draws, and lets the compiler hold them, each plugin a module that can import only the vocabulary,
+the contract a protocol, and the threads checked by Swift 6's strict concurrency. Every list is
+answered through one protocol, so a plugin going native is a second source under the same name
+and the shadow is written once. Step 1.3g moves the pilot onto it before 1.4a.
+
+Open: the design is on paper. 1.3g is the first time it meets code.
+
 ## Where the facts come from
 
 The facts below were checked on 2026-11-05 by three read only sweeps of the spoon. Recheck any
@@ -550,6 +562,13 @@ through a command line ask, and the differences are logged. Test, the three timi
 against the Lua file search, and a live trial of a large result set while typing. There is no flip
 in 1.3. The app still lacks the preview pane and the rest of 1.4, and rule 9 holds the flip until
 1.5.
+
+**1.3g The app's structure.** Written at Milos's request on 2026-11-08, before 1.4 adds most of
+file search to the app. `docs/DESIGN-APP.md` is the design, the layers, one `ListSource` protocol
+every list answers through, native or bridged, and a plugin as a module of its own. This step
+moves the pilot onto it as that file's last section lists, with nothing a person can see changed.
+Test, the fixtures, the index check and a trial by hand. Every step after it builds on that
+structure and never grows `main.swift`.
 
 **1.4 The rest of file search, one per step.** The preview pane, thumbnails, Quick Look and
 frecency, each its own step and trial. Frecency is a store, so it has one owner. The app reads the
