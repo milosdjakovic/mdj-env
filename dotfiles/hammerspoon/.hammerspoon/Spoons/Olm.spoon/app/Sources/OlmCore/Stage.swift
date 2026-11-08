@@ -59,6 +59,9 @@ public final class Stage {
     panel.setRows([])
     apply(status: nil)
     panel.start()
+    // The bridge starts the app hidden, `open -j`, as the shadow is wired, and a hidden app's
+    // panel takes key but is never drawn, found in the 1.3f trial on 2026-11-08.
+    if NSApp.isHidden { NSApp.unhide(nil) }
     panel.show()
     panel.setText(query)
     let mine = generation

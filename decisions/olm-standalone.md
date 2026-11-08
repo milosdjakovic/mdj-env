@@ -272,3 +272,7 @@ list, and until then that list stays on Lua.
   once, hidden, when the shadow is wired, and tells it each answer by the distributed notification
   `local.olm.Olm.shadow`. The note of 09:10 under 1.3g blaming a test for the same symptom was this
   fault too.
+- 2026-11-08 21:30. Found. The one hidden start of 17:40, `open -g -j`, left the app hidden, and a
+  hidden app's panel takes key but is never drawn, so with the app serving file search's key the
+  key took focus and showed nothing. The stage now unhides the app as it opens a list, so the
+  hidden start stays and a list is drawn however the app was started.

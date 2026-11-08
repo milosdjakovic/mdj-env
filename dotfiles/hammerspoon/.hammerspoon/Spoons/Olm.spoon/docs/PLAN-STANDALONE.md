@@ -475,6 +475,10 @@ app, and running it while that list was up emptied it. The headless check of 1.3
 writing lines was the same fault, not the test. Fixed: the bridge starts the app once when the
 shadow is wired and tells it each answer by a distributed notification, so nothing runs `open`
 while a list is up. Milos checked file search by its own key with the shadow on.
+Issue: with the app serving the key in round 2 of the trial, the key took focus and no list was
+drawn. Cause: the bridge starts the app with `open -j`, hidden, and a hidden app's panel takes key
+but is never drawn. Fixed: the stage unhides the app as it opens a list, checked by starting the
+app hidden and Milos opening file search by its key.
 
 ## Where the facts come from
 
