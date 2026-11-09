@@ -1163,7 +1163,7 @@ function UI.copySelected()
   if cfg.stageHide then cfg.stageHide() end
 end
 
---- UI.deleteSelected() - delete from history, for the Hyper d binding. With a batch
+--- UI.deleteSelected() - delete from history, for the Hyper r binding. With a batch
 --- marked (Hyper a), delete the whole marked set and clear it, matching the "Delete
 --- marked" label; otherwise delete just the highlighted entry. Refreshing redraws the
 --- remaining rows, and refreshBottomBar restores the label once the batch is empty.

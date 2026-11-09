@@ -80,7 +80,6 @@ hyper	;	any	-	-	fileSearch
 hyper	a	any	clipboardOpen	100	clipboard
 hyper	d	any	clipboardOpen	100	clipboard
 hyper	d	any	fileSearchOpen	100	fileSearch
-hyper	delete	any	clipboardOpen	100	clipboard
 hyper	e	any	-	-	menuSearch
 hyper	f	any	-	-	apptoggler
 hyper	f	any	fileSearchOpen	100	fileSearch
@@ -169,7 +168,10 @@ hyper	o	any	vpnOpen	100	vpn
 hyper	o	any	workspacesOpen	100	workspaces
 hyper	p	any	-	-	vpn
 hyper	q	any	fileSearchOpen	100	fileSearch
+hyper	r	any	clipboardOpen	100	clipboard
+hyper	r	any	displayProfilesOpen	100	displayProfiles
 hyper	r	any	processesOpen	100	processes
+hyper	r	any	workspacesOpen	100	workspaces
 hyper	s	any	processesOpen	100	processes
 hyper	space	any	-	-	launcher
 hyper	space	any	launcherOpen	100	launcher
@@ -211,7 +213,6 @@ claim	hyper	5	shift+ctrl+alt+cmd
 claim	hyper	;	shift+ctrl+alt+cmd
 claim	hyper	a	shift+ctrl+alt+cmd
 claim	hyper	d	shift+ctrl+alt+cmd
-claim	hyper	delete	shift+ctrl+alt+cmd
 claim	hyper	e	shift+ctrl+alt+cmd
 claim	hyper	f	shift+ctrl+alt+cmd
 claim	hyper	h	shift+ctrl+alt+cmd

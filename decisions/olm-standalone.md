@@ -369,3 +369,15 @@ list, and until then that list stays on Lua.
   two lists would then scroll on different keys. The clipboard's Delete, which held D, moved to
   Hyper and Backspace, Milos's pick over Hyper and R. Hyper and U opens tmux sessions with no list
   open, and the open list's own key wins over it, as Hyper and J does over the emoji picker.
+- 2026-11-09 18:05. Corrects the entry of 16:20 on the clipboard's Delete. Hyper and Backspace
+  never reached macOS on this machine. A key watcher below Hammerspoon's hotkeys saw nothing for
+  a physical press while a synthetic one arrived, so the press is lost under the system, kanata or
+  its driver, and kanata's own log says nothing. Delete now sits on Hyper and R, for remove, in
+  every list that has one, the clipboard, Display Profiles and Workspaces, Milos's pick over
+  Hyper with Shift and D and over looking into kanata first. A key on a verb that declares
+  confirm now asks first, the actions pane opening straight on that verb's Cancel and confirm
+  rows, so the key and the pane ask the same question. Running the verb immediately was rejected
+  as deleting a profile or a layout with no question. The same trial found the actions pane
+  drawing the list on row one between giving the query back and putting the row back, a flicker
+  through the first row's preview on every verb chosen there, so the row now comes back in the
+  same turn and a chosen verb answers stay.

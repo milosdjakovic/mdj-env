@@ -2932,7 +2932,18 @@ function obj.run(olm, cfg)
       end
       local ap = modules[plan.identity.actionspane or "actionspane"]
       if not (ap and type(ap.chooseAction) == "function") then return false end
-      return ap:chooseAction(name) == true
+      if ap:chooseAction(name) == true then return true end
+      -- A key on a verb that declares confirm asks first, the panel opening on its confirm level,
+      -- unless the panel itself is running the verb it just confirmed.
+      if type(ap.confirmAction) ~= "function" or ap:isRunning() then return false end
+      for contextName, block in pairs(plan.contexts or {}) do
+        if contextOwners[contextName] ~= (plan.identity.launcher or "launcher") and isShowingFor(contextName) then
+          for _, b in ipairs(block.bindings or {}) do
+            if b.action == name and b.confirm then return ap:confirmAction(contextName, name) end
+          end
+        end
+      end
+      return false
     end,
     -- The three action names that do not equal the surface method answering them. Everything
     -- else routes by its own name, which is why lib/nav.lua defaults to that and this table is

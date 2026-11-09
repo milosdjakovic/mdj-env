@@ -165,6 +165,6 @@ consistency. All three were taken as proposed.
 
 Piece one passed Milos's trial on 2026-11-09 except the scroll keys. The preview pane scrolls on
 Hyper and D or U in file search and in the clipboard, no longer Hyper with Command and J or K, and
-the clipboard's Delete moved to Hyper and Backspace. Wherever this note names Command and J or K as
+the clipboard's Delete moved first to Hyper and Backspace and then, since that press never reaches macOS on this machine, to Hyper and R, the key every list's Delete now takes, one that declares confirm asking first. Wherever this note names Command and J or K as
 the Lua list's scroll keys, read D and U. The verbs, `scrollPreviewDown` and `scrollPreviewUp`, are
 unchanged, so the app needed no edit.

@@ -169,7 +169,9 @@ hyper	o	any	vpnOpen	100	vpn
 hyper	o	any	workspacesOpen	100	workspaces
 hyper	p	any	-	-	vpn
 hyper	q	any	fileSearchOpen	100	fileSearch
+hyper	r	any	displayProfilesOpen	100	displayProfiles
 hyper	r	any	processesOpen	100	processes
+hyper	r	any	workspacesOpen	100	workspaces
 hyper	s	any	processesOpen	100	processes
 hyper	space	any	-	-	launcher
 hyper	u	any	-	-	tmuxSessions

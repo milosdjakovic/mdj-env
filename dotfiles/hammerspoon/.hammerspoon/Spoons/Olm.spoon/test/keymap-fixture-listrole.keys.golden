@@ -8,7 +8,6 @@ META	c	any	-	-	windowmanager
 META	d	any	-	-	windowmanager
 META	d	any	clipboardOpen	100	clipboard
 META	d	any	fileSearchOpen	100	fileSearch
-META	delete	any	clipboardOpen	100	clipboard
 META	down	any	-	-	windowmanager
 META	f	any	fileSearchOpen	100	fileSearch
 META	f	any	processesOpen	100	processes
@@ -95,7 +94,10 @@ META	o	any	tmuxSessionsOpen	100	tmuxSessions
 META	o	any	vpnOpen	100	vpn
 META	o	any	workspacesOpen	100	workspaces
 META	q	any	fileSearchOpen	100	fileSearch
+META	r	any	clipboardOpen	100	clipboard
+META	r	any	displayProfilesOpen	100	displayProfiles
 META	r	any	processesOpen	100	processes
+META	r	any	workspacesOpen	100	workspaces
 META	return	any	-	-	windowmanager
 META	right	any	-	-	windowmanager
 META	s	any	-	-	windowmanager

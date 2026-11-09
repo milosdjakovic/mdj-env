@@ -63,7 +63,6 @@ field	/	cmd+shift	workspacesOpen	100	workspaces
 field	a	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
 field	d	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
 field	d	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch
-field	delete	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
 field	f	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch
 field	f	alt+cmd+ctrl+shift	processesOpen	100	processes
 field	h	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch
@@ -151,7 +150,10 @@ field	padenter	cmd	emojiOpen	100	emoji
 field	padenter	cmd	fileSearchOpen	100	fileSearch
 field	padenter	cmd	textCaseOpen	100	textCase
 field	q	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch
+field	r	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
+field	r	alt+cmd+ctrl+shift	displayProfilesOpen	100	displayProfiles
 field	r	alt+cmd+ctrl+shift	processesOpen	100	processes
+field	r	alt+cmd+ctrl+shift	workspacesOpen	100	workspaces
 field	return	cmd	clipboardOpen	100	clipboard
 field	return	cmd	emojiOpen	100	emoji
 field	return	cmd	fileSearchOpen	100	fileSearch

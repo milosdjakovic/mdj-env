@@ -198,7 +198,9 @@ return {
     extra = {
       -- The preview scrolls on d and u, down and up, the way Control and D or U scroll half a
       -- page in Vim, the same two keys file search's preview takes. Milos chose them in the
-      -- 1.4f trial on 2026-11-09 over Command and J or K, so Delete moved off d to Backspace.
+      -- 1.4f trial on 2026-11-09 over Command and J or K, so Delete moved off d to r, for remove, the
+      -- key every list's Delete takes. Backspace was tried first and a held Hyper with Backspace
+      -- never reaches macOS on this machine, the press lost below the system.
       { key = "d", action = "scrollPreviewDown", description = "Scroll Preview Down" },
       { key = "u", action = "scrollPreviewUp",   description = "Scroll Preview Up" },
       -- Both act on one highlighted entry, so both are gated on the list being the history
@@ -208,7 +210,7 @@ return {
       -- prevent. Gated, they leave the panel the moment the page opens and come back with it.
       { key = "a", action = "appendSelected", description = "Append to Batch", icon = "append",
         when = "clipboardHistoryList" },
-      { key = "delete", action = "deleteSelected", description = "Delete", icon = "delete",
+      { key = "r", action = "deleteSelected", description = "Delete", icon = "delete",
         when = "clipboardHistoryList" },
       -- The manage history page, where history is deleted by age rather than a row at a time.
       -- The same key steps back off the page, since that is what a person presses again.
