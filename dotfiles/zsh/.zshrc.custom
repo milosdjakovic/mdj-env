@@ -87,3 +87,27 @@ source "$(brew --prefix)/opt/fzf/shell/key-bindings.zsh"
 # fzf keeps ^T and alt+c, which put a file or a directory on the line and duplicate nothing.
 bindkey -M emacs '^r' atuin-search
 bindkey -M viins '^r' atuin-search-viins
+
+# A Herdr app pane gets Ghostty's colours, every one of them, sent by the shell. Herdr's core
+# answers a colour query from its own defaults rather than from the app's theme, a dark grey page
+# whatever the half, and its theme holds only sixteen slots. So Claude Code and Neovim, which both
+# ask the terminal for its page, chose the dark half on the light page, and the statusline grey in
+# slot 17 came out navy. Setting the colours in the pane makes the core answer what Ghostty does.
+#
+# macOS is asked which half it is on, rather than the terminal, because the terminal is the thing
+# that answers wrong here. A pane catches up at its next prompt, so a program running across a
+# switch keeps the old half until it exits, wholly, since all twenty three colours move together.
+# The sequences are generated, dotfiles/herdr-app/AGENTS.md has the rest.
+if [[ "$__CFBundleIdentifier" == dev.herdr.app && -r "$HOME/.config/herdr-app/terminal-colors.zsh" ]]; then
+  source "$HOME/.config/herdr-app/terminal-colors.zsh"
+  typeset -g _mdj_herdr_half=
+  _mdj_herdr_colors() {
+    local half=light
+    [[ "$(defaults read -g AppleInterfaceStyle 2>/dev/null)" == Dark ]] && half=dark
+    [[ "$half" == "$_mdj_herdr_half" ]] && return
+    _mdj_herdr_half=$half
+    print -rn -- "${mdj_herdr_osc[$half]}"
+  }
+  autoload -Uz add-zsh-hook
+  add-zsh-hook precmd _mdj_herdr_colors
+fi

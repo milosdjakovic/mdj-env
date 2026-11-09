@@ -1,0 +1,11 @@
+# Home paths that must stay real directories rather than becoming one stow symlink, as
+# path | reason, the path written relative to the home directory. The rule and the mechanism
+# are in the repository root AGENTS.md and in decisions/stow-folding.md, and this file is read
+# by src/setup-stow-dotfiles.sh, which finds it by name and knows nothing about this module.
+.config/herdr-app | the Herdr app rewrites its own guide, type files, layouts, mods, sockets and state here on every start, so a fold sends all of it into this checkout
+.config/herdr-app/themes | the Herdr app writes its shipped themes, atom-one-dark and win98, beside the two this package links
+.config/herdr-app/mods | the Herdr app writes its shipped mods here beside the mdj ones this package links
+.config/herdr-app/mods/mdj-popup | the Herdr app writes gpui-kit.d.ts and jsconfig.json into every mod folder on start
+.config/herdr-app/mods/mdj-git | the Herdr app writes gpui-kit.d.ts and jsconfig.json into every mod folder on start
+.config/herdr-app/mods/mdj-files | the Herdr app writes gpui-kit.d.ts and jsconfig.json into every mod folder on start
+.config/herdr-app/mods/mdj-find | the Herdr app writes gpui-kit.d.ts and jsconfig.json into every mod folder on start

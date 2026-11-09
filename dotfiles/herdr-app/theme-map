@@ -1,0 +1,61 @@
+# The Herdr app's theme keys, each pointing at a role from theme/VOCABULARY. This is the
+# desktop app, Herdr.app, whose theme is a JSON file per half under ~/.config/herdr-app/themes,
+# not the herdr multiplexer, whose tables dotfiles/herdr/theme-map writes. This file knows the
+# app's vocabulary, the four terminal keys, the sixteen ANSI slots, and the eight interface
+# colours under "colors", and the palette knows nothing about it. A dotted key is one inside
+# "colors", which is how the emitter tells the two apart.
+#
+# The terminal half follows Ghostty's map slot for slot, so a program looks the same in either
+# window. Slots 9 to 14 repeat 1 to 6 because Aura publishes one shade of each accent.
+#
+# The interface half follows the herdr multiplexer's choices. accent is fill, the purple a
+# block can carry a label on. muted is subtext, the ink stepped back. dim is overlay, the grey
+# of a secondary line. hover is surface, the raised row. border is dim, the faintest rule.
+background = background
+foreground = foreground
+selection  = selection
+cursor     = primary
+ansi1  = senary
+ansi2  = secondary
+ansi3  = tertiary
+ansi4  = primary
+ansi5  = quaternary
+ansi6  = quinary
+ansi8  = comment
+ansi9  = senary
+ansi10 = secondary
+ansi11 = tertiary
+ansi12 = primary
+ansi13 = quaternary
+ansi14 = quinary
+colors.chrome     = background
+colors.accent     = fill
+colors.foreground = foreground
+colors.muted      = subtext
+colors.dim        = overlay
+colors.hover      = surface
+colors.border     = dim
+# The four slots above the sixteen, which the theme file cannot hold since Herdr reads exactly
+# sixteen. They are written into terminal-colors.zsh instead, which a zsh in a Herdr pane sends
+# to its terminal, and they follow Ghostty's map, the secondary grey the Claude statusline and
+# fzf's footer read, the quiet rule fzf's gutter reads, and the page.
+slot17 = overlay
+slot18 = dim
+slot19 = background
+
+# The neutral slots swap by half exactly as Ghostty's do, ANSI black is the page on dark and
+# the ink on light. The selected row lifts in purple on dark and in neutral grey on light,
+# herdr's recorded decision, since a tinted slab on the light page reads as lilac.
+[dark]
+ansi0  = background
+ansi7  = foreground
+ansi15 = foreground
+colors.selected = selection
+slot16 = dim
+
+[light]
+ansi0  = foreground
+ansi7  = dim
+ansi15 = surface
+colors.selected = surface
+slot16 = surface

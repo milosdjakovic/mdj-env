@@ -49,6 +49,7 @@ nvim          | brew      | neovim
 lf            | brew      | lf
 lazygit       | brew      | lazygit
 herdr         | manual    | installed by src/install-herdr.sh from herdr's own installer, which updates through herdr update. Not the formula, which herdr refuses to update
+herdr-app     | manual    | the Herdr desktop app, downloaded by hand from herdr's own site and updated by itself, which also updates herdr-core
 kanata        | brew      | kanata
 rex           | manual    | Rex Beta, downloaded from superlogical.com/rex, then src/setup-rex.sh run from a Rex terminal with Remote Control on in its Settings under Rex Server
 

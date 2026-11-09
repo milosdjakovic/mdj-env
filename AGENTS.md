@@ -363,6 +363,8 @@ to drift unnoticed.
 
 **Stowed where machines/ turns them on:** hammerspoon, herdr, mise, kanata, rex
 
+**Stowed with the herdr piece:** herdr-app, the Herdr desktop app's settings, keys, mods and generated colours
+
 ### Rules for an agent working on machines and runtimes
 
 These are rules, not background. Each one exists because the opposite was done or nearly done.
@@ -696,6 +698,13 @@ herdr itself comes from its own installer rather than the Homebrew formula, beca
 `herdr update` on a Homebrew install. `src/install-herdr.sh` installs it into `~/.local/bin` once,
 where the herdr piece is on, and `herdr update` keeps it current from then on.
 `decisions/herdr-install.md` has it.
+
+### Herdr app
+
+The Herdr desktop app's settings, keys, mods and generated colours in `dotfiles/herdr-app/`. See
+`dotfiles/herdr-app/AGENTS.md` for what is linked and why its directories stay real, why the
+generated theme JSON carries no banner, and why a zsh hook sends every terminal colour into each
+pane, since Herdr's core answers colour queries from its own defaults.
 
 ### Tmux
 

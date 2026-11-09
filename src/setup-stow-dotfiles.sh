@@ -17,6 +17,9 @@ PACKAGES=(ghostty tmux nvim zsh claude lf lazygit)
 for optional in hammerspoon herdr mise kanata rex; do
     "$SCRIPT_DIR/machine.sh" on "$optional" && PACKAGES+=("$optional")
 done
+# The Herdr desktop app's package rides on the herdr piece rather than a piece of its own,
+# since a machine that takes herdr takes the app that hosts its terminals with it.
+"$SCRIPT_DIR/machine.sh" on herdr && PACKAGES+=(herdr-app)
 
 if [[ ! -d "$DOTFILES" ]]; then
     echo "Error: dotfiles directory not found at $DOTFILES"
