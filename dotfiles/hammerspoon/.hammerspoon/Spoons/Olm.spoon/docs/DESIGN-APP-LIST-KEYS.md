@@ -160,3 +160,11 @@ consistency. All three were taken as proposed.
    search today, and stage 2 brings the live version for a list with a live gate.
 3. **Dropping the app's plain Command and J or K scroll**, so the app answers exactly the keys the
    Lua list does.
+
+## Corrected after piece one's trial
+
+Piece one passed Milos's trial on 2026-11-09 except the scroll keys. The preview pane scrolls on
+Hyper and D or U in file search and in the clipboard, no longer Hyper with Command and J or K, and
+the clipboard's Delete moved to Hyper and Backspace. Wherever this note names Command and J or K as
+the Lua list's scroll keys, read D and U. The verbs, `scrollPreviewDown` and `scrollPreviewUp`, are
+unchanged, so the app needed no edit.

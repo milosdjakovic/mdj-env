@@ -103,6 +103,8 @@ hyper	4	any	-	-	capture
 hyper	5	any	-	-	capture
 hyper	;	any	-	-	fileSearch
 hyper	a	any	clipboardOpen	100	clipboard
+hyper	d	any	clipboardOpen	100	clipboard
+hyper	d	any	fileSearchOpen	100	fileSearch
 hyper	e	any	-	-	menuSearch
 hyper	f	any	-	-	apptoggler
 hyper	f	any	fileSearchOpen	100	fileSearch
@@ -132,8 +134,6 @@ hyper	i	any	vpnOpen	100	vpn
 hyper	i	any	wifiOpen	100	wifi
 hyper	i	any	workspacesOpen	100	workspaces
 hyper	j	any	-	-	emoji
-hyper	j	cmd	clipboardOpen	100	clipboard
-hyper	j	cmd	fileSearchOpen	100	fileSearch
 hyper	k	any	-	-	caffeinate
 hyper	k	any	audioOpen	100	audio
 hyper	k	any	browserTabsOpen	100	browserTabs
@@ -157,8 +157,6 @@ hyper	k	any	volumeOpen	100	volume
 hyper	k	any	vpnOpen	100	vpn
 hyper	k	any	wifiOpen	100	wifi
 hyper	k	any	workspacesOpen	100	workspaces
-hyper	k	cmd	clipboardOpen	100	clipboard
-hyper	k	cmd	fileSearchOpen	100	fileSearch
 hyper	l	any	fileSearchOpen	100	fileSearch
 hyper	m	any	clipboardOpen	100	clipboard
 hyper	o	any	clipboardOpen	100	clipboard
@@ -175,6 +173,8 @@ hyper	r	any	processesOpen	100	processes
 hyper	s	any	processesOpen	100	processes
 hyper	space	any	-	-	launcher
 hyper	u	any	-	-	tmuxSessions
+hyper	u	any	clipboardOpen	100	clipboard
+hyper	u	any	fileSearchOpen	100	fileSearch
 hyper	w	any	-	-	browserTabs
 hyper	x	any	-	-	clipboard
 hyper	x	any	audioOpen	100	audio

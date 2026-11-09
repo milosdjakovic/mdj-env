@@ -815,7 +815,7 @@ end
 local PANE_SCROLL_STEP = 120
 
 --- chooser.scrollPreviewDown() / chooser.scrollPreviewUp() - move the pane's body, for the
---- shared Hyper+Cmd+j and Hyper+Cmd+k actions, so a long file head or a big folder can be read
+--- shared Hyper+d and Hyper+u actions, so a long file head or a big folder can be read
 --- without reaching for the trackpad. Both go through the pane's one scroll verb, which is also
 --- what the atom's trackpad callback goes through.
 function M.scrollPreviewDown()

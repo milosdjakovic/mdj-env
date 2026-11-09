@@ -361,3 +361,11 @@ list, and until then that list stays on Lua.
   load from the same plan, since nothing then crosses per keystroke and file search has no live
   gate, a live bar model being stage 2's. The app's plain Command and J or K scroll goes, since the
   Lua list answers only Hyper with Command and J or K.
+- 2026-11-09 16:20. Piece one of step 1.4f passed Milos's hand trial, every step but the preview
+  scroll, whose key he turned down. Hyper with Command and J or K read as no key at all, a second
+  modifier under a leader that is held, so both lists with a preview pane, file search and the
+  clipboard, now scroll it on Hyper and D or U, down and up, Vim's Control and D or U. Keeping
+  Command and J or K was rejected for that reason. Moving only file search was rejected, since the
+  two lists would then scroll on different keys. The clipboard's Delete, which held D, moved to
+  Hyper and Backspace, Milos's pick over Hyper and R. Hyper and U opens tmux sessions with no list
+  open, and the open list's own key wins over it, as Hyper and J does over the emoji picker.

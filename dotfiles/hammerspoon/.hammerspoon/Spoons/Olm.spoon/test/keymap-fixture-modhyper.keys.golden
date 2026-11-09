@@ -62,6 +62,8 @@ field	/	cmd+shift	wifiOpen	100	wifi
 field	/	cmd+shift	workspacesOpen	100	workspaces
 field	a	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
 field	d	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
+field	d	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch
+field	delete	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
 field	f	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch
 field	f	alt+cmd+ctrl+shift	processesOpen	100	processes
 field	h	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch
@@ -92,10 +94,8 @@ field	j	alt+cmd+ctrl+shift	audioOpen	100	audio
 field	j	alt+cmd+ctrl+shift	browserTabsOpen	100	browserTabs
 field	j	alt+cmd+ctrl+shift	caffeinateOpen	100	caffeinate
 field	j	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
-field	j	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
 field	j	alt+cmd+ctrl+shift	displayProfilesOpen	100	displayProfiles
 field	j	alt+cmd+ctrl+shift	emojiOpen	100	emoji
-field	j	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch
 field	j	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch
 field	j	alt+cmd+ctrl+shift	inputsourcesOpen	100	inputsources
 field	j	alt+cmd+ctrl+shift	launcherOpen	100	launcher
@@ -117,10 +117,8 @@ field	k	alt+cmd+ctrl+shift	audioOpen	100	audio
 field	k	alt+cmd+ctrl+shift	browserTabsOpen	100	browserTabs
 field	k	alt+cmd+ctrl+shift	caffeinateOpen	100	caffeinate
 field	k	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
-field	k	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
 field	k	alt+cmd+ctrl+shift	displayProfilesOpen	100	displayProfiles
 field	k	alt+cmd+ctrl+shift	emojiOpen	100	emoji
-field	k	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch
 field	k	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch
 field	k	alt+cmd+ctrl+shift	inputsourcesOpen	100	inputsources
 field	k	alt+cmd+ctrl+shift	launcherOpen	100	launcher
@@ -160,6 +158,8 @@ field	return	cmd	fileSearchOpen	100	fileSearch
 field	return	cmd	textCaseOpen	100	textCase
 field	s	alt+cmd+ctrl+shift	processesOpen	100	processes
 field	space	alt+cmd+ctrl+shift	launcherOpen	100	launcher
+field	u	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
+field	u	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch
 field	x	alt+cmd+ctrl+shift	audioOpen	100	audio
 field	x	alt+cmd+ctrl+shift	browserTabsOpen	100	browserTabs
 field	x	alt+cmd+ctrl+shift	caffeinateOpen	100	caffeinate

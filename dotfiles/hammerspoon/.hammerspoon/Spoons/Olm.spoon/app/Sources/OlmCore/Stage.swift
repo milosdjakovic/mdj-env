@@ -17,7 +17,7 @@
 // task off the main thread, and only the drawing lands here, dropped when a newer row was asked
 // for since. A row already on screen is left where it is scrolled, a row being read is not asked
 // for twice, and no row, a status in place of the rows, shows the pane's empty state. The scroll
-// verbs, Hyper with Command and J or K heard by Hammerspoon, move it by the step the Lua pane's scroll
+// verbs, Hyper with D or U heard by Hammerspoon, move it by the step the Lua pane's scroll
 // keys move, and a scroll over it is
 // the native view's own.
 //

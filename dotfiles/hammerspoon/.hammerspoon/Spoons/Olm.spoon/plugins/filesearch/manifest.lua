@@ -301,9 +301,13 @@ return {
     secondary = { action = "revealInFinder", description = "Reveal in Finder", icon = "search",
       applies = "isEntry" },
     extra = {
-      { key = "j", mods = { "cmd" }, action = "scrollPreviewDown", needs = "scrollablePreview",
+      -- The preview scrolls on d and u, down and up, the way Control and D or U scroll half a
+      -- page in Vim, the same two keys the clipboard's preview takes. Milos chose them in the
+      -- 1.4f trial on 2026-11-09 over Command and J or K, a second modifier under the list
+      -- leader that read as no key at all.
+      { key = "d", action = "scrollPreviewDown", needs = "scrollablePreview",
         description = "Scroll Preview Down" },
-      { key = "k", mods = { "cmd" }, action = "scrollPreviewUp", needs = "scrollablePreview",
+      { key = "u", action = "scrollPreviewUp", needs = "scrollablePreview",
         description = "Scroll Preview Up" },
       { key = "q", action = "peekPreview", needs = "askedPreview", description = "Quick Look", icon = "peek",
         applies = "isEntry" },

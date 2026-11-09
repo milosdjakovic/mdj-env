@@ -18,7 +18,7 @@
 --- preview.lua), loaded straight as an hs.image, so nothing sizes media here. A
 --- single text file is read off the main thread with hs.task so an undownloaded or
 --- large file cannot stall the pane, and the result is dropped if the selection has
---- moved on. Content taller than the pane scrolls with the Hyper+Cmd+j/k bindings.
+--- moved on. Content taller than the pane scrolls with the Hyper+d/u bindings.
 
 local UI = {}
 
@@ -1108,7 +1108,7 @@ end
 -- scrollPreviewDown, and scrollPreviewUp, the extra verbs neither the stage nor its five
 -- function adapter was ever asked to carry.
 
--- How far one Hyper+Cmd+j/k press scrolls the preview, roughly a mouse-wheel
+-- How far one Hyper+d/u press scrolls the preview, roughly a mouse-wheel
 -- notch, enough to read a long entry in a few presses without overshooting.
 local PREVIEW_SCROLL_STEP = 120
 
@@ -1124,7 +1124,7 @@ function UI.scrollPreviewBy(points)
 end
 
 --- UI.scrollPreviewDown() / UI.scrollPreviewUp() - one step of the above, for the
---- Hyper+Cmd+j / Hyper+Cmd+k bindings, so a clipboard entry taller than the pane can be
+--- Hyper+d / Hyper+u bindings, so a clipboard entry taller than the pane can be
 --- read without reaching for the trackpad.
 function UI.scrollPreviewDown()
   UI.scrollPreviewBy(PREVIEW_SCROLL_STEP)

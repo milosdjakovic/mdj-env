@@ -7,6 +7,8 @@ META	a	any	clipboardOpen	100	clipboard
 META	c	any	-	-	windowmanager
 META	d	any	-	-	windowmanager
 META	d	any	clipboardOpen	100	clipboard
+META	d	any	fileSearchOpen	100	fileSearch
+META	delete	any	clipboardOpen	100	clipboard
 META	down	any	-	-	windowmanager
 META	f	any	fileSearchOpen	100	fileSearch
 META	f	any	processesOpen	100	processes
@@ -58,8 +60,6 @@ META	j	any	volumeOpen	100	volume
 META	j	any	vpnOpen	100	vpn
 META	j	any	wifiOpen	100	wifi
 META	j	any	workspacesOpen	100	workspaces
-META	j	cmd	clipboardOpen	100	clipboard
-META	j	cmd	fileSearchOpen	100	fileSearch
 META	k	any	audioOpen	100	audio
 META	k	any	browserTabsOpen	100	browserTabs
 META	k	any	caffeinateOpen	100	caffeinate
@@ -83,8 +83,6 @@ META	k	any	volumeOpen	100	volume
 META	k	any	vpnOpen	100	vpn
 META	k	any	wifiOpen	100	wifi
 META	k	any	workspacesOpen	100	workspaces
-META	k	cmd	clipboardOpen	100	clipboard
-META	k	cmd	fileSearchOpen	100	fileSearch
 META	l	any	fileSearchOpen	100	fileSearch
 META	left	any	-	-	windowmanager
 META	m	any	clipboardOpen	100	clipboard
@@ -103,6 +101,8 @@ META	right	any	-	-	windowmanager
 META	s	any	-	-	windowmanager
 META	s	any	processesOpen	100	processes
 META	space	any	launcherOpen	100	launcher
+META	u	any	clipboardOpen	100	clipboard
+META	u	any	fileSearchOpen	100	fileSearch
 META	up	any	-	-	windowmanager
 META	w	any	-	-	windowmanager
 META	x	any	audioOpen	100	audio

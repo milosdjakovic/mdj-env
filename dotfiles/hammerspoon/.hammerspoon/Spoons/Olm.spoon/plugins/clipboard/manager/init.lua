@@ -231,7 +231,7 @@ function M.copySelected()
 end
 
 --- M.scrollPreviewDown() / M.scrollPreviewUp() - scroll the preview pane, for the
---- Hyper+Cmd+j and Hyper+Cmd+k bindings wired in the composition root, so a long
+--- Hyper+d and Hyper+u bindings wired in the composition root, so a long
 --- entry can be read without reaching for the mouse.
 function M.scrollPreviewDown()
   ui.scrollPreviewDown()
