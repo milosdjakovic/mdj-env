@@ -414,6 +414,13 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
 
   func setImages(_ images: [(Int, NSImage, Bool)]) { list.setImages(images) }
 
+  // Moves the highlight one row the way an arrow does, wrapping and scrolling only to show it, for
+  // a list key heard outside the panel, Olm.app's verbs from Hammerspoon's leaders.
+  func move(_ delta: Int) {
+    list.flushReports()
+    list.move(delta)
+  }
+
   func update(_ next: ViewState) {
     state = next
     fieldClip.isHidden = next.bare

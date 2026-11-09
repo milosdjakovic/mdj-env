@@ -125,11 +125,14 @@ are removed. Command and a digit stays the field's own, as the protocol says.
 ## How it is tested
 
 - **The keys golden stays unchanged.** No binding moves.
-- **Unit cases over fakes.** `listopen.isShowing` with a fake `served`. The surface adapter and the
-  two exceptions posting a verb instead of calling the stage. The bridge's flag: up, down, the
-  one second opening window, the quit app and the ask on reload. These go in the dry gate.
-- **`test/olmapp.sh`.** It gains a check that a posted verb moves the app's highlight and that the
-  app posts `up` and `down`.
+- **Unit cases over fakes, in the dry gate.** `test/rootmechanism.lua` pins `listopen.isShowing`
+  with a fake `served`, and `listopen.servedOpen`, which the two pane verbs ask. `test/bridge.lua`
+  pins the flag: up, down, the one second opening window, a down from the list before, the quit
+  app, the ask on reload and the verb note.
+- **The app's half in the hand trial.** The note first said `test/olmapp.sh` would check that a
+  posted verb moves the app's highlight. That was corrected on 2026-11-09 while building. A list
+  that is up is a window on screen, and that script shows none, so the app's up, down and verbs are
+  checked by hand.
 - **A hand trial for each build piece**, given as numbered steps with expected results, after Milos
   says go.
 

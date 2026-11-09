@@ -58,6 +58,7 @@ Stage 1, the file search pilot
 - [ ] 1.4d Frecency, one owner, the history read but not yet owned
 - [ ] 1.4e Folder search, the scope, the folder aliases, Into Folder and Up a Level
 - [ ] 1.4f The bottom bar, the actions pane, the info pane, Copy Path, and the person's list keys, the preview pane's scroll keys among them
+  - Its design note is agreed, `docs/DESIGN-APP-LIST-KEYS.md`. Piece 1, the keys, is built on branch `olm-app-list-keys` and waits for its hand trial. The bar, the actions pane and Command and a digit come after.
 - [x] 1.4g Short queries, file search answering from the first letter on both sides, 2026-11-09
 - [ ] 1.4h A type naming a bundle, `.app` listing every app rather than Safari alone, in both file searches
 - [ ] 1.4i Files iCloud has not downloaded, a Download action and the preview pane naming its shortcut, after 1.4f

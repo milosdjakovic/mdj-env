@@ -2080,6 +2080,14 @@ function obj.run(olm, cfg)
   -- after the leaders that close over this, so the presentation is asked through it at each call.
   local surfaceOf = listOpenLib.surfaceOf
   local listOpenDeps = {
+    -- Olm.app's list of a tool it serves counts as open while the app says it is up, step 1.4f,
+    -- docs/DESIGN-APP-LIST-KEYS.md, and a list key routed to it is posted to the app as a verb.
+    -- The bridge is asked at each call, since it answers from what the app last said. No local of
+    -- its own, since this function is at Lua's limit of two hundred.
+    served = function(identity)
+      local bridge = modules[plan.identity.bridge or "bridge"]
+      return bridge ~= nil and type(bridge.showing) == "function" and bridge:showing(identity) == true
+    end,
     owners = contextOwners,
     identity = plan.identity,
     presentationFor = function(identity)
@@ -2551,6 +2559,13 @@ function obj.run(olm, cfg)
   local function surfaceAdapterFor(module, spec, identity)
     return setmetatable({}, {
       __index = function(_, methodName)
+        -- The app's list, step 1.4f. It is open, and every other method is a verb the app runs on
+        -- its own highlight, so a list key never acts on a row Hammerspoon only remembers.
+        if identity and listOpenDeps.served(identity) then
+          if methodName == "isShowing" then return function() return true end end
+          local bridge = modules[plan.identity.bridge or "bridge"]
+          return function() bridge:verb(identity, methodName) end
+        end
         if identity and stageModule and wiredRegistry and wiredRegistry.presentationFor
           and wiredRegistry.presentationFor(identity) then
           -- Wrapped in the identical pcall guard the non presenting branch below already
@@ -2939,9 +2954,13 @@ function obj.run(olm, cfg)
       -- is open rather than to that list's surface, and the one list instance is the stage's,
       -- so it is the stage that is asked, and a provider drawing no bottom bar does nothing.
       showInfo = function()
+        local served = listOpenLib.servedOpen(listOpenDeps)
+        if served then return modules[plan.identity.bridge or "bridge"]:verb(served, "showInfo") end
         if stageModule then stageModule:toggleInfo() end
       end,
       openActionsPane = function()
+        local served = listOpenLib.servedOpen(listOpenDeps)
+        if served then return modules[plan.identity.bridge or "bridge"]:verb(served, "openActionsPane") end
         local actionsPaneModule = modules[plan.identity.actionspane or "actionspane"]
         if not actionsPaneModule then return end
         for contextName in pairs(plan.contexts) do
