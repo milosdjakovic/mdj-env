@@ -2883,6 +2883,19 @@ function obj.run(olm, cfg)
     if bridgeModule and type(bridgeModule.share) == "function" and swift and swift.look then
       bridgeModule:share("chooser", function() return swift.look({ bottomBar = function() return nil end }) end)
     end
+    -- The bar, the info pane and the field keys of each list the app serves, from the same plan the
+    -- Lua list reads with the person's lists section laid over it, written once at load, step 1.4f.
+    if bridgeModule and type(bridgeModule.shareEach) == "function" and swift and swift.barShare then
+      bridgeModule:shareEach("keys", function(identity)
+        for contextName, owner in pairs(contextOwners) do
+          if owner == identity then
+            return hintsLib.appShare(contextName, plan, hintsDeps, { flatten = swift.barShare,
+              methodFor = navMethodFor, keycode = function(key) return hs.keycodes.map[key] end })
+          end
+        end
+        return nil, "no list context is owned by " .. tostring(identity)
+      end)
+    end
     wireShadows(bridgeModule, modules, wiredRegistry, chooserAtom.rank,
       chooserAtom.matchers and chooserAtom.matchers[policy.matcher])
   end

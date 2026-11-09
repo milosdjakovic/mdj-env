@@ -1,6 +1,6 @@
 // The stage, the one thing the chooser panel talks to, docs/DESIGN-APP.md. It holds what every list
 // shares and no list decides, the query and its generation, the highlight, the slots, Command and a
-// digit, Return and the action on Command and Return, the empty text, the icons and the redraw that
+// digit, Return and the keys its field answers, Bars.swift, the empty text, the icons and the redraw that
 // skips an answer that changed nothing, so a source only answers rows and effects and never meets
 // the panel. The panel is the swift chooser's own, OlmChooser, in the swift chooser's own look,
 // Look.swift.
@@ -45,6 +45,12 @@ public final class Stage {
   private var task: Task<Void, Never>?
   // The swift chooser's look as the bridge last wrote it, read on every open.
   private var look: Look?
+  // The bar under the list and whether its info pane is open, Bars.swift, read on every open.
+  private var bars = Bars()
+  private var bar: BottomBar? { bars.bar }
+  private var infoOpen = false
+  // The status the last redraw showed, so a redraw for the bar alone keeps it.
+  private var status: String?
   // Each file's icon once it has been drawn, so a row is sent with its icon whenever it has one.
   // A row sent without one is drawn blank until the list asks for it, which flickered every icon
   // on every keystroke, reported in the 1.3d trial on 2026-11-08.
@@ -98,6 +104,8 @@ public final class Stage {
     generation += 1
     task?.cancel()
     look = Look.read()
+    bars = Bars.read(next.manifest.name)
+    infoOpen = false
     resetPane()
     pane = nil
     if let look, let screen = Look.screen(for: mode) {
@@ -189,6 +197,7 @@ public final class Stage {
     revealPending = false
     revealTask?.cancel()
     heldPaint = nil
+    infoOpen = false
     tell(nil)
     guard panel.isVisible || waiting else { return }
     generation += 1
@@ -339,7 +348,10 @@ public final class Stage {
   // Command and their digit wherever the list scrolls, the selected row Return, and a typed query
   // with no rows says so in the canvas view's words, or the source's status where it has one.
   private func apply(status: String?) {
+    self.status = status
     var state = ViewState()
+    state.bottomBar = bar
+    state.infoOpen = infoOpen && bar != nil
     state.placeholder = level?.placeholder ?? ""
     state.highlight = highlight
     state.lineBreak = level?.titleLineBreak.map { ViewState.lineBreak($0) } ?? look?.lineBreak ?? .byTruncatingTail
@@ -436,6 +448,7 @@ public final class Stage {
     case "selectPrev": panel.move(-1)
     case "hide": hide()
     case "insertSelected": act(on: highlight)
+    case "showInfo": toggleInfo()
     case "scrollPreviewDown", "scrollPreviewUp":
       if pane != nil, previewShown != nil {
         paneHost?.scrollBy(name == "scrollPreviewDown" ? Self.paneScrollStep : -Self.paneScrollStep)
@@ -447,6 +460,14 @@ public final class Stage {
         NSLog("Olm: the list verb %@ is not run by the app yet", name)
       }
     }
+  }
+
+  // The info pane over the list, opened by Command and ?, Hyper and its key or the bar's button,
+  // and closed by the same or a press in the list, as the engine's toggleInfo and closeInfo do.
+  private func toggleInfo() {
+    guard bar != nil, panel.isVisible else { return }
+    infoOpen.toggle()
+    apply(status: status)
   }
 
   // How far one scroll key moves the pane, chooser.lua's PANE_SCROLL_STEP.
@@ -465,13 +486,13 @@ public final class Stage {
       act(on: slot + 1)
       return true
     }
-    guard code == 36 || code == 76 else { return false }
-    if event.flags.contains(.maskCommand) {
-      // The manifest's action on Command and Return, reveal for file search.
-      let action = source?.manifest.actions.first { $0.chord == ["cmd", "return"] }
-      if let action { act(on: highlight, action: action.id) }
+    // A key the list's own field answers in the Lua list, from the share, Command and Return
+    // revealing the file and Command and ? the info pane, run as the verb Hammerspoon would send.
+    if let verb = bars.verb(code: code, flags: event.flags), let shown {
+      self.verb(shown, verb)
       return true
     }
+    guard code == 36 || code == 76 else { return false }
     act(on: highlight)
     return true
   }
@@ -497,6 +518,12 @@ public final class Stage {
       if !images.isEmpty { panel.setImages(images) }
     case "listKey":
       if case .bytes(let data)? = args.first { return listKey(data) }
+    case "toggleInfo":
+      toggleInfo()
+    case "closeInfo":
+      if infoOpen { toggleInfo() }
+    case "bottomBarAction":
+      if case .string(let name)? = args.first, let shown { verb(shown, name) }
     default:
       break
     }

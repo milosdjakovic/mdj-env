@@ -36,6 +36,7 @@ hs = {
   fs = { attributes = function(path) return present[path] and "directory" or nil end,
     mkdir = function() return true end },
   json = { encode = function(v)
+    if v.bar then return "{\"bar\":{\"title\":\"" .. tostring(v.bar.title) .. "\"}}" end
     if v.query then return "{\"id\":" .. v.id .. ",\"query\":\"" .. v.query .. "\",\"keys\":" .. #v.keys .. "}" end
     return "{\"types\":" .. tostring(v.types and "t" or "none") .. "}"
   end },
@@ -149,6 +150,19 @@ eq(io.open(run .. "/look.json") == nil, true, "a share that answers nil is not w
 eq(#said, 1, "its reason is said once")
 b:share("raises", function() error("boom") end)
 eq(io.open(run .. "/raises.json") == nil, true, "a share that raises is not written")
+
+-- One share per served tool, step 1.4f, named the tool lowercased and the suffix, built by the root.
+b = fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, serves = { "fileSearch" } })
+local built = {}
+b:shareEach("keys", function(identity) built[#built + 1] = identity; return { bar = { title = identity } } end)
+eq(table.concat(built, ","), "fileSearch", "shareEach builds once for each served tool, by its identity")
+f = io.open(run .. "/filesearchkeys.json")
+eq(f and f:read("a"), '{"bar":{"title":"fileSearch"}}', "and writes it as the tool lowercased and the suffix")
+if f then f:close() end
+built = {}
+fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, serves = {} })
+  :shareEach("keys", function(identity) built[#built + 1] = identity; return {} end)
+eq(#built, 0, "a machine serving nothing builds no keys share")
 
 -- The shadow of step 1.3e. It is off unless the piece is on and the app built, it hands a list over
 -- only once it has settled, never while it searches, and never the same query twice running.

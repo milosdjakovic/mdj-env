@@ -361,6 +361,35 @@ function obj.bottomBarModel(contextName, plan, deps)
     state = (panelRow and "panel | " or "") .. table.concat(parts, " | ") }
 end
 
+--- hints.appShare(contextName, plan, deps, opts) -> { bar, fieldKeys }
+--- What Olm.app needs to show a served list's keys as the Lua list shows them, step 1.4f,
+--- docs/DESIGN-APP-LIST-KEYS.md. bar is bottomBarModel for the context at rest, flattened by
+--- opts.flatten, each right side entry's action turned into the verb the app runs through
+--- opts.methodFor, lib/nav.lua's three renames. fieldKeys is every binding the open list's own field
+--- answers, leader false, as { code, mods, verb }, code through opts.keycode, since Hammerspoon's
+--- field watcher serves only its own lists' fields and the app's field answers these itself. A
+--- binding a live gate holds back is judged once here, which is exact for a list whose bindings
+--- carry no gate beyond the list being open, and stage 2's live bar is the answer for one that does.
+function obj.appShare(contextName, plan, deps, opts)
+  opts = opts or {}
+  local methodFor = opts.methodFor or {}
+  local function verbOf(action) return action and (methodFor[action] or action) or nil end
+  local model = obj.bottomBarModel(contextName, plan, deps)
+  local bar = opts.flatten and opts.flatten(model) or nil
+  for _, entry in ipairs(bar and bar.right or {}) do entry.action = verbOf(entry.action) end
+  local fieldKeys = {}
+  local ctx = plan and plan.contexts and plan.contexts[contextName]
+  for _, b in ipairs(ctx and ctx.bindings or {}) do
+    if b.leader == false and b.chord ~= false and b.key and bindingActive(b, deps) then
+      local code = opts.keycode and opts.keycode(b.key)
+      if code then
+        fieldKeys[#fieldKeys + 1] = { code = code, mods = b.mods or {}, verb = verbOf(b.action) }
+      end
+    end
+  end
+  return { bar = bar, fieldKeys = fieldKeys }
+end
+
 --- obj.redundantKeys(model) -> labels. The info pane's rule as a check over a bottomBarModel answer,
 --- every info pane entry whose action the bar already carries, on its right side or as the keys
 --- group's own chord. Empty for every model bottomBarModel builds, which the tests hold it to.

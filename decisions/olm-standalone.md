@@ -381,3 +381,10 @@ list, and until then that list stays on Lua.
   drawing the list on row one between giving the query back and putting the row back, a flicker
   through the first row's preview on every verb chosen there, so the row now comes back in the
   same turn and a chosen verb answers stay.
+- 2026-11-09 19:10. Piece two of step 1.4f built, the bar, the info pane and the field keys of a
+  list Olm.app serves, from a share the bridge writes at load, `<tool>keys.json`, as the design
+  note decided. The bar is read in Swift through the shared field protocol, so Hammerspoon's panel
+  and the app read it alike, rather than a second JSON reader beside the Lua one. The info icon
+  crosses as a PNG data URL drawn by the Lua resolver, rather than an SF Symbol name the app would
+  draw, since a person whose icon set is emoji would then see a different icon in the app. The
+  app's own Command and Return lookup is gone, the share's field keys answering it.

@@ -156,6 +156,19 @@ function obj:share(name, value)
   self:_write(name, value)
 end
 
+--- obj:shareEach(suffix, build) writes one share per tool this machine serves, named the tool
+--- lowercased and suffix, build(identity) answering its table, the keys a served list shows, step
+--- 1.4f. The bridge knows which tools it serves and nothing of what a share holds.
+function obj:shareEach(suffix, build)
+  if type(suffix) ~= "string" or type(build) ~= "function" then return end
+  local names = {}
+  for identity in pairs(self._serves) do names[#names + 1] = identity end
+  table.sort(names)
+  for _, identity in ipairs(names) do
+    self:_write(identity:lower() .. suffix, function() return build(identity) end)
+  end
+end
+
 --- obj:placeWith(fn) takes the function answering Olm's placement choice, activeWindow or cursor,
 --- lib/overlaydisplay.lua's mode, asked at every press so a URL opens the app's list on the screen
 --- the Lua one would open on.
