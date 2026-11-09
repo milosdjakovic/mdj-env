@@ -399,3 +399,9 @@ list, and until then that list stays on Lua.
   actions pane keeps its own keys, moving, Return, typing to filter and its toggle, and any other
   list key closes it first through the root's claim. The app's actions pane is piece three and
   takes the same rule.
+- 2026-11-09 22:20. Milos asked, during the same trial, that the pointer follow the rule too. While
+  the info pane or the actions pane is open the list behind it takes no hover, so its highlight
+  and its preview hold, a scroll anywhere but on the pane closes the pane and moves nothing, and a
+  press behind the actions pane closes it and chooses nothing, as a press behind the info pane
+  already did. The bar keeps its own presses. One engine word, closePanes, closes whichever pane is
+  open, asked by the Lua canvas, the native panel through the swift view and the app's stage alike.

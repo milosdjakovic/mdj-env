@@ -616,6 +616,8 @@ local handlers = {
   end,
   -- A press in the panel away from the open info pane, which closes it and does nothing else.
   closeInfo = function(v) v.engine:closeInfo() end,
+  -- A scroll anywhere but on an open pane, or a press on the list behind the actions pane.
+  closePanes = function(v) v.engine:closePanes() end,
   choose = function(v, index) v.engine:chooseIndex(index) end,
   rightClick = function(v, index) v.engine:rightClickIndex(index) end,
   -- A native scroll moved the viewport, so the engine's model follows it and the rows it brings

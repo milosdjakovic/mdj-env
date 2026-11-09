@@ -554,7 +554,7 @@ public final class Stage {
       if case .bytes(let data)? = args.first { return listKey(data) }
     case "toggleInfo":
       toggleInfo()
-    case "closeInfo":
+    case "closeInfo", "closePanes":
       closeInfo()
     case "bottomBarAction":
       if case .string(let name)? = args.first, let shown { verb(shown, name) }
