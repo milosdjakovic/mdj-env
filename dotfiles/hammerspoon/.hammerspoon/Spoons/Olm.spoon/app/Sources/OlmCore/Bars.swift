@@ -9,7 +9,8 @@ import CoreGraphics
 import Foundation
 @preconcurrency @testable import OlmChooser
 
-// What the share holds for one tool, the bar and the keys the list's own field answers.
+// What the share holds for one tool, the bar, the actions pane's rows and the keys the list's own
+// field answers.
 struct Bars {
   // A key the open list's field answers, by virtual key code and the modifiers it is pressed with
   // exactly, and the verb it runs, Command and Return Reveal in Finder, Command and ? the info pane.
@@ -18,7 +19,20 @@ struct Bars {
     let mods: Set<String>
     let verb: String
   }
+  // A row of the actions pane, piece three, drawn as the Lua pane draws it, with the verb it runs,
+  // the applies gate the source answers over the row the pane opened on, and whether the verb asks
+  // first or offers choices, the levels the Lua pane opens.
+  struct ActionRow {
+    let row: Row
+    let verb: String
+    let applies: String?
+    let confirm: Bool
+    let choices: Bool
+  }
   var bar: BottomBar?
+  // The same bar while the actions pane is open, its Return label empty for the lit row's title.
+  var panelBar: BottomBar?
+  var actions: [ActionRow] = []
   var fieldKeys: [FieldKey] = []
 
   // What the bridge last wrote for the tool, or nothing when there is none, so the list shows no
@@ -30,6 +44,12 @@ struct Bars {
     else { return Bars() }
     var out = Bars()
     if let bar = doc["bar"] as? [String: Any] { out.bar = BottomBar(JSONFields(bar)) }
+    if let bar = doc["panelBar"] as? [String: Any] { out.panelBar = BottomBar(JSONFields(bar)) }
+    for item in doc["actions"] as? [[String: Any]] ?? [] {
+      guard let verb = item["action"] as? String else { continue }
+      out.actions.append(ActionRow(row: Row(JSONFields(item)), verb: verb, applies: item["applies"] as? String,
+        confirm: item["confirm"] as? Bool ?? false, choices: item["choices"] as? Bool ?? false))
+    }
     for item in doc["fieldKeys"] as? [[String: Any]] ?? [] {
       guard let code = (item["code"] as? NSNumber)?.int64Value, let verb = item["verb"] as? String else { continue }
       out.fieldKeys.append(FieldKey(code: code, mods: Set(item["mods"] as? [String] ?? []), verb: verb))

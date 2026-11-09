@@ -49,9 +49,23 @@ public final class Stage {
   private var bars = Bars()
   private var bar: BottomBar? { bars.bar }
   private var infoOpen = false
-  // An Escape that closed the info pane, so its autorepeat does not go on to close the list, as
-  // the engine's _escapeClosedKeys does.
+  // An Escape that closed a pane, so its autorepeat does not go on to close the list, as the
+  // engine's _escapeClosedKeys does.
   private var escapeClosedInfo = false
+  // The actions pane over the list, piece three, its rows the share's whose gate the source answers
+  // yes to over the row it opened on. What is typed while it is open filters its rows, and the
+  // list's own text and highlight are kept and given back as it closes, host/actionspane's _leave.
+  private struct ActionsPane {
+    var rows: [Bars.ActionRow]
+    // The rows the typed text kept, indices into rows, in ranked order, and the lit one, one based.
+    var shown: [Int]
+    var lit: Int
+    var query = ""
+    let savedText: String
+    let savedHighlight: Int
+  }
+  private var actionsPane: ActionsPane?
+  private var actionsGeneration = 0
   // The status the last redraw showed, so a redraw for the bar alone keeps it.
   private var status: String?
   // Each file's icon once it has been drawn, so a row is sent with its icon whenever it has one.
@@ -109,6 +123,8 @@ public final class Stage {
     look = Look.read()
     bars = Bars.read(next.manifest.name)
     infoOpen = false
+    actionsPane = nil
+    actionsGeneration += 1
     resetPane()
     pane = nil
     if let look, let screen = Look.screen(for: mode) {
@@ -201,6 +217,8 @@ public final class Stage {
     revealTask?.cancel()
     heldPaint = nil
     infoOpen = false
+    actionsPane = nil
+    actionsGeneration += 1
     tell(nil)
     guard panel.isVisible || waiting else { return }
     generation += 1
@@ -357,6 +375,18 @@ public final class Stage {
     state.infoOpen = infoOpen && bar != nil
     state.placeholder = level?.placeholder ?? ""
     state.highlight = highlight
+    // Over the actions pane the bar is the share's open bar, Return labelled by the lit row as
+    // bottomBarModel labels it, and the list behind holds the highlight it had.
+    if let actionsPane, var open = bars.panelBar {
+      let lit = actionsPane.lit >= 1 && actionsPane.lit <= actionsPane.shown.count
+        ? actionsPane.rows[actionsPane.shown[actionsPane.lit - 1]].row.title : ""
+      if !open.right.isEmpty { open.right[0].label = lit.isEmpty ? "Run" : lit }
+      state.bottomBar = open
+      state.infoOpen = false
+      state.highlight = nil
+      state.actions = actionsPane.shown.map { actionsPane.rows[$0].row }
+      state.actionsHighlight = actionsPane.lit
+    }
     state.lineBreak = level?.titleLineBreak.map { ViewState.lineBreak($0) } ?? look?.lineBreak ?? .byTruncatingTail
     if look?.showNumbers == true, !rows.isEmpty { state.slots = Array(1...min(9, rows.count)) }
     state.empty = rows.isEmpty && (status != nil || !text.isEmpty)
@@ -425,6 +455,9 @@ public final class Stage {
       case .revealFile(let path): NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
       case .openURL(let text): if let url = URL(string: text) { NSWorkspace.shared.open(url) }
       case .reopen: if let source { open(source, query: "", screen: screenMode) }
+      case .copyText(let text):
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
       }
     }
   }
@@ -449,7 +482,9 @@ public final class Stage {
     // Every verb but the info pane's own closes it first, a key that acts on the list being a
     // person done reading it, stated by Milos in piece two's trial on 2026-11-09.
     if name != "showInfo" { closeInfo() }
+    if actionsPane != nil, actionsVerb(name) { return }
     switch name {
+    case "openActionsPane": toggleActions()
     case "selectNext": panel.move(1)
     case "selectPrev": panel.move(-1)
     case "hide": hide()
@@ -480,6 +515,123 @@ public final class Stage {
     if infoOpen { toggleInfo() }
   }
 
+  // MARK: The actions pane, piece three
+
+  // A row the app can run, Return's own verb or one of the source's actions. A verb that asks
+  // first or offers choices opens a level in the Lua pane, which the app does not have yet, and
+  // file search declares none, so such a row is left out and said once.
+  private func runnable(_ row: Bars.ActionRow) -> Bool {
+    guard let source else { return false }
+    if row.confirm || row.choices {
+      if unknownVerbs.insert(row.verb).inserted { NSLog("Olm: the actions pane has no level for %@ yet", row.verb) }
+      return false
+    }
+    return row.verb == "insertSelected" || source.manifest.actions.contains(where: { $0.id == row.verb })
+  }
+
+  // Opens the pane over the highlighted row, or closes it. Opening it closes the info pane, as the
+  // engine's toggleInfo and the actions pane never stand open together.
+  private func toggleActions() {
+    if actionsPane != nil {
+      closeActions()
+      return
+    }
+    guard bars.panelBar != nil, panel.isVisible, let source, highlight >= 1, highlight <= rows.count else { return }
+    closeInfo()
+    let pick = Pick(key: rows[highlight - 1].key, query: text)
+    let candidates = bars.actions.filter { runnable($0) }
+    actionsGeneration += 1
+    let mine = actionsGeneration
+    Task {
+      var kept: [Bars.ActionRow] = []
+      for row in candidates {
+        if let gate = row.applies, !(await source.applies(gate, on: pick)) { continue }
+        kept.append(row)
+      }
+      guard mine == self.actionsGeneration, self.panel.isVisible, self.actionsPane == nil else { return }
+      self.actionsPane = ActionsPane(rows: kept, shown: Array(kept.indices), lit: kept.isEmpty ? 0 : 1,
+        savedText: self.text, savedHighlight: self.highlight)
+      self.panel.setText("")
+      self.apply(status: self.status)
+    }
+  }
+
+  // The list's own text and highlight back, the rows behind never having changed.
+  private func closeActions() {
+    guard let actionsPane else { return }
+    self.actionsPane = nil
+    actionsGeneration += 1
+    panel.setText(actionsPane.savedText)
+    text = actionsPane.savedText
+    highlight = actionsPane.savedHighlight
+    apply(status: status)
+  }
+
+  private func litActions(_ delta: Int) {
+    guard var pane = actionsPane, !pane.shown.isEmpty else { return }
+    pane.lit = min(max(1, pane.lit + delta), pane.shown.count)
+    actionsPane = pane
+    apply(status: status)
+  }
+
+  // A row of the pane chosen, by Return, a press or its own key. The pane closes first, giving the
+  // list back its row, and the verb then runs on that row, as the Lua pane's _leave runs it.
+  private func chooseActions(_ index: Int) {
+    guard let pane = actionsPane, index >= 1, index <= pane.shown.count, let shown else { return }
+    let verb = pane.rows[pane.shown[index - 1]].verb
+    closeActions()
+    if verb == "insertSelected" { act(on: highlight) } else { self.verb(shown, verb) }
+  }
+
+  // What the typed text keeps of the pane's rows, by the shared search, as the Lua pane ranks its
+  // own rows with the instance's matcher.
+  private func filterActions(_ query: String) {
+    guard var pane = actionsPane else { return }
+    pane.query = query
+    actionsPane = pane
+    let answer = RowsAnswer(rows: pane.rows.enumerated().map {
+      OlmKit.Row(key: String($0.offset), title: $0.element.row.title, filterText: $0.element.row.title)
+    })
+    let mine = actionsGeneration
+    let searcher = searcher
+    Task {
+      let ranked = await searcher.rank(answer, query: query, level: Level())
+      guard mine == self.actionsGeneration, var pane = self.actionsPane, pane.query == query else { return }
+      pane.shown = ranked.rows.compactMap { Int($0.key) }
+      pane.lit = pane.shown.isEmpty ? 0 : 1
+      self.actionsPane = pane
+      self.apply(status: self.status)
+    }
+  }
+
+  // A verb while the pane is open, answered true when the pane took it. Moving and Return are the
+  // pane's, its own key closes it, and a key on a verb the pane lists chooses that row, so the key
+  // a row shows does what the row does. Any other key closes the pane and goes on to the list,
+  // stated by Milos on 2026-11-09, and the info pane's key closes it and opens the info pane.
+  private func actionsVerb(_ name: String) -> Bool {
+    guard let pane = actionsPane else { return false }
+    switch name {
+    case "selectNext": litActions(1)
+    case "selectPrev": litActions(-1)
+    case "insertSelected": chooseActions(pane.lit)
+    case "openActionsPane": closeActions()
+    default:
+      if let at = pane.rows.firstIndex(where: { $0.verb == name }) {
+        if let shownAt = pane.shown.firstIndex(of: at) {
+          chooseActions(shownAt + 1)
+        } else {
+          // Listed but filtered out by what was typed, still the row's own key.
+          closeActions()
+          if let shown { verb(shown, name) }
+        }
+        return true
+      }
+      closeActions()
+      return false
+    }
+    return true
+  }
+
   // Escape closes the info pane when it is open and the list otherwise. A held Escape that closed
   // the pane goes on repeating, and every repeat of that press is swallowed until a fresh one.
   private func dismissKey(_ data: Data?) {
@@ -487,6 +639,11 @@ public final class Stage {
       .map { $0.getIntegerValueField(.keyboardEventAutorepeat) != 0 } ?? false
     if repeating && escapeClosedInfo { return }
     escapeClosedInfo = false
+    if actionsPane != nil {
+      escapeClosedInfo = true
+      closeActions()
+      return
+    }
     if infoOpen {
       escapeClosedInfo = true
       closeInfo()
@@ -509,6 +666,7 @@ public final class Stage {
     // list shows its numbers.
     if event.flags.contains(.maskCommand), look?.showNumbers == true, let slot = Self.digitKeys.firstIndex(of: code) {
       closeInfo()
+      closeActions()
       act(on: slot + 1)
       return true
     }
@@ -520,6 +678,10 @@ public final class Stage {
     }
     guard code == 36 || code == 76 else { return false }
     closeInfo()
+    if let pane = actionsPane {
+      chooseActions(pane.lit)
+      return true
+    }
     act(on: highlight)
     return true
   }
@@ -532,9 +694,25 @@ public final class Stage {
       hide()
     case "text":
       closeInfo()
-      if case .string(let text)? = args.first { search(text) }
+      if case .string(let text)? = args.first {
+        if actionsPane != nil { filterActions(text) } else { search(text) }
+      }
     case "emptyBackspace":
       closeInfo()
+      closeActions()
+    case "leftover":
+      // The arrows over the actions pane move its lit row, the native list leaving them to it.
+      if actionsPane != nil, case .bytes(let data)? = args.first,
+        let event = CGEvent(withDataAllocator: nil, data: data as CFData) {
+        let code = event.getIntegerValueField(.keyboardEventKeycode)
+        if code == 125 { litActions(1) } else if code == 126 { litActions(-1) }
+      }
+    case "hover":
+      if case .int(let index)? = args.first, var pane = actionsPane, index >= 1, index <= pane.shown.count, index != pane.lit {
+        pane.lit = index
+        actionsPane = pane
+        apply(status: status)
+      }
     case "highlighted":
       // A move by key closes the info pane, a pointer passing over a row does not.
       if args.count > 1, case .bool(false) = args[1] { closeInfo() }
@@ -543,7 +721,9 @@ public final class Stage {
         settlePreview()
       }
     case "choose":
-      if case .int(let index)? = args.first { act(on: index) }
+      if case .int(let index)? = args.first {
+        if actionsPane != nil { chooseActions(index) } else { act(on: index) }
+      }
     case "wantIcons":
       guard case .string(let list)? = args.first else { break }
       let images = list.split(separator: ",").compactMap { Int($0) }
@@ -553,9 +733,13 @@ public final class Stage {
     case "listKey":
       if case .bytes(let data)? = args.first { return listKey(data) }
     case "toggleInfo":
+      closeActions()
       toggleInfo()
-    case "closeInfo", "closePanes":
+    case "closeInfo":
       closeInfo()
+    case "closePanes":
+      closeInfo()
+      closeActions()
     case "bottomBarAction":
       if case .string(let name)? = args.first, let shown { verb(shown, name) }
     default:

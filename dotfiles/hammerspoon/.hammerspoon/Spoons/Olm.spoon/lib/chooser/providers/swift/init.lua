@@ -255,6 +255,10 @@ local LOOK_SCREEN = { x = 0, y = 0, w = 1920, h = 1200 }
 --- The bottom bar model as Olm.app reads it, view.lua's barShare.
 function M.barShare(model) return SwiftView.barShare(model) end
 
+--- M.actionsShare(rows) -> list
+--- The actions pane's rows as Olm.app reads them, view.lua's actionsShare.
+function M.actionsShare(rows) return SwiftView.actionsShare(rows) end
+
 function M.look(config)
   if not UIKIT then return nil, "the provider was configured without the UI kit" end
   local seen = {}

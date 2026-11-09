@@ -405,3 +405,16 @@ list, and until then that list stays on Lua.
   press behind the actions pane closes it and chooses nothing, as a press behind the info pane
   already did. The bar keeps its own presses. One engine word, closePanes, closes whichever pane is
   open, asked by the Lua canvas, the native panel through the swift view and the app's stage alike.
+- 2026-11-09 23:05. Piece three of step 1.4f built, the actions pane in the app's file search. Its
+  rows and its open bar come from the same share as the bar, rowsFor and bottomBarModel with the pane
+  open, rather than a second list of verbs written in Swift, so the words, icons and keys are the Lua
+  pane's. A row the app cannot run is left out rather than shown dead, which keeps Quick Look until
+  1.4c and Into Folder and Up a Level until 1.4e off the app's pane, written down so the parity list
+  of 1.5 asks for them. The applies gates are answered by the source through a new ListSource word,
+  as the Lua surface answers them through its colon methods.
+- 2026-11-09 23:52. Piece three passed its hand trial and merged. Milos asked in it that the actions
+  pane's search leave the list's input field, in every list. The pane carries its own search field
+  as its bottom line, at the size of the pane's rows, its placeholder Search Actions, and the caret
+  moves into it while the pane is open, so the list's field keeps its text and nothing has to be
+  given back on close. Both fields derive from one base field made customizable, rather than a
+  second text field written beside the first. Built next, before Command and a digit.

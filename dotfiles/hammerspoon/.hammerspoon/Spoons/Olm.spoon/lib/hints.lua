@@ -361,7 +361,7 @@ function obj.bottomBarModel(contextName, plan, deps)
     state = (panelRow and "panel | " or "") .. table.concat(parts, " | ") }
 end
 
---- hints.appShare(contextName, plan, deps, opts) -> { bar, fieldKeys }
+--- hints.appShare(contextName, plan, deps, opts) -> { bar, fieldKeys, panelBar, actions }
 --- What Olm.app needs to show a served list's keys as the Lua list shows them, step 1.4f,
 --- docs/DESIGN-APP-LIST-KEYS.md. bar is bottomBarModel for the context at rest, flattened by
 --- opts.flatten, each right side entry's action turned into the verb the app runs through
@@ -370,6 +370,9 @@ end
 --- field watcher serves only its own lists' fields and the app's field answers these itself. A
 --- binding a live gate holds back is judged once here, which is exact for a list whose bindings
 --- carry no gate beyond the list being open, and stage 2's live bar is the answer for one that does.
+--- panelBar is the same bar while the actions pane is open, Return's label empty for the app to fill
+--- with the lit row's title, and actions the pane's rows from rowsFor, flattened by opts.flattenRows,
+--- each with its verb and the name of its applies gate, which the app's source answers.
 function obj.appShare(contextName, plan, deps, opts)
   opts = opts or {}
   local methodFor = opts.methodFor or {}
@@ -377,6 +380,14 @@ function obj.appShare(contextName, plan, deps, opts)
   local model = obj.bottomBarModel(contextName, plan, deps)
   local bar = opts.flatten and opts.flatten(model) or nil
   for _, entry in ipairs(bar and bar.right or {}) do entry.action = verbOf(entry.action) end
+  -- The bar while the actions pane is open, by this file's own rule for that case, Return's label
+  -- left empty for the app to fill with the lit row's title, and the pane's rows, piece three.
+  local panelDeps = setmetatable({ actionsPane = function() return { title = "" } end,
+    actionsPaneTitle = function() return nil end }, { __index = deps or {} })
+  local panelBar = opts.flatten and opts.flatten(obj.bottomBarModel(contextName, plan, panelDeps)) or nil
+  for _, entry in ipairs(panelBar and panelBar.right or {}) do entry.action = verbOf(entry.action) end
+  local actions = opts.flattenRows and opts.flattenRows(obj.rowsFor(contextName, plan, deps)) or nil
+  for _, row in ipairs(actions or {}) do row.action = verbOf(row.action) end
   local fieldKeys = {}
   local ctx = plan and plan.contexts and plan.contexts[contextName]
   for _, b in ipairs(ctx and ctx.bindings or {}) do
@@ -387,7 +398,7 @@ function obj.appShare(contextName, plan, deps, opts)
       end
     end
   end
-  return { bar = bar, fieldKeys = fieldKeys }
+  return { bar = bar, fieldKeys = fieldKeys, panelBar = panelBar, actions = actions }
 end
 
 --- obj.redundantKeys(model) -> labels. The info pane's rule as a check over a bottomBarModel answer,

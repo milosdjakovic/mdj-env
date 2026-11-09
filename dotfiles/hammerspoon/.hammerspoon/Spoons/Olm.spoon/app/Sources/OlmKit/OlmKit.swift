@@ -128,6 +128,8 @@ public enum Effect: Sendable, Equatable {
   /// Opens the same list again from an empty input field, after the source changed what it lists,
   /// as file search does once its folder permissions are answered.
   case reopen
+  /// Puts the text on the clipboard, a plain write anything watching the clipboard sees.
+  case copyText(String)
 }
 
 /// One of the eight colour roles lib/ui/style.lua resolves for the half the system is on. A plugin
@@ -310,6 +312,10 @@ public protocol ListSource: Actor {
   /// nothing more is coming. The stage draws it where the pane is scrolled, as the Lua pane's
   /// repaint does.
   func previewLanded(_ pick: Pick) async -> Preview?
+  /// Whether the actions pane lists a row whose applies gate is this name over the row it opened
+  /// on, the Lua surface's colon method of the same name, docs/PLAN-ACTION-PANEL.md. A gate the
+  /// source does not know answers true, as the Lua pane shows a verb its surface cannot answer.
+  func applies(_ gate: String, on pick: Pick) async -> Bool
   /// The list was closed.
   func close() async
 }
@@ -319,4 +325,6 @@ extension ListSource {
   public func preview(_ pick: Pick) async -> Preview? { nil }
   /// A source whose previews are never pending has nothing more to say.
   public func previewLanded(_ pick: Pick) async -> Preview? { nil }
+  /// A source with no gates lists every row.
+  public func applies(_ gate: String, on pick: Pick) async -> Bool { true }
 }

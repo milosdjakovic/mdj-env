@@ -179,3 +179,24 @@ Lua bar uses, so the icon set a person picks reaches the app too. The bar is rea
 reader over `Fields.swift`'s protocol, which Hammerspoon's panel now reads through as well, so the
 two cannot read it two ways. The field keys replace the app's own Command and Return, and Command
 and ? opens the info pane as it does in the Lua list. The actions pane's rows are piece three.
+
+## How piece three was built
+
+The share gained two fields. `actions` is `rowsFor`'s answer for the context, flattened by the
+swift view as it sends the Lua pane's rows, each icon a PNG data URL, with the verb, the name of its
+`applies` gate and whether it confirms or offers choices. `panelBar` is `bottomBarModel` with the
+pane open, so the open bar follows the Lua rule, and the app writes the lit row's title into its
+Return label. Both are read through `Fields.swift`, whose row reader Hammerspoon's panel now reads
+through too. The gates are a new `ListSource` word, `applies`, which file search answers in Swift.
+It answers no for `isFolder` and `isBrowsing` until the app's folder search, 1.4e, so Into Folder
+and Up a Level stay off the app's pane until then, and Quick Look is not one of the source's
+actions until 1.4c, so its row is left out too. A row the app cannot run is never listed. A verb
+that confirms or offers choices opens a level in the Lua pane, which the app has not built, and
+file search declares none. Copy Path is a new effect, a plain clipboard write.
+
+The stage holds the pane the way `host/actionspane` does. The field is cleared as it opens and
+filters its rows by the shared search, the list's text and highlight are kept and given back as it
+closes, and a chosen row closes the pane first and then runs on the row it opened over. Moving,
+Return and its own key are the pane's, a key on a verb it lists chooses that row, and any other
+key, a scroll or a press behind it closes it, as the Lua pane now does.
+
