@@ -23,7 +23,12 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 1.3e, the shadow.
+Next. 1.3e, the shadow, read its log and explain every difference. The recommended order after
+it, written 2026-11-09 after 1.4j. 1.4f first, the bottom bar, the actions pane, the info pane,
+Copy Path and the list keys, since it is the chooser itself rather than file search, it unblocks
+the preview pane's scroll keys and 1.4i, and every later tool reuses it. Then 1.4c Quick Look,
+1.4h `.app`, 1.4e folder search, 1.4d frecency, 1.4i Download, 1.4g short queries once 1.3e is
+read, and 1.5 parity and the flip last.
 
 Stage 0, contracts
 - [x] 0.1 The decision record, 2026-11-05
