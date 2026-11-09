@@ -23,13 +23,11 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 1.3e, the shadow, its log read and both faults fixed, with 1.4g built beside it, waiting on
-round two of Milos's trial and a clean shadow from the log's next line. The recommended order after
-it, written 2026-11-09 after 1.4j. 1.4f first, the bottom bar, the actions pane, the info pane,
-Copy Path and the list keys, since it is the chooser itself rather than file search, it unblocks
-the preview pane's scroll keys and 1.4i, and every later tool reuses it. Then 1.4c Quick Look,
-1.4h `.app`, 1.4e folder search, 1.4d frecency, 1.4i Download, 1.4g short queries once 1.3e is
-read, and 1.5 parity and the flip last.
+Next. 1.4f, then the order written 2026-11-09 after 1.4j, with 1.3e and 1.4g ticked since. 1.4f
+is the bottom bar, the actions pane, the info pane, Copy Path and the list keys, first since it is
+the chooser itself rather than file search, it unblocks the preview pane's scroll keys and 1.4i,
+and every later tool reuses it. Then 1.4c Quick Look, 1.4h `.app`, 1.4e folder search, 1.4d
+frecency, 1.4i Download, and 1.5 parity and the flip last.
 
 Stage 0, contracts
 - [x] 0.1 The decision record, 2026-11-05
@@ -51,8 +49,7 @@ Stage 1, the file search pilot
   - [x] 1.3b Ranking in Swift, `match.lua` and `rank.lua`, the rule and corpus fixtures passing, 2026-11-07
   - [x] 1.3c The index in the app, the helper's sources searching on background work, 2026-11-07
   - [x] 1.3d The app's own list, rows ranked as typed, open and reveal, in the swift chooser's own look, 2026-11-08
-  - [ ] 1.3e The shadow, both sides answering each query and the differences logged
-    Built on main 2026-11-08, the Lua file search asking the app, running over a few days of real use with the piece on.
+  - [x] 1.3e The shadow, both sides answering each query and the differences logged, every one explained and fixed, 2026-11-09
   - [x] 1.3f The three timings against the Lua file search, and a trial, with no flip, 2026-11-08
   - [x] 1.3g The app's structure, `docs/DESIGN-APP.md`, file search moved onto it with nothing a person can see changed, 2026-11-08
 - [x] 1.4a Preview pane, with its scroll keys, the keys themselves carried by 1.4f, 2026-11-08
@@ -61,7 +58,7 @@ Stage 1, the file search pilot
 - [ ] 1.4d Frecency, one owner, the history read but not yet owned
 - [ ] 1.4e Folder search, the scope, the folder aliases, Into Folder and Up a Level
 - [ ] 1.4f The bottom bar, the actions pane, the info pane, Copy Path, and the person's list keys, the preview pane's scroll keys among them
-- [ ] 1.4g Short queries, file search answering under three characters now the app's index can
+- [x] 1.4g Short queries, file search answering from the first letter on both sides, 2026-11-09
 - [ ] 1.4h A type naming a bundle, `.app` listing every app rather than Safari alone, in both file searches
 - [ ] 1.4i Files iCloud has not downloaded, a Download action and the preview pane naming its shortcut, after 1.4f
 - [x] 1.4j Folder permissions asked up front on file search's first open, asked again from the list, and kept across rebuilds, 2026-11-09
@@ -675,6 +672,18 @@ He asked too for the search to start on the first letter, which is 1.4g, so `min
 Result: the dry suite, `test/units.sh` with the typing on cases rewritten, `olm-index-check` with a
 grown text asking again.
 Open: round two of the trial, then the shadow from its next line, and 1.3e and 1.4g are ticked.
+
+**1.3e and 1.4g ticked, 2026-11-09.** Round two of the trial passed, `heelo` quick and slow, one
+letter, two, back to the recent list and a long query typed quickly. Before it, the Lua engine was
+driven headless with no list open, six queries typed at once and one letter at a time a second
+apart, `heelo`, `report`, `scre`, `index.js`, `hello` and `r`, and each ended on the same paths
+both ways, 13, 156, 630, 9, 11 and 2000. The shadow after the second fix, from 12:21 UTC, is the
+same on every search, and its one difference since line 50, `repo` at 12:15 UTC, was six minutes
+before it, the two sides first apart at row 176, the narrow's fault. Its recent list is still
+skipped, which 1.4d answers.
+Result: the shadow clean, the dry suite, `test/units.sh` and `olm-index-check`.
+Open: the shadow keeps running until 1.5. A scoped search hands its first word to fd as typed,
+for 1.4e.
 
 ## Where the facts come from
 
