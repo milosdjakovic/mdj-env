@@ -323,7 +323,7 @@ function obj:_levelRows(verb)
   local rows = {}
   if verb.confirm then
     local title = type(verb.confirm) == "string" and verb.confirm or verb.title
-    rows[1] = { title = "Cancel", icon = "back", iconOwner = self._owner, filterText = "Cancel",
+    rows[1] = { title = "Cancel", icon = "cancel", iconOwner = self._owner, filterText = "Cancel",
                 item = { cancel = true, title = "Cancel" } }
     rows[2] = { title = title, icon = verb.icon, iconOwner = verb.owner, filterText = title,
                 item = { run = verb.action, title = title } }

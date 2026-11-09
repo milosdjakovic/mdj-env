@@ -121,38 +121,37 @@ local function displaysRows(name)
   return out
 end
 
--- The rename screen. The search field is the new name entry, and the top row morphs to
--- Save as the typed name, disabled while the name is empty or already used so Return can
--- never write a bad rename. Then Back.
+-- The rename screen. The input field is the new name, and with nothing typed the level shows no
+-- row, the placeholder saying what to type, then one row, Save as the typed name, or a disabled
+-- one while the name is already used, so Return can never write a bad rename. No Back row, since
+-- Backspace on an empty field leaves, stated by Milos on 2026-11-09.
 local function renameRows(name, query)
   local newName = trim(query)
   local out = {}
   if newName == "" then
-    out[#out + 1] = row("Type a new name", "Rename '" .. name .. "'", "hint", { noop = true }, false)
+    return out
   elseif newName ~= name and cfg.api.exists(newName) then
     out[#out + 1] = row("Name already used", "Choose a name no other profile has", "warn", { noop = true }, false)
   else
     out[#out + 1] = row("Save as '" .. newName .. "'", "Rename '" .. name .. "'", "save",
       { act = "saveRename", name = name, newName = newName }, true)
   end
-  out[#out + 1] = backRow()
   return out
 end
 
--- The capture screen. The search field names the new profile, and the top row morphs to
--- Capture as the typed name, disabled while the name is empty or already used. Then Back.
+-- The capture screen. The input field names the new profile, the same shape as rename, no row
+-- until a name is typed and no Back row.
 local function captureRows(query)
   local newName = trim(query)
   local out = {}
   if newName == "" then
-    out[#out + 1] = row("Type a name", "Name this display arrangement", "hint", { noop = true }, false)
+    return out
   elseif cfg.api.exists(newName) then
     out[#out + 1] = row("Name already used", "Choose a name no other profile has", "warn", { noop = true }, false)
   else
     out[#out + 1] = row("Capture as '" .. newName .. "'", "Save the arrangement attached now", "save",
       { act = "capture", newName = newName }, true)
   end
-  out[#out + 1] = backRow()
   return out
 end
 

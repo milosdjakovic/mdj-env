@@ -36,6 +36,9 @@ return {
   -- Return twice, play since 2026-11-02.
   icons = {
     back = { emoji = "⬅️", sf = "chevron.left" },
+    -- Cancel, which leads a confirm level. Its own mark rather than back's, since it says no to
+    -- the verb rather than leading back a level, stated by Milos on 2026-11-09.
+    cancel = { emoji = "✖️", sf = "xmark" },
     primary = { emoji = "▶️", sf = "play" },
     secondary = { emoji = "⌘", sf = "command" },
     keys = { emoji = "⌨️", sf = "keyboard" },
