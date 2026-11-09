@@ -90,7 +90,7 @@ function place(s, ps) {
 // mdj: every row in the side lists and every tab on the top bar is ROW tall with RADIUS corners.
 const ROW = 28, RADIUS = 7;
 const rowHeight = () => ROW;
-const RAIL_CELL = 32;
+const RAIL_CELL = 28;
 const railCell = (el) => h_flex().flex_none().justify_center().child(el);
 const where = (s, ps) => JSON.stringify([s.machine ?? null, place(s, ps)]);
 const base = (path) => path.replace(/\/+$/, "").split("/").pop();
@@ -508,20 +508,26 @@ export default class Spaces extends View {
       );
   }
 
+  // mdj: a rail row is a pill as wide as the window buttons above, the rail's whole inside, holding only
+  // the avatar, centred. The agents below already show every state, so a space shows none.
   compact({ w, i }, t) {
-    return railCell(h_flex()
+    const colors = shared("space.colors") ?? {};
+    const color = colors[w.id] ?? "ansi6";
+    const fill = color.startsWith("#") ? color : (t[color] ?? t.accent);
+    return h_flex()
       .id(`space-${w.id}`)
       .relative()
-      .w(RAIL_CELL)
+      .w_full()
       .h(ROW)
+      .flex_none()
       .rounded(RADIUS)
-      .justify_center()
       .items_center()
+      .justify_center()
+      .tooltip(w.name)
       .child(card(`space-card-${w.id}`, w.active, t, RADIUS))
       .when(!w.active, (el) => el.hover((s) => s.bg(dimmed(t))))
       .on_click(() => run("space.select", { id: w.id }))
-      .child(div().text_color(w.active ? t.foreground : t.muted).child(String(i + 1)))
-      .child(div().absolute().right(5).text_color(tone(t, w.status)).child(glyph(w.status))));
+      .child(h_flex().size(18).flex_none().rounded(5).bg(fill).items_center().justify_center().text_size(10.5).font_bold().text_color(t.background).child([...w.name][0]?.toUpperCase() ?? "?"));
   }
 
   render() {
@@ -542,9 +548,9 @@ export default class Spaces extends View {
     return splitDrag(v_flex().id("sp-root"), "spaces").relative().overflow_hidden().size_full().min_h(0).bg(t.canvas).text_size(13)
       .on_size_change((s) => setShared("mdj.spaces.h", s.height))
       .child(h_flex().h(26).pl(12).pr(4).items_center().justify_between().text_size(13).font_medium().text_color(t.dim)
-        .when(collapsed, el => el.pl(0).pr(0).justify_center())
+        .when(collapsed, el => el.h(32).pt(4).pl(4).pr(4))
         .when(!collapsed, el => el.child("Spaces"))
-        .child(div().id("space-new").size(26).flex_none().flex().items_center().justify_center().rounded(6).hover(s => s.bg((t.hover === t.canvas ? t.chrome : t.hover)).text_color(t.foreground))
+        .child(div().id("space-new").size(26).when(collapsed, el => el.w_full().h(28).rounded(7)).flex_none().flex().items_center().justify_center().rounded(6).hover(s => s.bg((t.hover === t.canvas ? t.chrome : t.hover)).text_color(t.foreground))
           .on_click(() => run("space.new")).child(svg("mods/workspace-chrome/plus.svg").size(14))))
       // mdj: the list is scrolled by this mod rather than by a scroll area, which tells a mod no offset, so
       // the fades are drawn from the offset the rows are drawn at and cannot drift. 4px inside the clip give

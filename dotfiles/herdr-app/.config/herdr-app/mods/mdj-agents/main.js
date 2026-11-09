@@ -79,13 +79,16 @@ function find(node, id) {
 // The sidebar's rail goes by its width, not a flag: dragging its edge narrows it too.
 const narrow = () => (find(layout(), "sidebar")?.size?.px ?? Infinity) < 160;
 
-// To the rail (on macOS wide enough for the traffic lights), or back to the width it had.
+// To the rail, or back to the width it had. mdj: the rail is a column of 28px cubes in the 4px strips, 36px,
+// narrower than the macOS window buttons, so the pane moves left under them and the tab bar pads itself
+// clear of them and stays where it was.
+const railWidth = () => 36;
 function toggleSidebar() {
   const width = find(layout(), "sidebar")?.size?.px;
   if (!narrow()) setShared("sidebar.width", width);
   // Mods edited before the rail went by width still read the flag.
   setShared("sidebar.collapsed", !narrow());
-  run("layout.resize", { id: "sidebar", px: narrow() ? (shared("sidebar.width") ?? 268) : window()?.platform === "macos" ? 76 : 44 });
+  run("layout.resize", { id: "sidebar", px: narrow() ? (shared("sidebar.width") ?? 276) : railWidth() });
 }
 
 const clean = (s) => (s ?? "").replace(/^[^\p{L}\p{N}]+/u, "").trim();
@@ -131,6 +134,16 @@ function duration(ms) {
 }
 
 // The agent's icon from the app's program table: a one-color glyph or a picture.
+// mdj: the state a rail shows in one 18px slot: the spinner while working, a check when done, a ! when
+// blocked, otherwise what the caller gives, an agent's program icon or nothing for a space.
+function railState(t, status, rest) {
+  const box = h_flex().size(18).flex_none().items_center().justify_center();
+  if (status === "working") return box.child(svg("mods/workspace-chrome/spinner.svg").size(14).text_color(t.working).spin(900));
+  if (status === "done") return box.child(svg("mods/workspace-chrome/check.svg").size(14).text_color(t.done ?? t.foreground));
+  if (status === "blocked") return box.child(div().size(14).rounded(4).bg(t.blocked + "26").text_size(10.5).font_bold().text_color(t.blocked).flex().items_center().justify_center().child("!"));
+  return rest ? box.child(rest) : box;
+}
+
 function icon(p, size, color) {
   if (!p?.icon) return null;
   return p.tint ? svg(p.icon).size(size).flex_none().text_color(color) : image(p.icon).w(size).h(size).flex_none();
@@ -369,17 +382,22 @@ export default class Agents extends View {
       // An agent on another machine (`vps/t7`) says which.
       const machine = a.address.includes("/") ? a.address.split("/")[0] : null;
       if (collapsed) {
+        // mdj: a rail row is a pill as wide as the window buttons above, holding one slot that is the
+        // agent's state: its program's icon while idle, the spinner, a check or a ! otherwise.
         return h_flex()
           .id(`ag-${a.address}`)
+          .relative()
+          .w_full()
           .h(28)
-          .px(8)
           .flex_none()
+          .rounded(7)
           .items_center()
-          .gap(4)
-          .hover((s) => s.bg((t.hover === t.canvas ? t.chrome : t.hover)))
+          .justify_center()
+          .tooltip(String(label(a) || a.program?.name || "agent"))
+          .child(card(`ag-card-${a.address}`, a.focused, t))
+          .when(!a.focused, (el) => el.hover((s) => s.bg(dimmed(t))))
           .on_click(() => run("pane.focus", { pane: a.pane }))
-          .child(div().flex_1().min_w(0).whitespace_nowrap().text_right().text_color(t.muted).child(String(i + 1)))
-          .child(h_flex().w(14).flex_none().items_center().justify_center().child(this.status(t, a, true)));
+          .child(railState(t, a.status, icon(a.program, 14, t.foreground) ?? div().text_color(t.muted).child(String(i + 1))));
       }
       const when = this.since(a);
       const idle = a.status === "idle" && !a.focused;
@@ -494,7 +512,11 @@ export default class Agents extends View {
       .child(
         h_flex()
           .id("ag-grip")
-          .h(10)
+          // mdj: 8px from the 4px bar's edges to the rows either side, the gap between cards everywhere:
+          // 4 here over the Spaces list's own bottom 4, and 8 under it to the first agent row.
+          .h(16)
+          .pt(4)
+          .pb(8)
           .flex_none()
           .justify_center()
           .items_center()
@@ -505,7 +527,8 @@ export default class Agents extends View {
             setShared(SPLIT, { y: e.position.y, h: shared("mdj.spaces.h") ?? 200 });
           })
           .child(div().id("ag-grip-bar").h(4).rounded_full().bg(t.muted)
-            .w(this.gripHover || shared(SPLIT) ? 44 : 28).opacity(this.gripHover || shared(SPLIT) ? 1 : 0)
+            // mdj: on the rail the bar stays inside the cubes' 28px, as wide as one when hovered.
+            .w(collapsed ? (this.gripHover || shared(SPLIT) ? 28 : 16) : (this.gripHover || shared(SPLIT) ? 44 : 28)).opacity(this.gripHover || shared(SPLIT) ? 1 : 0)
             .transition("width", { duration: 180, easing: "ease-out" })
             .transition("opacity", { duration: 180, easing: "ease-out" })),
       )
@@ -520,11 +543,18 @@ export default class Agents extends View {
             .justify_between()
             .child(div().text_size(13).font_medium().text_color(t.dim).child("Agents"))
             .child(
+              // mdj: the same 26px box as the Spaces + above, so the two line up with the sidebar button.
               div()
                 .id("ag-sort")
+                .size(26)
+                .flex_none()
+                .flex()
+                .items_center()
+                .justify_center()
+                .rounded(6)
                 .text_size(11)
                 .text_color(t.dim)
-                .hover((s) => s.text_color(t.foreground))
+                .hover((s) => s.bg((t.hover === t.canvas ? t.chrome : t.hover)).text_color(t.foreground))
                 .on_click(() => openOverlay({ mod: "mdj-agents", kind: "popup", width: 200, height: 140, props: { sortMenu: true } }))
                 .tooltip(`Sort agents: ${sort.label}`)
                 .child(svg(`mods/workspace-chrome/${sort.icon}.svg`).size(14)),
@@ -544,21 +574,24 @@ export default class Agents extends View {
           .on_size_change((s, cx) => { if (s.height !== this.contentH) { this.contentH = s.height; cx.notify(); } })
           .children(rows)))
       .children(fades(t, this, collapsed ? 10 : 36))
+      // mdj: the rail opens from a chevron in a pill as wide as the rows.
       .when(collapsed, (el) =>
         el.child(
-          h_flex()
-            .h(28)
-            .items_center()
-            .justify_center()
-            .child(
-              div()
-                .id("collapse")
-                .text_size(13)
-                .text_color(t.dim)
-                .hover((s) => s.text_color(t.foreground))
-                .on_click(toggleSidebar)
-                .child("»"),
-            ),
+          h_flex().px(4).pb(4).child(
+            div()
+              .id("collapse")
+              .flex_1()
+              .h(28)
+              .rounded(7)
+              .flex()
+              .items_center()
+              .justify_center()
+              .text_color(t.muted)
+              .hover((s) => s.bg(dimmed(t)).text_color(t.foreground))
+              .tooltip("Show sidebar")
+              .on_click(toggleSidebar)
+              .child(svg("mods/workspace-chrome/chevron-right.svg").size(14)),
+          ),
         ),
       );
   }

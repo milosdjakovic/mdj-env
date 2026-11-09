@@ -68,7 +68,7 @@
       "size": {
         "px": 276
       },
-      "min": 44,
+      "min": 36,
       "max": 480,
       "resizable": false,
       "gap": 8
@@ -160,7 +160,7 @@
               "padding": 4
             }
           ],
-          "gap": 8
+          "gap": 0
         },
         {
           "id": "status",
@@ -185,8 +185,8 @@
   ],
   "titlebar": "none",
   "traffic_lights": [
-    14,
-    15
+    19,
+    19
   ],
   "padding": 4,
   "gap": 0,

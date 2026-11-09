@@ -1,6 +1,6 @@
 import { View, div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { theme, run, props, window, shared, setShared, updates, layout } from "herdr";
+import { theme, run, props, window, shared, setShared, updates, layout, settings } from "herdr";
 
 function find(node, id) {
   if (node?.id === id) return node;
@@ -14,13 +14,16 @@ function find(node, id) {
 // The sidebar's rail goes by its width, not a flag: dragging its edge narrows it too.
 const narrow = () => (find(layout(), "sidebar")?.size?.px ?? Infinity) < 160;
 
-// To the rail (on macOS wide enough for the traffic lights), or back to the width it had.
+// To the rail, or back to the width it had. mdj: the rail is a column of 28px cubes in the 4px strips, 36px,
+// narrower than the macOS window buttons, so the pane moves left under them and the tab bar pads itself
+// clear of them and stays where it was.
+const railWidth = () => 36;
 function toggleSidebar() {
   const width = find(layout(), "sidebar")?.size?.px;
   if (!narrow()) setShared("sidebar.width", width);
   // Mods edited before the rail went by width still read the flag.
   setShared("sidebar.collapsed", !narrow());
-  run("layout.resize", { id: "sidebar", px: narrow() ? (shared("sidebar.width") ?? 268) : window()?.platform === "macos" ? 76 : 44 });
+  run("layout.resize", { id: "sidebar", px: narrow() ? (shared("sidebar.width") ?? 276) : railWidth() });
 }
 
 export default class MdjBrand extends View {
@@ -34,19 +37,20 @@ export default class MdjBrand extends View {
     const collapsed = narrow();
     if (props()?.footer) {
       const row = (id, icon, label, dim, action) => h_flex().id(id).h(28).px(8).gap(9).items_center().rounded(8)
-        .when(collapsed, el => el.relative().w(32).px(0).justify_center().tooltip(label))
+        .when(collapsed, el => el.relative().w_full().px(0).rounded(7).justify_center().tooltip(label))
         .text_color(dim ? t.dim : t.muted).hover(s => s.bg((t.hover === t.canvas ? t.chrome : t.hover)).text_color(t.foreground)).cursor_pointer()
         .on_click(action).child(svg(`mods/workspace-chrome/${icon}.svg`).size(14))
         .when(!collapsed, el => el.child(label));
       const ready = div().size(6).rounded_full().bg(t.accent);
       return v_flex().size_full().px(4).pb(4).bg(t.canvas).justify_end().text_size(13)
-        .when(collapsed, el => el.px(0).items_center())
+        
         .child(row("settings", "settings", "Settings", false, () => run("app.settings"))
           .when(Boolean(updates().app.ready), el => el.child(collapsed ? ready.absolute().top(5).right(6) : ready)))
         .child(row("machine", "plus", "Add machine", true, () => run("mod.open", { name: "machine-add" })));
     }
-    // mdj: the layout pads 4px, the other 4px are here, so the bar lines up with the lists below.
-    return h_flex().size_full().bg(t.canvas).pt(4).pl(collapsed ? 10 : 18).pr(14).gap(4).items_center().text_size(13.5)
+    // mdj: the layout pads 4px, the other 4px are here, so the bar lines up with the lists below, the sidebar
+    // button in the same 26px box 4px from the edge as the Spaces + and the Agents sort, search beside it.
+    return h_flex().size_full().bg(t.canvas).pt(4).pl(collapsed ? 10 : 18).pr(4).gap(4).items_center().text_size(13.5)
       .when(window()?.platform === "macos" && !window()?.fullscreen && !collapsed, el => el.pl(76))
       .when(!collapsed, el => el.child(div().flex_1()))
       .when(!collapsed, el => el.child(this.button("search", svg("mods/workspace-chrome/search.svg").size(15), () => run("mod.open", { name: "picker" }))))

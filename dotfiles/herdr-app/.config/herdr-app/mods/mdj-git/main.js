@@ -44,10 +44,13 @@ async function launch(self, { script, title, width = 0.9, height = 0.9 }) {
     // radius every floating surface and pane card shares, padded 4, and the bar and the terminal inside
     // are 10 less 4, 6, so the curves run parallel.
     kind: "dialog", width, height, frame: "none",
+    // The frame is chrome like the card inside it, so the popup reads as one surface.
     layout: { id: "mdj-popup", type: "column", padding: 4, radius: 10, background: "chrome", shadow: "lg", children: [
-      { id: "mdj-popup-bar", type: "block", size: { px: 28 }, radius: 6,
-        content: { mod: "mdj-popup", props: { title, terminal: address, notes } } },
-      { id: "mdj-popup-term", type: "block", radius: 6, content: { terminal: address } },
+      { id: "mdj-popup-card", type: "column", radius: 6, background: "chrome", children: [
+        { id: "mdj-popup-bar", type: "block", size: { px: 28 },
+          content: { mod: "mdj-popup", props: { title, terminal: address, notes } } },
+        { id: "mdj-popup-term", type: "block", content: { terminal: address } },
+      ] },
     ] },
   });
 }

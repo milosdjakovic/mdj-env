@@ -132,7 +132,11 @@ export default class MdjTabs extends View {
     const root = layout(), sidebar = find(root, "sidebar"), w = window();
     // Old saved rails and a dragged-narrow sidebar can be smaller than the window buttons.
     const lightsPadding = w?.platform === "macos" && w.titlebar === "none" && !w.fullscreen && root?.traffic_lights
-      ? Math.max(10, (root.traffic_lights[0] + 64) / settings().zoom - (sidebar?.hidden ? 0 : sidebar?.size?.px ?? 0))
+      // mdj: the buttons stand as far from the first tab as from the window's left edge, x, so they sit in
+      // a cell of their own, and with the sidebar folded to its 36px rail the tabs stay put while the pane
+      // moves left under the buttons. The 1.5 was measured on 2026-11-09, the strip starting 2.5px short of the
+      // sum of its paddings.
+      ? Math.max(10, (2 * root.traffic_lights[0] + 52) / settings().zoom - 1.5 - (sidebar?.hidden ? 0 : sidebar?.size?.px ?? 0))
       : 10;
     const panel = find(root, "panel"), body = find(root, "panel-body");
     const enabled = shared("workspace.panels") ?? ["files", "changes"];
