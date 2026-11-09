@@ -350,3 +350,14 @@ list, and until then that list stays on Lua.
   person to System Settings, where Milos could not find the switch. Saying a refusal once was
   rejected, since the row was gone before he could use it, and the row now stays while a folder is
   refused. Both rows wear ✅, his rule that a row wears its intent and never its state.
+- 2026-11-09 14:45. Step 1.4f's design note agreed, `docs/DESIGN-APP-LIST-KEYS.md` in the spoon.
+  While Olm.app's file search is up, the app tells the bridge so by a distributed notification,
+  `lib/listopen.lua` answers that list open through a question the root hands in, and every list
+  key routed to it is posted to the app as a verb the app runs on its own highlight, step 3.4's
+  shape on 1.2's notifications. Milos left the three open choices to whatever best keeps speed and
+  consistency. The bridge marks the list open the moment its key posts the open note, dropped if
+  the app has not confirmed within a second, so a list key typed straight after the open key never
+  runs the global binding. The words for the bar and both floating panes are a share written at
+  load from the same plan, since nothing then crosses per keystroke and file search has no live
+  gate, a live bar model being stage 2's. The app's plain Command and J or K scroll goes, since the
+  Lua list answers only Hyper with Command and J or K.
