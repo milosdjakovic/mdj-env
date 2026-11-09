@@ -193,22 +193,28 @@ check("however much a file is used it never lifts over a better match",
   position(kept, "myreport.txt") == #kept, titles(kept))
 
 --------------------------------------------------------------------------------
--- Narrowing between round trips
+-- Typing on, held rows shown while the answer comes, 2026-11-09
 --------------------------------------------------------------------------------
 
+-- A longer word can match a name a shorter one did not, one typo from four letters, so typing on
+-- shows the held rows only until the round trip for the longer text lands, and it always lands.
 rows = chooser.rowsForQuery("report-f")
-check("typing on narrows with no round trip", #asked == 2 and #timers == 0)
-check("and hands every held row over again, the engine dropping none", #rows == 6, titles(rows))
+check("typing on arms a round trip", #asked == 2 and #timers == 1, #timers)
+check("and shows the held rows meanwhile, the searching row after them",
+  #rows == 7 and rows[7].title == "Searching", titles(rows))
 kept = rank.apply(rows, "report-f", fuzzy, search)
-check("the held rows are ranked by the longer text", titles(kept) == "report-final.txt", titles(kept))
-kept = ranked("report-fINAL")
-check("case is folded by the shared search", titles(kept) == "report-final.txt", titles(kept))
-kept = ranked("report summary")
-check("a second word narrows too", titles(kept) == "Report-Summary.pdf", titles(kept))
+check("the held rows are ranked by the longer text", titles(kept) == "report-final.txt,Searching",
+  titles(kept))
+fireTimers()
+check("the pause dispatches the longer text", #asked == 3 and asked[3].parsed.text == "report-f")
+reply(3, { "/home/dev/report-final.txt", "/home/dev/report-fresh.txt" })
+kept = ranked("report-f")
+check("the answer replaces the held rows, a name they lacked included",
+  position(kept, "report-fresh.txt") ~= nil and position(kept, "myreport.txt") == nil, titles(kept))
 kept = ranked("repo")
 check("a shorter text asks again", #timers == 1, #timers)
 fireTimers()
-check("and dispatches", #asked == 3)
+check("and dispatches", #asked == 4)
 
 --------------------------------------------------------------------------------
 -- rowLimit

@@ -23,8 +23,8 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 1.3e, the shadow, its log read and the one fault fixed, waiting on Milos's trial and a clean
-shadow from line 50 of the log. The recommended order after
+Next. 1.3e, the shadow, its log read and both faults fixed, with 1.4g built beside it, waiting on
+round two of Milos's trial and a clean shadow from the log's next line. The recommended order after
 it, written 2026-11-09 after 1.4j. 1.4f first, the bottom bar, the actions pane, the info pane,
 Copy Path and the list keys, since it is the chooser itself rather than file search, it unblocks
 the preview pane's scroll keys and 1.4i, and every later tool reuses it. Then 1.4c Quick Look,
@@ -663,6 +663,18 @@ Result: the dry suite, `olm-index-check` with three new checks, a typo, a fresh 
 the narrow and an accent folded either way, and `test/units.sh`.
 Open: Milos's trial on the Lua file search, then the shadow from line 50 on, and 1.3e is ticked
 when that stays clean. A scoped search still hands its first word to fd as typed, for 1.4e.
+
+**1.3e trial, round one, and 1.4g built, 2026-11-09.** Milos typed the queries on the Lua file
+search. `report`, `hello`, `index.js` and `repo` were fine. `heelo` typed quickly led with
+`HelloWorld.jsp` and typed slowly showed only the Heebo fonts. Cause: the engine asked nothing more
+when a text only grew and ranked the held rows again, which is sound only for a substring. `hee`
+gets no typo at three letters, so it never brought `HelloWorld.jsp`. Fixed: no narrow on either
+side, the held rows shown with the searching row until the round trip after the debounce lands.
+He asked too for the search to start on the first letter, which is 1.4g, so `minChars` is 1 in
+`config/filesearch.lua`, `engine.lua` and `Source.swift`, both sides together as 1.4g said.
+Result: the dry suite, `test/units.sh` with the typing on cases rewritten, `olm-index-check` with a
+grown text asking again.
+Open: round two of the trial, then the shadow from its next line, and 1.3e and 1.4g are ticked.
 
 ## Where the facts come from
 

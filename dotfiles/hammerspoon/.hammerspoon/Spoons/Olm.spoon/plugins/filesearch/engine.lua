@@ -6,21 +6,19 @@
 --- lives in the sources, and everything about WHICH source answers a given query shape
 --- lives in the order the composition root registered them.
 ---
---- THE ONE IDEA WORTH KNOWING is that a search costs one round trip per search rather
---- than one per keystroke. Typing eleven characters fires one query, not eleven, because
---- once results are held a longer text over the same population can only ever match a
---- subset of them, so the held rows are ranked again with no dispatch at all. That single
---- property is what makes this feel instant, and it is worth more than any cache, which
---- is why there is no result cache here. A cache would be wrong at the exact moment the
---- tool is used, right after something was downloaded or built, while narrowing is always
---- exactly as live as the results it narrows.
+--- THE ONE IDEA WORTH KNOWING is that a search costs one round trip per pause in typing rather
+--- than one per keystroke. Typing eleven characters quickly fires one query, because the
+--- debounce waits for the typing to stop. Meanwhile a longer text over the same population shows
+--- the rows already held, ranked again by the shared search, and the round trip after the pause
+--- replaces them. There is no result cache, since a cache would be wrong at the exact moment the
+--- tool is used, right after something was downloaded or built.
 ---
---- The guard on narrowing has three parts and all three matter. The population must be
---- identical, which query.narrows decides. The text must have grown rather than changed,
---- which it also decides. And the held set must not have been truncated by its cap, which
---- only this file knows, because a subset of a truncated set is not a subset of the truth.
---- Retaining well above what is displayed is what keeps that third condition true in
---- practice.
+--- Until 2026-11-09 a longer text over the held rows asked nothing at all, on the belief that it
+--- could only match a subset of them. That holds for a substring and not for the shared search,
+--- where a word of four letters gains one typo and a word of three matches inside a word, so a
+--- longer word can match a name a shorter one did not. heelo typed slowly held only what hee had
+--- found and never showed HelloWorld.jsp, while heelo typed quickly did. So the held rows are only
+--- what shows while the answer is on its way, and the answer always comes.
 ---
 --- Everything expensive happens elsewhere. The walk and the index helper run as separate
 --- processes and call back. What is left
@@ -54,7 +52,7 @@ local log = util.log
 local DEFAULTS = {
   debounceMs = 70,
   retainCap = 2000,
-  minChars = 3,
+  minChars = 1,
   timeoutSeconds = 5,
   recentCount = 40,
   recentDays = 14,
@@ -229,9 +227,9 @@ end
 
 -- The engine filters and orders nothing by match since phase three of the unified search on
 -- 2026-10-17. It hands every held row to the chooser, the shared search ranks them by the text
--- searchTextFor answers, and the narrowing between round trips is that same ranking over the
--- held rows, so what a query keeps is decided in one place whether it arrived by a round trip or
--- by typing on. Until then _filter dropped held rows by the injected words matcher over the
+-- searchTextFor answers, and what shows between round trips is that same ranking over the held
+-- rows, so what a query keeps is decided in one place, and every query is answered by a round
+-- trip whether it was typed quickly or slowly. Until then _filter dropped held rows by the injected words matcher over the
 -- folded full path, and _order scored a search by the name holding the text whole, then every
 -- word, then a shorter path, with frecency added under the gaps between those tiers.
 
@@ -357,12 +355,9 @@ function obj:_keptFirst(rows, parsed)
   return kept, n
 end
 
--- Publish a result set. Keeps the retained copy for narrowing and notes whether it was
--- truncated.
---
--- Truncation is noted against what the source returned rather than what survived the noise
--- filter, because it is the source's cap that decides whether the held set is the whole truth,
--- which is the condition narrowing depends on.
+-- Publish a result set. Keeps the retained copy, shown while the next round trip is on its way,
+-- and notes whether it was truncated, against what the source returned rather than what
+-- survived the noise filter.
 --
 -- A round trip that brought back rows the shared search keeps none of says nothing found, the
 -- same status an empty answer gets, since the list would otherwise show a bare empty field
@@ -370,7 +365,7 @@ end
 function obj:_publish(rows, parsed, status)
   local retainCap = self.limits.retainCap
   self._truncated = #rows >= retainCap
-  -- Only a real search result may be narrowed against. See the flag's note in rowsFor.
+  -- A real search result, which refresh asks again when the index under it changes.
   self._narrowable = true
   rows = self:_denoise(rows, parsed)
   local keptCount
@@ -546,8 +541,7 @@ function obj:_fetchRecents()
       self._parsedShape = parsed
       self._truncated = false
       -- The recent list is the other place the retained set is filled without going through
-      -- _publish, so it has to clear this too or a search that published earlier would leave
-      -- the flag on and the next typed query would narrow against recents.
+      -- _publish, so it clears this too, or refresh would ask again for a search no longer shown.
       self._narrowable = false
       self._holding = false
       self:_redraw(self._parsed or parsed, nil)
@@ -561,9 +555,7 @@ end
 --- only hook a query change reaches, and is the reason this is named for what it returns
 --- rather than for what it does.
 ---
---- Three outcomes. A query that narrows the held one hands the held rows over again with no
---- dispatch, and the shared search ranks them by the longer text, which is the common case mid
---- typing. A query too short or too broad to be worth a round trip shows the recent list.
+--- Two outcomes. A query too short or too broad to be worth a round trip shows the recent list.
 --- Anything else arms the debounce and says searching at once. When the new query asks about the
 --- held population, query.sameShape, the held rows stay until the answer lands, because clearing
 --- them first makes a picker flicker for no gain, and the shared search ranks them by the new
@@ -616,26 +608,10 @@ function obj:rowsFor(raw)
     return self._display, self._status
   end
 
-  -- The narrowing path. No process, no query, no debounce. Whether a round trip is needed is
-  -- decided by shape alone, query.narrows and the two conditions only this file knows, and never
-  -- by matching a row, since the held rows are ranked by the chooser once they are handed over.
+  -- Every other query is asked, after the debounce. Over the population already held, a longer
+  -- text, a backspace or an edit, the held rows stay on screen and the shared search ranks them by
+  -- the new text until the answer lands, see the header for why they are never the answer.
   --
-  -- _narrowable is the condition that is easy to miss and was missed. The other three ask
-  -- whether the text merely grew over an identical population, and they are all satisfied by
-  -- the RECENT list too, since its shape is the empty query and any typed text grows from
-  -- that. But a recent list is files touched in the last few days, not a superset of anything,
-  -- so narrowing against it silently answers every search from that small set and a real
-  -- search never runs. That is exactly how a live run came back with zero rows for a file the
-  -- headless run had found. So only a published search result is ever narrowed against.
-  if prev and self._narrowable and self._parsedShape
-    and query.narrows(self._parsedShape, parsed) and not self._truncated then
-    if self._debounce then self._debounce.cancel() end
-    self._debounce = nil
-    self._holding = false
-    self:_redraw(parsed, nil)
-    return self._display, self._status
-  end
-
   -- Otherwise dispatch, after the debounce. The handle is held and the previous one
   -- cancelled, because an unreferenced timer can be collected before it fires and the
   -- search would then simply never happen, with nothing logged and nothing to find.

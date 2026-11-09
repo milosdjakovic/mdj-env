@@ -7,9 +7,10 @@
 // the Lua side. The stage ranks them with the shared search, each row searched by its file name
 // alone, filterText set to the title, as on the Lua side.
 //
-// It narrows as the Lua engine does. When the rows held came from a search, were not cut by the
-// retain cap and the new query only grew the text over the same files, query.narrows, the held
-// rows are handed over again with no ask. An unscoped query shorter than minChars hands over the
+// Every search is asked of the index, as on the Lua side since 2026-11-09, which shows its held
+// rows only while the answer is on its way. A longer word can match a name a shorter one did not,
+// one typo from four letters and inside a word from three, so held rows are never the answer. An
+// unscoped query shorter than minChars hands over the
 // recent list, which the stage ranks by the text typed so far, as the Lua side hands its recent
 // rows to the shared search. A scoped query, a folder walk on the Lua side, is step 1.4e and says
 // so. Frecency, the row's bonus on the Lua side, is step 1.4d, so every bonus here is zero.
@@ -31,7 +32,7 @@ public struct FileSearchSettings: Equatable, Sendable {
   public var types: [String: [String]] = [:]
   public var retainCap = 2000
   public var rowLimit = 200
-  public var minChars = 3
+  public var minChars = 1
   public var recentDays = 7
   public var recentCount = 40
   public var placeholder = ""
@@ -68,7 +69,7 @@ public actor FileSearchSource: ListSource {
   private let index: FileIndex
   public private(set) var settings: FileSearchSettings
   // What the rows held answer, set only from an index answer.
-  private var held: (query: FileQuery, rows: [IndexRow], narrowable: Bool)? {
+  private var held: (query: FileQuery, rows: [IndexRow])? {
     didSet { folders = nil }
   }
   // Which held rows are folders, by path, built the first time a preview asks.
@@ -152,9 +153,6 @@ public actor FileSearchSource: ListSource {
     // list, the Lua side's minChars, and the rows are still ranked by what was typed.
     let short = q.kind == .search && q.text.utf8.count < settings.minChars
     let asked = short ? FileQueryGrammar.parse("", types: settings.types) : q
-    if let held, held.narrowable, FileQueryGrammar.narrows(held.query, asked) {
-      return answer(held.rows, q, empty)
-    }
     // The recent list held already answers any short text, the same list ranked again.
     if let held, asked.kind != .search, held.query == asked {
       return answer(held.rows, q, empty)
@@ -171,7 +169,7 @@ public actor FileSearchSource: ListSource {
       held = nil
       return RowsAnswer(rows: [], status: "The file index could not be read")
     }
-    held = (asked, rows, asked.kind == .search && rows.count < settings.retainCap)
+    held = (asked, rows)
     return answer(rows, q, empty)
   }
 

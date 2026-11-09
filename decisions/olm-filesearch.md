@@ -17,10 +17,21 @@ helper's `peek`, one run per row the highlight settled on, cancelled by the next
 pane shows is read on Hammerspoon's main thread. `search` is compiled together with the shared
 search's Swift copy, `app/Sources/OlmSearch/Match.swift`, whose path the root hands the plugin as
 the `matchsource` lib, and keeps a name exactly when the list would, behind a byte prefilter that
-passes over a name lacking any word, less one letter, in order. This agrees with the plugin
-AGENTS.md.
+passes over a name lacking any word, less one letter, in order. Every query is a round trip after
+the debounce, the held rows shown only until its answer lands, from the first letter typed, on the
+Lua side and in Olm.app. This agrees with the plugin AGENTS.md.
 
 ## Rejected
+
+Ranking the held rows again with no round trip when a text only grew, the narrow. Rejected
+2026-11-09, after holding since the plugin was written. A longer word can match a name a shorter
+one did not under the shared search, one typo from four letters and inside a word from three, so
+`heelo` typed slowly held only what `hee` found and never showed `HelloWorld.jsp`, which `heelo`
+typed quickly did.
+
+Holding a query under three letters on the recent list. Rejected 2026-11-09, by Milos, who asked
+for the search to start on the first letter. It dated from Spotlight answering in process. The
+helper answers one letter in about 100 ms in its own process.
 
 Making the narrow as strict as the helper, so a typo finds a file neither way. Rejected
 2026-11-09. File search would be the one list where a word one typo away finds nothing, which the
@@ -158,3 +169,19 @@ about 100 ms. Without the prefilter the same answers took 70 to 90 ms. Three cas
 `olm-index-check` pin it, a word one typo away, a fresh search agreeing with the narrow, and an
 accent folded either way. A scoped search still hands its first word to fd as typed, so a typo in
 that word finds nothing inside a folder, which is step 1.4e's to answer.
+
+### 2026-11-09 13:20, typing slowly and quickly still found different files
+
+Milos tried the helper fix on the Lua file search. `heelo` typed quickly led with
+`HelloWorld.jsp`, typed slowly showed only the Heebo fonts. The fast one was a round trip, and the
+slow one the rows `hee` had brought back, ranked again, since the engine asked nothing more when a
+text only grew. `hello` is one typo from `heelo` and a three letter word gets no typo, so `hee`
+never brought it. The narrow was sound only for a substring, and the earlier entry today fixed the
+helper half without seeing that the narrow had the same fault the other way.
+
+So the narrow is gone, in `engine.lua` and in Olm.app's `Source.swift`. A query over the held
+population shows the held rows ranked by the new text with the searching row, and the round trip
+after the debounce replaces them, so typing quickly still asks once. He also asked for the search
+to start on the first letter, so `minChars` is 1 in `config/filesearch.lua`, the engine's default
+and the app's, which was step 1.4g of the standalone plan. One letter costs about 100 ms in the
+helper and the shared search then ranks the 2000 rows the cap holds.

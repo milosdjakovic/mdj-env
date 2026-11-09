@@ -202,11 +202,11 @@ return {
     -- for the presentation's rowLimit.
     retainCap = 2000,
 
-    -- Shortest unscoped query that is dispatched at all. A one or two character
-    -- search over a whole home matches so much that it is neither useful nor fast, so
-    -- the recent list stays up instead. A scope lifts this, since the candidate set is
-    -- already small.
-    minChars = 3,
+    -- Shortest unscoped query that is dispatched at all. One since 2026-11-09, when Milos asked
+    -- for the search to start on the first letter typed. It was three while Spotlight answered,
+    -- when one letter matched nearly every file in process, and the index helper answers one
+    -- letter in about 100 ms in a process of its own.
+    minChars = 1,
 
     -- How long a source may take before it is abandoned. An index search measured about
     -- 10ms, a scoped walk 13ms on a small tree and 353ms on one holding 196 thousand

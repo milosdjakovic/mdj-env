@@ -6,19 +6,30 @@ several things that were tried and turned out to be wrong.
 
 ## The one idea the performance rests on
 
-One round trip per search, not one per keystroke. Typing eleven characters fires one
-query, because once results are held, a longer text over the same population can only
-match a subset of them, so the held rows are ranked again with no dispatch. Everything else
-here is ordinary.
+One round trip per pause in typing, not one per keystroke. Typing eleven characters quickly
+fires one query, because the debounce waits for the typing to stop, and meanwhile the rows
+already held for the same population stay on screen, ranked again by the shared search. The
+round trip always comes, and its answer replaces them. Everything else here is ordinary.
+
+**Until 2026-11-09 a longer text asked nothing at all, and that was wrong.** The belief was
+that a longer text over the same population can only match a subset of what a shorter one
+matched, so the held rows were the answer and no round trip ran. It holds for a substring and
+not for the shared search, where a word of four letters gains one typo and a word of three
+matches inside a word, so a longer word matches names a shorter one did not. Milos typed
+`heelo` quickly and saw `HelloWorld.jsp` first, a fresh round trip, and slowly and saw only
+the Heebo fonts, the rows `hee` had brought back, which `hello` is not among since a three
+letter word gets no typo. Which files a query found hung on how fast it was typed. The same
+fault showed the other way earlier that day, a fresh search missing names the narrow kept,
+because the helper kept only names holding every word whole, see the index below.
 
 Who does that ranking moved on 2026-10-17, phase three of the unified search. Until then the
 engine filtered the held rows itself, through the words matcher the root injected, over each
 row's folded full path, and ordered a search by its own score. Now the engine hands every held
 row to the chooser, up to the retain cap, and the shared search ranks them by the free text the
 presentation's `searchText` answers, the same ranking a round trip's answer gets, so the list
-cannot depend on whether a query arrived by a dispatch or by typing on. The engine still decides
-whether a round trip is needed, by shape alone, `query.narrows` and the two conditions below
-only it knows, and never by matching a row. `decisions/olm-unified-search.md` has the decision.
+cannot depend on whether a query arrived by a dispatch or by typing on. Since 2026-11-09 every
+query is answered by a round trip, so it does not, and the engine decides nothing by matching a
+row. `decisions/olm-unified-search.md` has the decision.
 
 Since the review of 2026-10-17 the sources ask the way the shared search keeps. The root hands
 the engine `keeps`, built from the shared matcher every surfaced plugin is handed and the
@@ -42,26 +53,17 @@ a backspace or an edit, they stay.
 
 This is why there is no result cache and why one was deliberately refused. A cache is
 wrong at the exact moment this tool is used, right after something was downloaded or
-built, while narrowing is always as live as the results it narrows. The only cache in the
+built, while a round trip after every pause is always as live as the index. The only cache in the
 spoon is the file index, and that exists because the index Spotlight keeps had to be answered
 inside Hammerspoon, see the section on the index below, rather than as an optimisation, which is
 the distinction that decides whether a cache is worth its staleness.
 
-The narrowing guard has four conditions and all four are load bearing. The population must
-be identical, the text must have grown rather than changed, the held set must not have been
-truncated by its cap, and the held set must be a real search result. The first two live in
-`query.lua` where they can be tested, the last two only the engine knows. Retaining well
-above what is displayed is what keeps the truncation condition true in practice.
-
-The fourth condition is the one that is easy to miss, and it was missed. The picker opens
-showing recent files, whose parse shape is the empty query, and any typed text grows from
-the empty string over an identical population, so the first three conditions are all
-satisfied by the recent list. The result was that every search silently answered from the
-forty most recently modified files and no search ever ran. It looked like the index
-returning nothing, and the headless run had found the same file moments earlier, which is
-what made it worth chasing. So `_narrowable` is set only by `_publish`, and every other
-path that fills the retained set clears it. There are two such paths and both had to be
-found by hand, the recent branch in `rowsFor` and the recents callback itself.
+The narrowing guard that decided when no round trip was needed is gone with it, and one of its
+four conditions is worth keeping as a lesson. The held set had to be a real search result,
+because the picker opens on the recent list, whose parse shape is the empty query, so any
+typed text grew from it and every search silently answered from the forty most recently
+modified files. `_narrowable` survives as the flag saying the held rows are a published
+search, which `refresh` asks again when the index under it is rebuilt.
 
 ## Two sources, and why the order is the design
 
@@ -319,10 +321,8 @@ person sees.
 **The helper keeps a name exactly when the list would, since 2026-11-09.** It is compiled together
 with the shared search's Swift copy, `app/Sources/OlmSearch/Match.swift`, whose path the root
 hands this plugin as the `matchsource` lib, and asks it of every name. Until then it kept a name
-only when it held every word whole, and that broke the narrowing guard's one assumption, that a
-longer text over the same population finds a subset of what the shorter one found. It holds for
-the shared search's levels only when the round trip answers by the same levels, since a word one
-edit away or spelled in pieces is kept by the search and was never returned by the helper. So
+only when it held every word whole, while the shared search keeps a word one edit away or
+spelled in pieces, which the helper never returned. So
 typing `repo` and then `report` kept `repost.svg` through the narrow while asking for `report`
 afresh did not, and which files a query found hung on how it was typed. The shadow of the
 standalone plan found it, the app being handed only the settled query. A byte prefilter passes over

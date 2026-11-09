@@ -61,9 +61,9 @@ check(kinds["Reports.app"]?.isDir == true && kinds["report.md"]?.isDir == false
   && kinds.values.allSatisfy { $0.mtime > 0 }, "a row carries its date and kind")
 check(names(await ask("")).contains("app.js"), "an empty query is the recent list")
 // The helper keeps a name exactly when the shared search would, so a word one typo away finds
-// it on a fresh search, as it does when typing on narrows rows a shorter word brought back.
+// it on a fresh search, and a shorter word's answer holds nothing a longer one would miss.
 check(names(await ask("invioce")) == ["invoice-march.pdf"], "a word one typo away finds the name")
-check(names(await ask("inv")) == names(await ask("invioce")), "and a fresh search agrees with the narrow")
+check(names(await ask("inv")) == names(await ask("invioce")), "and a shorter word's answer holds it too")
 let plain = names(await ask("vezbe")), accented = names(await ask("vežbe"))
 check(plain == ["vežbe.md"] && accented == ["vežbe.md"], "an accent is folded either way")
 
@@ -123,12 +123,13 @@ check((first3?.rows ?? []).map(\.title).sorted() == ["Reports.app", "report-old.
   "the source answers a search from the index")
 check(first3?.rows.first?.icon == .file(first3?.rows.first?.key ?? ""), "a row's icon is its file's")
 let asked = await source.asks
+// A grown text asks again, since a longer word can match a name a shorter one did not.
 let grown = await answer("repo")
-check(await source.asks == asked, "a grown text over the same files asks the index nothing")
-check(grown?.rows.first?.title.lowercased().hasPrefix("report") == true, "and is ranked again")
+check(await source.asks == asked + 1, "a grown text over the same files asks the index again")
+check(grown?.rows.first?.title.lowercased().hasPrefix("report") == true, "and is ranked")
 check(await answer("report.md")?.rows.first?.title == "report.md", "the name that matches best leads")
 _ = await answer("app")
-check(await source.asks == asked + 1, "an edited text asks again")
+check(await source.asks == asked + 3, "an edited text asks again")
 let short = await answer("ap")
 check((short?.rows ?? []).contains { $0.title == "app.js" }, "a text below minChars ranks the recent list")
 check(await answer("x/ foo")?.status != nil, "a scoped query says it is not answered yet")
