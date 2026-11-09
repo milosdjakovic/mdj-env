@@ -2299,6 +2299,11 @@ function obj.run(olm, cfg)
       local panel = modules and modules[plan.identity.actionspane or "actionspane"]
       return panel and panel.levelTitle and panel:levelTitle() or nil
     end,
+    -- The actions pane's own input field, the list's text it keeps showing and its placeholder.
+    actionsPaneField = function()
+      local panel = modules and modules[plan.identity.actionspane or "actionspane"]
+      return panel and panel.paneField and panel:paneField() or nil
+    end,
   }
 
   -- LeaderSheet and QueryScope both keep what configure gave them across calls, and the sheet

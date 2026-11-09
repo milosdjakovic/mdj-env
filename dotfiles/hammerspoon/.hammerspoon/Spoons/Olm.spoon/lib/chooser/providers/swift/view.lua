@@ -297,6 +297,8 @@ local function bottomBarData(model)
   if icon and ICON then keysImage, keysTint = ICON(icon.icon, icon.owner) end
   return { right = right, keys = keys, keysChord = kbd.wire(model.keysChord), title = model.title,
     panelOpen = model.panelOpen == true, panelTitle = model.panelTitle,
+    panelHeld = model.panelField and model.panelField.held or nil,
+    panelPlaceholder = model.panelField and model.panelField.placeholder or nil,
     keysImage = keysImage or nil, keysTint = keysImage ~= nil and keysTint == true }
 end
 

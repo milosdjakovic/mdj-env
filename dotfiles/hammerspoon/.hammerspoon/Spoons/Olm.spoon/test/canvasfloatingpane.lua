@@ -143,6 +143,40 @@ check("and the line under it is pushed down by a line", actions.tops[3], 3 * lin
 check("a chosen floating pane is as tall as its lines and the outer padding", actions.h, math.ceil(7 * lineH + 2 * T.barInner))
 check("a picture takes its side and the gap", actions.lead, T.text.section.lineHeight + T.space.l)
 
+-- The actions pane's own input field at its foot, a rule, the outer padding and one more line under
+-- the lines, asked by Milos on 2026-11-09.
+local footLines = {
+  { label = "Open", chord = kbd.of(kbd.Return), picture = picture },
+  { label = "Copy Path", chord = kbd.of(kbd.Cmd, kbd.named("y")), picture = picture },
+}
+local bare = floatingPane.layout(UI, style, nil, footLines, true)
+local footed = floatingPane.layout(UI, style, nil, footLines, true, { placeholder = "Search Actions" })
+check("a foot adds its line and the bottom padding, with no rule", footed.h,
+  math.ceil(bare.h + T.barInner + lineH))
+local footRect = { x = 0, y = 0, w = footed.w, h = footed.h }
+local footEls, footInfo = floatingPane.elements(UI, footed, footRect,
+  { highlight = 1, foot = { state = { text = "co", caret = 2 }, style = { font = "F", fontSize = 13,
+    textColor = {}, selectionColor = {}, placeholderColor = {}, caretWidth = 2 }, caret = true } })
+local typed, caretDrawn = nil, false
+for _, el in ipairs(footEls) do
+  if el.type == "text" and el.text == "co" then typed = el end
+  if el.type == "rectangle" and el.action == "fill" and el.frame and el.frame.w == 2 then caretDrawn = true end
+end
+check("the foot draws the typed text", typed ~= nil, true)
+check("under the last line", typed and typed.frame.y > footInfo.lines[#footInfo.lines].rect.y, true)
+check("where a line's picture starts, not its label", typed and typed.frame.x, footed.side)
+check("with the caret in it", caretDrawn, true)
+check("the lines' hit rects are only the lines", #footInfo.lines, 2)
+local none = floatingPane.layout(UI, style, nil, {}, true, { placeholder = "Search Actions", empty = "No results" })
+local noneEls = floatingPane.elements(UI, none, { x = 0, y = 0, w = none.w, h = none.h },
+  { foot = { state = { text = "zz", caret = 2 }, style = { font = "F", fontSize = 13, textColor = {},
+    selectionColor = {}, placeholderColor = {}, caretWidth = 2 }, caret = false } })
+local said
+for _, el in ipairs(noneEls) do if el.type == "text" and el.text == "No results" then said = el end end
+check("with every line filtered out the pane says No results", said ~= nil, true)
+check("left aligned where a line's words start", said and said.frame.x, none.side)
+check("in one line's room", none.h, math.ceil(2 * lineH + 3 * T.barInner))
+
 -- Placement, swift's rules.
 local keysAnchor = { x = 20, y = 500, w = 60, h = 30 }
 local room = { w = 800, top = 50 }

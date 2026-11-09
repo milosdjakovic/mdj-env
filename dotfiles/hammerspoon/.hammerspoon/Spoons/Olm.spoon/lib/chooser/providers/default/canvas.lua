@@ -380,8 +380,16 @@ function View:redraw()
   local listRect = toLocal(s.rects.list, origin)
   local els = {}
   if not s.bare then
-    local fieldState = self.field:getState()
-    for _, el in ipairs(fieldRender.elements(fieldState, fieldRect, self._fieldStyle, self._caretVisible, s.placeholder)) do
+    -- While the actions pane floats with its own input field the caret is in that one, its bottom
+    -- line, and the list's field keeps showing the text the pane opened over, asked by Milos on
+    -- 2026-11-09. The field tap edits the one text either way, which the pane's field draws.
+    local paneField = s.bottomBar and s.bottomBar.panelOpen == true and s.bottomBar.panelField or nil
+    local fieldState, caret = self.field:getState(), self._caretVisible
+    if paneField then
+      local held = paneField.held or ""
+      fieldState, caret = { text = held, caret = utf8.len(held) or #held }, false
+    end
+    for _, el in ipairs(fieldRender.elements(fieldState, fieldRect, self._fieldStyle, caret, s.placeholder)) do
       els[#els + 1] = el
     end
   end
@@ -564,11 +572,11 @@ function View:_floatingPaneElements(s, els, origin, listRect)
   local W = (self._window or s.rects.canvas).w
   -- Drawn after the bar, so a pane wider than the room beside the other group stands above it,
   -- floatingpane.lua's place.
-  local function draw(kind, pop, anchor, align, highlight)
+  local function draw(kind, pop, anchor, align, highlight, foot)
     local rect = floatingPaneLib.place(pop, anchor, align, { w = W, top = listRect.y })
     local reveal = highlight ~= nil and highlight ~= (previous[kind] and previous[kind].highlight)
     local popEls, info = floatingPaneLib.elements(UI, pop, rect,
-      { highlight = highlight, scroll = self._popScroll[kind], reveal = reveal })
+      { highlight = highlight, scroll = self._popScroll[kind], reveal = reveal, foot = foot })
     for _, el in ipairs(popEls) do els[#els + 1] = el end
     self._popScroll[kind] = info.scroll
     local lines = {}
@@ -584,8 +592,17 @@ function View:_floatingPaneElements(s, els, origin, listRect)
   end
   if panelFloats(s) and anchors.actions then
     local ns = listModel.normalized(s.list)
-    draw("actions", floatingPaneLib.layout(UI, style, s.bottomBar.panelTitle, actionLines(ns.filtered), true),
-      anchors.actions, "right", ns.highlight)
+    -- The pane's own input field, the field's text and caret at the size of the pane's rows, from the
+    -- list field's own style.
+    local paneField = s.bottomBar.panelField
+    local footStyle = nil
+    if paneField then
+      footStyle = setmetatable({ font = style.font, fontSize = style.size }, { __index = self._fieldStyle })
+    end
+    draw("actions", floatingPaneLib.layout(UI, style, s.bottomBar.panelTitle, actionLines(ns.filtered), true,
+        paneField and { placeholder = paneField.placeholder, empty = NO_RESULTS } or nil),
+      anchors.actions, "right", ns.highlight,
+      paneField and { state = self.field:getState(), style = footStyle, caret = self._caretVisible } or nil)
   end
   for kind in pairs(self._popScroll) do
     if not self._floatingPanes[kind] then self._popScroll[kind] = nil end

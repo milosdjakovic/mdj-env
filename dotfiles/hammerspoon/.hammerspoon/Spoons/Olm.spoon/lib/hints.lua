@@ -358,6 +358,7 @@ function obj.bottomBarModel(contextName, plan, deps)
   return { right = right, keys = keys, keysChord = keysChord, keysAction = keysAction, infoIcon = infoIcon,
     title = deps.title, panelOpen = panelRow ~= nil, panelAction = panel and panel.action or nil,
     panelTitle = panelRow and deps.actionsPaneTitle and deps.actionsPaneTitle() or nil,
+    panelField = panelRow and deps.actionsPaneField and deps.actionsPaneField() or nil,
     state = (panelRow and "panel | " or "") .. table.concat(parts, " | ") }
 end
 

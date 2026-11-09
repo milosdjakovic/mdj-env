@@ -21,7 +21,7 @@ Components, what a person sees.
 | Component | What it is | In code |
 |---|---|---|
 | **chooser** | the whole window, one shape of glass holding everything below | `chooser` |
-| **input field** | where a person types, at the top, a search or a typed value alike | `field` |
+| **input field** | where a person types, at the top, a search or a typed value alike, and the actions pane's own at its foot, its search | `field` |
 | **list** | the rows under the input field, and the rows inside the info pane and the actions pane | `list` |
 | **row** | one line of any list, in the chooser, the info pane or the actions pane | `row` |
 | **selected row** | the row under the cursor | `selected`, `highlighted` |
