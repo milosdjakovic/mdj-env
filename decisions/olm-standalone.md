@@ -329,3 +329,9 @@ list, and until then that list stays on Lua.
 - 2026-11-09 10:10. Every trial handed to Milos is written out as a numbered list of actions with
   what each should show, a few scenarios that might hold a hiccup, and what to report, his rule,
   in the plan's How we test.
+- 2026-11-09 10:25. Found while planning 1.4j. Olm.app is signed ad hoc, `codesign -d -r-` answers
+  `designated => cdhash H"..."`, so the privacy system takes every build for a new app and forgets
+  its folder grants on each `setup-olmapp.sh`, which is why the prompts kept coming back during the
+  1.4b trial. Asking up front is worthless until the identity holds across builds, so 1.4j fixes
+  that first, by a designated requirement naming the bundle id or a certificate made once on the
+  machine, chosen by which one macOS is seen to keep a grant for.

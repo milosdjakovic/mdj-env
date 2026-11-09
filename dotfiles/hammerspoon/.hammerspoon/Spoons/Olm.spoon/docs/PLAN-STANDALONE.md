@@ -58,6 +58,7 @@ Stage 1, the file search pilot
 - [ ] 1.4g Short queries, file search answering under three characters now the app's index can
 - [ ] 1.4h A type naming a bundle, `.app` listing every app rather than Safari alone, in both file searches
 - [ ] 1.4i Files iCloud has not downloaded, a Download action and the preview pane naming its shortcut, after 1.4f
+- [ ] 1.4j Folder permissions asked up front on file search's first open, and kept across rebuilds
 - [ ] 1.5 Parity, every feature of the Lua file search checked in the app, then the flip
 
 Stage 2, the bridge, read only
@@ -797,6 +798,24 @@ file is in iCloud and not downloaded. 1.4i adds Download as a verb of file searc
 with a shortcut of its own in the manifest, the pane naming that shortcut beside not downloaded, and
 the preview drawn once the download lands. It needs the actions pane and the list keys of 1.4f.
 The Lua file search keeps downloading on a preview, rule 7, and the app alone carries this.
+
+1.4j came out of the 1.4b trial on 2026-11-09, asked for by Milos. macOS asks once per protected
+folder, Desktop, Documents, Downloads, iCloud Drive and a removable or network volume, the first
+time the app touches a file there, so the prompts arrived one by one in the middle of a search as
+a preview or the helper reached a folder. Worse, the app is signed ad hoc and its designated
+requirement is its cdhash, so every build is a new app to the privacy system and a grant is
+forgotten on each `setup-olmapp.sh`. Three parts, in order.
+- One identity across builds. The app is signed with a designated requirement that names its
+  bundle id rather than its hash, or with a signing certificate made once on the machine, whichever
+  the trial shows macOS keeps a grant across a rebuild for. Test, grant Documents, rebuild, and
+  open a file there with no prompt.
+- The words macOS shows. `Info.plist` gains the usage descriptions for the folders file search
+  reads, so each prompt says why.
+- Asked up front. On the first open of file search, before any search, the list shows one pinned
+  row asking to let file search read the protected folders among its roots, and choosing it
+  touches each folder in turn, one prompt at a time, then shows the list. The answers are kept
+  under the olm data root, so it is asked once. A folder refused is said once in the list, with a
+  row that opens Files and Folders in System Settings, since macOS never asks a second time.
 
 **1.5 Parity, then the flip.** A written list of every feature the Lua file search has, read from
 its manifest, its README and `config/filesearch.lua`, each one tried in the app by hand and ticked.
