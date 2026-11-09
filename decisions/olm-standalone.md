@@ -381,3 +381,27 @@ list, and until then that list stays on Lua.
   drawing the list on row one between giving the query back and putting the row back, a flicker
   through the first row's preview on every verb chosen there, so the row now comes back in the
   same turn and a chosen verb answers stay.
+- 2026-11-09 19:10. Piece two of step 1.4f built, the bar, the info pane and the field keys of a
+  list Olm.app serves, from a share the bridge writes at load, `<tool>keys.json`, as the design
+  note decided. The bar is read in Swift through the shared field protocol, so Hammerspoon's panel
+  and the app read it alike, rather than a second JSON reader beside the Lua one. The info icon
+  crosses as a PNG data URL drawn by the Lua resolver, rather than an SF Symbol name the app would
+  draw, since a person whose icon set is emoji would then see a different icon in the app. The
+  app's own Command and Return lookup is gone, the share's field keys answering it.
+- 2026-11-09 21:57. Piece two's trial found Escape over the app's info pane closing the whole list,
+  since the app's stage hid on dismiss without asking the pane. Milos then stated the rule for both
+  panes. A key that acts on the list closes an open info pane or actions pane and still does what it
+  does, a move, typing, the preview pane's scroll or a verb, since a pane left open over a list the
+  keys go on changing is not natural. Escape closes only the pane, and a shortcut that closes the
+  list, a Hyper key opening another tool, closes everything as before. The app's info pane now
+  closes on Escape, typing, a move by key, Backspace and every verb but its own, and a pointer
+  passing over a row leaves it open. In the Lua lists the info pane already did all of this. The
+  actions pane keeps its own keys, moving, Return, typing to filter and its toggle, and any other
+  list key closes it first through the root's claim. The app's actions pane is piece three and
+  takes the same rule.
+- 2026-11-09 22:20. Milos asked, during the same trial, that the pointer follow the rule too. While
+  the info pane or the actions pane is open the list behind it takes no hover, so its highlight
+  and its preview hold, a scroll anywhere but on the pane closes the pane and moves nothing, and a
+  press behind the actions pane closes it and chooses nothing, as a press behind the info pane
+  already did. The bar keeps its own presses. One engine word, closePanes, closes whichever pane is
+  open, asked by the Lua canvas, the native panel through the swift view and the app's stage alike.

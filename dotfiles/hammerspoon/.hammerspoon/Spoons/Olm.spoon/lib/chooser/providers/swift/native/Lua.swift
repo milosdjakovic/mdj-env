@@ -177,6 +177,10 @@ struct LuaFields: Fields {
     r.each(t, name) { e in if let v = r.number(at: e) { out.append(v) } }
     return out
   }
+  func image(_ name: String) -> NSImage? { r.image(t, name) }
+  func each(_ name: String, _ body: (Fields) -> Void) {
+    r.each(t, name) { e in if r.isTable(e) { body(LuaFields(r, e)) } }
+  }
 }
 
 extension Style {
@@ -201,22 +205,7 @@ extension Row {
 }
 
 extension BottomBar {
-  init(_ r: LuaReader, _ t: Int32) {
-    r.each(t, "right") { e in
-      right.append(Entry(label: r.string(e, "label") ?? "", chord: r.chord(e, "chord"),
-        action: r.string(e, "action"), fit: r.bool(e, "fit") ?? false))
-    }
-    r.each(t, "keys") { e in
-      keys.append(Entry(label: r.string(e, "label") ?? "", chord: r.chord(e, "chord"),
-        section: r.string(e, "section"), lead: r.chord(e, "lead")))
-    }
-    keysChord = r.chord(t, "keysChord")
-    keysImage = r.image(t, "keysImage")
-    keysTint = r.bool(t, "keysTint") ?? false
-    title = r.string(t, "title")
-    panelOpen = r.bool(t, "panelOpen") ?? false
-    panelTitle = r.string(t, "panelTitle")
-  }
+  init(_ r: LuaReader, _ t: Int32) { self.init(LuaFields(r, t)) }
 }
 
 extension ViewState {

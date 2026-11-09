@@ -1016,6 +1016,18 @@ function Engine:closeInfo()
   self:_closeKeys()
 end
 
+--- Engine colon closePanes, arity zero. Closes the info pane and an actions pane the view floats,
+--- whichever is open, what a scroll or a press on the list behind them asks, stated by Milos on
+--- 2026-11-09. The actions pane closes through the action the bottom bar model names for it, as
+--- Escape closes it.
+function Engine:closePanes()
+  self:_closeKeys()
+  local model = self._bottomBarModel
+  if model and model.panelOpen and model.panelAction and self:floatsActionsPane() then
+    self:bottomBarAction(model.panelAction)
+  end
+end
+
 --- Engine colon textBudget, arity zero. The pixel room a row's text has on the screen this
 --- picker will open on, resolved lazily and cached for the open through geometry.textBudget.
 function Engine:textBudget()

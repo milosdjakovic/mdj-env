@@ -225,8 +225,10 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
 
     // While the actions pane is open the engine's rows are the panel's, so the list behind it,
     // still showing the rows it was opened over, answers no pointer of its own.
+    // With the info pane open the list behind it holds its highlight too, so the preview does not
+    // change behind the pane, stated by Milos on 2026-11-09.
     list.table.onHover = { [weak self] index in
-      guard let self, self.state.actions == nil else { return }
+      guard let self, self.state.actions == nil, !self.keys.isOpen else { return }
       self.list.hover(index)
     }
     list.table.onChoose = { [weak self] index in
@@ -807,17 +809,35 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   private func startMonitors() {
     guard monitors.isEmpty else { return }
     let mask: NSEvent.EventTypeMask = [.leftMouseDown]
+    let local: NSEvent.EventTypeMask = [.leftMouseDown, .scrollWheel]
     if let global = NSEvent.addGlobalMonitorForEvents(matching: mask, handler: { [weak self] event in
       self?.outside(event)
     }) {
       monitors.append(global)
     }
-    if let local = NSEvent.addLocalMonitorForEvents(matching: mask, handler: { [weak self] event in
+    if let local = NSEvent.addLocalMonitorForEvents(matching: local, handler: { [weak self] event in
       guard let self else { return event }
       if event.window !== self.window {
-        self.outside(event)
+        if event.type == .leftMouseDown { self.outside(event) }
         return event
       }
+      // A scroll anywhere but on an open pane closes the pane and moves nothing, and a press on the
+      // list behind an open actions pane closes it, the bar keeping its own presses, stated by Milos
+      // on 2026-11-09.
+      if let content = self.window.contentView, self.keys.isOpen || self.actionsPop.isOpen {
+        let hit = content.hitTest(content.convert(event.locationInWindow, from: nil))
+        let onPane = hit.map { $0.isDescendant(of: self.keys) || $0.isDescendant(of: self.actionsPop) } ?? false
+        if event.type == .scrollWheel {
+          if onPane { return event }
+          _ = self.ask("closePanes", [])
+          return nil
+        }
+        if self.actionsPop.isOpen, !self.keys.isOpen, !onPane, !(hit?.isDescendant(of: self.bar) ?? false) {
+          _ = self.ask("closePanes", [])
+          return nil
+        }
+      }
+      if event.type == .scrollWheel { return event }
       // With the info pane open a press anywhere else in this window only closes it, and a press
       // on the panel itself is the panel's, which does nothing with it.
       if self.keys.isOpen, let content = self.window.contentView {

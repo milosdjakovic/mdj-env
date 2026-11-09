@@ -616,6 +616,8 @@ local handlers = {
   end,
   -- A press in the panel away from the open info pane, which closes it and does nothing else.
   closeInfo = function(v) v.engine:closeInfo() end,
+  -- A scroll anywhere but on an open pane, or a press on the list behind the actions pane.
+  closePanes = function(v) v.engine:closePanes() end,
   choose = function(v, index) v.engine:chooseIndex(index) end,
   rightClick = function(v, index) v.engine:rightClickIndex(index) end,
   -- A native scroll moved the viewport, so the engine's model follows it and the rows it brings
@@ -637,6 +639,23 @@ local handlers = {
 --------------------------------------------------------------------------------
 
 local M = {}
+
+--- M.barShare(model) -> table or nil
+--- The bottom bar model flattened as bottomBarData flattens it for this panel, for Olm.app's share,
+--- step 1.4f, so the app's bar reads the very fields this panel reads. The info icon goes as a PNG
+--- data URL, since a picture cannot cross as JSON, drawn by the same resolver at the same size.
+function M.barShare(model)
+  local data = bottomBarData(model)
+  if not data then return nil end
+  local image = data.keysImage
+  data.keysImage = nil
+  if image and type(image.encodeAsURLString) == "function" then
+    local ok, url = pcall(image.encodeAsURLString, image, nil, "PNG")
+    if ok and type(url) == "string" then data.keysImage = url end
+  end
+  if not data.keysImage then data.keysTint = false end
+  return data
+end
 
 --- M.dispatch(id, event, ...) -> boolean
 --- The library's one callback. Finds the view by its panel's id and runs the handler for event,

@@ -168,3 +168,14 @@ Hyper and D or U in file search and in the clipboard, no longer Hyper with Comma
 the clipboard's Delete moved first to Hyper and Backspace and then, since that press never reaches macOS on this machine, to Hyper and R, the key every list's Delete now takes, one that declares confirm asking first. Wherever this note names Command and J or K as
 the Lua list's scroll keys, read D and U. The verbs, `scrollPreviewDown` and `scrollPreviewUp`, are
 unchanged, so the app needed no edit.
+
+## How piece two was built
+
+The share is `~/.olm/run/<tool>keys.json`, written by `host/bridge`'s `shareEach` for each tool it
+serves, built by `lib/hints.lua`'s `appShare`. It holds `bar`, the swift view's own flattening of
+`bottomBarModel` with each action already the verb the app runs, and `fieldKeys`, each a key code,
+its modifiers and its verb. The info icon crosses as a PNG data URL, drawn by the same resolver the
+Lua bar uses, so the icon set a person picks reaches the app too. The bar is read in Swift by one
+reader over `Fields.swift`'s protocol, which Hammerspoon's panel now reads through as well, so the
+two cannot read it two ways. The field keys replace the app's own Command and Return, and Command
+and ? opens the info pane as it does in the Lua list. The actions pane's rows are piece three.

@@ -251,6 +251,10 @@ local LOOK_SCREEN = { x = 0, y = 0, w = 1920, h = 1200 }
 ---   motion   the kit's motion, which attach hands native.setMotion
 ---   pane     { dark = t, light = t }, what a preview pane is laid out with, pane.lua's tokens
 --- It needs neither the library nor a screen, so it answers whichever chooser serves.
+--- M.barShare(model) -> table or nil
+--- The bottom bar model as Olm.app reads it, view.lua's barShare.
+function M.barShare(model) return SwiftView.barShare(model) end
+
 function M.look(config)
   if not UIKIT then return nil, "the provider was configured without the UI kit" end
   local seen = {}

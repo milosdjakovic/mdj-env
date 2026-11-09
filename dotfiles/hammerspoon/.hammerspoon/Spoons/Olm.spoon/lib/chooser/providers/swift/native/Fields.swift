@@ -20,6 +20,10 @@ protocol Fields {
   func chord(_ name: String) -> [[KeyMark]]
   // A list of plain numbers, a motion curve's four control points.
   func numbers(_ name: String) -> [Double]
+  // A picture, an hs.image from Lua and a PNG data URL out of JSON, the bar's info icon.
+  func image(_ name: String) -> NSImage?
+  // Calls body once per table in the list at name, the bar's entries.
+  func each(_ name: String, _ body: (Fields) -> Void)
 }
 
 func fontOf(name: String?, size: CGFloat) -> NSFont {
@@ -116,6 +120,27 @@ extension Motion {
   }
 }
 
+// The bottom bar's model, read here for Hammerspoon's panel and for Olm.app alike, so the bar the
+// app draws from the share host/bridge writes, step 1.4f, reads the very fields the Lua view sends.
+extension BottomBar {
+  init(_ f: Fields) {
+    f.each("right") { e in
+      right.append(Entry(label: e.string("label") ?? "", chord: e.chord("chord"),
+        action: e.string("action"), fit: e.bool("fit") ?? false))
+    }
+    f.each("keys") { e in
+      keys.append(Entry(label: e.string("label") ?? "", chord: e.chord("chord"),
+        section: e.string("section"), lead: e.chord("lead")))
+    }
+    keysChord = f.chord("keysChord")
+    keysImage = f.image("keysImage")
+    keysTint = f.bool("keysTint") ?? false
+    title = f.string("title")
+    panelOpen = f.bool("panelOpen") ?? false
+    panelTitle = f.string("panelTitle")
+  }
+}
+
 // The same fields out of a decoded JSON object. A boolean is told from a number by its Core
 // Foundation type, since JSONSerialization hands both as NSNumber.
 struct JSONFields: Fields {
@@ -174,5 +199,16 @@ struct JSONFields: Fields {
 
   func numbers(_ name: String) -> [Double] {
     (object[name] as? [Any] ?? []).compactMap { Self.number($0).map { Double($0) } }
+  }
+
+  func image(_ name: String) -> NSImage? {
+    guard let url = object[name] as? String, let comma = url.firstIndex(of: ","),
+      url.hasPrefix("data:"), let data = Data(base64Encoded: String(url[url.index(after: comma)...]))
+    else { return nil }
+    return NSImage(data: data)
+  }
+
+  func each(_ name: String, _ body: (Fields) -> Void) {
+    for item in object[name] as? [Any] ?? [] where item is [String: Any] { body(JSONFields(item)) }
   }
 }

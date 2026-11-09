@@ -812,6 +812,12 @@ function View:_onMouseDown(point, button)
     return true
   end
   self._popPressed = false
+  -- A press behind an open actions pane, on the list or the preview pane, closes it and nothing else.
+  if panelFloats(self.engine:scene()) then
+    self._pressedRowIndex = nil
+    if button == "left" then self.engine:closePanes() end
+    return true
+  end
   if insidePreviewPane and not pointInRect(point, rects and rects.bottomBar) then
     return false
   end
@@ -894,6 +900,10 @@ function View:_onMouseMove(point)
     if line ~= pop.highlight then self.engine:highlightIndex(line) end
     return
   end
+  -- Behind an open pane the list holds its highlight, stated by Milos on 2026-11-09, and behind
+  -- the actions pane the engine's rows are the panel's besides.
+  local s = self.engine:scene()
+  if s.infoOpen or panelFloats(s) then return end
   local index = self:_rowIndexAtPoint(point)
   if index then self.engine:highlightIndex(index) end
 end
@@ -917,6 +927,15 @@ function View:_onMouseScroll(point, dy, continuous)
       self:redraw()
     end
     return true
+  end
+  -- A scroll anywhere else while a pane is open closes the pane and moves nothing, stated by Milos
+  -- on 2026-11-09.
+  if s.infoOpen or panelFloats(s) then
+    if pointInRect(point, self._window or (rects and rects.canvas)) or pointInRect(point, rects and rects.previewPane) then
+      self.engine:closePanes()
+      return true
+    end
+    return false
   end
   -- A group covers the rows behind it, so a scroll over one is claimed and moves nothing, rather
   -- than scrolling a list the person cannot see under it.

@@ -277,6 +277,7 @@ local engine = {
   scrollBy = function(_, d) calls[#calls + 1] = "scroll " .. tostring(d) end,
   toggleInfo = function() calls[#calls + 1] = "toggleInfo" end,
   hide = function() calls[#calls + 1] = "hide" end,
+  closePanes = function() calls[#calls + 1] = "closePanes" end,
 }
 local function last() return calls[#calls] end
 local view = Canvas.new(engine)
@@ -351,13 +352,17 @@ calls = {}
 local onRow = { x = scene.rects.list.x + 20, y = scene.rects.list.y + 10 }
 check("a row behind the floating panel is on no row", view:_rowIndexAtPoint(onRow), nil)
 view:_onMouseMove(onRow)
-view:_onMouseDown(onRow, "left")
-view:_onMouseUp(onRow, "left")
 view:_onMouseDown(onRow, "right")
-check("and takes no hover, choose or right click", #calls, 0)
+check("and takes no hover or right click", #calls, 0)
+-- Behind an open pane a press or a scroll closes the pane and moves nothing, stated by Milos on
+-- 2026-11-09.
+check("a left press on it is claimed", view:_onMouseDown(onRow, "left"), true)
+view:_onMouseUp(onRow, "left")
+check("and closes the pane, choosing nothing", table.concat(calls, ","), "closePanes")
+calls = {}
 check("a scroll over it is claimed", view:_onMouseScroll(onRow, -5, true), true)
-check("and moves only the kept rows", #calls, 0)
-check("which it moved", view._held.list ~= listRows, true)
+check("and closes the pane", table.concat(calls, ","), "closePanes")
+check("moving no rows", view._held.list == listRows, true)
 
 -- Closed again, the engine's rows draw and a row is a row.
 scene.list = listRows

@@ -153,5 +153,31 @@ do
   eq(run({ kind = "scope", name = "files", acts = true }), nil, "intercept: with no scope host a scope row runs as ever")
 end
 
+-- What Olm.app is handed for a served list, step 1.4f. The bar's actions become the verbs the app
+-- runs, and the keys the list's own field answers go with their key codes and their verbs.
+do
+  local hints = assert(loadfile(here .. "../lib/hints.lua"))()
+  local plan = { contexts = { fileSearch = { bindings = {
+    { key = "i", leader = "hyper", action = "insertSelected", shared = "primary", description = "Open" },
+    { key = "return", mods = { "cmd" }, leader = false, action = "revealInFinder", shared = "secondary" },
+    { key = "/", mods = { "cmd" }, leader = false, action = "showInfo", shared = "showInfo" },
+    { key = "q", leader = "hyper", action = "peekPreview" },
+    { key = "delete", leader = false, action = "leave", chord = false },
+  } } } }
+  local seen
+  local share = hints.appShare("fileSearch", plan, {}, {
+    flatten = function(model) seen = model; return { right = { { action = "revealInFinder" }, { action = "insertSelected" } } } end,
+    methodFor = { revealInFinder = "reveal" },
+    keycode = function(key) return ({ ["return"] = 36, ["/"] = 44 })[key] end,
+  })
+  eq(type(seen), "table", "appShare: the bar is flattened from bottomBarModel's answer")
+  eq(share.bar.right[1].action, "reveal", "appShare: a bar action is the verb lib/nav.lua routes it to")
+  eq(share.bar.right[2].action, "insertSelected", "appShare: an action nav does not rename stays itself")
+  eq(#share.fieldKeys, 2, "appShare: only the field's own keys, never a leader's and never a listing")
+  eq(share.fieldKeys[1].code .. ":" .. table.concat(share.fieldKeys[1].mods, "+") .. ":" .. share.fieldKeys[1].verb,
+    "36:cmd:reveal", "appShare: a field key carries its code, its modifiers and its verb")
+  eq(share.fieldKeys[2].verb, "showInfo", "appShare: Command and ? opens the info pane")
+end
+
 print(string.format("rootmechanism: %d checks, %d failed", checks, failures))
 os.exit(failures == 0 and 0 or 1)
