@@ -44,10 +44,12 @@ mkdir -p "$stage/Contents/MacOS"
 cp "$scratch/release/Olm" "$stage/Contents/MacOS/Olm"
 cp "$here/Info.plist" "$stage/Contents/Info.plist"
 # File search's index helper, compiled from the plugin's own source so the app and the Lua side
-# ask the same program, the file search plugin's Plugins/FileSearch/Index.swift.
+# ask the same program, the file search plugin's Plugins/FileSearch/Index.swift. It is compiled
+# with the shared search, Sources/OlmSearch/Match.swift, so it keeps a name exactly when the list
+# would, as the Lua side compiles it.
 mkdir -p "$stage/Contents/Resources"
 if ! DEVELOPER_DIR="$tools" "$tools/usr/bin/swiftc" -sdk "$tools/SDKs/MacOSX.sdk" -O "$here/../plugins/filesearch/sources/fileindex.swift" \
-  -o "$stage/Contents/Resources/fileindex" >"$log" 2>&1; then
+  "$here/Sources/OlmSearch/Match.swift" -o "$stage/Contents/Resources/fileindex" >"$log" 2>&1; then
   grep -E 'error' "$log" | head -20 >&2
   echo "olmapp: the index helper's build FAILED" >&2
   rm -rf "$stage"

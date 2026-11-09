@@ -14,9 +14,22 @@ lands, with Updating index or Building index in the pinned status row meanwhile.
 answers a scoped query live. `util.run` replaces its chunk tables and clears its timers and task
 when it finishes or is cancelled. The preview pane's stat, folder scan and text head are the same
 helper's `peek`, one run per row the highlight settled on, cancelled by the next, so nothing the
-pane shows is read on Hammerspoon's main thread. This agrees with the plugin AGENTS.md.
+pane shows is read on Hammerspoon's main thread. `search` is compiled together with the shared
+search's Swift copy, `app/Sources/OlmSearch/Match.swift`, whose path the root hands the plugin as
+the `matchsource` lib, and keeps a name exactly when the list would, behind a byte prefilter that
+passes over a name lacking any word, less one letter, in order. This agrees with the plugin
+AGENTS.md.
 
 ## Rejected
+
+Making the narrow as strict as the helper, so a typo finds a file neither way. Rejected
+2026-11-09. File search would be the one list where a word one typo away finds nothing, which the
+unified search settled against for every list, and the narrow would need a weakened matcher of its
+own.
+
+A third copy of the matcher, written into the helper by hand. Rejected 2026-11-09. Lua and Swift
+already hold one each, pinned to each other by fixtures, and a third would drift with nothing
+watching. Compiling the Swift copy in costs one more argument to swiftc.
 
 Keeping the listing in Lua and only clearing it afterwards. Rejected 2026-10-30. The peak comes
 from the transit itself, chunks, then one joined string, then the write, so clearing afterwards
@@ -124,3 +137,24 @@ query is the scope `~/` with the text `dev .js foo`. Writing the grammar's fixtu
 the standalone plan found it. The comments now say `.js ~/dev/ foo`, which does rank by foo, and the
 grammar was not changed. Reading a type after the scope too would be a change of grammar, for Milos
 to decide, and the fixture case for `~/dev .js foo` pins today's reading until then.
+
+### 2026-11-09 12:40, a fresh search and typing on found different files
+
+Reading the shadow's log for step 1.3e of the standalone plan found eight lines that were not the
+same, 49 lines from 2026-11-08 to 2026-11-09. One, ids 900 and 901 with `/nonexistent/report.pdf`,
+is taken to be a made up answer written while the shadow was built, from its time and its path,
+and not traced to the command. The seven others were one fault. The helper kept a name only when
+it held every word whole, while the list ranks with the shared search, which keeps a word one edit
+away and a word spelled in pieces. Lua typed on over rows a shorter word brought back, so `repo`
+brought `repost.svg` and `report` then kept it, while the app was handed only the settled `report`
+and asked afresh, and the helper never answered it. The app's counts were a fresh helper search's
+exactly, 155, 10, 8, 135 and 0, and Lua's held rows the shorter words returned. So which files a
+query found hung on how it was typed, which the plugin AGENTS.md says must never happen.
+
+The helper now asks the shared search itself, compiled with `Match.swift`. Over the real index of
+about 160 thousand entries a fresh `report` gives 156 files, as the narrow did, `scre` 630 against
+135, and a search takes 20 to 60 ms in its own process against about 10 ms, one and two letters
+about 100 ms. Without the prefilter the same answers took 70 to 90 ms. Three cases in
+`olm-index-check` pin it, a word one typo away, a fresh search agreeing with the narrow, and an
+accent folded either way. A scoped search still hands its first word to fd as typed, so a typo in
+that word finds nothing inside a folder, which is step 1.4e's to answer.

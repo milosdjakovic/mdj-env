@@ -20,8 +20,10 @@ out="$(mktemp)"
 trap 'rm -f "$out"' EXIT
 helper="$scratch/fileindex-check"
 source="$here/../plugins/filesearch/sources/fileindex.swift"
-if [ ! -x "$helper" ] || [ "$source" -nt "$helper" ]; then
-  if ! DEVELOPER_DIR="$tools" "$tools/usr/bin/swiftc" -sdk "$tools/SDKs/MacOSX.sdk" -O "$source" -o "$helper" >"$out" 2>&1; then
+# The shared search the helper is compiled with, as app/build.sh and the Lua side compile it.
+matcher="$here/../app/Sources/OlmSearch/Match.swift"
+if [ ! -x "$helper" ] || [ "$source" -nt "$helper" ] || [ "$matcher" -nt "$helper" ]; then
+  if ! DEVELOPER_DIR="$tools" "$tools/usr/bin/swiftc" -sdk "$tools/SDKs/MacOSX.sdk" -O "$source" "$matcher" -o "$helper" >"$out" 2>&1; then
     grep -E 'error' "$out" | head -20
     echo "olmindex, the helper's build FAILED"
     exit 1

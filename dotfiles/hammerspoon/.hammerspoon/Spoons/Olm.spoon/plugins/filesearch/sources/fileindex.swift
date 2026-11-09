@@ -23,6 +23,11 @@
 //
 // The index is mapped rather than read, so a search touches clean file backed pages that are
 // never counted as this process's memory, and only the matching lines are copied out.
+//
+// It is compiled together with the shared search, app/Sources/OlmSearch/Match.swift, the Swift
+// copy of lib/chooser/match.lua, which the root hands the plugin the path of. So a search keeps a
+// name exactly when the list would, one typo included, and typing on over held rows and asking
+// again for the same text find the same files.
 
 import Darwin
 import Foundation
@@ -183,38 +188,60 @@ func hasExt(_ exts: [[UInt8]], _ h: UnsafeBufferPointer<UInt8>, _ nameStart: Int
   return i
 }
 
-// A rough first ranking, only good enough that the best LIMIT rows are the ones handed back.
-// The shared search in Olm ranks those again, so this only has to keep the right candidates.
-// Every word must be in the name. A name that starts with the first word beats one where a
-// word starts after a separator, which beats one that merely contains it, and a shorter name
-// wins a tie, since a query names a short name more completely.
+// Every name the shared search keeps for the words, ranked by its score, and a newer file wins a
+// tie. The search is asked for the name alone, since a file row is found by its name. The rows
+// are ranked again in Olm, so this only has to keep the right candidates in LIMIT. Until
+// 2026-11-09 a name had to hold every word whole, so the list kept a name one typo away only
+// when typing on narrowed rows a shorter word had brought back, and a fresh search did not.
 func search(index: String, limit: Int, hidden: Bool, exts: [[UInt8]], words: [String]) -> Int32 {
-  let needles = words.map { Array($0.lowercased().utf8) }
-  var found: [(score: Int, line: Line)] = []
+  let query = words.joined(separator: " ")
+  let fuzzy = Fuzzy()
+  // Each word as the prefilter reads it, folded as the matcher folds it, lowered, and its letters
+  // and digits only.
+  let cores: [[UInt8]] = words.map { w in
+    Array(Fuzzy.fold(w).lowercased().utf8).filter { b in (b >= 0x30 && b <= 0x39) || (b >= 0x61 && b <= 0x7A) || b >= 0x80 }
+  }.filter { !$0.isEmpty }
+  var found: [(score: Double, line: Line)] = []
 
   let ok = withIndex(index) { bytes in
     forEachLine(bytes) { l in
       if l.hidden && !hidden { return }
-      let nameStart = nameStart(bytes, l)
-      if !hasExt(exts, bytes, nameStart, l.end) { return }
-      var score = 0
-      for (k, w) in needles.enumerated() {
-        guard let at = find(w, in: bytes, nameStart, l.end) else { return }
-        if at == nameStart {
-          score += k == 0 ? 300 : 200
-        } else {
-          let prev = bytes[at - 1]
-          let boundary = prev == 0x20 || prev == 0x2D || prev == 0x5F || prev == 0x2E
-          score += boundary ? 150 : 50
-        }
+      let start = nameStart(bytes, l)
+      if !hasExt(exts, bytes, start, l.end) { return }
+      // A name the search keeps holds each word, less at most one letter, in order, at every
+      // level, a word start, pieces, one edit or inside a word. So a name where that fails is
+      // passed over before the matcher is asked. A name past ASCII is always asked, since the
+      // matcher folds an accent the byte compare cannot see.
+      if !nonASCII(bytes, start, l.end) {
+        for w in cores where !nearlyInOrder(w, bytes, start, l.end) { return }
       }
-      score -= min(l.end - nameStart, 100)
-      found.append((score, l))
+      let name = String(decoding: UnsafeBufferPointer(rebasing: bytes[start..<l.end]), as: UTF8.self)
+      guard let m = fuzzy.match(query, SearchFields(primary: name)) else { return }
+      found.append((m.score, l))
     }
     found.sort { $0.score != $1.score ? $0.score > $1.score : $0.line.mtime > $1.line.mtime }
     emit(bytes, found.prefix(limit).map(\.line))
   }
   return ok ? 0 : 1
+}
+
+// Whether w, less at most one letter, occurs in order in h[from..<to], compared lowered. The
+// longest prefix taken from the left and the longest suffix taken from the right leave out at
+// most one letter between them exactly when it does.
+func nearlyInOrder(_ w: [UInt8], _ h: UnsafeBufferPointer<UInt8>, _ from: Int, _ to: Int) -> Bool {
+  let n = w.count
+  var p = 0, i = from
+  while i < to && p < n { if lower(h[i]) == w[p] { p += 1 }; i += 1 }
+  if p >= n - 1 { return true }
+  var q = 0, j = to - 1
+  while j >= from && q < n { if lower(h[j]) == w[n - 1 - q] { q += 1 }; j -= 1 }
+  return p + q >= n - 1
+}
+
+func nonASCII(_ h: UnsafeBufferPointer<UInt8>, _ from: Int, _ to: Int) -> Bool {
+  var i = from
+  while i < to { if h[i] >= 0x80 { return true }; i += 1 }
+  return false
 }
 
 // MARK: recent
@@ -316,7 +343,7 @@ func peek(path: String, out: String, readCap: Int, scanCap: Int, entries: Int) -
   }
 }
 
-func main() -> Int32 {
+func fileindexMain() -> Int32 {
   let a = CommandLine.arguments
   guard a.count >= 2 else { return 2 }
   switch a[1] {
@@ -338,4 +365,8 @@ func main() -> Int32 {
   }
 }
 
-exit(main())
+// The entry point, a type rather than a line at the top level, since the helper is two files.
+@main
+enum FileIndexTool {
+  static func main() { exit(fileindexMain()) }
+}

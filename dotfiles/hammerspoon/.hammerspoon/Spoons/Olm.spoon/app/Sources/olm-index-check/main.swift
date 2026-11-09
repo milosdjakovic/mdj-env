@@ -25,7 +25,8 @@ let root = fm.temporaryDirectory.appendingPathComponent("olm-index-check-\(getpi
 defer { try? fm.removeItem(at: root) }
 let tree = root.appendingPathComponent("tree")
 for path in ["notes/report.md", "notes/report-old.md", "src/app.js", "src/node_modules/dep.js",
-             ".config/secret.md", "Reports.app/Contents/x.md"] {
+             ".config/secret.md", "Reports.app/Contents/x.md", "bills/invoice-march.pdf",
+             "school/vežbe.md"] {
   let url = tree.appendingPathComponent(path)
   try? fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
   fm.createFile(atPath: url.path, contents: Data("x".utf8))
@@ -59,6 +60,12 @@ let kinds = Dictionary(uniqueKeysWithValues: (await ask("report") ?? []).map { (
 check(kinds["Reports.app"]?.isDir == true && kinds["report.md"]?.isDir == false
   && kinds.values.allSatisfy { $0.mtime > 0 }, "a row carries its date and kind")
 check(names(await ask("")).contains("app.js"), "an empty query is the recent list")
+// The helper keeps a name exactly when the shared search would, so a word one typo away finds
+// it on a fresh search, as it does when typing on narrows rows a shorter word brought back.
+check(names(await ask("invioce")) == ["invoice-march.pdf"], "a word one typo away finds the name")
+check(names(await ask("inv")) == names(await ask("invioce")), "and a fresh search agrees with the narrow")
+let plain = names(await ask("vezbe")), accented = names(await ask("vežbe"))
+check(plain == ["vežbe.md"] && accented == ["vežbe.md"], "an accent is folded either way")
 
 // A cancelled ask throws rather than answering, which is how a newer query supersedes it.
 let cancelled = Task { try await files.ask(FileQueryGrammar.parse("report", types: types), cap: 50) }

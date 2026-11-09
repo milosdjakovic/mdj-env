@@ -229,6 +229,8 @@ function obj:configure(opts)
 
   obj.sources.index.configure({
     storage = opts.storage,
+    -- The shared search the helper is compiled with, so it keeps what the list keeps.
+    matchSource = type(opts.matchsource) == "table" and opts.matchsource.swift or nil,
     prune = prune,
     limits = limits,
     -- Where the crawl starts beside home. This is the one source that answers a query naming no

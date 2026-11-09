@@ -27,8 +27,8 @@ first, then says no matches when a round trip brought back none of them. The roo
 matcher how many letters a word needs before it is kept inside a word, three, and hands that to
 the walker, so a shorter word is asked at a word start through a pattern. The walker hands the
 first word to the tool and every row the tool answers to the shared search, which ranks the later
-words. The index helper ranks a match at the start of the name or of a word in it above one inside
-a word, which keeps the same rows in its cap without being told the length. A source narrows only the request it builds and never tests a
+words. The index helper keeps and ranks by the shared search itself, compiled in, see the index
+below, so its cap holds the rows the list would keep. A source narrows only the request it builds and never tests a
 row against the typed words in Lua, since a second matcher disagrees with the shared one. The
 walker's own later word filter did exactly that until the phase four rework, a typo in a second
 word dropping a row the shared search keeps, notes reprot against notes report.md, and the dry
@@ -305,15 +305,31 @@ those items and malloc keeps the pages.
 So the work moved out of the process. `sources/fileindex.swift` is one small helper with three
 commands, each of which does one thing, prints at most a page of lines and exits. `build` walks the
 roots with fts into a file of `mtime TAB flags TAB path` lines, `search` maps that file and keeps
-the names holding every word, ranked roughly, and `recent` keeps the newest files of the window.
+the names the shared search keeps, ranked by its score, and `recent` keeps the newest files of the window.
 Hammerspoon only ever receives the rows it shows. Measured on 2026-10-30 over 160 thousand
 entries, a 20 MB index, a build took 1.2 seconds warm at 8 MB resident, and a search or the
-recent list took about 10 milliseconds including the process start. The map is why a search is
+recent list took about 10 milliseconds including the process start, a search 20 to 60 since it
+asks the shared search, see below. The map is why a search is
 cheap, its pages are clean and file backed, so they count against nothing.
 
 The helper's ranking is only good enough to keep the right candidates in the cap. The shared
 search ranks what comes back, the same as every other list, so the helper never decides the order a
 person sees.
+
+**The helper keeps a name exactly when the list would, since 2026-11-09.** It is compiled together
+with the shared search's Swift copy, `app/Sources/OlmSearch/Match.swift`, whose path the root
+hands this plugin as the `matchsource` lib, and asks it of every name. Until then it kept a name
+only when it held every word whole, and that broke the narrowing guard's one assumption, that a
+longer text over the same population finds a subset of what the shorter one found. It holds for
+the shared search's levels only when the round trip answers by the same levels, since a word one
+edit away or spelled in pieces is kept by the search and was never returned by the helper. So
+typing `repo` and then `report` kept `repost.svg` through the narrow while asking for `report`
+afresh did not, and which files a query found hung on how it was typed. The shadow of the
+standalone plan found it, the app being handed only the settled query. A byte prefilter passes over
+a name that lacks any word, less one letter, in order, which every level implies, and a name past
+ASCII is always asked, since the search folds an accent the compare cannot see. A search takes 20
+to 60 ms in its own process, against about 10 ms before, one and two letters about 100 ms.
+`decisions/olm-filesearch.md` has the measurements and what was rejected.
 
 A rebuild happens only on an open, when the index is older than `indexMaxAgeSeconds`, and runs in
 the background while the old index answers. When it lands the engine is asked to answer again,

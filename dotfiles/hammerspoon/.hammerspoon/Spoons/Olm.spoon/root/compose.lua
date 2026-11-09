@@ -1125,6 +1125,11 @@ function obj.run(olm, cfg)
     queryassoc = atoms.queryassoc,
     storage = atoms.storage,
     ui = uiAtom,
+    -- Where the shared search's Swift copy lives, app/Sources/OlmSearch/Match.swift, the twin of
+    -- lib/chooser/match.lua that Olm.app ranks with. A plugin compiling a helper that must keep
+    -- exactly the rows a list keeps compiles it with this file, so it reaches no path of the core
+    -- itself. File search's index helper is the one today.
+    matchsource = { swift = spoonDir .. "app/Sources/OlmSearch/Match.swift" },
   }
   -- A lib that is a directory rather than a file, lib/ui, is invisible to the scan in step C,
   -- which reads only lib/*.lua. Every name this table delivers is real by construction, so

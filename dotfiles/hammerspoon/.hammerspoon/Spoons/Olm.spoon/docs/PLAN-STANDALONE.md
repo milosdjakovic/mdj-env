@@ -23,7 +23,8 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 1.3e, the shadow, read its log and explain every difference. The recommended order after
+Next. 1.3e, the shadow, its log read and the one fault fixed, waiting on Milos's trial and a clean
+shadow from line 50 of the log. The recommended order after
 it, written 2026-11-09 after 1.4j. 1.4f first, the bottom bar, the actions pane, the info pane,
 Copy Path and the list keys, since it is the chooser itself rather than file search, it unblocks
 the preview pane's scroll keys and 1.4i, and every later tool reuses it. Then 1.4c Quick Look,
@@ -642,6 +643,26 @@ Open: the trial by hand, a rebuild keeping the grants first.
 
 Result: `olm-index-check` with 19 checks of the permissions, the dry suite and `test/units.sh`.
 Open: nothing.
+
+**1.3e read, the shadow's log, 2026-11-09.** 49 lines from 2026-11-08 to 2026-11-09, 25 skipped by
+design, the recent list for 1.4d and a folder for 1.4e, 16 the same and 8 not.
+- One, ids 900 and 901 with `/nonexistent/report.pdf`, is taken to be a made up answer written
+  while the shadow was built, from its time and its path. Not traced to the command.
+- Seven were one fault, on the Lua side. The helper kept a name only when it held every word
+  whole, and the list ranks with the shared search, which keeps a word one edit away or spelled in
+  pieces. Lua typed on over rows a shorter word brought back, so `repo` brought `repost.svg` and
+  `report` kept it, while the app asked afresh for the settled query. The app's counts were a fresh
+  helper search's exactly. Which files a query found hung on how it was typed.
+- Fixed in the shared helper, so both sides. `fileindex.swift` is compiled with
+  `app/Sources/OlmSearch/Match.swift`, handed to the plugin as the `matchsource` lib, and keeps a
+  name exactly when the list would, behind a prefilter. A fresh `report` gives 156 as the narrow
+  did. A search is 20 to 60 ms in its own process, one and two letters about 100 ms. Making the
+  narrow as strict instead, and a third copy of the matcher, were rejected,
+  `decisions/olm-filesearch.md`.
+Result: the dry suite, `olm-index-check` with three new checks, a typo, a fresh search agreeing with
+the narrow and an accent folded either way, and `test/units.sh`.
+Open: Milos's trial on the Lua file search, then the shadow from line 50 on, and 1.3e is ticked
+when that stays clean. A scoped search still hands its first word to fd as typed, for 1.4e.
 
 ## Where the facts come from
 

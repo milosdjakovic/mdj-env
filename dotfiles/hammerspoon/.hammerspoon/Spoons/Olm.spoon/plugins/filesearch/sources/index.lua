@@ -29,6 +29,8 @@ local SOURCE = spoonPath .. "fileindex.swift"
 
 local cfg = {
   storage = nil,
+  -- The shared search's Swift source, compiled with the helper, handed in by the root.
+  matchSource = nil,
   prune = {},
   searchAlso = {},
   limits = {},
@@ -61,8 +63,11 @@ end
 local function binaryFresh()
   local bin = binaryPath() and hs.fs.attributes(binaryPath(), "modification")
   if not bin then return false end
-  local src = hs.fs.attributes(SOURCE, "modification")
-  return src == nil or bin >= src
+  for _, path in ipairs({ SOURCE, cfg.matchSource }) do
+    local src = hs.fs.attributes(path, "modification")
+    if src and bin < src then return false end
+  end
+  return true
 end
 
 local function indexAgeSeconds()
@@ -79,6 +84,7 @@ end
 
 --- index.configure(opts)
 --- opts.storage        the storage lib, which names the cache directory
+--- opts.matchSource    the shared search's Swift source, compiled into the helper
 --- opts.prune          folder names never descended into
 --- opts.searchAlso     starting points outside home, added to home itself
 --- opts.limits         the pure limits table, read for the recent window
@@ -87,6 +93,7 @@ end
 function M.configure(opts)
   opts = opts or {}
   cfg.storage = opts.storage
+  cfg.matchSource = opts.matchSource
   cfg.prune = opts.prune or {}
   cfg.searchAlso = opts.searchAlso or {}
   cfg.limits = opts.limits or {}
@@ -97,6 +104,9 @@ end
 
 function M.available()
   if not cacheDir() then return false, "no storage" end
+  if not (cfg.matchSource and hs.fs.attributes(cfg.matchSource, "mode") == "file") then
+    return false, "no shared search source to compile the helper with"
+  end
   if binaryFresh() then return true end
   if hs.fs.attributes(SWIFTC, "mode") == "file" then return true end
   return false, "no helper binary and no Swift compiler at " .. SWIFTC
@@ -124,7 +134,7 @@ local function ensureBinary(done)
   if compiling then return end
   compiling = true
   hs.fs.mkdir(cacheDir())
-  util.run(SWIFTC, { "-O", SOURCE, "-o", binaryPath() }, 120, function(out, err)
+  util.run(SWIFTC, { "-O", SOURCE, cfg.matchSource, "-o", binaryPath() }, 120, function(out, err)
     compiling = false
     local ok = binaryFresh()
     if not ok then util.log.i("index helper compile failed, " .. tostring(err)) end

@@ -57,6 +57,10 @@ return {
       -- names a role and never a font, a size, a line height or a colour. Optional, since
       -- without it the side pane declines to open and the picker still lists and opens files.
       ui = { from = "ui", policy = "optional" },
+      -- The shared search's Swift source, compiled into the index helper so a search keeps a
+      -- name exactly when the list would, one typo included. Optional, since without it the
+      -- index source steps aside and a scoped search still walks.
+      matchsource = { from = "matchsource", policy = "optional" },
     },
     tools = {
       { name = "qlmanage", kind = "system", locator = "/usr/bin/qlmanage", policy = "optional", unit = "thumbs",
