@@ -49,6 +49,9 @@ public final class Stage {
   private var bars = Bars()
   private var bar: BottomBar? { bars.bar }
   private var infoOpen = false
+  // An Escape that closed the info pane, so its autorepeat does not go on to close the list, as
+  // the engine's _escapeClosedKeys does.
+  private var escapeClosedInfo = false
   // The status the last redraw showed, so a redraw for the bar alone keeps it.
   private var status: String?
   // Each file's icon once it has been drawn, so a row is sent with its icon whenever it has one.
@@ -443,6 +446,9 @@ public final class Stage {
   /// is the method lib/nav.lua routes to. A verb for a tool whose list is not up is dropped.
   public func verb(_ tool: String, _ name: String) {
     guard tool == shown, let source else { return }
+    // Every verb but the info pane's own closes it first, a key that acts on the list being a
+    // person done reading it, stated by Milos in piece two's trial on 2026-11-09.
+    if name != "showInfo" { closeInfo() }
     switch name {
     case "selectNext": panel.move(1)
     case "selectPrev": panel.move(-1)
@@ -470,6 +476,25 @@ public final class Stage {
     apply(status: status)
   }
 
+  private func closeInfo() {
+    if infoOpen { toggleInfo() }
+  }
+
+  // Escape closes the info pane when it is open and the list otherwise. A held Escape that closed
+  // the pane goes on repeating, and every repeat of that press is swallowed until a fresh one.
+  private func dismissKey(_ data: Data?) {
+    let repeating = data.flatMap { CGEvent(withDataAllocator: nil, data: $0 as CFData) }
+      .map { $0.getIntegerValueField(.keyboardEventAutorepeat) != 0 } ?? false
+    if repeating && escapeClosedInfo { return }
+    escapeClosedInfo = false
+    if infoOpen {
+      escapeClosedInfo = true
+      closeInfo()
+      return
+    }
+    hide()
+  }
+
   // How far one scroll key moves the pane, chooser.lua's PANE_SCROLL_STEP.
   private static let paneScrollStep: CGFloat = 120
 
@@ -483,6 +508,7 @@ public final class Stage {
     // Command and a digit opens the row in that slot, as the engine's _chooseSlot does, where the
     // list shows its numbers.
     if event.flags.contains(.maskCommand), look?.showNumbers == true, let slot = Self.digitKeys.firstIndex(of: code) {
+      closeInfo()
       act(on: slot + 1)
       return true
     }
@@ -493,17 +519,25 @@ public final class Stage {
       return true
     }
     guard code == 36 || code == 76 else { return false }
+    closeInfo()
     act(on: highlight)
     return true
   }
 
   fileprivate func handle(_ event: String, _ args: [PanelValue]) -> Bool {
     switch event {
-    case "dismiss", "resignedKey", "pressOutside":
+    case "dismiss":
+      if case .bytes(let data)? = args.first { dismissKey(data) } else { dismissKey(nil) }
+    case "resignedKey", "pressOutside":
       hide()
     case "text":
+      closeInfo()
       if case .string(let text)? = args.first { search(text) }
+    case "emptyBackspace":
+      closeInfo()
     case "highlighted":
+      // A move by key closes the info pane, a pointer passing over a row does not.
+      if args.count > 1, case .bool(false) = args[1] { closeInfo() }
       if case .int(let index)? = args.first, index != highlight {
         highlight = index
         settlePreview()
@@ -521,7 +555,7 @@ public final class Stage {
     case "toggleInfo":
       toggleInfo()
     case "closeInfo":
-      if infoOpen { toggleInfo() }
+      closeInfo()
     case "bottomBarAction":
       if case .string(let name)? = args.first, let shown { verb(shown, name) }
     default:

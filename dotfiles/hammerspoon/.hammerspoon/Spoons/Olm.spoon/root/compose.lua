@@ -2946,6 +2946,14 @@ function obj.run(olm, cfg)
       local ap = modules[plan.identity.actionspane or "actionspane"]
       if not (ap and type(ap.chooseAction) == "function") then return false end
       if ap:chooseAction(name) == true then return true end
+      -- Any other key that acts on the list closes the pane first and then runs on the list, the
+      -- preview pane's scroll among them, since a pane left open over a list the keys go on
+      -- changing is not natural, stated by Milos on 2026-11-09. Moving, Return and the pane's own
+      -- key are the pane's, and the info pane's key closes it through toggleInfo already.
+      if ap:isOpen() and not ap:isRunning() and not ({ selectNext = true, selectPrev = true,
+        openActionsPane = true, showInfo = true })[name] then
+        ap:toggle()
+      end
       -- A key on a verb that declares confirm asks first, the panel opening on its confirm level,
       -- unless the panel itself is running the verb it just confirmed.
       if type(ap.confirmAction) ~= "function" or ap:isRunning() then return false end
