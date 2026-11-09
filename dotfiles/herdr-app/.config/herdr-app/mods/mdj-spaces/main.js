@@ -100,6 +100,8 @@ const FALLBACK = 60000;
 
 // mdj: an avatar is painted from the theme's own slot for its stored colour name, with its letter in the
 // page colour, since only theme/palettes may carry a colour value. The shipped mod's fixed hues were dropped.
+// The letter is set in the terminal font, a monospace face, since a proportional one centres its advance
+// rather than its ink and put an M 1.5pt left of the square.
 
 // A space speaks up only when something in it needs you.
 export function glyph(status) {
@@ -494,7 +496,7 @@ export default class Spaces extends View {
           .gap(8)
           .items_center()
           .when(Boolean(tree), el => el.pl(26).child(svg("mods/workspace-chrome/branch.svg").size(13).text_color(t.dim)))
-          .when(!tree, el => el.child(h_flex().size(18).flex_none().rounded(5).bg(fill).items_center().justify_center().text_size(10.5).font_bold().text_color(t.background).child([...w.name][0]?.toUpperCase() ?? "?")))
+          .when(!tree, el => el.child(h_flex().size(18).flex_none().rounded(5).bg(fill).items_center().justify_center().text_size(10.5).font_family(String(settings().font_family)).text_color(t.background).child(div().relative().left(0.5).top(0.3).child([...w.name][0]?.toUpperCase() ?? "?"))))
           .child(div().flex_shrink(0).max_w(150).truncate().text_color(t.foreground).child(w.name))
           .child(g ? this.gitTail(g, tree, w.name, t) : div().flex_1())
           // Always laid out so the row never shifts, shown only while the row is hovered, as on a tab.
@@ -527,7 +529,7 @@ export default class Spaces extends View {
       .child(card(`space-card-${w.id}`, w.active, t, RADIUS))
       .when(!w.active, (el) => el.hover((s) => s.bg(dimmed(t))))
       .on_click(() => run("space.select", { id: w.id }))
-      .child(h_flex().size(18).flex_none().rounded(5).bg(fill).items_center().justify_center().text_size(10.5).font_bold().text_color(t.background).child([...w.name][0]?.toUpperCase() ?? "?"));
+      .child(h_flex().size(18).flex_none().rounded(5).bg(fill).items_center().justify_center().text_size(10.5).font_family(String(settings().font_family)).text_color(t.background).child(div().relative().left(0.5).top(0.3).child([...w.name][0]?.toUpperCase() ?? "?")));
   }
 
   render() {
