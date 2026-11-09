@@ -192,16 +192,7 @@ extension Placement {
 }
 
 extension Row {
-  init(_ r: LuaReader, _ t: Int32) {
-    title = r.string(t, "title") ?? ""
-    subtitle = r.string(t, "subtitle") ?? ""
-    chord = r.chord(t, "chord")
-    enabled = r.bool(t, "enabled") ?? true
-    muted = r.bool(t, "muted") ?? false
-    image = r.image(t, "image")
-    tint = r.bool(t, "tint") ?? false
-    section = r.string(t, "section")
-  }
+  init(_ r: LuaReader, _ t: Int32) { self.init(LuaFields(r, t)) }
 }
 
 extension BottomBar {

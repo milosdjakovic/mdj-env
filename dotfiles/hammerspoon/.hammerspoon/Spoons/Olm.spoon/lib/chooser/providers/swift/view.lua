@@ -644,17 +644,38 @@ local M = {}
 --- The bottom bar model flattened as bottomBarData flattens it for this panel, for Olm.app's share,
 --- step 1.4f, so the app's bar reads the very fields this panel reads. The info icon goes as a PNG
 --- data URL, since a picture cannot cross as JSON, drawn by the same resolver at the same size.
+local function imageURL(image)
+  if not (image and type(image.encodeAsURLString) == "function") then return nil end
+  local ok, url = pcall(image.encodeAsURLString, image, nil, "PNG")
+  return ok and type(url) == "string" and url or nil
+end
+
 function M.barShare(model)
   local data = bottomBarData(model)
   if not data then return nil end
-  local image = data.keysImage
-  data.keysImage = nil
-  if image and type(image.encodeAsURLString) == "function" then
-    local ok, url = pcall(image.encodeAsURLString, image, nil, "PNG")
-    if ok and type(url) == "string" then data.keysImage = url end
-  end
+  data.keysImage = imageURL(data.keysImage)
   if not data.keysImage then data.keysTint = false end
   return data
+end
+
+--- The actions pane's rows for Olm.app's share, step 1.4f piece three, each as _redrawPanel sends a
+--- row to this panel, its icon drawn by the same resolver and sent as a PNG data URL, with the
+--- verb, the name of its applies gate, unanswered, and whether it confirms or offers choices. The
+--- Back row, which a floating pane leaves out, is left out here too.
+function M.actionsShare(rows)
+  local out = {}
+  for _, row in ipairs(rows or {}) do
+    if row.action ~= nil then
+      local image, tint
+      if row.icon ~= nil and ICON then image, tint = ICON(row.icon, row.owner) end
+      local url = imageURL(image)
+      out[#out + 1] = { title = plain(row.title), chord = kbd.wire(row.chord), image = url,
+        tint = url ~= nil and tint == true, section = row.section, action = row.action,
+        applies = row.applies, confirm = row.confirm ~= nil and row.confirm ~= false,
+        choices = row.choices ~= nil }
+    end
+  end
+  return out
 end
 
 --- M.dispatch(id, event, ...) -> boolean

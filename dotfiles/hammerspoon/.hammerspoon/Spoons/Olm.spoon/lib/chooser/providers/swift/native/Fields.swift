@@ -31,6 +31,21 @@ func fontOf(name: String?, size: CGFloat) -> NSFont {
   return NSFont.systemFont(ofSize: size)
 }
 
+// A row of the list or of the actions pane, read the same for Hammerspoon's panel and Olm.app's
+// actions pane, whose rows come from its share.
+extension Row {
+  init(_ f: Fields) {
+    title = f.string("title") ?? ""
+    subtitle = f.string("subtitle") ?? ""
+    chord = f.chord("chord")
+    enabled = f.bool("enabled") ?? true
+    muted = f.bool("muted") ?? false
+    image = f.image("image")
+    tint = f.bool("tint") ?? false
+    section = f.string("section")
+  }
+}
+
 extension Style {
   init(_ f: Fields) {
     text = f.color("text") ?? text

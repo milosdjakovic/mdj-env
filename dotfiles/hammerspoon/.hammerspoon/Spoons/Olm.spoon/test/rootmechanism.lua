@@ -177,6 +177,29 @@ do
   eq(share.fieldKeys[1].code .. ":" .. table.concat(share.fieldKeys[1].mods, "+") .. ":" .. share.fieldKeys[1].verb,
     "36:cmd:reveal", "appShare: a field key carries its code, its modifiers and its verb")
   eq(share.fieldKeys[2].verb, "showInfo", "appShare: Command and ? opens the info pane")
+
+  -- The actions pane's rows and the bar while it is open, piece three.
+  local flattened = {}
+  local open = hints.appShare("fileSearch", plan, {}, {
+    flatten = function(model)
+      flattened[#flattened + 1] = model
+      return { right = { { action = model.panelOpen and nil or "insertSelected" } }, panelOpen = model.panelOpen }
+    end,
+    flattenRows = function(rows)
+      local out = {}
+      for _, r in ipairs(rows) do if r.action then out[#out + 1] = { action = r.action, title = r.title } end end
+      return out
+    end,
+    methodFor = { revealInFinder = "reveal" },
+  })
+  eq(flattened[2] and flattened[2].panelOpen, true, "appShare: the open bar is bottomBarModel with the pane open")
+  eq(open.panelBar and open.panelBar.panelOpen, true, "appShare: the open bar is shared")
+  eq(flattened[1].panelOpen, false, "appShare: the bar at rest is still the closed one")
+  local verbs = {}
+  for _, r in ipairs(open.actions or {}) do verbs[#verbs + 1] = r.action end
+  -- This plan names no kinds, so rowsFor keeps every binding, the chordless leave among them.
+  eq(table.concat(verbs, ",", 1, 3), "insertSelected,reveal,peekPreview",
+    "appShare: the pane's rows in rowsFor's order, Back left out, each its routed verb")
 end
 
 print(string.format("rootmechanism: %d checks, %d failed", checks, failures))

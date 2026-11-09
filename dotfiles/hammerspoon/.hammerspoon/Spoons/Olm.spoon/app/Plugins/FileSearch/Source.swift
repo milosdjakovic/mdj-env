@@ -60,6 +60,7 @@ public struct FileSearchSettings: Equatable, Sendable {
 public actor FileSearchSource: ListSource {
   public nonisolated let manifest = Manifest(name: "filesearch", title: "File Search", actions: [
     Action(id: "reveal", title: "Reveal in Finder", chord: ["cmd", "return"]),
+    Action(id: "copyPath", title: "Copy Path"),
   ], previewPane: PreviewPane(emptyText: FileSearchSource.paneEmptyText))
 
   /// What the pane says while nothing is highlighted, plugins/filesearch/chooser.lua's emptyText.
@@ -206,7 +207,24 @@ public actor FileSearchSource: ListSource {
 
   public func run(_ action: String, on pick: Pick) async -> [Effect] {
     guard !pick.key.hasPrefix("olm:") else { return [] }
-    return action == "reveal" ? [.hide, .revealFile(pick.key)] : []
+    switch action {
+    case "reveal": return [.hide, .revealFile(pick.key)]
+    // A plain clipboard write, then the list closes, chooser.lua's copyPath.
+    case "copyPath": return [.hide, .copyText(pick.key)]
+    default: return []
+    }
+  }
+
+  /// The three gates chooser.lua's colon methods answer. isEntry is a real file or folder rather
+  /// than a permission row, isFolder a real folder, and isBrowsing a query browsing a folder, which
+  /// the app answers no to until its folder search, step 1.4e, so Into Folder and Up a Level stay
+  /// off its actions pane until then.
+  public func applies(_ gate: String, on pick: Pick) async -> Bool {
+    switch gate {
+    case "isEntry": return !pick.key.hasPrefix("olm:")
+    case "isFolder", "isBrowsing": return false
+    default: return true
+    }
   }
 
   /// What the pane beside the list says about a row, sidepanel.lua's show. The read runs on a

@@ -2890,6 +2890,7 @@ function obj.run(olm, cfg)
         for contextName, owner in pairs(contextOwners) do
           if owner == identity then
             return hintsLib.appShare(contextName, plan, hintsDeps, { flatten = swift.barShare,
+              flattenRows = swift.actionsShare,
               methodFor = navMethodFor, keycode = function(key) return hs.keycodes.map[key] end })
           end
         end
