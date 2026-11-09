@@ -78,6 +78,8 @@ circle, checkbox or switch symbol, or by either pair's emoji, a coloured circle 
 register and from the dry gate alike. The gate also refuses a marker emoji written into a row's
 table spec in plugin code. A verb's check mark, ✅ on Apply, is not a marker. Other icons keep one
 meaning each, `hand.raised` ✋ a permission macOS is holding back, and the lock a VPN's secure or not.
+A row chosen to do something wears its intent, never its state, since 2026-11-09, so a row asking
+for a permission wears ✅ and ✋ is for a row that only says one is held back.
 
 ## Rejected
 
@@ -446,3 +448,13 @@ mark in the actions pane's manifest is now `checkmark.square`, so on and off are
 square and the check alone tells them apart, which still differs by shape and not by colour. The
 radio pair is unchanged. The emoji set keeps ☑️ and ⬜. The registrar's `MARKER_SF` already refused
 both checkbox symbols, so no plugin can declare either.
+
+### 2026-11-09 11:35
+
+Milos, in the 1.4j trial of Olm.app, on the row that asks macOS for file search's folder
+permissions, which first wore `hand.raised` ✋. A hand reads as stop, so the row looked like it
+would hold something back when choosing it allows something. His rule, a row a person chooses
+wears the icon of what choosing it does, its intent, never the state it is about. The row and its
+Ask Again pair wear `checkmark.circle` ✅, the action that confirms, Apply's. `lock.open` was
+considered and turned down, since the lock already means a VPN's secure or not and keeps one
+meaning. ✋ stays for a row that only says a permission is held back.

@@ -342,16 +342,41 @@ public final class Stage {
     var row = OlmChooser.Row()
     row.title = r.title
     row.subtitle = r.subtitle
-    if case .file(let path)? = r.icon { row.image = icons.object(forKey: path as NSString) }
+    switch r.icon {
+    case .file(let path)?: row.image = icons.object(forKey: path as NSString)
+    case .symbol?:
+      row.image = icon(r)
+      row.tint = true
+    case nil: break
+    }
     return row
   }
 
   private func icon(_ r: OlmKit.Row) -> NSImage? {
-    guard case .file(let path)? = r.icon else { return nil }
-    if let image = icons.object(forKey: path as NSString) { return image }
-    let image = NSWorkspace.shared.icon(forFile: path)
-    icons.setObject(image, forKey: path as NSString)
-    return image
+    switch r.icon {
+    case .file(let path)?:
+      if let image = icons.object(forKey: path as NSString) { return image }
+      let image = NSWorkspace.shared.icon(forFile: path)
+      icons.setObject(image, forKey: path as NSString)
+      return image
+    case .symbol(let name)?:
+      let key = "symbol:" + name as NSString
+      if let image = icons.object(forKey: key) { return image }
+      // A template the list tints with the row's ink, at a size the list scales down crisply.
+      guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
+        .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 64, weight: .regular)) else { return nil }
+      image.isTemplate = true
+      icons.setObject(image, forKey: key)
+      return image
+    case nil:
+      return nil
+    }
+  }
+
+  // Whether a row's icon is one colour the list tints, a symbol's.
+  private static func tinted(_ r: OlmKit.Row) -> Bool {
+    if case .symbol? = r.icon { return true }
+    return false
   }
 
   // Return, or an action, on the row at a one based index.
@@ -430,7 +455,7 @@ public final class Stage {
       guard case .string(let list)? = args.first else { break }
       let images = list.split(separator: ",").compactMap { Int($0) }
         .filter { $0 >= 1 && $0 <= rows.count }
-        .compactMap { i in icon(rows[i - 1]).map { (i - 1, $0, false) } }
+        .compactMap { i in icon(rows[i - 1]).map { (i - 1, $0, Self.tinted(rows[i - 1])) } }
       if !images.isEmpty { panel.setImages(images) }
     case "listKey":
       if case .bytes(let data)? = args.first { return listKey(data) }

@@ -39,6 +39,7 @@ perl | path | perl | optional | emoji/regenerate | parsing the Unicode Character
 hs | path | hs | optional | emoji/regenerate | rendering every candidate glyph to drop the ones that draw as a box, and writing the dataset | cask | hammerspoon
 swiftc | system | /usr/bin/swiftc | optional | eyedropper | compiles the native colour sampler helper | xcode-clt | xcode-select --install
 qlmanage | system | /usr/bin/qlmanage | optional | filesearch/thumbs | drawing a preview of a pdf, a video, or anything else only Quick Look can render | macos | ships with the system
+tccutil | system | /usr/bin/tccutil | optional | filesearch/access | asking again for a folder macOS refused Olm.app, by forgetting the app's own answer | macos | ships with the system
 swiftc | system | /usr/bin/swiftc | optional | filesearch/quicklook | compiling the helper that opens the native Quick Look panel | xcode-clt | xcode-select --install
 swiftc | system | /usr/bin/swiftc | optional | filesearch/index | compiling the helper that lists, searches and orders the file index | xcode-clt | xcode-select --install
 open | system | /usr/bin/open | optional | filesearch/chooser | opening a found file or its containing folder in whatever application owns it | macos | ships with the system

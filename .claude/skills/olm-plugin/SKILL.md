@@ -284,7 +284,9 @@ and ⬜. A row whose other choices keep a picture of their own, a flag or a devi
 `chosen` unset on those. Each pair differs by shape, never by colour alone, so a plugin never
 declares either pair, a switch, or a circle told apart from another only by its colour, 🟢 beside 🔴.
 A verb's check mark, Apply's ✅, is a verb icon and stays allowed, a permission is `hand.raised` ✋,
-and the lock is only a VPN's secure or not. The registrar refuses such a plugin at load and the dry
+and the lock is only a VPN's secure or not. A row a person chooses to do something wears what
+choosing it does, its intent, never the state it is about, so a row that asks for a permission
+wears ✅ and ✋ stays for a row that only says one is held back, stated by Milos on 2026-11-09. The registrar refuses such a plugin at load and the dry
 gate refuses it before, both through `validateMarkers` in `lib/registrar.lua`, the gate also refuses
 a marker emoji or sf symbol written into a row's table spec in code, and stamping names in the console a list
 with several rows saying `chosen = true` and a row saying both. Stated by Milos on 2026-11-02 and

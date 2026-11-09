@@ -120,6 +120,7 @@ open                     | macos     | ships with macOS
 codesign                 | macos     | ships with macOS
 lsregister               | macos     | ships with macOS
 qlmanage                 | macos     | ships with macOS
+tccutil                  | macos     | ships with macOS
 scutil                   | macos     | ships with macOS
 hidutil                  | macos     | ships with macOS
 sips                     | macos     | ships with macOS

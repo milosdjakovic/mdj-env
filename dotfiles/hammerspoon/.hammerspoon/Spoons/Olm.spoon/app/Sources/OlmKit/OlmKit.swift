@@ -11,6 +11,9 @@ import Foundation
 public enum Icon: Sendable, Hashable {
   /// The icon the system shows for that path.
   case file(String)
+  /// An SF Symbol by name, drawn in one colour that follows the row, lit or not, as Olm's sf icon
+  /// source draws one. A symbol's meaning is Olm's, so `hand.raised` is a permission macOS holds.
+  case symbol(String)
 }
 
 /// One row, the bridge protocol's row with the fields the app reads today. key is the row's

@@ -88,8 +88,6 @@ public actor FileSearchSource: ListSource {
   // never ask. Step 1.4j, Access.swift.
   private let access: FolderAccess?
   private var accessState = FolderAccess.State()
-  // Whether this open says the folders macOS refused, which it does once.
-  private var sayRefused = false
 
   /// The keys of the two rows the permissions add, never a path, since a path starts with a slash.
   public static let askKey = "olm:folder-access"
@@ -115,14 +113,7 @@ public actor FileSearchSource: ListSource {
     held = nil
     rendering = [:]
     await thumbs.forget()
-    if let access {
-      accessState = await access.recheck(access.load())
-      sayRefused = accessState.asked && !accessState.refused.isEmpty && !accessState.told
-      if sayRefused {
-        accessState.told = true
-        access.save(accessState)
-      }
-    }
+    if let access { accessState = await access.recheck(access.load()) }
     return Level(placeholder: settings.placeholder, ranking: .app, rowLimit: settings.rowLimit,
       titleLineBreak: "truncateMiddle", previewSettleMs: settings.preview.settleMs)
   }
@@ -137,18 +128,20 @@ public actor FileSearchSource: ListSource {
     // Nothing is searched until the folder permissions are answered, so no prompt comes mid search.
     if access != nil, !accessState.asked { return RowsAnswer(rows: [Self.askRow]) }
     let answer = try await search(query)
-    guard sayRefused else { return answer }
+    guard access != nil, !accessState.refused.isEmpty else { return answer }
     var said = answer
     said.rows.insert(Self.refusedRow(accessState.refused), at: 0)
     return said
   }
 
   static let askRow = Row(key: askKey, title: "Allow File Search to Read Your Folders",
-    subtitle: "macOS asks once for " + FolderAccess.spoken(FolderAccess.protectedNames), pinned: true)
+    subtitle: "macOS asks once for " + FolderAccess.spoken(FolderAccess.protectedNames),
+    icon: .symbol(FolderAccess.symbol), pinned: true)
 
   static func refusedRow(_ names: [String]) -> Row {
-    Row(key: refusedKey, title: "Turn On " + FolderAccess.spoken(names) + " in System Settings",
-      subtitle: "File search cannot read " + (names.count == 1 ? "it" : "them") + " until it is on", pinned: true)
+    Row(key: refusedKey, title: "Ask Again for " + FolderAccess.spoken(names),
+      subtitle: "macOS refused it, so file search cannot preview files there",
+      icon: .symbol(FolderAccess.symbol), pinned: true)
   }
 
   private func search(_ query: Query) async throws -> RowsAnswer {
@@ -199,14 +192,15 @@ public actor FileSearchSource: ListSource {
       guard let access else { return [] }
       // Each folder in turn, the prompts one at a time, then the list from the top.
       accessState = await access.ask()
-      sayRefused = !accessState.refused.isEmpty
-      if sayRefused {
-        accessState.told = true
-        access.save(accessState)
-      }
       return [.reopen]
     case Self.refusedKey:
-      return [.hide, .openURL(FolderAccess.settingsURL)]
+      guard let access else { return [] }
+      // The answer reset and asked again, or System Settings where tccutil could not reset it.
+      guard let next = await access.askAgain(accessState) else {
+        return [.hide, .openURL(FolderAccess.settingsURL)]
+      }
+      accessState = next
+      return [.reopen]
     default:
       return [.hide, .openFile(pick.key)]
     }
@@ -230,6 +224,12 @@ public actor FileSearchSource: ListSource {
     default: break
     }
     let limits = settings.preview
+    // A file in a folder macOS refused says so, since nothing in it can be read.
+    if let access, let folder = access.refusedFolder(of: pick.key, in: accessState) {
+      var preview = Self.describe(pick.key, isDir: false, peek: nil, limits: limits, picture: nil)
+      preview.body = Preview.Body(label: "PREVIEW", facts: folder + " not allowed")
+      return preview
+    }
     if let quick = await Self.bounded(limits.peekSeconds, { Peek.attributes(pick.key) }) ?? nil, quick.dataless {
       if Task.isCancelled { return nil }
       var preview = Self.describe(pick.key, isDir: false, peek: Peek(attrs: quick.attrs), limits: limits, picture: nil)
@@ -252,8 +252,8 @@ public actor FileSearchSource: ListSource {
     Preview(name: "Folder Access", facts: [
       Preview.Fact(label: "REFUSED", value: FolderAccess.spoken(names)),
     ], body: Preview.Body(label: "WHY", lines: [
-      "macOS never asks twice. Files and Folders in System Settings lists Olm, and turning a folder "
-        + "on there lets file search read it.",
+      "macOS does not ask twice on its own. Choosing this row forgets Olm's answer for "
+        + (names.count == 1 ? "that folder" : "those folders") + " and asks again.",
     ], wrap: true))
   }
 

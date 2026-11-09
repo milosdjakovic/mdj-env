@@ -58,8 +58,7 @@ Stage 1, the file search pilot
 - [ ] 1.4g Short queries, file search answering under three characters now the app's index can
 - [ ] 1.4h A type naming a bundle, `.app` listing every app rather than Safari alone, in both file searches
 - [ ] 1.4i Files iCloud has not downloaded, a Download action and the preview pane naming its shortcut, after 1.4f
-- [ ] 1.4j Folder permissions asked up front on file search's first open, and kept across rebuilds
-  Built in a worktree 2026-11-09, on branch `olm/folder-access`, the requirement naming the bundle id, the three usage descriptions and the pinned row, its checks passing, waiting for its trial by hand.
+- [x] 1.4j Folder permissions asked up front on file search's first open, asked again from the list, and kept across rebuilds, 2026-11-09
 - [ ] 1.5 Parity, every feature of the Lua file search checked in the app, then the flip
 
 Stage 2, the bridge, read only
@@ -617,6 +616,27 @@ Open: the Lua pane keeps downloading a placeholder on a preview, rule 7.
 - `olm-index-check` gains 13 checks, with macOS's answer handed in, so no prompt is raised.
 
 Open: the trial by hand, a rebuild keeping the grants first.
+
+**1.4j ticked, 2026-11-09.** The build was `44570926`, then the trial by hand, in three rounds.
+- The first round allowed all three folders, so the refusal was not tried, and Milos asked for an
+  icon on the row. It wore `hand.raised` ✋, Olm's symbol for a permission held back, and he read it
+  as stop. His rule, a row a person chooses wears what choosing it does, never the state it is
+  about, so both rows wear `checkmark.circle` ✅, Apply's, the lock being a VPN's alone. The rule is
+  in the hammerspoon `AGENTS.md`, the olm-plugin skill and `decisions/olm-icons.md`.
+- The second round refused Documents. The files there were still listed, since Hammerspoon builds
+  the index, and the pane said nothing about the refusal. Turn On in System Settings was said once
+  and gone, and System Settings gave no clear switch. Replaced by Ask Again for Documents, which
+  stays while a folder is refused and resets the app's own answer for that folder alone with
+  `tccutil reset SERVICE local.olm.Olm`, then touches it, so macOS asks once more. A failed reset
+  opens Files and Folders. A file in a refused folder says so in the pane. `tccutil` is declared in
+  file search's manifest beside `qlmanage` and mapped as shipping with macOS.
+- The third round passed. The app was rebuilt and installed over the answers, and Desktop and
+  Downloads previewed with no prompt, so the requirement naming the bundle id keeps a grant across
+  a rebuild and no certificate is needed. Ask Again raised the prompt, Allow removed the row, and a
+  file in Documents previewed.
+
+Result: `olm-index-check` with 19 checks of the permissions, the dry suite and `test/units.sh`.
+Open: nothing.
 
 ## Where the facts come from
 

@@ -343,3 +343,10 @@ list, and until then that list stays on Lua.
   the list is how every Olm choice is offered, and its preview says why. Asking at the app's launch
   was turned down, since the shadow starts the app hidden and a prompt nobody expects would arrive
   then. The answers live in the plugin's store, `~/.olm/state/filesearch`.
+- 2026-11-09 11:40. Step 1.4j ticked after a trial by hand in three rounds. The designated
+  requirement naming the bundle id keeps a folder grant across a rebuild, seen live, so the
+  certificate fallback is not needed. A refused folder is asked again from the list, Ask Again,
+  which resets the app's own answer with `tccutil` and touches the folder, rather than sending the
+  person to System Settings, where Milos could not find the switch. Saying a refusal once was
+  rejected, since the row was gone before he could use it, and the row now stays while a folder is
+  refused. Both rows wear ✅, his rule that a row wears its intent and never its state.

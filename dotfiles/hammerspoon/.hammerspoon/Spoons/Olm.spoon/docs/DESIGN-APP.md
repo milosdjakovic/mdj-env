@@ -177,8 +177,11 @@ effects with no AppKit. Since 1.4j there are two more, `openURL`, a pane of Syst
 them, and `reopen`, the same list again from an empty input field once the source changed what it
 lists. File search uses both for its folder permissions. On the person's list it answers one
 pinned row until Desktop, Documents and Downloads have been asked, choosing it touches each folder
-in turn off the main thread, which raises macOS's prompts one at a time, and a refusal is said once
-on the next open with a row that opens Files and Folders. The shadow's source never asks. A picture is the plugin's own work and arrives as a file, since 1.4b, the
+in turn off the main thread, which raises macOS's prompts one at a time. While a folder is refused
+the list leads with Ask Again, which resets the app's own answer for that folder through `tccutil`
+and touches it, so macOS asks once more, and opens Files and Folders only when the reset fails. A
+file in a refused folder says so in the pane. Both rows wear what choosing them does, ✅. The
+shadow's source never asks. A picture is the plugin's own work and arrives as a file, since 1.4b, the
 file itself or a render the plugin made with a system tool it runs, so the plugin needs no AppKit
 and holds no image. Work that answers something on screen, Quick Look, is a small service `OlmKit`
 will declare and the root provide, when the step that needs it lands.

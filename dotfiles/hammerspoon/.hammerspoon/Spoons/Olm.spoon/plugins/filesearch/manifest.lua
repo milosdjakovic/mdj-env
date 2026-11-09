@@ -62,6 +62,11 @@ return {
       { name = "qlmanage", kind = "system", locator = "/usr/bin/qlmanage", policy = "optional", unit = "thumbs",
         reason = "drawing a preview of a pdf, a video, or anything else only Quick Look can render",
         origin = { macos = "ships with the system" } },
+      -- Run by Olm.app's half of file search alone, app/Plugins/FileSearch/Access.swift, declared
+      -- here as qlmanage is, since this manifest is the one file search declares its tools in.
+      { name = "tccutil", kind = "system", locator = "/usr/bin/tccutil", policy = "optional", unit = "access",
+        reason = "asking again for a folder macOS refused Olm.app, by forgetting the app's own answer",
+        origin = { macos = "ships with the system" } },
       -- swiftc is absent on a fresh install until the command line tools go on, unlike
       -- qlmanage above, which is why this one line names an install step rather than
       -- claiming the compiler already ships with the system.

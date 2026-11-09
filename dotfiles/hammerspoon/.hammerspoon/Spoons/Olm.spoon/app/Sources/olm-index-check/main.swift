@@ -78,9 +78,20 @@ check(files.arguments(for: FileQueryGrammar.parse(". ", types: types), cap: 5) =
 final class AccessAnswers: @unchecked Sendable {
   private let lock = NSLock()
   private var _refused: Set<String> = []
+  private var _reset: [String] = []
+  private var _resets = true
   var refused: Set<String> {
     get { lock.withLock { _refused } }
     set { lock.withLock { _refused = newValue } }
+  }
+  // The folders whose answer was reset, and whether a reset works.
+  var reset: [String] {
+    get { lock.withLock { _reset } }
+    set { lock.withLock { _reset = newValue } }
+  }
+  var resets: Bool {
+    get { lock.withLock { _resets } }
+    set { lock.withLock { _resets = newValue } }
   }
 }
 
@@ -124,38 +135,53 @@ check(FileSearchSource.shadowSkip("report", settings: settings) == nil
   && FileSearchSource.shadowSkip("~/x/ foo", settings: settings) != nil,
   "the shadow compares a search and skips the recent list and a folder")
 
-// The folder permissions, step 1.4j, with macOS's answer stood in for so no prompt is raised.
+// The folder permissions, step 1.4j, with macOS's answer and the reset stood in for, so no prompt
+// is raised and no answer is reset.
 let accessRoot = root.appendingPathComponent("access")
 let deny = AccessAnswers()
-let access = FolderAccess(home: accessRoot, store: accessRoot) { !deny.refused.contains($0.name) }
+let access = FolderAccess(home: accessRoot, store: accessRoot,
+  readable: { !deny.refused.contains($0.name) }, reset: { deny.reset.append($0.name); return deny.resets })
 deny.refused = ["Documents"]
 let gated = FileSearchSource(context: context, index: files, settings: settings, access: access)
 _ = await gated.open(query: "")
 let before = try? await gated.rows(Query(text: "rep", generation: 1))
 check(before?.rows.map(\.key) == [FileSearchSource.askKey] && before?.rows.first?.pinned == true,
   "before the folders are answered the list is the one row that asks, whatever is typed")
+check(before?.rows.first?.icon == .symbol("checkmark.circle"), "and it wears what choosing it does")
 check(await gated.preview(Pick(key: FileSearchSource.askKey, query: ""))?.name == "Folder Access",
   "and its preview says why")
 check(await gated.run("reveal", on: Pick(key: FileSearchSource.askKey, query: "")) == [],
   "and it reveals nothing")
 check(await gated.choose(Pick(key: FileSearchSource.askKey, query: "")) == [.reopen],
   "choosing it asks and opens the list again")
-check(access.load() == FolderAccess.State(asked: true, refused: ["Documents"], told: true),
-  "the answers are kept, a refusal said in the list it opens")
+check(access.load() == FolderAccess.State(asked: true, refused: ["Documents"]), "the answers are kept")
 let after = try? await gated.rows(Query(text: "rep", generation: 2))
-check(after?.rows.first?.key == FileSearchSource.refusedKey && (after?.rows.count ?? 0) > 1,
-  "the list searches, led by the row that says what was refused")
+check(after?.rows.first?.key == FileSearchSource.refusedKey && (after?.rows.count ?? 0) > 1
+  && after?.rows.first?.title == "Ask Again for Documents",
+  "the list searches, led by the row that asks again for what was refused")
+_ = await gated.open(query: "")
+check((try? await gated.rows(Query(text: "rep", generation: 3)))?.rows.first?.key == FileSearchSource.refusedKey,
+  "and it stays on every open while the folder is refused")
+let inside = accessRoot.appendingPathComponent("Documents/a.pdf").path
+check(await gated.preview(Pick(key: inside, query: ""))?.body?.facts == "Documents not allowed",
+  "a file in a refused folder says so in the pane")
+deny.resets = false
 check(await gated.choose(Pick(key: FileSearchSource.refusedKey, query: "")) == [.hide, .openURL(FolderAccess.settingsURL)],
-  "and choosing it opens Files and Folders")
-_ = await gated.open(query: "")
-check((try? await gated.rows(Query(text: "rep", generation: 3)))?.rows.contains { $0.key.hasPrefix("olm:") } == false,
-  "a refusal is said once")
+  "a reset that fails leaves System Settings as the way")
+deny.resets = true
 deny.refused = []
+deny.reset = []
+check(await gated.choose(Pick(key: FileSearchSource.refusedKey, query: "")) == [.reopen] && deny.reset == ["Documents"],
+  "asking again resets that folder's answer alone and asks it")
+let allowed = try? await gated.rows(Query(text: "rep", generation: 4))
+check(access.load().refused.isEmpty && allowed?.rows.contains { $0.key.hasPrefix("olm:") } == false,
+  "and once allowed the row is gone")
+deny.refused = ["Desktop"]
 _ = await gated.open(query: "")
-check(access.load().refused.isEmpty, "a folder turned on since is seen at the next open")
+check(access.load().refused.isEmpty, "an allowed folder is never tried again at an open")
 check(FolderAccess.spoken(["Desktop", "Documents", "Downloads"]) == "Desktop, Documents and Downloads"
   && FolderAccess.spoken(["Documents"]) == "Documents", "the folders are said as a person reads them")
-let ungated = try? await source.rows(Query(text: "rep", generation: 4))
+let ungated = try? await source.rows(Query(text: "rep", generation: 5))
 check(ungated?.rows.contains { $0.key.hasPrefix("olm:") } == false, "a source that does not ask never gates")
 
 // The preview's read, step 1.4a, which is the helper's peek done in process, so the two must find
