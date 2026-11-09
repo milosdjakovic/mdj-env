@@ -665,11 +665,17 @@ public final class Stage {
   private func listKey(_ data: Data) -> Bool {
     guard let event = CGEvent(withDataAllocator: nil, data: data as CFData) else { return false }
     let code = event.getIntegerValueField(.keyboardEventKeycode)
-    // Command and a digit opens the row in that slot, as the engine's _chooseSlot does, where the
-    // list shows its numbers.
-    if event.flags.contains(.maskCommand), look?.showNumbers == true, let slot = Self.digitKeys.firstIndex(of: code) {
+    // Command and a digit opens the row in that slot, as the engine's _chooseSlot does, whether or
+    // not the list shows its numbers, the highlight moved onto it first as _choose moves it. Over
+    // an open actions pane the pane closes and the digit is the list's, stated by Milos on
+    // 2026-11-10, checked against the Lua list in step 1.4f's piece four.
+    if event.flags.contains(.maskCommand), let slot = Self.digitKeys.firstIndex(of: code) {
       closeInfo()
       closeActions()
+      if slot + 1 <= rows.count, highlight != slot + 1 {
+        highlight = slot + 1
+        apply(status: status)
+      }
       act(on: slot + 1)
       return true
     }

@@ -428,3 +428,9 @@ list, and until then that list stays on Lua.
   edge of the rows' icons rather than under the labels, and no rule stands above it, so it reads as
   one more line of the pane. Typing that filters out every row shows one dimmed line, No results,
   the list's own words, left aligned where the first row would be, rather than an empty pane.
+- 2026-11-10 00:55. Piece four of step 1.4f, Command and a digit held against the Lua list. Over an
+  open actions pane the Lua list chose the pane's row in that place, though the pane's rows carry no
+  number, and the app closed the pane and chose the list's row. Milos chose the app's answer, the
+  pane rule applied to the digits, so the Lua engine closes the pane before choosing the slot. The
+  app now also chooses whether or not the list shows numbers and moves the highlight first, as the
+  Lua list does.
