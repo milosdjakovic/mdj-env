@@ -412,3 +412,9 @@ list, and until then that list stays on Lua.
   1.4c and Into Folder and Up a Level until 1.4e off the app's pane, written down so the parity list
   of 1.5 asks for them. The applies gates are answered by the source through a new ListSource word,
   as the Lua surface answers them through its colon methods.
+- 2026-11-09 23:52. Piece three passed its hand trial and merged. Milos asked in it that the actions
+  pane's search leave the list's input field, in every list. The pane carries its own search field
+  as its bottom line, at the size of the pane's rows, its placeholder Search Actions, and the caret
+  moves into it while the pane is open, so the list's field keeps its text and nothing has to be
+  given back on close. Both fields derive from one base field made customizable, rather than a
+  second text field written beside the first. Built next, before Command and a digit.
