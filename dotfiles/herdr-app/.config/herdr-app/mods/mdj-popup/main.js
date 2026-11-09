@@ -2,7 +2,7 @@
 // It names the popup, closes it with ×, and when the popup goes it ends the tool's
 // terminal and posts whatever the tool asked herdr to notify as app toasts.
 
-import { View, div } from "gpui-kit";
+import { View, div, svg } from "gpui-kit";
 import { h_flex } from "gpui-base";
 import { props, theme, closeOverlay, notify, readTextFile, exec, hc } from "herdr";
 
@@ -26,12 +26,14 @@ export default class PopupBar extends View {
   render() {
     const t = theme();
     return h_flex().id("root").size_full().px(12).justify_between().items_center()
-      .bg(t.chrome).border_b(1).border_color(t.border).text_size(12)
-      .child(div().text_color(t.muted).child(this.p.title ?? "popup"))
-      .child(div().id("close").px(6).rounded(4).text_color(t.dim)
-        .hover((s) => s.bg(t.hover).text_color(t.foreground))
+      .bg(t.chrome).border_b(1).border_color(t.border).text_size(13)
+      // The title reads like a selected tab's name, 13px in the foreground.
+      .child(div().text_color(t.foreground).child(this.p.title ?? "popup"))
+      // The same close button a tab and a space use: an 18px box, a 12px x, its own hover.
+      .child(div().id("close").size(18).flex_none().flex().items_center().justify_center().rounded(5).text_color(t.dim)
+        .hover((s) => s.bg(t.canvas).text_color(t.foreground))
         .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
         .on_click(() => closeOverlay(this.p.overlay))
-        .child("×"));
+        .child(svg("mods/pane/close.svg").size(12)));
   }
 }

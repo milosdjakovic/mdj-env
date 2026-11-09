@@ -14,8 +14,8 @@ slots. So the same package generates `terminal-colors.zsh`, every colour Ghostty
 for each half as escape sequences, twenty slots, ink, page and cursor, and
 `dotfiles/zsh/.zshrc.custom` sends the half macOS is on at a prompt, in a Herdr pane only, when
 the half has changed. A program running across a light and dark switch keeps the old half,
-whole, until the shell's next prompt. Padding, transparency and corners were left as Herdr
-ships them, asked for on 2026-11-09.
+whole, until the shell's next prompt. Padding and corners are the `mdj` layout's own, which `decisions/herdr-app-layout.md` records.
+Transparency is left as Herdr ships it.
 
 ## Rejected
 
@@ -47,3 +47,7 @@ ships them, asked for on 2026-11-09.
   hidden core terminal answered page `#f8f7fb`, ink `#474556`, slot 17 `#72717c` and slot 4
   `#7e54d1` on the light half, and every one of the twenty three colours per half was compared
   against Ghostty's generated theme and matched.
+- 2026-11-09 14:50. Padding and corners are no longer as Herdr ships them. The `mdj` layout and its
+  copies of the shipped mods set both, recorded in `herdr-app-layout.md`. The space avatars lost the
+  shipped mod's fixed hues, which the theme checker refused as colour values outside the palette, and
+  are painted from the theme slot each stored colour name points at.

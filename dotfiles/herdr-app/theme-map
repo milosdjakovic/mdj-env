@@ -10,7 +10,12 @@
 #
 # The interface half follows the herdr multiplexer's choices. accent is fill, the purple a
 # block can carry a label on. muted is subtext, the ink stepped back. dim is overlay, the grey
-# of a secondary line. hover is surface, the raised row. border is dim, the faintest rule.
+# of a secondary line. hover is surface, the raised row.
+#
+# canvas and border serve the mdj layout, where every block is a borderless rounded card. canvas
+# is surface, the backdrop one step off the page that the cards sit on. border is background,
+# the card's own colour, so every rule the shipped mods draw inside a card disappears into it,
+# since a layout's own colours take only one hex for both halves and could not do this.
 background = background
 foreground = foreground
 selection  = selection
@@ -34,7 +39,8 @@ colors.foreground = foreground
 colors.muted      = subtext
 colors.dim        = overlay
 colors.hover      = surface
-colors.border     = dim
+colors.canvas     = surface
+colors.border     = background
 # The four slots above the sixteen, which the theme file cannot hold since Herdr reads exactly
 # sixteen. They are written into terminal-colors.zsh instead, which a zsh in a Herdr pane sends
 # to its terminal, and they follow Ghostty's map, the secondary grey the Claude statusline and

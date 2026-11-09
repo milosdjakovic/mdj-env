@@ -75,6 +75,7 @@ than discovered.
 - [herdr-palette](herdr-palette.md), `prefix+space` is a palette written here over agents, spaces, tabs, sessions and every action, after four published ones were compared and turned down
 - [herdr-sidebar](herdr-sidebar.md), agent rows read space and tab, the tab only when named, then pane and agent, and a Claude agent goes by its session name, reported by the status line
 - [herdr-app-colors](herdr-app-colors.md), the Herdr desktop app paints Aura from generated theme files, and a zsh hook sends every terminal colour into each pane because Herdr's core answers colour queries from its own defaults
+- [herdr-app-layout](herdr-app-layout.md), the Herdr desktop app's `mdj` layout, one 28px row shape for tabs, lists and menus, shadows given room inside each clipping box, and lists scrolled by the mods themselves so their fades cannot drift
 - [herdr-theme](herdr-theme.md), Aura in herdr's own tokens on both appearances, and the faint agent line that was never a colour
 - [ghostty-aura-theme](ghostty-aura-theme.md), how the terminal palette settled on Aura for both halves after three other pairings
 - [claude-code-theme](claude-code-theme.md), Claude Code draws hex colours per theme and only `auto` asks the terminal, so setup merges it

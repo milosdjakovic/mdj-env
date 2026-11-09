@@ -9,7 +9,8 @@
   ],
   "colors": {
     "accent": "#a277ff",
-    "border": "#2d2c32",
+    "border": "#15141b",
+    "canvas": "#1b1a21",
     "chrome": "#15141b",
     "dim": "#adadae",
     "foreground": "#edecee",

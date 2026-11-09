@@ -1,0 +1,194 @@
+{
+  "id": "root",
+  "cloned_from": {
+    "name": "main",
+    "version": "0.1.14"
+  },
+  "type": "row",
+  "children": [
+    {
+      "id": "sidebar",
+      "type": "column",
+      "children": [
+        {
+          "id": "brand",
+          "type": "block",
+          "content": {
+            "mod": "mdj-brand"
+          },
+          "size": {
+            "px": 33
+          },
+          "window_drag": true
+        },
+        {
+          "id": "sidebar-lists",
+          "type": "column",
+          "children": [
+            {
+              "id": "spaces",
+              "type": "block",
+              "content": {
+                "mod": "mdj-spaces"
+              },
+              "size": {
+                "weight": 1
+              },
+              "min": 90
+            },
+            {
+              "id": "agents",
+              "type": "block",
+              "content": {
+                "mod": "mdj-agents"
+              },
+              "size": {
+                "weight": 1
+              },
+              "min": 90
+            }
+          ],
+          "gap": 0,
+          "resizable": false
+        },
+        {
+          "id": "sidebar-footer",
+          "type": "block",
+          "content": {
+            "mod": "mdj-brand",
+            "props": {
+              "footer": true
+            }
+          },
+          "size": {
+            "px": 60
+          }
+        }
+      ],
+      "size": {
+        "px": 276
+      },
+      "min": 44,
+      "max": 480,
+      "resizable": false,
+      "gap": 8
+    },
+    {
+      "id": "work",
+      "type": "column",
+      "children": [
+        {
+          "id": "tabs",
+          "type": "block",
+          "content": {
+            "mod": "mdj-tabs"
+          },
+          "size": {
+            "px": 37
+          },
+          "window_drag": true
+        },
+        {
+          "id": "work-body",
+          "type": "row",
+          "children": [
+            {
+              "id": "main",
+              "type": "block",
+              "content": {
+                "tab": "active",
+                "pane": {
+                  "header": {
+                    "content": {
+                      "mod": "mdj-pane"
+                    },
+                    "reveal": "always",
+                    "height": 30,
+                    "position": "top"
+                  },
+                  "background": "background",
+                  "radius": 10,
+                  "gap": 8,
+                  "lone": true,
+                  "border": {
+                    "width": 0,
+                    "color": "background"
+                  },
+                  "focus": {
+                    "width": 0,
+                    "color": "background"
+                  }
+                }
+              },
+              "padding": 4
+            },
+            {
+              "id": "panel",
+              "type": "column",
+              "children": [
+                {
+                  "id": "panel-body",
+                  "type": "stack",
+                  "children": [
+                    {
+                      "id": "files",
+                      "type": "block",
+                      "content": {
+                        "mod": "files"
+                      }
+                    },
+                    {
+                      "id": "changes",
+                      "type": "block",
+                      "content": {
+                        "mod": "changes"
+                      }
+                    }
+                  ],
+                  "active": "files",
+                  "radius": 10,
+                  "background": "chrome",
+                  "padding": 3
+                }
+              ],
+              "size": {
+                "px": 368
+              },
+              "min": 280,
+              "max": 900,
+              "hidden": true,
+              "padding": 4
+            }
+          ],
+          "gap": 8
+        },
+        {
+          "id": "status",
+          "type": "block",
+          "content": {
+            "mod": "mdj-status"
+          },
+          "size": {
+            "px": 18
+          },
+          "hidden": true
+        }
+      ],
+      "resizable": false,
+      "gap": 0
+    }
+  ],
+  "background": "canvas",
+  "terminal_padding": [
+    14,
+    12
+  ],
+  "titlebar": "none",
+  "traffic_lights": [
+    14,
+    15
+  ],
+  "padding": 4,
+  "gap": 0,
+  "terminal_opacity": 0
+}

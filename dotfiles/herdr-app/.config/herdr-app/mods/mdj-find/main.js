@@ -40,13 +40,14 @@ async function launch(self, { script, title, width = 0.9, height = 0.9 }) {
   if (!address) return;
 
   openOverlay({
-    kind: "dialog", width, height,
-    // Herdr rounds the dialog's frame but not what is inside it, so a square title bar and
-    // terminal would show their corners past the curve. Four pixels keeps them inside it.
-    layout: { id: "mdj-popup", type: "column", padding: 4, children: [
-      { id: "mdj-popup-bar", type: "block", size: { px: 28 },
+    // mdj: Herdr's dialog frame takes no radius, so the popup draws its own. The frame is 10, the outer
+    // radius every floating surface and pane card shares, padded 4, and the bar and the terminal inside
+    // are 10 less 4, 6, so the curves run parallel.
+    kind: "dialog", width, height, frame: "none",
+    layout: { id: "mdj-popup", type: "column", padding: 4, radius: 10, background: "chrome", shadow: "lg", children: [
+      { id: "mdj-popup-bar", type: "block", size: { px: 28 }, radius: 6,
         content: { mod: "mdj-popup", props: { title, terminal: address, notes } } },
-      { id: "mdj-popup-term", type: "block", content: { terminal: address } },
+      { id: "mdj-popup-term", type: "block", radius: 6, content: { terminal: address } },
     ] },
   });
 }
