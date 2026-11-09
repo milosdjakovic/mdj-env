@@ -54,7 +54,15 @@ export default class MdjBrand extends View {
       .when(window()?.platform === "macos" && !window()?.fullscreen && !collapsed, el => el.pl(76))
       .when(!collapsed, el => el.child(div().flex_1()))
       .when(!collapsed, el => el.child(this.button("search", svg("mods/workspace-chrome/search.svg").size(15), () => run("mod.open", { name: "picker" }))))
-      // On the macOS rail the traffic lights fill the row; the agents list's » unfolds it.
-      .when(!(collapsed && window()?.platform === "macos"), el => el.child(this.button("sidebar-toggle", svg("mods/workspace-chrome/sidebar.svg").size(15), toggleSidebar)));
+      // mdj: open, the toggle is Herdr's sidebar outline with its left column filled, and the plain outline in the
+      // tab row opens the rail. The fill is a div over the svg's column, 15/24 of its viewBox, coloured as the
+      // button's text is, since Herdr ships no filled icon and draws no svg a symlink points at, so a file of
+      // ours cannot be stowed.
+      // mdj: on the rail the window buttons fill this row, and mdj-tabs puts the button that opens the sidebar
+      // first in the tab row beside them.
+      .when(!collapsed, el => el.child(this.button("sidebar-toggle", div().relative().size(15)
+        .child(svg("mods/workspace-chrome/sidebar.svg").size(15))
+        .child(div().absolute().left(1.9).top(2.5).w(4.1).h(10).rounded_l(1.9).bg(this.toggleOver ? t.foreground : t.muted)), toggleSidebar)
+        .on_hover((on, cx) => { this.toggleOver = on; cx.notify(); })));
   }
 }

@@ -1,6 +1,6 @@
 import { View, div, svg, image } from "gpui-kit";
 import { h_flex } from "gpui-base";
-import { spaces, panes, run, openOverlay, theme, window, shared, layout, settings } from "herdr";
+import { spaces, panes, run, openOverlay, theme, window, shared, setShared, layout, settings } from "herdr";
 
 // mdj: the selected look, the pane's own background and a soft shadow, is a layer under the row's content.
 // Selecting shows it at once; a fade on switching was tried and taken out, asked for on 2026-11-09.
@@ -16,6 +16,15 @@ function find(node, id) {
     if (found) return found;
   }
   return null;
+}
+
+// mdj: with the sidebar folded to its rail, the button that opens it, the plain sidebar outline, stands first in the tab row, in the
+// cell the first tab had beside the window buttons, so it sits where the open sidebar's own button is rather
+// than at the foot of the rail. It opens to the width the sidebar had, as mdj-brand's toggle does.
+const railed = (sidebar) => Boolean(sidebar) && !sidebar.hidden && (sidebar.size?.px ?? Infinity) < 160;
+function expandSidebar() {
+  setShared("sidebar.collapsed", false);
+  run("layout.resize", { id: "sidebar", px: shared("sidebar.width") ?? 276 });
 }
 
 export default class MdjTabs extends View {
@@ -155,6 +164,8 @@ export default class MdjTabs extends View {
     // selected tab's shadow are inside it; the buttons on the right take theirs from the bar.
     return h_flex().size_full().min_w(0).pr(4).pl(lightsPadding > 10 ? lightsPadding - 4 : 0).gap(4).items_start().bg(t.canvas)
       .on_mouse_up("left", () => { this.pressed = null; })
+      .when(railed(sidebar), el => el.child(button("sidebar-expand", svg("mods/workspace-chrome/sidebar.svg").size(15), expandSidebar)
+        .ml(lightsPadding > 10 ? 4 : 0).tooltip("Show sidebar")))
       // mdj: the strip is scrolled by this mod, not by a scroll area. A scroll area tells a mod no offset, so
       // fades kept from wheel deltas drifted whenever the strip moved by itself, a fade over the first tab at
       // the start and none over a cut tab. Here the offset is the one the tabs are drawn at, so the fades are

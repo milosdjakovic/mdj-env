@@ -79,18 +79,6 @@ function find(node, id) {
 // The sidebar's rail goes by its width, not a flag: dragging its edge narrows it too.
 const narrow = () => (find(layout(), "sidebar")?.size?.px ?? Infinity) < 160;
 
-// To the rail, or back to the width it had. mdj: the rail is a column of 28px cubes in the 4px strips, 36px,
-// narrower than the macOS window buttons, so the pane moves left under them and the tab bar pads itself
-// clear of them and stays where it was.
-const railWidth = () => 36;
-function toggleSidebar() {
-  const width = find(layout(), "sidebar")?.size?.px;
-  if (!narrow()) setShared("sidebar.width", width);
-  // Mods edited before the rail went by width still read the flag.
-  setShared("sidebar.collapsed", !narrow());
-  run("layout.resize", { id: "sidebar", px: narrow() ? (shared("sidebar.width") ?? 276) : railWidth() });
-}
-
 const clean = (s) => (s ?? "").replace(/^[^\p{L}\p{N}]+/u, "").trim();
 
 function leadPanes(all) {
@@ -573,26 +561,7 @@ export default class Agents extends View {
         .child(v_flex().id("ag-content").absolute().left(0).right(0).top(-drawnAt(this)).px(4).pb(4).gap(4)
           .on_size_change((s, cx) => { if (s.height !== this.contentH) { this.contentH = s.height; cx.notify(); } })
           .children(rows)))
-      .children(fades(t, this, collapsed ? 10 : 36))
-      // mdj: the rail opens from a chevron in a pill as wide as the rows.
-      .when(collapsed, (el) =>
-        el.child(
-          h_flex().px(4).pb(4).child(
-            div()
-              .id("collapse")
-              .flex_1()
-              .h(28)
-              .rounded(7)
-              .flex()
-              .items_center()
-              .justify_center()
-              .text_color(t.muted)
-              .hover((s) => s.bg(dimmed(t)).text_color(t.foreground))
-              .tooltip("Show sidebar")
-              .on_click(toggleSidebar)
-              .child(svg("mods/workspace-chrome/chevron-right.svg").size(14)),
-          ),
-        ),
-      );
+      .children(fades(t, this, collapsed ? 10 : 36));
   }
 }
+
