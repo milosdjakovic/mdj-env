@@ -204,8 +204,10 @@ key, a scroll or a press behind it closes it, as the Lua pane now does.
 ## The actions pane's own input field
 
 Asked by Milos in piece three's trial, for every list. The actions pane searches in an input field
-of its own, its bottom line under a rule, at the size of the pane's rows, its placeholder Search
-Actions, and the caret moves into it while the pane is open, so the list's input field keeps
+of its own, its bottom line with no rule above it, at the size of the pane's rows, its text starting
+exactly where the rows' icons do, its placeholder Search Actions, and the caret moves into it while
+the pane is open. Typing that filters out every row leaves one dimmed line, No results, left aligned
+where the first row would be, so the list's input field keeps
 showing the text the pane opened over. Both fields are one field made customizable, handed a look.
 In Swift that is `native/InputField.swift`, the list's field and the pane's foot both made from it,
 the panel routing every key and every edit to whichever has the caret. On the canvas it is

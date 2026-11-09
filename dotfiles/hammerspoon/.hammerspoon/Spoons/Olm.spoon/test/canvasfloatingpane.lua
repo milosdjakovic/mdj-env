@@ -151,8 +151,8 @@ local footLines = {
 }
 local bare = floatingPane.layout(UI, style, nil, footLines, true)
 local footed = floatingPane.layout(UI, style, nil, footLines, true, { placeholder = "Search Actions" })
-check("a foot adds the rule, the outer padding, its line and the bottom padding", footed.h,
-  math.ceil(bare.h + T.stroke.border + 2 * T.barInner + lineH))
+check("a foot adds its line and the bottom padding, with no rule", footed.h,
+  math.ceil(bare.h + T.barInner + lineH))
 local footRect = { x = 0, y = 0, w = footed.w, h = footed.h }
 local footEls, footInfo = floatingPane.elements(UI, footed, footRect,
   { highlight = 1, foot = { state = { text = "co", caret = 2 }, style = { font = "F", fontSize = 13,
@@ -164,9 +164,18 @@ for _, el in ipairs(footEls) do
 end
 check("the foot draws the typed text", typed ~= nil, true)
 check("under the last line", typed and typed.frame.y > footInfo.lines[#footInfo.lines].rect.y, true)
-check("where a line's label starts", typed and typed.frame.x, footed.side + footed.lead)
+check("where a line's picture starts, not its label", typed and typed.frame.x, footed.side)
 check("with the caret in it", caretDrawn, true)
 check("the lines' hit rects are only the lines", #footInfo.lines, 2)
+local none = floatingPane.layout(UI, style, nil, {}, true, { placeholder = "Search Actions", empty = "No results" })
+local noneEls = floatingPane.elements(UI, none, { x = 0, y = 0, w = none.w, h = none.h },
+  { foot = { state = { text = "zz", caret = 2 }, style = { font = "F", fontSize = 13, textColor = {},
+    selectionColor = {}, placeholderColor = {}, caretWidth = 2 }, caret = false } })
+local said
+for _, el in ipairs(noneEls) do if el.type == "text" and el.text == "No results" then said = el end end
+check("with every line filtered out the pane says No results", said ~= nil, true)
+check("left aligned where a line's words start", said and said.frame.x, none.side)
+check("in one line's room", none.h, math.ceil(2 * lineH + 3 * T.barInner))
 
 -- Placement, swift's rules.
 local keysAnchor = { x = 20, y = 500, w = 60, h = 30 }

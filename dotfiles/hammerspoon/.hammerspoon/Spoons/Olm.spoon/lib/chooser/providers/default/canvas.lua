@@ -600,7 +600,7 @@ function View:_floatingPaneElements(s, els, origin, listRect)
       footStyle = setmetatable({ font = style.font, fontSize = style.size }, { __index = self._fieldStyle })
     end
     draw("actions", floatingPaneLib.layout(UI, style, s.bottomBar.panelTitle, actionLines(ns.filtered), true,
-        paneField and { placeholder = paneField.placeholder } or nil),
+        paneField and { placeholder = paneField.placeholder, empty = NO_RESULTS } or nil),
       anchors.actions, "right", ns.highlight,
       paneField and { state = self.field:getState(), style = footStyle, caret = self._caretVisible } or nil)
   end

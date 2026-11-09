@@ -30,10 +30,12 @@
 --- section line height, and a line's height the bar's row, which the view hands in since the bar
 --- owns it. No shadow, swift's glass has none.
 ---
---- A foot is the header's mirror, a rule under the last line and an input field laid out as one
---- more line under it, drawn by the list's own field renderer at the body role's size, its text
---- where a line's label starts, which the actions pane takes for its own search, asked by Milos on
---- 2026-11-09. It never scrolls with the lines. swift's foot in FloatingPane.swift is its twin.
+--- A foot is an input field laid out as one more line under the lines' bottom padding, with no rule,
+--- drawn by the list's own field renderer at the body role's size, its text standing where a line's
+--- picture does, which the actions pane takes for its own search, asked by Milos on 2026-11-09 and
+--- placed so on 2026-11-10. It never scrolls with the lines. A pane with a foot whose lines are all
+--- filtered out says so in one line where the first would be, left aligned like a line's words, in
+--- the dimmed colour. swift's foot in FloatingPane.swift is its twin.
 
 local herePath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local bottomBarLib = assert(loadfile(herePath .. "bottombar.lua"))()
@@ -101,8 +103,8 @@ end
 --- chords, Milos's call on 2026-11-04. selectable says the lines
 --- are chosen rather than only read, so a highlight is drawn. The preferred size is every line
 --- showing, as wide as the widest label and chord, never narrower than the header. foot is
---- { placeholder } for a pane with an input field at its foot, nil for none, and the pane is never
---- narrower than its placeholder.
+--- { placeholder, empty } for a pane with an input field at its foot, nil for none, empty the line
+--- shown when no line is left, and the pane is never narrower than either.
 function M.layout(ui, style, title, lines, selectable, foot)
   local st = style
   local measure = ui.measure
@@ -152,17 +154,22 @@ function M.layout(ui, style, title, lines, selectable, foot)
     headerH = st.lineH + st.stroke + st.outer
     w = math.max(w, width(title, st.font, st.size) + 2 * side)
   end
-  -- The foot, the rule, the outer padding and the field's line under the lines' own bottom padding,
-  -- with the pane's bottom padding below it as below the lines without one.
-  local footH = 0
+  -- The foot, one line under the lines' own bottom padding, with the pane's bottom padding below it
+  -- as below the lines without one, and the line that stands for no lines.
+  local footH, emptyLine = 0, nil
   if foot then
-    footH = st.stroke + st.outer + st.lineH
-    w = math.max(w, lead + width(foot.placeholder, st.font, st.size) + 2 * side + 4)
+    footH = st.lineH
+    w = math.max(w, width(foot.placeholder, st.font, st.size) + 2 * side + 4)
+    if #lines == 0 and foot.empty then
+      emptyLine = foot.empty
+      y = st.lineH
+      w = math.max(w, width(emptyLine, st.font, st.size) + 2 * side)
+    end
   end
   return {
     style = st, title = title, lines = lines, selectable = selectable == true,
     tops = tops, headings = headings, contentH = y,
-    lead = lead, side = side, headerH = headerH, foot = foot, footH = footH,
+    lead = lead, side = side, headerH = headerH, foot = foot, footH = footH, emptyLine = emptyLine,
     w = math.ceil(w), h = math.ceil(headerH + y + 2 * st.outer + (foot and (footH + st.outer) or 0)),
   }
 end
@@ -284,6 +291,11 @@ function M.elements(ui, pop, rect, opts)
     end
   end
 
+  if pop.emptyLine and shows(origin) then
+    els[#els + 1] = centredText(ui, pop.emptyLine, st.font, st.size, st.textDim, rect.x + side, origin, st.lineH,
+      rect.w - 2 * side)
+  end
+
   local lines = {}
   for i, line in ipairs(pop.lines) do
     local top = origin + pop.tops[i]
@@ -315,10 +327,7 @@ function M.elements(ui, pop, rect, opts)
   els[#els + 1] = { type = "resetClip" }
   if pop.foot and opts.foot then
     local footTop = rect.y + rect.h - st.outer - pop.footH
-    els[#els + 1] = { type = "rectangle", action = "fill", fillColor = st.border,
-      frame = { x = rect.x + st.stroke, y = footTop, w = rect.w - 2 * st.stroke, h = st.stroke } }
-    local x = rect.x + side + pop.lead
-    local frame = { x = x, y = footTop + st.stroke + st.outer, w = math.max(0, rect.x + rect.w - side - x), h = st.lineH }
+    local frame = { x = rect.x + side, y = footTop, w = math.max(0, rect.w - 2 * side), h = st.lineH }
     append(els, fieldRender.elements(opts.foot.state, frame, opts.foot.style, opts.foot.caret, pop.foot.placeholder))
   end
   return els, { scroll = scroll, maxScroll = maxScroll, lines = lines }

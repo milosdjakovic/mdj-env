@@ -438,7 +438,8 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
           enabled: $0.enabled) },
         style: style, placement: placement, outer: placement.barPillPad, inner: placement.barPillPad, lineH: placement.barPillH,
         gap: placement.barGapWide, radius: style.highlightRadius, iconSide: placement.infoIcon,
-        highlight: next.actionsHighlight, foot: next.bottomBar?.panelPlaceholder != nil)
+        highlight: next.actionsHighlight, foot: next.bottomBar?.panelPlaceholder != nil,
+        emptyText: next.emptyText)
     } else {
       actionsPop.setOpen(false)
     }
