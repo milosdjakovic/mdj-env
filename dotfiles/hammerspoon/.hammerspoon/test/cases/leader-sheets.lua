@@ -163,7 +163,7 @@ local leaderLib = load("lib/leader.lua")
 local realManifests = plugins.readAll({ spoonDir .. "plugins", spoonDir .. "host" }, nil)
 local libNames = {}
 for _, name in ipairs({ "leader", "appfocus", "recency", "storage", "paste",
-  "cheatsheet", "kbd", "registry", "glyphicon", "chordkey", "queryassoc", "ui" }) do
+  "cheatsheet", "kbd", "registry", "glyphicon", "chordkey", "queryassoc", "ui", "matchsource" }) do
   libNames[name] = true
 end
 
