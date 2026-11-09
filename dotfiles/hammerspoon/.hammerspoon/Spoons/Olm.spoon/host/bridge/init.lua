@@ -17,6 +17,12 @@
 -- engine and logs every difference to ~/.olm/log/shadow-<tool>.jsonl. The Lua side asks rather
 -- than the app, since rule 9 of the plan keeps the daily path on the list with every feature, so
 -- that is where real queries are typed. Nothing is shown and nothing waits on the app.
+--
+-- And it carries list keys to the app's list, step 1.4f, docs/DESIGN-APP-LIST-KEYS.md. The app
+-- posts local.olm.Olm.state, "<tool>:up" or "<tool>:down", as its list shows and hides, and
+-- showing(identity) answers from it, so lib/listopen.lua treats the app's list as an open one. A
+-- list key routed to it is posted back as local.olm.Olm.verb, "<tool>:<verb>", and the app runs it
+-- on its own highlight. Hammerspoon never waits on either.
 
 local obj = {}
 obj.__index = obj
@@ -50,6 +56,14 @@ obj._shadows = {}
 obj._shadowTimers = {}
 obj._shadowLast = {}
 obj._shadowId = 0
+-- Whether each served tool's list is up in the app, step 1.4f, docs/DESIGN-APP-LIST-KEYS.md. _up is
+-- what the app last said, _opening the moment a served key asked the app to open, kept until the
+-- app says up or OPENING passes, and _openTimers the handles of those waits.
+obj._up = {}
+obj._opening = {}
+obj._openTimers = {}
+obj._runningAt = nil
+obj._runningWas = false
 
 -- How long a list's answer must stay put before the shadow hands it over, so typing sends one
 -- request per pause rather than one per key.
@@ -157,7 +171,9 @@ function obj:serves(identity)
   if not open then return nil end
   if type(identity) ~= "string" or not self._serves[identity] then return nil end
   sayOnce(self, identity .. "'s open key opens Olm.app, the olmapp piece is on")
+  self:_listen()
   return function()
+    self:_opened(identity:lower())
     local mode = nil
     if self._screenMode then
       local ok, answer = pcall(self._screenMode)
@@ -206,6 +222,98 @@ function obj:_open(open, app, url)
     self._tasks[task] = true
     task:start()
   end
+end
+
+-- How long a served key's open counts as an open list before the app has said up, so a list key
+-- typed straight after the open key reaches the app rather than the global binding.
+obj.OPENING = 1.0
+-- A down arriving this soon after a served key asked to open is the list before, posted before the
+-- press, and leaves the open standing.
+obj.DOWN_SLACK = 0.15
+-- How long an answer of whether the app runs is kept, since it is asked on every leader press
+-- while a list is up and the app cannot both quit and reopen in that time.
+obj.RUNNING_TTL = 0.5
+
+obj.STATE_NOTE = "local.olm.Olm.state"
+obj.VERB_NOTE = "local.olm.Olm.verb"
+obj.ASK_NOTE = "local.olm.Olm.ask"
+
+-- Starts listening for the app's up and down once, and asks a running app for its state, since a
+-- reload forgets what the app said before it.
+function obj:_listen()
+  if self._stateWatch then return end
+  local notes = hs.distributednotifications
+  if not (notes and type(notes.new) == "function") then return end
+  self._stateWatch = notes.new(function(_, object) self:_state(object) end, self.STATE_NOTE)
+  if self._stateWatch then self._stateWatch:start() end
+  if self:_running() then self:_post(self.ASK_NOTE, "state") end
+end
+
+-- One state note from the app, "<tool>:up" or "<tool>:down".
+function obj:_state(object)
+  if type(object) ~= "string" then return end
+  local tool, word = object:match("^(%a%w*):(%a+)$")
+  if not tool then return end
+  if word == "up" then
+    self._up[tool] = true
+    -- A note from the app proves it runs, so an answer kept from before it started is dropped.
+    self._runningAt, self._runningWas = hs.timer.secondsSinceEpoch(), true
+    self:_endOpening(tool)
+  elseif word == "down" then
+    self._up[tool] = nil
+    local at = self._opening[tool]
+    if not (at and hs.timer.secondsSinceEpoch() - at < self.DOWN_SLACK) then self:_endOpening(tool) end
+  end
+end
+
+function obj:_opened(tool)
+  self._opening[tool] = hs.timer.secondsSinceEpoch()
+  if self._openTimers[tool] then self._openTimers[tool]:stop() end
+  self._openTimers[tool] = hs.timer.doAfter(self.OPENING, function()
+    self._openTimers[tool] = nil
+    self._opening[tool] = nil
+  end)
+end
+
+function obj:_endOpening(tool)
+  self._opening[tool] = nil
+  if self._openTimers[tool] then
+    self._openTimers[tool]:stop()
+    self._openTimers[tool] = nil
+  end
+end
+
+-- Whether the app runs, kept for RUNNING_TTL.
+function obj:_runningNow()
+  local now = hs.timer.secondsSinceEpoch()
+  if not self._runningAt or now - self._runningAt > self.RUNNING_TTL then
+    self._runningAt = now
+    self._runningWas = self:_running()
+  end
+  return self._runningWas
+end
+
+--- obj:showing(identity) -> whether the app's list for a tool it serves is up now, or being opened,
+--- step 1.4f. lib/listopen.lua asks it through the root, so every list key, gate and the rule that
+--- no cheat sheet shows over an open list treat the app's list as an open one. A quit app answers
+--- false, so a crash never leaves list keys bound to a list that is gone.
+function obj:showing(identity)
+  if type(identity) ~= "string" or not self._serves[identity] then return false end
+  local tool = identity:lower()
+  if not (self._up[tool] or self._opening[tool]) then return false end
+  if not self:_runningNow() then
+    self._up[tool] = nil
+    self:_endOpening(tool)
+    return false
+  end
+  return true
+end
+
+--- obj:verb(identity, name) posts one list verb to the app, which runs it on its own highlight,
+--- never waited on. name is the method lib/nav.lua routes to, selectNext or insertSelected.
+function obj:verb(identity, name)
+  if type(identity) ~= "string" or type(name) ~= "string" or not name:match("^%a%w*$") then return end
+  self:_post(self.VERB_NOTE, identity:lower() .. ":" .. name)
 end
 
 --- obj:shadowed() -> the identities whose answers the shadow hands the app on this machine, from

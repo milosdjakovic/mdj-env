@@ -21,13 +21,14 @@ end
 
 local said, started, timers, posted = {}, {}, {}, {}
 local present = {}
+local clock, watchers = 1000, {}
 hs = {
   timer = { doAfter = function(_, fn)
     local t = { fn = fn }
     function t:stop() self.stopped = true end
     timers[#timers + 1] = t
     return t
-  end },
+  end, secondsSinceEpoch = function() return clock end },
   logger = { new = function() return {
     i = function(m) said[#said + 1] = m end,
     w = function(m) said[#said + 1] = m end,
@@ -38,7 +39,13 @@ hs = {
     if v.query then return "{\"id\":" .. v.id .. ",\"query\":\"" .. v.query .. "\",\"keys\":" .. #v.keys .. "}" end
     return "{\"types\":" .. tostring(v.types and "t" or "none") .. "}"
   end },
-  distributednotifications = { post = function(name, object) posted[#posted + 1] = { name = name, object = object } end },
+  distributednotifications = { post = function(name, object) posted[#posted + 1] = { name = name, object = object } end,
+    new = function(fn, name)
+      local w = { fn = fn, name = name }
+      function w:start() self.started = true; return self end
+      watchers[#watchers + 1] = w
+      return w
+    end },
   task = { new = function(path, done, args)
     local t = { path = path, args = args, done = done }
     function t:start() started[#started + 1] = self; return self end
@@ -193,6 +200,57 @@ b:shadowWith("../x", { watch = function() watched = true end, answer = function(
 eq(watched, false, "an identity that is not a plain word is not watched")
 
 os.execute("rm -rf '" .. run .. "'")
+
+-- List keys, step 1.4f, docs/DESIGN-APP-LIST-KEYS.md. The app's list counts as open from the
+-- served key's press, through the app's up, until its down, never for a tool not served, and never
+-- once the app has quit. A verb is posted as "<tool>:<verb>".
+do
+  local up = true
+  hs.application = { applicationsForBundleID = function() return up and { {} } or {} end }
+  watchers, posted, timers = {}, {}, {}
+  local k = fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP })
+  local open = k:serves("fileSearch")
+  eq(#watchers, 1, "keys: serving a tool listens for the app's state")
+  eq(watchers[1] and watchers[1].name, "local.olm.Olm.state", "keys: on the state note")
+  eq(watchers[1] and watchers[1].started, true, "keys: and starts listening")
+  eq(posted[1] and posted[1].name, "local.olm.Olm.ask", "keys: a running app is asked its state")
+  k:serves("fileSearch")
+  eq(#watchers, 1, "keys: and listens once")
+  local note = watchers[1].fn
+  eq(k:showing("fileSearch"), false, "keys: nothing open at rest")
+  open()
+  eq(k:showing("fileSearch"), true, "keys: open from the press, before the app says so")
+  eq(k:showing("clipboard"), false, "keys: a tool not served is never open")
+  clock = clock + 0.05
+  note("local.olm.Olm.state", "filesearch:down")
+  eq(k:showing("fileSearch"), true, "keys: a down from the list before the press leaves the open standing")
+  note("local.olm.Olm.state", "filesearch:up")
+  eq(k:showing("fileSearch"), true, "keys: open once the app says up")
+  clock = clock + 5
+  eq(k:showing("fileSearch"), true, "keys: and stays open while it is up")
+  note("local.olm.Olm.state", "filesearch:down")
+  eq(k:showing("fileSearch"), false, "keys: closed once the app says down")
+  open()
+  timers[#timers].fn()
+  eq(k:showing("fileSearch"), false, "keys: a press the app never answers counts for a second only")
+  note("local.olm.Olm.state", "filesearch:up")
+  up = false
+  clock = clock + 1
+  eq(k:showing("fileSearch"), false, "keys: an app that quit has no list open")
+  up = true
+  clock = clock + 1
+  eq(k:showing("fileSearch"), false, "keys: and the up it last said is forgotten")
+  note("local.olm.Olm.state", "nonsense")
+  note("local.olm.Olm.state", nil)
+  eq(k:showing("fileSearch"), false, "keys: a note that is not a state changes nothing")
+  posted = {}
+  k:verb("fileSearch", "selectNext")
+  eq(posted[1] and posted[1].name, "local.olm.Olm.verb", "keys: a verb is posted on the verb note")
+  eq(posted[1] and posted[1].object, "filesearch:selectNext", "keys: naming the tool and the verb")
+  k:verb("fileSearch", "../x")
+  eq(#posted, 1, "keys: a verb that is not a word is not posted")
+  hs.application = nil
+end
 
 print(string.format("bridge: %d checks, %d failed", checks, failures))
 os.exit(failures == 0 and 0 or 1)

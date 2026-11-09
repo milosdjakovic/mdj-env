@@ -104,6 +104,21 @@ do
   open.picker = true
   eq(listOpen.isShowing("pickerList", deps), true, "open: a root that answers isShowing itself")
   open.picker = false
+  -- Olm.app's list of a served tool, step 1.4f, is open while the bridge says so, asked first.
+  local served = {}
+  deps.served = function(identity) return served[identity] == true end
+  eq(listOpen.isShowing("vpnList", deps), false, "open: a served tool whose app list is down asks the stage")
+  served.vpnIdentity = true
+  eq(listOpen.isShowing("vpnList", deps), true, "open: a served tool's app list up is open")
+  eq(listOpen.anyShowing(deps), true, "any: the app's list counts")
+  eq(listOpen.servedOpen(deps), "vpnIdentity", "served: names the tool whose app list is up")
+  served.vpnIdentity = nil
+  stage.now, stage.up = "vpnIdentity", true
+  eq(listOpen.isShowing("vpnList", deps), true, "open: its Lua list on the stage still answers")
+  stage.now, stage.up = nil, false
+  eq(listOpen.servedOpen(deps), nil, "served: none while no app list is up")
+  deps.served = nil
+  eq(listOpen.servedOpen(deps), nil, "served: and none with no bridge")
   eq(listOpen.surfaceOf(modules.nested, true), modules.nested, "surface: true is the module itself")
   eq(listOpen.surfaceOf(modules.nested, "chooser.missing.deeper"), nil, "surface: a path through nothing is nil")
 end

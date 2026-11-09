@@ -323,7 +323,7 @@ function obj:_levelRows(verb)
   local rows = {}
   if verb.confirm then
     local title = type(verb.confirm) == "string" and verb.confirm or verb.title
-    rows[1] = { title = "Cancel", icon = "back", iconOwner = self._owner, filterText = "Cancel",
+    rows[1] = { title = "Cancel", icon = "cancel", iconOwner = self._owner, filterText = "Cancel",
                 item = { cancel = true, title = "Cancel" } }
     rows[2] = { title = title, icon = verb.icon, iconOwner = verb.owner, filterText = title,
                 item = { run = verb.action, title = title } }
@@ -422,6 +422,12 @@ function obj:_leave(instance, action, value)
   self:_close()
   if capturedSearch ~= nil then instance:setMatcher(instance:matcher(), capturedSearch) end
   instance:setQuery(capturedQuery)
+  -- The row goes back in the same turn as the query, so the list is never drawn on row one
+  -- between the two. Without it, choosing Delete in the clipboard drew the first row and its
+  -- preview, then the row the pane opened over, then the row after the deleted one, the flicker
+  -- Milos saw on 2026-11-09. A path whose rebuild still resets to row one, Back and Backspace,
+  -- gets the row back from the deferred continuation below as before.
+  instance:selectRow(capturedRow)
   local defer = self._defer or hs.timer.doAfter
   defer(0, function()
     if not instance:isShowing() then
@@ -433,7 +439,14 @@ function obj:_leave(instance, action, value)
       return
     end
     instance:selectRow(capturedRow)
-    if action then self._run(action, capturedItem, value) end
+    if action then
+      -- Marked while it runs, so the root can tell the pane running a verb it confirmed from a
+      -- key pressed for that verb, which opens the confirm level instead, see confirmAction.
+      self._running = true
+      local ok, err = pcall(self._run, action, capturedItem, value)
+      self._running = false
+      if not ok then self._log.w("ActionsPane action '" .. tostring(action) .. "' raised, " .. tostring(err)) end
+    end
   end)
 end
 
@@ -457,7 +470,7 @@ function obj:_choose(instance, item)
   if item and item.cancel then return self:_stepBack(instance) end
   if item and item.run then
     self:_leave(instance, item.run, item.value)
-    return true
+    return "stay"
   end
   if item and item.action and (item.choices or item.confirm) and not self._level then
     self._level = item
@@ -466,8 +479,10 @@ function obj:_choose(instance, item)
     instance:setQuery("")
     return true
   end
+  -- "stay", so the rebuild after this answer holds the row _leave just put back rather than
+  -- resetting to row one.
   self:_leave(instance, item and item.action or nil)
-  return true
+  return "stay"
 end
 
 -- Steps out of a level back to the panel's own rows, or out of the panel when no level is open.
@@ -637,7 +652,8 @@ end
 --- ActionsPane:toggle(contextName, hosted)
 --- Method
 --- What the panel's chord runs. Closes the panel when it is already open, through _leave with
---- no action, the same door every other way out uses, and then runs its own refresh(true),
+--- no action, the same door every other way out uses, and then runs its own refresh(false), holding
+--- the row _leave put back,
 --- since this is the one way out that answers no to intercept and to back and so earns none of
 --- their own automatic rebuild, unlike Back, Backspace, and a chosen verb, which all get one
 --- for free the moment their own handler answers true. Otherwise finds the first recorded
@@ -668,7 +684,7 @@ function obj:toggle(contextName, hosted)
   if self._openInstance then
     local instance = self._openInstance
     self:_leave(instance, nil)
-    instance:refresh(true)
+    instance:refresh(false)
     return
   end
   if not ensureConfigured(self, "toggle") then return end
@@ -721,9 +737,41 @@ function obj:chooseAction(action)
   local item = self:_rowFor(action)
   if not item then return false end
   local instance = self._openInstance
+  -- A verb that runs answers "stay", holding the row _leave put back, and a level that opens
+  -- answers true and starts at its own first row.
+  local answer = self:_choose(instance, item)
+  instance:refresh(answer ~= "stay")
+  return true
+end
+
+--- ActionsPane:confirmAction(contextName, action) -> boolean
+--- Method
+--- What a key runs for a verb that declares confirm, pressed with the panel closed. The panel opens
+--- over the highlighted row and steps straight into the verb's confirm level, Cancel first, so the
+--- key asks exactly what choosing the verb in the panel asks, stated by Milos on 2026-11-09. A verb
+--- that does not apply to the row, which the panel leaves out, closes the panel again and runs
+--- nothing. Answers true when the key was answered here, whichever way.
+function obj:confirmAction(contextName, action)
+  if self._openInstance then return false end
+  self:toggle(contextName)
+  local instance = self._openInstance
+  if not instance then return false end
+  local item = self:_rowFor(action)
+  if not (item and item.confirm) then
+    self:_leave(instance, nil)
+    instance:refresh(false)
+    return true
+  end
   self:_choose(instance, item)
   instance:refresh(true)
   return true
+end
+
+--- ActionsPane:isRunning() -> boolean
+--- Method
+--- Whether the panel is running a verb chosen in it right now, see _leave.
+function obj:isRunning()
+  return self._running == true
 end
 
 --- ActionsPane:isOpen() -> boolean

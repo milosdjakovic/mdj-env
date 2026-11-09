@@ -16,6 +16,8 @@
 ---                    that does not present there. Asked at every call, since the registry it reads
 ---                    is built after the leaders that close over this.
 ---   stage            the shared stage, answering current and isShowing, or nil
+---   served           optional, a function of an identity answering true while Olm.app's list for
+---                    that tool is up, host/bridge's showing, asked before the stage
 ---   modules          directory to the loaded module
 ---   manifests        directory to the manifest, read for where the module keeps its surface
 
@@ -59,6 +61,10 @@ function obj.isShowing(contextName, deps)
   local owner = deps.owners[contextName]
   if not owner then return false end
   local ownerIdentity = deps.identity[owner] or owner
+  -- The app's list of a tool it serves is open while the app says so, step 1.4f of
+  -- docs/PLAN-STANDALONE.md. Otherwise the stage is asked, since the launcher's scope still shows
+  -- the Lua list of a served tool.
+  if type(deps.served) == "function" and deps.served(ownerIdentity) == true then return true end
   local stage = deps.stage
   if stage and deps.presentationFor(ownerIdentity) then
     return stage:current() == ownerIdentity and stage:isShowing() == true
@@ -76,6 +82,19 @@ function obj.isShowing(contextName, deps)
   if ok then return answer == true end
   local dotOk, dotAnswer = pcall(holder.isShowing)
   return dotOk and dotAnswer == true
+end
+
+--- listopen.servedOpen(deps) -> identity or nil
+--- The tool whose list Olm.app shows now, through deps.served, step 1.4f, for the verbs that belong
+--- to whichever list is open rather than to one list's surface, the info pane's and the actions
+--- pane's.
+function obj.servedOpen(deps)
+  if type(deps.served) ~= "function" then return nil end
+  for _, owner in pairs(deps.owners) do
+    local identity = deps.identity[owner] or owner
+    if deps.served(identity) == true then return identity end
+  end
+  return nil
 end
 
 --- listopen.anyShowing(deps) -> boolean

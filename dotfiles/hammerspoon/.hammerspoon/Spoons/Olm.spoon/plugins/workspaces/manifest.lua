@@ -123,7 +123,7 @@ return {
         section = "Layout", applies = "isLayout" },
       { action = "editApps", description = "Apps", icon = "apps", section = "Layout", applies = "isLayout" },
       { action = "renameLayout", description = "Rename", icon = "rename", section = "Manage", applies = "isLayout" },
-      { action = "deleteLayout", description = "Delete", icon = "delete", section = "Manage",
+      { key = "r", action = "deleteLayout", description = "Delete", icon = "delete", section = "Manage",
         applies = "isLayout", confirm = "Delete this layout" },
     },
   },

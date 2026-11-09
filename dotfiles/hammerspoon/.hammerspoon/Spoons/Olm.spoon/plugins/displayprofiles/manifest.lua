@@ -116,7 +116,7 @@ return {
         applies = "isProfile" },
       { action = "renameProfile", description = "Rename", icon = "rename", section = "Manage",
         applies = "isCaptured" },
-      { action = "deleteProfile", description = "Delete", icon = "delete", section = "Manage",
+      { key = "r", action = "deleteProfile", description = "Delete", icon = "delete", section = "Manage",
         applies = "isCaptured", confirm = "Delete this profile" },
     },
   },

@@ -1610,7 +1610,7 @@ text. Detection is strict, the whole trimmed string must be the colour, so prose
 that merely mentions `#fff` stays ordinary text, and a translucent colour is drawn
 over a checkerboard so its alpha reads. This lives entirely in the per-kind builder
 in `ui.lua`, one consumer, so it is inline there with no new module or injection. Content taller than the pane scrolls with
-Hyper+Cmd+j/k or with a trackpad over the pane, both through one `scrollPreviewBy`,
+Hyper+d/u or with a trackpad over the pane, both through one `scrollPreviewBy`,
 clamped to the overflow and clipped to the inner box. The trackpad half is not the
 clipboard's own, a canvas cannot report a scroll, so the atom watches for one over the
 preview pane rect and calls `onScroll` with a distance in points, normalising a wheel

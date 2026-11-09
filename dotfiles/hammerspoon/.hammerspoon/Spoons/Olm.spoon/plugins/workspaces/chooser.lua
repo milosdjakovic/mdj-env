@@ -101,15 +101,15 @@ local function topRows()
   return out
 end
 
--- The name level for a new snapshot. The search field is the name, and the top row morphs to
--- Save as the typed name, disabled while the name is empty or already used so a confirm can never
--- write a bad one. Then Back.
+-- The name level for a new snapshot. The input field is the name, and with nothing typed the level
+-- shows no row, the placeholder saying what to type, then one row, Save as the typed name, or a
+-- disabled one while the name is already used, so a confirm can never write a bad one. No Back
+-- row, since Backspace on an empty field leaves, stated by Milos on 2026-11-09.
 local function newRows(query)
   local name = trim(query)
   local out = {}
   if name == "" then
-    out[#out + 1] = row("Type a name for this snapshot", "Everything open now on " .. cfg.api.here(),
-      "hint", { noop = true }, false)
+    return out
   elseif cfg.api.exists(name) then
     out[#out + 1] = row("Name already used", "Choose a name no other layout has", "warn",
       { noop = true }, false)
@@ -117,7 +117,6 @@ local function newRows(query)
     out[#out + 1] = row("Save as '" .. name .. "'", "Record where every window sits now", "save",
       { act = "create", name = name }, true)
   end
-  out[#out + 1] = backRow()
   return out
 end
 
@@ -160,14 +159,15 @@ local function appRows(name, excluded)
   }
 end
 
--- The rename level. Same shape as the name level for a new snapshot.
+-- The rename level. Same shape as the name level for a new snapshot, no row until a name is typed
+-- and no Back row.
 local function renameRows(id, query)
   local l = cfg.api.get(id)
   local current = l and l.name or ""
   local newName = trim(query)
   local out = {}
   if newName == "" then
-    out[#out + 1] = row("Type a new name", "Rename '" .. current .. "'", "hint", { noop = true }, false)
+    return out
   elseif newName ~= current and cfg.api.exists(newName) then
     out[#out + 1] = row("Name already used", "Choose a name no other layout has", "warn",
       { noop = true }, false)
@@ -175,7 +175,6 @@ local function renameRows(id, query)
     out[#out + 1] = row("Save as '" .. newName .. "'", "Rename '" .. current .. "'", "save",
       { act = "saveRename", newName = newName }, true)
   end
-  out[#out + 1] = backRow()
   return out
 end
 
@@ -266,7 +265,9 @@ end
 -- built, so the level it pops back onto reads the new name off the api on its next rows call.
 buildRenameChild = function(id)
   return {
-    placeholder = "New name for this layout",
+    -- Read when the level is pushed, so it names the layout as it is now, the way Display
+    -- Profiles' rename names its profile.
+    placeholder = "New name for '" .. ((cfg.api.get(id) or {}).name or "this layout") .. "'",
     -- search-exempt, the field is the layout's new name being typed, input and not a search
     matcher = false,
     rows = function(query) return renameRows(id, query) end,

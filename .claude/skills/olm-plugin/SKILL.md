@@ -140,7 +140,12 @@ rename, opens its own level through `stagePush`. `docs/PLAN-ACTION-PANEL.md` and
 surface section have it, and Workspaces is the settled example.
 
 A menu level's first row is Back, spelled Back, carrying the back glyph the existing menus
-use. A typed scope has no Back row. Backspace on an empty field pops, the presentation's own
+use. A level whose field is input, a name being typed for a capture, a new snapshot or a rename,
+has no Back row and no hint row. With nothing typed it shows no row at all and its placeholder
+says what to type, a rename's naming what is renamed, New name for and the old name, and once a
+name is typed its one row saves it or says why it cannot. Backspace on the empty field leaves.
+Stated by Milos on 2026-11-09. A confirm level's Cancel wears the actions pane's cancel mark,
+never back's, since it refuses the verb rather than leaving a level. A typed scope has no Back row. Backspace on an empty field pops, the presentation's own
 `back` answers first, and the stage pops only when it declines. A row that must leave its
 level itself, a delete landing you above the thing you acted on, calls `stagePop` from inside
 its own `intercept`, since a child can only ever push.

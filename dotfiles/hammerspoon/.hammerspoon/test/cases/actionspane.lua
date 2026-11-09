@@ -421,8 +421,8 @@ do
 
   ap:toggle("demo")
   check(
-    "the same chooser now answers true to intercept, gained once the panel opened",
-    config.intercept({ title = "Back" }) == true
+    "the same chooser now answers stay to intercept, gained once the panel opened",
+    config.intercept({ title = "Back" }) == "stay"
   )
   check(
     "choosing Back through the gained intercept closed the panel again",
@@ -458,6 +458,23 @@ do
   )
 end
 
+-- The row comes back in the same turn as the query, before any deferred continuation, so the
+-- list is never drawn on row one between them, the flicker Milos saw choosing Delete in the
+-- clipboard on 2026-11-09.
+do
+  local ap = configuredPanel({ demo = { { action = "doThing", title = "Do Thing" } } })
+  local pending
+  ap._defer = function(_, fn) pending = fn end
+  local config = fakeConfig()
+  local instance = fakeInstance({ showing = true, row = 4, query = "rev" })
+  ap:decorate(instance, config)
+  ap:toggle("demo")
+  instance.row = 1
+  config.intercept({ action = "doThing", title = "Do Thing" })
+  check("a chosen verb puts the row back before its deferred continuation runs",
+    pending ~= nil and instance.row == 4)
+end
+
 -- The row captured when the panel opened is what selectRow is later asked for, and the field
 -- is restored to what the tool's own list held, not to whatever was typed inside the panel to
 -- find the verb, both restored by the deferred continuation after a verb is chosen. The query
@@ -485,7 +502,7 @@ do
   instance.row = 1
 
   local handled = config.intercept({ action = "doThing", title = "Do Thing" })
-  check("choosing a verb answers true, keeping the chooser open", handled == true)
+  check("choosing a verb answers stay, keeping the chooser open on the row put back", handled == "stay")
   check(
     "the field is restored to what the tool's own list held, not to what found the verb",
     instance:query() == "rev"
@@ -523,7 +540,7 @@ do
 
   ap:toggle("demo")
   local handled = config.intercept({ action = "doThing", title = "Do Thing" })
-  check("choosing a verb answers true, keeping the chooser open", handled == true)
+  check("choosing a verb answers stay, keeping the chooser open on the row put back", handled == "stay")
   check(
     "deps.run receives the action and the item the panel captured when it opened",
     #runArgs == 1 and runArgs[1].action == "doThing" and runArgs[1].item == capturedItem
@@ -574,7 +591,7 @@ do
   ap:toggle("demo")
   instance.row = 1
   local handled = config.intercept({ title = "Back" })
-  check("choosing Back answers true", handled == true)
+  check("choosing Back answers stay", handled == "stay")
   check("choosing Back restores the field the tool's own list held", instance:query() == "abc")
   check(
     "choosing Back puts the highlight back on the row the panel was opened over",
@@ -877,6 +894,42 @@ do
   check("opening the panel clears the presentation's search", liveSearch == nil and liveMatcher == strategy)
   ap:toggle("demo")
   check("leaving the panel hands the same search back", liveSearch == search and liveMatcher == strategy)
+end
+
+-- A key on a verb that declares confirm asks first, stated by Milos on 2026-11-09. confirmAction
+-- opens the panel straight on the verb's confirm level, a verb that does not apply to the row
+-- closes the panel and runs nothing, and the panel marks itself running while it runs the verb it
+-- confirmed, so the root never sends that run back to the confirm level.
+do
+  local rows = {
+    { action = "remove", title = "Delete", applies = "isLayout", confirm = "Delete this layout" },
+  }
+  local ap = freshModule()
+  local runs, runningDuring = {}, nil
+  ap:configure({
+    kindOf = function() return nil end,
+    rowsFor = function() return rows end,
+    run = function(action) runs[#runs + 1] = action; runningDuring = ap:isRunning() end,
+    call = function(method, item) if method == "isLayout" then return item and item.layout == true end end,
+    rank = rank,
+    ownRowsMatcher = substring,
+  })
+  ap._defer = function(_, fn) fn() end
+  local instance = fakeInstance({ showing = true, row = 3, item = { layout = true } })
+  ap:decorate(instance, fakeConfig())
+
+  check("confirmAction answers the key", ap:confirmAction("demo", "remove") == true)
+  check("the key opens the confirm level, Cancel first",
+    ap:levelTitle() == "Delete" and ap._panelRows[1].item.cancel == true)
+  check("the key runs nothing before the confirm row is chosen", #runs == 0)
+  ap:_choose(instance, ap._panelRows[2].item)
+  check("the confirm row runs the verb once, marked running while it runs",
+    #runs == 1 and runningDuring == true and not ap:isRunning())
+  check("the highlight is back on the row the key was pressed over", instance.row == 3)
+
+  instance.item = { layout = false }
+  check("a key over a row the verb does not fit is answered", ap:confirmAction("demo", "remove") == true)
+  check("and closes the panel again running nothing", not ap:isOpen() and #runs == 1)
 end
 
 -- The programmable panel, docs/PLAN-ACTION-PANEL.md. A verb's applies leaves it out for a row it

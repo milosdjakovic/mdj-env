@@ -16,8 +16,9 @@
 // asks the source for the row's Preview on the source's own actor, PanePainter lays it out on a
 // task off the main thread, and only the drawing lands here, dropped when a newer row was asked
 // for since. A row already on screen is left where it is scrolled, a row being read is not asked
-// for twice, and no row, a status in place of the rows, shows the pane's empty state. Command and J
-// or K scroll it by a wheel notch, the step the Lua pane's scroll keys move, and a scroll over it is
+// for twice, and no row, a status in place of the rows, shows the pane's empty state. The scroll
+// verbs, Hyper with D or U heard by Hammerspoon, move it by the step the Lua pane's scroll
+// keys move, and a scroll over it is
 // the native view's own.
 //
 // PICTURES, step 1.4b. A body's picture is a file the source names, read and decoded at the pixels
@@ -73,6 +74,14 @@ public final class Stage {
   // The placement choice the list was last opened with, for a reopen.
   private var screenMode: String?
   private static let revealCapMs: UInt64 = 150
+  // The tool whose list is up, told through onShowing as it goes up and comes down, step 1.4f,
+  // docs/DESIGN-APP-LIST-KEYS.md, so Hammerspoon routes its list keys here.
+  private var shown: String?
+  /// Told a tool's name and true as its list opens and false as it hides. Olm.app's composition
+  /// root posts it to Hammerspoon.
+  public var onShowing: ((String, Bool) -> Void)?
+  // The verbs this step does not run yet, said once each.
+  private var unknownVerbs: Set<String> = []
 
   public init(searcher: Searcher = Searcher()) {
     self.searcher = searcher
@@ -83,6 +92,7 @@ public final class Stage {
   public func open(_ next: any ListSource, query: String, screen mode: String? = nil) {
     if let source, source !== next { Task { await source.close() } }
     source = next
+    tell(next.manifest.name)
     screenMode = mode
     level = nil
     generation += 1
@@ -179,6 +189,7 @@ public final class Stage {
     revealPending = false
     revealTask?.cancel()
     heldPaint = nil
+    tell(nil)
     guard panel.isVisible || waiting else { return }
     generation += 1
     task?.cancel()
@@ -403,6 +414,41 @@ public final class Stage {
     }
   }
 
+  // Says which tool's list is up, a down for the one before when another opens over it.
+  private func tell(_ tool: String?) {
+    guard tool != shown else { return }
+    if let shown { onShowing?(shown, false) }
+    shown = tool
+    if let tool { onShowing?(tool, true) }
+  }
+
+  /// Answers Hammerspoon asking what is up, after a reload forgot it.
+  public func tellState() {
+    if let shown { onShowing?(shown, true) }
+  }
+
+  /// One list verb from Hammerspoon's leaders, step 1.4f, run on this list's own highlight. The name
+  /// is the method lib/nav.lua routes to. A verb for a tool whose list is not up is dropped.
+  public func verb(_ tool: String, _ name: String) {
+    guard tool == shown, let source else { return }
+    switch name {
+    case "selectNext": panel.move(1)
+    case "selectPrev": panel.move(-1)
+    case "hide": hide()
+    case "insertSelected": act(on: highlight)
+    case "scrollPreviewDown", "scrollPreviewUp":
+      if pane != nil, previewShown != nil {
+        paneHost?.scrollBy(name == "scrollPreviewDown" ? Self.paneScrollStep : -Self.paneScrollStep)
+      }
+    default:
+      if source.manifest.actions.contains(where: { $0.id == name }) {
+        act(on: highlight, action: name)
+      } else if unknownVerbs.insert(name).inserted {
+        NSLog("Olm: the list verb %@ is not run by the app yet", name)
+      }
+    }
+  }
+
   // How far one scroll key moves the pane, chooser.lua's PANE_SCROLL_STEP.
   private static let paneScrollStep: CGFloat = 120
 
@@ -417,14 +463,6 @@ public final class Stage {
     // list shows its numbers.
     if event.flags.contains(.maskCommand), look?.showNumbers == true, let slot = Self.digitKeys.firstIndex(of: code) {
       act(on: slot + 1)
-      return true
-    }
-    // Command and J or K scroll the preview pane, the keys the Lua file search binds for
-    // scrollPreviewDown and scrollPreviewUp with the list's leader held, which Hammerspoon passes on
-    // as Command and the key while it is the app's list that is open.
-    if pane != nil, code == 38 || code == 40, event.flags.contains(.maskCommand),
-      event.flags.isDisjoint(with: [.maskControl, .maskAlternate, .maskShift]) {
-      if previewShown != nil { paneHost?.scrollBy(code == 38 ? Self.paneScrollStep : -Self.paneScrollStep) }
       return true
     }
     guard code == 36 || code == 76 else { return false }

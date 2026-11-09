@@ -17,7 +17,8 @@ img, url, file or txt keeps only that kind, so file report lists the copied file
 file name, so a word from the folder it sits in finds nothing.
 
 While the list is open, j and k move, i pastes the highlighted entry, a appends it
-to a batch, d deletes it, and x closes the list.
+to a batch, r deletes it, d and u scroll the preview pane down and up, and x
+closes the list.
 
 The same list has a second page for deleting in bulk, reached with m while the list
 is open and from the launcher row named manage clipboard history. An empty field

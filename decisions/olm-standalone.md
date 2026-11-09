@@ -350,3 +350,34 @@ list, and until then that list stays on Lua.
   person to System Settings, where Milos could not find the switch. Saying a refusal once was
   rejected, since the row was gone before he could use it, and the row now stays while a folder is
   refused. Both rows wear ✅, his rule that a row wears its intent and never its state.
+- 2026-11-09 14:45. Step 1.4f's design note agreed, `docs/DESIGN-APP-LIST-KEYS.md` in the spoon.
+  While Olm.app's file search is up, the app tells the bridge so by a distributed notification,
+  `lib/listopen.lua` answers that list open through a question the root hands in, and every list
+  key routed to it is posted to the app as a verb the app runs on its own highlight, step 3.4's
+  shape on 1.2's notifications. Milos left the three open choices to whatever best keeps speed and
+  consistency. The bridge marks the list open the moment its key posts the open note, dropped if
+  the app has not confirmed within a second, so a list key typed straight after the open key never
+  runs the global binding. The words for the bar and both floating panes are a share written at
+  load from the same plan, since nothing then crosses per keystroke and file search has no live
+  gate, a live bar model being stage 2's. The app's plain Command and J or K scroll goes, since the
+  Lua list answers only Hyper with Command and J or K.
+- 2026-11-09 16:20. Piece one of step 1.4f passed Milos's hand trial, every step but the preview
+  scroll, whose key he turned down. Hyper with Command and J or K read as no key at all, a second
+  modifier under a leader that is held, so both lists with a preview pane, file search and the
+  clipboard, now scroll it on Hyper and D or U, down and up, Vim's Control and D or U. Keeping
+  Command and J or K was rejected for that reason. Moving only file search was rejected, since the
+  two lists would then scroll on different keys. The clipboard's Delete, which held D, moved to
+  Hyper and Backspace, Milos's pick over Hyper and R. Hyper and U opens tmux sessions with no list
+  open, and the open list's own key wins over it, as Hyper and J does over the emoji picker.
+- 2026-11-09 18:05. Corrects the entry of 16:20 on the clipboard's Delete. Hyper and Backspace
+  never reached macOS on this machine. A key watcher below Hammerspoon's hotkeys saw nothing for
+  a physical press while a synthetic one arrived, so the press is lost under the system, kanata or
+  its driver, and kanata's own log says nothing. Delete now sits on Hyper and R, for remove, in
+  every list that has one, the clipboard, Display Profiles and Workspaces, Milos's pick over
+  Hyper with Shift and D and over looking into kanata first. A key on a verb that declares
+  confirm now asks first, the actions pane opening straight on that verb's Cancel and confirm
+  rows, so the key and the pane ask the same question. Running the verb immediately was rejected
+  as deleting a profile or a layout with no question. The same trial found the actions pane
+  drawing the list on row one between giving the query back and putting the row back, a flicker
+  through the first row's preview on every verb chosen there, so the row now comes back in the
+  same turn and a chosen verb answers stay.

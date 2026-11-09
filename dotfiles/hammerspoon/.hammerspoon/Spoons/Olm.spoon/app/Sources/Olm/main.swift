@@ -62,7 +62,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // fifty milliseconds sooner than open, measured in the 1.4a trial on 2026-11-08.
     DistributedNotificationCenter.default().addObserver(self, selector: #selector(openNote(_:)),
       name: Notification.Name("local.olm.Olm.open"), object: nil, suspensionBehavior: .deliverImmediately)
+    // List keys, step 1.4f, docs/DESIGN-APP-LIST-KEYS.md. The stage says up and down, a list verb
+    // Hammerspoon's leaders heard comes back as "<tool>:<verb>", and an ask answers the state.
+    stage.onShowing = { tool, up in
+      DistributedNotificationCenter.default().postNotificationName(Notification.Name("local.olm.Olm.state"),
+        object: "\(tool):\(up ? "up" : "down")", userInfo: nil, deliverImmediately: true)
+    }
+    DistributedNotificationCenter.default().addObserver(self, selector: #selector(verbNote(_:)),
+      name: Notification.Name("local.olm.Olm.verb"), object: nil, suspensionBehavior: .deliverImmediately)
+    DistributedNotificationCenter.default().addObserver(self, selector: #selector(askNote(_:)),
+      name: Notification.Name("local.olm.Olm.ask"), object: nil, suspensionBehavior: .deliverImmediately)
   }
+
+  @objc private func verbNote(_ note: Notification) {
+    guard let object = note.object as? String else { return }
+    let parts = object.split(separator: ":")
+    guard parts.count == 2 else { return }
+    stage.verb(String(parts[0]), String(parts[1]))
+  }
+
+  @objc private func askNote(_ note: Notification) { stage.tellState() }
 
   @objc private func openNote(_ note: Notification) {
     guard let object = note.object as? String, let url = URL(string: object) else { return }
