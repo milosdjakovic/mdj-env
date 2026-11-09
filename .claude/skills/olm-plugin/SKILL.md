@@ -139,6 +139,8 @@ never a verb there, stated by Milos on 2026-10-30. A verb that needs typed input
 rename, opens its own level through `stagePush`. `docs/PLAN-ACTION-PANEL.md` and the contract's
 surface section have it, and Workspaces is the settled example.
 
+The info pane and the actions pane close on any key that acts on the list beneath, a move, typing, the preview pane's scroll or a verb, and the key still acts. Escape closes only the pane, and a shortcut that closes the list closes everything. The actions pane keeps its own keys, moving, Return, typing to filter its rows and its toggle. Both panes are the core's, so a plugin never holds one open. Stated by Milos on 2026-11-09.
+
 A menu level's first row is Back, spelled Back, carrying the back glyph the existing menus
 use. A level whose field is input, a name being typed for a capture, a new snapshot or a rename,
 has no Back row and no hint row. With nothing typed it shows no row at all and its placeholder
