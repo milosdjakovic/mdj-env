@@ -774,6 +774,16 @@ function obj:isRunning()
   return self._running == true
 end
 
+--- ActionsPane:paneField() -> { held, placeholder }
+--- Method
+--- What the actions pane's own input field needs, the views drawing it as the pane's bottom line
+--- with the caret in it while the list's field keeps showing what it held. held is the list's text
+--- the panel opened over, an empty string while it is closed, and placeholder the words the empty
+--- field shows, which name the list it searches, asked by Milos on 2026-11-09.
+function obj:paneField()
+  return { held = (self._openInstance and self._capturedQuery) or "", placeholder = "Search Actions" }
+end
+
 --- ActionsPane:isOpen() -> boolean
 --- Method
 --- Whether the panel is currently showing, on any instance.

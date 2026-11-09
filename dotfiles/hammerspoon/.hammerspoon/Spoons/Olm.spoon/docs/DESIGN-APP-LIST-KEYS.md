@@ -200,3 +200,19 @@ closes, and a chosen row closes the pane first and then runs on the row it opene
 Return and its own key are the pane's, a key on a verb it lists chooses that row, and any other
 key, a scroll or a press behind it closes it, as the Lua pane now does.
 
+
+## The actions pane's own input field
+
+Asked by Milos in piece three's trial, for every list. The actions pane searches in an input field
+of its own, its bottom line under a rule, at the size of the pane's rows, its placeholder Search
+Actions, and the caret moves into it while the pane is open, so the list's input field keeps
+showing the text the pane opened over. Both fields are one field made customizable, handed a look.
+In Swift that is `native/InputField.swift`, the list's field and the pane's foot both made from it,
+the panel routing every key and every edit to whichever has the caret. On the canvas it is
+`field/render.lua`, which already drew any rect in any style, now drawing the pane's foot too.
+
+The engine still holds one text. The actions pane still clears it on opening and gives the list's
+text back on closing, which no person sees any more, since the list's field draws the held text the
+bar model carries, `panelField`, from `host/actionspane`'s `paneField`. So nothing in the engine, the
+pane or the claim changed, only where each view draws the text. The app's stage hands the panel the
+same held text, and the share carries the placeholder on the open bar.

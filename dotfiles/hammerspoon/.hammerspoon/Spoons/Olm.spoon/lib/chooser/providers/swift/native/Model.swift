@@ -180,6 +180,10 @@ struct BottomBar {
   var panelOpen = false
   // The title of a level a verb opened in the actions pane, heading the floating pane, nil at the top.
   var panelTitle: String?
+  // The actions pane's own input field, the list's text the list's field keeps showing while the
+  // pane is open and the pane's placeholder, nil for a pane drawn with no field of its own.
+  var panelHeld: String?
+  var panelPlaceholder: String?
 
   init() {}
 }

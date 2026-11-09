@@ -29,9 +29,15 @@
 --- colour, the outer padding is the kit's pad, the inner padding its inner, the gap the large space step, a picture's side the
 --- section line height, and a line's height the bar's row, which the view hands in since the bar
 --- owns it. No shadow, swift's glass has none.
+---
+--- A foot is the header's mirror, a rule under the last line and an input field laid out as one
+--- more line under it, drawn by the list's own field renderer at the body role's size, its text
+--- where a line's label starts, which the actions pane takes for its own search, asked by Milos on
+--- 2026-11-09. It never scrolls with the lines. swift's foot in FloatingPane.swift is its twin.
 
 local herePath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local bottomBarLib = assert(loadfile(herePath .. "bottombar.lua"))()
+local fieldRender = assert(loadfile(herePath .. "field/render.lua"))()
 
 local M = {}
 
@@ -86,7 +92,7 @@ function M.style(ui, tokens, marginX, lineH)
   }
 end
 
---- M.layout(ui, style, title, lines, selectable) -> a floating pane's measured content, its preferred
+--- M.layout(ui, style, title, lines, selectable, foot) -> a floating pane's measured content, its preferred
 --- size among it. title is the header, nil for none. Each line is { label, chord, picture, lead,
 --- section, enabled }, picture a function(frame) -> elements or nil, and lead a chord drawn bare
 --- before the label, the legend's leader symbol. The lines are a table of two columns with at least
@@ -94,8 +100,10 @@ end
 --- taking the widest one's room so the words after them line up, and the second right aligned, the
 --- chords, Milos's call on 2026-11-04. selectable says the lines
 --- are chosen rather than only read, so a highlight is drawn. The preferred size is every line
---- showing, as wide as the widest label and chord, never narrower than the header.
-function M.layout(ui, style, title, lines, selectable)
+--- showing, as wide as the widest label and chord, never narrower than the header. foot is
+--- { placeholder } for a pane with an input field at its foot, nil for none, and the pane is never
+--- narrower than its placeholder.
+function M.layout(ui, style, title, lines, selectable, foot)
   local st = style
   local measure = ui.measure
   local function width(str, font, size) return measure:exact(str or "", font, size) end
@@ -144,11 +152,18 @@ function M.layout(ui, style, title, lines, selectable)
     headerH = st.lineH + st.stroke + st.outer
     w = math.max(w, width(title, st.font, st.size) + 2 * side)
   end
+  -- The foot, the rule, the outer padding and the field's line under the lines' own bottom padding,
+  -- with the pane's bottom padding below it as below the lines without one.
+  local footH = 0
+  if foot then
+    footH = st.stroke + st.outer + st.lineH
+    w = math.max(w, lead + width(foot.placeholder, st.font, st.size) + 2 * side + 4)
+  end
   return {
     style = st, title = title, lines = lines, selectable = selectable == true,
     tops = tops, headings = headings, contentH = y,
-    lead = lead, side = side, headerH = headerH,
-    w = math.ceil(w), h = math.ceil(headerH + y + 2 * st.outer),
+    lead = lead, side = side, headerH = headerH, foot = foot, footH = footH,
+    w = math.ceil(w), h = math.ceil(headerH + y + 2 * st.outer + (foot and (footH + st.outer) or 0)),
   }
 end
 
@@ -190,7 +205,8 @@ end
 local function region(pop, rect)
   local st = pop.style
   local start = st.outer + pop.headerH
-  local viewH = math.max(0, rect.h - start)
+  local footRoom = pop.foot and (pop.footH + st.outer) or 0
+  local viewH = math.max(0, rect.h - start - footRoom)
   local inset = st.outer
   return start, viewH, math.max(0, pop.contentH + inset - viewH)
 end
@@ -211,7 +227,9 @@ end
 --- opts.scroll how far its lines are scrolled, clamped here. opts.reveal scrolls just enough to
 --- show the lit line, as swift's revealHighlight does. info.scroll is the scroll drawn,
 --- info.maxScroll the furthest it can go, and info.lines each line on screen as { index, rect },
---- cut to the region the lines show in, for the view's hit test.
+--- cut to the region the lines show in, for the view's hit test. opts.foot is the foot's input field
+--- for a pane laid out with one, { state, style, caret }, the field model's state, field render's
+--- style and whether the caret shows.
 function M.elements(ui, pop, rect, opts)
   opts = opts or {}
   local st = pop.style
@@ -295,6 +313,14 @@ function M.elements(ui, pop, rect, opts)
     end
   end
   els[#els + 1] = { type = "resetClip" }
+  if pop.foot and opts.foot then
+    local footTop = rect.y + rect.h - st.outer - pop.footH
+    els[#els + 1] = { type = "rectangle", action = "fill", fillColor = st.border,
+      frame = { x = rect.x + st.stroke, y = footTop, w = rect.w - 2 * st.stroke, h = st.stroke } }
+    local x = rect.x + side + pop.lead
+    local frame = { x = x, y = footTop + st.stroke + st.outer, w = math.max(0, rect.x + rect.w - side - x), h = st.lineH }
+    append(els, fieldRender.elements(opts.foot.state, frame, opts.foot.style, opts.foot.caret, pop.foot.placeholder))
+  end
   return els, { scroll = scroll, maxScroll = maxScroll, lines = lines }
 end
 

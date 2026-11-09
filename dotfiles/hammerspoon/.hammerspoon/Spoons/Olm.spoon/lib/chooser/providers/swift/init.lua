@@ -72,7 +72,7 @@ local swiftbuild = load("../../../swiftbuild.lua")
 
 -- The Swift sources and the bridging header, in the order the compiler is handed them.
 local NATIVE_DIR = herePath .. "native/"
-local SOURCES = { "Fields.swift", "Lua.swift", "Source.swift", "Model.swift", "Surface.swift", "Motion.swift", "List.swift", "Bar.swift", "FloatingPane.swift", "Panel.swift",
+local SOURCES = { "Fields.swift", "Lua.swift", "Source.swift", "Model.swift", "Surface.swift", "Motion.swift", "List.swift", "Bar.swift", "InputField.swift", "FloatingPane.swift", "Panel.swift",
   "Pane.swift", "Perf.swift", "Timings.swift", "Entry.swift" }
 local HEADER = "bridge.h"
 

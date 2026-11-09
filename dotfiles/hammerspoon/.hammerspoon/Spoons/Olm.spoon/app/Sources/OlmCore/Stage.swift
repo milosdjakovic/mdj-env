@@ -381,6 +381,9 @@ public final class Stage {
       let lit = actionsPane.lit >= 1 && actionsPane.lit <= actionsPane.shown.count
         ? actionsPane.rows[actionsPane.shown[actionsPane.lit - 1]].row.title : ""
       if !open.right.isEmpty { open.right[0].label = lit.isEmpty ? "Run" : lit }
+      // The list's field keeps showing the text the pane opened over while the caret is in the
+      // pane's own field, whose placeholder the share carries.
+      open.panelHeld = actionsPane.savedText
       state.bottomBar = open
       state.infoOpen = false
       state.highlight = nil

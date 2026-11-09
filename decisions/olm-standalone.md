@@ -418,3 +418,9 @@ list, and until then that list stays on Lua.
   moves into it while the pane is open, so the list's field keeps its text and nothing has to be
   given back on close. Both fields derive from one base field made customizable, rather than a
   second text field written beside the first. Built next, before Command and a digit.
+- 2026-11-10 00:40. The actions pane's own input field built, in the swift chooser, the canvas
+  chooser and Olm.app alike. Both fields come from one, `native/InputField.swift` in Swift and
+  `field/render.lua` on the canvas, rather than a second text field written beside the first. The
+  engine keeps its one text and the pane still clears and restores it, rather than the engine
+  growing a second query, since the views drawing the held text in the list's field and the live
+  one at the pane's foot gives what Milos asked for with no change to how any key is decided.

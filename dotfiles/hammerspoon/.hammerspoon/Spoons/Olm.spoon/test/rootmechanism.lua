@@ -200,6 +200,16 @@ do
   -- This plan names no kinds, so rowsFor keeps every binding, the chordless leave among them.
   eq(table.concat(verbs, ",", 1, 3), "insertSelected,reveal,peekPreview",
     "appShare: the pane's rows in rowsFor's order, Back left out, each its routed verb")
+
+  -- The actions pane's own input field rides on the open bar, its placeholder from the pane, and
+  -- never on the bar at rest.
+  local models = {}
+  hints.appShare("fileSearch", plan, {
+    actionsPaneField = function() return { held = "", placeholder = "Search Actions" } end,
+  }, { flatten = function(model) models[#models + 1] = model; return {} end })
+  eq(models[2] and models[2].panelField and models[2].panelField.placeholder, "Search Actions",
+    "appShare: the open bar carries the pane's input field")
+  eq(models[1] and models[1].panelField, nil, "appShare: the bar at rest carries no pane field")
 end
 
 print(string.format("rootmechanism: %d checks, %d failed", checks, failures))

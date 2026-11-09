@@ -12,7 +12,10 @@
 // 2026-11-02. A header is the row title's size and colour, laid out as one more line, its text
 // the inner padding in from a line's edge and centred in a line's height, with the rule on the
 // line's bottom edge and the first line right below it, so the header keeps the room every line
-// keeps.
+// keeps. A foot is the header's mirror, a rule under the last line and an input field laid out as
+// one more line under it at the row title's size, its text where a line's label starts, which the
+// actions pane takes for its own search, asked by Milos on 2026-11-09. It never scrolls with the
+// lines.
 
 import Cocoa
 
@@ -94,6 +97,9 @@ final class FloatingPaneView: FlippedView {
   private(set) var coversGroup = false
   private let header = NSTextField(labelWithString: "")
   private let rule = NSBox()
+  // The foot's input field and the rule above it, InputField.swift, shown only for a pane given one.
+  let foot = InputField()
+  private let footRule = NSBox()
   private let scroll = NSScrollView()
   let document = Document()
   private var rows: [(label: NSTextField, chord: KeyCap, image: NSImageView?, lead: KeyCap?)] = []
@@ -112,6 +118,7 @@ final class FloatingPaneView: FlippedView {
     super.init(frame: frame)
     addSubview(glass.view)
     rule.boxType = .separator
+    footRule.boxType = .separator
     header.lineBreakMode = .byTruncatingTail
     scroll.drawsBackground = false
     scroll.contentView.drawsBackground = false
@@ -123,7 +130,9 @@ final class FloatingPaneView: FlippedView {
     scroll.horizontalScrollElasticity = .none
     scroll.documentView = document
     addSubview(body)
-    for view in [header, rule, scroll] as [NSView] { body.addSubview(view) }
+    for view in [header, rule, scroll, footRule, foot] as [NSView] { body.addSubview(view) }
+    foot.isHidden = true
+    footRule.isHidden = true
   }
 
   required init?(coder: NSCoder) { nil }
@@ -186,9 +195,12 @@ final class FloatingPaneView: FlippedView {
 
   // title is the header, nil for none. outer and inner are the two paddings, lineH the height of one line,
   // gap the room between a label and its chord and between a picture and its label, iconSide a
-  // picture's side, radius the corner and highlight the line lit, from one, or zero for none.
+  // picture's side, radius the corner and highlight the line lit, from one, or zero for none. foot
+  // shows the foot's input field, whose look the owner gives it.
   func show(title: String?, lines: [Line], style: Style, placement: Placement, outer: CGFloat, inner: CGFloat, lineH: CGFloat, gap: CGFloat,
-    radius: CGFloat, iconSide: CGFloat = 0, highlight: Int = 0) {
+    radius: CGFloat, iconSide: CGFloat = 0, highlight: Int = 0, foot: Bool = false) {
+    self.foot.isHidden = !foot
+    footRule.isHidden = !foot
     self.outer = outer
     self.inner = inner
     self.lineH = lineH
@@ -291,6 +303,12 @@ final class FloatingPaneView: FlippedView {
     header.isHidden ? 0 : lineH + 1 + outer
   }
 
+  // The foot under the lines' own bottom padding, the rule, the outer padding and the field's line,
+  // the pane's bottom padding below it as below the lines without one.
+  private var footH: CGFloat {
+    foot.isHidden ? 0 : 1 + outer + lineH
+  }
+
   // How far a line's text stands in from its edges, the inner padding inside a line the outer
   // padding from the edge.
   private var side: CGFloat { outer + inner }
@@ -302,9 +320,19 @@ final class FloatingPaneView: FlippedView {
     let firstCol = rows.map { lead + leadW($0) + $0.label.fittingSize.width }.max() ?? 0
     let lastCol = rows.map { $0.chord.fittingSize.width }.max() ?? 0
     let widest = rows.isEmpty ? 0 : firstCol + gap + lastCol
-    let width = max(widest + 2 * side, header.isHidden ? 0 : header.fittingSize.width + 2 * side)
+    var width = max(widest + 2 * side, header.isHidden ? 0 : header.fittingSize.width + 2 * side)
+    if !foot.isHidden { width = max(width, footText + 2 * side) }
     return NSSize(width: ceil(width),
-      height: ceil(headerH + contentH + 2 * outer))
+      height: ceil(headerH + contentH + 2 * outer + (foot.isHidden ? 0 : footH + outer)))
+  }
+
+  // Where the foot's text starts in from a line's text edge, a line's label's, so the typed words
+  // stand under the labels rather than under the pictures.
+  private var footLead: CGFloat { lead }
+
+  // The foot's widest text, its placeholder, so the pane never cuts it.
+  private var footText: CGFloat {
+    footLead + ceil((foot.look.placeholder as NSString).size(withAttributes: [.font: foot.look.font]).width) + 4
   }
 
 
@@ -324,7 +352,14 @@ final class FloatingPaneView: FlippedView {
       top += 1 + outer
     }
     let start = top
-    scroll.frame = NSRect(x: 0, y: start, width: bounds.width, height: max(0, bounds.height - start))
+    let footTop = bounds.height - outer - footH
+    scroll.frame = NSRect(x: 0, y: start, width: bounds.width,
+      height: max(0, (foot.isHidden ? bounds.height : footTop) - start))
+    if !foot.isHidden, let window {
+      footRule.frame = NSRect(x: 0, y: footTop, width: bounds.width, height: 1)
+      foot.place(NSRect(x: side + footLead, y: footTop + 1 + outer, width: max(0, bounds.width - 2 * side - footLead),
+        height: lineH), in: window)
+    }
     scroll.contentInsets = NSEdgeInsets(top: 0, left: 0, bottom: outer, right: 0)
     document.frame = NSRect(x: 0, y: 0, width: bounds.width, height: contentH)
     for heading in headings {

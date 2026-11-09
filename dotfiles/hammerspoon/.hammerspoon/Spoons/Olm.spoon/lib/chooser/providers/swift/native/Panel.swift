@@ -115,10 +115,16 @@ final class InfoPane: NSPanel {
 final class ChooserPanel: NSObject, NSTextFieldDelegate {
   private let window: InfoPane
   private let root: FlippedView
-  private let field = NSTextField()
-  // The field's clip, the highlighted row's width, so text scrolled past either end is cut where a
-  // highlighted row's edge is rather than at the field editor's own bounds.
-  private let fieldClip = NSView()
+  // The list's input field, standing in the highlighted row's width, so text scrolled past either end
+  // is cut where a highlighted row's edge is, InputField.swift.
+  private let mainField = InputField()
+  // Whether the caret is in the actions pane's own input field, its bottom line, which it is while
+  // the pane is open with one, asked by Milos on 2026-11-09. The list's field then keeps showing
+  // the text the pane opened over, and every key the field would edit goes to the pane's.
+  private var paneTyping = false
+  // The field with the caret, the one every key, every edit and every text told to Lua belongs to.
+  private var typing: InputField { paneTyping ? actionsPop.foot : mainField }
+  private var field: NSTextField { typing.field }
   private let list = ListView()
   private let bar = BarView()
   private let keys = FloatingPaneView()
@@ -192,22 +198,13 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
       window.standardWindowButton(button)?.isHidden = true
     }
 
-    field.isBordered = false
-    field.drawsBackground = false
-    field.focusRingType = .none
-    field.delegate = self
-    field.cell?.isScrollable = true
-    field.cell?.wraps = false
-    field.cell?.usesSingleLineMode = true
-    field.allowsEditingTextAttributes = false
-    fieldClip.wantsLayer = true
-    fieldClip.layer?.masksToBounds = true
-    fieldClip.addSubview(field)
+    mainField.field.delegate = self
+    actionsPop.foot.field.delegate = self
 
     root.addSubview(list)
     // The field stands on the window's stage over the list, which runs on up behind it, and out of
     // the content the fades mask, which faded the field with the rows behind it.
-    surfaces.addOverlay(fieldClip)
+    surfaces.addOverlay(mainField)
     // The bar and its info pane stand on the window's stage rather than in the list's content,
     // since with a preview pane they run under the gap and the pane too.
     // The bar first, so a floating pane wider than the room beside the other group stands above it.
@@ -271,9 +268,7 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   func applyStyle(_ next: Style) {
     style = next
     surfaces.setCornerRadius(style.radius)
-    field.font = style.fieldFont
-    field.textColor = style.text
-    applyPlaceholder()
+    applyLooks()
     list.apply(style: style, placement: placement)
   }
 
@@ -375,17 +370,8 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     windowSize = frame.size
     window.setFrame(ScreenSpace.cocoaRect(frame), display: window.isVisible)
     layoutSurfaces()
-    if let rect = next.field {
-      let h = ceil(style.fieldFont.ascender - style.fieldFont.descender + style.fieldFont.leading) + 2
-      // The field editor keeps one line fragment padding inside each end, so the field stands
-      // that far past its rect on both sides and the caret lands on the rect's edge, the
-      // highlighted row's edge. Its clip is the rect itself, so text scrolled past either end is
-      // cut on the row's edges too.
-      let lead = (window.fieldEditor(true, for: field) as? NSTextView)?.textContainer?.lineFragmentPadding ?? 0
-      let inWindow = toWindow(rect) ?? rect
-      fieldClip.frame = NSRect(x: inWindow.minX, y: inWindow.midY - h / 2, width: inWindow.width, height: h)
-      field.frame = NSRect(x: -lead, y: 0, width: inWindow.width + 2 * lead, height: h)
-    }
+    // The caret lands on the field rect's edge, the highlighted row's edge, InputField's place.
+    if let rect = next.field { mainField.place(toWindow(rect) ?? rect, in: window) }
     // The bar floats. The list runs on down behind it to the window's bottom edge, its viewport
     // reaching that far and its content inset by the same height, so the furthest scroll and every
     // row the engine numbers sit where they did, and only the rows past them show behind the bar.
@@ -425,8 +411,8 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
 
   func update(_ next: ViewState) {
     state = next
-    fieldClip.isHidden = next.bare
-    applyPlaceholder()
+    mainField.isHidden = next.bare
+    applyLooks()
     list.update(next)
     if let bottomBar = next.bottomBar, placement.bottomBar != nil {
       bar.isHidden = false
@@ -452,39 +438,38 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
           enabled: $0.enabled) },
         style: style, placement: placement, outer: placement.barPillPad, inner: placement.barPillPad, lineH: placement.barPillH,
         gap: placement.barGapWide, radius: style.highlightRadius, iconSide: placement.infoIcon,
-        highlight: next.actionsHighlight)
+        highlight: next.actionsHighlight, foot: next.bottomBar?.panelPlaceholder != nil)
     } else {
       actionsPop.setOpen(false)
     }
+    let toPane = next.actions != nil && !bar.isHidden && !next.bare && next.bottomBar?.panelPlaceholder != nil
+    if toPane != paneTyping { moveCaret(toPane: toPane, held: next.bottomBar?.panelHeld ?? "") }
     layoutKeys()
     layoutActions()
     keys.play()
     actionsPop.play()
   }
 
-  var text: String { field.stringValue }
+  var text: String { typing.text }
 
-  // Replaces the text with the caret after it and nothing selected, through the field editor
-  // while it is editing, since setting the value under an active editor would be overwritten.
-  func setText(_ text: String) {
-    if let editor = field.currentEditor() {
-      editor.string = text
-      editor.selectedRange = NSRange(location: (text as NSString).length, length: 0)
-    } else {
-      field.stringValue = text
-    }
+  // Replaces the text of the field with the caret, the caret after it and nothing selected.
+  func setText(_ text: String) { typing.setText(text) }
+
+  // Moves the caret between the list's field and the actions pane's, the field taking it carrying on
+  // with the text the other held, which is the text Lua knows. The pane's opening leaves the list's
+  // field showing the text the pane opened over, held, and its closing empties the pane's.
+  private func moveCaret(toPane: Bool, held: String) {
+    let carried = typing.text
+    paneTyping = toPane
+    if window.isVisible { typing.focus(in: window, caret: style.text, selection: style.highlight) }
+    typing.setText(carried)
+    if toPane { mainField.setText(held) } else { actionsPop.foot.setText("") }
   }
 
   func show() {
     settleReshape()
     motion.show { window.makeKeyAndOrderFront(nil) }
-    if !state.bare {
-      window.makeFirstResponder(field)
-      if let editor = field.currentEditor() as? NSTextView {
-        editor.insertionPointColor = style.text
-        editor.selectedTextAttributes = [.backgroundColor: style.highlight, .foregroundColor: style.text]
-      }
-    }
+    if !state.bare { typing.focus(in: window, caret: style.text, selection: style.highlight) }
   }
 
   // animated false goes down at once, which a reload's cleanup asks for.
@@ -505,6 +490,10 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   private func settleDown() {
     keys.closeNow()
     actionsPop.closeNow()
+    if paneTyping {
+      paneTyping = false
+      actionsPop.foot.setText("")
+    }
     paneShown = false
     endLinger()
     settleReshape()
@@ -526,15 +515,10 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   }
 
   // Whether responder may take first responder, anything while the panel is down or has no field,
-  // and otherwise the field and the editor it edits through alone.
+  // and otherwise the field with the caret and the editor it edits through alone.
   func lets(_ responder: NSResponder?) -> Bool {
     guard window.isVisible, !state.bare else { return true }
-    if responder === field { return true }
-    if let editor = responder as? NSTextView, editor.isFieldEditor,
-      editor === field.currentEditor() || editor.delegate === field || field.currentEditor() == nil {
-      return true
-    }
-    return false
+    return typing.owns(responder)
   }
 
   // The panel lost key while up, so the list goes down, decided once AppKit has settled, since an
@@ -861,9 +845,12 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
 
   // MARK: Layout and coordinates
 
-  private func applyPlaceholder() {
-    field.placeholderAttributedString = NSAttributedString(string: state.placeholder,
-      attributes: [.font: style.fieldFont, .foregroundColor: style.textDim])
+  // Both fields from the one InputField, the list's in the field font with the list's placeholder,
+  // and the actions pane's at the size of the pane's rows with the pane's, Search Actions.
+  private func applyLooks() {
+    mainField.apply(.init(font: style.fieldFont, text: style.text, dim: style.textDim, placeholder: state.placeholder))
+    actionsPop.foot.apply(.init(font: style.titleFont, text: style.text, dim: style.textDim,
+      placeholder: state.bottomBar?.panelPlaceholder ?? ""))
   }
 
   // A rect in the canvas's own space moved into the window's, where the bar and its info pane

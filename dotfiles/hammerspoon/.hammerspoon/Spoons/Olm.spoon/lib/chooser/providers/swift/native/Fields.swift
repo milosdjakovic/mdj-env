@@ -153,6 +153,8 @@ extension BottomBar {
     title = f.string("title")
     panelOpen = f.bool("panelOpen") ?? false
     panelTitle = f.string("panelTitle")
+    panelHeld = f.string("panelHeld")
+    panelPlaceholder = f.string("panelPlaceholder")
   }
 }
 
