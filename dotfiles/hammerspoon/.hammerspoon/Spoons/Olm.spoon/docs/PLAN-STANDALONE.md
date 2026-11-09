@@ -861,6 +861,30 @@ Into Folder and Up a Level. 1.4f is the bottom bar, the actions pane and the inf
 Reveal in Finder on its own key, Command and a digit, and the person's `lists` keys for file
 search read over the bridge.
 
+1.4f, where to start, written 2026-11-09 after 1.3e and 1.4g. Nothing is built yet. Its first piece
+is a short design note, for Milos to agree before any code, on how a list key reaches the app's
+list, since today none does. The leader is held in Hammerspoon, and with no Lua list open the leader
+swallows a key whose list is closed and runs the global binding instead, Hyper and J for one, so
+Hyper with J or K and with Command and J or K never reach the app, which the 1.4a trial found. The
+arrows and the trackpad do, being the app's own. The shape to start from is 3.4's, brought forward
+for file search alone. While the app's list is open the app is a surface to `lib/nav.lua`, its
+`isShowing` answered from state the app pushes over the bridge and its verbs sent as bridge
+messages, so a list key moves the app's list as it moves a Lua one and the keys golden is
+unchanged. The facts it rests on. `host/bridge/init.lua` hands a served tool `olm://filesearch` and
+talks to a running app by distributed notifications, `local.olm.Olm.open` and
+`local.olm.Olm.shadow`, so a third note for a verb fits that, and the app needs a way to tell
+Hammerspoon its list is up and down. File search's verbs are its manifest's `surface`, the primary
+Open, the secondary Reveal in Finder on Command and Return, and the extras, scroll the preview pane
+on Command and J and K, Quick Look on q, Into Folder on l, Up a Level on h, Reveal in Finder on f
+and Copy Path on y, each with its `applies` or `needs`, and the person's `lists` section of
+`config/keymap.lua` moves them. The app already compiles the swift chooser's own library,
+`lib/chooser/providers/swift`, whose `native/Bar.swift` and `native/FloatingPane.swift` draw the
+bar and both floating panes, so the look comes from there under rule 9 and the words from
+`lib/hints.lua`'s `bottomBarModel`, handed across the way `chooser.json` hands the look. Then the
+build, in pieces each with its trial, the keys first since the panes need them, then the bar and
+the info pane, then the actions pane with Copy Path and Reveal in Finder, then Command and a digit.
+Quick Look on q waits for 1.4c, Into Folder and Up a Level for 1.4e, and Download for 1.4i.
+
 1.4g came out of the 1.3f trial on 2026-11-08. File search holds an unscoped query under three
 characters on the recent list with a keep typing row, `minChars` in `plugins/filesearch/engine.lua`
 and the app's copy in its `Source.swift`, a limit from when every search ran Spotlight and one
