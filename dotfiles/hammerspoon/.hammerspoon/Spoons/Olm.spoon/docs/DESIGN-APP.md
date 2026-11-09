@@ -163,7 +163,8 @@ derives what follows from a declaration rather than asking for it twice.
 - `settings`, the plugin's own settings, read from the config, typed.
 - `tools`, the resolved path of every tool the manifest needs, the `deps` adapter. A tool not
   declared has no path to ask for.
-- `store`, a directory of its own under `~/.olm/state/<plugin>/`, which nothing else writes.
+- `store`, a directory of its own under `~/.olm/state/<plugin>/`, which nothing else writes. Since
+  1.4j file search keeps its folder permission answers there, `folder-access.json`.
 - `recency`, the shared frecency, where the manifest asks for it.
 - `notify`, the one way a plugin tells the person something.
 - `open`, a word that asks the stage to open another plugin's level by name, which is the only way
@@ -172,7 +173,12 @@ derives what follows from a declaration rather than asking for it twice.
 A plugin's work runs on its own actor. Work that touches the system and closes the list, opening
 a file or showing it in Finder, is an effect the stage performs after it hides, `openFile` and
 `revealFile`, so the work never lands in Olm.app's own window and a plugin's check reads the
-effects with no AppKit. A picture is the plugin's own work and arrives as a file, since 1.4b, the
+effects with no AppKit. Since 1.4j there are two more, `openURL`, a pane of System Settings among
+them, and `reopen`, the same list again from an empty input field once the source changed what it
+lists. File search uses both for its folder permissions. On the person's list it answers one
+pinned row until Desktop, Documents and Downloads have been asked, choosing it touches each folder
+in turn off the main thread, which raises macOS's prompts one at a time, and a refusal is said once
+on the next open with a row that opens Files and Folders. The shadow's source never asks. A picture is the plugin's own work and arrives as a file, since 1.4b, the
 file itself or a render the plugin made with a system tool it runs, so the plugin needs no AppKit
 and holds no image. Work that answers something on screen, Quick Look, is a small service `OlmKit`
 will declare and the root provide, when the step that needs it lands.

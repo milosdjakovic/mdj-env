@@ -70,6 +70,8 @@ public final class Stage {
   private var revealTask: Task<Void, Never>?
   private var heldPaint: PanePaint?
   private var heldBusy = false
+  // The placement choice the list was last opened with, for a reopen.
+  private var screenMode: String?
   private static let revealCapMs: UInt64 = 150
 
   public init(searcher: Searcher = Searcher()) {
@@ -81,6 +83,7 @@ public final class Stage {
   public func open(_ next: any ListSource, query: String, screen mode: String? = nil) {
     if let source, source !== next { Task { await source.close() } }
     source = next
+    screenMode = mode
     level = nil
     generation += 1
     task?.cancel()
@@ -369,6 +372,8 @@ public final class Stage {
       case .hide: break
       case .openFile(let path): NSWorkspace.shared.open(URL(fileURLWithPath: path))
       case .revealFile(let path): NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+      case .openURL(let text): if let url = URL(string: text) { NSWorkspace.shared.open(url) }
+      case .reopen: if let source { open(source, query: "", screen: screenMode) }
       }
     }
   }

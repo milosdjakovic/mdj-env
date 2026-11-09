@@ -335,3 +335,11 @@ list, and until then that list stays on Lua.
   1.4b trial. Asking up front is worthless until the identity holds across builds, so 1.4j fixes
   that first, by a designated requirement naming the bundle id or a certificate made once on the
   machine, chosen by which one macOS is seen to keep a grant for.
+- 2026-11-09 10:40. Step 1.4j built, not yet tried by hand. The app is signed ad hoc with a
+  designated requirement naming its bundle id, so a rebuild is meant to keep its folder grants, which
+  only a live rebuild can show. A signing certificate made on the machine was kept as the fallback,
+  since it needs a keychain step a person takes. File search asks for Desktop, Documents and
+  Downloads from one pinned row on its first open, rather than a window of its own, since a row in
+  the list is how every Olm choice is offered, and its preview says why. Asking at the app's launch
+  was turned down, since the shadow starts the app hidden and a prompt nobody expects would arrive
+  then. The answers live in the plugin's store, `~/.olm/state/filesearch`.

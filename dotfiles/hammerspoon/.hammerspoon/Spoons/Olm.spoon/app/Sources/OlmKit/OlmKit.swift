@@ -120,6 +120,11 @@ public enum Effect: Sendable, Equatable {
   case openFile(String)
   /// Shows the file selected in Finder.
   case revealFile(String)
+  /// Opens a URL, a pane of System Settings among them.
+  case openURL(String)
+  /// Opens the same list again from an empty input field, after the source changed what it lists,
+  /// as file search does once its folder permissions are answered.
+  case reopen
 }
 
 /// One of the eight colour roles lib/ui/style.lua resolves for the half the system is on. A plugin
@@ -266,11 +271,16 @@ public struct PluginContext: Sendable {
   public var cache: URL
   /// The app's bundled resources, the helpers built beside it.
   public var resources: URL
+  /// `~/.olm/state/<plugin>`, what the plugin keeps, a directory of its own nothing else writes,
+  /// docs/DESIGN-APP.md's store.
+  public var store: URL
 
-  public init(run: URL, cache: URL, resources: URL) {
+  /// store defaults to the state folder beside run, for a check that keeps nothing.
+  public init(run: URL, cache: URL, resources: URL, store: URL? = nil) {
     self.run = run
     self.cache = cache
     self.resources = resources
+    self.store = store ?? run.deletingLastPathComponent().appendingPathComponent("state")
   }
 }
 

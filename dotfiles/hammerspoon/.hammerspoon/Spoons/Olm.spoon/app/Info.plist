@@ -16,6 +16,12 @@
   <string>1</string>
   <key>LSMinimumSystemVersion</key>
   <string>14.0</string>
+  <key>NSDesktopFolderUsageDescription</key>
+  <string>File search reads the files it finds on your Desktop, to preview them.</string>
+  <key>NSDocumentsFolderUsageDescription</key>
+  <string>File search reads the files it finds in Documents, to preview them.</string>
+  <key>NSDownloadsFolderUsageDescription</key>
+  <string>File search reads the files it finds in Downloads, to preview them.</string>
   <key>LSUIElement</key>
   <true/>
   <key>LSMultipleInstancesProhibited</key>

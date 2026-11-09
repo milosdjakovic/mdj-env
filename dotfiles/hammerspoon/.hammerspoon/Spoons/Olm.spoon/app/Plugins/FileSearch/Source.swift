@@ -84,8 +84,24 @@ public actor FileSearchSource: ListSource {
     context.cache.appendingPathComponent("filesearch/previews-app")
   }
 
-  public init(context: PluginContext, index: FileIndex? = nil, settings: FileSearchSettings? = nil) {
+  // The folder permissions, asked on the person's list only, nil for the shadow and a check, which
+  // never ask. Step 1.4j, Access.swift.
+  private let access: FolderAccess?
+  private var accessState = FolderAccess.State()
+  // Whether this open says the folders macOS refused, which it does once.
+  private var sayRefused = false
+
+  /// The keys of the two rows the permissions add, never a path, since a path starts with a slash.
+  public static let askKey = "olm:folder-access"
+  public static let refusedKey = "olm:folder-refused"
+
+  /// asksAccess is the person's list, which asks for the folder permissions on its first open,
+  /// access the folders and the file, handed in by a check.
+  public init(context: PluginContext, index: FileIndex? = nil, settings: FileSearchSettings? = nil,
+              asksAccess: Bool = false, access: FolderAccess? = nil) {
     self.context = context
+    self.access = access ?? (asksAccess
+      ? FolderAccess(home: FileManager.default.homeDirectoryForCurrentUser, store: context.store) : nil)
     thumbs = Thumbs(dir: Self.previewsDir(context))
     self.index = index ?? FileIndex(
       helper: context.resources.appendingPathComponent("fileindex").path,
@@ -99,6 +115,14 @@ public actor FileSearchSource: ListSource {
     held = nil
     rendering = [:]
     await thumbs.forget()
+    if let access {
+      accessState = await access.recheck(access.load())
+      sayRefused = accessState.asked && !accessState.refused.isEmpty && !accessState.told
+      if sayRefused {
+        accessState.told = true
+        access.save(accessState)
+      }
+    }
     return Level(placeholder: settings.placeholder, ranking: .app, rowLimit: settings.rowLimit,
       titleLineBreak: "truncateMiddle", previewSettleMs: settings.preview.settleMs)
   }
@@ -110,6 +134,24 @@ public actor FileSearchSource: ListSource {
   }
 
   public func rows(_ query: Query) async throws -> RowsAnswer {
+    // Nothing is searched until the folder permissions are answered, so no prompt comes mid search.
+    if access != nil, !accessState.asked { return RowsAnswer(rows: [Self.askRow]) }
+    let answer = try await search(query)
+    guard sayRefused else { return answer }
+    var said = answer
+    said.rows.insert(Self.refusedRow(accessState.refused), at: 0)
+    return said
+  }
+
+  static let askRow = Row(key: askKey, title: "Allow File Search to Read Your Folders",
+    subtitle: "macOS asks once for " + FolderAccess.spoken(FolderAccess.protectedNames), pinned: true)
+
+  static func refusedRow(_ names: [String]) -> Row {
+    Row(key: refusedKey, title: "Turn On " + FolderAccess.spoken(names) + " in System Settings",
+      subtitle: "File search cannot read " + (names.count == 1 ? "it" : "them") + " until it is on", pinned: true)
+  }
+
+  private func search(_ query: Query) async throws -> RowsAnswer {
     let q = FileQueryGrammar.parse(query.text, types: settings.types)
     if q.scope != nil { return RowsAnswer(rows: [], status: "A folder search comes with a later step") }
     let empty = q.kind == .search ? "No matches" : "Nothing changed lately"
@@ -151,10 +193,28 @@ public actor FileSearchSource: ListSource {
     return Row(key: r.path, title: r.name, subtitle: shown, icon: .file(r.path), filterText: r.name)
   }
 
-  public func choose(_ pick: Pick) async -> [Effect] { [.hide, .openFile(pick.key)] }
+  public func choose(_ pick: Pick) async -> [Effect] {
+    switch pick.key {
+    case Self.askKey:
+      guard let access else { return [] }
+      // Each folder in turn, the prompts one at a time, then the list from the top.
+      accessState = await access.ask()
+      sayRefused = !accessState.refused.isEmpty
+      if sayRefused {
+        accessState.told = true
+        access.save(accessState)
+      }
+      return [.reopen]
+    case Self.refusedKey:
+      return [.hide, .openURL(FolderAccess.settingsURL)]
+    default:
+      return [.hide, .openFile(pick.key)]
+    }
+  }
 
   public func run(_ action: String, on pick: Pick) async -> [Effect] {
-    action == "reveal" ? [.hide, .revealFile(pick.key)] : []
+    guard !pick.key.hasPrefix("olm:") else { return [] }
+    return action == "reveal" ? [.hide, .revealFile(pick.key)] : []
   }
 
   /// What the pane beside the list says about a row, sidepanel.lua's show. The read runs on a
@@ -164,6 +224,11 @@ public actor FileSearchSource: ListSource {
   /// placeholder is described by its stat alone and never read, since reading it downloads it,
   /// Milos's call in the 1.4b trial on 2026-11-09, and the pane says it is not downloaded.
   public func preview(_ pick: Pick) async -> Preview? {
+    switch pick.key {
+    case Self.askKey: return Self.askPreview
+    case Self.refusedKey: return Self.refusedPreview(accessState.refused)
+    default: break
+    }
     let limits = settings.preview
     if let quick = await Self.bounded(limits.peekSeconds, { Peek.attributes(pick.key) }) ?? nil, quick.dataless {
       if Task.isCancelled { return nil }
@@ -173,6 +238,23 @@ public actor FileSearchSource: ListSource {
     }
     if Task.isCancelled { return nil }
     return await read(pick, seconds: limits.peekSeconds)
+  }
+
+  static let askPreview = Preview(name: "Folder Access", facts: [
+    Preview.Fact(label: "FOLDERS", value: FolderAccess.spoken(FolderAccess.protectedNames)),
+  ], body: Preview.Body(label: "WHY", lines: [
+    "File search reads the files it finds, to preview them. macOS protects these folders and asks "
+      + "once for each, the first time an app reads one.",
+    "Choosing this row asks now, one folder at a time, so no question comes in the middle of a search.",
+  ], wrap: true))
+
+  static func refusedPreview(_ names: [String]) -> Preview {
+    Preview(name: "Folder Access", facts: [
+      Preview.Fact(label: "REFUSED", value: FolderAccess.spoken(names)),
+    ], body: Preview.Body(label: "WHY", lines: [
+      "macOS never asks twice. Files and Folders in System Settings lists Olm, and turning a folder "
+        + "on there lets file search read it.",
+    ], wrap: true))
   }
 
   /// What the preview pane says of a file iCloud has not downloaded to this Mac.

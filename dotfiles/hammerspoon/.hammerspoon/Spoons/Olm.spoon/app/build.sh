@@ -7,7 +7,8 @@
 # needs, and passes the older native build system, since the default one fails to start in macOS
 # 27's tools, the same as test/swiftpackage.sh. Exit 2 when this machine has no command line tools.
 # The build goes to a cache outside the checkout, so nothing is written beside the sources. The
-# bundle is signed ad hoc, which is what lets macOS run a bundle built on this machine.
+# bundle is signed ad hoc, which is what lets macOS run a bundle built on this machine, with a
+# requirement naming its bundle id so a rebuild keeps the permissions the last one was given.
 
 set -uo pipefail
 
@@ -52,7 +53,11 @@ if ! DEVELOPER_DIR="$tools" "$tools/usr/bin/swiftc" -sdk "$tools/SDKs/MacOSX.sdk
   rm -rf "$stage"
   exit 1
 fi
-if ! codesign --force --sign - "$stage" >"$log" 2>&1; then
+# Signed ad hoc with a designated requirement naming the bundle id, step 1.4j. Ad hoc alone makes
+# the requirement the build's hash, so the privacy system took every build for a new app and forgot
+# the folder permissions on each one.
+if ! codesign --force --sign - --identifier local.olm.Olm \
+  --requirements '=designated => identifier "local.olm.Olm"' "$stage" >"$log" 2>&1; then
   cat "$log" >&2
   echo "olmapp: signing FAILED" >&2
   rm -rf "$stage"

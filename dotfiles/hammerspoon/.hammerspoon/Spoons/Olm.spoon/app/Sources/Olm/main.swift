@@ -20,7 +20,8 @@ let olm = home.appendingPathComponent(".olm")
 let context = PluginContext(
   run: olm.appendingPathComponent("run"),
   cache: olm.appendingPathComponent("cache"),
-  resources: Bundle.main.resourceURL ?? URL(fileURLWithPath: "."))
+  resources: Bundle.main.resourceURL ?? URL(fileURLWithPath: "."),
+  store: olm.appendingPathComponent("state/filesearch"))
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -30,7 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private let shadows: [String: Shadow]
 
   override init() {
-    let fileSearch = FileSearchSource(context: context)
+    let fileSearch = FileSearchSource(context: context, asksAccess: true)
     sources = [fileSearch.manifest.name: fileSearch]
     // The shadow answers on a source of its own, so a list a person has open is never touched.
     let shadowed = FileSearchSource(context: context)

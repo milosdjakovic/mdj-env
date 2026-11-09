@@ -59,6 +59,7 @@ Stage 1, the file search pilot
 - [ ] 1.4h A type naming a bundle, `.app` listing every app rather than Safari alone, in both file searches
 - [ ] 1.4i Files iCloud has not downloaded, a Download action and the preview pane naming its shortcut, after 1.4f
 - [ ] 1.4j Folder permissions asked up front on file search's first open, and kept across rebuilds
+  Built in a worktree 2026-11-09, on branch `olm/folder-access`, the requirement naming the bundle id, the three usage descriptions and the pinned row, its checks passing, waiting for its trial by hand.
 - [ ] 1.5 Parity, every feature of the Lua file search checked in the app, then the flip
 
 Stage 2, the bridge, read only
@@ -597,6 +598,25 @@ Open: the trial by hand.
 
 Result: the dry suite with 317 fixture cases, and `test/units.sh` with 2124 passing.
 Open: the Lua pane keeps downloading a placeholder on a preview, rule 7.
+
+**1.4j built, folder permissions, 2026-11-09.** Three parts, as the step says.
+- `app/build.sh` signs ad hoc with `--identifier local.olm.Olm` and the designated requirement
+  `identifier "local.olm.Olm"`, so `codesign -d -r-` no longer names the build's hash. Whether the
+  privacy system keeps a grant across a rebuild for such a requirement is known only live, so the
+  trial checks it first. A certificate made once on the machine is the fallback.
+- `Info.plist` carries `NSDesktopFolderUsageDescription`, `NSDocumentsFolderUsageDescription` and
+  `NSDownloadsFolderUsageDescription`, each saying file search reads the files it finds to preview
+  them.
+- `Access.swift` in the plugin keeps the answers in `~/.olm/state/filesearch/folder-access.json`,
+  the store `docs/DESIGN-APP.md` names, through a new `store` on `PluginContext`. Until they are
+  asked, the person's list answers one pinned row, Allow File Search to Read Your Folders, whose
+  preview says why. Choosing it touches each folder in turn on a background thread and answers the
+  new effect `reopen`. A refusal leads the next open with Turn On Documents in System Settings,
+  once, which answers `openURL` with Files and Folders. A refused folder is tried again at each
+  open, which raises no prompt. The shadow's source is built without asking.
+- `olm-index-check` gains 13 checks, with macOS's answer handed in, so no prompt is raised.
+
+Open: the trial by hand, a rebuild keeping the grants first.
 
 ## Where the facts come from
 
