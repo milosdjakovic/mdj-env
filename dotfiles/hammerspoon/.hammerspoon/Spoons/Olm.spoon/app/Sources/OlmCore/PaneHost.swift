@@ -14,12 +14,26 @@ import AppKit
 @MainActor
 final class PaneHost {
   private let pane: PanePanel
+  // The system's spinning indicator, centred on the pane while a picture is being drawn, floating
+  // over the scrolled content so it stays put, asked for in the 1.4b trial on 2026-11-09 in place
+  // of the word rendering.
+  private let spinner: NSProgressIndicator = {
+    let spinner = NSProgressIndicator()
+    spinner.style = .spinning
+    spinner.controlSize = .regular
+    spinner.isIndeterminate = true
+    spinner.isDisplayedWhenStopped = false
+    spinner.sizeToFit()
+    spinner.autoresizingMask = [.minXMargin, .maxXMargin, .minYMargin, .maxYMargin]
+    return spinner
+  }()
 
   init(panel: ChooserPanel) {
     pane = PanePanel(findHost: { [weak panel] rect in
       guard let panel, panel.hostsPane(at: rect) else { return nil }
       return panel
     })
+    pane.hostedView.addFloatingSubview(spinner, for: .vertical)
   }
 
   /// Onto the preview pane rect, in Hammerspoon's space.
@@ -27,10 +41,19 @@ final class PaneHost {
 
   /// Draws a laid out pane and shows it, back at the top when reset says the content changed, or
   /// where it is scrolled for a repaint of the same row, a picture landing.
-  func draw(_ paint: PanePaint, radius: CGFloat, reset: Bool) {
+  /// busy spins the system's indicator in the pane's centre, for a preview still on its way.
+  func draw(_ paint: PanePaint, radius: CGFloat, reset: Bool, busy: Bool = false) {
     pane.draw(paint.items.map(Self.element), radius: radius,
       scroll: PaneScroll(height: CGFloat(paint.height), reset: reset, thumb: false))
     pane.show()
+    if busy {
+      let bounds = pane.hostedView.bounds
+      let size = spinner.frame.size
+      spinner.setFrameOrigin(NSPoint(x: (bounds.width - size.width) / 2, y: (bounds.height - size.height) / 2))
+      spinner.startAnimation(nil)
+    } else {
+      spinner.stopAnimation(nil)
+    }
   }
 
   /// Further down by points, answering whether the view moved.
@@ -38,7 +61,10 @@ final class PaneHost {
   func scrollBy(_ points: CGFloat) -> Bool { pane.scrollBy(points) }
 
   /// Out of the chooser's window, on hide, as the Lua pane is destroyed when its list closes.
-  func close() { pane.close() }
+  func close() {
+    spinner.stopAnimation(nil)
+    pane.close()
+  }
 
   // One laid out element as the pane view draws it, the hs.canvas element PaneReader would read.
   static func element(_ item: PaneItem) -> PaneElement {

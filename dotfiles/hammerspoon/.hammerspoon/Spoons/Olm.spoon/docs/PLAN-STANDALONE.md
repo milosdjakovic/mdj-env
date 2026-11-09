@@ -50,14 +50,14 @@ Stage 1, the file search pilot
   - [x] 1.3f The three timings against the Lua file search, and a trial, with no flip, 2026-11-08
   - [x] 1.3g The app's structure, `docs/DESIGN-APP.md`, file search moved onto it with nothing a person can see changed, 2026-11-08
 - [x] 1.4a Preview pane, with its scroll keys, the keys themselves carried by 1.4f, 2026-11-08
-- [ ] 1.4b Thumbnails
-  Built in a worktree 2026-11-08, on branch `olm/thumbnails`, the app's file search pane drawing the Lua thumbnail chain's pictures, rendering then the picture or no preview, its fixtures passing, waiting for its trial by hand.
+- [x] 1.4b Thumbnails, the pane never stale and a picture on its way shown by the system spinner, 2026-11-09
 - [ ] 1.4c Quick Look
 - [ ] 1.4d Frecency, one owner, the history read but not yet owned
 - [ ] 1.4e Folder search, the scope, the folder aliases, Into Folder and Up a Level
 - [ ] 1.4f The bottom bar, the actions pane, the info pane, Copy Path, and the person's list keys, the preview pane's scroll keys among them
 - [ ] 1.4g Short queries, file search answering under three characters now the app's index can
 - [ ] 1.4h A type naming a bundle, `.app` listing every app rather than Safari alone, in both file searches
+- [ ] 1.4i Files iCloud has not downloaded, a Download action and the preview pane naming its shortcut, after 1.4f
 - [ ] 1.5 Parity, every feature of the Lua file search checked in the app, then the flip
 
 Stage 2, the bridge, read only
@@ -575,6 +575,28 @@ the app into a scratch folder pass. `test/units.sh` was not run, since it runs t
 Hammerspoon on main.
 Open: the trial by hand.
 
+**1.4b ticked, 2026-11-09.** The build was `0ea03917`, then the trial by hand, in three rounds.
+- Milos found the pane stale. Moving from a row whose picture was rendering left the old row up
+  until the render finished, and then the pane jumped. A trace was added to find the hold and could
+  not be read, since the unified log redacts an NSLog argument, so the cause is not known. What
+  holds it is a rule rather than a fix, Milos's, that the pane never shows a row the highlight has
+  left. `Stage` clears it after 150 ms, `staleMs`, to the row's name over a spinner, whatever the
+  read waits on, and a row cleared is read again on a return.
+- A picture on its way is drawn with the system's spinning `NSProgressIndicator`, centred and
+  floating over the scrolled content, in place of the word rendering, which the Lua pane still
+  shows, so the two panes differ there by Milos's call. The stage asks `previewLanded` again while
+  an answer is still pending.
+- The second round found PDFs in `~/Documents` showing only the spinner. They were iCloud
+  placeholders, `dataless` in the stat flags, and reading the head downloaded the file first. The
+  pane now reads the stat alone for such a file, draws the heading and the facts, and says in
+  iCloud, not downloaded, never downloading it, Milos's call. A Download action is 1.4i.
+- The third round passed, ten numbered checks, placeholders, rendered PDFs, a small PNG, a video,
+  fast arrows, typing and Escape during a render, Return on a placeholder, flicking between drawn
+  rows.
+
+Result: the dry suite with 317 fixture cases, and `test/units.sh` with 2124 passing.
+Open: the Lua pane keeps downloading a placeholder on a preview, rule 7.
+
 ## Where the facts come from
 
 The facts below were checked on 2026-11-05 by three read only sweeps of the spoon. Recheck any
@@ -649,6 +671,12 @@ root, and a step reads that file before its flip. An unexplained difference bloc
 **Live trials, by hand.** The Hammerspoon side through `bin/hs-devlock`, the app as a separate
 process. Nothing drives the screen or the keyboard until Milos says start. Each trial includes the
 back out, switching the new path off and checking that the old one answers.
+
+Every trial handed to Milos is written out explicitly, stated by him on 2026-11-09. He is never
+asked to work out what to try. The hand over is a numbered list, each line one thing to do and what
+he should see when it is right, followed by a few scenarios that might hold a hiccup, each saying
+what to do and what a fault would look like, and it ends with what to report back. Whatever needs
+him outside a trial, a command, a setting, a password, is written the same way.
 
 Performance is measured rather than felt. From stage 1 on, the app records the time from a key
 down to the field showing it and to the first rows, and the longest main thread stall while a list
@@ -760,6 +788,15 @@ leaves out the sixty other apps in `/Applications`. A folder whose name ends in 
 a file to the person, a bundle, so `recent` keeps it when a type is given. The helper is the one
 both file searches ask, so both change in the same step and the shadow of 1.3e sees no difference.
 A bundle's row and its preview pane stay a folder's, KIND Application for an app.
+
+1.4i came out of the 1.4b trial on 2026-11-09, asked for by Milos. A file in a synced Documents
+folder can be a placeholder iCloud holds, `dataless` in its stat flags, and reading its head or
+rendering its thumbnail downloads it first, so the pane waited on the download. Since 1.4b the
+app's pane never reads such a file, it draws the heading and the facts from the stat and says the
+file is in iCloud and not downloaded. 1.4i adds Download as a verb of file search's actions pane,
+with a shortcut of its own in the manifest, the pane naming that shortcut beside not downloaded, and
+the preview drawn once the download lands. It needs the actions pane and the list keys of 1.4f.
+The Lua file search keeps downloading on a preview, rule 7, and the app alone carries this.
 
 **1.5 Parity, then the flip.** A written list of every feature the Lua file search has, read from
 its manifest, its README and `config/filesearch.lua`, each one tried in the app by hand and ticked.

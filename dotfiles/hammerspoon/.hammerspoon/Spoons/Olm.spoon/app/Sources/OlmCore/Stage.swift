@@ -54,6 +54,7 @@ public final class Stage {
   private var pane: (frame: PaneFrame, tokens: PaneTokens, emptyText: String)?
   private let paneMeasure = PaneMeasure()
   private var settleTask: Task<Void, Never>?
+  private var staleTask: Task<Void, Never>?
   private var previewTask: Task<Void, Never>?
   // Raised by every row asked for and every clear, so a late answer is dropped.
   private var previewGeneration = 0
@@ -68,6 +69,7 @@ public final class Stage {
   private var revealPending = false
   private var revealTask: Task<Void, Never>?
   private var heldPaint: PanePaint?
+  private var heldBusy = false
   private static let revealCapMs: UInt64 = 150
 
   public init(searcher: Searcher = Searcher()) {
@@ -138,20 +140,22 @@ public final class Stage {
     guard let pane, let paneHost else { return }
     let paint = heldPaint ?? PanePainter.empty(pane.emptyText, frame: pane.frame, tokens: pane.tokens, measure: paneMeasure)
     heldPaint = nil
-    paneHost.draw(paint, radius: paneRadius, reset: true)
+    paneHost.draw(paint, radius: paneRadius, reset: true, busy: heldBusy)
+    heldBusy = false
   }
 
   private var paneRadius: CGFloat { CGFloat(look?.style().radius ?? 0) }
 
   // A paint for the pane, held while an open is waiting to show the window, which it then shows.
   // reset false keeps where the pane is scrolled, for the same row painted again.
-  private func drawPane(_ paint: PanePaint, reset: Bool = true) {
+  private func drawPane(_ paint: PanePaint, reset: Bool = true, busy: Bool = false) {
     if revealPending {
       heldPaint = paint
+      heldBusy = busy
       reveal()
       return
     }
-    paneHost?.draw(paint, radius: paneRadius, reset: reset)
+    paneHost?.draw(paint, radius: paneRadius, reset: reset, busy: busy)
   }
 
   // The pixels to the point of the screens the pane can stand on, which a picture is decoded at.
@@ -222,6 +226,7 @@ public final class Stage {
   // Forgets the row on the pane and any read on its way, so nothing late is drawn.
   private func resetPane() {
     settleTask?.cancel()
+    staleTask?.cancel()
     previewTask?.cancel()
     previewGeneration += 1
     previewShown = nil
@@ -238,12 +243,34 @@ public final class Stage {
   // The highlight moved or the rows changed, so the row it rests on is described once it settles.
   private func settlePreview() {
     guard pane != nil else { return }
+    watchStale()
     settleTask?.cancel()
     let ms = level?.previewSettleMs ?? 60
     settleTask = Task {
       try? await Task.sleep(nanoseconds: UInt64(max(0, ms)) * 1_000_000)
       if Task.isCancelled { return }
       self.describe()
+    }
+  }
+
+  // The pane never shows a row the highlight has left for longer than staleMs, whatever the read
+  // is waiting on. Past it the old row is cleared and the spinner turns in its place until the new
+  // row is drawn, Milos's rule from the 1.4b trial on 2026-11-09. The read keeps going, and the row
+  // left is forgotten as shown, so coming back to it reads it again.
+  private static let staleMs: UInt64 = 150
+
+  private func watchStale() {
+    staleTask?.cancel()
+    staleTask = Task {
+      try? await Task.sleep(nanoseconds: Self.staleMs * 1_000_000)
+      if Task.isCancelled || self.revealPending { return }
+      guard let pane = self.pane, self.highlight >= 1, self.highlight <= self.rows.count,
+        self.rows[self.highlight - 1].key != self.previewShown else { return }
+      self.previewShown = nil
+      // The row's own name heads the pane, the one thing known before any read.
+      let named = OlmKit.Preview(name: self.rows[self.highlight - 1].title)
+      let paint = PanePainter.paint(named, frame: pane.frame, tokens: pane.tokens, measure: self.paneMeasure)
+      self.drawPane(paint, busy: true)
     }
   }
 
@@ -269,17 +296,28 @@ public final class Stage {
         return
       }
       guard mine == self.previewGeneration else { return }
-      let paint = await Self.paint(preview, pane: pane, measure: measure, scale: scale)
+      // A preview still on its way says so with the spinner rather than its words, the body's
+      // heading drawn alone.
+      var drawn = preview
+      if preview.pending { drawn.body?.facts = nil }
+      let paint = await Self.paint(drawn, pane: pane, measure: measure, scale: scale)
       guard mine == self.previewGeneration else { return }
       self.previewAsking = nil
       self.previewShown = key
-      self.drawPane(paint)
+      self.drawPane(paint, busy: preview.pending)
       // What the preview said was on its way, drawn where the pane is scrolled once it lands.
-      guard preview.pending, let landed = await source.previewLanded(pick),
-        !Task.isCancelled, mine == self.previewGeneration else { return }
-      let repaint = await Self.paint(landed, pane: pane, measure: measure, scale: scale)
-      guard mine == self.previewGeneration else { return }
-      self.drawPane(repaint, reset: false)
+      // Asked again while it is still pending, since a download can land as a render begins.
+      var waiting = preview.pending
+      while waiting {
+        guard let landed = await source.previewLanded(pick), !Task.isCancelled,
+          mine == self.previewGeneration else { return }
+        var drawn = landed
+        if landed.pending { drawn.body?.facts = nil }
+        let repaint = await Self.paint(drawn, pane: pane, measure: measure, scale: scale)
+        guard mine == self.previewGeneration else { return }
+        self.drawPane(repaint, reset: false, busy: landed.pending)
+        waiting = landed.pending
+      }
     }
   }
 

@@ -313,3 +313,19 @@ list, and until then that list stays on Lua.
   reason for the cap, since a picture through Quick Look is 600 pixels and one drawn from its file
   is its own size, and keeping the cap is what keeps the two panes alike. Unlike the Lua side a
   render is bounded at 20 s and ended once no row waits on it.
+- 2026-11-09 10:10. Step 1.4b ticked after a trial by hand in three rounds. The app's preview pane
+  never shows a row the highlight has left, Milos's rule. Past 150 ms without the highlighted row
+  drawn, the pane shows that row's name over the system spinner, whatever the read waits on. Fixing
+  the one hold he saw was tried first, by a trace through NSLog, and could not be read, since the
+  unified log redacts an NSLog argument, so a rule that covers every hold was chosen over a fix for
+  one. A picture on its way shows the spinner in place of the word rendering, so the app's pane
+  differs from the Lua one there, by his call over rule 9's look.
+- 2026-11-09 10:10. A file iCloud holds as a placeholder, `dataless` in its stat flags, is never read
+  by the app's pane, Milos's call, since reading its head or rendering it downloads it, which held
+  the whole pane on the download. It is described from its stat, heading and facts, and said to be
+  in iCloud and not downloaded. Downloading it on the preview, as the Lua pane does, was rejected.
+  A Download action with its shortcut named in the pane is step 1.4i, after the actions pane of
+  1.4f. The Lua side is left downloading, rule 7.
+- 2026-11-09 10:10. Every trial handed to Milos is written out as a numbered list of actions with
+  what each should show, a few scenarios that might hold a hiccup, and what to report, his rule,
+  in the plan's How we test.

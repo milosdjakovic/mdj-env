@@ -160,25 +160,23 @@ public actor FileSearchSource: ListSource {
   /// What the pane beside the list says about a row, sidepanel.lua's show. The read runs on a
   /// thread of its own rather than on this actor, so the rows of the next keystroke never wait on
   /// it, and it is bounded by peekSeconds, after which the row is described by its name alone, as
-  /// the Lua pane does when the helper does not answer in time.
+  /// the Lua pane does when the helper does not answer in time. A file iCloud holds only as a
+  /// placeholder is described by its stat alone and never read, since reading it downloads it,
+  /// Milos's call in the 1.4b trial on 2026-11-09, and the pane says it is not downloaded.
   public func preview(_ pick: Pick) async -> Preview? {
-    // A folder by the index's word for it, as the Lua row's isDir, and by the read's own stat for a
-    // row the rows held no longer name.
-    if folders == nil { folders = Set(held?.rows.filter(\.isDir).map(\.path) ?? []) }
-    let listed = held?.rows.contains { $0.path == pick.key } ?? false
     let limits = settings.preview
-    let peek = await Self.peek(pick.key, limits: limits)
-    if Task.isCancelled { return nil }
-    let isDir = listed ? (folders?.contains(pick.key) ?? false) : (peek?.attrs?.isDir ?? false)
-    var picture: PictureState?
-    let spec = PreviewDescriber.thumbSpec(path: pick.key, isDir: isDir, peek: peek)
-    if let spec {
-      picture = await thumbs.picture(spec, limits: limits)
+    if let quick = await Self.bounded(limits.peekSeconds, { Peek.attributes(pick.key) }) ?? nil, quick.dataless {
       if Task.isCancelled { return nil }
-      if picture == .rendering { rendering[pick.key] = (spec, isDir, peek) }
+      var preview = Self.describe(pick.key, isDir: false, peek: Peek(attrs: quick.attrs), limits: limits, picture: nil)
+      preview.body = Preview.Body(label: "PREVIEW", facts: Self.notDownloaded)
+      return preview
     }
-    return Self.describe(pick.key, isDir: isDir, peek: peek, limits: limits, picture: picture)
+    if Task.isCancelled { return nil }
+    return await read(pick, seconds: limits.peekSeconds)
   }
+
+  /// What the preview pane says of a file iCloud has not downloaded to this Mac.
+  public static let notDownloaded = "in iCloud, not downloaded"
 
   /// The row whose preview said rendering, once its render lands, sidepanel.lua's rebuild when the
   /// thumbnail chain answers late. Cancelled when the highlight moves on, which leaves the render.
@@ -191,6 +189,28 @@ public actor FileSearchSource: ListSource {
     return Self.describe(pick.key, isDir: row.isDir, peek: row.peek, limits: limits, picture: picture)
   }
 
+  // The whole read of a row, its head or folder and its picture, bounded by seconds.
+  private func read(_ pick: Pick, seconds: Double) async -> Preview? {
+    // A folder by the index's word for it, as the Lua row's isDir, and by the read's own stat for a
+    // row the rows held no longer name.
+    if folders == nil { folders = Set(held?.rows.filter(\.isDir).map(\.path) ?? []) }
+    let listed = held?.rows.contains { $0.path == pick.key } ?? false
+    let limits = settings.preview
+    let peek = await Self.bounded(seconds) {
+      Peek.read(pick.key, readCap: limits.readCap, entries: limits.folderEntries)
+    }
+    if Task.isCancelled { return nil }
+    let isDir = listed ? (folders?.contains(pick.key) ?? false) : (peek?.attrs?.isDir ?? false)
+    var picture: PictureState?
+    let spec = PreviewDescriber.thumbSpec(path: pick.key, isDir: isDir, peek: peek)
+    if let spec {
+      picture = await thumbs.picture(spec, limits: limits)
+      if Task.isCancelled { return nil }
+      if picture == .rendering { rendering[pick.key] = (spec, isDir, peek) }
+    }
+    return Self.describe(pick.key, isDir: isDir, peek: peek, limits: limits, picture: picture)
+  }
+
   private static func describe(_ path: String, isDir: Bool, peek: Peek?, limits: PreviewLimits,
                                picture: PictureState?) -> Preview {
     PreviewDescriber.describe(path: path, isDir: isDir, peek: peek, limits: limits,
@@ -198,16 +218,16 @@ public actor FileSearchSource: ListSource {
       picture: picture)
   }
 
-  // The read, or nil once peekSeconds pass first. A read stuck on a disk that is not there finishes
-  // on its own thread and is dropped.
-  static func peek(_ path: String, limits: PreviewLimits) async -> Peek? {
+  // What work answers, or nil once seconds pass first. Work stuck on a disk that is not there
+  // finishes on its own thread and is dropped.
+  static func bounded<T: Sendable>(_ seconds: Double, _ work: @escaping @Sendable () -> T) async -> T? {
     let once = Once()
-    return await withCheckedContinuation { (done: CheckedContinuation<Peek?, Never>) in
+    return await withCheckedContinuation { (done: CheckedContinuation<T?, Never>) in
       DispatchQueue.global(qos: .userInitiated).async {
-        let peek = Peek.read(path, readCap: limits.readCap, entries: limits.folderEntries)
-        if once.claim() { done.resume(returning: peek) }
+        let value = work()
+        if once.claim() { done.resume(returning: value) }
       }
-      DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + max(0, limits.peekSeconds)) {
+      DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + max(0, seconds)) {
         if once.claim() { done.resume(returning: nil) }
       }
     }

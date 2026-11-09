@@ -107,6 +107,22 @@ public struct Peek: Equatable, Sendable {
   /// How far into a folder the scan looks, sidepanel.lua's DIR_SCAN_CAP.
   public static let scanCap = 2000
 
+  /// The stat alone, nil for a path that is gone, and whether the file is a placeholder iCloud
+  /// holds, its contents not on this Mac, so that opening it downloads it first. A stat never
+  /// fetches, so it answers at once where reading the head waits on the download, found in the
+  /// 1.4b trial on 2026-11-09 with PDFs in a synced Documents folder.
+  public static func attributes(_ path: String) -> (attrs: Attrs, dataless: Bool)? {
+    var info = stat()
+    guard stat(path, &info) == 0 else { return nil }
+    let isDir = (info.st_mode & S_IFMT) == S_IFDIR
+    let attrs = Attrs(isDir: isDir, size: Int(info.st_size), modification: Int(info.st_mtimespec.tv_sec),
+      creation: Int(info.st_birthtimespec.tv_sec))
+    return (attrs, !isDir && (info.st_flags & Self.datalessFlag) != 0)
+  }
+
+  // SF_DATALESS in sys/stat.h, a file whose contents are not present.
+  static let datalessFlag: UInt32 = 0x4000_0000
+
   /// The helper's peek of one path, the stat, the folder scan or the head of the file.
   public static func read(_ path: String, readCap: Int, entries: Int, scanCap: Int = Peek.scanCap) -> Peek {
     var info = stat()

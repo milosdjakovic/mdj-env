@@ -198,6 +198,14 @@ Since 1.4b a body may hold a `Preview.Picture`, a path and whether it may be ups
 `PanePicture.swift` reads the file and decodes it at the pixels it is shown at on the task the pane
 is laid out on, so the main thread only draws, and a preview whose picture is still on its way is
 drawn as it stands, `pending`, and drawn again where it is scrolled once `previewLanded` answers.
+A pending preview is drawn with its heading alone and the system's spinner centred on the pane,
+asked again until it is no longer pending.
+
+The pane never shows a row the highlight has left, Milos's rule from the 1.4b trial. When the
+highlighted row is not drawn within `staleMs`, 150 ms, whatever its read waits on, the stage clears
+the pane to that row's name over the spinner, and work for a row left behind is dropped when it
+answers. A file search row iCloud holds only as a placeholder is never read, since reading it
+downloads it, and is described from its stat.
 
 ## Keys
 
