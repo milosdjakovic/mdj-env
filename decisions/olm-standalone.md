@@ -473,3 +473,7 @@ list, and until then that list stays on Lua.
   built first and he rejected rounding one corner alone, so a key cap keeps one radius for all four
   corners, nested in its holder's as before, and a host may drive it instead, which only the Quick
   Look pane does, at the glass's radius less the padding.
+- 2026-11-10 12:40. Step 1.4c's hand trial passed in the Lua native list too, file search served
+  by Hammerspoon again, Milos confirming every step, the pane's look, following the highlight,
+  Escape closing the pane alone, a press on the pane, Return and the Open button opening the file
+  shown, and the pane closing with the list. Step 1.4c is done, and 1.4k is next.
