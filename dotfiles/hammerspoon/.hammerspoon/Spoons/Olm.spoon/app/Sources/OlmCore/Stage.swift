@@ -52,6 +52,11 @@ public final class Stage {
   private var bars = Bars()
   private var bar: BottomBar? { bars.bar }
   private var infoOpen = false
+  // The bar as the open info pane draws it, its lines in the words the source gives them over the
+  // highlighted row, Copy Folder over a folder, and the count of info pane opens, so words landing
+  // after the pane closed or opened again are dropped.
+  private var infoBar: BottomBar?
+  private var infoGeneration = 0
   // An Escape that closed a pane, so its autorepeat does not go on to close the list, as the
   // engine's _escapeClosedKeys does.
   private var escapeClosedInfo = false
@@ -126,6 +131,7 @@ public final class Stage {
     look = Look.read()
     bars = Bars.read(next.manifest.name)
     infoOpen = false
+    infoGeneration += 1
     actionsPane = nil
     actionsGeneration += 1
     resetPane()
@@ -220,6 +226,7 @@ public final class Stage {
     revealTask?.cancel()
     heldPaint = nil
     infoOpen = false
+    infoGeneration += 1
     actionsPane = nil
     actionsGeneration += 1
     tell(nil)
@@ -374,7 +381,7 @@ public final class Stage {
   private func apply(status: String?) {
     self.status = status
     var state = ViewState()
-    state.bottomBar = bar
+    state.bottomBar = infoOpen ? (infoBar ?? bar) : bar
     state.infoOpen = infoOpen && bar != nil
     state.placeholder = level?.placeholder ?? ""
     state.highlight = highlight
@@ -502,6 +509,9 @@ public final class Stage {
       case .copyText(let text):
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
+      case .copyFile(let path):
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.writeObjects([URL(fileURLWithPath: path) as NSURL])
       }
     }
   }
@@ -549,13 +559,36 @@ public final class Stage {
 
   // The info pane over the list, opened by Command and ?, Hyper and its key or the bar's button,
   // and closed by the same or a press in the list, as the engine's toggleInfo and closeInfo do.
+  // It opens once the source has given its lines their words over the highlighted row, so a line
+  // never shows Copy File and then turns into Copy Folder.
   private func toggleInfo() {
-    guard bar != nil, panel.isVisible else { return }
-    infoOpen.toggle()
-    apply(status: status)
+    infoGeneration += 1
+    if infoOpen {
+      infoOpen = false
+      apply(status: status)
+      return
+    }
+    guard let bar, panel.isVisible else { return }
+    let pick = source != nil && highlight >= 1 && highlight <= rows.count
+      ? Pick(key: rows[highlight - 1].key, query: text) : nil
+    let mine = infoGeneration
+    Task {
+      var words = bar
+      if let source = self.source, let pick {
+        for i in words.keys.indices {
+          guard let verb = words.keys[i].action, let word = await source.label(verb, on: pick) else { continue }
+          words.keys[i].label = word
+        }
+      }
+      guard mine == self.infoGeneration, self.panel.isVisible else { return }
+      self.infoBar = words
+      self.infoOpen = true
+      self.apply(status: self.status)
+    }
   }
 
   private func closeInfo() {
+    infoGeneration += 1
     if infoOpen { toggleInfo() }
   }
 
@@ -588,8 +621,10 @@ public final class Stage {
     let mine = actionsGeneration
     Task {
       var kept: [Bars.ActionRow] = []
-      for row in candidates {
+      for var row in candidates {
         if let gate = row.applies, !(await source.applies(gate, on: pick)) { continue }
+        // The row's word over this row, Copy Folder over a folder, the Lua pane's labels.
+        if let word = await source.label(row.verb, on: pick) { row.row.title = word }
         kept.append(row)
       }
       guard mine == self.actionsGeneration, self.panel.isVisible, self.actionsPane == nil else { return }

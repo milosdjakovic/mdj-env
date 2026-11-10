@@ -1347,7 +1347,10 @@ it closes. A row may also carry `names`, a list of further names never shown, wh
 
 `labels` came with the bottom bar, `docs/PLAN-ACTION-BAR.md`. It is a member, called with the
 highlighted item, answering a table with `primary` and `secondary` strings, the words the bottom bar
-under the list and the actions pane give the two for that row. It is asked live, every time the bar
+under the list and the actions pane give the two for that row. Any other verb takes its word for the
+row by its action name in the same table, file search's `copyFile = "Copy Folder"` over a folder,
+read by the bottom bar, the info pane and the actions pane alike, and in Olm.app by the source's
+`label`, step 1.4k. It is asked live, every time the bar
 is drawn, so "Uninstall 4" can count what is checked. A string left out, an empty one, a raise or
 an answer that is not a table falls back to the next rule, `liveLabels`, then the binding's own
 `description`, then Open for the primary and the action name spelled as words for the secondary.

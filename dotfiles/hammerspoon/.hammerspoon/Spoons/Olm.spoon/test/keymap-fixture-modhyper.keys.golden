@@ -61,6 +61,7 @@ field	/	cmd+shift	vpnOpen	100	vpn
 field	/	cmd+shift	wifiOpen	100	wifi
 field	/	cmd+shift	workspacesOpen	100	workspaces
 field	a	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
+field	c	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch
 field	d	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
 field	d	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch
 field	f	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch

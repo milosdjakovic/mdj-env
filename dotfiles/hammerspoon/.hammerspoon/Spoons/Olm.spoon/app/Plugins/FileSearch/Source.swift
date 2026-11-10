@@ -61,6 +61,8 @@ public actor FileSearchSource: ListSource {
   public nonisolated let manifest = Manifest(name: "filesearch", title: "File Search", actions: [
     Action(id: "reveal", title: "Reveal in Finder", chord: ["cmd", "return"]),
     Action(id: "copyPath", title: "Copy Path"),
+    // The file or folder itself on the clipboard, step 1.4k, chooser.lua's copyFile.
+    Action(id: "copyFile", title: "Copy File"),
     // The Lua list's verb name, so q under the list leader and the actions pane's row reach it.
     Action(id: "peekPreview", title: "Quick Look"),
   ], previewPane: PreviewPane(emptyText: FileSearchSource.paneEmptyText))
@@ -213,6 +215,7 @@ public actor FileSearchSource: ListSource {
     case "reveal": return [.hide, .revealFile(pick.key)]
     // A plain clipboard write, then the list closes, chooser.lua's copyPath.
     case "copyPath": return [.hide, .copyText(pick.key)]
+    case "copyFile": return [.hide, .copyFile(pick.key)]
     // Over the list, which stays up, chooser.lua's peekPreview, step 1.4c. The use it notes for
     // frecency is the app's own from 1.4d.
     case "peekPreview": return [.quickLook(pick.key)]
@@ -230,6 +233,14 @@ public actor FileSearchSource: ListSource {
     case "isFolder", "isBrowsing": return false
     default: return true
     }
+  }
+
+  /// Copy File reads Copy Folder over a folder, chooser.lua's labels.
+  public func label(_ verb: String, on pick: Pick) async -> String? {
+    guard verb == "copyFile", !pick.key.hasPrefix("olm:") else { return nil }
+    var folder: ObjCBool = false
+    guard FileManager.default.fileExists(atPath: pick.key, isDirectory: &folder), folder.boolValue else { return nil }
+    return "Copy Folder"
   }
 
   /// What the pane beside the list says about a row, sidepanel.lua's show. The read runs on a

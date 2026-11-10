@@ -130,6 +130,9 @@ public enum Effect: Sendable, Equatable {
   case reopen
   /// Puts the text on the clipboard, a plain write anything watching the clipboard sees.
   case copyText(String)
+  /// Puts the file or folder itself on the clipboard, as Finder's Copy puts it, so a paste in
+  /// Finder copies it there and one in Mail attaches it, step 1.4k.
+  case copyFile(String)
   /// Shows the file in the Quick Look panel over the list, which stays up, or closes the panel
   /// when it already shows that file, docs/DESIGN-APP-QUICK-LOOK.md.
   case quickLook(String)
@@ -319,6 +322,10 @@ public protocol ListSource: Actor {
   /// on, the Lua surface's colon method of the same name, docs/PLAN-ACTION-PANEL.md. A gate the
   /// source does not know answers true, as the Lua pane shows a verb its surface cannot answer.
   func applies(_ gate: String, on pick: Pick) async -> Bool
+  /// The word a verb takes over this row in the actions pane and the info pane, nil for the one the
+  /// share gives it, the Lua presentation's labels member by the verb's action name, Copy Folder
+  /// over a folder in file search, step 1.4k.
+  func label(_ verb: String, on pick: Pick) async -> String?
   /// The list was closed.
   func close() async
 }
@@ -330,4 +337,6 @@ extension ListSource {
   public func previewLanded(_ pick: Pick) async -> Preview? { nil }
   /// A source with no gates lists every row.
   public func applies(_ gate: String, on pick: Pick) async -> Bool { true }
+  /// A source with no words of its own leaves every verb the share's.
+  public func label(_ verb: String, on pick: Pick) async -> String? { nil }
 }

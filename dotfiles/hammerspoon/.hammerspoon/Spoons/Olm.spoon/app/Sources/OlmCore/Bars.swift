@@ -23,7 +23,7 @@ struct Bars {
   // the applies gate the source answers over the row the pane opened on, and whether the verb asks
   // first or offers choices, the levels the Lua pane opens.
   struct ActionRow {
-    let row: Row
+    var row: Row
     let verb: String
     let applies: String?
     let confirm: Bool

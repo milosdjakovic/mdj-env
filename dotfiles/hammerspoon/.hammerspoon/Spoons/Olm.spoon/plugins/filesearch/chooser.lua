@@ -815,7 +815,7 @@ end
 -- with the Chooser.new block that gave them something to answer for. The composition root now
 -- routes this plugin's own navigation through host/stage's own surfaceFor once
 -- wiredRegistry.presentationFor("fileSearch") answers a presentation, falling through to this
--- submodule for browseInto, browseUp, revealInFinder, copyPath, scrollPreviewDown,
+-- submodule for browseInto, browseUp, revealInFinder, copyPath, copyFile, scrollPreviewDown,
 -- scrollPreviewUp, and peekPreview, the extra verbs neither the stage nor its five function
 -- adapter was ever asked to carry.
 
@@ -953,6 +953,27 @@ function M.copyPath()
     hs.pasteboard.setContents(row.path)
   end
   if showing and cfg.stageHide then cfg.stageHide() end
+end
+
+--- chooser.copyFile() - put the highlighted file or folder itself on the clipboard, as a file URL,
+--- the way Finder's Copy puts it, so a paste in Finder copies it there and a paste in Mail or a
+--- chat attaches it, step 1.4k. Copy Path above puts its path as text. The guard and the hide are
+--- reveal's, and the parent row, which is where the list stands rather than a thing chosen, copies
+--- nothing.
+function M.copyFile()
+  local row = selectedRow()
+  if not (row and row.path) or row.status or row.help or row.up then return end
+  noteUse(row)
+  hs.pasteboard.writeObjects(hs.sharing.fileURL(util.expandHome(row.path)))
+  if showing and cfg.stageHide then cfg.stageHide() end
+end
+
+--- chooser.labels(item) -> table or nil. The presentation's words for the highlighted row, asked
+--- live by the bottom bar, the info pane and the actions pane. Over a folder Copy File reads Copy
+--- Folder, and every other word stays the binding's own.
+function M.labels(item)
+  if M:isFolder(item) then return { copyFile = "Copy Folder" } end
+  return nil
 end
 
 return M

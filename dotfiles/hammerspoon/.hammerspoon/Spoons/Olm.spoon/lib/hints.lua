@@ -156,15 +156,23 @@ end
 
 -- A binding's label, the one lookup the bottom bar, its info pane and the actions pane share,
 -- so a wording that changes with the situation cannot say one thing in one and another in the
--- next. The order is the level's own labels for its primary and its secondary, asked live so a
--- word may follow the highlighted row or count what is checked, then liveLabels, then the
+-- next. The order is the level's own labels for its primary and its secondary, and for any other
+-- verb by its action name, asked live so a word may follow the highlighted row or count what is
+-- checked, file search's Copy Folder over a folder among them, then liveLabels, then the
 -- binding's own description, then Open for the primary and the action name spelled as words
 -- for anything else. labels and liveLabels are supplied fresh by the caller rather than kept
 -- here, since the words belong to the plugin that declares them and this file may not know one
 -- by name.
 function obj.labelFor(binding, contextName, liveLabels, labels)
   local shared = binding.shared
-  local own = type(labels) == "table" and (shared == "primary" or shared == "secondary") and labels[shared]
+  local own
+  if type(labels) == "table" then
+    if shared == "primary" or shared == "secondary" then
+      own = labels[shared]
+    elseif shared == nil and binding.action ~= nil then
+      own = labels[binding.action]
+    end
+  end
   if type(own) == "string" and own ~= "" then return own end
   local live = liveLabels and liveLabels[binding.action]
   local word = live and live(contextName)

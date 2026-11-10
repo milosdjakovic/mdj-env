@@ -321,6 +321,10 @@ return {
       { key = "h", action = "browseUp",   description = "Up a Level", icon = "up", applies = "isBrowsing" },
       { key = "f", action = "revealInFinder", description = "Reveal in Finder", icon = "search" },
       { key = "y", action = "copyPath",   description = "Copy Path", icon = "copy", applies = "isEntry" },
+      -- The file or folder itself on the clipboard, as Finder's Copy puts it, so a paste in Finder
+      -- copies it there and one in Mail attaches it, step 1.4k, asked by Milos on 2026-11-10. Over
+      -- a folder the presentation's labels member names it Copy Folder.
+      { key = "c", action = "copyFile",   description = "Copy File", icon = "copy", applies = "isEntry" },
     },
     -- No matcher. Until phase three of the unified search on 2026-10-17 this declared the words
     -- strategy, injected into the engine to narrow a held result set between round trips over
@@ -386,6 +390,9 @@ return {
     -- once, at register, after wiring has already settled which viewer, if any, won.
     previewPaneWidth = { member = "chooser.previewPaneWidth", call = "dot" },
     searchText = { member = "chooser.searchText", call = "dot" },
+    -- Copy File's word over a folder, Copy Folder, the bottom bar, the info pane and the actions
+    -- pane all reading it, step 1.4k.
+    labels = { member = "chooser.labels", call = "dot" },
     rowLimit = 200,
     -- Rework rider, restored. Every title here is a filename, and the last few characters of
     -- a filename are its extension. A tail cut spends them first, so a long name arrives as
@@ -422,7 +429,7 @@ return {
   -- "a presenting plugin declares no registry.surface" rule that Processes' own migration
   -- already carved out. isShowing, selectNext, selectPrev, insertSelected, and hide are gone
   -- from the chooser submodule, host/stage's own surfaceFor(identity) answering all five now,
-  -- but browseInto, browseUp, revealInFinder, copyPath, scrollPreviewDown, scrollPreviewUp,
+  -- but browseInto, browseUp, revealInFinder, copyPath, copyFile, scrollPreviewDown, scrollPreviewUp,
   -- and peekPreview, the extra verbs surface.extra above binds keys to, live on nowhere else,
   -- and root/compose.lua's own surfaceAdapterFor falls through to whatever this field names
   -- once the stage's own five have been asked and answered nothing.

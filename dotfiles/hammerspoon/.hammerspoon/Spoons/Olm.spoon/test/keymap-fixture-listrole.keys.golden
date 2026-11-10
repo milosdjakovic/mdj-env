@@ -5,6 +5,7 @@ META	=	any	-	-	windowmanager
 META	a	any	-	-	windowmanager
 META	a	any	clipboardOpen	100	clipboard
 META	c	any	-	-	windowmanager
+META	c	any	fileSearchOpen	100	fileSearch
 META	d	any	-	-	windowmanager
 META	d	any	clipboardOpen	100	clipboard
 META	d	any	fileSearchOpen	100	fileSearch
