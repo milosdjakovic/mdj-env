@@ -466,3 +466,10 @@ list, and until then that list stays on Lua.
   word's fallback for the canvas chooser. In the build it stayed in file search instead, run only
   where the word answers false, the same behaviour with no dependency moved. The app's own
   `OlmCore/QuickLook.swift` from the first build was removed.
+- 2026-11-10 12:16. Step 1.4c's look, from Milos in the app's trial. The header is one actions
+  pane line tall with its paddings, the close is the `xmark.circle.fill` symbol at the info pane's
+  icon size in the dim text colour, and the Open button's Return key cap ends at the inset's right
+  edge. He asked for the cap to round on the pane's corner. A top right corner of its own was
+  built first and he rejected rounding one corner alone, so a key cap keeps one radius for all four
+  corners, nested in its holder's as before, and a host may drive it instead, which only the Quick
+  Look pane does, at the glass's radius less the padding.

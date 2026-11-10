@@ -1,16 +1,20 @@
 // The Quick Look pane, a core surface, step 1.4c, docs/DESIGN-APP-QUICK-LOOK.md. One Olm glass
-// pane over the list, its top line a close disc, the file's name and a button naming the
+// pane over the list, its top line a close button, the file's name and a button naming the
 // application that opens the file with the list's Return key cap, and the file's content below in
 // an inset of its own, all in the list's own style, asked by Milos on 2026-11-10. Built into both
 // Hammerspoon's library and Olm.app, and owned by the panel, Panel.swift, which hands it its style
 // and keeps its rules, Escape closing it first, the list closing it and a press on it not counting
 // as a press outside the list.
 //
-// THE MEASURES. The glass is the list's own, at the list's corner radius. The top line is a row's
-// height and its words the row title's font and colours. The content's inset stands the kit's outer
+// THE MEASURES. The glass is the list's own, at the list's corner radius. The top line is as tall
+// as an actions pane holding one action, a bar item's height with the pane's padding above and
+// below, asked by Milos in the trial on 2026-11-10, a row's height having read as too large, and
+// its words are the row title's font and colours. The content's inset stands the kit's outer
 // padding in from the glass on every side, and its corner is the glass's less that padding, the
-// rule every chip inside a panel follows. The close disc stands at the padding, where a row's
-// icon starts. Its size and place are viewers/quicklook.swift's, centred on the list's screen at
+// rule every chip inside a panel follows. The close button is the system's xmark.circle.fill symbol
+// at the size of every other icon on a bar item's line, placement.infoIcon, in the dimmed text
+// colour, asked by Milos in the trial on 2026-11-10 over a drawn disc that read too large, and
+// stands at the padding, where a row's icon starts. Its size and place are viewers/quicklook.swift's, centred on the list's screen at
 // most 1100 by 820 points and 70 by 80 percent of the screen.
 //
 // THE KEY. Its window never becomes key. The list keeps the caret and stays key, and a list that
@@ -29,7 +33,7 @@ final class QuickLookPane: NSObject {
   private let window: KeylessWindow
   private let body = FlippedView()
   private lazy var glass = Surface(holding: body)
-  private let disc = CloseDisc()
+  private let disc = CloseButton()
   private let name = NSTextField(labelWithString: "")
   private let open = PressView()
   private let openLabel = NSTextField(labelWithString: "")
@@ -42,7 +46,7 @@ final class QuickLookPane: NSObject {
 
   /// The path the pane shows, nil while it is down or going down.
   private(set) var path: String?
-  /// Told when a press on the close disc closed the pane.
+  /// Told when a press on the close button closed the pane.
   var onClosed: (() -> Void)?
   /// Told when the open button was pressed, which the list answers as its Return.
   var onOpen: (() -> Void)?
@@ -95,7 +99,9 @@ final class QuickLookPane: NSObject {
     name.textColor = style.text
     openLabel.font = style.titleFont
     openLabel.textColor = style.text
-    disc.color = style.textDim
+    disc.contentTintColor = style.textDim
+    disc.image = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: "Close")?
+      .withSymbolConfiguration(.init(pointSize: placement.infoIcon, weight: .regular))
     open.color = style.highlight
     open.radius = max(0, style.highlightRadius - placement.barPillPad)
     if isOpen { layout() }
@@ -152,13 +158,15 @@ final class QuickLookPane: NSObject {
     let size = window.frame.size
     body.frame = NSRect(origin: .zero, size: size)
     let pad = placement.pad
-    let lineH = max(placement.rowH, ceil(style.titleFont.boundingRectForFont.height))
-    let side = max(10, min(lineH - 2 * placement.keycapGap, placement.keycapH + 4))
-    disc.frame = NSRect(x: pad, y: pad + (lineH - side) / 2, width: side, height: side)
+    // The actions pane's own measures for one line, Panel.swift's actionsPop.show.
+    let lineH = placement.barPillH
+    let lineTop = placement.barPillPad
+    let side = placement.infoIcon
+    disc.frame = NSRect(x: pad, y: lineTop + (lineH - side) / 2, width: side, height: side)
 
     openCap?.removeFromSuperview()
     let cap = KeyCap(style.returnKey, ink: style.ink(lit: false), style: style, placement: placement,
-      holderH: placement.barPillH, holderRadius: open.radius)
+      holderH: placement.barPillH, holderRadius: open.radius, radius: max(0, style.radius - pad))
     open.addSubview(cap)
     openCap = cap
     let capSize = cap.fittingSize
@@ -168,7 +176,9 @@ final class QuickLookPane: NSObject {
     let roomForOpen = max(0, size.width / 2 - pad)
     let openW = min(roomForOpen, labelW + (capSize.width > 0 ? gap + capSize.width : 0) + 2 * item)
     let openH = max(placement.barPillH, capSize.height)
-    open.frame = NSRect(x: size.width - pad - openW, y: pad + (lineH - openH) / 2, width: openW, height: openH)
+    // The key cap's right edge on the inset's, as the close button's left edge is on it, so the
+    // button's own padding reaches past the inset's edge, asked by Milos in the trial on 2026-11-10.
+    open.frame = NSRect(x: size.width - pad + item - openW, y: lineTop + (lineH - openH) / 2, width: openW, height: openH)
     let labelH = ceil(openLabel.fittingSize.height)
     let shownLabelW = max(0, openW - 2 * item - (capSize.width > 0 ? gap + capSize.width : 0))
     openLabel.frame = NSRect(x: item, y: (openH - labelH) / 2, width: shownLabelW, height: labelH)
@@ -177,10 +187,10 @@ final class QuickLookPane: NSObject {
 
     let nameX = disc.frame.maxX + placement.iconGap
     let nameH = ceil(name.fittingSize.height)
-    name.frame = NSRect(x: nameX, y: pad + (lineH - nameH) / 2,
+    name.frame = NSRect(x: nameX, y: lineTop + (lineH - nameH) / 2,
       width: max(0, open.frame.minX - placement.iconGap - nameX), height: nameH)
 
-    let top = pad + lineH + pad
+    let top = lineTop + lineH + lineTop
     inset.frame = NSRect(x: pad, y: top, width: max(0, size.width - 2 * pad), height: max(0, size.height - top - pad))
     inset.layer?.cornerRadius = max(0, style.radius - pad)
     preview?.frame = inset.bounds
@@ -238,45 +248,20 @@ private final class PressView: FlippedView {
   }
 }
 
-// The grey close disc, Finder's rather than the red traffic light, viewers/quicklook.swift's, its
-// cross knocked out of the disc so the glass shows through, in the list's dimmed text colour.
-private final class CloseDisc: NSView {
+// The close button, a symbol image that answers the first press, the pane never being key.
+private final class CloseButton: NSImageView {
   var onClick: (() -> Void)?
-  var color = NSColor.secondaryLabelColor { didSet { needsDisplay = true } }
-  private var pressed = false
+
+  override init(frame: NSRect) {
+    super.init(frame: frame)
+    imageScaling = .scaleProportionallyUpOrDown
+  }
+
+  required init?(coder: NSCoder) { nil }
 
   override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-
-  override func mouseDown(with event: NSEvent) {
-    pressed = true
-    needsDisplay = true
-  }
-
+  override func mouseDown(with event: NSEvent) {}
   override func mouseUp(with event: NSEvent) {
-    let inside = bounds.contains(convert(event.locationInWindow, from: nil))
-    pressed = false
-    needsDisplay = true
-    if inside { onClick?() }
-  }
-
-  override func draw(_ dirtyRect: NSRect) {
-    guard let context = NSGraphicsContext.current?.cgContext else { return }
-    context.beginTransparencyLayer(auxiliaryInfo: nil)
-    color.withAlphaComponent(Ink.alpha(color) * (pressed ? 1 : 0.7)).setFill()
-    NSBezierPath(ovalIn: bounds).fill()
-    let arm = bounds.width * 0.32
-    let centre = NSPoint(x: bounds.midX, y: bounds.midY)
-    let cross = NSBezierPath()
-    cross.lineWidth = max(1.5, bounds.width * 0.11)
-    cross.lineCapStyle = .round
-    cross.move(to: NSPoint(x: centre.x - arm / 2, y: centre.y - arm / 2))
-    cross.line(to: NSPoint(x: centre.x + arm / 2, y: centre.y + arm / 2))
-    cross.move(to: NSPoint(x: centre.x - arm / 2, y: centre.y + arm / 2))
-    cross.line(to: NSPoint(x: centre.x + arm / 2, y: centre.y - arm / 2))
-    context.setBlendMode(.destinationOut)
-    NSColor.black.setStroke()
-    cross.stroke()
-    context.setBlendMode(.normal)
-    context.endTransparencyLayer()
+    if bounds.contains(convert(event.locationInWindow, from: nil)) { onClick?() }
   }
 }
