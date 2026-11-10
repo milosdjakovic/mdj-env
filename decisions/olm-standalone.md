@@ -487,3 +487,6 @@ list, and until then that list stays on Lua.
   pane read one answer, and the app's source answers the same through a new `label` call. The
   app's info pane now opens once the source has given its lines their words, so a line never
   changes under the eye.
+- 2026-11-10 13:55. Step 1.4k's hand trial passed in the app and in the Lua native list, Milos
+  confirming the word over a file and a folder in the actions pane and the info pane and a paste
+  in Finder copying the file and the folder, and he asked for the merge. Step 1.4k is done.

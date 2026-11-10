@@ -23,8 +23,7 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 1.4k Copy File and Copy Folder, asked by Milos on 2026-11-10 for after 1.4c, with 1.3e, 1.4g,
-1.4f and 1.4c ticked since. Then 1.4h `.app`, 1.4e folder search, 1.4d frecency, 1.4i Download, and 1.5 parity and the
+Next. 1.4h `.app`, with 1.3e, 1.4g, 1.4f, 1.4c and 1.4k ticked since. Then 1.4e folder search, 1.4d frecency, 1.4i Download, and 1.5 parity and the
 flip last.
 
 Stage 0, contracts
@@ -62,8 +61,8 @@ Stage 1, the file search pilot
 - [ ] 1.4h A type naming a bundle, `.app` listing every app rather than Safari alone, in both file searches
 - [ ] 1.4i Files iCloud has not downloaded, a Download action and the preview pane naming its shortcut, after 1.4f
 - [x] 1.4j Folder permissions asked up front on file search's first open, asked again from the list, and kept across rebuilds, 2026-11-09
-- [ ] 1.4k Copy File and Copy Folder in file search, both lists, the file itself put on the clipboard as Finder's Copy puts it, beside Copy Path, asked by Milos on 2026-11-10, after 1.4c
-  - Built on branch `olm-app-copyfile`, Hyper and C, its word Copy Folder over a folder through the presentation's labels member by action name, which the bottom bar, the info pane and the actions pane all read, and in the app through the source's label, and waits for its hand trial.
+- [x] 1.4k Copy File and Copy Folder in file search, both lists, the file itself put on the clipboard as Finder's Copy puts it, beside Copy Path, asked by Milos on 2026-11-10, after 1.4c
+  - Built on branch `olm-app-copyfile`, Hyper and C, its word Copy Folder over a folder through the presentation's labels member by action name, which the bottom bar, the info pane and the actions pane all read, and in the app through the source's label. It passed its hand trial on 2026-11-10 in the app and in the Lua native list, and merged.
 - [ ] 1.5 Parity, every feature of the Lua file search checked in the app, then the flip
 
 Stage 2, the bridge, read only
