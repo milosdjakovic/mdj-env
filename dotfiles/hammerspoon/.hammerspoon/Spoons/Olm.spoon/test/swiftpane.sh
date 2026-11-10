@@ -34,7 +34,7 @@ frameworks="${app%/}/Contents/Frameworks"
 out="$(mktemp -d)"
 trap 'rm -rf "$out"' EXIT
 sources=()
-for name in Fields Lua Source Model Surface Motion List Bar InputField FloatingPane Panel Pane Perf Timings Entry; do sources+=("$native/$name.swift"); done
+for name in Fields Lua Source Model Surface Motion List Bar InputField FloatingPane QuickLook Panel Pane Perf Timings Entry; do sources+=("$native/$name.swift"); done
 # Top level code runs only from a file named main.swift.
 cp "$here/swiftpane.swift" "$out/main.swift"
 if ! "$compiler" -O -sdk "$sdk" -module-name OlmSwiftPaneTest -import-objc-header "$native/bridge.h" \

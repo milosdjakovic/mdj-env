@@ -484,12 +484,21 @@ local function dropSettle()
   settle = nil
 end
 
+-- The core's Quick Look pane follows the highlight while it is up, step 1.4c, taking the settled
+-- row's file in place. A word that answers nothing, the canvas chooser's, leaves this to nothing,
+-- since the helper's panel does not follow, viewers/quicklook.lua's header.
+local function follow(item)
+  if not (cfg.quickLook and item and item.path) or item.status or item.help then return end
+  cfg.quickLook(util.expandHome(item.path), true)
+end
+
 local function onHighlight(item)
-  if not viewer.followsHighlight then return end
+  if not (viewer.followsHighlight or cfg.quickLook) then return end
   dropSettle()
   local ms = (cfg.preview and cfg.preview.settleMs) or 60
   settle = util.after(ms / 1000, function()
     settle = nil
+    follow(item)
     describe(item)
   end)
 end
@@ -833,6 +842,16 @@ end
 --- gated on the same question through a predicate, so the key drops out of the info pane
 --- too rather than being listed and doing nothing.
 function M.peekPreview()
+  -- The core's Quick Look pane first, step 1.4c, docs/DESIGN-APP-QUICK-LOOK.md, and the peek
+  -- viewer, the helper's panel, only where the serving list has no pane, the canvas chooser.
+  if cfg.quickLook and showing then
+    local row = selectedRow()
+    if not (row and row.path) or row.status or row.help then return end
+    if cfg.quickLook(util.expandHome(row.path)) then
+      noteUse(row)
+      return
+    end
+  end
   if peekViewer == NO_VIEWER then return end
   -- Refused once the list is gone, and this one is about LIFETIME rather than about the row. Every
   -- other verb here is a one shot, so acting on a stale highlight would at worst reveal the wrong

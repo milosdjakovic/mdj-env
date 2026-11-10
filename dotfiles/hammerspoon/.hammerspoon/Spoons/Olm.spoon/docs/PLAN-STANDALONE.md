@@ -23,8 +23,8 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 1.4c Quick Look, in the order written 2026-11-09 after 1.4j, with 1.3e, 1.4g and 1.4f ticked
-since. Then 1.4h `.app`, 1.4e folder search, 1.4d frecency, 1.4i Download, and 1.5 parity and the
+Next. 1.4k Copy File and Copy Folder, asked by Milos on 2026-11-10 for after 1.4c, with 1.3e, 1.4g,
+1.4f and 1.4c ticked since. Then 1.4h `.app`, 1.4e folder search, 1.4d frecency, 1.4i Download, and 1.5 parity and the
 flip last.
 
 Stage 0, contracts
@@ -52,7 +52,8 @@ Stage 1, the file search pilot
   - [x] 1.3g The app's structure, `docs/DESIGN-APP.md`, file search moved onto it with nothing a person can see changed, 2026-11-08
 - [x] 1.4a Preview pane, with its scroll keys, the keys themselves carried by 1.4f, 2026-11-08
 - [x] 1.4b Thumbnails, the pane never stale and a picture on its way shown by the system spinner, 2026-11-09
-- [ ] 1.4c Quick Look
+- [x] 1.4c Quick Look, 2026-11-10
+  - Its design note is agreed, `docs/DESIGN-APP-QUICK-LOOK.md`. The first build, the Lua helper's panel opened in the app's own process, went to its trial on 2026-11-10, where Milos asked for an Olm glass pane in the core instead. The note was revised and agreed the same day, and the Quick Look pane is built on branch `olm-app-quicklook` in the swift chooser's shared library for both lists, following the highlight. It passed its hand trial on 2026-11-10 in the app and in the Lua native list, with the header one actions pane line tall, the close the circled xmark symbol and the Return key cap at the inset's edge on the pane's corner radius, Milos's asks in that trial.
 - [ ] 1.4d Frecency, one owner, the history read but not yet owned
 - [ ] 1.4e Folder search, the scope, the folder aliases, Into Folder and Up a Level
 - [x] 1.4f The bottom bar, the actions pane, the info pane, Copy Path, and the person's list keys, the preview pane's scroll keys among them, 2026-11-10
@@ -61,6 +62,7 @@ Stage 1, the file search pilot
 - [ ] 1.4h A type naming a bundle, `.app` listing every app rather than Safari alone, in both file searches
 - [ ] 1.4i Files iCloud has not downloaded, a Download action and the preview pane naming its shortcut, after 1.4f
 - [x] 1.4j Folder permissions asked up front on file search's first open, asked again from the list, and kept across rebuilds, 2026-11-09
+- [ ] 1.4k Copy File and Copy Folder in file search, both lists, the file itself put on the clipboard as Finder's Copy puts it, beside Copy Path, asked by Milos on 2026-11-10, after 1.4c
 - [ ] 1.5 Parity, every feature of the Lua file search checked in the app, then the flip
 
 Stage 2, the bridge, read only

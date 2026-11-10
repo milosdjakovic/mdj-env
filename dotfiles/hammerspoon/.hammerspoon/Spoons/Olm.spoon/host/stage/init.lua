@@ -1463,6 +1463,17 @@ function obj:selectedItem()
   return self._instance and self._instance:selectedItem() or nil
 end
 
+--- Stage:quickLook(path, follow) -> boolean
+--- Method
+--- The live list's Quick Look pane, the engine's quickLook, step 1.4c. False while no list is
+--- showing or its view has no pane, so the caller can show the file some other way.
+function obj:quickLook(path, follow)
+  if not self:isShowing() then return false end
+  local instance = self._instance
+  if not (instance and instance.quickLook) then return false end
+  return instance:quickLook(path, follow) == true
+end
+
 --- Stage:selectedRow() -> number or nil
 --- Method
 --- The highlighted row NUMBER on the live instance, or nil, the plain public counterpart

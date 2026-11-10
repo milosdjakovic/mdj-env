@@ -77,7 +77,8 @@ final class KeyCap: FlippedView {
   var ink: Ink { didSet { paint() } }
 
   init(_ chord: [[KeyMark]], ink: Ink, style: Style, placement: Placement, holderH: CGFloat,
-    holderRadius: CGFloat, enabled: Bool = true, bare: Bool = false, strong: Bool = false, keyFont: NSFont? = nil) {
+    holderRadius: CGFloat, radius chipRadius: CGFloat? = nil, enabled: Bool = true, bare: Bool = false,
+    strong: Bool = false, keyFont: NSFont? = nil) {
     self.chord = chord
     self.ink = ink
     self.font = keyFont ?? style.keycapFont
@@ -89,7 +90,9 @@ final class KeyCap: FlippedView {
     keyGap = placement.keycapGap
     gap = placement.barGap
     height = placement.keycapH
-    radius = max(0, holderRadius - max(0, holderH - height) / 2)
+    // The chip's corner nests in its holder's, unless the host drives it, the Quick Look pane's
+    // Return cap on the pane's own curve, asked by Milos on 2026-11-10.
+    radius = chipRadius ?? max(0, holderRadius - max(0, holderH - height) / 2)
     lineH = NSAttributedString(string: "X", attributes: [.font: font]).size().height
     capMiddle = font.ascender - font.capHeight / 2
     // A larger font than the badge's, a row's shortcut, stands in a box its own line tall.

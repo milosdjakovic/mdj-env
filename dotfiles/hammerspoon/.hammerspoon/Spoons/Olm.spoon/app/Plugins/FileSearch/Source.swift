@@ -61,6 +61,8 @@ public actor FileSearchSource: ListSource {
   public nonisolated let manifest = Manifest(name: "filesearch", title: "File Search", actions: [
     Action(id: "reveal", title: "Reveal in Finder", chord: ["cmd", "return"]),
     Action(id: "copyPath", title: "Copy Path"),
+    // The Lua list's verb name, so q under the list leader and the actions pane's row reach it.
+    Action(id: "peekPreview", title: "Quick Look"),
   ], previewPane: PreviewPane(emptyText: FileSearchSource.paneEmptyText))
 
   /// What the pane says while nothing is highlighted, plugins/filesearch/chooser.lua's emptyText.
@@ -211,6 +213,9 @@ public actor FileSearchSource: ListSource {
     case "reveal": return [.hide, .revealFile(pick.key)]
     // A plain clipboard write, then the list closes, chooser.lua's copyPath.
     case "copyPath": return [.hide, .copyText(pick.key)]
+    // Over the list, which stays up, chooser.lua's peekPreview, step 1.4c. The use it notes for
+    // frecency is the app's own from 1.4d.
+    case "peekPreview": return [.quickLook(pick.key)]
     default: return []
     }
   }

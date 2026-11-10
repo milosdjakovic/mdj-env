@@ -445,3 +445,35 @@ list, and until then that list stays on Lua.
 - 2026-11-10 08:40. The panel's take back was then tried by hand in the Lua native list, file
   search served by Hammerspoon again, and Milos confirmed it, so piece four passed and step 1.4f is
   done.
+- 2026-11-10 09:10. Step 1.4c, Quick Look in the app, design note `docs/DESIGN-APP-QUICK-LOOK.md`
+  agreed by Milos. The app opens the Lua helper's own panel, `viewers/quicklook.swift`, in its own
+  process, `OlmCore/QuickLook.swift`, rather than compiling and starting the helper per file, so
+  the two lists look the same. The source answers a `quickLook` effect for its `peekPreview`
+  action, the Lua verb's name, and the stage owns the panel and the list's rules, Escape closing
+  it first, the list closing it with itself and a press on it not counting as outside the list.
+  The panel refuses key, since in the app's process it would take key from the list, which closes
+  on resigning it. The use Quick Look notes for frecency is left to 1.4d, and the app offers Quick
+  Look without the Lua list's `askedPreview` gate, having no helper to compile.
+- 2026-11-10 10:05. Step 1.4c's first trial. Milos asked that Quick Look be one Olm glass pane
+  following Olm's radius, paddings, fonts and colours rather than macOS's panel, with a top line
+  of close disc, file name and an Open in button carrying the Return key cap, the content in a
+  rounded inset below, and that it live in the core for every plugin and both lists. He chose the
+  header and the core placement, and agreed that the pane follows the highlight, which the Lua
+  helper never did only because a process per arrow key was too slow, and which keeps the Return
+  key cap honest. Built as `native/QuickLook.swift` in the swift chooser's shared library, owned
+  by the panel, which keeps Escape, closing with the list and a press on it, and reached from Lua
+  by a root word `quickLook(path, follow)`. The note had the helper move into the core as the
+  word's fallback for the canvas chooser. In the build it stayed in file search instead, run only
+  where the word answers false, the same behaviour with no dependency moved. The app's own
+  `OlmCore/QuickLook.swift` from the first build was removed.
+- 2026-11-10 12:16. Step 1.4c's look, from Milos in the app's trial. The header is one actions
+  pane line tall with its paddings, the close is the `xmark.circle.fill` symbol at the info pane's
+  icon size in the dim text colour, and the Open button's Return key cap ends at the inset's right
+  edge. He asked for the cap to round on the pane's corner. A top right corner of its own was
+  built first and he rejected rounding one corner alone, so a key cap keeps one radius for all four
+  corners, nested in its holder's as before, and a host may drive it instead, which only the Quick
+  Look pane does, at the glass's radius less the padding.
+- 2026-11-10 12:40. Step 1.4c's hand trial passed in the Lua native list too, file search served
+  by Hammerspoon again, Milos confirming every step, the pane's look, following the highlight,
+  Escape closing the pane alone, a press on the pane, Return and the Open button opening the file
+  shown, and the pane closing with the list. Step 1.4c is done, and 1.4k is next.

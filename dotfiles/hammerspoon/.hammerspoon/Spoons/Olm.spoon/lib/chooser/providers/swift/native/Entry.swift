@@ -260,6 +260,18 @@ private let hide: lua_CFunction = { L in
   return 0
 }
 
+// The Quick Look pane, QuickLook.swift. quickLook shows a path, or closes the pane for none, and
+// quickLookPath answers what it shows, nil while it is down.
+private let quickLook: lua_CFunction = { L in
+  panelAt(L)?.quickLook(LuaReader(L).string(at: 2))
+  return 0
+}
+
+private let quickLookPath: lua_CFunction = { L in
+  if let path = panelAt(L)?.quickLookPath { _ = lua_pushstring(L, path) } else { lua_pushnil(L) }
+  return 1
+}
+
 private let isVisible: lua_CFunction = { L in
   lua_pushboolean(L, (panelAt(L)?.isVisible ?? false) ? 1 : 0)
   return 1
@@ -511,6 +523,8 @@ public func luaopen_olm_swiftchooser(_ L: LuaState?) -> Int32 {
   olm_setFunction(L, "show", show)
   olm_setFunction(L, "hide", hide)
   olm_setFunction(L, "isVisible", isVisible)
+  olm_setFunction(L, "quickLook", quickLook)
+  olm_setFunction(L, "quickLookPath", quickLookPath)
   olm_setFunction(L, "start", start)
   olm_setFunction(L, "stop", stop)
   olm_setFunction(L, "refocus", refocus)

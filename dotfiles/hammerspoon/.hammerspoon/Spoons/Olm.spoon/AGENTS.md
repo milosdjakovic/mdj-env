@@ -31,6 +31,7 @@ Components, what a person sees.
 | **info pane** | the floating pane the left side opens, a list of shortcuts | `infoPane` |
 | **actions pane** | the floating pane the right side opens, a list of actions | `actionsPane` |
 | **floating pane** | either of those two, where a rule holds for both | `floatingPane` |
+| **Quick Look pane** | the glass pane over the chooser showing a file's content, its name and an open button on its top line, following the selected row | `quickLook` |
 | **cheat sheet** | what holding a leader shows, the Hyper cheat sheet and the Meta cheat sheet | `cheatsheet` |
 | **toast** | a short message, the colour, message and report toasts | `toast` |
 

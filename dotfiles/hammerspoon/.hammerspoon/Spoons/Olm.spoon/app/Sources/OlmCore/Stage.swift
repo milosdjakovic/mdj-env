@@ -36,6 +36,9 @@ import OlmKit
 public final class Stage {
   private let searcher: Searcher
   private lazy var panel = ChooserPanel(source: self)
+  // The action whose quickLook effect opened the Quick Look pane, which the pane asks again for
+  // each row the highlight lands on, since it follows the highlight, step 1.4c.
+  private var lookAction: String?
   private var source: (any ListSource)?
   private var level: Level?
   private var rows: [OlmKit.Row] = []
@@ -452,6 +455,9 @@ public final class Stage {
     let mine = generation
     Task {
       let effects = if let action { await source.run(action, on: pick) } else { await source.choose(pick) }
+      if let action, effects.contains(where: { if case .quickLook = $0 { true } else { false } }) {
+        self.lookAction = action
+      }
       if closingPanes, !effects.contains(.hide), mine == self.generation {
         self.closeInfo()
         self.closeActions()
@@ -461,6 +467,22 @@ public final class Stage {
         }
       }
       self.perform(effects)
+    }
+  }
+
+  // Quick Look following the highlight, the action that opened it asked again for the row the
+  // highlight landed on and its file taken in place, never closing the pane. A row the action
+  // has no file for leaves the pane on the file it shows.
+  private func followQuickLook() {
+    guard panel.quickLookPath != nil, let action = lookAction, let source,
+      highlight >= 1, highlight <= rows.count else { return }
+    let pick = Pick(key: rows[highlight - 1].key, query: text)
+    let mine = generation
+    let index = highlight
+    Task {
+      let effects = await source.run(action, on: pick)
+      guard mine == self.generation, index == self.highlight, self.panel.quickLookPath != nil else { return }
+      for case .quickLook(let path) in effects { self.panel.quickLook(path) }
     }
   }
 
@@ -474,6 +496,9 @@ public final class Stage {
       case .revealFile(let path): NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
       case .openURL(let text): if let url = URL(string: text) { NSWorkspace.shared.open(url) }
       case .reopen: if let source { open(source, query: "", screen: screenMode) }
+      // The file already shown closes the pane and another shows in it, the panel's own Quick Look,
+      // native/QuickLook.swift.
+      case .quickLook(let path): panel.quickLook(panel.quickLookPath == path ? nil : path)
       case .copyText(let text):
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
@@ -719,6 +744,9 @@ public final class Stage {
       if case .bytes(let data)? = args.first { dismissKey(data) } else { dismissKey(nil) }
     case "resignedKey", "pressOutside":
       hide()
+    case "quickLookOpen":
+      // The pane's open button is Return on the highlighted row, the file it shows.
+      act(on: highlight)
     case "text":
       closeInfo()
       if case .string(let text)? = args.first {
@@ -746,6 +774,7 @@ public final class Stage {
       if case .int(let index)? = args.first, index != highlight {
         highlight = index
         settlePreview()
+        followQuickLook()
       }
     case "choose":
       if case .int(let index)? = args.first {
