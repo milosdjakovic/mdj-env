@@ -193,6 +193,9 @@ local hosted = false
 function native.hostsPane() return hosted end
 local fieldKeysSent = nil
 function native.setFieldKeys(_, t) fieldKeysSent = t end
+local looked = nil
+function native.quickLook(_, path) record("quickLook"); looked = path end
+function native.quickLookPath() return looked end
 
 local function since(mark)
   local out = {}
@@ -586,6 +589,18 @@ do
   send("leftover", keyData(19, "cmd"))
   check("Command and 2 over the actions pane closes it", paneOpen, false)
   check("and chooses the list's second row, not the pane's", chosen, "two")
+
+  -- The Quick Look pane, step 1.4c. A path shows, the same path closes it, follow takes another
+  -- path into a pane already up and never opens one, and the pane's open button is Return.
+  paneOpen, chosen, looked = false, nil, nil
+  digits:show()
+  check("quickLook shows a path", digits:quickLook("/a/one") and looked, "/a/one")
+  check("the same path closes it", digits:quickLook("/a/one") and looked, nil)
+  check("follow opens no pane", digits:quickLook("/a/two", true) and looked, nil)
+  digits:quickLook("/a/one")
+  check("follow takes another path into a pane that is up", digits:quickLook("/a/two", true) and looked, "/a/two")
+  send("quickLookOpen")
+  check("the pane's open button chooses the highlighted row", chosen, "one")
 
   -- The bar's right side carries which labels give up width, the primary's and the secondary's,
   -- so Bar.swift cuts those and keeps Actions whole, the same rule bar.lua draws by.

@@ -240,6 +240,12 @@ return {
       -- to read a module local cache seeded only by the atom's own poll and never cleared on
       -- close, so a cold open answered whatever the previous session had highlighted. This
       -- word reads the shared widget directly instead.
+      -- The core's Quick Look pane over the list, step 1.4c, which the peek key opens and which
+      -- follows the highlight. Where the serving list has none, the canvas chooser, the peek
+      -- viewer's own panel answers instead.
+      quickLook = { source = "root", policy = "optional",
+        breaks = "the peek key opens the helper's own panel rather than the core's Quick Look pane, " ..
+                 "and the panel no longer follows the highlight" },
       stageSelectedItem = { source = "root", policy = "optional",
         breaks = "the pane, the peek key, reveal, and copy path all act on whatever the " ..
                  "previous session last highlighted rather than the row actually under the " ..

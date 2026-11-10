@@ -967,6 +967,23 @@ function Engine:selectedItem()
   return rowItem(listModel.highlightedRow(self.listState))
 end
 
+--- Engine colon quickLook, arity two. The Quick Look pane over this list, step 1.4c,
+--- docs/DESIGN-APP-QUICK-LOOK.md, for a view that has one, the swift chooser's. path already shown
+--- closes the pane and any other shows in it. follow true only takes path into a pane already up,
+--- the pane following the highlight, and never opens or closes it. Answers false for a view with
+--- no pane, the canvas view, so the caller can show the file some other way.
+function Engine:quickLook(path, follow)
+  local view = self.view
+  if not (view and view.quickLook and view.quickLookPath) then return false end
+  local shown = view:quickLookPath()
+  if follow then
+    if shown and path and shown ~= path then view:quickLook(path) end
+    return true
+  end
+  view:quickLook(shown ~= path and path or nil)
+  return true
+end
+
 --- Engine colon insertSelected, arity zero. Behaves exactly as Return does, asking intercept
 --- first and honouring a disabled row, through the shared colon underscore choose.
 function Engine:insertSelected()

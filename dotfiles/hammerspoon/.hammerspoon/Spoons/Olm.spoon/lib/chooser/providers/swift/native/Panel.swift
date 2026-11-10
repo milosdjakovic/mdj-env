@@ -129,11 +129,15 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   private let bar = BarView()
   private let keys = FloatingPaneView()
   private let actionsPop = FloatingPaneView()
+  // The Quick Look pane over the list, QuickLook.swift, step 1.4c.
+  private let lookPane = QuickLookPane()
+  // Whether the last Escape closed Quick Look, so its key repeat closes nothing more.
+  private var escapeClosedLook = false
   // The side that drives this panel, Source.swift, Lua's adapter in Entry.swift inside Hammerspoon.
   private let source: ChooserSource
   private let surfaces: SharedSurface
   private var style = Style()
-  private var placement = Placement()
+  private var placement = Placement() { didSet { lookPane.apply(style: style, placement: placement) } }
   private var state = ViewState()
   private var started = false
   private var inField = false
@@ -200,6 +204,9 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
 
     mainField.field.delegate = self
     actionsPop.foot.field.delegate = self
+    // The open button is the list's Return, which opens the highlighted row, the file the pane
+    // shows since it follows the highlight.
+    lookPane.onOpen = { [weak self] in _ = self?.ask("quickLookOpen", []) }
 
     root.addSubview(list)
     // The field stands on the window's stage over the list, which runs on up behind it, and out of
@@ -263,12 +270,23 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
 
   // Up and not on its way down, so a list fading out is already closed to Lua and to a pane.
   var isVisible: Bool { motion.isUp }
-  // The screen the list stands on, which Olm.app's Quick Look panel opens on.
-  var screen: NSScreen? { window.screen }
+  // MARK: Quick Look, QuickLook.swift
+
+  /// The path the Quick Look pane shows, nil while it is down.
+  var quickLookPath: String? { lookPane.path }
+
+  /// Shows path in the Quick Look pane on the list's screen, taking it in place when the pane is
+  /// up, or closes the pane for nil. Nothing while the list is down.
+  func quickLook(_ path: String?) {
+    guard let path else { return lookPane.close() }
+    guard isVisible else { return }
+    lookPane.show(path, on: window.screen)
+  }
   var isClosing: Bool { motion.closing }
 
   func applyStyle(_ next: Style) {
     style = next
+    lookPane.apply(style: style, placement: placement)
     surfaces.setCornerRadius(style.radius)
     applyLooks()
     list.apply(style: style, placement: placement)
@@ -478,6 +496,8 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   // animated false goes down at once, which a reload's cleanup asks for.
   func hide(animated: Bool = true) {
     list.table.forgetPress()
+    // The list going down takes Quick Look with it.
+    lookPane.close(animated: animated)
     // A pane the same key closed goes down whole with the list, FloatingPane's holdWholeForHide.
     if animated {
       keys.holdWholeForHide()
@@ -675,6 +695,14 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     list.flushReports()
     let data = Self.data(of: event)
     if event.keyCode == KeyCode.escape {
+      // Escape over Quick Look closes it alone, and its key repeat closes nothing more.
+      if lookPane.isOpen {
+        lookPane.close()
+        escapeClosedLook = true
+        return true
+      }
+      if event.isARepeat && escapeClosedLook { return true }
+      escapeClosedLook = false
       _ = ask("dismiss", [data])
       return true
     }
@@ -847,6 +875,8 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   private func outside(_ event: NSEvent) {
     guard started else { return }
     guard event.type == .leftMouseDown else { return }
+    // A press on Quick Look is a press on the list's own pane, not outside the list.
+    if lookPane.contains(NSEvent.mouseLocation) { return }
     let point = ScreenSpace.hsPoint(NSEvent.mouseLocation)
     _ = ask("pressOutside", [.number(point.x), .number(point.y)])
   }

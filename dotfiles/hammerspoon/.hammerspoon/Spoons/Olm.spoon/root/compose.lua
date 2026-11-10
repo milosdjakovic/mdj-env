@@ -1808,6 +1808,15 @@ function obj.run(olm, cfg)
     -- instance of its own has nowhere else to reach. One closure under one name, the
     -- identical shape stagePresent and redrawPresented already take, since the question is
     -- "what is the shared window doing right now" and never which plugin is asking it.
+    -- The core's Quick Look, a pane over the live list, step 1.4c, docs/DESIGN-APP-QUICK-LOOK.md.
+    -- quickLook(path) shows path, or closes the pane when it already shows it, and
+    -- quickLook(path, true) takes path into a pane already up, following the highlight. It
+    -- answers false where the serving list has no pane, the canvas chooser, so a plugin shows the
+    -- file its own way there.
+    quickLook = function(path, follow)
+      return stageModule ~= nil and stageModule:quickLook(path, follow) == true
+    end,
+
     stageSelectedRow = function()
       return stageModule and stageModule:selectedRow() or nil
     end,

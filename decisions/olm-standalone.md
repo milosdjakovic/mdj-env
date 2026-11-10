@@ -454,3 +454,15 @@ list, and until then that list stays on Lua.
   The panel refuses key, since in the app's process it would take key from the list, which closes
   on resigning it. The use Quick Look notes for frecency is left to 1.4d, and the app offers Quick
   Look without the Lua list's `askedPreview` gate, having no helper to compile.
+- 2026-11-10 10:05. Step 1.4c's first trial. Milos asked that Quick Look be one Olm glass pane
+  following Olm's radius, paddings, fonts and colours rather than macOS's panel, with a top line
+  of close disc, file name and an Open in button carrying the Return key cap, the content in a
+  rounded inset below, and that it live in the core for every plugin and both lists. He chose the
+  header and the core placement, and agreed that the pane follows the highlight, which the Lua
+  helper never did only because a process per arrow key was too slow, and which keeps the Return
+  key cap honest. Built as `native/QuickLook.swift` in the swift chooser's shared library, owned
+  by the panel, which keeps Escape, closing with the list and a press on it, and reached from Lua
+  by a root word `quickLook(path, follow)`. The note had the helper move into the core as the
+  word's fallback for the canvas chooser. In the build it stayed in file search instead, run only
+  where the word answers false, the same behaviour with no dependency moved. The app's own
+  `OlmCore/QuickLook.swift` from the first build was removed.

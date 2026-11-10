@@ -562,6 +562,17 @@ function View:hide()
   self.native.hide(self.id)
 end
 
+--- View colon quickLook, arity one. Shows path in the panel's Quick Look pane, native/QuickLook.swift,
+--- or closes the pane for nil.
+function View:quickLook(path)
+  self.native.quickLook(self.id, path)
+end
+
+--- View colon quickLookPath, arity zero. The path the Quick Look pane shows, nil while it is down.
+function View:quickLookPath()
+  return self.native.quickLookPath(self.id)
+end
+
 --- View colon isVisible, arity zero.
 function View:isVisible()
   return self.native.isVisible(self.id) == true
@@ -634,6 +645,8 @@ local handlers = {
   bottomBarAction = function(v, name) v.engine:bottomBarAction(name) end,
   pressOutside = function(v, x, y) v:_pressOutside(x, y) end,
   resignedKey = function(v) v.engine:hide() end,
+  -- The Quick Look pane's open button is Return on the highlighted row, the file it shows.
+  quickLookOpen = function(v) v.engine:insertSelected() end,
 }
 
 --------------------------------------------------------------------------------
