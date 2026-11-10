@@ -144,6 +144,18 @@ check(await source.run("peekPreview", on: Pick(key: FileSearchSource.askKey, que
   "Quick Look has nothing for a status row")
 check(source.manifest.actions.contains { $0.id == "peekPreview" && $0.title == "Quick Look" },
   "Quick Look is an action by the Lua list's verb name")
+check(await source.run("copyFile", on: Pick(key: "/a/b.md", query: "b")) == [.hide, .copyFile("/a/b.md")],
+  "Copy File hides and puts the file itself on the clipboard")
+check(await source.run("copyFile", on: Pick(key: FileSearchSource.askKey, query: "")) == [],
+  "Copy File has nothing for a status row")
+check(source.manifest.actions.contains { $0.id == "copyFile" && $0.title == "Copy File" },
+  "Copy File is an action by the Lua list's verb name")
+check(await source.label("copyFile", on: Pick(key: "/", query: "")) == "Copy Folder",
+  "over a folder Copy File reads Copy Folder")
+check(await source.label("copyFile", on: Pick(key: "/etc/hosts", query: "")) == nil,
+  "and over a file keeps its own word")
+check(await source.label("copyPath", on: Pick(key: "/", query: "")) == nil,
+  "and every other verb keeps its own word")
 check(FileSearchSource.shadowSkip("report", settings: settings) == nil
   && FileSearchSource.shadowSkip("re", settings: settings) != nil
   && FileSearchSource.shadowSkip("~/x/ foo", settings: settings) != nil,

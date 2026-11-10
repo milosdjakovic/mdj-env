@@ -1519,6 +1519,12 @@ do
   eq(hints.bottomBarModel("nothing", { contexts = {} }, deps).right[1].label, "Open",
     "bottomBar: a list no surface describes still chooses on Return")
   eq(hints.labelFor({ action = "deleteSelected" }, "bar"), "Delete Selected", "labels: an action with no words is spelled out")
+  local copy = { action = "copyFile", description = "Copy File" }
+  eq(hints.labelFor(copy, "bar", nil, { copyFile = "Copy Folder" }), "Copy Folder",
+    "labels: a level's word for a verb by its action name wins over its description")
+  eq(hints.labelFor(copy, "bar", nil, { copyFile = "" }), "Copy File", "labels: and an empty one falls back to it")
+  eq(hints.labelFor({ shared = "primary", action = "copyFile" }, "bar", nil, { copyFile = "Copy Folder" }), "Open",
+    "labels: a shared verb reads only its own primary or secondary word, never one by action")
 end
 
 -- Back is listed only where Backspace on an empty field leaves a level, and never beside a list's

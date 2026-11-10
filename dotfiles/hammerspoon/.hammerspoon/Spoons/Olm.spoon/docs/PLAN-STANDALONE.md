@@ -63,6 +63,7 @@ Stage 1, the file search pilot
 - [ ] 1.4i Files iCloud has not downloaded, a Download action and the preview pane naming its shortcut, after 1.4f
 - [x] 1.4j Folder permissions asked up front on file search's first open, asked again from the list, and kept across rebuilds, 2026-11-09
 - [ ] 1.4k Copy File and Copy Folder in file search, both lists, the file itself put on the clipboard as Finder's Copy puts it, beside Copy Path, asked by Milos on 2026-11-10, after 1.4c
+  - Built on branch `olm-app-copyfile`, Hyper and C, its word Copy Folder over a folder through the presentation's labels member by action name, which the bottom bar, the info pane and the actions pane all read, and in the app through the source's label, and waits for its hand trial.
 - [ ] 1.5 Parity, every feature of the Lua file search checked in the app, then the flip
 
 Stage 2, the bridge, read only

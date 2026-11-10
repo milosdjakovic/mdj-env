@@ -103,6 +103,7 @@ hyper	4	any	-	-	capture
 hyper	5	any	-	-	capture
 hyper	;	any	-	-	fileSearch
 hyper	a	any	clipboardOpen	100	clipboard
+hyper	c	any	fileSearchOpen	100	fileSearch
 hyper	d	any	clipboardOpen	100	clipboard
 hyper	d	any	fileSearchOpen	100	fileSearch
 hyper	e	any	-	-	menuSearch

@@ -477,3 +477,13 @@ list, and until then that list stays on Lua.
   by Hammerspoon again, Milos confirming every step, the pane's look, following the highlight,
   Escape closing the pane alone, a press on the pane, Return and the Open button opening the file
   shown, and the pane closing with the list. Step 1.4c is done, and 1.4k is next.
+- 2026-11-10 13:30. Step 1.4k, Copy File and Copy Folder, built, Milos having asked for it and
+  then for the build. One verb, `copyFile` on Hyper and C, puts the file or folder itself on the
+  clipboard as a file URL, the way Finder's Copy does, in the Lua list through
+  `hs.pasteboard.writeObjects` and in the app through a `copyFile` effect. Two verbs sharing c,
+  one per kind, was turned down, since the keymap refuses two actions on one slot. Its word over a
+  folder comes from the presentation's existing `labels` member, which now answers any verb by its
+  action name beside `primary` and `secondary`, so the bottom bar, the info pane and the actions
+  pane read one answer, and the app's source answers the same through a new `label` call. The
+  app's info pane now opens once the source has given its lines their words, so a line never
+  changes under the eye.

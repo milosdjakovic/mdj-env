@@ -78,6 +78,7 @@ hyper	4	any	-	-	capture
 hyper	5	any	-	-	capture
 hyper	;	any	-	-	fileSearch
 hyper	a	any	clipboardOpen	100	clipboard
+hyper	c	any	fileSearchOpen	100	fileSearch
 hyper	d	any	clipboardOpen	100	clipboard
 hyper	d	any	fileSearchOpen	100	fileSearch
 hyper	e	any	-	-	menuSearch
@@ -212,6 +213,7 @@ claim	hyper	4	shift+ctrl+alt+cmd
 claim	hyper	5	shift+ctrl+alt+cmd
 claim	hyper	;	shift+ctrl+alt+cmd
 claim	hyper	a	shift+ctrl+alt+cmd
+claim	hyper	c	shift+ctrl+alt+cmd
 claim	hyper	d	shift+ctrl+alt+cmd
 claim	hyper	e	shift+ctrl+alt+cmd
 claim	hyper	f	shift+ctrl+alt+cmd
