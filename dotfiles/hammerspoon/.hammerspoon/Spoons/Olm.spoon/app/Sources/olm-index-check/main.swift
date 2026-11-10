@@ -160,10 +160,11 @@ check(await source.label("copyFile", on: Pick(key: "/etc/hosts", query: "")) == 
 check(await source.label("copyPath", on: Pick(key: "/", query: "")) == nil,
   "and every other verb keeps its own word")
 check(FileSearchSource.shadowSkip("report", settings: settings) == nil
-  && FileSearchSource.shadowSkip("re", settings: settings) != nil
+  && FileSearchSource.shadowSkip("re", settings: settings) == nil
+  && FileSearchSource.shadowSkip("", settings: settings) == nil
   && FileSearchSource.shadowSkip("~/x/ foo", settings: settings) != nil
   && FileSearchSource.shadowSkip("~/x/", settings: settings) == nil,
-  "the shadow compares a search and a browse and skips the recent list and a search beneath a folder")
+  "the shadow compares a search, a browse and the recent list, step 1.4d, and skips a search beneath a folder")
 
 // Folder search, step 1.4e. The resolution and the up query over a stood in filesystem first.
 let fakeHome = "/Users/p"
@@ -416,6 +417,91 @@ check(shrunk?.w == 600 && pixels(shrunk) == 300,
   "and decodes a render only at the pixels it is drawn at")
 check(PanePicture.load(Preview.Picture(path: pictures.appendingPathComponent("broken.png").path), width: 100, scale: 2) == nil,
   "and answers nothing for a file it cannot read")
+
+// Frecency, step 1.4d, docs/DESIGN-APP-FRECENCY.md, the store on a clock of its own, then the
+// source floating and ranking by it.
+final class Clock: @unchecked Sendable { var t = 1_000_000 }
+let clock = Clock()
+let day = 86400
+let store = root.appendingPathComponent("frecency/frecency.json")
+let history = root.appendingPathComponent("frecency/history.json")
+func writeHistory(_ entries: [String: [String: Any]]) {
+  try? fm.createDirectory(at: history.deletingLastPathComponent(), withIntermediateDirectories: true)
+  try? JSONSerialization.data(withJSONObject: ["entries": entries]).write(to: history)
+}
+var gone: Set<String> = []
+let fr = Frecency(file: store, history: history, now: { clock.t }, exists: { !gone.contains($0) })
+fr.refresh()
+fr.note("/a")
+check(fr.score("/a") == 1 && fr.usedAt("/a") == clock.t, "a first use counts one, at its time")
+clock.t += 14 * day
+check(abs(fr.score("/a") - 0.5) < 1e-9, "and halves over the half life")
+fr.note("/a")
+check(abs(fr.score("/a") - 1.5) < 1e-9, "a use decays what was there and adds one")
+check(abs(fr.preference("/b")) < 1e-9 && abs(fr.preference("/a") - 1.5 / 3.5) < 1e-9,
+  "the bonus is used over used plus two, zero for a path never used")
+fr.note("/b")
+fr.note("/c"); fr.note("/c")
+check(fr.top(2) == ["/c", "/a"], "top answers the most used first")
+gone = ["/c"]
+check(fr.top(2) == ["/a", "/b"] && fr.usedAt("/c") == nil, "and forgets a gone path it passes over")
+gone = []
+fr.maxEntries = 2
+clock.t += day
+fr.note("/d")
+check(fr.usedAt("/b") == nil && fr.usedAt("/a") != nil && fr.usedAt("/d") != nil,
+  "past maxEntries the weakest is dropped")
+fr.maxEntries = 500
+writeHistory(["/lua1": ["score": 3, "at": 500], "/lua2": ["score": "2.5", "at": 400], "/bad": ["at": 1]])
+fr.refresh()
+check(fr.usedAt("/lua1") == 500 && fr.score("/lua2") > 0 && fr.usedAt("/a") == nil && fr.usedAt("/bad") == nil,
+  "a Lua history holding a newer use is taken in place, a malformed entry left out")
+fr.note("/mine")
+fr.refresh()
+check(fr.usedAt("/mine") != nil && fr.usedAt("/lua1") == 500, "the same history is not taken twice")
+let reread = Frecency(file: store, history: history, now: { clock.t })
+reread.refresh()
+check(reread.usedAt("/mine") != nil, "and what was taken is kept across a restart")
+writeHistory(["/lua3": ["score": 1, "at": 600]])
+reread.refresh()
+check(reread.usedAt("/lua3") == 600 && reread.usedAt("/mine") == nil, "a history newer still is taken again")
+writeHistory(["/old": ["score": 9, "at": 50]])
+reread.refresh()
+check(reread.usedAt("/old") == nil && reread.usedAt("/lua3") == 600, "and an older one is not")
+
+// The source over the index, with a store of its own on the real clock.
+let used = Frecency(file: nil, history: nil)
+let usedSource = FileSearchSource(context: context, index: files, settings: settings, frecency: used)
+await usedSource.open(settings: settings)
+func usedAnswer(_ raw: String) async -> [Row] {
+  generation += 1
+  guard let a = try? await usedSource.rows(Query(text: raw, generation: generation)) else { return [] }
+  return await searcher.rank(a, query: raw, level: level).rows
+}
+let recent = await usedAnswer("")
+let appJS = recent.first { $0.title == "app.js" }?.key ?? ""
+let notesDir = tree.appendingPathComponent("notes").path
+check(!appJS.isEmpty && !recent.contains { $0.key == notesDir }, "the recent list holds app.js and no folder")
+_ = await usedSource.run("reveal", on: Pick(key: appJS, query: ""))
+_ = await usedSource.run("browseInto", on: Pick(key: notesDir, query: ""))
+_ = await usedSource.run("browseInto", on: Pick(key: notesDir, query: ""))
+check(used.usedAt(appJS) != nil && used.usedAt(notesDir) != nil, "an action notes the row it acted on")
+let floated = await usedAnswer("")
+check(floated.first?.key == notesDir && floated.dropFirst().first?.key == appJS,
+  "the recent list leads with the paths used most, a missing one built")
+check(floated.filter { $0.key == appJS }.count == 1, "and one the dates held moved rather than repeated")
+check((await usedAnswer(".md")).first { $0.key == notesDir } == nil, "a type leaves the float out")
+let searched = await usedAnswer("app")
+check((searched.first { $0.key == appJS }?.bonus ?? 0) > 0, "a searched row carries its use as a bonus")
+check((await answer("app"))?.rows.allSatisfy { $0.bonus == 0 } == true, "and a source with no store, the shadow's, none")
+let upPick = Pick(key: tree.path, query: notesDir + "/")
+check(await usedSource.choose(upPick) != [] && used.usedAt(tree.path) == nil, "the .. row notes no use")
+_ = await usedSource.choose(Pick(key: FileSearchSource.askKey, query: ""))
+check(used.usedAt(FileSearchSource.askKey) == nil, "nor a row that is no file")
+let pane = await usedSource.preview(Pick(key: appJS, query: ""))
+check(pane?.facts.contains { $0.label == "USED" && $0.color == .subtext } == true, "the pane says when it was used")
+let unusedPane = await usedSource.preview(Pick(key: tree.appendingPathComponent("notes/report.md").path, query: ""))
+check(unusedPane?.facts.contains { $0.label == "USED" } == false, "and says nothing of a file never used")
 
 print(failures == 0 ? "olm-index-check, every check passed" : "olm-index-check, \(failures) FAILED")
 exit(failures == 0 ? 0 : 1)

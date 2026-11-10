@@ -71,6 +71,12 @@ list, and until then that list stays on Lua.
   `intercept` answers true for a seeded query, a pushed tool and an action alike, and a plugin may
   pop and redraw in one handler, so the answer is the ordered list of stage effects the handler
   caused, recorded by a facade of the `Stage` the composition root hands out.
+- **The app reading Hammerspoon's defaults domain for the frecency history.** 2026-11-10 17:05.
+  It would put a second copy of the `hs.settings` key and of Hammerspoon's bundle id in the app.
+  The root writes the history into a share for a served list instead, from the plugin's own word.
+- **The app taking the Lua frecency history once ever.** 2026-11-10 17:05. Every trial is a flip
+  and a back out, so the first trial would freeze the history and the real flip in 1.5 would miss
+  every use made in the Lua list since.
 
 ## Log
 
@@ -512,3 +518,12 @@ list, and until then that list stays on Lua.
   confirming a browse with its `..` row going up in place, Into Folder and Up a Level, a search
   beneath a folder, a hidden one, a folder that is not there, an empty folder, and an unscoped
   search unchanged. Step 1.4e is done.
+- 2026-11-10 17:05. Step 1.4d, frecency in the app, design note `docs/DESIGN-APP-FRECENCY.md`
+  agreed and built. The app keeps a port of `frecency.lua` in its own state folder, gives every row
+  its use as a bonus, floats the paths used most to the top of the plain recent list, notes a use
+  on every action but the `..` row's, and shows USED in the preview pane. Milos chose the history
+  reaching the app through a `<tool>history.json` share the root writes for a served list from the
+  plugin's `history` word, and the app taking it whenever it holds a use newer than the newest it
+  took last time, so each flip carries the latest Lua history over and a reload while the app
+  serves takes nothing. The shadow now compares the recent list, frecency left out on both sides,
+  the Lua engine handing its dates before the float and the shadow's own source keeping no store.

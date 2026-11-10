@@ -101,6 +101,7 @@ function obj:init()
   self._activeHandle = nil
   self._recentsHandle = nil
   self._recents = nil
+  self._recentDates = nil
   return self
 end
 
@@ -531,6 +532,9 @@ function obj:_fetchRecents()
     -- pruned path you deliberately used still comes back, since it is added by name rather than
     -- surviving the filter, and the date half of the list stays clean.
     rows = self:_denoise(rows or {}, parsed)
+    -- The date half alone, before the float, which is what the shadow compares, since each side
+    -- floats from a history of its own, docs/DESIGN-APP-FRECENCY.md.
+    self._recentDates = rows
     -- Merged once here rather than on every redraw, so the list cannot reorder itself under
     -- someone who is reading it, and the stat calls happen once per open.
     self._recents = self:_float(rows)
@@ -655,11 +659,14 @@ end
 --- engine:held() -> { query, status, items }, what the list holds now as the shared search reads
 --- it. items are the rows in their source's order, each searched by its file name as the list's
 --- own rows are, chooser.searchName, and keyed by its path, without the bonus a person's use adds,
---- since that is the one part of the order the history decides rather than the query.
+--- since that is the one part of the order the history decides rather than the query. The recent
+--- list is handed as the dates gave it, before the float, for the same reason, step 1.4d.
 function obj:held()
   local name = obj.chooser and obj.chooser.searchName or function(r) return r.name or r.path end
   local items = {}
-  for _, r in ipairs(self._display or {}) do
+  local display = self._display or {}
+  if self._recentDates and display == self._recents then display = self._recentDates end
+  for _, r in ipairs(display) do
     local title = name(r)
     items[#items + 1] = { title = title, filterText = title, key = r.path, item = r }
   end

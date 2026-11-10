@@ -13,7 +13,9 @@
 // unscoped query shorter than minChars hands over the
 // recent list, which the stage ranks by the text typed so far, as the Lua side hands its recent
 // rows to the shared search. A scoped query, a folder walk on the Lua side, is step 1.4e and says
-// so. Frecency, the row's bonus on the Lua side, is step 1.4d, so every bonus here is zero.
+// so. Frecency, step 1.4d, Frecency.swift, gives every row the bonus of how much you use it and
+// floats the paths you use most to the top of the recent list, as engine.lua's preference and
+// _float do. The shadow's source keeps none, so it compares the order the query decides.
 //
 // It answers the preview pane too, step 1.4a, Preview.swift, the highlighted row read in process on
 // a thread of its own and described as the Lua side pane describes it, and since step 1.4b its
@@ -44,6 +46,10 @@ public struct FileSearchSettings: Equatable, Sendable {
   public var timeoutSeconds = 5.0
   /// The walker's path as Hammerspoon's dependency door resolved it, nil where fd is missing.
   public var walker: String?
+  /// Frecency's half life and size, and how many of the paths you use most lead the recent list.
+  public var frecencyHalfLifeDays = 14.0
+  public var frecencyMaxEntries = 500
+  public var recentFloat = 8
   public init() {}
 
   /// config/filesearch.lua's settings as the bridge wrote them, or the Lua defaults.
@@ -62,6 +68,9 @@ public struct FileSearchSettings: Equatable, Sendable {
     if let roots = doc["roots"] as? [String: String] { settings.roots = roots }
     if let prune = doc["prune"] as? [String] { settings.prune = prune }
     if let n = (limits["timeoutSeconds"] as? NSNumber)?.doubleValue { settings.timeoutSeconds = n }
+    if let n = (limits["frecencyHalfLifeDays"] as? NSNumber)?.doubleValue { settings.frecencyHalfLifeDays = n }
+    if let n = limits["frecencyMaxEntries"] as? Int { settings.frecencyMaxEntries = n }
+    if let n = limits["recentFloat"] as? Int { settings.recentFloat = n }
     // The tools the list declares, resolved by the door and written by the root, step 1.4e.
     if let data = try? Data(contentsOf: run.appendingPathComponent("filesearchtools.json")),
       let tools = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -115,6 +124,14 @@ public actor FileSearchSource: ListSource {
   // never ask. Step 1.4j, Access.swift.
   private let access: FolderAccess?
   private var accessState = FolderAccess.State()
+  // What you use, the person's list only, nil for the shadow and a check that hands none in.
+  private let frecency: Frecency?
+
+  /// Where the person's list keeps its uses, and the Lua history the root shares, step 1.4d.
+  public static func frecency(_ context: PluginContext) -> Frecency {
+    Frecency(file: context.store.appendingPathComponent("frecency.json"),
+      history: context.run.appendingPathComponent("filesearchhistory.json"))
+  }
 
   /// The keys of the two rows the permissions add, never a path, since a path starts with a slash.
   public static let askKey = "olm:folder-access"
@@ -123,8 +140,10 @@ public actor FileSearchSource: ListSource {
   /// asksAccess is the person's list, which asks for the folder permissions on its first open,
   /// access the folders and the file, handed in by a check.
   public init(context: PluginContext, index: FileIndex? = nil, settings: FileSearchSettings? = nil,
-              asksAccess: Bool = false, access: FolderAccess? = nil, insideFrom: Int? = 3) {
+              asksAccess: Bool = false, access: FolderAccess? = nil, insideFrom: Int? = 3,
+              frecency: Frecency? = nil) {
     self.context = context
+    self.frecency = frecency
     self.insideFrom = insideFrom
     self.access = access ?? (asksAccess
       ? FolderAccess(home: FileManager.default.homeDirectoryForCurrentUser, store: context.store) : nil)
@@ -142,6 +161,7 @@ public actor FileSearchSource: ListSource {
     rendering = [:]
     await thumbs.forget()
     if let access { accessState = await access.recheck(access.load()) }
+    useSettings()
     return Level(placeholder: settings.placeholder, ranking: .app, rowLimit: settings.rowLimit,
       titleLineBreak: "truncateMiddle", previewSettleMs: settings.preview.settleMs)
   }
@@ -150,6 +170,15 @@ public actor FileSearchSource: ListSource {
   public func open(settings: FileSearchSettings) {
     self.settings = settings
     held = nil
+    useSettings()
+  }
+
+  // Frecency's limits from the settings, and the Lua history taken when it holds a newer use.
+  private func useSettings() {
+    guard let frecency else { return }
+    frecency.halfLifeDays = settings.frecencyHalfLifeDays
+    frecency.maxEntries = settings.frecencyMaxEntries
+    frecency.refresh()
   }
 
   public func rows(_ query: Query) async throws -> RowsAnswer {
@@ -181,8 +210,10 @@ public actor FileSearchSource: ListSource {
     let short = q.kind == .search && q.text.utf8.count < settings.minChars
     let asked = short ? FileQueryGrammar.parse("", types: settings.types) : q
     // The recent list held already answers any short text, the same list ranked again.
+    // The plain recent list leads with what you use, engine:_float, a type or the dot leaving it out.
+    let floats = asked.kind == .recent && asked.exts == nil && !asked.hidden
     if let held, asked.kind != .search, held.query == asked {
-      return answer(held.rows, q, empty)
+      return answer(held.rows, q, empty, float: floats)
     }
     asks += 1
     index.recentDays = settings.recentDays
@@ -197,7 +228,7 @@ public actor FileSearchSource: ListSource {
       return RowsAnswer(rows: [], status: "The file index could not be read")
     }
     held = (asked, rows)
-    return answer(rows, q, empty)
+    return answer(rows, q, empty, float: floats)
   }
 
   private static var home: String { FileManager.default.homeDirectoryForCurrentUser.path }
@@ -226,7 +257,7 @@ public actor FileSearchSource: ListSource {
         ? try await walk.browse(dir, cap: settings.retainCap)
         : try await walk.search(q, dir: dir, cap: settings.retainCap)
       if q.kind == .browse, rows.isEmpty { return Self.said(up, "Empty folder") }
-      return RowsAnswer(rows: up + rows.map { Self.row($0, home: home) }, rankText: q.text,
+      return RowsAnswer(rows: up + rows.map { Self.row($0, home: home, bonus: bonus($0.path)) }, rankText: q.text,
         emptyStatus: "No matches")
     } catch is CancellationError {
       throw CancellationError()
@@ -269,15 +300,52 @@ public actor FileSearchSource: ListSource {
     return q.kind == .browse && Self.upPath(q, settings: settings) == pick.key
   }
 
-  private func answer(_ rows: [IndexRow], _ q: FileQuery, _ empty: String) -> RowsAnswer {
+  private func answer(_ rows: [IndexRow], _ q: FileQuery, _ empty: String, float: Bool = false) -> RowsAnswer {
     let home = FileManager.default.homeDirectoryForCurrentUser.path
-    return RowsAnswer(rows: rows.map { Self.row($0, home: home) }, rankText: q.text, emptyStatus: empty)
+    let listed = float ? self.float(rows) : rows
+    return RowsAnswer(rows: listed.map { Self.row($0, home: home, bonus: bonus($0.path)) }, rankText: q.text,
+      emptyStatus: empty)
   }
 
-  static func row(_ r: IndexRow, home: String) -> Row {
+  // How much you use a path, the row's bonus, engine:preference.
+  private func bonus(_ path: String) -> Double { frecency?.preference(path) ?? 0 }
+
+  /// engine:_float, the paths you use most ahead of the recent list's dates, recentFloat of them.
+  /// One the dates hold is moved up, keeping its date, and one they lack is built and stat'd.
+  func float(_ rows: [IndexRow]) -> [IndexRow] {
+    guard let frecency, settings.recentFloat > 0 else { return rows }
+    let top = frecency.top(settings.recentFloat)
+    guard !top.isEmpty else { return rows }
+    var byPath: [String: IndexRow] = [:]
+    for r in rows where byPath[r.path] == nil { byPath[r.path] = r }
+    var out: [IndexRow] = []
+    var seen = Set<String>()
+    for path in top where seen.insert(path).inserted {
+      out.append(byPath[path] ?? Self.stat(path))
+    }
+    out += rows.filter { !seen.contains($0.path) }
+    return out
+  }
+
+  // A row no source returned, as the index would have written it.
+  static func stat(_ path: String) -> IndexRow {
+    let attrs = try? FileManager.default.attributesOfItem(atPath: path)
+    let mtime = (attrs?[.modificationDate] as? Date).map { Int($0.timeIntervalSince1970) } ?? 0
+    let isDir = attrs?[.type] as? FileAttributeType == .typeDirectory
+    return IndexRow(path: path, mtime: mtime, isDir: isDir, hidden: (path as NSString).lastPathComponent.hasPrefix("."))
+  }
+
+  static func row(_ r: IndexRow, home: String, bonus: Double = 0) -> Row {
     let dir = (r.path as NSString).deletingLastPathComponent
     let shown = dir.hasPrefix(home) ? "~" + dir.dropFirst(home.count) : dir
-    return Row(key: r.path, title: r.name, subtitle: shown, icon: .file(r.path), filterText: r.name)
+    return Row(key: r.path, title: r.name, subtitle: shown, icon: .file(r.path), filterText: r.name, bonus: bonus)
+  }
+
+  /// chooser.lua's noteUse, every action on a row counting the same, the `..` row and the rows
+  /// that are no file excepted.
+  private func use(_ pick: Pick) {
+    guard let frecency, !pick.key.hasPrefix("olm:"), !isUp(pick) else { return }
+    frecency.note(pick.key)
   }
 
   public func choose(_ pick: Pick) async -> [Effect] {
@@ -303,12 +371,14 @@ public actor FileSearchSource: ListSource {
         FileQueryGrammar.parse(pick.query, types: settings.types).scope, roots: settings.roots, home: Self.home) {
         return [.setQuery(query)]
       }
+      use(pick)
       return [.hide, .openFile(pick.key)]
     }
   }
 
   public func run(_ action: String, on pick: Pick) async -> [Effect] {
     guard !pick.key.hasPrefix("olm:") else { return [] }
+    if ["reveal", "copyPath", "copyFile", "browseInto", "peekPreview"].contains(action) { use(pick) }
     switch action {
     case "reveal": return [.hide, .revealFile(pick.key)]
     // A plain clipboard write, then the list closes, chooser.lua's copyPath.
@@ -326,8 +396,7 @@ public actor FileSearchSource: ListSource {
       let scope = FileQueryGrammar.parse(pick.query, types: settings.types).scope
       guard let query = FolderScope.upQuery(scope, roots: settings.roots, home: Self.home) else { return [] }
       return [.setQuery(query)]
-    // Over the list, which stays up, chooser.lua's peekPreview, step 1.4c. The use it notes for
-    // frecency is the app's own from 1.4d.
+    // Over the list, which stays up, chooser.lua's peekPreview, step 1.4c.
     case "peekPreview": return [.quickLook(pick.key)]
     default: return []
     }
@@ -370,13 +439,13 @@ public actor FileSearchSource: ListSource {
     let limits = settings.preview
     // A file in a folder macOS refused says so, since nothing in it can be read.
     if let access, let folder = access.refusedFolder(of: pick.key, in: accessState) {
-      var preview = Self.describe(pick.key, isDir: false, peek: nil, limits: limits, picture: nil)
+      var preview = describe(pick.key, isDir: false, peek: nil, limits: limits, picture: nil)
       preview.body = Preview.Body(label: "PREVIEW", facts: folder + " not allowed")
       return preview
     }
     if let quick = await Self.bounded(limits.peekSeconds, { Peek.attributes(pick.key) }) ?? nil, quick.dataless {
       if Task.isCancelled { return nil }
-      var preview = Self.describe(pick.key, isDir: false, peek: Peek(attrs: quick.attrs), limits: limits, picture: nil)
+      var preview = describe(pick.key, isDir: false, peek: Peek(attrs: quick.attrs), limits: limits, picture: nil)
       preview.body = Preview.Body(label: "PREVIEW", facts: Self.notDownloaded)
       return preview
     }
@@ -412,7 +481,7 @@ public actor FileSearchSource: ListSource {
     let picture = await thumbs.landed(row.spec, limits: limits)
     if Task.isCancelled || picture == .rendering { return nil }
     rendering[pick.key] = nil
-    return Self.describe(pick.key, isDir: row.isDir, peek: row.peek, limits: limits, picture: picture)
+    return describe(pick.key, isDir: row.isDir, peek: row.peek, limits: limits, picture: picture)
   }
 
   // The whole read of a row, its head or folder and its picture, bounded by seconds.
@@ -434,14 +503,14 @@ public actor FileSearchSource: ListSource {
       if Task.isCancelled { return nil }
       if picture == .rendering { rendering[pick.key] = (spec, isDir, peek) }
     }
-    return Self.describe(pick.key, isDir: isDir, peek: peek, limits: limits, picture: picture)
+    return describe(pick.key, isDir: isDir, peek: peek, limits: limits, picture: picture)
   }
 
-  private static func describe(_ path: String, isDir: Bool, peek: Peek?, limits: PreviewLimits,
-                               picture: PictureState?) -> Preview {
+  private func describe(_ path: String, isDir: Bool, peek: Peek?, limits: PreviewLimits,
+                        picture: PictureState?) -> Preview {
     PreviewDescriber.describe(path: path, isDir: isDir, peek: peek, limits: limits,
       now: Int(Date().timeIntervalSince1970), home: FileManager.default.homeDirectoryForCurrentUser.path,
-      picture: picture)
+      picture: picture, usedAt: frecency?.usedAt(path))
   }
 
   // What work answers, or nil once seconds pass first. Work stuck on a disk that is not there
@@ -476,16 +545,12 @@ public actor FileSearchSource: ListSource {
 
   /// Why the shadow of step 1.3e leaves a query out, or nil to compare it. A browse is compared,
   /// since ls orders it, and a search beneath a folder is not, since fd answers in no fixed order
-  /// and stops at its cap, Milos's call on 2026-11-10. The recent list is ordered by frecency on
-  /// the Lua side, step 1.4d.
+  /// and stops at its cap, Milos's call on 2026-11-10. The recent list is compared since step 1.4d,
+  /// with frecency left out on both sides, the Lua side handing its dates before the float and the
+  /// shadow's source keeping no store, docs/DESIGN-APP-FRECENCY.md.
   public static func shadowSkip(_ raw: String, settings: FileSearchSettings) -> String? {
     let q = FileQueryGrammar.parse(raw, types: settings.types)
-    if q.scope != nil {
-      return q.kind == .browse ? nil : "a search beneath a folder, which fd answers in no fixed order"
-    }
-    if q.kind != .search || q.text.utf8.count < settings.minChars {
-      return "the recent list, ordered by frecency on the Lua side, step 1.4d"
-    }
+    if q.scope != nil, q.kind != .browse { return "a search beneath a folder, which fd answers in no fixed order" }
     return nil
   }
 }

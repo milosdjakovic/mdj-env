@@ -192,6 +192,13 @@ local function insideFromOf(matcher)
   end
   return nil
 end
+--- obj:history() -> { entries = { [path] = { score, at } } }, every use frecency holds, for the
+--- root to hand Olm.app while the app serves this list, docs/DESIGN-APP-FRECENCY.md, so the
+--- settings key stays named here alone.
+function obj:history()
+  return { entries = obj.frecency.export() }
+end
+
 function obj:configure(opts)
   opts = opts or {}
   local policy = opts.policy or {}

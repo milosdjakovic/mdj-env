@@ -176,6 +176,15 @@ function M.top(n)
   return out
 end
 
+--- frecency.export() -> { [path] = { score, at } }, a copy of every use held, undecayed
+--- What Olm.app takes when it serves file search, docs/DESIGN-APP-FRECENCY.md. The app decays it
+--- by the same half life, so the copy is the store as written rather than as read now.
+function M.export()
+  local out = {}
+  for path, e in pairs(load()) do out[path] = { score = e.score, at = e.at } end
+  return out
+end
+
 --- frecency.forget(path) - drop one path, for a caller that knows it is gone or unwanted.
 function M.forget(path)
   local s = load()
