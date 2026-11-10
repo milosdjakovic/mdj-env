@@ -2911,6 +2911,22 @@ function obj.run(olm, cfg)
         return nil, "no list context is owned by " .. tostring(identity)
       end)
     end
+    -- The tools each list the app serves declares, resolved through the one door, so the app runs
+    -- the very binaries this side does and no tool is looked up twice, file search's fd for its
+    -- folder search, step 1.4e. A tool that did not resolve is left out, and the app says so the
+    -- way this side's source does.
+    if bridgeModule and type(bridgeModule.shareEach) == "function" then
+      bridgeModule:shareEach("tools", function(identity)
+        local manifest = manifests[identity]
+        if not manifest then return nil, "no manifest for " .. tostring(identity) end
+        local paths = {}
+        for _, tool in ipairs((manifest.needs or {}).tools or {}) do
+          local path = sharedDepsScope.path(tool.name)
+          if type(path) == "string" then paths[tool.name] = path end
+        end
+        return { paths = paths }
+      end)
+    end
     wireShadows(bridgeModule, modules, wiredRegistry, chooserAtom.rank,
       chooserAtom.matchers and chooserAtom.matchers[policy.matcher])
   end

@@ -506,6 +506,9 @@ public final class Stage {
       // The file already shown closes the pane and another shows in it, the panel's own Quick Look,
       // native/QuickLook.swift.
       case .quickLook(let path): panel.quickLook(panel.quickLookPath == path ? nil : path)
+      case .setQuery(let text):
+        panel.setText(text)
+        search(text)
       case .copyText(let text):
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)

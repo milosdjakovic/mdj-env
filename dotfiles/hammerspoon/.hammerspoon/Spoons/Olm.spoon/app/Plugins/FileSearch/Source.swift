@@ -38,6 +38,12 @@ public struct FileSearchSettings: Equatable, Sendable {
   public var placeholder = ""
   /// The preview block, what one highlighted row may cost.
   public var preview = PreviewLimits()
+  /// The folder aliases, `dl/` for Downloads, and the names a walk never descends into, step 1.4e.
+  public var roots: [String: String] = [:]
+  public var prune: [String] = []
+  public var timeoutSeconds = 5.0
+  /// The walker's path as Hammerspoon's dependency door resolved it, nil where fd is missing.
+  public var walker: String?
   public init() {}
 
   /// config/filesearch.lua's settings as the bridge wrote them, or the Lua defaults.
@@ -53,6 +59,15 @@ public struct FileSearchSettings: Equatable, Sendable {
     if let n = limits["recentCount"] as? Int { settings.recentCount = n }
     settings.placeholder = doc["placeholder"] as? String ?? ""
     settings.preview = PreviewLimits(doc["preview"] as? [String: Any] ?? [:])
+    if let roots = doc["roots"] as? [String: String] { settings.roots = roots }
+    if let prune = doc["prune"] as? [String] { settings.prune = prune }
+    if let n = (limits["timeoutSeconds"] as? NSNumber)?.doubleValue { settings.timeoutSeconds = n }
+    // The tools the list declares, resolved by the door and written by the root, step 1.4e.
+    if let data = try? Data(contentsOf: run.appendingPathComponent("filesearchtools.json")),
+      let tools = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+      let paths = tools["paths"] as? [String: String] {
+      settings.walker = paths["fd"]
+    }
     return settings
   }
 }
@@ -65,6 +80,9 @@ public actor FileSearchSource: ListSource {
     Action(id: "copyFile", title: "Copy File"),
     // The Lua list's verb name, so q under the list leader and the actions pane's row reach it.
     Action(id: "peekPreview", title: "Quick Look"),
+    // A folder's own level and the one above, step 1.4e, chooser.lua's browseInto and browseUp.
+    Action(id: "browseInto", title: "Into Folder"),
+    Action(id: "browseUp", title: "Up a Level"),
   ], previewPane: PreviewPane(emptyText: FileSearchSource.paneEmptyText))
 
   /// What the pane says while nothing is highlighted, plugins/filesearch/chooser.lua's emptyText.
@@ -72,6 +90,9 @@ public actor FileSearchSource: ListSource {
 
   private let context: PluginContext
   private let index: FileIndex
+  // How many letters a word needs before the shared search keeps it inside a word,
+  // Match.swift's INSIDE_MIN, handed to the walker as the Lua root hands walk.lua its insideFrom.
+  private let insideFrom: Int?
   public private(set) var settings: FileSearchSettings
   // What the rows held answer, set only from an index answer.
   private var held: (query: FileQuery, rows: [IndexRow])? {
@@ -102,8 +123,9 @@ public actor FileSearchSource: ListSource {
   /// asksAccess is the person's list, which asks for the folder permissions on its first open,
   /// access the folders and the file, handed in by a check.
   public init(context: PluginContext, index: FileIndex? = nil, settings: FileSearchSettings? = nil,
-              asksAccess: Bool = false, access: FolderAccess? = nil) {
+              asksAccess: Bool = false, access: FolderAccess? = nil, insideFrom: Int? = 3) {
     self.context = context
+    self.insideFrom = insideFrom
     self.access = access ?? (asksAccess
       ? FolderAccess(home: FileManager.default.homeDirectoryForCurrentUser, store: context.store) : nil)
     thumbs = Thumbs(dir: Self.previewsDir(context))
@@ -152,7 +174,7 @@ public actor FileSearchSource: ListSource {
 
   private func search(_ query: Query) async throws -> RowsAnswer {
     let q = FileQueryGrammar.parse(query.text, types: settings.types)
-    if q.scope != nil { return RowsAnswer(rows: [], status: "A folder search comes with a later step") }
+    if q.scope != nil { return try await folder(q) }
     let empty = q.kind == .search ? "No matches" : "Nothing changed lately"
     // What the index is asked for. An unscoped search too short to be worth asking is the recent
     // list, the Lua side's minChars, and the rows are still ranked by what was typed.
@@ -176,6 +198,75 @@ public actor FileSearchSource: ListSource {
     }
     held = (asked, rows)
     return answer(rows, q, empty)
+  }
+
+  private static var home: String { FileManager.default.homeDirectoryForCurrentUser.path }
+
+  /// A query naming a folder, a browse of one level with the `..` row first, or a search beneath
+  /// it, walk.lua's two modes, docs/DESIGN-APP-FOLDER-SEARCH.md. Each failure is worded as the Lua
+  /// list's status row words it.
+  private func folder(_ q: FileQuery) async throws -> RowsAnswer {
+    let home = Self.home
+    held = nil
+    guard let dir = FolderScope.resolve(q.scope ?? "", roots: settings.roots, home: home) else {
+      return RowsAnswer(rows: [], status: "No such folder")
+    }
+    let walk = FolderWalk(fd: settings.walker, prune: settings.prune, insideFrom: insideFrom,
+      timeoutSeconds: settings.timeoutSeconds)
+    var up: [Row] = []
+    if q.kind == .browse, let parent = Self.upPath(q, settings: settings) {
+      up = [Self.upRow(parent, home: home)]
+    }
+    if q.kind == .search, settings.walker == nil {
+      return RowsAnswer(rows: [], status: "Nothing can answer that")
+    }
+    do {
+      asks += 1
+      let rows = q.kind == .browse
+        ? try await walk.browse(dir, cap: settings.retainCap)
+        : try await walk.search(q, dir: dir, cap: settings.retainCap)
+      if q.kind == .browse, rows.isEmpty { return Self.said(up, "Empty folder") }
+      return RowsAnswer(rows: up + rows.map { Self.row($0, home: home) }, rankText: q.text,
+        emptyStatus: "No matches")
+    } catch is CancellationError {
+      throw CancellationError()
+    } catch WalkError.timedOut {
+      return Self.said(up, "Timed out")
+    } catch {
+      return Self.said(up, q.kind == .browse ? "Could not list that folder" : "Search failed")
+    }
+  }
+
+  /// The key of a row that says what a folder holds rather than being a file.
+  public static let statusKey = "olm:folder-status"
+
+  // A status beside the `..` row is a row of its own under it, as the Lua list's status row is,
+  // since the list says a status only while it holds no row. With no `..` row it is the status.
+  static func said(_ up: [Row], _ status: String) -> RowsAnswer {
+    guard !up.isEmpty else { return RowsAnswer(rows: [], status: status) }
+    return RowsAnswer(rows: up + [Row(key: statusKey, title: status, subtitle: "",
+      icon: .symbol("folder"), pinned: true)])
+  }
+
+  /// The folder above a query's scope, expanded, the path the `..` row stands for, nil without one.
+  static func upPath(_ q: FileQuery, settings: FileSearchSettings) -> String? {
+    guard let query = FolderScope.upQuery(q.scope, roots: settings.roots, home: home) else { return nil }
+    var path = FolderScope.expandHome(query, home: home)
+    while path.count > 1, path.hasSuffix("/") { path.removeLast() }
+    return path
+  }
+
+  /// chooser.lua's upRow, an ordinary folder row for the parent titled with two dots, pinned first.
+  static func upRow(_ parent: String, home: String) -> Row {
+    let shown = parent.hasPrefix(home) ? "~" + parent.dropFirst(home.count) : parent
+    return Row(key: parent, title: "..", subtitle: "up to " + shown, icon: .file(parent), filterText: "..",
+      pinned: true)
+  }
+
+  // Whether a pick is the `..` row of the query it was made under.
+  private func isUp(_ pick: Pick) -> Bool {
+    let q = FileQueryGrammar.parse(pick.query, types: settings.types)
+    return q.kind == .browse && Self.upPath(q, settings: settings) == pick.key
   }
 
   private func answer(_ rows: [IndexRow], _ q: FileQuery, _ empty: String) -> RowsAnswer {
@@ -204,7 +295,14 @@ public actor FileSearchSource: ListSource {
       }
       accessState = next
       return [.reopen]
+    case Self.statusKey:
+      return []
     default:
+      // The `..` row goes up a level in place, chooser.lua's intercept.
+      if isUp(pick), let query = FolderScope.upQuery(
+        FileQueryGrammar.parse(pick.query, types: settings.types).scope, roots: settings.roots, home: Self.home) {
+        return [.setQuery(query)]
+      }
       return [.hide, .openFile(pick.key)]
     }
   }
@@ -215,7 +313,19 @@ public actor FileSearchSource: ListSource {
     case "reveal": return [.hide, .revealFile(pick.key)]
     // A plain clipboard write, then the list closes, chooser.lua's copyPath.
     case "copyPath": return [.hide, .copyText(pick.key)]
-    case "copyFile": return [.hide, .copyFile(pick.key)]
+    // The `..` row is where the list stands rather than a thing chosen, chooser.lua's copyFile.
+    case "copyFile": return isUp(pick) ? [] : [.hide, .copyFile(pick.key)]
+    // A folder's own level, the folder written as a scope, engine.lua's browseQueryFor.
+    case "browseInto":
+      guard FolderScope.isDir(pick.key) else { return [] }
+      var path = pick.key
+      while path.count > 1, path.hasSuffix("/") { path.removeLast() }
+      return [.setQuery(path == "/" ? "/" : path + "/")]
+    // The level above the folder the query names, engine.lua's upQuery.
+    case "browseUp":
+      let scope = FileQueryGrammar.parse(pick.query, types: settings.types).scope
+      guard let query = FolderScope.upQuery(scope, roots: settings.roots, home: Self.home) else { return [] }
+      return [.setQuery(query)]
     // Over the list, which stays up, chooser.lua's peekPreview, step 1.4c. The use it notes for
     // frecency is the app's own from 1.4d.
     case "peekPreview": return [.quickLook(pick.key)]
@@ -224,13 +334,15 @@ public actor FileSearchSource: ListSource {
   }
 
   /// The three gates chooser.lua's colon methods answer. isEntry is a real file or folder rather
-  /// than a permission row, isFolder a real folder, and isBrowsing a query browsing a folder, which
-  /// the app answers no to until its folder search, step 1.4e, so Into Folder and Up a Level stay
-  /// off its actions pane until then.
+  /// than a permission row, isFolder a real folder, and isBrowsing a query naming a folder with
+  /// one above it, step 1.4e.
   public func applies(_ gate: String, on pick: Pick) async -> Bool {
     switch gate {
     case "isEntry": return !pick.key.hasPrefix("olm:")
-    case "isFolder", "isBrowsing": return false
+    case "isFolder": return !pick.key.hasPrefix("olm:") && FolderScope.isDir(pick.key)
+    case "isBrowsing":
+      let scope = FileQueryGrammar.parse(pick.query, types: settings.types).scope
+      return FolderScope.upQuery(scope, roots: settings.roots, home: Self.home) != nil
     default: return true
     }
   }
@@ -362,11 +474,15 @@ public actor FileSearchSource: ListSource {
 
   public func close() async {}
 
-  /// Why the shadow of step 1.3e leaves a query out, or nil to compare it. A folder search is step
-  /// 1.4e, and the recent list is ordered by frecency on the Lua side, step 1.4d.
+  /// Why the shadow of step 1.3e leaves a query out, or nil to compare it. A browse is compared,
+  /// since ls orders it, and a search beneath a folder is not, since fd answers in no fixed order
+  /// and stops at its cap, Milos's call on 2026-11-10. The recent list is ordered by frecency on
+  /// the Lua side, step 1.4d.
   public static func shadowSkip(_ raw: String, settings: FileSearchSettings) -> String? {
     let q = FileQueryGrammar.parse(raw, types: settings.types)
-    if q.scope != nil { return "a folder search, step 1.4e" }
+    if q.scope != nil {
+      return q.kind == .browse ? nil : "a search beneath a folder, which fd answers in no fixed order"
+    }
     if q.kind != .search || q.text.utf8.count < settings.minChars {
       return "the recent list, ordered by frecency on the Lua side, step 1.4d"
     }

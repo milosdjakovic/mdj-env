@@ -497,3 +497,18 @@ list, and until then that list stays on Lua.
 - 2026-11-10 14:40. Step 1.4h's hand trial passed in the app and in the Lua native list, Milos
   confirming `.app` listing every app, an app opening on Return, the plain recent list keeping
   files only and another type unchanged. Step 1.4h is done.
+- 2026-11-10 15:20. Step 1.4e, folder search in the app, design note
+  `docs/DESIGN-APP-FOLDER-SEARCH.md` agreed and built. The app runs the Lua side's own tools, a
+  browse through `/bin/ls` and a search through fd with walk.lua's arguments, so gitignore and the
+  bang mean the same in both lists. Milos chose how the app finds fd, the root writing each served
+  list's declared tools as the door resolved them into a `<tool>tools.json` share, so fd stays
+  declared once and resolved once, over the app looking for it itself, which would be a second
+  resolver. He chose too that the shadow compares a browse, which ls orders, and keeps skipping a
+  search beneath a folder, which fd answers in no fixed order and cuts at its cap. Into Folder, Up
+  a Level and the `..` row write a query into the field through a new `setQuery` effect. The note
+  had shared fixtures pin the resolution, and since the Lua resolver asks `hs.fs`, which the
+  fixture runner cannot stand in for, the Swift port is pinned by the index check instead.
+- 2026-11-10 15:50. Step 1.4e's hand trial passed in the app and in the Lua native list, Milos
+  confirming a browse with its `..` row going up in place, Into Folder and Up a Level, a search
+  beneath a folder, a hidden one, a folder that is not there, an empty folder, and an unscoped
+  search unchanged. Step 1.4e is done.

@@ -66,7 +66,9 @@ public final class Shadow {
       guard let answer = try? await source.rows(Query(text: request.query, generation: request.id)) else { return }
       let ranked = await searcher.rank(answer, query: request.query, level: level)
       let status = answer.status ?? (ranked.rows.isEmpty ? answer.emptyStatus : nil)
-      self.compare(request, ranked.rows.map(\.key), status: status)
+      // A pinned row or one made from the query is the list's own, the `..` row of a browse among
+      // them, and the Lua side leaves them out of what it sends too.
+      self.compare(request, ranked.rows.filter { !$0.pinned && !$0.fromQuery }.map(\.key), status: status)
     }
   }
 

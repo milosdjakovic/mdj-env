@@ -136,6 +136,9 @@ public enum Effect: Sendable, Equatable {
   /// Shows the file in the Quick Look panel over the list, which stays up, or closes the panel
   /// when it already shows that file, docs/DESIGN-APP-QUICK-LOOK.md.
   case quickLook(String)
+  /// Writes the text into the input field and searches it, the list staying up, so going into a
+  /// folder or up a level is something a person could have typed, step 1.4e.
+  case setQuery(String)
 }
 
 /// One of the eight colour roles lib/ui/style.lua resolves for the half the system is on. A plugin

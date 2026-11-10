@@ -161,8 +161,91 @@ check(await source.label("copyPath", on: Pick(key: "/", query: "")) == nil,
   "and every other verb keeps its own word")
 check(FileSearchSource.shadowSkip("report", settings: settings) == nil
   && FileSearchSource.shadowSkip("re", settings: settings) != nil
-  && FileSearchSource.shadowSkip("~/x/ foo", settings: settings) != nil,
-  "the shadow compares a search and skips the recent list and a folder")
+  && FileSearchSource.shadowSkip("~/x/ foo", settings: settings) != nil
+  && FileSearchSource.shadowSkip("~/x/", settings: settings) == nil,
+  "the shadow compares a search and a browse and skips the recent list and a search beneath a folder")
+
+// Folder search, step 1.4e. The resolution and the up query over a stood in filesystem first.
+let fakeHome = "/Users/p"
+let fakeDirs: Set<String> = ["/Users/p", "/Users/p/Downloads", "/Users/p/Downloads/inv", "/Applications", "/Users/p/dev",
+  "/tmp"]
+let fakeDir = { (p: String) in fakeDirs.contains(p) }
+let fakeRoots = ["dl": "Downloads", "apps": "/Applications", "home": "", "t": "~/Downloads"]
+func resolved(_ t: String) -> String? { FolderScope.resolve(t, roots: fakeRoots, home: fakeHome, isDir: fakeDir) }
+check(resolved("dl/") == "/Users/p/Downloads" && resolved("DL/inv/") == "/Users/p/Downloads/inv",
+  "an alias resolves, in any case, with a path beneath it")
+check(resolved("apps/") == "/Applications" && resolved("t/") == "/Users/p/Downloads" && resolved("home/") == "/Users/p",
+  "an alias may be absolute, written with a tilde, or home itself")
+check(resolved("~/dev/") == "/Users/p/dev" && resolved("/tmp/") == "/tmp" && resolved("dev/") == "/Users/p/dev",
+  "a tilde, an absolute path and a path under home resolve literally")
+check(resolved("nope/") == nil && resolved("/nope/") == nil, "a folder that is not there resolves to nothing")
+check(resolved("/") == "/", "the root is the root")
+func upped(_ t: String?) -> String? { FolderScope.upQuery(t, roots: fakeRoots, home: fakeHome, isDir: fakeDir) }
+check(upped("dl/inv/") == "~/Downloads/" && upped("apps/") == "/" && upped("/") == nil && upped(nil) == nil
+  && upped("nope/") == nil, "the up query is the parent, home as a tilde, nothing above the root")
+
+// The walker's arguments, walk.lua's search.
+let walk = FolderWalk(fd: "/x/fd", prune: ["node_modules"], insideFrom: 3, timeoutSeconds: 5)
+let walkArgs = walk.searchArguments(FileQueryGrammar.parse(". .md dl/ report notes", types: types), dir: "/d", cap: 9)
+check(walkArgs == ["--hidden", "--exclude", "node_modules", "--extension", "md", "--follow", "--max-results", "9",
+  "--ignore-case", "--fixed-strings", "report", "/d"], "a search hands fd the first word, its types and the prune list")
+check(walk.searchArguments(FileQueryGrammar.parse("! dl/ x", types: types), dir: "/d", cap: 9).contains("--no-ignore"),
+  "the bang walks what the prune list and gitignore drop")
+check(walk.searchArguments(FileQueryGrammar.parse("dl/ Re", types: types), dir: "/d", cap: 9).suffix(3)
+  == ["--case-sensitive", "(?:^|[^\\p{L}\\p{N}])(?i:re)|\\p{Ll}R(?i:e)", "/d"],
+  "a word shorter than the inside length is asked at a word start")
+check(FolderWalk.startPattern("a.") == "(?:^|[^\\p{L}\\p{N}])(?i:a\\.)|\\p{Ll}A(?i:\\.)", "punctuation is escaped")
+
+// A browse and its rows, over the check's own folder.
+var folderSettings = settings
+folderSettings.roots = ["t": tree.path]
+folderSettings.walker = nil
+try? fm.createDirectory(at: tree.appendingPathComponent("empty"), withIntermediateDirectories: true)
+let folderSource = FileSearchSource(context: context, index: files, settings: folderSettings)
+await folderSource.open(settings: folderSettings)
+func folderAnswer(_ raw: String) async -> (rows: [Row], status: String?)? {
+  generation += 1
+  guard let a = try? await folderSource.rows(Query(text: raw, generation: generation)) else { return nil }
+  let ranked = await searcher.rank(a, query: raw, level: level)
+  return (ranked.rows, a.status ?? (ranked.rows.isEmpty ? a.emptyStatus : nil))
+}
+let browsed = await folderAnswer("t/")
+check(browsed?.rows.first?.title == ".." && browsed?.rows.first?.pinned == true
+  && browsed?.rows.first?.key == tree.deletingLastPathComponent().path
+  && browsed?.rows.first?.subtitle.hasPrefix("up to ") == true, "a browse leads with the .. row for the parent")
+check(Set((browsed?.rows ?? []).dropFirst().map(\.title)) == ["notes", "src", ".config", "Reports.app", "bills",
+  "school", "empty"], "and lists one level, dotfiles and folders among it")
+let empty = await folderAnswer("t/empty/")
+check(empty?.rows.map(\.title) == ["..", "Empty folder"] && empty?.rows.last?.key == FileSearchSource.statusKey,
+  "an empty folder says so under the .. row")
+check(await folderAnswer("nope-\(getpid())/")?.status == "No such folder", "a folder that is not there says so")
+check(await folderAnswer("t/ report")?.status == "Nothing can answer that", "a search beneath a folder without fd says so")
+check(await folderSource.choose(Pick(key: FileSearchSource.statusKey, query: "t/empty/")) == [],
+  "the status row does nothing")
+
+// The `..` row, Into Folder and Up a Level, and the two gates.
+let parentQuery = tree.deletingLastPathComponent().path + "/"
+check(await folderSource.choose(Pick(key: tree.deletingLastPathComponent().path, query: "t/")) == [.setQuery(parentQuery)],
+  "Return on the .. row goes up a level in place")
+let notes = tree.appendingPathComponent("notes").path
+check(await folderSource.run("browseInto", on: Pick(key: notes, query: "t/")) == [.setQuery(notes + "/")],
+  "Into Folder writes the folder as a scope")
+check(await folderSource.run("browseInto", on: Pick(key: notes + "/report.md", query: "t/")) == [],
+  "and does nothing over a file")
+check(await folderSource.run("browseUp", on: Pick(key: notes, query: "t/notes/")) == [.setQuery(tree.path + "/")],
+  "Up a Level writes the folder above")
+check(await folderSource.run("browseUp", on: Pick(key: notes, query: "report")) == [], "and does nothing unscoped")
+let folderYes = await folderSource.applies("isFolder", on: Pick(key: notes, query: ""))
+let folderNo = await folderSource.applies("isFolder", on: Pick(key: notes + "/report.md", query: ""))
+check(folderYes && !folderNo, "isFolder answers from the row")
+let browsingYes = await folderSource.applies("isBrowsing", on: Pick(key: notes, query: "t/ x"))
+let browsingNo = await folderSource.applies("isBrowsing", on: Pick(key: notes, query: "x"))
+check(browsingYes && !browsingNo, "isBrowsing answers from the query")
+check(await folderSource.run("copyFile", on: Pick(key: tree.deletingLastPathComponent().path, query: "t/")) == [],
+  "Copy File does nothing on the .. row")
+check(source.manifest.actions.contains { $0.id == "browseInto" && $0.title == "Into Folder" }
+  && source.manifest.actions.contains { $0.id == "browseUp" && $0.title == "Up a Level" },
+  "Into Folder and Up a Level are actions by the Lua list's verb names")
 
 // The folder permissions, step 1.4j, with macOS's answer and the reset stood in for, so no prompt
 // is raised and no answer is reset.
