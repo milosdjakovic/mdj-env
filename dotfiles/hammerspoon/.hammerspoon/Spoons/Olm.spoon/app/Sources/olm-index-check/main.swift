@@ -42,7 +42,7 @@ build.waitUntilExit()
 check(build.terminationStatus == 0, "the helper builds an index of the folder")
 
 let files = FileIndex(helper: helper, index: index)
-let types = ["md": ["md"], "js": ["js"]]
+let types = ["md": ["md"], "js": ["js"], "app": ["app"]]
 
 func ask(_ raw: String, cap: Int = 50) async -> [IndexRow]? {
   try? await files.ask(FileQueryGrammar.parse(raw, types: types), cap: cap)
@@ -60,6 +60,9 @@ let kinds = Dictionary(uniqueKeysWithValues: (await ask("report") ?? []).map { (
 check(kinds["Reports.app"]?.isDir == true && kinds["report.md"]?.isDir == false
   && kinds.values.allSatisfy { $0.mtime > 0 }, "a row carries its date and kind")
 check(names(await ask("")).contains("app.js"), "an empty query is the recent list")
+check(!names(await ask("")).contains("Reports.app"), "and leaves folders out")
+check(names(await ask(".app")) == ["Reports.app"], "a bare type lists a bundle of that type, step 1.4h")
+check(names(await ask(".md")) == ["report-old.md", "report.md", "vežbe.md"], "and a plain type still only files")
 // The helper keeps a name exactly when the shared search would, so a word one typo away finds
 // it on a fresh search, and a shorter word's answer holds nothing a longer one would miss.
 check(names(await ask("invioce")) == ["invoice-march.pdf"], "a word one typo away finds the name")

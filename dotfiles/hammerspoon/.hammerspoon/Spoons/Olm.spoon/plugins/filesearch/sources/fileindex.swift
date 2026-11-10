@@ -247,6 +247,8 @@ func nonASCII(_ h: UnsafeBufferPointer<UInt8>, _ from: Int, _ to: Int) -> Bool {
 // MARK: recent
 
 // The newest files changed at or after SINCE, folders and hidden paths left out, newest first.
+// A folder whose name ends in a type asked for is kept, since to a person it is a file, a bundle,
+// so `.app` lists every app rather than the one the index does not mark as a folder, step 1.4h.
 // A date more than a day ahead is corrupt metadata rather than a recent file, and is left out,
 // or one such file would sit at the top of the list for good.
 func recent(index: String, limit: Int, since: Int, exts: [[UInt8]]) -> Int32 {
@@ -254,7 +256,7 @@ func recent(index: String, limit: Int, since: Int, exts: [[UInt8]]) -> Int32 {
   var found: [Line] = []
   let ok = withIndex(index) { bytes in
     forEachLine(bytes) { l in
-      if l.isDir || l.hidden || l.mtime < since || l.mtime > horizon { return }
+      if (l.isDir && exts.isEmpty) || l.hidden || l.mtime < since || l.mtime > horizon { return }
       if !hasExt(exts, bytes, nameStart(bytes, l), l.end) { return }
       found.append(l)
     }
