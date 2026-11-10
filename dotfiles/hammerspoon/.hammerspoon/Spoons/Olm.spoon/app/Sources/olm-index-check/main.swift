@@ -469,6 +469,23 @@ writeHistory(["/old": ["score": 9, "at": 50]])
 reread.refresh()
 check(reread.usedAt("/old") == nil && reread.usedAt("/lua3") == 600, "and an older one is not")
 
+// The person's store as main.swift builds it, a use kept on disk through the source.
+let personRun = root.appendingPathComponent("person-run")
+let personContext = PluginContext(run: personRun, cache: root, resources: root,
+  store: root.appendingPathComponent("person-state"))
+try? fm.createDirectory(at: personRun, withIntermediateDirectories: true)
+try? JSONSerialization.data(withJSONObject: ["entries": ["/lua": ["score": 1, "at": 100]]])
+  .write(to: personRun.appendingPathComponent("filesearchhistory.json"))
+let personSource = FileSearchSource(context: personContext, index: files, settings: settings,
+  frecency: FileSearchSource.frecency(personContext))
+await personSource.open(settings: settings)
+_ = await personSource.run("copyPath", on: Pick(key: "/kept.md", query: "kept"))
+_ = await personSource.choose(Pick(key: "/opened.md", query: "opened"))
+let onDisk = Frecency(file: personContext.store.appendingPathComponent("frecency.json"), history: nil)
+onDisk.refresh()
+check(onDisk.usedAt("/kept.md") != nil && onDisk.usedAt("/opened.md") != nil && onDisk.usedAt("/lua") == 100,
+  "the person's store keeps the history taken and every use on disk")
+
 // The source over the index, with a store of its own on the real clock.
 let used = Frecency(file: nil, history: nil)
 let usedSource = FileSearchSource(context: context, index: files, settings: settings, frecency: used)
