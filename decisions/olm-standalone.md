@@ -442,3 +442,6 @@ list, and until then that list stays on Lua.
   back a fold that has drawn no frame yet when it hides, which is the Lua engine closing the pane
   and the list in one turn. Milos confirmed it in the app. The clipboard list he tried was the
   canvas chooser, so the panel's take back has no hand trial in a Lua native list yet.
+- 2026-11-10 08:40. The panel's take back was then tried by hand in the Lua native list, file
+  search served by Hammerspoon again, and Milos confirmed it, so piece four passed and step 1.4f is
+  done.
