@@ -494,3 +494,6 @@ list, and until then that list stays on Lua.
   for and the folder's name ends in it, a bundle such as an app, and leaves every folder out of
   the untyped recent list as before. Both file searches ask the one helper, so both change, and a
   bundle's row and preview pane stay a folder's, as the plan has it.
+- 2026-11-10 14:40. Step 1.4h's hand trial passed in the app and in the Lua native list, Milos
+  confirming `.app` listing every app, an app opening on Return, the plain recent list keeping
+  files only and another type unchanged. Step 1.4h is done.
