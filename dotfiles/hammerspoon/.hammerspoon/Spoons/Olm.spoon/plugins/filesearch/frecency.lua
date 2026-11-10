@@ -143,22 +143,34 @@ function M.usedAt(path)
   return e and e.at or nil
 end
 
---- frecency.top(n) -> list of paths, best first
---- Existence is checked only on the ones being returned, and a path that has gone is forgotten
---- as it is passed over, so this both bounds the cost and prunes itself. Anything below the cut
---- is never checked, which is the point, since the long tail is not being shown to anyone.
-function M.top(n)
+--- frecency.orders - the ways the store can rank what it holds, each a key over an entry, higher
+--- first. The store holds two facts per path, how much it is used and when it was last used, and
+--- an order is only which of them a caller asks to lead, so the choice of one belongs to whoever
+--- composes the list rather than to the store. `use` is the decayed score, what you reach for
+--- over weeks. `lastUse` is the moment of the last use, what you touched just now.
+M.orders = {
+  use = function(e, now) return decayed(e, now) end,
+  lastUse = function(e) return e.at end,
+}
+
+--- frecency.top(n, order) -> list of paths, best first
+--- order is one of frecency.orders, `use` when absent. Existence is checked only on the ones being
+--- returned, and a path that has gone is forgotten as it is passed over, so this both bounds the
+--- cost and prunes itself. Anything below the cut is never checked, which is the point, since the
+--- long tail is not being shown to anyone.
+function M.top(n, order)
   n = tonumber(n) or 0
   if n <= 0 then return {} end
+  local key = order or M.orders.use
   local s = load()
   local now = os.time()
   local ranked = {}
   for path, e in pairs(s) do
-    ranked[#ranked + 1] = { path = path, score = decayed(e, now) }
+    ranked[#ranked + 1] = { path = path, key = key(e, now) }
   end
   -- Path breaks a tie so the order is stable across opens rather than following pairs.
   table.sort(ranked, function(a, b)
-    if a.score ~= b.score then return a.score > b.score end
+    if a.key ~= b.key then return a.key > b.key end
     return a.path < b.path
   end)
   local out = {}

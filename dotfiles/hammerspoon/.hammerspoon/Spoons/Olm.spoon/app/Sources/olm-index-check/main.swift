@@ -446,6 +446,13 @@ check(fr.top(2) == ["/c", "/a"], "top answers the most used first")
 gone = ["/c"]
 check(fr.top(2) == ["/a", "/b"] && fr.usedAt("/c") == nil, "and forgets a gone path it passes over")
 gone = []
+let ordered = Frecency(file: nil, history: nil, now: { clock.t }, exists: { _ in true })
+ordered.note("/many"); ordered.note("/many"); ordered.note("/many")
+clock.t += 60
+ordered.note("/once")
+check(ordered.top(2) == ["/many", "/once"] && ordered.top(2, by: .use) == ["/many", "/once"],
+  "the use order, the default, leads with the most used")
+check(ordered.top(2, by: .lastUse) == ["/once", "/many"], "the last use order leads with the latest")
 fr.maxEntries = 2
 clock.t += day
 fr.note("/d")
@@ -508,6 +515,32 @@ check(floated.first?.key == notesDir && floated.dropFirst().first?.key == appJS,
   "the recent list leads with the paths used most, a missing one built")
 check(floated.filter { $0.key == appJS }.count == 1, "and one the dates held moved rather than repeated")
 check((await usedAnswer(".md")).first { $0.key == notesDir } == nil, "a type leaves the float out")
+// The order the share names leads the float, a file used often before one used once since.
+let orderClock = Clock()
+let byOrder = Frecency(file: nil, history: nil, now: { orderClock.t })
+byOrder.note(appJS); byOrder.note(appJS); byOrder.note(appJS)
+orderClock.t += 60
+byOrder.note(notesDir)
+func leadFor(_ order: Frecency.Order) async -> String? {
+  var s = settings
+  s.recentFloatOrder = order
+  let source = FileSearchSource(context: context, index: files, settings: s, frecency: byOrder)
+  await source.open(settings: s)
+  generation += 1
+  guard let a = try? await source.rows(Query(text: "", generation: generation)) else { return nil }
+  return a.rows.first?.key
+}
+check(await leadFor(.use) == appJS, "the use order floats the most used first")
+check(await leadFor(.lastUse) == notesDir, "the last use order floats the latest first")
+let orderRun = root.appendingPathComponent("order-run")
+func orderRead(_ word: String) -> Frecency.Order {
+  try? fm.createDirectory(at: orderRun, withIntermediateDirectories: true)
+  try? JSONSerialization.data(withJSONObject: ["limits": ["recentFloatOrder": word]])
+    .write(to: orderRun.appendingPathComponent("filesearch.json"))
+  return FileSearchSettings.read(from: orderRun).recentFloatOrder
+}
+check(orderRead("lastUse") == .lastUse && orderRead("nonsense") == .use,
+  "the share's word is read, an unknown one taken as use")
 let searched = await usedAnswer("app")
 check((searched.first { $0.key == appJS }?.bonus ?? 0) > 0, "a searched row carries its use as a bonus")
 check((await answer("app"))?.rows.allSatisfy { $0.bonus == 0 } == true, "and a source with no store, the shadow's, none")

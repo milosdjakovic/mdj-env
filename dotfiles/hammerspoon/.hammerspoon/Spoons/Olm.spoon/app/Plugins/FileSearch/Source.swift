@@ -50,6 +50,8 @@ public struct FileSearchSettings: Equatable, Sendable {
   public var frecencyHalfLifeDays = 14.0
   public var frecencyMaxEntries = 500
   public var recentFloat = 8
+  /// Which of the store's orders leads them, recentFloatOrder, use where the word is unknown.
+  public var recentFloatOrder: Frecency.Order = .use
   public init() {}
 
   /// config/filesearch.lua's settings as the bridge wrote them, or the Lua defaults.
@@ -71,6 +73,7 @@ public struct FileSearchSettings: Equatable, Sendable {
     if let n = (limits["frecencyHalfLifeDays"] as? NSNumber)?.doubleValue { settings.frecencyHalfLifeDays = n }
     if let n = limits["frecencyMaxEntries"] as? Int { settings.frecencyMaxEntries = n }
     if let n = limits["recentFloat"] as? Int { settings.recentFloat = n }
+    if let word = limits["recentFloatOrder"] as? String { settings.recentFloatOrder = Frecency.Order(rawValue: word) ?? .use }
     // The tools the list declares, resolved by the door and written by the root, step 1.4e.
     if let data = try? Data(contentsOf: run.appendingPathComponent("filesearchtools.json")),
       let tools = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -310,11 +313,12 @@ public actor FileSearchSource: ListSource {
   // How much you use a path, the row's bonus, engine:preference.
   private func bonus(_ path: String) -> Double { frecency?.preference(path) ?? 0 }
 
-  /// engine:_float, the paths you use most ahead of the recent list's dates, recentFloat of them.
+  /// engine:_float, the paths you have used ahead of the recent list's dates, recentFloat of them,
+  /// in the order recentFloatOrder names.
   /// One the dates hold is moved up, keeping its date, and one they lack is built and stat'd.
   func float(_ rows: [IndexRow]) -> [IndexRow] {
     guard let frecency, settings.recentFloat > 0 else { return rows }
-    let top = frecency.top(settings.recentFloat)
+    let top = frecency.top(settings.recentFloat, by: settings.recentFloatOrder)
     guard !top.isEmpty else { return rows }
     var byPath: [String: IndexRow] = [:]
     for r in rows where byPath[r.path] == nil { byPath[r.path] = r }

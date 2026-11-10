@@ -297,7 +297,8 @@ end
 -- the default view into the same ten things forever, which is the opposite of what that view is
 -- for, since right after a download or a build is exactly when this picker gets opened and a
 -- file that did not exist a minute ago has no history to rank. So the two answers share the
--- list, habits first and then what just changed.
+-- list, the files you have used first, in whatever order the ranker's top answers, and then what
+-- just changed.
 --
 -- A path that the date list already returned is MOVED rather than rebuilt, so it keeps the size
 -- and the modification date the index handed over for free. Only a row that would otherwise be

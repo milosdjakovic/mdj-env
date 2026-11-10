@@ -132,12 +132,27 @@ public final class Frecency {
   /// When the path was last used, nil for one never used.
   public func usedAt(_ path: String) -> Int? { entries[path]?.at }
 
-  /// The paths used most, best first, the path breaking a tie. Existence is checked only on those
+  /// frecency.orders, the ways the store ranks what it holds, higher first. The store holds two
+  /// facts per path, how much it is used and when it was last used, and an order is only which of
+  /// them leads, so the choice belongs to whoever composes the list. `use` is the decayed score,
+  /// `lastUse` the moment of the last use.
+  public enum Order: String, Sendable {
+    case use, lastUse
+  }
+
+  private func key(_ e: Entry, _ order: Order, _ now: Int) -> Double {
+    switch order {
+    case .use: return decayed(e, now)
+    case .lastUse: return Double(e.at)
+    }
+  }
+
+  /// The paths best by the order, the path breaking a tie. Existence is checked only on those
   /// returned, and a gone one is forgotten as it is passed over.
-  public func top(_ n: Int) -> [String] {
+  public func top(_ n: Int, by order: Order = .use) -> [String] {
     guard n > 0 else { return [] }
     let t = now()
-    let ranked = entries.map { ($0.key, decayed($0.value, t)) }
+    let ranked = entries.map { ($0.key, key($0.value, order, t)) }
       .sorted { $0.1 != $1.1 ? $0.1 > $1.1 : $0.0 < $1.0 }
     var out: [String] = []
     var forgot = false

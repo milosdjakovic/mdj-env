@@ -257,6 +257,13 @@ function obj:configure(opts)
     halfLifeDays = limits.frecencyHalfLifeDays,
     maxEntries = limits.frecencyMaxEntries,
   })
+  -- Which of the store's orders leads the list you land on, named in config so Olm.app reads the
+  -- same word from the same share. A word the store does not know falls back to use and says so.
+  local leadOrder = obj.frecency.orders[limits.recentFloatOrder or "use"]
+  if not leadOrder then
+    log.w("no frecency order answers to '" .. tostring(limits.recentFloatOrder) .. "', using use")
+    leadOrder = obj.frecency.orders.use
+  end
 
   configureEngine(self, {
     types = policy.types,
@@ -271,7 +278,7 @@ function obj:configure(opts)
     -- date alone, and a typed query by the shared search with no bonus for what you use.
     ranker = {
       score = function(path) return obj.frecency.score(path) end,
-      top = function(n) return obj.frecency.top(n) end,
+      top = function(n) return obj.frecency.top(n, leadOrder) end,
     },
     -- The engine never touches a picker. It reports that rows changed and the surface decides
     -- what to do about it, which is what lets a second surface reuse the engine unchanged.

@@ -23,6 +23,11 @@ Lua side and in Olm.app. This agrees with the plugin AGENTS.md.
 
 ## Rejected
 
+Leading the list you land on with the files used most, by the decayed score. Rejected
+2026-11-10, by Milos, after holding since frecency was written. A font used all morning stayed
+above a photo opened a moment ago, which was fifth, and landing on that list is nearly always going
+back to what you just had open. The files used most still break a tie once you type.
+
 Ranking the held rows again with no round trip when a text only grew, the narrow. Rejected
 2026-11-09, after holding since the plugin was written. A longer word can match a name a shorter
 one did not under the shared search, one typo from four letters and inside a word from three, so
@@ -185,3 +190,22 @@ after the debounce replaces them, so typing quickly still asks once. He also ask
 to start on the first letter, so `minChars` is 1 in `config/filesearch.lua`, the engine's default
 and the app's, which was step 1.4g of the standalone plan. One letter costs about 100 ms in the
 helper and the shared search then ranks the 2000 rows the cap holds.
+
+### 2026-11-10 20:56, the files you used lead by when, not by how much
+
+In the trial of step 1.4d Milos opened `near-north.jpg` and found it fifth on the list you land
+on, under a font used about five times that morning and two files used twice. That was the float
+working as written, the eight paths with the highest decayed score in score order. He asked
+whether files should rather lead by most recent use, and they should. The float now leads with
+the eight paths used most recently, newest first, then the dates. A typed search keeps its bonus
+from the decayed score.
+
+The store already held both facts per path, the score and the time of the last use, so nothing new
+is recorded. `frecency.lua` names two orders over an entry, `use` and `lastUse`, and `top` takes
+one. `config/filesearch.lua` names which leads, `recentFloatOrder = "lastUse"`, and the plugin's
+`init.lua` hands that order to the ranker it gives the engine, which never learns there is a
+choice. Olm.app's `Frecency.Order` has the same two cases and reads the same word from the file
+search share, so the two lists cannot drift apart. An unknown word falls back to `use`, with a
+console line on the Lua side. Checks, the unit case `test/cases/filesearch-frecency.lua` and four
+in `olm-index-check`.
+

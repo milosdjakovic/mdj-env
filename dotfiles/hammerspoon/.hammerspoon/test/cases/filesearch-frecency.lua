@@ -1,6 +1,6 @@
 -- Unit case for file search's frecency as Olm.app takes it, step 1.4d of
 -- docs/PLAN-STANDALONE.md, docs/DESIGN-APP-FRECENCY.md. The store's export is the history the root
--- shares with the app, and the engine's held list hands the shadow the recent list as the dates
+-- shares with the app, the store ranks by either of its two orders, and the engine's held list hands the shadow the recent list as the dates
 -- gave it, before the float, since each side floats from a history of its own. Everything loads by
 -- path into an environment of its own over a stand in hs, so the live hs and its settings are
 -- never touched.
@@ -53,6 +53,20 @@ check("the export holds every use as written, undecayed",
 check("and leaves a malformed entry out", exported["/home/bad"] == nil)
 exported["/home/a.txt"].score = 99
 check("and is a copy, so the store is not changed through it", frecency.score("/home/a.txt") < 99)
+
+--------------------------------------------------------------------------------
+-- The orders top ranks by
+--------------------------------------------------------------------------------
+
+-- No half life, so a score reads as written and a.txt, used more, sits before b.txt, used later.
+frecency.configure({ key = "test", halfLifeDays = 0 })
+check("top ranks by use when no order is given", table.concat(frecency.top(2), ",") == "/home/a.txt,/home/b.txt",
+  table.concat(frecency.top(2), ","))
+check("and by use when asked for it",
+  table.concat(frecency.top(2, frecency.orders.use), ",") == "/home/a.txt,/home/b.txt")
+check("the last use order leads with the latest",
+  table.concat(frecency.top(2, frecency.orders.lastUse), ",") == "/home/b.txt,/home/a.txt",
+  table.concat(frecency.top(2, frecency.orders.lastUse), ","))
 
 --------------------------------------------------------------------------------
 -- The shadow's recent list, before the float
