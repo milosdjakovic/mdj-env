@@ -439,11 +439,27 @@ public final class Stage {
   }
 
   // Return, or an action, on the row at a one based index.
-  private func act(on index: Int, action: String? = nil) {
-    guard index >= 1, index <= rows.count, let source else { return }
+  // closingPanes leaves the info pane and the actions pane standing until the answer is back, so
+  // an answer that hides the list fades them whole with it, and only one that keeps it up closes
+  // them, Milos's report in step 1.4f's piece four, where a pane folding under the list's fade was
+  // cut halfway. While the actions pane is open the list's text and highlight are its own still.
+  private func act(on index: Int, action: String? = nil, closingPanes: Bool = false) {
+    guard index >= 1, index <= rows.count, let source else {
+      if closingPanes { closeInfo(); closeActions() }
+      return
+    }
     let pick = Pick(key: rows[index - 1].key, query: text)
+    let mine = generation
     Task {
       let effects = if let action { await source.run(action, on: pick) } else { await source.choose(pick) }
+      if closingPanes, !effects.contains(.hide), mine == self.generation {
+        self.closeInfo()
+        self.closeActions()
+        if index <= self.rows.count, self.highlight != index {
+          self.highlight = index
+          self.apply(status: self.status)
+        }
+      }
       self.perform(effects)
     }
   }
@@ -582,8 +598,12 @@ public final class Stage {
   private func chooseActions(_ index: Int) {
     guard let pane = actionsPane, index >= 1, index <= pane.shown.count, let shown else { return }
     let verb = pane.rows[pane.shown[index - 1]].verb
+    if verb == "insertSelected" { return act(on: pane.savedHighlight, closingPanes: true) }
+    if source?.manifest.actions.contains(where: { $0.id == verb }) == true {
+      return act(on: pane.savedHighlight, action: verb, closingPanes: true)
+    }
     closeActions()
-    if verb == "insertSelected" { act(on: highlight) } else { self.verb(shown, verb) }
+    self.verb(shown, verb)
   }
 
   // What the typed text keeps of the pane's rows, by the shared search, as the Lua pane ranks its
@@ -670,13 +690,11 @@ public final class Stage {
     // an open actions pane the pane closes and the digit is the list's, stated by Milos on
     // 2026-11-10, checked against the Lua list in step 1.4f's piece four.
     if event.flags.contains(.maskCommand), let slot = Self.digitKeys.firstIndex(of: code) {
-      closeInfo()
-      closeActions()
-      if slot + 1 <= rows.count, highlight != slot + 1 {
+      if actionsPane == nil, slot + 1 <= rows.count, highlight != slot + 1 {
         highlight = slot + 1
         apply(status: status)
       }
-      act(on: slot + 1)
+      act(on: slot + 1, closingPanes: true)
       return true
     }
     // A key the list's own field answers in the Lua list, from the share, Command and Return

@@ -546,6 +546,9 @@ final class ShapeMotion: NSObject {
   // The whole motion's length the way it is playing, open or close, which the fades are a share of.
   private var full: CFTimeInterval = 0
   private var ended: (() -> Void)?
+  // Whether the motion playing has drawn a frame yet, which a close it has not is still whole on
+  // screen.
+  private var stepped = false
 
   // How open the pane is, 0 on its group and 1 whole, along the curve, which the shape follows, and
   // the same along the clock, which the fades follow so each takes its own time in seconds.
@@ -596,6 +599,7 @@ final class ShapeMotion: NSObject {
     self.curve = curve
     began = CACurrentMediaTime()
     ended = done
+    stepped = false
     content.wantsLayer = true
     view.wantsLayer = true
     group?.wantsLayer = true
@@ -618,7 +622,22 @@ final class ShapeMotion: NSObject {
 
   @objc private func tick(_ link: CADisplayLink) { step() }
 
+  // A close from whole that has drawn no frame yet put back whole, with no callback, answering
+  // whether it was one. The panel asks it as the chooser goes down, so a pane closed by the key that
+  // closes the list, the Lua engine doing both in one turn, fades whole with the window rather
+  // than folding under the fade and being cut halfway, Milos's report in step 1.4f's piece four.
+  func takeBackUnplayedClose() -> Bool {
+    guard moving, toOpen == 0, fromOpen == 1, !stepped else { return false }
+    stopClock()
+    ended = nil
+    openness = 1
+    clock = 1
+    rest()
+    return true
+  }
+
   private func step() {
+    stepped = true
     let t = duration > 0 ? min(1, CGFloat((CACurrentMediaTime() - began) / duration)) : 1
     openness = fromOpen + (toOpen - fromOpen) * Motion.progress(curve, t)
     clock = fromClock + (toOpen - fromClock) * t

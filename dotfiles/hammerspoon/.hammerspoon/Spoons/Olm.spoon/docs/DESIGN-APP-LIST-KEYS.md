@@ -230,3 +230,9 @@ an open actions pane the Lua list chose the pane's row in that place, rows that 
 while the app closed the pane and chose the list's. Milos chose the app's answer on 2026-11-10, the
 pane rule of 2026-11-09 applied to the digits, so the Lua engine now closes the pane first,
 `test/swiftview.lua` pinning it.
+
+The trial found one more thing. A pane closed by the key that also closes the list started folding
+onto the bar and the list's fade cut the fold halfway, so such a pane now goes down whole with the
+list. The app's stage leaves the panes standing until the row's answer is back and closes them only
+when the list stays up, and the swift panel's hide takes back a fold that has drawn no frame yet,
+ShapeMotion's `takeBackUnplayedClose`, which covers the Lua engine closing both in one turn.

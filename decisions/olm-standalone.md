@@ -434,3 +434,11 @@ list, and until then that list stays on Lua.
   pane rule applied to the digits, so the Lua engine closes the pane before choosing the slot. The
   app now also chooses whether or not the list shows numbers and moves the highlight first, as the
   Lua list does.
+- 2026-11-10 08:28. Piece four's trial found a pane closed by the key that also closes the list,
+  Command and a digit or an action chosen in the actions pane, starting its fold onto the bar and
+  the list's fade then cutting the fold halfway. Such a pane now goes down whole with the list, the
+  way the list closing over an open pane looks. The app leaves both panes standing until the row's
+  answer is back and closes them only when the answer keeps the list up, and the swift panel takes
+  back a fold that has drawn no frame yet when it hides, which is the Lua engine closing the pane
+  and the list in one turn. Milos confirmed it in the app. The clipboard list he tried was the
+  canvas chooser, so the panel's take back has no hand trial in a Lua native list yet.
