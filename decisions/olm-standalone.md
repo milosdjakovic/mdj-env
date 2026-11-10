@@ -490,3 +490,10 @@ list, and until then that list stays on Lua.
 - 2026-11-10 13:55. Step 1.4k's hand trial passed in the app and in the Lua native list, Milos
   confirming the word over a file and a folder in the actions pane and the info pane and a paste
   in Finder copying the file and the folder, and he asked for the merge. Step 1.4k is done.
+- 2026-11-10 14:20. Step 1.4h built. The helper's `recent` keeps a folder when a type is asked
+  for and the folder's name ends in it, a bundle such as an app, and leaves every folder out of
+  the untyped recent list as before. Both file searches ask the one helper, so both change, and a
+  bundle's row and preview pane stay a folder's, as the plan has it.
+- 2026-11-10 14:40. Step 1.4h's hand trial passed in the app and in the Lua native list, Milos
+  confirming `.app` listing every app, an app opening on Return, the plain recent list keeping
+  files only and another type unchanged. Step 1.4h is done.
