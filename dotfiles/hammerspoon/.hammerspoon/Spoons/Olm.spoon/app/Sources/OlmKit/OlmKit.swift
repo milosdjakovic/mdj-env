@@ -130,6 +130,9 @@ public enum Effect: Sendable, Equatable {
   case reopen
   /// Puts the text on the clipboard, a plain write anything watching the clipboard sees.
   case copyText(String)
+  /// Shows the file in the Quick Look panel over the list, which stays up, or closes the panel
+  /// when it already shows that file, docs/DESIGN-APP-QUICK-LOOK.md.
+  case quickLook(String)
 }
 
 /// One of the eight colour roles lib/ui/style.lua resolves for the half the system is on. A plugin

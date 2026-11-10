@@ -263,6 +263,8 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
 
   // Up and not on its way down, so a list fading out is already closed to Lua and to a pane.
   var isVisible: Bool { motion.isUp }
+  // The screen the list stands on, which Olm.app's Quick Look panel opens on.
+  var screen: NSScreen? { window.screen }
   var isClosing: Bool { motion.closing }
 
   func applyStyle(_ next: Style) {

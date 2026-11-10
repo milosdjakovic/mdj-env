@@ -53,6 +53,7 @@ Stage 1, the file search pilot
 - [x] 1.4a Preview pane, with its scroll keys, the keys themselves carried by 1.4f, 2026-11-08
 - [x] 1.4b Thumbnails, the pane never stale and a picture on its way shown by the system spinner, 2026-11-09
 - [ ] 1.4c Quick Look
+  - Its design note is agreed, `docs/DESIGN-APP-QUICK-LOOK.md`, and it is built on branch `olm-app-quicklook`, the Lua helper's panel opened in the app's own process, and waits for its hand trial.
 - [ ] 1.4d Frecency, one owner, the history read but not yet owned
 - [ ] 1.4e Folder search, the scope, the folder aliases, Into Folder and Up a Level
 - [x] 1.4f The bottom bar, the actions pane, the info pane, Copy Path, and the person's list keys, the preview pane's scroll keys among them, 2026-11-10

@@ -36,6 +36,8 @@ import OlmKit
 public final class Stage {
   private let searcher: Searcher
   private lazy var panel = ChooserPanel(source: self)
+  // The Quick Look panel over the list, step 1.4c, QuickLook.swift.
+  private let quickLook = QuickLook()
   private var source: (any ListSource)?
   private var level: Level?
   private var rows: [OlmKit.Row] = []
@@ -220,6 +222,8 @@ public final class Stage {
     actionsPane = nil
     actionsGeneration += 1
     tell(nil)
+    // The list going down takes Quick Look with it, viewers/quicklook.lua's close.
+    quickLook.close()
     guard panel.isVisible || waiting else { return }
     generation += 1
     task?.cancel()
@@ -474,6 +478,9 @@ public final class Stage {
       case .revealFile(let path): NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
       case .openURL(let text): if let url = URL(string: text) { NSWorkspace.shared.open(url) }
       case .reopen: if let source { open(source, query: "", screen: screenMode) }
+      // The file already shown closes the panel, another replaces it, viewers/quicklook.lua's show.
+      case .quickLook(let path):
+        if quickLook.path == path { quickLook.close() } else if panel.isVisible { quickLook.show(path, on: panel.screen) }
       case .copyText(let text):
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
@@ -662,6 +669,12 @@ public final class Stage {
       .map { $0.getIntegerValueField(.keyboardEventAutorepeat) != 0 } ?? false
     if repeating && escapeClosedInfo { return }
     escapeClosedInfo = false
+    // Escape over Quick Look closes it alone, before any pane, the Lua viewer's own Escape tap.
+    if quickLook.isOpen {
+      escapeClosedInfo = true
+      quickLook.close()
+      return
+    }
     if actionsPane != nil {
       escapeClosedInfo = true
       closeActions()
@@ -717,8 +730,11 @@ public final class Stage {
     switch event {
     case "dismiss":
       if case .bytes(let data)? = args.first { dismissKey(data) } else { dismissKey(nil) }
-    case "resignedKey", "pressOutside":
+    case "resignedKey":
       hide()
+    case "pressOutside":
+      // A press on Quick Look is a press on the list's own panel, not outside the list.
+      if !quickLook.contains(NSEvent.mouseLocation) { hide() }
     case "text":
       closeInfo()
       if case .string(let text)? = args.first {

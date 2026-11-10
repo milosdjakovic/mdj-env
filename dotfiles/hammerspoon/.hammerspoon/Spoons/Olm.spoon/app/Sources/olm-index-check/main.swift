@@ -138,6 +138,12 @@ check(await source.choose(Pick(key: "/a/b.md", query: "b")) == [.hide, .openFile
   "Return hides and opens the file")
 check(await source.run("reveal", on: Pick(key: "/a/b.md", query: "b")) == [.hide, .revealFile("/a/b.md")],
   "reveal hides and shows it in Finder")
+check(await source.run("peekPreview", on: Pick(key: "/a/b.md", query: "b")) == [.quickLook("/a/b.md")],
+  "Quick Look shows the file and keeps the list up")
+check(await source.run("peekPreview", on: Pick(key: FileSearchSource.askKey, query: "")) == [],
+  "Quick Look has nothing for a status row")
+check(source.manifest.actions.contains { $0.id == "peekPreview" && $0.title == "Quick Look" },
+  "Quick Look is an action by the Lua list's verb name")
 check(FileSearchSource.shadowSkip("report", settings: settings) == nil
   && FileSearchSource.shadowSkip("re", settings: settings) != nil
   && FileSearchSource.shadowSkip("~/x/ foo", settings: settings) != nil,

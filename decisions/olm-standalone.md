@@ -445,3 +445,12 @@ list, and until then that list stays on Lua.
 - 2026-11-10 08:40. The panel's take back was then tried by hand in the Lua native list, file
   search served by Hammerspoon again, and Milos confirmed it, so piece four passed and step 1.4f is
   done.
+- 2026-11-10 09:10. Step 1.4c, Quick Look in the app, design note `docs/DESIGN-APP-QUICK-LOOK.md`
+  agreed by Milos. The app opens the Lua helper's own panel, `viewers/quicklook.swift`, in its own
+  process, `OlmCore/QuickLook.swift`, rather than compiling and starting the helper per file, so
+  the two lists look the same. The source answers a `quickLook` effect for its `peekPreview`
+  action, the Lua verb's name, and the stage owns the panel and the list's rules, Escape closing
+  it first, the list closing it with itself and a press on it not counting as outside the list.
+  The panel refuses key, since in the app's process it would take key from the list, which closes
+  on resigning it. The use Quick Look notes for frecency is left to 1.4d, and the app offers Quick
+  Look without the Lua list's `askedPreview` gate, having no helper to compile.
