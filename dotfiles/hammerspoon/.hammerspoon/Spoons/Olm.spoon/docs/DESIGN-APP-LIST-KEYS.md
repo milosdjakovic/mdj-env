@@ -218,3 +218,21 @@ text back on closing, which no person sees any more, since the list's field draw
 bar model carries, `panelField`, from `host/actionspane`'s `paneField`. So nothing in the engine, the
 pane or the claim changed, only where each view draws the text. The app's stage hands the panel the
 same held text, and the share carries the placeholder on the open bar.
+
+## How piece four was checked
+
+Command and a digit was already the app's own, and piece four held it against the Lua list's
+`leftoverKey` and `_chooseSlot`. Both choose the first nine rows by place, never by what is on
+screen, and do nothing past the last row, and both close the info pane. Three things differed. The
+app chose only where the list showed its numbers and the Lua list always does, so the app now always
+does. The Lua list moves the highlight onto the row before choosing it, so the app does too. And over
+an open actions pane the Lua list chose the pane's row in that place, rows that carry no number,
+while the app closed the pane and chose the list's. Milos chose the app's answer on 2026-11-10, the
+pane rule of 2026-11-09 applied to the digits, so the Lua engine now closes the pane first,
+`test/swiftview.lua` pinning it.
+
+The trial found one more thing. A pane closed by the key that also closes the list started folding
+onto the bar and the list's fade cut the fold halfway, so such a pane now goes down whole with the
+list. The app's stage leaves the panes standing until the row's answer is back and closes them only
+when the list stays up, and the swift panel's hide takes back a fold that has drawn no frame yet,
+ShapeMotion's `takeBackUnplayedClose`, which covers the Lua engine closing both in one turn.

@@ -184,6 +184,15 @@ final class FloatingPaneView: FlippedView {
     }
   }
 
+  // A fold that has not drawn yet taken back, so the pane stands whole over its group again while
+  // the chooser fades it out with everything else, still closed, and closeNow hides it once the fade
+  // has ended. See ShapeMotion's takeBackUnplayedClose.
+  func holdWholeForHide() {
+    guard !isOpen, !isHidden, motion.takeBackUnplayedClose() else { return }
+    coversGroup = true
+    onCover?(true)
+  }
+
   // Closed with no fold, for a chooser that has gone down with the floating pane still open.
   func closeNow() {
     isOpen = false

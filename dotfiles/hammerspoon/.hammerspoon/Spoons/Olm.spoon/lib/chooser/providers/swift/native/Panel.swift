@@ -476,6 +476,11 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   // animated false goes down at once, which a reload's cleanup asks for.
   func hide(animated: Bool = true) {
     list.table.forgetPress()
+    // A pane the same key closed goes down whole with the list, FloatingPane's holdWholeForHide.
+    if animated {
+      keys.holdWholeForHide()
+      actionsPop.holdWholeForHide()
+    }
     // A reshape cut short by a close stops where the window stands and fades out from there, and
     // the shape it was going to is laid out once the window is down, so the next open starts on it.
     if reshape.moving {

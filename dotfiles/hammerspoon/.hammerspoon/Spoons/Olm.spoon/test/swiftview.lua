@@ -565,6 +565,28 @@ do
     and lastUpdate.bottomBar.keysTint, true)
   panelled:hide()
 
+  -- Command and a digit over an open actions pane closes the pane and chooses the list's row in
+  -- that place, not the pane's, stated by Milos on 2026-11-10.
+  local paneOpen, chosen = true, nil
+  local listRows = { { title = "one", item = "one" }, { title = "two", item = "two" }, { title = "three", item = "three" } }
+  local paneOnly = { { title = "Open", item = "open" }, { title = "Copy", item = "copy" } }
+  local digits
+  digits = Engine.new({
+    rows = function() return paneOpen and paneOnly or listRows end,
+    bottomBar = function()
+      return { right = {}, keys = {}, state = paneOpen and "panel" or "", panelOpen = paneOpen,
+        panelAction = "openActionsPane" }
+    end,
+    bottomBarAction = function(name)
+      if name == "openActionsPane" then paneOpen = not paneOpen; digits:refresh(false) end
+    end,
+    onSelect = function(item) chosen = item end,
+  }, function(engine) return View.new(engine, native) end)
+  digits:show()
+  send("leftover", keyData(19, "cmd"))
+  check("Command and 2 over the actions pane closes it", paneOpen, false)
+  check("and chooses the list's second row, not the pane's", chosen, "two")
+
   -- The bar's right side carries which labels give up width, the primary's and the secondary's,
   -- so Bar.swift cuts those and keeps Actions whole, the same rule bar.lua draws by.
   local kbd = dofile(spoon .. "lib/kbd.lua")

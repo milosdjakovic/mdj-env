@@ -707,6 +707,10 @@ function Engine:leftoverKey(ev)
   local code = ev:getKeyCode()
   local digit = KEYCODE_DIGIT[code]
   if digit and ev:getFlags().cmd then
+    -- The digits are the list's numbered rows, so over an open actions pane, whose rows carry no
+    -- number, the pane closes and the digit chooses the list's row, the pane rule Milos stated on
+    -- 2026-11-09 and this case on 2026-11-10, as Olm.app's stage answers it.
+    self:closePanes()
     self:_chooseSlot(digit)
   elseif code == KEYCODE_DOWN then
     self.view:stopScroll()
