@@ -23,7 +23,7 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 1.4e folder search, with 1.3e, 1.4g, 1.4f, 1.4c, 1.4k and 1.4h ticked since. Then 1.4d frecency, 1.4i Download, and 1.5 parity and the
+Next. 1.4d frecency, with 1.3e, 1.4g, 1.4f, 1.4c, 1.4k, 1.4h and 1.4e ticked since. Then 1.4i Download, and 1.5 parity and the
 flip last.
 
 Stage 0, contracts
@@ -54,8 +54,8 @@ Stage 1, the file search pilot
 - [x] 1.4c Quick Look, 2026-11-10
   - Its design note is agreed, `docs/DESIGN-APP-QUICK-LOOK.md`. The first build, the Lua helper's panel opened in the app's own process, went to its trial on 2026-11-10, where Milos asked for an Olm glass pane in the core instead. The note was revised and agreed the same day, and the Quick Look pane is built on branch `olm-app-quicklook` in the swift chooser's shared library for both lists, following the highlight. It passed its hand trial on 2026-11-10 in the app and in the Lua native list, with the header one actions pane line tall, the close the circled xmark symbol and the Return key cap at the inset's edge on the pane's corner radius, Milos's asks in that trial.
 - [ ] 1.4d Frecency, one owner, the history read but not yet owned
-- [ ] 1.4e Folder search, the scope, the folder aliases, Into Folder and Up a Level
-  - Its design note is agreed, `docs/DESIGN-APP-FOLDER-SEARCH.md`. Built on branch `olm-app-folders`, a browse through `/bin/ls` with the `..` row, a search beneath a folder through fd as `walk.lua` runs it, fd's path handed over by the root's new tools share, the folder aliases and the prune list in the file search share, Into Folder and Up a Level through a `setQuery` effect, and the shadow comparing a browse, and waits for its hand trial.
+- [x] 1.4e Folder search, the scope, the folder aliases, Into Folder and Up a Level
+  - Its design note is agreed, `docs/DESIGN-APP-FOLDER-SEARCH.md`. Built on branch `olm-app-folders`, a browse through `/bin/ls` with the `..` row, a search beneath a folder through fd as `walk.lua` runs it, fd's path handed over by the root's new tools share, the folder aliases and the prune list in the file search share, Into Folder and Up a Level through a `setQuery` effect, and the shadow comparing a browse. It passed its hand trial on 2026-11-10 in the app and in the Lua native list.
 - [x] 1.4f The bottom bar, the actions pane, the info pane, Copy Path, and the person's list keys, the preview pane's scroll keys among them, 2026-11-10
   - Its design note is agreed, `docs/DESIGN-APP-LIST-KEYS.md`. Piece 1, the keys, is built on branch `olm-app-list-keys` and passed its hand trial on 2026-11-09, with the preview scroll moved to Hyper and D or U in both lists and every list's Delete on Hyper and R, asking first where the verb declares confirm, and merged. Piece 2, the bar, the info pane and the field keys from the share, passed its hand trial on 2026-11-09, with every pane closing on a key that acts on the list and on a scroll or a press behind it, and merged. Piece 3, the actions pane, passed its hand trial on 2026-11-09 and merged, its rows Open, Reveal in Finder and Copy Path, with Quick Look left to 1.4c and Into Folder and Up a Level to 1.4e. The actions pane's own search field at its foot followed, in every list, Milos's ask in that trial, passed its hand trial on 2026-11-10 and merged. Piece 4, Command and a digit checked against the Lua list, passed its hand trial on 2026-11-10 on branch `olm-app-digits`, with a pane closed by the key that also closes the list now going down whole with it, in the app and in the Lua native list.
 - [x] 1.4g Short queries, file search answering from the first letter on both sides, 2026-11-09

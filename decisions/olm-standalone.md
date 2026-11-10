@@ -508,3 +508,7 @@ list, and until then that list stays on Lua.
   a Level and the `..` row write a query into the field through a new `setQuery` effect. The note
   had shared fixtures pin the resolution, and since the Lua resolver asks `hs.fs`, which the
   fixture runner cannot stand in for, the Swift port is pinned by the index check instead.
+- 2026-11-10 15:50. Step 1.4e's hand trial passed in the app and in the Lua native list, Milos
+  confirming a browse with its `..` row going up in place, Into Folder and Up a Level, a search
+  beneath a folder, a hidden one, a folder that is not there, an empty folder, and an unscoped
+  search unchanged. Step 1.4e is done.
