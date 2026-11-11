@@ -279,6 +279,7 @@ function obj:configure(opts)
     ranker = {
       score = function(path) return obj.frecency.score(path) end,
       top = function(n) return obj.frecency.top(n, leadOrder) end,
+      note = function(path) obj.frecency.note(path) end,
     },
     -- The engine never touches a picker. It reports that rows changed and the surface decides
     -- what to do about it, which is what lets a second surface reuse the engine unchanged.
@@ -336,7 +337,9 @@ function obj:configure(opts)
     },
     -- Doing anything to a row is what teaches the ranking. The surface reports the path and
     -- learns nothing about what happens to it, the same seam as the injected clipboard write.
-    onUse = function(path) obj.frecency.note(path) end,
+    -- The engine records it, so the list it holds is ordered again at once, while the action
+    -- closes it, and the next open shows the new order rather than moving a row under you.
+    onUse = function(path) obj:noteUse(path) end,
     -- The other half of that seam, so a row can report the use it just recorded. Still no
     -- concrete name on the surface, only a question it is allowed to ask.
     usedAt = function(path) return obj.frecency.usedAt(path) end,

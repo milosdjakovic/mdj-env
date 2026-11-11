@@ -116,7 +116,8 @@ end
 ---                 that cannot be made anywhere but the composition root
 --- opts.contract   the contract module, injected so the engine validates against the
 ---                 same declaration a source author reads
---- opts.ranker     a preference over paths, answering score(path) and top(n). Optional, and
+--- opts.ranker     a preference over paths, answering score(path) and top(n), and told of a use
+---                 through note(path). Optional, and
 ---                 without it no path is preferred, the list you land on is ordered by date
 ---                 and a typed query by the shared search alone. Called a ranker rather than
 ---                 named for what
@@ -252,6 +253,17 @@ function obj:preference(path)
   local used = self._ranker.score(path) or 0
   if used <= 0 then return 0 end
   return used / (used + 2)
+end
+
+--- engine:noteUse(path) - a row was acted on. The ranker records it, and the recent list held for
+--- the next open is floated again from the dates it already has, so that open shows the new order
+--- from its first frame rather than moving the row up when the fresh dates land. The action is
+--- what closes the list, so this runs while nobody is looking at it, and it costs the ranker's
+--- top and a stat for each floated row the dates lack, a handful, with no fetch.
+function obj:noteUse(path)
+  if not path or path == "" then return end
+  if self._ranker and self._ranker.note then self._ranker.note(path) end
+  if self._recentDates then self._recents = self:_float(self._recentDates) end
 end
 
 --- Drop rows living inside a directory nobody searches for, the vendored copies and the

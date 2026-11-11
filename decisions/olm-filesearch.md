@@ -217,3 +217,15 @@ where Olm.app's closes. `chooser.lua` ends Reveal in Finder, Copy Path and Copy 
 root word, so it arrived nil and all three stayed open since. It is declared now in
 `plugins/filesearch/manifest.lua`, and he confirmed all three close.
 
+### 2026-11-11 12:01, the file just used moved up only after the list appeared
+
+With the order by last use, Milos saw the file he had just acted on jump to the top a moment after
+the Lua list opened. The list opens on the recent list held from the last open and fetches fresh
+dates in the background, and the float ran only when they landed. He asked for the new order on the
+first frame without slowing the open. So `engine:noteUse` takes the use from the surface, tells the
+ranker through a new `note` verb, and floats the held dates again at once, while the action closes
+the list, which costs the ranker's top and a stat for each floated row the dates lack, with no
+fetch. Opening is unchanged. Olm.app answers the float in the same answer as the dates, so it has
+no held list to go stale. Checked by the unit case `test/cases/filesearch-frecency.lua`, and by
+hand.
+

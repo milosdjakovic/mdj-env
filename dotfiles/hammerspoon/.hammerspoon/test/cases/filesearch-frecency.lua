@@ -75,6 +75,7 @@ check("the last use order leads with the latest",
 local util = load(fs .. "util.lua")
 local engine = load(fs .. "engine.lua")
 local asked = {}
+local lastUsed = "/home/used.txt"
 engine:init()
 engine:configure({
   types = {},
@@ -91,7 +92,8 @@ engine:configure({
   } },
   ranker = {
     score = function(path) return path == "/home/used.txt" and 3 or 0 end,
-    top = function() return { "/home/used.txt" } end,
+    top = function() return { lastUsed } end,
+    note = function(path) lastUsed = path end,
   },
 })
 engine:reset()
@@ -107,3 +109,13 @@ check("the recent list leads with the path used most", paths(shown or {}, "path"
 local held = engine:held()
 check("and the shadow is handed the dates alone", paths(held.items, "key") == "/home/new.txt,/home/older.txt",
   paths(held.items, "key"))
+
+-- A use while the list closes orders the held list at once, so the next open draws it with no
+-- fetch and nothing moves when the dates land.
+engine:noteUse("/home/older.txt")
+engine:reset()
+local reopened = engine:rowsFor("")
+check("a use floats the held list again, so the next open draws it before the fresh dates land",
+  #asked == 2 and paths(reopened or {}, "path") == "/home/older.txt,/home/new.txt",
+  paths(reopened or {}, "path") .. " after " .. #asked .. " fetch(es)")
+
