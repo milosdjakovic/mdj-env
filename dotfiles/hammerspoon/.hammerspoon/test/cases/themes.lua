@@ -271,12 +271,14 @@ do
   check("a highlight appearance starts on its default", a.current() == "Olm Highlight")
   check("the palette's own highlight stands before the accent is chosen",
     a.colors().dark.highlight == "#555555" and a.colors().light.highlight == "#eeeeee")
+  check("which follows no accent", a.colors().followsAccent == nil)
   check("refresh does nothing while the accent is not followed", a.refresh() == false and #applied == 0)
   check("choosing the system highlight persists its name and applies", a.set("macOS Highlight")
     and settings.glassKey == "macos" and #applied == 1)
   check("the system highlight is the selection colour, solid",
     a.colors().dark.highlight == "#0a60ff" and a.colors().light.highlight == "#0a60ff")
   check("every other role is the palette's", a.colors().dark.foreground == "#111111")
+  check("and says it follows the accent, so a meter fills with it", a.colors().followsAccent == true)
   accent = "#ff2d55"
   check("refresh applies again with the new accent", a.refresh() == true and #applied == 2
     and applied[2].dark.highlight == "#ff2d55")

@@ -84,6 +84,7 @@ hyper	e	any	-	-	menuSearch
 hyper	f	any	-	-	apptoggler
 hyper	f	any	fileSearchOpen	100	fileSearch
 hyper	f	any	processesOpen	100	processes
+hyper	g	any	fileSearchOpen	100	fileSearch
 hyper	h	any	fileSearchOpen	100	fileSearch
 hyper	i	any	audioOpen	100	audio
 hyper	i	any	browserTabsOpen	100	browserTabs

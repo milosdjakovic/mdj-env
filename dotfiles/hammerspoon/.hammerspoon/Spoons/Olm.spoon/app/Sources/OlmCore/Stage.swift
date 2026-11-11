@@ -207,16 +207,26 @@ public final class Stage {
     paneHost?.draw(paint, radius: paneRadius, reset: reset, busy: busy)
   }
 
+  // A body's shortcut as the actions pane names it, its title and its first chord's glyphs with
+  // nothing between them, lib/kbd.lua's text, or nil where the list has no such action.
+  private func spelled(_ verb: String?) -> (title: String, chord: String)? {
+    guard let verb, let action = bars.actions.first(where: { $0.verb == verb }),
+      let chord = action.row.chord.first, !chord.isEmpty else { return nil }
+    return (action.row.title, chord.map(\.glyph).joined())
+  }
+
   // The pixels to the point of the screens the pane can stand on, which a picture is decoded at.
   private var paneScale: Double { Double(NSScreen.screens.map(\.backingScaleFactor).max() ?? 2) }
 
   // A preview laid out off the main thread, its picture read there first.
   private nonisolated static func paint(_ preview: OlmKit.Preview, pane: (frame: PaneFrame, tokens: PaneTokens, emptyText: String),
-                                        measure: PaneMeasure, scale: Double) async -> PanePaint {
+                                        measure: PaneMeasure, scale: Double,
+                                        shortcut: (title: String, chord: String)? = nil) async -> PanePaint {
     await Task.detached(priority: .userInitiated) {
       let width = PanePainter.bodyWidth(pane.frame, tokens: pane.tokens)
       let image = preview.body?.picture.flatMap { PanePicture.load($0, width: width, scale: scale) }
-      return PanePainter.paint(preview, frame: pane.frame, tokens: pane.tokens, measure: measure, image: image)
+      return PanePainter.paint(preview, frame: pane.frame, tokens: pane.tokens, measure: measure, image: image,
+        shortcut: shortcut)
     }.value
   }
 
@@ -351,14 +361,15 @@ public final class Stage {
       }
       guard mine == self.previewGeneration else { return }
       // A preview still on its way says so with the spinner rather than its words, the body's
-      // heading drawn alone.
+      // heading drawn alone, or with its words over a meter where it says how far it has come.
       var drawn = preview
-      if preview.pending { drawn.body?.facts = nil }
-      let paint = await Self.paint(drawn, pane: pane, measure: measure, scale: scale)
+      if preview.pending, preview.progress == nil { drawn.body?.facts = nil }
+      let paint = await Self.paint(drawn, pane: pane, measure: measure, scale: scale,
+        shortcut: self.spelled(drawn.body?.shortcut))
       guard mine == self.previewGeneration else { return }
       self.previewAsking = nil
       self.previewShown = key
-      self.drawPane(paint, busy: preview.pending)
+      self.drawPane(paint, busy: Self.spins(preview))
       // What the preview said was on its way, drawn where the pane is scrolled once it lands.
       // Asked again while it is still pending, since a download can land as a render begins.
       var waiting = preview.pending
@@ -366,14 +377,19 @@ public final class Stage {
         guard let landed = await source.previewLanded(pick), !Task.isCancelled,
           mine == self.previewGeneration else { return }
         var drawn = landed
-        if landed.pending { drawn.body?.facts = nil }
-        let repaint = await Self.paint(drawn, pane: pane, measure: measure, scale: scale)
+        if landed.pending, landed.progress == nil { drawn.body?.facts = nil }
+        let repaint = await Self.paint(drawn, pane: pane, measure: measure, scale: scale,
+          shortcut: self.spelled(drawn.body?.shortcut))
         guard mine == self.previewGeneration else { return }
-        self.drawPane(repaint, reset: false, busy: landed.pending)
+        self.drawPane(repaint, reset: false, busy: Self.spins(landed))
         waiting = landed.pending
       }
     }
   }
+
+  // The spinner turns for a preview on its way that cannot say how far it has come, since one
+  // that can draws its own meter, asked for in the 1.4i trial on 2026-11-11.
+  private static func spins(_ preview: OlmKit.Preview) -> Bool { preview.pending && preview.progress == nil }
 
   // The state the Lua view sends, providers/swift/view.lua's redraw. The first nine rows carry
   // Command and their digit wherever the list scrolls, the selected row Return, and a typed query
@@ -515,6 +531,11 @@ public final class Stage {
       case .copyFile(let path):
         NSPasteboard.general.clearContents()
         NSPasteboard.general.writeObjects([URL(fileURLWithPath: path) as NSURL])
+      // Forgotten as shown and asked again, where the pane is scrolled, step 1.4i.
+      case .refreshPreview:
+        previewShown = nil
+        previewAsking = nil
+        describe()
       }
     }
   }

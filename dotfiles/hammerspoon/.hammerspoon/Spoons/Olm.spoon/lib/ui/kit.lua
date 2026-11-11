@@ -16,7 +16,7 @@ local M = {}
 -- value is its own name.
 M.kinds = {
   text = "text", badge = "badge", keycap = "keycap", icon = "icon", row = "row", stack = "stack",
-  flow = "flow", grid = "grid", divider = "divider", spacer = "spacer",
+  flow = "flow", grid = "grid", divider = "divider", spacer = "spacer", meter = "meter",
   surface = "surface", group = "group", code = "code", raw = "raw", image = "image",
 }
 M.aligns = { left = "left", center = "center", right = "right" }
@@ -216,6 +216,15 @@ function M.new(names)
   --- kit.divider() -> node, one point rule in the border colour across the width.
   function kit.divider()
     return { kind = M.kinds.divider }
+  end
+
+  --- kit.meter(fraction) -> node, how far something has come, a track across the width filled
+  --- from the left to fraction, nought to one, in the style's meter colours and height.
+  function kit.meter(fraction)
+    if type(fraction) ~= "number" or fraction ~= fraction then
+      error("ui.kit meter, fraction must be a number from nought to one, not " .. tostring(fraction), 2)
+    end
+    return { kind = M.kinds.meter, fraction = math.max(0, math.min(1, fraction)) }
   end
 
   --- kit.spacer(size) -> node, a space name, taken as height in a stack and width in a row.

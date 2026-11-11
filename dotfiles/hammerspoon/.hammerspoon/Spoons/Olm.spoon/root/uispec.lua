@@ -55,6 +55,9 @@ function M.spec(policy, colors, typography)
   return {
     colors = { dark = colorsFor(colors, "dark"), light = colorsFor(colors, "light") },
     typography = typography,
+    -- A meter fills with the highlight where the highlight is the macOS accent and with the
+    -- foreground otherwise, see meter in lib/ui/style.lua.
+    meter = { fill = colors and colors.followsAccent and "highlight" or nil },
     radius = {
       -- Every chip's corner is derived from this one, see radius.nested in lib/ui/style.lua.
       surface = (policy.surface or {}).cornerRadius,

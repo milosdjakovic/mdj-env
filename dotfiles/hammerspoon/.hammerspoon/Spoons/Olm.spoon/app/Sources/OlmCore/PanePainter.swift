@@ -48,12 +48,16 @@ public enum PanePainter {
 
   /// One row's preview, the header over the body, at the content's full height. image is the body's
   /// picture, read off the main thread by PanePicture, nil to draw its heading alone.
+  /// shortcut is the body's shortcut as the stage spelled it, its title and its chord, nil to draw
+  /// none.
   public static func paint(_ preview: Preview, frame: PaneFrame, tokens: PaneTokens, measure: PaneMeasure,
-                           image: PaneImage? = nil) -> PanePaint {
+                           image: PaneImage? = nil, shortcut: (title: String, chord: String)? = nil) -> PanePaint {
     let engine = PaneLayoutEngine(T: tokens, measure: measure)
     let inner = innerBox(frame, tokens)
     let (head, headH) = engine.layout(header(preview), inner, clip: true)
-    let body = preview.body.map { self.body($0, inner.w, tokens, measure, image: image) }
+    let body = preview.body.map {
+      self.body($0, inner.w, tokens, measure, image: image, shortcut: shortcut, progress: preview.progress)
+    }
     let bw = tokens.interiorInset
     let interior = PaneRect(x: bw, y: bw, w: frame.w - 2 * bw, h: frame.h - 2 * bw)
 
@@ -93,6 +97,8 @@ public enum PanePainter {
       return .text(t)
     case .image(let img, let r, let alpha):
       return .image(img, PaneRect(x: r.x + dx, y: r.y + dy, w: r.w, h: r.h), alpha: alpha)
+    case .fill(let r, let radius, let color):
+      return .fill(PaneRect(x: r.x + dx, y: r.y + dy, w: r.w, h: r.h), radius: radius, color: color)
     }
   }
 
@@ -126,7 +132,17 @@ public enum PanePainter {
   // sidepanel-nodes.lua's body, wrapped at w before the heading is written, so the heading can say
   // what the budget left out.
   static func body(_ b: Preview.Body, _ w: Double, _ T: PaneTokens, _ measure: PaneMeasure,
-                   image: PaneImage? = nil) -> PaneNode {
+                   image: PaneImage? = nil, shortcut: (title: String, chord: String)? = nil,
+                   progress: Double? = nil) -> PaneNode {
+    // How far what is on its way has come, a meter across the body under its heading.
+    if let progress { return .stack([heading(b.label, b.facts), .meter(progress)], gap: gap) }
+    // An action's shortcut under the heading, laid out as a fact, its title and its chord flush right.
+    if let shortcut, b.picture == nil, b.lines.isEmpty {
+      return .stack([heading(b.label, b.facts),
+        .row([.text(shortcut.title, "caption", color: "subtext"),
+              .text(shortcut.chord, "caption", color: "foreground", align: "right")], fillIndex: 2)],
+        gap: headingGap)
+    }
     // A picture under its heading, as sidepanel-nodes.lua's body draws one.
     if let picture = b.picture {
       guard let image else { return heading(b.label, b.facts) }

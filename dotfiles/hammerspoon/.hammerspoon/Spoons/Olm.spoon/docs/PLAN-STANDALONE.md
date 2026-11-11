@@ -23,8 +23,8 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 1.4i Download, with 1.3e, 1.4g, 1.4f, 1.4c, 1.4k, 1.4h, 1.4e and 1.4d ticked since. Then 1.5 parity and the
-flip last.
+Next. 1.5 parity, with 1.3e, 1.4g, 1.4f, 1.4c, 1.4k, 1.4h, 1.4e, 1.4d and 1.4i ticked since. Then the flip
+last.
 
 Stage 0, contracts
 - [x] 0.1 The decision record, 2026-11-05
@@ -64,7 +64,9 @@ Stage 1, the file search pilot
 - [x] 1.4g Short queries, file search answering from the first letter on both sides, 2026-11-09
 - [x] 1.4h A type naming a bundle, `.app` listing every app rather than Safari alone, in both file searches
   - Built on branch `olm-app-bundles`, the helper's `recent` keeping a folder whose name ends in a type asked for. It passed its hand trial on 2026-11-10 in the app and in the Lua native list, and merged.
-- [ ] 1.4i Files iCloud has not downloaded, a Download action and the preview pane naming its shortcut, after 1.4f
+- [x] 1.4i Files iCloud has not downloaded, a Download action and the preview pane naming its shortcut, after 1.4f, 2026-11-11
+  - Its design note is agreed, `docs/DESIGN-APP-DOWNLOAD.md`, Hyper and G and the list staying up. Built on branch `olm-app-download`, Download declared in the Lua manifest with a gate the Lua list always answers no, the app answering it over a placeholder, asking iCloud through `CloudFiles`, the pane pending until the stat flag clears and then reading the file, a new `refreshPreview` effect asking the pane again, and the body's `shortcut` the stage spells from the keys share.
+  - It passed its hand trial on 2026-11-11 in the app and in the Lua native list. Milos found the spinner alone looked like nothing was happening, so the download now shows how far it has come, the bytes in the preview's words and `kit.meter` under its heading, a new component of the shared UI kit, a light grey track filled black, or with the macOS accent when the highlight follows it.
 - [x] 1.4j Folder permissions asked up front on file search's first open, asked again from the list, and kept across rebuilds, 2026-11-09
 - [x] 1.4k Copy File and Copy Folder in file search, both lists, the file itself put on the clipboard as Finder's Copy puts it, beside Copy Path, asked by Milos on 2026-11-10, after 1.4c
   - Built on branch `olm-app-copyfile`, Hyper and C, its word Copy Folder over a folder through the presentation's labels member by action name, which the bottom bar, the info pane and the actions pane all read, and in the app through the source's label. It passed its hand trial on 2026-11-10 in the app and in the Lua native list, and merged.

@@ -66,6 +66,7 @@ field	d	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
 field	d	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch
 field	f	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch
 field	f	alt+cmd+ctrl+shift	processesOpen	100	processes
+field	g	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch
 field	h	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch
 field	i	alt+cmd+ctrl+shift	audioOpen	100	audio
 field	i	alt+cmd+ctrl+shift	browserTabsOpen	100	browserTabs

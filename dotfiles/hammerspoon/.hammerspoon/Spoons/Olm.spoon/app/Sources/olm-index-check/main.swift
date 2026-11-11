@@ -553,5 +553,110 @@ check(pane?.facts.contains { $0.label == "USED" && $0.color == .subtext } == tru
 let unusedPane = await usedSource.preview(Pick(key: tree.appendingPathComponent("notes/report.md").path, query: ""))
 check(unusedPane?.facts.contains { $0.label == "USED" } == false, "and says nothing of a file never used")
 
+// Download, step 1.4i, docs/DESIGN-APP-DOWNLOAD.md, over a placeholder and a download stood in for,
+// since no check can make iCloud evict a file.
+final class FakeCloud: @unchecked Sendable {
+  var placeholders: Set<String> = []
+  var asked: [String] = []
+  var refuses = false
+  let lock = NSLock()
+  func isPlaceholder(_ path: String) -> Bool { lock.withLock { placeholders.contains(path) } }
+  func download(_ path: String) -> Bool { lock.withLock { asked.append(path); return !refuses } }
+  // The progress handed out for each path, which a check writes as the system would.
+  var progress: [String: CloudProgress] = [:]
+  func watch(_ path: String) -> CloudProgress {
+    lock.withLock {
+      let made = CloudProgress()
+      progress[path] = made
+      return made
+    }
+  }
+}
+let fakeCloud = FakeCloud()
+let dlHeld = tree.appendingPathComponent("notes/report.md").path
+let dlPlain = tree.appendingPathComponent("src/app.js").path
+fakeCloud.placeholders = [dlHeld]
+let cloudSource = FileSearchSource(context: context, index: files, settings: settings,
+  cloud: CloudFiles(isPlaceholder: { fakeCloud.isPlaceholder($0) }, download: { fakeCloud.download($0) },
+    watch: { fakeCloud.watch($0) }))
+await cloudSource.open(settings: settings)
+check(source.manifest.actions.contains { $0.id == "download" && $0.title == "Download" },
+  "Download is an action by the Lua list's verb name")
+check(await cloudSource.applies("isPlaceholder", on: Pick(key: dlHeld, query: "")),
+  "Download is listed over a placeholder")
+let dlOverPlain = await cloudSource.applies("isPlaceholder", on: Pick(key: dlPlain, query: ""))
+let dlOverAsk = await cloudSource.applies("isPlaceholder", on: Pick(key: FileSearchSource.askKey, query: ""))
+check(!dlOverPlain && !dlOverAsk, "and over no other row")
+let dlBefore = await cloudSource.preview(Pick(key: dlHeld, query: ""))
+check(dlBefore?.body?.facts == FileSearchSource.notDownloaded && dlBefore?.body?.shortcut == "download"
+  && dlBefore?.pending == false, "a placeholder's pane says it is not downloaded and names Download")
+check(await cloudSource.run("download", on: Pick(key: dlPlain, query: "")) == [] && fakeCloud.asked.isEmpty,
+  "Download over a file already here asks nothing")
+check(await cloudSource.run("download", on: Pick(key: dlHeld, query: "")) == [.refreshPreview]
+  && fakeCloud.asked == [dlHeld], "Download asks iCloud once and keeps the list up, the pane asked again")
+check(await cloudSource.run("download", on: Pick(key: dlHeld, query: "")) == [] && fakeCloud.asked == [dlHeld],
+  "and a second press while it is on its way asks nothing more")
+let dlWaiting = await cloudSource.preview(Pick(key: dlHeld, query: ""))
+let dlSize = Int64((try? FileManager.default.attributesOfItem(atPath: dlHeld)[.size] as? Int) ?? 0)
+check(dlWaiting?.pending == true && dlWaiting?.body?.facts == FileSearchSource.downloadingText(0, of: dlSize)
+  && dlWaiting?.progress == 0 && dlWaiting?.body?.shortcut == nil,
+  "while it downloads the pane is pending, says so with the size, and its bar starts empty")
+let dlFollowed = fakeCloud.lock.withLock { fakeCloud.progress[dlHeld] }
+check(dlFollowed != nil, "and the download is followed from the request")
+dlFollowed?.set(done: 50, total: 200)
+let dlHalf = await cloudSource.previewLanded(Pick(key: dlHeld, query: ""))
+check(dlHalf?.pending == true && dlHalf?.progress == 0.25
+  && dlHalf?.body?.facts == FileSearchSource.downloadingText(50, of: 200),
+  "more come down answers again with the bar further on and the bytes said")
+fakeCloud.lock.withLock { fakeCloud.placeholders = [] }
+let dlLanded = await cloudSource.previewLanded(Pick(key: dlHeld, query: ""))
+check(dlLanded?.body?.label == "HEAD" && dlLanded?.body?.lines == ["x"],
+  "once the file is here its head is read")
+check(await cloudSource.previewLanded(Pick(key: dlHeld, query: "")) == nil, "and nothing is left waiting")
+let dlRefused = tree.appendingPathComponent("notes/report-old.md").path
+fakeCloud.lock.withLock { fakeCloud.placeholders = [dlRefused]; fakeCloud.refuses = true }
+check(await cloudSource.run("download", on: Pick(key: dlRefused, query: "")) == [.refreshPreview],
+  "a download iCloud refuses asks the pane again")
+let dlRefusedPane = await cloudSource.preview(Pick(key: dlRefused, query: ""))
+check(dlRefusedPane?.body?.facts == FileSearchSource.undownloadableText && dlRefusedPane?.pending == false,
+  "which says it could not download")
+
+// The meter a preview that says how far it has come draws under its heading, kit.meter, in the
+// tokens' track and fill roles, the fill the highlight where the tokens say so.
+func meterTokens(fill: String) -> PaneTokens? {
+  func color(_ r: Double, _ g: Double, _ b: Double, _ a: Double) -> [String: Any] {
+    ["red": r, "green": g, "blue": b, "alpha": a]
+  }
+  return PaneTokens([
+    "pad": 10, "space": ["xs": 2, "m": 10],
+    "text": ["body": ["font": ".AppleSystemUIFont", "size": 13, "lineHeight": 16],
+             "section": ["font": ".AppleSystemUIFont", "size": 13, "lineHeight": 16]],
+    "colors": ["foreground": color(0, 0, 0, 0.85), "border": color(0, 0, 0, 0.1),
+               "highlight": color(0.04, 0.38, 1, 1), "subtext": color(0, 0, 0, 0.5)],
+    "meter": ["height": 6, "track": "border", "fill": fill],
+  ])
+}
+var meterPreview = Preview(name: "big.pdf", body: Preview.Body(label: "PREVIEW", facts: "downloading"), pending: true)
+meterPreview.progress = 0.6
+func fills(_ paint: PanePaint) -> [(PaneRect, PaneColor)] {
+  paint.items.compactMap { if case .fill(let r, _, let c) = $0 { return (r, c) } else { return nil } }
+}
+if let plainTokens = meterTokens(fill: "foreground"), let accentTokens = meterTokens(fill: "highlight") {
+  let frame = PaneFrame(w: 400, h: 300)
+  let drawn = fills(PanePainter.paint(meterPreview, frame: frame, tokens: plainTokens, measure: PaneMeasure()))
+  check(drawn.count == 2 && drawn[0].0.w == 380 && abs(drawn[1].0.w - 228) < 0.001 && drawn[0].0.h == 6,
+    "a preview with progress draws a meter across the body, filled to its fraction")
+  check(drawn.count == 2 && drawn[0].1 == plainTokens.colors["border"] && drawn[1].1 == plainTokens.colors["foreground"],
+    "in the border under the foreground on our own colours")
+  let accented = fills(PanePainter.paint(meterPreview, frame: frame, tokens: accentTokens, measure: PaneMeasure()))
+  check(accented.count == 2 && accented[1].1 == accentTokens.colors["highlight"],
+    "and filled with the highlight where it follows the accent")
+  meterPreview.progress = nil
+  check(fills(PanePainter.paint(meterPreview, frame: frame, tokens: plainTokens, measure: PaneMeasure())).isEmpty,
+    "and no meter where it cannot say")
+} else {
+  check(false, "the meter's tokens read")
+}
+
 print(failures == 0 ? "olm-index-check, every check passed" : "olm-index-check, \(failures) FAILED")
 exit(failures == 0 ? 0 : 1)

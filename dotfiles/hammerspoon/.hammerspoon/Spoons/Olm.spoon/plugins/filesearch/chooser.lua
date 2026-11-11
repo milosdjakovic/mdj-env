@@ -897,6 +897,17 @@ function M:isFolder(item)
   return M:isEntry(item) and item.isDir == true
 end
 
+--- chooser:isPlaceholder() -> boolean. Whether the row is a file iCloud has not downloaded, which
+--- Download needs, step 1.4i. Always no here. This list's preview reads the highlighted file's head,
+--- which downloads it, so it never holds a placeholder worth a verb, and only Olm.app's list, whose
+--- preview never reads one, answers yes, docs/DESIGN-APP-DOWNLOAD.md.
+function M:isPlaceholder()
+  return false
+end
+
+--- chooser.download() - the verb Hyper and G reaches here, which does nothing, for the reason above.
+function M.download() end
+
 --- chooser:isBrowsing() -> boolean. Whether the query browses a folder with one above it, which
 --- Up a level needs, asked the way browseUp itself asks.
 function M:isBrowsing()

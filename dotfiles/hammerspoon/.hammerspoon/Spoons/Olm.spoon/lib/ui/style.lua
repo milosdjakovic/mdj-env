@@ -122,6 +122,12 @@ local SHIPPED = {
   -- on the background.
   alpha = { dim = 0.4, fade = 0.55, muted = 0.5, keycap = 0.14 },
 
+  -- A meter, kit.meter, how far something has come. track is the role its whole width is drawn
+  -- in and fill the role of the part done, the foreground, which the spec turns to the highlight
+  -- for a look whose highlight follows the macOS accent, Milos's choice of 2026-11-11, a light grey
+  -- under black on our own colours and the accent on the system's. height is its thickness.
+  meter = { height = 6, track = "border", fill = "foreground" },
+
   -- swatch is the colour toast's square, the one size the toast draws that no icon shares.
   icon = { row = 28, list = 28, sheet = 32, swatch = 26 },
 
@@ -474,6 +480,13 @@ function M.new(opts)
         return icon
       end)(),
       stroke = mergeGroup(SHIPPED.stroke, spec.stroke),
+      -- Only a colour role is taken for either part, so a stray word never becomes a colour.
+      meter = (function()
+        local m = mergeGroup(SHIPPED.meter, spec.meter)
+        if not M.names.colors[m.track] then m.track = SHIPPED.meter.track end
+        if not M.names.colors[m.fill] then m.fill = SHIPPED.meter.fill end
+        return m
+      end)(),
       motion = mergeGroup(SHIPPED.motion, spec.motion),
       badge = mergeGroup(badges, spec.badge),
       inset = inset,

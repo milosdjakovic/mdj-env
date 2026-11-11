@@ -95,6 +95,8 @@ public actor FileSearchSource: ListSource {
     // A folder's own level and the one above, step 1.4e, chooser.lua's browseInto and browseUp.
     Action(id: "browseInto", title: "Into Folder"),
     Action(id: "browseUp", title: "Up a Level"),
+    // A file iCloud holds only as a placeholder, brought down with the list staying up, step 1.4i.
+    Action(id: "download", title: "Download"),
   ], previewPane: PreviewPane(emptyText: FileSearchSource.paneEmptyText))
 
   /// What the pane says while nothing is highlighted, plugins/filesearch/chooser.lua's emptyText.
@@ -129,6 +131,13 @@ public actor FileSearchSource: ListSource {
   private var accessState = FolderAccess.State()
   // What you use, the person's list only, nil for the shadow and a check that hands none in.
   private let frecency: Frecency?
+  // Placeholders and asking iCloud for one, step 1.4i, and the paths asked for and not yet landed,
+  // and those iCloud would not take, so the pane says which.
+  private let cloud: CloudFiles
+  private var downloading: Set<String> = []
+  // How far each of those has come, followed from the request until it lands.
+  private var watching: [String: CloudProgress] = [:]
+  private var undownloadable: Set<String> = []
 
   /// Where the person's list keeps its uses, and the Lua history the root shares, step 1.4d.
   public static func frecency(_ context: PluginContext) -> Frecency {
@@ -144,9 +153,10 @@ public actor FileSearchSource: ListSource {
   /// access the folders and the file, handed in by a check.
   public init(context: PluginContext, index: FileIndex? = nil, settings: FileSearchSettings? = nil,
               asksAccess: Bool = false, access: FolderAccess? = nil, insideFrom: Int? = 3,
-              frecency: Frecency? = nil) {
+              frecency: Frecency? = nil, cloud: CloudFiles = .system) {
     self.context = context
     self.frecency = frecency
+    self.cloud = cloud
     self.insideFrom = insideFrom
     self.access = access ?? (asksAccess
       ? FolderAccess(home: FileManager.default.homeDirectoryForCurrentUser, store: context.store) : nil)
@@ -382,7 +392,7 @@ public actor FileSearchSource: ListSource {
 
   public func run(_ action: String, on pick: Pick) async -> [Effect] {
     guard !pick.key.hasPrefix("olm:") else { return [] }
-    if ["reveal", "copyPath", "copyFile", "browseInto", "peekPreview"].contains(action) { use(pick) }
+    if ["reveal", "copyPath", "copyFile", "browseInto", "peekPreview", "download"].contains(action) { use(pick) }
     switch action {
     case "reveal": return [.hide, .revealFile(pick.key)]
     // A plain clipboard write, then the list closes, chooser.lua's copyPath.
@@ -402,6 +412,18 @@ public actor FileSearchSource: ListSource {
       return [.setQuery(query)]
     // Over the list, which stays up, chooser.lua's peekPreview, step 1.4c.
     case "peekPreview": return [.quickLook(pick.key)]
+    // iCloud asked for the file, the list staying up and the pane asked again, so it shows the file
+    // on its way and then the file, docs/DESIGN-APP-DOWNLOAD.md.
+    case "download":
+      guard cloud.isPlaceholder(pick.key), !downloading.contains(pick.key) else { return [] }
+      if cloud.download(pick.key) {
+        downloading.insert(pick.key)
+        watching[pick.key] = cloud.watch(pick.key)
+        undownloadable.remove(pick.key)
+      } else {
+        undownloadable.insert(pick.key)
+      }
+      return [.refreshPreview]
     default: return []
     }
   }
@@ -413,6 +435,7 @@ public actor FileSearchSource: ListSource {
     switch gate {
     case "isEntry": return !pick.key.hasPrefix("olm:")
     case "isFolder": return !pick.key.hasPrefix("olm:") && FolderScope.isDir(pick.key)
+    case "isPlaceholder": return !pick.key.hasPrefix("olm:") && cloud.isPlaceholder(pick.key)
     case "isBrowsing":
       let scope = FileQueryGrammar.parse(pick.query, types: settings.types).scope
       return FolderScope.upQuery(scope, roots: settings.roots, home: Self.home) != nil
@@ -447,12 +470,13 @@ public actor FileSearchSource: ListSource {
       preview.body = Preview.Body(label: "PREVIEW", facts: folder + " not allowed")
       return preview
     }
-    if let quick = await Self.bounded(limits.peekSeconds, { Peek.attributes(pick.key) }) ?? nil, quick.dataless {
+    if let quick = await Self.bounded(limits.peekSeconds, { Peek.attributes(pick.key) }) ?? nil,
+      cloud.isPlaceholder(pick.key) {
       if Task.isCancelled { return nil }
-      var preview = describe(pick.key, isDir: false, peek: Peek(attrs: quick.attrs), limits: limits, picture: nil)
-      preview.body = Preview.Body(label: "PREVIEW", facts: Self.notDownloaded)
-      return preview
+      return placeholder(pick.key, quick.attrs)
     }
+    // Asked for and landed, so read as any other file from here on.
+    landed(pick.key)
     if Task.isCancelled { return nil }
     return await read(pick, seconds: limits.peekSeconds)
   }
@@ -476,16 +500,71 @@ public actor FileSearchSource: ListSource {
 
   /// What the preview pane says of a file iCloud has not downloaded to this Mac.
   public static let notDownloaded = "in iCloud, not downloaded"
+  /// The same while iCloud brings it down, step 1.4i.
+  public static let downloadingText = "downloading from iCloud"
+  /// The same once iCloud has said how much, 2.5 of 6.0 MB.
+  public static func downloadingText(_ done: Int64, of total: Int64) -> String {
+    downloadingText + ", " + PreviewDescriber.humanBytes(Int(done)) + " of " + PreviewDescriber.humanBytes(Int(total))
+  }
+  /// The same where iCloud would not take the request.
+  public static let undownloadableText = "in iCloud, could not download"
+
+  // A placeholder's preview, its facts from the stat. Not asked for, it names Download's shortcut,
+  // which the core spells from the keys share. Asked for, it is pending, so the stage asks
+  // previewLanded until the file is here.
+  private func placeholder(_ path: String, _ attrs: Peek.Attrs) -> Preview {
+    var preview = describe(path, isDir: false, peek: Peek(attrs: attrs), limits: settings.preview, picture: nil)
+    if downloading.contains(path) {
+      // Nothing come down yet still draws the bar, empty, beside the size the stat gave.
+      let bytes = watching[path]?.bytes ?? (0, Int64(attrs.size))
+      let words = bytes.total > 0 ? Self.downloadingText(bytes.done, of: bytes.total) : Self.downloadingText
+      preview.body = Preview.Body(label: "PREVIEW", facts: words)
+      preview.pending = true
+      if bytes.total > 0 { preview.progress = min(1, max(0, Double(bytes.done) / Double(bytes.total))) }
+    } else if undownloadable.contains(path) {
+      preview.body = Preview.Body(label: "PREVIEW", facts: Self.undownloadableText)
+    } else {
+      preview.body = Preview.Body(label: "PREVIEW", facts: Self.notDownloaded, shortcut: "download")
+    }
+    return preview
+  }
+
+  /// How often a download's landing is looked for, and for how long in one ask, a stat each time.
+  static let downloadPoll: UInt64 = 250_000_000
+  static let downloadPolls = 8
 
   /// The row whose preview said rendering, once its render lands, sidepanel.lua's rebuild when the
   /// thumbnail chain answers late. Cancelled when the highlight moves on, which leaves the render.
   public func previewLanded(_ pick: Pick) async -> Preview? {
+    // A download on its way, looked for a few times a second, the same pending preview again as
+    // soon as more of it has come down, so the bar moves, and when it has not landed in this ask,
+    // so the stage keeps asking only while the row is highlighted.
+    if downloading.contains(pick.key) {
+      let before = watching[pick.key]?.bytes?.done
+      for _ in 0..<Self.downloadPolls {
+        try? await Task.sleep(nanoseconds: Self.downloadPoll)
+        if Task.isCancelled { return nil }
+        if !cloud.isPlaceholder(pick.key) {
+          landed(pick.key)
+          return await read(pick, seconds: settings.preview.peekSeconds)
+        }
+        if watching[pick.key]?.bytes?.done != before { break }
+      }
+      guard let attrs = Peek.attributes(pick.key)?.attrs else { return nil }
+      return placeholder(pick.key, attrs)
+    }
     guard let row = rendering[pick.key] else { return nil }
     let limits = settings.preview
     let picture = await thumbs.landed(row.spec, limits: limits)
     if Task.isCancelled || picture == .rendering { return nil }
     rendering[pick.key] = nil
     return describe(pick.key, isDir: row.isDir, peek: row.peek, limits: limits, picture: picture)
+  }
+
+  // A download landed, no longer followed.
+  private func landed(_ path: String) {
+    downloading.remove(path)
+    watching.removeValue(forKey: path)?.stop()
   }
 
   // The whole read of a row, its head or folder and its picture, bounded by seconds.

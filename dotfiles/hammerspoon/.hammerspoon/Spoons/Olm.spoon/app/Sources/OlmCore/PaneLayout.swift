@@ -86,6 +86,8 @@ public enum PaneItem: Equatable, Sendable {
   case text(PaneText)
   /// A picture scaled proportionally into its frame at the top left, at alpha.
   case image(PaneImage, PaneRect, alpha: Double)
+  /// A rectangle filled in one colour, rounded by radius when it is above zero, a meter's part.
+  case fill(PaneRect, radius: Double, color: PaneColor)
 }
 
 /// The tokens a pane is laid out with, one half's, as pane.lua's tokens hands them over.
@@ -121,6 +123,15 @@ public struct PaneTokens: @unchecked Sendable {
   public var mono: String?
   public var text: [String: Role]
   public var colors: [String: PaneColor]
+  /// kit.meter's thickness and the colour roles of its track and its fill, lib/ui/style.lua's
+  /// meter, the kit's shipped ones where the tokens carry none.
+  public var meter = Meter()
+
+  public struct Meter: Sendable, Equatable {
+    public var height = 6.0
+    public var track = "border"
+    public var fill = "foreground"
+  }
 
   /// One half as JSON carries it, nil when it holds no type roles.
   public init?(_ value: Any?) {
@@ -151,6 +162,11 @@ public struct PaneTokens: @unchecked Sendable {
       colors[name] = PaneColor(red: r, green: g, blue: b, alpha: number(c["alpha"]) ?? 1)
     }
     self.colors = colors
+    if let m = object["meter"] as? [String: Any] {
+      if let h = number(m["height"]), h > 0 { meter.height = h }
+      if let t = m["track"] as? String, colors[t] != nil { meter.track = t }
+      if let f = m["fill"] as? String, colors[f] != nil { meter.fill = f }
+    }
   }
 
   func role(_ name: String) -> Role {
@@ -313,6 +329,8 @@ indirect enum PaneNode {
   case code([String])
   /// kit.image, drawn at the width of its slot, or its own where it may not be upscaled.
   case image(PaneImage, upscale: Bool)
+  /// kit.meter, a track across the width filled from the left to the fraction, nought to one.
+  case meter(Double)
 
   static func text(_ str: String, _ variant: String, color: String? = nil, align: String? = nil,
                    lineBreak: String? = nil, wrap: Bool = false) -> PaneNode {
@@ -414,6 +432,8 @@ struct PaneLayoutEngine {
       return stackSize(kids, spaceOf(gap), maxW)
     case .image(let img, let upscale):
       return imageFit(img, upscale, maxW)
+    case .meter:
+      return (maxW, T.meter.height)
     }
   }
 
@@ -492,6 +512,18 @@ struct PaneLayoutEngine {
       if r > 0 {
         ctx.items.append(.resetClip)
         if let clip = ctx.clip { ctx.items.append(clip) }
+      }
+    case .meter(let fraction):
+      // layout.lua's meter, the track across the width, then the fill over it from the left, both
+      // fully rounded, the fill never narrower than its own height so a start still reads as a pill.
+      let m = T.meter
+      let r = m.height / 2
+      let none = PaneColor(red: 0, green: 0, blue: 0, alpha: 0)
+      ctx.items.append(.fill(PaneRect(x: x, y: y, w: w, h: m.height), radius: r, color: T.colors[m.track] ?? none))
+      let f = min(1, max(0, fraction))
+      if f > 0 {
+        let fw = min(w, max(m.height, w * f))
+        ctx.items.append(.fill(PaneRect(x: x, y: y, w: fw, h: m.height), radius: r, color: T.colors[m.fill] ?? none))
       }
     }
   }

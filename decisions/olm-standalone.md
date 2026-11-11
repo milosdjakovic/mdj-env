@@ -527,3 +527,22 @@ list, and until then that list stays on Lua.
   took last time, so each flip carries the latest Lua history over and a reload while the app
   serves takes nothing. The shadow now compares the recent list, frecency left out on both sides,
   the Lua engine handing its dates before the float and the shadow's own source keeping no store.
+- 2026-11-11 12:30. Step 1.4i, Download in the app, design note `docs/DESIGN-APP-DOWNLOAD.md`
+  agreed and built. Milos chose Hyper and G, and the list staying up while the file comes down. The
+  verb is declared once, in the Lua manifest the app reads its actions and keys from, behind an
+  `isPlaceholder` gate the Lua list always answers no, since its preview downloads the file anyway.
+  The app asks iCloud with `startDownloadingUbiquitousItem`, the pane says downloading and stays
+  pending until the stat flag clears, then reads the file. The pane names Download's shortcut by
+  verb and the stage spells it, so no source writes a key.
+
+- 2026-11-11 15:14. Step 1.4i, the download shows how far it has come. Milos found the spinner
+  alone looked like nothing was happening. macOS publishes a file's download progress, the one
+  Finder's pie reads, through `Progress.addSubscriber(forFileURL:)`, measured here on a 6 MB
+  placeholder at about four answers a second with no entitlement. `CloudFiles.watch` follows it,
+  the preview carries `progress`, its words say the bytes, and the pane draws a meter under the
+  heading, edge to edge, in place of the spinner. A floating AppKit bar in the pane's centre came
+  first and was replaced the same hour at Milos's ask, by `kit.meter`, a component of the shared
+  kit in our own colours, `decisions/olm-colour-roles.md` 15:14. `OLM_DEMO_DOWNLOAD=0.6` launches
+  the app with Download standing still at that fraction, to look at the meter.
+- 2026-11-11 15:30. Step 1.4i passed its hand trial in the app and in the Lua native list, the
+  meter included, and is ticked. 1.5 parity is next.
