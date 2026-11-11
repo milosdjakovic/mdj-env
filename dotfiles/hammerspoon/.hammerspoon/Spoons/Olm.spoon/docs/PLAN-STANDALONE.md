@@ -72,6 +72,7 @@ Stage 1, the file search pilot
   - Built on branch `olm-app-copyfile`, Hyper and C, its word Copy Folder over a folder through the presentation's labels member by action name, which the bottom bar, the info pane and the actions pane all read, and in the app through the source's label. It passed its hand trial on 2026-11-10 in the app and in the Lua native list, and merged.
 - [ ] 1.5 Parity, every feature of the Lua file search checked in the app, then the flip
   - The written list is `docs/PARITY-FILESEARCH.md`, on branch `olm-app-parity`, read from the code on 2026-11-11. It found four gaps, the index never rebuilt while the app serves, which blocks the flip, the subtitle not fitted to the row, the empty states as a plain line rather than rows, and `pruneLocal` missing from a scoped walk. Closing them is next, then the hand check of every line.
+  - All five gaps are closed on the same branch, a help screen on a question mark found as the fourth was ported, Milos choosing on 2026-11-11 that the list that serves owns the index. The hand check of every line of the list is next, then the flip.
 
 Stage 2, the bridge, read only
 - [ ] 2.1 Probe the transport
