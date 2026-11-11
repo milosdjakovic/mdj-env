@@ -209,3 +209,11 @@ search share, so the two lists cannot drift apart. An unknown word falls back to
 console line on the Lua side. Checks, the unit case `test/cases/filesearch-frecency.lua` and four
 in `olm-index-check`.
 
+### 2026-11-11 12:01, Reveal in Finder, Copy Path and Copy File left the Lua list open
+
+In the same trial Milos found that Copy Path in the Lua list did its job and left the list open,
+where Olm.app's closes. `chooser.lua` ends Reveal in Finder, Copy Path and Copy File with
+`cfg.stageHide()`, written at the move onto the shared stage, but the manifest never declared the
+root word, so it arrived nil and all three stayed open since. It is declared now in
+`plugins/filesearch/manifest.lua`, and he confirmed all three close.
+
