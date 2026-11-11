@@ -23,7 +23,7 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 1.4d frecency, with 1.3e, 1.4g, 1.4f, 1.4c, 1.4k, 1.4h and 1.4e ticked since. Then 1.4i Download, and 1.5 parity and the
+Next. 1.4i Download, with 1.3e, 1.4g, 1.4f, 1.4c, 1.4k, 1.4h, 1.4e and 1.4d ticked since. Then 1.5 parity and the
 flip last.
 
 Stage 0, contracts
@@ -53,9 +53,10 @@ Stage 1, the file search pilot
 - [x] 1.4b Thumbnails, the pane never stale and a picture on its way shown by the system spinner, 2026-11-09
 - [x] 1.4c Quick Look, 2026-11-10
   - Its design note is agreed, `docs/DESIGN-APP-QUICK-LOOK.md`. The first build, the Lua helper's panel opened in the app's own process, went to its trial on 2026-11-10, where Milos asked for an Olm glass pane in the core instead. The note was revised and agreed the same day, and the Quick Look pane is built on branch `olm-app-quicklook` in the swift chooser's shared library for both lists, following the highlight. It passed its hand trial on 2026-11-10 in the app and in the Lua native list, with the header one actions pane line tall, the close the circled xmark symbol and the Return key cap at the inset's edge on the pane's corner radius, Milos's asks in that trial.
-- [ ] 1.4d Frecency, one owner, the history read but not yet owned
+- [x] 1.4d Frecency, one owner, the history read but not yet owned, 2026-11-11
   - Its design note is agreed, `docs/DESIGN-APP-FRECENCY.md`. Built on branch `olm-app-frecency`, the store ported to `Frecency.swift` in the app's state folder, the bonus on every row, the float on the plain recent list, a use noted on every action but the `..` row's, USED in the preview pane, the Lua history handed over through the root's new history share and taken when it holds a newer use, and the shadow comparing the recent list with frecency left out on both sides. Its hand trial is next.
   - In that trial on 2026-11-10 Milos asked that the files you have used lead the list you land on by when you last used them, not how much. Built on branch `olm-filesearch-recent-order`, from `olm-app-frecency`, in both lists at once, the store naming two orders, `use` and `lastUse`, and `config/filesearch.lua` saying which leads with `recentFloatOrder`, read by both lists from the same share. It joins 1.4d's hand trial, `decisions/olm-filesearch.md` has it.
+  - It passed its hand trial on 2026-11-11 in the app and in the Lua native list, the store taking the Lua history and keeping every use across a quit, Copy Path and Copy File noted, the new order leading in both. The trial found two faults in the Lua list, both fixed on the same branch and confirmed by Milos. Reveal in Finder, Copy Path and Copy File left it open, its manifest never having declared `stageHide`, and the file just used moved up only after the list appeared, now floated again in memory as the use is noted. A blank half width pane once lingered after the app's list closed and was gone before it could be read, open.
 - [x] 1.4e Folder search, the scope, the folder aliases, Into Folder and Up a Level
   - Its design note is agreed, `docs/DESIGN-APP-FOLDER-SEARCH.md`. Built on branch `olm-app-folders`, a browse through `/bin/ls` with the `..` row, a search beneath a folder through fd as `walk.lua` runs it, fd's path handed over by the root's new tools share, the folder aliases and the prune list in the file search share, Into Folder and Up a Level through a `setQuery` effect, and the shadow comparing a browse. It passed its hand trial on 2026-11-10 in the app and in the Lua native list.
 - [x] 1.4f The bottom bar, the actions pane, the info pane, Copy Path, and the person's list keys, the preview pane's scroll keys among them, 2026-11-10
