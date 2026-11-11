@@ -361,15 +361,15 @@ public final class Stage {
       }
       guard mine == self.previewGeneration else { return }
       // A preview still on its way says so with the spinner rather than its words, the body's
-      // heading drawn alone.
+      // heading drawn alone, or with its words over a meter where it says how far it has come.
       var drawn = preview
-      if preview.pending { drawn.body?.facts = nil }
+      if preview.pending, preview.progress == nil { drawn.body?.facts = nil }
       let paint = await Self.paint(drawn, pane: pane, measure: measure, scale: scale,
         shortcut: self.spelled(drawn.body?.shortcut))
       guard mine == self.previewGeneration else { return }
       self.previewAsking = nil
       self.previewShown = key
-      self.drawPane(paint, busy: preview.pending)
+      self.drawPane(paint, busy: Self.spins(preview))
       // What the preview said was on its way, drawn where the pane is scrolled once it lands.
       // Asked again while it is still pending, since a download can land as a render begins.
       var waiting = preview.pending
@@ -377,15 +377,19 @@ public final class Stage {
         guard let landed = await source.previewLanded(pick), !Task.isCancelled,
           mine == self.previewGeneration else { return }
         var drawn = landed
-        if landed.pending { drawn.body?.facts = nil }
+        if landed.pending, landed.progress == nil { drawn.body?.facts = nil }
         let repaint = await Self.paint(drawn, pane: pane, measure: measure, scale: scale,
           shortcut: self.spelled(drawn.body?.shortcut))
         guard mine == self.previewGeneration else { return }
-        self.drawPane(repaint, reset: false, busy: landed.pending)
+        self.drawPane(repaint, reset: false, busy: Self.spins(landed))
         waiting = landed.pending
       }
     }
   }
+
+  // The spinner turns for a preview on its way that cannot say how far it has come, since one
+  // that can draws its own meter, asked for in the 1.4i trial on 2026-11-11.
+  private static func spins(_ preview: OlmKit.Preview) -> Bool { preview.pending && preview.progress == nil }
 
   // The state the Lua view sends, providers/swift/view.lua's redraw. The first nine rows carry
   // Command and their digit wherever the list scrolls, the selected row Return, and a typed query

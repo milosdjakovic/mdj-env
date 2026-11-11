@@ -743,3 +743,43 @@ do
   check("the chip is filled by the key cap rule", chipsOf(alts) and alts[1].fillColor
     and alts[1].fillColor.alpha == fresh("style.lua").keycapColor(tokens).alpha)
 end
+
+--------------------------------------------------------------------------------
+-- meter, how far something has come, asked for in the 1.4i trial on 2026-11-11
+--------------------------------------------------------------------------------
+
+do
+  check("a meter's fill is the foreground over the border by default",
+    tokens.meter and tokens.meter.track == "border" and tokens.meter.fill == "foreground"
+    and tokens.meter.height > 0)
+  local function with(extra)
+    local out = {}
+    for k, v in pairs(SPEC) do out[k] = v end
+    for k, v in pairs(extra) do out[k] = v end
+    return out
+  end
+  local function same(a, b)
+    return a ~= nil and b ~= nil and a.red == b.red and a.green == b.green and a.blue == b.blue and a.white == b.white
+  end
+  local accented = styleFor("Dark", with({ meter = { fill = "highlight" } })).tokens()
+  check("a spec may fill it with the highlight", accented.meter.fill == "highlight")
+  local stray = styleFor("Dark", with({ meter = { fill = "#ff0000", track = "nope" } })).tokens()
+  check("and a word that is not a colour role leaves the shipped one",
+    stray.meter.fill == "foreground" and stray.meter.track == "border")
+  check("a fraction that is not a number is refused", not pcall(kit.meter, "half"))
+  check("a fraction past either end is held to it", kit.meter(1.5).fraction == 1 and kit.meter(-1).fraction == 0)
+  local els, height = engine.layout(kit.meter(0.6), RECT, tokens)
+  local fills = {}
+  for _, el in ipairs(els) do if el.type == "rectangle" and el.action == "fill" then fills[#fills + 1] = el end end
+  check("a meter is its height tall", height == tokens.meter.height, "got " .. tostring(height))
+  check("a meter draws the track across the width, then the fill over it to the fraction",
+    #fills == 2 and fills[1].frame.w == RECT.w and near(fills[2].frame.w, RECT.w * 0.6)
+    and fills[1].frame.x == RECT.x and fills[2].frame.x == RECT.x)
+  check("in the track and fill roles, fully rounded",
+    same(fills[1].fillColor, tokens.colors.border) and same(fills[2].fillColor, tokens.colors.foreground)
+    and fills[1].roundedRectRadii.xRadius == tokens.meter.height / 2)
+  local empty = engine.layout(kit.meter(0), RECT, tokens)
+  local n = 0
+  for _, el in ipairs(empty) do if el.type == "rectangle" then n = n + 1 end end
+  check("an empty meter draws the track alone", n == 1)
+end

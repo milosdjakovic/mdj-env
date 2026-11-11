@@ -270,6 +270,9 @@ func runPane(_ file: String, _ doc: [String: Any]) {
     switch got {
     case .resetClip:
       return want["type"] as? String == "resetClip" ? nil : "wanted \(show(want["type"])), got resetClip"
+    case .fill(let r, _, _):
+      guard want["type"] as? String == "fill", let w = rect(want["frame"]) else { return "wanted \(show(want["type"])), got a fill" }
+      return near(w, r) ? nil : "fill wanted \(describe(w)), got \(describe(r))"
     case .clip(let r, let radius):
       guard want["type"] as? String == "clip", let w = rect(want["frame"]) else { return "wanted \(show(want["type"])), got a clip" }
       if !near(w, r) { return "clip wanted \(describe(w)), got \(describe(r))" }

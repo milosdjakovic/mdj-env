@@ -234,13 +234,18 @@ public struct Preview: Sendable, Equatable {
   /// Whether something this preview says is still on its way, a picture being rendered, which the
   /// stage asks for with previewLanded once this one is drawn.
   public var pending: Bool
+  /// How far what is pending has come, nought to one, where the source can say, a download's bytes.
+  /// The pane draws a bar filling for it and keeps the body's words, rather than the spinner alone.
+  public var progress: Double?
 
-  public init(name: String, dir: String = "", facts: [Fact] = [], body: Body? = nil, pending: Bool = false) {
+  public init(name: String, dir: String = "", facts: [Fact] = [], body: Body? = nil, pending: Bool = false,
+              progress: Double? = nil) {
     self.name = name
     self.dir = dir
     self.facts = facts
     self.body = body
     self.pending = pending
+    self.progress = progress
   }
 }
 

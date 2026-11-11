@@ -161,3 +161,14 @@ moves from 0.8 to the glass subtext's own ratio, about 0.65. A key cap takes an 
 place when its item lights, and the actions pane's lines and the bar's keys picture carry the
 one colour flag the rows already did. `test/swiftpane.swift` pins the rule, `test/swiftview.lua`
 the flags.
+
+### 2026-11-11 15:14
+
+A meter, `kit.meter`, how far something has come, asked for by Milos in the 1.4i trial when the
+app's download showed only a spinner. It takes no ninth role. Its track is `border` and its fill
+`foreground`, a light grey under black on our own colours, and the fill is `highlight` when the
+look's highlight follows the macOS accent, Milos's words being "when using mac highlight as theme
+use that color". Which one is a fact only `lib/ui/appearance.lua` knows, so its `colors()` says
+`followsAccent` beside the halves, `root/uispec.lua` turns that into the spec's `meter.fill`, and
+`lib/ui/style.lua` resolves `T.meter`, refusing any word that is not a role. The swift pane is
+handed the same block in the pane tokens, so both sides draw it from one rule.

@@ -77,6 +77,10 @@ final class PaneHost {
       return .resetClip
     case .text(let t):
       return .text(attributed(t), NSRect(x: t.frame.x, y: t.frame.y, width: t.frame.w, height: t.frame.h))
+    case .fill(let r, let radius, let c):
+      let rect = NSRect(x: r.x, y: r.y, width: r.w, height: r.h)
+      return .shape(path: NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius),
+        fill: NSColor(srgbRed: c.red, green: c.green, blue: c.blue, alpha: c.alpha), stroke: nil, clip: false)
     case .image(let img, let r, let alpha):
       // The frame already holds the picture's aspect, imageFit's, so scaleProportionally at the top
       // left draws it to the frame, as PaneReader reads the Lua element.

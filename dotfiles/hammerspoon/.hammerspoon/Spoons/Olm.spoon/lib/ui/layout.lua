@@ -255,6 +255,8 @@ function M.new(deps)
       return s, s
     elseif kind == "divider" then
       return maxW, 1
+    elseif kind == "meter" then
+      return maxW, T.meter.height
     elseif kind == "code" then
       local _, _, h = codeCut(node, T)
       return maxW, h
@@ -380,6 +382,18 @@ function M.new(deps)
     elseif kind == "divider" then
       push(ctx, { type = "rectangle", action = "fill", fillColor = colorOf(ctx, "border"),
         frame = { x = x, y = y, w = w, h = 1 } })
+    elseif kind == "meter" then
+      -- The track across the width, then the fill over it from the left, both fully rounded, the
+      -- fill never narrower than its own height so a start still reads as a pill.
+      local m = T.meter
+      local r = m.height / 2
+      push(ctx, { type = "rectangle", action = "fill", fillColor = colorOf(ctx, m.track),
+        roundedRectRadii = { xRadius = r, yRadius = r }, frame = { x = x, y = y, w = w, h = m.height } })
+      if node.fraction > 0 then
+        local fw = math.min(w, math.max(m.height, w * node.fraction))
+        push(ctx, { type = "rectangle", action = "fill", fillColor = colorOf(ctx, m.fill),
+          roundedRectRadii = { xRadius = r, yRadius = r }, frame = { x = x, y = y, w = fw, h = m.height } })
+      end
     elseif kind == "code" then
       -- The visible slice rule. Every line of a code block is the same height, so with a
       -- window set a line wholly above or below it is skipped, nothing is built for it, and the

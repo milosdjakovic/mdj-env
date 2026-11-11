@@ -88,6 +88,8 @@ function M.tokens(T, interior)
     fonts = { mono = T.fonts and T.fonts.mono, ui = T.fonts and T.fonts.ui },
     text = text,
     colors = colors,
+    -- kit.meter's thickness and the two colour roles it is drawn in.
+    meter = T.meter and { height = T.meter.height, track = T.meter.track, fill = T.meter.fill } or nil,
   }
 end
 

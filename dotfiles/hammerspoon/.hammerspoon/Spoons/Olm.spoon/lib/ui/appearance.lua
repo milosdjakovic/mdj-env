@@ -91,7 +91,8 @@ function M.new(opts)
   end
 
   --- instance.colors() -> { dark, light }, the palette with the highlight the choice names.
-  --- A system accent the machine cannot answer leaves the palette's own highlight.
+  --- A system accent the machine cannot answer leaves the palette's own highlight. followsAccent
+  --- is true beside the halves when the highlight is the accent, which a meter fills with.
   function instance.colors()
     local base = palette.colors()
     local choice = chosen()
@@ -101,6 +102,7 @@ function M.new(opts)
     local out = { dark = copy(base.dark), light = copy(base.light) }
     local tinted = hex .. (declared.alpha or "")
     out.dark.highlight, out.light.highlight = tinted, tinted
+    out.followsAccent = true
     return out
   end
 

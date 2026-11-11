@@ -48,8 +48,7 @@ a way to bring the file down from the list.
 ## Left out
 
 - Downloading every placeholder in a folder, or evicting a file back to iCloud. Neither was asked.
-- A progress figure. iCloud reports progress through a metadata query, which is a watcher of its
-  own for one row, and the spinner already says it is on its way.
+- A progress figure, at first, thought to need a metadata query. Revised in the trial, see below.
 
 ## How it is checked
 
@@ -67,3 +66,12 @@ share, its title and its chord's glyphs, and the pane painter lays out as a fact
 so the source never writes a key. A download iCloud refuses says `in iCloud, could not download`.
 The unit case is `test/cases/filesearch-download.lua`.
 
+
+Revised in the trial, 2026-11-11. The spinner alone looked like nothing was happening, Milos said.
+The system publishes a file's download progress, `Progress.addSubscriber(forFileURL:)`, which needs
+no metadata query and no entitlement, so `CloudFiles.watch` follows it from the request until the
+file lands. The preview carries `progress`, its words say the bytes, `downloading from iCloud, 2.5
+MB of 6.0 MB`, `previewLanded` answers as soon as more has come down, and the pane draws
+`kit.meter` under the heading, edge to edge, a light grey track filled black, or with the macOS
+accent when the highlight follows it. `OLM_DEMO_DOWNLOAD=0.6` in the app's environment stands the
+download still at that fraction, to look at it.
