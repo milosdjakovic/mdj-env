@@ -22,6 +22,7 @@ local apps = {
   Kitty = "net.kovidgoyal.kitty",
   WezTerm = "com.github.wez.wezterm",
   Ghostty = "com.mitchellh.ghostty",
+  Herdr = "dev.herdr.app",
 
   -- Editors
   VisualStudioCode = "com.microsoft.VSCode",

@@ -16,11 +16,11 @@ return {
     ["hyper+,"] = "systemsettings.General",
 
     -- Installed by the Brewfile
-    ["hyper+`"] = "apptoggler.Ghostty",
     ["hyper+O"] = "apptoggler.Obsidian",
     ["hyper+D"] = "apptoggler.Docker",
 
     -- This machine's own
+    ["hyper+`"] = "apptoggler.Herdr",
     ["hyper+C"] = "apptoggler.GoogleChrome",
     ["hyper+G"] = "apptoggler.GoogleChat",
     ["hyper+V"] = "apptoggler.VisualStudioCode",
