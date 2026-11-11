@@ -34,7 +34,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // OLM_DEMO_DOWNLOAD=0.6 stands Download still at that fraction, to look at the meter.
     let demo = ProcessInfo.processInfo.environment["OLM_DEMO_DOWNLOAD"].flatMap(Double.init)
     let fileSearch = FileSearchSource(context: context, asksAccess: true,
-      frecency: FileSearchSource.frecency(context), cloud: demo.map { CloudFiles.demo(fraction: $0) } ?? .system)
+      frecency: FileSearchSource.frecency(context), cloud: demo.map { CloudFiles.demo(fraction: $0) } ?? .system,
+      build: FileSearchSource.indexBuild(context))
     sources = [fileSearch.manifest.name: fileSearch]
     // The shadow answers on a source of its own, so a list a person has open is never touched.
     let shadowed = FileSearchSource(context: context)

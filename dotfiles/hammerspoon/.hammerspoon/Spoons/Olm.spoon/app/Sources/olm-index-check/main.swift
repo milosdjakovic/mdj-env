@@ -11,6 +11,7 @@ import Foundation
 import FileSearchPlugin
 import OlmCore
 import OlmKit
+import OlmLook
 
 var failures = 0
 func check(_ ok: Bool, _ what: String) {
@@ -217,7 +218,7 @@ check(browsed?.rows.first?.title == ".." && browsed?.rows.first?.pinned == true
 check(Set((browsed?.rows ?? []).dropFirst().map(\.title)) == ["notes", "src", ".config", "Reports.app", "bills",
   "school", "empty"], "and lists one level, dotfiles and folders among it")
 let empty = await folderAnswer("t/empty/")
-check(empty?.rows.map(\.title) == ["..", "Empty folder"] && empty?.rows.last?.key == FileSearchSource.statusKey,
+check(empty?.rows.map(\.title) == ["..", "Empty folder"] && empty?.rows.last?.key == FileSearchSource.statusKey && empty?.rows.last?.inert == true,
   "an empty folder says so under the .. row")
 check(await folderAnswer("nope-\(getpid())/")?.status == "No such folder", "a folder that is not there says so")
 check(await folderAnswer("t/ report")?.status == "Nothing can answer that", "a search beneath a folder without fd says so")
@@ -620,6 +621,84 @@ check(await cloudSource.run("download", on: Pick(key: dlRefused, query: "")) == 
 let dlRefusedPane = await cloudSource.preview(Pick(key: dlRefused, query: ""))
 check(dlRefusedPane?.body?.facts == FileSearchSource.undownloadableText && dlRefusedPane?.pending == false,
   "which says it could not download")
+
+// Every empty state a row, chooser.lua's STATUS, and the help screen, step 1.5.
+let noMatch = source.manifest.statusRow("No matches")
+check(noMatch?.title == "No matches" && noMatch?.subtitle == "Try fewer words, or a bang for pruned folders"
+  && noMatch?.inert == true && noMatch?.icon == .symbol("questionmark.circle"),
+  "a status is a row with the Lua headline, what to do and a symbol, and is inert")
+let unnamed = source.manifest.statusRow("Something new")
+check(unnamed?.title == "Nothing to show" && unnamed?.subtitle == "Something new",
+  "a status the list does not name falls back to Nothing to show over its own words")
+let help = try? await source.rows(Query(text: "?", generation: 90))
+check(help?.rows.count == 9 && help?.rows.allSatisfy(\.inert) == true && help?.rows.first?.title == "hammerspoon",
+  "a question mark alone is the help screen, every line inert")
+let loneDot = try? await source.rows(Query(text: ". ", generation: 91))
+check(loneDot?.status == "Search hidden files" && loneDot?.rows.isEmpty == true
+  && source.manifest.statusRow(loneDot?.status ?? "")?.subtitle == "Type something to search hidden files",
+  "a lone dot asks for something to search hidden files")
+
+// A folder fitted to its row, PathFit, against what plugins/filesearch/util.lua's elideDir answers
+// for the same cases at seven points a character, step 1.5.
+let elideCases: [(String, Double, String)] = [
+  ("~/Documents/personal/goran_djakovic/plac_moravska_dokumenta", 300, "~/Documents/…/plac_moravska_dokumenta"),
+  ("~/Documents/personal/goran_djakovic/plac_moravska_dokumenta", 200, "~/…/plac_moravska_dokumenta"),
+  ("~/Documents/personal/goran_djakovic/plac_moravska_dokumenta", 120, "~/…/plac_moravska_dokumenta"),
+  ("~/Development/personal/mdj-env", 180, "~/Development/…/mdj-env"),
+  ("/System/Applications/Utilities", 100, "/System/…/Utilities"),
+  ("~/a/b", 10, "~/…/b"),
+  ("~/x/y/z", 40, "~/…/z"),
+  ("/Users/me/Library/Containers/com.apple.Notes/Data", 250, "/Users/me/…/com.apple.Notes/Data")
+]
+let sevenEach = { (s: String) -> Double in Double(s.count) * 7 }
+let elideMisses = elideCases.filter { PathFit.elide($0.0, budget: $0.1, width: sevenEach) != $0.2 }
+check(elideMisses.isEmpty, "a folder is fitted to its row as the Lua list fits it"
+  + (elideMisses.isEmpty ? "" : ", " + elideMisses.map { PathFit.elide($0.0, budget: $0.1, width: sevenEach) }.joined(separator: " | ")))
+check(PathFit.elide("~/Documents", budget: 0, width: sevenEach) == "~/Documents", "and no budget leaves it whole")
+
+// The index rebuilt by the list that serves, step 1.5, docs/PARITY-FILESEARCH.md, IndexBuild.swift.
+let home = tree.path
+try? fm.createDirectory(at: root.appendingPathComponent("also"), withIntermediateDirectories: true)
+check(IndexBuild.roots(home: home, searchAlso: [root.appendingPathComponent("also").path, "notes", "missing", "notes/"])
+  == [home, root.appendingPathComponent("also").path, home + "/notes"],
+  "the index starts at home and every searchAlso folder there is, a relative one under home, each once")
+let builtIndex = root.appendingPathComponent("built-index.txt").path
+let builder = IndexBuild(helper: helper, index: builtIndex)
+check(builder.age() == nil && builder.status == nil, "with no index and no build there is nothing to say")
+check(builder.warm(maxAge: 300, prune: ["node_modules"], roots: [tree.path]), "an open with no index starts a build")
+check(await builder.landed(), "which lands")
+let builtText = (try? String(contentsOfFile: builtIndex, encoding: .utf8)) ?? ""
+check(builtText.contains("report.md") && !builtText.contains("dep.js"),
+  "the index holds the folder and leaves the prune list out")
+check(!builder.warm(maxAge: 300, prune: [], roots: [tree.path]), "an index younger than the limit is left as it is")
+check(await builder.landed() == false, "and nothing is waited on")
+let leftovers = ((try? fm.contentsOfDirectory(atPath: root.path)) ?? []).filter { $0.contains(".tmp") }
+check(leftovers.isEmpty, "a build leaves no temporary file behind")
+// A helper that takes a second, so the list is asked while the build runs.
+let slowHelper = root.appendingPathComponent("slow-fileindex").path
+fm.createFile(atPath: slowHelper, contents: Data("#!/bin/sh\nsleep 1\nexec '\(helper)' \"$@\"\n".utf8),
+  attributes: [.posixPermissions: 0o755])
+let slowIndex = root.appendingPathComponent("slow-index.txt").path
+let slow = IndexBuild(helper: slowHelper, index: slowIndex)
+let building = FileSearchSource(context: context, index: FileIndex(helper: helper, index: slowIndex),
+  settings: settings, build: slow)
+await building.open(settings: settings)
+slow.warm(maxAge: 300, prune: [], roots: [tree.path])
+let whileBuilding = try? await building.rows(Query(text: "report", generation: 1))
+check(whileBuilding?.pending == true && whileBuilding?.status == IndexBuild.buildingText && whileBuilding?.rows.isEmpty == true,
+  "asked before the first index lands, the list says Building index and that more is coming")
+let afterBuild = try? await building.rowsLanded(Query(text: "report", generation: 1))
+check(afterBuild?.pending == false && Set((afterBuild?.rows ?? []).map(\.title)).isSuperset(of: ["report.md", "report-old.md"]),
+  "and answers the same query again from it once it lands")
+check((try? await building.rowsLanded(Query(text: "report", generation: 1))) == nil, "with nothing more to come after")
+try? fm.setAttributes([.modificationDate: Date(timeIntervalSinceNow: -600)], ofItemAtPath: slowIndex)
+slow.warm(maxAge: 300, prune: [], roots: [tree.path])
+let whileUpdating = try? await building.rows(Query(text: "report", generation: 2))
+check(whileUpdating?.pending == true && whileUpdating?.status == nil && (whileUpdating?.rows.count ?? 0) >= 2,
+  "an old index answers while it is rebuilt, pending, its rows shown with no status")
+check(slow.status == IndexBuild.updatingText, "and the build says Updating index")
+_ = await slow.landed()
+check((try? await source.rowsLanded(Query(text: "report", generation: 3))) == .some(nil), "a list handed no builder never waits")
 
 // The meter a preview that says how far it has come draws under its heading, kit.meter, in the
 // tokens' track and fill roles, the fill the highlight where the tokens say so.

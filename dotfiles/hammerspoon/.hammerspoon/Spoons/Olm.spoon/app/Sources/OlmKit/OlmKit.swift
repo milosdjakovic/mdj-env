@@ -29,9 +29,19 @@ public struct Row: Sendable, Equatable {
   public var bonus: Double
   public var pinned: Bool
   public var fromQuery: Bool
+  /// Where the subtitle is a folder after this lead, fitted to the row by the stage, which drops
+  /// whole folders from its middle, file search's elideDir, nil for a subtitle shown as given. The
+  /// subtitle itself stays whole, so anything comparing rows compares the folder.
+  public var pathLead: String?
+  /// A row that says something rather than being something, a status or a help line, the Lua row's
+  /// enabled false. The stage draws it disabled and never chooses it, previews it or offers an action.
+  public var inert: Bool
 
   public init(key: String, title: String, subtitle: String = "", icon: Icon? = nil,
-              filterText: String? = nil, bonus: Double = 0, pinned: Bool = false, fromQuery: Bool = false) {
+              filterText: String? = nil, bonus: Double = 0, pinned: Bool = false, fromQuery: Bool = false,
+              pathLead: String? = nil, inert: Bool = false) {
+    self.pathLead = pathLead
+    self.inert = inert
     self.key = key
     self.title = title
     self.subtitle = subtitle
@@ -94,12 +104,17 @@ public struct RowsAnswer: Sendable, Equatable {
   public var status: String?
   /// What the list says when ranking leaves no row.
   public var emptyStatus: String?
+  /// Whether a newer answer to the same query is on its way, an index being rebuilt, which the stage
+  /// asks rowsLanded for once these rows are drawn.
+  public var pending: Bool
 
-  public init(rows: [Row], rankText: String? = nil, status: String? = nil, emptyStatus: String? = nil) {
+  public init(rows: [Row], rankText: String? = nil, status: String? = nil, emptyStatus: String? = nil,
+              pending: Bool = false) {
     self.rows = rows
     self.rankText = rankText
     self.status = status
     self.emptyStatus = emptyStatus
+    self.pending = pending
   }
 }
 
@@ -274,6 +289,30 @@ public struct Action: Sendable, Equatable {
 }
 
 /// What a plugin is, read without running it, the Lua manifest's fields where they mean the same.
+/// How a list says a status, a row with a symbol, the status's headline and a line saying what to do,
+/// the Lua chooser's status rows, so an empty list never reads as a broken one.
+public struct StatusLook: Sendable, Equatable {
+  public var title: String
+  /// What to do about it, nil to say the status's own words.
+  public var detail: String?
+  /// An SF Symbol's name.
+  public var symbol: String
+
+  public init(title: String, detail: String? = nil, symbol: String) {
+    self.title = title
+    self.detail = detail
+    self.symbol = symbol
+  }
+
+  /// The row it is drawn as, inert, its key the status key, under the status's own words.
+  public func row(for status: String) -> Row {
+    Row(key: Self.key, title: title, subtitle: detail ?? status, icon: .symbol(symbol), pinned: true, inert: true)
+  }
+
+  /// The key every status row carries, never a path, since a path starts with a slash.
+  public static let key = "olm:status"
+}
+
 public struct Manifest: Sendable, Equatable {
   /// The identity a URL and the registry name it by, olm://<name>.
   public var name: String
@@ -281,12 +320,24 @@ public struct Manifest: Sendable, Equatable {
   public var actions: [Action]
   /// The pane beside the list, nil for a list with none, the Lua manifest's previewPane.
   public var previewPane: PreviewPane?
+  /// How each status the list answers looks, keyed by its words, and the look of one it does not
+  /// name, a row each, nil to say an unnamed status as the list's plain line.
+  public var statuses: [String: StatusLook]
+  public var statusFallback: StatusLook?
 
-  public init(name: String, title: String, actions: [Action] = [], previewPane: PreviewPane? = nil) {
+  public init(name: String, title: String, actions: [Action] = [], previewPane: PreviewPane? = nil,
+              statuses: [String: StatusLook] = [:], statusFallback: StatusLook? = nil) {
     self.name = name
     self.title = title
     self.actions = actions
     self.previewPane = previewPane
+    self.statuses = statuses
+    self.statusFallback = statusFallback
+  }
+
+  /// The row a status is drawn as, nil where the list says it as its plain line.
+  public func statusRow(_ status: String) -> Row? {
+    (statuses[status] ?? statusFallback)?.row(for: status)
   }
 }
 
@@ -334,6 +385,10 @@ public protocol ListSource: Actor {
   /// nothing more is coming. The stage draws it where the pane is scrolled, as the Lua pane's
   /// repaint does.
   func previewLanded(_ pick: Pick) async -> Preview?
+  /// The same query's rows again once what its last answer said was pending has landed, asked only
+  /// after an answer with pending set and cancelled by the next keystroke, nil when nothing more is
+  /// coming. The stage draws it keeping the highlight on its row, as the Lua list's refresh does.
+  func rowsLanded(_ query: Query) async throws -> RowsAnswer?
   /// Whether the actions pane lists a row whose applies gate is this name over the row it opened
   /// on, the Lua surface's colon method of the same name, docs/PLAN-ACTION-PANEL.md. A gate the
   /// source does not know answers true, as the Lua pane shows a verb its surface cannot answer.
@@ -351,6 +406,8 @@ extension ListSource {
   public func preview(_ pick: Pick) async -> Preview? { nil }
   /// A source whose previews are never pending has nothing more to say.
   public func previewLanded(_ pick: Pick) async -> Preview? { nil }
+  /// A source whose rows are never pending has nothing more to say.
+  public func rowsLanded(_ query: Query) async throws -> RowsAnswer? { nil }
   /// A source with no gates lists every row.
   public func applies(_ gate: String, on pick: Pick) async -> Bool { true }
   /// A source with no words of its own leaves every verb the share's.

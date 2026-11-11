@@ -37,6 +37,12 @@ public struct ChooserLayout {
   public var topFrac = 0.06
   public var minVPad = 60.0
   public var paneMaxW = 480.0
+  /// A row's icon and the room either side of its text, and the shortcut column, nil to take the
+  /// icon's size, which textBudget reads.
+  public var iconSize = 33.0
+  public var iconGap = 14.0
+  public var padX = 14.0
+  public var numW: Double?
 
   public init() {}
 
@@ -59,6 +65,10 @@ public struct ChooserLayout {
     minVPad = number("minVPad") ?? minVPad
     // The Lua's paneMaxW follows width when nothing sets it.
     paneMaxW = number("paneMaxW") ?? width
+    iconSize = number("iconSize") ?? iconSize
+    iconGap = number("iconGap") ?? iconGap
+    padX = number("padX") ?? padX
+    numW = number("numW")
     if let n = object["bottomBarSpan"] as? NSNumber, CFGetTypeID(n) == CFBooleanGetTypeID() {
       bottomBarSpan = n.boolValue
     }
@@ -110,6 +120,15 @@ public enum Geometry {
     if wanted < lo { return lo }
     if wanted > hi { return hi }
     return wanted
+  }
+
+  /// geometry.lua's textBudget, the room a row's text has, the list's width less the icon's left
+  /// pad, the icon and its gap, the trailing pad and the shortcut column.
+  public static func textBudget(_ rects: ChooserRects, layout: ChooserLayout) -> Double {
+    let (_, padLeft) = iconPad(rowH: layout.rowH, iconSize: layout.iconSize)
+    let budget = rects.list.w - padLeft - layout.iconSize - layout.iconGap - layout.padX
+      - (layout.numW ?? layout.iconSize)
+    return max(0, budget)
   }
 
   public static func resolve(screen: LayoutRect, layout: ChooserLayout, previewPaneWidth: PreviewPaneWidth = .none) -> ChooserRects {

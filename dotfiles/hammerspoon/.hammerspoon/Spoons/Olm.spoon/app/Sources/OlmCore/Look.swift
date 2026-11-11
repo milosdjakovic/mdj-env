@@ -72,6 +72,19 @@ struct Look {
   // as wide as the list when pane is true, the screen's frame less the menu bar and the Dock as
   // hs.screen's frame is, in Hammerspoon's space. The pane's size goes with it, and how much of its
   // bottom the bar covers, which the pane's content is laid out above.
+  /// The room a row's text has on this screen, geometry.lua's textBudget, for a folder fitted to its
+  /// row, as the Lua engine's textBudget answers file search.
+  func textBudget(on screen: NSScreen, pane: Bool = false) -> Double {
+    Geometry.textBudget(Geometry.resolve(screen: Self.frame(of: screen), layout: layout,
+      previewPaneWidth: pane ? .list : .none), layout: layout)
+  }
+
+  private static func frame(of screen: NSScreen) -> LayoutRect {
+    let primary = NSScreen.screens.first?.frame.height ?? screen.frame.maxY
+    let v = screen.visibleFrame
+    return LayoutRect(x: v.minX, y: primary - v.maxY, w: v.width, h: v.height)
+  }
+
   func placement(on screen: NSScreen, pane: Bool = false) -> (Placement, PaneFrame?) {
     let primary = NSScreen.screens.first?.frame.height ?? screen.frame.maxY
     let v = screen.visibleFrame

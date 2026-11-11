@@ -41,7 +41,9 @@ let bundleExtensions: Set<String> = [
 ]
 
 func build(out: String, prune: Set<String>, roots: [String]) -> Int32 {
-  let tmp = out + ".tmp"
+  // A temporary file of this run's own, so a build Olm.app starts beside one Hammerspoon starts
+  // never writes into the other's, and whichever moves into place last is whole.
+  let tmp = out + ".tmp." + String(getpid())
   guard let file = fopen(tmp, "w") else { return 1 }
   // A large stdio buffer, since the index is written in one pass of short lines.
   setvbuf(file, nil, _IOFBF, 1 << 20)

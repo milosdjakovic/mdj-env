@@ -25,14 +25,15 @@ Where the app stands, read from the code on 2026-11-11.
 - [ ] At most 200 rows, then a row of more. check.
 - [ ] A title cut in the middle, so the extension stays. built, 1.3.
 - [ ] The subtitle, the folder, fitted to the row by dropping whole folders from the middle,
-  `util.elideDir`, so the head and the folder holding the file stay. **gap**, the app shows the
-  whole folder cut at its tail. Closing it is a port of `elideDir` and the fit, measured with the
-  list's own font.
+  `util.elideDir`, so the head and the folder holding the file stay. built, 1.5, `PathFit` in
+  `app/Sources/OlmLook/PathFit.swift` over the row's room, geometry.lua's `textBudget`, measured a
+  character at a time in the subtitle's font as the Lua list measures, the `..` row's `up to` too.
 - [ ] Every empty state a row with an icon, a title and a line saying what to do, `chooser.lua`'s
   `STATUS`, No matches with Try fewer words, or a bang for pruned folders, Empty folder, Timed out,
-  Could not list that folder. **gap in part**, the app says No matches, Empty folder, Timed out, No
-  such folder and Nothing can answer that as the list's plain status line, with no icon and no
-  second line. Closing it is the statuses as rows with the Lua words and icons.
+  Could not list that folder. built, 1.5, the manifest's `statuses`, each a `StatusLook` the stage
+  draws as an inert row, never chosen, previewed or acted on, with the Lua fallback, Nothing to show.
+- [ ] A question mark alone shows the grammar, nine inert lines, `chooser.lua`'s `HELP`. built, 1.5,
+  found while closing the line above.
 
 ## The grammar
 
@@ -40,7 +41,7 @@ Where the app stands, read from the code on 2026-11-11.
 - [ ] A dot attached to a known type filters by it, `.pdf`, `.img`, `.js report`. built, 1.3.
 - [ ] A type naming a bundle, `.app`, lists every app. built, 1.4h.
 - [ ] A lone dot includes hidden files, and with nothing else typed asks for something to search,
-  Search hidden files. check, the second half.
+  Search hidden files. built, the second half in 1.5.
 - [ ] A lone bang includes what the prune list and gitignore leave out. check.
 - [ ] A folder alias and a slash scopes the search, `docs/report`, and with nothing after it
   browses, `dl/`. built, 1.4e.
@@ -48,9 +49,8 @@ Where the app stands, read from the code on 2026-11-11.
   built, 1.4e, from the share.
 - [ ] A path typed whole, `~/Development/`, browses it. check.
 - [ ] A scoped search leaves out the prune list and `pruneLocal`, Google Drive, DaVinci Resolve
-  Media and Sync. **gap**, the share carries `prune` without `pruneLocal`, which the Lua side adds
-  in `init.lua`, so a scoped walk in the app goes into those three. Closing it is the root writing
-  the merged list.
+  Media and Sync. built, 1.5, the share carrying `pruneLocal` beside `prune` and the app joining
+  them as `init.lua` does.
 
 ## The index
 
@@ -58,11 +58,12 @@ Where the app stands, read from the code on 2026-11-11.
   app reads the index the Lua side builds.
 - [ ] An open rebuilds an index older than five minutes in the background, and the list answers
   again when it lands, saying Updating index meanwhile, and Building index when there is none.
-  **gap**, the app never builds the index, `Index.swift`'s header, and only the Lua list's open
-  starts a rebuild, so once the app serves the index stops moving. This one blocks the flip.
-  Closing it is the app warming the index on open the way `index.lua`'s `warm` does, the same
-  helper, the same arguments and the same file, its roots and prune list from the share, with the
-  two status rows, so the list that serves owns the index, as 1.4d gave frecency one owner.
+  built, 1.5, Milos choosing on 2026-11-11 that the list that serves owns the index.
+  `IndexBuild.swift` warms it on an open as `index.lua`'s `warm` does, the same helper, arguments
+  and file, home and `searchAlso` from the share, and an answer while it runs is pending, which the
+  stage asks `rowsLanded` for, drawing the new rows with the highlight held on its row. The helper
+  writes a temporary file of each run's own, so a Lua build from the launcher's slash scope at the
+  same moment never mixes with it.
 
 ## The row's actions
 

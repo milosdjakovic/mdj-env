@@ -42,7 +42,12 @@ public struct FileSearchSettings: Equatable, Sendable {
   public var preview = PreviewLimits()
   /// The folder aliases, `dl/` for Downloads, and the names a walk never descends into, step 1.4e.
   public var roots: [String: String] = [:]
+  /// The share's prune and pruneLocal joined, as plugins/filesearch/init.lua joins them for every
+  /// source, the walk and the index alike, step 1.5.
   public var prune: [String] = []
+  /// Where the index starts beside home, and how old it may be before an open rebuilds it, step 1.5.
+  public var searchAlso: [String] = []
+  public var indexMaxAgeSeconds = 300.0
   public var timeoutSeconds = 5.0
   /// The walker's path as Hammerspoon's dependency door resolved it, nil where fd is missing.
   public var walker: String?
@@ -69,6 +74,9 @@ public struct FileSearchSettings: Equatable, Sendable {
     settings.preview = PreviewLimits(doc["preview"] as? [String: Any] ?? [:])
     if let roots = doc["roots"] as? [String: String] { settings.roots = roots }
     if let prune = doc["prune"] as? [String] { settings.prune = prune }
+    settings.prune += doc["pruneLocal"] as? [String] ?? []
+    if let also = doc["searchAlso"] as? [String] { settings.searchAlso = also }
+    if let n = (limits["indexMaxAgeSeconds"] as? NSNumber)?.doubleValue { settings.indexMaxAgeSeconds = n }
     if let n = (limits["timeoutSeconds"] as? NSNumber)?.doubleValue { settings.timeoutSeconds = n }
     if let n = (limits["frecencyHalfLifeDays"] as? NSNumber)?.doubleValue { settings.frecencyHalfLifeDays = n }
     if let n = limits["frecencyMaxEntries"] as? Int { settings.frecencyMaxEntries = n }
@@ -97,7 +105,55 @@ public actor FileSearchSource: ListSource {
     Action(id: "browseUp", title: "Up a Level"),
     // A file iCloud holds only as a placeholder, brought down with the list staying up, step 1.4i.
     Action(id: "download", title: "Download"),
-  ], previewPane: PreviewPane(emptyText: FileSearchSource.paneEmptyText))
+  ], previewPane: PreviewPane(emptyText: FileSearchSource.paneEmptyText),
+    statuses: FileSearchSource.statusLooks, statusFallback: FileSearchSource.statusFallback)
+
+  /// How each status looks, chooser.lua's STATUS keyed by the words this list answers, with the Lua
+  /// headline, its line saying what to do, and the SF Symbol its manifest's icon names.
+  public static let statusLooks: [String: StatusLook] = [
+    IndexBuild.buildingText: StatusLook(title: "Building index",
+      detail: "Listing your files, the first run takes a moment", symbol: "clock"),
+    IndexBuild.updatingText: StatusLook(title: "Updating index", detail: "The list refreshes when it is done",
+      symbol: "clock"),
+    indexFailedText: StatusLook(title: "Search failed", detail: "The index helper failed, the console says why",
+      symbol: "exclamationmark.triangle"),
+    keepTypingText: StatusLook(title: "Keep typing", detail: "Add something to search for", symbol: "keyboard"),
+    "No matches": StatusLook(title: "No matches", detail: "Try fewer words, or a bang for pruned folders",
+      symbol: "questionmark.circle"),
+    "Empty folder": StatusLook(title: "Empty folder", detail: "There is nothing in this one", symbol: "tray"),
+    "No such folder": StatusLook(title: "No such folder", detail: "Check the path, or give a full one, ~/Documents",
+      symbol: "folder"),
+    "Nothing can answer that": StatusLook(title: "Nothing can answer that",
+      detail: "A tool it needs is missing, see the console", symbol: "nosign"),
+    hiddenText: StatusLook(title: "Search hidden files", detail: "Type something to search hidden files",
+      symbol: "eye.slash"),
+    "Timed out": StatusLook(title: "Timed out", detail: "That took too long, try narrowing it", symbol: "clock"),
+    "Could not list that folder": StatusLook(title: "Could not list that folder", detail: "Check its permissions",
+      symbol: "exclamationmark.triangle"),
+    "Search failed": StatusLook(title: "Search failed", detail: "The walker returned an error",
+      symbol: "exclamationmark.triangle"),
+  ]
+  /// chooser.lua's STATUS_FALLBACK, the status's own words under it.
+  public static let statusFallback = StatusLook(title: "Nothing to show", symbol: "exclamationmark.triangle")
+  static let indexFailedText = "The file index could not be read"
+  static let keepTypingText = "Nothing to search for"
+  static let hiddenText = "Search hidden files"
+
+  /// chooser.lua's HELP, the grammar on a screen of its own, reached by typing a question mark, each
+  /// line inert, the syntax as its headline and what it does under it.
+  public static let helpRows: [Row] = [
+    ("magnifyingglass", "hammerspoon", "Plain text searches names everywhere"),
+    ("tag", ".js hello", "A dot attached to a token is a type"),
+    ("eye.slash", ". js", "A dot alone includes hidden files"),
+    ("eye.slash", ".zshrc", "A dotted name is hidden too, with no sigil"),
+    ("arrow.right.circle", "downloads/", "A trailing slash browses that folder, newest first"),
+    ("text.magnifyingglass", "downloads/hs", "With text it searches inside it"),
+    ("puzzlepiece", ".js src/api", "A type, a scope and text combine in that order"),
+    ("exclamationmark.circle", "! ts node_modules/", "A bang includes what is normally pruned"),
+    ("house.lodge", "~/Development/mdj", "An absolute or tilde path scopes directly"),
+  ].enumerated().map { i, line in
+    Row(key: "olm:help:\(i)", title: line.1, subtitle: line.2, icon: .symbol(line.0), pinned: true, inert: true)
+  }
 
   /// What the pane says while nothing is highlighted, plugins/filesearch/chooser.lua's emptyText.
   public static let paneEmptyText = "Highlight a file to preview it"
@@ -134,10 +190,19 @@ public actor FileSearchSource: ListSource {
   // Placeholders and asking iCloud for one, step 1.4i, and the paths asked for and not yet landed,
   // and those iCloud would not take, so the pane says which.
   private let cloud: CloudFiles
+  // The index rebuilt on an open, the person's list only, nil for the shadow and a check that hands
+  // none in, so the list that serves owns the index, step 1.5, IndexBuild.swift.
+  private let build: IndexBuild?
   private var downloading: Set<String> = []
   // How far each of those has come, followed from the request until it lands.
   private var watching: [String: CloudProgress] = [:]
   private var undownloadable: Set<String> = []
+
+  /// The person's list's index builder, over the helper and the file every ask reads.
+  public static func indexBuild(_ context: PluginContext) -> IndexBuild {
+    IndexBuild(helper: context.resources.appendingPathComponent("fileindex").path,
+      index: context.cache.appendingPathComponent("filesearch/file-index.txt").path)
+  }
 
   /// Where the person's list keeps its uses, and the Lua history the root shares, step 1.4d.
   public static func frecency(_ context: PluginContext) -> Frecency {
@@ -153,8 +218,9 @@ public actor FileSearchSource: ListSource {
   /// access the folders and the file, handed in by a check.
   public init(context: PluginContext, index: FileIndex? = nil, settings: FileSearchSettings? = nil,
               asksAccess: Bool = false, access: FolderAccess? = nil, insideFrom: Int? = 3,
-              frecency: Frecency? = nil, cloud: CloudFiles = .system) {
+              frecency: Frecency? = nil, cloud: CloudFiles = .system, build: IndexBuild? = nil) {
     self.context = context
+    self.build = build
     self.frecency = frecency
     self.cloud = cloud
     self.insideFrom = insideFrom
@@ -175,6 +241,8 @@ public actor FileSearchSource: ListSource {
     await thumbs.forget()
     if let access { accessState = await access.recheck(access.load()) }
     useSettings()
+    build?.warm(maxAge: settings.indexMaxAgeSeconds, prune: settings.prune,
+      roots: IndexBuild.roots(home: Self.home, searchAlso: settings.searchAlso))
     return Level(placeholder: settings.placeholder, ranking: .app, rowLimit: settings.rowLimit,
       titleLineBreak: "truncateMiddle", previewSettleMs: settings.preview.settleMs)
   }
@@ -215,6 +283,8 @@ public actor FileSearchSource: ListSource {
   }
 
   private func search(_ query: Query) async throws -> RowsAnswer {
+    // A question mark alone is the help screen, chooser.lua's rowsForQuery.
+    if query.text.trimmingCharacters(in: .whitespaces) == "?" { return RowsAnswer(rows: Self.helpRows, rankText: "") }
     let q = FileQueryGrammar.parse(query.text, types: settings.types)
     if q.scope != nil { return try await folder(q) }
     let empty = q.kind == .search ? "No matches" : "Nothing changed lately"
@@ -224,9 +294,12 @@ public actor FileSearchSource: ListSource {
     let asked = short ? FileQueryGrammar.parse("", types: settings.types) : q
     // The recent list held already answers any short text, the same list ranked again.
     // The plain recent list leads with what you use, engine:_float, a type or the dot leaving it out.
+    // What the index has no question for, index.lua's argsFor, a lone dot and a search of no word.
+    if asked.kind == .recent, asked.hidden { return RowsAnswer(rows: [], status: Self.hiddenText) }
+    if asked.kind == .search, asked.words.isEmpty { return RowsAnswer(rows: [], status: Self.keepTypingText) }
     let floats = asked.kind == .recent && asked.exts == nil && !asked.hidden
     if let held, asked.kind != .search, held.query == asked {
-      return answer(held.rows, q, empty, float: floats)
+      return building(answer(held.rows, q, empty, float: floats))
     }
     asks += 1
     index.recentDays = settings.recentDays
@@ -238,10 +311,31 @@ public actor FileSearchSource: ListSource {
       throw CancellationError()
     } catch {
       held = nil
-      return RowsAnswer(rows: [], status: "The file index could not be read")
+      // No index yet while the first build runs, which says so and answers again once it lands.
+      if let build, build.building { return building(RowsAnswer(rows: [])) }
+      return RowsAnswer(rows: [], status: Self.indexFailedText)
     }
     held = (asked, rows)
-    return answer(rows, q, empty, float: floats)
+    return building(answer(rows, q, empty, float: floats))
+  }
+
+  // An answer from the index while a build runs is pending, so the stage asks rowsLanded, and with
+  // no row it says the build's status in place of its own, index.lua's status.
+  private func building(_ answer: RowsAnswer) -> RowsAnswer {
+    guard let build, let status = build.status else { return answer }
+    var said = answer
+    said.pending = true
+    if said.rows.isEmpty { said.status = status }
+    return said
+  }
+
+  /// The same query again once the build running has replaced the index, index.lua's onRebuilt,
+  /// nil when none was running or it failed.
+  public func rowsLanded(_ query: Query) async throws -> RowsAnswer? {
+    guard let build, await build.landed() else { return nil }
+    try Task.checkCancellation()
+    held = nil
+    return try await rows(query)
   }
 
   private static var home: String { FileManager.default.homeDirectoryForCurrentUser.path }
@@ -282,14 +376,13 @@ public actor FileSearchSource: ListSource {
   }
 
   /// The key of a row that says what a folder holds rather than being a file.
-  public static let statusKey = "olm:folder-status"
+  public static let statusKey = StatusLook.key
 
   // A status beside the `..` row is a row of its own under it, as the Lua list's status row is,
   // since the list says a status only while it holds no row. With no `..` row it is the status.
   static func said(_ up: [Row], _ status: String) -> RowsAnswer {
     guard !up.isEmpty else { return RowsAnswer(rows: [], status: status) }
-    return RowsAnswer(rows: up + [Row(key: statusKey, title: status, subtitle: "",
-      icon: .symbol("folder"), pinned: true)])
+    return RowsAnswer(rows: up + [(statusLooks[status] ?? statusFallback).row(for: status)])
   }
 
   /// The folder above a query's scope, expanded, the path the `..` row stands for, nil without one.
@@ -304,7 +397,7 @@ public actor FileSearchSource: ListSource {
   static func upRow(_ parent: String, home: String) -> Row {
     let shown = parent.hasPrefix(home) ? "~" + parent.dropFirst(home.count) : parent
     return Row(key: parent, title: "..", subtitle: "up to " + shown, icon: .file(parent), filterText: "..",
-      pinned: true)
+      pinned: true, pathLead: "up to ")
   }
 
   // Whether a pick is the `..` row of the query it was made under.
@@ -352,7 +445,8 @@ public actor FileSearchSource: ListSource {
   static func row(_ r: IndexRow, home: String, bonus: Double = 0) -> Row {
     let dir = (r.path as NSString).deletingLastPathComponent
     let shown = dir.hasPrefix(home) ? "~" + dir.dropFirst(home.count) : dir
-    return Row(key: r.path, title: r.name, subtitle: shown, icon: .file(r.path), filterText: r.name, bonus: bonus)
+    return Row(key: r.path, title: r.name, subtitle: shown, icon: .file(r.path), filterText: r.name, bonus: bonus,
+      pathLead: "")
   }
 
   /// chooser.lua's noteUse, every action on a row counting the same, the `..` row and the rows

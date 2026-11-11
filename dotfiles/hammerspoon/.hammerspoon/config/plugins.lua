@@ -107,6 +107,7 @@ return {
     -- The tools whose every settled answer the app answers again and compares, step 1.3e.
     shadows = { "fileSearch" },
     shares = { filesearch = { types = filesearch.types, limits = filesearch.limits, preview = filesearch.preview,
-      placeholder = filesearch.placeholder, roots = filesearch.roots, prune = filesearch.prune } },
+      placeholder = filesearch.placeholder, roots = filesearch.roots, prune = filesearch.prune,
+      pruneLocal = filesearch.pruneLocal, searchAlso = filesearch.searchAlso } },
   } },
 }

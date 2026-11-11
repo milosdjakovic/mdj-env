@@ -546,3 +546,14 @@ list, and until then that list stays on Lua.
   the app with Download standing still at that fraction, to look at the meter.
 - 2026-11-11 15:30. Step 1.4i passed its hand trial in the app and in the Lua native list, the
   meter included, and is ticked. 1.5 parity is next.
+- 2026-11-11 16:30. Step 1.5, the parity list `docs/PARITY-FILESEARCH.md` found five gaps and all
+  five are built on `olm-app-parity`. The index never moved while the app served, since only the
+  Lua list's open rebuilt it, and Milos chose that the list that serves owns it, as frecency's
+  owner was chosen in 1.4d. `IndexBuild.swift` warms it on an open as `index.lua` does, and an
+  answer while it runs is pending, a new `rowsLanded` the stage asks the way it asks
+  `previewLanded`. The helper's temporary file is now its run's own, since a Lua build from the
+  launcher's slash scope can run beside the app's until stage 3. The folder under a row is fitted
+  by `PathFit`, a port of `elideDir`, the empty states are rows through a manifest's `statuses`, a
+  question mark shows the grammar, found while porting the statuses, and `pruneLocal` reaches the
+  app through the share. A status and a help line are inert rows, never chosen, previewed or acted
+  on, the Lua row's enabled false.

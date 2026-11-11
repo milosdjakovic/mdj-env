@@ -30,6 +30,7 @@
 
 import AppKit
 import OlmKit
+import OlmLook
 @preconcurrency @testable import OlmChooser
 
 @MainActor
@@ -48,6 +49,11 @@ public final class Stage {
   private var task: Task<Void, Never>?
   // The swift chooser's look as the bridge last wrote it, read on every open.
   private var look: Look?
+  // The room a row's text has and the subtitle's font, for a folder fitted to its row, and each
+  // character's width in that font, measure.lua's per character sum the Lua list fits with.
+  private var rowBudget = 0.0
+  private var rowFont: NSFont?
+  private var charWidths: [String: Double] = [:]
   // The bar under the list and whether its info pane is open, Bars.swift, read on every open.
   private var bars = Bars()
   private var bar: BottomBar? { bars.bar }
@@ -141,6 +147,10 @@ public final class Stage {
       let tokens = next.manifest.previewPane != nil ? look.paneTokens() : nil
       let (placement, frame) = look.placement(on: screen, pane: tokens != nil)
       panel.place(placement)
+      rowBudget = look.textBudget(on: screen, pane: tokens != nil)
+      let font = look.style().subFont
+      if font != rowFont { charWidths = [:] }
+      rowFont = font
       if let tokens, let frame, let rect = placement.previewPane, let spec = next.manifest.previewPane {
         pane = (frame, tokens, spec.emptyText)
         if paneHost == nil { paneHost = PaneHost(panel: panel) }
@@ -260,21 +270,44 @@ public final class Stage {
     let mine = generation
     let searcher = searcher
     task = Task {
-      guard let answer = try? await source.rows(Query(text: text, generation: mine)) else { return }
-      let ranked = await searcher.rank(answer, query: text, level: level)
+      let query = Query(text: text, generation: mine)
+      guard var answer = try? await source.rows(query) else { return }
+      var ranked = await searcher.rank(answer, query: text, level: level)
       guard mine == self.generation else { return }
       self.land(ranked.rows, status: answer.status ?? (ranked.rows.isEmpty ? answer.emptyStatus : nil))
+      // A newer answer on its way, an index being rebuilt, drawn where the person is when it lands.
+      while answer.pending {
+        guard let next = try? await source.rowsLanded(query), !Task.isCancelled else { return }
+        answer = next
+        ranked = await searcher.rank(answer, query: text, level: level)
+        guard mine == self.generation else { return }
+        self.land(ranked.rows, status: answer.status ?? (ranked.rows.isEmpty ? answer.emptyStatus : nil),
+          keepHighlight: true)
+      }
     }
   }
 
-  private func land(_ next: [OlmKit.Row], status: String?) {
+  /// keepHighlight holds the highlight on the row it rests on where the new rows still hold it, for
+  /// an answer landing under a query the person has not changed.
+  private func land(_ next: [OlmKit.Row], status: String?, keepHighlight: Bool = false) {
+    // A status the list draws as a row joins the rows, the Lua chooser's statusRow.
+    var next = next, status = status
+    if let said = status, let row = source?.manifest.statusRow(said) {
+      next.append(row)
+      status = nil
+    }
+    let resting = highlight >= 1 && highlight <= rows.count ? rows[highlight - 1].key : nil
     // The same rows in the same order are left as they are drawn, so a keystroke that does not
     // change the results redraws nothing.
-    if next.map(\.key) != rows.map(\.key) {
+    if next != rows {
       rows = next
       panel.setRows(next.map(panelRow))
     }
-    highlight = next.isEmpty ? 0 : 1
+    if keepHighlight, let resting, let at = next.firstIndex(where: { $0.key == resting }) {
+      highlight = at + 1
+    } else {
+      highlight = next.isEmpty ? 0 : 1
+    }
     apply(status: status)
     // The first rows of an open show the window, at once without a pane and once the first row is
     // described with one, which the open asks for without the settle, as the Lua pane's first dock.
@@ -341,6 +374,11 @@ public final class Stage {
   private func describe() {
     guard let pane, let source else { return }
     guard highlight >= 1, highlight <= rows.count else {
+      clearPane()
+      return
+    }
+    // A status or a help line has nothing to describe, so the pane shows its empty state.
+    if rows[highlight - 1].inert {
       clearPane()
       return
     }
@@ -423,10 +461,30 @@ public final class Stage {
     panel.update(state)
   }
 
+  // A subtitle that is a folder after a lead, fitted to the row by dropping whole folders from its
+  // middle, the Lua list's fitDir, the subtitle as given otherwise.
+  private func fitted(_ r: OlmKit.Row) -> String {
+    guard let lead = r.pathLead, let font = rowFont, rowBudget > 0, r.subtitle.hasPrefix(lead) else { return r.subtitle }
+    let width = { (s: String) -> Double in
+      var total = 0.0
+      for ch in s {
+        let k = String(ch)
+        if let w = self.charWidths[k] { total += w; continue }
+        let w = Double((k as NSString).size(withAttributes: [.font: font]).width)
+        self.charWidths[k] = w
+        total += w
+      }
+      return total
+    }
+    let dir = String(r.subtitle.dropFirst(lead.count))
+    return lead + PathFit.elide(dir, budget: rowBudget - width(lead), width: width)
+  }
+
   private func panelRow(_ r: OlmKit.Row) -> OlmChooser.Row {
     var row = OlmChooser.Row()
     row.title = r.title
-    row.subtitle = r.subtitle
+    row.subtitle = fitted(r)
+    row.enabled = !r.inert
     switch r.icon {
     case .file(let path)?: row.image = icons.object(forKey: path as NSString)
     case .symbol?:
@@ -470,7 +528,7 @@ public final class Stage {
   // them, Milos's report in step 1.4f's piece four, where a pane folding under the list's fade was
   // cut halfway. While the actions pane is open the list's text and highlight are its own still.
   private func act(on index: Int, action: String? = nil, closingPanes: Bool = false) {
-    guard index >= 1, index <= rows.count, let source else {
+    guard index >= 1, index <= rows.count, !rows[index - 1].inert, let source else {
       if closingPanes { closeInfo(); closeActions() }
       return
     }
@@ -498,7 +556,7 @@ public final class Stage {
   // has no file for leaves the pane on the file it shows.
   private func followQuickLook() {
     guard panel.quickLookPath != nil, let action = lookAction, let source,
-      highlight >= 1, highlight <= rows.count else { return }
+      highlight >= 1, highlight <= rows.count, !rows[highlight - 1].inert else { return }
     let pick = Pick(key: rows[highlight - 1].key, query: text)
     let mine = generation
     let index = highlight
@@ -637,7 +695,8 @@ public final class Stage {
       closeActions()
       return
     }
-    guard bars.panelBar != nil, panel.isVisible, let source, highlight >= 1, highlight <= rows.count else { return }
+    guard bars.panelBar != nil, panel.isVisible, let source, highlight >= 1, highlight <= rows.count,
+      !rows[highlight - 1].inert else { return }
     closeInfo()
     let pick = Pick(key: rows[highlight - 1].key, query: text)
     let candidates = bars.actions.filter { runnable($0) }
