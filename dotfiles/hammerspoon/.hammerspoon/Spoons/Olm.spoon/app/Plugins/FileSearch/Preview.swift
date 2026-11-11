@@ -248,7 +248,7 @@ public enum PreviewDescriber {
   /// it. peek nil is a read that never answered, which leaves the row described by its name. picture
   /// is what the thumbnail chain answered for a type it covers, nil for nothing.
   public static func describe(path: String, isDir: Bool, peek: Peek?, limits: PreviewLimits, now: Int,
-                              home: String, picture: PictureState? = nil) -> Preview {
+                              home: String, picture: PictureState? = nil, usedAt: Int? = nil) -> Preview {
     let name = basename(path)
     let ext = isDir ? "" : Self.ext(path)
     let attrs = peek?.attrs
@@ -258,6 +258,9 @@ public enum PreviewDescriber {
       facts.append(Preview.Fact(label: "CHANGED", value: humanAge(attrs.modification, now: now)))
       facts.append(Preview.Fact(label: "ADDED", value: humanAge(attrs.creation, now: now)))
     }
+    // When you last used it, sidepanel.lua's USED, the one fact about you rather than the file,
+    // in the subtext tone, step 1.4d.
+    if let usedAt { facts.append(Preview.Fact(label: "USED", value: humanAge(usedAt, now: now), color: .subtext)) }
     let body = folderBody(isDir: isDir, peek: peek, limits: limits)
       ?? pictureBody(isDir: isDir, ext: ext, picture: picture)
       ?? textBody(isDir: isDir, peek: peek, limits: limits)

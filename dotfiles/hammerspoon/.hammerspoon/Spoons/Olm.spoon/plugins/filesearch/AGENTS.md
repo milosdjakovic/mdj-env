@@ -150,6 +150,14 @@ for, since right after a download or a build is exactly when this gets opened an
 not exist a minute ago has no history to rank. The same argument the header makes for refusing a
 result cache protects the date half of that list.
 
+Which of the used files lead is the time of the last use, newest first, not the score, since
+2026-11-10. The score put a font used all morning above a photo opened a moment ago, and landing on
+this list is nearly always going back to what you just had open. The store holds both facts per
+path and names both orders, `frecency.orders.use` and `lastUse`, `config/filesearch.lua` says which
+leads with `recentFloatOrder`, and `init.lua` hands it to the ranker, so the engine still asks only
+`top(n)`. Olm.app reads the same word. The score still decides the bonus under a typed query, where
+how often you use a file is the better tie break. `decisions/olm-filesearch.md` has it.
+
 Two smaller decisions. A floated path the date list already returned is MOVED rather than rebuilt,
 so it keeps the modification date the index gave for free, and only a genuinely absent row is built
 and stat'd, which is why the floated rows read the same as their neighbours instead of being the

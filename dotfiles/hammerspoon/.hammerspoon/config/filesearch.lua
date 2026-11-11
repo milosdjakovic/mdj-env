@@ -238,7 +238,7 @@ return {
     recentCount = 40,
     recentDays = 7,
 
-    -- How many of the files you actually use are floated to the top of that opening list,
+    -- How many of the files you have used are floated to the top of that opening list,
     -- ahead of the ones ordered by date.
     --
     -- This is bounded rather than generous on purpose. Modification date answers what
@@ -248,6 +248,14 @@ return {
     -- history fill the page and the view becomes the same handful of files forever, which
     -- is the opposite of what landing on it is for. So a few rows, then the dates.
     recentFloat = 8,
+
+    -- Which of those files lead, and in what order. `lastUse` puts the file you touched most
+    -- recently first, since landing on this list is nearly always going back to something you
+    -- just had open, a screenshot, a download, the photo from a minute ago. `use` orders them by
+    -- how much you use them over weeks instead, which kept one file used all morning above one
+    -- opened a moment ago. How much you use a file still breaks a tie between equal matches once
+    -- you type, whichever this says. Olm.app reads the same word.
+    recentFloatOrder = "lastUse",
 
     -- How long a use takes to count half as much. Two weeks means the project you are on
     -- this month outranks the one you finished last month without ever forgetting it,

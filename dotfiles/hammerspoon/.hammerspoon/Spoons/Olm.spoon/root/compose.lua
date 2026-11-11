@@ -2926,6 +2926,14 @@ function obj.run(olm, cfg)
         end
         return { paths = paths }
       end)
+      -- The uses a list the app serves remembers, for the app to take when this side holds a newer
+      -- one than it took last, file search's frecency, step 1.4d, docs/DESIGN-APP-FRECENCY.md. A
+      -- list with no history word is handed none.
+      bridgeModule:shareEach("history", function(identity)
+        local tool = modules[identity]
+        if not (tool and type(tool.history) == "function") then return nil, tostring(identity) .. " keeps no history" end
+        return tool:history()
+      end)
     end
     wireShadows(bridgeModule, modules, wiredRegistry, chooserAtom.rank,
       chooserAtom.matchers and chooserAtom.matchers[policy.matcher])

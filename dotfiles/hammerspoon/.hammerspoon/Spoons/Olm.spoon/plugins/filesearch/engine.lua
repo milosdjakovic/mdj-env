@@ -101,6 +101,7 @@ function obj:init()
   self._activeHandle = nil
   self._recentsHandle = nil
   self._recents = nil
+  self._recentDates = nil
   return self
 end
 
@@ -115,7 +116,8 @@ end
 ---                 that cannot be made anywhere but the composition root
 --- opts.contract   the contract module, injected so the engine validates against the
 ---                 same declaration a source author reads
---- opts.ranker     a preference over paths, answering score(path) and top(n). Optional, and
+--- opts.ranker     a preference over paths, answering score(path) and top(n), and told of a use
+---                 through note(path). Optional, and
 ---                 without it no path is preferred, the list you land on is ordered by date
 ---                 and a typed query by the shared search alone. Called a ranker rather than
 ---                 named for what
@@ -253,6 +255,17 @@ function obj:preference(path)
   return used / (used + 2)
 end
 
+--- engine:noteUse(path) - a row was acted on. The ranker records it, and the recent list held for
+--- the next open is floated again from the dates it already has, so that open shows the new order
+--- from its first frame rather than moving the row up when the fresh dates land. The action is
+--- what closes the list, so this runs while nobody is looking at it, and it costs the ranker's
+--- top and a stat for each floated row the dates lack, a handful, with no fetch.
+function obj:noteUse(path)
+  if not path or path == "" then return end
+  if self._ranker and self._ranker.note then self._ranker.note(path) end
+  if self._recentDates then self._recents = self:_float(self._recentDates) end
+end
+
 --- Drop rows living inside a directory nobody searches for, the vendored copies and the
 --- caches. This is what the bang sigil switches off, and it is the ONE meaning that sigil
 --- carries so it reads the same whichever source answered.
@@ -296,7 +309,8 @@ end
 -- the default view into the same ten things forever, which is the opposite of what that view is
 -- for, since right after a download or a build is exactly when this picker gets opened and a
 -- file that did not exist a minute ago has no history to rank. So the two answers share the
--- list, habits first and then what just changed.
+-- list, the files you have used first, in whatever order the ranker's top answers, and then what
+-- just changed.
 --
 -- A path that the date list already returned is MOVED rather than rebuilt, so it keeps the size
 -- and the modification date the index handed over for free. Only a row that would otherwise be
@@ -531,6 +545,9 @@ function obj:_fetchRecents()
     -- pruned path you deliberately used still comes back, since it is added by name rather than
     -- surviving the filter, and the date half of the list stays clean.
     rows = self:_denoise(rows or {}, parsed)
+    -- The date half alone, before the float, which is what the shadow compares, since each side
+    -- floats from a history of its own, docs/DESIGN-APP-FRECENCY.md.
+    self._recentDates = rows
     -- Merged once here rather than on every redraw, so the list cannot reorder itself under
     -- someone who is reading it, and the stat calls happen once per open.
     self._recents = self:_float(rows)
@@ -655,11 +672,14 @@ end
 --- engine:held() -> { query, status, items }, what the list holds now as the shared search reads
 --- it. items are the rows in their source's order, each searched by its file name as the list's
 --- own rows are, chooser.searchName, and keyed by its path, without the bonus a person's use adds,
---- since that is the one part of the order the history decides rather than the query.
+--- since that is the one part of the order the history decides rather than the query. The recent
+--- list is handed as the dates gave it, before the float, for the same reason, step 1.4d.
 function obj:held()
   local name = obj.chooser and obj.chooser.searchName or function(r) return r.name or r.path end
   local items = {}
-  for _, r in ipairs(self._display or {}) do
+  local display = self._display or {}
+  if self._recentDates and display == self._recents then display = self._recentDates end
+  for _, r in ipairs(display) do
     local title = name(r)
     items[#items + 1] = { title = title, filterText = title, key = r.path, item = r }
   end

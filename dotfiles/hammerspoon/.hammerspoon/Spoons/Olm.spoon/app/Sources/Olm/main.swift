@@ -31,7 +31,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private let shadows: [String: Shadow]
 
   override init() {
-    let fileSearch = FileSearchSource(context: context, asksAccess: true)
+    let fileSearch = FileSearchSource(context: context, asksAccess: true,
+      frecency: FileSearchSource.frecency(context))
     sources = [fileSearch.manifest.name: fileSearch]
     // The shadow answers on a source of its own, so a list a person has open is never touched.
     let shadowed = FileSearchSource(context: context)

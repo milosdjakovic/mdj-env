@@ -192,6 +192,13 @@ local function insideFromOf(matcher)
   end
   return nil
 end
+--- obj:history() -> { entries = { [path] = { score, at } } }, every use frecency holds, for the
+--- root to hand Olm.app while the app serves this list, docs/DESIGN-APP-FRECENCY.md, so the
+--- settings key stays named here alone.
+function obj:history()
+  return { entries = obj.frecency.export() }
+end
+
 function obj:configure(opts)
   opts = opts or {}
   local policy = opts.policy or {}
@@ -250,6 +257,13 @@ function obj:configure(opts)
     halfLifeDays = limits.frecencyHalfLifeDays,
     maxEntries = limits.frecencyMaxEntries,
   })
+  -- Which of the store's orders leads the list you land on, named in config so Olm.app reads the
+  -- same word from the same share. A word the store does not know falls back to use and says so.
+  local leadOrder = obj.frecency.orders[limits.recentFloatOrder or "use"]
+  if not leadOrder then
+    log.w("no frecency order answers to '" .. tostring(limits.recentFloatOrder) .. "', using use")
+    leadOrder = obj.frecency.orders.use
+  end
 
   configureEngine(self, {
     types = policy.types,
@@ -264,7 +278,8 @@ function obj:configure(opts)
     -- date alone, and a typed query by the shared search with no bonus for what you use.
     ranker = {
       score = function(path) return obj.frecency.score(path) end,
-      top = function(n) return obj.frecency.top(n) end,
+      top = function(n) return obj.frecency.top(n, leadOrder) end,
+      note = function(path) obj.frecency.note(path) end,
     },
     -- The engine never touches a picker. It reports that rows changed and the surface decides
     -- what to do about it, which is what lets a second surface reuse the engine unchanged.
@@ -322,7 +337,9 @@ function obj:configure(opts)
     },
     -- Doing anything to a row is what teaches the ranking. The surface reports the path and
     -- learns nothing about what happens to it, the same seam as the injected clipboard write.
-    onUse = function(path) obj.frecency.note(path) end,
+    -- The engine records it, so the list it holds is ordered again at once, while the action
+    -- closes it, and the next open shows the new order rather than moving a row under you.
+    onUse = function(path) obj:noteUse(path) end,
     -- The other half of that seam, so a row can report the use it just recorded. Still no
     -- concrete name on the surface, only a question it is allowed to ask.
     usedAt = function(path) return obj.frecency.usedAt(path) end,

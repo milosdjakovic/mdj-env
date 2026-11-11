@@ -227,6 +227,11 @@ return {
         breaks = "the parent row no longer steps up a level, Return and a click both opening " ..
                  "the row instead of climbing, since intercept has no other way to put the " ..
                  "level above's own query in the field" },
+      -- Reveal in Finder, Copy Path and Copy File close the list once they have acted, as Open
+      -- does and as Olm.app's list does. They asked for this word from the stage migration on
+      -- and it was never declared, so all three left the list open until 2026-11-11.
+      stageHide = { source = "root", policy = "optional",
+        breaks = "Reveal in Finder, Copy Path and Copy File act and leave the list open" },
       -- fitDir used to measure a row's own room straight off the picker instance it held
       -- directly. Two more root words, the identical shape stageSetQuery above already takes,
       -- for the one plugin whose subtitle actually needs to know how much of it fits.
