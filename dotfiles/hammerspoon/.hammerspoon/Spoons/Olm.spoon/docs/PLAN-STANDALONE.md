@@ -71,6 +71,7 @@ Stage 1, the file search pilot
 - [x] 1.4k Copy File and Copy Folder in file search, both lists, the file itself put on the clipboard as Finder's Copy puts it, beside Copy Path, asked by Milos on 2026-11-10, after 1.4c
   - Built on branch `olm-app-copyfile`, Hyper and C, its word Copy Folder over a folder through the presentation's labels member by action name, which the bottom bar, the info pane and the actions pane all read, and in the app through the source's label. It passed its hand trial on 2026-11-10 in the app and in the Lua native list, and merged.
 - [ ] 1.5 Parity, every feature of the Lua file search checked in the app, then the flip
+  - The written list is `docs/PARITY-FILESEARCH.md`, on branch `olm-app-parity`, read from the code on 2026-11-11. It found four gaps, the index never rebuilt while the app serves, which blocks the flip, the subtitle not fitted to the row, the empty states as a plain line rather than rows, and `pruneLocal` missing from a scoped walk. Closing them is next, then the hand check of every line.
 
 Stage 2, the bridge, read only
 - [ ] 2.1 Probe the transport
