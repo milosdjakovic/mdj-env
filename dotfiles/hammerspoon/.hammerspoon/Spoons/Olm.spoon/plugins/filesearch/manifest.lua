@@ -44,6 +44,7 @@ return {
     peek = { emoji = "👁️", sf = "eye" },
     up = { emoji = "⬆️", sf = "arrow.up" },
     copy = { emoji = "📋", sf = "doc.on.doc" },
+    download = { emoji = "⬇️", sf = "icloud.and.arrow.down" },
   },
 
   needs = {
@@ -330,6 +331,12 @@ return {
       -- copies it there and one in Mail attaches it, step 1.4k, asked by Milos on 2026-11-10. Over
       -- a folder the presentation's labels member names it Copy Folder.
       { key = "c", action = "copyFile",   description = "Copy File", icon = "copy", applies = "isEntry" },
+      -- A file iCloud holds only as a placeholder, brought down with the list staying up, step
+      -- 1.4i, Hyper and G as Milos chose on 2026-11-11. Olm.app's list carries it. This list's
+      -- preview reads the highlighted file, which downloads it, so its isPlaceholder answers no
+      -- and the row is never listed here.
+      { key = "g", action = "download",   description = "Download", icon = "download",
+        applies = "isPlaceholder" },
     },
     -- No matcher. Until phase three of the unified search on 2026-10-17 this declared the words
     -- strategy, injected into the engine to narrow a held result set between round trips over
@@ -434,7 +441,7 @@ return {
   -- "a presenting plugin declares no registry.surface" rule that Processes' own migration
   -- already carved out. isShowing, selectNext, selectPrev, insertSelected, and hide are gone
   -- from the chooser submodule, host/stage's own surfaceFor(identity) answering all five now,
-  -- but browseInto, browseUp, revealInFinder, copyPath, copyFile, scrollPreviewDown, scrollPreviewUp,
+  -- but browseInto, browseUp, revealInFinder, copyPath, copyFile, download, scrollPreviewDown, scrollPreviewUp,
   -- and peekPreview, the extra verbs surface.extra above binds keys to, live on nowhere else,
   -- and root/compose.lua's own surfaceAdapterFor falls through to whatever this field names
   -- once the stage's own five have been asked and answered nothing.

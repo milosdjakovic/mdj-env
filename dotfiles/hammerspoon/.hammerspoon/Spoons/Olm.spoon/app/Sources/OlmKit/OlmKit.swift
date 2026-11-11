@@ -139,6 +139,9 @@ public enum Effect: Sendable, Equatable {
   /// Writes the text into the input field and searches it, the list staying up, so going into a
   /// folder or up a level is something a person could have typed, step 1.4e.
   case setQuery(String)
+  /// Asks the highlighted row's preview again, the list staying up, after the source changed what
+  /// it would say, as file search does once it has asked iCloud for a file, step 1.4i.
+  case refreshPreview
 }
 
 /// One of the eight colour roles lib/ui/style.lua resolves for the half the system is on. A plugin
@@ -186,11 +189,16 @@ public struct Preview: Sendable, Equatable {
     public var hasLines: Bool
     /// A picture under the heading in place of lines, nil for none.
     public var picture: Picture?
+    /// An action of the list's own whose shortcut is drawn under the heading, its title and its key
+    /// cap, by its verb name, nil for none. The core spells it from the keys the list answers, so a
+    /// plugin never writes a key, step 1.4i.
+    public var shortcut: String?
 
     public init(label: String, facts: String? = nil, lines: [String] = [], wrap: Bool = false,
                 budget: Int? = nil, slack: Int = 0, total: Int? = nil, hasLines: Bool = false,
-                picture: Picture? = nil) {
+                picture: Picture? = nil, shortcut: String? = nil) {
       self.label = label
+      self.shortcut = shortcut
       self.facts = facts
       self.lines = lines
       self.wrap = wrap

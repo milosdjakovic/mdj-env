@@ -12,6 +12,7 @@ META	d	any	fileSearchOpen	100	fileSearch
 META	down	any	-	-	windowmanager
 META	f	any	fileSearchOpen	100	fileSearch
 META	f	any	processesOpen	100	processes
+META	g	any	fileSearchOpen	100	fileSearch
 META	h	any	-	-	windowmanager
 META	h	any	fileSearchOpen	100	fileSearch
 META	i	any	audioOpen	100	audio

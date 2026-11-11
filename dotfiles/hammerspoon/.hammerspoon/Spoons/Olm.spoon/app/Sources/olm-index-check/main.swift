@@ -553,5 +553,54 @@ check(pane?.facts.contains { $0.label == "USED" && $0.color == .subtext } == tru
 let unusedPane = await usedSource.preview(Pick(key: tree.appendingPathComponent("notes/report.md").path, query: ""))
 check(unusedPane?.facts.contains { $0.label == "USED" } == false, "and says nothing of a file never used")
 
+// Download, step 1.4i, docs/DESIGN-APP-DOWNLOAD.md, over a placeholder and a download stood in for,
+// since no check can make iCloud evict a file.
+final class FakeCloud: @unchecked Sendable {
+  var placeholders: Set<String> = []
+  var asked: [String] = []
+  var refuses = false
+  let lock = NSLock()
+  func isPlaceholder(_ path: String) -> Bool { lock.withLock { placeholders.contains(path) } }
+  func download(_ path: String) -> Bool { lock.withLock { asked.append(path); return !refuses } }
+}
+let fakeCloud = FakeCloud()
+let dlHeld = tree.appendingPathComponent("notes/report.md").path
+let dlPlain = tree.appendingPathComponent("src/app.js").path
+fakeCloud.placeholders = [dlHeld]
+let cloudSource = FileSearchSource(context: context, index: files, settings: settings,
+  cloud: CloudFiles(isPlaceholder: { fakeCloud.isPlaceholder($0) }, download: { fakeCloud.download($0) }))
+await cloudSource.open(settings: settings)
+check(source.manifest.actions.contains { $0.id == "download" && $0.title == "Download" },
+  "Download is an action by the Lua list's verb name")
+check(await cloudSource.applies("isPlaceholder", on: Pick(key: dlHeld, query: "")),
+  "Download is listed over a placeholder")
+let dlOverPlain = await cloudSource.applies("isPlaceholder", on: Pick(key: dlPlain, query: ""))
+let dlOverAsk = await cloudSource.applies("isPlaceholder", on: Pick(key: FileSearchSource.askKey, query: ""))
+check(!dlOverPlain && !dlOverAsk, "and over no other row")
+let dlBefore = await cloudSource.preview(Pick(key: dlHeld, query: ""))
+check(dlBefore?.body?.facts == FileSearchSource.notDownloaded && dlBefore?.body?.shortcut == "download"
+  && dlBefore?.pending == false, "a placeholder's pane says it is not downloaded and names Download")
+check(await cloudSource.run("download", on: Pick(key: dlPlain, query: "")) == [] && fakeCloud.asked.isEmpty,
+  "Download over a file already here asks nothing")
+check(await cloudSource.run("download", on: Pick(key: dlHeld, query: "")) == [.refreshPreview]
+  && fakeCloud.asked == [dlHeld], "Download asks iCloud once and keeps the list up, the pane asked again")
+check(await cloudSource.run("download", on: Pick(key: dlHeld, query: "")) == [] && fakeCloud.asked == [dlHeld],
+  "and a second press while it is on its way asks nothing more")
+let dlWaiting = await cloudSource.preview(Pick(key: dlHeld, query: ""))
+check(dlWaiting?.pending == true && dlWaiting?.body?.facts == FileSearchSource.downloadingText
+  && dlWaiting?.body?.shortcut == nil, "while it downloads the pane is pending and says so")
+fakeCloud.lock.withLock { fakeCloud.placeholders = [] }
+let dlLanded = await cloudSource.previewLanded(Pick(key: dlHeld, query: ""))
+check(dlLanded?.body?.label == "HEAD" && dlLanded?.body?.lines == ["x"],
+  "once the file is here its head is read")
+check(await cloudSource.previewLanded(Pick(key: dlHeld, query: "")) == nil, "and nothing is left waiting")
+let dlRefused = tree.appendingPathComponent("notes/report-old.md").path
+fakeCloud.lock.withLock { fakeCloud.placeholders = [dlRefused]; fakeCloud.refuses = true }
+check(await cloudSource.run("download", on: Pick(key: dlRefused, query: "")) == [.refreshPreview],
+  "a download iCloud refuses asks the pane again")
+let dlRefusedPane = await cloudSource.preview(Pick(key: dlRefused, query: ""))
+check(dlRefusedPane?.body?.facts == FileSearchSource.undownloadableText && dlRefusedPane?.pending == false,
+  "which says it could not download")
+
 print(failures == 0 ? "olm-index-check, every check passed" : "olm-index-check, \(failures) FAILED")
 exit(failures == 0 ? 0 : 1)

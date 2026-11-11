@@ -527,3 +527,11 @@ list, and until then that list stays on Lua.
   took last time, so each flip carries the latest Lua history over and a reload while the app
   serves takes nothing. The shadow now compares the recent list, frecency left out on both sides,
   the Lua engine handing its dates before the float and the shadow's own source keeping no store.
+- 2026-11-11 12:30. Step 1.4i, Download in the app, design note `docs/DESIGN-APP-DOWNLOAD.md`
+  agreed and built. Milos chose Hyper and G, and the list staying up while the file comes down. The
+  verb is declared once, in the Lua manifest the app reads its actions and keys from, behind an
+  `isPlaceholder` gate the Lua list always answers no, since its preview downloads the file anyway.
+  The app asks iCloud with `startDownloadingUbiquitousItem`, the pane says downloading and stays
+  pending until the stat flag clears, then reads the file. The pane names Download's shortcut by
+  verb and the stage spells it, so no source writes a key.
+
