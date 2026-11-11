@@ -384,7 +384,7 @@ export default class Spaces extends View {
       const folded = this.folded.has(m);
       const icon = svg(`mods/workspace-chrome/${m ? "server" : "monitor"}.svg`).size(13).flex_none();
       const badge = div().absolute().right(-3).bottom(-2).size(6).rounded(3).border_1().border_color(t.canvas).bg(connected ? t.ansi2 : t.dim);
-      const head = h_flex().id(`machine-${m ?? "local"}`).h(26).flex_none().px(collapsed ? 0 : 8).gap(7).items_center().text_size(13).text_color(t.dim)
+      const head = h_flex().id(`machine-${m ?? "local"}`).h(26).flex_none().px(collapsed ? 0 : 8).gap(7).items_center().text_size(13.5).text_color(t.dim)
         .when(collapsed, el => el.mt(4).w(RAIL_CELL).justify_center().rounded(6).tooltip(m ? `${m} · ${connected ? "connected" : (machine?.state ?? "asleep").replace(/_/g, " ")}` : "This computer"))
         .cursor_pointer().hover(s => s.bg((t.hover === t.canvas ? t.chrome : t.hover)))
         .on_click((_e, cx) => {
@@ -547,12 +547,13 @@ export default class Spaces extends View {
       changed = true;
     }
     if (changed) setShared("space.colors", kept);
-    return splitDrag(v_flex().id("sp-root"), "spaces").relative().overflow_hidden().size_full().min_h(0).bg(t.canvas).text_size(13)
+    return splitDrag(v_flex().id("sp-root"), "spaces").relative().overflow_hidden().size_full().min_h(0).bg(t.canvas).text_size(13.5)
       .on_size_change((s) => setShared("mdj.spaces.h", s.height))
-      .child(h_flex().h(26).pl(12).pr(4).items_center().justify_between().text_size(13).font_medium().text_color(t.dim)
-        .when(collapsed, el => el.h(32).pt(4).pl(4).pr(4))
+      .child(h_flex().h(26).pl(12).pr(4).items_center().justify_between().text_size(13.5).font_medium().text_color(t.dim)
+        // mdj: the header is 26px on the rail as well, so folding the sidebar leaves every row where it was.
+        .when(collapsed, el => el.pl(4).pr(4))
         .when(!collapsed, el => el.child("Spaces"))
-        .child(div().id("space-new").size(26).when(collapsed, el => el.w_full().h(28).rounded(7)).flex_none().flex().items_center().justify_center().rounded(6).hover(s => s.bg((t.hover === t.canvas ? t.chrome : t.hover)).text_color(t.foreground))
+        .child(div().id("space-new").size(26).when(collapsed, el => el.w_full().rounded(7)).flex_none().flex().items_center().justify_center().rounded(6).hover(s => s.bg((t.hover === t.canvas ? t.chrome : t.hover)).text_color(t.foreground))
           .on_click(() => run("space.new")).child(svg("mods/workspace-chrome/plus.svg").size(14))))
       // mdj: the list is scrolled by this mod rather than by a scroll area, which tells a mod no offset, so
       // the fades are drawn from the offset the rows are drawn at and cannot drift. 4px inside the clip give

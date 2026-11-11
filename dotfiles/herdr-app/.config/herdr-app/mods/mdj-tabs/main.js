@@ -115,7 +115,7 @@ export default class MdjTabs extends View {
       const over = this.hoverTab === c.id;
       const status = c.status === "working" ? svg("mods/workspace-chrome/spinner.svg").size(12).flex_none().text_color(t.working).spin(900)
         : c.status === "blocked" || c.status === "done" ? div().size(6).rounded(3).bg(t[c.status]) : null;
-      return h_flex().id(`tab-${c.id}`).h(ROW).min_w(ROW * 4).pl(5).pr(5).gap(8).rounded(RADIUS).items_center().flex_none().text_size(13).relative()
+      return h_flex().id(`tab-${c.id}`).h(ROW).min_w(ROW * 4).pl(5).pr(5).gap(8).rounded(RADIUS).items_center().flex_none().text_size(13.5).relative()
         .child(card(`tab-card-${c.id}`, c.active, t, RADIUS)).text_color(c.active ? t.foreground : t.muted)
         .when(!c.active, el => el.hover(s => s.bg(dimmed(t))))
         .on_size_change((s, cx) => { if ((this.widths ??= {})[c.id] !== s.width) { this.widths[c.id] = s.width; cx.notify(); } })
@@ -153,7 +153,7 @@ export default class MdjTabs extends View {
     const panelButton = (id, label, icon) => {
       const on = panel && !panel.hidden && body?.active === id;
       return h_flex().id(`panel-${id}`).h(ROW).mt(4).pl(5).pr(10).gap(8).flex_none().items_center().rounded(RADIUS)
-        .text_size(13).relative().child(card(`panel-card-${id}`, on, t, RADIUS)).text_color(on ? t.foreground : t.muted)
+        .text_size(13.5).relative().child(card(`panel-card-${id}`, on, t, RADIUS)).text_color(on ? t.foreground : t.muted)
         .when(!on, el => el.hover(s => s.bg(dimmed(t)))).on_mouse_down("left", stop)
         .on_click(() => {
           if (on) run("layout.hide", { id: "panel" });

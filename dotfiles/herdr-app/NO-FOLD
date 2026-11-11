@@ -17,3 +17,5 @@
 .config/herdr-app/mods/mdj-spaces | the Herdr app writes gpui-kit.d.ts and jsconfig.json into every mod folder on start
 .config/herdr-app/mods/mdj-agents | the Herdr app writes gpui-kit.d.ts and jsconfig.json into every mod folder on start
 .config/herdr-app/mods/mdj-menu | the Herdr app writes gpui-kit.d.ts and jsconfig.json into every mod folder on start
+.config/herdr-app/mods/mdj-sidebar | the Herdr app writes gpui-kit.d.ts and jsconfig.json into every mod folder on start
+.config/herdr-app/mods/mdj-zoom | the Herdr app writes gpui-kit.d.ts and jsconfig.json into every mod folder on start

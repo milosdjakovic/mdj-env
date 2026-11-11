@@ -136,7 +136,7 @@ export default class Menu extends View {
       .bg(t.popover)
       .rounded(10)
       .shadow_sm()
-      .text_size(13)
+      .text_size(13.5)
       .on_key_down((e, cx) => {
         if (e.key === "down") this.at = (this.at + 1) % list.length;
         else if (e.key === "up") this.at = this.at < 0 ? list.length - 1 : (this.at + list.length - 1) % list.length;

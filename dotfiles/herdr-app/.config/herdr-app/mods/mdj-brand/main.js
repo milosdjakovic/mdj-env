@@ -42,7 +42,7 @@ export default class MdjBrand extends View {
         .on_click(action).child(svg(`mods/workspace-chrome/${icon}.svg`).size(14))
         .when(!collapsed, el => el.child(label));
       const ready = div().size(6).rounded_full().bg(t.accent);
-      return v_flex().size_full().px(4).pb(4).bg(t.canvas).justify_end().text_size(13)
+      return v_flex().size_full().px(4).pb(4).bg(t.canvas).justify_end().text_size(13.5)
         
         .child(row("settings", "settings", "Settings", false, () => run("app.settings"))
           .when(Boolean(updates().app.ready), el => el.child(collapsed ? ready.absolute().top(5).right(6) : ready)))

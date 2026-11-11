@@ -65,7 +65,7 @@ export default class Pane extends View {
       .rounded_t(10)
       .border_b(1)
       .border_color(t.border)
-      .text_size(12)
+      .text_size(13.5)
       .on_hover((hovered, cx) => { this.hovered = hovered; cx.notify(); })
       .on_click(() => run("pane.focus", { pane }))
       .when(Boolean(pic), (el) => el.child(pic))

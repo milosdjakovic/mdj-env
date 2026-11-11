@@ -26,7 +26,7 @@ export default class PopupBar extends View {
   render() {
     const t = theme();
     return h_flex().id("root").size_full().pl(10).pr(5).justify_between().items_center()
-      .bg(t.chrome).border_b(1).border_color(t.border).text_size(13)
+      .bg(t.chrome).border_b(1).border_color(t.border).text_size(13.5)
       // The title reads like a selected tab's name, 13px in the foreground.
       .child(div().text_color(t.foreground).child(this.p.title ?? "popup"))
       // The same close button a tab and a space use: an 18px box, a 12px x, its own hover. It sits 5 from

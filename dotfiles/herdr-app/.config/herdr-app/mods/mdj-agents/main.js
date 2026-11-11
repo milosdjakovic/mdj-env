@@ -246,11 +246,19 @@ export default class Agents extends View {
     });
   }
 
-  subRow(t, s, shown, compact) {
+  subRow(t, s, shown, compact, rail = false) {
     const k = s.t;
     const st = kidStatus(k, this.listed);
     const pic = icon(k.program, 14, t.foreground);
     const on = k.address === shown;
+    const open = () => (this.listed.has(k.address) ? run("pane.focus", { terminal: k.address }) : this.peek(k.address));
+    // mdj: on the rail a sub-agent is a cube like its parent's, in the same place its row has open.
+    if (rail) return h_flex().id(`sub-${k.address}`).relative().w_full().h(28).flex_none().rounded(7).items_center().justify_center()
+      .tooltip(String(k.name || k.template || k.program?.name || k.address))
+      .child(card(`sub-card-${k.address}`, on, t))
+      .when(!on, (el) => el.hover((s) => s.bg(dimmed(t))))
+      .on_click(open)
+      .child(railState(t, st, pic));
     return h_flex()
       .id(`sub-${k.address}`)
       .pl(39)
@@ -260,11 +268,11 @@ export default class Agents extends View {
       .flex_none()
       .gap(0)
       .items_center()
-      .text_size(13)
+      .text_size(13.5)
       .relative()
       .child(card(`sub-card-${k.address}`, on, t))
       .when(!on, (el) => el.hover((s) => s.bg(dimmed(t))))
-      .on_click(() => (this.listed.has(k.address) ? run("pane.focus", { terminal: k.address }) : this.peek(k.address)))
+      .on_click(open)
       .children(s.lines.map(l => div().self_start().mt(-4).w(9).h(17).mr(4).flex_none()
         .when(Boolean(l), el => el.border_l(1.5).border_color(t.input))
         .when(l === "└" || l === "├", el => el.border_b(1.5).rounded_bl(6))))
@@ -299,7 +307,8 @@ export default class Agents extends View {
     this.hold(list);
     // A kept sub-agent (one with a pane) is in agents() too: where a tree shows
     // it, it gets no row of its own, unless it's pinned.
-    const nested = new Set(collapsed ? [] : list.flatMap((a) => this.tree(all, a.address).map((s) => s.t.address)));
+    // mdj: the rail nests and groups exactly as the open list does, so folding the sidebar moves no row.
+    const nested = new Set(list.flatMap((a) => this.tree(all, a.address).map((s) => s.t.address)));
     list = list.filter((a) => a.pinned || !nested.has(a.address));
     const tabCounts = new Map();
     for (const a of list) tabCounts.set(a.tab, (tabCounts.get(a.tab) ?? 0) + 1);
@@ -313,10 +322,10 @@ export default class Agents extends View {
     setAgentOrder(list.map((a) => a.address));
 
     const withKids = (a, i) => {
-      const subs = collapsed ? [] : this.tree(all, a.address);
+      const subs = this.tree(all, a.address);
       const r = row(a, i, subs);
       if (this.folded.has(a.address)) return [r];
-      return [r, ...subs.map((s) => this.subRow(t, s, shown, byPriority))];
+      return [r, ...subs.map((s) => this.subRow(t, s, shown, byPriority, collapsed))];
     };
 
     // The fold chevron; folded, the count too, colored by the most urgent one.
@@ -385,7 +394,7 @@ export default class Agents extends View {
           .child(card(`ag-card-${a.address}`, a.focused, t))
           .when(!a.focused, (el) => el.hover((s) => s.bg(dimmed(t))))
           .on_click(() => run("pane.focus", { pane: a.pane }))
-          .child(railState(t, a.status, icon(a.program, 14, t.foreground) ?? div().text_color(t.muted).child(String(i + 1))));
+          .child(railState(t, a.status, icon(a.program, 16, t.foreground) ?? div().text_color(t.muted).child(String(i + 1))));
       }
       const when = this.since(a);
       const idle = a.status === "idle" && !a.focused;
@@ -469,7 +478,7 @@ export default class Agents extends View {
         .flex_none()
         .gap(6)
         .items_center()
-        .text_size(13)
+        .text_size(13.5)
         .font_medium()
         .cursor_pointer()
         .hover((s) => s.text_color(t.foreground))
@@ -484,9 +493,8 @@ export default class Agents extends View {
           .when(!byPriority && top && top !== "idle", (el) => el.child(this.status(t, { status: top }, true)))
           .child(svg("mods/workspace-chrome/chevron-right.svg").size(11).flex_none().text_color(t.dim)));
     };
-    const rows = collapsed
-      ? list.flatMap(withKids)
-      : groups.flatMap((g) => [header(g), ...(this.folded.has(g.id) ? [] : g.members.flatMap(withKids))]);
+    // On the rail a group's header is its 30px left empty.
+    const rows = groups.flatMap((g) => [collapsed ? div().id(g.id).h(30).flex_none() : header(g), ...(this.folded.has(g.id) ? [] : g.members.flatMap(withKids))]);
 
     return splitDrag(v_flex().id("ag-root"), "agents")
       .relative()
@@ -494,7 +502,7 @@ export default class Agents extends View {
       .size_full()
       .min_h(0)
       .bg(t.canvas)
-      .text_size(13)
+      .text_size(13.5)
       // The split from Spaces above: a rounded grip like a phone's home bar, brighter on hover,
       // sitting on the boundary the layout drags to resize the two lists.
       .child(
@@ -529,7 +537,7 @@ export default class Agents extends View {
             .flex_none()
             .items_center()
             .justify_between()
-            .child(div().text_size(13).font_medium().text_color(t.dim).child("Agents"))
+            .child(div().text_size(13.5).font_medium().text_color(t.dim).child("Agents"))
             .child(
               // mdj: the same 26px box as the Spaces + above, so the two line up with the sidebar button.
               div()
@@ -549,6 +557,8 @@ export default class Agents extends View {
             ),
         ),
       )
+      // mdj: the rail keeps the header's 26px empty, so folding the sidebar leaves every row where it was.
+      .when(collapsed, (el) => el.child(div().h(26).flex_none()))
       .when(list.length === 0 && !collapsed, (el) =>
         el.child(div().px(16).text_size(12).text_color(t.dim).child("No agent status yet. Agents show up here when they report their status. Older versions and agents inside tmux may not.")),
       )
