@@ -544,3 +544,5 @@ list, and until then that list stays on Lua.
   first and was replaced the same hour at Milos's ask, by `kit.meter`, a component of the shared
   kit in our own colours, `decisions/olm-colour-roles.md` 15:14. `OLM_DEMO_DOWNLOAD=0.6` launches
   the app with Download standing still at that fraction, to look at the meter.
+- 2026-11-11 15:30. Step 1.4i passed its hand trial in the app and in the Lua native list, the
+  meter included, and is ticked. 1.5 parity is next.
