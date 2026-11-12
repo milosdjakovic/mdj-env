@@ -73,6 +73,10 @@ public final class IndexBuild: @unchecked Sendable {
     process.arguments = ["build", index, prune.joined(separator: "\n")] + roots
     process.standardOutput = FileHandle.nullDevice
     process.standardError = FileHandle.nullDevice
+    // Background priority, so the crawl takes CPU and disk only when nothing else wants them and
+    // never competes with the list it was started for, measured in 1.5's trial on 2026-11-12, the
+    // first seconds of an open stuttering while it ran.
+    process.qualityOfService = .background
     let started: Bool = lock.withLock {
       if running != nil { return false }
       guard (try? process.run()) != nil else { return false }

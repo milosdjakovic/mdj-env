@@ -573,3 +573,14 @@ list, and until then that list stays on Lua.
   Nothing is drawn and a warm never checks the folder permissions, so it can raise no prompt. It
   does not rebuild the index, which stays on an open, since a crawl every ten minutes while idle
   costs more than a stale index the next open replaces.
+- 2026-11-12 15:20. The warm made the first open fast, and Milos still felt a stutter in its first
+  seconds. A trace of both processes on one clock found Hammerspoon handing each Hyper J on within
+  2 ms and the app's main thread mostly idle, sampled at 86 percent waiting, while its timers and
+  frames ran 40 to 370 ms late. So the app was not doing too much, it was not given the machine.
+  During those seconds the window server sat near 90 percent, the Mac had 75 MB free with 3.8 GB in
+  swap, and the index rebuild an open starts was crawling beside it. The Lua list, opened the same
+  way with the index aged, stuttered the same until its rebuild finished, Hammerspoon's own main
+  thread held 30 to 210 ms at a time, so the app is no worse and this is not a flip blocker. The
+  app's rebuild now runs at background priority, `qualityOfService = .background` on the helper,
+  so the crawl takes CPU and disk only when nothing else wants them. Ruled out, the icon lookup,
+  the row fit, the preview's layout and draw, each under 15 ms and off the main thread where heavy.
