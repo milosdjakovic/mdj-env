@@ -22,8 +22,11 @@ Every file here is linked file by file. `.config/herdr-app/themes/mdj-dark.json`
 `mdj-light.json`, `settings.json`, `keys.json`, `layouts/mdj.json`, and under `mods/` each mdj mod's `main.js` and
 `mod.json`, with `mdj-popup/herdr-shim.sh` beside its own. Herdr keeps a layout's clicks, sizes and shown panels, in
 `layouts/.state` rather than in the layout file, so the linked file is only written by an edit here. Which
-layout the window shows is the machine's own, so a new machine shows `main` until
-`herdr-app do layout.switch '{"name":"mdj"}'` is run once.
+layout the window shows is the machine's own, kept in Herdr's `shared.json`, so a new machine
+shows `main` until `src/setup-herdr-app.sh` runs, which `setup.sh` does. It switches to `mdj` only
+from `main` or from nothing chosen yet, opening the app in the background and quitting it again
+when it was not running, and leaves any other layout with a note. By hand it is
+`herdr-app do layout.switch '{"name":"mdj"}'` or cmd-shift-l.
 
 `NO-FOLD` keeps `~/.config/herdr-app`, its `themes` and `mods` folders, and each mdj mod folder
 real directories. The app rewrites its guide, type files, layouts and frame on every start,
@@ -73,7 +76,10 @@ target through `hc run` and then `touch -h` on the link. The zoom keys save into
 so the zoom there is only where the keys last left it, and `ZOOM` is the one that is meant. To
 change the default, change `ZOOM`, and the next `cmd-0` writes it into `settings.json` too.
 
-The stow step adds this package wherever the `herdr` piece is on. There is no piece of its own.
+The stow step adds this package wherever the `herdr-app` piece is on, off by default, and
+`src/install-herdr-app.sh` installs the app there once from Herdr's own installer. The `alt-z`
+popups run the tools in the herdr package, so the piece turns `herdr` on with it, through `NEEDS`
+in `src/machine.sh`. `src/setup-herdr-app.sh` then switches the app to `mdj`, as said above.
 
 `settings.json` picks the pair with `"theme": { "light": "mdj-light", "dark": "mdj-dark" }`.
 The files are named for the half they fill rather than for a palette, so that line never

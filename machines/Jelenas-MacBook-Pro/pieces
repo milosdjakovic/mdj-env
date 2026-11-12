@@ -4,3 +4,4 @@ kanata         | on        # kanata and the Karabiner driver extension active
 mise           | on        # turned on 2026-10-30, mise already ran here unmanaged with node, flutter, java and firebase-tools
 editor         | com.microsoft.VSCode # set by hand, Visual Studio Code chosen by Milos on 2026-11-04
 olmapp         | on        # set by hand, asked for on 2026-11-08
+herdr-app      | on        # set by hand, the Herdr app installed here from its own installer, asked for on 2026-11-12

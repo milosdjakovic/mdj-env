@@ -220,3 +220,13 @@ now does. Node's default here moves from 22 to the catalog's 26, Milos's choice,
 pinning its own, as redburst's gau3-web-app already does with `.node-version` at 18.12.1. The hand
 written config is moved aside by the stow step rather than deleted, and the installed versions stay
 in use, since a run installs what is missing and never moves what is present.
+
+**2026-11-12 09:00.** mise's shims are prepended to PATH from `dotfiles/zsh/.zshenv`, so a zsh that
+never reads `.zshrc.custom`, `zsh -c`, `zsh -l` or a script started outside a terminal, finds the
+runtimes. One machine had this in a hand written `~/.zshenv`, which the stow step moved into
+`~/.mdj-env-backup/20261111-135639/` on 2026-11-11 when it linked the repository's file, and from
+then until this change `env -i zsh -c` on that account found no node. The guard is the one
+`.zshrc.custom` uses, the linked mise config rather than the binary, plus the shims directory, so a
+machine with mise but not this repository's runtimes is untouched. Checked with
+`env -i HOME=$HOME zsh -c 'command -v node'`, which answers the shim, and a nested zsh carries the
+shims once.

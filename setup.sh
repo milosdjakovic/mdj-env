@@ -228,6 +228,9 @@ step "$SRC_DIR/install-claude-code.sh"
 # Install herdr from its own installer, which updates through herdr update
 step_if herdr on "$SRC_DIR/install-herdr.sh"
 
+# Install the Herdr desktop app from its own installer, which updates itself and herdr-core
+step_if herdr-app on "$SRC_DIR/install-herdr-app.sh"
+
 # Stow dotfiles to home directory
 step "$SRC_DIR/setup-stow-dotfiles.sh"
 
@@ -284,6 +287,9 @@ step_if rex on "$SRC_DIR/setup-rex.sh"
 
 # Register the herdr module's local plugin, which stow places but cannot register
 step_if herdr on "$SRC_DIR/setup-herdr-plugins.sh"
+
+# Show the Herdr app's mdj layout, opening the app for it when it is not running, once stow has linked it
+step_if herdr-app on "$SRC_DIR/setup-herdr-app.sh"
 
 # Every permission a module declares and macOS has not given yet. With a terminal each required
 # one is opened where it is given and waited for, a few minutes at most, with Enter to skip, and

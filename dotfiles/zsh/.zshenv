@@ -6,6 +6,18 @@
 # .zshrc puts it first again for interactive shells, along with the Homebrew prefix.
 export PATH="$HOME/.local/bin:$PATH"
 
+# mise's shims, first on PATH, for every zsh. .zshrc.custom activates mise with --shims, but only
+# an interactive shell reads it, so `zsh -c`, `zsh -l` and a script started outside a terminal
+# found no shims at all, `env -i zsh` could not find node. The guard is the one .zshrc.custom
+# uses, the config rather than the binary, so a machine that has mise without taking this
+# repository's runtimes keeps its own. The path is rebuilt with the shims first and any other
+# copy dropped, so a nested zsh does not stack them. This was a hand written ~/.zshenv on one
+# machine until the stowed file displaced it on 2026-11-11, decisions/runtime-versions.md has it.
+if [[ -e "$HOME/.config/mise/config.toml" && -d "$HOME/.local/share/mise/shims" ]]; then
+  path=("$HOME/.local/share/mise/shims" ${path:#"$HOME/.local/share/mise/shims"})
+  export PATH
+fi
+
 # fzf's options live in one file that fzf rereads at every launch, so the colours are written
 # once and reach every picker, typed at a prompt or started by tmux, herdr, Rex or a script.
 # It is here rather than in .zshrc.custom because a pane started with a command runs a zsh that
