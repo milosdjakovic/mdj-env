@@ -228,6 +228,9 @@ step "$SRC_DIR/install-claude-code.sh"
 # Install herdr from its own installer, which updates through herdr update
 step_if herdr on "$SRC_DIR/install-herdr.sh"
 
+# Install the Herdr desktop app from its own installer, which updates itself and herdr-core
+step_if herdr-app on "$SRC_DIR/install-herdr-app.sh"
+
 # Stow dotfiles to home directory
 step "$SRC_DIR/setup-stow-dotfiles.sh"
 

@@ -36,6 +36,7 @@ lists both names in its `.stow-local-ignore` so neither lands in the home direct
 ./src/install-ohmyzsh-plugins.sh
 ./src/install-claude-code.sh
 ./src/install-herdr.sh               # herdr from its own installer, where the herdr piece is on
+./src/install-herdr-app.sh           # the Herdr desktop app from its own installer, where the herdr-app piece is on
 ./src/install-mise-tools.sh
 ./src/install-tmux-plugins.sh
 ./src/setup-stow-dotfiles.sh
@@ -361,9 +362,11 @@ to drift unnoticed.
 
 **Stowed on every machine:** ghostty, tmux, nvim, zsh, claude, lf, lazygit
 
-**Stowed where machines/ turns them on:** hammerspoon, herdr, mise, kanata, rex
+**Stowed where machines/ turns them on:** hammerspoon, herdr, herdr-app, mise, kanata, rex
 
-**Stowed with the herdr piece:** herdr-app, the Herdr desktop app's settings, keys, mods and generated colours
+herdr-app is the Herdr desktop app's settings, keys, mods and generated colours. Its own piece,
+off by default, also installs the app, and its popups run the herdr package's tools, so a machine
+that takes it takes herdr too.
 
 ### Rules for an agent working on machines and runtimes
 
@@ -701,7 +704,9 @@ where the herdr piece is on, and `herdr update` keeps it current from then on.
 
 ### Herdr app
 
-The Herdr desktop app's settings, keys, mods and generated colours in `dotfiles/herdr-app/`. See
+The Herdr desktop app's settings, keys, mods and generated colours in `dotfiles/herdr-app/`, where
+the `herdr-app` piece is on. `src/install-herdr-app.sh` installs the app once from Herdr's own
+installer and the app updates itself, `decisions/herdr-app-install.md` has it. See
 `dotfiles/herdr-app/AGENTS.md` for what is linked and why its directories stay real, why the
 generated theme JSON carries no banner, and why a zsh hook sends every terminal colour into each
 pane, since Herdr's core answers colour queries from its own defaults.

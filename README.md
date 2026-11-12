@@ -31,8 +31,8 @@ machine takes. See [Capturing a machine](#capturing-a-machine).
 Machines differ, and the `machines/` directory at the repository root says how. Its `default`
 folder has one default row per optional piece, and each machine that differs has a folder of its
 own, named by the machine's local hostname, with a `pieces` file of the rows that differ. The
-pieces are `mise`, `hammerspoon`, `herdr`, `mole`, `docker`, `vpn`, `tools`, `kanata` and `olmapp`. A machine
-with no rows gets every default, which keeps its own setup alone and leaves mise, kanata and olmapp off.
+pieces are `mise`, `hammerspoon`, `herdr`, `herdr-app`, `mole`, `docker`, `vpn`, `tools`, `kanata`, `rex`, `olmapp` and `editor`. A machine
+with no rows gets every default, which keeps its own setup alone and leaves mise, kanata, herdr-app and olmapp off.
 
 Do this once on every machine, and again whenever a machine changes.
 
@@ -232,7 +232,7 @@ stow -t ~ alacritty # Alternative terminal
 
 ### Stowed Where The Machine Turns Them On
 
-- hammerspoon, herdr, mise, kanata
+- hammerspoon, herdr, herdr-app, mise, kanata, rex
 
 ### Available but Not Stowed
 

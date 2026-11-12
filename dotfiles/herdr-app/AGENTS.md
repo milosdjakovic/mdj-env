@@ -73,7 +73,10 @@ target through `hc run` and then `touch -h` on the link. The zoom keys save into
 so the zoom there is only where the keys last left it, and `ZOOM` is the one that is meant. To
 change the default, change `ZOOM`, and the next `cmd-0` writes it into `settings.json` too.
 
-The stow step adds this package wherever the `herdr` piece is on. There is no piece of its own.
+The stow step adds this package wherever the `herdr-app` piece is on, off by default, and
+`src/install-herdr-app.sh` installs the app there once from Herdr's own installer. The `alt-z`
+popups run the tools in the herdr package, so a machine with this piece on takes `herdr` too.
+A fresh machine still shows Herdr's `main` layout until the `layout.switch` above is run once, or `mdj` is picked with cmd-shift-l.
 
 `settings.json` picks the pair with `"theme": { "light": "mdj-light", "dark": "mdj-dark" }`.
 The files are named for the half they fill rather than for a palette, so that line never
