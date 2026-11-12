@@ -197,6 +197,33 @@ function M.export()
   return out
 end
 
+--- frecency.merge(entries) -> whether anything changed
+--- Folds another store into this one, Olm.app's, each path keeping whichever side used it last and
+--- the higher score breaking a tie, so merging the same store twice changes nothing. The app merges
+--- this store the same way, app/Plugins/FileSearch/Frecency.swift, so a use made on either side is
+--- never lost, the launcher's slash scope recording here after the flip and a back out included.
+--- Malformed entries are left out, as load leaves them out.
+function M.merge(entries)
+  if type(entries) ~= "table" then return false end
+  local s = load()
+  local changed = false
+  for path, e in pairs(entries) do
+    local score, at = type(e) == "table" and tonumber(e.score), type(e) == "table" and tonumber(e.at)
+    if type(path) == "string" and path ~= "" and score and at then
+      local ours = s[path]
+      if not ours or at > ours.at or (at == ours.at and score > ours.score) then
+        s[path] = { score = score, at = at }
+        changed = true
+      end
+    end
+  end
+  if changed then
+    trim(s, os.time())
+    save()
+  end
+  return changed
+end
+
 --- frecency.forget(path) - drop one path, for a caller that knows it is gone or unwanted.
 function M.forget(path)
   local s = load()

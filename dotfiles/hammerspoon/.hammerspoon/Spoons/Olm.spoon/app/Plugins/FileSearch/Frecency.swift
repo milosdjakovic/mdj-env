@@ -4,11 +4,13 @@
 // last year sinks below one used twice this week with no list of times to keep. The weakest are
 // dropped past maxEntries, and a gone path is forgotten as top passes over it.
 //
-// The list that serves file search records the uses, so the app keeps its own store, under the
-// plugin's state folder. The Lua history comes over through `<tool>history.json`, which the root
-// writes for a list the app serves, and the app takes it whenever it holds a use newer than the
-// newest it took last time. While the app serves, the Lua side records nothing, so a reload takes
-// nothing, and after a back out and more use there the next flip takes the newer history.
+// The app keeps its own store, under the plugin's state folder. The Lua history comes over through
+// `<tool>history.json`, which the root writes for a list the app serves, and the app merges it on
+// an open whenever the file has changed, each path keeping whichever side used it last, `merge`.
+// The Lua side merges this store the same way on every reload, so neither side ever loses a use,
+// the launcher's slash scope recording on the Lua side after the flip, a back out and a flip
+// again all adding up. Revised from taking the Lua history whole on 2026-11-12, Milos choosing it
+// at the 1.5 flip, decisions/olm-standalone.md.
 
 import Foundation
 
@@ -29,8 +31,8 @@ public final class Frecency {
   private let now: () -> Int
   private let exists: (String) -> Bool
   private var entries: [String: Entry] = [:]
-  // The newest use of the Lua history taken, so the same history is never taken twice.
-  private var took = 0
+  // When the Lua history merged last was written, so an unchanged one is not read again.
+  private var merged: Date?
   private var loaded = false
 
   /// file is where the app's own store is kept, history the Lua history the root shares, either nil
@@ -61,22 +63,31 @@ public final class Frecency {
     return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
   }
 
-  /// The app's own store, then the Lua history in its place when that holds a newer use than the
-  /// newest taken last time. Asked on every open, so a flip takes the history on its first open.
+  /// Two stores as one, each path keeping the entry used last, the higher score breaking a tie, so
+  /// merging the same store twice changes nothing. plugins/filesearch/frecency.lua's merge.
+  public static func merge(_ mine: [String: Entry], _ other: [String: Entry]) -> [String: Entry] {
+    var out = mine
+    for (path, theirs) in other {
+      guard let ours = out[path] else { out[path] = theirs; continue }
+      if theirs.at > ours.at || (theirs.at == ours.at && theirs.score > ours.score) { out[path] = theirs }
+    }
+    return out
+  }
+
+  /// The app's own store, then the Lua history merged into it when that file has changed since it
+  /// was merged last. Asked on every open, so a flip merges the history on its first open.
   public func refresh() {
     if !loaded {
       loaded = true
-      if let doc = Self.read(file) {
-        entries = Self.entries(doc["entries"])
-        took = (doc["took"] as? NSNumber)?.intValue ?? 0
-      }
+      if let doc = Self.read(file) { entries = Self.entries(doc["entries"]) }
     }
-    guard let doc = Self.read(history) else { return }
-    let lua = Self.entries(doc["entries"])
-    let newest = lua.values.map(\.at).max() ?? 0
-    guard newest > took else { return }
-    entries = lua
-    took = newest
+    guard let history,
+      let stamp = (try? FileManager.default.attributesOfItem(atPath: history.path))?[.modificationDate] as? Date,
+      stamp != merged, let doc = Self.read(history) else { return }
+    merged = stamp
+    let next = Self.merge(entries, Self.entries(doc["entries"]))
+    guard next != entries else { return }
+    entries = next
     trim(now())
     save()
   }
@@ -85,7 +96,7 @@ public final class Frecency {
     guard let file else { return }
     var raw: [String: Any] = [:]
     for (path, e) in entries { raw[path] = ["score": e.score, "at": e.at] }
-    guard let data = try? JSONSerialization.data(withJSONObject: ["took": took, "entries": raw]) else { return }
+    guard let data = try? JSONSerialization.data(withJSONObject: ["entries": raw]) else { return }
     try? FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
     try? data.write(to: file, options: .atomic)
   }

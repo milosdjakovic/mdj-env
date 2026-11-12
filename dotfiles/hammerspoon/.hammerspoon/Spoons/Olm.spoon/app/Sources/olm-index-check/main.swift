@@ -462,20 +462,22 @@ check(fr.usedAt("/b") == nil && fr.usedAt("/a") != nil && fr.usedAt("/d") != nil
 fr.maxEntries = 500
 writeHistory(["/lua1": ["score": 3, "at": 500], "/lua2": ["score": "2.5", "at": 400], "/bad": ["at": 1]])
 fr.refresh()
-check(fr.usedAt("/lua1") == 500 && fr.score("/lua2") > 0 && fr.usedAt("/a") == nil && fr.usedAt("/bad") == nil,
-  "a Lua history holding a newer use is taken in place, a malformed entry left out")
+check(fr.usedAt("/lua1") == 500 && fr.score("/lua2") > 0 && fr.usedAt("/a") != nil && fr.usedAt("/bad") == nil,
+  "a Lua history is merged, the app's own uses kept and a malformed entry left out")
 fr.note("/mine")
 fr.refresh()
-check(fr.usedAt("/mine") != nil && fr.usedAt("/lua1") == 500, "the same history is not taken twice")
+check(fr.usedAt("/mine") != nil && fr.usedAt("/lua1") == 500, "an unchanged history is not merged again")
 let reread = Frecency(file: store, history: history, now: { clock.t })
 reread.refresh()
-check(reread.usedAt("/mine") != nil, "and what was taken is kept across a restart")
-writeHistory(["/lua3": ["score": 1, "at": 600]])
+check(reread.usedAt("/mine") != nil && reread.usedAt("/lua1") == 500, "and what was merged is kept across a restart")
+let mineAt = reread.usedAt("/mine") ?? 0
+writeHistory(["/lua3": ["score": 1, "at": 600], "/mine": ["score": 9, "at": 50], "/lua1": ["score": 1, "at": 900]])
 reread.refresh()
-check(reread.usedAt("/lua3") == 600 && reread.usedAt("/mine") == nil, "a history newer still is taken again")
-writeHistory(["/old": ["score": 9, "at": 50]])
-reread.refresh()
-check(reread.usedAt("/old") == nil && reread.usedAt("/lua3") == 600, "and an older one is not")
+check(reread.usedAt("/lua3") == 600 && reread.usedAt("/mine") == mineAt && reread.usedAt("/lua1") == 900,
+  "each path keeps whichever side used it last")
+let a = ["/x": Frecency.Entry(score: 1, at: 10)], b = ["/x": Frecency.Entry(score: 4, at: 10)]
+check(Frecency.merge(a, b)["/x"]?.score == 4 && Frecency.merge(Frecency.merge(a, b), b) == Frecency.merge(a, b),
+  "a tie in time keeps the higher score, and merging twice changes nothing")
 
 // The person's store as main.swift builds it, a use kept on disk through the source.
 let personRun = root.appendingPathComponent("person-run")
@@ -492,7 +494,7 @@ _ = await personSource.choose(Pick(key: "/opened.md", query: "opened"))
 let onDisk = Frecency(file: personContext.store.appendingPathComponent("frecency.json"), history: nil)
 onDisk.refresh()
 check(onDisk.usedAt("/kept.md") != nil && onDisk.usedAt("/opened.md") != nil && onDisk.usedAt("/lua") == 100,
-  "the person's store keeps the history taken and every use on disk")
+  "the person's store keeps the history merged and every use on disk")
 
 // The source over the index, with a store of its own on the real clock.
 let used = Frecency(file: nil, history: nil)

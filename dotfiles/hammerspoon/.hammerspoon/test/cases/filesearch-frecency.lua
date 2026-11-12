@@ -119,3 +119,31 @@ check("a use floats the held list again, so the next open draws it before the fr
   #asked == 2 and paths(reopened or {}, "path") == "/home/older.txt,/home/new.txt",
   paths(reopened or {}, "path") .. " after " .. #asked .. " fetch(es)")
 
+
+--------------------------------------------------------------------------------
+-- The merge, the app's uses folded in, step 1.5
+--------------------------------------------------------------------------------
+
+local merged = load(fs .. "frecency.lua")
+merged.configure({ key = "merge" })
+local changed = merged.merge({
+  ["/home/a.txt"] = { score = 9, at = 300 },
+  ["/home/b.txt"] = { score = 4, at = 600 },
+  ["/home/c.txt"] = { score = 1, at = 700 },
+  ["/home/bad"] = { at = 1 },
+})
+check("a merge keeps each path's newer use, from either side", changed
+  and merged.usedAt("/home/a.txt") == 400 and merged.usedAt("/home/b.txt") == 600
+  and merged.usedAt("/home/c.txt") == 700)
+check("and leaves a malformed entry out", merged.usedAt("/home/bad") == nil)
+check("merging the same store again changes nothing", merged.merge({
+  ["/home/b.txt"] = { score = 4, at = 600 }, ["/home/c.txt"] = { score = 1, at = 700 } }) == false)
+merged.merge({ ["/home/c.txt"] = { score = 3, at = 700 } })
+check("a tie in time keeps the higher score", merged.export()["/home/c.txt"].score == 3)
+check("and a merge of nothing changes nothing", merged.merge(nil) == false)
+
+local plugin = load(fs .. "init.lua")
+plugin.frecency = merged
+check("the plugin's takeHistory folds a history in", plugin:takeHistory({ entries = {
+  ["/home/d.txt"] = { score = 1, at = 800 } } }) and merged.usedAt("/home/d.txt") == 800)
+check("and takes nothing that is no history", plugin:takeHistory("x") == false)

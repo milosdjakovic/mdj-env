@@ -584,3 +584,16 @@ list, and until then that list stays on Lua.
   app's rebuild now runs at background priority, `qualityOfService = .background` on the helper,
   so the crawl takes CPU and disk only when nothing else wants them. Ruled out, the icon lookup,
   the row fit, the preview's layout and draw, each under 15 ms and off the main thread where heavy.
+- 2026-11-12 15:45. The flip's design, with Milos. Going back is the olmapp piece turned off and a
+  reload, as the plan says, rather than the serves line, which would be a config edit. He chose
+  that going back carries the app's uses to the Lua list. Reading for it found that 1.4d's import,
+  the app taking the Lua history whole whenever it holds a newer use, would lose uses after the
+  flip, since the launcher's slash scope stays on the Lua side until stage 3 and records there, and
+  one such use would replace every use the app had made. Rejected, keeping the replace and adding
+  the same on the Lua side, for that loss. Chosen, both sides merge, each path keeping whichever
+  side used it last, the app on an open and the Lua plugin on every load through the bridge's
+  `appState` and its `takeHistory` word. The shadow line stays in `config/plugins.lua` at the flip,
+  revising the plan's note that the shadow ends there, since it compares nothing while the app
+  serves and resumes by itself after a back out. Found beside it, a config with no serves line left
+  the last load's serves share in place, so the app went on warming a tool taken back. The bridge
+  now writes an empty list then.

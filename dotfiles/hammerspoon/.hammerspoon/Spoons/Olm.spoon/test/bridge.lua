@@ -40,7 +40,7 @@ hs = {
     if v.bar then return "{\"bar\":{\"title\":\"" .. tostring(v.bar.title) .. "\"}}" end
     if v.query then return "{\"id\":" .. v.id .. ",\"query\":\"" .. v.query .. "\",\"keys\":" .. #v.keys .. "}" end
     return "{\"types\":" .. tostring(v.types and "t" or "none") .. "}"
-  end },
+  end, decode = function(s) return s ~= "" and { raw = s } or nil end },
   distributednotifications = { post = function(name, object) posted[#posted + 1] = { name = name, object = object } end,
     new = function(fn, name)
       local w = { fn = fn, name = name }
@@ -140,6 +140,28 @@ local served = f and f:read("a") or ""
 if f then f:close() end
 eq(served:find('"filesearch"', 1, true) ~= nil and served:find("bad", 1, true) == nil, true,
   "the served tools are written lowercased, a word that is no identity left out")
+-- A config with no serves line serves nothing and writes that, so an earlier load's list does not
+-- linger and the app stops warming a tool taken back, found in 1.5's trial on 2026-11-12.
+local bare = assert(loadfile(here .. "../host/bridge/init.lua"))()
+bare:configure({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run })
+f = io.open(run .. "/serves.json")
+served = f and f:read("a") or ""
+if f then f:close() end
+eq(served ~= "" and served:find('"filesearch"', 1, true) == nil, true, "a config with no serves line writes an empty list")
+
+-- What the app keeps for a tool, read from its state folder beside the run folder, whatever the
+-- piece says, since going back is the piece turned off, step 1.5.
+local nest = os.tmpname() .. ".d"
+os.execute("mkdir -p '" .. nest .. "/run' '" .. nest .. "/state/filesearch'")
+local sf = io.open(nest .. "/state/filesearch/frecency.json", "w")
+sf:write('{"entries":{}}')
+sf:close()
+b = fresh({ pieces = { olmapp = "off" }, deps = deps, app = APP, run = nest .. "/run" })
+local kept = b:appState("fileSearch", "frecency")
+eq(kept and kept.raw, '{"entries":{}}', "appState reads the tool's state file with the piece off")
+eq(b:appState("fileSearch", "missing"), nil, "and answers nil for a file the app never wrote")
+eq(b:appState("../x", "frecency"), nil, "and nothing for a name that is no identity")
+os.execute("rm -rf '" .. nest .. "'")
 
 -- A share the root builds is asked for only where the piece is on, and a nil answer is said once.
 local asked = 0

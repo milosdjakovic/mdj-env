@@ -2935,6 +2935,16 @@ function obj.run(olm, cfg)
         return tool:history()
       end)
     end
+    -- The other way, the uses Olm.app holds folded into each list with a takeHistory word on every
+    -- load, served or not, since going back is the piece turned off and a reload, step 1.5.
+    if bridgeModule and type(bridgeModule.appState) == "function" then
+      for identity, tool in pairs(modules) do
+        if type(tool) == "table" and type(tool.takeHistory) == "function" then
+          local doc = bridgeModule:appState(identity, "frecency")
+          if doc then pcall(tool.takeHistory, tool, doc) end
+        end
+      end
+    end
     wireShadows(bridgeModule, modules, wiredRegistry, chooserAtom.rank,
       chooserAtom.matchers and chooserAtom.matchers[policy.matcher])
   end

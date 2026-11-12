@@ -265,7 +265,7 @@ public actor FileSearchSource: ListSource {
     useSettings()
   }
 
-  // Frecency's limits from the settings, and the Lua history taken when it holds a newer use.
+  // Frecency's limits from the settings, and the Lua history merged in when it has changed.
   private func useSettings() {
     guard let frecency else { return }
     frecency.halfLifeDays = settings.frecencyHalfLifeDays

@@ -72,9 +72,13 @@ obj.SHADOW_SETTLE = 0.8
 function obj:configure(opts)
   opts = opts or {}
   if type(opts.pieces) == "table" then self._pieces = opts.pieces end
-  if type(opts.serves) == "table" then
+  -- The root's configure always hands the pieces, and a config with no serves line serves
+  -- nothing, so the share below says so rather than keeping what an earlier load wrote.
+  local serves = opts.serves
+  if serves == nil and type(opts.pieces) == "table" then serves = {} end
+  if type(serves) == "table" then
     self._serves = {}
-    for _, identity in ipairs(opts.serves) do
+    for _, identity in ipairs(serves) do
       if type(identity) == "string" and identity:match("^%a%w*$") then self._serves[identity] = true end
     end
   end
@@ -90,7 +94,7 @@ function obj:configure(opts)
   if type(opts.shares) == "table" then self:_share(opts.shares) end
   -- Which tools the app serves, so it keeps the first open of each warm while it is hidden, step
   -- 1.5's prewarm. Written on every configure, an empty list included, so a tool taken back stops.
-  if type(opts.serves) == "table" then
+  if type(serves) == "table" then
     local tools = {}
     for identity in pairs(self._serves) do tools[#tools + 1] = identity:lower() end
     table.sort(tools)
@@ -175,6 +179,23 @@ function obj:shareEach(suffix, build)
   for _, identity in ipairs(names) do
     self:_write(identity:lower() .. suffix, function() return build(identity) end)
   end
+end
+
+--- obj:appState(identity, name) -> table or nil
+--- What Olm.app keeps for a tool, its state folder's <name>.json beside the run folder, read
+--- whatever the piece says, since going back is the piece turned off and the app's store is then
+--- what is handed back, file search's frecency, docs/DESIGN-APP-FRECENCY.md.
+function obj:appState(identity, name)
+  if type(identity) ~= "string" or not identity:match("^%a%w*$") then return nil end
+  if type(name) ~= "string" or not name:match("^%a%w*$") then return nil end
+  local run = self._run or RUN
+  local path = run:gsub("/[^/]*$", "") .. "/state/" .. identity:lower() .. "/" .. name .. ".json"
+  local f = io.open(path, "r")
+  if not f then return nil end
+  local text = f:read("a")
+  f:close()
+  local ok, doc = pcall(hs.json.decode, text or "")
+  return ok and type(doc) == "table" and doc or nil
 end
 
 --- obj:placeWith(fn) takes the function answering Olm's placement choice, activeWindow or cursor,

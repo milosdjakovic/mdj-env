@@ -73,3 +73,14 @@ Revised in the build, 2026-11-10. The plugin's word is `history`, answering `fre
 `{ entries = ... }`. The share's being written only for a served list is the bridge's `shareEach`,
 which `test/bridge.lua` already checks for every share, so no check of its own was added, and the
 unit case `test/cases/filesearch-frecency.lua` checks the export and the dates handed to the shadow.
+
+Revised at the flip, 2026-11-12, Milos choosing it. Taking the other side's history whole, the
+second answer above, would lose uses once the app serves for good, since the launcher's slash scope
+stays on the Lua file search until stage 3 and records its uses there, and a newer Lua use would
+then replace every use the app had made. Going back would lose the app's in the same way. So both
+sides merge instead, each path keeping whichever side used it last, the higher score breaking a
+tie, `Frecency.merge` and `frecency.merge`. The app merges the Lua history share on an open when the
+file has changed, and the root hands the Lua plugin the app's store, `~/.olm/state/filesearch/
+frecency.json` read through the bridge's `appState`, on every load, served or not, through the
+plugin's new `takeHistory` word. A use counted on both sides keeps one side's count, the one used
+last, which shifts that file's bonus a little and loses no file.

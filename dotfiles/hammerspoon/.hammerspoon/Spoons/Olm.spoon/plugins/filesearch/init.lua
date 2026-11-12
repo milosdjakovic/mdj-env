@@ -199,6 +199,14 @@ function obj:history()
   return { entries = obj.frecency.export() }
 end
 
+--- obj:takeHistory(doc) folds in the uses Olm.app holds, { entries = { [path] = { score, at } } },
+--- which the root hands on every load, each path keeping whichever side used it last, so going
+--- back from the app to this list loses no use made there. Answers whether anything changed.
+function obj:takeHistory(doc)
+  if type(doc) ~= "table" then return false end
+  return obj.frecency.merge(doc.entries)
+end
+
 function obj:configure(opts)
   opts = opts or {}
   local policy = opts.policy or {}
