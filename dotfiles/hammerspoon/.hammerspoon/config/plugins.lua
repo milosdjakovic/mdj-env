@@ -101,10 +101,13 @@ return {
   -- shares is what the app reads of this config, written beside it where the piece is on.
   bridge = { data = {
     pieces = require("config.machine").pieces,
-    -- Empty while the shadow runs, so file search's own key opens the Lua list with every feature,
-    -- rule 9 of the plan. A trial adds "fileSearch" here for the trial alone.
-    serves = {},
-    -- The tools whose every settled answer the app answers again and compares, step 1.3e.
+    -- File search is the app's since step 1.5's flip on 2026-11-12, every feature of the Lua list
+    -- tried in it by hand, docs/PARITY-FILESEARCH.md, where the olmapp piece is on. Going back is
+    -- that piece turned off and a reload, which opens the Lua list again with the app's uses merged
+    -- into it. The launcher's slash scope stays on the Lua list until stage 3.
+    serves = { "fileSearch" },
+    -- The tools whose every settled answer the app answers again and compares, step 1.3e. File
+    -- search's compares nothing while the app serves it and resumes by itself after a back out.
     shadows = { "fileSearch" },
     shares = { filesearch = { types = filesearch.types, limits = filesearch.limits, preview = filesearch.preview,
       placeholder = filesearch.placeholder, roots = filesearch.roots, prune = filesearch.prune,

@@ -23,8 +23,7 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 1.5 parity, with 1.3e, 1.4g, 1.4f, 1.4c, 1.4k, 1.4h, 1.4e, 1.4d and 1.4i ticked since. Then the flip
-last.
+Next. 2.1, probe the transport. File search is the app's since 1.5's flip on 2026-11-12.
 
 Stage 0, contracts
 - [x] 0.1 The decision record, 2026-11-05
@@ -41,7 +40,7 @@ Stage 0, contracts
 Stage 1, the file search pilot
 - [x] 1.1 The app shell, 2026-11-07
 - [x] 1.2 The trigger, 2026-11-07
-- [ ] 1.3 Search, open and reveal, shadow then flip, in six parts
+- [x] 1.3 Search, open and reveal, shadow then flip, in six parts, its flip landing as 1.5's, 2026-11-12
   - [x] 1.3a The file search grammar in Swift, its fixtures passing, 2026-11-07
   - [x] 1.3b Ranking in Swift, `match.lua` and `rank.lua`, the rule and corpus fixtures passing, 2026-11-07
   - [x] 1.3c The index in the app, the helper's sources searching on background work, 2026-11-07
@@ -70,12 +69,13 @@ Stage 1, the file search pilot
 - [x] 1.4j Folder permissions asked up front on file search's first open, asked again from the list, and kept across rebuilds, 2026-11-09
 - [x] 1.4k Copy File and Copy Folder in file search, both lists, the file itself put on the clipboard as Finder's Copy puts it, beside Copy Path, asked by Milos on 2026-11-10, after 1.4c
   - Built on branch `olm-app-copyfile`, Hyper and C, its word Copy Folder over a folder through the presentation's labels member by action name, which the bottom bar, the info pane and the actions pane all read, and in the app through the source's label. It passed its hand trial on 2026-11-10 in the app and in the Lua native list, and merged.
-- [ ] 1.5 Parity, every feature of the Lua file search checked in the app, then the flip
+- [x] 1.5 Parity, every feature of the Lua file search checked in the app, then the flip, 2026-11-12
   - The written list is `docs/PARITY-FILESEARCH.md`, on branch `olm-app-parity`, read from the code on 2026-11-11. It found four gaps, the index never rebuilt while the app serves, which blocks the flip, the subtitle not fitted to the row, the empty states as a plain line rather than rows, and `pruneLocal` missing from a scoped walk. Closing them is next, then the hand check of every line.
   - All five gaps are closed on the same branch, a help screen on a question mark found as the fourth was ported, Milos choosing on 2026-11-11 that the list that serves owns the index. The hand check of every line of the list is next, then the flip.
   - Every line of the list but the launcher's two, which stay on the Lua side until stage 3, was tried by hand and ticked on 2026-11-12, and the first open is warmed while the list is hidden. At the flip's design Milos chose on 2026-11-12 that going back is the piece and that it carries the app's uses back, so the history merges both ways, `docs/DESIGN-APP-FRECENCY.md`'s revision. The flip and a tried back out are next.
   - Open: a first open after the app sat idle a long while answers its first keys late, traced on 2026-11-12, the rows landing 380 ms after the open, the first key's highlight 515 ms after it, and then 1.1 seconds of nothing before five keys landed together, while every open after it was quick. App Nap was ruled out, `NSAppSleepDisabled` set anyway as Hammerspoon sets it. Milos asked that it be prewarmed in the background, the recent list, its icons and the first row's preview made ready while the list is closed, which waits for a later step, measured first.
   - Built the same morning on the same branch, since Milos still found the first open sluggish, a source's `prepare` and the stage warming the recent list, its icons and the top row's preview while hidden, at launch, after every close and every ten minutes, for the tools the bridge's `serves` share names.
+  - The flip, on 2026-11-12. `config/plugins.lua` serves file search from the app where the olmapp piece is on, the shadow line kept. Going back was tried the same day with Milos, the piece turned off and a reload opening the Lua list with the use just made in the app leading it, and on again the app with the Lua list's use leading. The stutter left in a first open's first seconds was traced to the index rebuild on a loaded Mac, the Lua list stuttering the same during its own, and the app's rebuild now runs at background priority.
 
 Stage 2, the bridge, read only
 - [ ] 2.1 Probe the transport

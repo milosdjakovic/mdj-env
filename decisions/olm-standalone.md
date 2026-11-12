@@ -597,3 +597,10 @@ list, and until then that list stays on Lua.
   serves and resumes by itself after a back out. Found beside it, a config with no serves line left
   the last load's serves share in place, so the app went on warming a tool taken back. The bridge
   now writes an empty list then.
+- 2026-11-12 16:30. The flip of step 1.5. `config/plugins.lua` commits `serves = { "fileSearch" }`,
+  so Hyper and semicolon opens Olm.app's file search wherever the olmapp piece is on, today only
+  Jelenas-MacBook-Pro. Going back was tried with Milos before the commit, as rule 2 asks. The piece
+  turned off and a reload opened the Lua list, with the file he had just revealed in the app
+  leading its recent list, and turned on again the app opened with the file he revealed in the Lua
+  list leading. A piece turned off leaves the serves share as the app last read it, since the bridge
+  writes no share where the piece is off, which is harmless, the app warming a list nothing opens.

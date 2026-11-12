@@ -105,3 +105,5 @@ These the Lua list has no line for and the flip keeps.
   differences, every one from 2026-11-08 and 2026-11-09 and explained in 1.3f, and none since.
 - The flip itself, the piece opening the app on Hyper and semicolon as the daily path, with going
   back still the piece, is the last line, after every line above is ticked.
+- [x] The flip, on 2026-11-12, and going back tried the same day, the piece off opening the Lua list
+  with the app's uses merged in, and on again the app with the Lua list's.
