@@ -73,6 +73,7 @@ Stage 1, the file search pilot
 - [ ] 1.5 Parity, every feature of the Lua file search checked in the app, then the flip
   - The written list is `docs/PARITY-FILESEARCH.md`, on branch `olm-app-parity`, read from the code on 2026-11-11. It found four gaps, the index never rebuilt while the app serves, which blocks the flip, the subtitle not fitted to the row, the empty states as a plain line rather than rows, and `pruneLocal` missing from a scoped walk. Closing them is next, then the hand check of every line.
   - All five gaps are closed on the same branch, a help screen on a question mark found as the fourth was ported, Milos choosing on 2026-11-11 that the list that serves owns the index. The hand check of every line of the list is next, then the flip.
+  - Open: a first open after the app sat idle a long while answers its first keys late, traced on 2026-11-12, the rows landing 380 ms after the open, the first key's highlight 515 ms after it, and then 1.1 seconds of nothing before five keys landed together, while every open after it was quick. App Nap was ruled out, `NSAppSleepDisabled` set anyway as Hammerspoon sets it. Milos asked that it be prewarmed in the background, the recent list, its icons and the first row's preview made ready while the list is closed, which waits for a later step, measured first.
 
 Stage 2, the bridge, read only
 - [ ] 2.1 Probe the transport
