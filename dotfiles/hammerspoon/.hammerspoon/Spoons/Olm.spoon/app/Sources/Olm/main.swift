@@ -30,6 +30,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private let sources: [String: any ListSource]
   private let shadows: [String: Shadow]
 
+  // The tools the serves share names, none where it is missing or names none.
+  static func served(in run: URL) -> [String] {
+    guard let data = try? Data(contentsOf: run.appendingPathComponent("serves.json")),
+      let doc = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [] }
+    return doc["tools"] as? [String] ?? []
+  }
+
   override init() {
     // OLM_DEMO_DOWNLOAD=0.6 stands Download still at that fraction, to look at the meter.
     let demo = ProcessInfo.processInfo.environment["OLM_DEMO_DOWNLOAD"].flatMap(Double.init)
@@ -66,6 +73,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // fifty milliseconds sooner than open, measured in the 1.4a trial on 2026-11-08.
     DistributedNotificationCenter.default().addObserver(self, selector: #selector(openNote(_:)),
       name: Notification.Name("local.olm.Olm.open"), object: nil, suspensionBehavior: .deliverImmediately)
+    // The tools Hammerspoon hands the app, host/bridge's serves share, kept warm while hidden.
+    let sources = self.sources
+    stage.keepWarm { Self.served(in: context.run).compactMap { sources[$0] } }
     // List keys, step 1.4f, docs/DESIGN-APP-LIST-KEYS.md. The stage says up and down, a list verb
     // Hammerspoon's leaders heard comes back as "<tool>:<verb>", and an ask answers the state.
     stage.onShowing = { tool, up in

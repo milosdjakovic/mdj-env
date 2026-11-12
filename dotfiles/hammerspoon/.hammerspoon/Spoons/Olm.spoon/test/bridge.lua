@@ -36,6 +36,7 @@ hs = {
   fs = { attributes = function(path) return present[path] and "directory" or nil end,
     mkdir = function() return true end },
   json = { encode = function(v)
+    if v.tools then return "{\"tools\":[\"" .. table.concat(v.tools, "\",\"") .. "\"]}" end
     if v.bar then return "{\"bar\":{\"title\":\"" .. tostring(v.bar.title) .. "\"}}" end
     if v.query then return "{\"id\":" .. v.id .. ",\"query\":\"" .. v.query .. "\",\"keys\":" .. #v.keys .. "}" end
     return "{\"types\":" .. tostring(v.types and "t" or "none") .. "}"
@@ -131,6 +132,14 @@ local f = io.open(run .. "/filesearch.json")
 eq(f and f:read("a"), '{"types":t}', "olmapp on writes each share as its name")
 if f then f:close() end
 eq(io.open(run .. "/../x.json") == nil, true, "a share name that is not a plain word is not written")
+
+-- Which tools the app serves is a share of its own, so the app keeps their first open warm.
+fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, serves = { "fileSearch", "bad word" } })
+f = io.open(run .. "/serves.json")
+local served = f and f:read("a") or ""
+if f then f:close() end
+eq(served:find('"filesearch"', 1, true) ~= nil and served:find("bad", 1, true) == nil, true,
+  "the served tools are written lowercased, a word that is no identity left out")
 
 -- A share the root builds is asked for only where the piece is on, and a nil answer is said once.
 local asked = 0

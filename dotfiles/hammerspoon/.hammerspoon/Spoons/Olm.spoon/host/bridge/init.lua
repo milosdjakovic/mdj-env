@@ -88,6 +88,14 @@ function obj:configure(opts)
   if opts.app ~= nil then self._app = opts.app end
   if opts.run ~= nil then self._run = opts.run end
   if type(opts.shares) == "table" then self:_share(opts.shares) end
+  -- Which tools the app serves, so it keeps the first open of each warm while it is hidden, step
+  -- 1.5's prewarm. Written on every configure, an empty list included, so a tool taken back stops.
+  if type(opts.serves) == "table" then
+    local tools = {}
+    for identity in pairs(self._serves) do tools[#tools + 1] = identity:lower() end
+    table.sort(tools)
+    self:_write("serves", { tools = tools, count = #tools })
+  end
   return self
 end
 

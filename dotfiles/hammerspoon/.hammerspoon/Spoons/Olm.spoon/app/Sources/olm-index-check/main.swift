@@ -737,5 +737,12 @@ if let plainTokens = meterTokens(fill: "foreground"), let accentTokens = meterTo
   check(false, "the meter's tokens read")
 }
 
+// The first open warmed while the list is hidden, step 1.5.
+let warming = FileSearchSource(context: context, index: files)
+check((await warming.prepare())?.rows.isEmpty == false, "prepare answers the recent list an open lands on")
+let unasked = FileSearchSource(context: context, index: files,
+  access: FolderAccess(home: tree, store: root.appendingPathComponent("unasked")))
+check(await unasked.prepare() == nil, "and nothing while the folder permissions are unasked, so a warm never prompts")
+
 print(failures == 0 ? "olm-index-check, every check passed" : "olm-index-check, \(failures) FAILED")
 exit(failures == 0 ? 0 : 1)

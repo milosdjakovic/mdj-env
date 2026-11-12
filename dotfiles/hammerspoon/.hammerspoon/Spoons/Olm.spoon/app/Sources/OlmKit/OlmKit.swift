@@ -385,6 +385,10 @@ public protocol ListSource: Actor {
   /// nothing more is coming. The stage draws it where the pane is scrolled, as the Lua pane's
   /// repaint does.
   func previewLanded(_ pick: Pick) async -> Preview?
+  /// The rows a first open shows, made ready while the list is hidden so the open finds what it reads
+  /// already warm, nil for a source with nothing worth warming. Shows nothing and changes nothing a
+  /// person can see.
+  func prepare() async -> RowsAnswer?
   /// The same query's rows again once what its last answer said was pending has landed, asked only
   /// after an answer with pending set and cancelled by the next keystroke, nil when nothing more is
   /// coming. The stage draws it keeping the highlight on its row, as the Lua list's refresh does.
@@ -406,6 +410,8 @@ extension ListSource {
   public func preview(_ pick: Pick) async -> Preview? { nil }
   /// A source whose previews are never pending has nothing more to say.
   public func previewLanded(_ pick: Pick) async -> Preview? { nil }
+  /// A source with nothing to warm warms nothing.
+  public func prepare() async -> RowsAnswer? { nil }
   /// A source whose rows are never pending has nothing more to say.
   public func rowsLanded(_ query: Query) async throws -> RowsAnswer? { nil }
   /// A source with no gates lists every row.

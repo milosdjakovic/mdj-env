@@ -247,6 +247,17 @@ public actor FileSearchSource: ListSource {
       titleLineBreak: "truncateMiddle", previewSettleMs: settings.preview.settleMs)
   }
 
+  /// The recent list an open lands on, asked while the list is hidden, so the index, the file
+  /// details and the rows a first open reads are warm. Nothing while the folder permissions are
+  /// unasked, so a warm never raises a prompt.
+  public func prepare() async -> RowsAnswer? {
+    settings = FileSearchSettings.read(from: context.run)
+    // The answers kept on disk, never a check of the folders, which can raise a prompt.
+    if let access, !accessState.asked { accessState = access.load() }
+    if access != nil, !accessState.asked { return nil }
+    return try? await rows(Query(text: "", generation: 0))
+  }
+
   /// The same with settings handed in rather than read, for a check and for the shadow.
   public func open(settings: FileSearchSettings) {
     self.settings = settings

@@ -565,3 +565,11 @@ list, and until then that list stays on Lua.
   background agent idle between opens, which App Nap throttles, and its Info.plist never said
   otherwise, while Hammerspoon's carries `NSAppSleepDisabled`. Olm's now carries it too, since an
   app that answers a key has to answer at once.
+- 2026-11-12 10:40. The slow first open, traced the same morning, is answered rather than left for
+  a later step, Milos finding it still sluggish after the App Nap change. While the list is hidden
+  the stage now reads what a first open reads, a source's new `prepare`, file search's recent
+  list, and the icons and the top row's preview of the rows a screen shows, at launch, a second
+  after every close and every ten minutes, for the tools the bridge's new `serves` share names.
+  Nothing is drawn and a warm never checks the folder permissions, so it can raise no prompt. It
+  does not rebuild the index, which stays on an open, since a crawl every ten minutes while idle
+  costs more than a stale index the next open replaces.

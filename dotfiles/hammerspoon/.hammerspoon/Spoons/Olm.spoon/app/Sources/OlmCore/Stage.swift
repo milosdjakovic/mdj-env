@@ -127,6 +127,7 @@ public final class Stage {
   /// Opens a source's list with the query in the input field, on the screen the placement choice
   /// names, lib/overlaydisplay.lua's mode.
   public func open(_ next: any ListSource, query: String, screen mode: String? = nil) {
+    warmTask?.cancel()
     if let source, source !== next { Task { await source.close() } }
     source = next
     tell(next.manifest.name)
@@ -259,6 +260,58 @@ public final class Stage {
     paneHost?.close()
     panel.stop()
     if let source { Task { await source.close() } }
+    warmSoon()
+  }
+
+  // MARK: Warm while hidden
+
+  // A first open after the app sat idle answered its first keys late, traced in step 1.5 on
+  // 2026-11-12, the rows, their icons and the top row's preview all read cold, and Milos asked that
+  // it be ready in the background. So while the list is hidden the stage reads what a first open
+  // reads, the source's prepare and the icons and preview of the rows a screen shows, at launch, a
+  // moment after every close and every warmEvery while it sits idle. Nothing is drawn.
+  public static let warmEvery: TimeInterval = 600
+  private static let warmAfterCloseMs: UInt64 = 1000
+  private static let warmRows = 16
+  private var warmSources: () -> [any ListSource] = { [] }
+  private var warmTimer: Timer?
+  private var warmTask: Task<Void, Never>?
+
+  /// Keeps the first open of each source warm from now on, the sources asked again at every warm,
+  /// the ones the app serves at that moment.
+  public func keepWarm(_ sources: @escaping () -> [any ListSource]) {
+    warmSources = sources
+    warmTimer?.invalidate()
+    warmTimer = Timer.scheduledTimer(withTimeInterval: Self.warmEvery, repeats: true) { [weak self] _ in
+      MainActor.assumeIsolated { self?.warm() }
+    }
+    warm()
+  }
+
+  private func warmSoon() {
+    warmTask?.cancel()
+    warmTask = Task {
+      try? await Task.sleep(nanoseconds: Self.warmAfterCloseMs * 1_000_000)
+      if Task.isCancelled { return }
+      self.warm()
+    }
+  }
+
+  private func warm() {
+    guard !panel.isVisible, !revealPending else { return }
+    let sources = warmSources()
+    guard !sources.isEmpty else { return }
+    warmTask?.cancel()
+    warmTask = Task {
+      for source in sources {
+        guard let answer = await source.prepare(), !Task.isCancelled, !self.panel.isVisible else { return }
+        let shown = answer.rows.filter { !$0.inert }.prefix(Self.warmRows)
+        for row in shown { _ = self.icon(row) }
+        if source.manifest.previewPane != nil, let first = shown.first {
+          _ = await source.preview(Pick(key: first.key, query: ""))
+        }
+      }
+    }
   }
 
   private func search(_ text: String) {
