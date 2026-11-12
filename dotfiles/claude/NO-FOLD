@@ -3,3 +3,4 @@
 # are in the repository root AGENTS.md and in decisions/stow-folding.md, and this file is read
 # by src/setup-stow-dotfiles.sh, which finds it by name and knows nothing about this module.
 .claude/skills | Claude Code installs skills of its own into this folder, so a fold sends them into this checkout
+.claude/themes | Claude Code writes custom themes made in /theme into this folder, so a fold sends them into this checkout

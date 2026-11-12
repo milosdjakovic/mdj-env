@@ -1,0 +1,29 @@
+# Claude Code's custom theme tokens, each pointing at a role from theme/VOCABULARY. This file
+# knows Claude Code's token names (terminal-config docs, "Create a custom theme") and the
+# palette knows nothing about them. Tokens left out fall through to the base theme, which
+# theme-emit sets to dark or light, so the diff greens and reds stay Claude Code's own: they
+# are backgrounds, and no role is a tint of a signal colour.
+claude                      = primary
+permission                  = primary
+suggestion                  = quinary
+remember                    = secondary
+text                        = foreground
+inverseText                 = background
+inactive                    = comment
+subtle                      = dim
+success                     = secondary
+error                       = senary
+warning                     = tertiary
+merged                      = quaternary
+promptBorder                = dim
+planMode                    = quinary
+autoAccept                  = quaternary
+bashBorder                  = quaternary
+ide                         = quinary
+fastMode                    = tertiary
+userMessageBackground       = surface
+userMessageBackgroundHover  = highlight
+selectionBg                 = selection
+bashMessageBackgroundColor  = surface
+memoryBackgroundColor       = surface
+composerSidebarBackground   = surface
