@@ -98,6 +98,7 @@ local ui = {
   tokens = function() return { pad = 14 } end,
   half = function() return "dark" end,
 }
+-- theme-exempt, fixture colours for a unit case, not a tool's look
 local STYLE = { cornerRadius = 12, borderWidth = 1,
   dark = { bg = "#1e1e2e", border = "#45475a" }, light = { bg = "#eff1f5", border = "#bcc0cc" } }
 
