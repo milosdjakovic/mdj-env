@@ -24,6 +24,8 @@
   <string>File search reads the files it finds in Downloads, to preview them.</string>
   <key>LSUIElement</key>
   <true/>
+  <key>NSAppSleepDisabled</key>
+  <true/>
   <key>LSMultipleInstancesProhibited</key>
   <true/>
   <key>CFBundleURLTypes</key>

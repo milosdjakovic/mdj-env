@@ -557,3 +557,11 @@ list, and until then that list stays on Lua.
   question mark shows the grammar, found while porting the statuses, and `pruneLocal` reaches the
   app through the share. A status and a help line are inert rows, never chosen, previewed or acted
   on, the Lua row's enabled false.
+- 2026-11-12 10:05. In 1.5's hand check Milos found the list slow to answer its first keys after
+  the app had sat idle, keys doing nothing and then arriving together. Sampled live during the
+  lag, both apps' main threads were idle and Olm's was sampled at half the rate Hammerspoon's
+  was, so the app was being throttled, not busy. The index build that ran at the same time was
+  measured and ruled out, the list's own asks taking 14 to 89 ms beside it. Olm.app is a
+  background agent idle between opens, which App Nap throttles, and its Info.plist never said
+  otherwise, while Hammerspoon's carries `NSAppSleepDisabled`. Olm's now carries it too, since an
+  app that answers a key has to answer at once.
