@@ -9,7 +9,8 @@ since it embeds this machine's Homebrew prefix, and it sources `.zshrc.custom`.
 `.zshenv` is read by every zsh, interactive or not, so it holds only what a shell that never
 reads `.zshrc` still needs. That is a command another program starts, a script, or a pane a
 multiplexer opens with a command of its own, which is how a Rex floating pane runs its tool.
-Today that is `~/.local/bin` on PATH and the fzf options file. Everything interactive, the prompt,
+Today that is `~/.local/bin` on PATH, mise's shims first on PATH where this repository's mise
+config is linked, and the fzf options file. Everything interactive, the prompt,
 plugins, aliases and tool initialisers, goes in `.zshrc.custom`.
 
 The fzf export lived in `.zshrc.custom` until 2026-11-02, and a Rex floating pane's finder drew
