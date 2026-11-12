@@ -14,6 +14,12 @@ is off by default and on for Miloss-MacBook-Pro-Vicert.
 search and lf, to the same `alt+z` keys, each opened by one action in a floating pane over the
 current tab. The tools are copies of herdr's for now.
 
+Hyper and backtick opens Rex in place of Ghostty on Miloss-MacBook-Pro-Vicert only, set in that
+machine's `hammerspoon-apps.lua` with Rex's bundle id beside it, while every other machine keeps
+Ghostty. It stays there until Rex leaves beta for alpha, and then the key, the bundle id and
+whether Rex takes Ghostty's popup style are decided for every machine that has the `rex` piece.
+The settings in `SETTINGS` are not tied to this machine and apply wherever the piece is on.
+
 ## Rejected
 
 - 2026-10-30 14:50, writing `Workspace.customThemes` directly from the Ghostty files. The stored
@@ -92,3 +98,12 @@ current tab. The tools are copies of herdr's for now.
   the tab style was put back to tabs on top, Rex dropped `Workspace.tabStyle`, and the apply step
   then wrote vertical back over it from the old file. That write was undone by deleting the key.
   The rule that follows, capture before applying on a machine that changed, never the other way.
+- 2026-11-12 12:05, Hyper and backtick moved from Ghostty to Rex on Miloss-MacBook-Pro-Vicert
+  alone, in its own app keys file rather than the shared default, since Rex is a beta installed by
+  hand. Rex opens plainly, focus or cycle, without the popup style Ghostty takes, because that
+  style names Ghostty in the shared `config/toggles.lua`. The key moves to the shared default when
+  Rex reaches alpha.
+- 2026-11-12 12:05, captured again. New rows for vertical tabs, pane headers always shown, copy
+  on select, rounded selection corners, smooth scrolling off, the toolbar always shown and
+  activity grouped by session. The font size is now stored as a float, 16.5, and the sidebar is
+  223 wide.

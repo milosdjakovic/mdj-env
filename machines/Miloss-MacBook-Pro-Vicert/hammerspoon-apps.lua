@@ -16,7 +16,6 @@ return {
     ["hyper+,"] = "systemsettings.General",
 
     -- Installed by the Brewfile
-    ["hyper+`"] = "apptoggler.Ghostty",
     ["hyper+O"] = "apptoggler.Obsidian",
     ["hyper+D"] = "apptoggler.Docker",
 
@@ -26,7 +25,12 @@ return {
     ["hyper+Z"] = "apptoggler.Zed",
     ["hyper+L"] = "apptoggler.Slack",
     ["hyper+A"] = "apptoggler.Claude",
+    -- Rex in place of Ghostty, on this machine only while Rex is a beta, decisions/rex.md.
+    ["hyper+`"] = "apptoggler.Rex",
   },
 
-  apps = {},
+  apps = {
+    -- Rex Beta, installed by hand, so it is in no shared catalog yet.
+    Rex = "com.superlogical.rex",
+  },
 }
