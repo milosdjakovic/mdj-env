@@ -75,9 +75,9 @@ Ticked on 2026-11-12, from Milos's three rounds of hand checks in Olm.app on ste
 - [x] Hyper and C copies the file, Copy Folder over a folder. built, 1.4k.
 - [x] Hyper and L goes into a folder, Hyper and H up a level, and the `..` row. built, 1.4e.
 - [x] Hyper and Q, Quick Look, following the highlight. built, 1.4c.
-- [ ] Hyper and G downloads a file iCloud holds. built, 1.4i.
+- [x] Hyper and G downloads a file iCloud holds. built, 1.4i.
 - [x] Reveal, Copy Path and Copy File close the list once they act. built, 1.4d's trial.
-- [ ] Every action but the `..` row counts as a use. built, 1.4d.
+- [x] Every action but the `..` row counts as a use. built, 1.4d.
 - [x] The actions pane lists them, each only where it applies, and the info pane the rest. built,
   1.4f.
 - [x] Command and a digit chooses that row. built, 1.4f.
