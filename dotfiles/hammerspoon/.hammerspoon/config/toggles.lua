@@ -22,5 +22,6 @@ return {
   apps = {
     { app = "Ghostty", style = "popup" },
     { app = "Herdr", style = "popup" },
+    { app = "Rex", style = "popup" },
   },
 }
