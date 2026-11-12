@@ -1,6 +1,6 @@
 # herdr-app install
 
-Status. The Herdr desktop app is an optional piece, `herdr-app`, off by default, installed once by `src/install-herdr-app.sh` from Herdr's own installer and updated by the app itself.
+Status. The Herdr desktop app is an optional piece, `herdr-app`, off by default, which turns herdr on with it, installs the app once from Herdr's own installer, and switches it to the mdj layout.
 
 ## Now
 
@@ -36,3 +36,17 @@ with Launch Services, and installs herdr-core through the core's own installer o
 `DEPENDENCIES.map` had called the app a download by hand and now names the step. This machine,
 Jelenas-MacBook-Pro, has the piece on through `machine.sh set`, and the step found its app and
 did nothing.
+
+### 2026-11-12 09:45
+
+Milos asked for opting in to mean installed and configured. Two things changed. `src/machine.sh`
+gained `NEEDS`, pairs of a piece and the piece it cannot work without, and `get` reads the needed
+piece on while the other is on, whatever its own row says, so the stow step, `setup.sh` and the
+reconciler all take herdr with the app and none of them knows why. And `src/setup-herdr-app.sh`
+runs after stow and switches the app to `mdj`, which a fresh machine never had, since Herdr keeps
+the chosen layout in its own `shared.json`. It switches only from `main` or from no choice yet,
+opens the app in the background with `open -g` when it is not running, waits up to 30 seconds for
+`herdr-app status`, and quits it again if it opened it. Checked on this machine with the app
+running, from `mdj`, which it left, from `main`, which it switched, and from `terminals`, which it
+left with a note. Opening the app from a stopped state was not tried here, since that meant
+quitting the running window.

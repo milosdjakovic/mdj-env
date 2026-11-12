@@ -25,6 +25,6 @@ vpn            | mullvad   # mullvad, ivpn or none, and only ivpn adds a setup s
 tools          | none      # the mise tools a machine takes, names from dotfiles/mise/TOOLS, comma separated, alphabetical, no spaces, or none
 kanata         | off       # the kanata package and formula, and the step that installs its Karabiner driver and runs both as root daemons, off since a driver extension and a root daemon are a lot to put on a machine unasked
 rex            | off       # Rex's settings, the Ghostty theme pair imported into it, and its init.lua with the floating tools, off since Rex is a beta installed by hand
-herdr-app      | off       # the Herdr desktop app from its own installer and its package, settings, keys, mods and the mdj layout, off since it is a second terminal host a machine may not want, and its popups run the herdr package's tools
+herdr-app      | off       # the Herdr desktop app from its own installer and its package, settings, keys, mods and the mdj layout, and the switch to the mdj layout, off since it is a second terminal host a machine may not want, and on it turns herdr on too, since its popups run the herdr package's tools
 olmapp         | off       # Olm.app, built from the Olm spoon's sources into ~/.olm/app and registered for olm:// URLs, off while it is being built up step by step, Olm's docs/PLAN-STANDALONE.md
 editor         | none      # the bundle id of the app that opens development files from Finder, which setup only checks and src/set-dev-defaults.sh applies, or none

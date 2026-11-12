@@ -87,15 +87,27 @@ require_name() {
     fi
 }
 
+# A piece that cannot work without another turns that one on with it, as `piece:needed`. Asked
+# here, the one reader, so the stow step, setup.sh and the reconciler all follow without knowing
+# it. The Herdr app's popups run the herdr package's tools, so opting into the app is opting into
+# herdr. A needed piece set on or off by its own row still reads on while the piece needing it is.
+NEEDS="herdr-app:herdr"
+
 get() {
-    local key="$1" default value
+    local key="$1" default value pair
     default="$(value_for default "$key")"
     if [[ -z "$default" ]]; then
         echo "machine.sh: no default for '$key' in machines/default/pieces" >&2
         exit 3
     fi
     value="$(value_for "$NAME" "$key")"
-    echo "${value:-$default}"
+    value="${value:-$default}"
+    if [[ "$value" == off ]]; then
+        for pair in $NEEDS; do
+            if [[ "${pair#*:}" == "$key" && "$(get "${pair%%:*}")" == on ]]; then value=on; break; fi
+        done
+    fi
+    echo "$value"
 }
 
 # What this machine already has for one piece, as `value|fact`. A probe reports a fact and the
