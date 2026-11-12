@@ -17,7 +17,9 @@ current tab. The tools are copies of herdr's for now.
 Hyper and backtick opens Rex in place of Ghostty on Miloss-MacBook-Pro-Vicert only, set in that
 machine's `hammerspoon-apps.lua` with Rex's bundle id beside it, while every other machine keeps
 Ghostty. It stays there until Rex leaves beta for alpha, and then the key, the bundle id and
-whether Rex takes Ghostty's popup style are decided for every machine that has the `rex` piece.
+the key are decided for every machine that has the `rex` piece. Rex takes Ghostty's popup style,
+shown centred at a fixed size and hidden by a second press, and its id is in the shared
+`config/apps.lua`, which binds no key, so other machines are unchanged.
 The settings in `SETTINGS` are not tied to this machine and apply wherever the piece is on.
 
 ## Rejected
@@ -102,8 +104,14 @@ The settings in `SETTINGS` are not tied to this machine and apply wherever the p
   alone, in its own app keys file rather than the shared default, since Rex is a beta installed by
   hand. Rex opens plainly, focus or cycle, without the popup style Ghostty takes, because that
   style names Ghostty in the shared `config/toggles.lua`. The key moves to the shared default when
-  Rex reaches alpha.
+  Rex reaches alpha. Corrected 2026-11-12, see below.
 - 2026-11-12 12:05, captured again. New rows for vertical tabs, pane headers always shown, copy
   on select, rounded selection corners, smooth scrolling off, the toolbar always shown and
   activity grouped by session. The font size is now stored as a float, 16.5, and the sidebar is
   223 wide.
+- 2026-11-12 12:30, Rex opening plainly read as a dead key, since a press with Rex already in
+  front cycled its one window onto itself. Rex now takes the popup style in `config/toggles.lua`,
+  as Ghostty and Herdr do, and its bundle id moved from this machine's file into the shared
+  `config/apps.lua`, the way Herdr's sits there, so the style entry names an app every machine's
+  catalog holds and logs nothing where Rex is absent. Checked live, a press with Rex in front hid
+  it and the next showed it centred at 2400 by 1350 on the ultrawide.

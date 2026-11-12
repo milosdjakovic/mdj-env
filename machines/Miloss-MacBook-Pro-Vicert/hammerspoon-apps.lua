@@ -29,8 +29,5 @@ return {
     ["hyper+`"] = "apptoggler.Rex",
   },
 
-  apps = {
-    -- Rex Beta, installed by hand, so it is in no shared catalog yet.
-    Rex = "com.superlogical.rex",
-  },
+  apps = {},
 }

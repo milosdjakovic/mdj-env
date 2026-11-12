@@ -23,6 +23,7 @@ local apps = {
   WezTerm = "com.github.wez.wezterm",
   Ghostty = "com.mitchellh.ghostty",
   Herdr = "dev.herdr.app",
+  Rex = "com.superlogical.rex",
 
   -- Editors
   VisualStudioCode = "com.microsoft.VSCode",
