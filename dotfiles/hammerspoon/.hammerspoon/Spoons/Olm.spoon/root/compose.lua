@@ -2962,6 +2962,8 @@ function obj.run(olm, cfg)
         bridgeModule:serveLauncher({
           launcher = {
             rows = function(query) return launcher:bridgeRows(query) end,
+            -- Return on a row of the app's launcher, step 3.1, through the launcher's own run path.
+            choose = function(item, query) return launcher:bridgeChoose(item, query) end,
             memoryKey = function(item) return launcher:memoryKeyOf(item) end,
             memory = function() return launcher:memory() end,
             placeholder = function() return launcher:placeholderText() end,

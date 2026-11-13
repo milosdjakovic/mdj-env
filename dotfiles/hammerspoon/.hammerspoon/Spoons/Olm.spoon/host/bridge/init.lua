@@ -204,23 +204,24 @@ function obj:serveLauncher(provider)
   end
   if type(provider) ~= "table" or type(provider.launcher) ~= "table" then return nil end
   local frame, rpc, serve, transport = sibling("frame"), sibling("rpc"), sibling("serve"), sibling("transport")
-  local service = serve.new({ rpc = rpc, clean = frame.clean, launcher = provider.launcher,
+  -- A timer handle nothing refers to may be collected before it fires, so each is kept until then.
+  local turns = {}
+  local function later(seconds, fn)
+    local t
+    t = hs.timer.doAfter(seconds, function() turns[t] = nil; fn() end)
+    turns[t] = true
+  end
+  local service = serve.new({ rpc = rpc, clean = frame.clean, launcher = provider.launcher, later = later,
     icons = provider.icons or function() return nil end, version = provider.version,
     rowLimit = provider.rowLimit,
     styled = function(v)
       if type(v) == "userdata" and v.getString then return v:getString() end
       return tostring(v)
     end })
-  -- A timer handle nothing refers to may be collected before it fires, so each is kept until then.
-  local turns = {}
   local conn
   local session = rpc.new({ json = hs.json, methods = service.methods,
     send = function(text) if conn then conn:send(text) end end,
-    defer = function(fn)
-      local t
-      t = hs.timer.doAfter(0, function() turns[t] = nil; fn() end)
-      turns[t] = true
-    end,
+    defer = function(fn) later(0, fn) end,
     log = function(text) log.w(text) end })
   conn = transport.new({ path = (self._run or RUN) .. "/" .. self.SOCKET, frame = frame,
     onMessage = function(text) session:receive(text) end,

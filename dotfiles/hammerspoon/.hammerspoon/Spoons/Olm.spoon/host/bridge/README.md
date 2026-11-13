@@ -27,7 +27,10 @@ while no socket is there, and serves nothing that could run a row. `frame.lua`, 
 stands in for the app on the socket. The setting is on since step 2.3, and turning it off again is
 the way back. After each pick the launcher records it tells the app the queries whose memory moved,
 the `memory` notification, through `memoryChanged`, and a spelling the store cut inside a letter,
-which is not UTF-8, never crosses.
+which is not UTF-8, never crosses. Since step 3.1 it serves `choose`, Return on a launcher row,
+through `Launcher:bridgeChoose`, the launcher's own run path, the run waiting for the app's `hidden`
+or a 1 s fallback, so app switching and every command still run in Hammerspoon. `bridgecheck.sh
+QUERY --choose TITLE` presses Return on one row from the command line.
 
 It runs the shadow of step 1.3e for each tool `config/plugins.lua` lists under `shadows`, file
 search today, where the piece is on. The Lua list stays the daily one, so `serves` is empty while

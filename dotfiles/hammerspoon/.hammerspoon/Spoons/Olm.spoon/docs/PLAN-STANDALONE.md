@@ -23,7 +23,7 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 2.3's gate, the launcher's shadow log empty over a few days of real use, from 2026-11-13. File search is the app's since 1.5's flip on 2026-11-12.
+Next. 3.2, the app's launcher on a trial key. 2.3's shadow keeps logging, and its log empty is a condition of 3.5's flip. File search is the app's since 1.5's flip on 2026-11-12.
 
 Stage 0, contracts
 - [x] 0.1 The decision record, 2026-11-05
@@ -80,11 +80,13 @@ Stage 1, the file search pilot
 Stage 2, the bridge, read only
 - [x] 2.1 Probe the transport, a Unix socket the app listens on, each message framed by its length, 2026-11-13
 - [x] 2.2 `host/bridge` serves, read only, the launcher over the socket, off by the `socket` setting, 2026-11-13
-- [ ] 2.3 Shadow ranking for the launcher
+- [x] 2.3 Shadow ranking for the launcher, built and live, its gate carried to 3.5, 2026-11-13
   - Its design note is agreed, `docs/DESIGN-APP-BRIDGE.md`, the socket setting committed on and the Lua answer told over the socket. Built on branch `olm-bridge-shadow`, the app listening on `~/.olm/run/bridge.sock` in a new target `OlmBridge`, the launcher Hammerspoon serves held as a bridged source with the memory as its bonus, `lib/queryassoc.lua` ported into `OlmSearch` and pinned by the memory fixtures, and the Lua launcher's every settled answer sent as the notification `shadow`. Live on 2026-11-13, fourteen queries logged same. The gate, the log at `~/.olm/log/shadow-launcher.jsonl` empty of differences over a few days of Milos's own use, is next.
+  - Milos chose on 2026-11-13 not to hold the plan on the days the gate asks. 2.3 is ticked as built, the shadow keeps logging, its log is read at every step from here, and an empty log is a condition of 3.5, the flip of Hyper and Space, the first step a person relies on.
 
 Stage 3, every list in the app
-- [ ] 3.1 Choosing a row over the bridge
+- [x] 3.1 Choosing a row over the bridge, 2026-11-13
+  - Built on branch `olm-bridge-choose`, `choose` served by `host/bridge/serve.lua` through a new `Launcher:bridgeChoose`, the launcher's own promote, memory and run path, a row that becomes another list answering `unserved` until 3.3, a row its supplier no longer shows for the request's query answering `requery`, and the run waiting behind `after hidden` for the app's `hidden` or a 1 s fallback, `_runItem` taking `now` so nothing waits twice. The transcript grew a choose case and `test/bridgecheck.sh` a `--choose TITLE`. Live on 2026-11-13 with Milos watching, `bridgecheck.sh calc --choose Calculator` answered hide and after hidden in 1.7 ms and Calculator opened, the pick remembered under calc. It found the transport ignoring the app's listening note while it believed itself connected, which left it on a dead connection for good, fixed by reconnecting on every note.
 - [ ] 3.2 The app's launcher on a trial key
 - [ ] 3.3 Hosted lists, one tool per step, each tool added here when it is started
 - [ ] 3.4 List keys reach the app
@@ -988,7 +990,9 @@ one. Test, the keys golden is unchanged, and a live trial of every shared verb.
 
 **3.5 The flip.** Where the `olmapp` piece is on, Hyper and Space opens the app, and when the app
 is not connected Hammerspoon opens the Lua launcher as before. Back out, quitting the app or
-switching the piece off. Test, both paths live, including quitting the app mid session.
+switching the piece off. Test, both paths live, including quitting the app mid session. Gate,
+2.3's shadow log at `~/.olm/log/shadow-launcher.jsonl` holds no difference left unexplained,
+carried here on 2026-11-13.
 
 **3.6 Every plugin's own list.** A tool's own chord opens its list in the app over the bridge, one
 tool per step, the same way the launcher's hosted lists do.

@@ -412,6 +412,13 @@ else in an answer and before reading the next message. Work the host defers itse
 frontmost app is when it fires, which the nonactivating panel keeps the right app, so it needs no
 handshake. The step that serves Clipboard History checks it live.
 
+**What 3.1 serves.** `choose` for the launcher, and the notification `hidden`. A row that would
+become another list, a tool, an alias or a scope's word, answers `{"unserved":{"name":"..."}}` with
+the row's name until hosted lists are served at 3.3, and runs nothing. A disabled row answers no
+effects. Any other row is recorded as the launcher records a pick, under the request's query, and
+answers `hide` then `after hidden`, its run waiting for `hidden` or a fallback of 1 s, whichever
+comes first, and running once. `mods` and `h` are read by no launcher row yet.
+
 **Return while an answer is out.** `choose` carries the `q` and the query it was pressed on, and the
 Lua side never chooses a row its supplier would not show for that query. When the rows it last
 computed for the level were for an older query, it runs the supplier for the request's query first,
@@ -545,7 +552,7 @@ under every prefix of the query cut by bytes, so a query of letters outside ASCI
 spelling cut inside a letter, which no JSON can carry. The app walks a typed query's prefixes at
 letter boundaries only, so it never looks for one, step 2.3.
 
-**The shadow, step 2.3, until the flip of 3.2.** Each answer the Lua launcher settles on, after it
+**The shadow, step 2.3, until the flip of 3.5.** Each answer the Lua launcher settles on, after it
 has stayed put for the bridge's `SHADOW_SETTLE`, is sent as the notification `shadow`, Lua to app.
 
 ```json
@@ -557,7 +564,7 @@ has stayed put for the bridge's `SHADOW_SETTLE`, is sent as the notification `sh
 them and cut at its row limit, a row with no memory key left out, and `claimed` says a query source
 claimed the query. The app asks `rows` for the same query on its launcher level, ranks them with the
 bonus it works out from the memory, names its rows the same way and logs one line per query to
-`~/.olm/log/shadow-launcher.jsonl`. Nothing is answered and nothing is shown.
+`~/.olm/log/shadow-launcher.jsonl`. Nothing is answered and nothing is shown. It goes at 3.5's flip.
 
 `catalog` asks for the launcher's rows at rest outside any level, for step 2.3's shadow ranking,
 and answers `{"revision":"c41","rows":[...]}`, with `unchanged` against `have` and the notification

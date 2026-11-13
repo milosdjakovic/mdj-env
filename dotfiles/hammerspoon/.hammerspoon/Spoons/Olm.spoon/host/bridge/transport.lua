@@ -106,8 +106,11 @@ function M.new(opts)
     c.stopped = false
     local notes = hs.distributednotifications
     if not c.note and notes and type(notes.new) == "function" then
+      -- A listening note means a listener that has just bound the path, so whatever this side holds
+      -- is a connection to one that is gone, even while it still reads as connected. hs.socket kept
+      -- answering connected for a peer that had died, found in 3.1's live check on 2026-11-13, and
+      -- a note ignored while up left the bridge on a dead connection for good.
       c.note = notes.new(function()
-        if c.up then return end
         if c.retry then c.retry:stop(); c.retry = nil end
         c.wait = M.FIRST_WAIT
         attempt()

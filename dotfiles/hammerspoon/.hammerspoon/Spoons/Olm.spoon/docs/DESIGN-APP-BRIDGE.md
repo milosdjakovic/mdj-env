@@ -60,7 +60,7 @@ together. Stage 3 then only has to draw what the shadow already agrees on.
 - **The socket setting on.** `socket = true` in `config/plugins.lua`. The bridge acts only where
   the olmapp piece is on, which is this Mac alone, so committing it changes no other machine.
 - **The protocol.** The `shadow` notification joins it, Lua to app, read only, gone again at the
-  flip of 3.2.
+  flip of Hyper and Space, which is 3.5, corrected on 2026-11-13 from 3.2, the trial key.
 
 ## Tests
 

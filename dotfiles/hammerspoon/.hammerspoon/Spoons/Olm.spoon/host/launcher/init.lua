@@ -1034,6 +1034,23 @@ function obj:bridgeRows(query)
   return self:_rowsAndClaim(type(query) == "string" and query or "")
 end
 
+--- Launcher:bridgeChoose(item, query) -> effects, run
+--- Method
+--- Return on a row of the app's launcher, step 3.1 of docs/PLAN-STANDALONE.md, what onSelect does for
+--- the stage's. A row that would become another list, a tool, an alias or a scope's word, is not
+--- served until 3.3 and answers unserved, run without being asked, since asking what a row would do
+--- must not do it. Any other row is promoted and remembered under the query the request carries,
+--- answers hide, and hands back its run for the bridge to call once the app has hidden.
+function obj:bridgeChoose(item, query)
+  if type(item) ~= "table" then return {} end
+  if self:_replacementFor(item) then
+    return { { unserved = { name = item.name or item.kind } } }
+  end
+  self:_promote(recencyKey(item))
+  self:_noteAssociation(item, type(query) == "string" and query or "")
+  return { { hide = {} } }, function() self:_runItem(item, true) end
+end
+
 --- Launcher:memoryKeyOf(item) -> the key the launcher remembers a row by, or nil
 --- Method
 --- recencyKey, which the bridge sends as a row's memoryKey and keys the row by.
@@ -1105,7 +1122,7 @@ function obj:_memoryBonus(query)
   return out
 end
 
---- Launcher:_noteAssociation(item)
+--- Launcher:_noteAssociation(item, query)
 --- Method
 --- Record that this row was chosen while this query was in the field, which is what makes the
 --- next search for the same thing land on it. Keyed by the same recencyKey the timeline uses,
@@ -1115,11 +1132,14 @@ end
 --- Nothing is recorded while a page is hosted, because this host's own catalog is not the list
 --- being shown then. The rows on screen belong to whichever tool the page reached, they are
 --- built by that tool rather than ranked here, and the query carries that tool's own prefix.
-function obj:_noteAssociation(item)
-  if not self._assoc or self._page then return end
+---
+--- query is the query the pick was made under where the caller knows it, the bridge's choose,
+--- step 3.1, which hosts no page, and otherwise the stage's.
+function obj:_noteAssociation(item, query)
+  if not self._assoc or (self._page and query == nil) then return end
   local key = recencyKey(item)
   if not key then return end
-  self._assoc.note(self:currentQuery(), key)
+  self._assoc.note(query or self:currentQuery(), key)
   if self._onMemory then
     local ok, err = pcall(self._onMemory)
     if not ok then log.w("the memory callback raised, " .. tostring(err)) end
@@ -1314,7 +1334,7 @@ function obj:refresh()
   end
 end
 
---- Launcher:_runItem(it)
+--- Launcher:_runItem(it, now)
 --- Method
 --- The one dispatcher. Maps a row descriptor back to a call. A row a plugin contributed, or a
 --- computed row a query source answered, carries its owner's identity, and an owner that
@@ -1333,16 +1353,21 @@ end
 --- stage.push before onSelect is ever asked, synchronously, with no close and no wait.
 --- self._runTimer holds whichever branch's timer, one at a time, since only one kind ever
 --- fires per call and a Hammerspoon timer nothing refers to can be collected before it runs.
-function obj:_runItem(it)
+function obj:_runItem(it, now)
   if not it then return end
   local a = self._actions
+  -- now runs at once, for a caller that already waited for focus to come back, the bridge's
+  -- choose once the app's chooser has hidden, step 3.1 of docs/PLAN-STANDALONE.md.
+  local function later(fn)
+    if now then fn() else self._runTimer = hs.timer.doAfter(0.1, fn) end
+  end
   -- An owned row whose owner runs it. The whole item goes back, so a plugin reads whichever
   -- fields it put there itself, a name, a url, a typed size, and the launcher interprets none
   -- of them. A row whose owner registered no runner, a computed sum for one, falls through to
   -- the kind switch below exactly as an unowned row does.
   local runner = it.owner ~= nil and self._runners[it.owner] or nil
   if runner then
-    self._runTimer = hs.timer.doAfter(0.1, function() runner(it) end)
+    later(function() runner(it) end)
     return
   end
   -- An owned row with no runner may still be one of this host's plain kinds, a computed sum
@@ -1350,7 +1375,7 @@ function obj:_runItem(it)
   -- and an owned row must not reach a tool through a word its owner chose.
   if it.owner ~= nil and (it.kind == "special" or it.kind == "scope") then return end
   if it.kind == "app" then
-    self._runTimer = hs.timer.doAfter(0.1, function()
+    later(function()
       if a.app then a.app(it.bundleID) end
     end)
   elseif it.kind == "special" then
@@ -1360,7 +1385,7 @@ function obj:_runItem(it)
     -- asked first and only a name it does not run falls through to actions.special, which
     -- registration itself makes safe, since a name cannot be claimed by both. Reached only
     -- for an unmigrated tool or a bare command, see this method's own doc comment above.
-    self._runTimer = hs.timer.doAfter(0.1, function()
+    later(function()
       local ran = self._registry and self._registry.run(it.name)
       if not ran then
         local fn = a.special and a.special[it.name]
@@ -1371,7 +1396,7 @@ function obj:_runItem(it)
     -- A computed result is put somewhere useful by an injected action, so the launcher
     -- does not learn what a clipboard is, exactly as it does not learn what an app or a
     -- capture is. A pending row carries no value and is disabled, so it never arrives.
-    self._runTimer = hs.timer.doAfter(0.1, function()
+    later(function()
       if it.value and a.copy then a.copy(it.value) end
     end)
   elseif it.kind == "scope" then
@@ -1379,7 +1404,7 @@ function obj:_runItem(it)
     -- made it plus that thing's own descriptor, and an injected action hands both back, so
     -- the launcher routes the row without learning which tool it belongs to or what the
     -- payload inside it means, exactly as it does for a computed result.
-    self._runTimer = hs.timer.doAfter(0.1, function()
+    later(function()
       if a.scope then a.scope(it) end
     end)
   end

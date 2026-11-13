@@ -75,9 +75,12 @@ end
 function M.replay(case)
   local problems = {}
   local fake = case.launcher or {}
-  local claimed = {}
+  local claimed, replaces, ran, laters = {}, {}, {}, {}
   for _, word in ipairs(fake.claimed or {}) do claimed[word] = true end
+  for _, name in ipairs(fake.replaces or {}) do replaces[name] = true end
   local service = serve.new({ rpc = rpc, clean = frame.clean, version = "test",
+    -- The fallback fires only where a step says fallback, so a case can tell hidden from it.
+    later = function(_, fn) laters[#laters + 1] = fn end,
     launcher = {
       rows = function(query)
         if claimed[query] then return fake.claimedRows or {}, true end
@@ -86,6 +89,12 @@ function M.replay(case)
       memoryKey = M.memoryKey,
       memory = function() return fake.memory or {} end,
       placeholder = function() return fake.placeholder or "" end,
+      -- Return on a row, as Launcher:bridgeChoose answers. A row named in replaces is unserved, and
+      -- any other hides and leaves its run, recorded in ran by its memory key or its kind.
+      choose = function(item, query)
+        if replaces[item.name] then return { { unserved = { name = item.name } } } end
+        return { { hide = {} } }, function() ran[#ran + 1] = (M.memoryKey(item) or item.kind) .. "@" .. query end
+      end,
     },
     icons = function(owner) return (case.icons or {})[owner] end })
   local out, queued = {}, {}
@@ -95,7 +104,19 @@ function M.replay(case)
     out = {}
     session:receive(M.encode(step.send))
     while #queued > 0 do table.remove(queued, 1)() end
+    if step.fallback then
+      local fire = laters
+      laters = {}
+      for _, fn in ipairs(fire) do fn() end
+    end
     local name = "step " .. i .. " " .. tostring(step.send.method) .. " " .. tostring(step.send.id or "")
+    -- ran expects every run so far, in order, the work Return left waiting once it ran.
+    if step.ran ~= nil then
+      local fine, why = holds(ran, step.ran, "ran")
+      if not fine or #ran ~= #step.ran then
+        problems[#problems + 1] = name .. ", " .. tostring(why or ("ran " .. #ran .. " wanted " .. #step.ran))
+      end
+    end
     if #out ~= #step.expect then
       problems[#problems + 1] = name .. " answered " .. #out .. " message(s), wanted " .. #step.expect
     end

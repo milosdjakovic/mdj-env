@@ -1,8 +1,9 @@
--- What the bridge serves, step 2.2 of docs/PLAN-STANDALONE.md, read only. `hello`, the launcher's
--- `catalog` at rest, `icons` by owner, `open` for the launcher with its query memory, `rows` for a
--- query on that level, `close` and the `metrics` notification, as docs/PROTOCOL-BRIDGE.md writes
--- them, and the `memory` notification after a pick, step 2.3, and nothing that runs anything, so no row can be chosen through it. Any other list asked
--- for answers -32013, not served yet. Pure, the launcher and the manifests are handed in as
+-- What the bridge serves, step 2.2 of docs/PLAN-STANDALONE.md. `hello`, the launcher's `catalog`
+-- at rest, `icons` by owner, `open` for the launcher with its query memory, `rows` for a query on
+-- that level, `close` and the `metrics` notification, as docs/PROTOCOL-BRIDGE.md writes them, the
+-- `memory` notification after a pick, step 2.3, and `choose` with the `hidden` notification, step
+-- 3.1, the one way a row is run, through the launcher's own path. Any other list asked for answers
+-- -32013, not served yet. Pure, the launcher and the manifests are handed in as
 -- functions, so test/bridgeserve.lua replays the transcripts in test/fixtures/bridge over fakes.
 
 local M = {}
@@ -25,6 +26,10 @@ local SF, GLYPH = "sf", "emoji"
 --- opts.styled     function(value) -> plain text, for an hs.styledtext, optional
 --- opts.rowLimit    the rows a list shows when it names no limit of its own, chooser.rowLimit, which
 ---                  hello sends as limits.rowLimit, M.ROW_LIMIT when none is handed in
+--- opts.launcher.choose  function(item, query) -> effects, run, step 3.1, what Return on the row
+---                  does, the effects the app applies and the work that waits until it has hidden
+--- opts.later       function(seconds, fn), fn once after a while, the fallback when hidden never
+---                  comes, optional, and without it the work waits for hidden alone
 function M.new(opts)
   local rpc = opts.rpc
   local service = { levels = {}, nextLevel = 0, metrics = nil, sentMemory = nil }
@@ -137,6 +142,7 @@ function M.new(opts)
         level.nextRef = level.nextRef + 1
         ref = level.id .. "." .. level.nextRef
         level.refs[key] = ref
+        if level.keys then level.keys[ref] = key end
       end
       level.items[ref] = row.item
       local out = rowOut(row, ref, key, memoryKey)
@@ -215,7 +221,7 @@ function M.new(opts)
       rpc.fail(rpc.NOT_SERVED, "only the launcher is served yet", { what = what })
     end
     service.nextLevel = service.nextLevel + 1
-    local level = { id = "v" .. service.nextLevel, kind = "launcher", refs = {}, items = {},
+    local level = { id = "v" .. service.nextLevel, kind = "launcher", refs = {}, items = {}, keys = {},
       nextRef = 0, sent = nil, revision = 0 }
     service.levels[level.id] = level
     local memory = memoryOut()
@@ -240,6 +246,8 @@ function M.new(opts)
       local query = type(params.query) == "string" and params.query or ""
       local rows, exclusive = opts.launcher.rows(query)
       local list = rowsOut(rows, level)
+      level.query, level.shown = query, {}
+      for _, r in ipairs(list) do level.shown[r.key] = r end
       local order, now, fromQuery = {}, {}, {}
       for i, r in ipairs(list) do
         order[i] = r.key
@@ -271,6 +279,52 @@ function M.new(opts)
       return answer
     end,
   }
+
+  -- Return on a row, docs/PROTOCOL-BRIDGE.md Running anything, step 3.1. The row is chosen only
+  -- where the supplier shows it for the query the request carries, so a quick Return on rows of an
+  -- older query runs nothing and answers requery. What it runs waits behind after hidden, and runs
+  -- once, on the app's hidden or on the fallback, whichever comes first.
+  service.waiting = {}
+  local function runWaiting(levelID)
+    local run = service.waiting[levelID]
+    if not run then return end
+    service.waiting[levelID] = nil
+    run()
+  end
+
+  methods.choose = { run = function(params)
+    local level = service.levels[params.level]
+    if not level then rpc.fail(rpc.GONE, "no level " .. tostring(params.level)) end
+    if type(params.ref) ~= "string" then rpc.fail(rpc.PARAMS, "choose needs a ref") end
+    local query = type(params.query) == "string" and params.query or ""
+    if level.query ~= query then
+      local rows = opts.launcher.rows(query)
+      local list = rowsOut(rows, level)
+      level.query, level.shown = query, {}
+      for _, r in ipairs(list) do level.shown[r.key] = r end
+    end
+    local key = level.keys[params.ref]
+    if key == nil then rpc.fail(rpc.GONE, "no ref " .. params.ref) end
+    local shown = level.shown and level.shown[key]
+    if not shown then return { effects = { { requery = { level = level.id, q = params.q } } } } end
+    if shown.out.enabled == false then return { effects = {} } end
+    if not opts.launcher.choose then rpc.fail(rpc.UNKNOWN, "choose is not served") end
+    local effects, run = opts.launcher.choose(level.items[params.ref], query)
+    effects = effects or {}
+    if type(run) == "function" then
+      runWaiting(level.id)
+      service.waiting[level.id] = run
+      effects[#effects + 1] = { after = "hidden" }
+      if opts.later then opts.later(1, function() runWaiting(level.id) end) end
+    end
+    return { effects = effects }
+  end }
+
+  -- The app's chooser is gone, so the work Return left waiting runs now.
+  methods.hidden = { run = function(params)
+    runWaiting(params.level)
+    return true
+  end }
 
   service.methods = methods
 

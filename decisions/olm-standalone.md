@@ -663,3 +663,36 @@ list, and until then that list stays on Lua.
   fourteen queries through the launcher's supplier, an empty one, one letter cut at the row limit, a
   calculator answer, a capital and a claimed scope among them, all logged same, the console clean.
   Open: the gate, the log empty over a few days of Milos's own use.
+- 2026-11-13 17:12. Step 2.3's gate moved, Milos's call. He did not want the plan held on the days
+  of use the gate asks for, so 2.3 is ticked as built and live, the shadow keeps logging, its log is
+  read at every step from here, and an empty log is a condition of 3.5, the flip of Hyper and Space,
+  the first step a person relies on. The 13:46 entry above says the `shadow` notification retires
+  at 3.2's flip, which was wrong, the flip is 3.5 and 3.2 is a trial key. Corrected in the design
+  note and the protocol.
+- 2026-11-13 17:12. Step 3.1, `choose` over the bridge, as the protocol's Running anything section
+  wrote it, with no design note of its own since the protocol had settled the shape. It runs the row
+  through a new `Launcher:bridgeChoose`, which does what onSelect does for the stage, the promote,
+  the memory under the request's query and the run, so app switching and every command still run in
+  Hammerspoon. No stage facade yet. A row whose intercept would make the list another list, a tool,
+  an alias or a scope's word, is the only path that touches the stage, and it answers `unserved`
+  without being asked to act until 3.3 serves hosted lists, so the facade joins there. The run waits
+  behind `after hidden`, the app's `hidden` or a 1 s fallback, and `_runItem` gained `now` so the
+  launcher's own 0.1 s wait is not added on top. A row its supplier no longer shows for the
+  request's query answers `requery`, and a disabled row answers no effects. Found while building,
+  an empty expected list in a transcript step accepts any answer, so the strict cases are pinned in
+  `test/bridgeserve.lua` beside it.
+- 2026-11-13 17:41. Step 3.1 live, Milos watching. `test/bridgecheck.sh calc --choose Calculator`
+  with the lock on the branch answered `hide` and `after hidden` in 1.7 ms, the client sent
+  `hidden`, and Calculator opened, the pick remembered under `calc` in the real memory, as Return in
+  the Lua launcher would have done. Three things were found on the way. The first run's client read
+  the `memory` notification, which the pick sends before the answer, as the answer and stopped, the
+  run going through the 1 s fallback instead, which is the protocol working and the client wrong, so
+  the client now says and passes a notification. Editing a file in the worktree while its config was
+  live reloaded Hammerspoon mid run, and that load's shadow wiring started Olm.app, which took the
+  socket's path back from the client, so a live check edits nothing in the live tree. And the
+  transport ignored the app's listening note while it believed itself connected, while
+  `hs.socket`'s `connected()` kept answering true for a peer that had died, so the bridge sat on a
+  dead connection and never reached the new listener. A listening note now always reconnects, since
+  it means a listener has just bound the path. Closing the level after the choose took 1.7 s, the
+  run launching Calculator cold on Hammerspoon's thread as the Lua launcher does. The app sends
+  nothing it waits on there, so it costs the app's list nothing.

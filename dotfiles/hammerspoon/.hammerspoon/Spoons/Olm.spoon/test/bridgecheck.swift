@@ -3,14 +3,21 @@
 // folder 0700 and the socket 0600, posts local.olm.Olm.listening, takes the one connection the
 // running Hammerspoon makes, checks its peer is this user, and then asks hello, catalog, icons,
 // open for the launcher and rows for the query given, printing what came back and how long each
-// took. It runs nothing on the Lua side, which serves nothing that could.
+// took. It runs nothing unless asked. `--choose TITLE` presses Return on the row of that title among
+// the query's rows, step 3.1, which does what Return on it does in the Lua launcher, opening the app
+// or running the command, so only run it with a person's go ahead. It answers hidden at once, as the
+// app does once its chooser is gone.
 //
-// test/bridgecheck.sh builds and runs it. Exit 0 when every answer came back well formed.
+// It takes the socket's path from the app while it runs, so relaunch Olm.app afterwards.
+//
+// test/bridgecheck.sh builds and runs it, `bridgecheck.sh QUERY [--choose TITLE]`. Exit 0 when
+// every answer came back well formed.
 
 import Foundation
 
 let args = CommandLine.arguments
 let query = args.count > 1 ? args[1] : "saf"
+let chooseTitle: String? = args.count > 3 && args[2] == "--choose" ? args[3] : nil
 let home = FileManager.default.homeDirectoryForCurrentUser.path
 let run = home + "/.olm/run"
 let path = run + "/bridge.sock"
@@ -79,7 +86,12 @@ func ask(_ method: String, _ params: [String: Any]) -> (result: [String: Any]?, 
   let id = "a\(next)"
   let t0 = DispatchTime.now().uptimeNanoseconds
   send(["jsonrpc": "2.0", "id": id, "method": method, "params": params])
-  let answer = readMessage()
+  // A notification may come first, the memory after a pick among them, so it is said and passed.
+  var answer = readMessage()
+  while answer["id"] == nil, let note = answer["method"] as? String {
+    print("    notification \(note)")
+    answer = readMessage()
+  }
   let ms = Double(DispatchTime.now().uptimeNanoseconds - t0) / 1e6
   guard answer["id"] as? String == id else { fail("an answer to \(answer["id"] ?? "nothing") where \(id) was asked") }
   return (answer["result"] as? [String: Any], answer["error"] as? [String: Any], ms)
@@ -126,9 +138,23 @@ let same = ask("rows", ["level": id, "q": 2, "query": query, "have": r["revision
 guard same.result != nil, same.result?["changes"] == nil else { fail("the same rows asked again carried changes") }
 say("rows again with have, no changes", same.ms)
 
-let choose = ask("choose", ["level": id, "q": 2, "h": 1, "ref": (upsert.first?["ref"] as? String) ?? ""])
-guard choose.error?["code"] as? Int == -32601 else { fail("choose was not refused, so something could be run") }
-say("choose, refused -32601, nothing can be run", choose.ms)
+let unserved = ask("run", ["level": id, "q": 2, "h": 1, "ref": (upsert.first?["ref"] as? String) ?? "", "action": "copy"])
+guard unserved.error?["code"] as? Int == -32601 else { fail("run was not refused, though no action is served") }
+say("run an action, refused -32601, not served yet", unserved.ms)
+
+if let chooseTitle {
+  guard let row = upsert.first(where: { $0["title"] as? String == chooseTitle }), let ref = row["ref"] as? String else {
+    fail("no row titled \(chooseTitle) among the rows for \"\(query)\"")
+  }
+  let chose = ask("choose", ["level": id, "q": 2, "h": 1, "ref": ref, "query": query])
+  guard let effects = chose.result?["effects"] as? [[String: Any]] else { fail("choose answered \(chose.error ?? [:])") }
+  let words = effects.map { $0.keys.sorted().joined(separator: "+") + (($0["after"] as? String).map { " " + $0 } ?? "") }
+  say("choose \(chooseTitle), effects \(words.joined(separator: ", "))", chose.ms)
+  if effects.contains(where: { $0["after"] as? String == "hidden" }) {
+    send(["jsonrpc": "2.0", "method": "hidden", "params": ["level": id]])
+    print("    hidden sent, the run is Hammerspoon's now")
+  }
+}
 
 let closed = ask("close", ["level": id])
 guard closed.error == nil else { fail("close answered \(closed.error ?? [:])") }

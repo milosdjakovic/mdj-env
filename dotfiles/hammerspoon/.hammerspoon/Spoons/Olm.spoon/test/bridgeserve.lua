@@ -152,5 +152,25 @@ ok(remembering.memoryChanges() == nil, "a spelling cut inside a letter never cro
 remembering.methods.hello.run({ protocol = 1 }, {})
 ok(remembering.memoryChanges() == nil, "a new session sends nothing until it opens the launcher again")
 
+-- Choosing, step 3.1. A disabled row runs nothing, a run waits for hidden or the fallback, once.
+local picked, later = {}, {}
+local choosing = serve.new({ rpc = rpc, clean = frame.clean, later = function(_, fn) later[#later + 1] = fn end,
+  launcher = { memoryKey = memoryKey,
+    rows = function() return { { title = "Off", enabled = false, item = { kind = "app", bundleID = "off" } },
+      { title = "On", item = { kind = "app", bundleID = "on" } } } end,
+    choose = function(item) picked[#picked + 1] = item.bundleID; return { { hide = {} } }, function() picked[#picked + 1] = "ran" end end },
+  icons = function() return nil end })
+choosing.methods.open.run({ what = { launcher = true } })
+choosing.methods.rows.run({ level = "v1", q = 1, query = "" })
+local off = choosing.methods.choose.run({ level = "v1", q = 1, ref = "v1.1", query = "" })
+ok(#off.effects == 0 and #picked == 0, "a disabled row answers no effects and is never handed to the launcher")
+local on = choosing.methods.choose.run({ level = "v1", q = 1, ref = "v1.2", query = "" })
+ok(#on.effects == 2 and on.effects[2].after == "hidden" and picked[1] == "on" and #picked == 1,
+  "a row is handed over, and its run waits behind after hidden")
+later[1]()
+ok(picked[2] == "ran", "the fallback runs it when hidden never came")
+choosing.methods.hidden.run({ level = "v1" })
+ok(#picked == 2, "and a hidden after that runs nothing twice")
+
 print(string.format("bridgeserve: %d checks, %d failed", checks, failures))
 os.exit(failures == 0 and 0 or 1)
