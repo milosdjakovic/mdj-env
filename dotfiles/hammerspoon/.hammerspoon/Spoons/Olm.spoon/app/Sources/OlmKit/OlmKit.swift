@@ -14,6 +14,10 @@ public enum Icon: Sendable, Hashable {
   /// An SF Symbol by name, drawn in one colour that follows the row, lit or not, as Olm's sf icon
   /// source draws one. A symbol's meaning is Olm's, so `hand.raised` is a permission macOS holds.
   case symbol(String)
+  /// An application's own icon, by its bundle id, as the launcher's app rows wear it.
+  case app(String)
+  /// An emoji drawn as a picture, as Olm's emoji icon source draws one.
+  case emoji(String)
 }
 
 /// One row, the bridge protocol's row with the fields the app reads today. key is the row's
@@ -134,10 +138,16 @@ public struct RowsAnswer: Sendable, Equatable {
 public struct Pick: Sendable, Equatable {
   public var key: String
   public var query: String
+  /// The row's place in the list as shown, one based, 0 where the caller did not say.
+  public var row: Int
+  /// The stage's highlight generation when the row was acted on, the bridge's h, 0 where not said.
+  public var highlight: Int
 
-  public init(key: String, query: String) {
+  public init(key: String, query: String, row: Int = 0, highlight: Int = 0) {
     self.key = key
     self.query = query
+    self.row = row
+    self.highlight = highlight
   }
 }
 
@@ -168,6 +178,9 @@ public enum Effect: Sendable, Equatable {
   /// Asks the highlighted row's preview again, the list staying up, after the source changed what
   /// it would say, as file search does once it has asked iCloud for a file, step 1.4i.
   case refreshPreview
+  /// Searches the input field's text again and chooses nothing, the bridge's requery, for a Return
+  /// on a row the source no longer shows for that query, docs/PROTOCOL-BRIDGE.md.
+  case requery
 }
 
 /// One of the eight colour roles lib/ui/style.lua resolves for the half the system is on. A plugin

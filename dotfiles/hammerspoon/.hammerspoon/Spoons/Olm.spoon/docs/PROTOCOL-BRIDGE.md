@@ -602,7 +602,7 @@ The pilot, stage 1, reaches the app before any bridge exists, through URLs Hamme
 | URL | What the app does |
 |---|---|
 | `olm://filesearch?screen=MODE&query=TEXT` | shows its file search with TEXT in the input field, on the screen MODE names, `activeWindow` or `cursor`, Olm's placement choice at the press, the active window's screen when it is left out. host/bridge hands a running app the same URL as the object of the distributed notification `local.olm.Olm.open`, some fifty milliseconds sooner than `open`, and starts an app not running with `open`, 2026-11-08 |
-| `olm://launcher?query=TEXT` | shows its launcher, from step 3.2 |
+| `olm://launcher?screen=MODE&query=TEXT` | shows its launcher, from step 3.2, a level of its own opened for each show and closed as the list closes, `hidden` sent before that close when a run waits for it. The trial key, the bridge host's action `bridge.launcher`, opens it the way a served key opens file search |
 | `olm://shadow?tool=filesearch&id=N` | answers the query in `~/.olm/run/filesearchshadow.json` with its own engine, compares its rows with the Lua answer written there and appends one line to `~/.olm/log/shadow-filesearch.jsonl`, the shadow of step 1.3e, showing nothing. host/bridge asks it by the distributed notification `local.olm.Olm.shadow` with the object `filesearch:N` instead, since running `open` while the Lua list was up left it with no rows, 2026-11-08 |
 | `olm://ping?nonce=N` | writes N and the time to `~/.olm/run/ping`, the test step 1.1 names |
 
@@ -610,7 +610,9 @@ Any program on the machine can open a URL, so a URL only ever shows a list with 
 field and never runs anything. A launcher level opened from a URL is opened with `"fromURL":true`,
 and the host holds back the hand over the launcher's supplier would schedule, the one a query such
 as `vpn ` starts, until a `rows` arrives with a `q` above the one the level opened at, so it starts
-only once the person types. A query is percent encoded UTF-8,
+only once the person types. Until 3.3 nothing needs holding back, since the launcher hands a list
+over only while the Lua stage shows the launcher, so a bridged level's `rows` never start one and
+`fromURL` is sent and not yet read, step 3.2. A query is percent encoded UTF-8,
 and an unknown URL is ignored and logged.
 
 ## The stage words, and what each becomes for a bridged level

@@ -206,6 +206,29 @@ built = {}
 fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, serves = {} })
   :shareEach("keys", function(identity) built[#built + 1] = identity; return {} end)
 eq(#built, 0, "a machine serving nothing builds no keys share")
+built = {}
+fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, serves = { "fileSearch" } })
+  :shareEach("keys", function(identity) built[#built + 1] = identity; return {} end, { "launcher", "fileSearch", "../x" })
+eq(table.concat(built, ","), "fileSearch,launcher", "also adds the lists the app shows unserved, once each, plain words only")
+
+-- The trial key of step 3.2, bridge.launcher, gated on the piece, the app and the socket setting.
+local tried = fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, socket = true })
+local actions = tried:actions()
+eq(#actions == 1 and actions[1].name, "launcher", "the bridge declares one action, launcher")
+eq(actions[1].when, "olmAppLauncher", "gated on its own predicate")
+eq(tried.predicates.olmAppLauncher(), true, "on where the piece, the app and the socket are")
+eq(fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, socket = false }).predicates.olmAppLauncher(),
+  false, "off with the socket setting off")
+eq(fresh({ pieces = { olmapp = "off" }, deps = deps, app = APP, run = run, socket = true }).predicates.olmAppLauncher(),
+  false, "off with the piece off")
+tried = fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, socket = true })
+started = {}
+tried:placeWith(function() return "cursor" end)
+tried:actions()[1].run()
+eq(started[1] and started[1].args[4], "olm://launcher?screen=cursor&query=", "running it opens olm://launcher on the placement's screen")
+started = {}
+fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, socket = false }):actions()[1].run()
+eq(#started, 0, "and does nothing with the socket off")
 
 -- The shadow of step 1.3e. It is off unless the piece is on and the app built, it hands a list over
 -- only once it has settled, never while it searches, and never the same query twice running.

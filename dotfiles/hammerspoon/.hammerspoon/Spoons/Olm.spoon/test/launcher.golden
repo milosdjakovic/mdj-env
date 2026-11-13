@@ -89,3 +89,4 @@
 89	settingsPane:x-apple.systempreferences:com.apple.Software-Update-Settings.extension	Software Update	System Settings	softwareUpdate	systemsettings	-	upgrade, macos update | System Settings	50
 90	settingsPane:x-apple.systempreferences:com.apple.settings.Storage	Storage	System Settings	storage	systemsettings	-	disk space, free space | System Settings	50
 91	settingsPane:x-apple.systempreferences:com.apple.Profiles-Settings.extension	Device Management	System Settings	deviceManagement	systemsettings	-	profiles, mdm | System Settings	50
+92	bridge:launcher	App Launcher	Bridge	launcher	bridge	olmAppLauncher	Bridge	-

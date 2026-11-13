@@ -30,7 +30,12 @@ the `memory` notification, through `memoryChanged`, and a spelling the store cut
 which is not UTF-8, never crosses. Since step 3.1 it serves `choose`, Return on a launcher row,
 through `Launcher:bridgeChoose`, the launcher's own run path, the run waiting for the app's `hidden`
 or a 1 s fallback, so app switching and every command still run in Hammerspoon. `bridgecheck.sh
-QUERY --choose TITLE` presses Return on one row from the command line.
+QUERY --choose TITLE` presses Return on one row from the command line. Since step 3.2 it declares
+one action, `bridge.launcher`, App Launcher, which opens Olm.app's own launcher through
+`olm://launcher` while Hyper and Space still opens the Lua one, `docs/DESIGN-APP-LAUNCHER.md`. Its row
+and its key are gated on `olmAppLauncher`, the piece on, the app built and the socket on, its key is
+this machine's alone, Hyper and 0 in `machines/<name>/hammerspoon-apps.lua`, and the launcher's
+bar and info pane are written for the app as `launcherkeys.json` beside the served tools' shares.
 
 It runs the shadow of step 1.3e for each tool `config/plugins.lua` lists under `shadows`, file
 search today, where the piece is on. The Lua list stays the daily one, so `serves` is empty while

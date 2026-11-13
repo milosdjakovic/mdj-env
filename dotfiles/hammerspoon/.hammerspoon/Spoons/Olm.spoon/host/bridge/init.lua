@@ -171,13 +171,24 @@ function obj:share(name, value)
   self:_write(name, value)
 end
 
---- obj:shareEach(suffix, build) writes one share per tool this machine serves, named the tool
+--- obj:shareEach(suffix, build, also) writes one share per tool this machine serves, named the tool
 --- lowercased and suffix, build(identity) answering its table, the keys a served list shows, step
---- 1.4f. The bridge knows which tools it serves and nothing of what a share holds.
-function obj:shareEach(suffix, build)
+--- 1.4f, and one for each identity in also, a list the app shows without serving its key, the
+--- launcher on its trial key, step 3.2. The bridge knows which tools it serves and nothing of what
+--- a share holds.
+function obj:shareEach(suffix, build, also)
   if type(suffix) ~= "string" or type(build) ~= "function" then return end
-  local names = {}
-  for identity in pairs(self._serves) do names[#names + 1] = identity end
+  local names, seen = {}, {}
+  for identity in pairs(self._serves) do
+    names[#names + 1] = identity
+    seen[identity] = true
+  end
+  for _, identity in ipairs(type(also) == "table" and also or {}) do
+    if type(identity) == "string" and identity:match("^%a%w*$") and not seen[identity] then
+      names[#names + 1] = identity
+      seen[identity] = true
+    end
+  end
   table.sort(names)
   for _, identity in ipairs(names) do
     self:_write(identity:lower() .. suffix, function() return build(identity) end)
@@ -282,6 +293,11 @@ function obj:serves(identity)
   if type(identity) ~= "string" or not self._serves[identity] then return nil end
   sayOnce(self, identity .. "'s open key opens Olm.app, the olmapp piece is on")
   self:_listen()
+  return self:_opener(identity, open, app)
+end
+
+-- The function that opens the app's list for an identity, olm://<identity lowercased>.
+function obj:_opener(identity, open, app)
   return function()
     self:_opened(identity:lower())
     local mode = nil
@@ -300,6 +316,36 @@ function obj:serves(identity)
     end
   end
 end
+
+--- obj:actions() -> the trial key's action, step 3.2 of docs/PLAN-STANDALONE.md,
+--- docs/DESIGN-APP-LAUNCHER.md. bridge.launcher opens Olm.app's own launcher, olm://launcher, while
+--- Hyper and Space still opens the Lua one. Its key is this machine's alone, set in
+--- machines/<name>/hammerspoon-apps.lua, and its row and its key are gated on olmAppLauncher, so on
+--- a machine whose olmapp piece is off it shows nowhere.
+function obj:actions()
+  return {
+    { name = "launcher", description = "App Launcher", icon = "launcher", when = "olmAppLauncher",
+      run = function() self:_openLauncher() end },
+  }
+end
+
+-- Whether the app's launcher can open here, the piece on, the app built and the socket setting on,
+-- since the app's launcher answers only over the socket.
+function obj:_launcherReady()
+  if not self._socket then return nil end
+  return self:_ready()
+end
+
+function obj:_openLauncher()
+  local open, app = self:_launcherReady()
+  if not open then return end
+  self:_listen()
+  self:_opener("launcher", open, app)()
+end
+
+obj.predicates = {
+  olmAppLauncher = function() return obj:_launcherReady() ~= nil end,
+}
 
 -- The app's bundle id, app/build.sh's, and the name of the notification a served key opens it by.
 obj.BUNDLE_ID = "local.olm.Olm"

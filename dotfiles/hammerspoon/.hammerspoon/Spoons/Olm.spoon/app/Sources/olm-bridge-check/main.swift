@@ -4,7 +4,9 @@
 // records, and checks what the app makes of them: the folder and socket modes, hello before
 // anything, the launcher's open and its memory, rows patched by their changes, the bonus the memory
 // gives, a memory notification moving it, a request it does not serve refused, the shadow comparing
-// a settled answer and logging it, and a lost connection closing the level.
+// a settled answer and logging it, and a lost connection closing the level. Step 3.2 adds the
+// launcher a person opens: metrics, a level for each show opened fromURL, its rows' icons, choose and
+// what its effects become, hidden said before the level's close, and an older rows answer dropped.
 //
 // test/olmbridge.sh builds and runs it. Exit 0 when every check passed.
 
@@ -47,7 +49,8 @@ func until(_ cond: () async -> Bool) async {
 
 let bridge = Bridge(path: path, announce: false, log: { if ProcessInfo.processInfo.environment["OLM_BRIDGE_LOG"] != nil { print("  bridge: \($0)") } })
 let launcher = BridgedLauncher(bridge: bridge)
-await bridge.attach(launcher: launcher, settled: { told.add($0) })
+let shown = BridgedLauncher(bridge: bridge, shown: true, log: { _ in })
+await bridge.attach(launcher: launcher, shown: shown, settled: { told.add($0) })
 if let why = await bridge.start() { give("the listener did not start, \(why)") }
 
 func mode(_ p: String) -> Int {
@@ -181,6 +184,97 @@ await until { FileManager.default.fileExists(atPath: logFile.path) }
 let line = (try? String(contentsOf: logFile, encoding: .utf8))?.split(separator: "\n").last.map(String.init) ?? ""
 let doc = (try? JSONSerialization.jsonObject(with: Data(line.utf8))) as? [String: Any] ?? [:]
 ok(doc["same"] as? Bool == true && doc["app"] as? Int == 2, "the shadow ranks the memory's leader first, leaves the row with no memory key out and logs the same, \(line)")
+
+// The launcher a person opens, step 3.2. metrics first, sent once the stage has measured a list.
+await bridge.setTextBudget(612)
+let metrics = next()
+ok(metrics["method"] as? String == "metrics" && metrics["id"] == nil
+  && (metrics["params"] as? [String: Any])?["textBudget"] as? Int == 612, "metrics is a notification with the text budget")
+
+// A show opens a level of its own, fromURL, the shadow's level left open.
+async let shownLevel = shown.open(query: "")
+let o2 = request("open")
+let op2 = o2["params"] as? [String: Any] ?? [:]
+ok((op2["what"] as? [String: Any])?["launcher"] as? Bool == true && op2["fromURL"] as? Bool == true, "a show opens a launcher level fromURL")
+answer(o2, ["level": ["id": "v2", "placeholder": "Search", "ranking": "app", "rowLimit": "default",
+  "memory": ["ma": ["app:mail"]]]])
+let l2 = await shownLevel
+ok(l2.rowLimit == 50 && l2.placeholder == "Search", "the shown level takes hello's row limit")
+ok(await launcher.isOpen, "the shadow's level stays open beside it")
+
+// Its rows draw the icons they name, an owner's table asked once.
+func shownRow(_ key: String, _ title: String, icon: [String: Any]) -> [String: Any] {
+  ["ref": "v2.\(key)", "key": key, "title": title, "memoryKey": key, "icon": icon]
+}
+async let s1 = shown.rows(Query(text: "ma", generation: 1))
+let rs1 = request("rows")
+ok((rs1["params"] as? [String: Any])?["level"] as? String == "v2", "the shown launcher asks rows of its own level")
+answer(rs1, ["q": (rs1["params"] as? [String: Any])?["q"] ?? 0, "revision": "r1", "fromQuery": [String](), "exclusive": false,
+  "changes": ["upsert": [shownRow("app:mail", "Mail", icon: ["app": "com.apple.mail"]),
+    shownRow("tool:clip", "Clipboard", icon: ["owner": "clipboard", "key": "pin"]),
+    shownRow("tool:sym", "Lock", icon: ["sf": "lock"]), shownRow("tool:emo", "Pizza", icon: ["emoji": "🍕"])],
+    "remove": [String](), "order": ["app:mail", "tool:clip", "tool:sym", "tool:emo"]]])
+let ic = await Task.detached { request("icons") }.value
+ok((ic["params"] as? [String: Any])?["owner"] as? String == "clipboard", "an owner the rows name is asked for its icons")
+answer(ic, ["icons": ["pin": ["sf": "pin.fill", "emoji": "📌"]]])
+let sa1 = try await s1
+ok(sa1.rows.map(\.icon) == [.app("com.apple.mail"), .symbol("pin.fill"), .symbol("lock"), .emoji("🍕")],
+  "app, owner, sf and emoji icons resolve, an owner's sf preferred")
+ok(sa1.rows.map(\.bonus) == [1, 0, 0, 0], "the shown launcher's bonus is the memory its open sent")
+
+// Return. hide becomes the stage's hide, after hidden waits for the close.
+async let picked = shown.choose(Pick(key: "app:mail", query: "ma", row: 1, highlight: 3))
+let c1 = request("choose")
+let cp1 = c1["params"] as? [String: Any] ?? [:]
+ok(cp1["level"] as? String == "v2" && cp1["ref"] as? String == "v2.app:mail" && cp1["row"] as? Int == 1
+  && cp1["h"] as? Int == 3 && cp1["query"] as? String == "ma" && cp1["q"] is Int && cp1["mods"] is [Any],
+  "choose names the level, the row's ref, its place, h, q and the query")
+answer(c1, ["effects": [["hide": [String: Any]()], ["after": "hidden"]]])
+ok(await picked == [.hide], "hide is the stage's hide and after hidden is kept")
+async let closed: Void = shown.close()
+let hidden = next()
+ok(hidden["method"] as? String == "hidden" && hidden["id"] == nil
+  && (hidden["params"] as? [String: Any])?["level"] as? String == "v2", "closing says hidden first when a run waits")
+let cl = request("close")
+ok((cl["params"] as? [String: Any])?["level"] as? String == "v2", "then closes the level")
+answer(cl, true)
+await closed
+
+// The next show, its choose answering requery, unserved and nothing.
+async let again = shown.open(query: "ma")
+let o3 = request("open")
+answer(o3, ["level": ["id": "v3", "placeholder": "Search", "ranking": "app", "rowLimit": "default", "memory": [String: Any]()]])
+_ = await again
+async let s3 = shown.rows(Query(text: "ma", generation: 1))
+let rs3 = request("rows")
+answer(rs3, ["q": (rs3["params"] as? [String: Any])?["q"] ?? 0, "revision": "r1", "fromQuery": [String](), "exclusive": false,
+  "changes": ["upsert": [["ref": "v3.1", "key": "tool:vpn", "title": "VPN"]], "remove": [String](), "order": ["tool:vpn"]]])
+_ = try await s3
+for (effects, expect, what) in [([["requery": ["level": "v3", "q": 1]]], [Effect.requery], "requery searches again"),
+  ([["unserved": ["name": "vpn"]]], [], "unserved keeps the row in place"), ([], [], "no effects do nothing")] {
+  async let e = shown.choose(Pick(key: "tool:vpn", query: "ma"))
+  let c = request("choose")
+  ok((c["params"] as? [String: Any])?["ref"] as? String == "v3.1", "choose names the new level's ref")
+  answer(c, ["effects": effects])
+  ok(await e == expect, what)
+}
+
+// Two rows asks out at once, the older answer dropped.
+async let older = shown.rows(Query(text: "m", generation: 2))
+async let newer = shown.rows(Query(text: "ma", generation: 3))
+for _ in 0..<2 {
+  let r = request("rows")
+  answer(r, ["q": (r["params"] as? [String: Any])?["q"] ?? 0, "revision": "r1", "fromQuery": [String](), "exclusive": false])
+}
+let results = [await (try? older) != nil, await (try? newer) != nil]
+ok(results.filter { $0 }.count == 1, "of two rows asks out at once, only the newer answer lands")
+
+// A close with no run waiting says no hidden.
+async let closed2: Void = shown.close()
+let cl2 = next()
+ok(cl2["method"] as? String == "close", "with no run waiting the close is all, got \(cl2["method"] ?? "nothing")")
+answer(cl2, true)
+await closed2
 
 // Hammerspoon goes, and the level with it.
 close(fd)

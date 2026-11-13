@@ -27,6 +27,11 @@ return {
     ["hyper+Z"] = "apptoggler.Zed",
     ["hyper+L"] = "apptoggler.Slack",
     ["hyper+A"] = "apptoggler.Claude",
+
+    -- The trial key of Olm's step 3.2, Olm.app's own launcher while Hyper and Space opens the Lua
+    -- one, chosen by Milos on 2026-11-13. It goes when the flip of step 3.5 gives the app Hyper
+    -- and Space.
+    ["hyper+0"] = "bridge.launcher",
   },
 
   apps = {

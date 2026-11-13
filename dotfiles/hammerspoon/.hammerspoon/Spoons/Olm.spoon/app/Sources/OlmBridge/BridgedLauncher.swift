@@ -5,8 +5,14 @@
 //
 // In the launcher the memory is the bonus. Each row's bonus is worked out from the memory as
 // _memoryBonus does, by the longest remembered prefix of the query, and the bonus the Lua row
-// carries is not read, so the searcher that ranks every list ranks this one unchanged. Read only in
-// this step. Choosing a row answers nothing until 3.1 serves choose.
+// carries is not read, so the searcher that ranks every list ranks this one unchanged.
+//
+// Two of these run, step 3.2, docs/DESIGN-APP-LAUNCHER.md. The shadow's opens one level when a
+// session starts and keeps it, and chooses nothing. The shown one, the launcher a person opens on
+// the trial key, opens a level for each show, fromURL, and closes it when the stage closes the
+// list, chooses a row over the bridge, says hidden before that close when a run waits for it, and
+// draws the icons the rows name. Two, so the shadow's requests never move the shown level's
+// revision or its q, as file search keeps its shadow on a source of its own.
 
 import Foundation
 import OlmKit
@@ -26,24 +32,46 @@ public actor BridgedLauncher: ListSource {
   private var revision: String?
   private var names: [String: [String]] = [:]
   private var q = 0
+  private var refs: [String: String] = [:]
+  private var iconSpecs: [String: JSON] = [:]
+  private var ownerIcons: [String: [String: Icon]] = [:]
+  private var defaultRowLimit: Int?
+  // The level whose run waits for hidden, said before that level's close.
+  private var waitingHidden: String?
+  private let log: @Sendable (String) -> Void
 
-  public init(bridge: Bridge) {
+  /// Whether this is the launcher a person opens, a level for each show, rather than the shadow's.
+  public nonisolated let shown: Bool
+
+  public init(bridge: Bridge, shown: Bool = false,
+    log: @escaping @Sendable (String) -> Void = { NSLog("Olm launcher: %@", $0) }) {
     self.bridge = bridge
+    self.shown = shown
+    self.log = log
   }
 
-  /// A session started, its hello answering the row limit a list naming none takes.
+  /// A session started, its hello answering the row limit a list naming none takes. The shadow's
+  /// opens its level now, and the shown one at its next show.
   func connected(rowLimit: Int?) async throws {
     reset()
-    let answer = try await bridge.request("open", .object(["what": .object(["launcher": .bool(true)]),
-      "query": .string("")]))
+    defaultRowLimit = rowLimit
+    if shown { return }
+    try await openLevel(query: "", fromURL: false)
+  }
+
+  private func openLevel(query: String, fromURL: Bool) async throws {
+    var what: [String: JSON] = ["what": .object(["launcher": .bool(true)]), "query": .string(query)]
+    if fromURL { what["fromURL"] = .bool(true) }
+    let answer = try await bridge.request("open", .object(what))
     let l = answer["level"]
     guard let id = l["id"].string else { throw BridgeError.malformed("open answered no level") }
+    clearRows()
     level = id
     placeholder = l["placeholder"].string ?? ""
     switch l["rowLimit"] {
     case .number(let n): levelRowLimit = n >= 1 ? Int(n) : nil
     case .string("none"): levelRowLimit = nil
-    default: levelRowLimit = rowLimit
+    default: levelRowLimit = defaultRowLimit
     }
     memory = [:]
     remember(l["memory"].object ?? [:])
@@ -52,12 +80,21 @@ public actor BridgedLauncher: ListSource {
   /// The connection went, so the level and every row with it.
   func reset() {
     level = nil
+    clearRows()
+    names = [:]
+    memory = [:]
+    ownerIcons = [:]
+    waitingHidden = nil
+  }
+
+  // What one level held, gone with it.
+  private func clearRows() {
     rows = [:]
     memoryKeys = []
     order = []
     revision = nil
-    names = [:]
-    memory = [:]
+    refs = [:]
+    iconSpecs = [:]
   }
 
   /// The memory notification, each query named taking its new order and an empty one forgotten.
@@ -75,7 +112,16 @@ public actor BridgedLauncher: ListSource {
   public var isOpen: Bool { level != nil }
 
   public func open(query: String) async -> Level {
-    Level(placeholder: placeholder, ranking: .app, rowLimit: levelRowLimit)
+    if shown {
+      // A show over a show still up, the trial key pressed again, closes the level before.
+      if let old = level { await closeLevel(old) }
+      do {
+        try await openLevel(query: query, fromURL: true)
+      } catch {
+        log("the launcher did not open, \(error)")
+      }
+    }
+    return Level(placeholder: placeholder, ranking: .app, rowLimit: levelRowLimit)
   }
 
   public func rows(_ query: Query) async throws -> RowsAnswer {
@@ -83,6 +129,7 @@ public actor BridgedLauncher: ListSource {
     q += 1
     var params: [String: JSON] = ["level": .string(level), "q": .number(Double(q)), "query": .string(query.text)]
     if let revision { params["have"] = .string(revision) }
+    let mine = q
     let answer = try await bridge.request("rows", .object(params))
     guard self.level == level else { throw BridgeError.gone }
     for (id, list) in answer["names"].object ?? [:] {
@@ -103,10 +150,15 @@ public actor BridgedLauncher: ListSource {
       if let o = changes["order"]?.array { order = o.compactMap(Self.key) }
     }
     revision = answer["revision"].string ?? revision
+    // Applied whatever its age, since the next request names this revision, and dropped as an
+    // answer when a newer q has gone out since, docs/PROTOCOL-BRIDGE.md Generations.
+    guard mine == q else { throw BridgeError.answered(BridgeError.stale, "superseded") }
+    if shown { await askIcons() }
     let bonus = QueryMemory.bonus(QueryMemory.order(in: memory, for: query.text))
     let out = order.compactMap { key -> Row? in
       guard var row = rows[key] else { return nil }
       row.bonus = memoryKeys.contains(key) ? bonus[key] ?? 0 : 0
+      if shown { row.icon = icon(iconSpecs[key]) }
       return row
     }
     return RowsAnswer(rows: out, rankText: answer["rankText"].string)
@@ -140,11 +192,96 @@ public actor BridgedLauncher: ListSource {
       fromQuery: wire["fromQuery"].bool ?? false, inert: wire["enabled"].bool == false, keywords: kw,
       names: rowNames, tier: wire["tier"].number ?? 0)
     rows[key] = row
+    if let ref = wire["ref"].string { refs[key] = ref }
+    iconSpecs[key] = wire["icon"].isNull ? nil : wire["icon"]
     if wire["memoryKey"].string != nil { memoryKeys.insert(key) } else { memoryKeys.remove(key) }
     return key
   }
 
-  public func choose(_ pick: Pick) async -> [Effect] { [] }
+  // The icon a wire spec names, docs/PROTOCOL-BRIDGE.md Icon, an owner's resolved from its table,
+  // sf preferred over emoji as lib/icons prefers them. A mark is drawn blank, no launcher row
+  // carrying one yet.
+  private func icon(_ spec: JSON?) -> Icon? {
+    guard let spec else { return nil }
+    if let id = spec["app"].string { return .app(id) }
+    if let name = spec["sf"].string { return .symbol(name) }
+    if let glyph = spec["emoji"].string { return .emoji(glyph) }
+    if let path = spec["file"].string { return .file(path) }
+    if let owner = spec["owner"].string, let key = spec["key"].string { return ownerIcons[owner]?[key] }
+    return nil
+  }
+
+  // Every owner the rows name whose table this connection has not asked for yet, asked once.
+  private func askIcons() async {
+    var owners = Set<String>()
+    for spec in iconSpecs.values {
+      if let owner = spec["owner"].string, ownerIcons[owner] == nil { owners.insert(owner) }
+    }
+    for owner in owners.sorted() {
+      var table: [String: Icon] = [:]
+      if let answer = try? await bridge.request("icons", .object(["owner": .string(owner)])) {
+        for (key, spec) in answer["icons"].object ?? [:] {
+          if let name = spec["sf"].string { table[key] = .symbol(name) } else if let glyph = spec["emoji"].string { table[key] = .emoji(glyph) }
+        }
+      } else {
+        log("no icons for \(owner)")
+      }
+      ownerIcons[owner] = table
+    }
+  }
+
+  /// Return on a row, docs/PROTOCOL-BRIDGE.md Running anything. The answer's effects become the
+  /// stage's, a hide applied first by the stage, after hidden kept until the stage closes the list,
+  /// requery searching again, and unserved, a row that becomes another list, kept in place and said.
+  public func choose(_ pick: Pick) async -> [Effect] {
+    guard shown, let level, let ref = refs[pick.key] else { return [] }
+    let began = Date()
+    let answer: JSON
+    do {
+      answer = try await bridge.request("choose", .object(["level": .string(level), "q": .number(Double(q)),
+        "h": .number(Double(pick.highlight)), "ref": .string(ref), "row": .number(Double(pick.row)),
+        "query": .string(pick.query), "mods": .array([])]))
+    } catch {
+      log("choose did not answer, \(error)")
+      return []
+    }
+    let took = Date().timeIntervalSince(began) * 1000
+    if took > 250 { log(String(format: "choose took %.0f ms", took)) }
+    var out: [Effect] = []
+    for effect in answer["effects"].array ?? [] {
+      if !effect["hide"].isNull {
+        out.append(.hide)
+      } else if effect["after"].string == "hidden" {
+        waitingHidden = level
+      } else if !effect["requery"].isNull {
+        out.append(.requery)
+      } else if !effect["unserved"].isNull {
+        log("\(effect["unserved"]["name"].string ?? "a row") becomes another list, which waits for 3.3")
+      } else {
+        log("an effect this launcher does not apply yet, \(effect.encoded().flatMap { String(data: $0, encoding: .utf8) } ?? "?")")
+      }
+    }
+    return out
+  }
+
   public func run(_ action: String, on pick: Pick) async -> [Effect] { [] }
-  public func close() async {}
+
+  /// The stage closed the list. The shown launcher says hidden first when a run waits for it, the
+  /// window being ordered out by then, and closes its level.
+  public func close() async {
+    guard shown, let level else { return }
+    await closeLevel(level)
+  }
+
+  private func closeLevel(_ id: String) async {
+    if waitingHidden == id {
+      waitingHidden = nil
+      await bridge.notify("hidden", .object(["level": .string(id)]))
+    }
+    if level == id {
+      level = nil
+      clearRows()
+    }
+    _ = try? await bridge.request("close", .object(["level": .string(id)]))
+  }
 }

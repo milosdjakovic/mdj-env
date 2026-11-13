@@ -53,6 +53,9 @@ public actor Bridge {
   private var nextID = 0
   private var pending: [String: (conn: Int, done: CheckedContinuation<JSON, Error>)] = [:]
   private var launcher: BridgedLauncher?
+  private var shownLauncher: BridgedLauncher?
+  // The room a row's text has, the stage's, sent as metrics after hello and whenever it changes.
+  private var textBudget: Double?
   private var settled: (@Sendable (Settled) -> Void)?
   private var log: @Sendable (String) -> Void
 
@@ -64,10 +67,29 @@ public actor Bridge {
     self.log = log
   }
 
-  /// The launcher the session opens, and who hears each settled answer.
-  public func attach(launcher: BridgedLauncher, settled: @escaping @Sendable (Settled) -> Void) {
+  /// The launcher the session opens, the shadow's, the one a person opens on the trial key, step
+  /// 3.2, and who hears each settled answer.
+  public func attach(launcher: BridgedLauncher, shown: BridgedLauncher? = nil,
+    settled: @escaping @Sendable (Settled) -> Void) {
     self.launcher = launcher
+    self.shownLauncher = shown
     self.settled = settled
+  }
+
+  private var launchers: [BridgedLauncher] { [launcher, shownLauncher].compactMap { $0 } }
+
+  /// The room a row's text has, docs/PROTOCOL-BRIDGE.md metrics, sent now when a session is open and
+  /// after every hello.
+  public func setTextBudget(_ budget: Double) {
+    guard budget != textBudget else { return }
+    textBudget = budget
+    if open { sendMetrics() }
+  }
+
+  private func sendMetrics() {
+    guard let textBudget else { return }
+    notify("metrics", .object(["textBudget": .number(textBudget.rounded()),
+      "font": .object(["title": .string("body"), "subtitle": .string("caption")])]))
   }
 
   /// Listens, answering why it could not.
@@ -109,13 +131,13 @@ public actor Bridge {
         pending[key] = nil
         p.done.resume(throwing: BridgeError.gone)
       }
-      await launcher?.reset()
+      for l in launchers { await l.reset() }
       log("Hammerspoon's connection went")
     }
   }
 
-  // hello, then the launcher's open, docs/PROTOCOL-BRIDGE.md. metrics joins when the app has a list
-  // of its own to measure, step 3.2, since no stage word asks the Lua side for one before.
+  // hello, metrics once the stage has measured a list, then the shadow launcher's open,
+  // docs/PROTOCOL-BRIDGE.md, step 3.2.
   private func begin(_ id: Int) async {
     do {
       let hello = try await request("hello", .object(["protocol": .number(Double(Self.protocolVersion)),
@@ -127,7 +149,8 @@ public actor Bridge {
       }
       guard conn == id else { return }
       open = true
-      try await launcher?.connected(rowLimit: hello["limits"]["rowLimit"].int)
+      sendMetrics()
+      for l in launchers.reversed() { try await l.connected(rowLimit: hello["limits"]["rowLimit"].int) }
     } catch {
       log("the session did not start, \(error)")
     }
@@ -159,7 +182,7 @@ public actor Bridge {
   private func notified(_ method: String, _ params: JSON) async {
     switch method {
     case "memory":
-      if let changes = params["memory"].object { await launcher?.remember(changes) }
+      if let changes = params["memory"].object { for l in launchers { await l.remember(changes) } }
     case "shadow":
       guard let tool = params["tool"].string, let query = params["query"].string else { return }
       let keys = (params["keys"].array ?? []).compactMap { $0.string ?? $0.int.map(String.init) }
@@ -175,6 +198,13 @@ public actor Bridge {
     guard let conn, let body = JSON.object(["jsonrpc": .string("2.0"), "id": .string(id),
       "error": .object(["code": .number(Double(error.0)), "message": .string(error.1)])]).encoded() else { return }
     listener?.send(conn, body)
+  }
+
+  /// One notification, sent when a connection is up and dropped when none is.
+  public func notify(_ method: String, _ params: JSON) {
+    guard let conn, let listener, let body = JSON.object(["jsonrpc": .string("2.0"), "method": .string(method),
+      "params": params]).encoded() else { return }
+    listener.send(conn, body)
   }
 
   /// One request, answered with its result, or thrown as gone or as the error the other side said.

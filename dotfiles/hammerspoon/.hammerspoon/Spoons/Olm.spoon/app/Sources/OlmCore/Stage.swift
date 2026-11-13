@@ -117,6 +117,15 @@ public final class Stage {
   /// Told a tool's name and true as its list opens and false as it hides. Olm.app's composition
   /// root posts it to Hammerspoon.
   public var onShowing: ((String, Bool) -> Void)?
+  /// Told the room a row's text has whenever an open finds it changed, which the composition root
+  /// sends Hammerspoon as the bridge's metrics, step 3.2.
+  public var onTextBudget: ((Double) -> Void)?
+  // Raised on every move of the highlight, so a source over the bridge can say which highlight a
+  // Return was pressed on, the bridge's h, step 3.2.
+  private var highlightGeneration = 0
+  // The close a hide sent its source, which the next open of that source waits for, so a level a
+  // source opens for each show is never closed by the hide before it, step 3.2.
+  private var closing: Task<Void, Never>?
   // The verbs this step does not run yet, said once each.
   private var unknownVerbs: Set<String> = []
 
@@ -148,7 +157,9 @@ public final class Stage {
       let tokens = next.manifest.previewPane != nil ? look.paneTokens() : nil
       let (placement, frame) = look.placement(on: screen, pane: tokens != nil)
       panel.place(placement)
-      rowBudget = look.textBudget(on: screen, pane: tokens != nil)
+      let budget = look.textBudget(on: screen, pane: tokens != nil)
+      if budget != rowBudget { onTextBudget?(budget) }
+      rowBudget = budget
       let font = look.style().subFont
       if font != rowFont { charWidths = [:] }
       rowFont = font
@@ -180,7 +191,9 @@ public final class Stage {
       self.reveal()
     }
     let mine = generation
+    let closing = self.closing
     task = Task {
+      await closing?.value
       let level = await next.open(query: query)
       guard mine == self.generation else { return }
       self.level = level
@@ -259,7 +272,7 @@ public final class Stage {
     // After the hide, as the Lua file search's onClose destroys its pane once the stage hid.
     paneHost?.close()
     panel.stop()
-    if let source { Task { await source.close() } }
+    if let source { closing = Task { await source.close() } }
     warmSoon()
   }
 
@@ -356,11 +369,13 @@ public final class Stage {
       rows = next
       panel.setRows(next.map(panelRow))
     }
+    let was = highlight
     if keepHighlight, let resting, let at = next.firstIndex(where: { $0.key == resting }) {
       highlight = at + 1
     } else {
       highlight = next.isEmpty ? 0 : 1
     }
+    if highlight != was || resting != (highlight >= 1 ? next[highlight - 1].key : nil) { highlightGeneration += 1 }
     apply(status: status)
     // The first rows of an open show the window, at once without a pane and once the first row is
     // described with one, which the open asks for without the settle, as the Lua pane's first dock.
@@ -543,6 +558,8 @@ public final class Stage {
     case .symbol?:
       row.image = icon(r)
       row.tint = true
+    case .app(let id)?: row.image = icons.object(forKey: "app:" + id as NSString)
+    case .emoji(let glyph)?: row.image = icons.object(forKey: "emoji:" + glyph as NSString)
     case nil: break
     }
     return row
@@ -564,8 +581,35 @@ public final class Stage {
       image.isTemplate = true
       icons.setObject(image, forKey: key)
       return image
+    case .app(let id)?:
+      let key = "app:" + id as NSString
+      if let image = icons.object(forKey: key) { return image }
+      guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) else { return nil }
+      let image = NSWorkspace.shared.icon(forFile: url.path)
+      icons.setObject(image, forKey: key)
+      return image
+    case .emoji(let glyph)?:
+      let key = "emoji:" + glyph as NSString
+      if let image = icons.object(forKey: key) { return image }
+      let image = Self.emojiImage(glyph)
+      icons.setObject(image, forKey: key)
+      return image
     case nil:
       return nil
+    }
+  }
+
+  // An emoji as Olm's emoji icon source draws it, the glyph at 60 points on a 72 point square,
+  // lib/icons, which the list scales down to a row's icon.
+  private static func emojiImage(_ glyph: String) -> NSImage {
+    let side = 72.0
+    return NSImage(size: NSSize(width: side, height: side), flipped: false) { rect in
+      let text = glyph as NSString
+      let attributes: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 60)]
+      let size = text.size(withAttributes: attributes)
+      text.draw(at: NSPoint(x: (rect.width - size.width) / 2, y: (rect.height - size.height) / 2),
+        withAttributes: attributes)
+      return true
     }
   }
 
@@ -585,7 +629,7 @@ public final class Stage {
       if closingPanes { closeInfo(); closeActions() }
       return
     }
-    let pick = Pick(key: rows[index - 1].key, query: text)
+    let pick = Pick(key: rows[index - 1].key, query: text, row: index, highlight: highlightGeneration)
     let mine = generation
     Task {
       let effects = if let action { await source.run(action, on: pick) } else { await source.choose(pick) }
@@ -647,6 +691,7 @@ public final class Stage {
         previewShown = nil
         previewAsking = nil
         describe()
+      case .requery: search(text)
       }
     }
   }
@@ -944,6 +989,7 @@ public final class Stage {
       if args.count > 1, case .bool(false) = args[1] { closeInfo() }
       if case .int(let index)? = args.first, index != highlight {
         highlight = index
+        highlightGeneration += 1
         settlePreview()
         followQuickLook()
       }

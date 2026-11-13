@@ -2918,7 +2918,7 @@ function obj.run(olm, cfg)
           end
         end
         return nil, "no list context is owned by " .. tostring(identity)
-      end)
+      end, { plan.identity.launcher or "launcher" })
     end
     -- The tools each list the app serves declares, resolved through the one door, so the app runs
     -- the very binaries this side does and no tool is looked up twice, file search's fd for its

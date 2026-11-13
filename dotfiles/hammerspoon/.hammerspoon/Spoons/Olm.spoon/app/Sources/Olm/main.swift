@@ -10,7 +10,9 @@
 // how host/bridge asks it.
 // The bridge's socket, ~/.olm/run/bridge.sock, is listened on from launch, step 2.3, and the launcher
 // Hammerspoon serves over it is shadowed, each answer the Lua launcher settles on ranked again here
-// and every difference logged to ~/.olm/log/shadow-launcher.jsonl. Nothing it serves is shown yet.
+// and every difference logged to ~/.olm/log/shadow-launcher.jsonl. olm://launcher shows the app's own
+// launcher, a second bridged launcher with a level for each show, opened by the trial key of step
+// 3.2, docs/DESIGN-APP-LAUNCHER.md, while Hyper and Space still opens the Lua one.
 // An olm:// URL never runs anything, and one this app does not know is logged and dropped.
 
 import AppKit
@@ -35,6 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private let shadows: [String: Shadow]
   private let bridge = Bridge(path: context.run.appendingPathComponent("bridge.sock").path)
   private let bridgedLauncher: BridgedLauncher
+  private let shownLauncher: BridgedLauncher
   private let launcherShadow: Shadow
 
   // The tools the serves share names, none where it is missing or names none.
@@ -50,13 +53,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let fileSearch = FileSearchSource(context: context, asksAccess: true,
       frecency: FileSearchSource.frecency(context), cloud: demo.map { CloudFiles.demo(fraction: $0) } ?? .system,
       build: FileSearchSource.indexBuild(context))
-    sources = [fileSearch.manifest.name: fileSearch]
+    let launcher = BridgedLauncher(bridge: bridge)
+    let shownLauncher = BridgedLauncher(bridge: bridge, shown: true)
+    self.shownLauncher = shownLauncher
+    sources = [fileSearch.manifest.name: fileSearch, shownLauncher.manifest.name: shownLauncher]
     // The shadow answers on a source of its own, so a list a person has open is never touched.
     let shadowed = FileSearchSource(context: context)
     shadows = [shadowed.manifest.name: Shadow(tool: shadowed.manifest.name, source: shadowed,
       searcher: searcher, run: context.run, log: olm.appendingPathComponent("log"),
       skip: { FileSearchSource.shadowSkip($0, settings: .read(from: context.run)) })]
-    let launcher = BridgedLauncher(bridge: bridge)
     bridgedLauncher = launcher
     launcherShadow = Shadow(tool: launcher.manifest.name, source: launcher, searcher: searcher,
       run: context.run, log: olm.appendingPathComponent("log"), skip: { _ in nil },
@@ -99,9 +104,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     DistributedNotificationCenter.default().addObserver(self, selector: #selector(askNote(_:)),
       name: Notification.Name("local.olm.Olm.ask"), object: nil, suspensionBehavior: .deliverImmediately)
     // The bridge, step 2.3. Each answer the Lua launcher settles on comes as the shadow notification.
-    let bridge = bridge, launcher = bridgedLauncher, shadow = launcherShadow
+    let bridge = bridge, launcher = bridgedLauncher, shadow = launcherShadow, shown = shownLauncher
+    stage.onTextBudget = { budget in Task { await bridge.setTextBudget(budget) } }
     Task {
-      await bridge.attach(launcher: launcher, settled: { s in
+      await bridge.attach(launcher: launcher, shown: shown, settled: { s in
         guard s.tool == launcher.manifest.name else { return }
         Task { @MainActor in shadow.settled(query: s.query, keys: s.keys, status: s.status, claimed: s.claimed) }
       })

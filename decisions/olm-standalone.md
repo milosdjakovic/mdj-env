@@ -696,3 +696,17 @@ list, and until then that list stays on Lua.
   it means a listener has just bound the path. Closing the level after the choose took 1.7 s, the
   run launching Calculator cold on Hammerspoon's thread as the Lua launcher does. The app sends
   nothing it waits on there, so it costs the app's list nothing.
+- 2026-11-13 18:31. Step 3.2's design note agreed with Milos, `docs/DESIGN-APP-LAUNCHER.md`, the
+  trial key Hyper and 0 and tool rows held in place, both as proposed. The key is the bridge host's
+  action `bridge.launcher`, bound in this machine's keys file alone, since rule 9 puts a machine's own
+  key there, and gated on a predicate of the piece, the app and the socket, so its launcher row shows
+  nowhere else. A chord with Shift beside Hyper was ruled out, since this Mac sends Hyper as four
+  modifiers through kanata and such a chord answers only on Caps Lock. Closing the app's list to open
+  the Lua launcher on a tool row was turned down, the close and reopen one list becoming another
+  forbids. Built the same hour. The shown launcher is a second bridged source beside the shadow's,
+  as file search keeps its shadow apart, with a level for each show. Return's `after hidden` needed
+  no effect of its own, since the stage already closes its source as it hides, so `hidden` goes out
+  from that close, and the next open waits for it. The note first said `fromURL` would be served on
+  the Lua side, and building showed nothing to hold back yet, since the launcher hands a list over
+  only while the Lua stage shows it, corrected in the note and the protocol. The three timings are
+  1.3f's, not a new log.

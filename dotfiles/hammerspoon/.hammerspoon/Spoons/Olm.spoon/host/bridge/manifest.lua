@@ -17,6 +17,17 @@ return {
     license = "MIT",
   },
 
+  -- The trial key's action, step 3.2, bridge.launcher, which opens Olm.app's own launcher while
+  -- Hyper and Space opens the Lua one. Olm builds its row and binds whatever key this machine's
+  -- keys file gives it, and its when keeps both off a machine whose olmapp piece is off.
+  provides = {
+    actions = "actions",
+  },
+
+  icons = {
+    launcher = { emoji = "🧪", sf = "flask" },
+  },
+
   needs = {
     data = {
       -- This machine's pieces, from config/machine.lua through config/plugins.lua.
