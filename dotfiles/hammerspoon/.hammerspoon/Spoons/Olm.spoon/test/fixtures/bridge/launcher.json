@@ -1,0 +1,81 @@
+{
+  "kind": "bridge.transcript",
+  "about": "Step 2.2 of docs/PLAN-STANDALONE.md, the launcher served read only, docs/PROTOCOL-BRIDGE.md as a recorded conversation. The Lua side replays each case over a fake launcher, test/bridgereplay.lua, and the app replays it against a fake Lua side from stage 3. Each step sends one message and expects the answers listed, each a subset of what came back, a field the answer must not carry written as null.",
+  "cases": [ {
+  "name": "the launcher, read only",
+  "launcher": {
+    "placeholder": "Search apps and commands",
+    "memory": { "ma": ["app:com.apple.Maps", "app:com.apple.mail"] },
+    "rows": {
+      "": [
+        { "title": "Mail", "subTitle": "Open", "item": { "kind": "app", "bundleID": "com.apple.mail" } },
+        { "title": "Maps", "subTitle": "Not running", "item": { "kind": "app", "bundleID": "com.apple.Maps" } },
+        { "title": "Lock Screen", "subTitle": "System Action", "icon": "lock", "iconOwner": "launcher",
+          "keywords": ["lock"], "item": { "kind": "special", "name": "lock" } }
+      ],
+      "ma": [
+        { "title": "Mail", "subTitle": "Open", "bonus": 0.5, "filterText": "Mail", "item": { "kind": "app", "bundleID": "com.apple.mail" } },
+        { "title": "Maps", "subTitle": "Not running", "bonus": 1, "filterText": "Maps", "item": { "kind": "app", "bundleID": "com.apple.Maps" } }
+      ],
+      "2+2": [
+        { "title": "4", "subTitle": "2+2", "fromQuery": true, "icon": "calc", "iconOwner": "arithmetic", "item": { "kind": "calc", "value": "4" } }
+      ]
+    },
+    "claimed": ["vpn"],
+    "claimedRows": [
+      { "title": "Connect", "fromQuery": true, "item": { "kind": "scope", "name": "vpn" } }
+    ]
+  },
+  "icons": { "launcher": { "lock": { "emoji": "🔒", "sf": "lock.fill", "theme": "ignored" } } },
+  "steps": [
+    { "send": { "jsonrpc": "2.0", "id": "a0", "method": "rows", "params": { "level": "v1", "q": 1, "query": "" } },
+      "expect": [ { "id": "a0", "error": { "code": -32600 } } ] },
+    { "send": { "jsonrpc": "2.0", "id": "a1", "method": "hello", "params": { "protocol": 2, "app": "0.1.0", "features": [] } },
+      "expect": [ { "id": "a1", "error": { "code": -32010 } } ] },
+    { "send": { "jsonrpc": "2.0", "id": "a2", "method": "hello", "params": { "protocol": 1, "app": "0.1.0", "features": [] } },
+      "expect": [ { "id": "a2", "result": { "protocol": 1, "limits": { "message": 8388608, "rowLimit": 200, "name": 65536 } } } ] },
+    { "send": { "jsonrpc": "2.0", "method": "metrics", "params": { "textBudget": 612, "font": { "title": "body", "subtitle": "caption" } } },
+      "expect": [] },
+    { "send": { "jsonrpc": "2.0", "id": "a3", "method": "catalog", "params": {} },
+      "expect": [ { "id": "a3", "result": { "revision": "c1", "rows": [
+        { "key": "app:com.apple.mail", "title": "Mail", "subtitle": "Open", "memoryKey": "app:com.apple.mail", "icon": { "app": "com.apple.mail" } },
+        { "key": "app:com.apple.Maps", "title": "Maps", "icon": { "app": "com.apple.Maps" } },
+        { "key": "special:lock", "title": "Lock Screen", "keywords": ["lock"], "icon": { "owner": "launcher", "key": "lock" } }
+      ] } } ] },
+    { "send": { "jsonrpc": "2.0", "id": "a4", "method": "catalog", "params": { "have": "c1" } },
+      "expect": [ { "id": "a4", "result": { "revision": "c1", "unchanged": true, "rows": null } } ] },
+    { "send": { "jsonrpc": "2.0", "id": "a5", "method": "icons", "params": { "owner": "launcher" } },
+      "expect": [ { "id": "a5", "result": { "icons": { "lock": { "emoji": "🔒", "sf": "lock.fill", "theme": null } } } } ] },
+    { "send": { "jsonrpc": "2.0", "id": "a6", "method": "open", "params": { "what": { "tool": "clipboard" }, "query": "" } },
+      "expect": [ { "id": "a6", "error": { "code": -32013 } } ] },
+    { "send": { "jsonrpc": "2.0", "id": "a7", "method": "open", "params": { "what": { "launcher": true }, "query": "" } },
+      "expect": [ { "id": "a7", "result": { "level": { "id": "v1", "placeholder": "Search apps and commands", "ranking": "app",
+        "rowLimit": "default", "previewPane": false, "memory": { "ma": ["app:com.apple.Maps", "app:com.apple.mail"] } } } } ] },
+    { "send": { "jsonrpc": "2.0", "id": "a8", "method": "rows", "params": { "level": "v1", "q": 1, "query": "" } },
+      "expect": [ { "id": "a8", "result": { "q": 1, "revision": "r1", "exclusive": false, "changes": {
+        "upsert": [ { "ref": "v1.1", "key": "app:com.apple.mail" }, { "ref": "v1.2", "key": "app:com.apple.Maps" }, { "ref": "v1.3", "key": "special:lock" } ],
+        "remove": [], "order": ["app:com.apple.mail", "app:com.apple.Maps", "special:lock"] } } } ] },
+    { "send": { "jsonrpc": "2.0", "id": "a9", "method": "rows", "params": { "level": "v1", "q": 2, "query": "", "have": "r1" } },
+      "expect": [ { "id": "a9", "result": { "q": 2, "revision": "r1", "changes": null } } ] },
+    { "send": { "jsonrpc": "2.0", "id": "a10", "method": "rows", "params": { "level": "v1", "q": 3, "query": "ma", "have": "r1" } },
+      "expect": [ { "id": "a10", "result": { "q": 3, "revision": "r2", "changes": {
+        "upsert": [ { "ref": "v1.1", "key": "app:com.apple.mail", "bonus": 0.5, "filterText": "Mail" },
+                    { "ref": "v1.2", "key": "app:com.apple.Maps", "bonus": 1 } ],
+        "remove": ["special:lock"], "order": ["app:com.apple.mail", "app:com.apple.Maps"] } } } ] },
+    { "send": { "jsonrpc": "2.0", "id": "a11", "method": "rows", "params": { "level": "v1", "q": 4, "query": "2+2", "have": "r2" } },
+      "expect": [ { "id": "a11", "result": { "q": 4, "revision": "r3", "fromQuery": ["k1"], "exclusive": false, "changes": {
+        "upsert": [ { "key": "k1", "title": "4", "fromQuery": true, "memoryKey": null, "icon": { "owner": "arithmetic", "key": "calc" } } ],
+        "remove": ["app:com.apple.Maps", "app:com.apple.mail"], "order": ["k1"] } } } ] },
+    { "send": { "jsonrpc": "2.0", "id": "a12", "method": "rows", "params": { "level": "v1", "q": 5, "query": "vpn", "have": "r3" } },
+      "expect": [ { "id": "a12", "result": { "q": 5, "exclusive": true } } ] },
+    { "send": { "jsonrpc": "2.0", "id": "a13", "method": "rows", "params": { "level": "v9", "q": 1, "query": "" } },
+      "expect": [ { "id": "a13", "error": { "code": -32012 } } ] },
+    { "send": { "jsonrpc": "2.0", "id": "a14", "method": "choose", "params": { "level": "v1", "q": 5, "h": 1, "ref": "v1.1" } },
+      "expect": [ { "id": "a14", "error": { "code": -32601 } } ] },
+    { "send": { "jsonrpc": "2.0", "id": "a15", "method": "close", "params": { "level": "v1" } },
+      "expect": [ { "id": "a15", "result": true } ] },
+    { "send": { "jsonrpc": "2.0", "id": "a16", "method": "rows", "params": { "level": "v1", "q": 6, "query": "" } },
+      "expect": [ { "id": "a16", "error": { "code": -32012 } } ] }
+  ]
+  } ]
+}

@@ -149,6 +149,18 @@ served = f and f:read("a") or ""
 if f then f:close() end
 eq(served ~= "" and served:find('"filesearch"', 1, true) == nil, true, "a config with no serves line writes an empty list")
 
+-- The socket of step 2.2 serves only where its setting is on and the piece is on, and says why once.
+local provider = { launcher = { rows = function() return {} end } }
+eq(fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run }):serveLauncher(provider), nil,
+  "the socket is off by default")
+eq(fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, socket = false }):serveLauncher(provider), nil,
+  "and off when the setting says false")
+said = {}
+b = fresh({ pieces = { olmapp = "off" }, deps = deps, app = APP, run = run, socket = true })
+eq(b:serveLauncher(provider), nil, "a socket setting on with the piece off serves nothing")
+b:serveLauncher(provider)
+eq(#said, 1, "and says why once")
+
 -- What the app keeps for a tool, read from its state folder beside the run folder, whatever the
 -- piece says, since going back is the piece turned off, step 1.5.
 local nest = os.tmpname() .. ".d"

@@ -621,3 +621,21 @@ list, and until then that list stays on Lua.
   and the slow large read. Rejected, local HTTP, which carries only the app's requests, so the Lua
   side could send nothing unasked without polling or a second server, and which needs a token and
   Origin and Host checks. `docs/PROTOCOL-BRIDGE.md` is revised to it.
+- 2026-11-13 11:45. Step 2.2, the bridge serving the launcher read only over the socket 2.1
+  chose. Four files under `host/bridge`, the framing, the routing, the methods and the
+  connection, the first three pure and replayed in the dry gate, so only `transport.lua` meets
+  `hs.socket`. It serves `hello`, `metrics`, `catalog`, `icons`, `open` for the launcher, `rows` and
+  a `close` the protocol had named and not written, and every other method, `choose` among them,
+  answers -32601, so nothing can be run. The rows are the launcher's own supplier through a new
+  `bridgeRows`, which also answers whether a scope claimed the query, `exclusive`, so the app's
+  launcher and the Lua one cannot list different rows. A row's key is its memory key where it has
+  one, recencyKey, and is minted per item table otherwise, so a launcher row keeps its key across
+  answers. A superseded `rows` is answered stale on the next turn of the run loop, since
+  Hammerspoon hands one message per read and the turn is how the bridge sees what else had come.
+  The changes a row needs are found by a signature with its keys sorted, since hs.json need not
+  keep an order and every row would read as changed. While no socket file is there the connection
+  tries nothing and says nothing. Off by `socket = false` in `config/plugins.lua`. Live, a command
+  line client in the app's place, `test/bridgecheck.sh`, had Hammerspoon connect within moments of
+  its listening note, its peer this user, hello in 1.2 ms, the catalog of 219 rows in 37 ms, the
+  launcher's rows in 16.5 ms and an unchanged answer in about 5 ms, and the console said connected
+  and went and nothing else.

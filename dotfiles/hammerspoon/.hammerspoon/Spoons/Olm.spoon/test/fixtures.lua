@@ -26,6 +26,8 @@
 --   chooser.pane   a file search row and what the helper's peek found, through the preview pane's
 --                  own Lua files over the widths the fixture measured, test/panefixture.lua,
 --                  expecting every element the pane drew and its height.
+--   bridge.transcript  a conversation over host/bridge's socket, each step a message sent and the
+--                  answers expected, against a fake launcher the case describes, test/bridgereplay.lua.
 --   calls          calls an existing test made into a module, recorded by fixtures-record.lua,
 --                  each replayed and its answer compared, see fixtures-encode.lua for the shape.
 --
@@ -421,6 +423,13 @@ local function runCall(case)
   return {}
 end
 
+-- The bridge's transcripts, step 2.2, replayed by their own module, loaded only when a file asks.
+local replayModule
+local function bridgeReplay()
+  replayModule = replayModule or assert(loadfile(here .. "bridgereplay.lua"))()
+  return replayModule
+end
+
 local KINDS = {
   calls = function(case) return runCall(case) end,
   ["filesearch.parse"] = runParse,
@@ -430,6 +439,7 @@ local KINDS = {
   ["rank.order"] = function(case) return runOrder(case) end,
   queryassoc = function(case) return runSteps(case, false) end,
   launcher = function(case) return runSteps(case, true) end,
+  ["bridge.transcript"] = function(case) return bridgeReplay().replay(case) end,
 }
 
 local function readFile(path)

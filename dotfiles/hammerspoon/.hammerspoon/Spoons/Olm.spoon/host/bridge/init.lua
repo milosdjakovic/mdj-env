@@ -91,6 +91,9 @@ function obj:configure(opts)
   if opts.deps ~= nil then self._deps = opts.deps end
   if opts.app ~= nil then self._app = opts.app end
   if opts.run ~= nil then self._run = opts.run end
+  -- Whether the bridge connects to the app's socket and serves, step 2.2, off unless the config
+  -- says true, so going back is the setting.
+  if opts.socket ~= nil then self._socket = opts.socket == true end
   if type(opts.shares) == "table" then self:_share(opts.shares) end
   -- Which tools the app serves, so it keeps the first open of each warm while it is hidden, step
   -- 1.5's prewarm. Written on every configure, an empty list included, so a tool taken back stops.
@@ -179,6 +182,53 @@ function obj:shareEach(suffix, build)
   for _, identity in ipairs(names) do
     self:_write(identity:lower() .. suffix, function() return build(identity) end)
   end
+end
+
+-- The siblings that serve over the socket, step 2.2, loaded from beside this file since a host's
+-- directory is not on the module path.
+local HERE = (debug.getinfo(1, "S").source:match("^@(.*/)")) or "./"
+local function sibling(name) return assert(loadfile(HERE .. name .. ".lua"))() end
+
+obj.SOCKET = "bridge.sock"
+
+--- obj:serveLauncher(provider) connects to Olm.app's socket and serves the launcher read only,
+--- step 2.2 of docs/PLAN-STANDALONE.md, docs/PROTOCOL-BRIDGE.md. Only where the socket setting
+--- is true and the olmapp piece is on. provider.launcher answers rows, memoryKey, memory and
+--- placeholder, provider.icons(owner) a manifest's icons, provider.version the olm version.
+function obj:serveLauncher(provider)
+  if self._conn then self._conn:stop(); self._conn = nil end
+  if not self._socket then return nil end
+  if self._pieces.olmapp ~= "on" then
+    sayOnce(self, "the bridge's socket is on and the olmapp piece is off, so nothing is served")
+    return nil
+  end
+  if type(provider) ~= "table" or type(provider.launcher) ~= "table" then return nil end
+  local frame, rpc, serve, transport = sibling("frame"), sibling("rpc"), sibling("serve"), sibling("transport")
+  local service = serve.new({ rpc = rpc, clean = frame.clean, launcher = provider.launcher,
+    icons = provider.icons or function() return nil end, version = provider.version,
+    styled = function(v)
+      if type(v) == "userdata" and v.getString then return v:getString() end
+      return tostring(v)
+    end })
+  -- A timer handle nothing refers to may be collected before it fires, so each is kept until then.
+  local turns = {}
+  local conn
+  local session = rpc.new({ json = hs.json, methods = service.methods,
+    send = function(text) if conn then conn:send(text) end end,
+    defer = function(fn)
+      local t
+      t = hs.timer.doAfter(0, function() turns[t] = nil; fn() end)
+      turns[t] = true
+    end,
+    log = function(text) log.w(text) end })
+  conn = transport.new({ path = (self._run or RUN) .. "/" .. self.SOCKET, frame = frame,
+    onMessage = function(text) session:receive(text) end,
+    onUp = function() log.i("connected to Olm.app's socket") end,
+    onDown = function() session:reset(); log.i("Olm.app's socket went") end,
+    log = function(text) log.w(text) end })
+  self._conn = conn:start()
+  self._service = service
+  return conn
 end
 
 --- obj:appState(identity, name) -> table or nil

@@ -239,6 +239,15 @@ function M.new(opts)
     return nil
   end
 
+  --- instance.queries() -> every query remembered, sorted, for the bridge to send the memory whole,
+  --- step 2.2 of docs/PLAN-STANDALONE.md
+  function instance.queries()
+    local out = {}
+    for query in pairs(loaded()) do out[#out + 1] = query end
+    table.sort(out)
+    return out
+  end
+
   --- instance.orderFor(query) -> list of keys, best first, empty for a query never used
   --- The leader leads, since it holds its place until something beats it by the
   --- margin, and the rest follow by what they are worth now.

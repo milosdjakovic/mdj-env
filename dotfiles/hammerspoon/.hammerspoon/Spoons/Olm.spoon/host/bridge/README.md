@@ -17,6 +17,15 @@ sizes, its layout, its motion and what a preview pane is laid out with, each hal
 hands over with `share`, so the app's list looks like the Lua one. The open key's URL carries
 Olm's placement choice at the press, which the root hands over with `placeWith`.
 
+Where `config/plugins.lua` sets the bridge's `socket` to true and the piece is on, it also connects to
+the Unix socket Olm.app listens on, `~/.olm/run/bridge.sock`, step 2.2, and serves the launcher there
+read only, the catalog, the rows for a query and the query memory, as `docs/PROTOCOL-BRIDGE.md`
+writes them. It connects on load and whenever the app posts `local.olm.Olm.listening`, retries quietly
+while no socket is there, and serves nothing that could run a row. `frame.lua`, `rpc.lua` and
+`serve.lua` beside it are pure and replayed by `test/bridgeserve.lua` and the transcripts under
+`test/fixtures/bridge/`, `transport.lua` is the one file over `hs.socket`, and `test/bridgecheck.sh`
+stands in for the app on the socket. The setting is off, so turning it off again is the way back.
+
 It runs the shadow of step 1.3e for each tool `config/plugins.lua` lists under `shadows`, file
 search today, where the piece is on. The Lua list stays the daily one, so `serves` is empty while
 the shadow runs. Each answer the list settles on, after it has stayed put for `SHADOW_SETTLE`, is

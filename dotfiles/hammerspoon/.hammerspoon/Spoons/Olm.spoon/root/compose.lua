@@ -2945,6 +2945,26 @@ function obj.run(olm, cfg)
         end
       end
     end
+    -- The launcher served read only over the app's socket where the bridge's socket setting is on,
+    -- step 2.2 of docs/PLAN-STANDALONE.md, the same rows the stage is handed.
+    if bridgeModule and type(bridgeModule.serveLauncher) == "function" then
+      local launcher = modules[plan.identity.launcher or "launcher"]
+      if launcher and type(launcher.bridgeRows) == "function" then
+        bridgeModule:serveLauncher({
+          launcher = {
+            rows = function(query) return launcher:bridgeRows(query) end,
+            memoryKey = function(item) return launcher:memoryKeyOf(item) end,
+            memory = function() return launcher:memory() end,
+            placeholder = function() return launcher:placeholderText() end,
+          },
+          icons = function(owner)
+            local manifest = manifests[owner]
+            return manifest and manifest.icons or nil
+          end,
+          version = tostring(olm.version),
+        })
+      end
+    end
     wireShadows(bridgeModule, modules, wiredRegistry, chooserAtom.rank,
       chooserAtom.matchers and chooserAtom.matchers[policy.matcher])
   end

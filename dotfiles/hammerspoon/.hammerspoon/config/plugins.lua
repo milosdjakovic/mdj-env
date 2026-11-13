@@ -106,6 +106,10 @@ return {
     -- that piece turned off and a reload, which opens the Lua list again with the app's uses merged
     -- into it. The launcher's slash scope stays on the Lua list until stage 3.
     serves = { "fileSearch" },
+    -- Whether the bridge connects to the app's socket, ~/.olm/run/bridge.sock, and serves the
+    -- launcher read only, step 2.2 of the plan. Off until the app listens there, and turning it off
+    -- again is the way back.
+    socket = false,
     -- The tools whose every settled answer the app answers again and compares, step 1.3e. File
     -- search's compares nothing while the app serves it and resumes by itself after a back out.
     shadows = { "fileSearch" },

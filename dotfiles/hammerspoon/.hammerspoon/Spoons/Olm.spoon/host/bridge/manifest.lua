@@ -30,6 +30,10 @@ return {
       -- identity, from config/plugins.lua. Each must offer watch and held.
       shadows = { source = "user", policy = "optional",
         breaks = "no answer is compared with the app's, which changes nothing a person sees" },
+      -- Whether the bridge connects to Olm.app's socket and serves the launcher read only, step 2.2,
+      -- from config/plugins.lua, off by default.
+      socket = { source = "user", policy = "optional",
+        breaks = "nothing is served over the socket, which changes nothing a person sees" },
       -- The tools Olm.app serves, by identity, from config/plugins.lua.
       serves = { source = "user", policy = "optional",
         breaks = "no tool's key opens Olm.app, so every key opens the Lua list as before" },

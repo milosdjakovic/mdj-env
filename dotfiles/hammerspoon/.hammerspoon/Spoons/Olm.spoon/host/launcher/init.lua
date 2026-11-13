@@ -941,6 +941,14 @@ end
 --- it and it leads under a typed query, which is what keeps a result at the top of the list
 --- instead of being dropped for not resembling its own expression.
 function obj:_commandRows(query)
+  return (self:_rowsAndClaim(query))
+end
+
+--- Launcher:_rowsAndClaim(query) -> rows, claimed
+--- Method
+--- The supplier's rows, and whether a query source claimed the query, so its rows are the whole
+--- list. The bridge serves both, step 2.2 of docs/PLAN-STANDALONE.md, as `exclusive`.
+function obj:_rowsAndClaim(query)
   -- A hosted list. The field holds only what the user typed, so the page's own prefix goes in
   -- front of it before the sources are asked, and their answer is the whole list. One line,
   -- because hosting reuses the mechanism a typed word already goes through rather than adding a
@@ -948,14 +956,14 @@ function obj:_commandRows(query)
   if self._page then
     local out, _, handOver = self:_queryRows(self._page .. query)
     if handOver then self:_scheduleHandOver(handOver) end
-    return out
+    return out, true
   end
   local out, exclusive, handOver = self:_queryRows(query)
   -- A source claimed the query, so its rows are the entire list and the catalog below is
   -- skipped. This one line is the whole of what the launcher knows about being scoped.
   if exclusive then
     if handOver then self:_scheduleHandOver(handOver) end
-    return out
+    return out, true
   end
   local preds = self._predicates
   local bonus = self:_memoryBonus(query)
@@ -970,7 +978,42 @@ function obj:_commandRows(query)
                         bonus = bonus[recencyKey(row.item)] }
     end
   end
+  return out, false
+end
+
+--- Launcher:bridgeRows(query) -> rows, claimed
+--- Method
+--- What host/bridge serves the launcher by, step 2.2 of docs/PLAN-STANDALONE.md, read only. The
+--- same rows the stage is handed, so the app's launcher and this one cannot list different rows.
+function obj:bridgeRows(query)
+  return self:_rowsAndClaim(type(query) == "string" and query or "")
+end
+
+--- Launcher:memoryKeyOf(item) -> the key the launcher remembers a row by, or nil
+--- Method
+--- recencyKey, which the bridge sends as a row's memoryKey and keys the row by.
+function obj:memoryKeyOf(item)
+  return recencyKey(item)
+end
+
+--- Launcher:memory() -> { [query] = { memoryKey, ... } }
+--- Method
+--- Every remembered query and its order, best first, as orderFor answers each, which the bridge
+--- sends on the launcher's open so the app works the bonus out without asking, docs/PROTOCOL-BRIDGE.md.
+function obj:memory()
+  local out = {}
+  if not (self._assoc and self._assoc.queries) then return out end
+  for _, query in ipairs(self._assoc.queries()) do
+    local order = self._assoc.orderFor(query)
+    if #order > 0 then out[query] = order end
+  end
   return out
+end
+
+--- Launcher:placeholderText() -> the words the empty field shows
+--- Method
+function obj:placeholderText()
+  return self._placeholder or ""
 end
 
 --- Launcher:_scheduleHandOver(handOver)

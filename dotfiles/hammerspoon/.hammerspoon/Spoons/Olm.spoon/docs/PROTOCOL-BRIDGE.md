@@ -265,6 +265,9 @@ functions it calls.
   one that declared nothing, which is `limits.rowLimit`. The Show more row and its paging are the
   app's own.
 
+`close` with `{"level":"v7"}` closes a level the app has left, answering `true`, and an unknown
+level answers `-32012`. Every ref of the level goes with it.
+
 **A list opened by Lua.** A plugin that opens its own list, `stagePresent`, about seventeen plugins
 today and Caffeinate the first one step 3.3 serves, and the launcher's hand over to a scope, both
 start a fresh stack. The Lua side sends the notification `present` with a level as above and an
@@ -600,8 +603,16 @@ applies it with the same rules.
 ## How it is tested
 
 The plan's bridge transcripts are this protocol as recorded conversations under
-`test/fixtures/bridge/`, added at step 2.2 with the first method served. The Lua side replays them
-over fakes in the dry gate and the app replays them against a fake Lua side in `swift test`.
+`test/fixtures/bridge/`, added at step 2.2 with the first method served, files of kind
+`bridge.transcript` whose cases each describe a fake launcher and the steps sent to it. The Lua side
+replays them in the dry gate through `test/bridgereplay.lua`, which `test/fixtures.lua` runs, and
+the app replays them against a fake Lua side from stage 3. `test/bridgecheck.sh` is the live check,
+a command line client listening on the socket in the app's place.
+
+Step 2.2 serves `hello`, `metrics`, `catalog`, `icons`, `open` for the launcher, `rows` and `close`,
+read only, so `choose` and every other method answer `-32601` and nothing can be run through it.
+`host/bridge/frame.lua` is the framing, `rpc.lua` the routing, `serve.lua` the methods and
+`transport.lua` the connection, and only the last touches `hs.socket`.
 
 ## What it leaves out on purpose
 

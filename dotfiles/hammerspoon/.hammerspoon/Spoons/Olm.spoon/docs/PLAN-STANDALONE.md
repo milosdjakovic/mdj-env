@@ -23,7 +23,7 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 2.2, `host/bridge` serves, read only. File search is the app's since 1.5's flip on 2026-11-12.
+Next. 2.3, shadow ranking for the launcher, which needs the app to listen on the socket. File search is the app's since 1.5's flip on 2026-11-12.
 
 Stage 0, contracts
 - [x] 0.1 The decision record, 2026-11-05
@@ -79,7 +79,7 @@ Stage 1, the file search pilot
 
 Stage 2, the bridge, read only
 - [x] 2.1 Probe the transport, a Unix socket the app listens on, each message framed by its length, 2026-11-13
-- [ ] 2.2 `host/bridge` serves, read only
+- [x] 2.2 `host/bridge` serves, read only, the launcher over the socket, off by the `socket` setting, 2026-11-13
 - [ ] 2.3 Shadow ranking for the launcher
 
 Stage 3, every list in the app
