@@ -941,7 +941,52 @@ end
 --- it and it leads under a typed query, which is what keeps a result at the top of the list
 --- instead of being dropped for not resembling its own expression.
 function obj:_commandRows(query)
-  return (self:_rowsAndClaim(query))
+  local rows, claimed = self:_rowsAndClaim(query)
+  -- What the stage was last handed, for the shadow of step 2.3, see watch and held.
+  self._held = { query = query or "", items = rows, claimed = claimed == true }
+  for _, fn in ipairs(self._watchers or {}) do
+    local ok, err = pcall(fn)
+    if not ok then log.w("a watcher raised, " .. tostring(err)) end
+  end
+  return rows
+end
+
+--- Launcher:watch(fn)
+--- Method
+--- fn is called with nothing after every list the stage is handed, the shadow of step 2.3 of
+--- docs/PLAN-STANDALONE.md, as file search's engine answers it.
+function obj:watch(fn)
+  if type(fn) ~= "function" then return end
+  self._watchers = self._watchers or {}
+  self._watchers[#self._watchers + 1] = fn
+end
+
+--- Launcher:held() -> { query, items, claimed }, the rows the stage was last handed, in the
+--- supplier's order, and whether a query source claimed the query
+--- Method
+function obj:held()
+  return self._held or { query = "", items = {}, claimed = false }
+end
+
+--- Launcher:presentation() -> the one presentation this host hands the stage, which the shadow
+--- ranks with as the stage does
+--- Method
+function obj:presentation()
+  return self._presentation
+end
+
+--- Launcher:shadowKey(row) -> the key the shadow names a row by, its memory key, or nil
+--- Method
+function obj:shadowKey(row)
+  return type(row) == "table" and recencyKey(row.item) or nil
+end
+
+--- Launcher:onMemory(fn)
+--- Method
+--- fn is called with nothing after every pick the memory records, so the bridge can tell the app,
+--- step 2.3. One callback, a second call replacing the first.
+function obj:onMemory(fn)
+  self._onMemory = type(fn) == "function" and fn or nil
 end
 
 --- Launcher:_rowsAndClaim(query) -> rows, claimed
@@ -1075,6 +1120,10 @@ function obj:_noteAssociation(item)
   local key = recencyKey(item)
   if not key then return end
   self._assoc.note(self:currentQuery(), key)
+  if self._onMemory then
+    local ok, err = pcall(self._onMemory)
+    if not ok then log.w("the memory callback raised, " .. tostring(err)) end
+  end
 end
 
 --- Launcher:rowsOfKind(kind) -> rows

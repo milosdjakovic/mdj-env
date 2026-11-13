@@ -159,6 +159,83 @@ func runCorpus(_ file: String, _ doc: [String: Any]) {
   }
 }
 
+// queryassoc and launcher, as steps, the launcher's learned memory and the order it gives the
+// launcher, test/fixtures.lua's runSteps. The app does not run the launcher's own supplier, so a
+// launcher case that steps through it, a page, a query source, a pick or a prune of apps, is
+// counted as not ported. A catalog row is ranked as the bridge hands it, its title the primary
+// field and its memory key app:<bundleID>, with the bonus the app works out from the memory as
+// Hammerspoon sends it, QueryMemory.order(in:for:) over the store's memory().
+let memorySteps: Set<String> = ["note", "times", "lead", "order", "prune", "reload", "storedQueriesAtMost"]
+let launcherSteps: Set<String> = ["catalog", "shown", "bonus"]
+
+func memoryOptions(_ raw: Any?) -> QueryMemoryStore.Options {
+  var o = QueryMemoryStore.Options()
+  guard let d = raw as? [String: Any] else { return o }
+  if let v = number(d["decay"]) { o.decay = v }
+  if let v = number(d["margin"]) { o.margin = v }
+  if let v = number(d["floor"]) { o.floor = v }
+  if let v = number(d["maxQueries"]) { o.maxQueries = Int(v) }
+  if let v = number(d["minPrefix"]) { o.minPrefix = Int(v) }
+  if let v = number(d["maxPrefix"]) { o.maxPrefix = Int(v) }
+  return o
+}
+
+func runMemory(_ file: String, _ doc: [String: Any], launcher: Bool) {
+  for case let c as [String: Any] in (doc["cases"] as? [Any]) ?? [] {
+    let name = c["name"] as? String ?? "?"
+    let steps = ((c["steps"] as? [Any]) ?? []).compactMap { $0 as? [String: Any] }
+    let known = launcher ? memorySteps.union(launcherSteps) : memorySteps
+    if steps.contains(where: { !Set($0.keys).isSubset(of: known) }) { skipped += 1; continue }
+    let options = memoryOptions(c["options"])
+    let store = QueryMemoryStore(options: options, stored: c["stored"])
+    var catalog: [[String: Any]] = []
+    var problems: [String] = []
+    for (n, step) in steps.enumerated() {
+      func pair(_ k: String) -> (String, Any?) {
+        let p = step[k] as? [Any] ?? []
+        return (p.first as? String ?? "", p.count > 1 ? p[1] : nil)
+      }
+      if let _ = step["note"] {
+        let (q, key) = pair("note")
+        for _ in 0..<Int(number(step["times"]) ?? 1) { store.note(q, key as? String ?? "") }
+      } else if step["lead"] != nil {
+        let (q, want) = pair("lead")
+        let got: Any = store.orderFor(q).first ?? NSNull()
+        if !same(got, want) { problems.append("step \(n + 1), lead of \(show(q)) wanted \(show(want)), got \(show(got))") }
+      } else if step["order"] != nil {
+        let (q, want) = pair("order")
+        let got = store.orderFor(q)
+        if !same(got, want) { problems.append("step \(n + 1), order of \(show(q)) wanted \(show(want)), got \(show(got))") }
+      } else if let p = step["prune"] as? [String: Any] {
+        let claims = p["claims"] as? String ?? ""
+        store.prune(valid: (p["present"] as? [Any] ?? []).compactMap { $0 as? String }, inScope: { $0.hasPrefix(claims) })
+      } else if step["reload"] != nil {
+        // The Lua store writes on every note and reads once, so a reload changes nothing a fixture
+        // can see beyond what the store already holds.
+      } else if let most = number(step["storedQueriesAtMost"]) {
+        if Double(store.count) > most { problems.append("step \(n + 1), stored queries wanted at most \(Int(most)), got \(store.count)") }
+      } else if let rows = step["catalog"] as? [Any] {
+        catalog = rows.compactMap { $0 as? [String: Any] }
+      } else if step["shown"] != nil {
+        let (q, want) = pair("shown")
+        let bonus = QueryMemory.bonus(QueryMemory.order(in: store.memory(), for: q))
+        let rows = catalog.map { r -> RankRow in
+          let title = r["title"] as? String ?? ""
+          return RankRow(title: title, subTitle: r["subTitle"] as? String, filterText: title,
+            bonus: bonus["app:" + (r["bundleID"] as? String ?? "")] ?? 0)
+        }
+        let got = Rank.apply(rows, query: q).order.map { catalog[$0]["title"] ?? NSNull() }
+        if !same(got, want) { problems.append("step \(n + 1), shown for \(show(q)) wanted \(show(want)), got \(show(got))") }
+      } else if step["bonus"] != nil {
+        let (q, want) = pair("bonus")
+        let got = QueryMemory.bonus(QueryMemory.order(in: store.memory(), for: q))
+        if !same(got, want ?? [String: Any]()) { problems.append("step \(n + 1), bonus for \(show(q)) wanted \(show(want)), got \(show(got))") }
+      }
+    }
+    if problems.isEmpty { passed += 1 } else { for p in problems { fail(file, name, p) } }
+  }
+}
+
 // A rectangle as the fixtures write one, under only where it is set.
 func rectFields(_ r: LayoutRect?) -> Any {
   guard let r else { return NSNull() }
@@ -360,6 +437,8 @@ let runners: [String: (String, [String: Any]) -> Void] = [
   "chooser.pane": runPane,
   "rank.order": runOrder,
   "rank.corpus": runCorpus,
+  "queryassoc": { runMemory($0, $1, launcher: false) },
+  "launcher": { runMemory($0, $1, launcher: true) },
 ]
 
 guard CommandLine.arguments.count == 2 else {

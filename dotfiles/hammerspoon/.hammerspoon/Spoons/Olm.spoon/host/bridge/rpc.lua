@@ -96,6 +96,19 @@ function M.new(opts)
     end)
   end
 
+  --- session:notify(method, params) -> true when sent, a notification of ours, never answered,
+  --- sent only once hello has opened the session
+  function session:notify(method, params)
+    if not session.open then return false end
+    local ok, text = pcall(opts.json.encode, { jsonrpc = "2.0", method = method, params = params or {} })
+    if not (ok and type(text) == "string") then
+      log("could not encode the notification " .. tostring(method) .. ", " .. tostring(text))
+      return false
+    end
+    opts.send(text)
+    return true
+  end
+
   --- session:reset() forgets everything of the connection that went
   function session:reset()
     session.open = false

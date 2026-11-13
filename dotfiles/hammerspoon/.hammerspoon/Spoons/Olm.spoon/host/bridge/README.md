@@ -24,7 +24,10 @@ writes them. It connects on load and whenever the app posts `local.olm.Olm.liste
 while no socket is there, and serves nothing that could run a row. `frame.lua`, `rpc.lua` and
 `serve.lua` beside it are pure and replayed by `test/bridgeserve.lua` and the transcripts under
 `test/fixtures/bridge/`, `transport.lua` is the one file over `hs.socket`, and `test/bridgecheck.sh`
-stands in for the app on the socket. The setting is off, so turning it off again is the way back.
+stands in for the app on the socket. The setting is on since step 2.3, and turning it off again is
+the way back. After each pick the launcher records it tells the app the queries whose memory moved,
+the `memory` notification, through `memoryChanged`, and a spelling the store cut inside a letter,
+which is not UTF-8, never crosses.
 
 It runs the shadow of step 1.3e for each tool `config/plugins.lua` lists under `shadows`, file
 search today, where the piece is on. The Lua list stays the daily one, so `serves` is empty while
@@ -34,4 +37,11 @@ ranked as the stage ranks it, without the bonus a person's use adds, and written
 its own engine, and the app appends what it found to `~/.olm/log/shadow-filesearch.jsonl`, one line
 per query, `same` true or what differs. The root wires it through `shadowWith`, from the tool's
 `watch` and `held` and its presentation's `searchText` and `rowLimit`, and names no tool.
+
+The launcher is shadowed too since step 2.3, and its answers go the other road. The app holds the
+launcher's level over the socket, so each settled answer is sent there as the notification `shadow`,
+the query, whether a scope claimed it and the keys, each row's memory key, and the app ranks the
+rows the bridge sends with the bonus it works out from the memory and logs to
+`~/.olm/log/shadow-launcher.jsonl`. The root marks that tool's source `socket`, and names the
+launcher only as the identity it already hands `serveLauncher`.
 

@@ -82,6 +82,10 @@ if [ "$tiers" = "dry" ]; then
   "$here/olmindex.sh"
   rc=$?
   [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ] || exit 1
+  # Olm.app's end of the bridge over a socket of its own, see olmbridge.sh. Exit 2 is the same skip.
+  "$here/olmbridge.sh"
+  rc=$?
+  [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ] || exit 1
   echo
   exec "$here/drygate.sh" "$@"
 fi

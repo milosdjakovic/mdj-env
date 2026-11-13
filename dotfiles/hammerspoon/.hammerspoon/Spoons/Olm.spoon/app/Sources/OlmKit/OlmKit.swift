@@ -36,10 +36,21 @@ public struct Row: Sendable, Equatable {
   /// A row that says something rather than being something, a status or a help line, the Lua row's
   /// enabled false. The stage draws it disabled and never chooses it, previews it or offers an action.
   public var inert: Bool
+  /// Words the row answers to without showing them, a secondary search field each, a comma ending a
+  /// phrase inside one, the launcher's rows among them, step 2.3.
+  public var keywords: [String]
+  /// Further names never shown, matched like the title.
+  public var names: [String]?
+  /// A smaller tier sorts first among ranked rows.
+  public var tier: Double
 
   public init(key: String, title: String, subtitle: String = "", icon: Icon? = nil,
               filterText: String? = nil, bonus: Double = 0, pinned: Bool = false, fromQuery: Bool = false,
-              pathLead: String? = nil, inert: Bool = false) {
+              pathLead: String? = nil, inert: Bool = false, keywords: [String] = [], names: [String]? = nil,
+              tier: Double = 0) {
+    self.keywords = keywords
+    self.names = names
+    self.tier = tier
     self.pathLead = pathLead
     self.inert = inert
     self.key = key

@@ -115,5 +115,42 @@ local bad = serve.new({ rpc = rpc, clean = frame.clean,
 local catalog = bad.methods.catalog.run({})
 ok(catalog.rows[1].title == "a\u{FFFD}b" and catalog.rows[1].lossy == true, "a title that is not UTF-8 crosses cleaned and lossy")
 
+-- A notification of ours goes only once hello has opened the session, step 2.3.
+local told = {}
+local n = rpc.new({ json = JSON, send = function(t) told[#told + 1] = json.decode(t) end,
+  defer = function(fn) queued[#queued + 1] = fn end,
+  methods = { hello = { run = function(_, s) s.open = true; return {} end } } })
+ok(n:notify("shadow", { query = "ma" }) == false and #told == 0, "nothing is notified before hello")
+n:receive(encode({ jsonrpc = "2.0", id = "h", method = "hello", params = { protocol = 1 } }))
+ok(n:notify("shadow", { query = "ma" }) == true, "after hello a notification is sent")
+ok(told[2] and told[2].method == "shadow" and told[2].id == nil and told[2].params.query == "ma",
+  "as a message with a method, its params and no id")
+n:reset()
+ok(n:notify("shadow", {}) == false, "and a reset session sends none")
+
+-- The memory the app holds is moved by the queries that changed, nothing before a launcher level.
+local memory = { ma = { "app:maps", "app:mail" }, sa = { "app:safari" } }
+local remembering = serve.new({ rpc = rpc, clean = frame.clean, rowLimit = 50,
+  launcher = { rows = function() return {} end, memoryKey = memoryKey, memory = function() return memory end },
+  icons = function() return nil end })
+ok(remembering.methods.hello.run({ protocol = 1 }, {}).limits.rowLimit == 50,
+  "hello sends the row limit the root hands in")
+ok(remembering.memoryChanges() == nil, "no memory change is sent before a launcher level opens")
+remembering.methods.open.run({ what = { launcher = true } })
+ok(remembering.memoryChanges() == nil, "nor when nothing moved since the open")
+memory = { ma = { "app:mail", "app:maps" }, sa = { "app:safari" }, te = { "app:terminal" } }
+local moved = remembering.memoryChanges()
+ok(moved and moved.memory.ma[1] == "app:mail" and moved.memory.te[1] == "app:terminal" and moved.memory.sa == nil,
+  "a pick sends the queries whose order moved and the new ones, and leaves the rest out")
+memory = { ma = { "app:mail", "app:maps" }, te = { "app:terminal" } }
+moved = remembering.memoryChanges()
+ok(moved and moved.memory.sa and next(moved.memory.sa) == nil and moved.memory.ma == nil,
+  "a forgotten query is sent with an empty order")
+ok(remembering.memoryChanges() == nil, "and once sent, nothing more")
+memory = { ma = { "app:mail", "app:maps" }, te = { "app:terminal" }, ["a\xC4"] = { "app:cut" } }
+ok(remembering.memoryChanges() == nil, "a spelling cut inside a letter never crosses")
+remembering.methods.hello.run({ protocol = 1 }, {})
+ok(remembering.memoryChanges() == nil, "a new session sends nothing until it opens the launcher again")
+
 print(string.format("bridgeserve: %d checks, %d failed", checks, failures))
 os.exit(failures == 0 and 0 or 1)

@@ -100,7 +100,7 @@ The app's first request is `hello`, and the Lua side answers nothing else first.
 ```json
 {"jsonrpc":"2.0","id":"a1","method":"hello","params":{"protocol":1,"app":"0.1.0","features":[]}}
 {"jsonrpc":"2.0","id":"a1","result":{"protocol":1,"olm":"2026-11-07","features":[],
-  "limits":{"message":8388608,"rowLimit":200,"name":65536}}}
+  "limits":{"message":8388608,"rowLimit":50,"name":65536}}}
 ```
 
 `protocol` is the major version. A Lua side that does not speak the app's answers `-32010` and the
@@ -108,10 +108,13 @@ app stays unconnected. Inside one version a field nobody knows is ignored, a met
 answers `-32601`, and a value of an enumeration nobody knows, a new effect, a new outcome, is read
 as nothing and logged, so a newer peer never makes an older one act. A feature both sides list in
 `features` may be used. Removing a field or changing its meaning is a new major version.
-`limits.rowLimit` is the Lua engine's own default, `ROW_LIMIT` in `lib/chooser/engine/init.lua`,
-which a level that declares no limit of its own uses.
+`limits.rowLimit` is the chooser's own default, `chooser.rowLimit` in `config/settings.lua`, which
+a level that declares no limit of its own uses, as the Lua stage does. Revised 2026-11-13 by step
+2.3, since it named the engine's `ROW_LIMIT`, which is the setting handed in and not a number of its
+own, and 2.2 sent 200 where the Lua stage cut at 50.
 
-After `hello` the app sends `metrics`, below, and the session is open.
+After `hello` the app sends `metrics`, below, and the session is open. Step 2.3 opens the session at
+`hello` and leaves `metrics` for 3.2, the first step with a list of the app's to measure.
 
 ## The words both sides use
 
@@ -228,7 +231,8 @@ table lacks is drawn blank and logged once.
 
 ## metrics
 
-The app sends the notification `metrics` after `hello` and whenever the chooser's width changes.
+The app sends the notification `metrics` after `hello` and whenever the chooser's width changes,
+from step 3.2.
 
 ```json
 {"jsonrpc":"2.0","method":"metrics","params":{"textBudget":612,"font":{"title":"body","subtitle":"caption"}}}
@@ -536,10 +540,31 @@ as Lua's `string.lower` does, never by Unicode case rules, or a query with a cap
 would find another memory. In the launcher the memory is the bonus. In any other level
 the row's own `bonus` is.
 
+A spelling the memory holds that is not UTF-8 is never sent. `lib/queryassoc.lua` records a pick
+under every prefix of the query cut by bytes, so a query of letters outside ASCII can leave a
+spelling cut inside a letter, which no JSON can carry. The app walks a typed query's prefixes at
+letter boundaries only, so it never looks for one, step 2.3.
+
+**The shadow, step 2.3, until the flip of 3.2.** Each answer the Lua launcher settles on, after it
+has stayed put for the bridge's `SHADOW_SETTLE`, is sent as the notification `shadow`, Lua to app.
+
+```json
+{"jsonrpc":"2.0","method":"shadow","params":{"tool":"launcher","query":"ma","claimed":false,
+  "keys":["app:com.apple.Maps","app:com.apple.mail"]}}
+```
+
+`keys` are the memory keys of the rows the Lua stage shows, in its order, ranked as the stage ranks
+them and cut at its row limit, a row with no memory key left out, and `claimed` says a query source
+claimed the query. The app asks `rows` for the same query on its launcher level, ranks them with the
+bonus it works out from the memory, names its rows the same way and logs one line per query to
+`~/.olm/log/shadow-launcher.jsonl`. Nothing is answered and nothing is shown.
+
 `catalog` asks for the launcher's rows at rest outside any level, for step 2.3's shadow ranking,
 and answers `{"revision":"c41","rows":[...]}`, with `unchanged` against `have` and the notification
 `catalogChanged` when an app is installed or a plugin reloaded. Its refs are for reading only, and
-choosing a row is done in a launcher level.
+choosing a row is done in a launcher level. Step 2.3's shadow ranks a launcher level's `rows`
+instead, the road 3.2's launcher takes, so the shadow checks that road, and `catalog` is served and
+not yet asked.
 
 ## Errors
 

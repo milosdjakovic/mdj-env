@@ -23,7 +23,7 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 2.3, shadow ranking for the launcher, which needs the app to listen on the socket. File search is the app's since 1.5's flip on 2026-11-12.
+Next. 2.3's gate, the launcher's shadow log empty over a few days of real use, from 2026-11-13. File search is the app's since 1.5's flip on 2026-11-12.
 
 Stage 0, contracts
 - [x] 0.1 The decision record, 2026-11-05
@@ -81,6 +81,7 @@ Stage 2, the bridge, read only
 - [x] 2.1 Probe the transport, a Unix socket the app listens on, each message framed by its length, 2026-11-13
 - [x] 2.2 `host/bridge` serves, read only, the launcher over the socket, off by the `socket` setting, 2026-11-13
 - [ ] 2.3 Shadow ranking for the launcher
+  - Its design note is agreed, `docs/DESIGN-APP-BRIDGE.md`, the socket setting committed on and the Lua answer told over the socket. Built on branch `olm-bridge-shadow`, the app listening on `~/.olm/run/bridge.sock` in a new target `OlmBridge`, the launcher Hammerspoon serves held as a bridged source with the memory as its bonus, `lib/queryassoc.lua` ported into `OlmSearch` and pinned by the memory fixtures, and the Lua launcher's every settled answer sent as the notification `shadow`. Live on 2026-11-13, fourteen queries logged same. The gate, the log at `~/.olm/log/shadow-launcher.jsonl` empty of differences over a few days of Milos's own use, is next.
 
 Stage 3, every list in the app
 - [ ] 3.1 Choosing a row over the bridge

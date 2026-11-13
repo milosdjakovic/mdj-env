@@ -206,6 +206,7 @@ function obj:serveLauncher(provider)
   local frame, rpc, serve, transport = sibling("frame"), sibling("rpc"), sibling("serve"), sibling("transport")
   local service = serve.new({ rpc = rpc, clean = frame.clean, launcher = provider.launcher,
     icons = provider.icons or function() return nil end, version = provider.version,
+    rowLimit = provider.rowLimit,
     styled = function(v)
       if type(v) == "userdata" and v.getString then return v:getString() end
       return tostring(v)
@@ -227,8 +228,24 @@ function obj:serveLauncher(provider)
     onDown = function() session:reset(); log.i("Olm.app's socket went") end,
     log = function(text) log.w(text) end })
   self._conn = conn:start()
-  self._service = service
+  self._service, self._session = service, session
   return conn
+end
+
+--- obj:notify(method, params) -> true when sent, a notification to the app over the socket, sent
+--- only while a session is open, so nothing queues for an app that is not there
+function obj:notify(method, params)
+  if not (self._conn and self._session) then return false end
+  return self._session:notify(method, params)
+end
+
+--- obj:memoryChanged() tells the app the launcher's memory moved, after a pick the launcher
+--- recorded, with only the queries whose order differs from what this connection was sent, the
+--- protocol's memory notification. Nothing goes before the app opened a launcher level.
+function obj:memoryChanged()
+  if not self._service then return end
+  local params = self._service.memoryChanges()
+  if params then self:notify("memory", params) end
 end
 
 --- obj:appState(identity, name) -> table or nil
@@ -418,7 +435,10 @@ end
 --- obj:shadowWith(identity, source) runs the shadow for one tool. source.watch(fn) calls fn after
 --- every change of the tool's list, and source.answer() says what the list settled on, { query,
 --- status, keys }, keys naming its rows in the order the shared search ranked them. A list still
---- searching is not handed over, and neither is the query sent last.
+--- searching is not handed over, and neither is the query sent last. source.socket true sends the
+--- answer over the app's socket as the notification shadow, step 2.3's road for a list the app
+--- answers through the bridge, the launcher, in place of the file and the distributed notification
+--- a native list's shadow keeps.
 function obj:shadowWith(identity, source)
   if type(identity) ~= "string" or not identity:match("^%a%w*$") then return end
   if type(source) ~= "table" or type(source.watch) ~= "function" or type(source.answer) ~= "function" then return end
@@ -448,6 +468,13 @@ function obj:_shadow(identity, source)
   end
   if answer.status == "searching" or answer.status == "loading" then return end
   if self._shadowLast[identity] == answer.query then return end
+  if source.socket then
+    if self:notify("shadow", { tool = identity:lower(), query = answer.query, status = answer.status,
+      claimed = answer.claimed == true, keys = answer.keys or {} }) then
+      self._shadowLast[identity] = answer.query
+    end
+    return
+  end
   self._shadowLast[identity] = answer.query
   self._shadowId = self._shadowId + 1
   local name = identity:lower() .. "shadow"

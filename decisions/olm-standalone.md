@@ -639,3 +639,27 @@ list, and until then that list stays on Lua.
   its listening note, its peer this user, hello in 1.2 ms, the catalog of 219 rows in 37 ms, the
   launcher's rows in 16.5 ms and an unchanged answer in about 5 ms, and the console said connected
   and went and nothing else.
+- 2026-11-13 13:46. Step 2.3, the launcher's shadow, its design note `docs/DESIGN-APP-BRIDGE.md`
+  agreed with Milos. He chose the socket setting committed as true, since the olmapp piece already
+  keeps the bridge to this Mac, over a per machine row, a second switch for the same thing, and the
+  Lua launcher's settled answer told over the socket as a new notification, `shadow`, over file
+  search's road of a file and a distributed notification, which would leave two roads to retire at
+  3.2's flip. The app listens from launch in a new target, `OlmBridge`, on its own queue, and holds
+  the launcher as a bridged source, its rows patched by each answer's changes and its bonus worked
+  out from the memory the open sent and each `memory` notification moves, the Lua row's own bonus
+  not read. `lib/queryassoc.lua` is ported into `OlmSearch` only so `olm-fixtures` runs
+  `memory.json` whole and the eight `launcher.json` cases that do not step through the launcher's
+  own supplier, through the same lookup the app reads the sent memory with. The shadow ranks a
+  launcher level's `rows`, the road 3.2 takes, rather than `catalog`, which 2.2 served for it. Found
+  while building. `limits.rowLimit` was 200 where the Lua stage cuts a list naming no limit at
+  `chooser.rowLimit`, 50, so it is that setting now and the protocol's text naming the engine's
+  `ROW_LIMIT` was wrong. The memory keeps a pick's spellings cut by bytes, so a query of letters
+  outside ASCII can leave a spelling that is not UTF-8, which would have failed the JSON of the
+  whole open answer, so `serve.lua` leaves such a spelling out. `metrics` waits for 3.2, since
+  nothing asks for a width before the app has a list. The check program first hung, its blocking
+  read on the main thread while the shadow it drove ran on the main actor, a fault of the check and
+  not of the app. Result: `olm-bridge-check` 29 checks, `test/bridgeserve.lua` 34, the dry suite
+  and the unit cases clean. Live with the lock, Hammerspoon connected moments after it loaded and
+  fourteen queries through the launcher's supplier, an empty one, one letter cut at the row limit, a
+  calculator answer, a capital and a claimed scope among them, all logged same, the console clean.
+  Open: the gate, the log empty over a few days of Milos's own use.

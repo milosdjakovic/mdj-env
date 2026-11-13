@@ -107,12 +107,13 @@ return {
     -- into it. The launcher's slash scope stays on the Lua list until stage 3.
     serves = { "fileSearch" },
     -- Whether the bridge connects to the app's socket, ~/.olm/run/bridge.sock, and serves the
-    -- launcher read only, step 2.2 of the plan. Off until the app listens there, and turning it off
-    -- again is the way back.
-    socket = false,
+    -- launcher read only, step 2.2 of the plan. On since step 2.3, where the olmapp piece is on,
+    -- which is the only place the bridge acts, and turning it off again is the way back.
+    socket = true,
     -- The tools whose every settled answer the app answers again and compares, step 1.3e. File
     -- search's compares nothing while the app serves it and resumes by itself after a back out.
-    shadows = { "fileSearch" },
+    -- The launcher's, step 2.3, goes over the socket, the app ranking the rows the bridge sends.
+    shadows = { "fileSearch", "launcher" },
     shares = { filesearch = { types = filesearch.types, limits = filesearch.limits, preview = filesearch.preview,
       placeholder = filesearch.placeholder, roots = filesearch.roots, prune = filesearch.prune,
       pruneLocal = filesearch.pruneLocal, searchAlso = filesearch.searchAlso } },

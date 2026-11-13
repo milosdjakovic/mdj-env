@@ -25,7 +25,7 @@ public actor Searcher {
   }
 
   static func rankRow(_ r: Row) -> RankRow {
-    RankRow(title: r.title, subTitle: r.subtitle, filterText: r.filterText, pinned: r.pinned,
-      fromQuery: r.fromQuery, bonus: r.bonus)
+    RankRow(title: r.title, subTitle: r.subtitle, filterText: r.filterText, keywords: r.keywords, names: r.names,
+      pinned: r.pinned, fromQuery: r.fromQuery, tier: r.tier, bonus: r.bonus)
   }
 }

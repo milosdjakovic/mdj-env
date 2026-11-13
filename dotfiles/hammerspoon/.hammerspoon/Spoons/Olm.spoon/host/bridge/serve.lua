@@ -1,7 +1,7 @@
 -- What the bridge serves, step 2.2 of docs/PLAN-STANDALONE.md, read only. `hello`, the launcher's
 -- `catalog` at rest, `icons` by owner, `open` for the launcher with its query memory, `rows` for a
 -- query on that level, `close` and the `metrics` notification, as docs/PROTOCOL-BRIDGE.md writes
--- them, and nothing that runs anything, so no row can be chosen through it. Any other list asked
+-- them, and the `memory` notification after a pick, step 2.3, and nothing that runs anything, so no row can be chosen through it. Any other list asked
 -- for answers -32013, not served yet. Pure, the launcher and the manifests are handed in as
 -- functions, so test/bridgeserve.lua replays the transcripts in test/fixtures/bridge over fakes.
 
@@ -23,9 +23,12 @@ local SF, GLYPH = "sf", "emoji"
 --- opts.icons      function(owner) -> the icons its manifest declares, or nil
 --- opts.version    the olm version hello names
 --- opts.styled     function(value) -> plain text, for an hs.styledtext, optional
+--- opts.rowLimit    the rows a list shows when it names no limit of its own, chooser.rowLimit, which
+---                  hello sends as limits.rowLimit, M.ROW_LIMIT when none is handed in
 function M.new(opts)
   local rpc = opts.rpc
-  local service = { levels = {}, nextLevel = 0, metrics = nil }
+  local service = { levels = {}, nextLevel = 0, metrics = nil, sentMemory = nil }
+  local rowLimit = type(opts.rowLimit) == "number" and opts.rowLimit >= 1 and opts.rowLimit or M.ROW_LIMIT
 
   -- A row's identity across answers. A row with a memory key is its key, which the launcher keeps
   -- for every row worth remembering. Any other is minted per item table, weakly, so a row whose
@@ -142,6 +145,19 @@ function M.new(opts)
     return list
   end
 
+  -- The launcher's memory as it may cross. The store keeps each spelling's prefixes cut by bytes, so
+  -- a query of letters outside ASCII can be stored cut inside a letter, which is not UTF-8 and
+  -- would fail the whole answer's JSON. Such a spelling is left out. The app walks a typed query's
+  -- prefixes at letter boundaries only, so it never looks for one.
+  local function memoryOut()
+    local out = {}
+    for query, order in pairs(opts.launcher.memory and opts.launcher.memory() or {}) do
+      local _, lossy = opts.clean(query)
+      if not lossy then out[query] = order end
+    end
+    return out
+  end
+
   local methods = {}
 
   methods.hello = { run = function(params, session)
@@ -149,9 +165,9 @@ function M.new(opts)
       rpc.fail(rpc.VERSION, "protocol " .. tostring(params.protocol) .. " is not spoken", { protocol = M.PROTOCOL })
     end
     session.open = true
-    service.levels, service.nextLevel = {}, 0
+    service.levels, service.nextLevel, service.sentMemory = {}, 0, nil
     return { protocol = M.PROTOCOL, olm = opts.version or "0", features = {},
-      limits = { message = 8 * 1024 * 1024, rowLimit = M.ROW_LIMIT, name = M.NAME_LIMIT } }
+      limits = { message = 8 * 1024 * 1024, rowLimit = rowLimit, name = M.NAME_LIMIT } }
   end }
 
   -- The pixel room a row's text has, kept for stageTextBudget once a list asks it, step 3.
@@ -202,7 +218,9 @@ function M.new(opts)
     local level = { id = "v" .. service.nextLevel, kind = "launcher", refs = {}, items = {},
       nextRef = 0, sent = nil, revision = 0 }
     service.levels[level.id] = level
-    local memory = opts.launcher.memory and opts.launcher.memory() or {}
+    local memory = memoryOut()
+    service.sentMemory = {}
+    for query, order in pairs(memory) do service.sentMemory[query] = table.concat(order, "\n") end
     return { level = { id = level.id,
       placeholder = opts.launcher.placeholder and opts.launcher.placeholder() or "",
       previewPane = false, ranking = "app", rowLimit = "default", memory = memory } }
@@ -255,6 +273,29 @@ function M.new(opts)
   }
 
   service.methods = methods
+
+  --- service.memoryChanges() -> the params of a memory notification, { memory = { [query] = order } },
+  --- naming each query whose order differs from what this connection was last sent, a forgotten one
+  --- as an empty order, or nil when nothing differs or no launcher level was opened to send it to
+  function service.memoryChanges()
+    if not service.sentMemory or not opts.launcher.memory then return nil end
+    local now, changed, any = memoryOut(), {}, false
+    for query, order in pairs(now) do
+      local sig = table.concat(order, "\n")
+      if service.sentMemory[query] ~= sig then
+        changed[query], any = order, true
+        service.sentMemory[query] = sig
+      end
+    end
+    for query in pairs(service.sentMemory) do
+      if now[query] == nil then
+        changed[query], any = {}, true
+        service.sentMemory[query] = nil
+      end
+    end
+    return any and { memory = changed } or nil
+  end
+
   return service
 end
 

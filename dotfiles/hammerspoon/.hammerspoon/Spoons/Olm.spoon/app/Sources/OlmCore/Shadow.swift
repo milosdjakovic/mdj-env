@@ -9,6 +9,10 @@
 //
 // A query the source cannot answer like for like yet is logged as skipped, with the reason the
 // composition root's skip answers, each naming the step that builds it.
+//
+// A list the app answers through the bridge, the launcher since step 2.3, is told what the Lua side
+// settled on over the bridge's socket instead, `settled`, and its rows are named by what `named`
+// answers, the launcher's memory keys, so a row the Lua side cannot name is left out on both sides.
 
 import Foundation
 import OlmKit
@@ -21,11 +25,16 @@ public final class Shadow {
   private let skip: (String) -> String?
   private let requestURL: URL
   private let logURL: URL
+  private let named: (@Sendable ([Row]) async -> [String])?
+  private var told = 0
   // How many differing keys a line names on each side, so a line stays readable.
   private static let named = 5
 
+  /// named answers the keys of the rows the app ranked that the Lua side names too, every row's key
+  /// when nil, the launcher's leaving out a row with no memory key.
   public init(tool: String, source: any ListSource, searcher: Searcher, run: URL, log: URL,
-              skip: @escaping (String) -> String?) {
+              skip: @escaping (String) -> String?, named: (@Sendable ([Row]) async -> [String])? = nil) {
+    self.named = named
     self.tool = tool
     self.source = source
     self.searcher = searcher
@@ -39,6 +48,7 @@ public final class Shadow {
     var query: String
     var status: String?
     var keys: [String]
+    var claimed = false
   }
 
   func read() -> Request? {
@@ -56,11 +66,22 @@ public final class Shadow {
   /// place, since the bridge rewrites one file and the newer answer is the one worth having.
   public func run(id: Int) {
     guard let request = read(), request.id >= id else { return }
+    answer(request)
+  }
+
+  /// Compares what the Lua side settled on, told over the bridge's socket rather than by a file,
+  /// step 2.3, the launcher's.
+  public func settled(query: String, keys: [String], status: String?, claimed: Bool) {
+    told += 1
+    answer(Request(id: told, query: query, status: status, keys: keys, claimed: claimed))
+  }
+
+  private func answer(_ request: Request) {
     if let why = skip(request.query) {
       append(["at": Self.now(), "id": request.id, "query": request.query, "skipped": why])
       return
     }
-    let source = source, searcher = searcher
+    let source = source, searcher = searcher, named = named
     Task {
       let level = await source.open(query: request.query)
       guard let answer = try? await source.rows(Query(text: request.query, generation: request.id)) else { return }
@@ -68,7 +89,9 @@ public final class Shadow {
       let status = answer.status ?? (ranked.rows.isEmpty ? answer.emptyStatus : nil)
       // A pinned row or one made from the query is the list's own, the `..` row of a browse among
       // them, and the Lua side leaves them out of what it sends too.
-      self.compare(request, ranked.rows.filter { !$0.pinned && !$0.fromQuery }.map(\.key), status: status)
+      let kept = ranked.rows.filter { !$0.pinned && !$0.fromQuery }
+      let keys = await named?(kept) ?? kept.map(\.key)
+      self.compare(request, keys, status: status)
     }
   }
 
@@ -79,6 +102,7 @@ public final class Shadow {
       "same": lua == app, "lua": lua.count, "app": app.count,
     ]
     if let s = request.status { line["luaStatus"] = s }
+    if request.claimed { line["claimed"] = true }
     if let status { line["appStatus"] = status }
     if lua != app {
       let shared = min(lua.count, app.count)

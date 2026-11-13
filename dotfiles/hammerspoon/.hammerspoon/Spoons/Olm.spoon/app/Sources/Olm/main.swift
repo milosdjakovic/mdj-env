@@ -8,10 +8,14 @@
 // olm://shadow?tool=<name>&id=N compares the Lua list's answer with the app's, OlmCore's Shadow, and
 // the distributed notification local.olm.Olm.shadow, object "<name>:<N>", asks the same, which is
 // how host/bridge asks it.
+// The bridge's socket, ~/.olm/run/bridge.sock, is listened on from launch, step 2.3, and the launcher
+// Hammerspoon serves over it is shadowed, each answer the Lua launcher settles on ranked again here
+// and every difference logged to ~/.olm/log/shadow-launcher.jsonl. Nothing it serves is shown yet.
 // An olm:// URL never runs anything, and one this app does not know is logged and dropped.
 
 import AppKit
 import FileSearchPlugin
+import OlmBridge
 import OlmCore
 import OlmKit
 
@@ -29,6 +33,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private lazy var stage = Stage(searcher: searcher)
   private let sources: [String: any ListSource]
   private let shadows: [String: Shadow]
+  private let bridge = Bridge(path: context.run.appendingPathComponent("bridge.sock").path)
+  private let bridgedLauncher: BridgedLauncher
+  private let launcherShadow: Shadow
 
   // The tools the serves share names, none where it is missing or names none.
   static func served(in run: URL) -> [String] {
@@ -49,6 +56,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     shadows = [shadowed.manifest.name: Shadow(tool: shadowed.manifest.name, source: shadowed,
       searcher: searcher, run: context.run, log: olm.appendingPathComponent("log"),
       skip: { FileSearchSource.shadowSkip($0, settings: .read(from: context.run)) })]
+    let launcher = BridgedLauncher(bridge: bridge)
+    bridgedLauncher = launcher
+    launcherShadow = Shadow(tool: launcher.manifest.name, source: launcher, searcher: searcher,
+      run: context.run, log: olm.appendingPathComponent("log"), skip: { _ in nil },
+      named: { await launcher.remembered($0) })
     super.init()
   }
 
@@ -86,6 +98,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       name: Notification.Name("local.olm.Olm.verb"), object: nil, suspensionBehavior: .deliverImmediately)
     DistributedNotificationCenter.default().addObserver(self, selector: #selector(askNote(_:)),
       name: Notification.Name("local.olm.Olm.ask"), object: nil, suspensionBehavior: .deliverImmediately)
+    // The bridge, step 2.3. Each answer the Lua launcher settles on comes as the shadow notification.
+    let bridge = bridge, launcher = bridgedLauncher, shadow = launcherShadow
+    Task {
+      await bridge.attach(launcher: launcher, settled: { s in
+        guard s.tool == launcher.manifest.name else { return }
+        Task { @MainActor in shadow.settled(query: s.query, keys: s.keys, status: s.status, claimed: s.claimed) }
+      })
+      if let why = await bridge.start() { NSLog("Olm: the bridge's socket is not listening, %@", why) }
+    }
+  }
+
+  func applicationWillTerminate(_ notification: Notification) {
+    let bridge = bridge
+    let done = DispatchSemaphore(value: 0)
+    Task.detached { await bridge.stop(); done.signal() }
+    _ = done.wait(timeout: .now() + 0.5)
   }
 
   @objc private func verbNote(_ note: Notification) {

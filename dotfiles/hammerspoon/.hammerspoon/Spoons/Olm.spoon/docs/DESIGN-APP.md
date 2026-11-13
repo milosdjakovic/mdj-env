@@ -85,7 +85,8 @@ list, so a dependency the other way does not build.
    sources and the catalog the launcher lists. It is the one `ChooserSource` the panel talks to,
    so the panel never meets a plugin.
 6. **The sources.** Everything that answers a list, below. Each depends on `OlmKit`, and the
-   bridged source on the transport too.
+   bridged source on the transport too. Both live in `OlmBridge` since step 2.3, the socket the
+   app listens on and the launcher Hammerspoon serves over it, `docs/DESIGN-APP-BRIDGE.md`.
 7. **`Olm`, the app.** `main.swift` is the composition root. It reads the config, builds the
    look, the stage and the panel, constructs every source, registers it under its name, and
    answers `olm://` URLs by asking the stage to open a level. Nothing else lives there.

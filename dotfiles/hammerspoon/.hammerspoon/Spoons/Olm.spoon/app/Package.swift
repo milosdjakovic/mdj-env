@@ -8,6 +8,7 @@
 //   OlmLook      where a chooser stands, ported from the Lua geometry
 //   OlmChooser   the swift chooser's own panel, the package beside the Lua side
 //   OlmCore      the stage, the searcher, the look and the shadow
+//   OlmBridge    the socket Hammerspoon connects to and the lists it serves, step 2.3
 //   plugins      one module each under Plugins/, depending on OlmKit alone
 //   Olm          the composition root
 //
@@ -36,15 +37,20 @@ let package = Package(
       dependencies: ["OlmKit", "OlmSearch", "OlmLook", .product(name: "OlmChooser", package: "swift")],
       path: "Sources/OlmCore"
     ),
+    // The app's end of the bridge, docs/PROTOCOL-BRIDGE.md, and the launcher Hammerspoon serves over it.
+    .target(name: "OlmBridge", dependencies: ["OlmKit", "OlmSearch"], path: "Sources/OlmBridge"),
     // File search, the first native plugin. Its grammar and its index are its own.
     .target(name: "FileSearchPlugin", dependencies: ["OlmKit"], path: "Plugins/FileSearch"),
     .executableTarget(
       name: "Olm",
-      dependencies: ["OlmKit", "OlmCore", "FileSearchPlugin"],
+      dependencies: ["OlmKit", "OlmCore", "OlmBridge", "FileSearchPlugin"],
       path: "Sources/Olm"
     ),
     .executableTarget(name: "olm-fixtures", dependencies: ["OlmKit", "OlmSearch", "OlmLook", "OlmCore", "FileSearchPlugin"],
       path: "Sources/olm-fixtures", swiftSettings: v5),
+    // The bridge checked over a socket of its own, a fake Hammerspoon answering it.
+    .executableTarget(name: "olm-bridge-check", dependencies: ["OlmKit", "OlmCore", "OlmBridge"],
+      path: "Sources/olm-bridge-check", swiftSettings: v5),
     .executableTarget(name: "olm-index-check", dependencies: ["OlmKit", "OlmLook", "OlmCore", "FileSearchPlugin"],
       path: "Sources/olm-index-check", swiftSettings: v5),
   ]

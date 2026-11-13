@@ -324,28 +324,37 @@ end
 -- searchText and rowLimit included, and named by each row's key, so the app can answer the same
 -- query and log what differs. A tool must offer watch and held, which the line below says when it
 -- does not. The root names no tool here, the config's shadows list does.
-local function wireShadows(bridge, modules, registry, rank, matcher)
+local function wireShadows(bridge, modules, registry, rank, matcher, opts)
   if not (bridge and type(bridge.shadowed) == "function" and type(bridge.shadowWith) == "function") then return end
+  opts = opts or {}
   for _, identity in ipairs(bridge:shadowed()) do
     local tool = modules[identity]
+    -- A host's own presentation where the registry has none, the launcher's, step 2.3.
     local presentation = registry and registry.presentationFor and registry.presentationFor(identity)
+    if not presentation and tool and type(tool.presentation) == "function" then presentation = tool:presentation() end
     -- search-exempt, the shadow ranks a tool's held rows as the stage does only to compare them with the app's, and shows nothing
     local ranks = rank and type(rank.apply) == "function"
     if not (ranks and tool and type(tool.watch) == "function" and type(tool.held) == "function" and presentation) then
       log.w("the shadow of " .. identity .. " is off, the tool offers no watch and held or has no presentation")
     else
+      -- The key a row is named by, the tool's own word where it has one, the launcher's memory key.
+      local keyOf = type(tool.shadowKey) == "function" and function(row) return tool:shadowKey(row) end
+        or function(row) return row.key end
       bridge:shadowWith(identity, {
+        -- The launcher's answer goes over the app's socket, since the app answers it through the bridge.
+        socket = identity == opts.launcher,
         watch = function(fn) tool:watch(fn) end,
         answer = function()
           local held = tool:held()
           -- search-exempt, the stage's own ranking, run again only to hand the app what the list a person sees holds
           local ranked = rank.apply(held.items or {}, held.query or "", matcher,
-            { searchText = presentation.searchText, rowLimit = presentation.rowLimit })
+            { searchText = presentation.searchText, rowLimit = presentation.rowLimit or opts.rowLimit })
           local keys = {}
           for _, row in ipairs(ranked or {}) do
-            if not row.pinned and not row.fromQuery and row.key ~= nil then keys[#keys + 1] = row.key end
+            local key = not row.pinned and not row.fromQuery and keyOf(row) or nil
+            if key ~= nil then keys[#keys + 1] = key end
           end
-          return { query = held.query or "", status = held.status, keys = keys }
+          return { query = held.query or "", status = held.status, claimed = held.claimed, keys = keys }
         end,
       })
     end
@@ -2962,11 +2971,17 @@ function obj.run(olm, cfg)
             return manifest and manifest.icons or nil
           end,
           version = tostring(olm.version),
+          rowLimit = policy.chooserRowLimit,
         })
+        -- After each pick the memory records, the app is told the queries that moved, step 2.3.
+        if type(launcher.onMemory) == "function" and type(bridgeModule.memoryChanged) == "function" then
+          launcher:onMemory(function() bridgeModule:memoryChanged() end)
+        end
       end
     end
     wireShadows(bridgeModule, modules, wiredRegistry, chooserAtom.rank,
-      chooserAtom.matchers and chooserAtom.matchers[policy.matcher])
+      chooserAtom.matchers and chooserAtom.matchers[policy.matcher],
+      { launcher = plan.identity.launcher or "launcher", rowLimit = policy.chooserRowLimit })
   end
 
   -- The binder, the one place a global key is bound. Each row lands on the leader named the way
