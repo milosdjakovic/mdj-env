@@ -125,4 +125,10 @@ reached by nobody.
   at 60 points on a 72 point square, as the Lua emoji source draws it.
 - `olm-bridge-check` grew to 61 checks, the shown launcher's metrics, its level per show fromURL,
   its icons, `choose` and each effect, `hidden` before the close, and an older rows answer dropped.
+- Found in the trial, 2026-11-13. Return on Left Half moved Olm.app's own list, not the window in
+  front. The stage closed its source the moment it called the panel's hide, and the panel stays key
+  while it fades, so the window action, run on `hidden`, found the fading list the focused window.
+  The protocol says `hidden` comes once the window is ordered out, so the panel now says when its
+  fade has ended, `onDown`, and the stage closes the source then. A show cutting the fade short
+  wakes the wait, and so does a cap of 1 s.
 

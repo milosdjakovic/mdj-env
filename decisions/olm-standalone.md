@@ -710,3 +710,13 @@ list, and until then that list stays on Lua.
   the Lua side, and building showed nothing to hold back yet, since the launcher hands a list over
   only while the Lua stage shows it, corrected in the note and the protocol. The three timings are
   1.3f's, not a new log.
+- 2026-11-13 23:38. Step 3.2's trial, Milos at the keys. Opening, typing, an app row, the
+  calculator, the VPN row held in place and Escape all did what the steps said, and Hyper and 0 felt
+  snappier than Hyper and Space. Return on Left Half moved Olm.app's own list to the left rather than
+  the Herdr window. The stage told its source the list was closed, and so sent `hidden`, the moment
+  it called the panel's hide, while the swift panel stays key through its fade, so the window action
+  Hammerspoon ran on `hidden` found the fading list the focused window. The note and the build had
+  read "hidden once `panel.hide()` returns" as enough, which the protocol never said, it says once
+  the window is ordered out. The panel now reports the end of its fade, `onDown`, and the stage waits
+  for it before closing the source, woken early by a new show and capped at 1 s. The shadow log stood
+  at 23 lines and no difference after the trial.

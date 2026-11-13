@@ -36,7 +36,11 @@ import OlmLook
 @MainActor
 public final class Stage {
   private let searcher: Searcher
-  private lazy var panel = ChooserPanel(source: self)
+  private lazy var panel: ChooserPanel = {
+    let panel = ChooserPanel(source: self)
+    panel.onDown = { [weak self] in self?.wakeDown() }
+    return panel
+  }()
   // The action whose quickLook effect opened the Quick Look pane, which the pane asks again for
   // each row the highlight lands on, since it follows the highlight, step 1.4c.
   private var lookAction: String?
@@ -126,6 +130,14 @@ public final class Stage {
   // The close a hide sent its source, which the next open of that source waits for, so a level a
   // source opens for each show is never closed by the hide before it, step 3.2.
   private var closing: Task<Void, Never>?
+  // A hide's fade not ended yet, and who waits for it to end. The window stays key while it fades,
+  // so the source is told the list closed only once it is ordered out, the protocol's hidden, which
+  // a window action run after it would otherwise find focused, found in 3.2's trial on 2026-11-13.
+  // A show cuts the fade short and wakes them, and so does downCapMs, so nothing waits for good.
+  private var downPending = false
+  private var downWaiters: [CheckedContinuation<Void, Never>] = []
+  private var downGeneration = 0
+  private static let downCapMs: UInt64 = 1000
   // The verbs this step does not run yet, said once each.
   private var unknownVerbs: Set<String> = []
 
@@ -136,6 +148,7 @@ public final class Stage {
   /// Opens a source's list with the query in the input field, on the screen the placement choice
   /// names, lib/overlaydisplay.lua's mode.
   public func open(_ next: any ListSource, query: String, screen mode: String? = nil) {
+    wakeDown()
     warmTask?.cancel()
     if let source, source !== next { Task { await source.close() } }
     source = next
@@ -268,12 +281,38 @@ public final class Stage {
     generation += 1
     task?.cancel()
     resetPane()
+    downPending = true
+    downGeneration += 1
+    let down = downGeneration
+    Task {
+      try? await Task.sleep(nanoseconds: Self.downCapMs * 1_000_000)
+      if down == self.downGeneration { self.wakeDown() }
+    }
     panel.hide()
     // After the hide, as the Lua file search's onClose destroys its pane once the stage hid.
     paneHost?.close()
     panel.stop()
-    if let source { closing = Task { await source.close() } }
+    if let source {
+      closing = Task {
+        await self.panelDown()
+        await source.close()
+      }
+    }
     warmSoon()
+  }
+
+  // The fade of a hide has ended, or a show cut it short.
+  private func wakeDown() {
+    downPending = false
+    let waiting = downWaiters
+    downWaiters = []
+    for w in waiting { w.resume() }
+  }
+
+  // Returns once the window a hide took down is ordered out.
+  private func panelDown() async {
+    guard downPending else { return }
+    await withCheckedContinuation { downWaiters.append($0) }
   }
 
   // MARK: Warm while hidden

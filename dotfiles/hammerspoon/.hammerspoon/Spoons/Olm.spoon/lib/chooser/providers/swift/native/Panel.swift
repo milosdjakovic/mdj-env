@@ -164,9 +164,16 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   // How the window comes and goes, see THE MOTION above.
   private lazy var motion: WindowMotion = {
     let motion = WindowMotion(window)
-    motion.onDown = { [weak self] in self?.settleDown() }
+    motion.onDown = { [weak self] in
+      self?.settleDown()
+      self?.onDown?()
+    }
     return motion
   }()
+  // Told once a hide's fade has ended and the window is ordered out. The window stays key while it
+  // fades, so Olm.app's stage waits for this before telling a source the list is gone, and work run
+  // after hiding, a window action, never finds this panel the focused window, step 3.2.
+  var onDown: (() -> Void)?
   private var windowSize = NSSize.zero
 
   init(source: ChooserSource) {
