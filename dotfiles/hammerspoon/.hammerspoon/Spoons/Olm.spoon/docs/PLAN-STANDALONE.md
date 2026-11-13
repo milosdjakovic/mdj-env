@@ -23,7 +23,7 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 2.1, probe the transport. File search is the app's since 1.5's flip on 2026-11-12.
+Next. 2.2, `host/bridge` serves, read only. File search is the app's since 1.5's flip on 2026-11-12.
 
 Stage 0, contracts
 - [x] 0.1 The decision record, 2026-11-05
@@ -78,7 +78,7 @@ Stage 1, the file search pilot
   - The flip, on 2026-11-12. `config/plugins.lua` serves file search from the app where the olmapp piece is on, the shadow line kept. Going back was tried the same day with Milos, the piece turned off and a reload opening the Lua list with the use just made in the app leading it, and on again the app with the Lua list's use leading. The stutter left in a first open's first seconds was traced to the index rebuild on a loaded Mac, the Lua list stuttering the same during its own, and the app's rebuild now runs at background priority.
 
 Stage 2, the bridge, read only
-- [ ] 2.1 Probe the transport
+- [x] 2.1 Probe the transport, a Unix socket the app listens on, each message framed by its length, 2026-11-13
 - [ ] 2.2 `host/bridge` serves, read only
 - [ ] 2.3 Shadow ranking for the launcher
 
@@ -117,7 +117,7 @@ Stage 6, self sufficient, optional
 
 Open questions
 - [x] 1 Where Olm.app lives, in this repository until Olm is decoupled, 2026-11-07
-- [ ] 2 Unix socket or local HTTP
+- [x] 2 Unix socket or local HTTP, a Unix socket, 2026-11-13
 - [ ] 3 What extensions are written in
 - [ ] 4 Leaders in a password field
 - [ ] 5 The calculator
@@ -1068,7 +1068,9 @@ notarization.
    dotfiles, with this repository installing it as a piece. Decided 2026-11-07 by Milos, it lives
    in this repository until Olm is decoupled, the resting point, and the question of a repository
    of its own comes back after that. The folder is chosen at 1.1.
-2. Unix socket or local HTTP for the bridge. Decided by 2.1.
+2. Unix socket or local HTTP for the bridge. Decided by 2.1 on 2026-11-13 with Milos, a Unix socket
+   at `~/.olm/run/bridge.sock` that the app listens on and the Lua side connects to, each message
+   its length on a line and then the JSON, `docs/PROTOCOL-BRIDGE.md` revised to it.
 3. What extensions are written in. JavaScriptCore with shims, as Tinycast runs Raycast's, needs no
    bundled runtime. Decided before the extension host in stage 4.
 4. Whether leaders work in a password field, through a bundled virtual HID driver, or the tap

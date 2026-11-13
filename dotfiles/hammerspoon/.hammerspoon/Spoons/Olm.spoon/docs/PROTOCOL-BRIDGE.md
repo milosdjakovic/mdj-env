@@ -7,6 +7,10 @@ Hammerspoon say to each other from stage 2 on, so that the app can draw, search 
 list while the rows, the actions and the preview panes of a plugin not yet native still come from
 Lua. Everything after stage 2 stands on it.
 
+Revised 2026-11-13 by step 2.1's probe, Milos choosing it. The transport is a Unix domain socket,
+the app listens and the Lua side connects, and each message is framed by its length rather than
+ended by a newline, the measurements and the reasons in `decisions/olm-standalone.md`.
+
 ## What it is for, and the rules it serves
 
 The app owns the input field, the list, the highlight, the search and the chooser's window. The
@@ -46,13 +50,18 @@ becomes are in their own section.
 
 ## Transport and framing
 
-The byte stream is open question 2 of the plan, a Unix domain socket or local HTTP, decided by
-step 2.1. This protocol needs one ordered, reliable, two way stream per connection, and either
-gives that.
+The byte stream is a Unix domain socket at `~/.olm/run/bridge.sock`, open question 2 of the plan,
+decided by step 2.1 on 2026-11-13 over local HTTP, which carries only the app's requests and would
+leave the Lua side no way to send anything unasked. This protocol needs one ordered, reliable, two
+way stream per connection, and the socket gives that.
 
-- One message is one JSON object on one line, UTF-8, ended by a single `\n`.
-- A line is at most 8 MiB. A peer that receives a longer one closes the connection. No answer is
-  allowed to come near it, see Size below.
+- One message is its length in bytes as decimal digits, a single `\n`, then exactly that many
+  bytes, one JSON object in UTF-8. `42\n{...}` is one message. The JSON may hold newlines of its
+  own, since nothing looks for one. A reader takes the length line, then reads exactly the length,
+  so a large message costs in step with its size. 2.1 measured `hs.socket` reading up to a newline
+  at 3.1 s for a 4 MB message and 219 ms for 1 MB, and reading a known length at 85 ms and 22 ms.
+- A message is at most 8 MiB. A peer that reads a longer length, or a length line that is not
+  digits, closes the connection. No answer is allowed to come near it, see Size below.
 - The messages are JSON-RPC 2.0. A request has `jsonrpc`, `id`, `method` and `params`, an answer
   has `jsonrpc`, `id` and either `result` or `error`, and a notification has no `id` and is never
   answered. Either peer may send requests and notifications.
@@ -63,17 +72,21 @@ gives that.
 - A JSON number used as an identity, a key or a generation, is an integer within 2^53, since
   larger ones lose precision in a JSON reader. A key outside that is sent as a string.
 
-**Access.** The socket, or the token an HTTP transport needs, lives under `~/.olm/run/`, a
-directory of mode 0700, the socket or token file 0600. A Unix socket's peer must be checked with
-`getpeereid` and refused unless it is the person's own user. An HTTP transport binds 127.0.0.1
-only, requires the token in a header on every request, and refuses a request whose `Host` is not
-`127.0.0.1:<port>` or that carries an `Origin`, so a web page cannot reach it.
+**Access.** The socket lives under `~/.olm/run/`, a directory of mode 0700, the socket 0600, both
+set by the app as it listens, since a socket is created readable by everyone and `~/.olm/run` is
+too today, measured in 2.1. The app checks each peer with `getpeereid` and refuses one that is not
+the person's own user. The listener is the one that can, which is half of why the app listens.
 
 ## Who starts, and what happens when the connection goes
 
-The Lua side listens and the app connects, since Hammerspoon is the one running when the app
-starts and the one that knows every plugin. The app reconnects with a backoff of 0.25 s doubling
-to 5 s while it runs.
+The app listens and the Lua side connects, one connection at a time, and the app takes a new one
+in place of the old. Revised in 2.1 from the Lua side listening, since an `hs.socket` server
+writes every message to every client connected and cannot tell one client from another, measured
+on 2026-11-13, so a second client would read the app's answers, and only the listener can check
+its peer. The Lua side connects when it loads and whenever the app posts the distributed
+notification `local.olm.Olm.listening` as it starts listening, and otherwise tries again with a backoff of 0.25 s
+doubling to 5 s while the olmapp piece is on. A test client stands in for either side by listening
+on, or connecting to, the same path.
 
 On a lost connection the Lua side closes every level the app had, calling each presentation's
 `onClose`, and forgets every ref. The app drops every level, and a list that was showing hands back
@@ -87,7 +100,7 @@ The app's first request is `hello`, and the Lua side answers nothing else first.
 ```json
 {"jsonrpc":"2.0","id":"a1","method":"hello","params":{"protocol":1,"app":"0.1.0","features":[]}}
 {"jsonrpc":"2.0","id":"a1","result":{"protocol":1,"olm":"2026-11-07","features":[],
-  "limits":{"line":8388608,"rowLimit":200,"name":65536}}}
+  "limits":{"message":8388608,"rowLimit":200,"name":65536}}}
 ```
 
 `protocol` is the major version. A Lua side that does not speak the app's answers `-32010` and the
@@ -185,7 +198,7 @@ sent it is open.
 
 ## Size
 
-No answer may come near the line limit, so three bounds hold.
+No answer may come near the message limit, so three bounds hold.
 
 - **Rows are sent as changes.** A level's rows have a revision, and an answer sends only what
   changed since the revision the app says it has, by key, see Rows.
@@ -314,7 +327,7 @@ under The launcher.
   them, is gated the same way. Effects in the answer to a request apply as sent.
 
 The Lua side is one thread. When it reads a `rows` or a highlight request, it first reads every
-complete line already waiting, and a request superseded by a newer one of the same method for the
+complete message already waiting, and a request superseded by a newer one of the same method for the
 same level is answered at once with `-32011`, stale, and never run.
 
 ## The highlight

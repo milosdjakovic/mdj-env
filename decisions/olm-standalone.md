@@ -604,3 +604,20 @@ list, and until then that list stays on Lua.
   leading its recent list, and turned on again the app opened with the file he revealed in the Lua
   list leading. A piece turned off leaves the serves share as the app last read it, since the bridge
   writes no share where the piece is off, which is harmless, the app warming a list nothing opens.
+- 2026-11-13 11:10. Step 2.1, the transport probe, open question 2. A scratch echo in the live
+  Hammerspoon, nothing in the config changed, answered a compiled Swift client over a Unix socket
+  under `~/.olm/run` and over `hs.httpserver` on localhost, decoding and encoding the JSON as the
+  bridge will. Round trips, median, socket read to a newline against HTTP: 200 B 0.34 ms and
+  1.65 ms, 10 KB 1.2 and 4.1, 100 KB 9.6 and 4.8, 1 MB 219 and 35, 4 MB 3130 and 84. The socket
+  read to a newline grows far faster than its size, inside `hs.socket` off the main thread, which
+  was held at most 82 ms, the JSON. Reading a length sent first instead, 200 B 0.67 ms, 100 KB 4.4,
+  1 MB 22, 4 MB 85, in step with size. Found besides. An `hs.socket` server writes every message to
+  every client connected and cannot tell them apart, tried with two clients. It cannot check its
+  peer. The socket is created mode 0755 in a `run` folder of 0755. `connected()` answers a boolean.
+  `hs.httpserver` 1.1.1 has no `setMaxBodySize`. Chosen by Milos, a Unix socket, the app listening
+  and the Lua side connecting, so the app holds one private connection and checks its peer, and
+  each message its length on a line and then the JSON. Rejected, the socket as 0.4 wrote it, the
+  Lua side listening and a newline ending each message, for the broadcast, the missing peer check
+  and the slow large read. Rejected, local HTTP, which carries only the app's requests, so the Lua
+  side could send nothing unasked without polling or a second server, and which needs a token and
+  Origin and Host checks. `docs/PROTOCOL-BRIDGE.md` is revised to it.
