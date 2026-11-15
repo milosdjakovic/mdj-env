@@ -402,14 +402,56 @@ function Engine:_rebuildList(query, resetHighlight)
   local drawReady = self.view:presentRows(self:_rankedRows(query))
   if resetHighlight or not self.listState then
     self.listState = listModel.newState(drawReady, self._drawLayout, "")
-    return
+  else
+    local prev = listModel.normalized(self.listState)
+    self.listState = listModel.normalized({
+      rows = drawReady, query = "", filtered = drawReady,
+      highlight = prev.highlight, scrollTop = prev.scrollTop,
+      rowH = prev.rowH, visibleCount = prev.visibleCount, padEnd = prev.padEnd,
+    })
   end
-  local prev = listModel.normalized(self.listState)
-  self.listState = listModel.normalized({
-    rows = drawReady, query = "", filtered = drawReady,
-    highlight = prev.highlight, scrollTop = prev.scrollTop,
-    rowH = prev.rowH, visibleCount = prev.visibleCount, padEnd = prev.padEnd,
-  })
+  self:_fitToRows(#drawReady)
+end
+
+-- A list that fits its rows, docs/DESIGN-FIT-HEIGHT.md. The window is as tall as the rows just
+-- built, at least one and never past the full height, and is placed again only when that count
+-- differs from the one it stands at, so a keystroke that keeps the count costs nothing. A place
+-- before the window shows lays it out at once and one while it is up animates in the view, so
+-- this only answers the rectangles and never moves anything itself. The list's viewport follows,
+-- so its scroll and its peek match the window.
+function Engine:_fitToRows(count)
+  if not self._fit or not self._targetScreen then return end
+  if count == self._fitRows then return end
+  self._fitRows = count
+  self._rects = geometry.resolve(self._targetScreen:frame(), self:_shapedLayout(), self._previewPaneWidth, count)
+  self:_updateDrawLayout()
+  if self.listState then
+    local st = listModel.normalized(self.listState)
+    st.visibleCount = self._drawLayout.rowCount
+    self.listState = listModel.normalized(st)
+  end
+  self.view:place(self._rects)
+  if self.active then
+    self._paneFrames = { chooser = self._rects.chooser, previewPane = self._rects.previewPane }
+  end
+end
+
+--- Engine colon setFit, arity one. Whether the list shown next, and the one up now, fits its rows,
+--- the stage saying it from the presentation's own fit before every show.
+function Engine:setFit(on)
+  on = on == true
+  if on == self._fit then return end
+  self._fit = on
+  self._fitRows = nil
+  if not self.active or not self._targetScreen then return end
+  if on then
+    local st = self.listState and listModel.normalized(self.listState)
+    self:_fitToRows(st and #st.filtered or 0)
+  else
+    self._rects = geometry.resolve(self._targetScreen:frame(), self:_shapedLayout(), self._previewPaneWidth)
+    self:_updateDrawLayout()
+    self.view:place(self._rects)
+  end
 end
 
 -- Reports the highlighted row's own opaque item through config.onHighlight, read live on every
@@ -784,9 +826,12 @@ function Engine:show()
   local screen = self:_resolveScreen()
   self._targetScreen = screen
   local sf = screen:frame()
+  -- A list that fits its rows is placed once its rows are built, at their count, so it shows at its
+  -- height with nothing moving. Any other list is placed now, as it always was.
+  self._fitRows = nil
   self._rects = geometry.resolve(sf, self:_shapedLayout(), self._previewPaneWidth)
   self:_updateDrawLayout()
-  self.view:place(self._rects)
+  if not self._fit then self.view:place(self._rects) end
 
   self:_rebuildList("", true)
   self._suppressRebuild = true
@@ -1079,7 +1124,7 @@ function Engine:reposition(previewPaneWidth)
   if not self.active then return nil end
   local screen = self._targetScreen or self:_resolveScreen()
   local sf = screen:frame()
-  self._rects = geometry.resolve(sf, self:_shapedLayout(), previewPaneWidth)
+  self._rects = geometry.resolve(sf, self:_shapedLayout(), previewPaneWidth, self._fit and self._fitRows or nil)
   self:_updateDrawLayout()
   self.view:place(self._rects)
   self.view:redraw()

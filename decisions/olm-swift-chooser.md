@@ -1076,3 +1076,14 @@ meant a rebuild. It is now a kit token in `lib/ui/style.lua` beside the other fo
 moves differently. It is a kit token rather than a setting in `config/settings.lua`, where only
 durations and distances live, Milos's call after weighing both. Built and loaded live, and
 `test/swiftpane.sh` and the dry gate pass.
+- 2026-11-15 14:08. A list's height left the plugins, `Olm.spoon/docs/DESIGN-FIT-HEIGHT.md`, agreed
+  with Milos. `rowCount`, which hid, rebuilt and showed the window to resize it, is refused, and a
+  list declares `fit = true` to be as tall as its rows, at least one and never past the chooser's
+  own height. The height follows the rows throughout, going into a list, back out and typing,
+  placed again only when the count changes. The window reshape that a preview pane takes plays it,
+  extended to a height, laid out once at the taller shape with the bar and the fade stepped with
+  the edge. A height alone plays on a new kit token, `fitCurve`, easing out only so it moves the
+  moment the rows land and runs on when turned, Milos asking that it stay snappy. The width
+  reshape keeps `reshapeCurve`. The list's `apply` reloaded the table on every place, so a reshape
+  would have reloaded it twice. It now reloads only when the row height, the insets or the style
+  changed, and `Style` became `Equatable` for that.

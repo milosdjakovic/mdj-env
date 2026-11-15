@@ -260,7 +260,8 @@ func runGeometry(_ file: String, _ doc: [String: Any]) {
     if let n = c["previewPaneWidth"] as? NSNumber {
       width = CFGetTypeID(n) == CFBooleanGetTypeID() ? (n.boolValue ? .list : .none) : .points(n.doubleValue)
     }
-    let r = Geometry.resolve(screen: rect(c["screen"]), layout: ChooserLayout(fields), previewPaneWidth: width)
+    let r = Geometry.resolve(screen: rect(c["screen"]), layout: ChooserLayout(fields), previewPaneWidth: width,
+      fitRows: (c["fitRows"] as? NSNumber)?.intValue)
     let got: [String: Any] = [
       "canvas": rectFields(r.canvas), "field": rectFields(r.field), "list": rectFields(r.list),
       "previewPane": rectFields(r.previewPane), "bottomBar": rectFields(r.bottomBar),

@@ -1218,7 +1218,7 @@ presentation = {
   onClose     = { member = "onClose", call = "dot" },    -- optional
   peekPreview = { member = "peekPreview", call = "dot" },-- optional
   onPositioned = { member = "onPositioned", call = "dot" }, -- optional
-  rowCount    = 2,                                       -- optional, a plain number or a member spec
+  fit         = true,                                    -- optional, true for a list as tall as its rows
   previewPaneWidth   = 320,                                     -- optional, a plain number, true, or a member spec
   matcher     = false,                                   -- optional, false only where the field is not a search, with a search-exempt reason
   titleLineBreak = "truncateMiddle",                     -- optional, a plain string
@@ -1228,9 +1228,15 @@ presentation = {
 }
 ```
 
-Every field but `rowCount`, `matcher`, `titleLineBreak` and `rowLimit` is either a member spec or, for `previewPaneWidth`
-and `rowCount`, may be either one, `rowCount` as a member being asked on every show and clamped to the
-default ten, for a list whose height follows its own length, the same `{ member, call }` shape
+A list's height is never a plugin's to set, decided by Milos on 2026-11-15, docs/DESIGN-FIT-HEIGHT.md.
+Every list is the chooser's own height. `fit = true`, a real boolean, says the list is as tall as its
+rows instead, at least one and never past that height, scrolling and wrapping past it, and Olm
+animates the window's height as the rows change, going into the list, back out of it and as it is
+typed in. A list with a preview pane cannot fit, since the pane's height is the list's. `rowCount`,
+the number or member a plugin once set a height with, is refused by name.
+
+Every field but `fit`, `matcher`, `titleLineBreak` and `rowLimit` is either a member spec or, for `previewPaneWidth`,
+may be either one, the same `{ member, call }` shape
 `registry.open` and `registry.scope` already resolve, with one deliberate tightening. **A presentation member
 must be the table form and must state `call` itself, `"dot"` or `"method"`, never the bare
 string shorthand and never left to default.** Every other member spec in this whole contract
@@ -1273,8 +1279,8 @@ own arithmetic, rather than painting a lone chooser first and correcting it by h
 later. A swap still moves the window itself, since it triggers no show the atom would
 reposition on its own. `_resolvePreviewPaneWidth` on the stage reimplements the identical cap at
 `layout.paneMaxW` for that manual arithmetic rather than reaching for the atom's private one.
-Absent, `false`, or a non positive number all mean this presentation reserves no pane. Both
-this field and `rowCount` are checked for their own type at register, a non number, or the
+Absent, `false`, or a non positive number all mean this presentation reserves no pane. This
+field is checked for its own type at register, a non number, or the
 member spec shape every field but `matcher` and `titleLineBreak` takes, refusing the whole
 registration loudly rather than reaching the stage as something that could corrupt the one
 instance it never rebuilds, adversarial review finding H3.
@@ -1316,7 +1322,7 @@ against for every consumer that still builds its own instance, but the dry gate 
 plugin or host since the phase four rework, since search never differs per list. No presentation
 names one since phase three of the unified search, and absent inherits the root default, the version
 one behaviour, unchanged for every plugin that names nothing here. The registrar checks a
-declared string against the real strategy names at register, the same loud refusal `rowCount`
+declared string against the real strategy names at register, the same loud refusal `fit`
 and `previewPaneWidth` already get, since a typo left to `host/stage`'s own `_resolveMatcher` would
 fall back to the root default in silence with nothing anywhere naming the misspelling.
 `host/stage` writes the resolved value onto `self._instance.matcher` before every show and
@@ -1386,7 +1392,7 @@ the row was never a completion, it was a drill into a level of its own. `host/st
 answered table as a child of the presentation that produced it, the identical door a launcher row
 already pushes a tool through, so choosing such a row swaps the shared window in place with no
 close and no reopen. Every field on this list may differ per child, its own `previewPaneWidth`, `matcher`,
-`placeholder`, `rowCount`, or `titleLineBreak`, or be left absent to resolve to the ordinary
+`placeholder`, `fit`, or `titleLineBreak`, or be left absent to resolve to the ordinary
 default the way any other presentation's absent field already does, since a child is not a
 distinct kind of table, it is an ordinary presentation table that happened to arrive through a
 return value rather than through a call to `stage.present` or `stage.push`. `name` may be left off

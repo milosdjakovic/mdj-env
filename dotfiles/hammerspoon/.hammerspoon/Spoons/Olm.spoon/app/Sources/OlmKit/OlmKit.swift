@@ -87,9 +87,13 @@ public struct Level: Sendable, Equatable {
   /// How long the highlight rests on a row before its preview is asked for, in milliseconds, the
   /// file search config's preview.settleMs. Read only where the manifest has a preview pane.
   public var previewSettleMs: Int
+  /// Whether the window is as tall as the rows rather than the chooser's own height, at least one
+  /// row and never past it, docs/DESIGN-FIT-HEIGHT.md. A list never sets a height itself.
+  public var fit: Bool
 
   public init(placeholder: String = "", ranking: Ranking = .app, rowLimit: Int? = nil, titleLineBreak: String? = nil,
-              previewSettleMs: Int = 60) {
+              previewSettleMs: Int = 60, fit: Bool = false) {
+    self.fit = fit
     self.placeholder = placeholder
     self.ranking = ranking
     self.rowLimit = rowLimit

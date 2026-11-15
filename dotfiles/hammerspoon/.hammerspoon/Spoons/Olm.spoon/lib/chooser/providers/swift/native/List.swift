@@ -421,17 +421,26 @@ final class ListView: FlippedView, NSTableViewDataSource, NSTableViewDelegate {
   override func cursorUpdate(with event: NSEvent) {}
 
   func apply(style: Style, placement: Placement) {
+    // What the rows are drawn by, their height, the insets and the style, so a place that changed
+    // none of them, a window growing or shrinking to its rows, reloads nothing, since every reload
+    // redraws every row on the main thread, docs/DESIGN-FIT-HEIGHT.md.
+    let insets = NSEdgeInsets(top: overField, left: 0, bottom: placement.padBottom + underBar, right: 0)
+    let same = applied && style == self.style && placement.rowH == self.placement.rowH
+      && insets.top == scroll.contentInsets.top && insets.bottom == scroll.contentInsets.bottom
     self.style = style
     self.placement = placement
+    applied = true
     empty.font = style.captionFont
     empty.textColor = style.caption
     needsLayout = true
+    if same { return }
     quietly {
       table.rowHeight = placement.rowH
-      scroll.contentInsets = NSEdgeInsets(top: overField, left: 0, bottom: placement.padBottom + underBar, right: 0)
+      scroll.contentInsets = insets
       table.reloadData()
     }
   }
+  private var applied = false
 
   // The same number of rows, a new query's or the same rows gaining their icons as a scroll
   // brings them near, reloads only the rows the table holds a view for, on screen and the few it

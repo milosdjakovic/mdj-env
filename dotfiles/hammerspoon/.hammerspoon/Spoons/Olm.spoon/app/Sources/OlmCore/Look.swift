@@ -85,11 +85,12 @@ struct Look {
     return LayoutRect(x: v.minX, y: primary - v.maxY, w: v.width, h: v.height)
   }
 
-  func placement(on screen: NSScreen, pane: Bool = false) -> (Placement, PaneFrame?) {
+  /// fitRows, a list that fits its rows' count, geometry.lua's fitRows, nil for the full height.
+  func placement(on screen: NSScreen, pane: Bool = false, fitRows: Int? = nil) -> (Placement, PaneFrame?) {
     let primary = NSScreen.screens.first?.frame.height ?? screen.frame.maxY
     let v = screen.visibleFrame
     let frame = LayoutRect(x: v.minX, y: primary - v.maxY, w: v.width, h: v.height)
-    let r = Geometry.resolve(screen: frame, layout: layout, previewPaneWidth: pane ? .list : .none)
+    let r = Geometry.resolve(screen: frame, layout: layout, previewPaneWidth: pane ? .list : .none, fitRows: fitRows)
     func fields(_ rect: LayoutRect?, from origin: LayoutRect? = nil) -> Any {
       guard let rect else { return NSNull() }
       let o = origin ?? LayoutRect(x: 0, y: 0, w: 0, h: 0)

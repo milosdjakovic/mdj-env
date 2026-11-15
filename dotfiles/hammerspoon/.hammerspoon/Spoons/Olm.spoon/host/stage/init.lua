@@ -164,15 +164,13 @@ obj.surface = nil           -- the one nav adapter, delegated to whichever prese
 obj._stack = nil            -- ordered presentations, the last entry is the one showing
 obj._openId = nil           -- bumped on every fresh stack, see _bumpOpenId and world()
 obj._coveredApp = nil       -- tied to the window's own appearance, see _captureCoveredApp
-obj._rowCount = nil          -- the row count the window is currently built for, seeded at configure
-obj._defaultRowCount = nil   -- the atom's own default, read once at configure, never mutated after
-obj._defaultMatcher = nil    -- the root's own matcher, read once at configure the same way
-                              -- _defaultRowCount is, what a presentation naming no matcher of its
+obj._defaultMatcher = nil    -- the root's own matcher, read once at configure, what a
+                              -- presentation naming no matcher of its
                               -- own is asking to return to, contract v2 decision one
 obj._defaultTitleLineBreak = nil -- the atom's own "truncateTail", read once at configure the
                               -- identical way, rework rider restoring filesearch's own field
 obj._geometryTimer = nil     -- held so a pending pane settle cannot be collected before it fires, see _applyPaneGeometry
-obj._suppressClose = false   -- true only while _applyRowCount's own internal hide is in flight, see _onClose
+obj._suppressClose = false   -- true only while _applyPosture's own internal hide is in flight, see _onClose
 obj._lastShowAt = nil        -- hs.timer.secondsSinceEpoch() at the last real show(), see _applyPaneGeometry
 obj._enterGen = 0            -- bumped by every present, push, hide, and pop, contract v2 decision
                               -- two, so a deferring presentation's own proceed can tell whether the
@@ -252,8 +250,7 @@ function obj:configure(opts)
   -- root already installed on the Chooser facade, the same way the launcher's own config
   -- never named either before this host existed. Contract v2 decision one. This is only the
   -- SEED, the matcher a presentation naming none of its own returns to, captured below into
-  -- _defaultMatcher the instant construction has resolved it, exactly the way _defaultRowCount
-  -- is captured a few lines further down. From the first present onward, _show writes every
+  -- _defaultMatcher the instant construction has resolved it. From the first present onward, _show writes every
   -- presentation's own matcher onto the shared instance live, through setMatcher, before
   -- each show and swap, the identical discipline the pane width already follows.
   self._instance = self._chooser.new({
@@ -305,31 +302,18 @@ function obj:configure(opts)
     bottomBarAction = self._bottomBarAction,
   })
 
-  -- Decision two of the geometry brief. The row count the window is currently built for is
-  -- read straight off the fresh instance's own rowCount() rather than assumed, so this can
-  -- never drift from whatever lib/chooser/providers/legacy.lua actually ships as its own
-  -- default, and _defaultRowCount is what a presentation naming no rowCount of its own is
-  -- asking to return to. Read once, right here, before setRows is ever called on this
-  -- instance, since that is the only moment rowCount() still answers the atom's own default
-  -- rather than something this host already asked it to become. Read through the accessor
-  -- rather than off layout directly since the contract freeze phase, docs/BRIEF-CONTRACT-
-  -- FREEZE.md, closed every reach this host used to make into that table.
-  self._rowCount = self._instance:rowCount()
-  self._defaultRowCount = self._rowCount
-
   -- Contract v2 decision one. self._instance:matcher() already answers the resolved module
   -- wide default the instant construction above returns, legacy.lua's own `matcher = config.matcher`
   -- having already folded DEFAULT_MATCHER in for a config that named none, lib/chooser/init.lua:122.
-  -- Read once, right here, before any presentation has ever written to it, the same moment
-  -- _defaultRowCount is read for the identical reason, so a presentation naming no matcher of
+  -- Read once, right here, before any presentation has ever written to it, so a presentation
+  -- naming no matcher of
   -- its own asks to return to exactly what this host would have shown before contract v2 ever
   -- started writing this field on every show.
   self._defaultMatcher = self._instance:matcher()
 
   -- Rework rider. self._instance:titleLineBreak() already answers the atom's own default,
-  -- "truncateTail", DEFAULT_LAYOUT's own value folded in at construction the identical way
-  -- rowCount() is. Read once, right here, for the identical reason _defaultRowCount and
-  -- _defaultMatcher are, so a presentation naming no titleLineBreak of its own asks to return
+  -- "truncateTail", DEFAULT_LAYOUT's own value folded in at construction. Read once, right
+  -- here, for the identical reason _defaultMatcher is, so a presentation naming no titleLineBreak of its own asks to return
   -- to exactly what this host would have shown before this field existed.
   self._defaultTitleLineBreak = self._instance:titleLineBreak()
 
@@ -564,14 +548,14 @@ function obj:_show(p, wasShowing, outgoing)
   -- rebuilds off the pane width. A presentation naming none of its own resolves to
   -- _defaultTitleLineBreak, the atom's own "truncateTail" this host inherited at configure.
   self._instance:setTitleLineBreak(p.titleLineBreak or self._defaultTitleLineBreak)
-  -- Decision two of the geometry brief. A row count change takes the one resize path that
-  -- exists, hide, rows(n), show, which the probe found applies on the next show of the same
-  -- instance, docs/PROBE-FINDINGS-2026-08-27.md section C2. _applyRowCount below drives that
-  -- cycle itself when it is needed and answers whether it did, since a window it already
-  -- reshowed for a resize must not also run the ordinary swap or cold show path just below on
-  -- top of that.
-  local reshaped = self:_applyPosture(self._cycle and self._cycle.p == p and "bare" or "full")
-  local resized = self:_applyRowCount(p) or reshaped
+  -- A list that fits its rows says so on every show, docs/DESIGN-FIT-HEIGHT.md, and the instance
+  -- sizes the window to them, animating a change while it is up, so no resize here hides it. A
+  -- provider that knows no fit, the legacy one, is left at its own height.
+  if self._instance.setFit then self._instance:setFit(p.fit == true) end
+  -- _applyPosture still drives a hide and reshow itself when the posture changes, and answers
+  -- whether it did, since a window it already reshowed must not also run the swap or cold show
+  -- path just below on top of that.
+  local resized = self:_applyPosture(self._cycle and self._cycle.p == p and "bare" or "full")
   local cold = resized or not wasShowing
   -- Adversarial review finding H2. present already tells a genuinely discarded outgoing
   -- level its own onClose through _freshStack, and this still runs for it too, since
@@ -615,61 +599,8 @@ function obj:_show(p, wasShowing, outgoing)
   end
 end
 
--- Applies a presentation's own row count when it differs from what the window is currently
--- built for, decision two of the geometry brief, paid only on that difference, which today is
--- only caffeinate's two rows both ways, entering it and returning to the default the moment
--- anything else is shown next. A presentation naming no rowCount of its own wants the atom's
--- own default back, self._defaultRowCount, read once at configure.
---
--- A window not yet up has nowhere to hide from, so the new count takes effect for free on the
--- cold show _show is about to run anyway, and this only remembers it. A window already up is
--- genuinely hidden and reshown, the one resize path that exists, which the probe found applies
--- cleanly with no rebuilt instance, docs/PROBE-FINDINGS-2026-08-27.md section C2. That hide
--- runs through the atom's own teardown, which fires onClose, the same signal a genuine
--- dismissal fires, and this is not one, the presentation being resized is still current and
--- about to be reshown on the very next line inside _show, so _suppressClose holds the door
--- shut for exactly this one call rather than let onClose tell every presentation on the stack
--- it just closed. Answers true when it drove that hide itself, so _show above knows not to
--- also run its own swap or cold show path on top of this one.
---
--- Adversarial review finding M3. The hide is wrapped in pcall and the flag is cleared
--- unconditionally right after, since without that a raise anywhere inside the atom's own
--- teardown, or inside the ActionsPane decorator it calls through on the way, would leave
--- _suppressClose stuck true for the life of the config, silencing every future onClose,
--- launcher and every presentation alike, with nothing anywhere saying why. Nothing found in
--- that path is known to raise today, the cost of guarding it anyway is one pcall.
-function obj:_applyRowCount(p)
-  local desired = p.rowCount
-  -- A presentation whose height follows its own list answers a function, asked here on every
-  -- show and clamped to the default, which stays the ceiling. A bad answer or a raise falls
-  -- back to the default rather than reaching the atom's arithmetic.
-  if type(desired) == "function" then
-    local ok, n = pcall(desired)
-    if ok and type(n) == "number" and n >= 1 then
-      desired = math.min(math.floor(n), self._defaultRowCount)
-    else
-      desired = nil
-    end
-  end
-  desired = desired or self._defaultRowCount
-  if desired == self._rowCount then return false end
-  self._rowCount = desired
-  if not self._instance:isShowing() then
-    self._instance:setRows(desired)
-    return false
-  end
-  self._suppressClose = true
-  local ok, err = pcall(function() self._instance:hide() end)
-  self._suppressClose = false
-  if not ok then
-    log.w(string.format("Stage's own resize hide raised, %s, continuing to setRows and show regardless", tostring(err)))
-  end
-  self._instance:setRows(desired)
-  return true
-end
-
 -- Applies the posture a list is shown in, bare for a cycle and full for everything else, the
--- same way _applyRowCount applies a row count. A provider that knows no posture, the legacy one,
+-- way the stage once applied a row count. A provider that knows no posture, the legacy one,
 -- is left as it is. Over a window already up a change takes the same hide and reshow, held shut
 -- by _suppressClose, and answers true so _show runs the cold show that follows it.
 function obj:_applyPosture(word)
@@ -1689,7 +1620,7 @@ end
 -- every level below it silently discarded. Then clears the whole stack, so the next present
 -- or push anywhere starts fresh.
 function obj:_onClose()
-  -- Held shut for the one call that is not a real dismissal, _applyRowCount's own internal
+  -- Held shut for the one call that is not a real dismissal, _applyPosture's own internal
   -- hide, which resizes the same presentation that is still current and about to be reshown
   -- on the very next line, never a level actually leaving the stack.
   if self._suppressClose then return end
@@ -1698,7 +1629,7 @@ function obj:_onClose()
   -- that did not bump the generation, so a proceed a deferring presentation is still waiting
   -- on when any of those happens found the stage's own book still open and showed itself
   -- over whatever the person went back to, seconds after they dismissed it. Placed after the
-  -- suppress guard on purpose, since _applyRowCount's own internal hide is the one call that
+  -- suppress guard on purpose, since _applyPosture's own internal hide is the one call that
   -- must not count as the stage moving on, the presentation it resizes being the one about to
   -- be reshown on the very next line rather than one actually leaving.
   self:_bumpEnterGen()

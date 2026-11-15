@@ -979,7 +979,7 @@ pane arrives or leaves while it is up is a `ReshapeMotion` over `reshape`, the w
 stepped on a display link, so the shadow, the outline and the glass's edge are the system's for
 every frame and the main thread stays free between frames, so a close or a list's key is heard mid
 motion, a close fading out from where the window stands and another shape turning it from there.
-A pane closing stays drawn until the window has narrowed over it. A list switch that changes the
+A pane closing stays drawn until the window has narrowed over it. A list that fits its rows, `fit = true`, grows and shrinks its window's height the same way, laid out once at the taller shape with the bar and the fade under the list stepped with the bottom edge, on the kit's `fitCurve`, which eases out only so the edge moves the moment the rows land, `docs/DESIGN-FIT-HEIGHT.md`. No plugin sets a height, and `rowCount` is refused. A list switch that changes the
 right group's actions morphs the group, `BarMorph`, its width and its crossfade on the same
 `reshapeCurve` and length as the window, and on the window's own steps while it reshapes. The small group still reads clearer and its shadow
 lighter than the open pane's, which is macOS drawing glass by size, accepted.

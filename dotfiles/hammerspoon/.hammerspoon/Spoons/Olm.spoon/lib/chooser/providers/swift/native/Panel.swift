@@ -330,22 +330,36 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
       turned = true
     }
     let target = Self.frame(of: next)
-    let changes = (turned || (from.paneFrame == nil) != (next.paneFrame == nil)) && !ScreenSpace.same(old, target)
+    // A list that fits its rows changes the window's height, docs/DESIGN-FIT-HEIGHT.md, going into
+    // it, back out of it and as its rows change, which reshapes on the fit curve when the width
+    // stays, and with a pane's arrival or leaving on the reshape curve as before.
+    let paneFlips = (from.paneFrame == nil) != (next.paneFrame == nil)
+    let heightMoves = abs(old.height - target.height) >= 1
+    let changes = (turned || paneFlips || heightMoves) && !ScreenSpace.same(old, target)
     guard isVisible, window.isVisible, changes, Motion.reshapeDuration > 0, !Motion.still else {
       endLinger()
       lay(next)
       return
     }
-    // Narrowing keeps the pane's region and the bar's width it had until the right edge has passed.
+    // Narrowing keeps the pane's region and the bar's width it had until the right edge has passed,
+    // and shrinking keeps the list's height, so the rows, which are the new ones at once, stay laid
+    // out once and the bottom edge covers what is below them rather than the list laid out per frame.
     var wide = next
     if target.width < old.width {
       wide.window = from.window
       wide.paneFrame = from.paneFrame
       wide.bottomBar = from.bottomBar
     }
+    if target.height < old.height, target.width >= old.width {
+      wide.window = from.window
+      wide.canvas = from.canvas
+      wide.listFrame = from.listFrame
+      wide.list = from.list
+      wide.bottomBar = from.bottomBar
+    }
     reshapeTarget = next
     lay(wide, at: old)
-    reshape.play(on: root, from: old, to: target,
+    reshape.play(on: root, from: old, to: target, curve: paneFlips ? Motion.reshapeCurve : Motion.fitCurve,
       step: { [weak self] frame, u in self?.stepShape(frame, u) },
       done: { [weak self] in self?.finishReshape() })
   }
@@ -366,16 +380,22 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   private func stepShape(_ frame: NSRect, _ u: CGFloat) {
     windowSize = frame.size
     window.setFrame(ScreenSpace.cocoaRect(frame), display: true)
-    layoutSurfaces()
+    layoutSurfaces(barRise: Self.frame(of: placement).height - frame.height)
     layoutBar(at: frame)
     bar.followMorph(u)
     window.invalidateShadow()
   }
 
-  // The bar spans the window, so a window narrower than its placement's takes as much off the bar.
+  // The bar spans the window, so a window narrower than its placement's takes as much off the bar,
+  // and it stands on the window's bottom edge, so a window shorter than its placement's lifts it as
+  // much.
   private func layoutBar(at frame: NSRect? = nil) {
     var rect = toWindow(placement.bottomBar) ?? .zero
-    if let frame { rect.size.width = max(0, rect.width - (Self.frame(of: placement).width - frame.width)) }
+    if let frame {
+      let laid = Self.frame(of: placement)
+      rect.size.width = max(0, rect.width - (laid.width - frame.width))
+      rect.origin.y -= laid.height - frame.height
+    }
     bar.frame = rect
   }
 
@@ -588,14 +608,16 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
 
   // MARK: The preview pane's region
 
-  private func layoutSurfaces() {
+  // barRise is how far a height reshape has lifted the bar above where the laid out shape stands it,
+  // so the fade under the list follows the bar on every step.
+  private func layoutSurfaces(barRise: CGFloat = 0) {
     let listFrame = placement.listFrame ?? NSRect(origin: .zero, size: placement.canvas.size)
     // The fade begins where the last row stands at the furthest scroll, the list's bottom padding
     // above the bar, so only what has scrolled under the bar softens.
     // The top fade is clear down to the title bar's bottom edge, where the list stops, and rises
     // along one smooth curve to full where the first row rests. The pane's column rises along the
     // same curve from its own top edge to where its content rests, the outer padding below it.
-    let barTop = toWindow(placement.bottomBar)?.minY ?? windowSize.height
+    let barTop = toWindow(placement.bottomBar).map { $0.minY - barRise } ?? windowSize.height
     let listTop = toWindow(placement.list)?.minY ?? 0
     surfaces.layout(size: windowSize, list: listFrame, pane: placement.paneFrame,
       paneShown: (paneShown && paneContent != nil) || (paneLingers && (paneContent != nil || lingeringView != nil)),

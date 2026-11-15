@@ -491,43 +491,31 @@ function obj.validatePresentation(name, identity, manifest, modules, deps)
       end
     end
   end
-  -- Adversarial review finding H3, the phase four geometry rework. rowCount and previewPaneWidth
-  -- are the two contract fields that are plain values rather than member specs, so the loop
-  -- above never touches either, and until this fix neither was checked at all, anywhere,
-  -- between the manifest and the stage. A bad rowCount, a string typed where a number was
-  -- meant, or the member spec shape written by habit since nine of the eleven other fields
-  -- take exactly that shape, reached math.min inside the atom's own _positionAndShow with
-  -- nothing to stop it, raised there, and left layout.rowCount corrupted on the one instance
-  -- the stage never rebuilds, wedging every future show of every presentation until the
-  -- config reloads. previewPaneWidth already survived a bad value, a provider's own reposition
-  -- refuses anything that is not a positive number or true, but only at
-  -- runtime, on every call, with no console line naming the tool, which is a weaker and
-  -- quieter protection than refusing the registration once, loudly, here, so it is checked
-  -- here too, to close the asymmetry rather than leave one field better protected than the
-  -- other for a reason nobody chose on purpose.
-  -- Rider N4 of the geometry review, second pass. A plain number check alone still let
-  -- zero, a negative, and a fraction through to math.min and then to rows(), each one a
-  -- degenerate window rather than the crash the first fix already closed, and the refusal
-  -- costs nothing to widen. paneMaxW gives the arithmetic a sane ceiling of its own
-  -- already, so this only needs a floor and a wholeness check, not a matching cap.
-  -- rowCount may also be a member spec, asked at every show, for a list whose length is the
-  -- height it wants, the input sources list first. It states its call like every presentation
-  -- member, and host/stage clamps what it answers to the default, so a wrong answer costs a
-  -- default window rather than a degenerate one.
-  if type(p.rowCount) == "table" then
-    if p.rowCount.call ~= "dot" and p.rowCount.call ~= "method" then
-      broken = true
-      if deps.log then
-        deps.log("e", string.format(
-          "registrar refused '%s', its presentation.rowCount does not state call, dot or method, explicitly", name))
-      end
-    end
-  elseif p.rowCount ~= nil and (type(p.rowCount) ~= "number" or p.rowCount < 1 or p.rowCount % 1 ~= 0) then
+  -- A list's height is never a plugin's to set, docs/DESIGN-FIT-HEIGHT.md, decided by Milos on
+  -- 2026-11-15. Every list is the chooser's own height, and one declaring fit = true is as tall as
+  -- its rows, at least one and never past that height. rowCount, a number or a member, was how a
+  -- plugin set a height until then and is refused by name, since a window resized by hiding and
+  -- showing it again blinked and one list's numbers made every list's height a plugin's business.
+  -- fit takes a real boolean and never a preview pane, whose height is the list's and would then
+  -- change with every key.
+  if p.rowCount ~= nil then
     broken = true
     if deps.log then
       deps.log("e", string.format(
-        "registrar refused '%s', its presentation.rowCount is '%s', not a positive whole number",
-        name, tostring(p.rowCount)))
+        "registrar refused '%s', its presentation.rowCount is retired, a list is the chooser's own height, or declare fit = true for one as tall as its rows, docs/DESIGN-FIT-HEIGHT.md", name))
+    end
+  end
+  if p.fit ~= nil and type(p.fit) ~= "boolean" then
+    broken = true
+    if deps.log then
+      deps.log("e", string.format("registrar refused '%s', its presentation.fit is '%s', not true or false",
+        name, tostring(p.fit)))
+    end
+  elseif p.fit == true and p.previewPaneWidth ~= nil and p.previewPaneWidth ~= false then
+    broken = true
+    if deps.log then
+      deps.log("e", string.format(
+        "registrar refused '%s', its presentation declares fit and a preview pane, whose height would change with every key", name))
     end
   end
   -- Review finding M1. previewPaneWidth may now ALSO be a member spec, the identical exception
@@ -576,7 +564,7 @@ function obj.validatePresentation(name, identity, manifest, modules, deps)
   -- reach host/stage/init.lua's own _resolveMatcher at runtime, which falls back to the root
   -- default in silence rather than raising, so a typo would read as "this presentation just
   -- inherited fuzzy" with nothing anywhere saying a word was misspelled. Checked here, once,
-  -- loudly, naming the tool and the unknown strategy, the same discipline rowCount and
+  -- loudly, naming the tool and the unknown strategy, the same discipline fit and
   -- previewPaneWidth just above already keep. deps.matchers absent, which nothing in the ordinary
   -- wiring pass ever leaves true, degrades to skipping this one check rather than refusing
   -- every string outright, since a missing dependency of the CHECK is not the same claim as
@@ -599,8 +587,8 @@ function obj.validatePresentation(name, identity, manifest, modules, deps)
     end
   end
   -- rowLimit, phase three of docs/PLAN-UNIFIED-SEARCH.md, the most rows the list shows that are
-  -- neither pinned nor fromQuery, cut after ranking by lib/chooser/rank.lua. A plain value like
-  -- rowCount and checked the same way, since zero, a fraction or a string would read as no
+  -- neither pinned nor fromQuery, cut after ranking by lib/chooser/rank.lua. A plain value, checked
+  -- the same way previewPaneWidth is, since zero, a fraction or a string would read as no
   -- limit at runtime and the list of thousands it exists for would build every row in silence.
   -- false is the one other answer, a list that opts out of the chooser's default limit, see
   -- chooser.rowLimit in config/settings.lua.
@@ -679,8 +667,8 @@ function obj.validatePresentation(name, identity, manifest, modules, deps)
       -- above already is, so a plugin that assembles it inside its own configure is still
       -- found once that has actually run.
       enter = obj.action(modules, identity, name, p.enter, nil),
-      rowCount = type(p.rowCount) == "table" and obj.action(modules, identity, name, p.rowCount, nil)
-        or p.rowCount,
+      -- fit, a plain boolean the check above already trusts, docs/DESIGN-FIT-HEIGHT.md.
+      fit = p.fit == true or nil,
       -- matcher, contract v2 decision one, carried through as the plain value the check
       -- above already trusts, false, a strategy name, or nil, never resolved into the
       -- actual matcher function here, since host/stage/init.lua's own _resolveMatcher is
@@ -701,7 +689,7 @@ function obj.validatePresentation(name, identity, manifest, modules, deps)
     -- moment and the identical reason placeholder does, since a plugin's own reservation
     -- depending on wiring only just finished running wants the real answer rather than one
     -- frozen before it existed. A plain value, true, a number, or nil, carries through
-    -- unresolved exactly as rowCount and matcher do.
+    -- unresolved exactly as fit and matcher do.
     if type(p.previewPaneWidth) == "table" then
       local resolvePreviewPaneWidth = obj.action(modules, identity, name, p.previewPaneWidth, nil)
       presentation.previewPaneWidth = resolvePreviewPaneWidth and resolvePreviewPaneWidth()
@@ -874,8 +862,8 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
   -- for this presentation, mirroring the shape and the name lib/chooser/providers/legacy.lua's
   -- own config.onPositioned already carries, so a plugin migrating its own preview pane onto
   -- the stage in phase five hands over the identical function it already wrote for that field
-  -- with nothing to rewrite. rowCount and previewPaneWidth are both read as a plain value, a number
-  -- or, for previewPaneWidth, true, never a member, since the contract itself never asks either one to
+  -- with nothing to rewrite. fit and previewPaneWidth are both read as a plain value, a boolean,
+  -- or for previewPaneWidth a number or true, never a member, since the contract itself never asks either one to
   -- be computed. matcher, contract v2 decision one, joins them as a third plain value, false or
   -- a strategy name, checked below rather than in the loop above for the identical reason.
   -- enter, contract v2 decision two, is a member like rows and the rest, called with one

@@ -110,12 +110,6 @@ end
 
 M.rows = rows
 
--- One row per enabled source, so the window is as tall as the list and no taller. The stage
--- caps it at its own default.
-function M.rowCount()
-  return math.max(1, #read())
-end
-
 function M.scopeRows()
   if hs.timer.secondsSinceEpoch() - readAt > FRESH then read() end
   return rows()

@@ -50,8 +50,8 @@ return {
     nav = false,
   },
 
-  -- rowCount is one, since this tool only ever shows its one morphing row and the default
-  -- chooser sizes a one row window to exactly that row.
+  -- fit, since this tool only ever shows its one morphing row, so the window is that row's height,
+  -- docs/DESIGN-FIT-HEIGHT.md.
   --
   -- matcher is a real false in both places. The field is a value being typed, so rows parses
   -- it on every keystroke and answers the row that value means, and a fuzzy pass over that
@@ -60,7 +60,7 @@ return {
     rows = { member = "rows", call = "dot" },
     select = { member = "select", call = "dot" },
     placeholder = { member = "placeholder", call = "dot" },
-    rowCount = 1,
+    fit = true,
     -- search-exempt, the field is a volume level being typed, parsed into the one row it means, so it is input and not a search
     matcher = false,
   },

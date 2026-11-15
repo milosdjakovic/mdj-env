@@ -38,7 +38,7 @@
 -- test/drygate-composewords.lua's own structured scan of root/compose.lua, which names its
 -- own limits in its own header rather than here.
 --
--- Four, call kinds and the type guards, rowCount, previewPaneWidth, and a scope or presentation
+-- Four, call kinds and the type guards, fit, previewPaneWidth, and a scope or presentation
 -- matcher against the real Chooser.matchers table, all ride along inside check two, since
 -- lib/registrar.lua's own obj.validatePresentation already makes every one of those checks
 -- as part of resolving a presentation, and lib/registry.lua's own register call, reused

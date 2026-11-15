@@ -193,9 +193,15 @@ local function topBiasedY(screenFrame, layout, canvasHeight)
   return wanted
 end
 
---- M.resolve(screenFrame, layout, previewPaneWidth) answers one table of rectangles, all in
---- absolute screen points. layout falls back to M.DEFAULT_LAYOUT when nil.
-function M.resolve(screenFrame, layout, previewPaneWidth)
+--- M.resolve(screenFrame, layout, previewPaneWidth, fitRows) answers one table of rectangles, all
+--- in absolute screen points. layout falls back to M.DEFAULT_LAYOUT when nil.
+---
+--- fitRows is the number of rows a list that fits its rows shows, a status row counted, absent for
+--- every other list, docs/DESIGN-FIT-HEIGHT.md. Below the rows the screen holds the window is that
+--- many rows tall, at least one, with no peek, since every row is whole and nothing is below to
+--- hint at. At or above them it is the full height. The top edge is the full height's either way,
+--- so the field stays where it is and only the bottom edge moves.
+function M.resolve(screenFrame, layout, previewPaneWidth, fitRows)
   layout = layout or M.DEFAULT_LAYOUT
 
   local rowCount = trimmedRowCount(screenFrame, layout)
@@ -208,6 +214,14 @@ function M.resolve(screenFrame, layout, previewPaneWidth)
   local total = canvasW + (previewPaneW > 0 and (layout.gap + previewPaneW) or 0)
   local x = screenFrame.x + math.floor((screenFrame.w - total) / 2)
   local y = topBiasedY(screenFrame, layout, canvasH)
+
+  if type(fitRows) == "number" then
+    local fit = math.max(1, math.floor(fitRows))
+    if fit < rowCount then
+      rowCount, viewRows = fit, fit
+      canvasH = layout.marginY + layout.baseH + viewRows * layout.rowH + bottomBarH
+    end
+  end
 
   local canvasRect = { x = x, y = y, w = canvasW, h = canvasH }
 

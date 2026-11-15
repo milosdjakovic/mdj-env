@@ -30,8 +30,8 @@
 --- Migrated onto host/stage, the trickle migration. This file owns no Chooser instance and
 --- builds no window any more. Its rows and its selection dispatch are exactly what they
 --- always were, now named on the manifest's own presentation block instead of handed to a
---- Chooser.new call this file no longer makes, and rowCount there is what asks the stage
---- for a one row window, since this tool only ever shows one morphing row. The plugin root's
+--- Chooser.new call this file no longer makes, and fit there is what asks for a window as tall
+--- as its one morphing row. The plugin root's
 --- own three function surface, isShowing, hide, and insertSelected, is gone too, deleted along with the Chooser.new block that gave it
 --- something to answer for, host/stage's own surfaceFor answering all five generic nav
 --- verbs now that a presentation exists to find. surface.nav stays false in the manifest,
@@ -309,7 +309,7 @@ end
 --- trickle migration. Whatever this plugin used to hand a Chooser.new call, theme, a field
 --- mode, the matcher, rows, onSelect, the row count, and the panel triple, is now either
 --- read straight off this module by the registrar, rows and select through the manifest's
---- own presentation block, or owned by the stage as fixed, atom level policy, rowCount and
+--- own presentation block, or owned by the stage as fixed, atom level policy, fit and
 --- matcher being contract fields the manifest carries as plain values rather than this file
 --- computing anything.
 function M:start()

@@ -211,10 +211,11 @@ there with nothing drawn in it. The pane genuinely vanishes only when `onPositio
 frames as nil, the stage's own swap signal, and when the stage closes, and a late repaint after a
 hide stays down until the next dock.
 
-`rowCount` is a positive whole number, declared only when ten genuinely does not fit. It costs
-a hide and show to resize, so it blinks, which is why almost nothing declares it. It may also be
-a member spec answering the count on every show, clamped to ten, for a short list whose height
-should follow its own length, as the input sources list does.
+A list's height is never yours to set. Every list is the chooser's own height, and `fit = true`
+says yours is as tall as its rows instead, at least one and never past that height, past which it
+scrolls and wraps. Olm animates the window as the rows change. Declare it for a list that is only
+ever a few rows, a typed value's one row as Keep Awake and Volume, or a short set as Input
+Sources, never with a preview pane, which the registrar refuses. `rowCount` is retired and refused.
 
 `titleLineBreak` names where a title too long for its row loses characters.
 `"truncateMiddle"` for filenames, where the tail is the extension and worth keeping. Absent
@@ -273,7 +274,7 @@ Three more exist and are used by exactly the plugins that needed them, `peekPrev
 A level inside your plugin is a child presentation, not hand wired plumbing. Your `select`
 answering a table pushes it, the stage taking the returned table exactly as a launcher row
 pushes a tool, so choosing the row swaps the list in place, backspace pops back to you, and
-the child may declare its own placeholder, matcher, previewPaneWidth, or rowCount and inherit
+the child may declare its own placeholder, matcher, previewPaneWidth, or fit and inherit
 whatever it does not. Returning nil or nothing keeps today's meaning, the row completed and
 the window hides. A child needs no name, the stage derives context from you, though it may
 carry one when its level genuinely wants different keys in the bottom bar.
@@ -410,7 +411,9 @@ by the cascade that already handles a missing plugin.
 
 - `registrar refused '%s', its presentation.%s does not state call, dot or method, explicitly`
 - `registrar refused '%s', its presentation.%s names '%s', which does not resolve to a function on the real module`
-- `registrar refused '%s', its presentation.rowCount is '%s', not a positive whole number`
+- `registrar refused '%s', its presentation.rowCount is retired, a list is the chooser's own height, or declare fit = true for one as tall as its rows, docs/DESIGN-FIT-HEIGHT.md`
+- `registrar refused '%s', its presentation.fit is '%s', not true or false`
+- `registrar refused '%s', its presentation declares fit and a preview pane, whose height would change with every key`
 - `registrar refused '%s', its presentation.previewPaneWidth does not state call, dot or method, explicitly`
 - `registrar refused '%s', its presentation.previewPaneWidth names '%s', which does not resolve to a function on the real module`
 - `registrar refused '%s', its presentation.previewPaneWidth is '%s', not a plain number, true, or a member spec`

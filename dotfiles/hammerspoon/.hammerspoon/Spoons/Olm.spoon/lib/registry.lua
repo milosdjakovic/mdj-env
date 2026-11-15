@@ -321,9 +321,9 @@ function M.new(opts)
   -- contract itself, BRIEF-STAGE.md version one, calls required beside name, name being this
   -- registry's own to stamp on rather than anything a manifest declares. Every other field a
   -- presentation carries, intercept, back, onHighlight, onClose, peekPreview, onPresent,
-  -- onPositioned, rowCount, and previewPaneWidth, the geometry brief's own addition, is optional here,
+  -- onPositioned, fit, and previewPaneWidth, the geometry brief's own addition, is optional here,
   -- this function checking only that a presentation exists at all rather than the shape of
-  -- any one field beyond rows and onSelect. rowCount and previewPaneWidth are checked for their own
+  -- any one field beyond rows and onSelect. fit and previewPaneWidth are checked for their own
   -- type one layer up, in lib/registrar.lua, adversarial review finding H3, since that is
   -- where the manifest's own declaration is still in hand to name in a refusal, by the time a
   -- presentation table reaches this function both are already trustworthy, a plain number or,

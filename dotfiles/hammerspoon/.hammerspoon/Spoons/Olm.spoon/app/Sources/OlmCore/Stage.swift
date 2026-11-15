@@ -114,6 +114,13 @@ public final class Stage {
   private var heldBusy = false
   // The placement choice the list was last opened with, for a reopen.
   private var screenMode: String?
+  // A list that fits its rows, docs/DESIGN-FIT-HEIGHT.md. The screen and the pane it was placed
+  // with, the count the window stands at, and each list's count when it last closed, which a list
+  // whose first rows come after the reveal's cap opens at, so it opens at its height as a rule.
+  private var placedScreen: NSScreen?
+  private var placedPane = false
+  private var fitShown: Int?
+  private var fitLast: [String: Int] = [:]
   private static let revealCapMs: UInt64 = 150
   // The tool whose list is up, told through onShowing as it goes up and comes down, step 1.4f,
   // docs/DESIGN-APP-LIST-KEYS.md, so Hammerspoon routes its list keys here.
@@ -165,9 +172,13 @@ public final class Stage {
     actionsGeneration += 1
     resetPane()
     pane = nil
+    fitShown = nil
+    placedScreen = nil
     if let look, let screen = Look.screen(for: mode) {
       panel.applyStyle(look.style())
       let tokens = next.manifest.previewPane != nil ? look.paneTokens() : nil
+      placedScreen = screen
+      placedPane = tokens != nil
       let (placement, frame) = look.placement(on: screen, pane: tokens != nil)
       panel.place(placement)
       let budget = look.textBudget(on: screen, pane: tokens != nil)
@@ -210,6 +221,8 @@ public final class Stage {
       let level = await next.open(query: query)
       guard mine == self.generation else { return }
       self.level = level
+      // Laid out hidden at the count it closed at, so a reveal before the rows lands at it.
+      if level.fit, let last = self.fitLast[next.manifest.name] { self.fit(last) }
       self.search(self.text)
     }
   }
@@ -299,6 +312,17 @@ public final class Stage {
       }
     }
     warmSoon()
+  }
+
+  // A list that fits its rows placed at a count, only when it differs from the one the window stands
+  // at, laid out at once while the window is hidden and reshaped on the fit curve while it is up,
+  // the native panel's own place, docs/DESIGN-FIT-HEIGHT.md.
+  private func fit(_ count: Int) {
+    guard count != fitShown, let look, let screen = placedScreen else { return }
+    fitShown = count
+    if let name = source?.manifest.name { fitLast[name] = count }
+    let (placement, _) = look.placement(on: screen, pane: placedPane, fitRows: count)
+    panel.place(placement)
   }
 
   // The fade of a hide has ended, or a show cut it short.
@@ -409,6 +433,7 @@ public final class Stage {
       panel.setRows(next.map(panelRow))
     }
     let was = highlight
+    if level?.fit == true { fit(max(1, next.count)) }
     if keepHighlight, let resting, let at = next.firstIndex(where: { $0.key == resting }) {
       highlight = at + 1
     } else {

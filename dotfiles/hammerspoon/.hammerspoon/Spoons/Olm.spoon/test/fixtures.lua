@@ -345,7 +345,9 @@ local function runGeometry(case, file)
   for k, v in pairs(plain(case.layout) or {}) do layout[k] = v end
   local pp = case.previewPaneWidth
   if pp == null then pp = nil end
-  local got = geometry.resolve(plain(case.screen), layout, pp)
+  local fit = case.fitRows
+  if fit == null then fit = nil end
+  local got = geometry.resolve(plain(case.screen), layout, pp, fit)
   local problems = {}
   local names = {}
   for k in pairs(case.expect) do names[#names + 1] = k end

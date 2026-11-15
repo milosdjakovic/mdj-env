@@ -57,6 +57,9 @@ enum Motion {
   // The curve of a reshape, the window's and a bar group's morphing beside it, so they move
   // together, the kit's reshapeCurve token, see lib/ui/style.lua.
   static var reshapeCurve = CAMediaTimingFunction(name: .linear)
+  // The curve of the window's height following a list that fits its rows, the kit's fitCurve
+  // token, easing out alone so the edge moves the moment the rows land, docs/DESIGN-FIT-HEIGHT.md.
+  static var fitCurve = CAMediaTimingFunction(name: .linear)
 
   // Where a curve has got at t from 0 to 1, its two control points solved for x by Newton's method
   // and bisection, as Core Animation does, for a motion stepped by hand.
@@ -278,15 +281,18 @@ final class ReshapeMotion: NSObject {
   private var from = NSRect.zero, to = NSRect.zero
   private var step: ((NSRect, CGFloat) -> Void)?
   private var done: (() -> Void)?
+  private var curve = Motion.reshapeCurve
   var moving: Bool { link != nil }
   // Where the window stood on the last frame drawn, which a motion turned mid way starts from.
   private(set) var at = NSRect.zero
 
   // Plays from one frame to another on view's display, both in Hammerspoon's screen space.
-  func play(on view: NSView, from: NSRect, to: NSRect, step: @escaping (NSRect, CGFloat) -> Void,
-    done: @escaping () -> Void) {
+  // curve is reshapeCurve for a width change and fitCurve for a height alone.
+  func play(on view: NSView, from: NSRect, to: NSRect, curve: CAMediaTimingFunction = Motion.reshapeCurve,
+    step: @escaping (NSRect, CGFloat) -> Void, done: @escaping () -> Void) {
     stop()
     guard Motion.reshapeDuration > 0, !Motion.still else { return done() }
+    self.curve = curve
     self.from = from
     self.to = to
     self.step = step
@@ -302,7 +308,7 @@ final class ReshapeMotion: NSObject {
     let start = CACurrentMediaTime()
     if began == 0 { began = link.timestamp }
     let t = min(1, CGFloat((link.targetTimestamp - began) / Motion.reshapeDuration))
-    let u = Motion.progress(Motion.reshapeCurve, t)
+    let u = Motion.progress(curve, t)
     // Each edge is mixed and rounded to a whole point on its own, so an edge only ever moves the way
     // it is going. Rounding the origin and the size instead let the far edge, their sum, step back
     // and forth where the curve moves less than a point a frame, which read as the window trembling

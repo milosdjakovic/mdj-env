@@ -250,7 +250,7 @@ the two renderers, and FileSearch's eliding of a long path, its one reader, tole
 ```json
 {"jsonrpc":"2.0","id":"a4","method":"open","params":{"what":{"tool":"clipboard"},"query":""}}
 {"jsonrpc":"2.0","id":"a4","result":{"level":{"id":"v7","placeholder":"Clipboard History",
-  "previewPane":true,"previewPaneWidth":480,"rowCount":9,"titleLineBreak":"truncateTail",
+  "previewPane":true,"previewPaneWidth":480,"titleLineBreak":"truncateTail",
   "ranking":"app","rowLimit":"default"}}}
 ```
 
@@ -259,8 +259,11 @@ A tool the bridge does not serve yet answers error `-32013` and no level, and th
 that led there in place rather than closing and opening the Lua chooser, step 3.3.
 
 The level's fields are the presentation's own, sent as values, and sent again in the effect
-`level` whenever the Lua side sees one change, since `rowCount` and the placeholder may be
-functions it calls.
+`level` whenever the Lua side sees one change, since the placeholder may be a
+function it calls.
+
+- `fit` is `true` for a list as tall as its rows, docs/DESIGN-FIT-HEIGHT.md, absent for every other,
+  and the app sizes and animates its window by the same rule geometry.lua's `fitRows` states.
 
 - `ranking` is `"app"`, the app ranks with its port of `rank.apply` and the shared matcher, which
   is every presentation that declares no matcher, or `"source"`, the presentation declared

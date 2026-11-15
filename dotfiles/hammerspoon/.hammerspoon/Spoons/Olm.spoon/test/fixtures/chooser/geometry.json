@@ -1,6 +1,6 @@
 {
   "kind": "chooser.geometry",
-  "about": "Where a chooser stands on a screen, lib/chooser/providers/default/geometry.lua resolve, which Olm.app ports to place its list exactly where the swift chooser places it. A case is a screen frame in Hammerspoon's space, y measured down from the top of the primary screen, an optional previewPaneWidth, true, a number or absent, and layout fields laid over the file's layout. The rectangles expected were recorded from the Lua answer on 2026-11-08 and the Lua runner checks them on every dry run, so they are what the code answers rather than a rule written by hand.",
+  "about": "Where a chooser stands on a screen, lib/chooser/providers/default/geometry.lua resolve, which Olm.app ports to place its list exactly where the swift chooser places it. A case is a screen frame in Hammerspoon's space, y measured down from the top of the primary screen, an optional previewPaneWidth, true, a number or absent, an optional fitRows, the rows a list that fits its rows shows, and layout fields laid over the file's layout. The rectangles expected were recorded from the Lua answer on 2026-11-08 and the Lua runner checks them on every dry run, so they are what the code answers rather than a rule written by hand.",
   "layout": { "baseH": 57, "bottomBarH": 0, "gap": 14, "iconGap": 10, "iconSize": 33, "marginX": 14, "marginY": 14, "minVPad": 60, "padX": 10, "paneMaxW": 480, "peek": 0.3, "rowCount": 9, "rowH": 47, "topFrac": 0.06, "width": 480 },
   "cases": [
     { "name": "a laptop screen, no preview pane", "screen": { "x": 0, "y": 25, "w": 1512, "h": 957 },
@@ -66,6 +66,22 @@
     { "name": "a top fraction past the bottom pad is clamped", "screen": { "x": 0, "y": 0, "w": 1440, "h": 900 }, "layout": { "topFrac": 0.9 },
       "expect": { "canvas": { "x": 480, "y": 331.9, "w": 480, "h": 508.1 }, "field": { "x": 494, "y": 331.9, "w": 452, "h": 57 },
         "list": { "x": 494, "y": 388.9, "w": 452, "h": 451.1 }, "previewPane": null,
+        "bottomBar": null, "rowCount": 9, "viewRows": 9.3 } },
+    { "name": "a list that fits one row, the field where the full height has it", "screen": { "x": 0, "y": 25, "w": 1512, "h": 957 }, "fitRows": 1,
+      "expect": { "canvas": { "x": 516, "y": 85, "w": 480, "h": 118 }, "field": { "x": 530, "y": 85, "w": 452, "h": 57 },
+        "list": { "x": 530, "y": 142, "w": 452, "h": 61 }, "previewPane": null,
+        "bottomBar": null, "rowCount": 1, "viewRows": 1 } },
+    { "name": "a list that fits three rows, with the bottom bar", "screen": { "x": 0, "y": 25, "w": 1512, "h": 957 }, "fitRows": 3, "layout": { "bottomBarH": 44 },
+      "expect": { "canvas": { "x": 516, "y": 85, "w": 480, "h": 256 }, "field": { "x": 530, "y": 85, "w": 452, "h": 57 },
+        "list": { "x": 530, "y": 142, "w": 452, "h": 155 }, "previewPane": null,
+        "bottomBar": { "x": 516, "y": 297, "w": 480, "h": 44 }, "rowCount": 3, "viewRows": 3 } },
+    { "name": "a list that fits no rows yet still takes one", "screen": { "x": 0, "y": 25, "w": 1512, "h": 957 }, "fitRows": 0,
+      "expect": { "canvas": { "x": 516, "y": 85, "w": 480, "h": 118 }, "field": { "x": 530, "y": 85, "w": 452, "h": 57 },
+        "list": { "x": 530, "y": 142, "w": 452, "h": 61 }, "previewPane": null,
+        "bottomBar": null, "rowCount": 1, "viewRows": 1 } },
+    { "name": "a list that fits more rows than the screen holds takes the full height", "screen": { "x": 0, "y": 25, "w": 1512, "h": 957 }, "fitRows": 20,
+      "expect": { "canvas": { "x": 516, "y": 85, "w": 480, "h": 508.1 }, "field": { "x": 530, "y": 85, "w": 452, "h": 57 },
+        "list": { "x": 530, "y": 142, "w": 452, "h": 451.1 }, "previewPane": null,
         "bottomBar": null, "rowCount": 9, "viewRows": 9.3 } }
   ]
 }

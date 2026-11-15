@@ -87,12 +87,9 @@ return {
   -- everywhere else a member is not a presentation's own. placeholder resolves once, at
   -- register, to the static field wording.
   --
-  -- rowCount is one, since this tool only ever shows its one morphing row, and it is the one
-  -- consumer in the whole tree that differs from the atom's own default of ten. A window
-  -- built for some other presentation's ten rows is hidden, rebuilt at one, and reshown the
-  -- moment this presentation becomes current, the one resize path that exists, and the same
-  -- happens in reverse the moment anything else is shown next, both blinks host/stage's own
-  -- _applyRowCount pays rather than this plugin.
+  -- fit, since this tool only ever shows its one morphing row, so the window is one row tall and
+  -- grows back to the chooser's own height as the next list shows, which Olm animates,
+  -- docs/DESIGN-FIT-HEIGHT.md. The plugin says only that, never a number.
   --
   -- matcher is a real false, unchanged by the migration. The field is not a filter over a
   -- list, it is a value being typed, so the supplier re-parses the query each keystroke and
@@ -102,7 +99,7 @@ return {
     rows = { member = "rows", call = "dot" },
     select = { member = "select", call = "dot" },
     placeholder = { member = "placeholder", call = "dot" },
-    rowCount = 1,
+    fit = true,
     -- search-exempt, the field is a duration being typed, parsed into the one row it means, so it is input and not a search
     matcher = false,
   },

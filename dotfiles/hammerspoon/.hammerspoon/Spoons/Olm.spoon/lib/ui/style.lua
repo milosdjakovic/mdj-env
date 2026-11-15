@@ -150,6 +150,11 @@ local SHIPPED = {
     -- in and out, the curve AppKit's own animated resize plays, chosen by Milos on 2026-11-06,
     -- since on the open curve the bar's group reached its width while the window gathered speed.
     reshapeCurve = { 0.42, 0, 0.58, 1 },
+    -- The window growing or shrinking to a list that fits its rows, docs/DESIGN-FIT-HEIGHT.md,
+    -- going into a list, back out of one and its rows changing as it is typed in. It eases out
+    -- alone, so the bottom edge moves the moment the rows land and a change turned mid way runs on
+    -- rather than starting from rest, chosen by Milos on 2026-11-15 to keep it snappy.
+    fitCurve = { 0.2, 0.8, 0.2, 1 },
   },
 }
 

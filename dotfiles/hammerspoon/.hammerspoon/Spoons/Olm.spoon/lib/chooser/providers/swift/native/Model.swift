@@ -7,7 +7,7 @@
 import Cocoa
 
 // Colours and fonts, resolved by the Lua view from the kit's tokens for the half the system is on.
-struct Style {
+struct Style: Equatable {
   var text = NSColor.labelColor
   var textDim = NSColor.secondaryLabelColor
   var sub = NSColor.secondaryLabelColor
@@ -134,7 +134,7 @@ struct Placement {
 
 // One key of a chord, lib/kbd.lua's glyph and the SF Symbol a key cap draws in its place, nil for
 // a key drawn as its glyph.
-struct KeyMark {
+struct KeyMark: Equatable {
   var glyph: String
   var symbol: String?
 }

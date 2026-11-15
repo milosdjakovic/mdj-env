@@ -112,7 +112,7 @@ extension Placement {
 
 extension Motion {
   // The kit's motion tokens, { open, close, rise, scale, paneOpen, paneClose, paneFade, reshape,
-  // openCurve, closeCurve, paneCurve, paneCloseCurve, reshapeCurve }, each curve four control point
+  // openCurve, closeCurve, paneCurve, paneCloseCurve, reshapeCurve, fitCurve }, each curve four control point
   // numbers. A field left out keeps what Motion holds.
   static func apply(_ f: Fields) {
     func curve(_ name: String) -> CAMediaTimingFunction? {
@@ -132,6 +132,7 @@ extension Motion {
     if let c = curve("paneCurve") { paneCurve = c }
     if let c = curve("paneCloseCurve") { paneCloseCurve = c }
     if let c = curve("reshapeCurve") { reshapeCurve = c }
+    if let c = curve("fitCurve") { fitCurve = c }
   }
 }
 

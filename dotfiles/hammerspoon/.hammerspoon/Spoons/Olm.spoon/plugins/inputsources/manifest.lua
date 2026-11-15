@@ -69,7 +69,8 @@ return {
     select = { member = "select", call = "dot" },
     placeholder = { member = "placeholder", call = "dot" },
     onPresent = { member = "onPresent", call = "dot" },
-    rowCount = { member = "rowCount", call = "dot" },
+    -- As tall as its sources, up to the chooser's own height, scrolling past it, docs/DESIGN-FIT-HEIGHT.md.
+    fit = true,
   },
 
   registry = {

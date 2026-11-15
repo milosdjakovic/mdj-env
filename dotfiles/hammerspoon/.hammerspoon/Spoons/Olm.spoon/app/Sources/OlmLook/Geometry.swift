@@ -131,17 +131,30 @@ public enum Geometry {
     return max(0, budget)
   }
 
-  public static func resolve(screen: LayoutRect, layout: ChooserLayout, previewPaneWidth: PreviewPaneWidth = .none) -> ChooserRects {
-    let rowCount = trimmedRowCount(screen, layout)
-    let viewRows = rowCount + (rowCount > 1 ? layout.peek : 0)
+  /// fitRows, geometry.lua's own, the rows a list that fits its rows shows, nil for every other
+  /// list, docs/DESIGN-FIT-HEIGHT.md. Below the rows the screen holds the window is that many rows
+  /// tall, at least one, with no peek, its top edge the full height's.
+  public static func resolve(screen: LayoutRect, layout: ChooserLayout, previewPaneWidth: PreviewPaneWidth = .none,
+    fitRows: Int? = nil) -> ChooserRects {
+    var rowCount = trimmedRowCount(screen, layout)
+    var viewRows = rowCount + (rowCount > 1 ? layout.peek : 0)
     let canvasW = layout.width
     let bottomBarH = layout.bottomBarH
-    let canvasH = layout.marginY + layout.baseH + viewRows * layout.rowH + bottomBarH
+    var canvasH = layout.marginY + layout.baseH + viewRows * layout.rowH + bottomBarH
 
     let paneW = Self.previewPaneWidth(previewPaneWidth, canvasW, layout)
     let total = canvasW + (paneW > 0 ? (layout.gap + paneW) : 0)
     let x = screen.x + ((screen.w - total) / 2).rounded(.down)
     let y = topBiasedY(screen, layout, canvasH)
+
+    if let fitRows {
+      let fit = max(1, fitRows)
+      if Double(fit) < rowCount {
+        rowCount = Double(fit)
+        viewRows = Double(fit)
+        canvasH = layout.marginY + layout.baseH + viewRows * layout.rowH + bottomBarH
+      }
+    }
 
     let canvas = LayoutRect(x: x, y: y, w: canvasW, h: canvasH)
     let field = LayoutRect(x: x + layout.marginX, y: y, w: canvasW - 2 * layout.marginX, h: layout.baseH)
