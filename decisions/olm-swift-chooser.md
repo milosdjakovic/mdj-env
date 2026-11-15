@@ -1105,3 +1105,6 @@ durations and distances live, Milos's call after weighing both. Built and loaded
   editor into the cell, which is what pointed at the cause. `setText` now calls `validateEditing`
   after setting the editor's text, and three driven runs left the field empty. The Lua swift
   chooser shares the field and never showed it, its query being cleared another way.
+- 2026-11-15 17:50. Correction to the entry above. That the Lua swift chooser never showed it was
+  not checked, it shares `setText` through Entry.swift, and its trial is still to come with the
+  rebuilt library.
