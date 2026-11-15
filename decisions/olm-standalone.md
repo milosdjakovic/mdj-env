@@ -720,3 +720,8 @@ list, and until then that list stays on Lua.
   the window is ordered out. The panel now reports the end of its fade, `onDown`, and the stage waits
   for it before closing the source, woken early by a new show and capped at 1 s. The shadow log stood
   at 23 lines and no difference after the trial.
+- 2026-11-15 12:01. Step 3.2 verified. Milos tried the window actions again after the fade fix,
+  Left Half and Right Half moved the Herdr window and an app row brought Safari to the front, and
+  called it good. Ticked. The shadow log stood at 26 lines and no difference. The timing log was
+  switched off again, `~/.olm/run/timings` removed. Hyper and 0 stays as the way into the app's
+  launcher until 3.5.

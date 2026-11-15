@@ -23,7 +23,7 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 3.2, the app's launcher on a trial key. 2.3's shadow keeps logging, and its log empty is a condition of 3.5's flip. File search is the app's since 1.5's flip on 2026-11-12.
+Next. 3.3, hosted lists through the bridge, Caffeinate first, its design note first. Hyper and 0 opens the app's launcher meanwhile. 2.3's shadow keeps logging, and its log empty is a condition of 3.5's flip. File search is the app's since 1.5's flip on 2026-11-12.
 
 Stage 0, contracts
 - [x] 0.1 The decision record, 2026-11-05
@@ -87,9 +87,10 @@ Stage 2, the bridge, read only
 Stage 3, every list in the app
 - [x] 3.1 Choosing a row over the bridge, 2026-11-13
   - Built on branch `olm-bridge-choose`, `choose` served by `host/bridge/serve.lua` through a new `Launcher:bridgeChoose`, the launcher's own promote, memory and run path, a row that becomes another list answering `unserved` until 3.3, a row its supplier no longer shows for the request's query answering `requery`, and the run waiting behind `after hidden` for the app's `hidden` or a 1 s fallback, `_runItem` taking `now` so nothing waits twice. The transcript grew a choose case and `test/bridgecheck.sh` a `--choose TITLE`. Live on 2026-11-13 with Milos watching, `bridgecheck.sh calc --choose Calculator` answered hide and after hidden in 1.7 ms and Calculator opened, the pick remembered under calc. It found the transport ignoring the app's listening note while it believed itself connected, which left it on a dead connection for good, fixed by reconnecting on every note.
-- [ ] 3.2 The app's launcher on a trial key
+- [x] 3.2 The app's launcher on a trial key, 2026-11-15
   - Its design note is agreed, `docs/DESIGN-APP-LAUNCHER.md`, the trial key Hyper and 0 and tool rows held in place until 3.3. Built on branch `olm-app-launcher` on 2026-11-13, the bridge host's action `bridge.launcher` opening `olm://launcher` where the olmapp piece and the socket are on, the app showing a second bridged launcher with a level for each show, Return through `choose` with `hidden` sent before the level's close, `requery` searching again, `unserved` held and logged, icons of every shape the launcher sends, and `metrics` after hello. `olm-bridge-check` 61 checks. The live trial by hand, with the three timings, is next.
   - Trial on 2026-11-13 with Milos. App rows, the calculator, a tool row held in place and Escape behaved, and Hyper and 0 felt snappier than Hyper and Space. Left Half moved Olm.app's fading list rather than the window in front, since `hidden` went out as the fade began. Fixed by closing the source once the panel's fade ends. The window actions to be tried again.
+  - Tried again on 2026-11-15, Left Half and Right Half moved the Herdr window and Safari came to the front, Milos calling it good. The shadow log stood at 26 lines and no difference. The trial key stays until 3.5 gives the app Hyper and Space.
 - [ ] 3.3 Hosted lists, one tool per step, each tool added here when it is started
 - [ ] 3.4 List keys reach the app
 - [ ] 3.5 The flip of Hyper and Space
