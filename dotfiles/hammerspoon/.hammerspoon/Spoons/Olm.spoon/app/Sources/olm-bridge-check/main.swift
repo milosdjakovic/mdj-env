@@ -10,6 +10,7 @@
 // Step 3.3 adds a hosted tool's list: a claim's fit, a push made into a level of its own, its rows and
 // icons, the effects notification reaching it and no other, its back and its close. Step 3.3b adds its
 // actions pane, the actions the push names, which apply, a verb's choices and a run with a choice.
+// Step 3.3c adds the pop and setQuery effects a hosted list's own code answers.
 //
 // test/olmbridge.sh builds and runs it. Exit 0 when every check passed.
 
@@ -375,6 +376,15 @@ ok((cc["params"] as? [String: Any])?["level"] as? String == "v5" && (cc["params"
   "Return names the hosted level and its row's ref")
 answer(cc, ["effects": [["hide": [String: Any]()]]])
 ok(await childPick == [.hide], "and a hide is the stage's")
+// Step 3.3c, a row that leaves its own level and one that writes the field.
+async let leaving = child.choose(Pick(key: "k1", query: ""))
+let lv = request("choose")
+answer(lv, ["effects": [["pop": ["level": "v5"]], ["rows": ["hold": false]]]])
+ok(await leaving == [.pop, .rows(hold: false)], "a pop is the stage's, the rows beside it kept in order")
+async let writing = child.choose(Pick(key: "k1", query: ""))
+let wq = request("choose")
+answer(wq, ["effects": [["setQuery": ["level": "v5", "q": 3, "query": "tea"]]]])
+ok(await writing == [.setQuery("tea")], "a setQuery carries its text")
 async let declined = child.back()
 let bk = request("back")
 answer(bk, ["handled": false])

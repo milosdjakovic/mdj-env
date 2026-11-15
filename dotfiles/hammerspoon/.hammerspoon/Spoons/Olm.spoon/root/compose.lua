@@ -324,6 +324,16 @@ end
 -- searchText and rowLimit included, and named by each row's key, so the app can answer the same
 -- query and log what differs. A tool must offer watch and held, which the line below says when it
 -- does not. The root names no tool here, the config's shadows list does.
+-- A stage word asked while Olm.app runs a hosted list's code answers there first, step 3.3c,
+-- host/bridge's hostedWord, the request's own row and query read, and a word that changes the list
+-- recorded as the answer's effect. handled is false outside such a request. At file scope, since
+-- the root's own function is at the 200 locals a Lua function may hold.
+local function hostedWord(modules, plan, name, ...)
+  local bridge = modules and plan and modules[plan.identity.bridge or "bridge"]
+  if not (bridge and bridge.hostedWord) then return false end
+  return bridge:hostedWord(name, ...)
+end
+
 local function wireShadows(bridge, modules, registry, rank, matcher, opts)
   if not (bridge and type(bridge.shadowed) == "function" and type(bridge.shadowWith) == "function") then return end
   opts = opts or {}
@@ -1721,6 +1731,7 @@ function obj.run(olm, cfg)
     -- closure under one name, the identical shape stagePresent and redrawPresented already
     -- take, since the question is "hide the shared window" and never which plugin is asking.
     stageHide = function()
+      if hostedWord(modules, plan, "stageHide") then return end
       if stageModule then stageModule:hide() end
     end,
 
@@ -1738,6 +1749,8 @@ function obj.run(olm, cfg)
     -- a now stale sibling, DisplayProfiles' own delete leaving both the delete frame and the
     -- profile it just removed behind in one press.
     stagePop = function()
+      local handled, value = hostedWord(modules, plan, "stagePop")
+      if handled then return value end
       return (stageModule and stageModule:pop()) or false
     end,
 
@@ -1745,6 +1758,8 @@ function obj.run(olm, cfg)
     -- its own tool through this, the same push a row's onSelect answering a child gets, since a
     -- verb has no onSelect to answer one through. Rename in Workspaces is the first.
     stagePush = function(child)
+      local handled, value = hostedWord(modules, plan, "stagePush", child)
+      if handled then return value end
       return (stageModule and stageModule:pushChild(child)) or false
     end,
 
@@ -1757,6 +1772,7 @@ function obj.run(olm, cfg)
     -- underneath it, already call refresh(true) once an intercept answers true, so nothing
     -- here has to ask for a rebuild on top of what the atom already gives every intercept.
     stageSetQuery = function(text)
+      if hostedWord(modules, plan, "stageSetQuery", text) then return end
       if stageModule then stageModule:setQuery(text) end
     end,
 
@@ -1782,6 +1798,8 @@ function obj.run(olm, cfg)
     -- directly instead of keeping a cache that cannot answer the question the widget already
     -- answers.
     stageSelectedItem = function()
+      local handled, value = hostedWord(modules, plan, "stageSelectedItem")
+      if handled then return value end
       return stageModule and stageModule:selectedItem() or nil
     end,
 
@@ -1789,6 +1807,8 @@ function obj.run(olm, cfg)
     -- harness reads it beside stageSelectedItem so a round can tell a query that never landed
     -- from a ranking that was wrong, and no plugin reads it for behaviour.
     stageQuery = function()
+      local handled, value = hostedWord(modules, plan, "stageQuery")
+      if handled then return value end
       return stageModule and stageModule:query() or ""
     end,
 
@@ -1831,6 +1851,8 @@ function obj.run(olm, cfg)
     end,
 
     stageSelectedRow = function()
+      local handled, value = hostedWord(modules, plan, "stageSelectedRow")
+      if handled then return value end
       return stageModule and stageModule:selectedRow() or nil
     end,
 

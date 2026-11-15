@@ -196,6 +196,9 @@ public enum Effect: Sendable, Equatable {
   /// Asks the rows for the same text again, hold keeping the highlight on the row it rests on, the
   /// bridge's rows effect, a row that changed the list it stands on.
   case rows(hold: Bool)
+  /// Closes the list shown over another and gives that one back as Backspace on the empty field
+  /// does, the bridge's pop, a row of a hosted list leaving its own level, step 3.3c.
+  case pop
 }
 
 /// One of the eight colour roles lib/ui/style.lua resolves for the half the system is on. A plugin

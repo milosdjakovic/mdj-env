@@ -396,23 +396,30 @@ public final class Stage {
         if self.source === child { self.search(self.text, keepHighlight: true) }
         return
       }
-      guard self.source === child, self.text.isEmpty, let parent = self.parked.popLast() else { return }
-      self.generation += 1
-      self.task?.cancel()
-      self.source = parent.source
-      self.level = parent.level
-      self.bars = Bars.read(parent.source.manifest.name)
-      self.text = parent.text
-      self.panel.setText(parent.text)
-      self.rows = parent.rows
-      self.highlight = parent.highlight
-      self.highlightGeneration += 1
-      self.panel.setRows(parent.rows.map(self.panelRow))
-      if let count = parent.fitShown { self.fit(count) } else { self.unfit() }
-      self.apply(status: parent.status)
-      Task { await child.close() }
-      self.search(parent.text, keepHighlight: true)
+      guard self.source === child, self.text.isEmpty else { return }
+      self.popChild(child)
     }
+  }
+
+  // The list below given back as it was parked, its height with it, its rows asked again keeping
+  // the highlight, and the child closed, for a back the child declined or its own pop, step 3.3c.
+  private func popChild(_ child: any ListSource) {
+    guard source === child, let parent = parked.popLast() else { return }
+    generation += 1
+    task?.cancel()
+    source = parent.source
+    level = parent.level
+    bars = Bars.read(parent.source.manifest.name)
+    text = parent.text
+    panel.setText(parent.text)
+    rows = parent.rows
+    highlight = parent.highlight
+    highlightGeneration += 1
+    panel.setRows(parent.rows.map(panelRow))
+    if let count = parent.fitShown { fit(count) } else { unfit() }
+    apply(status: parent.status)
+    Task { await child.close() }
+    search(parent.text, keepHighlight: true)
   }
 
   /// A source's list redrawn where it is on screen, its rows asked again for the same text, hold
@@ -868,8 +875,10 @@ public final class Stage {
         previewAsking = nil
         describe()
       case .requery: search(text)
-      case .rows(let hold): search(text, keepHighlight: hold)
+      // A pop asks the rows of the list it gives back, so a redraw beside it is done.
+      case .rows(let hold): if !effects.contains(.pop) { search(text, keepHighlight: hold) }
       case .push(let token): if let answered { push(token, from: answered) }
+      case .pop: if let answered { popChild(answered) }
       }
     }
   }

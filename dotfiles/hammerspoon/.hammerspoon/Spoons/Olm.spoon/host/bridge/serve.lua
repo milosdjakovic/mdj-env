@@ -58,8 +58,16 @@ function M.new(opts)
   -- item table comes back keeps its key, the protocol's A key.
   local minted = setmetatable({}, { __mode = "k" })
   local mintCount = 0
-  local function keyFor(item, memoryKey)
+  -- A hosted list's row keeps its key across answers by the key it states, the stage's own rule
+  -- for holding a highlight, and otherwise by its item, a plain value by that value, Emoji's glyph,
+  -- step 3.3c, since a key minted afresh every answer sends every row again on every keystroke.
+  local function keyFor(item, memoryKey, row)
     if memoryKey then return memoryKey end
+    if row then
+      local stated = row.key
+      if type(stated) == "string" or type(stated) == "number" then return "s:" .. tostring(stated) end
+      if type(item) == "string" or type(item) == "number" then return "v:" .. tostring(item) end
+    end
     if type(item) ~= "table" then
       mintCount = mintCount + 1
       return "k" .. mintCount
@@ -154,7 +162,7 @@ function M.new(opts)
     local list, seen = {}, {}
     for _, row in ipairs(rows or {}) do
       local memoryKey = remembers and opts.launcher.memoryKey(row.item) or nil
-      local key = keyFor(row.item, memoryKey)
+      local key = keyFor(row.item, memoryKey, level.kind == "presentation" and row or nil)
       if seen[key] then key = keyFor({}, nil) end
       seen[key] = true
       local ref = level.refs[key]
@@ -334,7 +342,10 @@ function M.new(opts)
     local shown = level.shown and level.shown[key]
     if not shown then return { effects = { { requery = { level = level.id, q = params.q } } } } end
     if shown.out.enabled == false then return { effects = {} } end
-    if level.kind == "presentation" then return { effects = service.choosePresented(level, level.items[params.ref]) } end
+    if level.kind == "presentation" then
+      local item = level.items[params.ref]
+      return { effects = service.choosePresented(level, item, { item = item, row = params.row, query = query }) }
+    end
     if not opts.launcher.choose then rpc.fail(rpc.UNKNOWN, "choose is not served") end
     local effects, run = opts.launcher.choose(level.items[params.ref], query, opts.hosted)
     effects = service.pushes(level, effects or {})
@@ -422,11 +433,32 @@ function M.new(opts)
     return effects
   end
 
+  -- What a hosted list's code recorded made into the effects the app applies, for the level the
+  -- request ran on, step 3.3c. A child pushed by stagePush opens a level of its own, a pop names
+  -- that level, and a setQuery carries its level and the q it was asked on.
+  function service.effectsOf(level, recorded)
+    local out = {}
+    for _, e in ipairs(recorded or {}) do
+      if e.pushChild then
+        local child = e.pushChild
+        if child.name == nil or child.name == "" then child.name = level.presentation and level.presentation.name end
+        out[#out + 1] = pushLevel(level, child)
+      elseif e.pop then
+        out[#out + 1] = { pop = { level = level.id } }
+      elseif e.setQuery then
+        out[#out + 1] = { setQuery = { level = level.id, q = level.q, query = e.setQuery.query } }
+      else
+        out[#out + 1] = e
+      end
+    end
+    return out
+  end
+
   -- Return on a hosted list's row, as the Lua stage's _intercept answers it. Its intercept first, a
   -- true answer the rows again, "stay" holding the highlight, then its onSelect, a child answered
   -- pushed over it, and nothing answered closing the list. The stage words its code calls on the
   -- way are recorded and applied after a hide, before anything else.
-  function service.choosePresented(level, item)
+  function service.choosePresented(level, item, context)
     local p = level.presentation
     local function act()
       if p.intercept then
@@ -440,7 +472,8 @@ function M.new(opts)
       return {}
     end
     local recorded, outcome
-    if opts.facade then recorded, outcome = opts.facade.during(act) else recorded, outcome = {}, act() end
+    if opts.facade then recorded, outcome = opts.facade.during(act, context or { item = item }) else recorded, outcome = {}, act() end
+    recorded = service.effectsOf(level, recorded)
     local effects = {}
     if outcome.stay then
       for _, e in ipairs(recorded) do effects[#effects + 1] = e end
@@ -470,14 +503,14 @@ function M.new(opts)
     return level, level.items[params.ref]
   end
 
-  local function during(fn)
-    if opts.facade then return opts.facade.during(fn) end
+  local function during(fn, context)
+    if opts.facade then return opts.facade.during(fn, context) end
     return {}, fn()
   end
 
   methods.actions = { run = function(params)
     local level, item = presented(params, "actions")
-    local _, list = during(function() return opts.verbs.actions(level.presentation.name, item) end)
+    local _, list = during(function() return opts.verbs.actions(level.presentation.name, item) end, { item = item })
     local out = {}
     for _, a in ipairs(type(list) == "table" and list or {}) do
       if type(a.action) == "string" then out[#out + 1] = { action = a.action, title = (text(a.title or a.action)) } end
@@ -488,7 +521,7 @@ function M.new(opts)
   methods.choices = { run = function(params)
     local level, item = presented(params, "choices")
     if type(params.action) ~= "string" then rpc.fail(rpc.PARAMS, "choices needs an action") end
-    local _, rows = during(function() return opts.verbs.level(level.presentation.name, params.action, item) end)
+    local _, rows = during(function() return opts.verbs.level(level.presentation.name, params.action, item) end, { item = item })
     level.choiceValues = {}
     local out = {}
     for i, row in ipairs(type(rows) == "table" and rows or {}) do
@@ -513,8 +546,14 @@ function M.new(opts)
       if not c or c.cancel or not c.enabled then return { effects = {} } end
       value = c.value
     end
-    local recorded = during(function() opts.verbs.run(level.presentation.name, params.action, item, value) end)
-    return { effects = recorded }
+    local recorded = during(function() opts.verbs.run(level.presentation.name, params.action, item, value) end,
+      { item = item, row = params.row, query = type(params.query) == "string" and params.query or "" })
+    -- A verb that closes the list, Emoji's Copy, hides first, as choosing a row orders it.
+    local effects = service.effectsOf(level, recorded)
+    for i, e in ipairs(effects) do
+      if e.hide and i > 1 then table.remove(effects, i); table.insert(effects, 1, e); break end
+    end
+    return { effects = effects }
   end }
 
   -- Backspace on a hosted list's empty field, the presentation's own back first, as the Lua
@@ -525,8 +564,8 @@ function M.new(opts)
     local p = level.kind == "presentation" and level.presentation
     if not (p and p.back) then return { handled = false, effects = {} } end
     local recorded, handled
-    if opts.facade then recorded, handled = opts.facade.during(p.back) else recorded, handled = {}, p.back() end
-    return { handled = handled == true, effects = handled and recorded or {} }
+    if opts.facade then recorded, handled = opts.facade.during(p.back, { query = "" }) else recorded, handled = {}, p.back() end
+    return { handled = handled == true, effects = handled and service.effectsOf(level, recorded) or {} }
   end }
 
   --- service.redraws(name, token, resetRow) -> the params of each effects notification a redraw of

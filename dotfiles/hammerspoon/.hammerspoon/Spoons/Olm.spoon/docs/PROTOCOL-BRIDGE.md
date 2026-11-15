@@ -452,6 +452,16 @@ runs the action through the surface of the tool that owns the list, with the cho
 answers what it called as effects, a disabled choice or Cancel running nothing. The launcher's own
 level carries no actions pane, its only action repeating Run, so all three answer `-32601` there.
 
+**What 3.3c serves.** The stage words a hosted list's own code calls, while a request from the app
+runs it, through the bridge host's `hostedWord`, which the root's words ask first.
+`stageSelectedItem`, `stageSelectedRow` and `stageQuery` answer the request's own row, place and
+query. `stageHide` is the effect `hide`, `stagePop` is `{"pop":{"level":...}}` naming the level the
+request ran on, `stageSetQuery` is `{"setQuery":{"level":...,"q":...,"query":...}}`, and
+`stagePush(child)` is a `push` of a level of its own. A `run` whose verb hides answers `hide`
+first. Outside a request every word acts on the Lua stage as before. A hosted level keys its rows by
+the `key` a row states, else by its item, a plain string or number by its value, so an unchanged
+row is never sent again, Emoji's glyph rows among them.
+
 **Return while an answer is out.** `choose` carries the `q` and the query it was pressed on, and the
 Lua side never chooses a row its supplier would not show for that query. When the rows it last
 computed for the level were for an older query, it runs the supplier for the request's query first,

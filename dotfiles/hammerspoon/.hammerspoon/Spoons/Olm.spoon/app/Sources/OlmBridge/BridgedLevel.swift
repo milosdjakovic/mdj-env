@@ -123,6 +123,10 @@ struct WireEffects {
         effects.append(.push(id))
       } else if !effect["rows"].isNull {
         effects.append(.rows(hold: effect["rows"]["hold"].bool ?? false))
+      } else if !effect["pop"].isNull {
+        effects.append(.pop)
+      } else if !effect["setQuery"].isNull {
+        effects.append(.setQuery(effect["setQuery"]["query"].string ?? ""))
       } else if !effect["unserved"].isNull {
         log("\(effect["unserved"]["name"].string ?? "a row") becomes a list the app does not host yet")
       } else {

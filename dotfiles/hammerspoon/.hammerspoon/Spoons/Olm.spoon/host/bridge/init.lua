@@ -290,6 +290,33 @@ function obj:presentedRedraw(name, token, resetRow)
   return sent
 end
 
+--- obj:hostedWord(name, ...) -> handled, value, the root's stage words asking first, step 3.3c of
+--- docs/PLAN-STANDALONE.md. While a request from the app runs a hosted list's code, the words that
+--- read the list answer from that request's own row and query, and the words that change it are
+--- recorded as the answer's effects, docs/PROTOCOL-BRIDGE.md The stage words. handled is false
+--- outside a request, and the word then acts on the Lua stage as before.
+function obj:hostedWord(name, ...)
+  local f = self._facade
+  if not (f and f.recording()) then return false end
+  local context = f.context() or {}
+  if name == "stageSelectedItem" then return true, context.item end
+  if name == "stageSelectedRow" then return true, context.row end
+  if name == "stageQuery" then return true, context.query or "" end
+  if name == "stageHide" then f.record({ hide = {} }); return true end
+  if name == "stagePop" then f.record({ pop = {} }); return true, true end
+  if name == "stageSetQuery" then
+    f.record({ setQuery = { query = tostring((...) or "") } })
+    return true
+  end
+  if name == "stagePush" then
+    local child = ...
+    if type(child) ~= "table" then return true, false end
+    f.record({ pushChild = child })
+    return true, true
+  end
+  return false
+end
+
 --- obj:memoryChanged() tells the app the launcher's memory moved, after a pick the launcher
 --- recorded, with only the queries whose order differs from what this connection was sent, the
 --- protocol's memory notification. Nothing goes before the app opened a launcher level.

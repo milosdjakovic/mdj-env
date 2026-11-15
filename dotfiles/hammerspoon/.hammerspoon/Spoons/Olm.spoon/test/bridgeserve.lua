@@ -387,5 +387,70 @@ ok(ran[2].action == "forget" and ran[2].value == nil and ran[2].item.id == "old"
 local refused = pcall(hostingTmux.methods.actions.run, { level = "v1", h = 1, ref = "v1.1" })
 ok(refused == false, "the launcher's own level serves no actions pane")
 
+-- Step 3.3c, what a hosted list's code records made into effects for the level it ran on, the
+-- word answering from the request's own context. The bridge host's hostedWord is faked here as
+-- the facade's own context read, test/bridge.lua pinning the real one.
+local function word(name, ...)
+  if not facade.recording() then return false end
+  local ctx = facade.context() or {}
+  if name == "stageSelectedItem" then return true, ctx.item end
+  if name == "stageQuery" then return true, ctx.query end
+  if name == "stageHide" then facade.record({ hide = {} }); return true end
+  if name == "stagePop" then facade.record({ pop = {} }); return true, true end
+  if name == "stageSetQuery" then facade.record({ setQuery = { query = (...) } }); return true end
+  if name == "stagePush" then facade.record({ pushChild = (...) }); return true, true end
+end
+local copied
+local settingsLevel = { name = "browserTabs", rows = function() return { { title = "Back", item = { to = "back" } }, { title = "Safari", item = { id = "safari" } } } end,
+  onSelect = function() end,
+  intercept = function(item) if item.to == "back" then word("stagePop"); return true end; return "stay" end }
+local emojiList = { name = "emoji", placeholder = "Search by name or keyword", rowLimit = 100,
+  rows = function(q) return { { title = "Teacup", item = "🍵" }, { title = "Tea" .. (q or ""), item = "🫖" } } end,
+  onSelect = function(item) return item == "🫖" and settingsLevel or nil end,
+  intercept = function(item) if item == "🔎" then word("stageSetQuery", "tea"); return true end end }
+local wordVerbs = { ids = function() return { "insertSelected", "copySelected", "settings" } end,
+  actions = function() return {} end, level = function() return {} end,
+  run = function(_, action)
+    if action == "copySelected" then
+      local _, glyph = word("stageSelectedItem")
+      local _, q = word("stageQuery")
+      copied = glyph .. "|" .. q
+      word("stageHide")
+    elseif action == "settings" then
+      word("stagePush", { rows = function() return {} end, onSelect = function() end })
+    end
+  end }
+local hostingEmoji = serve.new({ rpc = rpc, clean = frame.clean, facade = facade, verbs = wordVerbs,
+  hosted = function(p) return p.name == "emoji" end,
+  launcher = { memoryKey = memoryKey, rows = function() return { { title = "Emoji", item = { kind = "special", name = "emoji" } } } end,
+    choose = function(_, _, hosted) return { { present = hosted(emojiList) and emojiList or nil } } end },
+  icons = function() return nil end })
+hostingEmoji.methods.open.run({ what = { launcher = true } })
+hostingEmoji.methods.rows.run({ level = "v1", q = 1, query = "" })
+local emojiPush = hostingEmoji.methods.choose.run({ level = "v1", q = 1, ref = "v1.1", query = "" }).effects[1].push
+ok(emojiPush.level.rowLimit == 100, "a hosted level carries its own row limit")
+local eid = emojiPush.level.id
+local erows = hostingEmoji.methods.rows.run({ level = eid, q = 5, query = "te" }).changes.upsert
+local copy = hostingEmoji.methods.run.run({ level = eid, q = 5, h = 2, ref = erows[1].ref, row = 1, query = "te", action = "copySelected" })
+ok(copied == "🍵|te", "a verb reading the selected item and the query reads the request's own")
+ok(#copy.effects == 1 and copy.effects[1].hide, "and its stageHide is the answer's hide")
+local pushedByWord = hostingEmoji.methods.run.run({ level = eid, q = 5, h = 2, ref = erows[1].ref, row = 1, query = "te", action = "settings" }).effects
+ok(pushedByWord[1].push and pushedByWord[1].push.parent == eid and pushedByWord[1].push.level.name == "emoji"
+  and hostingEmoji.levels[pushedByWord[1].push.level.id] ~= nil, "a stagePush opens a level of its own over the list, named after its tool")
+local drilledEffects = hostingEmoji.methods.choose.run({ level = eid, q = 5, ref = erows[2].ref, row = 2, query = "te" }).effects
+local sid = drilledEffects[1].push.level.id
+local srows = hostingEmoji.methods.rows.run({ level = sid, q = 1, query = "" }).changes.upsert
+local popped = hostingEmoji.methods.choose.run({ level = sid, q = 1, ref = srows[1].ref, row = 1, query = "" }).effects
+ok(#popped == 2 and popped[1].pop and popped[1].pop.level == sid and popped[2].rows,
+  "a row whose intercept pops answers pop naming its own level, then the rows")
+local stayed = hostingEmoji.methods.choose.run({ level = sid, q = 1, ref = srows[2].ref, row = 2, query = "" }).effects
+ok(#stayed == 1 and stayed[1].rows.hold == true, "a row that stays holds the highlight")
+emojiList.rows = function() return { { title = "Search", item = "🔎" } } end
+local qrows = hostingEmoji.methods.rows.run({ level = eid, q = 9, query = "" }).changes.upsert
+local set = hostingEmoji.methods.choose.run({ level = eid, q = 9, ref = qrows[1].ref, row = 1, query = "" }).effects
+ok(set[1].setQuery and set[1].setQuery.query == "tea" and set[1].setQuery.level == eid and set[1].setQuery.q == 9,
+  "a stageSetQuery is the answer's setQuery, its level and the q it was asked on")
+ok(not facade.recording() and facade.context() == nil, "and nothing is left recording")
+
 print(string.format("bridgeserve: %d checks, %d failed", checks, failures))
 os.exit(failures == 0 and 0 or 1)

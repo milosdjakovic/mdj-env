@@ -784,3 +784,11 @@ list, and until then that list stays on Lua.
   no drop was found by reading. Believed a slow or timed out first fetch, which would hold the Lua
   list the same way, not proven. The debug build is reinstalled when it is seen again. The shadow
   log stood at 71 lines and no difference.
+- 2026-11-15 23:54. 3.3c built. The stage words a hosted list's code calls are answered from the request's own
+  row and query or recorded as its effects, through the bridge host's `hostedWord`, which the
+  root's words ask first. The helper sits at the root file's own scope, since the root's function
+  is at the 200 locals Lua allows and one more refused to compile. Measuring Emoji before the trial
+  found every keystroke sending all 5648 rows, 0.9 MB, since a hosted row was keyed by its item's
+  table and a glyph is a string. A hosted row is keyed now by the key it states, else by a plain
+  item's value, and a keystroke sends 56 bytes, the first open still sending them all once. Emoji
+  and Browser Tabs join `hosts`. Not yet tried live.

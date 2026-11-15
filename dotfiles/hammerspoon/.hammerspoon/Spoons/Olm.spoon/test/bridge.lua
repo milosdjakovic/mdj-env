@@ -234,6 +234,32 @@ local recorded = redrawing._facade.during(function() redrawing:presentedRedraw("
 eq(#notified, 1, "a redraw asked while a request runs is not sent")
 eq(recorded[1] and recorded[1].rows.hold, false, "it is recorded for that answer instead, resetRow saying so")
 
+-- The stage words a hosted list's code calls, step 3.3c, answered from the request's own context or
+-- recorded as its effects while a request runs it, and handed back to the Lua stage outside one.
+eq(redrawing:hostedWord("stageSelectedItem"), false, "outside a request a word is the Lua stage's")
+local words = {}
+local wordEffects = redrawing._facade.during(function()
+  words.handled, words.item = redrawing:hostedWord("stageSelectedItem")
+  words.row = select(2, redrawing:hostedWord("stageSelectedRow"))
+  words.query = select(2, redrawing:hostedWord("stageQuery"))
+  words.hid = redrawing:hostedWord("stageHide")
+  words.popped = select(2, redrawing:hostedWord("stagePop"))
+  words.pushed = select(2, redrawing:hostedWord("stagePush", { name = "emoji" }))
+  words.notPushed = select(2, redrawing:hostedWord("stagePush", "nothing"))
+  redrawing:hostedWord("stageSetQuery", "tea")
+  words.unknown = redrawing:hostedWord("stageTextWidth", "x")
+end, { item = "🍵", row = 3, query = "te" })
+eq(words.handled == true and words.item, "🍵", "stageSelectedItem answers the request's own row")
+eq(words.row, 3, "stageSelectedRow its place")
+eq(words.query, "te", "stageQuery its query")
+eq(words.hid and wordEffects[1].hide ~= nil, true, "stageHide is recorded as hide")
+eq(words.popped == true and wordEffects[2].pop ~= nil, true, "stagePop as pop, answered true")
+eq(words.pushed == true and wordEffects[3].pushChild.name, "emoji", "stagePush as the child to push")
+eq(words.notPushed, false, "and a push of no table pushes nothing")
+eq(wordEffects[4].setQuery.query, "tea", "stageSetQuery as setQuery with its text")
+eq(#wordEffects == 4 and words.unknown, false, "a word the bridge does not answer stays the Lua stage's")
+eq(wordEffects.context, nil, "the context ends with the request")
+
 -- The trial key of step 3.2, bridge.launcher, gated on the piece, the app and the socket setting.
 local tried = fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, socket = true })
 local actions = tried:actions()

@@ -193,6 +193,33 @@ Lua launcher carries no Actions either, `hints.dropIdleActionsPanes`.
 
 `hosts` gains `tmuxSessions` and `vpn`.
 
+## 3.3c, the stage words
+
+Written and built on 2026-11-15 with Milos's go. Emoji's Copy reads the selected row and hides the
+list, and Browser Tabs' settings page has a Back row that pops its own level.
+
+- **The Lua side.** The facade carries the request's own context, its row, place and query.
+  `host/bridge/init.lua`'s `hostedWord` answers the words that read the list from it and records
+  the words that change it, and the root's words ask it first, through a helper at the file's own
+  scope, since the root's function is at the 200 locals Lua allows. `serve.lua`'s `effectsOf` makes
+  what was recorded into the effects for the level the request ran on, the protocol's "What 3.3c
+  serves".
+- **The app.** It applies `pop`, closing the level that answered it and giving the list below back
+  as Backspace does, and `setQuery`, which writes the field and searches.
+- **Emoji's Command and Return** reaches Lua with no `key` request. The keys share names it as the
+  field key of `copySelected`, the pushed level names that action, and the app runs it as 3.3b's
+  `run`.
+- **A row keyed by its value.** A hosted row was keyed by its item's table, so Emoji's glyph rows,
+  whose item is the glyph itself, were given new keys on every answer and every keystroke sent all
+  5648 again, 0.9 MB. Measured live on 2026-11-15 after the fix, the first open sends them once,
+  88 ms to build and 105 ms to encode on the Lua side, and a keystroke 56 bytes, the Lua side still
+  rebuilding and comparing the rows in 60 to 84 ms, about what the Lua list spends rebuilding them.
+- Insert pastes into the app underneath as it does from the Lua list, its paste delay standing
+  between Return and the paste. Should it land in the wrong place, Insert waits for `hidden` as the
+  launcher's runs do.
+
+`hosts` gains `emoji` and `browserTabs`.
+
 ## Back out
 
 Remove a tool from `hosts` and reload. The row answers `unserved` again.
