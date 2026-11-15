@@ -3379,7 +3379,12 @@ function obj.run(olm, cfg)
     end
 
     local queryScopeLate = { matcher = queryScopeOpts.matcher, rank = queryScopeOpts.rank,
-      stampIcons = iconRows.stampAll, scopes = scopes }
+      stampIcons = iconRows.stampAll, scopes = scopes,
+      -- Whether a scoped tool's own list fits its rows, so its claim in the launcher does too.
+      fitFor = function(name)
+        local p = wiredRegistry and wiredRegistry.presentationFor and wiredRegistry.presentationFor(name)
+        return type(p) == "table" and p.fit == true
+      end }
     queryScopeModule:configure(queryScopeLate)
     lateData.queryscope = queryScopeLate
   end

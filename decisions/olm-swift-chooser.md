@@ -1087,3 +1087,12 @@ durations and distances live, Milos's call after weighing both. Built and loaded
   reshape keeps `reshapeCurve`. The list's `apply` reloaded the table on every place, so a reshape
   would have reloaded it twice. It now reloads only when the row height, the insets or the style
   changed, and `Style` became `Equatable` for that.
+- 2026-11-15 14:40. Milos tried fit live, Keep Awake by its own key, from the launcher and back,
+  Volume and the Input Sources cycle, all good, and found one gap. Typing Keep Awake's alias, `k `,
+  left the launcher at its full height around one row, since the list on screen stays the
+  launcher's and the launcher declares no fit. A claim now answers whether the claimed tool's own
+  list fits, the query scope host asking the registry through a `fitFor` the root hands it, and the
+  launcher tells the stage `setFit` from that on every query, so the window takes the height the
+  tool's list would and returns to full when the claim ends. The launcher still learns nothing of
+  what claimed it. A fit changed while the engine ranks is applied once, by the rebuild's own
+  place, so the window never moves twice for one keystroke.

@@ -883,7 +883,7 @@ function obj:_queryRows(query)
   if not query or query == "" then return {}, false end
   local out = {}
   for _, provider in ipairs(self._queryProviders) do
-    local ok, rows, exclusive, handOver = pcall(function() return provider:rows(query) end)
+    local ok, rows, exclusive, handOver, fit = pcall(function() return provider:rows(query) end)
     if not ok then
       hs.printf("Launcher: a query source failed, %s", tostring(rows))
     else
@@ -901,7 +901,7 @@ function obj:_queryRows(query)
         }
       end
       if exclusive then
-        return out, true, type(handOver) == "function" and handOver or nil
+        return out, true, type(handOver) == "function" and handOver or nil, fit == true
       end
     end
   end
@@ -941,7 +941,10 @@ end
 --- it and it leads under a typed query, which is what keeps a result at the top of the list
 --- instead of being dropped for not resembling its own expression.
 function obj:_commandRows(query)
-  local rows, claimed = self:_rowsAndClaim(query)
+  local rows, claimed, fit = self:_rowsAndClaim(query)
+  -- A claim whose tool's list fits its rows makes the window fit them while it holds, and any other
+  -- list of the launcher's is the chooser's own height, docs/DESIGN-FIT-HEIGHT.md.
+  if self._stage and self._stage.setFit then self._stage:setFit(claimed == true and fit == true) end
   -- What the stage was last handed, for the shadow of step 2.3, see watch and held.
   self._held = { query = query or "", items = rows, claimed = claimed == true }
   for _, fn in ipairs(self._watchers or {}) do
@@ -999,16 +1002,17 @@ function obj:_rowsAndClaim(query)
   -- because hosting reuses the mechanism a typed word already goes through rather than adding a
   -- second one, and this spoon still cannot tell what it is hosting.
   if self._page then
-    local out, _, handOver = self:_queryRows(self._page .. query)
+    local out, _, handOver, fit = self:_queryRows(self._page .. query)
     if handOver then self:_scheduleHandOver(handOver) end
-    return out, true
+    return out, true, fit
   end
-  local out, exclusive, handOver = self:_queryRows(query)
+  local out, exclusive, handOver, fit = self:_queryRows(query)
   -- A source claimed the query, so its rows are the entire list and the catalog below is
-  -- skipped. This one line is the whole of what the launcher knows about being scoped.
+  -- skipped. This one line is the whole of what the launcher knows about being scoped, and the
+  -- claim's fit, whether the claimed list is as tall as its rows, docs/DESIGN-FIT-HEIGHT.md.
   if exclusive then
     if handOver then self:_scheduleHandOver(handOver) end
-    return out, true
+    return out, true, fit
   end
   local preds = self._predicates
   local bonus = self:_memoryBonus(query)

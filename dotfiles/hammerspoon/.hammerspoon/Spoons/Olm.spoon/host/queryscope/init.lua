@@ -126,6 +126,9 @@ function obj:configure(opts)
   self._matcher = opts.matcher
   self._rank = opts.rank
   self._stampIcons = opts.stampIcons
+  -- Whether a tool's own list fits its rows, docs/DESIGN-FIT-HEIGHT.md, which a claim answers so
+  -- the launcher's window takes the height the tool's list would.
+  self._fitFor = opts.fitFor
   self._scopes = {}
   self._byAlias = {}
   self._byName = {}
@@ -317,12 +320,16 @@ end
 --- typed rest to the tool's own list in place of these rows. The rows are still answered, so the
 --- list reads right for the moment before the presenter acts on it, and asking never hands over,
 --- since the presenter decides when to call it.
+---
+--- A fourth value says whether the claimed rows fit, whether the tool's own list is as tall as its
+--- rows, docs/DESIGN-FIT-HEIGHT.md, so `k 2h` stands as tall as Keep Awake's own list.
 function obj:rows(query)
   local scope, rest = self:resolve(query)
   if not scope then return {}, false end
   local handOver = self:_handOverFor(scope, rest, query:sub(1, #query - #rest))
   local rows, exclusive = self:_claimedRows(scope, rest, query)
-  return rows, exclusive, handOver
+  local fit = exclusive and self._fitFor ~= nil and self._fitFor(scope.name) == true
+  return rows, exclusive, handOver, fit
 end
 
 -- The callable a claim answers for a scope that declared handOver, or nil. The scope is handed

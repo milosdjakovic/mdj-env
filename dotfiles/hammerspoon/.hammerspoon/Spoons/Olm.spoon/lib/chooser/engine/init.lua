@@ -399,7 +399,13 @@ function Engine:_rebuildList(query, resetHighlight)
   self._rankedQuery = query or ""
   -- A list built from the top, a show, a new query or a refresh from row one, is one page again.
   if resetHighlight or not self.listState then self._pages = 1 end
-  local drawReady = self.view:presentRows(self:_rankedRows(query))
+  -- A supplier may say whether its rows fit as it answers, the launcher under a claim, so a fit
+  -- changed while it ranks is applied once, by the place below, rather than placed twice.
+  self._rebuilding = true
+  local ok, ranked = pcall(self._rankedRows, self, query)
+  self._rebuilding = false
+  if not ok then error(ranked, 0) end
+  local drawReady = self.view:presentRows(ranked)
   if resetHighlight or not self.listState then
     self.listState = listModel.newState(drawReady, self._drawLayout, "")
   else
@@ -410,7 +416,27 @@ function Engine:_rebuildList(query, resetHighlight)
       rowH = prev.rowH, visibleCount = prev.visibleCount, padEnd = prev.padEnd,
     })
   end
+  if self._fitChanged then
+    self._fitChanged = false
+    if not self._fit then return self:_unfit() end
+  end
   self:_fitToRows(#drawReady)
+end
+
+-- The chooser's own height again, for a list that stopped fitting while it is up.
+function Engine:_unfit()
+  if not self._targetScreen then return end
+  self._rects = geometry.resolve(self._targetScreen:frame(), self:_shapedLayout(), self._previewPaneWidth)
+  self:_updateDrawLayout()
+  if self.listState then
+    local st = listModel.normalized(self.listState)
+    st.visibleCount = self._drawLayout.rowCount
+    self.listState = listModel.normalized(st)
+  end
+  self.view:place(self._rects)
+  if self.active then
+    self._paneFrames = { chooser = self._rects.chooser, previewPane = self._rects.previewPane }
+  end
 end
 
 -- A list that fits its rows, docs/DESIGN-FIT-HEIGHT.md. The window is as tall as the rows just
@@ -444,13 +470,15 @@ function Engine:setFit(on)
   self._fit = on
   self._fitRows = nil
   if not self.active or not self._targetScreen then return end
+  if self._rebuilding then
+    self._fitChanged = true
+    return
+  end
   if on then
     local st = self.listState and listModel.normalized(self.listState)
     self:_fitToRows(st and #st.filtered or 0)
   else
-    self._rects = geometry.resolve(self._targetScreen:frame(), self:_shapedLayout(), self._previewPaneWidth)
-    self:_updateDrawLayout()
-    self.view:place(self._rects)
+    self:_unfit()
   end
 end
 

@@ -1560,6 +1560,15 @@ function obj:_intercept(item, enabled)
   return false
 end
 
+--- Stage:setFit(on)
+--- Method
+--- Whether the list up now fits its rows, for a presentation whose height follows what fills it, the
+--- launcher while a scope whose tool's list fits claims its query, docs/DESIGN-FIT-HEIGHT.md. Every
+--- show sets it again from the presentation's own fit first.
+function obj:setFit(on)
+  if self._instance and self._instance.setFit then self._instance:setFit(on == true) end
+end
+
 --- Stage:pushChild(child) -> boolean
 --- Method
 --- Pushes a child presentation over the current one, named after it when it names nothing, the
