@@ -45,4 +45,15 @@ function obj.forRow(item, deps)
   return function() deps.seed(query) end
 end
 
+--- rowintercept.presentationFor(item, deps) -> presentation or nil
+--- The presentation choosing this row pushes onto the stage and nothing else, the special row
+--- naming a tool forRow answers a push for, or nil for any other row. A question with no effect, so
+--- the app's launcher can ask what a row would show before it shows it there, step 3.3 of
+--- docs/PLAN-STANDALONE.md.
+function obj.presentationFor(item, deps)
+  if type(item) ~= "table" or item.owner ~= nil or deps.aliasQuery(item) then return nil end
+  if item.kind ~= "special" or not deps.presentationFor then return nil end
+  return deps.presentationFor(item.name)
+end
+
 return obj

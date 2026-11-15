@@ -126,9 +126,13 @@ public struct RowsAnswer: Sendable, Equatable {
   /// Whether a newer answer to the same query is on its way, an index being rebuilt, which the stage
   /// asks rowsLanded for once these rows are drawn.
   public var pending: Bool
+  /// Whether the window is as tall as these rows while the level itself does not fit, the launcher's
+  /// query a scope claims whose tool's list fits, docs/DESIGN-FIT-HEIGHT.md.
+  public var fit: Bool
 
   public init(rows: [Row], rankText: String? = nil, status: String? = nil, emptyStatus: String? = nil,
-              pending: Bool = false) {
+              pending: Bool = false, fit: Bool = false) {
+    self.fit = fit
     self.rows = rows
     self.rankText = rankText
     self.status = status
@@ -185,6 +189,13 @@ public enum Effect: Sendable, Equatable {
   /// Searches the input field's text again and chooses nothing, the bridge's requery, for a Return
   /// on a row the source no longer shows for that query, docs/PROTOCOL-BRIDGE.md.
   case requery
+  /// Shows another list over this one in the same window, the source's pushed answering it for the
+  /// token, the parent's text and highlight kept for Backspace on the empty field to give back, the
+  /// bridge's push, step 3.3, docs/DESIGN-APP-HOSTED.md.
+  case push(String)
+  /// Asks the rows for the same text again, hold keeping the highlight on the row it rests on, the
+  /// bridge's rows effect, a row that changed the list it stands on.
+  case rows(hold: Bool)
 }
 
 /// One of the eight colour roles lib/ui/style.lua resolves for the half the system is on. A plugin
@@ -429,6 +440,12 @@ public protocol ListSource: Actor {
   /// share gives it, the Lua presentation's labels member by the verb's action name, Copy Folder
   /// over a folder in file search, step 1.4k.
   func label(_ verb: String, on pick: Pick) async -> String?
+  /// The list a push effect of this source's names, shown over it in the same window, nil when the
+  /// token names none, step 3.3.
+  func pushed(_ token: String) async -> (any ListSource)?
+  /// Backspace on the empty field of a list shown over another, answered true when the list took it
+  /// itself and false for the stage to give the list below back.
+  func back() async -> Bool
   /// The list was closed.
   func close() async
 }
@@ -446,4 +463,8 @@ extension ListSource {
   public func applies(_ gate: String, on pick: Pick) async -> Bool { true }
   /// A source with no words of its own leaves every verb the share's.
   public func label(_ verb: String, on pick: Pick) async -> String? { nil }
+  /// A source that pushes nothing names no list.
+  public func pushed(_ token: String) async -> (any ListSource)? { nil }
+  /// A source with no back of its own leaves Backspace to the stage.
+  public func back() async -> Bool { false }
 }

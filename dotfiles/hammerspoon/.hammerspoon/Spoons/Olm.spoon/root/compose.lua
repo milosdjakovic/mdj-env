@@ -1701,6 +1701,10 @@ function obj.run(olm, cfg)
     -- for every caller, token or none. Without resetRow the stage keeps the highlight on the
     -- same item by its key, so an answer that inserts a row above the person never moves them.
     redrawPresented = function(name, resetRow, token)
+      -- The same tool's list hosted in Olm.app is redrawn there too, step 3.3, and a redraw asked
+      -- while the app runs that list's code goes back with the answer instead, host/bridge.
+      local bridge = modules and plan and modules[plan.identity.bridge or "bridge"]
+      if bridge and bridge.presentedRedraw then bridge:presentedRedraw(name, token, resetRow) end
       if not stageModule then return end
       if token ~= nil then
         if stageModule:isCurrent(token) then stageModule:refresh(resetRow) end
@@ -2918,7 +2922,7 @@ function obj.run(olm, cfg)
           end
         end
         return nil, "no list context is owned by " .. tostring(identity)
-      end, { plan.identity.launcher or "launcher" })
+      end, { plan.identity.launcher or "launcher", table.unpack(bridgeModule.hosted and bridgeModule:hosted() or {}) })
     end
     -- The tools each list the app serves declares, resolved through the one door, so the app runs
     -- the very binaries this side does and no tool is looked up twice, file search's fd for its
@@ -2963,7 +2967,7 @@ function obj.run(olm, cfg)
           launcher = {
             rows = function(query) return launcher:bridgeRows(query) end,
             -- Return on a row of the app's launcher, step 3.1, through the launcher's own run path.
-            choose = function(item, query) return launcher:bridgeChoose(item, query) end,
+            choose = function(item, query, hosted) return launcher:bridgeChoose(item, query, hosted) end,
             memoryKey = function(item) return launcher:memoryKeyOf(item) end,
             memory = function() return launcher:memory() end,
             placeholder = function() return launcher:placeholderText() end,
@@ -2974,6 +2978,8 @@ function obj.run(olm, cfg)
           end,
           version = tostring(olm.version),
           rowLimit = policy.chooserRowLimit,
+          -- A hosted list's rows learn their icons' owner as the stage's own do, step 3.3.
+          stampIcons = iconRows.stampAll,
         })
         -- After each pick the memory records, the app is told the queries that moved, step 2.3.
         if type(launcher.onMemory) == "function" and type(bridgeModule.memoryChanged) == "function" then
@@ -3601,6 +3607,17 @@ function obj.run(olm, cfg)
             push = function(presentation) stageModule:push(presentation) end,
             actFor = queryScopeModule and function(row) return queryScopeModule:actFor(row) end or nil,
             redirectFor = queryScopeModule and function(row) return queryScopeModule:redirectFor(row) end or nil,
+          })
+        end,
+        -- What a row would push onto the stage and nothing else, asked by the app's launcher before
+        -- it shows a hosted tool's list in place, step 3.3, the same answer rowIntercept acts on.
+        rowPresentation = function(item)
+          return rowInterceptLib.presentationFor(item, {
+            aliasQuery = aliasRowQuery,
+            presentationFor = function(name)
+              if name == keysRowName then return keysPresentation() end
+              return wiredRegistry.presentationFor and wiredRegistry.presentationFor(name)
+            end,
           })
         end,
         -- The one name with no tool behind it. Reached only when the registry does not already

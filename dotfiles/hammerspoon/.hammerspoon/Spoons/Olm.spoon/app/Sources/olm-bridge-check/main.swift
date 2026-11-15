@@ -7,6 +7,8 @@
 // a settled answer and logging it, and a lost connection closing the level. Step 3.2 adds the
 // launcher a person opens: metrics, a level for each show opened fromURL, its rows' icons, choose and
 // what its effects become, hidden said before the level's close, and an older rows answer dropped.
+// Step 3.3 adds a hosted tool's list: a claim's fit, a push made into a level of its own, its rows and
+// icons, the effects notification reaching it and no other, its back and its close.
 //
 // test/olmbridge.sh builds and runs it. Exit 0 when every check passed.
 
@@ -39,6 +41,14 @@ final class Told: @unchecked Sendable {
 }
 let told = Told()
 
+final class Redrawn: @unchecked Sendable {
+  private let lock = NSLock()
+  private var list: [(ObjectIdentifier, Bool)] = []
+  func add(_ l: any ListSource, _ hold: Bool) { lock.lock(); list.append((ObjectIdentifier(l), hold)); lock.unlock() }
+  var all: [(ObjectIdentifier, Bool)] { lock.lock(); defer { lock.unlock() }; return list }
+}
+let redrawn = Redrawn()
+
 // Waits up to two seconds for cond.
 func until(_ cond: () async -> Bool) async {
   for _ in 0..<100 {
@@ -51,6 +61,7 @@ let bridge = Bridge(path: path, announce: false, log: { if ProcessInfo.processIn
 let launcher = BridgedLauncher(bridge: bridge)
 let shown = BridgedLauncher(bridge: bridge, shown: true, log: { _ in })
 await bridge.attach(launcher: launcher, shown: shown, settled: { told.add($0) })
+await bridge.onRedraw { redrawn.add($0, $1) }
 if let why = await bridge.start() { give("the listener did not start, \(why)") }
 
 func mode(_ p: String) -> Int {
@@ -275,6 +286,74 @@ let cl2 = next()
 ok(cl2["method"] as? String == "close", "with no run waiting the close is all, got \(cl2["method"] ?? "nothing")")
 answer(cl2, true)
 await closed2
+
+// A hosted tool's list, step 3.3. A claim whose tool fits says so, and a push is a level of its own.
+async let hostedLevel = shown.open(query: "")
+let o4 = request("open")
+answer(o4, ["level": ["id": "v4", "placeholder": "Search", "ranking": "app", "rowLimit": "default", "memory": [String: Any]()]])
+_ = await hostedLevel
+async let claim = shown.rows(Query(text: "k", generation: 1))
+let rk = request("rows")
+answer(rk, ["q": (rk["params"] as? [String: Any])?["q"] ?? 0, "revision": "r1", "fromQuery": [String](), "exclusive": true, "fit": true,
+  "changes": ["upsert": [["ref": "v4.1", "key": "tool:caffeinate", "title": "Keep Awake"]], "remove": [String](), "order": ["tool:caffeinate"]]])
+ok((try await claim).fit, "a claim whose tool's list fits crosses as the answer's fit")
+async let unclaimed = shown.rows(Query(text: "", generation: 2))
+let ru = request("rows")
+answer(ru, ["q": (ru["params"] as? [String: Any])?["q"] ?? 0, "revision": "r1", "fromQuery": [String](), "exclusive": false])
+ok(!(try await unclaimed).fit, "and an answer with none does not fit")
+async let pushing = shown.choose(Pick(key: "tool:caffeinate", query: ""))
+let cp = request("choose")
+answer(cp, ["effects": [["push": ["parent": "v4", "level": ["id": "v5", "name": "caffeinate", "placeholder": "Time or duration",
+  "previewPane": false, "ranking": "source", "rowLimit": "default", "fit": true]]]]])
+ok(await pushing == [.push("v5")], "a push effect names the level it carries")
+guard let child = await shown.pushed("v5") as? BridgedLevel else { give("pushed made no level of the push") }
+ok(await shown.pushed("v5") == nil, "and the same push makes it once")
+ok(child.id == "v5" && child.manifest.name == "caffeinate", "the level is the tool's, by its name")
+let childLevel = await child.open(query: "")
+ok(childLevel.ranking == .source && childLevel.fit && childLevel.placeholder == "Time or duration" && childLevel.rowLimit == 50,
+  "it opens with the push's placeholder, its own order, fit, and hello's row limit")
+async let childRows = child.rows(Query(text: "", generation: 1))
+let rc = request("rows")
+ok((rc["params"] as? [String: Any])?["level"] as? String == "v5", "its rows are asked of its own level")
+answer(rc, ["q": (rc["params"] as? [String: Any])?["q"] ?? 0, "revision": "r1", "fromQuery": [String](), "exclusive": false,
+  "changes": ["upsert": [["ref": "v5.1", "key": "k1", "title": "Keep Awake Indefinitely", "icon": ["owner": "caffeinate", "key": "on"]]],
+    "remove": [String](), "order": ["k1"]]])
+let icc = await Task.detached { request("icons") }.value
+ok((icc["params"] as? [String: Any])?["owner"] as? String == "caffeinate", "its owner's icons are asked")
+answer(icc, ["icons": ["on": ["sf": "sun.max", "emoji": "☀️"]]])
+let cr = try await childRows
+ok(cr.rows.map(\.title) == ["Keep Awake Indefinitely"] && cr.rows.first?.icon == .symbol("sun.max"), "its rows draw their owner's icons")
+
+// The effects notification reaches the level it names and no other.
+send(["jsonrpc": "2.0", "method": "effects", "params": ["level": "v9", "q": 1, "effects": [["rows": ["hold": true]]]]])
+send(["jsonrpc": "2.0", "method": "effects", "params": ["level": "v5", "q": 1, "effects": [["rows": ["hold": true]]]]])
+await until { !redrawn.all.isEmpty }
+ok(redrawn.all.count == 1 && redrawn.all.first?.0 == ObjectIdentifier(child) && redrawn.all.first?.1 == true,
+  "a redraw reaches the hosted level it names, holding the highlight, and an unknown level reaches nothing")
+
+// Return closes the list, back is declined for the stage to pop, and close forgets it.
+async let childPick = child.choose(Pick(key: "k1", query: ""))
+let cc = request("choose")
+ok((cc["params"] as? [String: Any])?["level"] as? String == "v5" && (cc["params"] as? [String: Any])?["ref"] as? String == "v5.1",
+  "Return names the hosted level and its row's ref")
+answer(cc, ["effects": [["hide": [String: Any]()]]])
+ok(await childPick == [.hide], "and a hide is the stage's")
+async let declined = child.back()
+let bk = request("back")
+answer(bk, ["handled": false])
+ok(await declined == false, "a back the list declines is the stage's to pop")
+async let childClosed: Void = child.close()
+let cx = request("close")
+ok((cx["params"] as? [String: Any])?["level"] as? String == "v5", "closing the hosted list closes its level")
+answer(cx, true)
+await childClosed
+send(["jsonrpc": "2.0", "method": "effects", "params": ["level": "v5", "q": 1, "effects": [["rows": ["hold": true]]]]])
+async let launcherClosed: Void = shown.close()
+let cl4 = request("close")
+ok((cl4["params"] as? [String: Any])?["level"] as? String == "v4", "then the launcher's own")
+answer(cl4, true)
+await launcherClosed
+ok(redrawn.all.count == 1, "and a closed level is redrawn no more")
 
 // Hammerspoon goes, and the level with it.
 close(fd)

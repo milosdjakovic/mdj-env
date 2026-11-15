@@ -48,6 +48,8 @@ local RUN = os.getenv("HOME") .. "/.olm/run"
 
 obj._pieces = {}
 obj._serves = {}
+-- The tools whose own list the app shows inside its launcher, step 3.3, docs/DESIGN-APP-HOSTED.md.
+obj._hosts = {}
 obj._deps = nil
 obj._tasks = {}
 obj._said = {}
@@ -80,6 +82,12 @@ function obj:configure(opts)
     self._serves = {}
     for _, identity in ipairs(serves) do
       if type(identity) == "string" and identity:match("^%a%w*$") then self._serves[identity] = true end
+    end
+  end
+  if type(opts.hosts) == "table" or (opts.hosts == nil and type(opts.pieces) == "table") then
+    self._hosts = {}
+    for _, identity in ipairs(opts.hosts or {}) do
+      if type(identity) == "string" and identity:match("^%a%w*$") then self._hosts[identity] = true end
     end
   end
   if type(opts.shadows) == "table" then
@@ -176,6 +184,16 @@ end
 --- 1.4f, and one for each identity in also, a list the app shows without serving its key, the
 --- launcher on its trial key, step 3.2. The bridge knows which tools it serves and nothing of what
 --- a share holds.
+---
+--- obj:hosted() -> the identities whose own list the app shows inside its launcher, step 3.3, sorted,
+--- which the root hands shareEach as also for the keys their bar shows.
+function obj:hosted()
+  local out = {}
+  for identity in pairs(self._hosts) do out[#out + 1] = identity end
+  table.sort(out)
+  return out
+end
+
 function obj:shareEach(suffix, build, also)
   if type(suffix) ~= "string" or type(build) ~= "function" then return end
   local names, seen = {}, {}
@@ -215,6 +233,7 @@ function obj:serveLauncher(provider)
   end
   if type(provider) ~= "table" or type(provider.launcher) ~= "table" then return nil end
   local frame, rpc, serve, transport = sibling("frame"), sibling("rpc"), sibling("serve"), sibling("transport")
+  self._facade = self._facade or sibling("facade").new()
   -- A timer handle nothing refers to may be collected before it fires, so each is kept until then.
   local turns = {}
   local function later(seconds, fn)
@@ -225,6 +244,10 @@ function obj:serveLauncher(provider)
   local service = serve.new({ rpc = rpc, clean = frame.clean, launcher = provider.launcher, later = later,
     icons = provider.icons or function() return nil end, version = provider.version,
     rowLimit = provider.rowLimit,
+    facade = self._facade, stampIcons = provider.stampIcons,
+    -- A hosted tool's list is shown in the app when the config's hosts names it, by the name its
+    -- presentation carries, a child taking its tool's.
+    hosted = function(p) return type(p) == "table" and type(p.name) == "string" and self._hosts[p.name] == true end,
     styled = function(v)
       if type(v) == "userdata" and v.getString then return v:getString() end
       return tostring(v)
@@ -249,6 +272,22 @@ end
 function obj:notify(method, params)
   if not (self._conn and self._session) then return false end
   return self._session:notify(method, params)
+end
+
+--- obj:presentedRedraw(name, token, resetRow) is the root's redrawPresented reaching a list the app
+--- hosts, step 3.3. Asked while a request runs that list's code, it is recorded as that answer's
+--- rows effect. Otherwise each hosted level showing that list is sent the effects notification, the
+--- app redrawing it where it is on screen. Answers whether it reached any.
+function obj:presentedRedraw(name, token, resetRow)
+  if not self._service then return false end
+  if self._facade and self._facade.recording() then
+    return self._facade.record({ rows = { hold = not resetRow } })
+  end
+  local sent = false
+  for _, params in ipairs(self._service.redraws(name, token, resetRow)) do
+    sent = self:notify("effects", params) or sent
+  end
+  return sent
 end
 
 --- obj:memoryChanged() tells the app the launcher's memory moved, after a pick the launcher

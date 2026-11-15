@@ -111,6 +111,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard s.tool == launcher.manifest.name else { return }
         Task { @MainActor in shadow.settled(query: s.query, keys: s.keys, status: s.status, claimed: s.claimed) }
       })
+      // A hosted list's redraw asked by its tool, a timed session ending, step 3.3, where it is up.
+      let stage = self.stage
+      await bridge.onRedraw { list, hold in Task { @MainActor in stage.redraw(list, hold: hold) } }
       if let why = await bridge.start() { NSLog("Olm: the bridge's socket is not listening, %@", why) }
     }
   }

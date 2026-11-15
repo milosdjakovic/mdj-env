@@ -211,6 +211,29 @@ fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, serves = 
   :shareEach("keys", function(identity) built[#built + 1] = identity; return {} end, { "launcher", "fileSearch", "../x" })
 eq(table.concat(built, ","), "fileSearch,launcher", "also adds the lists the app shows unserved, once each, plain words only")
 
+-- The tools the app hosts in its launcher, step 3.3, plain words only, none when the config names none.
+eq(table.concat(fresh({ pieces = { olmapp = "on" }, hosts = { "vpn", "caffeinate", "../x" } }):hosted(), ","), "caffeinate,vpn",
+  "hosted answers the config's hosts, sorted, plain words only")
+eq(#fresh({ pieces = { olmapp = "on" } }):hosted(), 0, "and a config with no hosts line hosts nothing")
+
+-- A redraw of a hosted list, sent as the effects notification, or recorded while a request runs it.
+local redrawing = fresh({ pieces = { olmapp = "on" }, hosts = { "caffeinate" } })
+local notified = {}
+eq(redrawing:presentedRedraw("caffeinate"), false, "no redraw is sent before the socket serves")
+redrawing._service = { redraws = function(name, token, reset)
+  return name == "caffeinate" and { { level = "v2", effects = { { rows = { hold = not reset } } } } } or {}
+end }
+redrawing._conn = {}
+redrawing._session = { notify = function(_, method, params) notified[#notified + 1] = { method, params }; return true end }
+redrawing._facade = assert(loadfile(here .. "../host/bridge/facade.lua"))().new()
+eq(redrawing:presentedRedraw("caffeinate"), true, "a redraw of a hosted list is sent")
+eq(notified[1] and notified[1][1], "effects", "as the effects notification")
+eq(notified[1] and notified[1][2].level, "v2", "naming the level that shows it")
+eq(redrawing:presentedRedraw("vpn"), false, "a tool with no hosted level open sends nothing")
+local recorded = redrawing._facade.during(function() redrawing:presentedRedraw("caffeinate", nil, true) end)
+eq(#notified, 1, "a redraw asked while a request runs is not sent")
+eq(recorded[1] and recorded[1].rows.hold, false, "it is recorded for that answer instead, resetRow saying so")
+
 -- The trial key of step 3.2, bridge.launcher, gated on the piece, the app and the socket setting.
 local tried = fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, socket = true })
 local actions = tried:actions()

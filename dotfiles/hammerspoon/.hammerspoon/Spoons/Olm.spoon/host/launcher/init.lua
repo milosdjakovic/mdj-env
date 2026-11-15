@@ -1038,16 +1038,25 @@ function obj:bridgeRows(query)
   return self:_rowsAndClaim(type(query) == "string" and query or "")
 end
 
---- Launcher:bridgeChoose(item, query) -> effects, run
+--- Launcher:bridgeChoose(item, query, hosted) -> effects, run
 --- Method
 --- Return on a row of the app's launcher, step 3.1 of docs/PLAN-STANDALONE.md, what onSelect does for
---- the stage's. A row that would become another list, a tool, an alias or a scope's word, is not
---- served until 3.3 and answers unserved, run without being asked, since asking what a row would do
---- must not do it. Any other row is promoted and remembered under the query the request carries,
+--- the stage's. A row that would become another list is asked what it would show, never run, since
+--- asking what a row would do must not do it. A tool's list the app hosts, hosted(presentation)
+--- true, step 3.3, is promoted as intercept promotes it and answered present, which the bridge
+--- pushes as a level of its own. Any other, an alias, a scope's word or a tool not hosted yet,
+--- answers unserved. Any other row is promoted and remembered under the query the request carries,
 --- answers hide, and hands back its run for the bridge to call once the app has hidden.
-function obj:bridgeChoose(item, query)
+function obj:bridgeChoose(item, query, hosted)
   if type(item) ~= "table" then return {} end
   if self:_replacementFor(item) then
+    local ask = self._actions.rowPresentation
+    local presentation = ask and ask(item) or nil
+    if presentation and type(hosted) == "function" and hosted(presentation) then
+      self:_promote(recencyKey(item))
+      self:_noteAssociation(item)
+      return { { present = presentation } }
+    end
     return { { unserved = { name = item.name or item.kind } } }
   end
   self:_promote(recencyKey(item))

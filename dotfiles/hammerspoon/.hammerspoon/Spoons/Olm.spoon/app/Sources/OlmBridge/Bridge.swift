@@ -1,14 +1,16 @@
 // The app's side of the bridge, docs/PROTOCOL-BRIDGE.md, step 2.3 of docs/PLAN-STANDALONE.md. It
 // listens, says hello on each connection, sends requests and matches their answers by id, and hands
-// on the notifications Hammerspoon sends, memory to the bridged launcher and shadow to whoever
-// compares. A lost connection fails every request still waiting and resets the launcher, so nothing
-// outlives a connection and the next one starts from hello.
+// on the notifications Hammerspoon sends, memory to the bridged launcher, shadow to whoever compares
+// and effects to the hosted list it names, step 3.3. A lost connection fails every request still
+// waiting, resets the launcher and forgets every hosted list, so nothing outlives a connection and
+// the next one starts from hello.
 //
 // The listener's events are taken in the order they came through one stream, so an answer never
 // overtakes the message before it. Starting a session waits for answers, so it runs beside that
 // stream rather than in it.
 
 import Foundation
+import OlmKit
 
 public enum BridgeError: Error, Equatable {
   /// No connection, or the one the request went on has gone.
@@ -57,6 +59,11 @@ public actor Bridge {
   // The room a row's text has, the stage's, sent as metrics after hello and whenever it changes.
   private var textBudget: Double?
   private var settled: (@Sendable (Settled) -> Void)?
+  // The hosted lists open now by their level's id, step 3.3, for the effects notification to reach,
+  // who redraws one, and each owner's icons as this connection answered them, asked once.
+  private var hosted: [String: BridgedLevel] = [:]
+  private var redraw: (@Sendable (any ListSource, Bool) -> Void)?
+  private var ownerIcons: [String: [String: Icon]] = [:]
   private var log: @Sendable (String) -> Void
 
   /// path is the socket, ~/.olm/run/bridge.sock for the app. announce false posts no listening note,
@@ -77,6 +84,37 @@ public actor Bridge {
   }
 
   private var launchers: [BridgedLauncher] { [launcher, shownLauncher].compactMap { $0 } }
+
+  /// Who redraws a hosted list the effects notification names, the stage, hold keeping its highlight.
+  public func onRedraw(_ fn: @escaping @Sendable (any ListSource, Bool) -> Void) {
+    redraw = fn
+  }
+
+  /// A hosted list a push opened, held until its close, so the effects notification reaches it.
+  func hold(_ level: BridgedLevel) {
+    hosted[level.id] = level
+  }
+
+  func release(_ id: String) {
+    hosted[id] = nil
+  }
+
+  /// The icons each owner's manifest declares, asked over this connection once per owner, sf
+  /// preferred over emoji.
+  func icons(_ owners: Set<String>) async -> [String: [String: Icon]] {
+    for owner in owners.sorted() where ownerIcons[owner] == nil {
+      var table: [String: Icon] = [:]
+      if let answer = try? await request("icons", .object(["owner": .string(owner)])) {
+        for (key, spec) in answer["icons"].object ?? [:] {
+          if let name = spec["sf"].string { table[key] = .symbol(name) } else if let glyph = spec["emoji"].string { table[key] = .emoji(glyph) }
+        }
+      } else {
+        log("no icons for \(owner)")
+      }
+      ownerIcons[owner] = table
+    }
+    return ownerIcons
+  }
 
   /// The room a row's text has, docs/PROTOCOL-BRIDGE.md metrics, sent now when a session is open and
   /// after every hello.
@@ -132,6 +170,8 @@ public actor Bridge {
         p.done.resume(throwing: BridgeError.gone)
       }
       for l in launchers { await l.reset() }
+      hosted = [:]
+      ownerIcons = [:]
       log("Hammerspoon's connection went")
     }
   }
@@ -188,6 +228,12 @@ public actor Bridge {
       let keys = (params["keys"].array ?? []).compactMap { $0.string ?? $0.int.map(String.init) }
       settled?(Settled(tool: tool, query: query, keys: keys, status: params["status"].string,
         claimed: params["claimed"].bool ?? false))
+    case "effects":
+      // A hosted list's redraw asked from outside any request, a timed session ending, step 3.3.
+      guard let id = params["level"].string, let level = hosted[id] else { return }
+      for effect in params["effects"].array ?? [] where !effect["rows"].isNull {
+        redraw?(level, effect["rows"]["hold"].bool ?? false)
+      }
     default:
       // A notification of a newer peer is read as nothing, the protocol's hello.
       break

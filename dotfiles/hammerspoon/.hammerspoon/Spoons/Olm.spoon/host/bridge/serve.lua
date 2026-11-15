@@ -2,8 +2,11 @@
 -- at rest, `icons` by owner, `open` for the launcher with its query memory, `rows` for a query on
 -- that level, `close` and the `metrics` notification, as docs/PROTOCOL-BRIDGE.md writes them, the
 -- `memory` notification after a pick, step 2.3, and `choose` with the `hidden` notification, step
--- 3.1, the one way a row is run, through the launcher's own path. Any other list asked for answers
--- -32013, not served yet. Pure, the launcher and the manifests are handed in as
+-- 3.1, the one way a row is run, through the launcher's own path, and a hosted tool's list, step
+-- 3.3, docs/DESIGN-APP-HOSTED.md, a level of its own pushed over the launcher's when a row leads to
+-- a tool the config hosts, its rows, Return and Backspace answered by the presentation itself, and
+-- a redraw from outside any request sent as the effects notification. Any other list asked for
+-- answers -32013, not served yet. Pure, the launcher and the manifests are handed in as
 -- functions, so test/bridgeserve.lua replays the transcripts in test/fixtures/bridge over fakes.
 
 local M = {}
@@ -26,10 +29,19 @@ local SF, GLYPH = "sf", "emoji"
 --- opts.styled     function(value) -> plain text, for an hs.styledtext, optional
 --- opts.rowLimit    the rows a list shows when it names no limit of its own, chooser.rowLimit, which
 ---                  hello sends as limits.rowLimit, M.ROW_LIMIT when none is handed in
---- opts.launcher.choose  function(item, query) -> effects, run, step 3.1, what Return on the row
----                  does, the effects the app applies and the work that waits until it has hidden
+--- opts.launcher.choose  function(item, query, hosted) -> effects, run, step 3.1, what Return on the
+---                  row does, the effects the app applies and the work that waits until it has
+---                  hidden, hosted being opts.hosted, so a row leading to a hosted tool's list
+---                  answers { present = presentation }, step 3.3
 --- opts.later       function(seconds, fn), fn once after a while, the fallback when hidden never
 ---                  comes, optional, and without it the work waits for hidden alone
+--- opts.hosted      function(presentation) -> whether the app shows that tool's list, step 3.3, a
+---                  launcher choose answering { present = presentation } pushing a level for it
+---                  when true and answering unserved otherwise, optional, nothing hosted without it
+--- opts.stampIcons  function(rows, owner) -> rows, a hosted list's rows stamped with their icon's
+---                  owner as the Lua stage stamps them, optional
+--- opts.facade      host/bridge/facade.lua's, the stage words a hosted list's code calls during a
+---                  request recorded as effects, optional
 function M.new(opts)
   local rpc = opts.rpc
   local service = { levels = {}, nextLevel = 0, metrics = nil, sentMemory = nil }
@@ -130,10 +142,12 @@ function M.new(opts)
 
   -- Every row of an answer as it crosses, keyed and in order, two rows sharing a key keeping the
   -- first and minting the second, so a key is unique within the list.
+  -- A hosted list remembers nothing, so its rows carry no memory key.
   local function rowsOut(rows, level)
+    local remembers = level.kind ~= "presentation" and opts.launcher.memoryKey
     local list, seen = {}, {}
     for _, row in ipairs(rows or {}) do
-      local memoryKey = opts.launcher.memoryKey and opts.launcher.memoryKey(row.item) or nil
+      local memoryKey = remembers and opts.launcher.memoryKey(row.item) or nil
       local key = keyFor(row.item, memoryKey)
       if seen[key] then key = keyFor({}, nil) end
       seen[key] = true
@@ -244,9 +258,9 @@ function M.new(opts)
       local level = service.levels[params.level]
       if not level then rpc.fail(rpc.GONE, "no level " .. tostring(params.level)) end
       local query = type(params.query) == "string" and params.query or ""
-      local rows, exclusive = opts.launcher.rows(query)
+      local rows, exclusive, fit = service.rowsFor(level, query)
       local list = rowsOut(rows, level)
-      level.query, level.shown = query, {}
+      level.query, level.shown, level.q = query, {}, params.q
       for _, r in ipairs(list) do level.shown[r.key] = r end
       local order, now, fromQuery = {}, {}, {}
       for i, r in ipairs(list) do
@@ -272,7 +286,10 @@ function M.new(opts)
         level.sent, level.orderSig = now, orderSig
       end
       local revision = "r" .. level.revision
-      local answer = { q = params.q, revision = revision, fromQuery = fromQuery, exclusive = exclusive == true }
+      -- fit, a launcher query a scope claims whose tool's list fits its rows, the window as tall as
+      -- them while the claim holds, docs/DESIGN-FIT-HEIGHT.md. A hosted level's own fit is its open's.
+      local answer = { q = params.q, revision = revision, fromQuery = fromQuery, exclusive = exclusive == true,
+        fit = level.kind == "launcher" and exclusive == true and fit == true or nil }
       if params.have ~= revision then
         answer.changes = { upsert = upsert, remove = remove, order = order }
       end
@@ -298,7 +315,7 @@ function M.new(opts)
     if type(params.ref) ~= "string" then rpc.fail(rpc.PARAMS, "choose needs a ref") end
     local query = type(params.query) == "string" and params.query or ""
     if level.query ~= query then
-      local rows = opts.launcher.rows(query)
+      local rows = service.rowsFor(level, query)
       local list = rowsOut(rows, level)
       level.query, level.shown = query, {}
       for _, r in ipairs(list) do level.shown[r.key] = r end
@@ -308,9 +325,10 @@ function M.new(opts)
     local shown = level.shown and level.shown[key]
     if not shown then return { effects = { { requery = { level = level.id, q = params.q } } } } end
     if shown.out.enabled == false then return { effects = {} } end
+    if level.kind == "presentation" then return { effects = service.choosePresented(level, level.items[params.ref]) } end
     if not opts.launcher.choose then rpc.fail(rpc.UNKNOWN, "choose is not served") end
-    local effects, run = opts.launcher.choose(level.items[params.ref], query)
-    effects = effects or {}
+    local effects, run = opts.launcher.choose(level.items[params.ref], query, opts.hosted)
+    effects = service.pushes(level, effects or {})
     if type(run) == "function" then
       runWaiting(level.id)
       service.waiting[level.id] = run
@@ -325,6 +343,113 @@ function M.new(opts)
     runWaiting(params.level)
     return true
   end }
+
+  --------------------------------------------------------------------------------
+  -- Hosted lists, step 3.3, docs/DESIGN-APP-HOSTED.md
+  --------------------------------------------------------------------------------
+
+  -- The rows a level shows for a query, the launcher's with its claim and the claim's fit, or a
+  -- hosted presentation's own, stamped with its owner as the Lua stage's _rows stamps them.
+  function service.rowsFor(level, query)
+    if level.kind ~= "presentation" then return opts.launcher.rows(query) end
+    local p = level.presentation
+    local rows = p.rows and p.rows(query) or {}
+    if opts.stampIcons then rows = opts.stampIcons(rows, p.name) end
+    return rows, false
+  end
+
+  -- A level for a hosted presentation, over the level it was pushed from, answered as the push
+  -- effect's level, the fields the app opens it with. A presentation whose field is not a search,
+  -- matcher false, ranks in its own order.
+  local function pushLevel(parent, p)
+    service.nextLevel = service.nextLevel + 1
+    local level = { id = "v" .. service.nextLevel, kind = "presentation", presentation = p, parent = parent.id,
+      top = parent.kind == "launcher", refs = {}, items = {}, keys = {}, nextRef = 0, sent = nil, revision = 0 }
+    service.levels[level.id] = level
+    local placeholder = type(p.placeholder) == "string" and p.placeholder or ""
+    return { push = { parent = parent.id, level = { id = level.id, name = p.name, placeholder = placeholder,
+      previewPane = false, ranking = p.matcher == false and "source" or "app",
+      rowLimit = type(p.rowLimit) == "number" and p.rowLimit or "default", fit = p.fit == true } } }
+  end
+
+  -- The launcher's present effects made into pushes of hosted levels, or unserved for a tool the
+  -- app does not host yet.
+  function service.pushes(level, effects)
+    for i, effect in ipairs(effects) do
+      local p = type(effect) == "table" and effect.present
+      if p then
+        if opts.hosted and opts.hosted(p) then
+          effects[i] = pushLevel(level, p)
+        else
+          effects[i] = { unserved = { name = p.name } }
+        end
+      end
+    end
+    return effects
+  end
+
+  -- Return on a hosted list's row, as the Lua stage's _intercept answers it. Its intercept first, a
+  -- true answer the rows again, "stay" holding the highlight, then its onSelect, a child answered
+  -- pushed over it, and nothing answered closing the list. The stage words its code calls on the
+  -- way are recorded and applied after a hide, before anything else.
+  function service.choosePresented(level, item)
+    local p = level.presentation
+    local function act()
+      if p.intercept then
+        local answer = p.intercept(item)
+        if answer then return { stay = answer } end
+      end
+      if p.onSelect then
+        local child = p.onSelect(item)
+        if type(child) == "table" then return { child = child } end
+      end
+      return {}
+    end
+    local recorded, outcome
+    if opts.facade then recorded, outcome = opts.facade.during(act) else recorded, outcome = {}, act() end
+    local effects = {}
+    if outcome.stay then
+      for _, e in ipairs(recorded) do effects[#effects + 1] = e end
+      effects[#effects + 1] = { rows = { hold = outcome.stay == "stay" } }
+    elseif outcome.child then
+      if outcome.child.name == nil or outcome.child.name == "" then outcome.child.name = p.name end
+      for _, e in ipairs(recorded) do effects[#effects + 1] = e end
+      effects[#effects + 1] = pushLevel(level, outcome.child)
+    else
+      effects[1] = { hide = {} }
+      for _, e in ipairs(recorded) do
+        if not e.rows then effects[#effects + 1] = e end
+      end
+    end
+    return effects
+  end
+
+  -- Backspace on a hosted list's empty field, the presentation's own back first, as the Lua
+  -- stage's _back asks it. handled false is the app's to pop.
+  methods.back = { run = function(params)
+    local level = service.levels[params.level]
+    if not level then rpc.fail(rpc.GONE, "no level " .. tostring(params.level)) end
+    local p = level.kind == "presentation" and level.presentation
+    if not (p and p.back) then return { handled = false, effects = {} } end
+    local recorded, handled
+    if opts.facade then recorded, handled = opts.facade.during(p.back) else recorded, handled = {}, p.back() end
+    return { handled = handled == true, effects = handled and recorded or {} }
+  end }
+
+  --- service.redraws(name, token, resetRow) -> the params of each effects notification a redraw of
+  --- a tool's list asks for, one per hosted level showing it, as redrawPresented matches, a token the
+  --- level's own presentation table, none the tool's top level, empty when no such level is open
+  function service.redraws(name, token, resetRow)
+    local out = {}
+    for id, level in pairs(service.levels) do
+      local p = level.kind == "presentation" and level.presentation
+      if p and ((token ~= nil and p == token) or (token == nil and level.top and p.name == name)) then
+        out[#out + 1] = { level = id, q = level.q, effects = { { rows = { hold = not resetRow } } } }
+      end
+    end
+    table.sort(out, function(a, b) return a.level < b.level end)
+    return out
+  end
 
   service.methods = methods
 

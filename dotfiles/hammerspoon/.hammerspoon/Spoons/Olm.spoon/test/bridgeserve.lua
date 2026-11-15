@@ -172,5 +172,60 @@ ok(picked[2] == "ran", "the fallback runs it when hidden never came")
 choosing.methods.hidden.run({ level = "v1" })
 ok(#picked == 2, "and a hidden after that runs nothing twice")
 
+-- The facade, step 3.3. A word recorded while a request runs, and nothing outside one.
+local facade = replay.facade.new()
+ok(facade.record({ rows = {} }) == false and facade.recording() == false, "outside a request nothing is recorded")
+local recorded, answer = facade.during(function()
+  ok(facade.recording(), "inside a request the facade records")
+  facade.record({ rows = { hold = true } })
+  return "done"
+end)
+ok(#recorded == 1 and recorded[1].rows.hold == true and answer == "done", "a request answers what was recorded, in order, and what it returned")
+ok(not facade.recording(), "and recording ends with it")
+local raised = pcall(facade.during, function() error("plugin broke") end)
+ok(raised == false and not facade.recording(), "an error ends the recording and is raised again")
+
+-- A hosted level, its redraw, its back and a stage word its Return calls.
+local top = { name = "caffeinate", placeholder = "Time", fit = true, matcher = false,
+  rows = function() return { { title = "Keep Awake", item = { id = "on" } } } end,
+  onSelect = function() facade.record({ rows = { hold = true } }) end }
+local child = { name = "caffeinate", rows = function() return {} end, onSelect = function() end }
+local paged = { name = "caffeinate", rows = function() return { { title = "Page", item = {} } } end,
+  intercept = function() return "stay" end, back = function() facade.record({ rows = { hold = false } }); return true end,
+  onSelect = function() return child end }
+local hosting = serve.new({ rpc = rpc, clean = frame.clean, facade = facade,
+  hosted = function(p) return p.name == "caffeinate" end,
+  launcher = { memoryKey = memoryKey, rows = function() return { { title = "Keep Awake", item = { kind = "special", name = "caffeinate" } } } end,
+    choose = function(_, _, hosted) return { { present = hosted(top) and top or nil } } end },
+  icons = function() return nil end })
+ok(#hosting.redraws("caffeinate") == 0, "no redraw is sent while no hosted level is open")
+hosting.methods.open.run({ what = { launcher = true } })
+hosting.methods.rows.run({ level = "v1", q = 1, query = "" })
+local pushed = hosting.methods.choose.run({ level = "v1", q = 1, ref = "v1.1", query = "" })
+ok(pushed.effects[1].push and pushed.effects[1].push.level.id == "v2", "a hosted tool's row pushes a level")
+hosting.methods.rows.run({ level = "v2", q = 7, query = "" })
+local redraws = hosting.redraws("caffeinate")
+ok(#redraws == 1 and redraws[1].level == "v2" and redraws[1].q == 7 and redraws[1].effects[1].rows.hold == true,
+  "a redraw of the tool reaches its open level, holding the highlight")
+ok(hosting.redraws("caffeinate", nil, true)[1].effects[1].rows.hold == false, "and a redraw that resets the row says so")
+ok(#hosting.redraws("vpn") == 0 and #hosting.redraws("caffeinate", {}) == 0, "another tool's, or another table's, reaches nothing")
+local chose = hosting.methods.choose.run({ level = "v2", q = 7, ref = "v2.1", query = "" })
+ok(#chose.effects == 1 and chose.effects[1].hide, "Return on its row closes the list, a redraw asked on the way dropped")
+ok(hosting.methods.back.run({ level = "v2" }).handled == false, "a list with no back of its own declines it")
+hosting.methods.close.run({ level = "v2" })
+ok(#hosting.redraws("caffeinate") == 0, "and a closed level is sent no redraw")
+
+-- A level whose intercept stays, whose back is its own and whose onSelect answers a child.
+hosting.levels.v9 = { id = "v9", kind = "launcher" }
+local stay = hosting.choosePresented({ kind = "presentation", presentation = paged, id = "v8" }, {})
+ok(#stay == 1 and stay[1].rows.hold == true, "an intercept that stays asks the rows again, holding the highlight")
+paged.intercept = nil
+local drilled = hosting.choosePresented({ kind = "presentation", presentation = paged, id = "v8" }, {})
+ok(drilled[1].push and drilled[1].push.parent == "v8" and drilled[1].push.level.name == "caffeinate"
+  and hosting.levels[drilled[1].push.level.id].top == false, "an onSelect answering a child pushes it, a level that is not its tool's top")
+hosting.levels.v8 = { id = "v8", kind = "presentation", presentation = paged }
+local back = hosting.methods.back.run({ level = "v8" })
+ok(back.handled == true and back.effects[1].rows.hold == false, "a back of its own is handled, with what it called")
+
 print(string.format("bridgeserve: %d checks, %d failed", checks, failures))
 os.exit(failures == 0 and 0 or 1)

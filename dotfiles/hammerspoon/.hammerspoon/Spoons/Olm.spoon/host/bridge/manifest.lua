@@ -48,6 +48,10 @@ return {
       -- The tools Olm.app serves, by identity, from config/plugins.lua.
       serves = { source = "user", policy = "optional",
         breaks = "no tool's key opens Olm.app, so every key opens the Lua list as before" },
+      -- The tools whose own list Olm.app shows inside its launcher, step 3.3, by identity, from
+      -- config/plugins.lua.
+      hosts = { source = "user", policy = "optional",
+        breaks = "a row leading to a tool's list stays put in the app's launcher, as before" },
     },
     tools = {
       { name = "open", kind = "system", locator = "/usr/bin/open", policy = "optional",

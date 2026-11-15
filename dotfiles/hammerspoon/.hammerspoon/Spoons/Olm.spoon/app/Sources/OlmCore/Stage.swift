@@ -27,6 +27,12 @@
 // is drawn as it stands and the same row is then asked again, previewLanded, on the same generation,
 // and drawn where it is scrolled, as the Lua pane repaints when its thumbnail lands. A newer row
 // cancels the wait, which drops the late answer and lets the source end a render nobody waits on.
+//
+// A LIST OVER A LIST, step 3.3, docs/DESIGN-APP-HOSTED.md. A source's push effect shows the list its
+// pushed names in the same window, the one below parked with its text, its highlight, its rows and
+// its height, and Backspace on the empty field asks the list on top's back, giving the one below back
+// as it was when the list declines. The height glides between the two on the fit curve, as the Lua
+// stage's does. A hide closes every list, the top first.
 
 import AppKit
 import OlmKit
@@ -147,6 +153,17 @@ public final class Stage {
   private static let downCapMs: UInt64 = 1000
   // The verbs this step does not run yet, said once each.
   private var unknownVerbs: Set<String> = []
+  // The lists under the one shown, the nearest last, each as it stood when a push covered it.
+  private struct Parked {
+    let source: any ListSource
+    let level: Level
+    let text: String
+    let highlight: Int
+    let rows: [OlmKit.Row]
+    let status: String?
+    let fitShown: Int?
+  }
+  private var parked: [Parked] = []
 
   public init(searcher: Searcher = Searcher()) {
     self.searcher = searcher
@@ -158,6 +175,9 @@ public final class Stage {
     wakeDown()
     warmTask?.cancel()
     if let source, source !== next { Task { await source.close() } }
+    // Lists a hide did not reach, never the one opening, which closes its own level.
+    for stale in parked where stale.source !== next { Task { await stale.source.close() } }
+    parked = []
     source = next
     tell(next.manifest.name)
     screenMode = mode
@@ -306,12 +326,92 @@ public final class Stage {
     paneHost?.close()
     panel.stop()
     if let source {
+      // Every list on the stack, the top first, as the Lua stage closes its stack.
+      let stack = [source] + parked.reversed().map(\.source)
+      parked = []
       closing = Task {
         await self.panelDown()
-        await source.close()
+        for list in stack { await list.close() }
       }
     }
     warmSoon()
+  }
+
+  // The window back at the chooser's own height when a list stops fitting its rows, a claim ending
+  // or the list below a fitting one given back, on the fit curve while it is up.
+  private func unfit() {
+    guard fitShown != nil, let look, let screen = placedScreen else { return }
+    fitShown = nil
+    let (placement, _) = look.placement(on: screen, pane: placedPane)
+    panel.place(placement)
+  }
+
+  // The list a push names shown over the one up now, in the same window, which is parked as it
+  // stands. Its level is open on its side already, so only its rows are asked.
+  private func push(_ token: String, from parent: any ListSource) {
+    Task {
+      guard let child = await parent.pushed(token) else { return }
+      guard self.source === parent, let level = self.level, self.panel.isVisible || self.revealPending else {
+        await child.close()
+        return
+      }
+      self.closeInfo()
+      self.closeActions()
+      self.parked.append(Parked(source: parent, level: level, text: self.text, highlight: self.highlight,
+        rows: self.rows, status: self.status, fitShown: self.fitShown))
+      self.source = child
+      self.level = nil
+      self.generation += 1
+      self.task?.cancel()
+      self.resetPane()
+      self.bars = Bars.read(child.manifest.name)
+      self.text = ""
+      self.panel.setText("")
+      let mine = self.generation
+      self.task = Task {
+        let level = await child.open(query: "")
+        guard mine == self.generation else { return }
+        self.level = level
+        self.search(self.text)
+      }
+    }
+  }
+
+  // Backspace on the empty field of a list over another. The list's own back answers first, and a
+  // decline gives the list below back as it was parked, its height with it, and asks its rows again
+  // keeping the highlight, as the Lua stage's _back pops.
+  private func back() {
+    guard !parked.isEmpty, let child = source else { return }
+    Task {
+      if await child.back() {
+        if self.source === child { self.search(self.text, keepHighlight: true) }
+        return
+      }
+      guard self.source === child, self.text.isEmpty, let parent = self.parked.popLast() else { return }
+      self.generation += 1
+      self.task?.cancel()
+      self.source = parent.source
+      self.level = parent.level
+      self.bars = Bars.read(parent.source.manifest.name)
+      self.text = parent.text
+      self.panel.setText(parent.text)
+      self.rows = parent.rows
+      self.highlight = parent.highlight
+      self.highlightGeneration += 1
+      self.panel.setRows(parent.rows.map(self.panelRow))
+      if let count = parent.fitShown { self.fit(count) } else { self.unfit() }
+      self.apply(status: parent.status)
+      Task { await child.close() }
+      self.search(parent.text, keepHighlight: true)
+    }
+  }
+
+  /// A source's list redrawn where it is on screen, its rows asked again for the same text, hold
+  /// keeping the highlight on its row, the bridge's effects notification, step 3.3. A list not up
+  /// is left alone.
+  public func redraw(_ list: any ListSource, hold: Bool) {
+    guard let source, source === list, panel.isVisible else { return }
+    search(text, keepHighlight: hold)
   }
 
   // A list that fits its rows placed at a count, only when it differs from the one the window stands
@@ -390,7 +490,7 @@ public final class Stage {
     }
   }
 
-  private func search(_ text: String) {
+  private func search(_ text: String, keepHighlight: Bool = false) {
     self.text = text
     generation += 1
     task?.cancel()
@@ -403,7 +503,8 @@ public final class Stage {
       guard var answer = try? await source.rows(query) else { return }
       var ranked = await searcher.rank(answer, query: text, level: level)
       guard mine == self.generation else { return }
-      self.land(ranked.rows, status: answer.status ?? (ranked.rows.isEmpty ? answer.emptyStatus : nil))
+      self.land(ranked.rows, status: answer.status ?? (ranked.rows.isEmpty ? answer.emptyStatus : nil),
+        keepHighlight: keepHighlight, fit: answer.fit)
       // A newer answer on its way, an index being rebuilt, drawn where the person is when it lands.
       while answer.pending {
         guard let next = try? await source.rowsLanded(query), !Task.isCancelled else { return }
@@ -411,14 +512,15 @@ public final class Stage {
         ranked = await searcher.rank(answer, query: text, level: level)
         guard mine == self.generation else { return }
         self.land(ranked.rows, status: answer.status ?? (ranked.rows.isEmpty ? answer.emptyStatus : nil),
-          keepHighlight: true)
+          keepHighlight: true, fit: answer.fit)
       }
     }
   }
 
   /// keepHighlight holds the highlight on the row it rests on where the new rows still hold it, for
-  /// an answer landing under a query the person has not changed.
-  private func land(_ next: [OlmKit.Row], status: String?, keepHighlight: Bool = false) {
+  /// an answer landing under a query the person has not changed. fit is the answer's own, a claim's
+  /// in the launcher, the window as tall as the rows while it holds.
+  private func land(_ next: [OlmKit.Row], status: String?, keepHighlight: Bool = false, fit answerFit: Bool = false) {
     // A status the list draws as a row joins the rows, the Lua chooser's statusRow.
     var next = next, status = status
     if let said = status, let row = source?.manifest.statusRow(said) {
@@ -433,7 +535,7 @@ public final class Stage {
       panel.setRows(next.map(panelRow))
     }
     let was = highlight
-    if level?.fit == true { fit(max(1, next.count)) }
+    if level?.fit == true || answerFit { fit(max(1, next.count)) } else { unfit() }
     if keepHighlight, let resting, let at = next.firstIndex(where: { $0.key == resting }) {
       highlight = at + 1
     } else {
@@ -708,7 +810,7 @@ public final class Stage {
           self.apply(status: self.status)
         }
       }
-      self.perform(effects)
+      self.perform(effects, from: source)
     }
   }
 
@@ -729,7 +831,7 @@ public final class Stage {
   }
 
   // A hide first, then the rest in order, so work that opens another app never lands in this one.
-  private func perform(_ effects: [Effect]) {
+  private func perform(_ effects: [Effect], from answered: (any ListSource)? = nil) {
     if effects.contains(.hide) { hide() }
     for effect in effects {
       switch effect {
@@ -756,6 +858,8 @@ public final class Stage {
         previewAsking = nil
         describe()
       case .requery: search(text)
+      case .rows(let hold): search(text, keepHighlight: hold)
+      case .push(let token): if let answered { push(token, from: answered) }
       }
     }
   }
@@ -1033,8 +1137,10 @@ public final class Stage {
         if actionsPane != nil { filterActions(text) } else { search(text) }
       }
     case "emptyBackspace":
+      let paneWasOpen = actionsPane != nil
       closeInfo()
       closeActions()
+      if !paneWasOpen { back() }
     case "leftover":
       // The arrows over the actions pane move its lit row, the native list leaving them to it.
       if actionsPane != nil, case .bytes(let data)? = args.first,

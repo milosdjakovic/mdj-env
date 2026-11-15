@@ -725,3 +725,11 @@ list, and until then that list stays on Lua.
   called it good. Ticked. The shadow log stood at 26 lines and no difference. The timing log was
   switched off again, `~/.olm/run/timings` removed. Hyper and 0 stays as the way into the app's
   launcher until 3.5.
+- 2026-11-15 15:33. Step 3.3 built, Keep Awake shown inside the app's launcher on Hyper and 0,
+  docs/DESIGN-APP-HOSTED.md in the spoon. One change from the note's first draft. The note had the
+  root wrap the row intercept's `push` so a bridged choose would record it. Built that way, a
+  bridged Return would have to run the row's whole intercept, and an alias row's seed or a scope's
+  act run on the way would act on the hidden Lua stage. So the launcher asks
+  `lib/rowintercept.lua`'s new `presentationFor` what the row would push and runs nothing, and only
+  `redrawPresented` is recorded by the facade. The config's `hosts` beside `serves` names the hosted
+  tools, `{ "caffeinate" }`, and taking a name out is the way back. Not yet tried live.

@@ -12,8 +12,9 @@ local json = assert(loadfile(here .. "json.lua"))()
 local frame = assert(loadfile(host .. "frame.lua"))()
 local rpc = assert(loadfile(host .. "rpc.lua"))()
 local serve = assert(loadfile(host .. "serve.lua"))()
+local facade = assert(loadfile(host .. "facade.lua"))()
 
-local M = { json = json, frame = frame, rpc = rpc, serve = serve }
+local M = { json = json, frame = frame, rpc = rpc, serve = serve, facade = facade }
 
 function M.encode(v)
   local t = type(v)
@@ -78,12 +79,32 @@ function M.replay(case)
   local claimed, replaces, ran, laters = {}, {}, {}, {}
   for _, word in ipairs(fake.claimed or {}) do claimed[word] = true end
   for _, name in ipairs(fake.replaces or {}) do replaces[name] = true end
+  -- A hosted tool's list, step 3.3, a presentation built from the case, its rows by query and its
+  -- Return recorded in ran as the tool and the row's id.
+  local presentations, hosts = {}, {}
+  for _, name in ipairs(fake.hosts or {}) do hosts[name] = true end
+  for name, spec in pairs(fake.presentations or {}) do
+    presentations[name] = { name = name, placeholder = spec.placeholder, fit = spec.fit, matcher = spec.matcher,
+      rows = function(query) return (spec.rows or {})[query] or {} end,
+      onSelect = function(item) ran[#ran + 1] = name .. ":" .. tostring(item.id) end }
+  end
   local service = serve.new({ rpc = rpc, clean = frame.clean, version = "test",
+    hosted = function(p) return hosts[p.name] == true end,
+    stampIcons = function(rows, owner)
+      local out = {}
+      for i, row in ipairs(rows) do
+        local copy = {}
+        for k, v in pairs(row) do copy[k] = v end
+        if type(copy.icon) == "string" then copy.iconOwner = owner end
+        out[i] = copy
+      end
+      return out
+    end,
     -- The fallback fires only where a step says fallback, so a case can tell hidden from it.
     later = function(_, fn) laters[#laters + 1] = fn end,
     launcher = {
       rows = function(query)
-        if claimed[query] then return fake.claimedRows or {}, true end
+        if claimed[query] then return fake.claimedRows or {}, true, fake.claimedFit == true end
         return (fake.rows or {})[query] or {}, false
       end,
       memoryKey = M.memoryKey,
@@ -91,8 +112,10 @@ function M.replay(case)
       placeholder = function() return fake.placeholder or "" end,
       -- Return on a row, as Launcher:bridgeChoose answers. A row named in replaces is unserved, and
       -- any other hides and leaves its run, recorded in ran by its memory key or its kind.
-      choose = function(item, query)
-        if replaces[item.name] then return { { unserved = { name = item.name } } } end
+      choose = function(item, query, hosted)
+        local p = presentations[item.name]
+        if p and hosted and hosted(p) then return { { present = p } } end
+        if p or replaces[item.name] then return { { unserved = { name = item.name } } } end
         return { { hide = {} } }, function() ran[#ran + 1] = (M.memoryKey(item) or item.kind) .. "@" .. query end
       end,
     },

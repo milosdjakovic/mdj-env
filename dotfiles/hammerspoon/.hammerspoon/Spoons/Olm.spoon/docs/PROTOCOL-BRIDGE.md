@@ -422,6 +422,25 @@ effects. Any other row is recorded as the launcher records a pick, under the req
 answers `hide` then `after hidden`, its run waiting for `hidden` or a fallback of 1 s, whichever
 comes first, and running once. `mods` and `h` are read by no launcher row yet.
 
+**What 3.3 serves.** A hosted tool's own list, Keep Awake first, docs/DESIGN-APP-HOSTED.md. The
+config's `hosts` beside `serves` names the tools, by the name their presentation carries. A
+launcher row that would push such a tool's presentation answers
+`{"push":{"parent":"v1","level":{"id":"v2","name":"caffeinate","placeholder":"...","ranking":"source","rowLimit":"default","fit":true}}}`,
+the level already open on the Lua side, `ranking` `source` for a presentation whose matcher is
+false, and the row is promoted and remembered as the Lua launcher's intercept does it. The launcher
+asks what the row would push, `lib/rowintercept.lua`'s `presentationFor`, and never runs its
+intercept, so a row of a tool not hosted, an alias or a scope's word still answers `unserved` and
+runs nothing. On a hosted level `rows` answers the presentation's rows stamped with their icon's
+owner and with no memory key, `choose` runs its `intercept` and then its `onSelect` inline, a true
+answer giving `{"rows":{"hold":...}}`, `"stay"` holding, a child giving another `push` and nothing
+giving `hide`, `back {level}` answers `{"handled":bool,"effects":[...]}`, the app popping on false,
+and `close` forgets the level. Of the stage words only `redrawPresented` is recorded yet, by
+host/bridge/facade.lua while a request runs, and sent as the `effects` notification from outside
+one, to each hosted level showing that tool's top level or the child its token names, the Lua
+stage's own redraw running as before. A launcher `rows` answer carries `"fit":true` while a scope
+whose tool's list fits claims the query, the Lua launcher's `setFit`, and the app sizes its window
+by it.
+
 **Return while an answer is out.** `choose` carries the `q` and the query it was pressed on, and the
 Lua side never chooses a row its supplier would not show for that query. When the rows it last
 computed for the level were for an older query, it runs the supplier for the request's query first,
@@ -613,9 +632,9 @@ Any program on the machine can open a URL, so a URL only ever shows a list with 
 field and never runs anything. A launcher level opened from a URL is opened with `"fromURL":true`,
 and the host holds back the hand over the launcher's supplier would schedule, the one a query such
 as `vpn ` starts, until a `rows` arrives with a `q` above the one the level opened at, so it starts
-only once the person types. Until 3.3 nothing needs holding back, since the launcher hands a list
-over only while the Lua stage shows the launcher, so a bridged level's `rows` never start one and
-`fromURL` is sent and not yet read, step 3.2. A query is percent encoded UTF-8,
+only once the person types. Nothing needs holding back yet, since the launcher hands a list over
+only while the Lua stage shows the launcher, so a bridged level's `rows` never start one and
+`fromURL` is sent and not yet read, step 3.2, and 3.3 pushes a hosted list only on Return. A query is percent encoded UTF-8,
 and an unknown URL is ignored and logged.
 
 ## The stage words, and what each becomes for a bridged level

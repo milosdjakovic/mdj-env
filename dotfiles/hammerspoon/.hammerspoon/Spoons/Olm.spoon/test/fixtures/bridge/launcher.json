@@ -1,6 +1,6 @@
 {
   "kind": "bridge.transcript",
-  "about": "Steps 2.2 and 3.1 of docs/PLAN-STANDALONE.md, the launcher served and a row chosen, docs/PROTOCOL-BRIDGE.md as a recorded conversation. The Lua side replays each case over a fake launcher, test/bridgereplay.lua, and the app replays it against a fake Lua side from stage 3. Each step sends one message and expects the answers listed, each a subset of what came back, a field the answer must not carry written as null.",
+  "about": "Steps 2.2, 3.1 and 3.3 of docs/PLAN-STANDALONE.md, the launcher served, a row chosen and a hosted tool's list pushed over it, docs/PROTOCOL-BRIDGE.md as a recorded conversation. The Lua side replays each case over a fake launcher, test/bridgereplay.lua, and the app replays it against a fake Lua side from stage 3. Each step sends one message and expects the answers listed, each a subset of what came back, a field the answer must not carry written as null.",
   "cases": [ {
   "name": "the launcher, read only",
   "launcher": {
@@ -121,6 +121,60 @@
       "expect": [ { "id": "a10", "error": { "code": -32602 } } ] },
     { "send": { "jsonrpc": "2.0", "id": "a11", "method": "choose", "params": { "level": "v7", "q": 2, "h": 1, "ref": "v1.1", "query": "ma" } },
       "expect": [ { "id": "a11", "error": { "code": -32012 } } ] }
+  ]
+  }, {
+  "name": "a hosted tool's list, step 3.3",
+  "launcher": {
+    "placeholder": "Search apps and commands",
+    "hosts": ["caffeinate"],
+    "claimed": ["k"],
+    "claimedFit": true,
+    "claimedRows": [ { "title": "Keep Awake Indefinitely", "fromQuery": true, "item": { "kind": "scope", "id": "indefinite" } } ],
+    "presentations": {
+      "caffeinate": { "placeholder": "Time or duration", "fit": true, "matcher": false, "rows": {
+        "": [ { "title": "Keep Awake Indefinitely", "icon": "on", "item": { "id": "indefinite" } } ],
+        "2": [ { "title": "Keep typing", "icon": "hint", "enabled": false, "item": { "id": "hint" } } ],
+        "2h": [ { "title": "Keep Awake for 2h", "icon": "duration", "item": { "id": "for" } } ] } },
+      "vpn": { "placeholder": "Search VPN", "rows": {} }
+    },
+    "rows": {
+      "": [ { "title": "Keep Awake", "item": { "kind": "special", "name": "caffeinate" } },
+            { "title": "VPN", "item": { "kind": "special", "name": "vpn" } } ]
+    }
+  },
+  "steps": [
+    { "send": { "jsonrpc": "2.0", "id": "a1", "method": "hello", "params": { "protocol": 1, "app": "0.1.0", "features": [] } },
+      "expect": [ { "id": "a1", "result": { "protocol": 1 } } ] },
+    { "send": { "jsonrpc": "2.0", "id": "a2", "method": "open", "params": { "what": { "launcher": true }, "query": "" } },
+      "expect": [ { "id": "a2", "result": { "level": { "id": "v1" } } } ] },
+    { "send": { "jsonrpc": "2.0", "id": "a3", "method": "rows", "params": { "level": "v1", "q": 1, "query": "" } },
+      "expect": [ { "id": "a3", "result": { "fit": null, "changes": { "order": ["special:caffeinate", "special:vpn"] } } } ] },
+    { "send": { "jsonrpc": "2.0", "id": "a4", "method": "choose", "params": { "level": "v1", "q": 1, "h": 1, "ref": "v1.1", "query": "" } },
+      "expect": [ { "id": "a4", "result": { "effects": [ { "push": { "parent": "v1", "level": { "id": "v2", "name": "caffeinate", "placeholder": "Time or duration", "ranking": "source", "rowLimit": "default", "fit": true } } } ] } } ], "ran": [] },
+    { "send": { "jsonrpc": "2.0", "id": "a5", "method": "choose", "params": { "level": "v1", "q": 1, "h": 1, "ref": "v1.2", "query": "" } },
+      "expect": [ { "id": "a5", "result": { "effects": [ { "unserved": { "name": "vpn" } } ] } } ] },
+    { "send": { "jsonrpc": "2.0", "id": "a6", "method": "rows", "params": { "level": "v2", "q": 1, "query": "" } },
+      "expect": [ { "id": "a6", "result": { "fit": null, "changes": { "upsert": [ { "ref": "v2.1", "title": "Keep Awake Indefinitely", "memoryKey": null, "icon": { "owner": "caffeinate", "key": "on" } } ] } } } ] },
+    { "send": { "jsonrpc": "2.0", "id": "a7", "method": "rows", "params": { "level": "v2", "q": 2, "query": "2" } },
+      "expect": [ { "id": "a7", "result": { "changes": { "upsert": [ { "ref": "v2.2", "enabled": false } ] } } } ] },
+    { "send": { "jsonrpc": "2.0", "id": "a8", "method": "choose", "params": { "level": "v2", "q": 2, "h": 1, "ref": "v2.2", "query": "2" } },
+      "expect": [ { "id": "a8", "result": { "effects": [] } } ], "ran": [] },
+    { "send": { "jsonrpc": "2.0", "id": "a9", "method": "rows", "params": { "level": "v2", "q": 3, "query": "2h" } },
+      "expect": [ { "id": "a9", "result": { "changes": { "upsert": [ { "ref": "v2.3", "title": "Keep Awake for 2h" } ] } } } ] },
+    { "send": { "jsonrpc": "2.0", "id": "a10", "method": "choose", "params": { "level": "v2", "q": 3, "h": 1, "ref": "v2.1", "query": "2h" } },
+      "expect": [ { "id": "a10", "result": { "effects": [ { "requery": { "level": "v2", "q": 3 } } ] } } ], "ran": [] },
+    { "send": { "jsonrpc": "2.0", "id": "a11", "method": "choose", "params": { "level": "v2", "q": 3, "h": 1, "ref": "v2.3", "query": "2h" } },
+      "expect": [ { "id": "a11", "result": { "effects": [ { "hide": {} } ] } } ], "ran": ["caffeinate:for"] },
+    { "send": { "jsonrpc": "2.0", "id": "a12", "method": "back", "params": { "level": "v2" } },
+      "expect": [ { "id": "a12", "result": { "handled": false } } ] },
+    { "send": { "jsonrpc": "2.0", "id": "a13", "method": "close", "params": { "level": "v2" } },
+      "expect": [ { "id": "a13", "result": true } ] },
+    { "send": { "jsonrpc": "2.0", "id": "a14", "method": "rows", "params": { "level": "v2", "q": 4, "query": "" } },
+      "expect": [ { "id": "a14", "error": { "code": -32012 } } ] },
+    { "send": { "jsonrpc": "2.0", "id": "a15", "method": "rows", "params": { "level": "v1", "q": 2, "query": "k" } },
+      "expect": [ { "id": "a15", "result": { "exclusive": true, "fit": true } } ] },
+    { "send": { "jsonrpc": "2.0", "id": "a16", "method": "rows", "params": { "level": "v1", "q": 3, "query": "" } },
+      "expect": [ { "id": "a16", "result": { "exclusive": false, "fit": null } } ] }
   ]
   } ]
 }
