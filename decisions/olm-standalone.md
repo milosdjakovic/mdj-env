@@ -773,3 +773,14 @@ list, and until then that list stays on Lua.
   a small widening of the protocol written into its 3.3b section. The app's actions pane opens a
   level for a verb with choices or a confirm. Tmux Sessions and VPN join `hosts`. Not yet tried
   live.
+- 2026-11-15 23:45. 3.3b verified, Milos's trial of Tmux Sessions and VPN with their actions pane levels inside
+  the app's launcher. Two reports. Tmux's own list shows nothing with no session and nothing typed,
+  the same as the Lua list, since its "No tmux sessions" row is answered only for the launcher's
+  scope, left as it is. VPN's first open after a reload once stayed on "Reading the locations"
+  until closed and opened again. Traced on both sides with a debug build never merged: the Lua side
+  sends the redraw to the open level and its rows come back whole, and a traced cold open drew the
+  locations 55 ms after the list. The app holds a pushed level before it first asks its rows, so a
+  fetch landing after that answer reaches it and one landing before makes that answer whole, and
+  no drop was found by reading. Believed a slow or timed out first fetch, which would hold the Lua
+  list the same way, not proven. The debug build is reinstalled when it is seen again. The shadow
+  log stood at 71 lines and no difference.
