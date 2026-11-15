@@ -39,7 +39,7 @@ export default class MdjBrand extends View {
       const row = (id, icon, label, dim, action) => h_flex().id(id).h(28).px(8).gap(9).items_center().rounded(8)
         .when(collapsed, el => el.relative().w_full().px(0).rounded(7).justify_center().tooltip(label))
         .text_color(dim ? t.dim : t.muted).hover(s => s.bg((t.hover === t.canvas ? t.chrome : t.hover)).text_color(t.foreground)).cursor_pointer()
-        .on_click(action).child(svg(`mods/workspace-chrome/${icon}.svg`).size(14))
+        .on_click(action).child(svg(`mods/mdj-icons/14/${icon}.svg`).size(14))
         .when(!collapsed, el => el.child(label));
       const ready = div().size(6).rounded_full().bg(t.accent);
       return v_flex().size_full().px(4).pb(4).bg(t.canvas).justify_end().text_size(13.5)
@@ -53,16 +53,15 @@ export default class MdjBrand extends View {
     return h_flex().size_full().bg(t.canvas).pt(4).pl(collapsed ? 10 : 18).pr(4).gap(4).items_center().text_size(13.5)
       .when(window()?.platform === "macos" && !window()?.fullscreen && !collapsed, el => el.pl(76))
       .when(!collapsed, el => el.child(div().flex_1()))
-      .when(!collapsed, el => el.child(this.button("search", svg("mods/workspace-chrome/search.svg").size(15), () => run("mod.open", { name: "picker" }))))
-      // mdj: open, the toggle is Herdr's sidebar outline with its left column filled, and the plain outline in the
-      // tab row opens the rail. The fill is a div over the svg's column, 15/24 of its viewBox, coloured as the
-      // button's text is, since Herdr ships no filled icon and draws no svg a symlink points at, so a file of
-      // ours cannot be stowed.
+      .when(!collapsed, el => el.child(this.button("search", svg("mods/mdj-icons/14/search.svg").size(14), () => run("mod.open", { name: "picker" }))))
+      // mdj: open, the toggle is Lucide's panel-left with its left column filled, and the plain outline in the
+      // tab row opens the rail. The fill is a div over the svg's column, 14/24 of its viewBox, coloured as the
+      // button's text is, since Lucide has no filled form of it.
       // mdj: on the rail the window buttons fill this row, and mdj-tabs puts the button that opens the sidebar
       // first in the tab row beside them.
-      .when(!collapsed, el => el.child(this.button("sidebar-toggle", div().relative().size(15)
-        .child(svg("mods/workspace-chrome/sidebar.svg").size(15))
-        .child(div().absolute().left(1.9).top(2.5).w(4.1).h(10).rounded_l(1.9).bg(this.toggleOver ? t.foreground : t.muted)), toggleSidebar)
+      .when(!collapsed, el => el.child(this.button("sidebar-toggle", div().relative().size(14)
+        .child(svg("mods/mdj-icons/14/panel-left.svg").size(14))
+        .child(div().absolute().left(1.75).top(1.75).w(3.5).h(10.5).rounded_l(1.17).bg(this.toggleOver ? t.foreground : t.muted)), toggleSidebar)
         .on_hover((on, cx) => { this.toggleOver = on; cx.notify(); })));
   }
 }

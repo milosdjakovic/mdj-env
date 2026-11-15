@@ -34,6 +34,17 @@ has 6px corners. `dotfiles/herdr-app/AGENTS.md` holds every measurement.
   same afternoon, asked for.
 - **Dividers in the right-click menu.** 2026-11-09 14:00. The layout separates surfaces by
   space, never by a rule.
+- **Keeping every rail cube where its row was.** 2026-11-15 15:39. Asked for on 2026-11-11 and
+  undone on Milos's word. Blank headers on the rail, and a Spaces list at its open height, left
+  holes between the cubes that read as broken, and the alignment only showed at the moment of
+  folding. Corrected 2026-11-15 16:05, the rejection was of the blanks, not of the alignment,
+  which Milos wants kept. See the two entries below.
+- **Packing the rail, with colour bars for group headers.** 2026-11-15 16:05. Built at 15:39 and
+  taken out the same afternoon, asked by Milos. The cubes moved on folding, and a bar read as a
+  divider rather than as the agents' group.
+- **Herdr's shipped icons as they come.** 2026-11-15 15:39. They mix Lucide at stroke 2 and 1.5
+  with a 16px set at 1.3 and a typed `+`, so Files beside Changes and the tab `+` beside the
+  Spaces `+` drew at different weights.
 - **The shipped avatar hues.** 2026-11-09 14:45. Fixed colour values in a mod, which only
   `theme/palettes` may carry.
 
@@ -105,3 +116,39 @@ has 6px corners. `dotfiles/herdr-app/AGENTS.md` holds every measurement.
 2026-11-11 15:20. The interface still read much bigger than the terminal at 14.5 against 14, which Milos saw, though their lowercase letters measured the same, 18.2px against about 18.1 by row coverage of the stems. Herdr's sans is darker and wider than Meslo, so equal letter height does not look equal. Taking Milos's suggestion, the interface text went down to 14 and the terminal's `font_size` up to 15, which measures 17.9px against 19.4. Measuring whole pixels with a threshold had read 18 for both 14 and 14.5, which is why the earlier entries could not tell them apart.
 
 2026-11-11 15:25. The interface text went down a half step more, from 14 to 13.5, asked by Milos after looking at 14 beside the terminal's 15. The terminal stays at 15.
+
+2026-11-15 15:39. The rail packs its cubes, asked by Milos after seeing the holes, which reverses
+the 2026-11-11 14:10 entry. On the rail the Spaces list resizes to fit its cubes through
+`layout.resize`, keeping the open height in shared `mdj.spaces.open` and putting it back on
+opening. The grip is not drawn there and 8px stand in for it. The Agents header takes no room, and
+a group header is a 14 by 3px bar in an 8px row, painted from that space's avatar slot in
+`space.colors`, a priority section from its state, pinned in `dim`, so the agents under it read
+as that space's. Checked by screenshot, folded and open.
+
+2026-11-15 15:39. Every interface icon in the mdj mods comes from one Lucide set at stroke 1.75,
+in `dotfiles/herdr-app/icons`, asked by Milos. Herdr draws nothing for a linked svg, measured on
+2026-11-10, but a real file in a folder of ours draws, measured today with a copied file in
+`mods/mdj-icons`, which has no `mod.json` and raised no error. So `src/setup-herdr-app.sh` copies
+the set there and removes what the source no longer has. The typed `+` in the tab row and in a
+machine header are the `plus` icon, the pane buttons are Lucide's columns-2, rows-2, maximize-2,
+minimize-2 and x, Changes is git-compare, and the sidebar toggle is panel-left at 14px with its
+fill moved to match. The spinner stays Herdr's, since it is an animated arc rather than an
+outline, and so do program icons and the Windows window buttons.
+
+2026-11-15 16:05. The 15:39 rail entry is undone, asked by Milos, who wants no row to move on
+folding and an agent icon rather than a divider. The Spaces list keeps its open height again, so
+`fitRail` and the shared `mdj.spaces.open` are gone, and the grip is back on the rail. The Agents
+header keeps its 26px on the rail and holds the sort button as a cube, as Spaces holds its `+`.
+A group header keeps its 30px and shows Lucide's `bot` at 14px where the name sits, in the space's
+avatar slot, which is the one icon added to the set for it. Checked by screenshot, rail beside
+open, every cube on its row's line. The resize the 15:39 version had made was put back by hand
+with `layout.resize` to the 144px it had saved.
+
+2026-11-15 16:30. Milos saw the icons still at different weights after the 15:39 entry, and they
+were. The stroke was one number in every file, 1.75 in a 24 unit box, but it scales with the size
+an icon is drawn at, and the mods draw at 10, 11, 12, 13 and 14px, so a line came out between 0.73
+and 1.02 layout px. The 15:39 entry was wrong to call that one stroke. `setup-herdr-app.sh` now
+writes a folder per size with the stroke that makes every line 1 layout px, `LINE` in the script,
+and each mod names the folder for the size it draws. In the same pass the tab `+`, the Spaces `+`
+and the Agents sort were painted `dim` beside search, the sidebar toggle and Files in `muted`, which
+read as a thinner line too, so all icon-only buttons are `muted`. Checked by screenshot.

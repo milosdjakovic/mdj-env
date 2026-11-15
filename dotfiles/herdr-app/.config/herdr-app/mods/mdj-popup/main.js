@@ -36,6 +36,6 @@ export default class PopupBar extends View {
         .hover((s) => s.bg(t.canvas).text_color(t.foreground))
         .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
         .on_click(() => closeOverlay(this.p.overlay))
-        .child(svg("mods/pane/close.svg").size(12)));
+        .child(svg("mods/mdj-icons/12/x.svg").size(12)));
   }
 }

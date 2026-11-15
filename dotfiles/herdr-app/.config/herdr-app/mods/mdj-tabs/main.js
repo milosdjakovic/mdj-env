@@ -104,7 +104,7 @@ export default class MdjTabs extends View {
     const stop = (_e, cx) => cx.stop_propagation();
     // mdj: every control on this bar is one size, ROW tall with RADIUS corners, like the side lists.
     const ROW = 28, RADIUS = 7, hoverBg = dimmed(t);
-    const button = (id, label, action) => div().id(id).size(ROW).mt(4).flex_none().flex().items_center().justify_center().rounded(RADIUS).text_color(t.dim).hover(s => s.bg(hoverBg).text_color(t.foreground))
+    const button = (id, label, action) => div().id(id).size(ROW).mt(4).flex_none().flex().items_center().justify_center().rounded(RADIUS).text_color(t.muted).hover(s => s.bg(hoverBg).text_color(t.foreground))
       .on_mouse_down("left", stop).on_click(action).child(label);
     const item = (c, i) => {
       const program = panes().find(p => p.tab === c.id && p.program?.agent)?.program ?? panes().find(p => p.tab === c.id)?.program;
@@ -129,13 +129,13 @@ export default class MdjTabs extends View {
         .on_mouse_down("right", (_e, cx) => { cx.stop_propagation(); openOverlay({ mod: "mdj-menu", kind: "popup", frame: "none", width: 208, props: { tab: "tab", target: { id: c.id, space: space.id } } }); })
         // The leading icon sits in an 18px box 5px in from the left, top and bottom, as on every side-list row.
         .child(div().size(18).flex_none().flex().items_center().justify_center()
-          .when(Boolean(program?.icon), el => el.child(program.tint ? svg(program.icon).size(14).text_color(t.muted) : image(program.icon).size(14))))
+          .when(Boolean(program?.icon), el => el.child(program.tint ? svg(program.icon).size(14) : image(program.icon).size(14))))
         .child(div().flex_1().min_w(0).max_w(170).truncate().child(c.zoomed ? `${name} Z` : name))
         .child(over
           ? div().id(`close-${c.id}`).size(18).flex_none().flex().items_center().justify_center().rounded(5).text_color(t.dim)
             .hover(s => s.bg(t.canvas).text_color(t.foreground))
             .on_mouse_down("left", stop).on_click((_e, cx) => { cx.stop_propagation(); run("tab.close", { id: c.id }); })
-            .child(svg("mods/pane/close.svg").size(12))
+            .child(svg("mods/mdj-icons/12/x.svg").size(12))
           : div().size(18).flex_none().flex().items_center().justify_center().when(Boolean(status), el => el.child(status)));
     };
     const root = layout(), sidebar = find(root, "sidebar"), w = window();
@@ -164,7 +164,7 @@ export default class MdjTabs extends View {
     // selected tab's shadow are inside it; the buttons on the right take theirs from the bar.
     return h_flex().size_full().min_w(0).pr(4).pl(lightsPadding > 10 ? lightsPadding - 4 : 0).gap(4).items_start().bg(t.canvas)
       .on_mouse_up("left", () => { this.pressed = null; })
-      .when(railed(sidebar), el => el.child(button("sidebar-expand", svg("mods/workspace-chrome/sidebar.svg").size(15), expandSidebar)
+      .when(railed(sidebar), el => el.child(button("sidebar-expand", svg("mods/mdj-icons/14/panel-left.svg").size(14), expandSidebar)
         .ml(lightsPadding > 10 ? 4 : 0).tooltip("Show sidebar")))
       // mdj: the strip is scrolled by this mod, not by a scroll area. A scroll area tells a mod no offset, so
       // fades kept from wheel deltas drifted whenever the strip moved by itself, a fade over the first tab at
@@ -181,11 +181,11 @@ export default class MdjTabs extends View {
         .child(h_flex().id("tab-content").absolute().top(0).left(-this.scrolled(shown)).h_full().pt(4).px(4).items_start().gap(4)
           .children(shown.map(item)))
         .children(this.fades(t)))
-      .child(button("tab-new", "+", () => openOverlay({ mod: "new-menu", kind: "popup", width: 250, height: 512 })))
-      .when(enabled.includes("files"), el => el.child(panelButton("files", "Files", "mods/files/file.svg")))
-      .when(enabled.includes("changes"), el => el.child(panelButton("changes", "Changes", "mods/changes/changes.svg")))
+      .child(button("tab-new", svg("mods/mdj-icons/14/plus.svg").size(14), () => openOverlay({ mod: "new-menu", kind: "popup", width: 250, height: 512 })))
+      .when(enabled.includes("files"), el => el.child(panelButton("files", "Files", "mods/mdj-icons/14/file.svg")))
+      .when(enabled.includes("changes"), el => el.child(panelButton("changes", "Changes", "mods/mdj-icons/14/git-compare.svg")))
       .when(w?.buttons, el => el.child(button("minimize", w.platform === "windows" ? svg("mods/tabs/win-min.svg").size(16) : "−", () => run("window.minimize")))
         .child(button("maximize", w.platform === "windows" ? svg(`mods/tabs/${w.maximized ? "win-restore" : "win-max"}.svg`).size(16) : "□", () => run("window.maximize")))
-        .child(button("close-window", w.platform === "windows" ? svg("mods/tabs/win-close.svg").size(16) : svg("mods/pane/close.svg").size(13), () => run("window.close"))));
+        .child(button("close-window", w.platform === "windows" ? svg("mods/tabs/win-close.svg").size(16) : svg("mods/mdj-icons/13/x.svg").size(13), () => run("window.close"))));
   }
 }

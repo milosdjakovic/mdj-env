@@ -8,6 +8,9 @@ import { View, div, svg, image } from "gpui-kit";
 import { h_flex } from "gpui-base";
 import { panes, props, run, theme, home } from "herdr";
 
+// mdj: the header's buttons in the one Lucide set every mdj mod draws from, mods/mdj-icons.
+const PANE_ICON = { "split-right": "columns-2", "split-down": "rows-2", zoom: "maximize-2", unzoom: "minimize-2", close: "x" };
+
 function icon(p, size, color) {
   if (!p?.icon) return null;
   return p.tint ? svg(p.icon).size(size).flex_none().text_color(color) : image(p.icon).w(size).h(size).flex_none();
@@ -43,7 +46,7 @@ export default class Pane extends View {
         cx.stop_propagation();
         run(command, args);
       })
-      .child(svg(`mods/pane/${icon}.svg`).size(12));
+      .child(svg(`mods/mdj-icons/12/${PANE_ICON[icon] ?? icon}.svg`).size(12));
   }
 
   render(cx) {

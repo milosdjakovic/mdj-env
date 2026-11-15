@@ -9,3 +9,5 @@ theme-map
 theme-emit
 # The fold declaration is read by the stow step one layer up, before anything is linked.
 NO-FOLD
+# The icon set is copied by src/setup-herdr-app.sh as real files, since Herdr draws no linked svg.
+icons

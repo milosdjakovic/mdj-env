@@ -127,7 +127,7 @@ function duration(ms) {
 function railState(t, status, rest) {
   const box = h_flex().size(18).flex_none().items_center().justify_center();
   if (status === "working") return box.child(svg("mods/workspace-chrome/spinner.svg").size(14).text_color(t.working).spin(900));
-  if (status === "done") return box.child(svg("mods/workspace-chrome/check.svg").size(14).text_color(t.done ?? t.foreground));
+  if (status === "done") return box.child(svg("mods/mdj-icons/14/check.svg").size(14).text_color(t.done ?? t.foreground));
   if (status === "blocked") return box.child(div().size(14).rounded(4).bg(t.blocked + "26").text_size(10.5).font_bold().text_color(t.blocked).flex().items_center().justify_center().child("!"));
   return rest ? box.child(rest) : box;
 }
@@ -225,9 +225,9 @@ export default class Agents extends View {
           setShared("agents.sort", s.id);
           closeOverlay(props().overlay);
         })
-        .child(svg(`mods/workspace-chrome/${s.icon}.svg`).size(14).flex_none().text_color(t.muted))
+        .child(svg(`mods/mdj-icons/14/${s.icon}.svg`).size(14).flex_none().text_color(t.muted))
         .child(div().flex_1().child(s.label))
-        .when(s.id === on, (el) => el.child(svg("mods/workspace-chrome/check.svg").size(14).flex_none().text_color(t.foreground)))));
+        .when(s.id === on, (el) => el.child(svg("mods/mdj-icons/14/check.svg").size(14).flex_none().text_color(t.foreground)))));
   }
 
   peek(addr) {
@@ -350,7 +350,7 @@ export default class Agents extends View {
           open ? this.folded.add(a.address) : this.folded.delete(a.address);
           cx.notify();
         })
-        .child(svg(`mods/workspace-chrome/chevron-${open ? "down" : "right"}.svg`).size(11).flex_none())
+        .child(svg(`mods/mdj-icons/11/chevron-${open ? "down" : "right"}.svg`).size(11).flex_none())
         .when(!open, (el) => el.child(String(subs.length)));
     };
 
@@ -415,7 +415,7 @@ export default class Agents extends View {
           this.hovered = null;
           cx.notify();
         })
-        .child(svg(`mods/workspace-chrome/${isPinned ? "pin-off" : "pin"}.svg`).size(13));
+        .child(svg(`mods/mdj-icons/13/${isPinned ? "pin-off" : "pin"}.svg`).size(13));
       // Under a space header the space goes without saying; an automatic tab number says nothing.
       // Without a space header above (priority, pinned) the row names its space.
       const full = byPriority || isPinned;
@@ -463,7 +463,7 @@ export default class Agents extends View {
       const r = rankOf(a) || RANK.idle;
       const id = byPriority ? `sec-${r}` : `sp-${a.space}`;
       if (groups.at(-1)?.id === id) groups.at(-1).members.push(a);
-      else groups.push({ id, label: byPriority ? SECTION[r] : a.space_name || "", status: byPriority ? SECTION_STATUS[r] : null, members: [a] });
+      else groups.push({ id, space: byPriority ? null : a.space, label: byPriority ? SECTION[r] : a.space_name || "", status: byPriority ? SECTION_STATUS[r] : null, members: [a] });
     }
 
     // A group's header; it folds the group. Folded, it says how many and the most urgent state.
@@ -491,10 +491,18 @@ export default class Agents extends View {
         .child(div().flex_1())
         .when(!open, (el) => el
           .when(!byPriority && top && top !== "idle", (el) => el.child(this.status(t, { status: top }, true)))
-          .child(svg("mods/workspace-chrome/chevron-right.svg").size(11).flex_none().text_color(t.dim)));
+          .child(svg("mods/mdj-icons/11/chevron-right.svg").size(11).flex_none().text_color(t.dim)));
     };
-    // On the rail a group's header is its 30px left empty.
-    const rows = groups.flatMap((g) => [collapsed ? div().id(g.id).h(30).flex_none() : header(g), ...(this.folded.has(g.id) ? [] : g.members.flatMap(withKids))]);
+    // mdj: on the rail a group's header keeps its 30px, so folding moves no row, and shows a generic agent
+    // icon where its name sits, in its space's avatar colour, so the agents under it read as that space's.
+    // A priority section takes its state's colour, pinned dim. Asked by Milos on 2026-11-15.
+    const colors = shared("space.colors") ?? {};
+    const marker = (g) => {
+      const c = g.space ? (colors[g.space] ?? "ansi6") : g.status;
+      return h_flex().id(g.id).h(30).pt(8).flex_none().justify_center().items_center().tooltip(g.label || "Agents")
+        .child(svg("mods/mdj-icons/14/bot.svg").size(14).text_color((c && t[c]) || t.dim));
+    };
+    const rows = groups.flatMap((g) => [collapsed ? marker(g) : header(g), ...(this.folded.has(g.id) ? [] : g.members.flatMap(withKids))]);
 
     return splitDrag(v_flex().id("ag-root"), "agents")
       .relative()
@@ -524,12 +532,13 @@ export default class Agents extends View {
           })
           .child(div().id("ag-grip-bar").h(4).rounded_full().bg(t.muted)
             // mdj: on the rail the bar stays inside the cubes' 28px, as wide as one when hovered.
+            // mdj: on the rail the bar stays inside the cubes' 28px, as wide as one when hovered.
             .w(collapsed ? (this.gripHover || shared(SPLIT) ? 28 : 16) : (this.gripHover || shared(SPLIT) ? 44 : 28)).opacity(this.gripHover || shared(SPLIT) ? 1 : 0)
             .transition("width", { duration: 180, easing: "ease-out" })
             .transition("opacity", { duration: 180, easing: "ease-out" })),
       )
-      .when(!collapsed, (el) =>
-        el.child(
+      // mdj: on the rail the header keeps its 26px and holds the sort button as a cube, as Spaces holds its +.
+      .child(
           h_flex()
             .pl(12)
             .pr(4)
@@ -537,28 +546,27 @@ export default class Agents extends View {
             .flex_none()
             .items_center()
             .justify_between()
-            .child(div().text_size(13.5).font_medium().text_color(t.dim).child("Agents"))
+            .when(collapsed, (el) => el.pl(4))
+            .when(!collapsed, (el) => el.child(div().text_size(13.5).font_medium().text_color(t.dim).child("Agents")))
             .child(
               // mdj: the same 26px box as the Spaces + above, so the two line up with the sidebar button.
               div()
                 .id("ag-sort")
                 .size(26)
+                .when(collapsed, (el) => el.w_full().rounded(7))
                 .flex_none()
                 .flex()
                 .items_center()
                 .justify_center()
                 .rounded(6)
                 .text_size(11)
-                .text_color(t.dim)
+                .text_color(t.muted)
                 .hover((s) => s.bg((t.hover === t.canvas ? t.chrome : t.hover)).text_color(t.foreground))
                 .on_click(() => openOverlay({ mod: "mdj-agents", kind: "popup", width: 200, height: 140, props: { sortMenu: true } }))
                 .tooltip(`Sort agents: ${sort.label}`)
-                .child(svg(`mods/workspace-chrome/${sort.icon}.svg`).size(14)),
+                .child(svg(`mods/mdj-icons/14/${sort.icon}.svg`).size(14)),
             ),
-        ),
       )
-      // mdj: the rail keeps the header's 26px empty, so folding the sidebar leaves every row where it was.
-      .when(collapsed, (el) => el.child(div().h(26).flex_none()))
       .when(list.length === 0 && !collapsed, (el) =>
         el.child(div().px(16).text_size(12).text_color(t.dim).child("No agent status yet. Agents show up here when they report their status. Older versions and agents inside tmux may not.")),
       )
