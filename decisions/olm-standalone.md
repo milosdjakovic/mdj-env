@@ -758,3 +758,8 @@ list, and until then that list stays on Lua.
   `onPresent` and `onClose` as the Lua stage tells them, under the facade, and a new session or a
   socket that went closes every level. Audio, Wi-Fi and Input Sources join `hosts`. Dock Auto
   Hide's row only toggles and needs nothing. Not yet tried live.
+- 2026-11-15 23:13. 3.3a verified. Milos ran the seven step trial of Audio, Wi-Fi and Input Sources inside the
+  app's launcher on Hyper and 0 and called it good. He asked why Audio and Wi-Fi keep their full
+  height while a search leaves fewer rows. Neither declares `fit`, the only lever a list has, so
+  both stay full height in the Lua list too, and nothing was changed. The shadow log stood at 69
+  lines and no difference.
