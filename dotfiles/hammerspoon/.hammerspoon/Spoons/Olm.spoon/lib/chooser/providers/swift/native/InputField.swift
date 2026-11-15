@@ -54,10 +54,15 @@ final class InputField: NSView {
   var text: String { field.stringValue }
 
   // Replaces the text with the caret after it and nothing selected, through the field editor while
-  // it is editing, since setting the value under an active editor would be overwritten.
+  // it is editing, since setting the value under an active editor would be overwritten. The editor's
+  // text is then validated into the field's cell, since the editor alone leaves the cell holding the
+  // text before, and AppKit reloads the editor from the cell a moment later, which put the old text
+  // back with the caret at its start, the app's Keep Awake list showing "keep" over its own field,
+  // step 3.3's trial on 2026-11-15.
   func setText(_ text: String) {
     if let editor = field.currentEditor() {
       editor.string = text
+      field.validateEditing()
       editor.selectedRange = NSRange(location: (text as NSString).length, length: 0)
     } else {
       field.stringValue = text

@@ -1096,3 +1096,12 @@ durations and distances live, Milos's call after weighing both. Built and loaded
   tool's list would and returns to full when the claim ends. The launcher still learns nothing of
   what claimed it. A fit changed while the engine ranks is applied once, by the rebuild's own
   place, so the window never moves twice for one keystroke.
+- 2026-11-15 17:48. A bug found in step 3.3's trial of the standalone plan. Return on Keep Awake in
+  Olm.app's launcher showed its list with "keep" still in the input field and the caret at its
+  start. `InputField.setText` set the field editor's text alone, which leaves the field's cell
+  holding the text before, and AppKit reloaded the editor from the cell a moment later. Read
+  through accessibility, the field was empty 50 ms after Return and held "keep" again at 250 ms. A
+  debug build that logged the field's value never failed, since reading `stringValue` validates the
+  editor into the cell, which is what pointed at the cause. `setText` now calls `validateEditing`
+  after setting the editor's text, and three driven runs left the field empty. The Lua swift
+  chooser shares the field and never showed it, its query being cleared another way.
