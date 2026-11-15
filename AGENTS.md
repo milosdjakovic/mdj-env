@@ -711,8 +711,8 @@ the `herdr-app` piece is on, which turns `herdr` on with it. `src/install-herdr-
 app once from Herdr's own installer and the app updates itself, and `src/setup-herdr-app.sh`
 switches it to the `mdj` layout after stow, `decisions/herdr-app-install.md` has it. See
 `dotfiles/herdr-app/AGENTS.md` for what is linked and why its directories stay real, why the
-generated theme JSON carries no banner, and why a zsh hook sends every terminal colour into each
-pane, since Herdr's core answers colour queries from its own defaults.
+generated theme JSON carries no banner, and why a zsh hook sends only the four colour slots a
+Herdr theme cannot hold into each pane, and leaves the page to Herdr so Claude Code follows a switch.
 
 ### Tmux
 

@@ -1,20 +1,22 @@
 # Herdr app colours
 
-Status. The Herdr desktop app paints Aura from two generated theme files, and a zsh hook sends
-every terminal colour into each pane, because the theme alone cannot make a pane answer like
-Ghostty.
+Status. The Herdr desktop app paints Aura from two generated theme files, which also answer a
+pane's page and ink, and a zsh hook sends only the four slots above sixteen, which a theme cannot
+hold.
 
 ## Now
 
 `dotfiles/herdr-app` generates `mdj-dark.json` and `mdj-light.json` from the palette, linked
-file by file into `~/.config/herdr-app/themes`. Those colour what the app draws. They cannot
-colour what a program inside a pane is told, because Herdr's core answers a colour query from
-its own defaults, `#282c34` for the page whatever the half, and the theme holds exactly sixteen
-slots. So the same package generates `terminal-colors.zsh`, every colour Ghostty's theme sets
-for each half as escape sequences, twenty slots, ink, page and cursor, and
-`dotfiles/zsh/.zshrc.custom` sends the half macOS is on at a prompt, in a Herdr pane only, when
-the half has changed. A program running across a light and dark switch keeps the old half,
-whole, until the shell's next prompt. Padding and corners are the `mdj` layout's own, which `decisions/herdr-app-layout.md` records.
+file by file into `~/.config/herdr-app/themes`. Those colour what the app draws, and since core
+0.1.16 they are also what a pane answers for its page and ink, for the half the app is on, with a
+`?997` report sent to every pane the moment the half changes. So Claude Code and Neovim follow a
+switch while they run. The theme holds exactly sixteen slots, so the same package generates
+`terminal-colors.zsh`, slots 16 to 19 for each half as escape sequences, opened by a reset that
+hands the page, ink, cursor and sixteen back to Herdr, and `dotfiles/zsh/.zshrc.custom` sends the
+half macOS is on at a prompt, in a Herdr pane only, when the half has changed. A status line
+running across a switch keeps the old slot 17 grey until the shell's next prompt. A query for one
+of the sixteen still answers the core's defaults while the pane draws the theme's, Herdr's issue
+827, which nothing here reads. Padding and corners are the `mdj` layout's own, which `decisions/herdr-app-layout.md` records.
 Transparency is left as Herdr ships it.
 
 ## Rejected
@@ -31,6 +33,19 @@ Transparency is left as Herdr ships it.
   set from inside the pane, measured by painting it red. After a switch the sixteen and the ink
   would follow the app's theme while the page stayed, ink of one half on a page of the other. All
   twenty three move together so a stale pane is wholly one half.
+  **Corrected 2026-11-15 21:10.** Both rejections above held for the core of 2026-11-09 and not
+  for core 0.1.16, which answers the page from the theme. Setting the page from the pane then
+  became the fault, since a set colour stays set and the pane answered its last prompt's half
+  across every switch. The four slots alone are what the hook sends now.
+- **Every colour of the half set from the pane, page included.** 2026-11-15 21:10. On core 0.1.21
+  a pane that had received the hook's sequences answered OSC 11 with the hook's page through a
+  switch to light and back, while a clean pane beside it answered the new half within a second
+  of each report. So every Claude Code running across a switch, which on Auto appearance is every
+  wake, kept the old half.
+- **A script that repaints every pane after a switch, then `/theme` in each Claude session.**
+  2026-11-15 21:10. Written as `src/claude-repaint.sh` at 18:20 and removed uncommitted, since it
+  repaired the stale page the hook had caused rather than stopping the hook from causing it.
+  `claude-code-theme.md` has it.
 
 ## Log
 
@@ -51,3 +66,10 @@ Transparency is left as Herdr ships it.
   copies of the shipped mods set both, recorded in `herdr-app-layout.md`. The space avatars lost the
   shipped mod's fixed hues, which the theme checker refused as colour values outside the palette, and
   are painted from the theme slot each stored colour name points at.
+- 2026-11-15 21:10. The hook no longer sets the page. A probe in fresh app tabs on herdr-app
+  0.1.16, core 0.1.21, macOS switched to light and back by `osascript`, read a `?997` report
+  within a second of each switch and the new page in the same second on a clean pane, `#f8f7fb`
+  then `#151418`, while a pane given the hook's sequences got both reports and answered `#151418`
+  throughout. Sending OSC 110, 111, 112 and 104 to a pane the hook had set gave back the theme's
+  ink and page and the core's own slot 4, `#81a2be`, measured. `theme-emit` now writes that reset
+  and slots 16 to 19 only, and `./src/check-theme.sh` passes.
