@@ -111,7 +111,7 @@ export default class MdjTabs extends View {
     const n = 20;
     const slot = over
       ? div().id(`close-${c.id}`).size(18).flex_none().flex().items_center().justify_center().rounded(1).text_color(t.dim)
-        .hover(s => s.bg(t.canvas).text_color(t.foreground))
+        .hover(s => s.bg(t.dim + "26").text_color(t.foreground))
         .on_mouse_down("left", (_e, cx) => cx.stop_propagation()).on_click((_e, cx) => { cx.stop_propagation(); run("tab.close", { id: c.id }); })
         .child(svg("mods/mdj-icons/12/x.svg").size(12))
       : div().size(18).flex_none().flex().items_center().justify_center().when(Boolean(status), el => el.child(status));

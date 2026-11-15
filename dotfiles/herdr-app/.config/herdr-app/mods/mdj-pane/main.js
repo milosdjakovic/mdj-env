@@ -30,8 +30,8 @@ export default class Pane extends View {
   }
 
   button(t, id, icon, command, args) {
-    // mdj: the same button a tab's close uses, an 18px box with 5px corners and a 12px icon, and the header's
-    // right padding is 6, so in the 30px header it sits 6px from the top, the bottom and the side alike.
+    // mdj: the same button a tab's close uses, an 18px box and a 12px icon, and the header's
+    // right padding is 6, so in the 30px header it sits 6px from the top, the bottom and the side alike, and 6 inside the pane's 6px corner leaves its corners 0.
     return div()
       .id(id)
       .size(18)
@@ -41,7 +41,7 @@ export default class Pane extends View {
       .justify_center()
       .rounded(0)
       .text_color(t.dim)
-      .hover((s) => s.bg(t.canvas).text_color(t.foreground))
+      .hover((s) => s.bg(t.dim + "26").text_color(t.foreground))
       .on_click((_e, cx) => {
         cx.stop_propagation();
         run(command, args);

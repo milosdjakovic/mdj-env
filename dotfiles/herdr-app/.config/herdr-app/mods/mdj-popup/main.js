@@ -33,7 +33,7 @@ export default class PopupBar extends View {
       // the bar's top, bottom and right, so 9 from the popup's edges either way, and the title starts 10 in,
       // where the x's stroke ends on the right.
       .child(div().id("close").size(18).flex_none().flex().items_center().justify_center().rounded(1).text_color(t.dim)
-        .hover((s) => s.bg(t.canvas).text_color(t.foreground))
+        .hover((s) => s.bg(t.dim + "26").text_color(t.foreground))
         .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
         .on_click(() => closeOverlay(this.p.overlay))
         .child(svg("mods/mdj-icons/12/x.svg").size(12)));

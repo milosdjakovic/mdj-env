@@ -442,6 +442,31 @@ export default class Spaces extends View {
       .when(g.behind > 0, (el) => el.child(div().flex_none().text_color(t.ansi1).child(`\u2193${g.behind}`)));
   }
 
+  // mdj: the close button takes no width, as on a tab. While the row is hovered it sits in an 18px slot 5px from
+  // the row's right edge, over the end of the description, with a 20px eased fade on its left in whatever the
+  // row is painted, the selected card's `background` or a hover's `background` at half over the canvas, mixed
+  // here from the two theme colours. The whole overlay sits 1px inside the row so it never covers the selected
+  // row's border, and its colour is set on the rounded box itself, since a child layer is clipped square.
+  trailing(w, t, on) {
+    const hex = (a) => Math.round(255 * a).toString(16).padStart(2, "0");
+    const rgb = (h) => [1, 3, 5].map(k => parseInt(h.slice(k, k + 2), 16));
+    const mix = (a, b) => "#" + rgb(a).map((v, k) => Math.round((v + rgb(b)[k]) / 2).toString(16).padStart(2, "0")).join("");
+    const fill = (on ? t.background : mix(t.canvas, t.background)).slice(0, 7);
+    const n = 20;
+    return h_flex().absolute().top(1).bottom(1).right(1).items_stretch()
+      .children(Array.from({ length: n }, (_, i) => {
+        const x = (i + 0.5) / n, ease = x * x * (3 - 2 * x);
+        return div().w(1).flex_none().bg(fill + hex(ease));
+      }))
+      .child(div().flex_none().pr(4).rounded_r(RADIUS - 1).bg(fill).flex().items_center()
+        .child(div().id(`space-close-${w.id}`).size(18).flex_none().flex().items_center().justify_center().rounded(1).text_color(t.dim)
+          .hover(s => s.bg(t.dim + "26").text_color(t.foreground))
+          .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+          .on_mouse_up("left", (_e, cx) => cx.stop_propagation())
+          .on_click((_e, cx) => { cx.stop_propagation(); this.pressed = null; run("space.close", { id: w.id }); })
+          .child(svg("mods/mdj-icons/12/x.svg").size(12))));
+  }
+
   row({ w, i, g, tree }, t) {
     const on = w.active;
     const fromIndex = this.pressed === null ? -1 : spaces().findIndex(s => s.id === this.pressed);
@@ -452,7 +477,7 @@ export default class Spaces extends View {
       .relative()
       .id(`space-${w.id}`)
       .pl(5)
-      .pr(5)
+      .pr(10)
       .h(rowHeight({ tree }))
       .flex_none()
       .justify_center()
@@ -496,18 +521,11 @@ export default class Spaces extends View {
           .gap(8)
           .items_center()
           .when(Boolean(tree), el => el.pl(26).child(svg("mods/mdj-icons/13/git-branch.svg").size(13).text_color(t.dim)))
-          .when(!tree, el => el.child(h_flex().size(18).flex_none().rounded(1).bg(fill).items_center().justify_center().text_size(10.5).font_family(String(settings().font_family)).text_color(t.background).child(div().relative().left(0.5).top(0.3).child([...w.name][0]?.toUpperCase() ?? "?"))))
+          .when(!tree, el => el.child(h_flex().size(18).flex_none().rounded(1).items_center().justify_center().text_size(13.5).font_family(String(settings().font_family)).text_color(fill).child(div().relative().left(0.5).top(0.3).child([...w.name][0]?.toUpperCase() ?? "?"))))
           .child(div().flex_shrink(0).max_w(150).truncate().text_color(t.foreground).child(w.name))
-          .child(g ? this.gitTail(g, tree, w.name, t) : div().flex_1())
-          // Always laid out so the row never shifts, shown only while the row is hovered, as on a tab.
-          .child(div().id(`space-close-${w.id}`).size(18).flex_none().flex().items_center().justify_center().rounded(1).text_color(t.dim)
-            .when(this.hoverRow !== w.id, el => el.opacity(0))
-            .hover(s => s.bg(t.canvas).text_color(t.foreground))
-            .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
-            .on_mouse_up("left", (_e, cx) => cx.stop_propagation())
-            .on_click((_e, cx) => { cx.stop_propagation(); this.pressed = null; run("space.close", { id: w.id }); })
-            .child(svg("mods/mdj-icons/12/x.svg").size(12))),
-      );
+          .child(g ? this.gitTail(g, tree, w.name, t) : div().flex_1()),
+      )
+      .when(this.hoverRow === w.id, el => el.child(this.trailing(w, t, on)));
   }
 
   // mdj: a rail row is a pill as wide as the window buttons above, the rail's whole inside, holding only
@@ -529,7 +547,7 @@ export default class Spaces extends View {
       .child(card(`space-card-${w.id}`, w.active, t, RADIUS, true))
       .when(!w.active, (el) => el.hover((s) => s.bg(dimmed(t))))
       .on_click(() => run("space.select", { id: w.id }))
-      .child(h_flex().size(18).flex_none().rounded(1).bg(fill).items_center().justify_center().text_size(10.5).font_family(String(settings().font_family)).text_color(t.background).child(div().relative().left(0.5).top(0.3).child([...w.name][0]?.toUpperCase() ?? "?")));
+      .child(h_flex().size(18).flex_none().rounded(1).items_center().justify_center().text_size(13.5).font_family(String(settings().font_family)).text_color(fill).child(div().relative().left(0.5).top(0.3).child([...w.name][0]?.toUpperCase() ?? "?")));
   }
 
   render() {
