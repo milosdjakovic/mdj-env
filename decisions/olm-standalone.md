@@ -763,3 +763,13 @@ list, and until then that list stays on Lua.
   height while a search leaves fewer rows. Neither declares `fit`, the only lever a list has, so
   both stay full height in the Lua list too, and nothing was changed. The shadow log stood at 69
   lines and no difference.
+- 2026-11-15 23:23. A correction to the entry of 22:04, which said the launcher's own actions pane
+  on Hyper and 0 was absent and would block 3.5. It is not absent. The launcher's only action
+  would repeat Run, so `hints.dropIdleActionsPanes` gives the Lua launcher no Actions either, and
+  there is nothing to bring over. 3.3b built: `actions`, `choices` and `run` served for a hosted
+  level. The verbs are run on the owning tool's surface by its owner, not through the dispatch
+  table, since that routes by the list showing and the list showing is the app's. A confirm's level
+  is answered by `choices` too, Cancel and then the confirm row, so the app holds no confirm title,
+  a small widening of the protocol written into its 3.3b section. The app's actions pane opens a
+  level for a verb with choices or a confirm. Tmux Sessions and VPN join `hosts`. Not yet tried
+  live.

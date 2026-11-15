@@ -87,6 +87,15 @@ public final class Stage {
     var query = ""
     let savedText: String
     let savedHighlight: Int
+    // The level an action with choices or a confirm opened, step 3.3b, nil at the pane's top.
+    var level: PaneLevel?
+  }
+  // What a level of the actions pane replaced and what its rows choose, the Lua pane's _level.
+  private struct PaneLevel {
+    let verb: String
+    let title: String
+    let root: [Bars.ActionRow]
+    let choices: [Choice]
   }
   private var actionsPane: ActionsPane?
   private var actionsGeneration = 0
@@ -682,6 +691,7 @@ public final class Stage {
       // The list's field keeps showing the text the pane opened over while the caret is in the
       // pane's own field, whose placeholder the share carries.
       open.panelHeld = actionsPane.savedText
+      open.panelTitle = actionsPane.level?.title
       state.bottomBar = open
       state.infoOpen = false
       state.highlight = nil
@@ -790,7 +800,7 @@ public final class Stage {
   // an answer that hides the list fades them whole with it, and only one that keeps it up closes
   // them, Milos's report in step 1.4f's piece four, where a pane folding under the list's fade was
   // cut halfway. While the actions pane is open the list's text and highlight are its own still.
-  private func act(on index: Int, action: String? = nil, closingPanes: Bool = false) {
+  private func act(on index: Int, action: String? = nil, choice: String? = nil, closingPanes: Bool = false) {
     guard index >= 1, index <= rows.count, !rows[index - 1].inert, let source else {
       if closingPanes { closeInfo(); closeActions() }
       return
@@ -798,7 +808,7 @@ public final class Stage {
     let pick = Pick(key: rows[index - 1].key, query: text, row: index, highlight: highlightGeneration)
     let mine = generation
     Task {
-      let effects = if let action { await source.run(action, on: pick) } else { await source.choose(pick) }
+      let effects = if let action { await source.run(action, on: pick, choice: choice) } else { await source.choose(pick) }
       if let action, effects.contains(where: { if case .quickLook = $0 { true } else { false } }) {
         self.lookAction = action
       }
@@ -947,11 +957,14 @@ public final class Stage {
   // file search declares none, so such a row is left out and said once.
   private func runnable(_ row: Bars.ActionRow) -> Bool {
     guard let source else { return false }
-    if row.confirm || row.choices {
-      if unknownVerbs.insert(row.verb).inserted { NSLog("Olm: the actions pane has no level for %@ yet", row.verb) }
+    if row.verb == "insertSelected" { return true }
+    guard source.manifest.actions.contains(where: { $0.id == row.verb }) else {
+      if (row.confirm || row.choices), unknownVerbs.insert(row.verb).inserted {
+        NSLog("Olm: the actions pane has no level for %@ yet", row.verb)
+      }
       return false
     }
-    return row.verb == "insertSelected" || source.manifest.actions.contains(where: { $0.id == row.verb })
+    return true
   }
 
   // Opens the pane over the highlighted row, or closes it. Opening it closes the info pane, as the
@@ -969,8 +982,17 @@ public final class Stage {
     actionsGeneration += 1
     let mine = actionsGeneration
     Task {
+      // A source that answers for its own actions says which apply and what each is called, the
+      // Lua pane's answer for a hosted list, step 3.3b. The primary stays, Return on the row.
+      let answered = await source.actions(on: pick)
       var kept: [Bars.ActionRow] = []
       for var row in candidates {
+        if let answered {
+          guard row.verb == "insertSelected" || answered[row.verb] != nil else { continue }
+          if let word = answered[row.verb], row.verb != "insertSelected" { row.row.title = word }
+          kept.append(row)
+          continue
+        }
         if let gate = row.applies, !(await source.applies(gate, on: pick)) { continue }
         // The row's word over this row, Copy Folder over a folder, the Lua pane's labels.
         if let word = await source.label(row.verb, on: pick) { row.row.title = word }
@@ -1006,13 +1028,64 @@ public final class Stage {
   // list back its row, and the verb then runs on that row, as the Lua pane's _leave runs it.
   private func chooseActions(_ index: Int) {
     guard let pane = actionsPane, index >= 1, index <= pane.shown.count, let shown else { return }
-    let verb = pane.rows[pane.shown[index - 1]].verb
+    let chosen = pane.rows[pane.shown[index - 1]]
+    // A row of a level runs its verb with the choice, Cancel steps back and a dimmed one does nothing.
+    if let level = pane.level {
+      let choice = level.choices[pane.shown[index - 1]]
+      if choice.cancel { return stepBackActions() }
+      guard choice.enabled else { return }
+      return act(on: pane.savedHighlight, action: level.verb, choice: choice.ref, closingPanes: true)
+    }
+    if chosen.confirm || chosen.choices { return openLevel(chosen) }
+    let verb = chosen.verb
     if verb == "insertSelected" { return act(on: pane.savedHighlight, closingPanes: true) }
     if source?.manifest.actions.contains(where: { $0.id == verb }) == true {
       return act(on: pane.savedHighlight, action: verb, closingPanes: true)
     }
     closeActions()
     self.verb(shown, verb)
+  }
+
+  // The level an action with choices or a confirm opens, its rows asked of the source over the row
+  // the pane opened on, the pane's own field emptied, as the Lua pane's _choose opens it.
+  private func openLevel(_ row: Bars.ActionRow) {
+    guard let pane = actionsPane, let source, pane.savedHighlight >= 1, pane.savedHighlight <= rows.count else { return }
+    let pick = Pick(key: rows[pane.savedHighlight - 1].key, query: pane.savedText)
+    let mine = actionsGeneration
+    Task {
+      let choices = await source.choices(row.verb, on: pick)
+      guard mine == self.actionsGeneration, var pane = self.actionsPane, pane.level == nil else { return }
+      let levelRows = choices.map { c -> Bars.ActionRow in
+        var r = OlmKit.Row(key: c.ref, title: c.title, subtitle: c.subtitle, icon: c.icon, inert: !c.enabled)
+        r.icon = c.icon
+        var drawn = self.panelRow(r)
+        drawn.subtitle = c.subtitle
+        return Bars.ActionRow(row: drawn, verb: row.verb, applies: nil, confirm: false, choices: false)
+      }
+      pane.level = PaneLevel(verb: row.verb, title: row.row.title, root: pane.rows, choices: choices)
+      pane.rows = levelRows
+      pane.shown = Array(levelRows.indices)
+      pane.lit = levelRows.isEmpty ? 0 : 1
+      pane.query = ""
+      self.actionsPane = pane
+      self.panel.setText("")
+      self.apply(status: self.status)
+    }
+  }
+
+  // Out of a level back to the pane's own rows, or out of the pane at its top, the Lua pane's _stepBack.
+  private func stepBackActions() {
+    guard var pane = actionsPane else { return }
+    guard let level = pane.level else { return closeActions() }
+    actionsGeneration += 1
+    pane.level = nil
+    pane.rows = level.root
+    pane.shown = Array(level.root.indices)
+    pane.lit = level.root.isEmpty ? 0 : 1
+    pane.query = ""
+    actionsPane = pane
+    panel.setText("")
+    apply(status: status)
   }
 
   // What the typed text keeps of the pane's rows, by the shared search, as the Lua pane ranks its
@@ -1139,6 +1212,7 @@ public final class Stage {
     case "emptyBackspace":
       let paneWasOpen = actionsPane != nil
       closeInfo()
+      if actionsPane?.level != nil { stepBackActions(); break }
       closeActions()
       if !paneWasOpen { back() }
     case "leftover":

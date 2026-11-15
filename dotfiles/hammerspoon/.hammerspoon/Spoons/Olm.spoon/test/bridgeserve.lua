@@ -319,5 +319,73 @@ hostingWifi.methods.choose.run({ level = "v1", q = 1, ref = "v1.1", query = "" }
 hostingWifi.closeAll()
 ok(told[8] == "close" and next(hostingWifi.levels) == nil, "and so does a socket that went")
 
+-- Step 3.3b, a hosted list's actions pane. The verbs are the root's, faked here in the shape Tmux
+-- Sessions answers them, one keyless Terminal verb with choices and a confirm beside it.
+local ran = {}
+local terminal = "Ghostty"
+local verbs = {
+  ids = function(name) return name == "tmuxsessions" and { "insertSelected", "setTerminal", "forget" } or {} end,
+  actions = function(_, item)
+    local out = { { action = "insertSelected", title = "Select" }, { action = "setTerminal", title = "Terminal" } }
+    if item and item.id == "old" then out[#out + 1] = { action = "forget", title = "Forget" } end
+    return out
+  end,
+  level = function(_, action)
+    if action == "forget" then
+      return { { title = "Cancel", icon = "cancel", iconOwner = "actionspane", cancel = true },
+               { title = "Forget this session", icon = "clear", iconOwner = "tmuxsessions" } }
+    end
+    return { { title = "Ghostty", subTitle = "Installed", icon = "chosen", iconOwner = "actionspane", current = terminal == "Ghostty", value = "Ghostty" },
+             { title = "Kitty", subTitle = "Installed", icon = "notChosen", iconOwner = "actionspane", value = "Kitty" },
+             { title = "WezTerm", subTitle = "Not installed", icon = "notChosen", iconOwner = "actionspane", enabled = false, value = "WezTerm" } }
+  end,
+  run = function(_, action, item, value)
+    ran[#ran + 1] = { action = action, item = item, value = value }
+    if action == "setTerminal" then terminal = value; facade.record({ rows = { hold = true } }) end
+  end,
+}
+local sessions = { name = "tmuxsessions", placeholder = "Search sessions and windows",
+  rows = function() return { { title = "main", item = { id = "main" } }, { title = "old", item = { id = "old" } } } end,
+  onSelect = function() end }
+local hostingTmux = serve.new({ rpc = rpc, clean = frame.clean, facade = facade, verbs = verbs,
+  hosted = function(p) return p.name == "tmuxsessions" end,
+  launcher = { memoryKey = memoryKey, rows = function() return { { title = "Tmux Sessions", item = { kind = "special", name = "tmuxsessions" } } } end,
+    choose = function(_, _, hosted) return { { present = hosted(sessions) and sessions or nil } } end },
+  icons = function() return nil end })
+hostingTmux.methods.open.run({ what = { launcher = true } })
+hostingTmux.methods.rows.run({ level = "v1", q = 1, query = "" })
+local tmuxPush = hostingTmux.methods.choose.run({ level = "v1", q = 1, ref = "v1.1", query = "" }).effects[1].push
+ok(tmuxPush and #tmuxPush.level.actions == 3 and tmuxPush.level.actions[2] == "setTerminal",
+  "the pushed level names every action its list's actions pane lists")
+local tid = tmuxPush.level.id
+local tmuxRows = hostingTmux.methods.rows.run({ level = tid, q = 2, query = "" }).changes.upsert
+local mainRef, oldRef = tmuxRows[1].ref, tmuxRows[2].ref
+local listed = hostingTmux.methods.actions.run({ level = tid, h = 3, ref = mainRef }).actions
+ok(#listed == 2 and listed[2].action == "setTerminal" and listed[2].title == "Terminal",
+  "actions answers the verbs that apply to the row, with their titles")
+ok(#hostingTmux.methods.actions.run({ level = tid, h = 3, ref = oldRef }).actions == 3,
+  "a verb whose applies holds only for another row is listed there")
+local choices = hostingTmux.methods.choices.run({ level = tid, h = 3, ref = mainRef, action = "setTerminal" }).choices
+ok(#choices == 3 and choices[1].current == true and choices[1].icon.owner == "actionspane" and choices[1].icon.key == "chosen"
+  and choices[2].current == nil and choices[3].enabled == false and choices[1].subtitle == "Installed",
+  "choices answers the verb's level, the one in force marked current, a choice this machine cannot take disabled")
+ok(choices[1].value == nil and choices[1].choice == "c1", "a choice crosses as a ref, its value kept on the Lua side")
+local setRun = hostingTmux.methods.run.run({ level = tid, q = 2, h = 3, ref = mainRef, query = "", action = "setTerminal", choice = choices[2].choice })
+ok(ran[1].action == "setTerminal" and ran[1].value == "Kitty" and ran[1].item.id == "main" and terminal == "Kitty",
+  "run hands the verb the chosen value and the row it was chosen over")
+ok(#setRun.effects == 1 and setRun.effects[1].rows.hold == true and not facade.recording(),
+  "and answers what the verb called, a redraw holding the highlight, recorded rather than acting")
+hostingTmux.methods.run.run({ level = tid, q = 2, h = 3, ref = mainRef, query = "", action = "setTerminal", choice = choices[3].choice })
+ok(#ran == 1, "a disabled choice runs nothing")
+local confirm = hostingTmux.methods.choices.run({ level = tid, h = 3, ref = oldRef, action = "forget" }).choices
+ok(confirm[1].cancel == true and confirm[1].title == "Cancel" and confirm[2].title == "Forget this session",
+  "a confirm's level is Cancel first and then the confirm row")
+hostingTmux.methods.run.run({ level = tid, q = 2, h = 3, ref = oldRef, query = "", action = "forget", choice = confirm[1].choice })
+ok(#ran == 1, "Cancel runs nothing")
+hostingTmux.methods.run.run({ level = tid, q = 2, h = 3, ref = oldRef, query = "", action = "forget", choice = confirm[2].choice })
+ok(ran[2].action == "forget" and ran[2].value == nil and ran[2].item.id == "old", "the confirm row runs the verb plainly")
+local refused = pcall(hostingTmux.methods.actions.run, { level = "v1", h = 1, ref = "v1.1" })
+ok(refused == false, "the launcher's own level serves no actions pane")
+
 print(string.format("bridgeserve: %d checks, %d failed", checks, failures))
 os.exit(failures == 0 and 0 or 1)

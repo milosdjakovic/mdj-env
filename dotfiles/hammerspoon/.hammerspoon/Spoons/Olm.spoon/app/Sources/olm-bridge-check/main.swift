@@ -8,7 +8,8 @@
 // launcher a person opens: metrics, a level for each show opened fromURL, its rows' icons, choose and
 // what its effects become, hidden said before the level's close, and an older rows answer dropped.
 // Step 3.3 adds a hosted tool's list: a claim's fit, a push made into a level of its own, its rows and
-// icons, the effects notification reaching it and no other, its back and its close.
+// icons, the effects notification reaching it and no other, its back and its close. Step 3.3b adds its
+// actions pane, the actions the push names, which apply, a verb's choices and a run with a choice.
 //
 // test/olmbridge.sh builds and runs it. Exit 0 when every check passed.
 
@@ -304,7 +305,7 @@ ok(!(try await unclaimed).fit, "and an answer with none does not fit")
 async let pushing = shown.choose(Pick(key: "tool:caffeinate", query: ""))
 let cp = request("choose")
 answer(cp, ["effects": [["push": ["parent": "v4", "level": ["id": "v5", "name": "caffeinate", "placeholder": "Time or duration",
-  "previewPane": false, "ranking": "source", "rowLimit": "default", "fit": true]]]]])
+  "previewPane": false, "ranking": "source", "rowLimit": "default", "fit": true, "actions": ["insertSelected", "setTerminal"]]]]]])
 ok(await pushing == [.push("v5")], "a push effect names the level it carries")
 guard let child = await shown.pushed("v5") as? BridgedLevel else { give("pushed made no level of the push") }
 ok(await shown.pushed("v5") == nil, "and the same push makes it once")
@@ -330,6 +331,42 @@ send(["jsonrpc": "2.0", "method": "effects", "params": ["level": "v5", "q": 1, "
 await until { !redrawn.all.isEmpty }
 ok(redrawn.all.count == 1 && redrawn.all.first?.0 == ObjectIdentifier(child) && redrawn.all.first?.1 == true,
   "a redraw reaches the hosted level it names, holding the highlight, and an unknown level reaches nothing")
+
+// Its actions pane, step 3.3b. The push names its actions, actions says which apply and what each is
+// called, choices is the level a verb opens with its icons, and run carries the choice made there.
+ok(child.manifest.actions.map(\.id) == ["insertSelected", "setTerminal"], "the push names the actions its pane runs")
+async let applying = child.actions(on: Pick(key: "k1", query: "", highlight: 4))
+let ac = request("actions")
+let acp = ac["params"] as? [String: Any]
+ok(acp?["level"] as? String == "v5" && acp?["ref"] as? String == "v5.1", "actions asks of the level and the row's ref")
+answer(ac, ["h": 4, "actions": [["action": "insertSelected", "title": "Confirm"], ["action": "setTerminal", "title": "Terminal"]]])
+ok(await applying == ["insertSelected": "Confirm", "setTerminal": "Terminal"], "and answers each action that applies with its title")
+async let offered = child.choices("setTerminal", on: Pick(key: "k1", query: ""))
+let ch = request("choices")
+ok((ch["params"] as? [String: Any])?["action"] as? String == "setTerminal", "choices names the action")
+answer(ch, ["h": 0, "choices": [
+  ["choice": "c1", "title": "Ghostty", "subtitle": "Installed", "icon": ["owner": "actionspane", "key": "chosen"], "current": true],
+  ["choice": "c2", "title": "WezTerm", "subtitle": "Not installed", "icon": ["sf": "circle"], "enabled": false],
+  ["choice": "c3", "title": "Cancel", "cancel": true]]])
+let ich = await Task.detached { request("icons") }.value
+ok((ich["params"] as? [String: Any])?["owner"] as? String == "actionspane", "a choice's owner's icons are asked")
+answer(ich, ["icons": ["chosen": ["sf": "circle.inset.filled", "emoji": "🔘"]]])
+let got = await offered
+ok(got.count == 3 && got[0] == Choice(ref: "c1", title: "Ghostty", subtitle: "Installed", icon: .symbol("circle.inset.filled"), current: true)
+  && got[1].enabled == false && got[1].icon == .symbol("circle") && got[2].cancel,
+  "the level's rows carry their titles, icons, the one in force, a disabled one and Cancel")
+async let chose = child.run("setTerminal", on: Pick(key: "k1", query: "", row: 1, highlight: 4), choice: "c1")
+let rn = request("run")
+let rnp = rn["params"] as? [String: Any]
+ok(rnp?["action"] as? String == "setTerminal" && rnp?["choice"] as? String == "c1" && rnp?["ref"] as? String == "v5.1",
+  "run carries the action, the choice and the row")
+answer(rn, ["effects": [["rows": ["hold": true]]]])
+ok(await chose == [.rows(hold: true)], "and its effects are the stage's")
+async let plain = child.run("setTerminal", on: Pick(key: "k1", query: ""))
+let rp = request("run")
+ok((rp["params"] as? [String: Any])?["choice"] == nil, "an action run plainly carries no choice")
+answer(rp, ["effects": [[String: Any]]()])
+_ = await plain
 
 // Return closes the list, back is declined for the stage to pop, and close forgets it.
 async let childPick = child.choose(Pick(key: "k1", query: ""))

@@ -2958,6 +2958,76 @@ function obj.run(olm, cfg)
         end
       end
     end
+    -- The verbs of a hosted tool's list, step 3.3b of docs/PLAN-STANDALONE.md. The context is the
+    -- first the tool owns, the one the keys share is written from, so the app's actions pane and
+    -- these answers read one list. A verb's applies is asked as the Lua pane asks it, a method that
+    -- does not exist or answers anything but false or nil applying, and a level's rows are the Lua
+    -- pane's, Cancel and the confirm row, or the choices with the radio pair marking them.
+    local function hostedVerbs()
+      local function contextOf(identity)
+        for contextName, owner in pairs(contextOwners) do
+          if owner == identity then return contextName end
+        end
+      end
+      local function rowOf(contextName, action)
+        for _, row in ipairs(hintsLib.rowsFor(contextName, plan, hintsDeps)) do
+          if row.action == action then return row end
+        end
+      end
+      local panelOwner = hintsDeps.panelOwner
+      return {
+        ids = function(identity)
+          local contextName = contextOf(identity)
+          local out = {}
+          for _, row in ipairs(contextName and hintsLib.rowsFor(contextName, plan, hintsDeps) or {}) do
+            if row.action then out[#out + 1] = row.action end
+          end
+          return out
+        end,
+        actions = function(identity, item)
+          local contextName = contextOf(identity)
+          if not contextName then return {} end
+          local out = {}
+          for _, row in ipairs(hintsLib.rowsFor(contextName, plan, hintsDeps)) do
+            if row.action then
+              local applies = true
+              if row.applies then
+                local ok, answer, exists = pcall(actionsPaneOpts.call, row.applies, item, contextName)
+                applies = not ok or not exists or (answer ~= false and answer ~= nil)
+              end
+              if applies then out[#out + 1] = { action = row.action, title = row.title } end
+            end
+          end
+          return out
+        end,
+        level = function(identity, action, item)
+          local contextName = contextOf(identity)
+          local row = contextName and rowOf(contextName, action)
+          if not row then return {} end
+          if row.confirm then
+            local title = type(row.confirm) == "string" and row.confirm or row.title
+            return { { title = "Cancel", icon = "cancel", iconOwner = panelOwner, cancel = true },
+                     { title = title, icon = row.icon, iconOwner = row.owner } }
+          end
+          if not row.choices then return {} end
+          local ok, choices = pcall(actionsPaneOpts.call, row.choices, item, contextName)
+          local out = {}
+          for _, c in ipairs(ok and type(choices) == "table" and choices or {}) do
+            local icon, owner = c.icon, row.owner
+            if c.current then icon, owner = "chosen", panelOwner
+            elseif icon == nil then icon, owner = "notChosen", panelOwner end
+            out[#out + 1] = { title = tostring(c.title or c.value or ""), subTitle = c.subtitle, icon = icon,
+              iconOwner = owner, current = c.current == true, enabled = c.enabled ~= false, value = c.value }
+          end
+          return out
+        end,
+        run = function(identity, action, item, value)
+          local surface = surfaceByOwner and surfaceByOwner[identity]
+          local fn = surface and surface[navMethodFor[action] or action]
+          if type(fn) == "function" then fn(value) end
+        end,
+      }
+    end
     -- The launcher served read only over the app's socket where the bridge's socket setting is on,
     -- step 2.2 of docs/PLAN-STANDALONE.md, the same rows the stage is handed.
     if bridgeModule and type(bridgeModule.serveLauncher) == "function" then
@@ -2980,6 +3050,11 @@ function obj.run(olm, cfg)
           rowLimit = policy.chooserRowLimit,
           -- A hosted list's rows learn their icons' owner as the stage's own do, step 3.3.
           stampIcons = iconRows.stampAll,
+          -- A hosted list's actions pane, step 3.3b, the verbs of the list its tool owns answered
+          -- as the Lua pane answers them, through the same rows, the same call and the same
+          -- surface the dispatch reaches, by the owner rather than by the list showing, since the
+          -- list showing is the app's.
+          verbs = hostedVerbs(),
         })
         -- After each pick the memory records, the app is told the queries that moved, step 2.3.
         if type(launcher.onMemory) == "function" and type(bridgeModule.memoryChanged) == "function" then

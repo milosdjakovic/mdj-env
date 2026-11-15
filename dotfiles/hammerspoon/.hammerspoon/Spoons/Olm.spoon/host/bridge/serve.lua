@@ -40,6 +40,12 @@ local SF, GLYPH = "sf", "emoji"
 ---                  when true and answering unserved otherwise, optional, nothing hosted without it
 --- opts.stampIcons  function(rows, owner) -> rows, a hosted list's rows stamped with their icon's
 ---                  owner as the Lua stage stamps them, optional
+--- opts.verbs       step 3.3b, a hosted list's actions pane, optional, none served without it:
+---                  actions(name, item) -> { {action, title} } the verbs of the tool's list that
+---                  apply to the item, ids(name) -> every action its list's actions pane lists,
+---                  which the level pushed names, level(name, action, item) -> rows of the level a verb with
+---                  choices or a confirm opens, each { title, subTitle, icon, iconOwner, current,
+---                  enabled, cancel, value }, and run(name, action, item, value) running the verb
 --- opts.facade      host/bridge/facade.lua's, the stage words a hosted list's code calls during a
 ---                  request recorded as effects, optional
 function M.new(opts)
@@ -396,7 +402,8 @@ function M.new(opts)
     local placeholder = type(p.placeholder) == "string" and p.placeholder or ""
     return { push = { parent = parent.id, level = { id = level.id, name = p.name, placeholder = placeholder,
       previewPane = false, ranking = p.matcher == false and "source" or "app",
-      rowLimit = type(p.rowLimit) == "number" and p.rowLimit or "default", fit = p.fit == true } } }
+      rowLimit = type(p.rowLimit) == "number" and p.rowLimit or "default", fit = p.fit == true,
+      actions = opts.verbs and opts.verbs.ids(p.name) or {} } } }
   end
 
   -- The launcher's present effects made into pushes of hosted levels, or unserved for a tool the
@@ -450,6 +457,65 @@ function M.new(opts)
     end
     return effects
   end
+
+  -- The actions pane of a hosted list, step 3.3b, docs/PROTOCOL-BRIDGE.md The actions pane. Each
+  -- runs under the facade, so a stage word a verb calls acts on the app's list. A verb's choices
+  -- cross as refs, their values kept here on the level until it closes or asks again.
+  local function presented(params, method)
+    local level = service.levels[params.level]
+    if not level then rpc.fail(rpc.GONE, "no level " .. tostring(params.level)) end
+    -- The launcher carries no actions pane, its only action repeating Run, so nothing is served there.
+    if level.kind ~= "presentation" or not opts.verbs then rpc.fail(rpc.UNKNOWN, method .. " is not served for this level") end
+    if type(params.ref) ~= "string" or level.keys[params.ref] == nil then rpc.fail(rpc.GONE, "no ref " .. tostring(params.ref)) end
+    return level, level.items[params.ref]
+  end
+
+  local function during(fn)
+    if opts.facade then return opts.facade.during(fn) end
+    return {}, fn()
+  end
+
+  methods.actions = { run = function(params)
+    local level, item = presented(params, "actions")
+    local _, list = during(function() return opts.verbs.actions(level.presentation.name, item) end)
+    local out = {}
+    for _, a in ipairs(type(list) == "table" and list or {}) do
+      if type(a.action) == "string" then out[#out + 1] = { action = a.action, title = (text(a.title or a.action)) } end
+    end
+    return { h = params.h, actions = out }
+  end }
+
+  methods.choices = { run = function(params)
+    local level, item = presented(params, "choices")
+    if type(params.action) ~= "string" then rpc.fail(rpc.PARAMS, "choices needs an action") end
+    local _, rows = during(function() return opts.verbs.level(level.presentation.name, params.action, item) end)
+    level.choiceValues = {}
+    local out = {}
+    for i, row in ipairs(type(rows) == "table" and rows or {}) do
+      local ref = "c" .. i
+      level.choiceValues[ref] = { value = row.value, cancel = row.cancel == true, enabled = row.enabled ~= false }
+      local c = { choice = ref, title = (text(row.title or "")), icon = iconOf(row) }
+      if row.subTitle ~= nil then c.subtitle = (text(row.subTitle)) end
+      if row.current then c.current = true end
+      if row.enabled == false then c.enabled = false end
+      if row.cancel then c.cancel = true end
+      out[#out + 1] = c
+    end
+    return { h = params.h, choices = out }
+  end }
+
+  methods.run = { run = function(params)
+    local level, item = presented(params, "run")
+    if type(params.action) ~= "string" then rpc.fail(rpc.PARAMS, "run needs an action") end
+    local value
+    if params.choice ~= nil then
+      local c = level.choiceValues and level.choiceValues[params.choice]
+      if not c or c.cancel or not c.enabled then return { effects = {} } end
+      value = c.value
+    end
+    local recorded = during(function() opts.verbs.run(level.presentation.name, params.action, item, value) end)
+    return { effects = recorded }
+  end }
 
   -- Backspace on a hosted list's empty field, the presentation's own back first, as the Lua
   -- stage's _back asks it. handled false is the app's to pop.

@@ -327,6 +327,33 @@ public struct Action: Sendable, Equatable {
   }
 }
 
+/// One row of the level an action with choices or a confirm opens in the actions pane, step 3.3b.
+/// Choosing it runs the action with this choice, or steps back where it is Cancel.
+public struct Choice: Sendable, Equatable {
+  /// What the source knows the choice by, handed back to run.
+  public var ref: String
+  public var title: String
+  public var subtitle: String
+  public var icon: Icon?
+  /// The choice in force, which wears the filled ring.
+  public var current: Bool
+  /// A choice this machine cannot take, shown dimmed and choosing nothing.
+  public var enabled: Bool
+  /// The confirm level's Cancel, which steps back as Backspace does.
+  public var cancel: Bool
+
+  public init(ref: String, title: String, subtitle: String = "", icon: Icon? = nil, current: Bool = false,
+              enabled: Bool = true, cancel: Bool = false) {
+    self.ref = ref
+    self.title = title
+    self.subtitle = subtitle
+    self.icon = icon
+    self.current = current
+    self.enabled = enabled
+    self.cancel = cancel
+  }
+}
+
 /// What a plugin is, read without running it, the Lua manifest's fields where they mean the same.
 /// How a list says a status, a row with a symbol, the status's headline and a line saying what to do,
 /// the Lua chooser's status rows, so an empty list never reads as a broken one.
@@ -415,6 +442,13 @@ public protocol ListSource: Actor {
   func choose(_ pick: Pick) async -> [Effect]
   /// An action of the manifest on a row.
   func run(_ action: String, on pick: Pick) async -> [Effect]
+  /// The same with a choice the action's level offered, step 3.3b, nil for an action run plainly.
+  func run(_ action: String, on pick: Pick, choice: String?) async -> [Effect]
+  /// The actions that apply to this row and their titles, by action, nil for a source that leaves
+  /// the actions pane to the share and its applies gates, step 3.3b.
+  func actions(on pick: Pick) async -> [String: String]?
+  /// The rows of the level an action with choices or a confirm opens over this row, step 3.3b.
+  func choices(_ action: String, on pick: Pick) async -> [Choice]
   /// What the preview pane says about a row, nil for nothing to say, asked only where the manifest
   /// has a preview pane. A source reads what it needs off its own actor's thread, so the rows it
   /// answers never wait on a preview.
@@ -451,6 +485,14 @@ public protocol ListSource: Actor {
 }
 
 extension ListSource {
+  /// A source whose actions take no choice runs the action plainly.
+  public func run(_ action: String, on pick: Pick, choice: String?) async -> [Effect] {
+    await run(action, on: pick)
+  }
+  /// A source with no answer of its own leaves the actions pane to the share.
+  public func actions(on pick: Pick) async -> [String: String]? { nil }
+  /// A source with no choices offers none.
+  public func choices(_ action: String, on pick: Pick) async -> [Choice] { [] }
   /// A source with no preview pane says nothing.
   public func preview(_ pick: Pick) async -> Preview? { nil }
   /// A source whose previews are never pending has nothing more to say.

@@ -441,6 +441,17 @@ stage's own redraw running as before. A launcher `rows` answer carries `"fit":tr
 whose tool's list fits claims the query, the Lua launcher's `setFit`, and the app sizes its window
 by it.
 
+**What 3.3b serves.** A hosted level's actions pane. The pushed level carries `actions`, every
+action its list's actions pane lists, which the app runs. `actions {level, h, ref}` answers those
+that apply to the row with their titles, as above. `choices {level, h, ref, action}` answers the
+level the action opens, each `{choice, title, subtitle, icon, current, enabled}`, and a confirm
+action's level is asked the same way, answered Cancel, with `cancel: true`, and then the confirm
+row, so the app needs no confirm title of its own. A choice crosses as its ref, its value kept on
+the Lua side until the level is asked again. `run {level, q, h, ref, row, query, action, choice}`
+runs the action through the surface of the tool that owns the list, with the choice's value, and
+answers what it called as effects, a disabled choice or Cancel running nothing. The launcher's own
+level carries no actions pane, its only action repeating Run, so all three answer `-32601` there.
+
 **Return while an answer is out.** `choose` carries the `q` and the query it was pressed on, and the
 Lua side never chooses a row its supplier would not show for that query. When the rows it last
 computed for the level were for an older query, it runs the supplier for the request's query first,

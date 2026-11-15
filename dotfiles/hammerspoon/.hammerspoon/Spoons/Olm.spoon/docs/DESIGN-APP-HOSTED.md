@@ -168,6 +168,31 @@ dialog, deferred until the list is gone, as it does from the Lua list.
 Dock Auto Hide needs nothing. Its launcher row toggles rather than leading to a list, so it runs
 through 3.1's road and is not named in `hosts`.
 
+## 3.3b, the actions pane
+
+Written and built on 2026-11-15 with Milos's go. Tmux Sessions and VPN each carry one keyless verb
+in their actions pane, Terminal and Provider, and each opens a level of choices.
+
+- **The Lua side.** `serve.lua` answers `actions`, `choices` and `run` for a hosted level, the
+  protocol's "What 3.3b serves". The root hands the bridge `verbs`, which reads the list the tool
+  owns with `lib/hints.lua`'s `rowsFor`, the same rows the keys share is written from, asks a verb's
+  `applies` and `choices` through the actions pane's own `call`, and runs a verb on the tool's
+  surface by its owner, never the dispatch table, which routes by the list showing and the list
+  showing is the app's. All three run under the facade.
+- **The app.** The pushed level names its actions, so the stage keeps them in the pane. A source
+  may answer `actions(on:)`, which the stage reads in place of the share's applies gates and labels,
+  nil for file search's native one. A verb with choices or a confirm opens a level inside the
+  actions pane, headed with the verb's title, its rows asked with `choices`. Return on a choice runs
+  the verb with it and closes the pane, a dimmed one does nothing, and Cancel or Backspace on the
+  pane's empty field goes back to the verbs.
+- A verb's own key over the bridge, `key`, is not served. Neither tool has one, and Emoji's Command
+  and Return copy is the first, at 3.3c.
+
+The launcher on Hyper and 0 has no actions pane to add. Its only action would repeat Run, so the
+Lua launcher carries no Actions either, `hints.dropIdleActionsPanes`.
+
+`hosts` gains `tmuxSessions` and `vpn`.
+
 ## Back out
 
 Remove a tool from `hosts` and reload. The row answers `unserved` again.

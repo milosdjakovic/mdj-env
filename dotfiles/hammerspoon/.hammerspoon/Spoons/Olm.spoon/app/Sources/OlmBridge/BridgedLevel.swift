@@ -163,7 +163,9 @@ public actor BridgedLevel: ListSource {
     self.bridge = bridge
     self.id = wire["id"].string ?? ""
     let name = (wire["name"].string ?? "").lowercased()
-    self.manifest = Manifest(name: name, title: name)
+    // The actions its list's actions pane runs, step 3.3b, by the ids the push names.
+    let actions = (wire["actions"].array ?? []).compactMap(\.string).map { Action(id: $0, title: $0) }
+    self.manifest = Manifest(name: name, title: name, actions: actions)
     self.level = WireEffects.level(wire, defaultRowLimit: defaultRowLimit)
     self.defaultRowLimit = defaultRowLimit
     self.log = log
@@ -206,7 +208,56 @@ public actor BridgedLevel: ListSource {
     return wire.effects
   }
 
-  public func run(_ action: String, on pick: Pick) async -> [Effect] { [] }
+  public func run(_ action: String, on pick: Pick) async -> [Effect] {
+    await run(action, on: pick, choice: nil)
+  }
+
+  // An action of the actions pane on a row, step 3.3b, with the choice its level offered.
+  public func run(_ action: String, on pick: Pick, choice: String?) async -> [Effect] {
+    guard !closed, let ref = store.refs[pick.key] else { return [] }
+    var params: [String: JSON] = ["level": .string(id), "q": .number(Double(q)), "h": .number(Double(pick.highlight)),
+      "ref": .string(ref), "row": .number(Double(pick.row)), "query": .string(pick.query), "action": .string(action)]
+    if let choice { params["choice"] = .string(choice) }
+    let answer: JSON
+    do {
+      answer = try await bridge.request("run", .object(params))
+    } catch {
+      log("run did not answer, \(error)")
+      return []
+    }
+    let wire = WireEffects(answer["effects"].array ?? [], log: log)
+    pushes.merge(wire.pushes) { $1 }
+    return wire.effects
+  }
+
+  // The actions that apply to the row and what each is called over it, as the Lua pane lists them.
+  public func actions(on pick: Pick) async -> [String: String]? {
+    guard !closed, let ref = store.refs[pick.key],
+      let answer = try? await bridge.request("actions", .object(["level": .string(id), "h": .number(Double(pick.highlight)),
+        "ref": .string(ref)])) else { return nil }
+    var out: [String: String] = [:]
+    for a in answer["actions"].array ?? [] {
+      if let action = a["action"].string { out[action] = a["title"].string ?? action }
+    }
+    return out
+  }
+
+  // The level an action with choices or a confirm opens, its icons resolved as a row's are.
+  public func choices(_ action: String, on pick: Pick) async -> [Choice] {
+    guard !closed, let ref = store.refs[pick.key],
+      let answer = try? await bridge.request("choices", .object(["level": .string(id), "h": .number(Double(pick.highlight)),
+        "ref": .string(ref), "action": .string(action)])) else { return [] }
+    let list = answer["choices"].array ?? []
+    var specs = RowStore()
+    let owners = await bridge.icons(Set(list.compactMap { $0["icon"]["owner"].string }))
+    return list.compactMap { c -> Choice? in
+      guard let ref = c["choice"].string else { return nil }
+      specs.iconSpecs[ref] = c["icon"].isNull ? nil : c["icon"]
+      return Choice(ref: ref, title: RowStore.text(c["title"]) ?? "", subtitle: RowStore.text(c["subtitle"]) ?? "",
+        icon: specs.icon(ref, owners: owners), current: c["current"].bool ?? false,
+        enabled: c["enabled"].bool ?? true, cancel: c["cancel"].bool ?? false)
+    }
+  }
 
   public func pushed(_ token: String) async -> (any ListSource)? {
     guard let wire = pushes.removeValue(forKey: token) else { return nil }

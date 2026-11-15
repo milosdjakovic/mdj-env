@@ -244,7 +244,7 @@ function obj:serveLauncher(provider)
   local service = serve.new({ rpc = rpc, clean = frame.clean, launcher = provider.launcher, later = later,
     icons = provider.icons or function() return nil end, version = provider.version,
     rowLimit = provider.rowLimit,
-    facade = self._facade, stampIcons = provider.stampIcons,
+    facade = self._facade, stampIcons = provider.stampIcons, verbs = provider.verbs,
     -- A hosted tool's list is shown in the app when the config's hosts names it, by the name its
     -- presentation carries, a child taking its tool's.
     hosted = function(p) return type(p) == "table" and type(p.name) == "string" and self._hosts[p.name] == true end,
