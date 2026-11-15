@@ -739,3 +739,9 @@ list, and until then that list stays on Lua.
   launcher's field after the shared input field's fix, and called it all good. Caffeinate ticked
   under 3.3, which stays open for the other tools. The shadow log stood at 50 lines and no
   difference.
+- 2026-11-15 21:10. Volume is 3.3's second hosted tool, Milos's choice. Its note, a section of
+  docs/DESIGN-APP-HOSTED.md, found nothing to grow, one typed row that fits with no stage word but
+  its own open, so the config's `hosts` gains `volume` and nothing else changes. The note said the
+  bridge fixture would gain a Volume case. It did not, since that case would replay the Caffeinate
+  one over the same fake, and `test/bridgeserve.lua` drives the real plugin instead. Not yet tried
+  live.

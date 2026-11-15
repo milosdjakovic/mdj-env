@@ -125,6 +125,21 @@ recorded as effects instead of acting on the Lua stage.
 - Live, by hand, a numbered trial of the four things a person sees above, and `k 2h` from the
   launcher. The shadow log is read before and after.
 
+## Volume, the second tool
+
+Added on 2026-11-15 with Milos's go. Volume asks nothing the road above lacks: one row computed
+from what is typed (a level from 0 to 100, mute or unmute), `fit`, matcher false, no preview pane,
+no actions, no child levels, and no stage word but its own open, not even a redraw. So it is one
+name more in `hosts`, `{ "caffeinate", "volume" }`.
+
+- An empty field, a level above 100 or below 0, a fraction or a word that is neither mute nor
+  unmute is a disabled row, and Return on a disabled row answers no effects, as 3.1 serves it.
+- Return on a level sets it, unmutes above zero, and closes the list.
+- A change of the volume from the keyboard while the list is open is not redrawn until the next
+  keystroke, the same as the Lua list, since the plugin watches nothing.
+- `test/bridgeserve.lua` drives the real plugin over a fake output device. No fixture case was
+  added, since the hosted case already replays the same road over a fake presentation.
+
 ## Back out
 
-Remove `caffeinate` from `hosts` and reload. The row answers `unserved` again.
+Remove `caffeinate` or `volume` from `hosts` and reload. The row answers `unserved` again.

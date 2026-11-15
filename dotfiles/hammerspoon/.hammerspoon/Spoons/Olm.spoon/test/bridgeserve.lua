@@ -227,5 +227,49 @@ hosting.levels.v8 = { id = "v8", kind = "presentation", presentation = paged }
 local back = hosting.methods.back.run({ level = "v8" })
 ok(back.handled == true and back.effects[1].rows.hold == false, "a back of its own is handled, with what it called")
 
+-- Volume, the second hosted tool, its real plugin over a fake output device. One typed row, a
+-- disabled one on an empty field or a value out of range, Return setting the level and closing.
+local device = { volume = 25, muted = true }
+function device:outputVolume() return self.volume end
+function device:outputMuted() return self.muted end
+function device:setOutputVolume(v) self.volume = v end
+function device:setOutputMuted(m) self.muted = m end
+function device:name() return "Speakers" end
+local savedHs = _G.hs
+_G.hs = { audiodevice = { defaultOutputDevice = function() return device end } }
+local volume = assert(loadfile(here .. "../plugins/volume/init.lua"))()
+local vol = { name = "volume", placeholder = volume.placeholder(), fit = true, matcher = false,
+  rows = volume.rows, onSelect = volume.select }
+local hostingVolume = serve.new({ rpc = rpc, clean = frame.clean, facade = facade,
+  hosted = function(p) return p.name == "volume" end,
+  launcher = { memoryKey = memoryKey, rows = function() return { { title = "Volume", item = { kind = "special", name = "volume" } } } end,
+    choose = function(_, _, hosted) return { { present = hosted(vol) and vol or nil } } end },
+  icons = function() return nil end })
+hostingVolume.methods.open.run({ what = { launcher = true } })
+hostingVolume.methods.rows.run({ level = "v1", q = 1, query = "" })
+local volPush = hostingVolume.methods.choose.run({ level = "v1", q = 1, ref = "v1.1", query = "" }).effects[1].push
+ok(volPush and volPush.level.name == "volume" and volPush.level.placeholder == "Volume" and volPush.level.fit == true
+  and volPush.level.ranking == "source", "Volume's row pushes its level, fitting, its placeholder and its own order")
+local id = volPush.level.id
+local function volRows(q, query) return { rows = hostingVolume.methods.rows.run({ level = id, q = q, query = query }).changes.upsert } end
+local empty = volRows(2, "")
+ok(#empty.rows == 1 and empty.rows[1].enabled == false and empty.rows[1].title == "Volume 25%, muted",
+  "an empty field is one disabled row saying the level now")
+local noop = hostingVolume.methods.choose.run({ level = id, q = 2, ref = empty.rows[1].ref, query = "" })
+ok(#noop.effects == 0 and device.volume == 25, "and Return on it does nothing")
+local over = volRows(3, "101")
+ok(over.rows[1].enabled == false and over.rows[1].title == "101 is above 100", "a level above 100 is disabled")
+local set = volRows(4, "40")
+ok(set.rows[1].title == "Set Volume to 40%" and set.rows[1].enabled ~= false, "a level in range is a row that acts")
+local setChose = hostingVolume.methods.choose.run({ level = id, q = 4, ref = set.rows[1].ref, query = "40" })
+ok(#setChose.effects == 1 and setChose.effects[1].hide and device.volume == 40 and device.muted == false,
+  "Return sets the level, unmutes and closes the list")
+local mute = volRows(5, "m")
+ok(mute.rows[1].title == "Mute", "m means Mute")
+hostingVolume.methods.choose.run({ level = id, q = 5, ref = mute.rows[1].ref, query = "m" })
+ok(device.muted == true, "and Return mutes")
+ok(hostingVolume.methods.back.run({ level = id }).handled == false, "Volume declines back, so the app pops")
+_G.hs = savedHs
+
 print(string.format("bridgeserve: %d checks, %d failed", checks, failures))
 os.exit(failures == 0 and 0 or 1)

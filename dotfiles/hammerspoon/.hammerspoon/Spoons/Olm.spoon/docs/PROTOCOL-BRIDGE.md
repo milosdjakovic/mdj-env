@@ -422,7 +422,7 @@ effects. Any other row is recorded as the launcher records a pick, under the req
 answers `hide` then `after hidden`, its run waiting for `hidden` or a fallback of 1 s, whichever
 comes first, and running once. `mods` and `h` are read by no launcher row yet.
 
-**What 3.3 serves.** A hosted tool's own list, Keep Awake first, docs/DESIGN-APP-HOSTED.md. The
+**What 3.3 serves.** A hosted tool's own list, Keep Awake first and Volume second, docs/DESIGN-APP-HOSTED.md. The
 config's `hosts` beside `serves` names the tools, by the name their presentation carries. A
 launcher row that would push such a tool's presentation answers
 `{"push":{"parent":"v1","level":{"id":"v2","name":"caffeinate","placeholder":"...","ranking":"source","rowLimit":"default","fit":true}}}`,
