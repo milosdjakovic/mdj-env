@@ -45,6 +45,11 @@ has 6px corners. `dotfiles/herdr-app/AGENTS.md` holds every measurement.
 - **Herdr's shipped icons as they come.** 2026-11-15 15:39. They mix Lucide at stroke 2 and 1.5
   with a 16px set at 1.3 and a typed `+`, so Files beside Changes and the tab `+` beside the
   Spaces `+` drew at different weights.
+- **A zoomed pane's border through `layout.set`.** 2026-11-15 20:14. Herdr's pane frame takes
+  `border` and `focus` and nothing for a zoomed pane, so a mod would have to swap the border on
+  zoom with `layout.set`. Tried once by hand. It writes the tree through the link into this
+  checkout, reformatted, and deletes `layouts/.state/mdj.json`, the sidebar's width and fold and
+  the shown panel with it. Both were restored from copies.
 - **The shipped avatar hues.** 2026-11-09 14:45. Fixed colour values in a mod, which only
   `theme/palettes` may carry.
 
@@ -152,3 +157,18 @@ writes a folder per size with the stroke that makes every line 1 layout px, `LIN
 and each mod names the folder for the size it draws. In the same pass the tab `+`, the Spaces `+`
 and the Agents sort were painted `dim` beside search, the sidebar toggle and Files in `muted`, which
 read as a thinner line too, so all icon-only buttons are `muted`. Checked by screenshot.
+
+2026-11-15 20:14. Asked by Milos, a zoomed tab no longer shows the shipped " Z" after its name.
+`mdj-tabs` draws the pane header's zoom icon, `maximize-2` at 12px in `accent`, in an 18px box
+after the name. Checked by screenshot. A purple border round the zoomed pane was asked in the same
+breath and is not built, see the rejection above.
+
+2026-11-15 20:25. Milos chose one look for focused and zoomed, so the layout's pane `focus` is now
+1px in `accent`, where it was 0 in `background`. A zoomed pane is always the focused one, so it
+takes the border without a mod. Checked by screenshot, no `layout.error`.
+
+2026-11-15 20:35. Milos saw the focused border shrink the tab's content, since Herdr draws a frame
+border inside the pane and the terminal loses its width. Every pane now carries a 1px `border` in
+`background`, unseen against the pane, so focus swaps only the colour. `terminal_padding` went from
+14 by 12 to 13 by 11 to give the text back its place. No `layout.error`. Not checked on a split
+tab, which needs a pane opened and closed in the live window, left to Milos.

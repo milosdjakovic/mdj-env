@@ -130,7 +130,10 @@ export default class MdjTabs extends View {
         // The leading icon sits in an 18px box 5px in from the left, top and bottom, as on every side-list row.
         .child(div().size(18).flex_none().flex().items_center().justify_center()
           .when(Boolean(program?.icon), el => el.child(program.tint ? svg(program.icon).size(14) : image(program.icon).size(14))))
-        .child(div().flex_1().min_w(0).max_w(170).truncate().child(c.zoomed ? `${name} Z` : name))
+        .child(div().flex_1().min_w(0).max_w(170).truncate().child(name))
+        // mdj: a zoomed tab shows the zoom button's own icon in the accent, rather than the shipped mod's " Z" after the name.
+        .when(Boolean(c.zoomed), el => el.child(div().size(18).flex_none().flex().items_center().justify_center()
+          .child(svg("mods/mdj-icons/12/maximize-2.svg").size(12).text_color(t.accent))))
         .child(over
           ? div().id(`close-${c.id}`).size(18).flex_none().flex().items_center().justify_center().rounded(5).text_color(t.dim)
             .hover(s => s.bg(t.canvas).text_color(t.foreground))
