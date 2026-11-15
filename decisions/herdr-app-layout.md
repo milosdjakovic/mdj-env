@@ -172,3 +172,13 @@ border inside the pane and the terminal loses its width. Every pane now carries 
 `background`, unseen against the pane, so focus swaps only the colour. `terminal_padding` went from
 14 by 12 to 13 by 11 to give the text back its place. No `layout.error`. Not checked on a split
 tab, which needs a pane opened and closed in the live window, left to Milos.
+
+2026-11-15 20:50. Asked by Milos, to try. A tab's status and close button no longer take width.
+They sit over the end of the name, 5px from the tab's right edge, behind an eased 20px fade in the
+tab's own paint, and the zoom icon moved into the same overlay so a status could not cover it.
+Checked by screenshot with a working tab, its name fading under the spinner. Hover was not checked,
+since nothing here can move the pointer.
+
+2026-11-15 21:00. The overlay's solid part cut the tab's right corners square, since its paint was
+a child layer and a clip does not follow rounding. The tab's colour is now mixed from the theme in
+the mod and set on the rounded box. Checked by screenshot on a selected tab with a dot.

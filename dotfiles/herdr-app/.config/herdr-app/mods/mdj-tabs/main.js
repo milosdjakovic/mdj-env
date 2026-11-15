@@ -97,6 +97,35 @@ export default class MdjTabs extends View {
     return out;
   }
 
+  // The overlay at a tab's right end: an eased fade into the tab's own paint, then the 18px slot 5px from the edge.
+  // A zoomed tab shows the zoom button's own icon in the accent in an 18px box before the slot, rather than the
+  // shipped mod's " Z" after the name, and the slot stays empty until there is a status or a hover.
+  // A plain tab is the canvas, a selected one the card's `background`, and a hovered one `background` at half over
+  // the canvas, mixed here from the two theme colours so the fade meets the tab's colour exactly. The colour is set
+  // on the rounded box itself, since a child layer is clipped square and cut the tab's right corners.
+  trailing(c, t, over, status, radius) {
+    const hex = (a) => Math.round(255 * a).toString(16).padStart(2, "0");
+    const rgb = (h) => [1, 3, 5].map(k => parseInt(h.slice(k, k + 2), 16));
+    const mix = (a, b) => "#" + rgb(a).map((v, k) => Math.round((v + rgb(b)[k]) / 2).toString(16).padStart(2, "0")).join("");
+    const fill = (c.active ? t.background : over ? mix(t.canvas, t.background) : t.canvas).slice(0, 7);
+    const n = 20;
+    const slot = over
+      ? div().id(`close-${c.id}`).size(18).flex_none().flex().items_center().justify_center().rounded(5).text_color(t.dim)
+        .hover(s => s.bg(t.canvas).text_color(t.foreground))
+        .on_mouse_down("left", (_e, cx) => cx.stop_propagation()).on_click((_e, cx) => { cx.stop_propagation(); run("tab.close", { id: c.id }); })
+        .child(svg("mods/mdj-icons/12/x.svg").size(12))
+      : div().size(18).flex_none().flex().items_center().justify_center().child(status);
+    return h_flex().absolute().top(0).bottom(0).right(0).items_stretch()
+      .children(Array.from({ length: n }, (_, i) => {
+        const x = (i + 0.5) / n, ease = x * x * (3 - 2 * x);
+        return div().w(1).flex_none().bg(fill + hex(ease));
+      }))
+      .child(div().flex_none().pr(5).rounded_r(radius).bg(fill).flex().items_center()
+        .when(Boolean(c.zoomed), el => el.child(div().size(18).flex_none().flex().items_center().justify_center()
+          .child(svg("mods/mdj-icons/12/maximize-2.svg").size(12).text_color(t.accent))))
+        .when(over || Boolean(status), el => el.child(slot)));
+  }
+
   render() {
     const t = theme();
     const space = spaces().find(p => p.active);
@@ -109,13 +138,15 @@ export default class MdjTabs extends View {
     const item = (c, i) => {
       const program = panes().find(p => p.tab === c.id && p.program?.agent)?.program ?? panes().find(p => p.tab === c.id)?.program;
       const name = /^tb\d+$/.test(c.name) ? program?.name ?? "Terminal" : c.name;
-      // The right-hand slot holds the tab's status, a spinner while its agent works or a dot, and the close
-      // button takes the same slot while the pointer is on the tab, so neither ever moves or resizes the tab.
+      // mdj: the tab's status, a spinner while its agent works or a dot, and the close button that takes its place
+      // while the pointer is on the tab, take no width. They sit over the end of the name in an 18px slot 5px in,
+      // with an eased fade on their left in whatever the tab is painted, so the name runs to the tab's edge when
+      // neither shows and fades out under them when one does. Asked by Milos on 2026-11-15, to try.
       // A tab is at least four times as wide as it is tall, so a short name still makes a tab, not a chip.
       const over = this.hoverTab === c.id;
       const status = c.status === "working" ? svg("mods/workspace-chrome/spinner.svg").size(12).flex_none().text_color(t.working).spin(900)
         : c.status === "blocked" || c.status === "done" ? div().size(6).rounded(3).bg(t[c.status]) : null;
-      return h_flex().id(`tab-${c.id}`).h(ROW).min_w(ROW * 4).pl(5).pr(5).gap(8).rounded(RADIUS).items_center().flex_none().text_size(13.5).relative()
+      return h_flex().id(`tab-${c.id}`).h(ROW).min_w(ROW * 4).pl(5).pr(10).gap(8).rounded(RADIUS).items_center().flex_none().text_size(13.5).relative()
         .child(card(`tab-card-${c.id}`, c.active, t, RADIUS)).text_color(c.active ? t.foreground : t.muted)
         .when(!c.active, el => el.hover(s => s.bg(dimmed(t))))
         .on_size_change((s, cx) => { if ((this.widths ??= {})[c.id] !== s.width) { this.widths[c.id] = s.width; cx.notify(); } })
@@ -131,15 +162,7 @@ export default class MdjTabs extends View {
         .child(div().size(18).flex_none().flex().items_center().justify_center()
           .when(Boolean(program?.icon), el => el.child(program.tint ? svg(program.icon).size(14) : image(program.icon).size(14))))
         .child(div().flex_1().min_w(0).max_w(170).truncate().child(name))
-        // mdj: a zoomed tab shows the zoom button's own icon in the accent, rather than the shipped mod's " Z" after the name.
-        .when(Boolean(c.zoomed), el => el.child(div().size(18).flex_none().flex().items_center().justify_center()
-          .child(svg("mods/mdj-icons/12/maximize-2.svg").size(12).text_color(t.accent))))
-        .child(over
-          ? div().id(`close-${c.id}`).size(18).flex_none().flex().items_center().justify_center().rounded(5).text_color(t.dim)
-            .hover(s => s.bg(t.canvas).text_color(t.foreground))
-            .on_mouse_down("left", stop).on_click((_e, cx) => { cx.stop_propagation(); run("tab.close", { id: c.id }); })
-            .child(svg("mods/mdj-icons/12/x.svg").size(12))
-          : div().size(18).flex_none().flex().items_center().justify_center().when(Boolean(status), el => el.child(status)));
+        .when(over || Boolean(status) || Boolean(c.zoomed), el => el.child(this.trailing(c, t, over, status, RADIUS)));
     };
     const root = layout(), sidebar = find(root, "sidebar"), w = window();
     // Old saved rails and a dragged-narrow sidebar can be smaller than the window buttons.
