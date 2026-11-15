@@ -39,7 +39,7 @@ export default class Pane extends View {
       .flex()
       .items_center()
       .justify_center()
-      .rounded(5)
+      .rounded(0)
       .text_color(t.dim)
       .hover((s) => s.bg(t.canvas).text_color(t.foreground))
       .on_click((_e, cx) => {
@@ -65,7 +65,7 @@ export default class Pane extends View {
       .gap(8)
       .items_center()
       .bg(t.background)
-      .rounded_t(10)
+      .rounded_t(6)
       .border_b(1)
       .border_color(t.border)
       .text_size(13.5)

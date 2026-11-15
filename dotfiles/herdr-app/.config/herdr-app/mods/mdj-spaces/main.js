@@ -65,8 +65,8 @@ function fades(t, view, inset) {
 // mdj: the selected look, the pane's own background and a soft shadow, is a layer under the row's content.
 // Selecting shows it at once; a fade on switching was tried and taken out, asked for on 2026-11-09.
 // A hovered row that is not selected gets the same colour at half strength and no shadow, so it never looks selected.
-const card = (id, on, t, radius = 7) => div().id(id).absolute().top(0).left(0).right(0).bottom(0).rounded(radius)
-  .bg(t.background).shadow_sm().opacity(on ? 1 : 0);
+const card = (id, on, t, radius = 6, ring = false) => div().id(id).absolute().top(0).left(0).right(0).bottom(0).rounded(radius)
+  .bg(t.background).shadow_sm().when(ring, el => el.border_1().border_color(t.accent)).opacity(on ? 1 : 0);
 const dimmed = (t) => t.background + "80";
 
 function find(node, id) {
@@ -88,7 +88,7 @@ function place(s, ps) {
   return ps.find((p) => tabs.has(p.tab) && p.cwd)?.cwd || s.folder;
 }
 // mdj: every row in the side lists and every tab on the top bar is ROW tall with RADIUS corners.
-const ROW = 28, RADIUS = 7;
+const ROW = 28, RADIUS = 6;
 const rowHeight = () => ROW;
 const RAIL_CELL = 28;
 const railCell = (el) => h_flex().flex_none().justify_center().child(el);
@@ -407,11 +407,11 @@ export default class Spaces extends View {
             .on_click((_e, cx) => { cx.stop_propagation(); run("space.new", { machine: m ?? "" }); }).child(svg("mods/mdj-icons/12/plus.svg").size(12))))
           .child(div().size(6).rounded(3).flex_none().bg(connected ? t.ansi2 : t.dim))
           .child(svg(`mods/mdj-icons/11/chevron-${folded ? "right" : "down"}.svg`).size(11).flex_none()));
-      const empty = h_flex().id(`machine-new-${m ?? "local"}`).h(28).flex_none().px(collapsed ? 0 : 8).gap(7).items_center().rounded(7)
+      const empty = h_flex().id(`machine-new-${m ?? "local"}`).h(28).flex_none().px(collapsed ? 0 : 8).gap(7).items_center().rounded(6)
         .text_size(12).text_color(t.dim).hover(s => s.bg((t.hover === t.canvas ? t.chrome : t.hover)).text_color(t.foreground))
         .on_click(() => run("space.new", { machine: m ?? "" }))
         .when(collapsed, el => el.w(RAIL_CELL).rounded(6).justify_center().tooltip(`New space on ${m ?? "this computer"}`)
-          .child(h_flex().size(18).rounded(5).border_1().border_color(t.dim).items_center().justify_center()
+          .child(h_flex().size(18).rounded(1).border_1().border_color(t.dim).items_center().justify_center()
             .child(svg("mods/mdj-icons/10/plus.svg").size(10))))
         .when(!collapsed, el => el.child(svg("mods/mdj-icons/12/plus.svg").size(12)).child("New space there"));
       if (!collapsed && rebuilt) return [head];
@@ -458,7 +458,7 @@ export default class Spaces extends View {
       .justify_center()
       .rounded(RADIUS)
       // The selected space looks like the pane and the selected tab: the terminal's page, a soft shadow.
-      .child(card(`space-card-${w.id}`, on, t, RADIUS))
+      .child(card(`space-card-${w.id}`, on, t, RADIUS, true))
       .on_hover((hovered, cx) => { if (hovered) this.hoverRow = w.id; else if (this.hoverRow === w.id) this.hoverRow = null; cx.notify(); })
       .when(!on, (el) => el.hover((s) => s.bg(dimmed(t))))
       .when(this.pressed === w.id && this.over !== w.id, (el) => el.opacity(0.5))
@@ -496,11 +496,11 @@ export default class Spaces extends View {
           .gap(8)
           .items_center()
           .when(Boolean(tree), el => el.pl(26).child(svg("mods/mdj-icons/13/git-branch.svg").size(13).text_color(t.dim)))
-          .when(!tree, el => el.child(h_flex().size(18).flex_none().rounded(5).bg(fill).items_center().justify_center().text_size(10.5).font_family(String(settings().font_family)).text_color(t.background).child(div().relative().left(0.5).top(0.3).child([...w.name][0]?.toUpperCase() ?? "?"))))
+          .when(!tree, el => el.child(h_flex().size(18).flex_none().rounded(1).bg(fill).items_center().justify_center().text_size(10.5).font_family(String(settings().font_family)).text_color(t.background).child(div().relative().left(0.5).top(0.3).child([...w.name][0]?.toUpperCase() ?? "?"))))
           .child(div().flex_shrink(0).max_w(150).truncate().text_color(t.foreground).child(w.name))
           .child(g ? this.gitTail(g, tree, w.name, t) : div().flex_1())
           // Always laid out so the row never shifts, shown only while the row is hovered, as on a tab.
-          .child(div().id(`space-close-${w.id}`).size(18).flex_none().flex().items_center().justify_center().rounded(5).text_color(t.dim)
+          .child(div().id(`space-close-${w.id}`).size(18).flex_none().flex().items_center().justify_center().rounded(1).text_color(t.dim)
             .when(this.hoverRow !== w.id, el => el.opacity(0))
             .hover(s => s.bg(t.canvas).text_color(t.foreground))
             .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
@@ -526,10 +526,10 @@ export default class Spaces extends View {
       .items_center()
       .justify_center()
       .tooltip(w.name)
-      .child(card(`space-card-${w.id}`, w.active, t, RADIUS))
+      .child(card(`space-card-${w.id}`, w.active, t, RADIUS, true))
       .when(!w.active, (el) => el.hover((s) => s.bg(dimmed(t))))
       .on_click(() => run("space.select", { id: w.id }))
-      .child(h_flex().size(18).flex_none().rounded(5).bg(fill).items_center().justify_center().text_size(10.5).font_family(String(settings().font_family)).text_color(t.background).child(div().relative().left(0.5).top(0.3).child([...w.name][0]?.toUpperCase() ?? "?")));
+      .child(h_flex().size(18).flex_none().rounded(1).bg(fill).items_center().justify_center().text_size(10.5).font_family(String(settings().font_family)).text_color(t.background).child(div().relative().left(0.5).top(0.3).child([...w.name][0]?.toUpperCase() ?? "?")));
   }
 
   render() {
@@ -553,7 +553,7 @@ export default class Spaces extends View {
         // mdj: the header is 26px on the rail as well, so folding the sidebar leaves every row where it was.
         .when(collapsed, el => el.pl(4).pr(4))
         .when(!collapsed, el => el.child("Spaces"))
-        .child(div().id("space-new").size(26).text_color(t.muted).when(collapsed, el => el.w_full().rounded(7)).flex_none().flex().items_center().justify_center().rounded(6).hover(s => s.bg((t.hover === t.canvas ? t.chrome : t.hover)).text_color(t.foreground))
+        .child(div().id("space-new").size(26).text_color(t.muted).when(collapsed, el => el.w_full().rounded(6)).flex_none().flex().items_center().justify_center().rounded(6).hover(s => s.bg((t.hover === t.canvas ? t.chrome : t.hover)).text_color(t.foreground))
           .on_click(() => run("space.new")).child(svg("mods/mdj-icons/14/plus.svg").size(14))))
       // mdj: the list is scrolled by this mod rather than by a scroll area, which tells a mod no offset, so
       // the fades are drawn from the offset the rows are drawn at and cannot drift. 4px inside the clip give

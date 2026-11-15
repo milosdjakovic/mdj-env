@@ -32,7 +32,7 @@ export default class PopupBar extends View {
       // The same close button a tab and a space use: an 18px box, a 12px x, its own hover. It sits 5 from
       // the bar's top, bottom and right, so 9 from the popup's edges either way, and the title starts 10 in,
       // where the x's stroke ends on the right.
-      .child(div().id("close").size(18).flex_none().flex().items_center().justify_center().rounded(5).text_color(t.dim)
+      .child(div().id("close").size(18).flex_none().flex().items_center().justify_center().rounded(1).text_color(t.dim)
         .hover((s) => s.bg(t.canvas).text_color(t.foreground))
         .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
         .on_click(() => closeOverlay(this.p.overlay))

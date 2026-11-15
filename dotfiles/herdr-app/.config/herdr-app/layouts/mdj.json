@@ -107,7 +107,7 @@
                     "position": "top"
                   },
                   "background": "background",
-                  "radius": 10,
+                  "radius": 6,
                   "gap": 8,
                   "lone": true,
                   "border": {
@@ -146,7 +146,7 @@
                     }
                   ],
                   "active": "files",
-                  "radius": 10,
+                  "radius": 6,
                   "background": "chrome",
                   "padding": 3
                 }
