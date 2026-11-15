@@ -259,7 +259,7 @@ public actor BridgedLevel: ListSource {
       specs.iconSpecs[ref] = c["icon"].isNull ? nil : c["icon"]
       return Choice(ref: ref, title: RowStore.text(c["title"]) ?? "", subtitle: RowStore.text(c["subtitle"]) ?? "",
         icon: specs.icon(ref, owners: owners), current: c["current"].bool ?? false,
-        enabled: c["enabled"].bool ?? true, cancel: c["cancel"].bool ?? false)
+        enabled: c["enabled"].bool ?? true, cancel: c["cancel"].bool ?? false, on: c["on"].bool)
     }
   }
 

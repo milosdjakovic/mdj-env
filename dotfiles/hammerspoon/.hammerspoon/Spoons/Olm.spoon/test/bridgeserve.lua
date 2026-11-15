@@ -452,5 +452,27 @@ ok(set[1].setQuery and set[1].setQuery.query == "tea" and set[1].setQuery.level 
   "a stageSetQuery is the answer's setQuery, its level and the q it was asked on")
 ok(not facade.recording() and facade.context() == nil, "and nothing is left recording")
 
+-- Browser Tabs' switches, 2026-11-16, a choice saying on crosses with it, and a tab row naming its
+-- browser by bundle id crosses as the application's own icon.
+local switchVerbs = { ids = function() return { "insertSelected", "toggleBrowser" } end, actions = function() return {} end,
+  level = function() return { { title = "Safari", value = "com.apple.Safari", on = true, icon = "checked", iconOwner = "actionspane" },
+    { title = "Chrome", value = "com.google.Chrome", on = false, icon = "unchecked", iconOwner = "actionspane" } } end,
+  run = function() end }
+local tabsList = { name = "browserTabs", rows = function() return { { title = "Docs", image = {}, icon = { app = "com.apple.Safari" }, item = { kind = "tab" } } } end,
+  onSelect = function() end }
+local hostingTabs = serve.new({ rpc = rpc, clean = frame.clean, facade = facade, verbs = switchVerbs,
+  hosted = function(p) return p.name == "browserTabs" end,
+  launcher = { memoryKey = memoryKey, rows = function() return { { title = "Browser Tabs", item = { kind = "special", name = "browserTabs" } } } end,
+    choose = function(_, _, hosted) return { { present = hosted(tabsList) and tabsList or nil } } end },
+  icons = function() return nil end })
+hostingTabs.methods.open.run({ what = { launcher = true } })
+hostingTabs.methods.rows.run({ level = "v1", q = 1, query = "" })
+local tid2 = hostingTabs.methods.choose.run({ level = "v1", q = 1, ref = "v1.1", query = "" }).effects[1].push.level.id
+local tabWire = hostingTabs.methods.rows.run({ level = tid2, q = 1, query = "" }).changes.upsert
+ok(tabWire[1].icon and tabWire[1].icon.app == "com.apple.Safari", "a row naming an application by bundle id crosses as its icon")
+local switches = hostingTabs.methods.choices.run({ level = tid2, h = 1, ref = tabWire[1].ref, action = "toggleBrowser" }).choices
+ok(switches[1].on == true and switches[2].on == false and switches[1].icon.key == "checked",
+  "a choice saying on crosses with it, its checkbox the mark it wears")
+
 print(string.format("bridgeserve: %d checks, %d failed", checks, failures))
 os.exit(failures == 0 and 0 or 1)

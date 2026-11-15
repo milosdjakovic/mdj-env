@@ -347,7 +347,11 @@ stays listed with a warning, since a verb hidden by a typo is worse than one sho
 with `choices` or `confirm` replaces the panel's rows with a level, the root rows kept aside, and
 the level's rows carry either `run` and a `value` or `cancel`. Choosing a `run` row leaves through
 `_leave` with the value, so the verb runs against the restored row with its value, the root's `run`
-handing the value to the plugin's method. Cancel and Backspace on an empty field step back to the
+handing the value to the plugin's method. A choice that says `on` is a switch of its own, each on
+or off by itself, Browser Tabs' browsers the first, stated by Milos on 2026-11-16. It wears Olm's
+checkbox pair, `checked` and `unchecked`, and choosing it runs the verb with its value without
+leaving, then asks the level again, so the pane stays on it and several are set in a row. Olm.app's
+actions pane does the same for a hosted list. Cancel and Backspace on an empty field step back to the
 root rows through `_stepBack`, which leaves the panel only when no level is open. Escape still
 closes the whole panel. `levelTitle` answers the verb whose level is open, which the bottom bar model
 carries as `panelTitle` so the floating pane heads the level with it. Sections are ordered in

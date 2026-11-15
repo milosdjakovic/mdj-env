@@ -444,7 +444,8 @@ by it.
 **What 3.3b serves.** A hosted level's actions pane. The pushed level carries `actions`, every
 action its list's actions pane lists, which the app runs. `actions {level, h, ref}` answers those
 that apply to the row with their titles, as above. `choices {level, h, ref, action}` answers the
-level the action opens, each `{choice, title, subtitle, icon, current, enabled}`, and a confirm
+level the action opens, each `{choice, title, subtitle, icon, current, enabled}`, with `on` for
+a switch of its own, which the app flips in place and asks the level again, and a confirm
 action's level is asked the same way, answered Cancel, with `cancel: true`, and then the confirm
 row, so the app needs no confirm title of its own. A choice crosses as its ref, its value kept on
 the Lua side until the level is asked again. `run {level, q, h, ref, row, query, action, choice}`
@@ -460,7 +461,8 @@ request ran on, `stageSetQuery` is `{"setQuery":{"level":...,"q":...,"query":...
 `stagePush(child)` is a `push` of a level of its own. A `run` whose verb hides answers `hide`
 first. Outside a request every word acts on the Lua stage as before. A hosted level keys its rows by
 the `key` a row states, else by its item, a plain string or number by its value, so an unchanged
-row is never sent again, Emoji's glyph rows among them.
+row is never sent again, Emoji's glyph rows among them. A row's icon `{app = bundleID}` crosses as
+the application's own, a tab row naming its browser, whose Lua list draws its own picture.
 
 **Return while an answer is out.** `choose` carries the `q` and the query it was pressed on, and the
 Lua side never chooses a row its supplier would not show for that query. When the rows it last

@@ -348,14 +348,14 @@ ok((ch["params"] as? [String: Any])?["action"] as? String == "setTerminal", "cho
 answer(ch, ["h": 0, "choices": [
   ["choice": "c1", "title": "Ghostty", "subtitle": "Installed", "icon": ["owner": "actionspane", "key": "chosen"], "current": true],
   ["choice": "c2", "title": "WezTerm", "subtitle": "Not installed", "icon": ["sf": "circle"], "enabled": false],
-  ["choice": "c3", "title": "Cancel", "cancel": true]]])
+  ["choice": "c3", "title": "Cancel", "cancel": true], ["choice": "c4", "title": "Chrome", "on": false]]])
 let ich = await Task.detached { request("icons") }.value
 ok((ich["params"] as? [String: Any])?["owner"] as? String == "actionspane", "a choice's owner's icons are asked")
 answer(ich, ["icons": ["chosen": ["sf": "circle.inset.filled", "emoji": "🔘"]]])
 let got = await offered
-ok(got.count == 3 && got[0] == Choice(ref: "c1", title: "Ghostty", subtitle: "Installed", icon: .symbol("circle.inset.filled"), current: true)
+ok(got.count == 4 && got[3].on == false && got[0].on == nil && got[0] == Choice(ref: "c1", title: "Ghostty", subtitle: "Installed", icon: .symbol("circle.inset.filled"), current: true)
   && got[1].enabled == false && got[1].icon == .symbol("circle") && got[2].cancel,
-  "the level's rows carry their titles, icons, the one in force, a disabled one and Cancel")
+  "the level's rows carry their titles, icons, the one in force, a disabled one, Cancel and a switch")
 async let chose = child.run("setTerminal", on: Pick(key: "k1", query: "", row: 1, highlight: 4), choice: "c1")
 let rn = request("run")
 let rnp = rn["params"] as? [String: Any]

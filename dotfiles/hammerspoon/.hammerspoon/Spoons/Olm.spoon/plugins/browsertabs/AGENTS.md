@@ -11,8 +11,14 @@ Every open tab across every switched on browser in one list, the ones you have o
 tool leading in the order it opened them and everything else resting in its browser's own tab
 order, each row carrying its browser's application icon so a tab's origin reads visually rather
 than from its text. Choosing a tab selects it in its window, raises the window, and brings the
-browser to the front. The last row opens a settings level where each browser is switched on or off
-and shows whether it is installed, open, and allowed to be scripted.
+browser to the front. Which browsers are read is the Browsers action in the actions pane, where
+each browser is switched on or off and shows whether it is installed, open, and allowed to be
+scripted.
+
+A tab row carries its browser's icon twice, as the picture and as `icon = { app = bundleID }`
+beside it. Olm.app's list cannot carry a picture over the bridge, so it draws the application's
+icon from the system by its bundle id, and without the second form a tab there would lose the
+one cue that says which browser it lives in.
 
 The ORDER never changes on its own. Nothing here watches the browsers, so the order is the same
 every time until you open a tab through it, which is the one thing that moves anything.
@@ -41,8 +47,8 @@ composition root of truth the hammerspoon `AGENTS.md` describes. Adding a browse
 ## Bulk property fetch is not an optimisation, it is the design
 
 Asking a browser for each tab's title and URL one tab at a time costs one Apple Event per
-property per tab. Measured on a real machine that was 3.08 seconds for an Arc holding 88 tabs
-and 1.67 for a Chrome holding 60. Asking for every title in one call and every URL in one call
+property per tab. Measured on a real machine that was 3.08 seconds for an Arc holding 88 tabs,
+Arc being a browser this tool supported until 2026-11-16, and 1.67 for a Chrome holding 60. Asking for every title in one call and every URL in one call
 costs one event per property per window instead, and the same reads came back in 0.135 and
 0.133 seconds. That is a twenty times difference and it is the line between a usable tool and
 one nobody would open twice, so every provider is written in the bulk form and a future one
@@ -67,9 +73,8 @@ during development and the fix is easy to undo by accident, so it is commented a
 
 ## The order changes only when you open a tab here, and nothing is observed
 
-Not one browser exposes a per tab last access time. Chrome and Arc give a tab an id, a title, a
-URL and a loading flag, Safari does not even give an id, and none of the three carries a
-timestamp. So recency in the sense of what you last looked at cannot be read, and for a long time
+Not one browser exposes a per tab last access time. Chrome gives a tab an id, a title, a URL and
+a loading flag, Safari does not even give an id, and neither carries a timestamp. So recency in the sense of what you last looked at cannot be read, and for a long time
 this tool watched for it instead. `recency.lua` was an Observer, running an application watcher
 for a browser coming to the front and a window filter on title changes for a tab switch inside one
 already in front, since each of these browsers titles its window after its active tab and that is
@@ -109,9 +114,7 @@ Confirmed by the user on 2026-08-20 as the wanted behaviour rather than a cost t
 later. Asked directly whether picking a tab here keeps it leading even after switching tabs by hand
 in the browser, the answer was yes and that is correct. So an observer is not wanted, and nobody
 should add one back on the grounds that the order looks stale. The only thing worth watching for
-was membership, and that is already live, see the second paragraph of this file. It also makes every browser
-behave alike, where before Arc was the odd one out, since Arc reports no active tab and could
-never be observed at all.
+was membership, and that is already live, see the paragraph above on which tabs are in the list.
 
 ## A window index is depth too, which is how depth got back in
 
@@ -163,8 +166,8 @@ Return there is a no op rather than a way back. The tab you came from is one row
 
 ## Identity is the bundle id plus the URL
 
-It cannot be a browser tab id. Safari has none, and the ids Chrome and Arc do give are not
-stable across a restart, so an order keyed on them would be worthless after a reboot. A URL
+It cannot be a browser tab id. Safari has none, and the ids Chrome does give are not stable
+across a restart, so an order keyed on them would be worthless after a reboot. A URL
 key costs two things. Two tabs on the same page in the same browser share one recency slot,
 and a set of fresh blank tabs collapse together. Both were accepted deliberately. If tab
 identity ever needs to be exact, this is the decision to revisit, and it lives in one place,
@@ -197,21 +200,6 @@ that is no longer open simply never matches.
 Before trusting any of it, check `bin/hs-devlock status` says the live config is the worktree you
 think you are testing.
 
-## Arc reports no active tab
-
-Arc's window `active tab` returns null, verified both while Arc was in the background and
-while it was frontmost, and an Arc window's `name` is the space name rather than the active
-tab title, so there is no route to it at all. That is a limitation of Arc's dictionary and not
-a gap in `providers/arc.lua`.
-
-One consequence, that no Arc row is marked as the active tab.
-
-There used to be a second consequence, that an Arc tab earned recency only when opened through
-this tool and never from switching inside Arc by hand. That is now true of every browser by
-design, so Arc stopped being the odd one out without anything changing in `providers/arc.lua`.
-Worth noting because it is the shape of a good argument. Arc had been living with the behaviour
-the whole tool now has, and it was never the browser anyone complained about.
-
 ## Opening a tab is three separate acts, and one of them was missing
 
 Choosing a row looks like one action and is really three, select the tab, make its window a real
@@ -226,9 +214,7 @@ frontmost while the window stays down, so the tab is selected in a window nobody
 honest description is that a keystroke did nothing. Choosing the same row again does nothing twice.
 So each provider restores its own window before selecting the tab, and that sits in the providers
 rather than in the engine only because the dictionaries disagree on the name, `minimized` in the
-Chromium family and in Arc, `miniaturized` in Safari, which is the Standard Suite spelling. Arc's
-was read out of its own sdef rather than assumed from its Chromium heritage, since an sdef can be
-read without launching the browser and a wrong guess here would fail silently inside a `try`.
+Chromium family, `miniaturized` in Safari, which is the Standard Suite spelling.
 
 The order of the restore against the window reorder inside the provider is not something to
 theorise about. It was written one way, then written the other way after a measurement that turned
@@ -448,7 +434,7 @@ immediate binary. That is what makes this work, and it is verifiable: the same b
 held none. Reading the TCC database confirms the grants are recorded against the parent.
 
 Four states need different offers, which is why a switched on browser can carry one permission
-row beneath its own row in settings, and why that row's action differs by state. `granted` needs
+row leading the tab list, and why that row's action differs by state. `granted` needs
 nothing, so it shows no row. `notDetermined` can become `granted` by asking, so the tool
 offers that, and only while the browser is running, since a permission for a closed app cannot
 resolve. `denied` cannot be re-prompted at all, so the only honest offer is the Automation
@@ -483,22 +469,38 @@ answered in this spoon's own words through the permission rows.
 
 ## A row appears only when it asks something of you
 
-Settings is one flat list, one row per browser, and choosing a browser switches it on or off
-where it stands. There used to be a level per browser beneath it, which first showed its state
-as read only rows, installed, open, and the permission, whatever they said. That reads as
-thorough and works as clutter. Three rows all confirming that nothing is wrong bury the fourth
-that is not, and the reader has to check each one to learn there was nothing to do. So the one
-extra row a browser can carry, its permission row, appears directly under it only when the
-permission asks something, and a browser that is installed, allowed and switched on is a single
-row.
+Which browsers are read is the Browsers action in the actions pane, one choice per browser.
+Each choice says `on`, so Olm draws its checkbox, and choosing one flips it with the actions pane
+level staying open, so several browsers are switched in a row without opening the action again.
+That staying open is an actions pane behaviour Milos asked for on 2026-11-16 for exactly this. A
+browser that is not installed is a dimmed choice with a warning icon rather than a box, since
+the switch cannot answer that obstacle. Every choice carries the browser's state in its
+subtitle, installed, open and allowed, which is where glancing at a set belongs.
 
-Nothing is lost by hiding the rest, because every browser carries its state in its subtitle,
-which is where glancing at a set belongs. The per browser level was dropped at Milos's request,
-since a switch a person flips belongs on the list they are looking at, and the permission row
-names its browser in its title because a flat list has no level above it to say which browser
-it is for. It filters on the browser's name alone, so it always shows and ranks with its
-browser, and every row carries a key so the stage holds the highlight on the browser the person
-is on when a permission row lands above it.
+This replaced a Settings row at the foot of the tab list and the settings page it led to, a
+child level with a Back row and one row per browser toggling in place, with the permission rows
+under each browser. Both went on 2026-11-16 at Milos's request, because a setting of the tool is
+a verb with choices and not a row leading to a page, and the actions pane is where a verb
+lives. Before that page there was a level per browser showing its state as read only rows,
+installed, open, and the permission, whatever they said. That read as thorough and worked as
+clutter. Three rows all confirming that nothing is wrong bury the fourth that is not, and the
+reader has to check each one to learn there was nothing to do.
+
+That lesson is what the permission rows still keep. The one row a browser can carry, its
+permission row, leads the tab list, pinned, and appears only for a switched on installed
+browser and only when the permission asks something, so a browser that is installed, allowed
+and switched on adds no row at all. The row names its browser in its title, since nothing above
+it says which browser it is for, and it carries a key so the stage holds the highlight on a tab
+when a permission row lands above it.
+
+With no page left to hold them, the permission reads run on every open of the tab list, from
+`onPresent`, and again after a toggle or a request, each redrawing the tab list with no token as
+it lands. A read never prompts, so running it on every open costs a probe call per browser off
+the main thread and nothing a person sees. Asking is answered by the tab list's intercept with
+`stay`, so the list remains while macOS asks, the person belonging on the row they acted on, and
+it redraws once the request is answered, a grant reading the tabs at once. Opening Automation
+settings is a completion through `select`, the tool closing, since the person is on their way to
+System Settings.
 
 The pairing that makes this safe is the console. Since a state that reads fine leaves no trace
 on screen, a quiet screen has to mean nothing was wrong rather than nothing was noticed, so
@@ -509,8 +511,8 @@ activation failures the engine already logs.
 Permission rows are also gated on the browser being switched on. A switched off browser is never
 scripted, so whether macOS would allow it is not a question yet, and offering to raise a system
 prompt for a browser deliberately turned off would be asking for the wrong thing. Not installed
-is the one obstacle the switch cannot answer, so it replaces the switch rather than sitting under
-a control that would do nothing.
+is the one obstacle the switch cannot answer, so its choice in the Browsers action is dimmed
+rather than offering a box that would do nothing, and it never carries a permission row.
 
 ## A browser that is off or closed is never scripted
 
@@ -524,12 +526,14 @@ addressing a specifier on a quit application launches it, and being asked for it
 never start a browser. Every provider carries the same guard inside its own script as well, so
 the rule holds even if a caller forgets.
 
-Only Safari is on by default, decided in the main root and not here. A fresh machine therefore
-scripts one browser and raises one prompt, and the rest are switched on deliberately. A browser
-added to the root later also starts off, because the default set and not mere presence is what
-turns one on.
+Safari and Chrome are on by default, the manifest's `enabled`, decided by Milos on 2026-11-16. A
+browser that is not installed is never running, so it is never scripted and raises no prompt,
+which makes on by default mean on wherever it is installed and cost nothing where it is not.
+Until then only Safari was on, so that a fresh machine scripted one browser and raised one
+prompt. A browser added later still starts off, because the default set and not mere presence is
+what turns one on.
 
-## The tab list is on the shared search, and where Settings sits
+## The tab list is on the shared search
 
 Since phase three of the unified search on 2026-10-17 every level of this tool searches through
 the shared engine, `lib/chooser/match.lua` and `lib/chooser/rank.lua`, and nothing here matches
@@ -538,26 +542,21 @@ scoring, `matchedTabs`, `searchFields`, `bestFieldScore`, `namesBrowser` and `re
 its two constants, and the presentation and the scope dropped `matcher = false`. The supplier
 hands every tab over in the resting order and each row declares what it answers to.
 
-A tab row declares its title as `filterText`, since its subtitle is a status like line, browser,
-Arc's group and host joined, and searching it would let a query match the word open in a group.
-Its host and its full address are `names`, matched at the title's own levels and never shown, the
-best of the three taken per word and never a sum. Its browser name is a `keyword`. The rows that
-explain an empty list are pinned, so a typed query keeps them, and with no tabs the Settings row
-after them is pinned too, since they point at it.
+A tab row declares its title as `filterText`, since its subtitle is a status like line, browser
+and host joined, and both of those are matched on their own terms below. Its host and its full
+address are `names`, matched at the title's own levels and never shown, the best of the three
+taken per word and never a sum. Its browser name is a `keyword`. The rows that explain an empty
+list are pinned, so a typed query keeps them, and so are the permission rows leading the list,
+since each asks something whatever is typed.
 
-The settings level was already on the shared search. Back is pinned so a query never drops it,
-leads on an empty query per the chooser menu convention and trails the matching browsers under a
-typed one, and every other row filters on its browser's name.
-
-The Settings row is an ordinary row since phase two. On an empty query it trails the tabs, where
-it was asked to be. Once something is typed it is scored against its own title, its subtitle
-being a count, with no recency bonus, and dropped when it does not match, so typing settings
-brings it back above a hundred tabs and a tie leaves it after a tab. The keyword list
-`SETTINGS_WORDS` and the `settingsPlace` rule were deleted in phase two, and
+The Settings row that once trailed the tabs went with the settings page on 2026-11-16. Its keyword
+list `SETTINGS_WORDS` and the `settingsPlace` rule had already been deleted in phase two, and
 `decisions/olm-unified-search.md` keeps that rejection.
 
-Menu steps are in place, using the same Return interceptor `DisplayProfiles` uses, so stepping
-into settings and back never closes and re-shows. Opening a tab is the one terminal action.
+No level of this tool is pushed any more, so it declares no `stagePop`, which was how every Back
+row of the settings page left its level. Opening a tab and opening Automation settings are the
+completions, and a permission request is the one row that stays, through the tab list's
+intercept.
 
 ## What a query is matched against, title, host and address, never one string
 
@@ -653,8 +652,8 @@ could, which is what the reordering complaint turned out to be.
 The second half is that the correction is now skipped when it would correct nothing. A redraw
 is not free even when every row comes back identical, because rebuilding the list keeps the
 highlight's number and not the row it was sitting on, so a reader who had already arrowed down
-lands somewhere else. The listing is kept alongside a signature of what it is made of, identity,
-title and Arc's group, in order, and an answer matching it does not redraw. An empty list always
+lands somewhere else. The listing is kept alongside a signature of what it is made of, identity
+and title, in order, and an answer matching it does not redraw. An empty list always
 redraws, since what is on screen then is the reading row and it has to come down whatever the
 answer was.
 
@@ -665,13 +664,15 @@ raises the macOS automation prompt, and raising that at login rather than when s
 asks for their tabs is the wrong trade. The permission probe is warmed instead, which never
 prompts.
 
-## Handing the tabs to another list, without the settings level
+## Handing the tabs to another list, without the Browsers action
 
 `tabRows`, `explain`, `activate`, `prepare` and `ready` are the tabs offered to a surface other
-than this chooser, which is what the launcher's `t` scope is. They are the tab level only, and
-the settings level deliberately does not come along, since it is a step into a second list and a
-scope shows one. So the guidance rows take the phrase naming where the browser switches are,
-rather than saying "in settings below" where there is no row below.
+than this chooser, which is what the launcher's `t` scope is. They are the tabs alone, with no
+permission row and no guidance row, and the Browsers action deliberately does not come along,
+since it belongs to this tool's own actions pane and the launcher's actions pane does not carry
+it. So the guidance rows take the phrase naming where the browser switches are, "with Browsers
+in Actions" on this tool's own list and "with Browsers in Browser Tabs" from the launcher, rather
+than pointing at an action that is not there.
 
 The ranking is shared rather than copied. Both callers hand the same tab rows to the shared
 search, this chooser through its presentation and the scope through the query scope, so a scoped
@@ -697,9 +698,11 @@ whether a browser refused.
 
 No provider validates, the list is empty and says so. A browser switched off, closed, or
 refused each produce their own explanatory row rather than a short list with no reason, the
-same self explaining shape `Vpn` gives a missing CLI. Without the Swift toolchain the probe
-cannot build and every permission reads `unknown`, which costs the ask and the status wording
-and nothing else, the tab list still works. Dropping the surface wiring in the main root leaves
+same self explaining shape `Vpn` gives a missing CLI, a refused one saying macOS is holding its
+tabs back. Without the Swift toolchain the probe cannot build and every permission reads
+`unknown`, which costs the ask and the status wording, and each switched on browser's
+permission row then says its permission cannot be read. Nothing else is lost, the tab list
+still works. Dropping the surface wiring in the main root leaves
 the engine working, it just has nothing to draw.
 
 ## Pinned tabs, wanted and not built

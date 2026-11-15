@@ -161,6 +161,7 @@ hyper	n	any	volumeOpen	100	volume
 hyper	n	any	vpnOpen	100	vpn
 hyper	n	any	wifiOpen	100	wifi
 hyper	n	any	workspacesOpen	100	workspaces
+hyper	o	any	browserTabsOpen	100	browserTabs
 hyper	o	any	clipboardOpen	100	clipboard
 hyper	o	any	displayProfilesOpen	100	displayProfiles
 hyper	o	any	fileSearchOpen	100	fileSearch

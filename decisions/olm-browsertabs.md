@@ -379,3 +379,16 @@ The one open item on the repeat is therefore this. The agent would record the en
 through `hs.logger` history or the console inside Hammerspoon before the restore, and print it as a witness
 line. That is not built. Nothing was run against Hammerspoon for this entry, which only records the run
 above.
+- 2026-11-16 00:09. Milos asked for three changes while trying Browser Tabs inside Olm.app's
+  launcher. Which browsers are read becomes the Browsers action in the actions pane, a checkbox per
+  browser, replacing the Settings row at the foot of the tab list and the page it led to, since a
+  setting of a tool is a verb with choices and a settings row was the one left in this list. He
+  chose for the pane to stay open while browsers are toggled, so several are set in a row, which
+  the actions pane learned for any choice saying `on`, in the Lua chooser and in the app. The
+  permission rows that sat under each browser on that page lead the tab list now, only while a
+  switched on browser's permission asks something, his choice over putting them in the Browsers
+  level, so their reads run on every open of the list. Safari and Chrome are on by default, a
+  browser not installed never being scripted. Arc is removed from the plugin completely, its
+  provider, its default and its harness pieces, and the Arc app stays installed, his choice. The
+  same trial found tab rows without their browser's icon in the app, since a row's picture cannot
+  cross the bridge, so a tab row also names its browser by bundle id.

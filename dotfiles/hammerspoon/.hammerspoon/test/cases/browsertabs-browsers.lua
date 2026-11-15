@@ -1,16 +1,16 @@
--- Unit case for the BrowserTabs settings level, which has no level beneath it. The runner
--- reaches this file with a dofile call carrying an absolute path, so this file locates itself
--- through debug.getinfo and loads the chooser by path with loadfile, never require.
+-- Unit case for the BrowserTabs list and its Browsers action. The runner reaches this file with a
+-- dofile call carrying an absolute path, so this file locates itself through debug.getinfo and
+-- loads the chooser by path with loadfile, never require.
 --
--- The promises under test are four. Choosing a browser row switches it where it stands, so
--- the intercept answers "stay" and the state flips. A permission row appears under a switched
--- on browser only when the permission asks something, names the browser and filters on its name
--- alone. The Settings row trails the tab list on an empty query, and once something is typed it
--- is scored against its own title like any tab, kept when it matches and dropped when it does
--- not. And since phase three of the unified search the tab list ranks nothing itself, each tab
--- row declares its title, its host and address as names, its browser as a keyword and its
--- recency as a bonus, and the real rank.lua and match.lua decide what a query keeps. Everything
--- is read through the module's own select, rows and intercept over a fake api, no test hook.
+-- The promises under test are four. The Browsers action answers one switch per browser, each
+-- saying on, an uninstalled one dimmed, and toggling one flips it and reads the tabs again. A
+-- permission row leads the tab list for a switched on browser only when the permission asks
+-- something, names the browser, is pinned, and is asked through the intercept, which stays. The
+-- settings row and its page are gone, decided by Milos on 2026-11-16. And since phase three of the
+-- unified search the tab list ranks nothing itself, each tab row declares its title, its host and
+-- address as names, its browser as a keyword and its recency as a bonus, and the real rank.lua and
+-- match.lua decide what a query keeps. Everything is read through the module's own members over a
+-- fake api, no test hook.
 
 local source = debug.getinfo(1, "S").source
 local herePath = source:match("^@(.*)$") or source
@@ -64,53 +64,42 @@ local api = {
 }
 M:configure({ api = api, matcher = false })
 
-local child = M.select({ nav = true, to = "settings" })
-check("choosing the Settings row answers a level", type(child) == "table")
-check("the settings level filters like every other list", child.matcher == nil)
-
-local rows = child.rows()
-local function find(title)
-  for i, r in ipairs(rows) do if r.title == title then return r, i end end
+local choices = M:browserChoices()
+local function choice(title)
+  for _, c in ipairs(choices) do if c.title == title then return c end end
 end
+check("the Browsers action answers one choice per browser", #choices == 3)
+check("a switched off browser is a switch saying off", choice("Alpha").on == false and choice("Alpha").value == "com.test.a")
+check("a switched on browser is a switch saying on", choice("Bravo").on == true)
+check("an uninstalled browser is dimmed with a warning and no switch",
+  choice("Charlie").enabled == false and choice("Charlie").on == nil and choice("Charlie").icon == "warn"
+    and choice("Charlie").subtitle == "Not installed")
 
-check("Back leads and is pinned", rows[1].title == "Back" and rows[1].pinned == true
-  and rows[1].filterText == nil)
-local alpha, ai = find("Alpha")
-check("a browser row filters on its name", alpha ~= nil and alpha.filterText == "Alpha")
-check("a switched off browser is the empty box", alpha and alpha.on == false)
-local bravo, bi = find("Bravo")
-check("a switched on browser is the checked box", bravo and bravo.on == true)
-local charlie = find("Charlie")
-check("an uninstalled browser is a disabled row saying so",
-  charlie ~= nil and charlie.enabled == false and charlie.subTitle == "Not installed")
-
--- The permission read starts when the level is presented, and lands through a stub that
--- answers at once.
-child.onPresent()
-rows = child.rows()
-bravo, bi = find("Bravo")
-local ask = rows[bi + 1]
-check("a permission that can be asked adds one row under its browser, naming it",
-  ask ~= nil and ask.title == "Ask Bravo for permission")
-check("a permission row filters on its browser's name alone, so it travels with it",
-  ask ~= nil and ask.filterText == "Bravo", ask and ask.filterText)
-check("a permission row carries a key of its own", ask ~= nil and ask.item.key == "com.test.b.permission"
-  and bravo.item.key == "com.test.b")
-check("a browser whose permission reads fine adds no row", find("Alpha") and rows[select(2, find("Alpha")) + 1].title == "Bravo")
-
-local result = child.intercept(alpha.item)
-check("toggling a browser from the settings level answers stay", result == "stay")
+M:toggleBrowser("com.test.a")
 check("toggling a browser flips its state", enabled["com.test.a"] == true)
-check("toggling reloads the tab list", reloads >= 1)
-rows = child.rows()
-alpha = find("Alpha")
-check("the list repaints with the new state", alpha and alpha.on == true)
+check("toggling reads the tabs again", reloads >= 1)
+choices = M:browserChoices()
+check("the choices answer the new state", choice("Alpha").on == true)
 
-result = child.intercept(bravo.item)
-check("toggling a second time flips it back", result == "stay" and enabled["com.test.b"] == false)
-rows = child.rows()
-_, bi = find("Bravo")
-check("a switched off browser carries no permission row", rows[bi + 1] == nil or rows[bi + 1].title ~= "Ask Bravo for permission")
+-- The permission read starts when the list is presented, and lands through a stub that answers at
+-- once.
+M.onPresent()
+local rows = M.rows("")
+check("a permission that can be asked leads the tab list, naming its browser",
+  rows[1] and rows[1].title == "Ask Bravo for permission", rows[1] and rows[1].title)
+check("a permission row is pinned and keyed", rows[1].pinned == true and rows[1].item.key == "com.test.b.permission")
+check("a browser whose permission reads fine adds no row", rows[2] == nil or rows[2].title ~= "Ask Alpha for permission")
+check("asking stays on the list while macOS asks", M.intercept(rows[1].item) == "stay")
+check("any other row is not intercepted", M.intercept({ kind = "tab" }) == false)
+local opened = false
+api.openPermissionSettings = function() opened = true end
+check("opening Automation settings closes the list", M.select({ act = "openSettings" }) == nil and opened)
+M:toggleBrowser("com.test.b")
+rows = M.rows("")
+check("a switched off browser carries no permission row", rows[1] == nil or rows[1].title ~= "Ask Bravo for permission")
+enabled["com.test.b"] = true
+perm["com.test.b"] = states.granted
+M.onPresent()
 
 -- The tab list. Three Alpha tabs and two Bravo ones, listed the way the root's order hands them
 -- over, the tabs this tool opened first in recency order and the rest after. recent holds the
@@ -123,7 +112,7 @@ local listing = {
   { title = "Rediscover jazz", url = "https://music.test/r", browser = "Alpha", bundleID = "com.test.a" },
   { title = "Discord", url = "https://discord.com/app", browser = "Bravo", bundleID = "com.test.b" },
   { title = "Pull request 12", url = "https://www.github.com/o/r/pull/12", browser = "Bravo",
-    bundleID = "com.test.b", group = "pinned" },
+    bundleID = "com.test.b" },
   { title = "Bravo release notes", url = "https://news.test/b", browser = "Alpha", bundleID = "com.test.a" },
 }
 recent["https://wiki.test/team"] = 1
@@ -145,15 +134,17 @@ end
 local function ranked(query) return rank.apply(M.rows(query), query, fuzzy) end
 
 local resting = M.rows("")
-check("the supplier hands every tab and the door whatever is typed",
-  #M.rows("zzz") == #listing + 1 and titlesOf(M.rows("zzz")) == titlesOf(resting), titlesOf(M.rows("zzz")))
-check("with an empty query the resting order stands and Settings is the last row",
+check("the supplier hands every tab whatever is typed, and no settings row",
+  #M.rows("zzz") == #listing and titlesOf(M.rows("zzz")) == titlesOf(resting), titlesOf(M.rows("zzz")))
+check("with an empty query the resting order stands",
   titlesOf(rank.apply(resting, "", fuzzy)) == "Team notes,Notes,Rediscover jazz,Discord,Pull request 12,"
-    .. "Bravo release notes,Settings", titlesOf(rank.apply(resting, "", fuzzy)))
+    .. "Bravo release notes", titlesOf(rank.apply(resting, "", fuzzy)))
 
 local pr = resting[position(resting, "Pull request 12")]
 check("a tab row filters on its title, not on its status subtitle", pr.filterText == "Pull request 12"
-  and pr.subTitle == "Bravo · pinned · github.com", pr.subTitle)
+  and pr.subTitle == "Bravo · github.com", pr.subTitle)
+check("a tab row names its browser's application for a list that cannot carry its picture",
+  pr.icon and pr.icon.app == "com.test.b")
 check("a tab row names its host and its address", pr.names and pr.names[1] == "github.com"
   and pr.names[2] == "https://www.github.com/o/r/pull/12")
 check("a tab row declares its browser as a keyword", pr.keywords == "Bravo")
@@ -162,9 +153,6 @@ local team, mine, jazz = resting[1], resting[2], resting[3]
 check("the most recently opened tab has the highest bonus, one", team.bonus == 1, tostring(team.bonus))
 check("the bonus falls with recency and stays above zero", mine.bonus == 2 / 3 and jazz.bonus == 1 / 3,
   tostring(mine.bonus) .. " " .. tostring(jazz.bonus))
-local door = resting[#resting]
-check("the Settings door filters on its title and is not pinned while there are tabs",
-  door.filterText == "Settings" and door.pinned ~= true)
 
 local list = ranked("disc")
 check("a better match beats a recent one, Discord at a word start above the recent Rediscover",
@@ -178,8 +166,6 @@ check("a tab answers to its host whatever its page is called", list[1] and list[
 list = ranked("github pull")
 check("two words may land in the host and the title", list[1] and list[1].title == "Pull request 12",
   titlesOf(list))
-list = ranked("pinned")
-check("Arc's group in the subtitle is not searched", position(list, "Pull request 12") == nil, titlesOf(list))
 list = ranked("ravo")
 check("the browser keyword matches only at a word start, ravo finds no Bravo tab",
   position(list, "Discord") == nil, titlesOf(list))
@@ -189,15 +175,6 @@ check("the browser name gathers that browser's tabs", position(list, "Discord") 
 check("a page named after the browser outranks the tabs found by the keyword",
   list[1].title == "Bravo release notes", titlesOf(list))
 
-list = ranked("settings")
-check("typing settings scores the Settings row in with the tabs", position(list, "Settings") ~= nil,
-  titlesOf(list))
-list = ranked("sett")
-check("the start of its title keeps Settings in the list", position(list, "Settings") ~= nil, titlesOf(list))
-list = ranked("disc")
-check("and drops Settings when it does not match", position(list, "Settings") == nil, titlesOf(list))
-list = ranked("browsers")
-check("its count subtitle is not searched", position(list, "Settings") == nil, titlesOf(list))
 check("the module no longer carries the keyword rule", not io.open(chooserPath):read("a"):find("SETTINGS_WORDS", 1, true))
 local source = io.open(chooserPath):read("a")
 check("the module no longer scores its own rows", not source:find("bestFieldScore", 1, true)
@@ -206,15 +183,20 @@ check("the module no longer scores its own rows", not source:find("bestFieldScor
 local scope = M.scopeRows("disc")
 check("the scope hands every tab over for the query scope to rank", #scope == #listing, tostring(#scope))
 
--- With no tabs the guidance rows stay and the Settings row follows them whatever is typed.
+-- With no tabs the guidance row stays whatever is typed.
 api.listTabs = function(cb) cb({}, {}) end
 M.reload()
 list = rank.apply(M.rows("zzz"), "zzz", fuzzy)
-check("with no tabs the guidance row and Settings stay under any query",
-  #list == 2 and list[1].title == "No open tabs" and list[2].title == "Settings", titlesOf(list))
+check("with no tabs the guidance row stays under any query",
+  #list == 1 and list[1].title == "No open tabs", titlesOf(list))
 check("the scope's guidance rows are pinned so a typed rest keeps them",
   M.explain("there")[1].pinned == true)
 
 local manifest = loadfile(caseDir .. "/../../Spoons/Olm.spoon/plugins/browsertabs/manifest.lua")()
 check("the tab list and its scope inherit the shared search", manifest.presentation.matcher == nil
   and manifest.registry.scope.matcher == nil)
+check("the Browsers action is a verb with choices on the chooser submodule",
+  manifest.surface.extra[1].action == "toggleBrowser" and manifest.surface.extra[1].choices == "browserChoices"
+    and manifest.registry.surface == "chooser")
+check("Safari and Chrome are on by default and Arc is gone",
+  table.concat(manifest.defaults.enabled, ",") == "safari,chrome" and table.concat(manifest.defaults.providers, ",") == "safari,chrome")

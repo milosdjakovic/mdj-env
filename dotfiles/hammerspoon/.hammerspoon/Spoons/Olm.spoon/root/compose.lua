@@ -3036,10 +3036,12 @@ function obj.run(olm, cfg)
           local out = {}
           for _, c in ipairs(ok and type(choices) == "table" and choices or {}) do
             local icon, owner = c.icon, row.owner
-            if c.current then icon, owner = "chosen", panelOwner
+            if c.on ~= nil then icon, owner = (c.on and "checked" or "unchecked"), panelOwner
+            elseif c.current then icon, owner = "chosen", panelOwner
             elseif icon == nil then icon, owner = "notChosen", panelOwner end
             out[#out + 1] = { title = tostring(c.title or c.value or ""), subTitle = c.subtitle, icon = icon,
-              iconOwner = owner, current = c.current == true, enabled = c.enabled ~= false, value = c.value }
+              iconOwner = owner, current = c.current == true, enabled = c.enabled ~= false, value = c.value,
+              on = c.on }
           end
           return out
         end,

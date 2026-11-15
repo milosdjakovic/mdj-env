@@ -78,8 +78,8 @@ consistent, and more discoverable than the one below it.
    the alias kept in the field, so a typed word never shows the list without its pane. Stated
    by Milos on 2026-11-04, a plugin defines its aliases and Olm handles the rest.
 3. A child level. When choosing a row means showing another list, the row's `select` answers
-   a presentation table and the stage pushes it in place. BrowserTabs and DisplayProfiles are
-   the settled examples.
+   a presentation table and the stage pushes it in place. DisplayProfiles is the settled
+   example.
 4. A page in place. When a row changes the list it is standing on and the person stays put,
    that is `intercept`, not a child. The clipboard's prune page is the settled example.
 5. A new tool with its own chord. Only when nothing existing leads there, or the interaction
@@ -133,7 +133,11 @@ that row. Return does the thing the row is for, and the rest are verbs of `surfa
 when they are for the panel alone, with `applies` when they fit only some rows, `confirm` for
 anything destructive and `choices` for a pick of one of a few. A setting of the tool is a verb
 with choices rather than a settings row leading to a page, and a choice this machine cannot take
-is answered disabled rather than hidden. The panel holds only the actions of the plugin whose
+is answered disabled rather than hidden. A setting whose choices are each on or off by itself,
+which browsers a list reads, has every choice say `on`, and Olm draws the checkbox and keeps the
+level open while a person flips them, so several are set in a row, stated by Milos on 2026-11-16.
+Browser Tabs' Browsers action is the settled example, and it replaced a settings row and its page.
+The panel holds only the actions of the plugin whose
 list it opens over. No plugin adds a verb to another plugin's panel, and a setting of Olm is
 never a verb there, stated by Milos on 2026-10-30. A verb that needs typed input, a
 rename, opens its own level through `stagePush`. `docs/PLAN-ACTION-PANEL.md` and the contract's

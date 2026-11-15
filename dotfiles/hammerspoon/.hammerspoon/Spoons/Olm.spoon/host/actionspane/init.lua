@@ -342,13 +342,19 @@ function obj:_levelRows(verb)
     local icon, owner = c.icon, verb.owner
     -- A choice in force wears Olm's filled ring, and a choice with no picture of its own the
     -- empty one, so a pick of a few reads as a radio group. lib/icons/rows.lua draws both.
-    local chosen = nil
-    if c.current then chosen = true elseif icon == nil then chosen = false end
+    -- A choice saying on is a switch of its own, each on or off by itself, which wears Olm's
+    -- checkbox pair and flips where it stands, the level staying open so several are set in a row,
+    -- stated by Milos on 2026-11-16. A choice saying both on and current shows the checkbox.
+    local chosen, toggle = nil, c.on ~= nil
+    if toggle then
+      icon, owner = (c.on and "checked" or "unchecked"), self._owner
+    elseif c.current then chosen = true elseif icon == nil then chosen = false end
     if chosen ~= nil then icon, owner = (chosen and "chosen" or "notChosen"), self._owner end
     local enabled = c.enabled ~= false
     rows[#rows + 1] = { title = title, subTitle = c.subtitle, icon = icon, iconOwner = owner,
                         filterText = title, enabled = enabled,
-                        item = { run = verb.action, value = c.value, title = title, disabled = not enabled } }
+                        item = { run = verb.action, value = c.value, title = title, disabled = not enabled,
+                                 toggle = toggle or nil, key = toggle and tostring(c.value) or nil } }
   end
   return rows
 end
@@ -468,6 +474,16 @@ end
 function obj:_choose(instance, item)
   if item and item.disabled then return true end
   if item and item.cancel then return self:_stepBack(instance) end
+  -- A switch flips where it stands, the verb run against the row the panel opened over and the
+  -- level asked again for its marks, so the panel stays on it.
+  if item and item.run and item.toggle then
+    local ok, err = pcall(self._run, item.run, self._capturedItem, item.value)
+    if not ok then
+      self._log.w(string.format("ActionsPane action '%s' raised, %s", tostring(item.run), tostring(err)))
+    end
+    if self._level then self._panelRows = self:_levelRows(self._level) end
+    return "stay"
+  end
   if item and item.run then
     self:_leave(instance, item.run, item.value)
     return "stay"

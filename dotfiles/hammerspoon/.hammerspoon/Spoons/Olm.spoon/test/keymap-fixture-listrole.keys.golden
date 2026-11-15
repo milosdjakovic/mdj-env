@@ -87,6 +87,7 @@ META	k	any	workspacesOpen	100	workspaces
 META	l	any	fileSearchOpen	100	fileSearch
 META	left	any	-	-	windowmanager
 META	m	any	clipboardOpen	100	clipboard
+META	o	any	browserTabsOpen	100	browserTabs
 META	o	any	clipboardOpen	100	clipboard
 META	o	any	displayProfilesOpen	100	displayProfiles
 META	o	any	fileSearchOpen	100	fileSearch

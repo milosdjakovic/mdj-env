@@ -344,9 +344,13 @@ public struct Choice: Sendable, Equatable {
   public var enabled: Bool
   /// The confirm level's Cancel, which steps back as Backspace does.
   public var cancel: Bool
+  /// A switch of its own, on or off by itself, nil for a choice of one of many. Choosing it flips
+  /// it and the level stays open, so several are set in a row.
+  public var on: Bool?
 
   public init(ref: String, title: String, subtitle: String = "", icon: Icon? = nil, current: Bool = false,
-              enabled: Bool = true, cancel: Bool = false) {
+              enabled: Bool = true, cancel: Bool = false, on: Bool? = nil) {
+    self.on = on
     self.ref = ref
     self.title = title
     self.subtitle = subtitle

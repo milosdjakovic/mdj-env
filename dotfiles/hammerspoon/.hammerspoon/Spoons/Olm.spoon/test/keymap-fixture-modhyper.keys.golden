@@ -139,6 +139,7 @@ field	k	alt+cmd+ctrl+shift	wifiOpen	100	wifi
 field	k	alt+cmd+ctrl+shift	workspacesOpen	100	workspaces
 field	l	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch
 field	m	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
+field	o	alt+cmd+ctrl+shift	browserTabsOpen	100	browserTabs
 field	o	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
 field	o	alt+cmd+ctrl+shift	displayProfilesOpen	100	displayProfiles
 field	o	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch

@@ -1,8 +1,8 @@
 -- BrowserTabs, what it declares about itself.
 --
 -- The third of the prototype three because it fails differently again. It has providers
--- the root names, persisted per machine state and a nested settings level, so it exercises
--- the parts of the manifest the other two do not.
+-- the root names and persisted per machine state, so it exercises the parts of the manifest
+-- the other two do not.
 return {
   -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
   apiVersion = 1,
@@ -20,10 +20,11 @@ return {
   name = "browserTabs",
 
   -- The row icons, named by the rows and drawn by Olm. A tab row wears its browser's own
-  -- application icon instead, a real picture and not a key.
+  -- application icon instead, a real picture and not a key, and names that application for a
+  -- surface that cannot carry a picture, Olm.app's list.
   icons = {
-    settings = { emoji = "⚙️", sf = "gearshape" },
-    back = { emoji = "⬅️", sf = "chevron.left" },
+    -- The Browsers action, which browsers the list reads, a window with others behind it.
+    browsers = { emoji = "🗂️", sf = "macwindow.on.rectangle" },
     warn = { emoji = "⚠️", sf = "exclamationmark.triangle" },
     -- A permission macOS is holding back, the raised hand System Settings shows for Privacy and
     -- Security. The lock means a VPN's secure or not, never a permission.
@@ -94,8 +95,8 @@ return {
         reason = "holds the display awake for a run, since a suite drives the machine with synthesised events and the idle timer does not count those",
         origin = { macos = "ships with the system" } },
     },
-    -- Safari and Arc each carry their own bundle id inside their own provider file, so
-    -- neither needs anything handed in. Chrome is different, the Chromium provider is a
+    -- Safari carries its own bundle id inside its own provider file, so it needs nothing
+    -- handed in. Chrome is different, the Chromium provider is a
     -- factory shared by five applications, so it is the one browser whose identity this
     -- plugin cannot know on its own.
     data = {
@@ -110,13 +111,12 @@ return {
           .. "list until the bundle id is supplied, since the shared Chromium factory "
           .. "refuses to build without one" },
 
-      -- Three root computed words, the trickle migration onto the shared stage. stagePresent
+      -- Two root computed words, the trickle migration onto the shared stage. stagePresent
       -- is the hotkey door, reached through this plugin's own M.show. redrawPresented is the
       -- async status seam, an async tab listing and a permission read both asking to be
       -- redrawn once they land while this presentation, and no other, is what the stage is
-      -- actually showing. stagePop, contract v3's own addition, docs/BRIEF-CONTRACT-V3.md, is
-      -- what every child level's own Back row leaves a level through, the one thing a child
-      -- pushed from select cannot express on its own. All three optional, all three degrading
+      -- actually showing. stagePop went with the settings page on 2026-11-16, since no level of
+      -- this tool is pushed any more. Both optional, both degrading
       -- to an inert press or a silently skipped redraw, never a crash, since a plugin asking
       -- before the stage's own configure has run is a wiring defect rather than a state a key
       -- press should silently swallow.
@@ -124,8 +124,6 @@ return {
         breaks = "this plugin's own leader key opens nothing, since M.show has no other way to reach the shared stage" },
       redrawPresented = { source = "root", policy = "optional",
         breaks = "an async tab listing, or a permission read, lands with nothing on screen following it, since neither has any other way to reach whatever is on screen" },
-      stagePop = { source = "root", policy = "optional",
-        breaks = "every child level's own Back row stands on the level it meant to leave rather than returning to its parent" },
       -- Two live reads for the integration harness's `live` command only, the field text and the
       -- highlighted row on the shared stage. Nothing in the tool reads them while it runs.
       stageQuery = { source = "root", policy = "optional",
@@ -144,17 +142,18 @@ return {
 
   -- W reads as web, since B is the Books toggle and T the Stickies one.
   --
-  -- `enabled` is the fresh install answer, and it is one browser rather than all of them
-  -- on purpose. Safari is the only one macOS guarantees is there, so a new machine
-  -- scripts exactly one browser and raises exactly one Automation prompt, and the rest
-  -- are switched on deliberately by whoever wants them.
+  -- `enabled` is the fresh install answer, Safari and Chrome, stated by Milos on 2026-11-16. A
+  -- browser that is not installed is never running, so it is never scripted and raises no
+  -- prompt, and on by default means on wherever it is installed. A browser added later starts
+  -- off, since this list and not mere presence is what turns one on. The Browsers action in the
+  -- actions pane switches each on or off.
   --
   -- `providers` is the shipped browser order, by name, and it belongs here rather than in the
   -- needs above because nothing outside this plugin has to know anything for it to work. The
   -- names are resolved against the providers directory by this plugin's own configure, so a
   -- person reordering the list, or dropping a browser they do not use, edits one line and needs
-  -- no bundle id and no knowledge of which file answers to which word. Chrome sits between the
-  -- other two because it is the one that only appears when its bundle id was supplied.
+  -- no bundle id and no knowledge of which file answers to which word. Chrome is the one that
+  -- only appears when its bundle id was supplied.
   --
   -- The order is not cosmetic. It is where each browser's tabs rest in the list before this tool
   -- has ever opened one, so it is the answer to what you see first on a fresh machine.
@@ -165,8 +164,8 @@ return {
     description = "Browser Tabs",
     icon = "browsertabs",
     aliases = { "t", "tabs" },
-    providers = { "safari", "chrome", "arc" },
-    enabled = { "safari" },
+    providers = { "safari", "chrome" },
+    enabled = { "safari", "chrome" },
   },
 
   surface = {
@@ -177,6 +176,13 @@ return {
     -- click alike are ever let through, so nothing here needs a private mechanism to keep
     -- the window open through a step any more.
     primary = { action = "insertSelected", description = "Select" },
+    -- Which browsers the list reads, a setting of the tool, so a verb with choices rather than a
+    -- settings row leading to a page, stated by Milos on 2026-11-16. Each choice says on, so it
+    -- wears Olm's checkbox and flips where it stands, the level staying open. Its methods are on
+    -- the chooser submodule, which registry.surface names.
+    extra = {
+      { action = "toggleBrowser", description = "Browsers", icon = "browsers", choices = "browserChoices" },
+    },
     -- No matcher line. Every level of this tool searches through the shared default, the
     -- tab rows declaring their names, keywords and recency bonus for it to apply.
   },
@@ -195,17 +201,14 @@ return {
   -- No matcher, so the tab list inherits the shared search, phase three of
   -- docs/PLAN-UNIFIED-SEARCH.md on 2026-10-17. Each tab row says what it answers to, its title,
   -- its host and address as names and its browser as a keyword, and carries its recency as a
-  -- bonus, chooser.lua's tabRow says why. The Settings row is scored like a tab, and the rows
-  -- explaining an empty list are pinned.
-  -- No intercept at this level any more. It once existed for one narrow reason, standing
-  -- on a stray selection of one of this level's own disabled guidance rows, emptyRows in
-  -- chooser.lua, and that reason is gone, review findings H1 and H2, rework, host/stage's
-  -- own _intercept now answering true and doing nothing for any disabled row before asking
-  -- this level anything at all, legacy.lua passing the row's own enabled state through for
-  -- exactly that check.
+  -- bonus, chooser.lua's tabRow says why. The rows explaining an empty list and the permission
+  -- rows leading it are pinned.
+  --
+  -- intercept answers a permission request, which stays on the list while macOS asks.
   presentation = {
     rows = { member = "chooser.rows", call = "dot" },
     select = { member = "chooser.select", call = "dot" },
+    intercept = { member = "chooser.intercept", call = "dot" },
     placeholder = { member = "chooser.placeholder", call = "dot" },
     onPresent = { member = "chooser.onPresent", call = "dot" },
     -- onClose exists for one reason beyond the ordinary teardown every presentation may
@@ -217,7 +220,7 @@ return {
   },
 
   -- Configure alone leaves this plugin half wired. Start warms the permission probe so
-  -- the first settings open is instant, and the picker itself lives on the chooser
+  -- the first permission read is instant, and the picker itself lives on the chooser
   -- submodule, which needs its own configure and its own start before a tab can show.
   wiring = {
     { method = "start" },
@@ -227,10 +230,9 @@ return {
 
   -- show is a colon method on this plugin's own root, obj:show(), so open takes the default
   -- call. scopeRows and activate both live on the chooser submodule as plain dot called
-  -- functions, so the scope below says dot rather than taking the default. surface is no
-  -- longer declared, host/stage's own surfaceFor answering the five generic nav verbs now
-  -- that presentation above exists, and this plugin binds no verb beyond them, insertSelected
-  -- replacing the retired enter being exactly what closed that gap. The scope declares no
+  -- functions, so the scope below says dot rather than taking the default. surface names the
+  -- chooser submodule, which answers the Browsers action's browserChoices and toggleBrowser,
+  -- host/stage's own surfaceFor answering the five generic nav verbs. The scope declares no
   -- matcher, so the query scope ranks the same tab rows against the typed rest through the
   -- shared search, exactly as the tab list does.
   registry = {
@@ -238,6 +240,7 @@ return {
     open = "show",
     hosted = true,
     shortcut = "leader",
+    surface = "chooser",
     scope = {
       rows = { member = "chooser.scopeRows", call = "dot" },
       run = { member = "chooser.activate", call = "dot" },

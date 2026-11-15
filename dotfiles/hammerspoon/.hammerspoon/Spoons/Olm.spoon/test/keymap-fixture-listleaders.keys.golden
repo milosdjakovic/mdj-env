@@ -161,6 +161,7 @@ hyper	k	any	wifiOpen	100	wifi
 hyper	k	any	workspacesOpen	100	workspaces
 hyper	l	any	fileSearchOpen	100	fileSearch
 hyper	m	any	clipboardOpen	100	clipboard
+hyper	o	any	browserTabsOpen	100	browserTabs
 hyper	o	any	clipboardOpen	100	clipboard
 hyper	o	any	displayProfilesOpen	100	displayProfiles
 hyper	o	any	fileSearchOpen	100	fileSearch

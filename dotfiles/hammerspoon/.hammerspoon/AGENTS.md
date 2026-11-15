@@ -2012,14 +2012,15 @@ shared j, k, x navigation with i bound to the tool's own in-place `enter` rather
 not close and re-show.
 
 The wiring choice that matters is where the browsers are named. The spoon exposes its backends
-as `spoon.BrowserTabs.providers` and the root names the concrete three and their order, the
+as `spoon.BrowserTabs.providers` and the root names the concrete two and their order, the
 Emoji precedent, so adding a browser is a line in that block plus a file in the spoon's
 `providers/`. `providers.chromium` is a factory taking a name and a bundle id, because Chrome,
 Brave, Edge, Vivaldi and Opera all share one AppleScript dictionary, so which application is a
-parameter the root supplies; Safari and Arc each have their own dictionary and own their bundle
-id. The root also decides `defaultEnabled`, which is Safari alone, so a fresh machine scripts
-one browser and raises one Automation prompt and the rest are switched on deliberately. Those
-choices persist in `hs.settings` rather than a git tracked file, since they are per machine
+parameter the root supplies, and Safari has its own dictionary and owns its bundle id. Arc was a
+third until 2026-11-16, when Milos had it removed. The plugin's `enabled` default is Safari and
+Chrome, and a browser that is not installed is never running, so it is never scripted and raises
+no prompt. A person switches each on or off with the Browsers action in the list's actions pane,
+which replaced a settings row and its page on the same day. Those choices persist in `hs.settings` rather than a git tracked file, since they are per machine
 preference, matching the overlay display policy rather than the DisplayProfiles store.
 
 Three cross-cutting facts worth knowing here. A browser that is switched off or not running is
@@ -2034,7 +2035,7 @@ and why the browser name is a keyword, why the order stopped
 being observed and what that cost, why the last tab you opened leads and what was tried on top of
 that before it was taken back out, why a window is placed by its id and never by its index, why tab
 identity is the bundle id plus the URL and what that costs when a page navigates, why the
-permission probe is a Swift helper, why Arc reports no active tab, and why Firefox is absent, lives
+permission probe is a Swift helper, and why Firefox is absent, lives
 in `Spoons/Olm.spoon/plugins/browsertabs/AGENTS.md`. Adding it needed a restow, since `~/.hammerspoon/Spoons`
 holds one symlink per spoon.
 

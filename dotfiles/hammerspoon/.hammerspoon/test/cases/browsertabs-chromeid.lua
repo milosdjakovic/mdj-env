@@ -74,15 +74,13 @@ for _, s in ipairs(scenarios) do
   local obj = loadPlugin()
   local ran, why = pcall(function()
     obj:configure({
-      providers = { "safari", "arc", "chrome" },
+      providers = { "safari", "chrome" },
       chromeBundleID = s.value,
       settingsKey = "Olm.test.browsertabs.chromeid",
     })
   end)
   check("configure with chromeBundleID " .. s.label .. " does not raise", ran, tostring(why))
   check("Safari is built with chromeBundleID " .. s.label, has(obj._providers, "Safari"),
-    "built " .. names(obj._providers))
-  check("Arc is built with chromeBundleID " .. s.label, has(obj._providers, "Arc"),
     "built " .. names(obj._providers))
   check("Chrome is " .. (s.chrome and "built" or "absent") .. " with chromeBundleID " .. s.label,
     has(obj._providers, "Chrome") == s.chrome, "built " .. names(obj._providers))

@@ -98,6 +98,9 @@ function M.new(opts)
     local icon = row.icon
     if type(icon) == "string" and row.iconOwner then return { owner = row.iconOwner, key = icon } end
     if type(icon) == "table" then
+      -- An application's own icon by its bundle id, a tab row naming its browser, which the Lua
+      -- list draws from the row's own picture.
+      if type(icon.app) == "string" then return { app = icon.app } end
       if type(icon[SF]) == "string" then return { [SF] = icon[SF] } end
       if type(icon[GLYPH]) == "string" then return { [GLYPH] = icon[GLYPH] } end
     end
@@ -532,6 +535,8 @@ function M.new(opts)
       if row.current then c.current = true end
       if row.enabled == false then c.enabled = false end
       if row.cancel then c.cancel = true end
+      -- A switch of its own, the level staying open while it flips, step 3.3c.
+      if row.on ~= nil then c.on = row.on == true end
       out[#out + 1] = c
     end
     return { h = params.h, choices = out }

@@ -139,7 +139,7 @@ end
 --
 -- The supplier hands every row over in its resting order and reads no query since phase three of
 -- the unified search on 2026-10-17, so the ranking is done here exactly as the chooser does it,
--- the presentation's own rows, the settings door included, through rank.apply with the shared
+-- the presentation's own rows, the permission rows included, through rank.apply with the shared
 -- fuzzy matcher and the presentation's search. Reading the supplier alone would answer the
 -- resting order, so every typed round would find the wrong top row and a case asking for exactly
 -- one row would always skip.

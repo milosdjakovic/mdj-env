@@ -1043,6 +1043,7 @@ public final class Stage {
       let choice = level.choices[pane.shown[index - 1]]
       if choice.cancel { return stepBackActions() }
       guard choice.enabled else { return }
+      if choice.on != nil { return flipChoice(level, at: index) }
       return act(on: pane.savedHighlight, action: level.verb, choice: choice.ref, closingPanes: true)
     }
     if chosen.confirm || chosen.choices { return openLevel(chosen) }
@@ -1064,13 +1065,7 @@ public final class Stage {
     Task {
       let choices = await source.choices(row.verb, on: pick)
       guard mine == self.actionsGeneration, var pane = self.actionsPane, pane.level == nil else { return }
-      let levelRows = choices.map { c -> Bars.ActionRow in
-        var r = OlmKit.Row(key: c.ref, title: c.title, subtitle: c.subtitle, icon: c.icon, inert: !c.enabled)
-        r.icon = c.icon
-        var drawn = self.panelRow(r)
-        drawn.subtitle = c.subtitle
-        return Bars.ActionRow(row: drawn, verb: row.verb, applies: nil, confirm: false, choices: false)
-      }
+      let levelRows = self.levelRows(choices, verb: row.verb)
       pane.level = PaneLevel(verb: row.verb, title: row.row.title, root: pane.rows, choices: choices)
       pane.rows = levelRows
       pane.shown = Array(levelRows.indices)
@@ -1079,6 +1074,38 @@ public final class Stage {
       self.actionsPane = pane
       self.panel.setText("")
       self.apply(status: self.status)
+    }
+  }
+
+  // A switch of a level flipped where it stands, the verb run over the row the pane opened on and
+  // the level's rows asked again for their marks, the lit row kept, as the Lua pane's toggle runs.
+  private func flipChoice(_ level: PaneLevel, at index: Int) {
+    guard let pane = actionsPane, let source, pane.savedHighlight >= 1, pane.savedHighlight <= rows.count else { return }
+    let choice = level.choices[pane.shown[index - 1]]
+    let pick = Pick(key: rows[pane.savedHighlight - 1].key, query: pane.savedText, row: pane.savedHighlight)
+    let mine = actionsGeneration
+    Task {
+      let effects = await source.run(level.verb, on: pick, choice: choice.ref)
+      let choices = await source.choices(level.verb, on: pick)
+      guard mine == self.actionsGeneration, var pane = self.actionsPane, pane.level?.verb == level.verb else { return }
+      pane.level = PaneLevel(verb: level.verb, title: level.title, root: level.root, choices: choices)
+      pane.rows = self.levelRows(choices, verb: level.verb)
+      pane.shown = Array(pane.rows.indices)
+      pane.lit = min(max(1, index), max(1, pane.rows.count))
+      pane.query = ""
+      self.actionsPane = pane
+      self.apply(status: self.status)
+      // What the verb asked of the list beneath, a redraw once the switch changed what it lists.
+      self.perform(effects.filter { $0 != .hide }, from: source)
+    }
+  }
+
+  private func levelRows(_ choices: [Choice], verb: String) -> [Bars.ActionRow] {
+    choices.map { c -> Bars.ActionRow in
+      let r = OlmKit.Row(key: c.ref, title: c.title, subtitle: c.subtitle, icon: c.icon, inert: !c.enabled)
+      var drawn = panelRow(r)
+      drawn.subtitle = c.subtitle
+      return Bars.ActionRow(row: drawn, verb: verb, applies: nil, confirm: false, choices: false)
     }
   }
 

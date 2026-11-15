@@ -8,10 +8,6 @@
 
 # Which adapter speaks for which browser. One entry per dictionary, not per application, so every
 # Chromium shares one.
-#
-# Arc has none, deliberately. It has never been open when this suite ran, so an adapter for it would
-# be code that has never once been executed, and the one Arc case here needs no adapter because it
-# only asks whether a browser that is closed stays closed.
 bt_adapter() {
   case $1 in
     com.apple.Safari) printf 'safari.js' ;;
@@ -25,7 +21,6 @@ bt_process_name() {
   case $1 in
     com.apple.Safari) printf 'Safari' ;;
     com.google.Chrome) printf 'Google Chrome' ;;
-    company.thebrowser.Browser) printf 'Arc' ;;
     *) printf '%s' "${1##*.}" ;;
   esac
 }
@@ -36,7 +31,6 @@ bt_bundle_for() {
   case $1 in
     chrome) printf 'com.google.Chrome' ;;
     safari) printf 'com.apple.Safari' ;;
-    arc) printf 'company.thebrowser.Browser' ;;
     *) printf '%s' "$1" ;;
   esac
 }

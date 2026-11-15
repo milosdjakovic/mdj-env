@@ -66,7 +66,6 @@ obj.chooser = load("chooser.lua")
 obj.providers = {
   chromium = load("providers/chromium.lua"),
   safari = load("providers/safari.lua"),
-  arc = load("providers/arc.lua"),
 }
 
 -- Injected via configure
@@ -169,7 +168,7 @@ end
 -- Identity here is the bundle id plus the URL, the same pairing recency.lua's own keyFor
 -- built, and building that key from a tab stays this file's own policy, the service only
 -- ever sees the finished key. It cannot be a browser tab id, since Safari has none and the
--- ids Chrome and Arc give are not stable across a restart, and the full reasoning is in the
+-- ids Chrome gives are not stable across a restart, and the full reasoning is in the
 -- AGENTS.md beside this file, in the section on why identity is the bundle id plus the URL.
 local function keyFor(bundleID, url)
   return (bundleID or "") .. "\0" .. (url or "")
@@ -213,10 +212,9 @@ end
 -- manifest declares that and nothing else.
 local function providerNamed(name, chromeBundleID)
   if name == "safari" then return obj.providers.safari end
-  if name == "arc" then return obj.providers.arc end
   if name == "chrome" then
     -- An empty string is truthy in Lua, so a bare nil check let it through to the factory, which
-    -- refuses it by raising, and that raise escaped configure and took Safari and Arc down with
+    -- refuses it by raising, and that raise escaped configure and took Safari down with
     -- it. Nothing usable and nothing supplied are the same case for the person, so both get the
     -- friendly message.
     if chromeBundleID == nil or chromeBundleID == "" then

@@ -6,17 +6,16 @@ browser's ordinary order. Which tabs appear is read fresh every time it opens, s
 a tab opened or closed in the browser shows up or disappears immediately, while
 the leading order only remembers tabs you picked here and never rearranges itself
 because of something you did in the browser. Each row carries its browser's icon,
-choosing one selects that tab, raises its window, and brings the browser forward. The last row
-opens a settings page, and once something is typed that row is scored like a tab, so typing
-settings brings it back and an unrelated word drops it. The settings page is one flat list that filters as you type, with
-no level beneath it. Choosing a browser row switches it on or off where it stands, and the row
-says whether it is installed, open and allowed. Directly under a switched on browser a row
-appears only when its permission asks something, to ask for it, to open the browser first, to
-open Automation settings, or to say the permission cannot be read.
+choosing one selects that tab, raises its window, and brings the browser forward. Safari and
+Chrome are read by default wherever they are installed. The Browsers action in the actions pane
+lists each browser with a checkbox, says whether it is installed, open and allowed, and switches
+one on or off where it stands, so several can be set in a row. When a switched on browser's
+permission asks something, one row leads the tab list, to ask for it, to open the browser first,
+to open Automation settings, or to say the permission cannot be read.
 
 Opens on Hyper and W, appears in the launcher as a Plugin row, and can be searched
 without leaving the launcher by typing t or tabs, which lists the tabs alone with
-the settings row left out.
+no permission row.
 
-While the list is open, j and k move, i selects the highlighted row, and x closes
+While the list is open, j and k move, i selects the highlighted row, o opens the actions pane, and x closes
 it.

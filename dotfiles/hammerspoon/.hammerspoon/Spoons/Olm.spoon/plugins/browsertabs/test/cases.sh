@@ -37,7 +37,7 @@ CASES=(
   "drift_window_closed chrome"       "drift_window_closed safari"
   "phantom_not_listed safari"
   "back_to_back chrome"
-  "not_running arc"
+  "not_running chrome"
   "switched_off chrome"
   "escape_raises_nothing chrome"
   "no_query chrome"                  "no_query safari"

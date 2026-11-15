@@ -279,8 +279,9 @@ whatever it does not. Returning nil or nothing keeps today's meaning, the row co
 the window hides. A child needs no name, the stage derives context from you, though it may
 carry one when its level genuinely wants different keys in the bottom bar.
 
-This is `docs/BRIEF-CONTRACT-V3.md`, built and landed. BrowserTabs and DisplayProfiles are the
-two plugins that nest this way today, each a settled example worth reading beside the brief.
+This is `docs/BRIEF-CONTRACT-V3.md`, built and landed. DisplayProfiles nests this way today, the
+settled example worth reading beside the brief. BrowserTabs did too until 2026-11-16, when its
+settings level became the Browsers action in its actions pane.
 
 Children and `intercept` are not interchangeable. A row that takes you somewhere is a child. A
 row that changes the list it is on and stands still is an `intercept`. Backspace out of a
