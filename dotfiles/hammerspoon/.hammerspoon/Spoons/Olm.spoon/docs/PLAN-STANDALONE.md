@@ -23,7 +23,7 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 3.3, hosted lists through the bridge, Caffeinate first, its design note first. Hyper and 0 opens the app's launcher meanwhile. 2.3's shadow keeps logging, and its log empty is a condition of 3.5's flip. File search is the app's since 1.5's flip on 2026-11-12.
+Next. 3.3 goes on with the next hosted tool, one at a time, which tool Milos's choice, each with a design note first. Hyper and 0 opens the app's launcher meanwhile. 2.3's shadow keeps logging, and its log empty is a condition of 3.5's flip. File search is the app's since 1.5's flip on 2026-11-12.
 
 Stage 0, contracts
 - [x] 0.1 The decision record, 2026-11-05
@@ -92,6 +92,7 @@ Stage 3, every list in the app
   - Trial on 2026-11-13 with Milos. App rows, the calculator, a tool row held in place and Escape behaved, and Hyper and 0 felt snappier than Hyper and Space. Left Half moved Olm.app's fading list rather than the window in front, since `hidden` went out as the fade began. Fixed by closing the source once the panel's fade ends. The window actions to be tried again.
   - Tried again on 2026-11-15, Left Half and Right Half moved the Herdr window and Safari came to the front, Milos calling it good. The shadow log stood at 26 lines and no difference. The trial key stays until 3.5 gives the app Hyper and Space.
 - [ ] 3.3 Hosted lists, one tool per step, each tool added here when it is started
+  - [x] Caffeinate, 2026-11-15, `docs/DESIGN-APP-HOSTED.md`. Built in `55bf6aaa`, the config's `hosts` beside `serves` naming it, the launcher's row asking `lib/rowintercept.lua`'s `presentationFor` and answering `push`, a level of its own in `serve.lua` for its rows, Return and Backspace, `redrawPresented` recorded by `host/bridge/facade.lua` or sent as the `effects` notification, and the app's stage parking the launcher with its text, highlight, rows and height. `olm-bridge-check` 87 checks. The first trial left "keep" in the field, fixed in `7d24149c`, the input field validating its editor's text into its cell. Tried again by Milos on 2026-11-15, all eight steps good, the Lua launcher's field included. The shadow log stood at 50 lines and no difference.
 - [ ] 3.4 List keys reach the app
 - [ ] 3.5 The flip of Hyper and Space
 - [ ] 3.6 Every plugin's own list, each tool added here when it is started

@@ -733,3 +733,9 @@ list, and until then that list stays on Lua.
   `lib/rowintercept.lua`'s new `presentationFor` what the row would push and runs nothing, and only
   `redrawPresented` is recorded by the facade. The config's `hosts` beside `serves` names the hosted
   tools, `{ "caffeinate" }`, and taking a name out is the way back. Not yet tried live.
+- 2026-11-15 20:58. Step 3.3's first tool verified. Milos ran the eight step trial of Keep Awake
+  inside the app's launcher on Hyper and 0, opening it, a duration, Backspace back with the
+  highlight, a timed session's redraw, `k 2h` fitting, Escape closing every level, and the Lua
+  launcher's field after the shared input field's fix, and called it all good. Caffeinate ticked
+  under 3.3, which stays open for the other tools. The shadow log stood at 50 lines and no
+  difference.
