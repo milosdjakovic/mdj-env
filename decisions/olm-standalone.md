@@ -745,3 +745,7 @@ list, and until then that list stays on Lua.
   bridge fixture would gain a Volume case. It did not, since that case would replay the Caffeinate
   one over the same fake, and `test/bridgeserve.lua` drives the real plugin instead. Not yet tried
   live.
+- 2026-11-15 21:14. Volume verified. Milos ran the eight step trial inside the app's launcher on Hyper and 0,
+  the disabled rows answering nothing, a level, mute and unmute, Backspace back with the
+  highlight, `vol 40` fitting and Escape, and called it all good. Ticked under 3.3, which stays
+  open for the other tools. The shadow log stood at 62 lines and no difference.
