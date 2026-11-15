@@ -749,3 +749,12 @@ list, and until then that list stays on Lua.
   the disabled rows answering nothing, a level, mute and unmute, Backspace back with the
   highlight, `vol 40` fitting and Escape, and called it all good. Ticked under 3.3, which stays
   open for the other tools. The shadow log stood at 62 lines and no difference.
+- 2026-11-15 22:04. 3.3 is finished in five steps, Milos's go: open and close, the actions pane,
+  the stage words, the preview pane, and file search answered by the app's own list. A survey of
+  the ten tools left showed each needs one piece the bridge lacks, so a step adds one piece and
+  hosts the tools that needed only it. The cycle keys stay with 3.6, a tool's own chord. The
+  launcher's own actions pane on Hyper and 0, absent since `actions` was never served, joins
+  3.3b, since it would block 3.5. 3.3a built: a hosted level is told its presentation's
+  `onPresent` and `onClose` as the Lua stage tells them, under the facade, and a new session or a
+  socket that went closes every level. Audio, Wi-Fi and Input Sources join `hosts`. Dock Auto
+  Hide's row only toggles and needs nothing. Not yet tried live.

@@ -140,6 +140,34 @@ name more in `hosts`, `{ "caffeinate", "volume" }`.
 - `test/bridgeserve.lua` drives the real plugin over a fake output device. No fixture case was
   added, since the hosted case already replays the same road over a fake presentation.
 
+## 3.3a, open and close
+
+Written and built on 2026-11-15 with Milos's go, the first of the five steps that finish 3.3:
+open and close, the actions pane, the stage words, the preview pane, and file search answered by
+the app's own list.
+
+A presentation's `onPresent` is what starts the work its rows read, Wi-Fi's scan and the device
+reads of Audio and Input Sources, and the Lua stage tells it on every push. A hosted level was told
+nothing, so its rows read whatever the last Lua open left. Now `serve.lua` tells it the same way:
+
+- `onPresent` when a level opens, from the launcher's push and from a child a hosted level pushes.
+  Never when a parent is given back, as the stage's pop tells none.
+- `onClose` on the level's `close`, which the app sends for a child it pops and for every level as
+  the window closes.
+- Both run under the facade, so a stage word either calls acts on the app's list and not on the
+  hidden Lua stage. What they record is dropped: the app asks the rows of a level it just opened,
+  and a closed level has nothing to redraw.
+- A new session's `hello` and a socket that went close every level the last session left, each
+  hosted one told its `onClose` top down, since the app that held them is gone.
+
+`hosts` gains `audio`, `wifi` and `inputsources`. Audio's Return switches a device and stays, the
+intercept's `"stay"` that 3.3 already serves. Wi-Fi's scan landing redraws through
+`redrawPresented`, served since Caffeinate. A join that needs a password asks in the system's own
+dialog, deferred until the list is gone, as it does from the Lua list.
+
+Dock Auto Hide needs nothing. Its launcher row toggles rather than leading to a list, so it runs
+through 3.1's road and is not named in `hosts`.
+
 ## Back out
 
-Remove `caffeinate` or `volume` from `hosts` and reload. The row answers `unserved` again.
+Remove a tool from `hosts` and reload. The row answers `unserved` again.

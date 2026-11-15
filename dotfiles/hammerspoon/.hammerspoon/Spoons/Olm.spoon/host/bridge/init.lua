@@ -260,7 +260,7 @@ function obj:serveLauncher(provider)
   conn = transport.new({ path = (self._run or RUN) .. "/" .. self.SOCKET, frame = frame,
     onMessage = function(text) session:receive(text) end,
     onUp = function() log.i("connected to Olm.app's socket") end,
-    onDown = function() session:reset(); log.i("Olm.app's socket went") end,
+    onDown = function() session:reset(); service.closeAll(); log.i("Olm.app's socket went") end,
     log = function(text) log.w(text) end })
   self._conn = conn:start()
   self._service, self._session = service, session

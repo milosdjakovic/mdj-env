@@ -271,5 +271,53 @@ ok(device.muted == true, "and Return mutes")
 ok(hostingVolume.methods.back.run({ level = id }).handled == false, "Volume declines back, so the app pops")
 _G.hs = savedHs
 
+-- Step 3.3a, a hosted level told its onPresent as it opens and its onClose as it closes, as the
+-- Lua stage tells them, a stage word either calls recorded rather than acting.
+local told = {}
+local scanned = { name = "wifi", placeholder = "Wi-Fi",
+  rows = function() return { { title = "Network " .. #told, item = { id = "n" } } } end,
+  onSelect = function() end,
+  onPresent = function() told[#told + 1] = "present"; facade.record({ rows = { hold = true } }) end,
+  onClose = function() told[#told + 1] = "close" end }
+local scannedChild = { name = "wifi", rows = function() return {} end, onSelect = function() end,
+  onPresent = function() told[#told + 1] = "child present" end,
+  onClose = function() told[#told + 1] = "child close" end }
+scanned.intercept = nil
+local hostingWifi = serve.new({ rpc = rpc, clean = frame.clean, facade = facade,
+  hosted = function(p) return p.name == "wifi" end,
+  launcher = { memoryKey = memoryKey, rows = function() return { { title = "Wi-Fi", item = { kind = "special", name = "wifi" } } } end,
+    choose = function(_, _, hosted) return { { present = hosted(scanned) and scanned or nil } } end },
+  icons = function() return nil end })
+hostingWifi.methods.open.run({ what = { launcher = true } })
+hostingWifi.methods.rows.run({ level = "v1", q = 1, query = "" })
+ok(#told == 0, "nothing is told before the row is chosen")
+local wifiPush = hostingWifi.methods.choose.run({ level = "v1", q = 1, ref = "v1.1", query = "" }).effects
+ok(#told == 1 and told[1] == "present" and #wifiPush == 1 and wifiPush[1].push,
+  "choosing the row tells its onPresent once, the redraw it asks dropped, the push alone answered")
+ok(not facade.recording(), "and the recording it ran under has ended")
+local wifiId = wifiPush[1].push.level.id
+local first = hostingWifi.methods.rows.run({ level = wifiId, q = 2, query = "" }).changes.upsert
+ok(first[1].title == "Network 1", "the rows asked after it read what onPresent started")
+local deeper = hostingWifi.choosePresented({ kind = "presentation", presentation = { name = "wifi",
+  onSelect = function() return scannedChild end }, id = wifiId }, {})
+ok(told[2] == "child present" and deeper[1].push, "a child pushed over it is told its own onPresent")
+hostingWifi.methods.close.run({ level = deeper[1].push.level.id })
+ok(told[3] == "child close" and #told == 3, "a child closed is told its onClose, the level under it nothing")
+hostingWifi.methods.close.run({ level = wifiId })
+ok(told[4] == "close", "closing the level tells its onClose")
+hostingWifi.methods.close.run({ level = "v1" })
+ok(#told == 4, "the launcher's own close tells no hook")
+hostingWifi.methods.open.run({ what = { launcher = true } })
+hostingWifi.methods.rows.run({ level = "v4", q = 1, query = "" })
+hostingWifi.methods.choose.run({ level = "v4", q = 1, ref = "v4.1", query = "" })
+hostingWifi.methods.hello.run({ protocol = serve.PROTOCOL }, {})
+ok(told[5] == "present" and told[6] == "close" and next(hostingWifi.levels) == nil,
+  "a new session closes every level the last one left, each hosted one told its onClose")
+hostingWifi.methods.open.run({ what = { launcher = true } })
+hostingWifi.methods.rows.run({ level = "v1", q = 1, query = "" })
+hostingWifi.methods.choose.run({ level = "v1", q = 1, ref = "v1.1", query = "" })
+hostingWifi.closeAll()
+ok(told[8] == "close" and next(hostingWifi.levels) == nil, "and so does a socket that went")
+
 print(string.format("bridgeserve: %d checks, %d failed", checks, failures))
 os.exit(failures == 0 and 0 or 1)

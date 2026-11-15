@@ -185,7 +185,8 @@ function M.new(opts)
       rpc.fail(rpc.VERSION, "protocol " .. tostring(params.protocol) .. " is not spoken", { protocol = M.PROTOCOL })
     end
     session.open = true
-    service.levels, service.nextLevel, service.sentMemory = {}, 0, nil
+    service.closeAll()
+    service.nextLevel, service.sentMemory = 0, nil
     return { protocol = M.PROTOCOL, olm = opts.version or "0", features = {},
       limits = { message = 8 * 1024 * 1024, rowLimit = rowLimit, name = M.NAME_LIMIT } }
   end }
@@ -247,8 +248,10 @@ function M.new(opts)
   end }
 
   methods.close = { run = function(params)
-    if not service.levels[params.level] then rpc.fail(rpc.GONE, "no level " .. tostring(params.level)) end
+    local level = service.levels[params.level]
+    if not level then rpc.fail(rpc.GONE, "no level " .. tostring(params.level)) end
     service.levels[params.level] = nil
+    service.told(level, "onClose")
     return true
   end }
 
@@ -350,6 +353,29 @@ function M.new(opts)
 
   -- The rows a level shows for a query, the launcher's with its claim and the claim's fit, or a
   -- hosted presentation's own, stamped with its owner as the Lua stage's _rows stamps them.
+  -- A hosted level told its presentation's onPresent as it opens and its onClose as it closes,
+  -- step 3.3a, as the Lua stage tells them on a push and on a pop or a close. Run under the facade,
+  -- so a stage word the hook calls acts on the list in the app rather than on the hidden Lua stage,
+  -- and what it records is dropped, since the app asks the rows of a level it just opened and a
+  -- closed one has none to ask. Never told on a parent given back, as the stage's pop tells none.
+  function service.told(level, hook)
+    local p = level.kind == "presentation" and level.presentation
+    local fn = p and p[hook]
+    if type(fn) ~= "function" then return end
+    if opts.facade then opts.facade.during(fn) else fn() end
+  end
+
+  --- service.closeAll() closes every level, each hosted one told its onClose top down, for a new
+  --- session or a socket that went, since the app that held them is gone
+  function service.closeAll()
+    local ids = {}
+    for id in pairs(service.levels) do ids[#ids + 1] = id end
+    table.sort(ids, function(a, b) return tonumber(a:sub(2)) > tonumber(b:sub(2)) end)
+    local levels = service.levels
+    service.levels = {}
+    for _, id in ipairs(ids) do service.told(levels[id], "onClose") end
+  end
+
   function service.rowsFor(level, query)
     if level.kind ~= "presentation" then return opts.launcher.rows(query) end
     local p = level.presentation
@@ -366,6 +392,7 @@ function M.new(opts)
     local level = { id = "v" .. service.nextLevel, kind = "presentation", presentation = p, parent = parent.id,
       top = parent.kind == "launcher", refs = {}, items = {}, keys = {}, nextRef = 0, sent = nil, revision = 0 }
     service.levels[level.id] = level
+    service.told(level, "onPresent")
     local placeholder = type(p.placeholder) == "string" and p.placeholder or ""
     return { push = { parent = parent.id, level = { id = level.id, name = p.name, placeholder = placeholder,
       previewPane = false, ranking = p.matcher == false and "source" or "app",
