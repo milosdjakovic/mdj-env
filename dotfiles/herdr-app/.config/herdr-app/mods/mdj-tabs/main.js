@@ -114,7 +114,7 @@ export default class MdjTabs extends View {
         .hover(s => s.bg(t.canvas).text_color(t.foreground))
         .on_mouse_down("left", (_e, cx) => cx.stop_propagation()).on_click((_e, cx) => { cx.stop_propagation(); run("tab.close", { id: c.id }); })
         .child(svg("mods/mdj-icons/12/x.svg").size(12))
-      : div().size(18).flex_none().flex().items_center().justify_center().child(status);
+      : div().size(18).flex_none().flex().items_center().justify_center().when(Boolean(status), el => el.child(status));
     return h_flex().absolute().top(0).bottom(0).right(0).items_stretch()
       .children(Array.from({ length: n }, (_, i) => {
         const x = (i + 0.5) / n, ease = x * x * (3 - 2 * x);
