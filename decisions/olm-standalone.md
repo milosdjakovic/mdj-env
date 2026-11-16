@@ -854,3 +854,9 @@ bridge socket, runs on the trial key Hyper and 0 until step 3.5 gives it Hyper a
   under way with 3.1 and 3.2 ticked, and Caffeinate, Volume and 3.3a to 3.3c ticked under 3.3, and 3.3d waiting on Milos's trial. Status now
   says so, and Now gained what is true today, which list the app serves and on which key its
   launcher runs. Found by an audit against the repo on 2026-11-16.
+- 2026-11-16 16:09. 3.3d ticked, Milos's trial good. The shadow log stood at 82 lines and no
+  difference. Open: once, leaving Speed Test with Backspace while a run was going and coming back
+  showed an empty pane. Not seen again in his trial, and not reproduced in two tries of mine, the
+  second stopped by the guard before any key since the list had closed. The likeliest cause, not
+  confirmed, is a Speed Test paint landing in a moment the app said its list was not up, which the
+  pane router then draws through Hammerspoon's own backend.
