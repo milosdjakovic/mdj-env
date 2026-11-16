@@ -824,3 +824,24 @@ list, and until then that list stays on Lua.
   Hammerspoon is not connected, and asks again at each query. The live check says it stands in for the
   app and is no offline gate. `olm-bridge-check` 115 checks, the five on the file going failing with
   the watch taken out.
+- 2026-11-16 15:52. 3.3d built, Speed Test's preview pane in the app, Milos's go. The plugin is
+  unchanged. The bridge is one more drawing backend of `lib/previewpane.lua`, sending what the pane
+  drew as `paneDrawn`, a styled text as a Text, a picture as a cached file path, a colour as its
+  values, and a router per plugin picks it while the app shows that plugin's list hosted and the
+  backend the root chose before otherwise, which needed the pane grant made per plugin. The app tells
+  the level `positioned` and `highlight`, draws the elements in the pane view the file search pane
+  uses, and drops a drawing made for a highlight it has since left. A stage word asked outside any
+  request answers the app's highlighted row, the open question 3.3c left, which Speed Test's ticks
+  read. Found while building: a list pushed over the launcher kept the launcher's placement, so a
+  hosted list with a pane had nowhere to draw it, and the window is now placed again on a push and a
+  pop when the pane changes. Not sent, against the first draft: `scrolled`, since under a native
+  scroll the Lua view's offset is always zero, and the empty form of `paneDrawn`, the Lua pane's
+  empty state crossing as elements like any paint. Checked live with screenshots: the trend, a
+  finished run with its curves and arrows, a run drawn live as it ticked, the trend after it ended
+  and the actions pane over a run. Also found live, a rebuilt row keeping its key with a new item was
+  never told to the pane again, which the Lua chooser's refresh does, fixed and pinned.
+  `bridgeserve.lua` 125 checks, `olm-bridge-check` 128, units 2167.
+- 2026-11-16 15:52. A screen drive went wrong. While checking 3.3d live, a Delete, a typed word and
+  Return went into Milos's own Claude Code pane, since the app's launcher had closed between two of
+  my keys while he was typing. The drive now checks before every key that the bridge says the
+  launcher is up and stops otherwise.

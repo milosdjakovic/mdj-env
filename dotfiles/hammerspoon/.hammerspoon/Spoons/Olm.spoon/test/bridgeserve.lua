@@ -476,5 +476,105 @@ local switches = hostingTabs.methods.choices.run({ level = tid2, h = 1, ref = ta
 ok(switches[1].on == true and switches[2].on == false and switches[1].icon.key == "checked",
   "a choice saying on crosses with it, its checkbox the mark it wears")
 
+-- Step 3.3d, the preview pane. A hosted level with a pane says so as it is pushed, a highlight
+-- tells onHighlight once per row under the facade, positioned tells onPositioned with both rects, the
+-- top level's last highlight answers a stage word asked outside a request, and host/bridge/pane.lua's
+-- router and encoder.
+local told = { highlight = {}, positioned = {} }
+local paneList = { name = "speedtest", previewPaneWidth = function() return true end,
+  rows = function() return { { key = "run", title = "Run", item = { pane = "running" } }, { key = "past", title = "Past", item = { pane = "result" } } } end,
+  onSelect = function() end,
+  onHighlight = function(item)
+    told.highlight[#told.highlight + 1] = { item = item, word = facade.recording() and facade.context().item }
+  end,
+  onPositioned = function(frame, paneFrame) told.positioned[#told.positioned + 1] = { frame = frame, pane = paneFrame } end }
+local plainList = { name = "plain", rows = function() return {} end, onSelect = function() end }
+local hostingPane = serve.new({ rpc = rpc, clean = frame.clean, facade = facade,
+  hosted = function() return true end,
+  launcher = { memoryKey = memoryKey, rows = function() return { { title = "Speed Test", item = { kind = "special", name = "speedtest" } },
+      { title = "Plain", item = { kind = "special", name = "plain" } } } end,
+    choose = function(item) return { { present = item.name == "plain" and plainList or paneList } } end },
+  icons = function() return nil end })
+hostingPane.methods.open.run({ what = { launcher = true } })
+hostingPane.methods.rows.run({ level = "v1", q = 1, query = "" })
+local pushed = hostingPane.methods.choose.run({ level = "v1", q = 1, ref = "v1.1", query = "" }).effects[1].push.level
+ok(pushed.previewPane == true, "a hosted level whose previewPaneWidth answers true is pushed with its pane")
+ok(hostingPane.hasPane(plainList) == false, "and one with no previewPaneWidth has none")
+ok(hostingPane.paneLevel("speedtest") and hostingPane.paneLevel("speedtest").id == pushed.id,
+  "the pane of a tool on top lands on its level")
+ok(hostingPane.paneLevel("plain") == nil, "and no other tool's does")
+local pwire = hostingPane.methods.rows.run({ level = pushed.id, q = 1, query = "" }).changes.upsert
+hostingPane.methods.positioned.run({ level = pushed.id, frame = { x = 10, y = 20, w = 600, h = 400 },
+  paneFrame = { x = 620, y = 20, w = 480, h = 400 } })
+ok(#told.positioned == 1 and told.positioned[1].pane.w == 480 and told.positioned[1].frame.x == 10,
+  "positioned tells onPositioned the list's rect and the pane's")
+hostingPane.methods.positioned.run({ level = pushed.id, frame = { x = 10, y = 20, w = 600, h = 400 }, paneFrame = json.null })
+ok(#told.positioned == 2 and told.positioned[2].pane == nil, "and a pane gone as nil")
+local shownBefore = hostingPane.shownItem()
+ok(shownBefore == false, "no highlight told answers nothing outside a request")
+hostingPane.methods.highlight.run({ level = pushed.id, h = 3, ref = pwire[1].ref, row = 1, query = "" })
+ok(#told.highlight == 1 and told.highlight[1].item.pane == "running" and told.highlight[1].word == told.highlight[1].item,
+  "a highlight tells onHighlight its row, with the stage words reading that row")
+hostingPane.methods.highlight.run({ level = pushed.id, h = 4, ref = pwire[1].ref, row = 1, query = "" })
+ok(#told.highlight == 1 and hostingPane.paneLevel("speedtest").lit.h == 4,
+  "the same row again tells nothing, and keeps the newer h for the next paint")
+hostingPane.methods.highlight.run({ level = pushed.id, h = 5, ref = pwire[2].ref, row = 2, query = "" })
+ok(#told.highlight == 2 and told.highlight[2].item.pane == "result", "another row tells it again")
+local handled, item, row = hostingPane.shownItem()
+ok(handled and item.pane == "result" and row == 2, "outside a request the top level's highlighted row answers")
+hostingPane.methods.rows.run({ level = pushed.id, q = 2, query = "" })
+ok(#told.highlight == 3 and told.highlight[3].item.pane == "result" and told.highlight[3].item ~= told.highlight[2].item,
+  "a rebuild that leaves the highlighted row's key with another item tells onHighlight that item")
+hostingPane.methods.highlight.run({ level = pushed.id, h = 6, ref = json.null, row = 0, query = "" })
+ok(#told.highlight == 4 and told.highlight[4].item == nil, "no row is told as none")
+ok(not facade.recording(), "and nothing is left recording")
+
+local paneLib = assert(loadfile(here .. "../host/bridge/pane.lua"))()
+local fakeImage, fakeText = setmetatable({}, { __name = "image" }), setmetatable({}, { __name = "styled" })
+local encoded, dropped = paneLib.encode({
+  { type = "rectangle", action = "fill", frame = { x = 0, y = 0, w = "100%", h = 4 }, fillColor = { red = 1, green = 0.5, blue = 0 },
+    roundedRectRadii = { xRadius = 2, yRadius = 2 }, trackMouseUp = true, id = "x" },
+  { type = "segments", action = "stroke", coordinates = { { x = 0, y = 1 }, { x = 5, y = 6 } }, strokeColor = { red = 0, green = 0, blue = 1, alpha = 0.5 } },
+  { type = "text", text = fakeText, frame = { x = 1, y = 2, w = 3, h = 4 } },
+  { type = "text", text = "plain", textFont = "Menlo", textSize = 14, frame = { x = 1, y = 2, w = 3, h = 4 } },
+  { type = "image", image = fakeImage, frame = { x = 0, y = 0, w = 16, h = 16 }, imageAlpha = 1 },
+  { type = "image", image = setmetatable({}, {}), frame = { x = 0, y = 0, w = 16, h = 16 } },
+}, {
+  color = function(c) return { red = c.red, green = c.green, blue = c.blue, alpha = c.alpha or 1 } end,
+  text = function(t) return t == fakeText and { string = "Hi", font = "SF", size = 14, color = { red = 0, green = 0, blue = 0, alpha = 1 } } or nil end,
+  picture = function(i) return i == fakeImage and { path = "/tmp/x.png" } or nil end })
+ok(#encoded == 5 and #dropped == 1 and dropped[1] == "image", "a picture that cannot cross is left out and named")
+ok(encoded[1].frame.w == "100%" and encoded[1].fillColor.alpha == 1 and encoded[1].roundedRectRadii.xRadius == 2,
+  "a shape keeps its frame, radii and colour, alpha filled in")
+ok(encoded[1].trackMouseUp == nil and encoded[1].id == nil, "the mouse tracking attributes stay behind")
+ok(encoded[2].coordinates[2].y == 6 and encoded[2].strokeColor.alpha == 0.5, "a curve keeps its points")
+ok(encoded[3].text.string == "Hi" and encoded[3].text.font == "SF", "a styled text crosses as a Text")
+ok(encoded[4].text == "plain" and encoded[4].textFont == "Menlo", "a plain string crosses as it is, with its attributes")
+ok(encoded[5].image.path == "/tmp/x.png" and encoded[5].imageAlpha == 1, "a picture crosses as its path")
+
+local hostedNow, calls = false, {}
+local function fakeBackend(tag, native)
+  return function()
+    return { place = function() calls[#calls + 1] = tag .. ":place" end,
+      render = function(_, content, scroll) calls[#calls + 1] = tag .. ":render:" .. #content .. ":" .. tostring(scroll ~= nil) end,
+      show = function() calls[#calls + 1] = tag .. ":show" end, hide = function() calls[#calls + 1] = tag .. ":hide" end,
+      destroy = function() calls[#calls + 1] = tag .. ":destroy" end,
+      scrollsNatively = function() return native end }
+  end
+end
+local sentPaint = {}
+local router = paneLib.router(fakeBackend("local", true),
+  paneLib.backend(function(content, scroll) sentPaint[#sentPaint + 1] = { n = #content, scroll = scroll } end),
+  function() return hostedNow end)({ x = 0, y = 0, w = 10, h = 10 })
+ok(router.scrollsNatively() == true, "the router scrolls natively where the local backend does")
+router.render({}, { {}, {} }, { height = 20 })
+ok(calls[#calls] == "local:render:2:true" and #sentPaint == 0, "not hosted, the local backend draws")
+hostedNow = true
+router.render({}, { {} }, { height = 30, reset = false })
+ok(#sentPaint == 1 and sentPaint[1].n == 1 and sentPaint[1].scroll.height == 30, "hosted, the paint goes to the app")
+ok(calls[#calls] == "local:hide", "and the local backend it left is hidden")
+router.destroy()
+ok(calls[#calls] == "local:destroy", "destroy tears down what was built")
+
 print(string.format("bridgeserve: %d checks, %d failed", checks, failures))
 os.exit(failures == 0 and 0 or 1)

@@ -310,9 +310,44 @@ public struct Preview: Sendable, Equatable {
 public struct PreviewPane: Sendable, Equatable {
   /// What the pane says while the highlight has nothing to describe.
   public var emptyText: String
+  /// Whether the source draws the pane itself and hands the stage what it drew whenever it likes,
+  /// a list Hammerspoon hosts, step 3.3d, rather than answering preview for each row.
+  public var drawn: Bool
 
-  public init(emptyText: String) {
+  public init(emptyText: String, drawn: Bool = false) {
     self.emptyText = emptyText
+    self.drawn = drawn
+  }
+}
+
+/// A rectangle in Hammerspoon's space, y measured down from the top of the primary screen.
+public struct ScreenRect: Sendable, Equatable {
+  public var x, y, w, h: Double
+  public init(x: Double, y: Double, w: Double, h: Double) {
+    self.x = x
+    self.y = y
+    self.w = w
+    self.h = h
+  }
+}
+
+/// What a source that draws its own pane drew, step 3.3d, docs/PROTOCOL-BRIDGE.md The preview pane.
+/// elements is the JSON array of canvas elements as the protocol carries them, read by the stage,
+/// so this layer holds no drawing vocabulary of its own.
+public struct DrawnPane: Sendable, Equatable {
+  /// The highlight generation the drawing was made for, the bridge's h.
+  public var highlight: Int
+  public var elements: Data
+  /// The content's full height in points, the pane's own when it fits.
+  public var height: Double
+  /// Whether the view stays where it is scrolled, for the same row drawn again.
+  public var keepScroll: Bool
+
+  public init(highlight: Int, elements: Data, height: Double, keepScroll: Bool) {
+    self.highlight = highlight
+    self.elements = elements
+    self.height = height
+    self.keepScroll = keepScroll
   }
 }
 
@@ -487,6 +522,11 @@ public protocol ListSource: Actor {
   /// Backspace on the empty field of a list shown over another, answered true when the list took it
   /// itself and false for the stage to give the list below back.
   func back() async -> Bool
+  /// Where the stage placed the list and its pane, nil for a pane gone, told to a source whose pane
+  /// is drawn, step 3.3d, before it is told any highlight.
+  func positioned(frame: ScreenRect?, pane: ScreenRect?) async
+  /// The highlight rested on a row, or on none, told to a source whose pane is drawn, step 3.3d.
+  func highlighted(_ pick: Pick?) async
   /// The list was closed.
   func close() async
 }
@@ -516,4 +556,8 @@ extension ListSource {
   public func pushed(_ token: String) async -> (any ListSource)? { nil }
   /// A source with no back of its own leaves Backspace to the stage.
   public func back() async -> Bool { false }
+  /// A source that draws no pane of its own is not told where it stands.
+  public func positioned(frame: ScreenRect?, pane: ScreenRect?) async {}
+  /// A source that draws no pane of its own is not told the highlight.
+  public func highlighted(_ pick: Pick?) async {}
 }

@@ -169,7 +169,9 @@ public actor BridgedLevel: ListSource {
     let name = (wire["name"].string ?? "").lowercased()
     // The actions its list's actions pane runs, step 3.3b, by the ids the push names.
     let actions = (wire["actions"].array ?? []).compactMap(\.string).map { Action(id: $0, title: $0) }
-    self.manifest = Manifest(name: name, title: name, actions: actions)
+    // A pane the tool draws in Lua and sends as paneDrawn, step 3.3d.
+    let pane = wire["previewPane"].bool == true ? PreviewPane(emptyText: "", drawn: true) : nil
+    self.manifest = Manifest(name: name, title: name, actions: actions, previewPane: pane)
     self.level = WireEffects.level(wire, defaultRowLimit: defaultRowLimit)
     self.defaultRowLimit = defaultRowLimit
     self.log = log
@@ -273,6 +275,27 @@ public actor BridgedLevel: ListSource {
   public func back() async -> Bool {
     guard !closed, let answer = try? await bridge.request("back", .object(["level": .string(id)])) else { return false }
     return answer["handled"].bool ?? false
+  }
+
+  // Where the stage placed the list and its pane, step 3.3d, the protocol's positioned.
+  public func positioned(frame: ScreenRect?, pane: ScreenRect?) async {
+    guard !closed else { return }
+    func rect(_ r: ScreenRect?) -> JSON {
+      guard let r else { return .null }
+      return .object(["x": .number(r.x), "y": .number(r.y), "w": .number(r.w), "h": .number(r.h)])
+    }
+    await bridge.notify("positioned", .object(["level": .string(id), "frame": rect(frame), "paneFrame": rect(pane)]))
+  }
+
+  // The row the highlight rests on, step 3.3d, the protocol's highlight, which the Lua side tells
+  // the presentation's onHighlight and names in every pane it draws after.
+  public func highlighted(_ pick: Pick?) async {
+    guard !closed else { return }
+    var params: [String: JSON] = ["showing": .bool(true), "level": .string(id), "q": .number(Double(q)),
+      "h": .number(Double(pick?.highlight ?? 0)), "row": .number(Double(pick?.row ?? 0)),
+      "query": .string(pick?.query ?? "")]
+    if let pick, let ref = store.refs[pick.key] { params["ref"] = .string(ref) } else { params["ref"] = .null }
+    await bridge.notify("highlight", .object(params))
   }
 
   /// The stage closed this list, popped back or hidden, so its level goes on the Lua side.

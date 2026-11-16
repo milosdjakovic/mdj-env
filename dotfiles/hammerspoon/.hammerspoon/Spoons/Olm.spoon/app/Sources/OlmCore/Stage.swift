@@ -127,6 +127,12 @@ public final class Stage {
   private var revealTask: Task<Void, Never>?
   private var heldPaint: PanePaint?
   private var heldBusy = false
+  // A pane a hosted list draws in Lua, step 3.3d: what it drew while an open waited, the highlight
+  // generation it was last told, and where the list and its pane were placed, which it is told
+  // before any highlight.
+  private var heldDrawn: (elements: [PaneElement], height: Double)?
+  private var toldGeneration = -1
+  private var placedRects: (frame: ScreenRect?, pane: ScreenRect?) = (nil, nil)
   // The placement choice the list was last opened with, for a reopen.
   private var screenMode: String?
   // A list that fits its rows, docs/DESIGN-FIT-HEIGHT.md. The screen and the pane it was placed
@@ -162,6 +168,8 @@ public final class Stage {
   private static let downCapMs: UInt64 = 1000
   // The verbs this step does not run yet, said once each.
   private var unknownVerbs: Set<String> = []
+  // The pane element kinds a drawn pane held that the app cannot draw, said once each.
+  private var unsupportedPane: Set<String> = []
   // The lists under the one shown, the nearest last, each as it stood when a push covered it.
   private struct Parked {
     let source: any ListSource
@@ -221,6 +229,7 @@ public final class Stage {
         if paneHost == nil { paneHost = PaneHost(panel: panel) }
         paneHost?.place(rect)
       }
+      placedRects = Self.rects(placement, pane: pane != nil)
     } else {
       // No look has been written yet, so the panel draws on its own defaults until Hammerspoon
       // loads with the piece on.
@@ -245,8 +254,10 @@ public final class Stage {
     }
     let mine = generation
     let closing = self.closing
+    let placed = placedRects
     task = Task {
       await closing?.value
+      if next.manifest.previewPane?.drawn == true { await next.positioned(frame: placed.frame, pane: placed.pane) }
       let level = await next.open(query: query)
       guard mine == self.generation else { return }
       self.level = level
@@ -266,6 +277,12 @@ public final class Stage {
     if NSApp.isHidden { NSApp.unhide(nil) }
     panel.show()
     guard let pane, let paneHost else { return }
+    if let held = heldDrawn {
+      heldDrawn = nil
+      heldPaint = nil
+      paneHost.draw(elements: held.elements, height: held.height, radius: paneRadius, reset: true)
+      return
+    }
     let paint = heldPaint ?? PanePainter.empty(pane.emptyText, frame: pane.frame, tokens: pane.tokens, measure: paneMeasure)
     heldPaint = nil
     paneHost.draw(paint, radius: paneRadius, reset: true, busy: heldBusy)
@@ -373,11 +390,14 @@ public final class Stage {
       self.generation += 1
       self.task?.cancel()
       self.resetPane()
+      self.placeAgain(for: child)
       self.bars = Bars.read(child.manifest.name)
       self.text = ""
       self.panel.setText("")
       let mine = self.generation
+      let placed = self.placedRects
       self.task = Task {
+        if child.manifest.previewPane?.drawn == true { await child.positioned(frame: placed.frame, pane: placed.pane) }
         let level = await child.open(query: "")
         guard mine == self.generation else { return }
         self.level = level
@@ -409,6 +429,12 @@ public final class Stage {
     task?.cancel()
     source = parent.source
     level = parent.level
+    resetPane()
+    placeAgain(for: parent.source)
+    if parent.source.manifest.previewPane?.drawn == true {
+      let placed = placedRects, list = parent.source
+      Task { await list.positioned(frame: placed.frame, pane: placed.pane) }
+    }
     bars = Bars.read(parent.source.manifest.name)
     text = parent.text
     panel.setText(parent.text)
@@ -420,6 +446,74 @@ public final class Stage {
     apply(status: parent.status)
     Task { await child.close() }
     search(parent.text, keepHighlight: true)
+  }
+
+  // The window placed again for a list pushed over another or given back, with a pane where its
+  // manifest has one and none where it has none, step 3.3d, since a tool's list hosted in the
+  // launcher brings a pane the launcher has not. A list with the pane the window already has is
+  // placed again only where it draws its pane in Lua, which is then told where it stands.
+  private func placeAgain(for list: any ListSource) {
+    let wants = list.manifest.previewPane != nil
+    guard wants != (pane != nil) || list.manifest.previewPane?.drawn == true else { return }
+    guard let look, let screen = placedScreen else { return }
+    pane = nil
+    fitShown = nil
+    let tokens = wants ? look.paneTokens() : nil
+    placedPane = tokens != nil
+    let (placement, frame) = look.placement(on: screen, pane: placedPane)
+    panel.place(placement)
+    let budget = look.textBudget(on: screen, pane: placedPane)
+    if budget != rowBudget { onTextBudget?(budget) }
+    rowBudget = budget
+    if let tokens, let frame, let rect = placement.previewPane, let spec = list.manifest.previewPane {
+      pane = (frame, tokens, spec.emptyText)
+      if paneHost == nil { paneHost = PaneHost(panel: panel) }
+      paneHost?.place(rect)
+    }
+    if pane == nil { paneHost?.close() }
+    placedRects = Self.rects(placement, pane: pane != nil)
+  }
+
+  // The list's and the pane's rects in Hammerspoon's space, as the Lua stage tells onPositioned.
+  private static func rects(_ placement: Placement, pane: Bool) -> (frame: ScreenRect?, pane: ScreenRect?) {
+    func r(_ n: NSRect) -> ScreenRect { ScreenRect(x: n.minX, y: n.minY, w: n.width, h: n.height) }
+    return (r(placement.canvas), pane ? placement.previewPane.map(r) : nil)
+  }
+
+  // Whether the list up now draws its pane in Lua and hands the stage what it drew, step 3.3d.
+  private var paneDrawn: Bool { pane != nil && source?.manifest.previewPane?.drawn == true }
+
+  // The row the highlight rests on told to a list that draws its pane, once per generation, a status
+  // or no row told as none, so its own describer draws the empty state.
+  private func tellHighlight() {
+    guard let source, highlightGeneration != toldGeneration else { return }
+    toldGeneration = highlightGeneration
+    var pick: Pick?
+    if highlight >= 1, highlight <= rows.count, !rows[highlight - 1].inert {
+      pick = Pick(key: rows[highlight - 1].key, query: text, row: highlight, highlight: highlightGeneration)
+    }
+    let told = pick
+    Task { await source.highlighted(told) }
+  }
+
+  /// What a hosted list's pane drew in Lua, drawn where the list is up, step 3.3d. A drawing made for
+  /// a highlight the stage has since moved from is dropped, the protocol's Generations, the next one
+  /// coming once the list is told the new row.
+  public func drawn(_ list: any ListSource, _ drawing: DrawnPane) {
+    guard let source, source === list, let pane, paneDrawn, drawing.highlight == highlightGeneration else { return }
+    let (elements, unsupported) = PaneElements.read(drawing.elements,
+      size: NSSize(width: pane.frame.w, height: pane.frame.h))
+    for kind in unsupported where !unsupportedPane.contains(kind) {
+      unsupportedPane.insert(kind)
+      NSLog("Olm: a pane element the app cannot draw was left out, %@", kind)
+    }
+    let height = max(drawing.height, pane.frame.h)
+    if revealPending {
+      heldDrawn = (elements, height)
+      reveal()
+      return
+    }
+    paneHost?.draw(elements: elements, height: height, radius: paneRadius, reset: !drawing.keepScroll)
   }
 
   /// A source's list redrawn where it is on screen, its rows asked again for the same text, hold
@@ -578,6 +672,8 @@ public final class Stage {
     previewGeneration += 1
     previewShown = nil
     previewAsking = nil
+    toldGeneration = -1
+    heldDrawn = nil
   }
 
   // The empty state, for no highlight or a status in place of the rows.
@@ -590,7 +686,7 @@ public final class Stage {
   // The highlight moved or the rows changed, so the row it rests on is described once it settles.
   private func settlePreview() {
     guard pane != nil else { return }
-    watchStale()
+    if !paneDrawn { watchStale() }
     settleTask?.cancel()
     let ms = level?.previewSettleMs ?? 60
     settleTask = Task {
@@ -623,6 +719,10 @@ public final class Stage {
 
   private func describe() {
     guard let pane, let source else { return }
+    if paneDrawn {
+      tellHighlight()
+      return
+    }
     guard highlight >= 1, highlight <= rows.count else {
       clearPane()
       return

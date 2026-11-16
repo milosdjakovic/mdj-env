@@ -353,6 +353,12 @@ same level is answered at once with `-32011`, stale, and never run.
 The app sends the notification `highlight` whenever the highlighted row or the input field of the
 top level changes, and when a level opens, closes or comes to the top.
 
+As built in step 3.3d it is sent only for a hosted level whose pane is drawn in Lua, once the
+highlight has rested for the level's settle, once per highlight generation, with `ref` null for no
+row or a status. `positioned {level, frame, paneFrame}` goes before it, when the level opens and
+whenever the window is placed again under it. A rebuilt list whose highlighted row keeps its key
+with a new item is told to `onHighlight` again by the Lua side itself, after its `rows` answer.
+
 ```json
 {"jsonrpc":"2.0","method":"highlight","params":{"showing":true,"level":"v7","q":14,"h":31,"ref":"v7.112","row":3,"query":"img cat"}}
 ```
@@ -550,8 +556,9 @@ What a plugin drew arrives as the notification `paneDrawn`.
 ```
 
 `ref` and `h` are those of the highlight the plugin was last told, and the app drops a `paneDrawn`
-older than its `h`. `{"empty":true}` in place of `elements` is the shared empty state,
-`pane.clear()`. `keepScroll` keeps the app's scroll offset rather than returning to the top.
+whose `h` is not its level's own. The shared empty state, `pane.clear()`, crosses as elements like
+any paint. `keepScroll` keeps the app's scroll offset rather than returning to the top. Served since
+step 3.3d, `host/bridge/pane.lua`, with `positioned` and `highlight` from the app.
 
 `elements` is the list `native/Pane.swift` draws and `PaneReader` in `native/Lua.swift` reads, as
 JSON, every attribute that reader reads: `type` of `rectangle`, `segments`, `image`, `text` or
@@ -561,14 +568,16 @@ percent strings, `fillColor`, `strokeColor`, `strokeWidth`, `strokeCapStyle`, `s
 `text`, `textFont`, `textSize`, `textColor`, `textAlignment`, `textLineBreak`, `id` and
 `trackMouseUp`. The kit resolves a typography role to `textFont` and `textSize` before an element
 is handed over, which is why a pane element may carry a font when a row may not. Three values
-differ from today, since what Lua hands the canvas now cannot cross. `image` is a Picture, `text`
-is Text, and a colour is a Role or `{red, green, blue, alpha}`, the second only for a colour that is
-content, a colour sample's swatch.
+differ from today, since what Lua hands the canvas now cannot cross. `image` is a Picture, a colour
+is `{red, green, blue, alpha}`, every colour the kit resolved, and `text` is either a plain string
+with `textFont`, `textSize` and `textColor` beside it, or the kit's one run of styled text as
+`{string, font, size, color, alignment, lineBreak, lineHeight, tight}`, `tight` saying the run is
+never tightened before it is cut, the mono font's rule. An element whose text or picture cannot
+cross is left out and said once in the console.
 
-The app owns the scroll and moves the content at once. It sends the notification `scrolled {level,
-y}` when the scroll settles, which the backend keeps as `view.scrollY`, so a painter with a fixed
-header reads the offset it reads today and redraws its header after the scroll rather than during
-it, the one place a preview is behind the person, accepted until that painter is native.
+The app owns the scroll and moves the content at once. A painter with a fixed header would need
+the notification `scrolled {level, y}` once the scroll settles, kept as `view.scrollY`. It is not
+sent yet, since under the native scroll every pane served today reads an offset of zero.
 A press on an element with `id` and `trackMouseUp` is the notification `clicked {level, ref, id}`.
 
 ## The bottom bar

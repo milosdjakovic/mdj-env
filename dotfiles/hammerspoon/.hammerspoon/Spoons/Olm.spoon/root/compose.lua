@@ -334,6 +334,16 @@ local function hostedWord(modules, plan, name, ...)
   return bridge:hostedWord(name, ...)
 end
 
+-- The preview pane's drawing backend for one plugin, step 3.3d, the bridge's router over the
+-- backend previewPaneBackend picks, so the pane draws in Olm.app while the app shows that plugin's
+-- list hosted, and as before otherwise. Resolved at the pane's first paint, after the bridge is
+-- wired. At file scope, since the root's own function is at the 200 locals a Lua function may hold.
+local function paneBackendFor(modules, plan, owner, base)
+  local bridge = modules and plan and modules[plan.identity.bridge or "bridge"]
+  if bridge and type(bridge.paneBackend) == "function" then return bridge:paneBackend(owner, base) end
+  return base
+end
+
 local function wireShadows(bridge, modules, registry, rank, matcher, opts)
   if not (bridge and type(bridge.shadowed) == "function" and type(bridge.shadowWith) == "function") then return end
   opts = opts or {}
@@ -2539,14 +2549,19 @@ function obj.run(olm, cfg)
     -- Its chrome and its quiet state are CanvasPanel's and its text is the kit's, named here
     -- and nowhere else, so a pane in a plugin draws only its own content. Its drawing backend
     -- follows the chooser that serves, see previewPaneBackend above obj.run.
-    previewPane = function(spec)
-      return previewPaneLib.new({
-        ui = uiAtom,
-        surface = canvasPanel.surfaceElements,
-        emptyState = canvasPanel.emptyStateElements,
-        backend = previewPaneBackend(chooserAtom, chooserProvider),
-      }, spec)
-    end,
+    -- One factory per plugin, so the pane knows whose it is, which the bridge's router asks.
+    previewPane = servicesLib.perName(function(owner)
+      return function(spec)
+        return previewPaneLib.new({
+          ui = uiAtom,
+          surface = canvasPanel.surfaceElements,
+          emptyState = canvasPanel.emptyStateElements,
+          backend = function(frame, window)
+            return paneBackendFor(modules, plan, owner, previewPaneBackend(chooserAtom, chooserProvider))(frame, window)
+          end,
+        }, spec)
+      end
+    end),
     log = log,
   })
 

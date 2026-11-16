@@ -181,7 +181,10 @@ function obj.new(deps)
       -- state and the lifecycle around what the plugin draws are written once in
       -- lib/previewpane.lua rather than once per plugin.
       if decl.previewPane then
-        opts.previewPane = services.previewPane
+        local grant = services.previewPane
+        -- A grant made per plugin, so the pane knows its owner, lib/services.lua's perName.
+        if type(grant) == "table" and grant.__perName then grant = grant.__perName(name) end
+        opts.previewPane = grant
       end
     end
 

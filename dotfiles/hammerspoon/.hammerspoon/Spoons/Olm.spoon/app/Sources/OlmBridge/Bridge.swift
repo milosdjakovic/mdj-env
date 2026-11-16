@@ -63,6 +63,7 @@ public actor Bridge {
   // who redraws one, and each owner's icons as this connection answered them, asked once.
   private var hosted: [String: BridgedLevel] = [:]
   private var redraw: (@Sendable (any ListSource, Bool) -> Void)?
+  private var paneDrawn: (@Sendable (any ListSource, DrawnPane) -> Void)?
   private var ownerIcons: [String: [String: Icon]] = [:]
   private var log: @Sendable (String) -> Void
 
@@ -88,6 +89,11 @@ public actor Bridge {
   /// Who redraws a hosted list the effects notification names, the stage, hold keeping its highlight.
   public func onRedraw(_ fn: @escaping @Sendable (any ListSource, Bool) -> Void) {
     redraw = fn
+  }
+
+  /// Who draws what a hosted list's pane drew, the stage, step 3.3d.
+  public func onPaneDrawn(_ fn: @escaping @Sendable (any ListSource, DrawnPane) -> Void) {
+    paneDrawn = fn
   }
 
   /// A hosted list a push opened, held until its close, so the effects notification reaches it.
@@ -234,6 +240,12 @@ public actor Bridge {
       for effect in params["effects"].array ?? [] where !effect["rows"].isNull {
         redraw?(level, effect["rows"]["hold"].bool ?? false)
       }
+    case "paneDrawn":
+      // What a hosted list's pane drew, step 3.3d, docs/PROTOCOL-BRIDGE.md The preview pane.
+      guard let id = params["level"].string, let level = hosted[id],
+        let elements = (params["elements"].array.map { JSON.array($0) } ?? .array([])).encoded() else { return }
+      paneDrawn?(level, DrawnPane(highlight: params["h"].int ?? 0, elements: elements,
+        height: params["contentHeight"].number ?? 0, keepScroll: params["keepScroll"].bool ?? false))
     default:
       // A notification of a newer peer is read as nothing, the protocol's hello.
       break

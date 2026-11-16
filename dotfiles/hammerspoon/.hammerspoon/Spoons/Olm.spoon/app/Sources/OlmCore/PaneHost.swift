@@ -56,6 +56,13 @@ final class PaneHost {
     }
   }
 
+  /// Draws elements a hosted list's pane drew in Lua, step 3.3d, at the content's full height.
+  func draw(elements: [PaneElement], height: Double, radius: CGFloat, reset: Bool) {
+    spinner.stopAnimation(nil)
+    pane.draw(elements, radius: radius, scroll: PaneScroll(height: CGFloat(height), reset: reset, thumb: false))
+    pane.show()
+  }
+
   /// Further down by points, answering whether the view moved.
   @discardableResult
   func scrollBy(_ points: CGFloat) -> Bool { pane.scrollBy(points) }

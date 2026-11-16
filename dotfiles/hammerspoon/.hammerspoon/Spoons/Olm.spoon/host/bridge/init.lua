@@ -307,7 +307,22 @@ end
 --- outside a request, and the word then acts on the Lua stage as before.
 function obj:hostedWord(name, ...)
   local f = self._facade
-  if not (f and f.recording()) then return false end
+  if not (f and f.recording()) then
+    -- Outside a request, the row the app highlights while it shows a hosted list, step 3.3d, so a
+    -- tool's own timer, Speed Test's run ticking, asks the app's row and not the hidden Lua stage's.
+    if (name == "stageSelectedItem" or name == "stageSelectedRow") and self._service
+      and type(self._service.shownItem) == "function" then
+      local handled, item, row = self._service.shownItem()
+      if handled then
+        local top = self._service.hostedTop()
+        if top and self:hosting(top) then
+          if name == "stageSelectedItem" then return true, item end
+          return true, row
+        end
+      end
+    end
+    return false
+  end
   local context = f.context() or {}
   if name == "stageSelectedItem" then return true, context.item end
   if name == "stageSelectedRow" then return true, context.row end
@@ -325,6 +340,93 @@ function obj:hostedWord(name, ...)
     return true, true
   end
   return false
+end
+
+-- A colour of hs.canvas's as its red, green, blue and alpha, through hs.drawing.color where it is
+-- named some other way, a list or a hex.
+local function rgbaOf(c)
+  if type(c) ~= "table" then return nil end
+  if c.red == nil and c.green == nil and c.blue == nil and hs.drawing and hs.drawing.color then
+    local ok, v = pcall(hs.drawing.color.asRGB, c)
+    if ok and type(v) == "table" then c = v end
+  end
+  return { red = tonumber(c.red) or 0, green = tonumber(c.green) or 0, blue = tonumber(c.blue) or 0,
+    alpha = tonumber(c.alpha) or 1 }
+end
+
+-- An hs.styledtext of the kit's, one run, as a Text, docs/PROTOCOL-BRIDGE.md The preview pane.
+local function textOf(st)
+  if not (type(st) == "userdata" and st.asTable) then return nil end
+  local ok, t = pcall(st.asTable, st)
+  if not ok or type(t) ~= "table" or type(t[1]) ~= "string" then return nil end
+  local run = type(t[2]) == "table" and t[2].attributes or {}
+  local font, para = run.font or {}, run.paragraphStyle or {}
+  return { string = t[1], font = font.name, size = tonumber(font.size), color = rgbaOf(run.color),
+    alignment = para.alignment, lineBreak = para.lineBreak,
+    -- type-exempt, the kit's own line height read off its styled text to cross to Olm.app, set nowhere here
+    lineHeight = tonumber(para.maximumLineHeight) or tonumber(para.minimumLineHeight),
+    -- The kit pins the mono font's tightening to zero, layout.lua's textElement, and NSParagraphStyle's
+    -- own default is above it.
+    tight = tonumber(para.tighteningFactorForTruncation) == 0 or nil }
+end
+
+obj.PICTURES = os.getenv("HOME") .. "/.olm/cache/bridge"
+
+-- An hs.image as a Picture, written once under a name taken from its content, the protocol's
+-- Picture. The icon engine hands the same image object for the same icon, so each is kept weakly.
+local pictures = setmetatable({}, { __mode = "k" })
+local function pictureOf(img)
+  if type(img) ~= "userdata" or not img.encodeAsURLString then return nil end
+  if pictures[img] then return pictures[img] end
+  local okUrl, url = pcall(img.encodeAsURLString, img, false, "PNG")
+  if not okUrl or type(url) ~= "string" then return nil end
+  local path = obj.PICTURES .. "/" .. hs.hash.MD5(url) .. ".png"
+  if not hs.fs.attributes(path) then
+    hs.fs.mkdir(os.getenv("HOME") .. "/.olm/cache")
+    hs.fs.mkdir(obj.PICTURES)
+    local b64 = url:match("^data:[^,]*;base64,(.*)$")
+    local bytes = b64 and hs.base64.decode(b64)
+    local f = bytes and io.open(path, "wb")
+    if not f then return nil end
+    f:write(bytes)
+    f:close()
+  end
+  pictures[img] = { path = path }
+  return pictures[img]
+end
+
+local paneLib = nil
+local function panes()
+  paneLib = paneLib or sibling("pane")
+  return paneLib
+end
+
+--- obj:paneBackend(owner, localFactory) -> the drawing backend factory for owner's preview pane,
+--- step 3.3d. While the app shows owner's list hosted on top, what the pane draws goes to the app as
+--- paneDrawn. Otherwise it draws through localFactory, the backend the root chose before.
+function obj:paneBackend(owner, localFactory)
+  local lib = panes()
+  local remote = lib.backend(function(content, scroll) self:_paneDrawn(owner, content, scroll) end)
+  return lib.router(localFactory, remote, function() return self:hosting(owner) end)
+end
+
+-- One paint of owner's pane sent to the level that shows it, naming the highlight the Lua side was
+-- last told, docs/PROTOCOL-BRIDGE.md The preview pane.
+function obj:_paneDrawn(owner, content, scroll)
+  local level = self._service and self._service.paneLevel(owner)
+  if not level then return false end
+  local elements, dropped = panes().encode(content, { color = rgbaOf, text = textOf, picture = pictureOf })
+  for _, kind in ipairs(dropped) do
+    if not self._said["pane:" .. kind] then
+      self._said["pane:" .. kind] = true
+      log.w("a " .. kind .. " element of " .. owner .. "'s pane could not cross to Olm.app and was left out")
+    end
+  end
+  local lit = level.lit or {}
+  local frame = level.paneFrame or {}
+  return self:notify("paneDrawn", { level = level.id, h = lit.h or 0, ref = lit.ref,
+    elements = elements, contentHeight = scroll and scroll.height or frame.h or 0,
+    keepScroll = scroll ~= nil and scroll.reset == false })
 end
 
 --- obj:memoryChanged() tells the app the launcher's memory moved, after a pick the launcher

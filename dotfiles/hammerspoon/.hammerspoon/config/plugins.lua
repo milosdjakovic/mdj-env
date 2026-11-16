@@ -113,7 +113,7 @@ return {
     -- The tools whose own list the app shows inside its launcher, step 3.3, so the launcher's row
     -- for one replaces its rows in place in the app's window. A tool joins in the step that hosts
     -- it, and taking it out leaves its row put in the app's launcher, as before.
-    hosts = { "caffeinate", "volume", "audio", "wifi", "inputsources", "tmuxSessions", "vpn", "emoji", "browserTabs" },
+    hosts = { "caffeinate", "volume", "audio", "wifi", "inputsources", "tmuxSessions", "vpn", "emoji", "browserTabs", "speedtest" },
     -- The tools whose every settled answer the app answers again and compares, step 1.3e. File
     -- search's compares nothing while the app serves it and resumes by itself after a back out.
     -- The launcher's, step 2.3, goes over the socket, the app ranking the rows the bridge sends.

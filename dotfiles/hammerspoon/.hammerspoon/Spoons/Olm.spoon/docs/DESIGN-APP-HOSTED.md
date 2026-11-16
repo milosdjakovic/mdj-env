@@ -222,7 +222,8 @@ list, and Browser Tabs' settings page has a Back row that pops its own level.
 
 ## 3.3d, the preview pane
 
-Written on 2026-11-16, waiting for Milos's go. Speed Test is the tool. Its list is a flat list,
+Written on 2026-11-16 and built the same day with Milos's go, as below, with three changes from the
+draft said at the end. Speed Test is the tool. Its list is a flat list,
 and its preview pane draws every figure a run returns, a live curve while a run is going, a
 finished run, and a network's trend. Its actions pane holds settings with choices, Name This
 Network, which opens an input level, and two clears that ask first and show only when there is
@@ -241,7 +242,6 @@ since 3.3b, and `stagePush` and `stagePop` since 3.3c. So this step is the pane,
     - A styled text becomes a Text: its string, font, size, colour, alignment and line break.
     - A picture becomes a PNG data URL, the way the bar items cross.
     - A colour becomes its red, green, blue and alpha values.
-  - `clear` sends `{"empty":true}`.
 - **Choosing the backend.** The root's pane grant wraps the backend it picks today in a router,
   one per plugin. The router draws through the bridge while `bridge:hosting()` says the app
   shows that plugin's level, and through today's backend otherwise. When it switches, it hides
@@ -250,7 +250,6 @@ since 3.3b, and `stagePush` and `stagePop` since 3.3c. So this step is the pane,
   - `highlight`: when the highlighted row changes, and when a level opens or comes back to the
     top.
   - `positioned`: carries the pane's frame. `paneFrame` null hides the pane.
-  - `scrolled`: once a scroll settles.
 - **What Lua does with them.** It calls the presentation's `onHighlight` and `onPositioned`
   under the facade. It keeps the latest highlighted item, so `stageSelectedItem` outside a
   request answers the app's row while the app shows the level. Today that word reads the hidden
@@ -271,6 +270,16 @@ since 3.3b, and `stagePush` and `stagePop` since 3.3c. So this step is the pane,
   - Any pane the app draws itself. File search keeps its own native preview, which is 3.3e.
 
 `hosts` gains `speedtest`.
+
+**What the build changed from the draft.**
+- A list pushed over the launcher kept the launcher's placement, so the window had no pane for it.
+  The stage now places the window again on a push and on a pop when the pane changes, and tells a
+  list whose pane is drawn in Lua where it stands each time.
+- `scrolled` is not sent and `{"empty":true}` is not used. Under the native scroll the Lua view's
+  offset is always zero, so `scrolled` would change nothing, and the Lua pane's empty state crosses
+  as elements like any other paint.
+- A rebuilt list whose highlighted row keeps its key with a new item tells `onHighlight` again, as
+  the Lua chooser's refresh does after every rebuild. Found in the live check.
 
 **Tests.**
 - `test/bridgeserve.lua`:

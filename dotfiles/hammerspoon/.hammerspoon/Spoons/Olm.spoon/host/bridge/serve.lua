@@ -313,6 +313,7 @@ function M.new(opts)
       if params.have ~= revision then
         answer.changes = { upsert = upsert, remove = remove, order = order }
       end
+      service.relit(level)
       return answer
     end,
   }
@@ -417,6 +418,108 @@ function M.new(opts)
     return rows, false
   end
 
+  -- A hosted list's code run under the facade, with the request's own row and query, so the stage
+  -- words it calls act on the app's list.
+  local function during(fn, context)
+    if opts.facade then return opts.facade.during(fn, context) end
+    return {}, fn()
+  end
+
+  --- service.hasPane(p) -> whether a hosted presentation has a preview pane, step 3.3d, its
+  --- previewPaneWidth answering true or a width, as the stage reads it. The app reserves the pane at
+  --- the look's own width, the same the Lua list takes for true.
+  function service.hasPane(p)
+    local w = p.previewPaneWidth
+    if type(w) == "function" then
+      local ok, v = pcall(w)
+      w = ok and v or nil
+    end
+    return w == true or (type(w) == "number" and w > 0)
+  end
+
+  --- service.paneLevel(name) -> the hosted level on top of the app's stack when it shows name's
+  --- list, the level a pane that plugin draws lands on, step 3.3d, or nil.
+  function service.paneLevel(name)
+    local best, top = -1, nil
+    for id, level in pairs(service.levels) do
+      local n = tonumber(tostring(id):sub(2)) or -1
+      if n > best then best, top = n, level end
+    end
+    if top and top.kind == "presentation" and top.presentation and top.presentation.name == name then return top end
+    return nil
+  end
+
+  --- service.shownItem() -> handled, item, the row the app highlights on its top hosted level, as
+  --- its last highlight said, for a stage word asked outside any request, step 3.3d. handled is
+  --- false when the top is not a hosted level or no highlight has been told.
+  function service.shownItem()
+    local best, top = -1, nil
+    for id, level in pairs(service.levels) do
+      local n = tonumber(tostring(id):sub(2)) or -1
+      if n > best then best, top = n, level end
+    end
+    if not (top and top.kind == "presentation" and top.lit) then return false end
+    return true, top.lit.item, top.lit.row
+  end
+
+  -- The highlight the app moved, step 3.3d, docs/PROTOCOL-BRIDGE.md The highlight. Kept on the
+  -- level, so a pane drawn later names it and a stage word asked outside a request reads its row,
+  -- and the presentation's onHighlight told once per row, under the facade so the stage words it
+  -- calls read the app's row.
+  methods.highlight = { run = function(params)
+    local level = service.levels[params.level]
+    if not (level and level.kind == "presentation") then return true end
+    local ref = type(params.ref) == "string" and params.ref or nil
+    local item = ref and level.items[ref] or nil
+    local told = level.lit ~= nil
+    local was = level.lit and level.lit.ref
+    level.lit = { h = tonumber(params.h) or 0, ref = ref, item = item,
+      row = tonumber(params.row), query = type(params.query) == "string" and params.query or "" }
+    if ref ~= was or not told then
+      local fn = level.presentation.onHighlight
+      if type(fn) == "function" then
+        during(function() fn(item) end, { item = item, row = level.lit.row, query = level.lit.query })
+      end
+    end
+    return true
+  end }
+
+  --- service.relit(level) tells a hosted level's onHighlight again when the row its highlight rests on
+  --- was rebuilt, its key the same and its item another, as the Lua chooser's refresh tells the
+  --- highlight again after every rebuild. Speed Test's running row becoming its Run row is that.
+  function service.relit(level)
+    local lit = level.lit
+    if not (lit and lit.ref and level.kind == "presentation") then return end
+    local item = level.items[lit.ref]
+    if item == lit.item then return end
+    lit.item = item
+    local fn = level.presentation.onHighlight
+    if type(fn) == "function" then
+      during(function() fn(item) end, { item = item, row = lit.row, query = lit.query })
+    end
+  end
+
+  -- Where the app placed the list and its pane, step 3.3d, the presentation's onPositioned told
+  -- with the two rects, a pane gone as nil.
+  methods.positioned = { run = function(params)
+    local level = service.levels[params.level]
+    if not (level and level.kind == "presentation") then return true end
+    local function rect(r)
+      if type(r) ~= "table" then return nil end
+      local x, y, w, h = tonumber(r.x), tonumber(r.y), tonumber(r.w), tonumber(r.h)
+      if not (x and y and w and h) then return nil end
+      return { x = x, y = y, w = w, h = h }
+    end
+    level.paneFrame = rect(params.paneFrame)
+    local fn = level.presentation.onPositioned
+    if type(fn) == "function" then
+      local lit = level.lit or {}
+      during(function() fn(rect(params.frame), level.paneFrame) end,
+        { item = lit.item, row = lit.row, query = lit.query or "" })
+    end
+    return true
+  end }
+
   -- A level for a hosted presentation, over the level it was pushed from, answered as the push
   -- effect's level, the fields the app opens it with. A presentation whose field is not a search,
   -- matcher false, ranks in its own order.
@@ -428,7 +531,7 @@ function M.new(opts)
     service.told(level, "onPresent")
     local placeholder = type(p.placeholder) == "string" and p.placeholder or ""
     return { push = { parent = parent.id, level = { id = level.id, name = p.name, placeholder = placeholder,
-      previewPane = false, ranking = p.matcher == false and "source" or "app",
+      previewPane = service.hasPane(p), ranking = p.matcher == false and "source" or "app",
       rowLimit = type(p.rowLimit) == "number" and p.rowLimit or "default", fit = p.fit == true,
       actions = opts.verbs and opts.verbs.ids(p.name) or {} } } }
   end
@@ -517,11 +620,6 @@ function M.new(opts)
     if level.kind ~= "presentation" or not opts.verbs then rpc.fail(rpc.UNKNOWN, method .. " is not served for this level") end
     if type(params.ref) ~= "string" or level.keys[params.ref] == nil then rpc.fail(rpc.GONE, "no ref " .. tostring(params.ref)) end
     return level, level.items[params.ref]
-  end
-
-  local function during(fn, context)
-    if opts.facade then return opts.facade.during(fn, context) end
-    return {}, fn()
   end
 
   methods.actions = { run = function(params)

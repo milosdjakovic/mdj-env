@@ -12,10 +12,12 @@
 // actions pane, the actions the push names, which apply, a verb's choices and a run with a choice.
 // Step 3.3c adds the pop and setQuery effects a hosted list's own code answers. A socket file removed
 // while the app listens is made again, one another program binds is left to it, and the launcher a
-// person opens with no session says so.
+// person opens with no session says so. Step 3.3d adds a pane drawn in Lua: the push saying so,
+// positioned and highlight sent, and paneDrawn reaching its level and read into what the pane draws.
 //
 // test/olmbridge.sh builds and runs it. Exit 0 when every check passed.
 
+import AppKit
 import Foundation
 import OlmBridge
 import OlmCore
@@ -66,6 +68,14 @@ let launcher = BridgedLauncher(bridge: bridge)
 let shown = BridgedLauncher(bridge: bridge, shown: true, log: { _ in })
 await bridge.attach(launcher: launcher, shown: shown, settled: { told.add($0) })
 await bridge.onRedraw { redrawn.add($0, $1) }
+final class Drawn: @unchecked Sendable {
+  private let lock = NSLock()
+  private var list: [(ObjectIdentifier, DrawnPane)] = []
+  func add(_ l: any ListSource, _ d: DrawnPane) { lock.lock(); list.append((ObjectIdentifier(l), d)); lock.unlock() }
+  var all: [(ObjectIdentifier, DrawnPane)] { lock.lock(); defer { lock.unlock() }; return list }
+}
+let drawnPanes = Drawn()
+await bridge.onPaneDrawn { drawnPanes.add($0, $1) }
 if let why = await bridge.start() { give("the listener did not start, \(why)") }
 
 func mode(_ p: String) -> Int {
@@ -397,6 +407,70 @@ ok((cx["params"] as? [String: Any])?["level"] as? String == "v5", "closing the h
 answer(cx, true)
 await childClosed
 send(["jsonrpc": "2.0", "method": "effects", "params": ["level": "v5", "q": 1, "effects": [["rows": ["hold": true]]]]])
+// Step 3.3d, a hosted list whose preview pane is drawn in Lua. The push says it has one, the level
+// is told where it stands and which row the highlight rests on, and what the pane drew reaches the
+// level it names, read into what the pane view draws.
+ok(child.manifest.previewPane == nil, "a push with no pane is a level with none")
+async let panePush = shown.choose(Pick(key: "tool:caffeinate", query: ""))
+let pp = request("choose")
+answer(pp, ["effects": [["push": ["parent": "v4", "level": ["id": "v6", "name": "speedtest", "placeholder": "Measure",
+  "previewPane": true, "ranking": "app", "rowLimit": "default", "actions": [String]()]]]]])
+_ = await panePush
+guard let paned = await shown.pushed("v6") as? BridgedLevel else { give("pushed made no level of the pane's push") }
+ok(paned.manifest.previewPane?.drawn == true, "a push with a pane is a level whose pane is drawn in Lua")
+await paned.positioned(frame: ScreenRect(x: 1, y: 2, w: 600, h: 400), pane: ScreenRect(x: 610, y: 2, w: 480, h: 400))
+let pos = next()
+let posp = pos["params"] as? [String: Any]
+ok(pos["method"] as? String == "positioned" && pos["id"] == nil && posp?["level"] as? String == "v6"
+  && (posp?["paneFrame"] as? [String: Any])?["w"] as? Double == 480 && (posp?["frame"] as? [String: Any])?["x"] as? Double == 1,
+  "positioned is a notification naming the level, the list's rect and the pane's")
+await paned.positioned(frame: ScreenRect(x: 1, y: 2, w: 600, h: 400), pane: nil)
+ok((next()["params"] as? [String: Any])?["paneFrame"] is NSNull, "and a pane gone as null")
+async let panedRows = paned.rows(Query(text: "", generation: 1))
+let prq = request("rows")
+answer(prq, ["q": (prq["params"] as? [String: Any])?["q"] ?? 0, "revision": "r1", "fromQuery": [String](), "exclusive": false,
+  "changes": ["upsert": [["ref": "v6.1", "key": "a", "title": "Run"]], "remove": [String](), "order": ["a"]]])
+_ = try await panedRows
+await paned.highlighted(Pick(key: "a", query: "", row: 1, highlight: 7))
+let hl = next()
+let hlp = hl["params"] as? [String: Any]
+ok(hl["method"] as? String == "highlight" && hlp?["level"] as? String == "v6" && hlp?["ref"] as? String == "v6.1"
+  && hlp?["h"] as? Int == 7 && hlp?["row"] as? Int == 1, "highlight names the level, the row's ref, its place and h")
+await paned.highlighted(nil)
+ok((next()["params"] as? [String: Any])?["ref"] is NSNull, "and no row as a null ref")
+let picture = dir.appendingPathComponent("arrow.png")
+let png = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 8, pixelsHigh: 8, bitsPerSample: 8, samplesPerPixel: 4,
+  hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!.representation(using: .png, properties: [:])!
+try png.write(to: picture)
+let elements: [[String: Any]] = [
+  ["type": "rectangle", "action": "fill", "frame": ["x": 0, "y": 0, "w": "100%", "h": 4], "fillColor": ["red": 1, "green": 0, "blue": 0, "alpha": 1]],
+  ["type": "segments", "action": "stroke", "strokeWidth": 2, "coordinates": [["x": 0, "y": 10], ["x": 5, "y": 2], ["x": 10, "y": 8]],
+    "strokeColor": ["red": 0, "green": 0, "blue": 1, "alpha": 1]],
+  ["type": "text", "text": ["string": "120 Mbps", "font": "Helvetica", "size": 14, "color": ["red": 0, "green": 0, "blue": 0, "alpha": 1],
+    "alignment": "left", "lineBreak": "truncateTail", "lineHeight": 19], "frame": ["x": 0, "y": 20, "w": 200, "h": 19]],
+  ["type": "image", "image": ["path": picture.path], "frame": ["x": 0, "y": 40, "w": 16, "h": 16]],
+  ["type": "oval", "action": "fill"],
+]
+send(["jsonrpc": "2.0", "method": "paneDrawn", "params": ["level": "v9", "h": 7, "elements": elements, "contentHeight": 900]])
+send(["jsonrpc": "2.0", "method": "paneDrawn", "params": ["level": "v6", "h": 7, "ref": "v6.1", "elements": elements,
+  "contentHeight": 900, "keepScroll": true]])
+await until { !drawnPanes.all.isEmpty }
+let dp = drawnPanes.all
+ok(dp.count == 1 && dp.first?.0 == ObjectIdentifier(paned) && dp.first?.1.highlight == 7 && dp.first?.1.height == 900
+  && dp.first?.1.keepScroll == true, "what a pane drew reaches the level it names, with its h, height and scroll, and no other")
+if let d = dp.first?.1 {
+  let read = await PaneElements.kinds(d.elements, w: 480, h: 400)
+  ok(read.kinds == ["fill:6", "stroke:3", "text:120 Mbps", "image:16x16"],
+    "a rectangle, a curve, a Text and a Picture are read into what the pane draws, got \(read.kinds)")
+  ok(read.unsupported == ["oval"], "and a kind it cannot draw is left out and named")
+}
+
+async let panedClosed: Void = paned.close()
+let cx6 = request("close")
+ok((cx6["params"] as? [String: Any])?["level"] as? String == "v6", "closing the list with a pane closes its level")
+answer(cx6, true)
+await panedClosed
+
 async let launcherClosed: Void = shown.close()
 let cl4 = request("close")
 ok((cl4["params"] as? [String: Any])?["level"] as? String == "v4", "then the launcher's own")
