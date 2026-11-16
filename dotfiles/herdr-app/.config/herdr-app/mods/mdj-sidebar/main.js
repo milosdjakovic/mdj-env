@@ -1,4 +1,4 @@
-// alt-z b → mod.open:mdj-sidebar. Folds the sidebar to its rail or opens it to the width it had, as
+// cmd-b → mod.open:mdj-sidebar. Folds the sidebar to its rail or opens it to the width it had, as
 // mdj-brand's toggle does, then closes itself. A key can reach a mod only through mod.open, and
 // layout.toggle hides the sidebar outright, so the key needs this. The toggle is the same as
 // mdj-brand's toggleSidebar, written out here because a mod cannot import from another. Change both together.

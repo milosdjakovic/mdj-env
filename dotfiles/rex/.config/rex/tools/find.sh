@@ -58,7 +58,7 @@ scan() {
   done
 }
 
-# The selection bar is slot 16, declared as the highlight role in Ghostty's theme-map, and it
+# The selection bar is slot 20, the purple selection tint, with slot 4 as the pointer, and it
 # reaches this picker through the fzf options file every fzf on the machine reads at launch, the
 # same way the rest of the colours do.
 

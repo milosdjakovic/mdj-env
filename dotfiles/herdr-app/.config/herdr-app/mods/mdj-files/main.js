@@ -1,4 +1,4 @@
-// alt-z key → mod.open:mdj-files. Opens browse.sh as the "files" popup, then gets out of the way.
+// cmd-shift-e → mod.open:mdj-files. Opens browse.sh as the "files" popup, then gets out of the way.
 // The launch code is the same in mdj-git, mdj-files and mdj-find. The app refuses imports
 // that resolve outside a mod's folder, and these files are links into the dotfiles, so it
 // is written out in each launcher rather than shared. Change all three together.
@@ -12,6 +12,8 @@ import { props, focused, panes, spaces, hc, home, openOverlay, closeOverlay } fr
 
 const TOOLS = `${home()}/.config/herdr/tools`;
 const SHIM = `${home()}/.config/herdr-app/mods/mdj-popup/herdr-shim.sh`;
+const COLORS = 'f=$HOME/.config/herdr-app/terminal-colors.zsh; if [[ -r $f ]]; then source $f; h=light; ' +
+  '[[ "$(defaults read -g AppleInterfaceStyle 2>/dev/null)" == Dark ]] && h=dark; print -rn -- "${mdj_herdr_osc[$h]}"; fi; ';
 
 async function launch(self, { script, title, width = 0.9, height = 0.9 }) {
   const f = focused();
@@ -32,7 +34,10 @@ async function launch(self, { script, title, width = 0.9, height = 0.9 }) {
     `HERDR_ACTIVE_PANE_CWD=${cwd}`,
     `MDJ_CALLER_FREE=${free}`,
     `MDJ_POPUP_NOTES=${notes}`,
-    "/bin/zsh", "-lc", 'mkdir -p "${MDJ_POPUP_NOTES%/*}"; exec "$0"', `${TOOLS}/${script}`,
+    // The popup runs its tool with no prompt, so the zsh hook that sends a pane slots 16 to 20 never
+    // runs here, and fzf's bar, gutter and footer fell back to xterm's black and navy. The half macOS
+    // is on is sent first, from the same generated file the hook reads.
+    "/bin/zsh", "-lc", COLORS + 'mkdir -p "${MDJ_POPUP_NOTES%/*}"; exec "$0"', `${TOOLS}/${script}`,
   ];
   const r = await hc(["run", "--bg", "--rm", "--no-parent", "--json", "--cwd", cwd, "--", ...argv]).catch(() => null);
   const address = r?.code === 0 ? JSON.parse(r.stdout).address : null;

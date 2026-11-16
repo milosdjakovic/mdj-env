@@ -32,3 +32,7 @@ where it was left.
 - 2026-11-02 13:30, `?` now lists every key lf has, its defaults from `lf -remote "query $id maps"` as well as
   ours, with our descriptions where a map line has one and the command dimmed otherwise, and enter
   presses the key with `push`. It used to list only the 14 keys `lfrc` described.
+- 2026-11-16 08:55, the cursor row in the current and parent panes is slot 20, the purple
+  selection tint, set with `cursoractivefmt` and `cursorparentfmt`, asked by Milos so lf
+  highlights like fzf and lazygit. lf inverted the row before. Checked in a pty on lf r42, both
+  panes drew `48;5;20`. Not checked by eye on either half.

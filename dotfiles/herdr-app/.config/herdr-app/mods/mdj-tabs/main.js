@@ -61,6 +61,47 @@ export default class MdjTabs extends View {
     localStorage.setItem("panels", JSON.stringify(this.panels));
   }
 
+  // mdj: closing the shown tab goes back to the tab shown before it, as a browser does, rather than to the
+  // neighbour Herdr picks. Each space keeps the order its tabs were shown in. When the newest of them is gone
+  // and Herdr shows another, the newest one left is selected, so opening a tab from the first of five, which
+  // Herdr puts second, and closing it lands on the first again. Asked by Milos on 2026-11-15.
+  followClose(space) {
+    if (!space) return;
+    const ids = new Set(space.tabs.map(c => c.id)), active = space.tabs.find(c => c.active)?.id;
+    const shown = ((this.shownOrder ??= {})[space.id] ?? []);
+    const closed = shown.length > 0 && !ids.has(shown[shown.length - 1]);
+    const left = shown.filter(id => ids.has(id));
+    this.shownOrder[space.id] = left;
+    const back = left[left.length - 1];
+    if (closed && back && back !== active) {
+      this.goingBack = { id: back, until: Date.now() + 1000 };
+      run("tab.select", { id: back });
+      return;
+    }
+    // Until the selection lands, the tab Herdr picked is not one the person chose.
+    if (this.goingBack) {
+      if (this.goingBack.id !== active && Date.now() < this.goingBack.until) return;
+      this.goingBack = null;
+    }
+    if (!active || back === active) return;
+    this.shownOrder[space.id] = [...left.filter(id => id !== active), active].slice(-50);
+  }
+
+  // mdj: a tab's only pane shows no focus border, since there is nothing else it could be, and a split tab's
+  // focused pane does, zoomed or not. Herdr's pane frame has one `focus` for every pane, so the layout holds the
+  // pane block twice in the `main-stack` stack, `main` with the accent focus and `main-lone` without, and this
+  // shows the one that fits. Asked by Milos on 2026-11-15.
+  paneLook(space) {
+    const tab = space?.tabs.find(c => c.active);
+    if (!tab) return;
+    const want = panes().filter(p => p.tab === tab.id).length > 1 ? "main" : "main-lone";
+    const stack = find(layout(), "main-stack");
+    if (!stack || stack.active === want) return;
+    if (this.lookAsked?.want === want && Date.now() < this.lookAsked.until) return;
+    this.lookAsked = { want, until: Date.now() + 1000 };
+    run("layout.select", { stack: "main-stack", child: want });
+  }
+
   // The offset the tabs are drawn at, kept inside what the content leaves, with the active tab brought into
   // view when it changes. Each tab's width comes from its own size report, and the strip's full width is
   // their sum, since the absolutely placed row reports only the width it is shown in.
@@ -130,6 +171,8 @@ export default class MdjTabs extends View {
     const t = theme();
     const space = spaces().find(p => p.active);
     const shown = space?.tabs ?? [];
+    this.followClose(space);
+    this.paneLook(space);
     const stop = (_e, cx) => cx.stop_propagation();
     // mdj: every control on this bar is one size, ROW tall with RADIUS corners, like the side lists.
     const ROW = 28, RADIUS = 6, hoverBg = dimmed(t);

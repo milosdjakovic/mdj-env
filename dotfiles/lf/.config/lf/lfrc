@@ -5,6 +5,12 @@ set hidden true
 set icons true
 set previewer ~/.config/lf/scripts/preview.sh
 
+# The cursor row is slot 20, the purple selection tint, behind the file's own colour, the same
+# highlight fzf and lazygit draw. lf's default inverts the row. The terminal paints slot 20, so
+# the tint follows the half with no hex here. The preview pane's cursor keeps lf's underline.
+set cursoractivefmt "\033[48;5;20m"
+set cursorparentfmt "\033[48;5;20m"
+
 # ============================================
 # COMMANDS
 # ============================================

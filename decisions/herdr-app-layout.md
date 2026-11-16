@@ -182,3 +182,50 @@ since nothing here can move the pointer.
 2026-11-15 21:00. The overlay's solid part cut the tab's right corners square, since its paint was
 a child layer and a clip does not follow rounding. The tab's colour is now mixed from the theme in
 the mod and set on the rounded box. Checked by screenshot on a selected tab with a dot.
+
+2026-11-15 23:41. Asked by Milos. `cmd-w` closes the focused pane rather than the tab, and
+`cmd-alt-w` closes the tab. Herdr already closes a tab with its last pane, checked by closing the one
+pane of a test tab, so `cmd-w` on a lone pane still closes its tab. Closing the shown tab now goes
+back to the tab shown before it instead of the neighbour Herdr picks. `mdj-tabs` keeps each space's
+tabs in the order they were shown and, when the newest is gone and Herdr shows another, selects the
+newest one left, holding off for a second while that selection lands. It lives in `mdj-tabs`
+because that mod draws on every change of tabs, so a tab closed by a key, the close button, the menu
+or a program exiting is caught alike. Checked live both ways, a tab opened from the first of four
+then closed back to the first, and a tab reached from the fourth then closed back to the fourth.
+
+2026-11-15 23:47. Asked by Milos. A tab's only pane no longer shows the accent focus border, and
+a split tab's focused pane still does, zoomed or not. Herdr's frame has one `focus` for every pane
+and `lone: false` would drop the header and the card too, and `layout.set` is rejected above, so
+`work-body` now holds a `main-stack` stack of the pane block twice, `main` with the accent and
+`main-lone` with `background`, and `mdj-tabs` runs `layout.select` on it by the shown tab's pane
+count. `layout.select` writes only `layouts/.state`, and the sidebar and panel entries there were
+checked intact after it. Checked by screenshot on a lone pane, a split tab and a zoomed one, no
+`layout.error`.
+
+2026-11-15 23:57. Asked by Milos, to try. Vim-like navigation beside Herdr's keys, none of
+which changed. `cmd-ctrl` with h and l for tabs and j and k for spaces, shift with h and l moving
+the tab, and `cmd-alt` with j and k for agents. `cmd` is in both so a pane program never sees
+them, `alt` and `ctrl-alt` alone reach Neovim, where LazyVim moves lines on `alt-j` and `alt-k`.
+`cmd-alt-h` stays macOS's hide others. Nothing in the Hammerspoon config claims either pair.
+`cmd-alt-enter` was added for `pane.zoom` beside `cmd-shift-enter`. Keys loaded with no error and
+`tab.move` with `by` was checked from the command line, the keys themselves left to Milos.
+
+2026-11-16 00:02. Changed by Milos the same night. Tabs and spaces moved from `cmd-ctrl` to
+`cmd-shift` with hjkl, agents stay on `cmd-alt` with j and k, and the tab moves stay on
+`cmd-ctrl-shift` h and l. `cmd-alt` for tabs and spaces was turned down because `cmd-alt-h` is
+macOS's hide others. `cmd-shift-l` was Herdr's own `layout.switch`, not a macOS convention, so it
+moved to the free `cmd-alt-l`. Keys loaded with no error, the keys themselves left to Milos.
+
+2026-11-16 08:08. Asked by Milos. `cmd-alt-h`, `app.hide_others`, is removed from `keys.json`,
+so the chord is free in the Herdr app. Herdr's menu bar shows what `keys.json` binds, so the menu item
+loses its key too, and an edited keys file never gets defaults added back. Nothing system wide was
+needed, since Hide Others is each application's own menu item. Keys loaded with no error.
+
+2026-11-16 08:15. Asked by Milos. The `alt-z` prefix is gone and every key is one chord. Panes
+take `cmd-alt` with hjkl beside the arrows, freed by unbinding Hide Others, so agents moved to
+`ctrl-alt` j and k and the layout switch to `cmd-ctrl-l`. The prefix keys moved onto VS Code's,
+`cmd-b` folding the sidebar to its rail and `cmd-shift-b` hiding it, `cmd-shift-g` the git popup,
+`cmd-shift-e` the files popup, `cmd-shift-f` the find popup, and `cmd-ctrl-w` closing the space
+beside `cmd-w` for a pane and `cmd-alt-w` for a tab. Keys loaded with no error, and `mdj-sidebar`
+was run twice from the command line, folding the sidebar to 36px and opening it again. The keys
+themselves are left to Milos.

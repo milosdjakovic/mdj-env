@@ -10,7 +10,7 @@ FZF_BASE_OPTS=(
   # launch and which owns the colours, the bar under the current row included. The frame
   # is the popup's own, so fzf draws none, and the label rides slot 8 with the lines. The
   # current row used to be overridden here as reverse green, because no slot among the
-  # sixteen could carry a bar, and slot 16 in Ghostty's theme-map is what ended that.
+  # sixteen could carry the page colour, and slot 19 in Ghostty's theme-map is what ended that.
   --color='border:-1,label:8'
   # --header-first  # uncomment to pin header above the list
 )

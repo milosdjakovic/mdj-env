@@ -51,6 +51,14 @@ The `F` binding opens fzf with two toggleable dimensions. Scope (current dir / g
 
 fzf has a hardcoded ~100ms delay on Escape to distinguish it from escape sequences (arrow keys, etc). This is unavoidable. Inside tmux, its escape-time is set to 0 to prevent additional delay. Scripts send results directly to lf via `lf -remote` instead of writing temp files, eliminating post-processing overhead after the picker closes.
 
+## The cursor row is the selection tint
+
+`cursoractivefmt` and `cursorparentfmt` in `lfrc` draw the cursor row on slot 20, the purple
+selection tint fzf and lazygit use, behind the file's own colour, where lf's default inverts the
+row. It names a slot and no hex, so it follows the half wherever the terminal paints slot 20,
+Ghostty, the Herdr app and Rex once `src/setup-rex.sh` has imported it. The preview pane keeps
+lf's underline. `decisions/fzf-appearance-colour.md` has the slot.
+
 ## Previous directory tracking
 
 lf has no built-in previous directory feature. The `on-cd` hook saves the current directory to a temp file. The `-` binding navigates to the previous directory. Temp files use lf's instance id to avoid conflicts between multiple instances.

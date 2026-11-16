@@ -19,6 +19,15 @@ else
   export LG_CONFIG_FILE="$overlay"
 fi
 
+# The selected row's tint, generated per half from theme/ by dotfiles/lazygit/theme-emit, since
+# lazygit takes a hex for it and never asks the terminal which half it is on. The half macOS is on
+# is read here, at launch, and a switch while lazygit runs shows at the next one.
+half=light
+[ "$(defaults read -g AppleInterfaceStyle 2>/dev/null)" = Dark ] && half=dark
+if [ -n "$config_dir" ] && [ -f "$config_dir/mdj-$half.yml" ]; then
+  LG_CONFIG_FILE="$LG_CONFIG_FILE,$config_dir/mdj-$half.yml"
+fi
+
 if root=$(git rev-parse --show-toplevel 2>/dev/null) && [ -n "$root" ]; then
   cd "$root" || exit 1
   exec lazygit

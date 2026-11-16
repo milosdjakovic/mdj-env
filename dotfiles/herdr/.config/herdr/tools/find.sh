@@ -53,11 +53,11 @@ scan() {
   done
 }
 
-# The selection bar is not resolved here any more. It is slot 16, declared as the highlight
-# role in Ghostty's theme-map, and it reaches this popup through the fzf options file every
-# fzf on the machine reads at launch, the same way the rest of the colours do. This script
-# resolved it from herdr's config at draw time for a while, because no slot among the sixteen
-# is dark on one half and light on the other, and a seventeenth slot is what ended that.
+# The selection bar is not resolved here. It is slot 20, the purple selection tint, with slot
+# 4's solid purple as the pointer, and it reaches this popup through the fzf options file every fzf on the machine
+# reads at launch, the same way the rest of the colours do. This script resolved a bar from
+# herdr's config at draw time for a while, because no slot among the sixteen is dark on one
+# half and light on the other, and the slots above sixteen are what ended that.
 
 if [ "$FIND_FILES" = 1 ]; then files_state="files and folders"; else files_state="folders only"; fi
 if [ "$FIND_HIDDEN" = 1 ]; then hidden_state="hidden shown"; else hidden_state="hidden skipped"; fi

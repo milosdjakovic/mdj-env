@@ -88,7 +88,7 @@ source "$(brew --prefix)/opt/fzf/shell/key-bindings.zsh"
 bindkey -M emacs '^r' atuin-search
 bindkey -M viins '^r' atuin-search-viins
 
-# A Herdr app pane gets the four colour slots above sixteen, sent by the shell. Herdr's theme
+# A Herdr app pane gets the five colour slots above sixteen, sent by the shell. Herdr's theme
 # holds exactly sixteen, so slot 17, the Claude statusline's grey, is the core's xterm navy unless
 # the pane sets it. The page, ink, cursor and sixteen are Herdr's own, which answers a page query
 # for the half it is on and tells a running program the moment the half changes. Setting the page
@@ -96,17 +96,23 @@ bindkey -M viins '^r' atuin-search-viins
 # Claude Code running across a switch, waking the machine among them, asked and kept the old half.
 # The sequences hand those back to Herdr first, which frees a pane an older version set.
 #
-# macOS is asked which half it is on. The four slots catch up at the next prompt, so a statusline
+# macOS is asked which half it is on. The five slots catch up at the next prompt, so a statusline
 # running across a switch keeps the old grey until then. The sequences are generated,
 # dotfiles/herdr-app/AGENTS.md has the rest.
+#
+# A regenerated file reaches an open pane too. Its time is kept beside the half, and a prompt that
+# finds it newer reads it again and sends it, so a slot added to the map, slot 20 on 2026-11-16,
+# needed no new pane. zstat is zsh's own, from the zsh/stat module.
 if [[ "$__CFBundleIdentifier" == dev.herdr.app && -r "$HOME/.config/herdr-app/terminal-colors.zsh" ]]; then
-  source "$HOME/.config/herdr-app/terminal-colors.zsh"
-  typeset -g _mdj_herdr_half=
+  zmodload -F zsh/stat b:zstat 2>/dev/null
+  typeset -g _mdj_herdr_half= _mdj_herdr_sent=
   _mdj_herdr_colors() {
-    local half=light
+    local file="$HOME/.config/herdr-app/terminal-colors.zsh" half=light mtime
+    mtime=$(zstat -L +mtime "$file" 2>/dev/null)$(zstat +mtime "$file" 2>/dev/null)
     [[ "$(defaults read -g AppleInterfaceStyle 2>/dev/null)" == Dark ]] && half=dark
-    [[ "$half" == "$_mdj_herdr_half" ]] && return
-    _mdj_herdr_half=$half
+    [[ "$half:$mtime" == "$_mdj_herdr_sent" ]] && return
+    [[ "$mtime" != "${_mdj_herdr_sent#*:}" ]] && source "$file"
+    _mdj_herdr_half=$half _mdj_herdr_sent="$half:$mtime"
     print -rn -- "${mdj_herdr_osc[$half]}"
   }
   autoload -Uz add-zsh-hook

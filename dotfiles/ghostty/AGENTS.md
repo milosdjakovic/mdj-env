@@ -34,15 +34,18 @@ against `ghostty +show-config`, which `check-dependencies.sh` runs. When a colou
 looks wrong and a reload does not fix it, run `ghostty +show-config | grep '^theme'` before
 anything else. `decisions/shadow-paths.md` has the rest.
 
-## Slots 16 to 19 are declared here for other tools
+## Slots 16 to 20 are declared here for other tools
 
-Ghostty paints all 256 slots, and `theme-map` declares four beyond the sixteen, since no slot
-among the sixteen is the same neutral on both halves. Slot 16 is the bar under a current row,
-per half, `surface` on light and `dim` on dark. Slot 17 is the secondary grey, `overlay`. Slot
-18 is the quiet rule, `dim`. Slot 19 is the page, `background`, for text painted onto a signal
-colour. fzf, tmux and the Claude statusline read them and have no map of their own, so before
-using one of those numbers anywhere, or claiming a fifth, read the comment above them in
-`theme-map`, since every other slot is claimed by a role that differs by half.
+Ghostty paints all 256 slots, and `theme-map` declares five beyond the sixteen, since no slot
+among the sixteen is the same neutral on both halves. Slot 16 is the neutral bar under tmux's
+current window and session, per half, `surface` on light and `dim` on dark. Slot 17 is the
+secondary grey, `overlay`. Slot 18 is the quiet rule, `dim`. Slot 19 is the page, `background`,
+for text painted onto a signal colour. Slot 20 is the selection tint, `selection`, purple faded
+into the page, under fzf's current row since 2026-11-16. fzf, tmux and the Claude statusline
+read them and have no map of their own, so before using one of those numbers anywhere, or
+claiming a sixth, read the comment above them in `theme-map`, since every other slot is claimed
+by a role that differs by half. The Herdr app's map declares the same five, which its popups and
+panes are sent.
 
 ## The neutral slots swap by half
 

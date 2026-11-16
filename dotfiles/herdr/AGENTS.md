@@ -325,7 +325,9 @@ aware tables there.
 
 Ghostty paints all 256 slots, so slot 16, the first one no ANSI name claims, is declared in
 Ghostty's `theme-map` per half, the grey of this module's border on dark and the grey of its
-focused row on light, and the options file names `bg+:16` like every other colour.
+focused row on light, which the options file named as `bg+:16` until 2026-11-16. fzf's current
+row is now slot 20, the selection tint, purple faded into the page, behind the ordinary ink, with
+the solid purple of slot 4 as the pointer at its left end, as the options file says.
 Slot 17 is the grey of the secondary line here, which the footer reads. A theme switch
 repaints it with everything else and nothing watches anything. `find.sh` resolved the bar from
 this module's `config.toml` at draw time for a while, asking the system which half it was on,
@@ -346,7 +348,7 @@ commit them. `theme/AGENTS.md` has the whole contract.
 Three roles exist because of this module and every palette answers them. `highlight` is
 `selection_bg`, the navigate cursor row, and it is what the iris menu bar read too while iris was here, purple on
 the dark half and a neutral grey on the light one because a tinted bar on the light page reads
-as a lilac slab. fzf's bar is a neutral on both halves instead, slot 16 in Ghostty's map. `subtext` is `subtext0`, the ink stepped back for a row that
+as a lilac slab. fzf's bar was a neutral on both halves instead, slot 16 in Ghostty's map, until 2026-11-16, and is the purple selection tint on slot 20 now. `subtext` is `subtext0`, the ink stepped back for a row that
 is not selected. `fill` is `accent`, the primary purple on dark and that purple darkened on
 light, because the chip carries a label painted in `panel_bg` and a block wants more room than
 a letter. `active_row_bg` takes `selection` on dark and `surface` on light, which is the same

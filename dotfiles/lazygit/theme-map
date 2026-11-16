@@ -1,0 +1,11 @@
+# lazygit's theme keys, each pointing at a role from theme/VOCABULARY. lazygit takes a colour
+# name, one of the eight ANSI names, or a #hex, and nothing in between, so a slot above seven
+# cannot be named and the tint under the selected row has to be a hex. A hex is one half only and
+# lazygit never asks the terminal which half it is on, so the emitter writes one file per half
+# and the launcher that starts lazygit adds the half macOS is on to LG_CONFIG_FILE.
+#
+# The selected row is the selection tint, purple faded into the page, behind lazygit's own ink,
+# since lazygit sets the row's background and nothing about the text on it, asked by Milos on
+# 2026-11-16 to match fzf's current row.
+selectedLineBgColor             = selection
+inactiveViewSelectedLineBgColor = selection

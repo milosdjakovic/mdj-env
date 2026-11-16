@@ -41,13 +41,15 @@ colors.dim        = overlay
 colors.hover      = surface
 colors.canvas     = surface
 colors.border     = background
-# The four slots above the sixteen, which the theme file cannot hold since Herdr reads exactly
+# The five slots above the sixteen, which the theme file cannot hold since Herdr reads exactly
 # sixteen. They are written into terminal-colors.zsh instead, which a zsh in a Herdr pane sends
 # to its terminal, and they follow Ghostty's map, the secondary grey the Claude statusline and
 # fzf's footer read, the quiet rule fzf's gutter reads, and the page.
 slot17 = overlay
 slot18 = dim
 slot19 = background
+# Slot 20 is the selection tint under fzf's current row, as in Ghostty's map.
+slot20 = selection
 
 # The neutral slots swap by half exactly as Ghostty's do, ANSI black is the page on dark and
 # the ink on light. The selected row lifts in purple on dark and in neutral grey on light,

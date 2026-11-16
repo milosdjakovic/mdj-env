@@ -1,7 +1,8 @@
 # fzf's colour, and the one part of it that follows the appearance
 
 Status. Closed. Every colour including the selection bar is a slot, in one options file every
-fzf rereads at launch, and the bar is slot 16, a neutral declared per half in Ghostty's map.
+fzf rereads at launch, and the bar is slot 20, the purple selection tint, behind the ordinary
+ink, with slot 4's solid purple as the pointer. lazygit's selected row takes the same tint.
 Nothing watches anything.
 
 ## Now
@@ -13,7 +14,12 @@ Ghostty repaints all of it on a theme change and nothing watches anything. fzf r
 file at every launch, so an edit reaches a picker inside the tmux or herdr server without a
 restart, which the string in `FZF_DEFAULT_OPTS` never could.
 
-The selection bar is slot 16 and the footer is slot 17. A bar is a tint of the page and no slot
+The selection bar is slot 20, the `selection` role, purple faded into the page on each half,
+with the ordinary ink and green matches on it, and the pointer in the gutter column is slot 4,
+the solid purple, asked by Milos on 2026-11-16 so fzf and lazygit draw the same row. lazygit
+takes the same role through `dotfiles/lazygit/theme-map`, one overlay per half since it takes
+only a name or a hex, added by its popup launchers for the half macOS is on. Until then the bar
+was the slot 16 grey described next, which tmux still uses, and the footer is still slot 17. A bar is a tint of the page and no slot
 among the sixteen is dark on the dark palette and light on the light one, because each is
 claimed by a role that differs by half. Ghostty paints all 256, so the slots beyond them are
 free, and `dotfiles/ghostty/theme-map` declares 16 per half, `surface` on light, the grey of
@@ -136,3 +142,38 @@ after which no colour change needs another.
 **2026-09-15 19:36.** Slot 17 joins for the footer, slot 16 is declared per half, and the
 variable is unset before the path is exported, after a pane carrying both showed the old string
 winning. `theme-palette.md` has the full entry.
+
+**2026-11-16 08:27.** Asked by Milos from two screenshots of the Herdr app's popups. The current
+row is the solid purple, slot 4, with its text, matched letters and pointer on slot 19, the page,
+white on the light half and near black on the dark one. The 2026-09-15 rejection of purple on light
+was of a tint, the lilac slab, and a solid fill with page text is the way herdr draws a label on
+its `fill`, so it does not reopen that. The same screenshots showed the bar black and the gutter
+navy in the popups, because a popup's terminal runs its tool with no prompt and the zsh hook that
+sends a Herdr app pane slots 16 to 19 never ran, so xterm's own 16 and 18 showed. The three
+launchers, `mdj-git`, `mdj-files` and `mdj-find`, now send the half's slots from the same
+generated file before starting the tool. Checked by screenshot on light, the bar purple with white
+bold text and the gutter grey. Dark was not checked. This is every fzf on the machine, Ghostty and
+tmux included. lazygit cannot follow, since 0.65.1 sets only `selectedLineBgColor` and no colour for
+the selected row's text, so its bar stays purple with the ink on it.
+
+**2026-11-16 08:35.** The pointer in the page colour read as a white block at the bar's left end,
+seen by Milos on the light half, since the pointer is a ▌ block in the gutter column. It is slot
+4 now, so the purple runs to the row's edge. Corrects the 08:27 entry, which put the pointer on
+slot 19.
+
+**2026-11-16 08:43.** Replaces the solid bar of 08:27, proposed by Milos. lazygit could not match
+it, so both now draw a purple highlight behind ordinary text, the `selection` role, purple at 0.14
+over the page, `#29223b` on dark and `#e0d6f3` on light, and fzf's pointer stays slot 4's solid
+purple. fzf reads it as slot 20, declared in Ghostty's map and the Herdr app's, since slot 16 stays
+the neutral bar tmux draws. lazygit names a colour or a hex and nothing else, which was read from
+its colour parser as remembered, since a probe of its output drew no selected row, so
+`dotfiles/lazygit/theme-map` and `theme-emit` write `mdj-dark.yml` and `mdj-light.yml` beside its
+config, and the herdr and Rex popup launchers add the half macOS is on to `LG_CONFIG_FILE`. Its
+selected row was blue, slot 4, before. The 2026-09-15 rejection of a tint on light was of herdr's
+cursor row, and this is what Milos asked for. Checked by screenshot on light in the Herdr app,
+lazygit and fzf alike, the tint behind dark text. Not checked on dark, in Ghostty, in tmux or in
+Rex, which needs `src/setup-rex.sh` to import slot 20. lazygit started outside those popups, from
+a prompt or from Neovim, keeps lazygit's blue.
+
+**2026-11-16 08:55.** lf joins, its cursor row on slot 20 through `cursoractivefmt` and
+`cursorparentfmt` in `lfrc`, so lf, fzf and lazygit draw the same highlight. `decisions/lf.md` has it.

@@ -19,17 +19,18 @@
 # secondary line in herdr's panel, so the key hints under a picker read like the line under a
 # space rather than like a heading. It needs naming on its own because it does not follow
 # header, it has its own default of cube index 109, a pale blue green no theme repaints,
-# measured by drawing both lines and reading the escapes back. The prompt, the pointer and the
-# matched text read slot 2, Aura's green, which fzf's own defaults approximate with cube
+# measured by drawing both lines and reading the escapes back. The prompt and the matched text
+# read slot 2, Aura's green, which fzf's own defaults approximate with cube
 # indexes 108 and 151 that no theme repaints either, so a pale green in any of those three
 # means this file is not being read.
 #
-# The bar under the current row is slot 16, which Ghostty's theme-map declares per half, the
-# grey of herdr's focused row on light and the purple of its navigate row on dark. A bar has
-# to be a tint of the page and no slot among the sixteen is dark on one half and light on the
-# other, which is why it used to be a hex resolved inside one popup at draw time and every
-# other fzf drew no bar. --highlight-line runs the tint across the whole row rather than under
-# the text alone.
+# The current row is a purple highlight behind ordinary text, slot 20, which Ghostty's theme-map
+# and the Herdr app's declare as the selection tint, purple faded into the page on each half, and
+# the pointer at its left end is the solid purple of slot 4, asked by Milos on 2026-11-16 so fzf
+# and lazygit draw the same row. A solid purple bar with page text was tried that morning and left
+# lazygit, which cannot colour the text on its row, unable to match. It was a neutral grey on
+# slot 16 before, which tmux's bar still uses. decisions/fzf-appearance-colour.md has all three.
+# --highlight-line runs the bar across the whole row rather than under the text alone.
 #
 # The gutter is a glyph on every ordinary row, ▌ since fzf 0.6x, painted in the gutter colour
 # as a foreground, so -1 left it in the ink, a dark bar on the light page and a light one on
@@ -38,9 +39,9 @@
 #
 # border, separator and scrollbar stay on slot 8. They are lines rather than text and a quiet
 # grey is what they want.
---color=fg:-1,bg:-1,fg+:-1,bg+:16
+--color=fg:-1,bg:-1,fg+:-1,bg+:20
 --color=hl:2,hl+:10
---color=prompt:2,pointer:2,marker:3,spinner:3
+--color=prompt:2,pointer:4,marker:3,spinner:3
 --color=info:4,header:4,footer:17
 --color=border:8,separator:8,scrollbar:8,gutter:18
 --highlight-line

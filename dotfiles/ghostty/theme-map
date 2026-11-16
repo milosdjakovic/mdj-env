@@ -33,6 +33,10 @@ palette14 = quinary
 palette17 = overlay
 palette18 = dim
 palette19 = background
+# Slot 20 is the selection tint, purple faded into the page, under fzf's current row since
+# 2026-11-16, which wanted a purple highlight behind ordinary text rather than the neutral bar
+# slot 16 keeps for tmux. decisions/fzf-appearance-colour.md has it.
+palette20 = selection
 background           = background
 foreground           = foreground
 cursor-color         = primary

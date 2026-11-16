@@ -93,34 +93,70 @@
           "type": "row",
           "children": [
             {
-              "id": "main",
-              "type": "block",
-              "content": {
-                "tab": "active",
-                "pane": {
-                  "header": {
-                    "content": {
-                      "mod": "mdj-pane"
-                    },
-                    "reveal": "always",
-                    "height": 30,
-                    "position": "top"
+              "id": "main-stack",
+              "type": "stack",
+              "children": [
+                {
+                  "id": "main",
+                  "type": "block",
+                  "content": {
+                    "tab": "active",
+                    "pane": {
+                      "header": {
+                        "content": {
+                          "mod": "mdj-pane"
+                        },
+                        "reveal": "always",
+                        "height": 30,
+                        "position": "top"
+                      },
+                      "background": "background",
+                      "radius": 6,
+                      "gap": 8,
+                      "lone": true,
+                      "border": {
+                        "width": 1,
+                        "color": "background"
+                      },
+                      "focus": {
+                        "width": 1,
+                        "color": "accent"
+                      }
+                    }
                   },
-                  "background": "background",
-                  "radius": 6,
-                  "gap": 8,
-                  "lone": true,
-                  "border": {
-                    "width": 1,
-                    "color": "background"
+                  "padding": 4
+                },
+                {
+                  "id": "main-lone",
+                  "type": "block",
+                  "content": {
+                    "tab": "active",
+                    "pane": {
+                      "header": {
+                        "content": {
+                          "mod": "mdj-pane"
+                        },
+                        "reveal": "always",
+                        "height": 30,
+                        "position": "top"
+                      },
+                      "background": "background",
+                      "radius": 6,
+                      "gap": 8,
+                      "lone": true,
+                      "border": {
+                        "width": 1,
+                        "color": "background"
+                      },
+                      "focus": {
+                        "width": 1,
+                        "color": "background"
+                      }
+                    }
                   },
-                  "focus": {
-                    "width": 1,
-                    "color": "accent"
-                  }
+                  "padding": 4
                 }
-              },
-              "padding": 4
+              ]
             },
             {
               "id": "panel",

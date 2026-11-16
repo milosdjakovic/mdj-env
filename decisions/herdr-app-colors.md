@@ -73,3 +73,11 @@ Transparency is left as Herdr ships it.
   throughout. Sending OSC 110, 111, 112 and 104 to a pane the hook had set gave back the theme's
   ink and page and the core's own slot 4, `#81a2be`, measured. `theme-emit` now writes that reset
   and slots 16 to 19 only, and `./src/check-theme.sh` passes.
+
+2026-11-16 09:07. Slot 20 joined the map and open Herdr app panes never received it, because
+the zsh hook sent the colours only when the half changed and read the generated file once, when the
+shell started. Milos saw it from inside the app. The hook now keeps the file's time beside the half,
+reads the file again when it is newer, and sends it, so a regenerated file reaches every open pane
+at its next prompt. Checked in a test shell, the first prompt sending slot 20, a second sending
+nothing, and a prompt after `touch -h` on the link sending again. Shells started before this change
+run the old hook until they are restarted.

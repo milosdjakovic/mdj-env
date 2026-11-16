@@ -70,7 +70,7 @@ if [[ "$now" == "$WANT" ]]; then
     exit 0
 fi
 if [[ -n "$now" && "$now" != main ]]; then
-    mdj_note "the Herdr app shows the $now layout, chosen by hand, so it was left alone, cmd-shift-l picks $WANT"
+    mdj_note "the Herdr app shows the $now layout, chosen by hand, so it was left alone, cmd-ctrl-l picks $WANT"
     exit 0
 fi
 
@@ -82,7 +82,7 @@ if ! running; then
     for _ in $(seq 1 60); do running && break; sleep 0.5; done
 fi
 if ! running; then
-    mdj_note "the Herdr app did not answer within 30 seconds, so its layout was not switched, open it and press cmd-shift-l to pick $WANT"
+    mdj_note "the Herdr app did not answer within 30 seconds, so its layout was not switched, open it and press cmd-ctrl-l to pick $WANT"
     exit 0
 fi
 
@@ -91,6 +91,6 @@ sleep 1
 if [[ "$(shown)" == "$WANT" ]]; then
     echo "Herdr app now shows the $WANT layout"
 else
-    mdj_note "the Herdr app did not take the $WANT layout, open it and press cmd-shift-l to pick it"
+    mdj_note "the Herdr app did not take the $WANT layout, open it and press cmd-ctrl-l to pick it"
 fi
 [[ $opened == 1 ]] && herdr-app do app.quit >/dev/null 2>&1 || true

@@ -688,7 +688,7 @@ Worktree convention. When you create a git worktree for a feature or fix, put it
 ### Ghostty
 
 Configuration in `dotfiles/ghostty/`. See `dotfiles/ghostty/AGENTS.md` for the generated theme
-pair and the reload keystroke, the four slots it declares for fzf, tmux and the Claude
+pair and the reload keystroke, the five slots it declares for fzf, tmux and the Claude
 statusline, and why ANSI black and white swap by half.
 
 ### Herdr

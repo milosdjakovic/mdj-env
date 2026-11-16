@@ -12,7 +12,7 @@ package. The step looks for the app by its bundle id, `dev.herdr.app`, and runs
 again updates the app and a setup run never upgrades anything. The installer checks the archive
 against the SHA-256 in Herdr's release manifest, puts `Herdr.app` in `~/Applications`, links
 `herdr-app` into `~/.local/bin`, and installs herdr-core only when there is none. The app keeps
-itself and the core current. The `alt-z` popups run the herdr package's tools, so a machine
+itself and the core current. The git, files and find popups run the herdr package's tools, so a machine
 with this piece on takes `herdr` too. Switching a fresh machine to the `mdj` layout is still the
 one command in `dotfiles/herdr-app/AGENTS.md`.
 
