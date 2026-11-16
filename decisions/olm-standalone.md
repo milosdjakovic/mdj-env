@@ -802,3 +802,11 @@ list, and until then that list stays on Lua.
   the actions pane's own calls into the tool, its choices among them, to the app as keys. The rest
   of 3.4 stands, a tool's own verbs on its chords still reach only the shared ones the app's stage
   knows.
+- 2026-11-16 11:54. 3.3c ticked, Milos's trial good, Emoji and Browser Tabs inside the app's launcher,
+  and the round above with them, Hyper and O on a hosted list, the icons and the Browsers checkboxes.
+  The shadow log stood at 77 lines and no difference. Found on the way and not fixed, an open
+  problem: restarting Olm.app while Hammerspoon runs left the bridge connected, dropped a second
+  later and never connected again, so the app's launcher showed no row at all, and a Hammerspoon
+  reload alone did not bring it back while the app kept that session. Restarting the app and then
+  reloading Hammerspoon did. It predates this round, and it matters before 3.5's flip, when the app
+  answers Hyper and Space.
