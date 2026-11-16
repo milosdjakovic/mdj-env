@@ -30,8 +30,8 @@ forty indexes and every colour a script here writes. Anything new that draws wit
 slot and nothing else.
 
 fzf applies the file first and `FZF_DEFAULT_OPTS` after, so a string inherited from a shell or a
-server older than the file silently wins over it. `.zshrc.custom` unsets the variable before
-exporting the path for that reason.
+server older than the file silently wins over it. `.zshenv` in the zsh package unsets the
+variable before exporting the path for that reason.
 
 ## Rejected
 
@@ -177,3 +177,9 @@ a prompt or from Neovim, keeps lazygit's blue.
 
 **2026-11-16 08:55.** lf joins, its cursor row on slot 20 through `cursoractivefmt` and
 `cursorparentfmt` in `lfrc`, so lf, fzf and lazygit draw the same highlight. `decisions/lf.md` has it.
+
+### 2026-11-16 15:59
+
+Now still said `.zshrc.custom` unsets `FZF_DEFAULT_OPTS` before exporting the options file's
+path. Both lines live in `dotfiles/zsh/.zshenv`, and `.zshrc.custom` carries neither. Now says
+so. Found by an audit of this directory against the repository on this date.

@@ -11,9 +11,11 @@ windows of whatever apps are open when the layout is applied. Closed apps stay c
 report on the shared overlay says so per app. A window is remembered by the role of its display,
 built in or the first, second, or third external counted left to right, and by its frame as a
 fraction of that display's visible frame, never by monitor identity and never in points. A
-layout is available when every display it needs is attached. `config/workspaces.json` is
-written only when a person acts and is tracked. The plugin's own `CLAUDE.md` holds the design
-record and the hammerspoon module `CLAUDE.md` holds what crosses the config.
+layout is available when every display it needs is attached. The layouts are
+`layouts.json` in the plugin's own directory under the olm data root, `~/.olm/data/workspaces`,
+reached through `lib/storage.lua` by `store.lua`, written only when a person acts and not tracked.
+The plugin's own `AGENTS.md` holds the design record and the hammerspoon module `AGENTS.md` holds
+what crosses the config, each with a `CLAUDE.md` beside it that only imports it.
 
 ## Rejected
 
@@ -133,3 +135,11 @@ The store is purged from history as well, `git filter-repo` dropping
 still carried one machine's window titles. Every commit since 2026-08-30 has a new hash, so
 every decisions file that cited one was rewritten to the new value in the same push, and the
 one commit that held nothing but the file no longer exists.
+
+### 2026-11-16 15:59
+
+Now was out of date and contradicted its own Status. It said `config/workspaces.json` is written
+and tracked, while `store.lua` writes `layouts.json` under the olm data root, as Status already
+said, and no `config/workspaces.json` exists. It also pointed at the plugin's and the module's
+`CLAUDE.md` for the design record, and both are now a bare `@AGENTS.md` import, so Now points at
+the `AGENTS.md` files. Found by an audit against the repo on 2026-11-16.

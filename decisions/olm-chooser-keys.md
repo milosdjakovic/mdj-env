@@ -1,8 +1,8 @@
 # Olm chooser keys
 
 Status. The default chooser's text field lets Hyper presses through to their own dispatch, the
-action panel opens on Hyper and o in every list, with file search reveal on Hyper and f, and every
-list carries an always visible action bar with a key panel on Command and ? and an optional
+actions pane opens on Hyper and o in every list, with file search reveal on Hyper and f, and every
+list carries an always visible bottom bar with the info pane on Command and ? and an optional
 secondary on Command and Return. File search opens on Hyper and semicolon.
 
 ## Now
@@ -19,36 +19,36 @@ when it is the leader key or the leader is held, under the modifier trigger when
 set is held. The field and the default provider know only that it is a
 predicate, and the legacy provider needs nothing since its keys already reach Hyper.
 
-The action panel is on Hyper and o in every list, declared once in `lib/surface.lua`, the loop
+The actions pane is on Hyper and o in every list, declared once in `lib/surface.lua`, the loop
 that once sat at the bottom of `config/keys.lua` having gone with that file. File search reveal in
 Finder is on Hyper and f.
 
-Every list in the default chooser carries one action bar row at the bottom of its own canvas,
-always visible, since 2026-10-23, `Spoons/Olm.spoon/docs/PLAN-ACTION-BAR.md`. It replaced the
+Every list in the swift and default choosers carries a bottom bar, always visible, since 2026-10-23, `Spoons/Olm.spoon/docs/PLAN-ACTION-BAR.md`. It replaced the
 docked shortcut hint pane that showed after 800 ms with no key. The right side reads the primary's
 label on Return, the secondary's on Command and Return when the list declares a `secondary`, and
-Actions on the action panel's chord, each label following the level shown, the presentation's
-`labels` first. A (?) button on the left carrying its key beside it, or the shared `showKeys` verb
-on Command and ? and Command and slash, keys the list's field answers on no leader, spelled ⌘?, opens a
-key panel over the bottom rows listing every other key, and any key that acts or a second click
-closes it, Escape closing the panel and leaving the list. Command and Return in a list with no
+Actions on the actions pane's chord, each label following the level shown, the presentation's
+`labels` first. The Info item on the left side carrying its key beside it, or the shared `showInfo` verb,
+labelled Info, on Command and ? and Command and slash, keys the list's field answers on no leader,
+spelled ⌘?, opens the info pane, a floating pane above the left side listing every other key, and
+any key that acts or a second click closes it, Escape closing the pane and leaving the list. Command and Return in a list with no
 secondary keeps choosing the row, and so does Command and keypad Enter, the secondary's second key.
 Command and ? reaches a list only where the system's Show Help menu shortcut is off, which
 `src/setup-macos-shortcuts.sh` sees to, `macos-shortcuts.md`. The legacy chooser has no field that
-answers it and no key panel. File search opens on Hyper and semicolon, since macOS takes Hyper and
-slash before any tap. While the action panel is open the bar describes the panel, and
-every field key of the list is inert there. The action panel lists Back, the primary, the secondary and then
-the verbs. The legacy chooser draws no bar.
+answers it and no info pane. File search opens on Hyper and semicolon, since macOS takes Hyper and
+slash before any tap. While the actions pane is open the bar describes the pane, and
+every field key of the list is inert there. The actions pane lists the primary, the secondary and
+then the verbs, with no Back row in a pane floating over the list, since Escape leaves it. The legacy chooser draws no bar.
 
 Command and a digit chooses one of the first nine rows of the list, and those nine rows carry
 the ⌘1 to ⌘9 numbers, fixed however the list is scrolled, `rowAtSlot` in the list model, since
-2026-10-30. The bar's key panel reads Choose rows 1 to 9. Since 2026-11-03 the selected row shows
+2026-10-30. The info pane reads Choose rows 1 to 9. Since 2026-11-03 the selected row shows
 Return in place of its number, since Return is what chooses it, and its digit still chooses it.
 Every row shortcut is a bare key cap, the bar's monospace keys with no chip, at the row title's
 size, in both choosers.
 
-The default chooser is the shipped default and the word chooser means it unless legacy is
-named. The legacy chooser, the one wrapping hs.chooser, is deprecated, still selectable
+The swift chooser is the shipped value of `chooser.provider` in `config/settings.lua`, and the
+default chooser, the canvas one, serves until swift's library is built and whenever it cannot
+build or load. The word chooser means either unless legacy is named. The legacy chooser, the one wrapping hs.chooser, is deprecated, still selectable
 through `chooser.provider` in the settings as a fallback, marked in its own header, and named
 in a console warning on every load that picks it. Removing it is a later, separate step.
 
@@ -784,3 +784,14 @@ and a row's shortcut names `body`, through `ROW_KEY_OPTS` in `providers/default/
 the canvas list and the column width, and `rowKeyFont` on the swift style. A bare cap whose font
 is taller than the badge stands in a box its own line tall. The actions pane and the bar keep the
 hint size.
+
+### 2026-11-16 15:59
+
+Status and Now were out of date. Now said the default chooser is the shipped default, while
+`config/settings.lua` ships `chooserProviders.swift` and the default chooser is its fallback. The
+shared verb named `showKeys` is `showInfo`, labelled Info, since 85d632c7 of 2026-11-02, and the
+key panel, the action panel and the action bar are the info pane, the actions pane and the bottom
+bar by `decisions/olm-names.md`, the info pane floating above the bar's left side rather than over
+the bottom rows. Now also said the actions pane lists Back first, which `host/actionspane` leaves
+out of a pane floating over the list, as both choosers draw it. The keys themselves are unchanged.
+Found by an audit against the repo on 2026-11-16.

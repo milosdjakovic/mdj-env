@@ -1,6 +1,6 @@
 # Olm chooser performance, scrolling and memory
 
-Status. The swift chooser scrolls at 3 frame drops in an 8 second flick and Hammerspoon starts at 44 MB. The canvas chooser's one remaining fault is fixed on the canvas-glass-layout branch and waits on a live measure, and the legacy chooser carries none that this repository can fix.
+Status. The swift chooser scrolls at 3 frame drops in an 8 second flick and Hammerspoon starts at 44 MB. The canvas chooser's one remaining fault is fixed on main since the canvas-glass-layout merge of 2026-10-31 (63151f13) and waits on a live measure, and the legacy chooser carries none that this repository can fix.
 
 ## Now
 
@@ -21,10 +21,12 @@ the list model and the kit and differ in how they draw.
 whole string measure, `lib/ui/measure.lua` `exact`, was uncached, so every redraw measured the
 same strings again. It is cached now and emptied at 512 strings, with the same values from the
 same call, which fixes every surface drawn through the kit, all three choosers' bars and panels
-among them. The canvas chooser's own field, `providers/default/field/render.lua`, still measures
-the text before the caret through that call on every draw, and the canvas view redraws the field
-on each half second caret blink, on every keystroke and on every tick of its 60 Hz scroll ease,
-so with text typed it leaves a window behind at up to sixty a second while it scrolls. The legacy
+among them. The canvas chooser's own field, `providers/default/field/render.lua`, measured the
+text before the caret through the direct call on every draw, and the canvas view redraws the field
+on each half second caret blink, on every keystroke and on every tick of its 60 Hz scroll ease, so
+with text typed it left a window behind at up to sixty a second while it scrolled. It measures
+through `style.measure` now, the kit's cached `exact` handed in by the canvas view, since 0ef5d9b0,
+and the standalone field probe alone keeps the direct call. The legacy
 chooser measures through the kit's per character `width`, which was always memoised, and its
 rows are Hammerspoon's own `hs.chooser`, so it makes no such window.
 
@@ -140,3 +142,12 @@ the freeze is one synchronous step in the text path that swaps a list, and not r
 index lines took 55 ms in one run. What the 2.4 seconds is spent on is not known yet. The launcher's
 app scan runs from `_appRows` when its cache is gone, and it is a suspect only, measured at 356 ms
 when it was last measured. A `sample` of Hammerspoon taken across a stall names it.
+
+### 2026-11-16 15:59
+
+Status and Now were out of date. Status placed the canvas field's fix on the canvas-glass-layout
+branch, which was merged into main on 2026-10-31 in 63151f13, and Now said the canvas chooser's
+field still measures through the uncached call and leaves a window behind, which stopped being true
+with 0ef5d9b0 on 2026-10-30, where `field/render.lua` measures through the kit's cached
+`style.measure`. The table already said fixed and not yet measured live, and nothing in the repo
+records a live measure since, so that cell stands. Found by an audit against the repo on 2026-11-16.

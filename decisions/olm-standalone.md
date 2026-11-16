@@ -1,9 +1,10 @@
 # Olm as an app of its own
 
-Status. Planned. Olm moves to a native macOS app in small steps beside Hammerspoon, file search
-first as a pilot, to a resting point where the app owns every list and reaches Hammerspoon as a
-dependency, by `dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/docs/PLAN-STANDALONE.md`, whose
-Progress section is the one record of which steps are done.
+Status. Under way. Olm moves to a native macOS app in small steps beside Hammerspoon, by
+`dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/docs/PLAN-STANDALONE.md`, whose Progress
+section is the one record of which steps are done. Stages 0 to 2 are done, file search is the app's
+since 1.5's flip on 2026-11-12, and stage 3 is under way, 3.3d built and checked live and waiting on
+Milos's own trial, as that section stood on 2026-11-16.
 
 ## Now
 
@@ -16,7 +17,10 @@ and each step moves one responsibility across it, a shadow comparison first and 
 switch takes back, until nothing is left on the Hammerspoon side. Behaviour that moves is pinned
 first as language neutral fixtures both sides run. No flip drops a feature. The app becomes the
 daily path for a list only when every feature of the Lua one works in it, checked against a written
-list, and until then that list stays on Lua.
+list, and until then that list stays on Lua. File search crossed that line on 2026-11-12 and is served by the
+app where the olmapp piece is on, with turning the piece off as the way back. The launcher on Hyper
+and Space is still Hammerspoon's, and the app's own launcher, which reaches Hammerspoon over the
+bridge socket, runs on the trial key Hyper and 0 until step 3.5 gives it Hyper and Space.
 
 ## Rejected
 
@@ -845,3 +849,8 @@ list, and until then that list stays on Lua.
   Return went into Milos's own Claude Code pane, since the app's launcher had closed between two of
   my keys while he was typing. The drive now checks before every key that the bridge says the
   launcher is up and stops otherwise.
+- 2026-11-16 15:59. Status was out of date. It said Planned, while the plan's Progress section
+  shows stages 0 to 2 done, file search served by the app since the flip of 2026-11-12, and stage 3
+  under way with 3.1 and 3.2 ticked, and Caffeinate, Volume and 3.3a to 3.3c ticked under 3.3, and 3.3d waiting on Milos's trial. Status now
+  says so, and Now gained what is true today, which list the app serves and on which key its
+  launcher runs. Found by an audit against the repo on 2026-11-16.

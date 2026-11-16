@@ -1,8 +1,8 @@
 # Olm one search for every list
 
-Status. Phases one to three of `Spoons/Olm.spoon/docs/PLAN-UNIFIED-SEARCH.md` are merged. Phase
-four, the launcher on the engine and the dry gate's search check, is built on branch
-`olm/search-launcher`, awaiting review and a live load.
+Status. All four phases of `Spoons/Olm.spoon/docs/PLAN-UNIFIED-SEARCH.md` are on main. Phase four,
+the launcher on the engine and the dry gate's search check, reached main from `olm/search-launcher`
+in 55c85e3a and 813b7c7d on 2026-10-17, and this file records no live load of it.
 
 ## Now
 
@@ -16,7 +16,7 @@ that a static scan can see through `Spoons/Olm.spoon/test/drygate-search.lua`, w
 and the ones it cannot. Outside `lib/chooser`, `lib/ui` and the test directories a `matcher =
 false`, a matcher declared as anything but absent or false in a plugin or a host, a call of a
 matcher or of a local aliasing one, a use of `rank.apply` outside the stage, the query scope and
-the action panel, any use of `rank.score` or `rank.before`, a find of the typed text deciding a
+the actions pane, any use of `rank.score` or `rank.before`, a find of the typed text deciding a
 row in a plugin or a host, and a sort whose comparator reads a query, calls a matcher or the
 engine, or reads a score in a function that reads the query, are findings, unless the line
 carries `search-exempt, ` and a reason. A comparator or filter in another module, a weight table
@@ -1048,3 +1048,13 @@ launcher appears, now declares the keywords placement, cursor, window and positi
 and its two options, none a title word, so typing cursor or window inside the page finds it. This is
 the last keyword ask from the track. The vs keyword for Code was dropped by Milos the same day,
 since the app is named Code.
+
+### 2026-11-16 15:59, phase four is on main
+
+Status was out of date. It said phase four was built on `olm/search-launcher` and awaiting review
+and a live load, while its commits, 55c85e3a and the rework in 813b7c7d of 2026-10-17, are on main,
+reached without a merge commit. No entry here records a live load, so Status says that rather than
+claiming one. Now also named the action panel among the places allowed to call `rank.apply`, a
+word retired by `decisions/olm-names.md` on 2026-11-02, and the gate's list in
+`test/drygate-search.lua` names `host/actionspane/`, so Now says the actions pane. Found by an
+audit against the repo on 2026-11-16.

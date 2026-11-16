@@ -16,8 +16,10 @@ left on as the first line and the selection after it, and both endings are read 
 the bottom of the script. A picker that has already answered should close, so there was never a
 reason for the copy to stay resident.
 
-The header carries the hint beside the two toggles, which is the one place in this popup a
-header earns its keep, since the frame already carries the name and cannot carry keys.
+The footer carries the hint beside the two toggles, `ctrl-f`, `ctrl-h` and `ctrl-y copy path`,
+pinned to the popup's bottom edge rather than riding above the list, since the frame already
+carries the name and cannot carry keys. fzf rules the footer off with the same line it draws
+under the match counter, so the popup keeps its one border.
 
 ## Rejected
 
@@ -131,3 +133,10 @@ carries why the global version is still open.
 **2026-09-15 18:55.** The bar left this file for good. It is slot 16, declared as the `highlight`
 role in Ghostty's map, and every fzf reads it from one options file, so `find.sh` carries no
 colour and no appearance check. `fzf-appearance-colour.md` has the close.
+
+### 2026-11-16 15:59
+
+Now still said the header carried the hint beside the two toggles. The keys and the toggle
+states sit in fzf's `--footer` in `dotfiles/herdr/.config/herdr/tools/find.sh`, pinned to the
+bottom edge, and there is no header. Now says so. Found by an audit of this directory against
+the repository on this date.

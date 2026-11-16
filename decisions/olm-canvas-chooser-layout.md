@@ -1,35 +1,37 @@
 # Olm canvas chooser, a layout clone of the swift chooser
 
-Status. In progress on the canvas-glass-layout branch. The canvas chooser shares swift's rects, spans its pane as one surface, draws the bar as swift's two floating groups and the key panel and the action panel as popovers above them, all checked offline and not yet seen live.
+Status. Merged into main on 2026-10-31 (63151f13). The canvas chooser shares swift's rects, spans its pane as one surface, draws the bar as swift's two floating groups and the info pane and the actions pane as floating panes above them, and serves as the fallback provider while swift is the shipped one.
 
 ## Now
 
-The canvas chooser, the default provider, is being made a clone of the swift chooser's layout,
-the same parts in the same places at the same sizes, while it keeps its own theming, solid fills
-in the kit's colour roles rather than glass. The swift chooser itself is not touched.
+The canvas chooser, the `default` provider, is a clone of the swift chooser's layout, the same
+parts in the same places at the same sizes, while it keeps its own theming, solid fills in the
+kit's colour roles rather than glass. The swift chooser itself was not touched. Swift is the
+shipped provider in `config/settings.lua`, and the canvas chooser draws every chooser until swift's
+first build is done and whenever swift cannot build or load. The work was merged into main on
+2026-10-31 in 63151f13, and the parts were renamed by `decisions/olm-names.md` on 2026-11-02.
 
-Since 2026-10-30 the canvas view answers `spansFooter` and `footerHeight` exactly as the swift view
-does, so the engine hands both the same rects, the bar across the canvas, the gap and the pane, the
-pane stopping at the bar's top edge, and no gap beside the pane. Its surface spans the canvas, the
-gap and the pane as one rounded shape with a hairline of the border role between list and pane.
-A docked pane draws inside that surface through the provider's `paneBackend`, which the root wraps
+The canvas view answers `spansBottomBar` and `bottomBarHeight` exactly as the swift view does, so
+the engine hands both the same rects, the bar across the canvas, the gap and the pane, the pane
+stopping at the bar's top edge, and no gap beside the pane. Its surface spans the canvas, the gap
+and the pane as one rounded shape with a hairline of the border role between list and pane. A
+preview pane draws inside that surface through the provider's `paneBackend`, which the root wraps
 around the plain canvas backend whenever the native pane is not used. `Olm.spoon/AGENTS.md`, under
-the docked pane, has how it matches a pane to its chooser.
+the preview pane, has how it matches a pane to its chooser.
 
-Since 2026-10-30 the bar is swift's two floating groups, drawn by
-`lib/chooser/providers/default/bar.lua` from the same tokens swift's view hands Swift, each filled
-with the background role and outlined in the border role, and the list runs on behind them to the
-window's bottom edge, drawn from a copy of the engine's list state with its `padEnd` grown by the
-bar's height. The divider runs the full height under the bar. `Olm.spoon/AGENTS.md`, under the
-action bar, has the measurements and how a press and a hover are answered.
+The bar is swift's two floating groups, drawn by `lib/chooser/providers/default/bar.lua` from the
+same tokens swift's view hands Swift, each filled with the background role and outlined in the
+border role, and the list runs on behind them to the window's bottom edge, drawn from a copy of the
+engine's list state with its `padEnd` grown by the bar's height. The divider runs the full height
+under the bar. `Olm.spoon/AGENTS.md`, under the bottom bar, has the measurements and how a press
+and a hover are answered.
 
-Since 2026-10-30 the key panel and the action panel are popovers, `providers/default/popover.lua`,
-one drawing routine for both cloned from swift's `native/Popover.swift`, each standing above its
-group's rect, which `bar.lua` answers, and the view answers `floatsActionPanel`, so the panel has no
-Back row and the list keeps the rows it showed. `Olm.spoon/AGENTS.md`, under the action bar, has the
-sizes and the pointer. `footer.lua` keeps only the bar's height.
-
-Still to do. Seeing it live beside the swift chooser.
+The info pane and the actions pane are floating panes, `providers/default/floatingpane.lua`, one
+drawing routine for both cloned from swift's `native/FloatingPane.swift`, each standing above its
+group's rect, which `bar.lua` answers, and the view answers `floatsActionsPane`, so the actions pane
+has no Back row and the list keeps the rows it showed. A point on a group or a floating pane is on
+no row, and a scroll over either moves no list. `bottombar.lua` keeps the bar's height, which the
+engine, the swift view, `bar.lua` and `floatingpane.lua` all read, and the key caps both draw.
 
 ## Rejected
 
@@ -104,3 +106,15 @@ bar's own group rects are the anchors now, the keys group's for the key panel an
 group's for the action panel. A point on a group or a popover is on no row, a scroll over either
 moves no list, and the rows held behind a floating action panel scroll through the same span the
 rows run on behind the bar. `footer.lua`'s key panel, unused since the popovers, was removed.
+
+### 2026-11-16 15:59
+
+Status and Now were out of date. They said the work was in progress on the canvas-glass-layout
+branch and not yet seen live, and they named `popover.lua`, `footer.lua`, the key panel, the action
+panel, `spansFooter`, `footerHeight` and `floatsActionPanel`. The branch was merged into main on
+2026-10-31 in 63151f13, the files are `floatingpane.lua` and `bottombar.lua` since the rename of
+2026-11-02, and the view answers `spansBottomBar`, `bottomBarHeight` and `floatsActionsPane`. Now
+also called the canvas chooser the default provider, which it is only by name, since
+`config/settings.lua` ships swift and the canvas chooser is its fallback. Whether it was seen live
+beside the swift chooser is not recorded here, so Now no longer says either way. Found by an audit
+against the repo on 2026-11-16.

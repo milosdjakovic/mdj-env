@@ -1,8 +1,9 @@
 # Runtime versions, and the one tool that switches them
 
-Status. On a machine that `machines/` turns mise on for, mise manages every language runtime, python, ruby, node, go and rust,
-plus uv itself, from a global config in its own stow package, `dotfiles/mise`. A project
-overrides any of them with its own pin. uv may only use the interpreters mise installed.
+Status. On a machine that `machines/` turns mise on for, mise manages every language runtime and
+uv itself, each version defined once in the catalog `dotfiles/mise/TOOLS` and taken by name in the
+machine's `tools` row. A project overrides any of them with its own pin. uv may only use the
+interpreters mise installed.
 
 ## Now
 
@@ -10,12 +11,16 @@ mise is optional per machine, off by default, and on here. Where it is off nothi
 or installed for it and the shell does not activate it, since activation keys on the config
 file existing rather than on the binary. `decisions/machine-profiles.md` has the mechanism.
 
-`dotfiles/mise/.config/mise/config.toml` lists one default version per language, and
-`src/install-mise-tools.sh` installs whatever it lists that is missing, after stow and never
-moving a version already present. Each default is the major or minor that was in use when mise
-took over, so the switch changed nothing a script could notice. Python lists three versions,
-3.14 as the default and 3.13 and 3.12 beside it, because projects here pin both and uv can only
-reach an interpreter mise put on PATH.
+Versions live in `dotfiles/mise/TOOLS`, the catalog, one row per tool a machine may take, with
+its mise name, its version and the command capture looks for, and nothing about machines. A
+machine picks names from it in the `tools` row of its `machines/<name>/pieces`, which holds no
+versions. `dotfiles/mise/.config/mise/config.toml` lists no tools, only how mise behaves
+everywhere. `src/install-mise-tools.sh` is the one place that joins the two, writing
+`~/.config/mise/conf.d/machine.toml` and running `mise install` after stow, never moving a version
+already present. Rows sharing a mise tool merge in catalog order, so the first python row, 3.14,
+is the default and 3.13, 3.12, 3.11 and 3.9 sit beside it as `python3.13` and so on, because
+projects here pin them and uv can only reach an interpreter mise put on PATH. This machine's row
+takes firebase, flutter, java, lua5.4, node, pnpm, python, uv and yarn.
 
 Version files that a cloned repository carries, `.python-version`, `.ruby-version`, `.nvmrc` and
 `.node-version`, plus go's, are honoured without a `mise.toml`. Rust is left to rustup, which
@@ -30,7 +35,8 @@ Homebrew installs as a dependency of another formula stays too, since that formu
 it privately, which is why `python@3.13`, `python@3.14`, `node` and `ruby` are still in the
 Cellar. Only the leaves that mise replaced were removed.
 
-Java is still deliberately unconfigured, and the Rejected section says why.
+Java is configured, `java` at temurin-17 in the catalog, for Flutter and Android builds, after
+the rejection of 2026-09-20 was reopened on 2026-10-30, see the log.
 
 ## Rejected
 
@@ -230,3 +236,13 @@ then until this change `env -i zsh -c` on that account found no node. The guard 
 machine with mise but not this repository's runtimes is untouched. Checked with
 `env -i HOME=$HOME zsh -c 'command -v node'`, which answers the shim, and a nested zsh carries the
 shims once.
+
+### 2026-11-16 15:59
+
+Status and Now still described the layout from before the catalog. Status named python, ruby,
+node, go and rust from a global config, Now said `config.toml` lists one default version per
+language with three pythons, and Java was called deliberately unconfigured. Versions live in
+`dotfiles/mise/TOOLS`, a machine's `tools` row picks names from it, `src/install-mise-tools.sh`
+joins the two into `conf.d/machine.toml`, `config.toml` lists no tools, python has five rows, and
+`java` is in the catalog at temurin-17 since the reopening of 2026-10-30. Status and Now say so.
+Found by an audit of this directory against the repository on this date.

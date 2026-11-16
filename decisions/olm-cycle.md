@@ -20,7 +20,8 @@ characters of a keyboard layout the completion switched to.
 
 The same presentation opened through `open`, the launcher row or the alias is the full list,
 searched as before, so how a list is shown follows the door and is never a plugin field. The bare
-posture is `setPosture` on the default provider, applied by the stage through the same hide and
+posture is `setPosture` on the shared chooser engine, `lib/chooser/engine/init.lua`, so the swift
+and default choosers both answer it, applied by the stage through the same hide and
 reshow a row count change takes. The Globe key, code 179, which macOS posts for a tap of fn, is
 named `globe` by `lib/keycodes.lua`, the key table every reader of a key name now uses, and is the
 one standalone key, which a row may bind with neither a leader nor a modifier. A row with no
@@ -100,3 +101,10 @@ the Globe key, was not on main and merged as written. Its goldens commit had bec
 main had already refreshed the same goldens. Milos ended the manual hold the trial was running
 under and asked for the work merged, without a verdict on the feel, so whether a key typed during
 a cycle lands in the new layout every time and whether 50 milliseconds is enough stay owed.
+
+### 2026-11-16 15:59
+
+Now was out of date. It put `setPosture` on the default provider, while it is a method of the
+shared engine in `lib/chooser/engine/init.lua`, which the swift and default providers both compose,
+so the bare posture is not the default chooser's alone. Found by an audit against the repo on
+2026-11-16.

@@ -1,20 +1,30 @@
 # Olm storage roots
 
-Status. Everything Olm writes on this machine lives under `~/.olm`, `data/` for what is
-durable and `cache/` for what is regenerable, one directory per plugin, reached only through
-`lib/storage.lua`.
+Status. Everything Olm writes on this machine lives under `~/.olm`. A plugin's own files sit in
+`data/` for what is durable and `cache/` for what is regenerable, one directory per plugin, reached
+only through `lib/storage.lua`, and Olm.app and the bridge to it keep `app/`, `run/`, `log/` and
+`state/` beside them.
 
 ## Now
 
-`config/settings.lua` names the two roots, `olmRoot = "~/.olm/data"` and
+`config/settings.lua` names the two plugin roots, `olmRoot = "~/.olm/data"` and
 `cacheRoot = "~/.olm/cache"`, and `lib/storage.lua` hands each plugin its own directory under
 them through `dataDir(name)` and `cacheDir(name)`. A plugin declares `needs.lib.storage` and
 asks, and no plugin names a directory under HOME by itself. Durable today, the clipboard
 history with its frozen files and thumbnails, the workspaces layouts, and the speed test runs.
-Regenerable, the menu search snapshots, the file search previews and hidden files index, and
-the three compiled Swift helpers, the eyedropper sampler, the browser permission probe, and the
-Quick Look viewer. The only store left inside the config tree is DisplayProfiles, because a
-display arrangement is configuration a person edits and commits.
+Regenerable, the menu search snapshots, the file search previews and hidden files index, the four
+compiled Swift helpers, the eyedropper sampler, the browser permission probe, the Quick Look
+viewer and the file index helper, and the swift chooser's compiled library in
+`~/.olm/cache/swiftchooser`, which `lib/chooser/providers/swift` builds and loads. The only store
+left inside the config tree is DisplayProfiles, because a display arrangement is configuration a
+person edits and commits.
+
+Olm.app and the bridge to it are core rather than plugins and write beside those roots by fixed
+paths. `src/setup-olmapp.sh` builds the app into `~/.olm/app/Olm.app`, its build scratch in
+`~/.olm/cache/olmapp-package`. `host/bridge` writes the settings the app reads into `~/.olm/run`,
+where the app's socket `bridge.sock` also lives, and keeps the pictures it hands the app in
+`~/.olm/cache/bridge`. The app appends its shadow comparisons to `~/.olm/log/shadow-<tool>.jsonl`
+and keeps each of its plugins' own state in `~/.olm/state/<plugin>`.
 
 ## Rejected
 
@@ -66,3 +76,12 @@ is that the cost of the rejected layout is avoidable rather than fundamental, an
 pattern in `root/compose.lua` would make it work, so if the one directory feel ever outweighs
 the two reasons it is two lines in `config/settings.lua` plus that pattern and a second move
 of the files. Settled as `~/.olm` with that understood.
+
+### 2026-11-16 15:59
+
+Status and Now were out of date. They said everything Olm writes is reached through
+`lib/storage.lua` under `data/` and `cache/`, and counted three compiled Swift helpers. Olm.app and
+the bridge now write `~/.olm/app`, `~/.olm/run`, `~/.olm/log` and `~/.olm/state` by fixed paths, in
+`src/setup-olmapp.sh`, `host/bridge/init.lua` and the app's own sources, and the compiled code in
+the cache is four helpers, the file index helper being the one missed, plus the swift chooser's
+library in `~/.olm/cache/swiftchooser`. Found by an audit against the repo on 2026-11-16.

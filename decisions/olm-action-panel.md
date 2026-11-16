@@ -1,8 +1,8 @@
 # Olm action panel
 
-Status. The action panel is programmable. A plugin's `surface.extra` row may carry a `section`,
-an `applies` method, `choices` or `confirm`, and may leave out its key to be a verb of the panel
-alone. Workspaces and Display Profiles apply on Return and offer the rest in the panel, and the
+Status. The actions pane is programmable. A plugin's `surface.extra` row may carry a `section`,
+an `applies` method, `choices` or `confirm`, and may leave out its key to be a verb of the actions
+pane alone. Workspaces and Display Profiles apply on Return and offer the rest in the actions pane, and the
 clipboard, Text Case, Emoji and File Search have a secondary. Phase 3a moved VPN, Tmux Sessions,
 Speedtest, Caffeinate and File Search onto the contract. Phase 3b and phase four were dropped, so
 the track is finished.
@@ -11,24 +11,24 @@ the track is finished.
 
 A plugin declares what its rows can do and Olm draws it. The fields live on `surface.extra`,
 validated in `lib/surface.lua`, carried and ordered into sections by `lib/hints.lua`, and answered
-by `host/actionpanel`, which asks the open plugin's surface through the root for `applies` and
+by `host/actionspane`, which asks the open plugin's surface through the root for `applies` and
 `choices` and opens a level for `choices` and `confirm`. A verb opening a level of its own tool
 calls the new stage word `stagePush`. The root's dispatch forwards a value, so a choice reaches the
 plugin's method as its argument. Keyless verbs live in a context's `panel` list, never in its
-bindings, since every reader of a binding reads its key. The swift chooser's popover draws the
+bindings, since every reader of a binding reads its key. The swift chooser's floating pane draws the
 section headings and heads a level with its verb, and the canvas chooser lists the same order.
 
-The root asks the plugin that owns the context the panel opened for, not whichever list is
+The root asks the plugin that owns the context the actions pane opened for, not whichever list is
 showing, and hands it the row its tool made, through `QueryScope:payloadOf`, so a list hosted in
 the launcher has its `applies` and `choices` answered by its own tool. A method the surface does
 not have answers not found, and the verb stays listed. A choice may answer `enabled = false`, drawn
-dimmed in the popover and choosing nothing, and the secondary may carry `applies`.
+dimmed in the floating pane and choosing nothing, and the secondary may carry `applies`.
 
 Return in Workspaces and Display Profiles applies the layout or the profile, decided by Milos on
-2026-10-29, and Rename, Apps, Displays and Delete moved into the panel, Delete behind a confirm.
-This track moves what plugins already do into the panel. New actions follow as separate pieces.
+2026-10-29, and Rename, Apps, Displays and Delete moved into the actions pane, Delete behind a confirm.
+This track moves what plugins already do into the actions pane. New actions follow as separate pieces.
 
-A key a row shows chooses that row while the panel is open, since 2026-11-03, through the dispatch
+A key a row shows chooses that row while the actions pane is open, since 2026-11-03, through the dispatch
 table's `claim` and `ActionsPane:chooseAction`, and a list is never left without a key for either
 move verb, which `keymap.navigationProblems` reports as a keymap problem.
 
@@ -253,3 +253,12 @@ marked running, the switch's was not. It is marked now, with a case in `test/cas
 that fails without it. The Safari icons Milos saw vanish on the first flip did not come back in
 several tries once the pane stayed open, so they are believed to be the redraw the closing pane
 cut short, not proven.
+
+### 2026-11-16 15:59
+
+Status and Now were out of date in their words, not their substance. They named the host
+`host/actionpanel`, which is `host/actionspane`, and called its parts the action panel and the
+popover, words retired by `decisions/olm-names.md` on 2026-11-02 in favour of the actions pane and
+the floating pane. Both now use the current words. The context's `panel` list keeps its name, since
+that is still the identifier in `lib/surface.lua` and `lib/hints.lua`. Found by an audit against
+the repo on 2026-11-16.

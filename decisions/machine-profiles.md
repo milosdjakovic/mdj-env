@@ -9,10 +9,13 @@ where one machine differs, the directory named by its `LocalHostName`. A row rea
 
 Three machines use this repository and they differ, one of them is not the user's and carries
 its own setup, so a piece like mise must be possible to leave off without leaving the
-repository. `machines/default/pieces` lists eight pieces, mise, hammerspoon, herdr, mole, docker, vpn, tools
-and kanata. The defaults keep what every machine got before the directory existed, except mise, which is off unless
+repository. `machines/default/pieces` lists twelve pieces, mise, hammerspoon, herdr, mole, docker, vpn, tools,
+kanata, rex, herdr-app, olmapp and editor. The defaults keep what every machine got before the directory existed, except mise, which is off unless
 a machine asks, since mise acting on every `.nvmrc` would take over a machine's own pyenv or nvm, and kanata,
 which came later and is off unless a machine asks, since it puts a driver and a root daemon on a machine.
+The four added after it are off or none by default too, rex since Rex is a beta installed by hand,
+herdr-app since it is a second terminal host, olmapp while Olm.app is being built up, and editor,
+a bundle id or none, since applying a default editor raises a dialog per file type.
 
 A piece reaches a machine through four consumers and each asks the reader. The stow step adds
 the optional packages that are on. `setup.sh` runs a piece's step through `step_if`, which
@@ -230,3 +233,9 @@ machine's files in. With both links in place the dry gate and every golden passe
 failed, and they pass without them as before. The live goldens, `goldens.sh --live`, still read
 the running config and so still include this machine's keys, which is what a live read is for.
 
+### 2026-11-16 15:59
+
+Now still said `machines/default/pieces` lists eight pieces. It lists twelve, rex, herdr-app,
+olmapp and editor having joined the first eight, each off or none by default. Now names all
+twelve and why the four are off. Found by an audit of this directory against the repository on
+this date.

@@ -16,8 +16,13 @@ the home directory.
 Which directories those are is a module fact, so each module names its own, as
 `path | reason` with the path written relative to the home directory. The stow step finds
 every `NO-FOLD` by name, the way the reconciler finds a `dependencies-collect` or a
-`grants-probe`, and names no module itself. Two modules declare one today, herdr for
-`.config/herdr` and claude for `.claude/skills`.
+`grants-probe`, and names no module itself. Five modules declare one today. herdr declares
+`.config/herdr`, claude declares `.claude/skills` and `.claude/themes`, mise declares
+`.config/mise` for the `conf.d/machine.toml` that `src/install-mise-tools.sh` writes, hammerspoon
+declares `.hammerspoon` for the `machine-apps.lua` that `src/setup-hammerspoon-apps.sh` writes,
+and herdr-app declares `.config/herdr-app` with its `themes`, `layouts` and `mods` folders and
+every mdj mod's folder, since the app writes its shipped files and type files beside the linked
+ones.
 
 The guard is a `mkdir -p` per declared path before stow runs, and it does nothing where the
 directory already exists. The repair is for a machine that folded before any of this existed.
@@ -106,3 +111,11 @@ directory a program writes into.
   owed when step nine stops the run, and removes the file either way. A step run alone finds
   the variable unset and leaves nothing behind. Verified by running the unfold's message
   through a run with the variable set and one without.
+
+### 2026-11-16 15:59
+
+Now still said two modules declare a `NO-FOLD`, herdr for `.config/herdr` and claude for
+`.claude/skills`. Five do. claude also declares `.claude/themes`, and mise, hammerspoon and
+herdr-app declare their own, as read from every `dotfiles/*/NO-FOLD`. Now names them. The
+deliberate fold of `~/.hammerspoon/config` still holds, since hammerspoon declares only the
+top folder. Found by an audit of this directory against the repository on this date.

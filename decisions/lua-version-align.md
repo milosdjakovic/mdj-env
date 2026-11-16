@@ -1,6 +1,6 @@
 # Lua version alignment
 
-Status. Every offline gate of the hammerspoon module runs the Lua that Hammerspoon embeds, resolved through mise from a version the module's own runtime-probe reads out of the installed app, and the reconciler reports a catalog row that does not match. Built 2026-10-28, not yet installed on this machine.
+Status. Every offline gate of the hammerspoon module runs the Lua that Hammerspoon embeds, resolved through mise from a version the module's own runtime-probe reads out of the installed app, and the reconciler reports a catalog row that does not match. Built 2026-10-28, and installed on this machine the same day, lua 5.4.9 from the `lua5.4` row its tools row takes.
 
 ## Now
 
@@ -28,3 +28,10 @@ rename proof, the goldens and the dry suite, all green, and the reconciler found
 agreeing with the Lua the installed Hammerspoon embeds. A side effect worth knowing, the mise step
 puts the row in the machine's own mise config, so `lua` on PATH in a shell with mise active is
 now 5.4.9 rather than Homebrew's 5.5.1, which the collector does not mind.
+
+### 2026-11-16 15:59
+
+Status still said the alignment was not yet installed on this machine, though the entry of
+2026-10-28 12:55 records the install. `mise ls lua` shows 5.4.9 from `conf.d/machine.toml`, and
+`lua5.4` is in this machine's tools row. Status says so. Found by an audit of this directory
+against the repository on this date.

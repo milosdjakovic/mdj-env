@@ -5,11 +5,11 @@ person sets any key in `config/keymap.lua`. Phase 6 landed and live on 2026-10-2
 toggles and System Settings panes are actions built from data and `config/keys.lua` is gone.
 Phase 7 landed and live on 2026-10-20, so the plan is complete. The keys
 live while a list is open are the `lists` section of `config/keymap.lua` and `config/plugins.lua`
-holds no key. On 2026-10-21 three follow ups were built on `olm/keymap-followups`, pending a live
-load, a sheet's heading following the role its leader holds, the root's generic helpers moved into
-`lib/`, and a read only Olm Keys page on its own launcher row. On 2026-10-22 an addendum to the plan,
-phases A and B, list keys on any leader, was agreed and built on `olm/list-contexts`, pending a live
-load. The plan is `dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/docs/PLAN-KEYMAP.md`.
+holds no key. Three follow ups, a sheet's heading following the role its leader holds, the root's
+generic helpers moved into `lib/`, and a read only Olm Keys page on its own launcher row, landed on
+main after a live check on 2026-10-22 in 5dffd388. The addendum to the plan, phases A and B, list
+keys on any leader, landed on main the same day in e92d56e9, gated by the automated live load with
+no key pressed by hand. The plan is `dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/docs/PLAN-KEYMAP.md`.
 
 ## Now
 
@@ -53,7 +53,7 @@ with its chord. `provides.bindings`, `provides.cheatSheetSections` and
 `provides.launcherAppDetails` are retired and refused by name. A list's own keys are bound through
 the root's contexts, built by `lib/surface.lua` on Olm's own `all` layer, `keymap.listDefaults`,
 and laid over by the person's `lists` section through `keymap.applyLists` before the hint bar, the
-action panel, the keymap and the contexts read them. Every default list key rides the `list` role,
+actions pane, the keymap and the contexts read them. Every default list key rides the `list` role,
 HYPER unless the `roles` section moves it, and a person's list chord names its own held leader, so
 each list key binds on the leader it names and every reader spells that leader. A list chord with
 no held leader, modifiers alone, a named leader's chord or a bare key the field does not read, is
@@ -1021,3 +1021,10 @@ aliases live only in `config/keymap.lua`.
   root's chooser field now yields a modifier leader hosting a list key, where it had claimed that
   chord as the no op, so the hotkey resolves it. `test/leaders.lua` pins the new rule. Milos
   confirmed it live.
+- 2026-11-16 15:59. Status was out of date. It said the follow ups were built on
+  `olm/keymap-followups` and phases A and B on `olm/list-contexts`, each pending a live load, while
+  the entries of 2026-10-22 08:52 and 11:49 above record both landing on main, the follow ups in
+  5dffd388 after Milos's live check and the addendum in e92d56e9 with the automated live load as the
+  gate and no key pressed by hand. Status now says that. Now also named the action panel among the
+  readers of a list's keys, a word retired by `decisions/olm-names.md` on 2026-11-02, and says the
+  actions pane instead. Found by an audit against the repo on 2026-11-16.

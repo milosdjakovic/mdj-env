@@ -12,7 +12,7 @@ such as `{ emoji = "🇸🇪" }` for a glyph that is content. A row that already
 keeps it, since a real picture such as an app or a file icon is not an icon key. A row never
 holds a picture of an icon. Whoever knows the owner stamps `iconOwner` on the row, the stage
 with the presenting plugin, the query scope with the scope, the launcher with the row's owner,
-the action panel with the verb's owner, through `stamp` and `stampAll` in `lib/icons/rows.lua`.
+the actions pane with the verb's owner, through `stamp` and `stampAll` in `lib/icons/rows.lua`.
 The chooser then draws the icon each time it paints. The default provider's list render asks
 `elements(spec, owner, frame)` in that file through an `iconElements` function the root injects,
 and the legacy provider asks `image(spec, owner)` through an `icon` function as it converts a row
@@ -37,7 +37,7 @@ and when a run finishes the root asks every chooser provider to repaint the list
 load the root hands the source every symbol the manifests declare, so a fresh machine renders
 the declared set in one run. The swift chooser's view resolves icons only for the rows near the
 viewport, a page past each edge. The composition root names both sources and reads `config/icons.toml`,
-shipped as `emoji` for the set and the fallback. The colour is the foreground role, the one a
+shipped as `sf` for the set and `emoji` for the fallback. The colour is the foreground role, the one a
 row title is drawn in, read from the kit on every draw. Under the glass chooser's macOS highlight,
 which is solid, the lit row's title turns white, and so does its symbol. The sf source declares
 `monochrome`, the engine answers it beside the image, and the swift list redraws a monochrome
@@ -51,7 +51,7 @@ under `plugins` that creates a canvas and snapshots it with `imageFromCanvas`, w
 declared exceptions listed with a reason in `test/drygate-accepted.txt`.
 
 A plugin's identity icon is `defaults.icon`, a key into its own `icons` named for the plugin, or
-a table spec, and `defaults.glyph` no longer exists anywhere. The launcher row, the action panel,
+a table spec, and `defaults.glyph` no longer exists anywhere. The launcher row, the actions pane,
 the scoped list and a computed row source all read it through the one function
 `image(spec, owner)` in `lib/icons/rows.lua`, which the `lib/glyphicon.lua` door wraps for the
 two hosts that draw rows of their own. A binding, a registry row and a catalog scope name an icon
@@ -475,3 +475,11 @@ keyboard. Its picture had never reached Olm.app at all, since the share encoded 
 scale that `hs.image` refuses, so the app drew its question mark fallback and its actions pane
 rows no icon. Fixed with the boolean the encoder takes, and the shares are written again once the
 icon source has drawn its pictures.
+
+### 2026-11-16 15:59
+
+Now was out of date. It said `config/icons.toml` ships `emoji` for both the set and the fallback,
+while the file sets `set = "sf"` and `fallback = "emoji"`, so SF Symbols draw every row icon that
+has an entry and emoji fills in where one has none. Now also named the action panel twice, a word
+retired by `decisions/olm-names.md` on 2026-11-02, and says the actions pane. Found by an audit
+against the repo on 2026-11-16.

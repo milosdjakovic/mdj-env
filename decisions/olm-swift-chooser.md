@@ -1,9 +1,8 @@
 # Olm swift chooser
 
-Status. A third picker provider, `swift`, is built on `olm/swift-provider`, the chooser engine
-composed with a native panel Olm compiles itself, chosen by one setting and serving the default
-provider until its library is built. It has passed every offline gate and waits for its first
-live load, where typing under secure input is still to be measured.
+Status. The `swift` picker provider, the chooser engine composed with a native panel Olm compiles
+itself, is on main and the shipped value of `chooser.provider` since 2026-10-28, with the default
+canvas chooser serving until its library is built and whenever it cannot build or load.
 
 ## Now
 
@@ -16,7 +15,7 @@ headers ship inside the app, the same way Hammerspoon's own `libchooser.dylib` d
 
 It is the picker facade's third provider, `swift`, beside `default` and `legacy`, behind the
 twenty five method contract, chosen by `chooser.provider` in `config/settings.lua`, which ships
-as `default`. Its rules are the default provider's own, since that provider is
+as `swift`. Its rules are the default provider's own, since that provider is
 `lib/chooser/engine` composed with a canvas view, and the swift provider is the same engine
 composed with `lib/chooser/providers/swift/view.lua`, a Humble Object over the library, behind
 `lib/chooser/view.lua`, which did not change. The choice is made once at configure time, since
@@ -27,17 +26,16 @@ compiler's error. The compiler is the `swiftc` inside the command line tools, `s
 `root/manifest.lua`, resolved through the dependency door, and nothing is built or run unless
 clang and an SDK for the running macOS sit beside it, the definition `src/install-xcode-clt.sh`
 holds. A panel is torn down when the Lua state that made it closes, through a sentinel userdata's
-`__gc` in the library's module table. The panel takes key itself, so the provider is handed no focus hold. The
-bottom action bar, an anchored actions popover,
-an Olm menu on a round button at the bar's left edge, and a native docked pane are planned on
-top of it. Each one presents a model Olm already has, `footerModel`, ActionPanel's `rowsFor`,
-and the UI kit's describer nodes. The docked pane is built on `olm/native-pane`. Every pane is
-reduced by `lib/dockedpane.lua` to hs.canvas element lists, and while the swift provider serves
-the root hands each pane a native backend in the same library, which draws those lists on the
-chooser panel's own glass, one shape spanning the list, the gap and the pane with a hairline in
-the gap, so no plugin changed. Every CanvasPanel, the leader sheets and the three toasts, is drawn
-by the same two backends through the same contract, on glass in a window of its own while the swift
-chooser serves and on the canvas otherwise, built on `olm/native-panel`.
+`__gc` in the library's module table. The panel takes key itself, so the provider is handed no focus hold. The bottom bar,
+`native/Bar.swift`, and the info pane and the actions pane as floating panes over it,
+`native/FloatingPane.swift`, are native too, each presenting a model Olm already has,
+`bottomBarModel` in `lib/hints.lua` and the actions pane's `rowsFor` in `host/actionspane`. Every
+preview pane is reduced by `lib/previewpane.lua` to hs.canvas element lists, and while the swift
+provider serves the root hands each pane a native backend in the same library, which draws those
+lists on the chooser panel's own glass, one shape spanning the list, the gap and the pane with a
+hairline in the gap, so no plugin changed. Every CanvasPanel, the leader sheets and the three
+toasts, is drawn by the same two backends through the same contract, on glass in a window of its
+own while the swift chooser serves and on the canvas otherwise.
 
 ## Rejected
 
@@ -1108,3 +1106,13 @@ durations and distances live, Milos's call after weighing both. Built and loaded
 - 2026-11-15 17:50. Correction to the entry above. That the Lua swift chooser never showed it was
   not checked, it shares `setText` through Entry.swift, and its trial is still to come with the
   rebuilt library.
+- 2026-11-16 15:59. Status and Now were out of date. Status said the provider was built on
+  `olm/swift-provider` and waiting for its first live load, and Now said `config/settings.lua`
+  ships `default`, while the entries of 2026-10-28 above record it merged and live, and it the
+  shipped chooser from 14:53 that day, and `config/settings.lua` names `chooserProviders.swift`.
+  Now also called the bar, the actions popover and the native pane planned or on their branches,
+  where `native/Bar.swift`, `native/FloatingPane.swift` and the native pane and panel backends are
+  on main, and named `lib/dockedpane.lua`, `footerModel` and ActionPanel, which are
+  `lib/previewpane.lua`, `bottomBarModel` and the actions pane since the rename recorded in
+  `decisions/olm-names.md`. Now no longer mentions the round Olm menu, set aside on 2026-10-28 and
+  not built. Found by an audit against the repo on 2026-11-16.

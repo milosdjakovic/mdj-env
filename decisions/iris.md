@@ -1,7 +1,8 @@
 # Iris, the shell autocomplete, from its two fixes to its removal
 
 Status. Removed 2026-09-16, about 16:55. The shell runs zsh-autosuggestions and fzf-tab over
-zsh's own completion, all inside zsh, carapace having been dropped on 2026-09-24, and herdr is the Homebrew formula again, 0.9.0, unpatched. This file
+zsh's own completion, all inside zsh, carapace having been dropped on 2026-09-24, and herdr is the stock release again, unpatched, from its own installer through
+`src/install-herdr.sh`, 0.9.5 on this machine. This file
 is the whole record of iris here, the two fixes it needed and how each works, the herdr
 limitation that ended it and how that works, what upstream herdr has said and where, the fork
 that was built and given up, and how to recheck any of it later. It is written to stand on its
@@ -17,7 +18,8 @@ folded history and commands into one inline menu filtered by the line itself, an
 the one thing this stack does not give. It was tried and rejected on feel once, at 12:10 on
 2026-09-16, and is accepted now as the price of a working agents panel.
 
-herdr is the Homebrew formula, 0.9.0, released 2026-09-07. Every session runs inside zsh with
+herdr is the stock release, unpatched, installed by `src/install-herdr.sh` from herdr's own
+installer and kept current by `herdr update`, 0.9.5 on this machine, see `herdr-install.md`. Every session runs inside zsh with
 nothing holding the pane's terminal, so the agents panel names each one by itself and tracks
 working, blocked and done from the screen, which is herdr's own design since 0.6.7.
 
@@ -924,3 +926,10 @@ neither parents nor children. The descendant walk exists only on Linux, behind t
 The unreleased `agents.mdx` still says detection does not inspect a tmux started inside a pane,
 and offers `HERDR_AGENT` on a wrapper command as the only route, which is the global marker
 rejected above. Issue 803 is still open. A pty proxy like iris would still hide every session.
+
+### 2026-11-16 15:59
+
+Status and Now still said herdr was the Homebrew formula at 0.9.0. Since 2026-11-03 herdr comes
+from its own installer through `src/install-herdr.sh`, mapped as `manual` in `DEPENDENCIES.map`
+with no Brewfile line, and `herdr --version` reads 0.9.5 on this machine, still unpatched. Both
+sections now say so. Found by an audit of this directory against the repository on this date.

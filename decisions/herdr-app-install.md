@@ -13,8 +13,11 @@ again updates the app and a setup run never upgrades anything. The installer che
 against the SHA-256 in Herdr's release manifest, puts `Herdr.app` in `~/Applications`, links
 `herdr-app` into `~/.local/bin`, and installs herdr-core only when there is none. The app keeps
 itself and the core current. The git, files and find popups run the herdr package's tools, so a machine
-with this piece on takes `herdr` too. Switching a fresh machine to the `mdj` layout is still the
-one command in `dotfiles/herdr-app/AGENTS.md`.
+with this piece on takes `herdr` too. Where the piece is on, `setup.sh` also runs
+`src/setup-herdr-app.sh` after stow, which switches the app to the `mdj` layout when it still
+shows Herdr's untouched default, `main` or nothing chosen yet, opening the app in the background
+when it is not running and quitting it again afterwards. A layout a person picked is left alone
+with a note.
 
 ## Rejected
 
@@ -50,3 +53,10 @@ opens the app in the background with `open -g` when it is not running, waits up 
 running, from `mdj`, which it left, from `main`, which it switched, and from `terminals`, which it
 left with a note. Opening the app from a stopped state was not tried here, since that meant
 quitting the running window.
+
+### 2026-11-16 15:59
+
+Now still said switching a fresh machine to the `mdj` layout was a manual command in
+`dotfiles/herdr-app/AGENTS.md`. `src/setup-herdr-app.sh` does it, run by `setup.sh` through
+`step_if herdr-app on` after stow, and it switches only Herdr's untouched default. Now says so.
+Found by an audit of this directory against the repository on this date.

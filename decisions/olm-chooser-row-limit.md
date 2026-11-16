@@ -1,6 +1,6 @@
 # Olm chooser row limit, and the row of more
 
-Status. On the canvas-glass-layout branch, both choosers show 50 rows of any list by default and end a longer one in a row that adds the next 50.
+Status. On main since the canvas-glass-layout merge of 2026-10-31 (63151f13), both choosers show 50 rows of any list by default and end a longer one in a row that adds the next 50.
 
 ## Now
 
@@ -10,7 +10,7 @@ the clipboard's and FileSearch's 200, and `false` opts a list out. The cut is `l
 after ranking, so a search still finds the best rows among every one, and pinned and fromQuery rows
 are never cut. `rank.apply` answers what it cut as a third value, and the engine ends the list
 there in a row of more, Show 27 more, and nothing beside it.
-It carries the ellipsis icon, `more` in the action panel's manifest, handed to the engine as
+It carries the ellipsis icon, `more` in the actions pane's manifest, `host/actionspane/manifest.lua`, handed to the engine as
 `{ icon, owner }` the way the bar's keys icon is, and no item. Choosing it, by Return, a press or a digit, ranks in the next page and lands the
 highlight on the first row it added, and a new query, a show or a refresh from row one is one page
 again. A right press on it reaches nobody. Each view draws it its own way, the canvas view and swift both in
@@ -66,3 +66,10 @@ through the icons it resolves for the rows near the viewport.
 
 The row of more said how many were left in all beneath its title, 77 more in all. The person
 wanted only the title, so the row says Show 27 more and nothing else.
+
+### 2026-11-16 15:59
+
+Status and Now were out of date. Status placed the work on the canvas-glass-layout branch, which
+was merged into main on 2026-10-31 in 63151f13, and Now named the icon's home the action panel's
+manifest, a word retired by `decisions/olm-names.md` on 2026-11-02, where the manifest is
+`host/actionspane/manifest.lua`. Found by an audit against the repo on 2026-11-16.

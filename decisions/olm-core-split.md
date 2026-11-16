@@ -1,11 +1,10 @@
 # Olm core and plugins apart
 
-Status. In progress. Phases 1 to 3 of `Spoons/Olm.spoon/docs/PLAN-CORE-SPLIT.md` have
-landed. Phase 5, the switch and the settings Plugins page, is built and reviewed on its branch,
-its apply reworked after Milos's first live try to stage choices and apply them when the stage
-closes, and owes its live load. Phase 4, cheat sheets that list exactly what their leader binds, is built on
-its branch stacked on phase 5 and owes its live load, with its two open items closed on a branch
-of their own. Phase 6, the dry gate's layer rule, fails the gate now.
+Status. Phases 1 to 6 of `Spoons/Olm.spoon/docs/PLAN-CORE-SPLIT.md` are on main, phase 6's layer
+rule failing the gate on any new leak since 2026-10-16 (18139dd6, 3b836dd9). The switch is
+`lib/pluginswitch.lua` and the settings Plugins page, which applies staged choices once when the
+stage closes and has had no Apply now row since 2026-11-05 (ada55b4c). The plan records phases 3
+to 5 as built with a live load owed, and this file records no live load of phase 4.
 
 ## Now
 
@@ -50,13 +49,13 @@ runs, a plugin requiring it is reported off because of every switched off plugin
 and a change takes one reload. A plugin a host requires is locked by the core and cannot be
 switched, and the settings page cannot switch itself off. The page does not save a choice, it
 stages it in memory in the root, and the whole staged set is saved with one reload when the
-stage goes away by any route, which `host/stage` reports through its `onClosed` observers, or
-when the page's Apply now row is chosen. A dismissal reopens nothing and one routine line after
-the reload names what changed. Apply now leaves a one shot note under `Olm.resume` describing
-the place the plugin was in, and the next load reopens it through `stage.presentAt`.
-A docked companion pane is core too. `lib/dockedpane.lua` owns the canvas, the dock, the shared
-surface and empty state, the scroll and the teardown, `pane = true` on a surface earns
-`opts.dockedPane`, a function answering one, and a plugin hands it only what to draw.
+stage goes away by any route, which `host/stage` reports through its `onClosed` observers. There
+is no way to apply sooner, since the Apply now row was removed on 2026-11-05. A dismissal reopens
+nothing, and one routine line after the reload names what changed, left in a one shot note under
+`Olm.resume`, `lib/resume.lua`.
+A preview pane is core too. `lib/previewpane.lua` owns the canvas, the dock, the shared surface
+and empty state, the scroll and the teardown, `previewPane = true` on a surface earns
+`opts.previewPane`, a function answering one, and a plugin hands it only what to draw.
 
 ## Rejected
 
@@ -587,3 +586,16 @@ live switching stays rejected for the reason recorded on 2026-10-16. Of apply on
 on every choice reopening the page, and live off with a reload only for on, Milos chose apply on
 close. The root word `applyPluginSwitches` and the page's `pendingSummary`, `lastStaged` and
 `onPresent` went with the row.
+
+### 2026-11-16 15:59
+
+Status and Now were out of date. Status said phase 5 was built on its branch and owed its live
+load and phase 4 was built on a branch stacked on it, while the phases' commits are on main,
+398869be for the Plugins page, aa13fed1 for the sheets and 18139dd6 and 3b836dd9 for the layer
+rule, all of 2026-10-16, and ada55b4c of 2026-11-05 changed the page again on main. Status now
+says the phases are on main and that the plan still records each live load as owed, without
+claiming one. Now still described the Apply now row and its reopening through `stage.presentAt`,
+removed by the entry of 2026-11-05 11:30 above, and named `lib/dockedpane.lua`, `pane = true` and
+`opts.dockedPane`, which are `lib/previewpane.lua`, `previewPane = true` and `opts.previewPane`
+since the rename recorded in `decisions/olm-names.md`. Found by an audit against the repo on
+2026-11-16.
