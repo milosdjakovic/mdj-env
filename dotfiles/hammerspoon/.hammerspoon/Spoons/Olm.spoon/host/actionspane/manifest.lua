@@ -30,7 +30,7 @@ return {
   -- The icons the panel states for itself. back is the Back row it puts first. primary and
   -- secondary are Olm's defaults for the two rows after it, Return and Command, read against this
   -- manifest when a list's surface names no icon of its own for either. keys is the bottom bar's
-  -- key button, the outline keyboard. Every other verb names the icons of the plugin that owns its
+  -- key button, the info mark, chosen by Milos on 2026-11-16 over the outline keyboard. Every other verb names the icons of the plugin that owns its
   -- context and never this one. Every sf name was checked against AppKit on 2026-10-23. primary is
   -- never the Return glyph, since the row's chord already shows Return as a key cap, so Run read
   -- Return twice, play since 2026-11-02.
@@ -41,7 +41,7 @@ return {
     cancel = { emoji = "✖️", sf = "xmark" },
     primary = { emoji = "▶️", sf = "play" },
     secondary = { emoji = "⌘", sf = "command" },
-    keys = { emoji = "⌨️", sf = "keyboard" },
+    keys = { emoji = "ℹ️", sf = "info.circle" },
     -- The row of more the chooser's engine ends a list its limit cut with, Show 27 more.
     more = { emoji = "…", sf = "ellipsis" },
     -- Olm's radio pair, the one marker every pick one list shows, the choice in force filled

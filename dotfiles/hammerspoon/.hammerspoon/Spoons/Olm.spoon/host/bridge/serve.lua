@@ -385,6 +385,19 @@ function M.new(opts)
     if opts.facade then opts.facade.during(fn) else fn() end
   end
 
+  --- service.hostedTop() -> the name of the hosted presentation on top of the app's stack, or nil
+  --- when the top is the launcher or nothing is open. Levels are numbered as they open and a pop
+  --- closes the level it leaves, so the highest open number is the top. Read by the bridge, so a
+  --- hosted list's own keys reach the app while it is on top, Hyper and O among them.
+  function service.hostedTop()
+    local best, top = -1, nil
+    for id, level in pairs(service.levels) do
+      local n = tonumber(tostring(id):sub(2)) or -1
+      if n > best then best, top = n, level end
+    end
+    return top and top.kind == "presentation" and top.presentation and top.presentation.name or nil
+  end
+
   --- service.closeAll() closes every level, each hosted one told its onClose top down, for a new
   --- session or a socket that went, since the app that held them is gone
   function service.closeAll()

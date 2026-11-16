@@ -208,9 +208,19 @@ function obj:shareEach(suffix, build, also)
     end
   end
   table.sort(names)
+  self._shares = self._shares or {}
+  self._shares[suffix] = { build = build, also = also }
   for _, identity in ipairs(names) do
     self:_write(identity:lower() .. suffix, function() return build(identity) end)
   end
+end
+
+--- obj:reshare() writes every share shareEach wrote again, from the same builders, for a value
+--- that has since changed, a picture the icon source drew after load.
+function obj:reshare()
+  local shares = self._shares or {}
+  self._shares = {}
+  for suffix, share in pairs(shares) do self:shareEach(suffix, share.build, share.also) end
 end
 
 -- The siblings that serve over the socket, step 2.2, loaded from beside this file since a host's
@@ -515,12 +525,37 @@ function obj:_runningNow()
   return self._runningWas
 end
 
+-- The served tool whose list in the app holds identity's hosted list on top, or nil. A hosted list
+-- is open while it is the app's top level and the list it was pushed in is up, so its own keys,
+-- Hyper and O for its actions pane among them, are live there as in the Lua list, step 3.3, found
+-- missing in Milos's trial on 2026-11-16. The launcher keeps its own keys beside them.
+function obj:_hostOf(identity)
+  local service = self._service
+  if not (service and type(service.hostedTop) == "function") or service.hostedTop() ~= identity then return nil end
+  for served in pairs(self._serves) do
+    if self:showing(served) then return served end
+  end
+  if self:showing(self.LAUNCHER) then return self.LAUNCHER end
+  return nil
+end
+
+-- The app's launcher, a list the app shows over the socket rather than one the serves share names.
+obj.LAUNCHER = "launcher"
+
+-- Whether identity names a list of the app's own whose keys Hyper reaches, a served tool's, or the
+-- launcher wherever the socket serves it, step 3.4 brought forward for the launcher on 2026-11-16,
+-- since a hosted list's keys go to the launcher they sit in.
+function obj:_keyed(identity)
+  return self._serves[identity] == true or (identity == self.LAUNCHER and self._socket == true)
+end
+
 --- obj:showing(identity) -> whether the app's list for a tool it serves is up now, or being opened,
 --- step 1.4f. lib/listopen.lua asks it through the root, so every list key, gate and the rule that
 --- no cheat sheet shows over an open list treat the app's list as an open one. A quit app answers
 --- false, so a crash never leaves list keys bound to a list that is gone.
 function obj:showing(identity)
-  if type(identity) ~= "string" or not self._serves[identity] then return false end
+  if type(identity) ~= "string" then return false end
+  if not self:_keyed(identity) then return false end
   local tool = identity:lower()
   if not (self._up[tool] or self._opening[tool]) then return false end
   if not self:_runningNow() then
@@ -531,10 +566,19 @@ function obj:showing(identity)
   return true
 end
 
+--- obj:hosting(identity) -> whether identity's list is hosted on top of a list of the app's that is up,
+--- so its keys are live, step 3.3. Apart from showing, since the root's calls into the tool, the
+--- actions pane's choices and verbs, still run its Lua code while its list is hosted.
+function obj:hosting(identity)
+  return type(identity) == "string" and not self:_keyed(identity) and self:_hostOf(identity) ~= nil
+end
+
 --- obj:verb(identity, name) posts one list verb to the app, which runs it on its own highlight,
 --- never waited on. name is the method lib/nav.lua routes to, selectNext or insertSelected.
 function obj:verb(identity, name)
   if type(identity) ~= "string" or type(name) ~= "string" or not name:match("^%a%w*$") then return end
+  -- A hosted list's key goes to the served list it sits in, whose stage runs it on the level on top.
+  if not self:_keyed(identity) then identity = self:_hostOf(identity) or identity end
   self:_post(self.VERB_NOTE, identity:lower() .. ":" .. name)
 end
 

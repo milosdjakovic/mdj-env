@@ -661,7 +661,10 @@ local M = {}
 --- data URL, since a picture cannot cross as JSON, drawn by the same resolver at the same size.
 local function imageURL(image)
   if not (image and type(image.encodeAsURLString) == "function") then return nil end
-  local ok, url = pcall(image.encodeAsURLString, image, nil, "PNG")
+  -- The scale argument is a boolean, false keeping the picture's own pixels. A nil there raises,
+  -- which sent no picture to the app at all, its info item drawing a question mark and its actions
+  -- pane rows no icon, found on 2026-11-16.
+  local ok, url = pcall(image.encodeAsURLString, image, false, "PNG")
   return ok and type(url) == "string" and url or nil
 end
 

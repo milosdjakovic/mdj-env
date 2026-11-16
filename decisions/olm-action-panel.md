@@ -242,3 +242,14 @@ pad, the preview pane included, and stands over the other group when it is wider
 beside it. Both views draw the panes above the bar, the swift overlays reordered so, and a group
 under a pane takes no press or hover, the canvas testing the panes first and swift's bar lighting
 only a point the window hands it, since a tracking area reports the pointer whatever stands above.
+
+### 2026-11-16 11:05
+
+Found live in the Hyper and W list, a checkbox of the Browsers action closing the actions pane the
+moment it was flipped, which the checkbox rule of the same day says never happens. The switch runs
+its verb through the root's dispatch table, whose claim closes an open pane for any key that is
+not the pane's own unless the pane says it is running a verb. A verb run by leaving the pane was
+marked running, the switch's was not. It is marked now, with a case in `test/cases/actionspane.lua`
+that fails without it. The Safari icons Milos saw vanish on the first flip did not come back in
+several tries once the pane stayed open, so they are believed to be the redraw the closing pane
+cut short, not proven.

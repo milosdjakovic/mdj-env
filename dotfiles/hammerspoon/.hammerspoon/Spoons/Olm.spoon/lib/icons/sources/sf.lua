@@ -60,6 +60,12 @@
 local M = {}
 
 local SIDE = 72
+-- The weight every symbol is drawn at, semibold, AppKit's NSFontWeightSemibold. Every icon looks the
+-- same, its lines heavy enough to read in the text colour beside a row's title rather than as thin
+-- grey strokes, stated by Milos on 2026-11-16. Olm.app draws its symbols at the same weight, see
+-- icon in app/Sources/OlmCore/Stage.swift, so the two never differ. The name is in the file name,
+-- so a picture drawn at another weight is never served.
+local WEIGHT, WEIGHT_NAME = 0.3, "semibold"
 local ART = 60
 
 -- The most a scale is allowed to be, a bound on the bitmap and not a guess at any screen.
@@ -107,7 +113,7 @@ end
 --- Every value that decides the picture is in it, the symbol, the side in points, the scale and
 --- the colour, so two pictures that differ never share a file.
 function M.fileName(name, color, scale)
-  return string.format("sf-%s-%dpt-%gx-%s.png", name, SIDE, scale, colorName(color))
+  return string.format("sf-%s-%dpt-%s-%gx-%s.png", name, SIDE, WEIGHT_NAME, scale, colorName(color))
 end
 
 -- The JavaScript colour expression for one job.
@@ -126,7 +132,7 @@ function M.script(jobs)
   local out = {
     "ObjC.import('AppKit');",
     "function render(name, col, scale, path) {",
-    "  var cfg = $.NSImageSymbolConfiguration.configurationWithPointSizeWeightScale(64, 0, 2)",
+    "  var cfg = $.NSImageSymbolConfiguration.configurationWithPointSizeWeightScale(64, " .. WEIGHT .. ", 2)",
     "    .configurationByApplyingConfiguration($.NSImageSymbolConfiguration.configurationPreferringMonochrome);",
     "  var img = $.NSImage.imageWithSystemSymbolNameAccessibilityDescription(name, $('x'));",
     "  if (img.isNil()) return 'unknown';",

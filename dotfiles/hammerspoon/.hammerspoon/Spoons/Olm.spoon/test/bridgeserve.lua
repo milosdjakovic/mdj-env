@@ -301,10 +301,12 @@ ok(first[1].title == "Network 1", "the rows asked after it read what onPresent s
 local deeper = hostingWifi.choosePresented({ kind = "presentation", presentation = { name = "wifi",
   onSelect = function() return scannedChild end }, id = wifiId }, {})
 ok(told[2] == "child present" and deeper[1].push, "a child pushed over it is told its own onPresent")
+ok(hostingWifi.hostedTop() == "wifi", "the hosted list on top is named, the deepest level open")
 hostingWifi.methods.close.run({ level = deeper[1].push.level.id })
 ok(told[3] == "child close" and #told == 3, "a child closed is told its onClose, the level under it nothing")
 hostingWifi.methods.close.run({ level = wifiId })
 ok(told[4] == "close", "closing the level tells its onClose")
+ok(hostingWifi.hostedTop() == nil, "and none once the launcher is on top again")
 hostingWifi.methods.close.run({ level = "v1" })
 ok(#told == 4, "the launcher's own close tells no hook")
 hostingWifi.methods.open.run({ what = { launcher = true } })

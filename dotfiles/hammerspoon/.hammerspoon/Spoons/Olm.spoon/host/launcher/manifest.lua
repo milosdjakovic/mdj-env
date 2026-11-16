@@ -29,7 +29,7 @@ return {
     windows = { emoji = "🪟", sf = "macwindow" },
     settingsPanes = { emoji = "⚙️", sf = "gearshape" },
     aliases = { emoji = "🏷️", sf = "tag" },
-    keys = { emoji = "⌨️", sf = "keyboard" },
+    keys = { emoji = "ℹ️", sf = "info.circle" },
     back = { emoji = "⬅️", sf = "chevron.left" },
     lock = { emoji = "🔒", sf = "lock" },
     sleep = { emoji = "🌙", sf = "zzz" },

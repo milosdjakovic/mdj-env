@@ -458,13 +458,14 @@ end
 -- iconsChanged, so a picture finished in the background appears without a reopen. It walks the
 -- providers the chooser atom holds and names none of them. It lives outside obj.run for the same
 -- reason buildIcons does.
-local function wireIconRenders(prepareIcons, declared, depsScope, chooserAtom)
+local function wireIconRenders(prepareIcons, declared, depsScope, chooserAtom, onRendered)
   prepareIcons(declared, depsScope.path("osascript"), function()
     for _, provider in pairs(chooserAtom.providers or {}) do
       if type(provider) == "table" and type(provider.iconsChanged) == "function" then
         provider.iconsChanged()
       end
     end
+    if onRendered then onRendered() end
   end)
 end
 
@@ -1104,7 +1105,12 @@ function obj.run(olm, cfg)
               chosen = "chosen", notChosen = "notChosen", on = "checked", off = "unchecked" },
   })
   -- The sf source renders every declared symbol it lacks in the background, see wireIconRenders.
-  wireIconRenders(prepareIcons, declaredIcons, sharedDepsScope, chooserAtom)
+  -- A share for Olm.app written before its pictures were drawn is written again once they are, so
+  -- the app's info bar item carries its icon rather than the question mark it falls back to.
+  wireIconRenders(prepareIcons, declaredIcons, sharedDepsScope, chooserAtom, function()
+    local bridge = modules and plan and modules[plan.identity.bridge or "bridge"]
+    if bridge and type(bridge.reshare) == "function" then bridge:reshare() end
+  end)
   -- The door a plugin may draw an icon through at its own draw time, over the same resolver, so
   -- an owner and a key resolve one way. No host uses it for a row any more, the chooser draws
   -- those, and the door stays as the lib a plugin can ask for.
@@ -2131,6 +2137,12 @@ function obj.run(olm, cfg)
     served = function(identity)
       local bridge = modules[plan.identity.bridge or "bridge"]
       return bridge ~= nil and type(bridge.showing) == "function" and bridge:showing(identity) == true
+    end,
+    -- A list hosted on top of the app's launcher has its keys live, while the root's calls into the
+    -- tool still run its Lua code, so it is asked apart from served.
+    hosted = function(identity)
+      local bridge = modules[plan.identity.bridge or "bridge"]
+      return bridge ~= nil and type(bridge.hosting) == "function" and bridge:hosting(identity) == true
     end,
     owners = contextOwners,
     identity = plan.identity,

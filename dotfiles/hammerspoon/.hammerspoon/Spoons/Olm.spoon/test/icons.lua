@@ -515,8 +515,8 @@ do
   check("the script writes the size in points", script:find("rep.size = $.NSMakeSize(side, side)", 1, true) ~= nil, true)
   check("the longest side fills 60 of 72 points", script:find("k = 60 /", 1, true) ~= nil, true)
   local file = sfSource.fileName("cup.and.saucer.fill", red, 2)
-  check("the file is keyed by name, side, scale and colour", file, "sf-cup.and.saucer.fill-72pt-2x-ff0000ff.png")
-  check("no colour has a file of its own", sfSource.fileName("globe", nil, 1), "sf-globe-72pt-1x-label.png")
+  check("the file is keyed by name, side, weight, scale and colour", file, "sf-cup.and.saucer.fill-72pt-semibold-2x-ff0000ff.png")
+  check("no colour has a file of its own", sfSource.fileName("globe", nil, 1), "sf-globe-72pt-semibold-1x-label.png")
 
   -- Names.
   check("an unsafe name is refused", source.draw("a'); evil('", 28, nil), nil)

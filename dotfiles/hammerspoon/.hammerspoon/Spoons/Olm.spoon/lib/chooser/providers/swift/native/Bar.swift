@@ -5,7 +5,7 @@
 // every gap. Inside a group its items are items as tall as an actions pane line, edge to edge,
 // standing the panel's outer padding from the group's four edges, so the pointer over one lights
 // it exactly as the panel lights its highlighted line. Each group is the window's own glass and its words and chords are the row title's
-// font and colour. The key group holds the keyboard icon, or a question mark, with the showInfo chord
+// font and colour. The key group holds the info icon, or a question mark, with the showInfo chord
 // beside it, and the action group holds the model's right side, each item its label beside its
 // chord. Every chord, here and in the floating panes, is a KeyCap, so a key reads as a key and never as
 // a word or an icon. A group's corner is the highlighted row's, the surface radius less the bar pad,

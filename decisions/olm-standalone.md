@@ -792,3 +792,13 @@ list, and until then that list stays on Lua.
   table and a glyph is a string. A hosted row is keyed now by the key it states, else by a plain
   item's value, and a keystroke sends 56 bytes, the first open still sending them all once. Emoji
   and Browser Tabs join `hosts`. Not yet tried live.
+- 2026-11-16 11:05. Milos's 3.3c trial passed for Emoji and Browser Tabs open and select. In the
+  Browser Tabs rework he found Hyper and O in the app's launcher opening Obsidian. The app's launcher
+  was never a list Lua counted open, since only the serves share's tools were, so none of its keys
+  reached it. Brought forward from 3.4 for the launcher: the bridge counts the socket's launcher
+  open while the app says it is up, and a hosted list on top of it, `hostedTop` in the serve side,
+  has its own context's keys live, posted to the launcher, whose stage runs them on the level on
+  top. A hosted list is asked apart from served, `hosting`, since counting it served first sent
+  the actions pane's own calls into the tool, its choices among them, to the app as keys. The rest
+  of 3.4 stands, a tool's own verbs on its chords still reach only the shared ones the app's stage
+  knows.

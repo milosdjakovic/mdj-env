@@ -772,6 +772,22 @@ do
   check("no view is left for the callback", send("dismiss"), false)
 end
 
+-- Olm.app's share carries the info icon and each actions pane row's icon as a PNG data URL. The
+-- picture's encoder takes a boolean scale and raises on nil, as hs.image does, which once sent no
+-- picture at all, found on 2026-11-16.
+do
+  local strict = { encodeAsURLString = function(_, scale, kind)
+    assert(type(scale) == "boolean", "incorrect type for argument 2 (expected boolean)")
+    return "data:image/" .. tostring(kind):lower() .. ";base64,AA=="
+  end }
+  View.configure({ icon = function() return strict, true end })
+  local bar = View.barShare({ right = {}, keys = {}, infoIcon = { icon = "keys", owner = "actionspane" } })
+  check("the app's bar share carries the info icon as a data URL", bar and bar.keysImage, "data:image/png;base64,AA==")
+  local rows = View.actionsShare({ { action = "toggleBrowser", title = "Browsers", icon = "browsers", owner = "browserTabs" } })
+  check("and each actions pane row its icon", rows[1] and rows[1].image, "data:image/png;base64,AA==")
+  View.configure({ icon = function() return nil end })
+end
+
 if failed then
   print("swiftview, FAILED")
   os.exit(1)

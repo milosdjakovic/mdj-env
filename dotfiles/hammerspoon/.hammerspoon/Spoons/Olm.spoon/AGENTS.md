@@ -597,7 +597,7 @@ Swift as `barPad`, `barPillPad`, `barGap`, `barGapWide` and `barPillH`. Each gro
 the background colour role and outlined in the border role at `stroke.border`, its corner the
 highlighted row's, `nestedRadius` of the surface radius and the list margin, with no shadow. Every
 word is the body role, as in swift, and every chord a key cap, `bottombar.lua`'s `keycap`, the twin of
-swift's `KeyCap`, see the bar in `docs/DESIGN-UI-KIT.md`, and the left side holds the outline keyboard icon,
+swift's `KeyCap`, see the bar in `docs/DESIGN-UI-KIT.md`, and the left side holds the info icon, `info.circle`,
 Olm's own `keys` in the actions pane's manifest, drawn through the injected icon engine at the
 kit's `hint` icon size, the section line height, with the ? glyph only where no engine is
 injected, then the showInfo chord. The geometry gives the bottom bar rect under the list, subtracted
@@ -668,7 +668,7 @@ other binding classified, so a secondary named like another list's verb never hi
 `showInfo` is Command and ?, slash with Command and Shift, and Command and slash beside it, two
 field keys on no leader like the secondary's, in every list, listed once and spelled ⌘? because the
 shared glyph speller folds Shift and slash into a question mark. The left side draws that chord
-beside the keyboard icon, `bottomBarModel`'s `keysChord`, which follows a person's move and is absent
+beside the info icon, `bottomBarModel`'s `keysChord`, which follows a person's move and is absent
 when both keys are freed, and the icon and the chord light and hit as one group. It is not a Hyper key since macOS takes Hyper and slash before any event tap, and it
 reaches a list only where the Show Help menu shortcut is off, which `src/setup-macos-shortcuts.sh`
 sees to. Both move and free in the `lists` section like
@@ -1023,13 +1023,18 @@ agent needs to keep true is where the sf source draws and its pixel rule.
 
 Hammerspoon's process never runs JXA, for an icon or for anything else, and the dry gate refuses a call of `hs.osascript.javascript` or `hs.osascript._osascript` anywhere in the spoon, `test/drygate-jxa.lua`. The clipboard's file reader leaked the same way until 2026-10-29, and reads a copied file's real path off the pasteboard now. Calling `hs.osascript.javascript` for a symbol
 leaks a JavaScriptCore context group per call, which grew the process past 1 GB, so the sf source
-keeps every picture as a PNG in the storage cache directory for icons, `sf-<symbol>-72pt-<scale>x-
+keeps every picture as a PNG in the storage cache directory for icons, `sf-<symbol>-72pt-semibold-<scale>x-
 <rrggbbaa>.png`, and loads it from there. A missing one answers nil and pending, which the engine
 does not cache, and joins a queue that one `osascript -l JavaScript` run renders through `hs.task`
 in the background. The tool is declared in `root/manifest.lua` and its path comes from the door.
 When a run finishes, the root calls `iconsChanged` on every chooser provider, which repaints the
 lists on screen. At load the root hands the source every symbol the manifests declare. Never call
 `hs.osascript` or `hs.execute` from an icon source, and never wait for a render on the main thread.
+
+Every symbol looks the same wherever it is drawn, semibold and in the foreground colour a row's
+title is drawn in, stated by Milos on 2026-11-16. `WEIGHT` in `lib/icons/sources/sf.lua` and the
+symbol configuration in Olm.app's `Stage.swift` say the same weight, and a change to one is a change
+to both. No plugin and no surface picks a weight or a colour of its own for an icon.
 
 A symbol is drawn by the script into a square bitmap that is 72 points on a side and 72 times the
 scale in pixels, with its size in points written into the PNG, so the image

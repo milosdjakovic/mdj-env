@@ -932,6 +932,44 @@ do
   check("and closes the panel again running nothing", not ap:isOpen() and #runs == 1)
 end
 
+-- A choice saying on is a switch, stated by Milos on 2026-11-16. Choosing one runs the verb marked
+-- running, so the root's claim leaves the pane open, the level stays with its marks asked again,
+-- and the pane answers stay. Found live the same day, the run unmarked closed the pane under it.
+do
+  local rows = { { action = "toggleBrowser", title = "Browsers", choices = "browserChoices" } }
+  local ap = freshModule()
+  local enabled = { a = true, b = false }
+  local runs, runningDuring = {}, nil
+  ap:configure({
+    kindOf = function() return nil end,
+    rowsFor = function() return rows end,
+    run = function(action, _, value)
+      runs[#runs + 1] = action; runningDuring = ap:isRunning(); enabled[value] = not enabled[value]
+    end,
+    call = function(method)
+      if method == "browserChoices" then
+        return { { title = "A", value = "a", on = enabled.a }, { title = "B", value = "b", on = enabled.b } }
+      end
+    end,
+    rank = rank,
+    ownRowsMatcher = substring,
+  })
+  ap._defer = function(_, fn) fn() end
+  local instance = fakeInstance({ showing = true, row = 1, item = { tab = true } })
+  ap:decorate(instance, fakeConfig())
+  ap:toggle("demo")
+  local verb
+  for _, r in ipairs(ap._panelRows) do if r.item and r.item.action == "toggleBrowser" then verb = r.item end end
+  ap:_choose(instance, verb)
+  check("a verb with switches opens its level, each wearing its mark",
+    ap:levelTitle() == "Browsers" and ap._panelRows[1].icon == "checked" and ap._panelRows[2].icon == "unchecked")
+  local answer = ap:_choose(instance, ap._panelRows[2].item)
+  check("choosing a switch runs the verb once, marked running while it runs",
+    #runs == 1 and runningDuring == true and not ap:isRunning())
+  check("and the level stays open, answering stay, its mark flipped",
+    answer == "stay" and ap:isOpen() and ap:levelTitle() == "Browsers" and ap._panelRows[2].icon == "checked")
+end
+
 -- The programmable panel, docs/PLAN-ACTION-PANEL.md. A verb's applies leaves it out for a row it
 -- does not fit, a confirm opens Cancel and the confirm row, choices open the plugin's own list
 -- with the one in force marked, and a choice runs the verb with its value. Backspace steps back

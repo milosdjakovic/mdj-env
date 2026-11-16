@@ -10,7 +10,7 @@
 --- the border role at the border stroke, drawn inside its shape with its corner less half the
 --- stroke, the kit's rule for every outline. Neither group casts a shadow.
 ---
---- The left side holds the keyboard icon, or the ? glyph where no icon engine is injected, with
+--- The left side holds the info icon, or the ? glyph where no icon engine is injected, with
 --- the showInfo chord beside it. The right side holds the bottom bar model's right side, each
 --- item its label beside its chord. Every chord is a key cap, bottombar.lua's keycap. Every word is
 --- the body role, the row title's font
@@ -135,7 +135,7 @@ end
 --- The bar inside rect, the bottom bar rect in the caller's canvas space, for the bottom bar model
 --- lib/hints.lua's bottomBarModel answers. opts, every field optional.
 ---   radius     the groups' corner, the caller's highlighted row radius.
----   keysImage  the keyboard icon as a picture. Without one the left side draws the ? glyph.
+---   keysImage  the info icon as a picture. Without one the left side draws the ? glyph.
 ---   leftLit    the left side sits on the highlight, its panel open.
 ---   leftHover  the left side's item sits on the highlight, the pointer over it.
 ---   hover      the index of the action item under the pointer, whose item sits on the highlight.

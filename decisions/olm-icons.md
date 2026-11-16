@@ -458,3 +458,20 @@ wears the icon of what choosing it does, its intent, never the state it is about
 Ask Again pair wear `checkmark.circle` ✅, the action that confirms, Apply's. `lock.open` was
 considered and turned down, since the lock already means a VPN's secure or not and keeps one
 meaning. ✋ stays for a row that only says a permission is held back.
+
+### 2026-11-16 11:05
+
+Milos, in the Browser Tabs trial, on the checkboxes and every icon beside them. They read as thin
+grey strokes that did not fit, and his rule covers every icon, they must all look the same, heavier
+lines in the colour the text is drawn in, with no fill added. The icons were already drawn in the
+foreground role and only looked grey for how thin a regular weight symbol is at a row's size, so
+every symbol is drawn semibold now, `WEIGHT` in `lib/icons/sources/sf.lua`, the weight in each
+cached picture's file name so an old one is never served. Olm.app drew its symbols as AppKit
+templates at regular weight, which its list cannot recolour, so they kept AppKit's grey and stayed
+dark on the highlight. It paints each symbol now into a bitmap in the row title's colour at the
+same weight, box and fill, which the list recolours on the highlight as it does every other
+picture. The info bar item's icon is `info.circle` ℹ️, his call the same day, over the outline
+keyboard. Its picture had never reached Olm.app at all, since the share encoded it with a nil
+scale that `hs.image` refuses, so the app drew its question mark fallback and its actions pane
+rows no icon. Fixed with the boolean the encoder takes, and the shares are written again once the
+icon source has drawn its pictures.

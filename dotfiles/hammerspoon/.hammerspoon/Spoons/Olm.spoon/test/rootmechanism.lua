@@ -119,6 +119,12 @@ do
   eq(listOpen.servedOpen(deps), nil, "served: none while no app list is up")
   deps.served = nil
   eq(listOpen.servedOpen(deps), nil, "served: and none with no bridge")
+  -- A list hosted on top of the app's launcher is open, so its keys are live, and is never the
+  -- served list itself, step 3.3.
+  deps.hosted = function(identity) return identity == "vpnIdentity" end
+  eq(listOpen.isShowing("vpnList", deps), true, "open: a list hosted on top of the app's launcher is open")
+  eq(listOpen.servedOpen(deps), nil, "served: a hosted list is not the served one")
+  deps.hosted = nil
   eq(listOpen.surfaceOf(modules.nested, true), modules.nested, "surface: true is the module itself")
   eq(listOpen.surfaceOf(modules.nested, "chooser.missing.deeper"), nil, "surface: a path through nothing is nil")
 end

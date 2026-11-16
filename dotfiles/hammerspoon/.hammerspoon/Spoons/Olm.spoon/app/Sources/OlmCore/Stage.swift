@@ -756,12 +756,16 @@ public final class Stage {
       icons.setObject(image, forKey: path as NSString)
       return image
     case .symbol(let name)?:
-      let key = "symbol:" + name as NSString
+      // Painted as lib/icons/sources/sf.lua paints it, semibold, in the row title's colour, into a
+      // bitmap the list recolours with the lit ink on the highlight, so every icon looks the same
+      // here as in Hammerspoon's list, stated by Milos on 2026-11-16. A template image drew in
+      // AppKit's grey and kept it on the highlight, since the list recolours a bitmap only.
+      let color = look?.style().text ?? NSColor.labelColor
+      let key = "symbol:\(name):\(color.description)" as NSString
       if let image = icons.object(forKey: key) { return image }
-      // A template the list tints with the row's ink, at a size the list scales down crisply.
-      guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
-        .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 64, weight: .regular)) else { return nil }
-      image.isTemplate = true
+      guard let symbol = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
+        .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 64, weight: .semibold)),
+        let image = Self.painted(symbol, color) else { return nil }
       icons.setObject(image, forKey: key)
       return image
     case .app(let id)?:
@@ -794,6 +798,34 @@ public final class Stage {
         withAttributes: attributes)
       return true
     }
+  }
+
+  // A symbol drawn into a square bitmap 72 points on a side at the sharpest screen's scale, its
+  // longest side 60 points, then filled with color through its own alpha, source in, the same box
+  // and the same fill lib/icons/sources/sf.lua renders with.
+  private static func painted(_ symbol: NSImage, _ color: NSColor) -> NSImage? {
+    let side: CGFloat = 72, art: CGFloat = 60
+    let scale = max(1, NSScreen.screens.map(\.backingScaleFactor).max() ?? 2)
+    let px = Int((side * scale).rounded(.up))
+    guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: px, pixelsHigh: px, bitsPerSample: 8,
+      samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0,
+      bitsPerPixel: 0) else { return nil }
+    // The size in points before the context, which takes its scale from it, or it draws at 1x into
+    // the bottom left quarter.
+    rep.size = NSSize(width: side, height: side)
+    guard let context = NSGraphicsContext(bitmapImageRep: rep) else { return nil }
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = context
+    context.imageInterpolation = .high
+    let size = symbol.size, k = art / max(size.width, size.height, 1)
+    let w = size.width * k, h = size.height * k
+    symbol.draw(in: NSRect(x: (side - w) / 2, y: (side - h) / 2, width: w, height: h))
+    color.set()
+    NSRect(x: 0, y: 0, width: side, height: side).fill(using: .sourceIn)
+    NSGraphicsContext.restoreGraphicsState()
+    let image = NSImage(size: rep.size)
+    image.addRepresentation(rep)
+    return image
   }
 
   // Whether a row's icon is one colour the list tints, a symbol's.

@@ -477,7 +477,12 @@ function obj:_choose(instance, item)
   -- A switch flips where it stands, the verb run against the row the panel opened over and the
   -- level asked again for its marks, so the panel stays on it.
   if item and item.run and item.toggle then
+    -- Marked while it runs, as _leave marks a verb, since the verb reaches the dispatch table,
+    -- whose claim closes an open pane for any key that is not the pane's own. Unmarked, the pane
+    -- closed under the switch just flipped, found live on 2026-11-16.
+    self._running = true
     local ok, err = pcall(self._run, item.run, self._capturedItem, item.value)
+    self._running = false
     if not ok then
       self._log.w(string.format("ActionsPane action '%s' raised, %s", tostring(item.run), tostring(err)))
     end

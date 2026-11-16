@@ -16,6 +16,8 @@
 ---                    that does not present there. Asked at every call, since the registry it reads
 ---                    is built after the leaders that close over this.
 ---   stage            the shared stage, answering current and isShowing, or nil
+---   hosted           optional, a function of an identity answering true while its list is hosted
+---                    on top of a list of Olm.app's that is up, step 3.3.
 ---   served           optional, a function of an identity answering true while Olm.app's list for
 ---                    that tool is up, host/bridge's showing, asked before the stage
 ---   modules          directory to the loaded module
@@ -65,6 +67,8 @@ function obj.isShowing(contextName, deps)
   -- docs/PLAN-STANDALONE.md. Otherwise the stage is asked, since the launcher's scope still shows
   -- the Lua list of a served tool.
   if type(deps.served) == "function" and deps.served(ownerIdentity) == true then return true end
+  -- A list hosted on top of the app's launcher is open too, so its own keys are live there.
+  if type(deps.hosted) == "function" and deps.hosted(ownerIdentity) == true then return true end
   local stage = deps.stage
   if stage and deps.presentationFor(ownerIdentity) then
     return stage:current() == ownerIdentity and stage:isShowing() == true

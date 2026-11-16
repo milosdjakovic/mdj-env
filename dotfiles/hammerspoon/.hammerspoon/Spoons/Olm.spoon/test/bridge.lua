@@ -210,6 +210,16 @@ built = {}
 fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, serves = { "fileSearch" } })
   :shareEach("keys", function(identity) built[#built + 1] = identity; return {} end, { "launcher", "fileSearch", "../x" })
 eq(table.concat(built, ","), "fileSearch,launcher", "also adds the lists the app shows unserved, once each, plain words only")
+do
+  local shared = fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, serves = { "fileSearch" } })
+  local drawn = "?"
+  shared:shareEach("keys", function() return { bar = { title = drawn } } end, { "launcher" })
+  drawn = "info"
+  shared:reshare()
+  local g = io.open(run .. "/launcherkeys.json")
+  eq(g and g:read("a"), '{"bar":{"title":"info"}}', "reshare writes every share again from its builder, its also lists kept")
+  if g then g:close() end
+end
 
 -- The tools the app hosts in its launcher, step 3.3, plain words only, none when the config names none.
 eq(table.concat(fresh({ pieces = { olmapp = "on" }, hosts = { "vpn", "caffeinate", "../x" } }):hosted(), ","), "caffeinate,vpn",
@@ -378,6 +388,46 @@ do
   eq(posted[1] and posted[1].object, "filesearch:selectNext", "keys: naming the tool and the verb")
   k:verb("fileSearch", "../x")
   eq(#posted, 1, "keys: a verb that is not a word is not posted")
+  -- A hosted list on top of the app's launcher is open while the launcher is up, and its keys
+  -- are posted to the launcher, whose stage runs them on the level on top.
+  local top = "browserTabs"
+  k._service = { hostedTop = function() return top end }
+  note("local.olm.Olm.state", "filesearch:up")
+  eq(k:hosting("browserTabs"), true, "keys: a hosted list on top is open while its launcher is up")
+  eq(k:showing("browserTabs"), false, "keys: and is not the app's own list, so calls into the tool stay in Lua")
+  eq(k:hosting("emoji"), false, "keys: a hosted list not on top is not")
+  posted = {}
+  k:verb("browserTabs", "openActionsPane")
+  eq(posted[1] and posted[1].object, "filesearch:openActionsPane", "keys: its verb goes to the list it sits in")
+  top = nil
+  eq(k:hosting("browserTabs"), false, "keys: and closed once it is no longer on top")
+  note("local.olm.Olm.state", "filesearch:down")
+  top = "browserTabs"
+  eq(k:hosting("browserTabs"), false, "keys: or once the list it sits in is down")
+  k._service = nil
+end
+
+-- The app's launcher counts as open while it is up wherever the socket serves it, and only there,
+-- so its keys and a hosted list's keys inside it reach the app.
+do
+  local up = true
+  hs.application = { applicationsForBundleID = function() return up and { {} } or {} end }
+  watchers, posted, timers = {}, {}, {}
+  local k = fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, socket = true })
+  k:serves("fileSearch")
+  local note = watchers[1].fn
+  eq(k:showing("launcher"), false, "launcher: not open at rest")
+  note("local.olm.Olm.state", "launcher:up")
+  eq(k:showing("launcher"), true, "launcher: open once the app says up, with the socket on")
+  k._service = { hostedTop = function() return "browserTabs" end }
+  eq(k:hosting("browserTabs"), true, "launcher: a hosted list on top of it is open")
+  posted = {}
+  k:verb("browserTabs", "openActionsPane")
+  eq(posted[1] and posted[1].object, "launcher:openActionsPane", "launcher: and its key goes to the launcher")
+  k._service = nil
+  local off = fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, socket = false })
+  off:_state("launcher:up")
+  eq(off:showing("launcher"), false, "launcher: never open where the socket does not serve it")
   hs.application = nil
 end
 
