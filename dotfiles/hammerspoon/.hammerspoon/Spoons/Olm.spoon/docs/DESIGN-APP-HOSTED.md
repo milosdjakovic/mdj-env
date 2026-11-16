@@ -220,6 +220,94 @@ list, and Browser Tabs' settings page has a Back row that pops its own level.
 
 `hosts` gains `emoji` and `browserTabs`.
 
+## 3.3d, the preview pane
+
+Written on 2026-11-16, waiting for Milos's go. Speed Test is the tool. Its list is a flat list,
+and its preview pane draws every figure a run returns, a live curve while a run is going, a
+finished run, and a network's trend. Its actions pane holds settings with choices, Name This
+Network, which opens an input level, and two clears that ask first and show only when there is
+something to clear. Everything but the pane is served already: choices, confirm and `applies`
+since 3.3b, and `stagePush` and `stagePop` since 3.3c. So this step is the pane, as
+`docs/PROTOCOL-BRIDGE.md` "The preview pane" describes it.
+
+- **The plugin is unchanged.** Speed Test still draws through `pane.show` and `pane.clear`, from
+  its own `onHighlight` and from the run's ticks.
+- **The Lua side, a bridge backend.** `lib/previewpane.lua` already takes its drawing backend as
+  a strategy. The bridge gets one more backend, which says it scrolls natively.
+  - Its `render` sends `paneDrawn` with the content elements, the content height, and the `h`
+    and `ref` of the highlight Lua was last told. It leaves out the surface, because the app
+    draws its own glass.
+  - Each element crosses as the protocol says:
+    - A styled text becomes a Text: its string, font, size, colour, alignment and line break.
+    - A picture becomes a PNG data URL, the way the bar items cross.
+    - A colour becomes its red, green, blue and alpha values.
+  - `clear` sends `{"empty":true}`.
+- **Choosing the backend.** The root's pane grant wraps the backend it picks today in a router,
+  one per plugin. The router draws through the bridge while `bridge:hosting()` says the app
+  shows that plugin's level, and through today's backend otherwise. When it switches, it hides
+  the backend it leaves. The plugin never learns which backend draws.
+- **What the app sends.** These are the three notifications the protocol already names:
+  - `highlight`: when the highlighted row changes, and when a level opens or comes back to the
+    top.
+  - `positioned`: carries the pane's frame. `paneFrame` null hides the pane.
+  - `scrolled`: once a scroll settles.
+- **What Lua does with them.** It calls the presentation's `onHighlight` and `onPositioned`
+  under the facade. It keeps the latest highlighted item, so `stageSelectedItem` outside a
+  request answers the app's row while the app shows the level. Today that word reads the hidden
+  Lua stage, the open question 3.3c left. Speed Test's run ticks read it to know whether the
+  running row is still highlighted.
+- **The level opens with its pane.** `pushLevel` sends `previewPane` true and
+  `previewPaneWidth` from the presentation's own member, so the app reserves the same width the
+  Lua list does.
+- **The app draws what Lua drew.**
+  - A JSON element reader, the counterpart of `PaneReader` in `native/Lua.swift`, turns elements
+    into the `PaneElement`s that `PanePanel` already draws, curves and strokes included.
+  - `PaneHost` hands them to the pane at the content height. It keeps the scroll offset when
+    `keepScroll` says so, which is how a ticking run stays where it was scrolled.
+  - The app drops a `paneDrawn` whose `h` is older than the level's.
+  - The pane's scroll keys, Hyper with D or U, are the app's already, so they scroll natively.
+- **Not in this step:**
+  - `clicked`, since Speed Test has no element that takes a press.
+  - Any pane the app draws itself. File search keeps its own native preview, which is 3.3e.
+
+`hosts` gains `speedtest`.
+
+**Tests.**
+- `test/bridgeserve.lua`:
+  - `pushLevel` sends the pane width.
+  - `highlight` calls `onHighlight` once per change of row.
+  - The router sends `paneDrawn` while the app hosts the level and draws through the Lua backend
+    otherwise.
+  - A text, a picture and a colour each cross in their protocol form.
+  - `stageSelectedItem` answers the app's row between requests.
+- `olm-bridge-check`:
+  - It reads a recorded Speed Test `paneDrawn`, curve included, into the elements `PanePanel`
+    draws.
+  - It drops a `paneDrawn` with a stale `h`.
+  - It sends `highlight` and `positioned` when a level opens and when the highlight moves.
+
+**The trial on Hyper and 0, once built:**
+1. Type `st` and open Speed Test. Expect the list with the pane beside it, at the Lua list's
+   width.
+2. Move the highlight over a past run, then over the network row. Expect the run's figures, then
+   the trend. Each lands as the highlight moves.
+3. Start a run. Expect the curve to draw live and the figures to tick. Move the highlight away
+   and back while it runs, and expect the live view to come back.
+4. Scroll a finished run with Hyper and D or U, and with the trackpad. Expect it to scroll
+   smoothly and stop at the end.
+5. Open the actions pane, set Direction, then Clear This Network. Expect the confirm level, and
+   the clear to show only on a network that has runs.
+6. Run Name This Network, type a name and press Return. Expect the network row to show the new
+   name.
+7. Switch the system to light mode with the list open. Expect the pane to follow on the next
+   paint.
+
+What can go wrong, and what to tell me:
+- The pane stays empty or keeps showing the previous row. Say which step.
+- The curve stutters. Say whether the run's figures still tick.
+- Text in the pane looks different from the Lua list, its font, colour or wrapping. A screenshot
+  of both helps.
+
 ## Back out
 
 Remove a tool from `hosts` and reload. The row answers `unserved` again.
