@@ -317,6 +317,79 @@ What can go wrong, and what to tell me:
 - Text in the pane looks different from the Lua list, its font, colour or wrapping. A screenshot
   of both helps.
 
+## 3.3e, file search and the typed word
+
+Written on 2026-11-16, waiting for Milos's go. The last step of 3.3.
+
+**What is wrong today, in Hyper and 0:**
+- File Search's row answers `unserved` and stays put. File Search is not in `hosts`, and it
+  must never be. The app has served File Search itself since 1.5's flip, so a Lua list of it
+  inside the app would be the old one.
+- A typed word that hands its list over does nothing. In the Lua launcher, `/` and a space, or
+  `st` and a space, push that tool's list with the word kept in the field, since a list with a
+  preview pane has no scope rows of its own. Over the bridge the hand over is dropped, because
+  the Lua launcher is not on screen. So the app shows the scope's plain rows with no pane: the
+  file search rows Lua answers, or Speed Test's rows without its pane.
+
+**What this step does:**
+1. **The row.** `bridgeChoose` asks the bridge whether the app serves the row's tool itself,
+   `serves`, before it asks `hosted`. If it does, the answer is a new effect,
+   `{"native":{"name":"filesearch"}}`. The app pushes its own file search source over the
+   launcher, the same push a hosted level takes:
+   - The window is placed again with File Search's own pane.
+   - Backspace on the empty field goes back to the launcher.
+   - Escape closes both.
+
+   Nothing of File Search runs in Lua.
+2. **The typed word.** A `rows` answer whose claim hands over carries `handOver`, the level to
+   push and the word typed:
+   - `{"native":{"name":"filesearch"},"prefix":"/ ","query":"foo"}` for a tool the app serves.
+   - For a hosted tool, `{"push":{level},"prefix":"st ","query":""}`, the level opened as
+     Return on its row opens it.
+
+   The app pushes it when the answer lands, and only while that query is still the field's text,
+   so typing on past it hands nothing over.
+3. **The word stays in the field, as in the Lua stage.** The app stage gains a level prefix, the
+   Lua stage's `prefix` on a push:
+   - The field shows `/ foo`, and the source is asked only `foo`.
+   - Deleting into the word gives the launcher back with the field at what is left, `/`.
+
+   Without this the field would show `foo` alone, and Backspace would behave differently from
+   the Lua list.
+
+**Not in this step:** File Search's own keys over the launcher (reveal, copy path, browse a
+folder) beyond what the app's native list already answers. Its native list already carries its
+own actions pane and keys, so this costs nothing new.
+
+**Tests.**
+- `test/bridgeserve.lua`:
+  - A served tool's row answers `native`, and a hosted tool's row still answers `push`.
+  - A claim that hands over carries `handOver` with its prefix and the rest typed.
+  - A claim that does not hand over carries none.
+- `olm-bridge-check`:
+  - `native` becomes a push of the source the app holds under that name.
+  - `handOver` pushes it with the prefix.
+  - An unknown name pushes nothing and is logged.
+- The stage's prefix is checked where its search already is, in `olm-fixtures`. It shows in the
+  field, is left out of the query, and a delete into it pops.
+
+**The trial on Hyper and 0, once built:**
+1. Type `file`, highlight File Search and press Return. Expect the app's own file search in the
+   same window, with its pane, its placeholder and its recent files.
+2. Type a name. Expect results with previews, as on File Search's own key.
+3. Press Backspace until the field is empty, then once more. Expect the launcher back.
+4. Type `/ ` and then a name. Expect File Search to take over, with `/ name` still in the field
+   and its pane beside it.
+5. Delete back into the `/`. Expect the launcher, with `/` in the field.
+6. Type `st `. Expect Speed Test with its pane, `st ` kept in the field.
+7. Press Escape. Expect the whole window to close.
+
+What can go wrong, and what to tell me:
+- The window jumps or flickers as File Search takes over from the launcher. Say at which step.
+- The field loses or doubles the typed word at step 4 or 6.
+- Backspace at step 3 or 5 closes the window instead of giving the launcher back.
+
 ## Back out
 
-Remove a tool from `hosts` and reload. The row answers `unserved` again.
+Remove a tool from `hosts` and reload. The row answers `unserved` again. For File Search, set the
+bridge's `serves` back to empty, which every key already reads.
