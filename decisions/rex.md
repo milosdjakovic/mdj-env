@@ -12,7 +12,8 @@ is off by default and on for Miloss-MacBook-Pro-Vicert.
 
 `dotfiles/rex/.config/rex/init.lua` is stowed and binds herdr's three tools, lazygit, the fuzzy
 search and lf, to the same `alt+z` keys, each opened by one action in a floating pane over the
-current tab. The tools are copies of herdr's for now.
+current tab. The tools are copies of herdr's for now. A float opened from a zoomed pane gives
+the zoom back when its tool exits, through `tools/keep-zoom`.
 
 Hyper and backtick opens Rex in place of Ghostty on Miloss-MacBook-Pro-Vicert only, set in that
 machine's `hammerspoon-apps.lua` with Rex's bundle id beside it, while every other machine keeps
@@ -36,6 +37,9 @@ The settings in `SETTINGS` are not tied to this machine and apply wherever the p
 - 2026-11-02 14:10, painting palette slots 16 to 19 into each Rex pane with OSC 4 from the
   Ghostty theme, as a stand in for the slots the theme import drops. It works around Rex's defect
   from our side and keeps the colours of whichever half was active when the pane opened.
+- 2026-11-16 10:35, keeping the zoom on while a float is open. Rex clears a zoom when focus
+  leaves the zoomed pane, so the float has to open unfocused for the zoom to survive, which
+  leaves the tool without the keyboard. Zooming again with the float open pulls focus out of it.
 
 ## Log
 
@@ -115,3 +119,10 @@ The settings in `SETTINGS` are not tied to this machine and apply wherever the p
   `config/apps.lua`, the way Herdr's sits there, so the style entry names an app every machine's
   catalog holds and logs nothing where Rex is absent. Checked live, a press with Rex in front hid
   it and the next showed it centred at 2400 by 1350 on the ultrawide.
+- 2026-11-16 10:35, a floating tool opened from a zoomed pane left it unzoomed. Measured in a
+  throwaway session through `session.new_layer`. With `focus` false the zoom stayed, with `focus`
+  true `zoomed_block_id` went empty, and focusing an unfocused float afterwards cleared it the
+  same way, so Rex ties a zoom to focus rather than to layers. `float_tool` now reads the zoom
+  before opening and runs each tool inside `tools/keep-zoom`, which zooms the calling pane again
+  on exit when focus is still in the float. Checked with the real action, a zoomed pane came back
+  zoomed after Escape closed lazygit, and an unzoomed one stayed unzoomed.

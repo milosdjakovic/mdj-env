@@ -15,8 +15,11 @@ in. The pane closes when the script exits, which is Rex's default for a terminal
 and its layer closes with it. The tools are herdr's three, copied as they were on 2026-11-02 with
 the herdr calls swapped for Rex ones, and the keys are herdr's too behind the same `alt+z` prefix.
 `alt+z alt+g` lazygit, `alt+z f` the fuzzy search, `alt+z alt+f` lf, and `alt+z alt+z` sends the
-prefix on to a tmux running inside a pane. Adding a tool is a script in `tools/` and one
-`rex.bind` line.
+prefix on to a tmux running inside a pane. Two single chords open the same tools, `cmd+shift+f`
+the fuzzy search, `cmd+shift+e` lf and `cmd+shift+l` lazygit. Lazygit is not on g because
+`cmd+shift+g` is Rex's own Go to Directory, and a key the app binds wins over this file, so check
+Rex's menus before giving a tool a cmd chord. Adding a
+tool is a script in `tools/` and one `rex.bind` line.
 
 What differs from herdr. The float starts in the calling pane's directory, read from that pane's
 foreground process, so no script resolves a directory. `MDJ_REX_TARGET` names the calling pane,
@@ -25,6 +28,13 @@ what Rex's own docs use, since Rex has no notification call of its own. The find
 pane is free when its foreground process is a shell with nothing between it and `login`, from
 the terminal's `process` method, and otherwise opens the place as a new tab, the same rule
 herdr's finder follows. Escape closes all three, lazygit through the same overlay herdr loads.
+
+A float clears the calling pane's zoom, because Rex keeps a zoom only while the zoomed pane has
+focus, and zooming again while the float is open pulls focus back out of it. So the action reads
+whether the calling pane was zoomed and runs every tool inside `tools/keep-zoom`, which zooms
+that pane again as the tool exits, unless focus has already left the float, as it does when the
+finder opens a new tab. Behind an open float the layout shows unzoomed, and that cannot be
+changed from here. A new tool needs nothing for this, the action wraps it.
 
 Rex does not watch the file. After an edit run `rex config reload` from a Rex terminal, and
 `rex config check PATH` validates a draft. `rex keymap` lists what the server loaded and warns

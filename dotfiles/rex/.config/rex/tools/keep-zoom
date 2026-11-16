@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Runs one floating tool and then gives the calling pane back its zoom. Rex keeps a zoom only
+# while the zoomed pane has focus, so the float taking focus clears it, and zooming again while
+# the float is open would pull focus back out of the float. So the zoom returns as the tool exits.
+# MDJ_REX_ZOOMED is set only when the calling pane was zoomed when the key was pressed. The zoom
+# is skipped when focus has left the float by then, since the tool sent the person somewhere
+# else, a new tab for one, and zooming would pull them back.
+set -u
+
+"$@"
+status=$?
+
+if [ -n "${MDJ_REX_ZOOMED:-}" ] && [ -n "${MDJ_REX_TARGET:-}" ]; then
+  in_float=$(rex api call -s "$REX_SESSION" session.view 2>/dev/null | jq -r --arg b "$REX_BLOCK" '
+    .active_window_id as $a | .windows[] | select(.window_id == $a) | .focused_block_id == $b')
+  if [ "$in_float" = true ]; then
+    rex zoom -s "$REX_SESSION" "$MDJ_REX_TARGET" --on >/dev/null 2>&1
+  fi
+fi
+
+exit "$status"
