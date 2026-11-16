@@ -8,6 +8,13 @@
 // taking the old one's place, and posts local.olm.Olm.listening once it listens, so a Hammerspoon
 // already loaded connects at once rather than at its next try. test/bridgecheck.swift listens the
 // same way.
+//
+// It watches its run folder, and when its socket file is gone it binds again and posts the note again,
+// so the bridge outlives anything that removed the file. test/bridgecheck.swift standing in on the
+// same path did exactly that on 2026-11-16, leaving the app listening on a file no longer there and
+// its launcher empty until it was relaunched. It waits a moment first and binds only on a path still
+// missing then, so a program that removes the file to bind its own takes it, and the app takes it
+// back once that program's file is gone. A connection already open is left as it is.
 
 import Foundation
 
@@ -37,6 +44,14 @@ public final class Listener: @unchecked Sendable {
   private var acceptSource: DispatchSourceRead?
   private var conn: (id: Int, fd: Int32, source: DispatchSourceRead, reader: Frame.Reader)?
   private var nextID = 0
+  // The run folder watched for the socket file going, and the one check waiting to look.
+  private var folderWatch: DispatchSourceFileSystemObject?
+  private var healing = false
+  private var stopped = false
+
+  /// How long a missing socket file is left before the listener binds again, a program removing the
+  /// file to bind its own taking it well within this.
+  public static let healDelay: TimeInterval = 0.25
 
   /// path is the socket, its folder the run folder. announce false posts no notification, for a check
   /// program listening on a path of its own.
@@ -83,7 +98,37 @@ public final class Listener: @unchecked Sendable {
       DistributedNotificationCenter.default().postNotificationName(Self.listeningNote, object: nil,
         userInfo: nil, deliverImmediately: true)
     }
+    watchFolder(folder)
     return nil
+  }
+
+  // Any change in the run folder asks whether the socket file is still there, a folder removed
+  // whole included, since its watch ends with it and the next bind makes it and watches it again.
+  private func watchFolder(_ folder: String) {
+    folderWatch?.cancel()
+    folderWatch = nil
+    let fd = open(folder, O_EVTONLY)
+    guard fd >= 0 else { return }
+    let source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd, eventMask: [.write, .delete, .rename],
+      queue: queue)
+    source.setEventHandler { [weak self] in self?.missing() }
+    source.setCancelHandler { close(fd) }
+    source.resume()
+    folderWatch = source
+  }
+
+  private func missing() {
+    guard !stopped, !healing, access(path, F_OK) != 0 else { return }
+    healing = true
+    queue.asyncAfter(deadline: .now() + Self.healDelay) { [weak self] in
+      guard let self else { return }
+      self.healing = false
+      guard !self.stopped, access(self.path, F_OK) != 0 else { return }
+      self.acceptSource?.cancel()
+      self.acceptSource = nil
+      if self.listenFD >= 0 { close(self.listenFD); self.listenFD = -1 }
+      if let why = self.begin() { NSLog("Olm bridge: the socket file went and could not be made again, %@", why) }
+    }
   }
 
   private func accept() {
@@ -159,6 +204,9 @@ public final class Listener: @unchecked Sendable {
 
   public func stop() {
     queue.sync {
+      stopped = true
+      folderWatch?.cancel()
+      folderWatch = nil
       drop()
       acceptSource?.cancel()
       acceptSource = nil

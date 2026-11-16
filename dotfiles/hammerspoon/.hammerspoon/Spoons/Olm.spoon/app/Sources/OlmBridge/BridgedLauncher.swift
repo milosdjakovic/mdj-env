@@ -23,7 +23,13 @@ import OlmKit
 @preconcurrency import OlmSearch
 
 public actor BridgedLauncher: ListSource {
-  public nonisolated let manifest = Manifest(name: "launcher", title: "Launcher")
+  public nonisolated let manifest = Manifest(name: "launcher", title: "Launcher",
+    statuses: [BridgedLauncher.notConnected: StatusLook(title: "Hammerspoon is not connected",
+      detail: "Reload Hammerspoon if this stays", symbol: "exclamationmark.triangle")])
+
+  /// What the launcher a person opens says with no session to ask, rather than an empty list that
+  /// reads as broken, found on 2026-11-16 with the app listening on a socket file that was gone.
+  public static let notConnected = "Hammerspoon is not connected"
 
   private let bridge: Bridge
   private var level: String?
@@ -110,6 +116,10 @@ public actor BridgedLauncher: ListSource {
   }
 
   public func rows(_ query: Query) async throws -> RowsAnswer {
+    // The launcher a person opens and found no session at its show asks again at each query, so a
+    // connection made while it is up answers the next keystroke, and says why it is empty meanwhile.
+    if shown, level == nil { try? await openLevel(query: query.text, fromURL: true) }
+    if shown, level == nil { return RowsAnswer(rows: [], status: Self.notConnected) }
     guard let level else { throw BridgeError.gone }
     q += 1
     var params: [String: JSON] = ["level": .string(level), "q": .number(Double(q)), "query": .string(query.text)]

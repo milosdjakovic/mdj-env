@@ -810,3 +810,17 @@ list, and until then that list stays on Lua.
   reload alone did not bring it back while the app kept that session. Restarting the app and then
   reloading Hammerspoon did. It predates this round, and it matters before 3.5's flip, when the app
   answers Hyper and Space.
+  Corrected 2026-11-16 12:06, the cause was not a restart, see the entry of that time.
+- 2026-11-16 12:06. The bridge that never reconnected, corrected. Restarting the app was not the cause, a restart
+  read again reconnected within the second. `test/bridgecheck.sh` was, run as one of the gates before
+  the merge while Olm.app listened. It stands in for the app on the same socket path, so it removed the
+  app's file, bound its own, took Hammerspoon's connection, and removed its file as it ended, which left
+  the app listening on a path nobody could reach. That was the "went", "connected", "went" of 11:05:17,
+  and why a Hammerspoon reload did not help and an app restart did. The live check's header said to
+  relaunch the app afterwards, and it was run as if it were offline. Fixed in the app, Milos's go: the
+  listener watches its run folder and binds again a quarter second after its file is gone, leaving the
+  path to a program that bound its own meanwhile and taking it back once that one's file goes, so the
+  live check can run beside the app. The launcher a person opens with no session shows a status row,
+  Hammerspoon is not connected, and asks again at each query. The live check says it stands in for the
+  app and is no offline gate. `olm-bridge-check` 115 checks, the five on the file going failing with
+  the watch taken out.

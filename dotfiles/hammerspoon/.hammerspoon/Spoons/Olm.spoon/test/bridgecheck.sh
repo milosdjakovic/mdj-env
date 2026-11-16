@@ -2,8 +2,9 @@
 #
 # The live check of step 2.2, test/bridgecheck.swift built and run against the running
 # Hammerspoon, whose config must have the bridge's socket setting on. It stands in for Olm.app on
-# ~/.olm/run/bridge.sock, so Olm.app must not be listening there, and it needs only the command
-# line tools. Exit 2 when this machine has no compiler, the code the other gates use for a machine
+# ~/.olm/run/bridge.sock, taking the path from a running Olm.app while it runs, which takes it back
+# once this ends, and it needs only the command line tools. It is a live check, never one of the
+# offline gates, since Hammerspoon talks to it in the app's place while it runs. Exit 2 when this machine has no compiler, the code the other gates use for a machine
 # that cannot run them.
 #
 #   test/bridgecheck.sh [query]

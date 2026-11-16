@@ -8,7 +8,10 @@
 // or running the command, so only run it with a person's go ahead. It answers hidden at once, as the
 // app does once its chooser is gone.
 //
-// It takes the socket's path from the app while it runs, so relaunch Olm.app afterwards.
+// It takes the socket's path from the app while it runs, so Hammerspoon talks to it and not to the
+// app. A running Olm.app takes the path back once this removes its file at the end, and Hammerspoon
+// reconnects to it, since 2026-11-16. Before that the app was left listening on a file that was gone,
+// its launcher empty until it was relaunched.
 //
 // test/bridgecheck.sh builds and runs it, `bridgecheck.sh QUERY [--choose TITLE]`. Exit 0 when
 // every answer came back well formed.
@@ -45,7 +48,7 @@ chmod(path, 0o600)
 listen(listener, 1)
 DistributedNotificationCenter.default().postNotificationName(Notification.Name("local.olm.Olm.listening"),
   object: nil, userInfo: nil, deliverImmediately: true)
-print("listening on \(path), waiting for Hammerspoon")
+print("listening on \(path) in Olm.app's place, waiting for Hammerspoon, a running Olm.app takes it back once this ends")
 
 // One connection, from this user only.
 var tv = timeval(tv_sec: 15, tv_usec: 0)

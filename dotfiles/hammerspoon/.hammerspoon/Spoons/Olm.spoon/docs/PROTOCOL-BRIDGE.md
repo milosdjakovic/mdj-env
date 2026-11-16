@@ -93,6 +93,14 @@ On a lost connection the Lua side closes every level the app had, calling each p
 to the Lua Olm, condition 5 of the resting point, reopening in the Lua chooser with the input
 field's text kept. Nothing outlives a connection, so a reconnect starts from `hello`.
 
+The app keeps its socket file. It watches the run folder, and a quarter second after the file is
+gone it binds again and posts `local.olm.Olm.listening` again, so the Lua side reconnects at once. A
+program that removes the file to bind its own, the live check standing in for the app, keeps the path
+while it holds it, and the app takes it back once that program's file is gone. Until 2026-11-16 a
+removed file left the app listening on a path nobody could reach, its launcher empty until it was
+relaunched. The launcher a person opens with no session shows one status row, Hammerspoon is not
+connected, and asks again at each query, so a connection made while it is up answers the next key.
+
 ## hello
 
 The app's first request is `hello`, and the Lua side answers nothing else first.
@@ -686,7 +694,8 @@ The plan's bridge transcripts are this protocol as recorded conversations under
 `bridge.transcript` whose cases each describe a fake launcher and the steps sent to it. The Lua side
 replays them in the dry gate through `test/bridgereplay.lua`, which `test/fixtures.lua` runs, and
 the app replays them against a fake Lua side from stage 3. `test/bridgecheck.sh` is the live check,
-a command line client listening on the socket in the app's place.
+a command line client listening on the socket in the app's place, which a running app takes back once it
+ends.
 
 Step 2.2 serves `hello`, `metrics`, `catalog`, `icons`, `open` for the launcher, `rows` and `close`,
 read only, so `choose` and every other method answer `-32601` and nothing can be run through it.

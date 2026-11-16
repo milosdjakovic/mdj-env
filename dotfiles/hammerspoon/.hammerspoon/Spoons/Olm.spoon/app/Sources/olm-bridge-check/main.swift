@@ -10,7 +10,9 @@
 // Step 3.3 adds a hosted tool's list: a claim's fit, a push made into a level of its own, its rows and
 // icons, the effects notification reaching it and no other, its back and its close. Step 3.3b adds its
 // actions pane, the actions the push names, which apply, a verb's choices and a run with a choice.
-// Step 3.3c adds the pop and setQuery effects a hosted list's own code answers.
+// Step 3.3c adds the pop and setQuery effects a hosted list's own code answers. A socket file removed
+// while the app listens is made again, one another program binds is left to it, and the launcher a
+// person opens with no session says so.
 //
 // test/olmbridge.sh builds and runs it. Exit 0 when every check passed.
 
@@ -412,8 +414,67 @@ do {
 } catch {
   ok(error as? BridgeError == .gone, "rows with no connection throws gone")
 }
+// The launcher a person opens, with no session, says so rather than showing nothing.
+if let answer = try? await shown.rows(Query(text: "ma", generation: 6)) {
+  ok(answer.status == BridgedLauncher.notConnected && answer.rows.isEmpty, "the shown launcher with no session says Hammerspoon is not connected")
+  ok(shown.manifest.statusRow(BridgedLauncher.notConnected) != nil, "and draws it as a status row")
+} else {
+  ok(false, "the shown launcher with no session answers rather than throwing")
+}
+
+// The socket file removed while the app listens is made again, and a connection reaches it, step
+// 3.3's finding of 2026-11-16, the stand-in check leaving the app on a file that was gone.
+func inode(_ p: String) -> UInt64? {
+  var st = stat()
+  return stat(p, &st) == 0 ? UInt64(st.st_ino) : nil
+}
+func connects(_ p: String) -> Bool {
+  let s = socket(AF_UNIX, SOCK_STREAM, 0)
+  defer { close(s) }
+  var a = sockaddr_un()
+  a.sun_family = sa_family_t(AF_UNIX)
+  withUnsafeMutableBytes(of: &a.sun_path) { raw in
+    let b = Array(p.utf8)
+    raw.copyBytes(from: b)
+    raw[b.count] = 0
+  }
+  return withUnsafePointer(to: &a) {
+    $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { connect(s, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
+  } == 0
+}
+unlink(path)
+await until { FileManager.default.fileExists(atPath: path) }
+ok(FileManager.default.fileExists(atPath: path), "a socket file removed is made again")
+ok(mode(path) == 0o600, "at 0600")
+ok(connects(path), "and a connection reaches the listener again")
+
+// A program that removes the file to bind its own keeps it, and the app takes it back once it goes.
+unlink(path)
+let foreign = socket(AF_UNIX, SOCK_STREAM, 0)
+var faddr = sockaddr_un()
+faddr.sun_family = sa_family_t(AF_UNIX)
+withUnsafeMutableBytes(of: &faddr.sun_path) { raw in
+  let b = Array(path.utf8)
+  raw.copyBytes(from: b)
+  raw[b.count] = 0
+}
+let fbound = withUnsafePointer(to: &faddr) {
+  $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(foreign, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
+}
+ok(fbound == 0 && listen(foreign, 1) == 0, "another program binds the path the moment it is free")
+let theirs = inode(path)
+try? await Task.sleep(nanoseconds: UInt64((Listener.healDelay + 0.35) * 1_000_000_000))
+ok(theirs != nil && inode(path) == theirs, "and the app leaves it theirs")
+close(foreign)
+unlink(path)
+await until { inode(path) != nil && inode(path) != theirs }
+ok(inode(path) != nil && inode(path) != theirs, "once theirs is gone the app binds again")
+ok(connects(path), "and is reached")
+
 await bridge.stop()
 ok(!FileManager.default.fileExists(atPath: path), "stopping removes the socket")
+try? await Task.sleep(nanoseconds: UInt64((Listener.healDelay + 0.2) * 1_000_000_000))
+ok(!FileManager.default.fileExists(atPath: path), "and a stopped listener makes it no more")
 
 print("olm-bridge-check, \(checks) checks, \(failures) failed")
 exit(failures == 0 ? 0 : 1)
