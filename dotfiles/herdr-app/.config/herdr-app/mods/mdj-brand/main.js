@@ -49,11 +49,11 @@ export default class MdjBrand extends View {
         .child(row("machine", "plus", "Add machine", true, () => run("mod.open", { name: "machine-add" })));
     }
     // mdj: the layout pads 4px, the other 4px are here, so the bar lines up with the lists below, the sidebar
-    // button in the same 26px box 4px from the edge as the Spaces + and the Agents sort, search beside it.
+    // button in the same 26px box 4px from the edge as the Spaces + and the Agents sort. No search button, since
+    // cmd-p opens the picker and no other keyed tool has a button.
     return h_flex().size_full().bg(t.canvas).pt(4).pl(collapsed ? 10 : 18).pr(4).gap(4).items_center().text_size(13.5)
       .when(window()?.platform === "macos" && !window()?.fullscreen && !collapsed, el => el.pl(76))
       .when(!collapsed, el => el.child(div().flex_1()))
-      .when(!collapsed, el => el.child(this.button("search", svg("mods/mdj-icons/14/search.svg").size(14), () => run("mod.open", { name: "picker" }))))
       // mdj: open, the toggle is Lucide's panel-left with its left column filled, and the plain outline in the
       // tab row opens the rail. The fill is a div over the svg's column, 14/24 of its viewBox, coloured as the
       // button's text is, since Lucide has no filled form of it.

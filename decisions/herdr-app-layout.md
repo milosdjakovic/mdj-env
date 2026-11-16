@@ -50,6 +50,11 @@ has 6px corners. `dotfiles/herdr-app/AGENTS.md` holds every measurement.
   zoom with `layout.set`. Tried once by hand. It writes the tree through the link into this
   checkout, reformatted, and deletes `layouts/.state/mdj.json`, the sidebar's width and fold and
   the shown panel with it. Both were restored from copies.
+- **A search or palette button in the brand bar.** 2026-11-16 14:22. Search was the shipped
+  bar's, and it vanished on the rail. Keeping it there, or adding one for the palette, was
+  turned down with Milos, since `cmd-p` and `cmd-shift-p` open both and git, files and find have
+  no button either. VS Code's one box, go-to with `>` for commands, would be an `mdj-picker`
+  copy and is not built.
 - **The shipped avatar hues.** 2026-11-09 14:45. Fixed colour values in a mod, which only
   `theme/palettes` may carry.
 
@@ -229,3 +234,7 @@ take `cmd-alt` with hjkl beside the arrows, freed by unbinding Hide Others, so a
 beside `cmd-w` for a pane and `cmd-alt-w` for a tab. Keys loaded with no error, and `mdj-sidebar`
 was run twice from the command line, folding the sidebar to 36px and opening it again. The keys
 themselves are left to Milos.
+
+2026-11-16 14:22. Asked by Milos. The brand bar's search button is removed, so the open sidebar
+shows only its toggle there, as the rail shows only the expand button in the tab row. No palette
+button was added. `icons/search.svg` went with it, nothing else drew it.
