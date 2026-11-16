@@ -16,6 +16,7 @@
     "foreground": "#474556",
     "hover": "#e8e7ec",
     "muted": "#5c5a6a",
+    "raised": "#f8f7fb",
     "selected": "#e8e7ec"
   }
 }

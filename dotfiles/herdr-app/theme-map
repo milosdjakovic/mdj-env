@@ -54,11 +54,14 @@ slot20 = selection
 # The neutral slots swap by half exactly as Ghostty's do, ANSI black is the page on dark and
 # the ink on light. The selected row lifts in purple on dark and in neutral grey on light,
 # herdr's recorded decision, since a tinted slab on the light page reads as lilac.
+# raised is the mdj mods' selected tab and row, a step lighter than the canvas on either half,
+# the dim rule on dark, where the page sits below the canvas, and the page itself on light.
 [dark]
 ansi0  = background
 ansi7  = foreground
 ansi15 = foreground
 colors.selected = selection
+colors.raised   = dim
 slot16 = dim
 
 [light]
@@ -66,4 +69,5 @@ ansi0  = foreground
 ansi7  = dim
 ansi15 = surface
 colors.selected = surface
+colors.raised   = background
 slot16 = surface

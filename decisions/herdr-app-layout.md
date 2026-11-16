@@ -238,3 +238,27 @@ themselves are left to Milos.
 2026-11-16 14:22. Asked by Milos. The brand bar's search button is removed, so the open sidebar
 shows only its toggle there, as the rail shows only the expand button in the tab row. No palette
 button was added. `icons/search.svg` went with it, nothing else drew it.
+
+2026-11-16 15:10. Asked by Milos. The selected row's accent border on a tab, a space and an agent,
+and the pane frame's `border` and `focus`, go from 1px to 1.5px, and the icon line `LINE` in
+`src/setup-herdr-app.sh` from 1 to 1.5, so a border and an icon's stroke are one width. The
+tab's and the space's right-end overlay sit 1.5px in with corners 1.5 less, and `terminal_padding`
+drops to 12.5 by 10.5 so the text stays where it was. Herdr took the fractional widths with no
+`layout.error`.
+
+2026-11-16 15:25. Asked by Milos. Every 1.5 of the entry above becomes 2, the borders, the icon
+`LINE`, the overlay's inset and its corners, and `terminal_padding` goes to 12 by 10.
+
+2026-11-16 15:45. Asked by Milos. No purple on any tab. The accent ring is gone from the selected
+tab, space and agent, and the right-end overlay is flush with the row again. On dark the selected
+row was the pane's own page, darker than the canvas, so it read as a hole. It now paints a new
+theme key, `raised`, set by `theme-map` to the `dim` role on dark, a step lighter than the canvas,
+and to the page on light, which is already lighter there, and hover is `raised` at half. The pane
+frame and the icon `LINE` return to 1.5 from the entry above, and `terminal_padding` to 12.5 by
+10.5. The pane's focus ring stays `accent`, since that was not a tab.
+
+2026-11-16 16:00. Asked by Milos. The icon `LINE` goes to 1.25 to try it, and the pane frame's
+`border` and `focus` back to 2 with `terminal_padding` at 12 by 10.
+
+2026-11-16 16:10. Asked by Milos. The pane frame's `border` and `focus` go to 1.75 to try it, with
+`terminal_padding` at 12.25 by 10.25.

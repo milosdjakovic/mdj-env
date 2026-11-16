@@ -63,9 +63,9 @@ function fades(t, view, inset) {
 // mdj: the selected look, the pane's own background and a soft shadow, is a layer under the row's content.
 // Selecting shows it at once; a fade on switching was tried and taken out, asked for on 2026-11-09.
 // A hovered row that is not selected gets the same colour at half strength and no shadow, so it never looks selected.
-const card = (id, on, t, radius = 6, ring = false) => div().id(id).absolute().top(0).left(0).right(0).bottom(0).rounded(radius)
-  .bg(t.background).shadow_sm().when(ring, el => el.border_1().border_color(t.accent)).opacity(on ? 1 : 0);
-const dimmed = (t) => t.background + "80";
+const card = (id, on, t, radius = 6) => div().id(id).absolute().top(0).left(0).right(0).bottom(0).rounded(radius)
+  .bg(t.raised).shadow_sm().opacity(on ? 1 : 0);
+const dimmed = (t) => t.raised + "80";
 
 function find(node, id) {
   if (node?.id === id) return node;
@@ -255,7 +255,7 @@ export default class Agents extends View {
     // mdj: on the rail a sub-agent is a cube like its parent's, in the same place its row has open.
     if (rail) return h_flex().id(`sub-${k.address}`).relative().w_full().h(28).flex_none().rounded(6).items_center().justify_center()
       .tooltip(String(k.name || k.template || k.program?.name || k.address))
-      .child(card(`sub-card-${k.address}`, on, t, 6, true))
+      .child(card(`sub-card-${k.address}`, on, t, 6))
       .when(!on, (el) => el.hover((s) => s.bg(dimmed(t))))
       .on_click(open)
       .child(railState(t, st, pic));
@@ -270,7 +270,7 @@ export default class Agents extends View {
       .items_center()
       .text_size(13.5)
       .relative()
-      .child(card(`sub-card-${k.address}`, on, t, 6, true))
+      .child(card(`sub-card-${k.address}`, on, t, 6))
       .when(!on, (el) => el.hover((s) => s.bg(dimmed(t))))
       .on_click(open)
       .children(s.lines.map(l => div().self_start().mt(-4).w(9).h(17).mr(4).flex_none()
@@ -391,7 +391,7 @@ export default class Agents extends View {
           .items_center()
           .justify_center()
           .tooltip(String(label(a) || a.program?.name || "agent"))
-          .child(card(`ag-card-${a.address}`, a.focused, t, 6, true))
+          .child(card(`ag-card-${a.address}`, a.focused, t, 6))
           .when(!a.focused, (el) => el.hover((s) => s.bg(dimmed(t))))
           .on_click(() => run("pane.focus", { pane: a.pane }))
           .child(railState(t, a.status, icon(a.program, 16, t.foreground) ?? div().text_color(t.muted).child(String(i + 1))));
@@ -431,7 +431,7 @@ export default class Agents extends View {
         .gap(8)
         // The focused agent looks like the pane and the selected tab: the terminal's page, a soft shadow.
         .relative()
-        .child(card(`ag-card-${a.address}`, a.focused, t, 6, true))
+        .child(card(`ag-card-${a.address}`, a.focused, t, 6))
         .cursor_pointer()
         .when(!a.focused, (el) => el.hover((s) => s.bg(dimmed(t))))
         .on_hover((on, cx) => {

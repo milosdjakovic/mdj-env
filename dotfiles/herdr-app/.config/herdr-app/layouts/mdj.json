@@ -115,11 +115,11 @@
                       "gap": 8,
                       "lone": true,
                       "border": {
-                        "width": 1,
+                        "width": 1.75,
                         "color": "background"
                       },
                       "focus": {
-                        "width": 1,
+                        "width": 1.75,
                         "color": "accent"
                       }
                     }
@@ -145,11 +145,11 @@
                       "gap": 8,
                       "lone": true,
                       "border": {
-                        "width": 1,
+                        "width": 1.75,
                         "color": "background"
                       },
                       "focus": {
-                        "width": 1,
+                        "width": 1.75,
                         "color": "background"
                       }
                     }
@@ -216,8 +216,8 @@
   ],
   "background": "canvas",
   "terminal_padding": [
-    13,
-    11
+    12.25,
+    10.25
   ],
   "titlebar": "none",
   "traffic_lights": [

@@ -27,7 +27,7 @@ SHARED="$HOME/.config/herdr-app/shared.json"
 # the 24 unit viewBox. A mod names the folder for the size it draws, mods/mdj-icons/14/plus.svg.
 # Herdr draws nothing for an svg that is a symlink, so these are real files, in a folder that belongs
 # to this repository and is brought in line with the source. decisions/herdr-app-layout.md has it.
-LINE=1
+LINE=1.25
 SIZES="10 11 12 13 14 15 16"
 ICONS_SRC="$SCRIPT_DIR/../dotfiles/herdr-app/icons"
 ICONS_DST="$HOME/.config/herdr-app/mods/mdj-icons"

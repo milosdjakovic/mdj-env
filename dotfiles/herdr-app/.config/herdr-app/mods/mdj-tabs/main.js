@@ -5,9 +5,9 @@ import { spaces, panes, run, openOverlay, theme, window, shared, setShared, layo
 // mdj: the selected look, the pane's own background and a soft shadow, is a layer under the row's content.
 // Selecting shows it at once; a fade on switching was tried and taken out, asked for on 2026-11-09.
 // A hovered row that is not selected gets the same colour at half strength and no shadow, so it never looks selected.
-const card = (id, on, t, radius = 6, ring = false) => div().id(id).absolute().top(0).left(0).right(0).bottom(0).rounded(radius)
-  .bg(t.background).shadow_sm().when(ring, el => el.border_1().border_color(t.accent)).opacity(on ? 1 : 0);
-const dimmed = (t) => t.background + "80";
+const card = (id, on, t, radius = 6) => div().id(id).absolute().top(0).left(0).right(0).bottom(0).rounded(radius)
+  .bg(t.raised).shadow_sm().opacity(on ? 1 : 0);
+const dimmed = (t) => t.raised + "80";
 
 function find(node, id) {
   if (node?.id === id) return node;
@@ -148,7 +148,7 @@ export default class MdjTabs extends View {
     const hex = (a) => Math.round(255 * a).toString(16).padStart(2, "0");
     const rgb = (h) => [1, 3, 5].map(k => parseInt(h.slice(k, k + 2), 16));
     const mix = (a, b) => "#" + rgb(a).map((v, k) => Math.round((v + rgb(b)[k]) / 2).toString(16).padStart(2, "0")).join("");
-    const fill = (c.active ? t.background : over ? mix(t.canvas, t.background) : t.canvas).slice(0, 7);
+    const fill = (c.active ? t.raised : over ? mix(t.canvas, t.raised) : t.canvas).slice(0, 7);
     const n = 20;
     const slot = over
       ? div().id(`close-${c.id}`).size(18).flex_none().flex().items_center().justify_center().rounded(1).text_color(t.dim)
@@ -156,12 +156,12 @@ export default class MdjTabs extends View {
         .on_mouse_down("left", (_e, cx) => cx.stop_propagation()).on_click((_e, cx) => { cx.stop_propagation(); run("tab.close", { id: c.id }); })
         .child(svg("mods/mdj-icons/12/x.svg").size(12))
       : div().size(18).flex_none().flex().items_center().justify_center().when(Boolean(status), el => el.child(status));
-    return h_flex().absolute().top(1).bottom(1).right(1).items_stretch()
+    return h_flex().absolute().top(0).bottom(0).right(0).items_stretch()
       .children(Array.from({ length: n }, (_, i) => {
         const x = (i + 0.5) / n, ease = x * x * (3 - 2 * x);
         return div().w(1).flex_none().bg(fill + hex(ease));
       }))
-      .child(div().flex_none().pr(4).rounded_r(radius - 1).bg(fill).flex().items_center()
+      .child(div().flex_none().pr(4).rounded_r(radius).bg(fill).flex().items_center()
         .when(Boolean(c.zoomed), el => el.child(div().size(18).flex_none().flex().items_center().justify_center()
           .child(svg("mods/mdj-icons/12/maximize-2.svg").size(12).text_color(t.accent))))
         .when(over || Boolean(status), el => el.child(slot)));
@@ -190,7 +190,7 @@ export default class MdjTabs extends View {
       const status = c.status === "working" ? svg("mods/workspace-chrome/spinner.svg").size(12).flex_none().text_color(t.working).spin(900)
         : c.status === "blocked" || c.status === "done" ? div().size(6).rounded(3).bg(t[c.status]) : null;
       return h_flex().id(`tab-${c.id}`).h(ROW).min_w(ROW * 4).pl(5).pr(10).gap(8).rounded(RADIUS).items_center().flex_none().text_size(13.5).relative()
-        .child(card(`tab-card-${c.id}`, c.active, t, RADIUS, true)).text_color(c.active ? t.foreground : t.muted)
+        .child(card(`tab-card-${c.id}`, c.active, t, RADIUS)).text_color(c.active ? t.foreground : t.muted)
         .when(!c.active, el => el.hover(s => s.bg(dimmed(t))))
         .on_size_change((s, cx) => { if ((this.widths ??= {})[c.id] !== s.width) { this.widths[c.id] = s.width; cx.notify(); } })
         .on_hover((on, cx) => { if (on) this.hoverTab = c.id; else if (this.hoverTab === c.id) this.hoverTab = null; cx.notify(); })

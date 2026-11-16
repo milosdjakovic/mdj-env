@@ -65,9 +65,9 @@ function fades(t, view, inset) {
 // mdj: the selected look, the pane's own background and a soft shadow, is a layer under the row's content.
 // Selecting shows it at once; a fade on switching was tried and taken out, asked for on 2026-11-09.
 // A hovered row that is not selected gets the same colour at half strength and no shadow, so it never looks selected.
-const card = (id, on, t, radius = 6, ring = false) => div().id(id).absolute().top(0).left(0).right(0).bottom(0).rounded(radius)
-  .bg(t.background).shadow_sm().when(ring, el => el.border_1().border_color(t.accent)).opacity(on ? 1 : 0);
-const dimmed = (t) => t.background + "80";
+const card = (id, on, t, radius = 6) => div().id(id).absolute().top(0).left(0).right(0).bottom(0).rounded(radius)
+  .bg(t.raised).shadow_sm().opacity(on ? 1 : 0);
+const dimmed = (t) => t.raised + "80";
 
 function find(node, id) {
   if (node?.id === id) return node;
@@ -451,14 +451,14 @@ export default class Spaces extends View {
     const hex = (a) => Math.round(255 * a).toString(16).padStart(2, "0");
     const rgb = (h) => [1, 3, 5].map(k => parseInt(h.slice(k, k + 2), 16));
     const mix = (a, b) => "#" + rgb(a).map((v, k) => Math.round((v + rgb(b)[k]) / 2).toString(16).padStart(2, "0")).join("");
-    const fill = (on ? t.background : mix(t.canvas, t.background)).slice(0, 7);
+    const fill = (on ? t.raised : mix(t.canvas, t.raised)).slice(0, 7);
     const n = 20;
-    return h_flex().absolute().top(1).bottom(1).right(1).items_stretch()
+    return h_flex().absolute().top(0).bottom(0).right(0).items_stretch()
       .children(Array.from({ length: n }, (_, i) => {
         const x = (i + 0.5) / n, ease = x * x * (3 - 2 * x);
         return div().w(1).flex_none().bg(fill + hex(ease));
       }))
-      .child(div().flex_none().pr(4).rounded_r(RADIUS - 1).bg(fill).flex().items_center()
+      .child(div().flex_none().pr(4).rounded_r(RADIUS).bg(fill).flex().items_center()
         .child(div().id(`space-close-${w.id}`).size(18).flex_none().flex().items_center().justify_center().rounded(1).text_color(t.dim)
           .hover(s => s.bg(t.dim + "26").text_color(t.foreground))
           .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
@@ -483,7 +483,7 @@ export default class Spaces extends View {
       .justify_center()
       .rounded(RADIUS)
       // The selected space looks like the pane and the selected tab: the terminal's page, a soft shadow.
-      .child(card(`space-card-${w.id}`, on, t, RADIUS, true))
+      .child(card(`space-card-${w.id}`, on, t, RADIUS))
       .on_hover((hovered, cx) => { if (hovered) this.hoverRow = w.id; else if (this.hoverRow === w.id) this.hoverRow = null; cx.notify(); })
       .when(!on, (el) => el.hover((s) => s.bg(dimmed(t))))
       .when(this.pressed === w.id && this.over !== w.id, (el) => el.opacity(0.5))
@@ -544,7 +544,7 @@ export default class Spaces extends View {
       .items_center()
       .justify_center()
       .tooltip(w.name)
-      .child(card(`space-card-${w.id}`, w.active, t, RADIUS, true))
+      .child(card(`space-card-${w.id}`, w.active, t, RADIUS))
       .when(!w.active, (el) => el.hover((s) => s.bg(dimmed(t))))
       .on_click(() => run("space.select", { id: w.id }))
       .child(h_flex().size(18).flex_none().rounded(1).items_center().justify_center().text_size(13.5).font_family(String(settings().font_family)).text_color(fill).child(div().relative().left(0.5).top(0.3).child([...w.name][0]?.toUpperCase() ?? "?")));
