@@ -26,6 +26,8 @@
 --   chooser.pane   a file search row and what the helper's peek found, through the preview pane's
 --                  own Lua files over the widths the fixture measured, test/panefixture.lua,
 --                  expecting every element the pane drew and its height.
+--   stage.prefix   a level's prefix and its field's text through host/stage's _strip, expecting the
+--                  query the source is asked or leave, a delete into the word.
 --   bridge.transcript  a conversation over host/bridge's socket, each step a message sent and the
 --                  answers expected, against a fake launcher the case describes, test/bridgereplay.lua.
 --   calls          calls an existing test made into a module, recorded by fixtures-record.lua,
@@ -67,6 +69,7 @@ local Q = assert(loadfile(spoon .. "lib/queryassoc.lua"))()
 local Launcher = assert(loadfile(spoon .. "host/launcher/init.lua"))()
 local fsquery = assert(loadfile(spoon .. "plugins/filesearch/query.lua"))()
 local geometry = assert(loadfile(spoon .. "lib/chooser/providers/default/geometry.lua"))()
+local Stage = assert(loadfile(spoon .. "host/stage/init.lua"))()
 local enc = assert(loadfile(here .. "fixtures-encode.lua"))()
 enc.use(json, assert(loadfile(spoon .. "lib/kbd.lua"))())
 
@@ -432,7 +435,22 @@ local function bridgeReplay()
   return replayModule
 end
 
+-- stage.prefix, the field of a level a typed word reached, through the stage's own _strip over a
+-- stand in for the stack, which holds the case's prefix on its current level.
+local function runPrefix(case)
+  local prefix = case.prefix ~= "" and case.prefix or nil
+  local got = Stage._strip({ _current = function() return "level" end,
+    _prefixOf = function(_, p) return p == "level" and prefix or nil end }, case.field)
+  if case.expect.leave == true then
+    if got ~= nil then return { "wanted leave, got the query " .. show(got) } end
+  elseif got ~= case.expect.query then
+    return { "query wanted " .. show(case.expect.query) .. ", got " .. show(got) }
+  end
+  return {}
+end
+
 local KINDS = {
+  ["stage.prefix"] = runPrefix,
   calls = function(case) return runCall(case) end,
   ["filesearch.parse"] = runParse,
   ["filesearch.narrows"] = runNarrows,

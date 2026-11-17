@@ -1,0 +1,14 @@
+{
+  "kind": "stage.prefix",
+  "about": "The field of a level a typed word reached, step 3.3e of docs/PLAN-STANDALONE.md. The word and its space stay in the field as the level's prefix, host/stage's push prefix, and the source is asked only what follows it. A field that no longer starts with the prefix is a delete into the word, which gives the level below back with the field at what is left. A case is the level's prefix, empty for a level with none, and the field's text, and expects the query the source is asked, or leave true for a delete into the word. host/stage's _strip answers it in Lua and Stage.strip in Olm.app.",
+  "cases": [
+    { "name": "the word alone asks the list for nothing", "prefix": "/ ", "field": "/ ", "expect": { "query": "" } },
+    { "name": "what follows the word is the query", "prefix": "/ ", "field": "/ foo", "expect": { "query": "foo" } },
+    { "name": "a space after the word belongs to the query", "prefix": "st ", "field": "st  x", "expect": { "query": " x" } },
+    { "name": "deleting the space leaves the level", "prefix": "/ ", "field": "/", "expect": { "leave": true } },
+    { "name": "an emptied field leaves the level", "prefix": "st ", "field": "", "expect": { "leave": true } },
+    { "name": "a field edited inside the word leaves the level", "prefix": "st ", "field": "s foo", "expect": { "leave": true } },
+    { "name": "a level with no prefix asks the field as it is", "prefix": "", "field": "/ foo", "expect": { "query": "/ foo" } },
+    { "name": "and an empty field as nothing", "prefix": "", "field": "", "expect": { "query": "" } }
+  ]
+}

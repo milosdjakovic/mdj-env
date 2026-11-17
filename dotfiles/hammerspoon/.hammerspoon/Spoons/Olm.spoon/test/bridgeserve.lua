@@ -576,5 +576,69 @@ ok(calls[#calls] == "local:hide", "and the local backend it left is hidden")
 router.destroy()
 ok(calls[#calls] == "local:destroy", "destroy tears down what was built")
 
+--------------------------------------------------------------------------------
+-- Step 3.3e, a tool the app serves itself, and a typed word handing the list over
+--------------------------------------------------------------------------------
+
+do
+  local files = { name = "fileSearch", rows = function() return {} end }
+  local speed = { name = "speedtest", placeholder = "Speed", rows = function() return { { title = "Run", item = {} } } end }
+  local opened = 0
+  speed.onPresent = function() opened = opened + 1 end
+  local claim = nil
+  local handing = serve.new({ rpc = rpc, clean = frame.clean, facade = facade,
+    hosted = function(p) return p.name == "speedtest" end,
+    native = function(p) return p.name == "fileSearch" end,
+    launcher = { memoryKey = memoryKey,
+      rows = function(query)
+        if claim and query:sub(1, #claim.prefix) == claim.prefix then
+          return { { title = "row", item = { kind = "scope", key = "r" } } }, true, false,
+            setmetatable({ prefix = claim.prefix, rest = query:sub(#claim.prefix + 1), target = claim.target },
+              { __call = function() error("a hand over is never called over the bridge") end })
+        end
+        return { { title = "File Search", item = { kind = "special", name = "fileSearch" } },
+                 { title = "Speed Test", item = { kind = "special", name = "speedtest" } } }
+      end,
+      choose = function(item, _, shows)
+        local p = item.name == "fileSearch" and files or speed
+        return { { present = shows(p) and p or nil } }
+      end },
+    icons = function() return nil end })
+  handing.methods.open.run({ what = { launcher = true } })
+  local plain = handing.methods.rows.run({ level = "v1", q = 1, query = "" })
+  ok(plain.handOver == nil, "a launcher answer no scope claims hands nothing over")
+  local fs = handing.methods.choose.run({ level = "v1", q = 1, ref = "v1.1", query = "" })
+  ok(fs.effects[1].native and fs.effects[1].native.name == "filesearch" and not fs.effects[1].push,
+    "a served tool's row answers native, by its name lowercased, and opens no level")
+  local st = handing.methods.choose.run({ level = "v1", q = 1, ref = "v1.2", query = "" })
+  ok(st.effects[1].push and st.effects[1].push.level.name == "speedtest", "a hosted tool's row still pushes its level")
+
+  claim = { prefix = "/ ", target = files }
+  local typed = handing.methods.rows.run({ level = "v1", q = 2, query = "/ foo" })
+  ok(typed.exclusive == true and typed.handOver and typed.handOver.native
+    and typed.handOver.native.name == "filesearch" and typed.handOver.prefix == "/ " and typed.handOver.query == "foo",
+    "a claim handing over to a served tool answers native with the word and the rest")
+
+  claim = { prefix = "st ", target = speed }
+  opened = 0
+  local s1 = handing.methods.rows.run({ level = "v1", q = 3, query = "st " })
+  ok(s1.handOver and s1.handOver.push and s1.handOver.push.level.name == "speedtest"
+    and s1.handOver.prefix == "st " and s1.handOver.query == "", "a claim handing over to a hosted tool pushes its level")
+  local s2 = handing.methods.rows.run({ level = "v1", q = 4, query = "st " })
+  ok(s2.handOver.push.level.id == s1.handOver.push.level.id and opened == 1,
+    "the same query asked again answers the same level, opened once")
+  handing.methods.close.run({ level = s1.handOver.push.level.id })
+  local s3 = handing.methods.rows.run({ level = "v1", q = 5, query = "st " })
+  ok(s3.handOver.push.level.id ~= s1.handOver.push.level.id and opened == 2,
+    "and once the app closed it unused, a new one")
+
+  claim = { prefix = "k ", target = { name = "caffeinate" } }
+  ok(handing.methods.rows.run({ level = "v1", q = 6, query = "k 2h" }).handOver == nil,
+    "a claim handing over to a list the app does not show carries none")
+  claim = { prefix = "x ", target = nil }
+  ok(handing.methods.rows.run({ level = "v1", q = 7, query = "x y" }).handOver == nil,
+    "and a claim that hands nothing over carries none")
+end
+
 print(string.format("bridgeserve: %d checks, %d failed", checks, failures))
 os.exit(failures == 0 and 0 or 1)

@@ -319,7 +319,7 @@ What can go wrong, and what to tell me:
 
 ## 3.3e, file search and the typed word
 
-Written on 2026-11-16, waiting for Milos's go. The last step of 3.3.
+Written on 2026-11-16, built on 2026-11-17 on Milos's go. The last step of 3.3.
 
 **What is wrong today, in Hyper and 0:**
 - File Search's row answers `unserved` and stays put. File Search is not in `hosts`, and it
@@ -356,6 +356,18 @@ Written on 2026-11-16, waiting for Milos's go. The last step of 3.3.
 
    Without this the field would show `foo` alone, and Backspace would behave differently from
    the Lua list.
+
+**What the build changed from the draft.**
+- `bridgeChoose` is unchanged. serve.lua hands it a `shows` that answers true for a tool the app
+  serves or hosts, so the row answers `present` as a hosted tool's does, and `pushes` turns it into
+  `native` where the app serves the tool and into `push` where it hosts it.
+- The hand over is a table QueryScope answers in place of the bare function, still callable, with
+  the rest, the word and `handOverTo`, the presentation the root names on the scope. The bridge
+  reads those and never calls it, and `bridgeRows` asks quiet, so no timer is scheduled.
+- A hosted level a hand over opens is opened once per query, and the app closes one it never
+  pushed, when the next answer names another or none, or when the launcher closes.
+- The prefix is checked by a shared fixture, `test/fixtures/stage/prefix.json`, run by the Lua
+  stage's `_strip` and by `Stage.strip`, rather than in `olm-fixtures` alone.
 
 **Not in this step:** File Search's own keys over the launcher (reveal, copy path, browse a
 folder) beyond what the app's native list already answers. Its native list already carries its

@@ -65,7 +65,24 @@ func until(_ cond: () async -> Bool) async {
 
 let bridge = Bridge(path: path, announce: false, log: { if ProcessInfo.processInfo.environment["OLM_BRIDGE_LOG"] != nil { print("  bridge: \($0)") } })
 let launcher = BridgedLauncher(bridge: bridge)
-let shown = BridgedLauncher(bridge: bridge, shown: true, log: { _ in })
+// A list of the app's own, as main.swift hands File Search's in, step 3.3e.
+actor NativeList: ListSource {
+  nonisolated let manifest = Manifest(name: "filesearch", title: "File Search")
+  func open(query: String) async -> Level { Level(placeholder: "Search files", ranking: .app, rowLimit: nil) }
+  func rows(_ query: Query) async throws -> RowsAnswer { RowsAnswer(rows: []) }
+  func choose(_ pick: Pick) async -> [Effect] { [] }
+  func run(_ action: String, on pick: Pick) async -> [Effect] { [] }
+  func close() async {}
+}
+let nativeList = NativeList()
+final class Lines: @unchecked Sendable {
+  private let lock = NSLock()
+  private var list: [String] = []
+  func add(_ s: String) { lock.lock(); list.append(s); lock.unlock() }
+  var all: [String] { lock.lock(); defer { lock.unlock() }; return list }
+}
+let unknownNames = Lines()
+let shown = BridgedLauncher(bridge: bridge, shown: true, natives: ["filesearch": nativeList], log: { unknownNames.add($0) })
 await bridge.attach(launcher: launcher, shown: shown, settled: { told.add($0) })
 await bridge.onRedraw { redrawn.add($0, $1) }
 final class Drawn: @unchecked Sendable {
@@ -470,6 +487,51 @@ let cx6 = request("close")
 ok((cx6["params"] as? [String: Any])?["level"] as? String == "v6", "closing the list with a pane closes its level")
 answer(cx6, true)
 await panedClosed
+
+// Step 3.3e. A row of a tool the app serves itself pushes the app's own source, a typed word's hand
+// over crosses as the answer's own, and a hosted level a hand over opened that nobody pushed is closed.
+async let nativeChoose = shown.choose(Pick(key: "tool:caffeinate", query: ""))
+let cn = request("choose")
+answer(cn, ["effects": [["native": ["name": "filesearch"]]]])
+ok(await nativeChoose == [.push("native:filesearch")], "native becomes a push of a source of the app's own")
+let nativePushed = await shown.pushed("native:filesearch")
+ok(nativePushed != nil && nativePushed === nativeList, "pushed answers the source the app holds under that name")
+ok(await shown.pushed("native:nothing") == nil, "an unknown name pushes nothing")
+ok(unknownNames.all.contains { $0.contains("nothing") }, "and is logged")
+func handRows(_ text: String, _ generation: Int, handOver: [String: Any]?) async throws -> RowsAnswer {
+  async let got = shown.rows(Query(text: text, generation: generation))
+  let r = request("rows")
+  var doc: [String: Any] = ["q": (r["params"] as? [String: Any])?["q"] ?? 0, "revision": "r1", "fromQuery": [String](),
+    "exclusive": handOver != nil]
+  if let handOver { doc["handOver"] = handOver }
+  answer(r, doc)
+  return try await got
+}
+let typedNative = try await handRows("/ foo", 3, handOver: ["native": ["name": "filesearch"], "prefix": "/ ", "query": "foo"])
+ok(typedNative.handOver == HandOver(token: "native:filesearch", prefix: "/ ", query: "foo"),
+  "a hand over to a source of the app's own crosses with its word and the rest")
+let speedLevel: [String: Any] = ["id": "v7", "name": "speedtest", "placeholder": "Measure", "previewPane": true,
+  "ranking": "app", "rowLimit": "default", "actions": [String]()]
+let typedHosted = try await handRows("st ", 4, handOver: ["push": ["parent": "v4", "level": speedLevel], "prefix": "st ", "query": ""])
+ok(typedHosted.handOver == HandOver(token: "v7", prefix: "st ", query: ""), "a hand over to a hosted tool names the level it pushed")
+async let movedOn = shown.rows(Query(text: "s", generation: 5))
+let rmo = request("rows")
+answer(rmo, ["q": (rmo["params"] as? [String: Any])?["q"] ?? 0, "revision": "r1", "fromQuery": [String](), "exclusive": false])
+let cv7 = request("close")
+ok((cv7["params"] as? [String: Any])?["level"] as? String == "v7", "a level a hand over opened and the stage never pushed is closed")
+answer(cv7, true)
+ok((try await movedOn).handOver == nil, "and an answer that hands nothing over carries none")
+var speedLevel8 = speedLevel
+speedLevel8["id"] = "v8"
+_ = try await handRows("st ", 6, handOver: ["push": ["parent": "v4", "level": speedLevel8], "prefix": "st ", "query": ""])
+let handedChild = await shown.pushed("v8") as? BridgedLevel
+ok(handedChild?.manifest.name == "speedtest" && handedChild?.manifest.previewPane?.drawn == true,
+  "the level a hand over names is pushed as a hosted level with its pane")
+async let handedClosed: Void = handedChild!.close()
+let cv8 = request("close")
+ok((cv8["params"] as? [String: Any])?["level"] as? String == "v8", "and once pushed it is the stage's to close, not the launcher's")
+answer(cv8, true)
+await handedClosed
 
 async let launcherClosed: Void = shown.close()
 let cl4 = request("close")

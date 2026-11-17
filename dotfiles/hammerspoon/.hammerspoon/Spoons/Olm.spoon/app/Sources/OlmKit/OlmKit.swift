@@ -114,6 +114,20 @@ public struct Query: Sendable, Equatable {
 }
 
 /// A source's answer for one query.
+/// A list a typed word hands over to, step 3.3e, docs/DESIGN-APP-HOSTED.md: the token the source's
+/// pushed answers it for, the word typed with its separator, kept in the field as the level's prefix,
+/// and the rest after it, the pushed list's own text.
+public struct HandOver: Sendable, Equatable {
+  public var token: String
+  public var prefix: String
+  public var query: String
+  public init(token: String, prefix: String, query: String) {
+    self.token = token
+    self.prefix = prefix
+    self.query = query
+  }
+}
+
 public struct RowsAnswer: Sendable, Equatable {
   /// In the source's order. The stage ranks them unless the level says the source's order is final.
   public var rows: [Row]
@@ -129,10 +143,14 @@ public struct RowsAnswer: Sendable, Equatable {
   /// Whether the window is as tall as these rows while the level itself does not fit, the launcher's
   /// query a scope claims whose tool's list fits, docs/DESIGN-FIT-HEIGHT.md.
   public var fit: Bool
+  /// A typed word handing the list over to a tool's own, the launcher's claim, step 3.3e, which the
+  /// stage pushes while the text it asked for is still the field's.
+  public var handOver: HandOver?
 
   public init(rows: [Row], rankText: String? = nil, status: String? = nil, emptyStatus: String? = nil,
-              pending: Bool = false, fit: Bool = false) {
+              pending: Bool = false, fit: Bool = false, handOver: HandOver? = nil) {
     self.fit = fit
+    self.handOver = handOver
     self.rows = rows
     self.rankText = rankText
     self.status = status

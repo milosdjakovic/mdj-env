@@ -17,6 +17,11 @@
 // Step 3.3, docs/DESIGN-APP-HOSTED.md. A row leading to a tool's list the config hosts answers push,
 // and pushed makes the BridgedLevel the stage shows over this one. A rows answer's fit, a scope's
 // claim whose tool's list fits its rows, crosses to the stage as the answer's own fit.
+//
+// Step 3.3e. A row or a typed word leading to a tool the app serves itself answers native, and
+// pushed answers the app's own source for that name, as main.swift hands them in. A rows answer's
+// handOver, a typed word handing the list over, crosses as the answer's own, and a hosted level it
+// opened that the stage did not push is closed, by the next answer or the launcher's close.
 
 import Foundation
 import OlmKit
@@ -43,15 +48,21 @@ public actor BridgedLauncher: ListSource {
   private var pushes: [String: JSON] = [:]
   // The level whose run waits for hidden, said before that level's close.
   private var waitingHidden: String?
+  // The app's own sources by name, a native push's, step 3.3e.
+  private let natives: [String: any ListSource]
+  // The hosted level the last hand over opened and the stage has not pushed, closed when no answer
+  // names it any more.
+  private var handedLevel: String?
   private let log: @Sendable (String) -> Void
 
   /// Whether this is the launcher a person opens, a level for each show, rather than the shadow's.
   public nonisolated let shown: Bool
 
-  public init(bridge: Bridge, shown: Bool = false,
+  public init(bridge: Bridge, shown: Bool = false, natives: [String: any ListSource] = [:],
     log: @escaping @Sendable (String) -> Void = { NSLog("Olm launcher: %@", $0) }) {
     self.bridge = bridge
     self.shown = shown
+    self.natives = natives
     self.log = log
   }
 
@@ -86,6 +97,7 @@ public actor BridgedLauncher: ListSource {
     memory = [:]
     pushes = [:]
     waitingHidden = nil
+    handedLevel = nil
   }
 
   /// The memory notification, each query named taking its new order and an empty one forgotten.
@@ -130,6 +142,8 @@ public actor BridgedLauncher: ListSource {
     // Applied whatever its age, since the next request names this revision, and dropped as an
     // answer when a newer q has gone out since, docs/PROTOCOL-BRIDGE.md Generations.
     store.apply(answer)
+    // Read before the age check, so a level a superseded answer opened is still closed later.
+    let handed = await handOver(answer["handOver"])
     guard mine == q else { throw BridgeError.answered(BridgeError.stale, "superseded") }
     let owners = shown ? await bridge.icons(store.owners) : [:]
     let bonus = QueryMemory.bonus(QueryMemory.order(in: memory, for: query.text))
@@ -139,7 +153,28 @@ public actor BridgedLauncher: ListSource {
       if shown { row.icon = store.icon(key, owners: owners) }
       return row
     }
-    return RowsAnswer(rows: out, rankText: answer["rankText"].string, fit: answer["fit"].bool ?? false)
+    return RowsAnswer(rows: out, rankText: answer["rankText"].string, fit: answer["fit"].bool ?? false,
+      handOver: handed)
+  }
+
+  // A rows answer's handOver as the stage pushes it, step 3.3e, a hosted level held for pushed and
+  // the one an earlier answer opened closed when this one names another or none.
+  private func handOver(_ h: JSON) async -> HandOver? {
+    var token: String?
+    if let name = h["native"]["name"].string {
+      token = WireEffects.native + name
+    } else if let id = h["push"]["level"]["id"].string {
+      pushes[id] = h["push"]["level"]
+      token = id
+    }
+    let opened = token.flatMap { pushes[$0] == nil ? nil : $0 }
+    if let old = handedLevel, old != opened {
+      pushes[old] = nil
+      _ = try? await bridge.request("close", .object(["level": .string(old)]))
+    }
+    handedLevel = opened
+    guard shown, let token else { return nil }
+    return HandOver(token: token, prefix: h["prefix"].string ?? "", query: h["query"].string ?? "")
   }
 
   /// Of these rows, the keys of those with a memory key, in order, which the Lua shadow names its
@@ -176,6 +211,15 @@ public actor BridgedLauncher: ListSource {
 
   /// The hosted list a push effect named, held by the bridge so a redraw reaches it, step 3.3.
   public func pushed(_ token: String) async -> (any ListSource)? {
+    if token.hasPrefix(WireEffects.native) {
+      let name = String(token.dropFirst(WireEffects.native.count))
+      guard let source = natives[name] else {
+        log("\(name) is a list of the app's own it holds no source for")
+        return nil
+      }
+      return source
+    }
+    if token == handedLevel { handedLevel = nil }
     guard let wire = pushes.removeValue(forKey: token) else { return nil }
     let child = BridgedLevel(bridge: bridge, wire: wire, defaultRowLimit: defaultRowLimit, log: log)
     await bridge.hold(child)
@@ -198,6 +242,10 @@ public actor BridgedLauncher: ListSource {
       level = nil
       store.clear()
       pushes = [:]
+      if let handed = handedLevel {
+        handedLevel = nil
+        _ = try? await bridge.request("close", .object(["level": .string(handed)]))
+      }
     }
     _ = try? await bridge.request("close", .object(["level": .string(id)]))
   }

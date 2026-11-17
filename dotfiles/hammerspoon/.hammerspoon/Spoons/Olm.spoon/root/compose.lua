@@ -3423,6 +3423,9 @@ function obj.run(olm, cfg)
     for _, s in ipairs(scopes) do
       local presentation = s.presentation
       if presentation then
+        -- The list handed over to, which the bridge reads off the claim to push it in Olm.app's
+        -- launcher, step 3.3e, since the stage it pushes on below is not the one on screen there.
+        s.handOverTo = presentation
         s.handOver = function(rest, prefix)
           if not stageModule then return end
           stageModule:push(presentation, { prefix = prefix })

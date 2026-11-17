@@ -55,6 +55,10 @@ public final class Stage {
   private var rows: [OlmKit.Row] = []
   private var highlight = 1
   private var text = ""
+  // The word a typed hand over kept in the field before the list's own text, step 3.3e, the Lua
+  // stage's push prefix. The field shows it and the text after it, the source is asked only the
+  // text, and deleting into it gives the list below back with the field at what is left.
+  private var prefix = ""
   private var generation = 0
   private var task: Task<Void, Never>?
   // The swift chooser's look as the bridge last wrote it, read on every open.
@@ -175,6 +179,7 @@ public final class Stage {
     let source: any ListSource
     let level: Level
     let text: String
+    let prefix: String
     let highlight: Int
     let rows: [OlmKit.Row]
     let status: String?
@@ -240,6 +245,7 @@ public final class Stage {
     if pane == nil { paneHost?.close() }
     rows = []
     text = query
+    prefix = ""
     panel.setRows([])
     apply(status: nil)
     panel.start()
@@ -372,9 +378,18 @@ public final class Stage {
     panel.place(placement)
   }
 
+  /// The field's text with a level's prefix taken off, the query its source is asked, or nil when the
+  /// text no longer starts with the prefix, a delete into the word that reached the level, which gives
+  /// the level below back, step 3.3e. host/stage's _strip, test/fixtures/stage/prefix.json.
+  public nonisolated static func strip(_ text: String, prefix: String) -> String? {
+    guard !prefix.isEmpty else { return text }
+    return text.hasPrefix(prefix) ? String(text.dropFirst(prefix.count)) : nil
+  }
+
   // The list a push names shown over the one up now, in the same window, which is parked as it
-  // stands. Its level is open on its side already, so only its rows are asked.
-  private func push(_ token: String, from parent: any ListSource) {
+  // stands. Its level is open on its side already, so only its rows are asked. A typed word's hand
+  // over, step 3.3e, keeps the word in the field as the level's prefix and the rest as its text.
+  private func push(_ token: String, from parent: any ListSource, handOver: HandOver? = nil) {
     Task {
       guard let child = await parent.pushed(token) else { return }
       guard self.source === parent, let level = self.level, self.panel.isVisible || self.revealPending else {
@@ -383,8 +398,8 @@ public final class Stage {
       }
       self.closeInfo()
       self.closeActions()
-      self.parked.append(Parked(source: parent, level: level, text: self.text, highlight: self.highlight,
-        rows: self.rows, status: self.status, fitShown: self.fitShown))
+      self.parked.append(Parked(source: parent, level: level, text: self.text, prefix: self.prefix,
+        highlight: self.highlight, rows: self.rows, status: self.status, fitShown: self.fitShown))
       self.source = child
       self.level = nil
       self.generation += 1
@@ -392,8 +407,9 @@ public final class Stage {
       self.resetPane()
       self.placeAgain(for: child)
       self.bars = Bars.read(child.manifest.name)
-      self.text = ""
-      self.panel.setText("")
+      self.prefix = handOver?.prefix ?? ""
+      self.text = handOver?.query ?? ""
+      self.panel.setText(self.prefix + self.text)
       let mine = self.generation
       let placed = self.placedRects
       self.task = Task {
@@ -423,7 +439,8 @@ public final class Stage {
 
   // The list below given back as it was parked, its height with it, its rows asked again keeping
   // the highlight, and the child closed, for a back the child declined or its own pop, step 3.3c.
-  private func popChild(_ child: any ListSource) {
+  // field, the text a delete into the prefix left, is what the field shows then, step 3.3e.
+  private func popChild(_ child: any ListSource, field: String? = nil) {
     guard source === child, let parent = parked.popLast() else { return }
     generation += 1
     task?.cancel()
@@ -436,8 +453,9 @@ public final class Stage {
       Task { await list.positioned(frame: placed.frame, pane: placed.pane) }
     }
     bars = Bars.read(parent.source.manifest.name)
-    text = parent.text
-    panel.setText(parent.text)
+    prefix = parent.prefix
+    text = field.map { String($0.dropFirst(prefix.count)) } ?? parent.text
+    panel.setText(prefix + text)
     rows = parent.rows
     highlight = parent.highlight
     highlightGeneration += 1
@@ -445,7 +463,7 @@ public final class Stage {
     if let count = parent.fitShown { fit(count) } else { unfit() }
     apply(status: parent.status)
     Task { await child.close() }
-    search(parent.text, keepHighlight: true)
+    search(text, keepHighlight: field == nil)
   }
 
   // The window placed again for a list pushed over another or given back, with a pane where its
@@ -615,6 +633,9 @@ public final class Stage {
       guard mine == self.generation else { return }
       self.land(ranked.rows, status: answer.status ?? (ranked.rows.isEmpty ? answer.emptyStatus : nil),
         keepHighlight: keepHighlight, fit: answer.fit)
+      // A typed word handing the list over, step 3.3e, pushed while this text is still the field's,
+      // which the generation says, the claim's rows drawn meanwhile as the Lua launcher draws them.
+      if let handOver = answer.handOver { self.push(handOver.token, from: source, handOver: handOver) }
       // A newer answer on its way, an index being rebuilt, drawn where the person is when it lands.
       while answer.pending {
         guard let next = try? await source.rowsLanded(query), !Task.isCancelled else { return }
@@ -797,7 +818,7 @@ public final class Stage {
       if !open.right.isEmpty { open.right[0].label = lit.isEmpty ? "Run" : lit }
       // The list's field keeps showing the text the pane opened over while the caret is in the
       // pane's own field, whose placeholder the share carries.
-      open.panelHeld = actionsPane.savedText
+      open.panelHeld = prefix + actionsPane.savedText
       open.panelTitle = actionsPane.level?.title
       state.bottomBar = open
       state.infoOpen = false
@@ -993,7 +1014,7 @@ public final class Stage {
       // native/QuickLook.swift.
       case .quickLook(let path): panel.quickLook(panel.quickLookPath == path ? nil : path)
       case .setQuery(let text):
-        panel.setText(text)
+        panel.setText(prefix + text)
         search(text)
       case .copyText(let text):
         NSPasteboard.general.clearContents()
@@ -1152,7 +1173,7 @@ public final class Stage {
     guard let actionsPane else { return }
     self.actionsPane = nil
     actionsGeneration += 1
-    panel.setText(actionsPane.savedText)
+    panel.setText(prefix + actionsPane.savedText)
     text = actionsPane.savedText
     highlight = actionsPane.savedHighlight
     apply(status: status)
@@ -1375,7 +1396,14 @@ public final class Stage {
     case "text":
       closeInfo()
       if case .string(let text)? = args.first {
-        if actionsPane != nil { filterActions(text) } else { search(text) }
+        if actionsPane != nil {
+          filterActions(text)
+        } else if let query = Self.strip(text, prefix: prefix) {
+          search(query)
+        } else if let source {
+          // A delete into the word a hand over kept, the list below given back with what is left.
+          popChild(source, field: text)
+        }
       }
     case "emptyBackspace":
       let paneWasOpen = actionsPane != nil

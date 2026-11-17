@@ -258,6 +258,9 @@ function obj:serveLauncher(provider)
     -- A hosted tool's list is shown in the app when the config's hosts names it, by the name its
     -- presentation carries, a child taking its tool's.
     hosted = function(p) return type(p) == "table" and type(p.name) == "string" and self._hosts[p.name] == true end,
+    -- A tool the app serves itself is shown as its own source, step 3.3e, never as a Lua list, so
+    -- File Search's launcher row and its typed word open the app's file search.
+    native = function(p) return type(p) == "table" and type(p.name) == "string" and self._serves[p.name] == true end,
     styled = function(v)
       if type(v) == "userdata" and v.getString then return v:getString() end
       return tostring(v)

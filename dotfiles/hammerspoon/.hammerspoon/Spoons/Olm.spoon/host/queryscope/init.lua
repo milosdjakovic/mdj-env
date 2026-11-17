@@ -336,14 +336,18 @@ end
 -- the rest and the word that entered it with its separator, exactly as typed, so the list it
 -- shows can keep the word in its field. pcall wrapped like run, peek and act, so a tool that
 -- raises while taking the list costs a console line.
+--
+-- The callable is a table carrying the rest, the word and the scope's handOverTo, the list it hands
+-- over to where the root named one, so a launcher shown in Olm.app can say over the bridge what a
+-- hand over would show rather than call it, step 3.3e of docs/PLAN-STANDALONE.md.
 function obj:_handOverFor(scope, rest, prefix)
   if not scope.handOver then return nil end
-  return function()
+  return setmetatable({ rest = rest, prefix = prefix, target = scope.handOverTo }, { __call = function()
     local ok, err = pcall(scope.handOver, rest, prefix)
     if not ok then
       hs.printf("QueryScope: handing the %s scope over failed, %s", scope.name, tostring(err))
     end
-  end
+  end })
 end
 
 -- The rows a claimed query shows, see rows above.

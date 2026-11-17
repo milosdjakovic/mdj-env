@@ -127,6 +127,9 @@ struct WireEffects {
         effects.append(.pop)
       } else if !effect["setQuery"].isNull {
         effects.append(.setQuery(effect["setQuery"]["query"].string ?? ""))
+      } else if let name = effect["native"]["name"].string {
+        // A tool the app serves itself, its own source pushed over the launcher, step 3.3e.
+        effects.append(.push(Self.native + name))
       } else if !effect["unserved"].isNull {
         log("\(effect["unserved"]["name"].string ?? "a row") becomes a list the app does not host yet")
       } else {
@@ -134,6 +137,9 @@ struct WireEffects {
       }
     }
   }
+
+  /// The token a native push carries, before the source's name, which no level id begins with.
+  static let native = "native:"
 
   /// The level an open or a push carries, docs/PROTOCOL-BRIDGE.md Opening a list.
   static func level(_ l: JSON, defaultRowLimit: Int?) -> Level {

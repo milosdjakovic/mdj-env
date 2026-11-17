@@ -431,7 +431,24 @@ func runPane(_ file: String, _ doc: [String: Any]) {
   }
 }
 
+// stage.prefix, the field of a level a typed word reached, step 3.3e, through Stage.strip.
+func runPrefix(_ file: String, _ doc: [String: Any]) {
+  for case let c as [String: Any] in (doc["cases"] as? [Any]) ?? [] {
+    let name = c["name"] as? String ?? "?"
+    let expect = c["expect"] as? [String: Any] ?? [:]
+    let got = Stage.strip(c["field"] as? String ?? "", prefix: c["prefix"] as? String ?? "")
+    if expect["leave"] as? Bool == true {
+      if let got { fail(file, name, "wanted leave, got the query \(show(got))") } else { passed += 1 }
+    } else if got != expect["query"] as? String {
+      fail(file, name, "query wanted \(show(expect["query"])), got \(show(got))")
+    } else {
+      passed += 1
+    }
+  }
+}
+
 let runners: [String: (String, [String: Any]) -> Void] = [
+  "stage.prefix": runPrefix,
   "filesearch.parse": runParse,
   "filesearch.narrows": runNarrows,
   "chooser.geometry": runGeometry,

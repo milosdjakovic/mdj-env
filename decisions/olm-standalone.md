@@ -860,3 +860,11 @@ bridge socket, runs on the trial key Hyper and 0 until step 3.5 gives it Hyper a
   second stopped by the guard before any key since the list had closed. The likeliest cause, not
   confirmed, is a Speed Test paint landing in a moment the app said its list was not up, which the
   pane router then draws through Hammerspoon's own backend.
+- 2026-11-17 11:05. 3.3e built on Milos's go. File Search's launcher row and its typed word open
+  the app's own file search, answered `native` over the bridge, since the app has served File
+  Search since 1.5's flip and a Lua list of it inside the app would be the old one. A typed word
+  that hands its list over, `/ ` or `st `, now crosses as the launcher's `handOver`, which the Lua
+  launcher dropped because its own hand over runs only while it is on screen. The app stage keeps
+  the word in the field as the level's prefix, as the Lua stage does. Rejected: running the Lua
+  hand over and recording its push, since the push lands on the hidden Lua stage and not on the
+  app's.

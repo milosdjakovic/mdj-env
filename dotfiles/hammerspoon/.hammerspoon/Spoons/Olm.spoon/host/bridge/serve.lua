@@ -46,6 +46,12 @@ local SF, GLYPH = "sf", "emoji"
 ---                  which the level pushed names, level(name, action, item) -> rows of the level a verb with
 ---                  choices or a confirm opens, each { title, subTitle, icon, iconOwner, current,
 ---                  enabled, cancel, value }, and run(name, action, item, value) running the verb
+--- opts.native      function(presentation) -> whether the app shows a list of its own for that tool,
+---                  the tools it serves, step 3.3e, a present answering { native = { name } } for the
+---                  app to push its own source, and a claim handing over to one answering the same,
+---                  optional, nothing native without it
+--- opts.launcher.rows's fourth answer, a claim's hand over, step 3.3e, read for rest, prefix and
+---                  target, the presentation it shows, and never called
 --- opts.facade      host/bridge/facade.lua's, the stage words a hosted list's code calls during a
 ---                  request recorded as effects, optional
 function M.new(opts)
@@ -278,7 +284,7 @@ function M.new(opts)
       local level = service.levels[params.level]
       if not level then rpc.fail(rpc.GONE, "no level " .. tostring(params.level)) end
       local query = type(params.query) == "string" and params.query or ""
-      local rows, exclusive, fit = service.rowsFor(level, query)
+      local rows, exclusive, fit, handOver = service.rowsFor(level, query)
       local list = rowsOut(rows, level)
       level.query, level.shown, level.q = query, {}, params.q
       for _, r in ipairs(list) do level.shown[r.key] = r end
@@ -312,6 +318,9 @@ function M.new(opts)
         fit = level.kind == "launcher" and exclusive == true and fit == true or nil }
       if params.have ~= revision then
         answer.changes = { upsert = upsert, remove = remove, order = order }
+      end
+      if level.kind == "launcher" and exclusive == true then
+        answer.handOver = service.handOverOut(level, query, handOver)
       end
       service.relit(level)
       return answer
@@ -351,7 +360,7 @@ function M.new(opts)
       return { effects = service.choosePresented(level, item, { item = item, row = params.row, query = query }) }
     end
     if not opts.launcher.choose then rpc.fail(rpc.UNKNOWN, "choose is not served") end
-    local effects, run = opts.launcher.choose(level.items[params.ref], query, opts.hosted)
+    local effects, run = opts.launcher.choose(level.items[params.ref], query, service.shows)
     effects = service.pushes(level, effects or {})
     if type(run) == "function" then
       runWaiting(level.id)
@@ -536,13 +545,44 @@ function M.new(opts)
       actions = opts.verbs and opts.verbs.ids(p.name) or {} } } }
   end
 
-  -- The launcher's present effects made into pushes of hosted levels, or unserved for a tool the
-  -- app does not host yet.
+  -- Whether the app shows the presentation's list, its own source or a hosted level, step 3.3e,
+  -- which the launcher's choose is handed as its hosted.
+  function service.shows(p)
+    return (opts.native and opts.native(p)) == true or (opts.hosted and opts.hosted(p)) == true
+  end
+
+  -- What a launcher claim's hand over shows in the app, step 3.3e, docs/PROTOCOL-BRIDGE.md Rows: the
+  -- app's own source by name, or a hosted level pushed for it, each with the word typed and the rest
+  -- after it, nil for a claim that hands nothing over or to a list the app does not show. A hosted
+  -- level is opened once per query asked, the same one answered again while it stays open, and the
+  -- app closes one it does not push.
+  function service.handOverOut(level, query, handOver)
+    local p = type(handOver) == "table" and handOver.target
+    if type(p) ~= "table" or type(p.name) ~= "string" then return nil end
+    local prefix = type(handOver.prefix) == "string" and handOver.prefix or ""
+    local rest = type(handOver.rest) == "string" and handOver.rest or ""
+    if opts.native and opts.native(p) then
+      return { native = { name = p.name:lower() }, prefix = prefix, query = rest }
+    end
+    if not (opts.hosted and opts.hosted(p)) then return nil end
+    local handed = level.handed
+    if not (handed and handed.query == query and service.levels[handed.id]) then
+      handed = { query = query, push = pushLevel(level, p).push }
+      handed.id = handed.push.level.id
+      level.handed = handed
+    end
+    return { push = handed.push, prefix = prefix, query = rest }
+  end
+
+  -- The launcher's present effects made into pushes of hosted levels, the app's own source for a
+  -- tool it serves, step 3.3e, or unserved for a tool the app does not show yet.
   function service.pushes(level, effects)
     for i, effect in ipairs(effects) do
       local p = type(effect) == "table" and effect.present
       if p then
-        if opts.hosted and opts.hosted(p) then
+        if opts.native and opts.native(p) then
+          effects[i] = { native = { name = p.name:lower() } }
+        elseif opts.hosted and opts.hosted(p) then
           effects[i] = pushLevel(level, p)
         else
           effects[i] = { unserved = { name = p.name } }

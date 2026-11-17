@@ -313,6 +313,12 @@ reaches a list Hammerspoon opens by a chord, step 3.6.
 - `rankText` is what the presentation's `searchText` made of the query, the text the app ranks by,
   absent when it declares none. An empty one keeps the supplier's order. One that raised is sent
   empty with `rankTextError`.
+- `handOver`, step 3.3e, a launcher claim whose typed word hands the list over to a tool's own:
+  `{"native":{"name":"filesearch"},"prefix":"/ ","query":"foo"}` for a tool the app serves itself,
+  or `{"push":{"parent":"v1","level":{...}},"prefix":"st ","query":""}` for a hosted one, its level
+  already open, opened once per query and answered again while it stays open. The app pushes it
+  while the text it asked for is still the field's, `prefix` kept in the field and `query` the
+  level's own text, and closes a pushed level it never showed. Absent for any other answer.
 
 The Lua side runs the supplier for every `rows` it does not coalesce away, then compares each
 row's fields, `names` by its hash, with what it last sent for that key and sends only the
@@ -403,6 +409,7 @@ The effects are recorded as the handler calls the stage words, in order, and sen
 | `{"setPlaceholder":{"level":"v7","text":"..."}}` | `stageSetPlaceholder` | changes it |
 | `{"level":{...}}` | a level field changed | replaces those fields |
 | `{"present":{"level":{...},"query":""}}` | `stagePresent`, a hand over | shows a fresh stack |
+| `{"native":{"name":"filesearch"}}` | a push of a tool the app serves itself | pushes the app's own source for that name, step 3.3e |
 | `{"unserved":{"tool":"name"}}` | a push or present of a tool the bridge does not serve | keeps the row in place, step 3.3 |
 | `{"hide":{}}` | `stageHide`, or `select` returning nothing | hides the chooser |
 | `{"after":"hidden"}` | work the host deferred until the chooser is gone | sends `hidden` once it is |
@@ -454,6 +461,13 @@ one, to each hosted level showing that tool's top level or the child its token n
 stage's own redraw running as before. A launcher `rows` answer carries `"fit":true` while a scope
 whose tool's list fits claims the query, the Lua launcher's `setFit`, and the app sizes its window
 by it.
+
+**What 3.3e serves.** A tool the app serves itself, File Search, is never a Lua list in the app.
+Its launcher row answers `{"native":{"name":"filesearch"}}`, the presentation's name lowercased,
+and the app pushes its own source of that name over the launcher, a name it holds no source for
+pushing nothing and logged. A launcher `rows` answer whose claim hands its list over carries
+`handOver`, see Rows, the Lua launcher's own hand over, which needs the Lua launcher on screen,
+never run.
 
 **What 3.3b serves.** A hosted level's actions pane. The pushed level carries `actions`, every
 action its list's actions pane lists, which the app runs. `actions {level, h, ref}` answers those

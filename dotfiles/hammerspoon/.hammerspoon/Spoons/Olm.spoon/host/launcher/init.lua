@@ -901,7 +901,9 @@ function obj:_queryRows(query)
         }
       end
       if exclusive then
-        return out, true, type(handOver) == "function" and handOver or nil, fit == true
+        local callable = type(handOver) == "function"
+          or (type(handOver) == "table" and getmetatable(handOver) and getmetatable(handOver).__call ~= nil)
+        return out, true, callable and handOver or nil, fit == true
       end
     end
   end
@@ -996,23 +998,25 @@ end
 --- Method
 --- The supplier's rows, and whether a query source claimed the query, so its rows are the whole
 --- list. The bridge serves both, step 2.2 of docs/PLAN-STANDALONE.md, as `exclusive`.
-function obj:_rowsAndClaim(query)
+--- The claim's hand over comes back fourth. Asked quiet, the bridge asking for Olm.app's launcher,
+--- nothing is scheduled, since this launcher is not the list on screen, step 3.3e.
+function obj:_rowsAndClaim(query, quiet)
   -- A hosted list. The field holds only what the user typed, so the page's own prefix goes in
   -- front of it before the sources are asked, and their answer is the whole list. One line,
   -- because hosting reuses the mechanism a typed word already goes through rather than adding a
   -- second one, and this spoon still cannot tell what it is hosting.
   if self._page then
     local out, _, handOver, fit = self:_queryRows(self._page .. query)
-    if handOver then self:_scheduleHandOver(handOver) end
-    return out, true, fit
+    if handOver and not quiet then self:_scheduleHandOver(handOver) end
+    return out, true, fit, handOver
   end
   local out, exclusive, handOver, fit = self:_queryRows(query)
   -- A source claimed the query, so its rows are the entire list and the catalog below is
   -- skipped. This one line is the whole of what the launcher knows about being scoped, and the
   -- claim's fit, whether the claimed list is as tall as its rows, docs/DESIGN-FIT-HEIGHT.md.
   if exclusive then
-    if handOver then self:_scheduleHandOver(handOver) end
-    return out, true, fit
+    if handOver and not quiet then self:_scheduleHandOver(handOver) end
+    return out, true, fit, handOver
   end
   local preds = self._predicates
   local bonus = self:_memoryBonus(query)
@@ -1030,12 +1034,14 @@ function obj:_rowsAndClaim(query)
   return out, false
 end
 
---- Launcher:bridgeRows(query) -> rows, claimed
+--- Launcher:bridgeRows(query) -> rows, claimed, fit, handOver
 --- Method
 --- What host/bridge serves the launcher by, step 2.2 of docs/PLAN-STANDALONE.md, read only. The
 --- same rows the stage is handed, so the app's launcher and this one cannot list different rows.
+--- A claim that hands its list over answers the hand over too, never called, its rest, its word
+--- and the list it shows, which the bridge pushes in the app, step 3.3e.
 function obj:bridgeRows(query)
-  return self:_rowsAndClaim(type(query) == "string" and query or "")
+  return self:_rowsAndClaim(type(query) == "string" and query or "", true)
 end
 
 --- Launcher:bridgeChoose(item, query, hosted) -> effects, run

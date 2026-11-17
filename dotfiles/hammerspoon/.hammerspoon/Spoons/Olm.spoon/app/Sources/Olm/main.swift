@@ -54,7 +54,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       frecency: FileSearchSource.frecency(context), cloud: demo.map { CloudFiles.demo(fraction: $0) } ?? .system,
       build: FileSearchSource.indexBuild(context))
     let launcher = BridgedLauncher(bridge: bridge)
-    let shownLauncher = BridgedLauncher(bridge: bridge, shown: true)
+    // File Search's row and its typed word push the app's own file search over the launcher, step
+    // 3.3e, the same source its own key opens.
+    let shownLauncher = BridgedLauncher(bridge: bridge, shown: true, natives: [fileSearch.manifest.name: fileSearch])
     self.shownLauncher = shownLauncher
     sources = [fileSearch.manifest.name: fileSearch, shownLauncher.manifest.name: shownLauncher]
     // The shadow answers on a source of its own, so a list a person has open is never touched.
