@@ -300,3 +300,73 @@ closed the window, as on its own key. The keys golden is unchanged.
 What can go wrong, and what to tell me:
 - A key at step 3, 4 or 5 opens an app or a tool. Say which key.
 - After step 7 the launcher's keys stop working.
+
+## Step 3.4's trial, Actions in every list and the preview pane appearing whole
+
+Written on 2026-11-17 from Milos's trial of 3.4, waiting for his go. Two findings, built as two
+pieces, each with its own trial.
+
+### Piece A, the actions pane in every list
+
+**What Milos asked.** Hyper and O opens the actions pane in every list, the same everywhere, as a
+core mechanism. Its key stays a person's to move.
+
+**Why it differs today.** The core removes it on purpose. On 2026-11-02, at Milos's request,
+`hints.dropIdleActionsPanes` took `openActionsPane` away from every list whose actions pane would
+list only the primary and the secondary. The bar, the info pane and the keymap lose it together,
+and Hyper and O does nothing there. On this machine that is Audio, Browser Tabs, Emoji, Input
+Sources, Menu Search, Obsidian, the Olm settings lists, Text Case, Volume, Wi-Fi, Caffeinate and the
+launcher. It is a rule in the core, not something each plugin chose. This piece reverses it.
+
+**What this piece does.**
+1. `dropIdleActionsPanes` goes, and its call in `root/compose.lua`. Every list carries Actions in
+   the bar and answers its chord.
+2. A list with no verbs of its own lists Run, its primary, and its secondary where it has one, as
+   any list's actions pane already does.
+3. The launcher gets its actions pane over the bridge as well. `serve.lua` serves the launcher's
+   `actions` instead of refusing, and the app's launcher reads it from its share like any list.
+4. The keys goldens gain the `o` line for every list that lost it, and are read before commit.
+5. `decisions/olm-chooser-keys.md` records the reversal, its date and why.
+
+### Piece B, the preview pane appears whole, with a fade
+
+**What Milos saw.** File Search opened inside the launcher widens the window for its pane. The pane
+stays empty while the window widens, and its content lands right at the end, with a visible jank.
+He asks that the content be prepared away from the main thread and appear only once it is complete,
+fading in, so it never stutters the window's motion.
+
+**What is known.** The app reads the preview and lays it out off the main thread already. The main
+thread then turns the layout into the pane's elements, decodes the pictures, lays out the text in
+the pane's scroll view and draws it. If that lands while the window is still widening, it competes
+with the motion's frames. This is the likely cause, and not yet measured.
+
+**What this piece does.**
+1. **Measure first.** Time the main thread around the pane's first draw while the window widens,
+   with the probe the swift chooser uses, `native/Perf.swift`. Report what took the frames before
+   changing anything.
+2. **Prepare everything off the main thread.** The elements, the attributed text and the decoded
+   pictures are built in the preview task. The main thread only installs what is ready.
+3. **Never draw during a reshape.** While the window is widening, a ready pane waits. It goes on
+   screen as the reshape ends.
+4. **Fade the content in.** New content, and the empty state, appear on the motion's pane fade, the
+   `paneFade` timing in `config/settings.lua`, and are never drawn half complete. A repaint of the
+   same row, a picture landing, stays in place with no fade.
+5. The fade lives in the shared native pane, so the swift chooser in Hammerspoon gets it too.
+
+If the measurement shows something else took the frames, the note's build section says what, and
+the fix follows the measurement.
+
+**Tests.** Piece A, the dry gate, the keys goldens and `test/keymap-person.lua`. Piece B,
+`test/swiftpane.sh` for the fade and the held draw, and the probe's numbers before and after.
+
+**The trial, once both are built:**
+1. Open Volume, then Audio, then Emoji, each on its own key, and press Hyper and O in each. Expect
+   the actions pane, with at least Run.
+2. On Hyper and 0, press Hyper and O on the launcher. Expect its actions pane.
+3. On Hyper and 0, type `/` and press Return on File Search. Watch the window widen. Expect the pane
+   to stay empty through the motion, then its content to fade in whole, with no stutter.
+4. Move the highlight down a few rows. Expect each preview to fade in, and no flicker.
+
+What can go wrong, and what to tell me:
+- A list where Hyper and O still does nothing. Say which.
+- The stutter at step 3 remains, or the content now appears late enough to feel slow.
