@@ -877,3 +877,11 @@ bridge socket, runs on the trial key Hyper and 0 until step 3.5 gives it Hyper a
   meaning, Hyper and F opening its app and Hyper and U Tmux Sessions. The app stage now tells a
   served tool's list up while it is pushed on top. A hosted Lua level keeps the launcher up, since
   its keys already go through it.
+- 2026-11-17 16:15. 3.4 ticked, Milos's trial good, after Piece B of the trial note: the preview pane
+  in a pushed list lands before the window finishes widening and fades in over `paneContent`, which
+  he found better, with a slight stutter left. The shadow log stood at 86 lines and no difference.
+  The stutter left is the window server drawing the glass and its shadow at each new size, which the
+  2026-11-06 12:55 entry of `olm-swift-chooser.md` measured and Milos judged good then. A proposal
+  of mine the same hour, drawing the window at full width and revealing the pane's region, is the
+  mask over glass that file rejected on 2026-11-06 10:55, so it was withdrawn before a note was
+  written. 3.5 is next.

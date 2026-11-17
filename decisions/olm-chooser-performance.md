@@ -163,3 +163,9 @@ the reshape as well changed nothing and was taken out. A pane's new content fade
 `paneContent`, 0.12 s. Left: one or two stalls of 30 to 50 ms a widening, AppKit composing the
 window at its new shape. Also seen once: the first show after the app starts spends about 190 ms
 loading Writing Tools support as the input field takes focus.
+
+2026-11-17 16:15. Milos's verdict on the 14:01 change: better, a slight stutter left. That stutter
+is the 30 to 50 ms a widening noted above, the window server drawing the glass and its shadow at
+each new size, the same frames `olm-swift-chooser.md` measured at 12 to 24 ms apart on 2026-11-06
+12:55. Revealing a full width window under a mask instead would remove the resize and is that
+file's rejected mask over glass, which loses the window's shadow and the glass's edge in motion.
