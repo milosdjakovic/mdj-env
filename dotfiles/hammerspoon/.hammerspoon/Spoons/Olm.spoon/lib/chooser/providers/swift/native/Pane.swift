@@ -145,6 +145,11 @@ final class PaneCanvas: NSView {
 
   override func draw(_ dirtyRect: NSRect) {
     guard let context = NSGraphicsContext.current else { return }
+    let began = CACurrentMediaTime()
+    defer {
+      let took = (CACurrentMediaTime() - began) * 1000
+      if Perf.on, took > 1 { Perf.note(String(format: "pane drew %.1f ms, %d elements", took, elements.count), at: began) }
+    }
     context.saveGraphicsState()
     for element in elements {
       switch element {
@@ -284,6 +289,8 @@ final class PanePanel {
     layoutDocument()
     if scroll.reset { scrollTo(0) }
     canvas.needsDisplay = true
+    // New content fades in, a repaint of the same row stays where it is.
+    if scroll.reset, shown { Motion.fadeContent(canvas) }
   }
 
   // Further down by points, clamped to the content, answering whether the view moved.

@@ -303,8 +303,8 @@ What can go wrong, and what to tell me:
 
 ## Step 3.4's trial, the preview pane appearing whole
 
-Written on 2026-11-17 from Milos's trial of 3.4, revised the same day with his answers, waiting for
-his go.
+Written on 2026-11-17 from Milos's trial of 3.4, revised the same day with his answers, and built
+the same day on his go.
 
 **The actions pane stays as it is.** Milos first asked for Hyper and O to behave the same in every
 list. His answer settled it: a list whose actions pane would only repeat Return and Command and
@@ -337,6 +337,22 @@ the motion's frames. This is the likely cause, and not yet measured.
 
 If the measurement shows something else took the frames, the note's build section says what, and
 the fix follows the measurement.
+
+**What the measurement found, and what was built.**
+- The pane's own drawing was never the cost, never over 1 ms.
+- The preview came late. After the push, the first rows took about 95 ms, then the 60 ms settle a
+  moving highlight waits, so the preview landed as the widening ended. A pushed list's first rows
+  are now described at once, and the preview lands 20 to 30 ms before the widening ends.
+- Most of each stall was AppKit setting the cursor again on every frame of the window's new shape,
+  through the accessibility cursor generator, which draws the cursor image anew. The window's
+  cursor rects are off for the reshape, in `ReshapeMotion`. Over five warm pushes each, a widening's
+  stalls went from about 61 ms to 44 ms. Ignoring the mouse for the reshape as well changed nothing
+  and was taken out.
+- What is left, one or two stalls of 30 to 50 ms a widening, is AppKit composing the window at its
+  new shape. The source and the searcher already run off the main thread. Removing it would mean
+  widening the window another way, for Milos to decide.
+- The probe stays: `OLM_PERF=1` on Olm.app's launch, `open --env OLM_PERF=1`, writes the main
+  thread's notes to `~/.olm/cache/perf.log` on each hide.
 
 **Tests.** `test/swiftpane.sh` for the fade, and the probe's numbers before and after.
 

@@ -130,6 +130,9 @@ public final class Stage {
   private var revealPending = false
   private var revealTask: Task<Void, Never>?
   private var heldPaint: PanePaint?
+  // A list just pushed, whose first rows are described at once rather than after the settle, so its
+  // preview lands while the window is still widening, Milos's call on 2026-11-17.
+  private var describeFirst = false
   private var heldBusy = false
   // A pane a hosted list draws in Lua, step 3.3d: what it drew while an open waited, the highlight
   // generation it was last told, and where the list and its pane were placed, which it is told
@@ -196,6 +199,23 @@ public final class Stage {
 
   public init(searcher: Searcher = Searcher()) {
     self.searcher = searcher
+    // OLM_PERF set, the main thread probe the swift chooser uses, its notes written on each hide.
+    if ProcessInfo.processInfo.environment["OLM_PERF"] != nil { Perf.start() }
+  }
+
+  // The probe's notes since the last hide, appended to ~/.olm/cache/perf.log.
+  private func writePerf() {
+    guard Perf.on, !Perf.notes.isEmpty else { return }
+    let url = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".olm/cache/perf.log")
+    let text = Perf.notes.joined(separator: "\n") + "\n---\n"
+    Perf.notes = []
+    if let handle = try? FileHandle(forWritingTo: url) {
+      handle.seekToEndOfFile()
+      handle.write(Data(text.utf8))
+      try? handle.close()
+    } else {
+      try? text.write(to: url, atomically: true, encoding: .utf8)
+    }
   }
 
   /// Opens a source's list with the query in the input field, on the screen the placement choice
@@ -361,6 +381,7 @@ public final class Stage {
       if down == self.downGeneration { self.wakeDown() }
     }
     panel.hide()
+    writePerf()
     // After the hide, as the Lua file search's onClose destroys its pane once the stage hid.
     paneHost?.close()
     panel.stop()
@@ -412,6 +433,7 @@ public final class Stage {
       self.generation += 1
       self.task?.cancel()
       self.resetPane()
+      self.describeFirst = true
       self.placeAgain(for: child)
       self.bars = Bars.read(child.manifest.name)
       if self.servesKeys(child.manifest.name) { self.tell(child.manifest.name) }
@@ -673,6 +695,7 @@ public final class Stage {
     if next != rows {
       rows = next
       panel.setRows(next.map(panelRow))
+      Perf.note("rows set")
     }
     let was = highlight
     if level?.fit == true || answerFit { fit(max(1, next.count)) } else { unfit() }
@@ -689,6 +712,13 @@ public final class Stage {
       if pane == nil { reveal() } else { describe() }
       return
     }
+    if describeFirst, pane != nil {
+      describeFirst = false
+      if !paneDrawn { watchStale() }
+      describe()
+      return
+    }
+    describeFirst = false
     settlePreview()
   }
 
@@ -763,6 +793,7 @@ public final class Stage {
       return
     }
     let key = rows[highlight - 1].key
+    Perf.note("describe asked")
     // Already on the pane, where it is scrolled, or already being read.
     if key == previewShown || key == previewAsking { return }
     previewTask?.cancel()
@@ -778,6 +809,7 @@ public final class Stage {
         return
       }
       guard mine == self.previewGeneration else { return }
+      Perf.note("preview read")
       // A preview still on its way says so with the spinner rather than its words, the body's
       // heading drawn alone, or with its words over a meter where it says how far it has come.
       var drawn = preview
@@ -785,9 +817,11 @@ public final class Stage {
       let paint = await Self.paint(drawn, pane: pane, measure: measure, scale: scale,
         shortcut: self.spelled(drawn.body?.shortcut))
       guard mine == self.previewGeneration else { return }
+      Perf.note("preview laid out")
       self.previewAsking = nil
       self.previewShown = key
       self.drawPane(paint, busy: Self.spins(preview))
+      Perf.note("pane handed")
       // What the preview said was on its way, drawn where the pane is scrolled once it lands.
       // Asked again while it is still pending, since a download can land as a render begins.
       var waiting = preview.pending

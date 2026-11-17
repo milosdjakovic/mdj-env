@@ -133,6 +133,16 @@ check("and scrollBy stops at the end", !pane.scrollBy(10))
 dock(wider, height: 1000, reset: true)
 check("new content goes back to the top", clip.bounds.origin.y == 0)
 
+// New content fades in over paneContent, and a repaint of the same row does not, 2026-11-17.
+Motion.paneContentDuration = 0.12
+dock(wider, height: 1000, reset: true)
+let content = view.documentView?.layer
+check("new content fades in", content?.animation(forKey: "olm.motion.content") != nil)
+content?.removeAllAnimations()
+dock(wider, height: 1000, reset: false)
+check("a repaint of the same content does not fade", content?.animation(forKey: "olm.motion.content") == nil)
+Motion.paneContentDuration = 0
+
 // What is drawn, read back from the scroll view standing in a plain view, the only place an
 // offscreen render reads a layer free tree.
 func redPixels(_ target: NSView) -> Int {

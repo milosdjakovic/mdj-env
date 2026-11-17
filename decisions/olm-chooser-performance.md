@@ -151,3 +151,15 @@ field still measures through the uncached call and leaves a window behind, which
 with 0ef5d9b0 on 2026-10-30, where `field/render.lua` measures through the kit's cached
 `style.measure`. The table already said fixed and not yet measured live, and nothing in the repo
 records a live measure since, so that cell stands. Found by an audit against the repo on 2026-11-16.
+
+2026-11-17 14:01. The preview pane landing late and a jank as Olm.app's window widened for File
+Search's pane inside the launcher, from Milos's trial of 3.4. Measured with the main thread probe
+and `sample`. The pane's drawing was never over 1 ms. The preview waited about 95 ms for the first
+rows and 60 ms for the settle, so it landed as the widening ended, and a pushed list's first rows are
+now described at once. AppKit set the cursor again on every frame of the new shape, through the
+accessibility cursor generator, and the window's cursor rects are now off for the reshape, which
+took a widening's stalls from about 61 ms to 44 ms over five warm pushes each. Ignoring the mouse for
+the reshape as well changed nothing and was taken out. A pane's new content fades in over
+`paneContent`, 0.12 s. Left: one or two stalls of 30 to 50 ms a widening, AppKit composing the
+window at its new shape. Also seen once: the first show after the app starts spends about 190 ms
+loading Writing Tools support as the input field takes focus.

@@ -92,6 +92,7 @@ function M.spec(policy, colors, typography)
         paneClose = each("paneClose"),
         paneFade = padding(m.paneFade) or (show and show * 0.3),
         reshape = padding(m.reshape),
+        paneContent = padding(m.paneContent),
       }
     end)(),
   }

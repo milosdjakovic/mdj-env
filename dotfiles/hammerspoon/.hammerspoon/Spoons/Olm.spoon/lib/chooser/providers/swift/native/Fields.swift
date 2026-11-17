@@ -111,7 +111,7 @@ extension Placement {
 }
 
 extension Motion {
-  // The kit's motion tokens, { open, close, rise, scale, paneOpen, paneClose, paneFade, reshape,
+  // The kit's motion tokens, { open, close, rise, scale, paneOpen, paneClose, paneFade, reshape, paneContent,
   // openCurve, closeCurve, paneCurve, paneCloseCurve, reshapeCurve, fitCurve }, each curve four control point
   // numbers. A field left out keeps what Motion holds.
   static func apply(_ f: Fields) {
@@ -127,6 +127,7 @@ extension Motion {
     if let v = f.number("paneClose") { paneCloseDuration = CFTimeInterval(v) }
     if let v = f.number("paneFade") { paneFadeDuration = CFTimeInterval(v) }
     if let v = f.number("reshape") { reshapeDuration = CFTimeInterval(v) }
+    if let v = f.number("paneContent") { paneContentDuration = CFTimeInterval(v) }
     if let c = curve("openCurve") { openCurve = c }
     if let c = curve("closeCurve") { closeCurve = c }
     if let c = curve("paneCurve") { paneCurve = c }

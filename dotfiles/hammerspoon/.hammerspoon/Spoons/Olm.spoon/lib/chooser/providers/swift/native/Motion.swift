@@ -54,6 +54,8 @@ enum Motion {
   // beside the list or leaving it, see ReshapeMotion, and a bar group morphing as the list switches,
   // see BarMorph.
   static var reshapeDuration: CFTimeInterval = 0
+  // How long a preview pane's new content takes to fade in, short so it reads as soon as it is ready.
+  static var paneContentDuration: CFTimeInterval = 0
   // The curve of a reshape, the window's and a bar group's morphing beside it, so they move
   // together, the kit's reshapeCurve token, see lib/ui/style.lua.
   static var reshapeCurve = CAMediaTimingFunction(name: .linear)
@@ -124,6 +126,23 @@ enum Motion {
     guard openDuration > 0 else { return }
     play(view, layer, closing: false, from: from, token: nil)
   }
+
+  // A preview pane's new content fading in where it stands, on the render server, the view itself
+  // left opaque so nothing waits on the fade. Reduce Motion keeps it, since it is only a fade.
+  static func fadeContent(_ view: NSView) {
+    view.wantsLayer = true
+    guard let layer = view.layer else { return }
+    layer.removeAnimation(forKey: contentKey)
+    guard paneContentDuration > 0 else { return }
+    let fade = CABasicAnimation(keyPath: "opacity")
+    fade.fromValue = 0
+    fade.toValue = 1
+    fade.duration = paneContentDuration
+    fade.timingFunction = CAMediaTimingFunction(name: .easeOut)
+    layer.add(fade, forKey: contentKey)
+  }
+
+  private static let contentKey = "olm.motion.content"
 
   // Fades view out, then leaves it see through and calls done, unless it was shown again first.
   static func disappear(_ view: NSView, done: (() -> Void)? = nil) {
@@ -302,7 +321,16 @@ final class ReshapeMotion: NSObject {
     let link = view.displayLink(target: self, selector: #selector(tick(_:)))
     link.add(to: .main, forMode: .common)
     self.link = link
+    // AppKit checks the cursor again on every frame the window's shape changes, and on this machine
+    // setting it goes through the accessibility cursor generator, which draws the cursor image anew,
+    // part of what stalled a widening, sampled on 2026-11-17. The window's cursor rects are off for
+    // the motion and on again as it ends, which took a widening's stalls from about 61 ms to 44 ms
+    // over five warm pushes each. Ignoring the mouse for the motion as well changed nothing.
+    window = view.window
+    window?.disableCursorRects()
   }
+
+  private weak var window: NSWindow?
 
   @objc private func tick(_ link: CADisplayLink) {
     let start = CACurrentMediaTime()
@@ -336,6 +364,8 @@ final class ReshapeMotion: NSObject {
     link = nil
     step = nil
     done = nil
+    window?.enableCursorRects()
+    window = nil
   }
 }
 

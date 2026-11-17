@@ -92,7 +92,8 @@ return {
   --            arriving or leaving, with the bar's actions and their labels morphing beside it.
   -- rise is how many points below its place a surface starts and scale how much smaller, 1 for
   -- none, a closing surface travelling half of both. open, close, paneOpen, paneClose or paneFade
-  -- set here override show for that one motion. 0 turns a group off. Reduce Motion in System
+  -- set here override show for that one motion. paneContent is how long a preview pane's new
+  -- content takes to fade in, 0.12 unless set here. 0 turns a group off. Reduce Motion in System
   -- Settings keeps only the fade. Read by the swift chooser at load, see native/Motion.swift.
   motion = {
     show = 0.15,

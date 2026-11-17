@@ -138,10 +138,11 @@ local SHIPPED = {
   -- curves are the kit's alone. A floating pane fades in over its bar group over paneFade, grows out
   -- of it over paneOpen, shrinks back onto it over paneClose and fades off it over paneFade, see
   -- native/Motion.swift. The chooser's window widens or narrows over reshape when a preview pane
-  -- arrives or leaves while it is up.
+  -- arrives or leaves while it is up. A preview pane's new content fades in over paneContent, short
+  -- so a preview reads as soon as it is ready, Milos's call on 2026-11-17.
   motion = {
     open = 0.14, close = 0.09, rise = 4, scale = 0.98,
-    paneOpen = 0.2, paneClose = 0.1, paneFade = 0.06, reshape = 0.18,
+    paneOpen = 0.2, paneClose = 0.1, paneFade = 0.06, reshape = 0.18, paneContent = 0.12,
     openCurve = { 0.2, 0.8, 0.2, 1 }, closeCurve = { 0.4, 0, 1, 1 },
     -- A floating pane's grow, easing in and out, and its shrink, easing out alone so it moves the
     -- moment Escape is pressed and still settles onto its group.
