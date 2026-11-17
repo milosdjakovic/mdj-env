@@ -9,6 +9,10 @@
 -- decides how much of a file the pane beside the list reads before drawing it.
 
 return {
+  -- What the empty field says, in the app's file search and over the launcher alike. It names the
+  -- list and never a key.
+  placeholder = "Search files and folders",
+
   -- Type tokens. A query token written with a leading dot is a type filter when its
   -- remainder appears here, so `.js hello` means JavaScript files matching hello.
   -- Each entry maps the token to the extensions it covers, which is what lets one
