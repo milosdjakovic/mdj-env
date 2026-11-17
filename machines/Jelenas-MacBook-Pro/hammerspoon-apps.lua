@@ -27,6 +27,11 @@ return {
     ["hyper+Z"] = "apptoggler.Zed",
     ["hyper+L"] = "apptoggler.Slack",
     ["hyper+A"] = "apptoggler.Claude",
+
+    -- The trial key of Olm's step 3.2, Olm.app's own launcher, chosen by Milos on 2026-11-13. It
+    -- was removed when step 3.5 flipped Hyper and Space and came back the same day, 2026-11-17,
+    -- when the flip was held off until every tool the launcher leads to is shown in the app.
+    ["hyper+0"] = "bridge.launcher",
   },
 
   apps = {

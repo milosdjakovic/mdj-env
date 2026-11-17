@@ -113,6 +113,11 @@ return {
     -- The tools whose own list the app shows inside its launcher, step 3.3, so the launcher's row
     -- for one replaces its rows in place in the app's window. A tool joins in the step that hosts
     -- it, and taking it out leaves its row put in the app's launcher, as before.
+    -- Whether Hyper and Space opens the app's launcher, step 3.5, while the app's socket is up,
+    -- and the Lua launcher otherwise. Held off on 2026-11-17, since a row leading to a tool the
+    -- app does not show yet, Clipboard History among them, did nothing there. It goes on again
+    -- once every such tool is shown in the app.
+    launcherFlip = false,
     hosts = { "caffeinate", "volume", "audio", "wifi", "inputsources", "tmuxSessions", "vpn", "emoji", "browserTabs", "speedtest" },
     -- The tools whose every settled answer the app answers again and compares, step 1.3e. File
     -- search's compares nothing while the app serves it and resumes by itself after a back out.

@@ -273,7 +273,7 @@ eq(wordEffects.context, nil, "the context ends with the request")
 -- The trial key of step 3.2, bridge.launcher, gated on the piece, the app and the socket setting.
 local tried = fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, socket = true })
 local actions = tried:actions()
-eq(#actions == 1 and actions[1].name, "launcher", "the bridge declares one action, launcher")
+eq(#actions == 2 and actions[1].name, "launcher", "the bridge declares two actions, launcher first")
 eq(actions[1].when, "olmAppLauncher", "gated on its own predicate")
 eq(tried.predicates.olmAppLauncher(), true, "on where the piece, the app and the socket are")
 eq(fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, socket = false }).predicates.olmAppLauncher(),
@@ -295,9 +295,13 @@ local luaRuns = 0
 local function luaLauncher() luaRuns = luaRuns + 1 end
 eq(fresh({ pieces = { olmapp = "off" }, deps = deps, app = APP, run = run, socket = true }):launcherOpen(luaLauncher),
   nil, "the piece off leaves the launcher's key alone")
-eq(fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, socket = false }):launcherOpen(luaLauncher),
+eq(fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, socket = false, launcherFlip = true }):launcherOpen(luaLauncher),
   nil, "the socket setting off leaves it alone")
-local flip = fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, socket = true })
+eq(fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, socket = true }):launcherOpen(luaLauncher),
+  nil, "the flip setting not given leaves it alone")
+eq(fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, socket = true, launcherFlip = false }):launcherOpen(luaLauncher),
+  nil, "the flip setting off leaves it alone")
+local flip = fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, socket = true, launcherFlip = true })
 eq(flip:launcherOpen(nil), nil, "no Lua run to fall back on leaves it alone")
 local flipped = flip:launcherOpen(luaLauncher)
 eq(type(flipped), "function", "on, it answers a run")
@@ -317,6 +321,26 @@ eq(started[1] and started[1].args[4], "olm://launcher?query=", "it opens the app
 socketUp = false
 flipped()
 eq(luaRuns, 3, "asked again at the next press")
+
+-- Quit Olm App, a row while the app runs, asking each running copy to quit.
+local quitter = fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, socket = true })
+local quit = quitter:actions()[2]
+eq(quit.name, "quit", "the second action is quit")
+eq(quit.when, "olmAppRunning", "gated on the app running")
+local killed, appRunning = 0, false
+hs.application = { applicationsForBundleID = function(id)
+  if appRunning and id == "local.olm.Olm" then return { { kill = function() killed = killed + 1 end } } end
+  return {}
+end }
+eq(quitter.predicates.olmAppRunning(), false, "no row while the app is not running")
+appRunning = true
+quitter._runningAt = nil
+eq(quitter.predicates.olmAppRunning(), true, "a row while it runs")
+quit.run()
+eq(killed, 1, "choosing it asks the app to quit")
+eq(fresh({ pieces = { olmapp = "off" }, deps = deps, app = APP, run = run }).predicates.olmAppRunning(), false,
+  "no row with the piece off")
+hs.application = nil
 
 -- The shadow of step 1.3e. It is off unless the piece is on and the app built, it hands a list over
 -- only once it has settled, never while it searches, and never the same query twice running.

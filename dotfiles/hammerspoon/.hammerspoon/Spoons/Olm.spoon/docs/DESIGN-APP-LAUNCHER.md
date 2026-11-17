@@ -210,3 +210,19 @@ launcher without a change to any file.
   `~/.olm/log/timings.jsonl`: a keystroke to its echo 23 to 45 ms, a keystroke to its rows 66 to
   112 ms. The record holds no key to list time and no Return to app time, so those two of the three
   are still not recorded.
+
+## Held off, 2026-11-17
+
+Milos's trial found Clipboard History doing nothing when chosen in the app's launcher. A launcher
+row leading to a tool's own list is answered `unserved` for any tool not in `hosts`, held in place
+by design since 3.2, and that was harmless while Hyper and Space still opened the Lua launcher.
+This note missed it, so the flip took away every such row: Clipboard History, Menu Search, Display
+Profiles, Workspaces, Obsidian, Processes and Olm's own pages among them. On his choice the flip is
+held behind a setting, `launcherFlip` in `config/plugins.lua`, false, so Hyper and Space opens the Lua
+launcher and Hyper and 0 the app's again. Turned down: closing the app's launcher and opening the
+tool's Lua list, the close and reopen the rules forbid. The flip goes on again once no row of the
+launcher answers `unserved`.
+
+A Quit Olm App row came with it, Milos's ask, a second action of the bridge host gated on
+`olmAppRunning`, the piece on and the app running. Choosing it asks the app to quit, the plan's
+back out as a row.

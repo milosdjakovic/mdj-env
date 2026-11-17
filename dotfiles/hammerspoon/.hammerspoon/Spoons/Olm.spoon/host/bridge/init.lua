@@ -102,6 +102,9 @@ function obj:configure(opts)
   -- Whether the bridge connects to the app's socket and serves, step 2.2, off unless the config
   -- says true, so going back is the setting.
   if opts.socket ~= nil then self._socket = opts.socket == true end
+  -- Whether Hyper and Space opens the app's launcher, step 3.5, off unless the config says true.
+  -- Held off on 2026-11-17 until every tool the launcher leads to is shown in the app.
+  if opts.launcherFlip ~= nil then self._flip = opts.launcherFlip == true end
   if type(opts.shares) == "table" then self:_share(opts.shares) end
   -- Which tools the app serves, so it keeps the first open of each warm while it is hidden, step
   -- 1.5's prewarm. Written on every configure, an empty list included, so a tool taken back stops.
@@ -507,7 +510,21 @@ function obj:actions()
   return {
     { name = "launcher", description = "App Launcher", icon = "launcher", when = "olmAppLauncher",
       run = function() self:_openLauncher() end },
+    -- Quits Olm.app, so every list it shows goes back to Hammerspoon's own until it starts again,
+    -- the back out of the plan's stage 3 as a row, asked for by Milos on 2026-11-17.
+    { name = "quit", description = "Quit Olm App", icon = "quit", when = "olmAppRunning",
+      keywords = "olm.app, stop, exit", run = function() self:_quitApp() end },
   }
+end
+
+-- Asks Olm.app to quit, the way the Dock's Quit does, so it closes its socket on the way out.
+function obj:_quitApp()
+  local apps = hs.application
+  if not (apps and type(apps.applicationsForBundleID) == "function") then return end
+  local ok, list = pcall(apps.applicationsForBundleID, self.BUNDLE_ID)
+  if not (ok and type(list) == "table") then return end
+  for _, app in ipairs(list) do pcall(function() app:kill() end) end
+  self._runningAt = nil
 end
 
 -- Whether the app's launcher can open here, the piece on, the app built and the socket setting on,
@@ -532,6 +549,7 @@ end
 --- fallback never starts the app, so quitting it hands the key back to Lua until the next load.
 function obj:launcherOpen(fallback)
   if type(fallback) ~= "function" then return nil end
+  if not self._flip then return nil end
   if not self:_launcherReady() then return nil end
   sayOnce(self, "Hyper and Space opens Olm.app's launcher while its socket is up, the olmapp piece is on")
   return function(...)
@@ -544,6 +562,7 @@ end
 
 obj.predicates = {
   olmAppLauncher = function() return obj:_launcherReady() ~= nil end,
+  olmAppRunning = function() return obj:_ready() ~= nil and obj:_runningNow() == true end,
 }
 
 -- The app's bundle id, app/build.sh's, and the name of the notification a served key opens it by.

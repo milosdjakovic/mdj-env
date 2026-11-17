@@ -894,3 +894,11 @@ bridge socket, runs on the trial key Hyper and 0 until step 3.5 gives it Hyper a
   the same key, and the Lua launcher with the app quit. The app's launcher's keystroke timings were
   recorded for the first time, echo 23 to 45 ms and rows 66 to 112 ms, and its key to list and
   Return to app times are still not recorded.
+- 2026-11-17 18:50. 3.5 held off on Milos's trial. Clipboard History did nothing when chosen in the app's
+  launcher, since a row leading to a tool not in `hosts` answers `unserved`, held in place by design
+  since 3.2. My design note for 3.5 missed that the flip makes every such row dead, Clipboard
+  History, Menu Search, Display Profiles, Workspaces, Obsidian, Processes and Olm's own pages among
+  them, a feature loss the plan's rules forbid. Milos chose to hold the flip: it stays built behind
+  `launcherFlip` in `config/plugins.lua`, false, and Hyper and 0 is back. Rejected: closing the
+  app's launcher to open the tool's Lua list, the close and reopen the rules forbid. The flip goes
+  on again once no launcher row answers `unserved`. A Quit Olm App row was added on his ask.

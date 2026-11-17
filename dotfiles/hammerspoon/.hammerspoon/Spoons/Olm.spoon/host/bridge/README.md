@@ -39,7 +39,9 @@ this machine's alone, and the launcher's bar and info pane are written for the a
 app's launcher, through `launcherOpen`, which compose swaps in for the launcher's open key. It asks
 the socket at every press and runs the Lua launcher while the socket is down, an app quit or not
 connected yet, and never starts the app, so quitting it hands the key back. The trial key Hyper and
-0 was removed then, and `bridge.launcher` is reached by nobody.
+0 was removed then. The flip was held off the same day behind `launcherFlip` in
+`config/plugins.lua`, since a launcher row leading to a tool the app does not show did nothing, and
+Hyper and 0 came back. A second action, `bridge.quit`, Quit Olm App, quits the app while it runs.
 
 It runs the shadow of step 1.3e for each tool `config/plugins.lua` lists under `shadows`, file
 search today, where the piece is on. The Lua list stays the daily one, so `serves` is empty while

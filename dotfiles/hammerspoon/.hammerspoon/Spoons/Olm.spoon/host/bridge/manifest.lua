@@ -26,6 +26,7 @@ return {
 
   icons = {
     launcher = { emoji = "🧪", sf = "flask" },
+    quit = { emoji = "⏏️", sf = "eject" },
   },
 
   needs = {
@@ -50,6 +51,10 @@ return {
         breaks = "no tool's key opens Olm.app, so every key opens the Lua list as before" },
       -- The tools whose own list Olm.app shows inside its launcher, step 3.3, by identity, from
       -- config/plugins.lua.
+      -- Whether Hyper and Space opens the app's launcher while its socket is up, step 3.5, from
+      -- config/plugins.lua, off by default.
+      launcherFlip = { source = "user", policy = "optional",
+        breaks = "Hyper and Space opens the Lua launcher, as before" },
       hosts = { source = "user", policy = "optional",
         breaks = "a row leading to a tool's list stays put in the app's launcher, as before" },
     },

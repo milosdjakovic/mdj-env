@@ -90,3 +90,4 @@
 90	settingsPane:x-apple.systempreferences:com.apple.settings.Storage	Storage	System Settings	storage	systemsettings	-	disk space, free space | System Settings	50
 91	settingsPane:x-apple.systempreferences:com.apple.Profiles-Settings.extension	Device Management	System Settings	deviceManagement	systemsettings	-	profiles, mdm | System Settings	50
 92	bridge:launcher	App Launcher	Bridge	launcher	bridge	olmAppLauncher	Bridge	-
+93	bridge:quit	Quit Olm App	Bridge	quit	bridge	olmAppRunning	olm.app, stop, exit | Bridge	-
