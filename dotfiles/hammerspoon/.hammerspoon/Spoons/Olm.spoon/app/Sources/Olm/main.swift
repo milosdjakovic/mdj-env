@@ -95,6 +95,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // The tools Hammerspoon hands the app, host/bridge's serves share, kept warm while hidden.
     let sources = self.sources
     stage.keepWarm { Self.served(in: context.run).compactMap { sources[$0] } }
+    // A served tool's own list pushed over the launcher takes its keys with it, step 3.4.
+    stage.servesKeys = { Self.served(in: context.run).contains($0.lowercased()) }
     // List keys, step 1.4f, docs/DESIGN-APP-LIST-KEYS.md. The stage says up and down, a list verb
     // Hammerspoon's leaders heard comes back as "<tool>:<verb>", and an ask answers the state.
     stage.onShowing = { tool, up in

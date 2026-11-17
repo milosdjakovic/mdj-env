@@ -239,7 +239,7 @@ ShapeMotion's `takeBackUnplayedClose`, which covers the Lua engine closing both 
 
 ## Step 3.4, the keys of a list pushed in the app
 
-Written on 2026-11-17, waiting for Milos's go.
+Written on 2026-11-17, built the same day on Milos's go.
 
 **What is already done.** Most of 3.4 landed earlier, piece by piece:
 - 1.4f: a served tool's list keys reach the app's list through `lib/nav.lua`, the app saying up and
@@ -270,6 +270,13 @@ do not reach it:
    and is checked against the tool now told up.
 
 Nothing changes on the Lua side. File Search's context opens on its up as it does on its own key.
+
+**What the build changed from the draft.** No offline check of the stage's tell, since the stage
+only acts through its window. It was checked live instead, with the guarded driver and
+Hammerspoon's own `showing`. File Search pushed over the launcher read File Search up and the
+launcher down, Backspace gave the launcher back up, `st ` kept the launcher up with Speed Test
+hosted on top, and Escape left both down. Copy Path sent as File Search's verb copied the path and
+closed the window, as on its own key. The keys golden is unchanged.
 
 **Not in this step:** a native list other than File Search, since no other tool is in `serves`.
 

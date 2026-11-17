@@ -153,6 +153,11 @@ public final class Stage {
   /// Told a tool's name and true as its list opens and false as it hides. Olm.app's composition
   /// root posts it to Hammerspoon.
   public var onShowing: ((String, Bool) -> Void)?
+  /// Whether Hammerspoon serves the keys of a tool's list itself, the serves share, step 3.4. A list
+  /// of such a tool pushed over another is told up and the one under it down, so its own keys are
+  /// the live ones, and a pop tells the one under it up again. Any other push, a hosted Lua level,
+  /// keeps the list under it up, since its keys go through that list. Olm.app's root hands it.
+  public var servesKeys: (String) -> Bool = { _ in false }
   /// Told the room a row's text has whenever an open finds it changed, which the composition root
   /// sends Hammerspoon as the bridge's metrics, step 3.2.
   public var onTextBudget: ((Double) -> Void)?
@@ -184,6 +189,8 @@ public final class Stage {
     let rows: [OlmKit.Row]
     let status: String?
     let fitShown: Int?
+    // The tool told up while this list was on top, told up again when it is given back, step 3.4.
+    let shown: String?
   }
   private var parked: [Parked] = []
 
@@ -399,7 +406,7 @@ public final class Stage {
       self.closeInfo()
       self.closeActions()
       self.parked.append(Parked(source: parent, level: level, text: self.text, prefix: self.prefix,
-        highlight: self.highlight, rows: self.rows, status: self.status, fitShown: self.fitShown))
+        highlight: self.highlight, rows: self.rows, status: self.status, fitShown: self.fitShown, shown: self.shown))
       self.source = child
       self.level = nil
       self.generation += 1
@@ -407,6 +414,7 @@ public final class Stage {
       self.resetPane()
       self.placeAgain(for: child)
       self.bars = Bars.read(child.manifest.name)
+      if self.servesKeys(child.manifest.name) { self.tell(child.manifest.name) }
       self.prefix = handOver?.prefix ?? ""
       self.text = handOver?.query ?? ""
       self.panel.setText(self.prefix + self.text)
@@ -453,6 +461,7 @@ public final class Stage {
       Task { await list.positioned(frame: placed.frame, pane: placed.pane) }
     }
     bars = Bars.read(parent.source.manifest.name)
+    tell(parent.shown)
     prefix = parent.prefix
     text = field.map { String($0.dropFirst(prefix.count)) } ?? parent.text
     panel.setText(prefix + text)

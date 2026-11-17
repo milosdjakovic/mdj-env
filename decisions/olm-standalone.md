@@ -871,3 +871,9 @@ bridge socket, runs on the trial key Hyper and 0 until step 3.5 gives it Hyper a
 - 2026-11-17 11:55. 3.3e ticked, Milos's trial good, after one finding: File Search's empty field
   had no placeholder, on its own key as well, since the plugin's default is empty and the config set
   none. The config now says Search files and folders. That closes 3.3. 3.4 is next.
+- 2026-11-17 12:40. 3.4 built on Milos's go. Its design note found most of it already done, by 1.4f,
+  3.3c and 3.3, and one gap left: File Search pushed over the launcher since 3.3e kept the launcher
+  told up, so File Search's Hyper keys were never bound and some fell through to their global
+  meaning, Hyper and F opening its app and Hyper and U Tmux Sessions. The app stage now tells a
+  served tool's list up while it is pushed on top. A hosted Lua level keeps the launcher up, since
+  its keys already go through it.
