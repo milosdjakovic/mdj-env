@@ -236,3 +236,60 @@ onto the bar and the list's fade cut the fold halfway, so such a pane now goes d
 list. The app's stage leaves the panes standing until the row's answer is back and closes them only
 when the list stays up, and the swift panel's hide takes back a fold that has drawn no frame yet,
 ShapeMotion's `takeBackUnplayedClose`, which covers the Lua engine closing both in one turn.
+
+## Step 3.4, the keys of a list pushed in the app
+
+Written on 2026-11-17, waiting for Milos's go.
+
+**What is already done.** Most of 3.4 landed earlier, piece by piece:
+- 1.4f: a served tool's list keys reach the app's list through `lib/nav.lua`, the app saying up and
+  down and Hammerspoon posting each verb.
+- 3.3c, brought forward on 2026-11-16: the launcher's own keys reach the app's launcher.
+- 3.3: a hosted list's keys reach it while it is the app's top level, `_hostOf` in
+  `host/bridge/init.lua` sending them to the launcher it sits in. Its own verbs and its field keys
+  run there too, as Milos's trials of 3.3b to 3.3e showed.
+
+**What is wrong today.** 3.3e pushes the app's own File Search over the launcher, and its own keys
+do not reach it:
+- The app still says the launcher is up, so Hammerspoon treats the launcher's keys as the live ones.
+- File Search's own Hyper keys, Reveal in Finder, Copy Path, Into Folder, Up a Level, Quick Look and
+  the preview pane's scroll, are bound only while File Search's list is up.
+- So they do nothing, or fall through to their global meaning. Hyper and F opens its app, and Hyper
+  and U opens Tmux Sessions.
+- The field keys already work, Command and Return revealing the file, since the app reads them from
+  the share of the list on top.
+
+**What this step does.**
+1. **The stage says which list's keys are live.** A list pushed over another whose keys Hammerspoon
+   serves itself, a tool in `serves`, is told up as it is pushed, and the list under it down. On a
+   pop, the one under it is told up again. A hosted Lua level keeps the launcher up, as today, since
+   its keys go through the launcher.
+2. **Which tools Hammerspoon serves** the stage is handed by `main.swift`, the same `serves` share
+   it keeps warm, so the stage names no tool.
+3. **A verb is run on the list on top.** It already is, since `Stage.verb` runs on the top source,
+   and is checked against the tool now told up.
+
+Nothing changes on the Lua side. File Search's context opens on its up as it does on its own key.
+
+**Not in this step:** a native list other than File Search, since no other tool is in `serves`.
+
+**Tests.**
+- `olm-bridge-check`, or a check beside it over the stage's tell: a push of a served tool says it
+  up and the launcher down, a hosted push says nothing, and a pop gives the launcher back.
+- The keys golden is unchanged, since no binding moves.
+
+**The trial on Hyper and 0, once built:**
+1. Type `/` and press Return on File Search, then type a name. Expect File Search with results.
+2. Press Hyper and J, then Hyper and K. Expect the highlight to move down, then up.
+3. Press Hyper and F. Expect the highlighted file shown in Finder, and no app opened.
+4. Press Hyper and Y, then paste somewhere. Expect the file's path.
+5. Press Hyper and D, then Hyper and U. Expect the preview pane to scroll down, then up.
+6. Press Hyper and O. Expect File Search's actions pane. Press Escape.
+7. Press Backspace until the launcher is back, then Hyper and J. Expect the launcher's highlight to
+   move.
+8. Type `st `, then Hyper and J and Hyper and O. Expect Speed Test's highlight to move and its
+   actions pane to open, as before.
+
+What can go wrong, and what to tell me:
+- A key at step 3, 4 or 5 opens an app or a tool. Say which key.
+- After step 7 the launcher's keys stop working.
