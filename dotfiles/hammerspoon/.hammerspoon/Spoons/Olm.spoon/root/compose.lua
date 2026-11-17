@@ -3759,6 +3759,19 @@ function obj.run(olm, cfg)
             end,
           })
         end,
+        -- What a row does in place, said and not done, step 3.6, so the app's launcher types the
+        -- word an alias or a scope row seeds, and runs a scope row's act, in its own list.
+        rowInPlace = function(item)
+          return rowInterceptLib.inPlace(item, {
+            aliasQuery = aliasRowQuery,
+            presentationFor = function(name)
+              if name == keysRowName then return keysPresentation() end
+              return wiredRegistry.presentationFor and wiredRegistry.presentationFor(name)
+            end,
+            actFor = queryScopeModule and function(row) return queryScopeModule:actFor(row) end or nil,
+            redirectFor = queryScopeModule and function(row) return queryScopeModule:redirectFor(row) end or nil,
+          })
+        end,
         -- The one name with no tool behind it. Reached only when the registry does not already
         -- run the name, which registration itself makes safe since one name cannot belong to
         -- both. The System Settings search row was another until phase three of the core split,

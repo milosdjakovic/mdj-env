@@ -902,3 +902,14 @@ bridge socket, runs on the trial key Hyper and 0 until step 3.5 gives it Hyper a
   `launcherFlip` in `config/plugins.lua`, false, and Hyper and 0 is back. Rejected: closing the
   app's launcher to open the tool's Lua list, the close and reopen the rules forbid. The flip goes
   on again once no launcher row answers `unserved`. A Quit Olm App row was added on his ask.
+- 2026-11-17 20:02. 3.6 built on Milos's go to complete the phase. The rows that still answered
+  `unserved` were found by asking the live launcher what Return on each row would do in the app,
+  with nothing on screen, rather than from the list in the 18:50 entry. That list was close but not
+  exact. Menu Search has no launcher row, its `m ` rows already run. Text Case, Olm Keys, Olm
+  Aliases and the Dock's `d ` switches were missing from it. Each of the ten tools was then pushed as
+  a hosted level inside the running bridge and asked for its rows. All answered, so they joined
+  `hosts` with nothing grown. Olm Aliases and the Dock's switches are rows that change the list in
+  place without showing another, so the launcher now answers them `setQuery` and `rows`, effects the
+  app already applied. Rejected: renaming the Olm Keys page away from `launcher` so `hosts` reads
+  better, since the page carries the launcher's name for its icons and its keys, and a host named
+  `launcher` costs nothing.

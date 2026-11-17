@@ -1056,12 +1056,28 @@ end
 function obj:bridgeChoose(item, query, hosted)
   if type(item) ~= "table" then return {} end
   if self:_replacementFor(item) then
-    local ask = self._actions.rowPresentation
-    local presentation = ask and ask(item) or nil
+    local inPlace = self._actions.rowInPlace and self._actions.rowInPlace(item) or nil
+    if not inPlace then
+      local ask = self._actions.rowPresentation
+      local p = ask and ask(item) or nil
+      inPlace = p and { present = p } or {}
+    end
+    local presentation = inPlace.present
     if presentation and type(hosted) == "function" and hosted(presentation) then
       self:_promote(recencyKey(item))
       self:_noteAssociation(item)
       return { { present = presentation } }
+    end
+    -- Step 3.6. A row that seeds a word types it into the app's field, which asks its rows again,
+    -- and a scope row that acts runs now and redraws the list it stands on, as forRow's do.
+    if type(inPlace.seed) == "string" then
+      self:_promote(recencyKey(item))
+      return { { setQuery = { query = inPlace.seed } } }
+    end
+    if type(inPlace.act) == "function" then
+      self:_promote(recencyKey(item))
+      inPlace.act()
+      return { { rows = { hold = true } } }
     end
     return { { unserved = { name = item.name or item.kind } } }
   end

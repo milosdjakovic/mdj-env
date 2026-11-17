@@ -56,4 +56,24 @@ function obj.presentationFor(item, deps)
   return deps.presentationFor(item.name)
 end
 
+--- rowintercept.inPlace(item, deps) -> { present = p } | { seed = word } | { act = fn } | nil
+--- What forRow's callable would do, said rather than done, step 3.6 of docs/PLAN-STANDALONE.md, so
+--- the app's launcher can do the same in its own list. A row forRow leaves alone answers nil. The
+--- act is the scope's own callable, handed back uncalled.
+function obj.inPlace(item, deps)
+  if type(item) ~= "table" or item.owner ~= nil then return nil end
+  local aliasQuery = deps.aliasQuery(item)
+  if aliasQuery then return { seed = aliasQuery } end
+  if item.kind == "special" and deps.presentationFor then
+    local presentation = deps.presentationFor(item.name)
+    if presentation then return { present = presentation } end
+  end
+  if item.kind ~= "scope" or not deps.actFor then return nil end
+  local act = deps.actFor(item)
+  if act then return { act = act } end
+  local query = deps.redirectFor and deps.redirectFor(item)
+  if not query then return nil end
+  return { seed = query }
+end
+
 return obj

@@ -155,8 +155,29 @@ do
   eq(run({ kind = "scope", name = "emoji", word = "e " }), "seed e ", "intercept: else it narrows by its word")
   eq(run({ kind = "scope", name = "none" }), nil, "intercept: a scope with neither runs as ever")
   eq(run({ kind = "app", name = "vpn" }), nil, "intercept: any other kind runs as ever")
+  -- inPlace says what forRow's callable would do and does none of it, step 3.6.
+  did = {}
+  local function said(item)
+    local a = rowIntercept.inPlace(item, deps)
+    if not a then return nil end
+    if a.present then return "present " .. a.present.name end
+    if a.seed then return "seed " .. a.seed end
+    if a.act then return "act" end
+    return "?"
+  end
+  eq(said({ owner = "clipboard", kind = "special", name = "vpn" }), nil, "in place: a contributed row is its owner's alone")
+  eq(said({ kind = "special", name = "aliasDirectory" }), "seed ? ", "in place: the Aliases row says its word")
+  eq(said({ kind = "special", name = "vpn" }), "present vpn", "in place: a tool on the stage says its presentation")
+  eq(said({ kind = "special", name = "lock" }), nil, "in place: a special row with no presentation says nothing")
+  eq(said({ kind = "scope", name = "files", acts = true }), "act", "in place: a scope that acts hands its act")
+  eq(said({ kind = "scope", name = "emoji", word = "e " }), "seed e ", "in place: else it says its word")
+  eq(said({ kind = "scope", name = "none" }), nil, "in place: a scope with neither says nothing")
+  eq(said({ kind = "app", name = "vpn" }), nil, "in place: any other kind says nothing")
+  eq(said("vpn"), nil, "in place: a row that is no table says nothing")
+  eq(#did, 0, "in place: asking does nothing")
   deps.actFor, deps.redirectFor = nil, nil
   eq(run({ kind = "scope", name = "files", acts = true }), nil, "intercept: with no scope host a scope row runs as ever")
+  eq(said({ kind = "scope", name = "files", acts = true }), nil, "in place: with no scope host a scope row says nothing")
 end
 
 -- What Olm.app is handed for a served list, step 1.4f. The bar's actions become the verbs the app

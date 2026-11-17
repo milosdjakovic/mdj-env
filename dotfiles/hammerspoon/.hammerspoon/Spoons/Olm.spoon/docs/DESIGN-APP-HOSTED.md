@@ -401,6 +401,62 @@ What can go wrong, and what to tell me:
 - The field loses or doubles the typed word at step 4 or 6.
 - Backspace at step 3 or 5 closes the window instead of giving the launcher back.
 
+## 3.6, every row the launcher leads to
+
+The flip of Hyper and Space, step 3.5, was held on 2026-11-17 because a launcher row leading to a
+list the app does not show answered `unserved`. This step leaves no such row. It was found by
+asking the live launcher, row by row, what Return would do in the app, with no screen touched. 23
+rows replace the list. Ten were hosted already or File Search's own. The other 13 were:
+
+- Ten tools not in `hosts`: Clipboard History, Display Profiles, Obsidian, Text Case, Workspaces,
+  Local Servers (processes), Olm Chooser, Olm Placement, Olm Plugins and Olm Theme.
+- Olm Keys, a page carrying the launcher's name, `launcher`.
+- Olm Aliases, a row that types `? ` into the field rather than showing a list.
+- Typed scopes were asked too. Only the Dock's, `d `, has rows that act in place, its two
+  switches, and those answered `unserved` as well. Every other scope's rows run after the app
+  hides, as before. Menu Search has no launcher row and is reached by `m `, whose rows run.
+
+Each of the ten tools was then pushed as a hosted level inside the running bridge and asked for
+its rows, again with no screen. Every one answered, with its preview pane, its actions and its
+Command and Return where it declares them, since 3.3b to 3.3d carry those for any hosted list. So
+they need nothing but their names in `hosts`.
+
+**What grows:**
+- `lib/rowintercept.lua` gains `inPlace(item, deps)`. It says what `forRow`'s callable would do,
+  `{ present }`, `{ seed = word }` or `{ act = fn }`, and does none of it. The root hands it to
+  the launcher as `rowInPlace`.
+- `Launcher:bridgeChoose` asks it. A hosted presentation answers `present` as before. A word
+  answers `setQuery`, which the app already applies by typing it and asking the rows again. An
+  act runs at once and answers `rows` held, which the app already applies by redrawing the list in
+  place. Both are what the row does in the Lua launcher. A row the app still cannot show answers
+  `unserved` as before.
+- `hosts` gains the ten tools and `launcher` for Olm Keys.
+
+Nothing in the app changes.
+
+**Tests:**
+- `test/rootmechanism.lua` pins `inPlace` beside `forRow`, and that asking does nothing.
+- `test/cases/launcher-bridgechoose.lua` pins every answer of `bridgeChoose`.
+
+**The trial on Hyper and 0, once built:**
+1. Choose Clipboard History. Expect its list and preview pane in the same window. Highlight an
+   entry and press Return. Expect the window to close and the entry pasted where you were typing.
+2. Open it again, highlight an entry and press Command and Return. Expect it copied, not pasted.
+3. Open Olm Aliases. Expect `? ` typed in the field and the alias list in place.
+4. Type `d ` and choose the first row. Expect the Dock setting to flip, the list to stay, and the
+   row to read the other way.
+5. Choose Display Profiles, Workspaces, Obsidian, Text Case, Local Servers, Olm Keys and each Olm
+   page in turn. Expect each list in place, with Backspace on the empty field back to the launcher.
+6. In Olm Theme, choose the other highlight. Expect it to change, as from the Lua list.
+
+What can go wrong, and what to tell me:
+- A row still does nothing. The console says which one: "becomes a list the app does not host yet".
+- Clipboard History's paste lands nowhere, or in the wrong app.
+- Text Case shows no rows. It reads the selection as it opens, so say which app had the selection.
+- Local Servers stays on Nothing running when servers are up.
+
+Once the trial is good, `launcherFlip` goes on, 3.5's step, and the trial there is Hyper and Space.
+
 ## Back out
 
 Remove a tool from `hosts` and reload. The row answers `unserved` again. For File Search, set the
