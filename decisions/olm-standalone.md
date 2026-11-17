@@ -868,3 +868,6 @@ bridge socket, runs on the trial key Hyper and 0 until step 3.5 gives it Hyper a
   the word in the field as the level's prefix, as the Lua stage does. Rejected: running the Lua
   hand over and recording its push, since the push lands on the hidden Lua stage and not on the
   app's.
+- 2026-11-17 11:55. 3.3e ticked, Milos's trial good, after one finding: File Search's empty field
+  had no placeholder, on its own key as well, since the plugin's default is empty and the config set
+  none. The config now says Search files and folders. That closes 3.3. 3.4 is next.
