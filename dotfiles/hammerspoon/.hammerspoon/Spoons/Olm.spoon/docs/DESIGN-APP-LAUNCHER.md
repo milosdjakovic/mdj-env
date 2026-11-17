@@ -135,8 +135,8 @@ reached by nobody.
 
 # Step 3.5, the flip of Hyper and Space
 
-A design note for step 3.5 of `docs/PLAN-STANDALONE.md`, written on 2026-11-17 and waiting for
-Milos's go. Hyper and Space opens Olm.app's launcher where the `olmapp` piece is on, and the Lua
+A design note for step 3.5 of `docs/PLAN-STANDALONE.md`, written on 2026-11-17 and agreed with
+Milos the same day, as proposed. Hyper and Space opens Olm.app's launcher where the `olmapp` piece is on, and the Lua
 launcher whenever the app cannot answer. It is the first step a person relies on.
 
 ## The gate
@@ -192,3 +192,21 @@ Lua. Only the key flips. On a machine whose `olmapp` piece is off, nothing chang
 
 Quit Olm.app, or switch the `olmapp` piece off. Either gives Hyper and Space back to the Lua
 launcher without a change to any file.
+
+## As built, 2026-11-17
+
+- `host/bridge/transport.lua` gained `isUp`, `host/bridge/init.lua` gained `launcherOpen`, and
+  `root/compose.lua` swaps the launcher's open run beside the served tools' and names `launcher` in
+  `servedByApp`.
+- `test/bridge.lua` 132 checks, the piece off, the socket setting off, no fallback, the socket not
+  yet up, a socket that went, and the app opened when it is up, each asked at the press.
+- The dry suite, the goldens, the fixtures and the unit cases pass, and the keys goldens are
+  unchanged.
+- Checked live on 2026-11-17 with the guarded driver while Milos was idle. With the app connected,
+  Hyper and Space opened the app's launcher and a second press closed it. With Olm.app quit, the
+  socket went within a second and Hyper and Space opened the Lua launcher, and the app stayed quit.
+  A Hammerspoon load started it again, as the note says.
+- The timings of 1.3f for the app's launcher, three opens with three keystrokes each, from
+  `~/.olm/log/timings.jsonl`: a keystroke to its echo 23 to 45 ms, a keystroke to its rows 66 to
+  112 ms. The record holds no key to list time and no Return to app time, so those two of the three
+  are still not recorded.

@@ -128,6 +128,12 @@ function M.new(opts)
     return true
   end
 
+  --- connection:isUp() -> whether the connection is up now, asked by Hyper and Space at every press,
+  --- step 3.5
+  function c:isUp()
+    return c.up == true and c.sock ~= nil
+  end
+
   --- connection:stop() closes it and tries no more
   function c:stop()
     c.stopped = true

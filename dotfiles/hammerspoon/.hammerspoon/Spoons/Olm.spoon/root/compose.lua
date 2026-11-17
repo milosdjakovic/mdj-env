@@ -2945,6 +2945,16 @@ function obj.run(olm, cfg)
             row.run = run
             keymap.servedByApp[#keymap.servedByApp + 1] = tostring(row.owner)
           end
+          -- The launcher's own open key, step 3.5, the app's launcher while its socket is up and
+          -- the Lua one otherwise, asked at every press. Not a served tool, since serves also warms
+          -- a list and names what the launcher hands over natively.
+          if run == nil and row.owner == bridgeModule.LAUNCHER and type(bridgeModule.launcherOpen) == "function" then
+            local flipped = bridgeModule:launcherOpen(row.run)
+            if type(flipped) == "function" then
+              row.run = flipped
+              keymap.servedByApp[#keymap.servedByApp + 1] = tostring(row.owner)
+            end
+          end
         end
       end
     end

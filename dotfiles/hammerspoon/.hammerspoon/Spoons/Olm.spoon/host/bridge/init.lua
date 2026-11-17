@@ -524,6 +524,24 @@ function obj:_openLauncher()
   self:_opener("launcher", open, app)()
 end
 
+--- obj:launcherOpen(fallback) -> function or nil, the run of the launcher's open key, step 3.5 of
+--- docs/PLAN-STANDALONE.md, docs/DESIGN-APP-LAUNCHER.md under step 3.5. Nil where the app's launcher
+--- cannot open here, the piece off, the app not built or the socket setting off, so the key keeps the
+--- Lua launcher. Otherwise a function that asks at every press: the app's launcher while its socket
+--- is up, and the Lua launcher, fallback, while it is not, an app quit or not connected yet. The
+--- fallback never starts the app, so quitting it hands the key back to Lua until the next load.
+function obj:launcherOpen(fallback)
+  if type(fallback) ~= "function" then return nil end
+  if not self:_launcherReady() then return nil end
+  sayOnce(self, "Hyper and Space opens Olm.app's launcher while its socket is up, the olmapp piece is on")
+  return function(...)
+    if self._conn and type(self._conn.isUp) == "function" and self._conn:isUp() then
+      return self:_openLauncher()
+    end
+    return fallback(...)
+  end
+end
+
 obj.predicates = {
   olmAppLauncher = function() return obj:_launcherReady() ~= nil end,
 }

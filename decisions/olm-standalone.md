@@ -885,3 +885,12 @@ bridge socket, runs on the trial key Hyper and 0 until step 3.5 gives it Hyper a
   of mine the same hour, drawing the window at full width and revealing the pane's region, is the
   mask over glass that file rejected on 2026-11-06 10:55, so it was withdrawn before a note was
   written. 3.5 is next.
+- 2026-11-17 17:42. 3.5 built on Milos's go, as its design note proposed. Hyper and Space opens
+  Olm.app's launcher while the bridge's socket is up and the Lua launcher otherwise, asked at every
+  press, and the fallback never starts the app, so quitting it is the back out. The launcher is
+  not added to `serves`, since that share also warms a list and names what the launcher hands over
+  natively, so the bridge answers `launcherOpen` and compose swaps that run in. The trial key Hyper
+  and 0 was removed from this machine's keys file. Checked live, the app's launcher, its close on
+  the same key, and the Lua launcher with the app quit. The app's launcher's keystroke timings were
+  recorded for the first time, echo 23 to 45 ms and rows 66 to 112 ms, and its key to list and
+  Return to app times are still not recorded.

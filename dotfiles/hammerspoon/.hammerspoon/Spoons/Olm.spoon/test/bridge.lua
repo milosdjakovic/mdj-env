@@ -289,6 +289,35 @@ started = {}
 fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, socket = false }):actions()[1].run()
 eq(#started, 0, "and does nothing with the socket off")
 
+-- The flip of step 3.5, the launcher's open key, the app's launcher while its socket is up and the
+-- Lua launcher otherwise, asked at every press, and the key left alone where the app cannot answer.
+local luaRuns = 0
+local function luaLauncher() luaRuns = luaRuns + 1 end
+eq(fresh({ pieces = { olmapp = "off" }, deps = deps, app = APP, run = run, socket = true }):launcherOpen(luaLauncher),
+  nil, "the piece off leaves the launcher's key alone")
+eq(fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, socket = false }):launcherOpen(luaLauncher),
+  nil, "the socket setting off leaves it alone")
+local flip = fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, socket = true })
+eq(flip:launcherOpen(nil), nil, "no Lua run to fall back on leaves it alone")
+local flipped = flip:launcherOpen(luaLauncher)
+eq(type(flipped), "function", "on, it answers a run")
+started = {}
+flipped()
+eq(luaRuns, 1, "no socket yet opens the Lua launcher")
+eq(#started, 0, "and starts no app")
+local socketUp = false
+flip._conn = { isUp = function() return socketUp end }
+flipped()
+eq(luaRuns, 2, "a socket that went opens the Lua launcher")
+eq(#started, 0, "and starts no app, so a quit app stays quit")
+socketUp = true
+flipped()
+eq(luaRuns, 2, "a socket up does not open the Lua launcher")
+eq(started[1] and started[1].args[4], "olm://launcher?query=", "it opens the app's launcher")
+socketUp = false
+flipped()
+eq(luaRuns, 3, "asked again at the next press")
+
 -- The shadow of step 1.3e. It is off unless the piece is on and the app built, it hands a list over
 -- only once it has settled, never while it searches, and never the same query twice running.
 eq(#fresh({ pieces = { olmapp = "off" }, deps = deps, app = APP, shadows = { "fileSearch" } }):shadowed(), 0,

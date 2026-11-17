@@ -34,8 +34,12 @@ QUERY --choose TITLE` presses Return on one row from the command line. Since ste
 one action, `bridge.launcher`, App Launcher, which opens Olm.app's own launcher through
 `olm://launcher` while Hyper and Space still opens the Lua one, `docs/DESIGN-APP-LAUNCHER.md`. Its row
 and its key are gated on `olmAppLauncher`, the piece on, the app built and the socket on, its key is
-this machine's alone, Hyper and 0 in `machines/<name>/hammerspoon-apps.lua`, and the launcher's
-bar and info pane are written for the app as `launcherkeys.json` beside the served tools' shares.
+this machine's alone, and the launcher's bar and info pane are written for the app as
+`launcherkeys.json` beside the served tools' shares. Since step 3.5 Hyper and Space itself opens the
+app's launcher, through `launcherOpen`, which compose swaps in for the launcher's open key. It asks
+the socket at every press and runs the Lua launcher while the socket is down, an app quit or not
+connected yet, and never starts the app, so quitting it hands the key back. The trial key Hyper and
+0 was removed then, and `bridge.launcher` is reached by nobody.
 
 It runs the shadow of step 1.3e for each tool `config/plugins.lua` lists under `shadows`, file
 search today, where the piece is on. The Lua list stays the daily one, so `serves` is empty while
