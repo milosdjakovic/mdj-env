@@ -132,3 +132,63 @@ reached by nobody.
   fade has ended, `onDown`, and the stage closes the source then. A show cutting the fade short
   wakes the wait, and so does a cap of 1 s.
 
+
+# Step 3.5, the flip of Hyper and Space
+
+A design note for step 3.5 of `docs/PLAN-STANDALONE.md`, written on 2026-11-17 and waiting for
+Milos's go. Hyper and Space opens Olm.app's launcher where the `olmapp` piece is on, and the Lua
+launcher whenever the app cannot answer. It is the first step a person relies on.
+
+## The gate
+
+2.3's shadow log, `~/.olm/log/shadow-launcher.jsonl`, held 86 lines and no difference on
+2026-11-17, so the condition carried here on 2026-11-13 holds.
+
+## How it works
+
+1. **The open row's run is swapped, the way a served tool's is.** `root/compose.lua` already
+   swaps the run of each `open` row whose owner the app serves, 1.2's road, and leaves the chord,
+   the words, the cheat sheet row and the goldens alone. The launcher is not added to `serves`,
+   since that share also warms a list and names the tools the launcher hands over natively. The
+   bridge instead answers a new `launcherOpen(fallback)`, and compose swaps `launcher.open`'s run
+   for what it answers. It answers nil where `_launcherReady` is nil, the piece off, the app not
+   built or the socket setting off, and the row keeps the Lua launcher.
+2. **Asked at every press.** The swapped run opens the app's launcher, the trial key's own
+   `_openLauncher`, while the socket is up, and runs the Lua launcher's own run otherwise. The
+   socket is the right question, since the app's launcher answers only over it, and asking it costs
+   nothing. The transport gains `c:isUp()`, which reads the `up` it already keeps. So:
+   - App running and connected: the app's launcher.
+   - App quit, mid session or never started: the Lua launcher, at once, with no wait.
+   - App started but not connected yet, the moment after a launch or a reload: the Lua launcher.
+3. **A quit app stays quit.** The fallback never starts the app, so quitting it is the back out
+   the plan names and holds until the next Hammerspoon load, which starts the app once as it does
+   today for the shadow.
+4. **Closing on Hyper and Space.** The launcher's own close key is its open key. While the app's
+   launcher is up, `showing("launcher")` is already true and the launcher's list keys reach it
+   since 3.3c, so the same chord closes it. That is checked live, not assumed.
+5. **The trial key goes.** `hyper+0` is removed from this machine's keys file and
+   `src/setup-hammerspoon-apps.sh` runs, as rule 9 says. The `bridge.launcher` action stays,
+   reached by nobody, as the 3.2 back out said.
+
+## What does not change
+
+Any other road into the Lua launcher, a tool's Back to it or a call from another plugin, stays
+Lua. Only the key flips. On a machine whose `olmapp` piece is off, nothing changes at all.
+
+## Tests
+
+- `test/bridge.lua` pins `launcherOpen`: nil with the piece off, and with it on, the app opened
+  while the transport is up and the fallback run while it is down.
+- The keys goldens are unchanged, since only a run is swapped.
+- The dry suite, the unit cases and `test/bridgeserve.lua` as at every step.
+- Live, with the guarded driver while Milos is idle:
+  - Hyper and Space opens the app's launcher, and again closes it.
+  - Olm.app quit, Hyper and Space opens the Lua launcher. The app started again and connected,
+    Hyper and Space opens the app's.
+  - The three timings of 1.3f for the app's launcher, which `~/.olm/log/timings.jsonl` does not
+    hold yet and the resting point's second condition asks for.
+
+## Back out
+
+Quit Olm.app, or switch the `olmapp` piece off. Either gives Hyper and Space back to the Lua
+launcher without a change to any file.
