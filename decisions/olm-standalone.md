@@ -987,3 +987,15 @@ way `serves` and `launcherOpen` do, so a tool added to `hosts` gets its key in t
 further edit. A cycle list stays Hammerspoon's until the app has a bare mode. The second
 condition is open too, the app's launcher rows measured at about 82 ms median against about 40 in
 the Lua launcher on 2026-11-17, not yet explained.
+
+### 2026-11-18 17:27, step 3.8 built
+
+A tool's own key opens its list in Olm.app. The root's `stagePresent` asks the bridge host's
+`presentInApp` first, which takes the list while `keysFlip` is on, the config hosts the tool and
+the app's socket is up, and posts `olm://tool?name=<name>`. The app asks `open` for that tool,
+which the bridge now serves as the hosted level a launcher row pushes, the only level, and opens
+it. The app's own host for it, rather than a field on `olm://launcher`, because the stage reads a
+list's manifest as it opens, so the level has to be asked first. The stage's Backspace on an empty
+field asks a list with nothing under it for its `back` too, as the Lua stage does. `keysFlip`
+ships true, and false is the way back. `test/bridge.lua` 150, `test/bridgeserve.lua` 140,
+`olm-bridge-check` 150. `stagePresent` itself has no offline test, and the trial checks it.

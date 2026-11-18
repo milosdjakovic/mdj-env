@@ -90,6 +90,24 @@ public actor BridgedLauncher: ListSource {
     remember(l["memory"].object ?? [:])
   }
 
+  /// A tool's own key, step 3.8, docs/DESIGN-APP-HOSTED.md under 3.8. Its hosted list opened on the
+  /// Lua side as the only level, the same level a launcher row pushes, nil when the Lua side does not
+  /// host that tool or no session is up. Asked before the stage opens it, since the stage reads a
+  /// list's manifest, its name, actions and pane, as it opens.
+  public func openTool(_ name: String, query: String) async -> BridgedLevel? {
+    do {
+      let answer = try await bridge.request("open", .object(["what": .object(["tool": .string(name)]),
+        "query": .string(query)]))
+      guard answer["level"]["id"].string != nil else { return nil }
+      let level = BridgedLevel(bridge: bridge, wire: answer["level"], defaultRowLimit: defaultRowLimit, log: log)
+      await bridge.hold(level)
+      return level
+    } catch {
+      log("\(name)'s list did not open, \(error)")
+      return nil
+    }
+  }
+
   /// The connection went, so the level and every row with it.
   func reset() {
     level = nil

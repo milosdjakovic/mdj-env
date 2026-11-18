@@ -264,7 +264,9 @@ the two renderers, and FileSearch's eliding of a long path, its one reader, tole
 
 `what` is `{"launcher":true}`, `{"tool":"name"}` with the registry's name, or `{"alias":"vpn"}`.
 A tool the bridge does not serve yet answers error `-32013` and no level, and the app keeps the row
-that led there in place rather than closing and opening the Lua chooser, step 3.3.
+that led there in place rather than closing and opening the Lua chooser, step 3.3. Since step 3.8 a
+tool the config hosts answers its hosted level as the only level, the fields a push carries, which is
+how a tool's own key opens it, the app handed `olm://tool?name=<name>` by the bridge host first.
 
 The level's fields are the presentation's own, sent as values, and sent again in the effect
 `level` whenever the Lua side sees one change, since the placeholder may be a

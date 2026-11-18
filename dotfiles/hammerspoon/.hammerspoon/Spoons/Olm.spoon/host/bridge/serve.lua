@@ -52,6 +52,8 @@ local SF, GLYPH = "sf", "emoji"
 ---                  optional, nothing native without it
 --- opts.launcher.rows's fourth answer, a claim's hand over, step 3.3e, read for rest, prefix and
 ---                  target, the presentation it shows, and never called
+--- opts.presentationFor  function(name) -> a tool's presentation, the registry's, for open naming a
+---                  tool, step 3.8, optional, no tool opened without it
 --- opts.facade      host/bridge/facade.lua's, the stage words a hosted list's code calls during a
 ---                  request recorded as effects, optional
 function M.new(opts)
@@ -255,6 +257,15 @@ function M.new(opts)
 
   methods.open = { run = function(params)
     local what = type(params.what) == "table" and params.what or {}
+    -- A tool's own key, step 3.8, its hosted list opened as the only level, the same level a
+    -- launcher row pushes. A tool the config does not host is not served.
+    if type(what.tool) == "string" and what.launcher ~= true then
+      local p = opts.presentationFor and opts.presentationFor(what.tool)
+      if not (type(p) == "table" and type(p.name) == "string" and opts.hosted and opts.hosted(p)) then
+        rpc.fail(rpc.NOT_SERVED, "the app does not host " .. what.tool, { what = what })
+      end
+      return { level = service.pushLevel(nil, p).push.level }
+    end
     if what.launcher ~= true then
       rpc.fail(rpc.NOT_SERVED, "only the launcher is served yet", { what = what })
     end
@@ -531,19 +542,23 @@ function M.new(opts)
 
   -- A level for a hosted presentation, over the level it was pushed from, answered as the push
   -- effect's level, the fields the app opens it with. A presentation whose field is not a search,
-  -- matcher false, ranks in its own order.
+  -- matcher false, ranks in its own order. No parent is a tool's own key opening it as the only
+  -- level, step 3.8, a tool's top level as one over the launcher is.
   local function pushLevel(parent, p)
     service.nextLevel = service.nextLevel + 1
-    local level = { id = "v" .. service.nextLevel, kind = "presentation", presentation = p, parent = parent.id,
-      top = parent.kind == "launcher", refs = {}, items = {}, keys = {}, nextRef = 0, sent = nil, revision = 0 }
+    local level = { id = "v" .. service.nextLevel, kind = "presentation", presentation = p,
+      parent = parent and parent.id, top = parent == nil or parent.kind == "launcher", refs = {}, items = {},
+      keys = {}, nextRef = 0, sent = nil, revision = 0 }
     service.levels[level.id] = level
     service.told(level, "onPresent")
     local placeholder = type(p.placeholder) == "string" and p.placeholder or ""
-    return { push = { parent = parent.id, level = { id = level.id, name = p.name, placeholder = placeholder,
+    return { push = { parent = parent and parent.id, level = { id = level.id, name = p.name, placeholder = placeholder,
       previewPane = service.hasPane(p), ranking = p.matcher == false and "source" or "app",
       rowLimit = type(p.rowLimit) == "number" and p.rowLimit or "default", fit = p.fit == true,
       actions = opts.verbs and opts.verbs.ids(p.name) or {} } } }
   end
+
+  service.pushLevel = pushLevel
 
   -- Whether the app shows the presentation's list, its own source or a hosted level, step 3.3e,
   -- which the launcher's choose is handed as its hosted.

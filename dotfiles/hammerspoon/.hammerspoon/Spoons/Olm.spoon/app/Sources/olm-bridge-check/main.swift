@@ -14,6 +14,7 @@
 // while the app listens is made again, one another program binds is left to it, and the launcher a
 // person opens with no session says so. Step 3.3d adds a pane drawn in Lua: the push saying so,
 // positioned and highlight sent, and paneDrawn reaching its level and read into what the pane draws.
+// Step 3.8 adds a tool's own key, its level opened by name and a tool not hosted opening nothing.
 //
 // test/olmbridge.sh builds and runs it. Exit 0 when every check passed.
 
@@ -354,6 +355,22 @@ ok((icc["params"] as? [String: Any])?["owner"] as? String == "caffeinate", "its 
 answer(icc, ["icons": ["on": ["sf": "sun.max", "emoji": "☀️"]]])
 let cr = try await childRows
 ok(cr.rows.map(\.title) == ["Keep Awake Indefinitely"] && cr.rows.first?.icon == .symbol("sun.max"), "its rows draw their owner's icons")
+
+// A tool's own key, step 3.8, its level asked of the Lua side by name and opened as one of its own,
+// and a tool the Lua side does not host opening nothing.
+async let toolOpen = shown.openTool("clipboard", query: "")
+let ot = request("open")
+ok(((ot["params"] as? [String: Any])?["what"] as? [String: Any])?["tool"] as? String == "clipboard",
+  "a tool's own key asks open for that tool")
+answer(ot, ["level": ["id": "v20", "name": "clipboard", "placeholder": "Clipboard History", "previewPane": true,
+  "ranking": "app", "rowLimit": "default", "actions": ["copy"]]])
+let tool = await toolOpen
+ok(tool?.id == "v20" && tool?.manifest.name == "clipboard" && tool?.manifest.previewPane?.drawn == true,
+  "its level is the tool's, by its name, with its pane")
+async let refusedOpen = shown.openTool("nothing", query: "")
+let orf = request("open")
+send(["jsonrpc": "2.0", "id": orf["id"]!, "error": ["code": -32013, "message": "not hosted"]])
+ok(await refusedOpen == nil, "a tool the Lua side does not host opens nothing")
 
 // The effects notification reaches the level it names and no other.
 send(["jsonrpc": "2.0", "method": "effects", "params": ["level": "v9", "q": 1, "effects": [["rows": ["hold": true]]]]])

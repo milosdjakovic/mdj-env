@@ -478,14 +478,16 @@ public final class Stage {
   // Backspace on the empty field of a list over another. The list's own back answers first, and a
   // decline gives the list below back as it was parked, its height with it, and asks its rows again
   // keeping the highlight, as the Lua stage's _back pops.
+  // A list opened alone, a tool's own key, step 3.8, is asked too, for a page of its own to leave,
+  // and with nothing under it a back it declines does nothing, as the Lua stage does.
   private func back() {
-    guard !parked.isEmpty, let child = source else { return }
+    guard let child = source else { return }
     Task {
       if await child.back() {
         if self.source === child { self.search(self.text, keepHighlight: true) }
         return
       }
-      guard self.source === child, self.text.isEmpty else { return }
+      guard self.source === child, self.text.isEmpty, !self.parked.isEmpty else { return }
       self.popChild(child)
     }
   }

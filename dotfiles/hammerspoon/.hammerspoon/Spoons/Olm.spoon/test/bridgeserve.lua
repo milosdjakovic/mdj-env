@@ -215,6 +215,24 @@ ok(hosting.methods.back.run({ level = "v2" }).handled == false, "a list with no 
 hosting.methods.close.run({ level = "v2" })
 ok(#hosting.redraws("caffeinate") == 0, "and a closed level is sent no redraw")
 
+-- A tool's own key, step 3.8, its hosted list opened as the only level, the push's own fields.
+local owning = serve.new({ rpc = rpc, clean = frame.clean, facade = facade,
+  hosted = function(p) return p.name == "caffeinate" end,
+  presentationFor = function(name) return name == "caffeinate" and top or (name == "vpn" and { name = "vpn" }) or nil end,
+  launcher = { memoryKey = memoryKey, rows = function() return {} end },
+  icons = function() return nil end })
+local opened = owning.methods.open.run({ what = { tool = "caffeinate" }, query = "" })
+ok(opened.level and opened.level.id == "v1" and opened.level.name == "caffeinate" and opened.level.placeholder == "Time"
+  and opened.level.fit == true and opened.level.ranking == "source", "a hosted tool opens as a level with its presentation's fields")
+ok(owning.levels.v1.top == true and owning.levels.v1.parent == nil, "the tool's top level, with no parent under it")
+local ownRows = owning.methods.rows.run({ level = "v1", q = 1, query = "" })
+ok(ownRows.changes and #ownRows.changes.upsert == 1, "and answers its rows")
+ok(#owning.redraws("caffeinate") == 1, "a redraw of the tool reaches it")
+local refused = pcall(owning.methods.open.run, { what = { tool = "vpn" }, query = "" })
+ok(refused == false, "a tool the config does not host is not served")
+local unknown = pcall(owning.methods.open.run, { what = { tool = "nothing" }, query = "" })
+ok(unknown == false, "nor is a name with no presentation")
+
 -- A level whose intercept stays, whose back is its own and whose onSelect answers a child.
 hosting.levels.v9 = { id = "v9", kind = "launcher" }
 local stay = hosting.choosePresented({ kind = "presentation", presentation = paged, id = "v8" }, {})

@@ -115,6 +115,10 @@ return {
     -- app did not show yet, Clipboard History among them, did nothing there, and on again on
     -- 2026-11-18 once step 3.6 showed every such tool in the app. False is the way back.
     launcherFlip = true,
+    -- Whether a tool's own key opens its list in the app while its socket is up, step 3.8, for
+    -- every tool in hosts below, through the one door every tool shows its list by. False is the
+    -- way back, and the launcher stays in the app.
+    keysFlip = true,
     -- The tools whose own list the app shows inside its launcher, step 3.3, so the launcher's row
     -- for one replaces its rows in place in the app's window. A tool joins in the step that hosts
     -- it, and taking it out leaves its row put in the app's launcher, as before. Since step 3.6

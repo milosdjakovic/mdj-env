@@ -162,6 +162,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       } else if url.host == "shadow", let tool = item("tool"), let shadow = shadows[tool],
         let id = item("id").flatMap({ Int($0) }) {
         shadow.run(id: id)
+      } else if url.host == "tool", let name = item("name") {
+        // A tool's own key, step 3.8, its hosted list asked of the Lua side first and then opened.
+        let launcher = shownLauncher, stage = stage
+        let query = item("query") ?? "", screen = item("screen")
+        Task { @MainActor in
+          guard let level = await launcher.openTool(name, query: query) else { return }
+          stage.open(level, query: query, screen: screen)
+        }
       } else if let host = url.host, let source = sources[host] {
         stage.open(source, query: item("query") ?? "", screen: item("screen"))
       } else {

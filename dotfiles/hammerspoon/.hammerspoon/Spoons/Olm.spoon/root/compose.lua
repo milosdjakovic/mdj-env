@@ -1694,9 +1694,17 @@ function obj.run(olm, cfg)
     -- or the stage's own configure had run, which is a wiring defect rather than a state a key
     -- press should silently swallow, so it is left to read as an inert press rather than
     -- guarded into looking intentional.
+    --
+    -- Olm.app is asked first, step 3.8, docs/DESIGN-APP-HOSTED.md under 3.8, so every tool's own
+    -- key opens its list in the app while the app shows that tool and its socket is up, through
+    -- this one door rather than one key at a time, and the Lua stage shows it otherwise.
     stagePresent = function(name)
       local presentation = wiredRegistry.presentationFor and wiredRegistry.presentationFor(name)
-      if presentation and stageModule then stageModule:present(presentation) end
+      if not presentation then return end
+      local bridgeHost = modules and modules[(firstPass.identity or {}).bridge or "bridge"]
+      if bridgeHost and type(bridgeHost.presentInApp) == "function"
+        and bridgeHost:presentInApp(name, presentation) then return end
+      if stageModule then stageModule:present(presentation) end
     end,
 
     -- redrawPresented is the async status seam, decision eight, VPN's own onChange asking to
@@ -3112,6 +3120,10 @@ function obj.run(olm, cfg)
           end,
           version = tostring(olm.version),
           rowLimit = policy.chooserRowLimit,
+          -- A tool's own key opening its hosted list as the only level, step 3.8.
+          presentationFor = function(name)
+            return wiredRegistry.presentationFor and wiredRegistry.presentationFor(name) or nil
+          end,
           -- A hosted list's rows learn their icons' owner as the stage's own do, step 3.3.
           stampIcons = iconRows.stampAll,
           -- A hosted list's actions pane, step 3.3b, the verbs of the list its tool owns answered

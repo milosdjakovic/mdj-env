@@ -322,6 +322,34 @@ socketUp = false
 flipped()
 eq(luaRuns, 3, "asked again at the next press")
 
+-- A tool's own key, step 3.8, presentInApp asked by the root's stagePresent before the Lua stage.
+local clip = { name = "clipboard" }
+local function keyed(extra)
+  local o = { pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, socket = true, keysFlip = true,
+    hosts = { "clipboard" } }
+  for k, v in pairs(extra or {}) do o[k] = v end
+  local b = fresh(o)
+  b._conn = { isUp = function() return true end }
+  return b
+end
+posted = {}
+eq(keyed({ keysFlip = false }):presentInApp("clipboard", clip), false, "own key: the switch off keeps the Lua list")
+local unset = fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, socket = true, hosts = { "clipboard" } })
+unset._conn = { isUp = function() return true end }
+eq(unset:presentInApp("clipboard", clip), false, "own key: the switch not given keeps the Lua list")
+eq(keyed({ pieces = { olmapp = "off" } }):presentInApp("clipboard", clip), false, "own key: the piece off keeps the Lua list")
+eq(keyed({ socket = false }):presentInApp("clipboard", clip), false, "own key: the socket setting off keeps the Lua list")
+eq(keyed():presentInApp("vpn", { name = "vpn" }), false, "own key: a tool not hosted keeps the Lua list")
+local down = keyed()
+down._conn = { isUp = function() return false end }
+eq(down:presentInApp("clipboard", clip), false, "own key: a socket that went keeps the Lua list")
+eq(#posted, 0, "own key: and tells the app nothing")
+local up = keyed()
+up:placeWith(function() return "cursor" end)
+eq(up:presentInApp("clipboard", clip), true, "own key: a hosted tool with the socket up opens in the app")
+eq(posted[1] and posted[1].name, "local.olm.Olm.open", "own key: by the open notification")
+eq(posted[1] and posted[1].object, "olm://tool?screen=cursor&name=clipboard&query=", "own key: naming the tool and the screen")
+
 -- Quit Olm App, a row while the app runs, asking each running copy to quit.
 local quitter = fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, socket = true })
 local quit = quitter:actions()[2]

@@ -105,6 +105,8 @@ function obj:configure(opts)
   -- Whether Hyper and Space opens the app's launcher, step 3.5, off unless the config says true.
   -- Held off on 2026-11-17 until every tool the launcher leads to is shown in the app.
   if opts.launcherFlip ~= nil then self._flip = opts.launcherFlip == true end
+  -- Whether a tool's own key opens its list in the app, step 3.8, off unless the config says true.
+  if opts.keysFlip ~= nil then self._keysFlip = opts.keysFlip == true end
   if type(opts.shares) == "table" then self:_share(opts.shares) end
   -- Which tools the app serves, so it keeps the first open of each warm while it is hidden, step
   -- 1.5's prewarm. Written on every configure, an empty list included, so a tool taken back stops.
@@ -256,7 +258,7 @@ function obj:serveLauncher(provider)
   end
   local service = serve.new({ rpc = rpc, clean = frame.clean, launcher = provider.launcher, later = later,
     icons = provider.icons or function() return nil end, version = provider.version,
-    rowLimit = provider.rowLimit,
+    rowLimit = provider.rowLimit, presentationFor = provider.presentationFor,
     facade = self._facade, stampIcons = provider.stampIcons, verbs = provider.verbs,
     -- A hosted tool's list is shown in the app when the config's hosts names it, by the name its
     -- presentation carries, a child taking its tool's.
@@ -558,6 +560,31 @@ function obj:launcherOpen(fallback)
     end
     return fallback(...)
   end
+end
+
+--- obj:presentInApp(name, presentation) -> true when Olm.app shows the list, step 3.8 of
+--- docs/PLAN-STANDALONE.md, docs/DESIGN-APP-HOSTED.md under 3.8. The root's stagePresent, the one
+--- door a tool's own key shows its list through, asks this before the Lua stage. The app takes the
+--- list when keysFlip is on, the config hosts the presentation's tool, and the app's socket is up,
+--- asked at every press, so a quit app hands every key back to the Lua list at once. It then opens
+--- olm://tool?name=<name> with Olm's placement, and the app asks open for that tool's level.
+function obj:presentInApp(name, presentation)
+  if not self._keysFlip then return false end
+  local p = presentation
+  if type(p) ~= "table" or type(p.name) ~= "string" or not self._hosts[p.name] then return false end
+  if not self:_launcherReady() then return false end
+  if not (self._conn and type(self._conn.isUp) == "function" and self._conn:isUp()) then return false end
+  if not tostring(name or p.name):match("^%a%w*$") then return false end
+  sayOnce(self, "a hosted tool's own key opens its list in Olm.app while its socket is up, the olmapp piece is on")
+  self:_listen()
+  self:_opened(p.name:lower())
+  local mode = nil
+  if self._screenMode then
+    local ok, answer = pcall(self._screenMode)
+    if ok then mode = answer end
+  end
+  local screen = (type(mode) == "string" and mode:match("^%a+$")) and ("screen=" .. mode .. "&") or ""
+  return self:_post(self.OPEN_NOTE, "olm://tool?" .. screen .. "name=" .. p.name .. "&query=") == true
 end
 
 obj.predicates = {

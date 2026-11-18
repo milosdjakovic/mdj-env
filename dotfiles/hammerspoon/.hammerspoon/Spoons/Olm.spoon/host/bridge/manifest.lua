@@ -56,6 +56,10 @@ return {
       -- config/plugins.lua, off by default.
       launcherFlip = { source = "user", policy = "optional",
         breaks = "Hyper and Space opens the Lua launcher, as before" },
+      -- Whether a tool's own key opens its list in the app while its socket is up, step 3.8, from
+      -- config/plugins.lua, off by default.
+      keysFlip = { source = "user", policy = "optional",
+        breaks = "every tool's own key opens the Lua list, as before" },
       hosts = { source = "user", policy = "optional",
         breaks = "a row leading to a tool's list stays put in the app's launcher, as before" },
     },

@@ -571,9 +571,14 @@ later gets its key in the app with no further edit.
   push's, and `-32013` for one not hosted.
 - `test/bridge.lua` pins `presentInApp`, false with the piece off, the socket down, the switch off
   or the tool not hosted, and the URL otherwise.
-- `test/rootmechanism.lua` or a unit case pins that `stagePresent` asks the bridge first and shows
-  the Lua list when it answers false.
-- `olm-bridge-check` gains a case opening a tool's level.
+- `olm-bridge-check` gains a case opening a tool's level by name, and one the Lua side refuses.
+- `stagePresent` asking the bridge first is three lines inside `root/compose.lua`, which no offline
+  test reaches, so the trial is what checks it, step 4 for the Lua list when the app is gone.
+
+**As built, 2026-11-18.** The app opens `olm://tool?name=<name>`, a host of its own rather than a
+field on `olm://launcher`, since the app asks the Lua side for the level before the stage opens it,
+its manifest being read as it opens. The stage's Backspace on an empty field now asks a list with
+nothing under it for its `back` too, and does nothing when it declines.
 
 **The trial, once built, with the app running:**
 1. Press Clipboard History's own key. Expect its list and preview pane in the app's window, not
