@@ -175,6 +175,8 @@ function View:restyle()
     keycapFont = font(text[T.badge.hint.text].font, text[T.badge.hint.text].size),
     -- A row's shortcut, the same keys at the row title's size, see lib/ui/keycap.lua's sizeRole.
     rowKeyFont = font(text[T.badge.hint.text].font, text.body.size),
+    -- The weight every symbol drawn as an icon takes, see stroke in lib/ui/style.lua.
+    symbolWeight = (T.stroke or {}).symbol,
     radius = T.radius.surface,
     highlightRadius = UI.nestedRadius(T.radius.surface, s.layout.marginX),
   })

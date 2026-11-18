@@ -112,8 +112,12 @@ local SHIPPED = {
 
   -- border is the one border width, overwritten from settings by the spec, and every outline
   -- and divider takes it. graph is the weight of a data line in a pane's graph, which is a mark
-  -- rather than a border and so has a width of its own.
-  stroke = { border = 1, graph = 1.5 },
+  -- rather than a border and so has a width of its own. symbol is the weight every SF Symbol drawn
+  -- as an icon takes, AppKit's font weight from minus one to one, semibold, so its lines read in
+  -- the text colour beside a row's title rather than as thin grey strokes, stated by Milos on
+  -- 2026-11-16. lib/icons/sources/sf.lua, the swift list and Olm.app all draw at it, through the
+  -- symbolWeight of the swift provider's style, so no surface holds a weight of its own.
+  stroke = { border = 1, graph = 1.5, symbol = 0.3 },
 
   -- muted is the report toast's alpha for a row naming something that was not there, added
   -- in stage two beside the two the design names.

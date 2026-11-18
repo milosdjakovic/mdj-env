@@ -82,11 +82,18 @@ enum Crisp {
 }
 
 extension Crisp {
+  // The weight a font is drawn at, from its descriptor's traits, regular when it names none, so a
+  // symbol set among a font's glyphs is as heavy as they are.
+  static func weight(of font: NSFont) -> NSFont.Weight {
+    let traits = font.fontDescriptor.object(forKey: .traits) as? [NSFontDescriptor.TraitKey: Any]
+    return (traits?[.weight] as? NSNumber).map { NSFont.Weight(CGFloat($0.doubleValue)) } ?? .regular
+  }
+
   // A one colour picture redrawn whole in color on the same pixels, so a lit row's symbol is the
   // colour of its title. The symbol arrives in the foreground role, which is translucent, so its
   // alpha is scaled until its most opaque pixel is fully so, then times color's own alpha, and the
   // symbol reads exactly as strong as the title's text in either half while its edges keep their
-  // antialiasing. Only the lit row is redrawn, so it is not cached.
+  // antialiasing. A row keeps the picture it drew for one source, size, scale and colour.
   static func tinted(_ source: NSImage, _ color: NSColor) -> NSImage {
     guard let rep = source.representations.first as? NSBitmapImageRep,
       let copy = rep.copy() as? NSBitmapImageRep,

@@ -31,6 +31,10 @@ struct Style: Equatable {
   var keycapFont = NSFont.monospacedSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
   // A list row's shortcut, the key cap's font at the row title's size.
   var rowKeyFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+  // The weight every SF Symbol drawn as an icon takes, the look's stroke.symbol from
+  // lib/ui/style.lua. A symbol drawn as a key cap's key is a glyph of the key cap and takes the
+  // key cap font's weight instead, see Crisp.weight.
+  var symbolWeight = NSFont.Weight.semibold
   var radius: CGFloat = 0
   var highlightRadius: CGFloat = 0
 
@@ -47,7 +51,7 @@ struct Style: Equatable {
   func ink(lit: Bool) -> Ink {
     guard lit, let on = litText else {
       return Ink(text: text, textDim: textDim, sub: sub, subDim: subDim, caption: caption, number: number,
-        keycap: keycap, icon: nil)
+        keycap: keycap, icon: text)
     }
     // Each role keeps the strength it has against the foreground on the glass, so a subtitle,
     // a dimmed word and a key chip stand to the lit text as they stand to the row title.
@@ -78,8 +82,11 @@ struct Ink {
   var caption: NSColor
   var number: NSColor
   var keycap: NSColor
-  // The colour a one colour icon is redrawn in, see Crisp.tinted, nil to keep the icon's own.
-  var icon: NSColor?
+  // The colour a one colour icon is redrawn in, see Crisp.tinted, the text colour at rest and the
+  // lit text on a solid highlight. It is never nil, so a picture drawn ahead of time, as Olm.app's
+  // share is at load, follows the half on screen wherever it stands. A picture with colours of its
+  // own, an app icon, a file or an emoji, is not marked one colour and is never redrawn.
+  var icon: NSColor
 
   static func alpha(_ color: NSColor) -> CGFloat {
     color.usingColorSpace(.sRGB)?.alphaComponent ?? color.alphaComponent

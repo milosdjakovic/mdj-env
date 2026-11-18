@@ -493,15 +493,16 @@ do
   local blue = { red = 0, green = 0, blue = 1, alpha = 1 }
   _G.testScale = 2
 
-  local source = sfSource.new({ dir = function() return dir end })
+  local weight = 0.3
+  local source = sfSource.new({ dir = function() return dir end, weight = function() return weight end })
   local readies = 0
   check("the sf source is named sf", source.name, "sf")
   check("the sf source is tinted", source.tinted, true)
 
   -- The script, one run for many jobs.
   local script = sfSource.script({
-    { name = "circle", color = red, scale = 2, path = "/tmp/a.png" },
-    { name = "globe", color = nil, scale = 0.5, path = "/tmp/b.png" },
+    { name = "circle", color = red, scale = 2, weight = 0.3, path = "/tmp/a.png" },
+    { name = "globe", color = nil, scale = 0.5, weight = 0.3, path = "/tmp/b.png" },
   })
   check("the sf script draws the monochrome rendering", script:find("configurationPreferringMonochrome", 1, true) ~= nil, true)
   check("the sf script no longer paints layers with a palette", script:find("PaletteColors", 1, true), nil)
@@ -510,13 +511,14 @@ do
   check("one script renders every job", select(2, script:gsub("\njob%(", "")), 2)
   check("the colour is spliced into its job", script:find("1.0000, 0.0000, 0.0000, 1.0000", 1, true) ~= nil, true)
   check("the script falls back to the label colour for no colour", script:find("$.NSColor.labelColor", 1, true) ~= nil, true)
-  check("the job renders at its scale", script:find("2.0000, '/tmp/a.png'", 1, true) ~= nil, true)
-  check("a scale below 1 is raised to 1", script:find("1.0000, '/tmp/b.png'", 1, true) ~= nil, true)
+  check("the job renders at its scale", script:find("2.0000, 0.3000, '/tmp/a.png'", 1, true) ~= nil, true)
+  check("a scale below 1 is raised to 1", script:find("1.0000, 0.3000, '/tmp/b.png'", 1, true) ~= nil, true)
   check("the script writes the size in points", script:find("rep.size = $.NSMakeSize(side, side)", 1, true) ~= nil, true)
+  check("the job's weight is the look's", script:find("configurationWithPointSizeWeightScale(64, weight, 2)", 1, true) ~= nil, true)
   check("the longest side fills 60 of 72 points", script:find("k = 60 /", 1, true) ~= nil, true)
-  local file = sfSource.fileName("cup.and.saucer.fill", red, 2)
-  check("the file is keyed by name, side, weight, scale and colour", file, "sf-cup.and.saucer.fill-72pt-semibold-2x-ff0000ff.png")
-  check("no colour has a file of its own", sfSource.fileName("globe", nil, 1), "sf-globe-72pt-semibold-1x-label.png")
+  local file = sfSource.fileName("cup.and.saucer.fill", red, 2, 0.3)
+  check("the file is keyed by name, side, weight, scale and colour", file, "sf-cup.and.saucer.fill-72pt-w0.3-2x-ff0000ff.png")
+  check("no colour has a file of its own", sfSource.fileName("globe", nil, 1, 0.3), "sf-globe-72pt-w0.3-1x-label.png")
 
   -- Names.
   check("an unsafe name is refused", source.draw("a'); evil('", 28, nil), nil)
@@ -548,7 +550,7 @@ do
   finishTask(tasks[1], { star = true })
   check("a finished run fires the refresh callback", readies, 1)
   check("the script file is removed", io.open(tasks[1].args[3]), nil)
-  local marker = io.open(dir .. "/" .. sfSource.fileName("star", red, 2) .. ".none")
+  local marker = io.open(dir .. "/" .. sfSource.fileName("star", red, 2, 0.3) .. ".none")
   check("an unknown symbol leaves a marker", marker ~= nil, true)
   if marker then marker:close() end
   img, pending = source.draw("star", 28, red)
@@ -575,7 +577,7 @@ do
   finishTask(tasks[#tasks])
 
   -- Prefetch queues only what is missing.
-  local fresh = sfSource.new({ dir = function() return dir end })
+  local fresh = sfSource.new({ dir = function() return dir end, weight = function() return weight end })
   fresh.configure({ osascript = "/door/osascript" })
   fresh.prefetch({ "cup.and.saucer.fill", "globe", "bolt", "bad name" }, red)
   runTimers()
@@ -584,13 +586,24 @@ do
   check("and that one is bolt", prefetchScript:find("job('bolt'", 1, true) ~= nil, true)
 
   -- No tool means no run, and a plain nil.
-  local none = sfSource.new({ dir = function() return dir end })
+  local none = sfSource.new({ dir = function() return dir end, weight = function() return weight end })
   none.configure({ osascript = nil })
   local n0 = #tasks
   img, pending = none.draw("bolt", 28, blue)
   runTimers()
   check("without osascript a missing picture answers a plain nil", img == nil and pending == nil, true)
   check("and starts nothing", #tasks, n0)
+
+  -- The weight is the look's. Before the kit answers one nothing is drawn or queued, and a
+  -- picture drawn at another weight is a file of its own.
+  local unweighted = sfSource.new({ dir = function() return dir end, weight = function() return nil end })
+  unweighted.configure({ osascript = "/door/osascript" })
+  local u0 = #tasks
+  img, pending = unweighted.draw("bolt", 28, red)
+  runTimers()
+  check("with no weight a picture answers a plain nil", img == nil and pending == nil, true)
+  check("and queues nothing", #tasks, u0)
+  check("another weight is another file", sfSource.fileName("bolt", red, 2, 0) ~= sfSource.fileName("bolt", red, 2, 0.3), true)
 
   -- Scale.
   check("the scale is the largest among the screens", sfSource.scale(), 2)

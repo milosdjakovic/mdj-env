@@ -1,16 +1,16 @@
 [
   {
     "contents" : {
-      "guid" : "Workspace:/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app",
+      "guid" : "Workspace:/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app",
       "name" : "OlmApp",
-      "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app",
+      "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app",
       "projects" : [
-        "5fac78be67980a79c5cbb2d4add88a742abc60ec1754be6224367ef0990a22bf",
-        "5052469d47e858fa4a39e96a939612594e789d5517e02efdf9a251b581ecc878",
-        "fbfbffb69b80dc445f58ea329fe7e876953fc89e28be45a5a32333a30652ce44"
+        "3366a9b9f50c0c58710c7dc3ecfe2235906c2ced901999e42735c916f58d35d7",
+        "539268ff86467e6f27985a1d8c8cab428419f36cd502270f25c009d3a831d3ff",
+        "ebc49229ff66f6de075187e043f9969d941930d8a83b1417dcb08af0d326e23a"
       ]
     },
-    "signature" : "ad12e768b1e731ba55c63222fddc65aeaddd088bf848c8e1c3e6416db2e14b4e",
+    "signature" : "f652faf6775445fb6af64d988e922bc55c79da0e6e938d1fe44a009163b230f2",
     "type" : "workspace"
   },
   {
@@ -209,8 +209,8 @@
               }
             ],
             "guid" : "PACKAGE:app::MAINGROUP::REF_2",
-            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/olm-index-check",
-            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/olm-index-check",
+            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/olm-index-check",
+            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/olm-index-check",
             "sourceTree" : "<absolute>",
             "type" : "group"
           },
@@ -226,8 +226,8 @@
               }
             ],
             "guid" : "PACKAGE:app::MAINGROUP::REF_3",
-            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/olm-fixtures",
-            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/olm-fixtures",
+            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/olm-fixtures",
+            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/olm-fixtures",
             "sourceTree" : "<absolute>",
             "type" : "group"
           },
@@ -243,8 +243,8 @@
               }
             ],
             "guid" : "PACKAGE:app::MAINGROUP::REF_4",
-            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/olm-bridge-check",
-            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/olm-bridge-check",
+            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/olm-bridge-check",
+            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/olm-bridge-check",
             "sourceTree" : "<absolute>",
             "type" : "group"
           },
@@ -268,8 +268,8 @@
               }
             ],
             "guid" : "PACKAGE:app::MAINGROUP::REF_5",
-            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/Olm",
-            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/Olm",
+            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/Olm",
+            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/Olm",
             "sourceTree" : "<absolute>",
             "type" : "group"
           },
@@ -285,8 +285,8 @@
               }
             ],
             "guid" : "PACKAGE:app::MAINGROUP::REF_6",
-            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/olm-index-check",
-            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/olm-index-check",
+            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/olm-index-check",
+            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/olm-index-check",
             "sourceTree" : "<absolute>",
             "type" : "group"
           },
@@ -302,8 +302,8 @@
               }
             ],
             "guid" : "PACKAGE:app::MAINGROUP::REF_7",
-            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/olm-fixtures",
-            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/olm-fixtures",
+            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/olm-fixtures",
+            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/olm-fixtures",
             "sourceTree" : "<absolute>",
             "type" : "group"
           },
@@ -319,8 +319,8 @@
               }
             ],
             "guid" : "PACKAGE:app::MAINGROUP::REF_8",
-            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/olm-bridge-check",
-            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/olm-bridge-check",
+            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/olm-bridge-check",
+            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/olm-bridge-check",
             "sourceTree" : "<absolute>",
             "type" : "group"
           },
@@ -344,8 +344,8 @@
               }
             ],
             "guid" : "PACKAGE:app::MAINGROUP::REF_9",
-            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/Olm",
-            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/Olm",
+            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/Olm",
+            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/Olm",
             "sourceTree" : "<absolute>",
             "type" : "group"
           },
@@ -377,8 +377,8 @@
               }
             ],
             "guid" : "PACKAGE:app::MAINGROUP::REF_10",
-            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmSearch",
-            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmSearch",
+            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmSearch",
+            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmSearch",
             "sourceTree" : "<absolute>",
             "type" : "group"
           },
@@ -410,8 +410,8 @@
               }
             ],
             "guid" : "PACKAGE:app::MAINGROUP::REF_11",
-            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmSearch",
-            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmSearch",
+            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmSearch",
+            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmSearch",
             "sourceTree" : "<absolute>",
             "type" : "group"
           },
@@ -435,8 +435,8 @@
               }
             ],
             "guid" : "PACKAGE:app::MAINGROUP::REF_12",
-            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmLook",
-            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmLook",
+            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmLook",
+            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmLook",
             "sourceTree" : "<absolute>",
             "type" : "group"
           },
@@ -460,8 +460,8 @@
               }
             ],
             "guid" : "PACKAGE:app::MAINGROUP::REF_13",
-            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmLook",
-            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmLook",
+            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmLook",
+            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmLook",
             "sourceTree" : "<absolute>",
             "type" : "group"
           },
@@ -477,8 +477,8 @@
               }
             ],
             "guid" : "PACKAGE:app::MAINGROUP::REF_14",
-            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmKit",
-            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmKit",
+            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmKit",
+            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmKit",
             "sourceTree" : "<absolute>",
             "type" : "group"
           },
@@ -494,8 +494,8 @@
               }
             ],
             "guid" : "PACKAGE:app::MAINGROUP::REF_15",
-            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmKit",
-            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmKit",
+            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmKit",
+            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmKit",
             "sourceTree" : "<absolute>",
             "type" : "group"
           },
@@ -583,8 +583,8 @@
               }
             ],
             "guid" : "PACKAGE:app::MAINGROUP::REF_16",
-            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmCore",
-            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmCore",
+            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmCore",
+            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmCore",
             "sourceTree" : "<absolute>",
             "type" : "group"
           },
@@ -672,8 +672,8 @@
               }
             ],
             "guid" : "PACKAGE:app::MAINGROUP::REF_17",
-            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmCore",
-            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmCore",
+            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmCore",
+            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmCore",
             "sourceTree" : "<absolute>",
             "type" : "group"
           },
@@ -729,8 +729,8 @@
               }
             ],
             "guid" : "PACKAGE:app::MAINGROUP::REF_18",
-            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmBridge",
-            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmBridge",
+            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmBridge",
+            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmBridge",
             "sourceTree" : "<absolute>",
             "type" : "group"
           },
@@ -786,8 +786,8 @@
               }
             ],
             "guid" : "PACKAGE:app::MAINGROUP::REF_19",
-            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmBridge",
-            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmBridge",
+            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmBridge",
+            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmBridge",
             "sourceTree" : "<absolute>",
             "type" : "group"
           },
@@ -875,8 +875,8 @@
               }
             ],
             "guid" : "PACKAGE:app::MAINGROUP::REF_20",
-            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Plugins/FileSearch",
-            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Plugins/FileSearch",
+            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Plugins/FileSearch",
+            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Plugins/FileSearch",
             "sourceTree" : "<absolute>",
             "type" : "group"
           },
@@ -964,8 +964,8 @@
               }
             ],
             "guid" : "PACKAGE:app::MAINGROUP::REF_21",
-            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Plugins/FileSearch",
-            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Plugins/FileSearch",
+            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Plugins/FileSearch",
+            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Plugins/FileSearch",
             "sourceTree" : "<absolute>",
             "type" : "group"
           }
@@ -977,8 +977,8 @@
         "type" : "group"
       },
       "guid" : "PACKAGE:app",
-      "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Package.swift",
-      "projectDirectory" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app",
+      "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Package.swift",
+      "projectDirectory" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app",
       "projectIsPackage" : "true",
       "projectName" : "OlmApp",
       "targets" : [
@@ -1005,7 +1005,7 @@
         "c5bb368ae4e830126acbc84fc12339915c861739e84692102babfd2315442b5f"
       ]
     },
-    "signature" : "5fac78be67980a79c5cbb2d4add88a742abc60ec1754be6224367ef0990a22bf",
+    "signature" : "3366a9b9f50c0c58710c7dc3ecfe2235906c2ced901999e42735c916f58d35d7",
     "type" : "project"
   },
   {
@@ -5495,8 +5495,8 @@
               }
             ],
             "guid" : "PACKAGE:swift::MAINGROUP::REF_2",
-            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/lib/chooser/providers/swift/native",
-            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/lib/chooser/providers/swift/native",
+            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/lib/chooser/providers/swift/native",
+            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/lib/chooser/providers/swift/native",
             "sourceTree" : "<absolute>",
             "type" : "group"
           },
@@ -5616,8 +5616,8 @@
               }
             ],
             "guid" : "PACKAGE:swift::MAINGROUP::REF_3",
-            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/lib/chooser/providers/swift/native",
-            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/lib/chooser/providers/swift/native",
+            "name" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/lib/chooser/providers/swift/native",
+            "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/lib/chooser/providers/swift/native",
             "sourceTree" : "<absolute>",
             "type" : "group"
           }
@@ -5629,8 +5629,8 @@
         "type" : "group"
       },
       "guid" : "PACKAGE:swift",
-      "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/lib/chooser/providers/swift/Package.swift",
-      "projectDirectory" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/lib/chooser/providers/swift",
+      "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/lib/chooser/providers/swift/Package.swift",
+      "projectDirectory" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/lib/chooser/providers/swift",
       "projectIsPackage" : "true",
       "projectName" : "OlmChooser",
       "targets" : [
@@ -5641,7 +5641,7 @@
         "2dc761cc92e7cb53ec1bc49a6274c428578eb0ac98379ef388c061bf8decb0cd"
       ]
     },
-    "signature" : "5052469d47e858fa4a39e96a939612594e789d5517e02efdf9a251b581ecc878",
+    "signature" : "539268ff86467e6f27985a1d8c8cab428419f36cd502270f25c009d3a831d3ff",
     "type" : "project"
   },
   {
@@ -6460,8 +6460,8 @@
         "type" : "group"
       },
       "guid" : "AGGREGATE",
-      "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Package.swift",
-      "projectDirectory" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app",
+      "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Package.swift",
+      "projectDirectory" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-one-look/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app",
       "projectIsPackage" : "true",
       "projectName" : "Aggregate",
       "targets" : [
@@ -6469,7 +6469,7 @@
         "9983c10823eb8c4d28598b6030560125eabce6c550b9527d407629eb34af68d1"
       ]
     },
-    "signature" : "fbfbffb69b80dc445f58ea329fe7e876953fc89e28be45a5a32333a30652ce44",
+    "signature" : "ebc49229ff66f6de075187e043f9969d941930d8a83b1417dcb08af0d326e23a",
     "type" : "project"
   },
   {

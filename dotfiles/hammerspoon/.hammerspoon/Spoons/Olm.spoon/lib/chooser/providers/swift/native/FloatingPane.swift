@@ -275,7 +275,7 @@ final class FloatingPaneView: FlippedView {
       let chord = KeyCap(line.chord, ink: ink, style: style, placement: placement, holderH: lineH,
         holderRadius: document.radius, enabled: line.enabled)
       let image = line.image.map { source -> NSImageView in
-        let picture = line.tint ? (ink.icon.map { Crisp.tinted(source, $0) } ?? source) : source
+        let picture = line.tint ? Crisp.tinted(source, ink.icon) : source
         let view = NSImageView(image: picture)
         view.imageScaling = .scaleProportionallyUpOrDown
         return view

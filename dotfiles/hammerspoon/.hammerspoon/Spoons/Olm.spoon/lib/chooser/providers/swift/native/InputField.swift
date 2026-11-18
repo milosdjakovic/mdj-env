@@ -11,11 +11,12 @@
 import Cocoa
 
 final class InputField: NSView {
-  // What a field looks like, its font, its text's colour and its placeholder's words and colour.
+  // What a field looks like, its font, its text's colour and its placeholder's words and colour,
+  // the look's own until the panel hands the field its style.
   struct Look {
-    var font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
-    var text = NSColor.labelColor
-    var dim = NSColor.secondaryLabelColor
+    var font = Style().fieldFont
+    var text = Style().text
+    var dim = Style().textDim
     var placeholder = ""
   }
 

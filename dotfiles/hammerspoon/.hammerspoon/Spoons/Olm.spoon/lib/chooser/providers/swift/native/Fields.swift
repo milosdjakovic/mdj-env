@@ -69,6 +69,7 @@ extension Style {
     if !numbers.isEmpty { numberKeys = numbers }
     let ret = f.chord("returnKey")
     if !ret.isEmpty { returnKey = ret }
+    symbolWeight = f.number("symbolWeight").map { NSFont.Weight($0) } ?? symbolWeight
     radius = f.number("radius") ?? radius
     highlightRadius = f.number("highlightRadius") ?? highlightRadius
   }

@@ -72,7 +72,7 @@
   {
     "isFramework" : false,
     "moduleName" : "OlmKit",
-    "modulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/Products\/Release\/OlmKit.swiftmodule\/arm64-apple-macos.swiftmodule"
+    "modulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/Products\/Release\/OlmKit.swiftmodule\/arm64-apple-macos.swiftmodule"
   },
   {
     "isFramework" : false,
@@ -131,308 +131,308 @@
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/System\/Library\/Frameworks\/CFNetwork.framework\/Modules\/module.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/CFNetwork-BQE3WNZTLXTV0XB49SXVXLY3L.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/CFNetwork-5FOO1E5B37SYWXSI9NLI4T1DN.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "CFNetwork"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/System\/Library\/Frameworks\/CoreFoundation.framework\/Modules\/module.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/CoreFoundation-8FLR0XACEPX99J10GNCEOY69D.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/CoreFoundation-ATC2HL9NVIXG1PPJ4L304KFQI.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "CoreFoundation"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/System\/Library\/Frameworks\/CoreGraphics.framework\/Modules\/module.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/CoreGraphics-1INLELLCTUJX83NBEI8AE53CT.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/CoreGraphics-6T37R7LJM3N02IDAQOPNXROV0.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "CoreGraphics"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/System\/Library\/Frameworks\/CoreServices.framework\/Modules\/module.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/CoreServices-9VB5O6VTGX82JNMVT23L0Q00E.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/CoreServices-729S0LZ1F21BU2LEEV4FGJS4T.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "CoreServices"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/System\/Library\/Frameworks\/CoreVideo.framework\/Modules\/module.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/CoreVideo-5ZYELNIOFAMQ6MSAM0PHFLAQC.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/CoreVideo-6ZRF79O0H9E6931ZR5Q0ROCB8.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "CoreVideo"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/usr\/include\/Darwin.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/Darwin-8N4EAOHOFWOS4U3N8E9K46W5X.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/Darwin-62H3890PLKYUOWS6LZXJ2FA3E.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "Darwin"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/System\/Library\/Frameworks\/DiskArbitration.framework\/Modules\/module.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/DiskArbitration-9F1J1NFNTS21BVVCNLEB0JKTN.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/DiskArbitration-D0P179DJ47K49HS0ZIJSY5SGN.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "DiskArbitration"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/usr\/include\/dispatch.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/Dispatch-84F4OJMV5UICOIL0MPLGD15CJ.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/Dispatch-EFZL5DAWHVZOYV4MBIQ3MBDM4.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "Dispatch"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/System\/Library\/Frameworks\/Foundation.framework\/Modules\/module.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/Foundation-CI6H0OW0V89DCVXDVFLLFSZTO.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/Foundation-1W21YCWWD5OGKV5XPJRVWQOR0.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "Foundation"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/System\/Library\/Frameworks\/IOKit.framework\/Modules\/module.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/IOKit-DIBJUMM25K8PRVB6OYUMMWFD1.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/IOKit-7RLGL5CS3MJIS7WH3FE0XM1PH.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "IOKit"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/System\/Library\/Frameworks\/IOSurface.framework\/Modules\/module.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/IOSurface-CF9E98XQF3MK49HAS269XJ8VR.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/IOSurface-CKWQYNU6MNLUV2FOA4K1QXDCO.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "IOSurface"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/System\/Library\/Frameworks\/ImageIO.framework\/Modules\/module.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/ImageIO-4AC7VMH7TCGPWIBKITJKIKLLH.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/ImageIO-2K2QJS17FO6TZVEPTG3J1YXV3.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "ImageIO"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/System\/Library\/Frameworks\/LocalAuthentication.framework\/Modules\/module.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/LocalAuthentication-C1X2G31X2KMB78EDOZ6QZTZWB.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/LocalAuthentication-4SDJ7L1IUPPTHVGWH44M43P7K.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "LocalAuthentication"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/usr\/include\/DarwinBasic.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/MachO-5X3CSG1UNV8I4VXYYR2JVH7H1.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/MachO-19TCKZOWMUZ8WPLU5352GW561.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "MachO"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/System\/Library\/Frameworks\/Metal.framework\/Modules\/module.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/Metal-7VPM8XVO6RALM0WT01OU3SB58.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/Metal-ED1P4IANDNQ0GVPRXYU6SY4CA.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "Metal"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/usr\/include\/ObjectiveC.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/ObjectiveC-7F4JLAG1NHH7XYIDWZLM61OF0.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/ObjectiveC-3BT1BFSVRC5XMGZIKGK8CKFCF.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "ObjectiveC"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/System\/Library\/Frameworks\/OpenGL.framework\/Modules\/module.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/OpenGL-EW3B4HH3384LBJAX7G4ESPOOA.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/OpenGL-EWHIFM6XKWTJ2EY3I43FQQ28J.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "OpenGL"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/System\/Library\/Frameworks\/Security.framework\/Modules\/module.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/Security-DKB64G5SKPHKEIPRVVERP2BEV.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/Security-EVHEM8SILFPIEMDP71CUJHNH0.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "Security"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/usr\/lib\/swift\/shims\/module.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/SwiftShims-611F9IB3EH4EADC83WT8050BH.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/SwiftShims-BC80ANK951AAYBNK1LN0JOW8X.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "SwiftShims"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/System\/Library\/Frameworks\/UniformTypeIdentifiers.framework\/Modules\/module.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/UniformTypeIdentifiers-4SHZBOX212LTM1MVPCVGG4QYK.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/UniformTypeIdentifiers-25PDQ5LX22NT83XO371VVRF7O.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "UniformTypeIdentifiers"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/usr\/include\/xpc.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/XPC-A9UV6PBZC7FUDM254I0HPBCYH.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/XPC-3YEC8QTZTS6AXYZ4PXLOSSY78.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "XPC"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/usr\/include\/DarwinFoundation1.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/_AvailabilityInternal-9TYCBMH1K927RC68E03BRWWHO.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/_AvailabilityInternal-CY5COWG23YBYMZO1NUG573JEZ.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "_AvailabilityInternal"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Toolchains\/XcodeDefault.xctoolchain\/usr\/lib\/clang\/21\/include\/module.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/_Builtin_float-ADW6J8QPR45PI468PIWA0CV3D.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/_Builtin_float-BOAGNTE9CLHSLIUPOIS2GYO28.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "_Builtin_float"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Toolchains\/XcodeDefault.xctoolchain\/usr\/lib\/clang\/21\/include\/module.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/_Builtin_inttypes-7FJDG0UCT84W48DTQTL7OBUGJ.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/_Builtin_inttypes-7JUG30VEPXFKUX0EZG7TNZPUT.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "_Builtin_inttypes"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Toolchains\/XcodeDefault.xctoolchain\/usr\/lib\/clang\/21\/include\/module.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/_Builtin_limits-13XZYM63MYJC274RN3G6KVR0F.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/_Builtin_limits-2SF7WGZLMYCR59UPRX22WOTHY.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "_Builtin_limits"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Toolchains\/XcodeDefault.xctoolchain\/usr\/lib\/clang\/21\/include\/module.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/_Builtin_stdarg-7DFKN3AYS6IMJWD2J17K6Y4RG.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/_Builtin_stdarg-6ZW5A0W8VHDK5B0EFPSF004N7.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "_Builtin_stdarg"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Toolchains\/XcodeDefault.xctoolchain\/usr\/lib\/clang\/21\/include\/module.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/_Builtin_stdatomic-113CU2LDRRLFHIBL0JFBS5T5Q.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/_Builtin_stdatomic-3RN8WDY4M7WYKOW3NAQTY94OE.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "_Builtin_stdatomic"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Toolchains\/XcodeDefault.xctoolchain\/usr\/lib\/clang\/21\/include\/module.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/_Builtin_stdbool-EAKMEVRKZUZJ1O9V8BT9YYHPD.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/_Builtin_stdbool-6C7D50GBPO9RM6M0C8GGWYKC4.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "_Builtin_stdbool"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Toolchains\/XcodeDefault.xctoolchain\/usr\/lib\/clang\/21\/include\/module.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/_Builtin_stddef-E8WHKRHPREG8UWC14ELKYOCLO.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/_Builtin_stddef-B4O60NA9IMALS3K2IPBPO9DYM.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "_Builtin_stddef"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Toolchains\/XcodeDefault.xctoolchain\/usr\/lib\/clang\/21\/include\/module.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/_Builtin_stdint-B39KXBWAL17KOOQOGWG5BY7WV.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/_Builtin_stdint-EFBUYUWBUEVER2I4V64JI4FGX.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "_Builtin_stdint"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/usr\/include\/DarwinFoundation1.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/_DarwinFoundation1-AGIT0DEX5MHQTA80DCVHIQ26M.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/_DarwinFoundation1-CZCGCNTUJK8VGN1IUPV1Z7JVR.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "_DarwinFoundation1"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/usr\/include\/DarwinFoundation2.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/_DarwinFoundation2-229IK65B4E1U4BBVKLSQLHKYT.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/_DarwinFoundation2-CKATQYNAC9XLA3O7QP56Q1M6B.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "_DarwinFoundation2"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/usr\/include\/DarwinFoundation3.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/_DarwinFoundation3-AGP9QTHI22CLILM2T46SBH1WO.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/_DarwinFoundation3-3NOP35UG22V04O9E8YLE2OJHJ.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "_DarwinFoundation3"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/usr\/lib\/swift\/shims\/module.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/_SwiftConcurrencyShims-2XLJX9VX8IQW6ZV64U59354B0.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/_SwiftConcurrencyShims-2TX0LT2RXMPR542EPESV9LT26.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "_SwiftConcurrencyShims"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/usr\/include\/launch.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/launch-1XM64R0MZ2EPATCNT16X2PHUN.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/launch-1XWVHC4HDOZNYBXRFPC0Y69EC.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "launch"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/usr\/include\/libDER\/module.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/libDER-95ME4PSTYH05R5CXKCEQK9S8D.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/libDER-DDDW0VMWVBI7UV9IBFDHS82WC.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "libDER"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/usr\/include\/libkern.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/libkern-AOIARXK3LP5ECZMUKSW5KXPTD.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/libkern-8FSL1AS21ECR50N304PCJHYZN.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "libkern"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/usr\/include\/os.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/os-9VYP1H1X0OBPKARCQ2PKDGECV.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/os-5H5396KRPOH1VZMZB0LWCG780.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "os"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/usr\/include\/os.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/os_object-40ZWW1OOXMFT5PK6M8T64JT2S.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/os_object-7BUAORI7N7MACBLJ6IMZZGT9K.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "os_object"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/usr\/include\/os.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/os_workgroup-1GHX2DKSJ80BBUGTBMO82LA2E.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/os_workgroup-DDWRQRH8YT205ZEVG3I9RRF98.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "os_workgroup"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Toolchains\/XcodeDefault.xctoolchain\/usr\/lib\/clang\/21\/include\/module.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/ptrauth-1162Y8P8HV04Q3RR4W1WLJ1AS.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/ptrauth-7HOSI6I6NUFCD3YFXNLENBNYG.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "ptrauth"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Toolchains\/XcodeDefault.xctoolchain\/usr\/lib\/clang\/21\/include\/module.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/ptrcheck-2O6S83V2PMGW00GZ9BR5REQFT.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/ptrcheck-C8DM81MG5XSN664BV0ACFAC75.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "ptrcheck"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/usr\/include\/c_standard_library.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/string_h-DNV3WI4NFED5Y2WV2GZZ4VMCT.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/string_h-9ICQ8CRBJ4QORECMEBW2W4JWI.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "string_h"
   },
   {
     "clangModuleMapPath" : "\/Applications\/Xcode.app\/Contents\/Developer\/Platforms\/MacOSX.platform\/Developer\/SDKs\/MacOSX.sdk\/usr\/include\/DarwinFoundation2.modulemap",
-    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-bar-icon-tint\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/sys_types-9J2YBF235YKD8U88DQX0CEMXK.pcm",
+    "clangModulePath" : "\/Users\/milosdjakovic\/Development\/personal\/.worktrees\/olm-one-look\/dotfiles\/hammerspoon\/.hammerspoon\/Spoons\/Olm.spoon\/app\/.build\/out\/SDKExplicitPrecompiledModules\/sys_types-2NAG0T6YW6Y48YAE37UJZPNIO.pcm",
     "isBridgingHeaderDependency" : false,
     "isFramework" : false,
     "moduleName" : "sys_types"

@@ -60,12 +60,10 @@
 local M = {}
 
 local SIDE = 72
--- The weight every symbol is drawn at, semibold, AppKit's NSFontWeightSemibold. Every icon looks the
--- same, its lines heavy enough to read in the text colour beside a row's title rather than as thin
--- grey strokes, stated by Milos on 2026-11-16. Olm.app draws its symbols at the same weight, see
--- icon in app/Sources/OlmCore/Stage.swift, so the two never differ. The name is in the file name,
--- so a picture drawn at another weight is never served.
-local WEIGHT, WEIGHT_NAME = 0.3, "semibold"
+-- The weight a symbol is drawn at is not here. It is the look's, stroke.symbol in lib/ui/style.lua,
+-- which the root hands in as opts.weight, so this source, the swift list and Olm.app read one
+-- value and never differ, stated by Milos on 2026-11-18. It is in the file name, so a picture
+-- drawn at another weight is never served.
 local ART = 60
 
 -- The most a scale is allowed to be, a bound on the bitmap and not a guess at any screen.
@@ -109,11 +107,11 @@ local function colorName(color)
     byte(color.blue or 0), byte(color.alpha or 1))
 end
 
---- M.fileName(name, color, scale) -> the file a picture is kept in, inside the cache directory.
---- Every value that decides the picture is in it, the symbol, the side in points, the scale and
---- the colour, so two pictures that differ never share a file.
-function M.fileName(name, color, scale)
-  return string.format("sf-%s-%dpt-%s-%gx-%s.png", name, SIDE, WEIGHT_NAME, scale, colorName(color))
+--- M.fileName(name, color, scale, weight) -> the file a picture is kept in, inside the cache
+--- directory. Every value that decides the picture is in it, the symbol, the side in points, the
+--- weight, the scale and the colour, so two pictures that differ never share a file.
+function M.fileName(name, color, scale, weight)
+  return string.format("sf-%s-%dpt-w%g-%gx-%s.png", name, SIDE, weight, scale, colorName(color))
 end
 
 -- The JavaScript colour expression for one job.
@@ -124,15 +122,16 @@ local function tintOf(color)
 end
 
 --- M.script(jobs) -> the JavaScript text one osascript run executes, exposed so a test can read
---- what is spliced where. jobs is a list of { name, color, scale, path }, each name already safe.
+--- what is spliced where. jobs is a list of { name, color, scale, weight, path }, each name
+--- already safe, weight AppKit's font weight from minus one to one.
 --- The run writes each picture to its path and prints one line per job it could not write,
 --- unknown and the path when AppKit has no symbol of that name, failed and the path when drawing
 --- raised or the file was not written.
 function M.script(jobs)
   local out = {
     "ObjC.import('AppKit');",
-    "function render(name, col, scale, path) {",
-    "  var cfg = $.NSImageSymbolConfiguration.configurationWithPointSizeWeightScale(64, " .. WEIGHT .. ", 2)",
+    "function render(name, col, scale, weight, path) {",
+    "  var cfg = $.NSImageSymbolConfiguration.configurationWithPointSizeWeightScale(64, weight, 2)",
     "    .configurationByApplyingConfiguration($.NSImageSymbolConfiguration.configurationPreferringMonochrome);",
     "  var img = $.NSImage.imageWithSystemSymbolNameAccessibilityDescription(name, $('x'));",
     "  if (img.isNil()) return 'unknown';",
@@ -157,17 +156,17 @@ function M.script(jobs)
     "  return ok ? 'ok' : 'failed';",
     "}",
     "var lines = [];",
-    "function job(name, col, scale, path) {",
+    "function job(name, col, scale, weight, path) {",
     "  var result;",
-    "  try { result = render(name, col, scale, path); } catch (e) { result = 'failed'; }",
+    "  try { result = render(name, col, scale, weight, path); } catch (e) { result = 'failed'; }",
     "  if (result !== 'ok') lines.push(result + '\\t' + path);",
     "}",
   }
   for _, j in ipairs(jobs) do
     local scale = tonumber(j.scale) or 1
     if scale < 1 then scale = 1 end
-    out[#out + 1] = string.format("job(%s, %s, %.4f, %s);", jsString(j.name), tintOf(j.color),
-      scale, jsString(j.path))
+    out[#out + 1] = string.format("job(%s, %s, %.4f, %.4f, %s);", jsString(j.name), tintOf(j.color),
+      scale, tonumber(j.weight) or 0, jsString(j.path))
   end
   out[#out + 1] = "lines.join('\\n');"
   return table.concat(out, "\n")
@@ -183,6 +182,8 @@ end
 --- opts.dir  function answering the directory pictures are kept in, which exists. The root hands
 ---           in the storage lib's cache directory for icons.
 --- opts.log  optional table with w, told when a run fails.
+--- opts.weight  function answering the look's symbol weight, stroke.symbol, or nil before the
+---           kit is configured, when nothing is drawn.
 ---
 --- source.configure{ osascript = path or nil, onReady = function } hands over the tool's path
 --- from the dependency door and the callback fired after a run that wrote a picture. Called once
@@ -234,12 +235,17 @@ function M.new(opts)
 
   -- Queues name at color and scale unless its picture or marker is on disk, it cannot be made
   -- this session, or it is already waiting.
-  local function enqueue(base, name, color, scale)
-    local path = base .. "/" .. M.fileName(name, color, scale)
+  local function weight()
+    local w = opts.weight and opts.weight()
+    return type(w) == "number" and w or nil
+  end
+
+  local function enqueue(base, name, color, scale, w)
+    local path = base .. "/" .. M.fileName(name, color, scale, w)
     if queued[path] or flying[path] or refused[path] then return end
     if exists(path) or exists(path .. UNKNOWN) then return end
     queued[path] = true
-    queue[#queue + 1] = { name = name, color = color, scale = scale, path = path }
+    queue[#queue + 1] = { name = name, color = color, scale = scale, weight = w, path = path }
   end
 
   local function finish(jobs, code, stdout)
@@ -305,10 +311,10 @@ function M.new(opts)
 
   function source.draw(name, points, color)
     if not safeName(name) then return nil end
-    local base = dir()
-    if not base then return nil end
+    local base, w = dir(), weight()
+    if not (base and w) then return nil end
     local scale = M.scale()
-    local path = base .. "/" .. M.fileName(name, color, scale)
+    local path = base .. "/" .. M.fileName(name, color, scale, w)
     if queued[path] or flying[path] then return nil, true end
     if refused[path] then return nil end
     if exists(path) then return loadPicture(path, points) end
@@ -317,19 +323,19 @@ function M.new(opts)
     -- A miss queues this symbol and every symbol the source knows at this colour, so the other
     -- half after a switch is one run.
     remember(name)
-    for _, other in ipairs(knownList) do enqueue(base, other, color, scale) end
+    for _, other in ipairs(knownList) do enqueue(base, other, color, scale, w) end
     schedule()
     return nil, true
   end
 
   function source.prefetch(names, color)
-    local base = dir()
-    if not base then return end
+    local base, w = dir(), weight()
+    if not (base and w) then return end
     local scale = M.scale()
     for _, name in ipairs(names or {}) do
       if safeName(name) then
         remember(name)
-        enqueue(base, name, color, scale)
+        enqueue(base, name, color, scale, w)
       end
     end
     schedule()

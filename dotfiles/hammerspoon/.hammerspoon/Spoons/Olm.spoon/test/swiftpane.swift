@@ -211,13 +211,14 @@ check("a subtitle keeps its strength against the text", abs(Ink.alpha(litInk.sub
   "\(Ink.alpha(litInk.sub))")
 check("a key chip is the lit text at the keycap's strength", abs(Ink.alpha(litInk.keycap) - Ink.alpha(on) * 0.15) < 0.001
   && abs(srgb(litInk.keycap).redComponent - on.redComponent) < 0.001, "\(srgb(litInk.keycap))")
-check("and a one colour icon takes the lit text", litInk.icon.map(srgb) == on)
+check("and a one colour icon takes the lit text", srgb(litInk.icon) == on)
 let restInk = solid.ink(lit: false)
-check("not lit, the palette's own", restInk.text == solid.text && restInk.keycap == solid.keycap && restInk.icon == nil)
+check("not lit, the palette's own", restInk.text == solid.text && restInk.keycap == solid.keycap)
+check("and a one colour icon takes the text colour, never its own", restInk.icon == solid.text)
 var wash = solid
 wash.highlight = NSColor(srgbRed: 0, green: 0.4, blue: 1, alpha: 0.2)
 check("a translucent highlight keeps the palette's own", wash.ink(lit: true).text == wash.text
-  && wash.ink(lit: true).icon == nil)
+  && wash.ink(lit: true).icon == wash.text)
 
 // A full bleed opaque square must cover the whole bitmap at either scale. Drawn through a context
 // made before the rep had its size in points, it covered a quarter of it at scale 2.
@@ -642,6 +643,91 @@ do {
   let lead = peak(KeyMark(glyph: "M", symbol: "square.fill"), strong: true)
   check("a floating pane line's lead is drawn in the text colour, not a row shortcut's", abs(lead - 0.9) < 0.08,
     "lead \(lead)")
+}
+
+// A one colour picture follows the half on screen wherever it stands, the text colour at rest and
+// the lit text on a solid highlight, whatever colour it was drawn in. Olm.app's share is drawn once
+// at load, so a picture drawn white in dark stood white on a light screen until 2026-11-18. A
+// picture not marked one colour, an app icon, a file or an emoji, keeps its own.
+do {
+  var style = Style()
+  style.text = NSColor(srgbRed: 0, green: 0, blue: 0, alpha: 0.8)
+  style.highlight = NSColor(srgbRed: 0, green: 0.4, blue: 1, alpha: 1)
+  let drawnInDark = NSImage(size: NSSize(width: 72, height: 72), flipped: false) { rect in
+    NSColor.white.withAlphaComponent(0.85).setFill()
+    rect.fill()
+    return true
+  }
+  func middle(_ image: NSImage?) -> NSColor? {
+    guard let rep = image?.representations.compactMap({ $0 as? NSBitmapImageRep }).first else { return nil }
+    return rep.colorAt(x: rep.pixelsWide / 2, y: rep.pixelsHigh / 2)?.usingColorSpace(.sRGB)
+  }
+  func dark(_ c: NSColor?) -> Bool { (c?.redComponent ?? 1) < 0.05 && (c?.alphaComponent ?? 0) > 0.7 }
+  func white(_ c: NSColor?) -> Bool { (c?.redComponent ?? 0) > 0.95 && (c?.alphaComponent ?? 0) > 0.7 }
+  let on = srgb(NSColor.alternateSelectedControlTextColor)
+  func lit(_ c: NSColor?) -> Bool { c.map { abs($0.redComponent - on.redComponent) < 0.02 } ?? false }
+
+  // The list's row.
+  var p = Placement()
+  p.rowH = 40
+  p.iconSize = 20
+  p.iconFrame = 20
+  func cell(tint: Bool, lit: Bool) -> NSImage? {
+    let c = RowCell(frame: NSRect(x: 0, y: 0, width: 300, height: 40))
+    c.placement = p
+    c.lit = lit
+    var row = Row(title: "row")
+    row.image = drawnInDark
+    row.tint = tint
+    c.fill(row, slot: nil, keyed: false, style: style,
+      lineBreak: .byTruncatingTail)
+    c.layoutSubtreeIfNeeded()
+    return c.icon.image
+  }
+  check("a list row's one colour picture is the text colour at rest", dark(middle(cell(tint: true, lit: false))),
+    "\(String(describing: middle(cell(tint: true, lit: false))))")
+  check("and the lit text on the highlight", lit(middle(cell(tint: true, lit: true))))
+  check("a list row's own colours are kept", white(middle(cell(tint: false, lit: false))))
+
+  // The floating pane's line, the actions pane's in Olm.app.
+  func line(tint: Bool, highlight: Int) -> NSImage? {
+    let v = FloatingPaneView(frame: NSRect(x: 0, y: 0, width: 400, height: 300))
+    var l = FloatingPaneView.Line(label: "Verb", chord: [])
+    // A line is handed its picture as a bitmap, as the bridge and the swift list both hand it.
+    l.image = Crisp.image(drawnInDark, size: NSSize(width: 20, height: 20), scale: 2)
+    l.tint = tint
+    v.show(title: nil, lines: [l], style: style, placement: p, outer: 6, inner: 6, lineH: 28, gap: 16, radius: 10,
+      highlight: highlight)
+    func images(_ view: NSView) -> [NSImageView] {
+      view.subviews.flatMap { ($0 as? NSImageView).map { [$0] } ?? images($0) }
+    }
+    return images(v).first?.image
+  }
+  check("a floating pane's one colour picture is the text colour at rest", dark(middle(line(tint: true, highlight: 0))))
+  check("and the lit text on its highlighted line", lit(middle(line(tint: true, highlight: 1))))
+  check("a floating pane's own colours are kept", white(middle(line(tint: false, highlight: 0))))
+
+  // The bar's info icon, the white one Milos found beside the key group's chord on 2026-11-18.
+  func bar(tint: Bool) -> NSImage? {
+    var bp = Placement()
+    bp.infoIcon = 16
+    bp.barPillH = 22
+    bp.barPillPad = 3
+    bp.barGap = 6
+    let v = BarView(frame: NSRect(x: 0, y: 0, width: 600, height: 40))
+    var b = BottomBar()
+    b.keysImage = drawnInDark
+    b.keysTint = tint
+    v.show(b, style: style, placement: bp, lit: false)
+    v.layoutSubtreeIfNeeded()
+    func images(_ view: NSView) -> [NSImageView] {
+      view.subviews.flatMap { ($0 as? NSImageView).map { [$0] } ?? images($0) }
+    }
+    return images(v).first?.image
+  }
+  check("the bar's one colour icon is the text colour at rest", dark(middle(bar(tint: true))),
+    "\(String(describing: middle(bar(tint: true))))")
+  check("the bar's own colours are kept", white(middle(bar(tint: false))))
 }
 
 if failed {

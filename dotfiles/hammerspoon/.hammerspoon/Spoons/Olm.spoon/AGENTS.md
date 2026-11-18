@@ -1023,7 +1023,7 @@ agent needs to keep true is where the sf source draws and its pixel rule.
 
 Hammerspoon's process never runs JXA, for an icon or for anything else, and the dry gate refuses a call of `hs.osascript.javascript` or `hs.osascript._osascript` anywhere in the spoon, `test/drygate-jxa.lua`. The clipboard's file reader leaked the same way until 2026-10-29, and reads a copied file's real path off the pasteboard now. Calling `hs.osascript.javascript` for a symbol
 leaks a JavaScriptCore context group per call, which grew the process past 1 GB, so the sf source
-keeps every picture as a PNG in the storage cache directory for icons, `sf-<symbol>-72pt-semibold-<scale>x-
+keeps every picture as a PNG in the storage cache directory for icons, `sf-<symbol>-72pt-w<weight>-<scale>x-
 <rrggbbaa>.png`, and loads it from there. A missing one answers nil and pending, which the engine
 does not cache, and joins a queue that one `osascript -l JavaScript` run renders through `hs.task`
 in the background. The tool is declared in `root/manifest.lua` and its path comes from the door.
@@ -1032,9 +1032,11 @@ lists on screen. At load the root hands the source every symbol the manifests de
 `hs.osascript` or `hs.execute` from an icon source, and never wait for a render on the main thread.
 
 Every symbol looks the same wherever it is drawn, semibold and in the foreground colour a row's
-title is drawn in, stated by Milos on 2026-11-16. `WEIGHT` in `lib/icons/sources/sf.lua` and the
-symbol configuration in Olm.app's `Stage.swift` say the same weight, and a change to one is a change
-to both. No plugin and no surface picks a weight or a colour of its own for an icon.
+title is drawn in, stated by Milos on 2026-11-16. The weight is one token of the look,
+`stroke.symbol` in `lib/ui/style.lua`. The root hands it to the sf source, and the swift provider's
+style carries it as `symbolWeight` to the swift list and to Olm.app, so there is one value to change.
+No plugin and no surface picks a weight or a colour of its own for an icon, and on the Swift side
+the dry gate's look rule, `test/drygate-swiftlook.lua`, refuses one, stated by Milos on 2026-11-18.
 
 A symbol is drawn by the script into a square bitmap that is 72 points on a side and 72 times the
 scale in pixels, with its size in points written into the PNG, so the image

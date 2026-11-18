@@ -170,14 +170,17 @@ final class KeyCap: FlippedView {
     return ink
   }
 
-  // A symbol as a key, tinted the text colour and scaled so its ink is as tall as the font's
-  // capitals. nil when the system has no symbol of that name, and the key falls back to its glyph.
+  // A symbol as a key, tinted the text colour, at the key cap font's own weight, and scaled so its
+  // ink is as tall as the font's capitals, so it reads as one more glyph of the cap. nil when the
+  // system has no symbol of that name, and the key falls back to its glyph.
   private static func symbol(_ name: String, font: NSFont, color: NSColor) -> Key? {
-    let config = NSImage.SymbolConfiguration(pointSize: font.pointSize, weight: .regular, scale: .small)
+    let config = NSImage.SymbolConfiguration(pointSize: font.pointSize, weight: Crisp.weight(of: font),
+      scale: .small)
       .applying(NSImage.SymbolConfiguration(paletteColors: [color.withAlphaComponent(1)]))
     guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
       .withSymbolConfiguration(config),
-      let ink = inkOf(image, key: name + "@" + String(describing: font.pointSize)), ink.height > 0
+      let ink = inkOf(image, key: name + "@" + String(describing: font.pointSize) + "@" + font.fontName),
+      ink.height > 0
     else { return nil }
     let k = font.capHeight / ink.height
     let size = NSSize(width: image.size.width * k, height: image.size.height * k)
@@ -554,10 +557,7 @@ final class BarView: FlippedView {
       view.frame = Crisp.align(view.frame, in: button)
       if let keysSource {
         let crisp = Crisp.image(keysSource, size: view.frame.size, scale: Crisp.scale(of: self))
-        // A one colour icon takes the text colour at rest as well as the lit ink, so it follows the
-        // half on screen rather than the half it was drawn in, Olm.app's share being drawn at load.
-        let ink = style.ink(lit: button.lit || button.hovered == 0)
-        let tint = keysTint ? (ink.icon ?? ink.text) : nil
+        let tint = keysTint ? style.ink(lit: button.lit || button.hovered == 0).icon : nil
         view.image = tint.map { Crisp.tinted(crisp, $0) } ?? crisp
       }
     }

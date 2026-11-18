@@ -932,3 +932,18 @@ weight written in three places and no check over the Swift files. Step 3.7's not
 `docs/DESIGN-APP-HOSTED.md` has the fix. Patching each icon as it is found was turned down, since
 that is the isolated case he named.
 
+
+### 2026-11-18 11:31, step 3.7 built
+
+`Ink.icon` is never nil, the text colour at rest and the lit text on a solid highlight, and the
+list, the floating panes and the bar all redraw a one colour picture in it, so the bar's own case
+from `378d4d12` is the shared rule again. The symbol weight is `stroke.symbol` in
+`lib/ui/style.lua`, handed to the sf source through the root and to the swift list and Olm.app as
+the style's `symbolWeight`. A key cap's symbol takes the key cap font's weight, read from the font's
+traits. The weight joined the sf source's file names, `w0.3` where `semibold` was, so every symbol
+is drawn once more on the first load after the change, one background run. `test/drygate-swiftlook.lua`
+refuses a font built by hand, a colour literal and a weight in the Swift files outside the readers.
+Its first run found eight lines. InputField's defaults now come from `Style`, and the masks in
+`Motion.swift` and `Surface.swift` and the emoji canvas in `Stage.swift` carry `look-exempt`.
+`test/swiftpane.swift` pins a picture drawn white coming out in the text colour at rest in the
+list, the floating pane and the bar, and a picture not marked one colour keeping its own.

@@ -1113,6 +1113,41 @@ do
 end
 
 ----------------------------------------------------------------------------------------
+-- The Swift look rule, see test/drygate-swiftlook.lua. Every icon and font follows one global set,
+-- so a Swift line in Olm.app or the swift chooser that builds a font, writes a colour or picks a
+-- symbol weight by hand is a finding naming its line, unless the line declares look-exempt and a
+-- reason, counted as accepted and printed.
+----------------------------------------------------------------------------------------
+
+do
+  local scanner = dofile(scriptDir .. "drygate-swiftlook.lua")
+  local list = os.getenv("DRYGATE_SWIFTSOURCES") or ""
+  if not list:find("%S") then
+    warning("dry gate did not run the Swift look check, DRYGATE_SWIFTSOURCES names no files, run it through test/drygate.sh")
+  else
+    for path in list:gmatch("[^\n]+") do
+      local rel = path:sub(1, #spoonDir) == spoonDir and path:sub(#spoonDir + 1) or path
+      if scanner.applies(rel) then
+        local found = scanner.scanFile(path)
+        if not found then
+          warning(string.format("dry gate could not read '%s' for the Swift look check", rel))
+        else
+          for _, hit in ipairs(found) do
+            if hit.exempt then
+              accepted[#accepted + 1] = string.format("accepted, %s:%d, look-exempt, %s", rel, hit.line, hit.exempt)
+            else
+              findings[#findings + 1] = string.format(
+                "dry gate refused '%s', line %d, %s, '%s', read it from the look, the Style the bridge hands over, or declare it with a look-exempt comment and a reason",
+                rel, hit.line, hit.what, hit.source)
+            end
+          end
+        end
+      end
+    end
+  end
+end
+
+----------------------------------------------------------------------------------------
 -- The names rule, see test/drygate-names.lua. Every part a person sees has one name, so a word
 -- retired on 2026-11-02 in any Lua, Swift or Markdown file of the spoon is a finding naming its
 -- line, unless the line declares names-exempt and a reason, counted as accepted and printed.

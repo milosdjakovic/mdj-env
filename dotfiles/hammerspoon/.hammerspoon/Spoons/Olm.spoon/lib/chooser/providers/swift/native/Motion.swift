@@ -425,7 +425,7 @@ final class BarMorph {
     self.mask = mask
     CATransaction.begin()
     CATransaction.setDisableActions(true)
-    mask.backgroundColor = NSColor.black.cgColor
+    mask.backgroundColor = NSColor.black.cgColor // look-exempt, a mask's alpha, its colour never drawn
     mask.cornerRadius = radius
     mask.frame = end
     layer.mask = mask
@@ -641,7 +641,7 @@ final class ShapeMotion: NSObject {
     group?.wantsLayer = true
     if view.layer?.mask == nil {
       let mask = CALayer()
-      mask.backgroundColor = NSColor.black.cgColor
+      mask.backgroundColor = NSColor.black.cgColor // look-exempt, a mask's alpha, its colour never drawn
       view.layer?.mask = mask
     }
     apply()

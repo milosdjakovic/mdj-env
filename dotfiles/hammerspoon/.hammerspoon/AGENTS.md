@@ -914,7 +914,14 @@ changes in its own file. On the glass chooser's solid macOS highlight everything
 highlight, a lit row, the actions pane's lit line, a lit bar group and the bar item under the
 pointer, draws in one lit ink, `Style.ink(lit:)` in the swift library, the selection text colour
 with every role and the key chip at its own strength against the foreground, so no surface picks a
-lit colour of its own. `decisions/olm-colour-roles.md` has what was rejected.
+lit colour of its own. The Swift side, Olm.app and the swift chooser, follows the same set. A Swift
+view reads every font and colour from the `Style` the Lua view hands over, the one in
+`~/.olm/run/chooser.json` for the app, and never builds a font, writes an `NSColor` or picks a
+symbol weight itself. The dry gate refuses one outside the files that read the look,
+`test/drygate-swiftlook.lua`, and a line that must, a mask drawn in black whose colour is never
+seen, declares `look-exempt, <reason>`. A surface that looks wrong is a hole in this rule, so the
+fix goes into the rule and its check, never into the one surface, stated by Milos on 2026-11-18.
+`decisions/olm-colour-roles.md` has what was rejected.
 
 **Olm icons, one engine and a name on the row.** Every icon Olm draws comes out of the one engine
 in `Spoons/Olm.spoon/lib/icons`, a Strategy over sources that answer a name and a draw function,
@@ -933,7 +940,13 @@ keeps the 72 point canvas with the glyph at 60 that looked right live, and `lib/
 the kit's `iconImage` both draw through the engine. One function, `image(spec, owner)` in
 `lib/icons/rows.lua`, turns an owner and a key or a spec into an image, and every reader goes
 through it. A symbol is one colour on every layer, a palette and not a hierarchical configuration,
-so a multi layer symbol is as strong as a single layer one. A row never holds a picture of an
+so a multi layer symbol is as strong as a single layer one. Its weight is the look's too,
+`stroke.symbol` in `lib/ui/style.lua`, which the sf source, the swift list and Olm.app all draw at,
+and a symbol set in a key cap takes the key cap font's weight as one more glyph of it. A one colour
+picture is redrawn in the ink where it stands, `Ink.icon` in the swift library, the text colour at
+rest and the lit text on a solid highlight, in the list, the floating panes and the bar alike, so a
+picture drawn ahead of time, as Olm.app's share is at load, follows the half on screen. A picture
+with colours of its own, an app icon, a file or an emoji, is not marked one colour and keeps them. A row never holds a picture of an
 icon. It carries `icon` and `iconOwner`, stamped by whoever knows the owner, the stage with the
 presenting plugin, the query scope with the scope, the launcher with the row's owner, the action
 panel with the verb's owner. The chooser draws the icon when it paints. The default provider in `list/render.lua` asks the

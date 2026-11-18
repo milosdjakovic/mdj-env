@@ -419,9 +419,10 @@ end
 -- Answers the engine and a function the root calls once the manifests are read and the dependency
 -- door has answered, see wireIconRenders below. It lives outside obj.run, which sits near Lua
 -- 5.4's limit of two hundred active locals, so the sources and the config end with this call.
-local function buildIcons(atoms, policy, color, warnLog)
+local function buildIcons(atoms, policy, color, weight, warnLog)
   local sf = sfSourceLib.new({
     dir = function() return atoms.storage.ensure(atoms.storage.cacheDir("icons")) end,
+    weight = weight,
     log = warnLog,
   })
   local iconSources = { emojiSourceLib.new(), sf }
@@ -783,6 +784,8 @@ function obj.run(olm, cfg)
   -- icons are read and the dependency door has answered, through wireIconRenders.
   local iconEngine, prepareIcons = buildIcons(atoms, policy, function()
     return uiAtom and uiAtom.tokens().colors.foreground or nil
+  end, function()
+    return uiAtom and uiAtom.tokens().stroke.symbol or nil
   end, themeLog)
 
   local canvasPanel = atoms.panel

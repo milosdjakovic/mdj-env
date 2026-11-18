@@ -218,13 +218,13 @@ final class BottomFade {
     rest: CGFloat, end: CGFloat) {
     let start = max(0, min(end, rest))
     let clearEnd = max(0, min(start, clearAt))
-    let black = NSColor.black.cgColor, clear = NSColor.clear.cgColor
+    let black = NSColor.black.cgColor, clear = NSColor.clear.cgColor // look-exempt, a mask's alpha
     var colors: [CGColor] = [], stops: [CGFloat] = []
     if start > clearEnd {
       colors.append(clear); stops.append(0)
       for i in 0...riseStops {
         let t = CGFloat(i) / CGFloat(riseStops)
-        colors.append(NSColor.black.withAlphaComponent(rise(t)).cgColor)
+        colors.append(NSColor.black.withAlphaComponent(rise(t)).cgColor) // look-exempt, a mask's alpha
         stops.append(clearEnd + (start - clearEnd) * t)
       }
     } else {

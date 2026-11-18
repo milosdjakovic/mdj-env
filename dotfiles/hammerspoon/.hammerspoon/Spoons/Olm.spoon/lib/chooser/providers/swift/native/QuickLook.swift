@@ -101,7 +101,7 @@ final class QuickLookPane: NSObject {
     openLabel.textColor = style.text
     disc.contentTintColor = style.textDim
     disc.image = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: "Close")?
-      .withSymbolConfiguration(.init(pointSize: placement.infoIcon, weight: .regular))
+      .withSymbolConfiguration(.init(pointSize: placement.infoIcon, weight: style.symbolWeight))
     open.color = style.highlight
     open.radius = max(0, style.highlightRadius - placement.barPillPad)
     if isOpen { layout() }

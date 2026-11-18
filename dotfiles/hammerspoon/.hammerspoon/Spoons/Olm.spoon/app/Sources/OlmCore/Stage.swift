@@ -920,16 +920,17 @@ public final class Stage {
       icons.setObject(image, forKey: path as NSString)
       return image
     case .symbol(let name)?:
-      // Painted as lib/icons/sources/sf.lua paints it, semibold, in the row title's colour, into a
-      // bitmap the list recolours with the lit ink on the highlight, so every icon looks the same
-      // here as in Hammerspoon's list, stated by Milos on 2026-11-16. A template image drew in
-      // AppKit's grey and kept it on the highlight, since the list recolours a bitmap only.
-      let color = look?.style().text ?? NSColor.labelColor
-      let key = "symbol:\(name):\(color.description)" as NSString
+      // Painted as lib/icons/sources/sf.lua paints it, at the look's symbol weight, in the row
+      // title's colour, into a bitmap the list redraws in the ink where it stands, so every icon
+      // looks the same here as in Hammerspoon's list, stated by Milos on 2026-11-16. A template
+      // image drew in AppKit's grey and kept it on the highlight, since the list recolours a
+      // bitmap only.
+      let style = look?.style() ?? Style()
+      let key = "symbol:\(name):\(style.text.description):\(style.symbolWeight.rawValue)" as NSString
       if let image = icons.object(forKey: key) { return image }
       guard let symbol = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
-        .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 64, weight: .semibold)),
-        let image = Self.painted(symbol, color) else { return nil }
+        .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 64, weight: style.symbolWeight)),
+        let image = Self.painted(symbol, style.text) else { return nil }
       icons.setObject(image, forKey: key)
       return image
     case .app(let id)?:
@@ -956,6 +957,7 @@ public final class Stage {
     let side = 72.0
     return NSImage(size: NSSize(width: side, height: side), flipped: false) { rect in
       let text = glyph as NSString
+      // look-exempt, the emoji source's glyph box, 60 of 72 points, a picture and not text.
       let attributes: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 60)]
       let size = text.size(withAttributes: attributes)
       text.draw(at: NSPoint(x: (rect.width - size.width) / 2, y: (rect.height - size.height) / 2),
