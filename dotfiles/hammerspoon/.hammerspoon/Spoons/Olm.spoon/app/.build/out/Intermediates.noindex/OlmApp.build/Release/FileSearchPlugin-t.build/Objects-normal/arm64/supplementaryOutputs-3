@@ -1,0 +1,12 @@
+{
+  "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Plugins/FileSearch/Access.swift" : {
+    "abi-baseline-json" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/FileSearchPlugin-t.build/Objects-normal/arm64/FileSearchPlugin.abi.json",
+    "const-values" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/FileSearchPlugin-t.build/Objects-normal/arm64/FileSearchPlugin-primary.swiftconstvalues",
+    "dependencies" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/FileSearchPlugin-t.build/Objects-normal/arm64/FileSearchPlugin-primary.d",
+    "diagnostics" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/FileSearchPlugin-t.build/Objects-normal/arm64/FileSearchPlugin-primary.dia",
+    "objc-header" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/FileSearchPlugin-t.build/Objects-normal/arm64/FileSearchPlugin-Swift.h",
+    "swiftdoc" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/FileSearchPlugin-t.build/Objects-normal/arm64/FileSearchPlugin.swiftdoc",
+    "swiftmodule" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/FileSearchPlugin-t.build/Objects-normal/arm64/FileSearchPlugin.swiftmodule",
+    "swiftsourceinfo" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/FileSearchPlugin-t.build/Objects-normal/arm64/FileSearchPlugin.swiftsourceinfo"
+  }
+}

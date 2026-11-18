@@ -1,0 +1,12 @@
+{
+  "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmCore/Bars.swift" : {
+    "abi-baseline-json" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/OlmCore.abi.json",
+    "const-values" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/OlmCore-primary.swiftconstvalues",
+    "dependencies" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/OlmCore-primary.d",
+    "diagnostics" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/OlmCore-primary.dia",
+    "objc-header" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/OlmCore-Swift.h",
+    "swiftdoc" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/OlmCore.swiftdoc",
+    "swiftmodule" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/OlmCore.swiftmodule",
+    "swiftsourceinfo" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/OlmCore.swiftsourceinfo"
+  }
+}

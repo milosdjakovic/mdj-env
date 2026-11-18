@@ -1,0 +1,61 @@
+{
+  "" : {
+    "const-values" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/OlmCore-primary.swiftconstvalues",
+    "dependencies" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/OlmCore-primary.d",
+    "diagnostics" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/OlmCore-primary.dia",
+    "emit-module-dependencies" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/OlmCore-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/OlmCore-primary-emit-module.dia",
+    "pch" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/OlmCore-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/OlmCore-primary.swiftdeps"
+  },
+  "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmCore/Bars.swift" : {
+    "index-unit-output-path" : "/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/Bars.o",
+    "llvm-bc" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/Bars.bc",
+    "object" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/Bars.o"
+  },
+  "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmCore/Look.swift" : {
+    "index-unit-output-path" : "/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/Look.o",
+    "llvm-bc" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/Look.bc",
+    "object" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/Look.o"
+  },
+  "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmCore/PaneElements.swift" : {
+    "index-unit-output-path" : "/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/PaneElements.o",
+    "llvm-bc" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/PaneElements.bc",
+    "object" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/PaneElements.o"
+  },
+  "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmCore/PaneHost.swift" : {
+    "index-unit-output-path" : "/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/PaneHost.o",
+    "llvm-bc" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/PaneHost.bc",
+    "object" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/PaneHost.o"
+  },
+  "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmCore/PaneLayout.swift" : {
+    "index-unit-output-path" : "/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/PaneLayout.o",
+    "llvm-bc" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/PaneLayout.bc",
+    "object" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/PaneLayout.o"
+  },
+  "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmCore/PanePainter.swift" : {
+    "index-unit-output-path" : "/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/PanePainter.o",
+    "llvm-bc" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/PanePainter.bc",
+    "object" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/PanePainter.o"
+  },
+  "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmCore/PanePicture.swift" : {
+    "index-unit-output-path" : "/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/PanePicture.o",
+    "llvm-bc" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/PanePicture.bc",
+    "object" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/PanePicture.o"
+  },
+  "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmCore/Searcher.swift" : {
+    "index-unit-output-path" : "/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/Searcher.o",
+    "llvm-bc" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/Searcher.bc",
+    "object" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/Searcher.o"
+  },
+  "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmCore/Shadow.swift" : {
+    "index-unit-output-path" : "/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/Shadow.o",
+    "llvm-bc" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/Shadow.bc",
+    "object" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/Shadow.o"
+  },
+  "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/Sources/OlmCore/Stage.swift" : {
+    "index-unit-output-path" : "/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/Stage.o",
+    "llvm-bc" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/Stage.bc",
+    "object" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/.build/out/Intermediates.noindex/OlmApp.build/Release/OlmCore-t.build/Objects-normal/arm64/Stage.o"
+  }
+}

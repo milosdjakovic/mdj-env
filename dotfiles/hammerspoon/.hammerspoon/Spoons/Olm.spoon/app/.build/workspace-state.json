@@ -1,0 +1,27 @@
+{
+  "object" : {
+    "artifacts" : [
+
+    ],
+    "dependencies" : [
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "swift",
+          "kind" : "fileSystem",
+          "location" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/lib/chooser/providers/swift",
+          "name" : "OlmChooser"
+        },
+        "state" : {
+          "name" : "fileSystem",
+          "path" : "/Users/milosdjakovic/Development/personal/.worktrees/olm-bar-icon-tint/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/lib/chooser/providers/swift"
+        },
+        "subpath" : "swift"
+      }
+    ],
+    "prebuilts" : [
+
+    ]
+  },
+  "version" : 7
+}

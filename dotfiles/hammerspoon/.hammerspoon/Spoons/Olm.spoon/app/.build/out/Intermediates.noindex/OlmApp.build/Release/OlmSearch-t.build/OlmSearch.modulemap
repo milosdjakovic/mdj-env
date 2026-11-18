@@ -1,0 +1,4 @@
+module OlmSearch {
+header "OlmSearch-Swift.h"
+export *
+}

@@ -913,3 +913,12 @@ bridge socket, runs on the trial key Hyper and 0 until step 3.5 gives it Hyper a
   app already applied. Rejected: renaming the Olm Keys page away from `launcher` so `hosts` reads
   better, since the page carries the launcher's name for its icons and its keys, and a host named
   `launcher` costs nothing.
+
+### 2026-11-18 08:45, the info icon white in Olm.app's bar on a light screen
+
+Milos saw the info icon beside ⌘? white under Hyper and 0 while the words around it followed the
+light half. The bridge draws that picture once at load in the foreground of that moment, the share
+of 20:02 the evening before, and the bar recoloured a one colour picture only when its item was lit,
+so the app kept the half it was drawn in. The bar now draws it in the text colour at rest too,
+`Bar.swift`, which in Hammerspoon's own panel is the colour it was already drawn in.
+

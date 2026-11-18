@@ -554,7 +554,10 @@ final class BarView: FlippedView {
       view.frame = Crisp.align(view.frame, in: button)
       if let keysSource {
         let crisp = Crisp.image(keysSource, size: view.frame.size, scale: Crisp.scale(of: self))
-        let tint = keysTint ? style.ink(lit: button.lit || button.hovered == 0).icon : nil
+        // A one colour icon takes the text colour at rest as well as the lit ink, so it follows the
+        // half on screen rather than the half it was drawn in, Olm.app's share being drawn at load.
+        let ink = style.ink(lit: button.lit || button.hovered == 0)
+        let tint = keysTint ? (ink.icon ?? ink.text) : nil
         view.image = tint.map { Crisp.tinted(crisp, $0) } ?? crisp
       }
     }

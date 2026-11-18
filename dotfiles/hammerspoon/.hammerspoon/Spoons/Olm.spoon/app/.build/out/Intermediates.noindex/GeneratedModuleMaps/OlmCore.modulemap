@@ -1,0 +1,4 @@
+module OlmCore {
+header "OlmCore-Swift.h"
+export *
+}
