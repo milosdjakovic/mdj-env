@@ -1031,3 +1031,13 @@ and the effects notification carries every effect, and a placeholder set while a
 still opening its list goes with that list's `open`. Inside the launcher it was the same gap, unseen
 because nobody had opened Manage History there. `test/bridge.lua` 164, `test/bridgeserve.lua` 142,
 `olm-bridge-check` 152.
+
+### 2026-11-18 18:20, 3.8's trial, Hyper and M did nothing, and a hosted action could go round
+
+Hyper and M, Manage History, did nothing in Clipboard History opened by its key. Two faults. The
+app ran a list verb only when the list named it among its actions, and Manage History is a page and
+no action, so the app dropped it. And since ea3edb92 the adapter that runs a hosted list's action in
+Lua, asked by the app's `run`, saw the list in the app and sent the action back to it as a verb, a
+road that could go round. The app now hands a hosted list every verb it does not run itself,
+`runsEveryVerb`, and the root's hosted `run` closes the adapter's road to the app while it runs, so
+the tool's own code answers on the app's row.

@@ -497,6 +497,9 @@ public struct PluginContext: Sendable {
 /// and a source that checks for it stops early.
 public protocol ListSource: Actor {
   nonisolated var manifest: Manifest { get }
+  /// Whether a list verb the stage does not run itself goes to the source as an action, a hosted
+  /// list whose tool runs it in Lua, Clipboard History's Manage History, step 3.8. Others drop it.
+  nonisolated var runsEveryVerb: Bool { get }
   /// Opens the list, with the query it opens with.
   func open(query: String) async -> Level
   /// The rows for what is in the input field.
@@ -553,6 +556,7 @@ public protocol ListSource: Actor {
 }
 
 extension ListSource {
+  public nonisolated var runsEveryVerb: Bool { false }
   /// A source whose actions take no choice runs the action plainly.
   public func run(_ action: String, on pick: Pick, choice: String?) async -> [Effect] {
     await run(action, on: pick)

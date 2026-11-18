@@ -2651,7 +2651,7 @@ function obj.run(olm, cfg)
         -- its own highlight, so a list key never acts on a row Hammerspoon only remembers.
         -- A tool's list hosted in the app is the same, step 3.8, the verb going to the app's list
         -- it sits in, or to itself when its own key opened it alone.
-        if identity and listOpenLib.inApp(identity, listOpenDeps) then
+        if identity and not listOpenDeps.direct and listOpenLib.inApp(identity, listOpenDeps) then
           if methodName == "isShowing" then return function() return true end end
           local bridge = modules[plan.identity.bridge or "bridge"]
           return function() bridge:verb(identity, methodName) end
@@ -3096,10 +3096,17 @@ function obj.run(olm, cfg)
           end
           return out
         end,
+        -- The tool's own code, never a verb sent back to the app, step 3.8. The app asked for it on
+        -- its own row, so the adapter's road to the app is closed while it is looked up and run,
+        -- or a hosted list's action went to the app and back again.
         run = function(identity, action, item, value)
+          listOpenDeps.direct = true
           local surface = surfaceByOwner and surfaceByOwner[identity]
           local fn = surface and surface[navMethodFor[action] or action]
-          if type(fn) == "function" then fn(value) end
+          local ok, err = true, nil
+          if type(fn) == "function" then ok, err = pcall(fn, value) end
+          listOpenDeps.direct = nil
+          if not ok then error(err, 0) end
         end,
       }
     end

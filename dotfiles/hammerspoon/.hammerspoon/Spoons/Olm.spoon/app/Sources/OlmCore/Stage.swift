@@ -1149,7 +1149,7 @@ public final class Stage {
         paneHost?.scrollBy(name == "scrollPreviewDown" ? Self.paneScrollStep : -Self.paneScrollStep)
       }
     default:
-      if source.manifest.actions.contains(where: { $0.id == name }) {
+      if source.manifest.actions.contains(where: { $0.id == name }) || source.runsEveryVerb {
         act(on: highlight, action: name)
       } else if unknownVerbs.insert(name).inserted {
         NSLog("Olm: the list verb %@ is not run by the app yet", name)

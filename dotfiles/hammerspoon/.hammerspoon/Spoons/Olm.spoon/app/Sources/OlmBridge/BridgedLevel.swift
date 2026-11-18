@@ -158,6 +158,8 @@ struct WireEffects {
 
 public actor BridgedLevel: ListSource {
   public nonisolated let manifest: Manifest
+  /// Every list verb the stage does not run itself is the tool's, run in Lua on the app's row.
+  public nonisolated var runsEveryVerb: Bool { true }
   /// The level's id on the Lua side, which the effects notification names.
   public nonisolated let id: String
 
