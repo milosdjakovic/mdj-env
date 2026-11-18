@@ -1041,3 +1041,10 @@ Lua, asked by the app's `run`, saw the list in the app and sent the action back 
 road that could go round. The app now hands a hosted list every verb it does not run itself,
 `runsEveryVerb`, and the root's hosted `run` closes the adapter's road to the app while it runs, so
 the tool's own code answers on the app's row.
+
+### 2026-11-18 19:17, step 3.8 ticked
+
+Milos tried every step of 3.8 and called it good, every tool's own key opening its list in the app,
+Hammerspoon's list after quitting the app, and a list opened over a password field in Safari taking
+typing in the app. So a list opened over a secure field needs no exception. Left before the resting
+point, Input Sources' cycle, which the app cannot show bare yet, and the timings of its second condition.
