@@ -1,4 +1,0 @@
-module OlmBridge {
-header "OlmBridge-Swift.h"
-export *
-}

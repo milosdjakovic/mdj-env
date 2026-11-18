@@ -1,4 +1,0 @@
-module OlmLook {
-header "OlmLook-Swift.h"
-export *
-}

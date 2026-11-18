@@ -1,4 +1,0 @@
-module OlmChooser {
-header "OlmChooser-Swift.h"
-export *
-}

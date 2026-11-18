@@ -1,4 +1,0 @@
-module FileSearchPlugin {
-header "FileSearchPlugin-Swift.h"
-export *
-}

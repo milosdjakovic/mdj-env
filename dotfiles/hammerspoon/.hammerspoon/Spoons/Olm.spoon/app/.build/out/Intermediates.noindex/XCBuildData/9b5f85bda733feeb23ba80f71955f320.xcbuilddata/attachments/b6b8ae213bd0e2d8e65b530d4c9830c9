@@ -1,4 +1,0 @@
-module OlmKit {
-header "OlmKit-Swift.h"
-export *
-}
