@@ -999,3 +999,14 @@ list's manifest as it opens, so the level has to be asked first. The stage's Bac
 field asks a list with nothing under it for its `back` too, as the Lua stage does. `keysFlip`
 ships true, and false is the way back. `test/bridge.lua` 150, `test/bridgeserve.lua` 140,
 `olm-bridge-check` 150. `stagePresent` itself has no offline test, and the trial checks it.
+
+### 2026-11-18 17:34, 3.8's trial, Clipboard History's pane drawn in a window of Hammerspoon's
+
+Clipboard History opened by its own key showed its preview pane in a window of Hammerspoon's beside
+the app's, which reserved the pane's room and drew nothing there. The bridge host decides whether a
+hosted tool's pane, keys and verbs go to the app by asking which list of the app's it sits in,
+`_hostOf`, and that knew only the launcher and a served tool. A list opened alone sat in neither, so
+the pane went to the Lua backend and its keys stayed in Lua. 3.8 had added a second road into the
+app and left the bridge's one rule for which hosted list is up as it was. A hosted list opened alone
+is now its own host, so the same rule answers it as it answers one inside the launcher, and
+`test/bridge.lua` pins it.

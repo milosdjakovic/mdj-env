@@ -485,6 +485,18 @@ do
   note("local.olm.Olm.state", "filesearch:down")
   top = "browserTabs"
   eq(k:hosting("browserTabs"), false, "keys: or once the list it sits in is down")
+  -- A hosted list its own key opened alone, step 3.8, is its own host, so its pane and its keys
+  -- reach the app as they do inside the launcher.
+  k._hosts = { browserTabs = true }
+  note("local.olm.Olm.state", "browsertabs:up")
+  eq(k:hosting("browserTabs"), true, "own key: a hosted list opened alone is open while it is up")
+  eq(k:showing("browserTabs"), false, "own key: and is still not the app's own list")
+  posted = {}
+  k:verb("browserTabs", "selectNext")
+  eq(posted[1] and posted[1].object, "browsertabs:selectNext", "own key: its verb goes to it")
+  note("local.olm.Olm.state", "browsertabs:down")
+  eq(k:hosting("browserTabs"), false, "own key: and closed once it is down")
+  k._hosts = {}
   k._service = nil
 end
 

@@ -701,6 +701,12 @@ end
 function obj:_hostOf(identity)
   local service = self._service
   if not (service and type(service.hostedTop) == "function") or service.hostedTop() ~= identity then return nil end
+  -- A hosted list its own key opened alone, step 3.8, sits in no other list of the app's, so it is
+  -- its own host, and its pane, its keys and its verbs reach the app exactly as they do when it
+  -- sits in the launcher. Missing this drew Clipboard History's pane in a window of Hammerspoon's,
+  -- found in 3.8's trial on 2026-11-18.
+  local tool = identity:lower()
+  if self._hosts[identity] and (self._up[tool] or self._opening[tool]) and self:_runningNow() then return identity end
   for served in pairs(self._serves) do
     if self:showing(served) then return served end
   end
