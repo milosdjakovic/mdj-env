@@ -968,3 +968,9 @@ launcher while its socket is up and the Lua launcher otherwise, and Hyper and 0 
 held off on 2026-11-17 because rows leading to tools the app did not show did nothing. 3.6 showed
 every such tool and Milos tried it good on 2026-11-18, and 3.7 gave the app one look, tried good
 the same day. The shadow log stood at 101 lines and no difference. Setting it false is the way back.
+
+### 2026-11-18 15:32, step 3.5 ticked, stage 3 done
+
+Milos tried Hyper and Space on Olm.app's launcher and called it good, so 3.5 is ticked and stage 3
+is done. He found the Quit Olm App row's eject mark wrong, and it now wears `xmark.circle`, the
+mark Processes quits an app with.

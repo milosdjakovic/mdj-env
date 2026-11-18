@@ -26,7 +26,8 @@ return {
 
   icons = {
     launcher = { emoji = "🧪", sf = "flask" },
-    quit = { emoji = "⏏️", sf = "eject" },
+    -- The mark Processes quits an app with, since this row quits one too, Milos finding eject wrong.
+    quit = { emoji = "🛑", sf = "xmark.circle" },
   },
 
   needs = {
