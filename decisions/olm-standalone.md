@@ -974,3 +974,16 @@ the same day. The shadow log stood at 101 lines and no difference. Setting it fa
 Milos tried Hyper and Space on Olm.app's launcher and called it good, so 3.5 is ticked and stage 3
 is done. He found the Quit Olm App row's eject mark wrong, and it now wears `xmark.circle`, the
 mark Processes quits an app with.
+
+### 2026-11-18 17:04, the resting point checked, and stage 3 not done after all
+
+Checking the five conditions of the resting point found the first one false. Every tool's own key
+still opened Hammerspoon's list, since 3.6 built the launcher's rows only while its line in the
+plan named a tool's own chord. The entry at 14:41 above that called stage 3 done was wrong on
+that, and step 3.8 is added for the missing half, its design note in
+`docs/DESIGN-APP-HOSTED.md`. The route chosen is the one door every plugin already shows its list
+through, `stagePresent`, asking the bridge first, rather than swapping each tool's open key the
+way `serves` and `launcherOpen` do, so a tool added to `hosts` gets its key in the app with no
+further edit. A cycle list stays Hammerspoon's until the app has a bare mode. The second
+condition is open too, the app's launcher rows measured at about 82 ms median against about 40 in
+the Lua launcher on 2026-11-17, not yet explained.

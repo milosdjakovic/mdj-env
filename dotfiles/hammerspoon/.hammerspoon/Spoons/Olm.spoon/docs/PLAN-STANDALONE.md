@@ -23,7 +23,7 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 3.3 is done, its five steps 3.3a to 3.3e each tried by Milos, the last on 2026-11-17. 3.4, the keys of a list pushed in the app, is done, tried by Milos on 2026-11-17. 3.5, the flip of Hyper and Space, is built and held off behind `launcherFlip` until every tool the launcher leads to is shown in the app, since a row leading to one it does not show did nothing. 3.6 is done, tried by Milos on 2026-11-18. 3.7, one look for every picture and word, is done, tried by Milos on 2026-11-18. 3.5, the flip of Hyper and Space, is done, tried by Milos on 2026-11-18, so stage 3 is done. 2.3's shadow keeps logging, and its log empty is a condition of 3.5's flip. File search is the app's since 1.5's flip on 2026-11-12.
+Next. 3.3 is done, its five steps 3.3a to 3.3e each tried by Milos, the last on 2026-11-17. 3.4, the keys of a list pushed in the app, is done, tried by Milos on 2026-11-17. 3.5, the flip of Hyper and Space, is built and held off behind `launcherFlip` until every tool the launcher leads to is shown in the app, since a row leading to one it does not show did nothing. 3.6 is done, tried by Milos on 2026-11-18. 3.7, one look for every picture and word, is done, tried by Milos on 2026-11-18. 3.5, the flip of Hyper and Space, is done, tried by Milos on 2026-11-18. Checking the resting point found a tool's own key still opening Hammerspoon's list, so 3.8 is next, its design note in `docs/DESIGN-APP-HOSTED.md`. 2.3's shadow keeps logging, and its log empty is a condition of 3.5's flip. File search is the app's since 1.5's flip on 2026-11-12.
 
 Stage 0, contracts
 - [x] 0.1 The decision record, 2026-11-05
@@ -111,6 +111,10 @@ Stage 3, every list in the app
 - [x] 3.7 One look for every picture and every word, `docs/DESIGN-APP-HOSTED.md` under 3.7
   - Asked by Milos on 2026-11-18, after the white info icon: no picture or word may keep a look of its own, every icon and font follows one global set.
   - Built 2026-11-18, `ff7afcad`. Every one colour picture drawn in the ink where it stands, the symbol weight `stroke.symbol`, and `test/drygate-swiftlook.lua` refusing a font, a colour or a weight written by hand in the Swift files. A light and dark switch while the list is up restyles it in place, `28850c47`, found in the trial. Milos's trial good on 2026-11-18.
+
+- [ ] 3.8 A tool's own key opens its list in the app, `docs/DESIGN-APP-HOSTED.md` under 3.8
+  - Found on 2026-11-18 while checking the resting point. 3.6's line named a tool's own chord, and what was built covered the launcher's rows only, so the first condition of the resting point did not hold. Every tool's own key still opened Hammerspoon's list. The note routes `stagePresent`, the one door every tool shows its list through, to the app behind a new switch `keysFlip`. Its design note waits on Milos's go.
+  - Left after it, a list stepped through with one repeated key, Input Sources' cycle, since the app has no bare mode yet.
 
 The resting point
 - [ ] All five conditions of the resting point hold, checked on every machine whose `olmapp` piece is on

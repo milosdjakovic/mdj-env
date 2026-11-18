@@ -522,6 +522,81 @@ What can go wrong:
 - An icon in Hammerspoon's own swift list changes colour. It should not, since it was already
   drawn in the text colour there.
 
+## 3.8, a tool's own key opens its list in the app
+
+Written on 2026-11-18, while checking the resting point. Its first condition says every list a
+person opens is drawn by Olm.app. Since 3.5 that holds for the launcher and everything its rows
+lead to, but a tool's own key, Clipboard History's or Display Profiles', still opens
+Hammerspoon's list. 3.6's line in the plan named that ("a tool's own chord opens its list in the
+app") and what was built covered the launcher's rows only. This step is that missing half.
+
+**One door, not one key at a time.** Every plugin shows its own list through one root word,
+`stagePresent(name)`, which asks the registry for the presentation and hands it to the Lua stage.
+That word asks the bridge first. Where the app can show the list, the bridge opens it there and
+the Lua stage is not touched. Otherwise the Lua stage shows it, as today. So every tool's own key,
+and anything else a plugin opens its list from, follows one rule, and a tool added to `hosts`
+later gets its key in the app with no further edit.
+
+**When the app takes it.** All of these, asked at every press, as Hyper and Space is:
+- the olmapp piece is on, the app is built and the socket is up, so a quit app hands every key
+  back to Hammerspoon at once, as 3.5 does for the launcher
+- the tool is in `hosts`, so it is a list the app already shows from the launcher
+- the new switch `keysFlip` in `config/plugins.lua` is true, so this can be turned off alone,
+  without touching the launcher
+
+**What grows:**
+- **The bridge host** gains `presentInApp(name, presentation)`. It answers false where the app
+  cannot take the list, and otherwise opens `olm://launcher?tool=<name>` with the placement and
+  answers true. The root's `stagePresent` asks it before the Lua stage.
+- **The bridge's `open`** serves `{"tool": name}`, which the protocol already describes and which
+  answers `-32013` today. It opens the same hosted level a launcher row pushes, the presentation's
+  placeholder, ranking, row limit, fit, preview pane and actions, as the only level. A tool the
+  config does not host still answers `-32013`.
+- **The app** reads `tool=` on `olm://launcher` and opens its bridged source with
+  `{"tool": name}` instead of `{"launcher": true}`. Backspace on the empty field asks the level's
+  `back` as now, and with nothing under it does nothing, as the Lua list opened by its key does.
+  If `open` answers `-32013`, a race with a reload, the app closes and logs it.
+
+**Not in this step:**
+- A list stepped through with one repeated key, Input Sources' cycle, which the Lua stage shows
+  bare. The app has no bare mode yet, so a cycle key stays Hammerspoon's. It is a list a person
+  opens, so the resting point's first condition is not met until it moves too, its own step after
+  this one.
+- Opening a list over a password field. The Lua stage takes focus there through `focusHold`, and
+  whether the app's panel hears typing while another app holds secure input is not known. The
+  trial checks it, and if it does not, a list opened over a secure field stays Hammerspoon's.
+
+**Tests:**
+- `test/bridgeserve.lua` and the shared fixtures pin `open` for a hosted tool, its level as the
+  push's, and `-32013` for one not hosted.
+- `test/bridge.lua` pins `presentInApp`, false with the piece off, the socket down, the switch off
+  or the tool not hosted, and the URL otherwise.
+- `test/rootmechanism.lua` or a unit case pins that `stagePresent` asks the bridge first and shows
+  the Lua list when it answers false.
+- `olm-bridge-check` gains a case opening a tool's level.
+
+**The trial, once built, with the app running:**
+1. Press Clipboard History's own key. Expect its list and preview pane in the app's window, not
+   Hammerspoon's. Return pastes the entry where you were typing.
+2. Do the same for Display Profiles, Workspaces, Obsidian, Text Case, VPN, Emoji and Browser Tabs,
+   each by its own key. Expect each in the app, as from the launcher.
+3. In one of them, press Backspace on the empty field. Expect nothing to happen, and the list to
+   stay.
+4. Quit the app with the Quit Olm App row and press Clipboard History's key. Expect Hammerspoon's
+   list.
+5. Start the app, click into a password field in Safari, and press Clipboard History's key. Expect
+   the list in the app and your typing to reach its field. If it does not, say so.
+
+What can go wrong, and what to tell me:
+- A key opens nothing. The console says which tool, "the app could not open".
+- A key opens Hammerspoon's list while the app runs. Say which tool, since it may open its list
+  some other way than `stagePresent`.
+- Text Case shows no rows. It reads the selection as it opens, so say which app had it.
+- The first press after the app starts is slow.
+
+**Back out:** `keysFlip = false` in `config/plugins.lua` and a reload. Every key opens
+Hammerspoon's list again and the launcher stays in the app.
+
 ## Back out
 
 Remove a tool from `hosts` and reload. The row answers `unserved` again. For File Search, set the
