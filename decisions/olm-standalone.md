@@ -947,3 +947,16 @@ Its first run found eight lines. InputField's defaults now come from `Style`, an
 `Motion.swift` and `Surface.swift` and the emoji canvas in `Stage.swift` carry `look-exempt`.
 `test/swiftpane.swift` pins a picture drawn white coming out in the text colour at rest in the
 list, the floating pane and the bar, and a picture not marked one colour keeping its own.
+
+### 2026-11-18 14:41, a light and dark switch while the list is up
+
+Milos found that switching macOS between light and dark while Olm.app's list was up left the
+text and icons on the half it opened on while the glass and the panes followed. Both hosts read
+the half only at an open, `Look.style()` in the app and `Engine:_selectTheme` in Hammerspoon,
+which the picker contract stated as a choice. The shared native panel now watches
+`NSApp.effectiveAppearance` and asks `appearance` while it is up. The app's stage applies the new
+half's style, pane tokens and row symbols and draws the preview pane again, and Hammerspoon's
+engine answers through `Engine:followAppearance`, reselecting the theme, restyling and telling the
+highlight again. One watch in the panel both hosts share, rather than one per host.
+`test/swiftview.lua` pins the restyle in place with the highlight kept. The canvas provider, which
+serves only as the fallback, has no such watch yet.

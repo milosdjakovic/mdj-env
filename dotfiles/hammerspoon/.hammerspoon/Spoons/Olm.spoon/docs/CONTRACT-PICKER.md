@@ -229,8 +229,10 @@ caller builds a single instance for the life of the process and every presentati
 that reaches it through a live read.
 
 `theme`, a table of `dark` and `light`, each carrying `bgDark`, `titleColor`, `subColor`
-and `preview`. Reselected on every show against the live system appearance, so a picker
-tracks a light and dark switch at its next open.
+and `preview`. Reselected on every show against the live system appearance, and again when the
+system switches while the list is up, which the swift panel reports and `Engine:followAppearance`
+answers by restyling in place, so the text and icons never stay on the half the list opened on
+while the glass follows the switch.
 
 `screen`, a function answering an `hs.screen`. Called once per show. Falls back to the
 module default injected through `Chooser.configure`, then to the main screen.

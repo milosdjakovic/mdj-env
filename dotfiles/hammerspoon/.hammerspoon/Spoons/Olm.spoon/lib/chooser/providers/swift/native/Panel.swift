@@ -140,6 +140,8 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
   private var placement = Placement() { didSet { lookPane.apply(style: style, placement: placement) } }
   private var state = ViewState()
   private var started = false
+  // The watch on the system's half, see init, kept for the life of the panel.
+  private var appearance: NSKeyValueObservation?
   private var inField = false
   private var lastRouted: NSEvent?
   private var lastClaimed = false
@@ -190,6 +192,12 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
     window.owner = self
     NotificationCenter.default.addObserver(self, selector: #selector(resignedKey),
       name: NSWindow.didResignKeyNotification, object: window)
+    // The system switching between light and dark while the list is up. The glass follows the
+    // switch by itself and the style's colours do not, so the host is asked to restyle in place,
+    // or the text and icons stay on the half the list opened on, found on 2026-11-18.
+    appearance = NSApp.observe(\.effectiveAppearance, options: [.new]) { [weak self] _, _ in
+      DispatchQueue.main.async { self?.appearanceChanged() }
+    }
     window.isFloatingPanel = true
     window.level = .popUpMenu
     window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
@@ -584,6 +592,13 @@ final class ChooserPanel: NSObject, NSTextFieldDelegate {
       guard let self, self.started, self.window.isVisible, !self.window.isKeyWindow else { return }
       _ = self.ask("resignedKey", [])
     }
+  }
+
+  // The system's half changed. Only a list that is up is restyled now, since every open reads
+  // the half afresh.
+  private func appearanceChanged() {
+    guard started, window.isVisible else { return }
+    _ = ask("appearance", [])
   }
 
   // Gives the panel key again after a press the Lua view kept the list up for, once AppKit has

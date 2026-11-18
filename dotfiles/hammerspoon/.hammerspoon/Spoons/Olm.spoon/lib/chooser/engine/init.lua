@@ -233,7 +233,7 @@ local Engine = {}
 Engine.__index = Engine
 
 -- Resolves the kit's tokens for the half the system is on now, the same moment the old theme
--- pick ran, so a light and dark switch is picked up at the next open rather than mid session.
+-- pick ran, and again on a switch while the list is up, see followAppearance.
 function Engine:_selectTheme(half)
   self._tokens = half and UI.tokensFor(half) or UI.tokens()
   self._type = typeOf(self._tokens)
@@ -894,6 +894,19 @@ function Engine:show()
   safeCall(self.config.onPositioned, self._rects.chooser, self._rects.previewPane)
 
   if self:_fireHighlight() then self.view:redraw() end
+end
+
+--- Engine colon followAppearance, arity zero. The system switched between light and dark while
+--- the list is up, so the theme is reselected and the view restyled in place, and the highlight is
+--- told again so a preview pane paints in the new half too. Without it the glass follows the switch
+--- and the text and icons stay on the half the list opened on, found on 2026-11-18. Nothing while
+--- the list is down, since every show reselects the theme.
+function Engine:followAppearance()
+  if not self.active then return end
+  self:_selectTheme()
+  self.view:restyle()
+  self:_fireHighlight()
+  self.view:redraw()
 end
 
 --- Engine colon hide, arity zero. The single idempotent dismissal path, calling it when nothing

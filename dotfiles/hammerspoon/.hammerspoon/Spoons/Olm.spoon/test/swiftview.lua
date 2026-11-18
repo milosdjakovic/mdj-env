@@ -134,9 +134,12 @@ hs = {
 local function color(v) return { red = v, green = v, blue = v, alpha = 1 } end
 local function role(c) return { font = "UI", size = 14, lineHeight = 18, color = c } end
 
+-- The half the fake system is on, nil for dark, which a call with no half answers.
+local systemHalf = nil
 local UI
 UI = {
   tokens = function(half)
+    half = half or systemHalf
     return {
       motion = { open = 0.2 },
       colors = { foreground = color(half == "light" and 0.05 or 0.9), subtext = color(0.6), highlight = color(0.3),
@@ -301,6 +304,19 @@ send("hover", 3)
 check("a hover highlights its row", picker:selectedRow(), 3)
 send("scroll", 0)
 check("a native scroll is followed by the engine", picker:scene().list.scrollTop, 0)
+
+-- The system switching between light and dark while the list is up restyles it in place, the
+-- style sent again in the new half's colours and the list drawn again, the highlight kept.
+systemHalf = "light"
+mark = #calls
+send("appearance")
+check("a switch while up sends the new half's style", lastStyle.text.red, 0.05)
+check("a switch while up draws the list again", since(mark):find("update", 1, true) ~= nil, true)
+check("a switch while up keeps the highlight", picker:selectedRow(), 3)
+check("a switch while up keeps the list up", picker:isActive(), true)
+systemHalf = nil
+send("appearance")
+check("a switch back sends the first half's style again", lastStyle.text.red, 0.9)
 
 -- An empty backspace asks back, which answers false here and leaves the list up.
 send("emptyBackspace")

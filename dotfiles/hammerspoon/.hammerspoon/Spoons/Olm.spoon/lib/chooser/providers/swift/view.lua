@@ -647,6 +647,8 @@ local handlers = {
   bottomBarAction = function(v, name) v.engine:bottomBarAction(name) end,
   pressOutside = function(v, x, y) v:_pressOutside(x, y) end,
   resignedKey = function(v) v.engine:hide() end,
+  -- The system switched between light and dark while the list is up, native/Panel.swift's watch.
+  appearance = function(v) v.engine:followAppearance() end,
   -- The Quick Look pane's open button is Return on the highlighted row, the file it shows.
   quickLookOpen = function(v) v.engine:insertSelected() end,
 }

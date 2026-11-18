@@ -300,6 +300,29 @@ public final class Stage {
     }
   }
 
+  // The system switched between light and dark while the list is up, the panel's watch. The glass
+  // follows by itself, so the style, the pane's tokens and the row symbols are read again for the
+  // new half and everything on screen is drawn again in it, the preview pane included. Without it
+  // the text and icons stayed on the half the list opened on, found on 2026-11-18.
+  private func followAppearance() {
+    guard let look else { return }
+    panel.applyStyle(look.style())
+    if let old = pane, let tokens = look.paneTokens() {
+      pane = (old.frame, tokens, old.emptyText)
+    }
+    // The symbols are painted in the title's colour, keyed by it, so the rows take the new half's.
+    panel.setRows(rows.map(panelRow))
+    apply(status: status)
+    guard pane != nil else { return }
+    if paneDrawn {
+      highlightGeneration += 1
+      tellHighlight()
+    } else {
+      resetPane()
+      describe()
+    }
+  }
+
   // Shows the window an open is holding back, with the paint it held or the pane's empty state.
   private func reveal() {
     guard revealPending else { return }
@@ -1435,6 +1458,8 @@ public final class Stage {
       if case .bytes(let data)? = args.first { dismissKey(data) } else { dismissKey(nil) }
     case "resignedKey", "pressOutside":
       hide()
+    case "appearance":
+      followAppearance()
     case "quickLookOpen":
       // The pane's open button is Return on the highlighted row, the file it shows.
       act(on: highlight)
