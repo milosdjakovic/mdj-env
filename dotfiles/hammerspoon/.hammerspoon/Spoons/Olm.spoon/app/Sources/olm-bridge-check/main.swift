@@ -264,15 +264,17 @@ ok((rs1["params"] as? [String: Any])?["level"] as? String == "v2", "the shown la
 answer(rs1, ["q": (rs1["params"] as? [String: Any])?["q"] ?? 0, "revision": "r1", "fromQuery": [String](), "exclusive": false,
   "changes": ["upsert": [shownRow("app:mail", "Mail", icon: ["app": "com.apple.mail"]),
     shownRow("tool:clip", "Clipboard", icon: ["owner": "clipboard", "key": "pin"]),
-    shownRow("tool:sym", "Lock", icon: ["sf": "lock"]), shownRow("tool:emo", "Pizza", icon: ["emoji": "🍕"])],
-    "remove": [String](), "order": ["app:mail", "tool:clip", "tool:sym", "tool:emo"]]])
+    shownRow("tool:sym", "Lock", icon: ["sf": "lock"]), shownRow("tool:emo", "Pizza", icon: ["emoji": "🍕"]),
+    ["ref": "v2.pic", "key": "clip:pic", "title": "cat.png", "memoryKey": "clip:pic", "picture": ["path": "/tmp/thumb.png"]]],
+    "remove": [String](), "order": ["app:mail", "tool:clip", "tool:sym", "tool:emo", "clip:pic"]]])
 let ic = await Task.detached { request("icons") }.value
 ok((ic["params"] as? [String: Any])?["owner"] as? String == "clipboard", "an owner the rows name is asked for its icons")
 answer(ic, ["icons": ["pin": ["sf": "pin.fill", "emoji": "📌"]]])
 let sa1 = try await s1
-ok(sa1.rows.map(\.icon) == [.app("com.apple.mail"), .symbol("pin.fill"), .symbol("lock"), .emoji("🍕")],
-  "app, owner, sf and emoji icons resolve, an owner's sf preferred")
-ok(sa1.rows.map(\.bonus) == [1, 0, 0, 0], "the shown launcher's bonus is the memory its open sent")
+ok(sa1.rows.map(\.icon) == [.app("com.apple.mail"), .symbol("pin.fill"), .symbol("lock"), .emoji("🍕"),
+  .picture("/tmp/thumb.png")],
+  "app, owner, sf and emoji icons resolve, an owner's sf preferred, and a row's own picture is its icon")
+ok(sa1.rows.map(\.bonus) == [1, 0, 0, 0, 0], "the shown launcher's bonus is the memory its open sent")
 
 // Return. hide becomes the stage's hide, after hidden waits for the close.
 async let picked = shown.choose(Pick(key: "app:mail", query: "ma", row: 1, highlight: 3))

@@ -506,6 +506,28 @@ local switches = hostingTabs.methods.choices.run({ level = tid2, h = 1, ref = ta
 ok(switches[1].on == true and switches[2].on == false and switches[1].icon.key == "checked",
   "a choice saying on crosses with it, its checkbox the mark it wears")
 
+-- A row's own picture, 2026-11-18, a clipboard image's thumbnail, crosses as a Picture where the row
+-- names no icon the app resolves, and a row that names one sends no picture beside it.
+local thumb, appPic = { thumb = true }, { app = true }
+local clipList = { name = "clipboard", rows = function() return {
+  { title = "cat.png", image = thumb, item = { kind = "image" } },
+  { title = "Docs", image = appPic, icon = { app = "com.apple.Safari" }, item = { kind = "tab" } } } end,
+  onSelect = function() end }
+local hostingClip = serve.new({ rpc = rpc, clean = frame.clean, facade = facade,
+  picture = function(img) return img == thumb and { path = "/tmp/thumb.png" } or { path = "/tmp/other.png" } end,
+  hosted = function(p) return p.name == "clipboard" end,
+  launcher = { memoryKey = memoryKey, rows = function() return { { title = "Clipboard", item = { kind = "special", name = "clipboard" } } } end,
+    choose = function(_, _, hosted) return { { present = hosted(clipList) and clipList or nil } } end },
+  icons = function() return nil end })
+hostingClip.methods.open.run({ what = { launcher = true } })
+hostingClip.methods.rows.run({ level = "v1", q = 1, query = "" })
+local cid = hostingClip.methods.choose.run({ level = "v1", q = 1, ref = "v1.1", query = "" }).effects[1].push.level.id
+local clipWire = hostingClip.methods.rows.run({ level = cid, q = 1, query = "" }).changes.upsert
+ok(clipWire[1].icon == nil and clipWire[1].picture and clipWire[1].picture.path == "/tmp/thumb.png",
+  "a row whose only picture is its own crosses with it as a Picture")
+ok(clipWire[2].icon and clipWire[2].icon.app == "com.apple.Safari" and clipWire[2].picture == nil,
+  "a row naming an icon the app resolves sends no picture beside it")
+
 -- Step 3.3d, the preview pane. A hosted level with a pane says so as it is pushed, a highlight
 -- tells onHighlight once per row under the facade, positioned tells onPositioned with both rects, the
 -- top level's last highlight answers a stage word asked outside a request, and host/bridge/pane.lua's

@@ -205,6 +205,10 @@ picture only as an `hs.image`, it writes it once into `~/.olm/cache/bridge/` und
 from its content and sends that path, and the cache is pruned by age, never while a level that
 sent it is open.
 
+A row sends its `picture` only where it names no Icon the app resolves itself, so an app row that
+also holds its icon as an `hs.image` sends `{"app":...}` alone. The app draws a picture as it is,
+in its own colours, and never tints it.
+
 **Role** is one of the eight colour role names of the UI kit.
 
 ## Size

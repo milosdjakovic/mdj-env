@@ -231,6 +231,31 @@ end
 -- The siblings that serve over the socket, step 2.2, loaded from beside this file since a host's
 -- directory is not on the module path.
 local HERE = (debug.getinfo(1, "S").source:match("^@(.*/)")) or "./"
+obj.PICTURES = os.getenv("HOME") .. "/.olm/cache/bridge"
+
+-- An hs.image as a Picture, written once under a name taken from its content, the protocol's
+-- Picture. The icon engine hands the same image object for the same icon, so each is kept weakly.
+local pictures = setmetatable({}, { __mode = "k" })
+local function pictureOf(img)
+  if type(img) ~= "userdata" or not img.encodeAsURLString then return nil end
+  if pictures[img] then return pictures[img] end
+  local okUrl, url = pcall(img.encodeAsURLString, img, false, "PNG")
+  if not okUrl or type(url) ~= "string" then return nil end
+  local path = obj.PICTURES .. "/" .. hs.hash.MD5(url) .. ".png"
+  if not hs.fs.attributes(path) then
+    hs.fs.mkdir(os.getenv("HOME") .. "/.olm/cache")
+    hs.fs.mkdir(obj.PICTURES)
+    local b64 = url:match("^data:[^,]*;base64,(.*)$")
+    local bytes = b64 and hs.base64.decode(b64)
+    local f = bytes and io.open(path, "wb")
+    if not f then return nil end
+    f:write(bytes)
+    f:close()
+  end
+  pictures[img] = { path = path }
+  return pictures[img]
+end
+
 local function sibling(name) return assert(loadfile(HERE .. name .. ".lua"))() end
 
 obj.SOCKET = "bridge.sock"
@@ -261,6 +286,7 @@ function obj:serveLauncher(provider)
     rowLimit = provider.rowLimit, presentationFor = provider.presentationFor,
     pending = function(name) return self:_takePending(name) end,
     facade = self._facade, stampIcons = provider.stampIcons, verbs = provider.verbs,
+    picture = pictureOf,
     -- A hosted tool's list is shown in the app when the config's hosts names it, by the name its
     -- presentation carries, a child taking its tool's.
     hosted = function(p) return type(p) == "table" and type(p.name) == "string" and self._hosts[p.name] == true end,
@@ -419,31 +445,6 @@ local function textOf(st)
     -- The kit pins the mono font's tightening to zero, layout.lua's textElement, and NSParagraphStyle's
     -- own default is above it.
     tight = tonumber(para.tighteningFactorForTruncation) == 0 or nil }
-end
-
-obj.PICTURES = os.getenv("HOME") .. "/.olm/cache/bridge"
-
--- An hs.image as a Picture, written once under a name taken from its content, the protocol's
--- Picture. The icon engine hands the same image object for the same icon, so each is kept weakly.
-local pictures = setmetatable({}, { __mode = "k" })
-local function pictureOf(img)
-  if type(img) ~= "userdata" or not img.encodeAsURLString then return nil end
-  if pictures[img] then return pictures[img] end
-  local okUrl, url = pcall(img.encodeAsURLString, img, false, "PNG")
-  if not okUrl or type(url) ~= "string" then return nil end
-  local path = obj.PICTURES .. "/" .. hs.hash.MD5(url) .. ".png"
-  if not hs.fs.attributes(path) then
-    hs.fs.mkdir(os.getenv("HOME") .. "/.olm/cache")
-    hs.fs.mkdir(obj.PICTURES)
-    local b64 = url:match("^data:[^,]*;base64,(.*)$")
-    local bytes = b64 and hs.base64.decode(b64)
-    local f = bytes and io.open(path, "wb")
-    if not f then return nil end
-    f:write(bytes)
-    f:close()
-  end
-  pictures[img] = { path = path }
-  return pictures[img]
 end
 
 local paneLib = nil

@@ -54,6 +54,8 @@ local SF, GLYPH = "sf", "emoji"
 ---                  target, the presentation it shows, and never called
 --- opts.presentationFor  function(name) -> a tool's presentation, the registry's, for open naming a
 ---                  tool, step 3.8, optional, no tool opened without it
+--- opts.picture     function(image) -> a Picture, { path }, or nil, for a row's own picture, an
+---                  hs.image only Hammerspoon holds, optional, no picture sent without it
 --- opts.facade      host/bridge/facade.lua's, the stage words a hosted list's code calls during a
 ---                  request recorded as effects, optional
 function M.new(opts)
@@ -139,6 +141,10 @@ function M.new(opts)
     if row.enabled == false then out.enabled = false end
     if memoryKey then out.memoryKey = memoryKey end
     out.icon = iconOf(row)
+    -- A row's own picture, a clipboard thumbnail, a file type's icon or a colour chip, crosses as a
+    -- file only where the row names no icon the app resolves itself, so an app row's icon is never
+    -- encoded twice, docs/PROTOCOL-BRIDGE.md Picture.
+    if out.icon == nil and row.image ~= nil and opts.picture then out.picture = opts.picture(row.image) end
     if lossy then out.lossy = true end
     return out
   end

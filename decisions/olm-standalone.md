@@ -1048,3 +1048,13 @@ Milos tried every step of 3.8 and called it good, every tool's own key opening i
 Hammerspoon's list after quitting the app, and a list opened over a password field in Safari taking
 typing in the app. So a list opened over a secure field needs no exception. Left before the resting
 point, Input Sources' cycle, which the app cannot show bare yet, and the timings of its second condition.
+
+### 2026-11-18 19:27, a row's own picture reaches the app
+
+Milos reported image rows in Clipboard History drawn with no icon in Olm.app. The protocol has had a
+row `picture` since it was written, but the bridge's rows never sent one and the app never read it,
+so every row whose only icon was an `hs.image`, a clipboard thumbnail, a file type's icon and a
+colour chip alike, crossed with none. The rows now send it through the same `pictureOf` the preview
+pane uses, and the app draws it as `Icon.picture`, keeping its own colours. It crosses only where
+the row names no icon the app resolves itself, since every launcher app row also carries its icon
+as a picture and encoding those would write hundreds of files for nothing.

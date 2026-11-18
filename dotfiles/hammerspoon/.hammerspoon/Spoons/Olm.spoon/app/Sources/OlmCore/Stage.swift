@@ -939,6 +939,7 @@ public final class Stage {
       row.tint = true
     case .app(let id)?: row.image = icons.object(forKey: "app:" + id as NSString)
     case .emoji(let glyph)?: row.image = icons.object(forKey: "emoji:" + glyph as NSString)
+    case .picture(let path)?: row.image = icons.object(forKey: "picture:" + path as NSString)
     case nil: break
     }
     return row
@@ -976,6 +977,12 @@ public final class Stage {
       let key = "emoji:" + glyph as NSString
       if let image = icons.object(forKey: key) { return image }
       let image = Self.emojiImage(glyph)
+      icons.setObject(image, forKey: key)
+      return image
+    case .picture(let path)?:
+      let key = "picture:" + path as NSString
+      if let image = icons.object(forKey: key) { return image }
+      guard let image = NSImage(contentsOfFile: path) else { return nil }
       icons.setObject(image, forKey: key)
       return image
     case nil:

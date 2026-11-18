@@ -21,6 +21,8 @@ struct RowStore {
   var names: [String: [String]] = [:]
   var refs: [String: String] = [:]
   var iconSpecs: [String: JSON] = [:]
+  /// A row's own picture by its key, a file the Lua side wrote, docs/PROTOCOL-BRIDGE.md Picture.
+  var pictures: [String: String] = [:]
 
   /// What one level held, gone with it. The names a connection sent are kept.
   mutating func clear() {
@@ -30,6 +32,7 @@ struct RowStore {
     revision = nil
     refs = [:]
     iconSpecs = [:]
+    pictures = [:]
   }
 
   /// One rows answer, its whole list or its changes, applied whatever its age, since the next
@@ -79,6 +82,7 @@ struct RowStore {
     rows[key] = row
     if let ref = wire["ref"].string { refs[key] = ref }
     iconSpecs[key] = wire["icon"].isNull ? nil : wire["icon"]
+    pictures[key] = wire["picture"]["path"].string
     if wire["memoryKey"].string != nil { memoryKeys.insert(key) } else { memoryKeys.remove(key) }
     return key
   }
@@ -90,8 +94,9 @@ struct RowStore {
 
   /// The icon a row's wire spec names, docs/PROTOCOL-BRIDGE.md Icon, an owner's resolved from its
   /// table, sf preferred over emoji as lib/icons prefers them. A mark is drawn blank, no row
-  /// carrying one yet.
+  /// carrying one yet. A row's own picture is drawn instead of any icon, the protocol's Picture.
   func icon(_ key: String, owners: [String: [String: Icon]]) -> Icon? {
+    if let path = pictures[key] { return .picture(path) }
     guard let spec = iconSpecs[key] else { return nil }
     if let id = spec["app"].string { return .app(id) }
     if let name = spec["sf"].string { return .symbol(name) }
