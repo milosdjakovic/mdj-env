@@ -568,6 +568,17 @@ Window rows carry their live `when` predicate, so the display switch rows drop
 out on a single display, staying consistent with wherever else those bindings
 appear.
 
+## Kinds of row usage never reorders
+
+`ranking.ignoreUsage` in the manifest's defaults lists kinds of row, by the word that leads their
+subtitle, whose order never follows usage, Olm and Olm Settings as shipped, asked for by Milos on
+2026-11-18. Such a row keeps its declared place at rest, takes no bonus from the query memory, and
+is left out of the memory the app's launcher is sent, so both launchers order it alike. It is a
+kind and never a row or a plugin, so every row of that kind follows it with nothing special, and a
+person moves the list in `config/plugins.lua` like any default. Picks of such a row are still
+recorded, so taking a kind off the list gives its history back. A row a host adds reads Olm, since
+a host is Olm's own, `lib/contributions.lua`'s `ownerTitle`, which is how Quit Olm App joined them.
+
 ## What orders the list once something is typed
 
 The timeline above is what an untouched list opens on and it ends there. The

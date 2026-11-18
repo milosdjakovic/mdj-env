@@ -257,6 +257,9 @@ return {
     ranking = {
       decay = 0.80,
       margin = 0.6,
+      -- The kinds of row usage never reorders, by the word that leads the subtitle, so Olm's own
+      -- rows keep one order however often each is picked. Set by Milos on 2026-11-18.
+      ignoreUsage = { "Olm", "Olm Settings" },
     },
 
     specialRows = {

@@ -362,3 +362,14 @@ Chooser and the theme label. The eyedropper's notification names its plugin as C
 
 **2026-11-03 23:34.** Keep Awake's off row reads Stop Keeping Awake where it read Deactivate, at
 Milos's request, so every row of the list says Keep Awake.
+
+### 2026-11-18 19:16, kinds of row usage never reorders
+
+Milos asked that Olm's own rows stop following usage, since they sat wherever their use put them,
+mostly last. The rule is a kind, the word that leads a row's subtitle, rather than a row or a plugin,
+`ranking.ignoreUsage` in the launcher's defaults, Olm and Olm Settings shipped. A row of such a kind
+keeps its declared place at rest, takes no bonus from the query memory, and is left out of the memory
+Olm.app's launcher is sent, so the two launchers agree. Picks are still recorded. A row a host adds now
+reads Olm rather than the host's own name, so Quit Olm App and App Launcher read Olm and follow the
+same rule. Rejected on the way: a flag per row, which is the one off this rule exists to avoid.
+`test/ranking.lua` 64.

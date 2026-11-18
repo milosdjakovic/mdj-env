@@ -264,6 +264,16 @@ function obj:configure(opts)
   -- configured twice and only the generic wiring stage carries a lib grant, so a plain
   -- assignment would throw the store away whenever the root's own call happened to run second.
   self._ranking = opts.ranking or self._ranking or {}
+  -- The kinds of row whose order never follows usage, by the word that leads their subtitle,
+  -- ranking.ignoreUsage, Olm and Olm Settings as shipped. Such a row keeps its declared place at
+  -- rest and takes no bonus from what a query was used for, so Olm's own rows read in one order
+  -- however often each is picked, asked for by Milos on 2026-11-18. A kind word and not a row
+  -- or a plugin, so it reaches every row of that kind, in both launchers, with nothing special.
+  self._ignoreUsage = {}
+  for _, word in ipairs(type(self._ranking.ignoreUsage) == "table" and self._ranking.ignoreUsage or {}) do
+    if type(word) == "string" then self._ignoreUsage[word] = true end
+  end
+  self._orderedRowsCache = nil
   if not self._assoc and opts.queryassoc then
     self._assoc = opts.queryassoc.new({
       settingsKey = ASSOC_SETTINGS_KEY,
@@ -486,7 +496,8 @@ function obj:_buildActionRows()
     rows[#rows + 1] = { title = title, subTitle = subTitle, image = image,
                         icon = image == nil and icon or nil,
                         iconOwner = image == nil and icon ~= nil and (owner or self._iconOwner) or nil,
-                        item = item, when = when, keywords = terms, subTitleFn = subTitleFn }
+                        item = item, when = when, keywords = terms, subTitleFn = subTitleFn,
+                        word = prefix }
   end
   -- addTool(name) asks the injected registry for this name's row and, when there is one,
   -- builds it exactly as the thirteen hand written calls this replaced built theirs,
@@ -820,6 +831,7 @@ function obj:_appRows()
       iconKey = "app:" .. e.bundleID,
       item = { kind = "app", bundleID = e.bundleID },
       keywords = { PREFIX.app },
+      word = PREFIX.app,
     }
   end
   self._appRowsCache = rows
@@ -843,10 +855,18 @@ function obj:_orderedRows()
   for i, k in ipairs(self._mru or {}) do rank[k] = i end
   local rows = {}
   local n = 0
+  -- The keys of rows whose kind ignores usage, for the memory the app is sent, see memory below.
+  self._usageFree = {}
   local function push(row)
     n = n + 1
     row._n = n
-    row._rank = rank[recencyKey(row.item)]
+    local free = row.word ~= nil and self._ignoreUsage and self._ignoreUsage[row.word] == true
+    row._usageFree = free or nil
+    row._rank = (not free) and rank[recencyKey(row.item)] or nil
+    if free then
+      local key = recencyKey(row.item)
+      if key then self._usageFree[key] = true end
+    end
     rows[#rows + 1] = row
   end
   for _, row in ipairs(self:_appRows()) do push(row) end
@@ -1028,7 +1048,7 @@ function obj:_rowsAndClaim(query, quiet)
       out[#out + 1] = { title = row.title, subTitle = self:_rowSubTitle(row),
                         image = row.image, icon = row.icon, iconOwner = row.iconOwner,
                         item = row.item, filterText = row.title, keywords = row.keywords,
-                        bonus = bonus[recencyKey(row.item)] }
+                        bonus = (not row._usageFree) and bonus[recencyKey(row.item)] or nil }
     end
   end
   return out, false
@@ -1100,8 +1120,15 @@ end
 function obj:memory()
   local out = {}
   if not (self._assoc and self._assoc.queries) then return out end
+  -- A row whose kind ignores usage is left out, so the app's launcher, which works the bonus out
+  -- from this, orders it as this one does.
+  self:_orderedRows()
+  local free = self._usageFree or {}
   for _, query in ipairs(self._assoc.queries()) do
-    local order = self._assoc.orderFor(query)
+    local order = {}
+    for _, key in ipairs(self._assoc.orderFor(query)) do
+      if not free[key] then order[#order + 1] = key end
+    end
     if #order > 0 then out[query] = order end
   end
   return out

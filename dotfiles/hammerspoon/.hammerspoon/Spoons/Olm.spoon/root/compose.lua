@@ -3621,6 +3621,11 @@ function obj.run(olm, cfg)
       stampIcons = iconRows.stampAll,
       log = function(message) log.e("Olm compose, " .. message) end,
       afterRelease = afterLeadersRelease,
+      -- A host is Olm's own, found under host/, so a row it adds reads Olm.
+      core = function(identity)
+        local path = directories and directories[identity]
+        return type(path) == "string" and path:match("/host/[^/]+/?$") ~= nil
+      end,
     })
 
     -- What an app row shows beyond the app, the chord of an action whose descriptor names that

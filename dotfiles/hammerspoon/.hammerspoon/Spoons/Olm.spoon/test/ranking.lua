@@ -487,5 +487,40 @@ do
   running = {}
 end
 
+-- A kind of row that ignores usage, ranking.ignoreUsage, keeps its declared place at rest, takes
+-- no bonus from what a query was used for, and is left out of the memory the app is sent, while
+-- every other kind is ordered by usage as before. Olm's own rows, asked for on 2026-11-18.
+do
+  local a = fresh()
+  local l = launcher(a)
+  local keys = { title = "Olm Keys", item = { kind = "special", name = "keys" }, word = "Olm" }
+  local theme = { title = "Olm Theme", item = { kind = "special", name = "olmtheme" }, word = "Olm Settings" }
+  local quit = { title = "Quit Olm App", item = { kind = "bridge", name = "quit" }, word = "Olm" }
+  local app = { title = "Mail", item = { kind = "app", bundleID = "com.apple.mail" }, word = "Application" }
+  l._ignoreUsage = { Olm = true, ["Olm Settings"] = true }
+  local savedEnsure, savedApps = l._ensureStaticRows, l._appRows
+  l._ensureStaticRows = function() end
+  l._appRows = function() return { app } end
+  l._actionRows = { keys, theme, quit }
+  l._mru = { "bridge:quit", "special:olmtheme", "app:com.apple.mail" }
+  l._orderedRowsCache = nil
+  eq(titles(l:_orderedRows()), "Mail,Olm Keys,Olm Theme,Quit Olm App",
+    "ignore usage: a kind that ignores usage keeps its declared order at rest, a used app still leads")
+  a.note("olm", "bridge:quit")
+  a.note("olm", "special:olmtheme")
+  eq(titles(rank.apply(l:_commandRows("olm"), "olm", fuzzy)), "Olm Keys,Olm Theme,Quit Olm App",
+    "ignore usage: and takes no bonus from what a query was used for")
+  local memory = l:memory()
+  eq(memory.olm, nil, "ignore usage: and is left out of the memory the app is sent")
+  a.note("ma", "app:com.apple.mail")
+  eq(memory.ma == nil and l:memory().ma and l:memory().ma[1], "app:com.apple.mail",
+    "ignore usage: while every other kind is remembered as before")
+  l._ignoreUsage = {}
+  l._orderedRowsCache = nil
+  eq(titles(l:_orderedRows()), "Quit Olm App,Olm Theme,Mail,Olm Keys", "ignore usage: none set, usage orders every kind")
+  l._ensureStaticRows, l._appRows, l._actionRows, l._mru = savedEnsure, savedApps, nil, nil
+  l._orderedRowsCache = nil
+end
+
 print(string.format("%d checks, %d failed", checks, failures))
 os.exit(failures == 0 and 0 or 1)

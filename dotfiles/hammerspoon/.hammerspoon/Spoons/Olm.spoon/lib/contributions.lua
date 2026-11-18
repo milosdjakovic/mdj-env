@@ -110,7 +110,13 @@ end
 local SYSTEM_ACTION = "System Action"
 M.SYSTEM_ACTION = SYSTEM_ACTION
 
-function M.ownerTitle(manifests, identity, directory)
+-- A row a host adds is Olm's own, since a host is core and no plugin a person installs, so it reads
+-- Olm as the launcher's own rows do, Quit Olm App among them. core answers whether an identity is a
+-- host, handed by the root, which alone knows where each manifest was found.
+M.OLM = "Olm"
+
+function M.ownerTitle(manifests, identity, directory, core)
+  if type(core) == "function" and core(identity) == true then return M.OLM end
   local m = manifests and (manifests[identity] or (directory and manifests[directory])) or nil
   local about = type(m) == "table" and type(m.about) == "table" and m.about or nil
   return (about and about.title) or identity
@@ -186,7 +192,7 @@ function M.assemble(opts)
     local call = modules[identity] and resolve(identity, "launcherRows")
     if call then
       local pluginOrder = ((plan.effective or {})[identity] or {}).launcherOrder
-      local title = M.ownerTitle(opts.manifests, identity)
+      local title = M.ownerTitle(opts.manifests, identity, nil, opts.core)
       local warned = false
       rowSuppliers[#rowSuppliers + 1] = function()
         local rows = call() or {}
@@ -226,7 +232,7 @@ function M.assemble(opts)
     end
     if #listed > 0 then
       local pluginOrder = ((plan.effective or {})[directory] or {}).launcherOrder
-      local title = M.ownerTitle(opts.manifests, identity, directory)
+      local title = M.ownerTitle(opts.manifests, identity, directory, opts.core)
       rowSuppliers[#rowSuppliers + 1] = function()
         local rows = {}
         for _, name in ipairs(listed) do
