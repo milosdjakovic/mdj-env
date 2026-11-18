@@ -922,3 +922,13 @@ of 20:02 the evening before, and the bar recoloured a one colour picture only wh
 so the app kept the half it was drawn in. The bar now draws it in the text colour at rest too,
 `Bar.swift`, which in Hammerspoon's own panel is the colour it was already drawn in.
 
+### 2026-11-18 10:03, one look for every picture and word, step 3.7
+
+Milos tried 3.6 good, and of the white info icon said no such isolated case should be allowed,
+every icon and font must follow one global set. The survey found the hole is the ink's rule, a one
+colour picture recoloured only on the highlight, which leaves every picture drawn ahead of time in
+the half it was drawn in, the actions pane's icons in the app as well. It also found the symbol
+weight written in three places and no check over the Swift files. Step 3.7's note in
+`docs/DESIGN-APP-HOSTED.md` has the fix. Patching each icon as it is found was turned down, since
+that is the isolated case he named.
+

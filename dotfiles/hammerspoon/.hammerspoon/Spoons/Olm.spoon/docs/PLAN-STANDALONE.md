@@ -23,7 +23,7 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 3.3 is done, its five steps 3.3a to 3.3e each tried by Milos, the last on 2026-11-17. 3.4, the keys of a list pushed in the app, is done, tried by Milos on 2026-11-17. 3.5, the flip of Hyper and Space, is built and held off behind `launcherFlip` until every tool the launcher leads to is shown in the app, since a row leading to one it does not show did nothing. 3.6 is built, every such row now shown in the app, and its trial is next, then the flip. Hyper and 0 opens the app's launcher meanwhile. 2.3's shadow keeps logging, and its log empty is a condition of 3.5's flip. File search is the app's since 1.5's flip on 2026-11-12.
+Next. 3.3 is done, its five steps 3.3a to 3.3e each tried by Milos, the last on 2026-11-17. 3.4, the keys of a list pushed in the app, is done, tried by Milos on 2026-11-17. 3.5, the flip of Hyper and Space, is built and held off behind `launcherFlip` until every tool the launcher leads to is shown in the app, since a row leading to one it does not show did nothing. 3.6 is done, tried by Milos on 2026-11-18. 3.7, one look for every picture and word, is next, then the flip. Hyper and 0 opens the app's launcher meanwhile. 2.3's shadow keeps logging, and its log empty is a condition of 3.5's flip. File search is the app's since 1.5's flip on 2026-11-12.
 
 Stage 0, contracts
 - [x] 0.1 The decision record, 2026-11-05
@@ -103,8 +103,11 @@ Stage 3, every list in the app
 - [ ] 3.5 The flip of Hyper and Space
   - Built 2026-11-17, `docs/DESIGN-APP-LAUNCHER.md` under step 3.5. Hyper and Space opens the app's launcher while its socket is up and the Lua launcher otherwise, asked at every press, through the bridge's `launcherOpen` swapped in by compose. The trial key Hyper and 0 is gone. `test/bridge.lua` 132 checks. Checked live the same day, the app's launcher opened and closed on the key, and with the app quit the Lua launcher. The shadow log stood at 89 lines and no difference.
   - Held off on 2026-11-17 on Milos's trial. In the app's launcher a row leading to a tool the app does not show yet did nothing, Clipboard History first, and Menu Search, Display Profiles, Workspaces, Obsidian, Processes and Olm's own pages the same. The flip stays built behind `launcherFlip` in `config/plugins.lua`, now false, and Hyper and 0 is back. It goes on again once every tool the launcher leads to is shown in the app, which 3.6 and the remaining 3.3 tools are now for. A Quit Olm App row was added on his ask, shown while the app runs.
-- [ ] 3.6 Every plugin's own list, each tool added here when it is started
+- [x] 3.6 Every plugin's own list, each tool added here when it is started
   - Built 2026-11-17, `docs/DESIGN-APP-HOSTED.md` under 3.6. Every launcher row that leads to a list asked live, 13 answering `unserved`. `hosts` gains Clipboard History, Display Profiles, Obsidian, Text Case, Workspaces, Local Servers, the four Olm pages and Olm Keys. A row that seeds a word answers `setQuery` and a scope row that acts runs and answers `rows`, through `lib/rowintercept.lua`'s new `inPlace`. Nothing in the app changed. `test/cases/launcher-bridgechoose.lua` 13 checks, `test/rootmechanism.lua` 68. Milos's trial on Hyper and 0 is next, then 3.5's flip.
+  - Milos's trial good on 2026-11-18, after the info icon beside ⌘? was found white on a light screen and fixed, `378d4d12`.
+- [ ] 3.7 One look for every picture and every word, `docs/DESIGN-APP-HOSTED.md` under 3.7
+  - Asked by Milos on 2026-11-18, after the white info icon: no picture or word may keep a look of its own, every icon and font follows one global set.
 
 The resting point
 - [ ] All five conditions of the resting point hold, checked on every machine whose `olmapp` piece is on

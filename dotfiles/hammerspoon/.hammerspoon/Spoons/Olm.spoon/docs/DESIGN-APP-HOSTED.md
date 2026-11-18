@@ -457,6 +457,71 @@ What can go wrong, and what to tell me:
 
 Once the trial is good, `launcherFlip` goes on, 3.5's step, and the trial there is Hyper and Space.
 
+## 3.7, one look for every picture and every word
+
+Milos found the info icon beside ⌘? white in the app's bar on a light screen on 2026-11-18, fixed
+that day in `378d4d12`, and asked that no such case be possible: every icon and every font follows
+one global set. A survey of the app and the Swift library on the same day found the cause is a
+rule with a hole rather than one bad icon.
+
+What was found:
+
+- A one colour picture keeps the colour it was drawn in while it stands at rest. `Style.ink(lit:)`
+  in `native/Model.swift` answers `icon: nil` off the highlight, meaning keep the picture's own,
+  and only the lit ink recolours it. A picture drawn ahead of time, which is all the app gets from
+  the share at load, keeps the half of that moment. The bar's info icon was one, and every actions
+  pane row icon in the app is the same and still open, since `FloatingPane.swift` follows the same
+  ink.
+- The weight of a symbol is written in three places. The app's rows draw semibold, as
+  `lib/icons/sources/sf.lua` does, a key cap's symbol regular in `Bar.swift`, and Quick Look's
+  close mark regular in `QuickLook.swift`.
+- Nothing checks the Swift side. The dry gate refuses a font, a size or a colour written by hand in
+  Lua outside `lib/ui`, and no rule covers the Swift files.
+
+What grows:
+
+1. The ink answers a colour for a one colour picture everywhere, the text colour at rest and the
+   lit ink on the highlight, so `Ink.icon` is never nil. The list, the floating panes and the bar
+   all draw through it, so a picture follows the half on screen wherever it stands, and the bar's
+   own case from `378d4d12` goes back to the shared rule. A picture with colours of its own, an app
+   icon, a file or an emoji, is not marked one colour and keeps its own.
+2. The symbol weight is a token of the look. The bridge writes `sf.lua`'s weight into
+   `chooser.json`'s style, and the app's rows, Quick Look's close mark and every other symbol drawn
+   as an icon read it from there. A symbol drawn as a key cap's key is a glyph of the key cap, so it
+   takes the key cap font's weight, which is also the look's.
+3. A Swift rule in the dry gate, `test/drygate-swiftlook.lua`, over `app/Sources` and
+   `lib/chooser/providers/swift/native`. It refuses a font built by hand, a colour literal and a
+   symbol weight, outside the files that read the look, `Fields.swift`, `Lua.swift`, the defaults in
+   `Model.swift` and the element readers in `PaneElements.swift`. A line answers it with
+   `look-exempt, <reason>`, the comma required, which the masks in `Motion.swift` and
+   `Surface.swift` and the emoji canvas in `Stage.swift` carry.
+4. `test/swiftpane.swift` pins that a one colour picture is drawn in the text colour at rest and in
+   the lit ink on the highlight, in the list, the floating pane and the bar, and that a picture not
+   marked one colour keeps its own.
+5. The rule is written into the colour and icon sections of the hammerspoon `AGENTS.md`, so the
+   Swift side carries it in words as the Lua side does.
+
+The trial, on Hyper and 0 while the app runs:
+
+1. Open the launcher and the actions pane on a row, then switch macOS between light and dark. Expect
+   every icon in the pane and the info icon in the bar to follow the words around them, with no
+   reload.
+2. Open Clipboard History and Quick Look on a file entry. Expect the close mark as heavy as the row
+   icons.
+3. Look at the key caps in the bar and in the info pane. Expect the Caps Lock and Return symbols as
+   heavy as the letters beside them.
+4. Open Olm Theme and choose the other highlight. Expect a lit row's icon in the lit text colour, as
+   before.
+
+What can go wrong:
+
+- An app icon or an emoji turns one flat colour. It was marked one colour by mistake, tell me
+  which.
+- A key cap's symbol looks heavier or lighter than before. Weight is now the key cap font's, and a
+  change there is the point, but say if it reads worse.
+- An icon in Hammerspoon's own swift list changes colour. It should not, since it was already
+  drawn in the text colour there.
+
 ## Back out
 
 Remove a tool from `hosts` and reload. The row answers `unserved` again. For File Search, set the
