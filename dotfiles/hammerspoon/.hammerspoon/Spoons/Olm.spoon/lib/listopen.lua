@@ -91,14 +91,30 @@ end
 --- listopen.servedOpen(deps) -> identity or nil
 --- The tool whose list Olm.app shows now, through deps.served, step 1.4f, for the verbs that belong
 --- to whichever list is open rather than to one list's surface, the info pane's and the actions
---- pane's.
+--- pane's. A tool's list hosted in the app answers too, after any served one, since its verbs go to
+--- the app's list it sits in through the bridge's verb, step 3.8, found in its trial when a list
+--- opened alone by its own key took no Hyper key, which inside the launcher only the launcher's own
+--- keys had been answering.
 function obj.servedOpen(deps)
   if type(deps.served) ~= "function" then return nil end
   for _, owner in pairs(deps.owners) do
     local identity = deps.identity[owner] or owner
     if deps.served(identity) == true then return identity end
   end
+  if type(deps.hosted) ~= "function" then return nil end
+  for _, owner in pairs(deps.owners) do
+    local identity = deps.identity[owner] or owner
+    if deps.hosted(identity) == true then return identity end
+  end
   return nil
+end
+
+--- listopen.inApp(identity, deps) -> whether Olm.app shows identity's list now, its own or hosted,
+--- so a key on that list is a verb the app runs on its own highlight, step 3.8.
+function obj.inApp(identity, deps)
+  if type(identity) ~= "string" then return false end
+  if type(deps.served) == "function" and deps.served(identity) == true then return true end
+  return type(deps.hosted) == "function" and deps.hosted(identity) == true
 end
 
 --- listopen.anyShowing(deps) -> boolean

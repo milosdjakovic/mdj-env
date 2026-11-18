@@ -1010,3 +1010,12 @@ the pane went to the Lua backend and its keys stayed in Lua. 3.8 had added a sec
 app and left the bridge's one rule for which hosted list is up as it was. A hosted list opened alone
 is now its own host, so the same rule answers it as it answers one inside the launcher, and
 `test/bridge.lua` pins it.
+
+### 2026-11-18 17:48, 3.8's trial, a list opened by its own key took no Hyper key
+
+Hyper and J, K and O did nothing in Clipboard History opened by its own key. A list key reaches the
+app through the root's surface adapter and `servedOpen`, which asked only whether the app shows a
+tool's own list, a served one or the launcher. A hosted list was left to the Lua stage, which shows
+nothing. Inside the launcher that never showed, since the launcher's own keys answered first. Both
+now ask `listopen.inApp`, served or hosted, and the bridge's verb sends a hosted list's key to the
+list it sits in, the launcher or itself. `test/rootmechanism.lua` pins it.

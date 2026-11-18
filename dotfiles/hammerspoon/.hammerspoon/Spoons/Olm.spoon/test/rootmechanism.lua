@@ -123,8 +123,17 @@ do
   -- served list itself, step 3.3.
   deps.hosted = function(identity) return identity == "vpnIdentity" end
   eq(listOpen.isShowing("vpnList", deps), true, "open: a list hosted on top of the app's launcher is open")
-  eq(listOpen.servedOpen(deps), nil, "served: a hosted list is not the served one")
+  eq(listOpen.servedOpen(deps), nil, "served: a hosted list is none while no bridge answers served")
+  deps.served = function(identity) return served[identity] == true end
+  eq(listOpen.servedOpen(deps), "vpnIdentity", "served: a hosted list answers when no served one is up, step 3.8")
+  eq(listOpen.inApp("vpnIdentity", deps), true, "in app: a hosted list is in the app")
+  served.other = true
+  deps.owners.otherList, deps.identity.otherOwner = "otherOwner", "other"
+  eq(listOpen.servedOpen(deps), "other", "served: a served list answers before a hosted one")
+  served.other, deps.owners.otherList, deps.identity.otherOwner = nil, nil, nil
   deps.hosted = nil
+  eq(listOpen.inApp("vpnIdentity", deps), false, "in app: not once nothing hosts it")
+  deps.served = nil
   eq(listOpen.surfaceOf(modules.nested, true), modules.nested, "surface: true is the module itself")
   eq(listOpen.surfaceOf(modules.nested, "chooser.missing.deeper"), nil, "surface: a path through nothing is nil")
 end

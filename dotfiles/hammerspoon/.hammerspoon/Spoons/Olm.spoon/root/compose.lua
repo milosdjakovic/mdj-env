@@ -2648,7 +2648,9 @@ function obj.run(olm, cfg)
       __index = function(_, methodName)
         -- The app's list, step 1.4f. It is open, and every other method is a verb the app runs on
         -- its own highlight, so a list key never acts on a row Hammerspoon only remembers.
-        if identity and listOpenDeps.served(identity) then
+        -- A tool's list hosted in the app is the same, step 3.8, the verb going to the app's list
+        -- it sits in, or to itself when its own key opened it alone.
+        if identity and listOpenLib.inApp(identity, listOpenDeps) then
           if methodName == "isShowing" then return function() return true end end
           local bridge = modules[plan.identity.bridge or "bridge"]
           return function() bridge:verb(identity, methodName) end
