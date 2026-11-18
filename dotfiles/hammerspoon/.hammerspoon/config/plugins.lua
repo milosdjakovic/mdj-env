@@ -112,9 +112,9 @@ return {
     socket = true,
     -- Whether Hyper and Space opens the app's launcher, step 3.5, while the app's socket is up,
     -- and the Lua launcher otherwise. Held off on 2026-11-17, since a row leading to a tool the
-    -- app does not show yet, Clipboard History among them, did nothing there. It goes on again
-    -- once every such tool is shown in the app.
-    launcherFlip = false,
+    -- app did not show yet, Clipboard History among them, did nothing there, and on again on
+    -- 2026-11-18 once step 3.6 showed every such tool in the app. False is the way back.
+    launcherFlip = true,
     -- The tools whose own list the app shows inside its launcher, step 3.3, so the launcher's row
     -- for one replaces its rows in place in the app's window. A tool joins in the step that hosts
     -- it, and taking it out leaves its row put in the app's launcher, as before. Since step 3.6

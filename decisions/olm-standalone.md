@@ -960,3 +960,11 @@ engine answers through `Engine:followAppearance`, reselecting the theme, restyli
 highlight again. One watch in the panel both hosts share, rather than one per host.
 `test/swiftview.lua` pins the restyle in place with the highlight kept. The canvas provider, which
 serves only as the fallback, has no such watch yet.
+
+### 2026-11-18 15:10, step 3.5's flip on again
+
+`launcherFlip` is true again in `config/plugins.lua`, so Hyper and Space opens Olm.app's
+launcher while its socket is up and the Lua launcher otherwise, and Hyper and 0 is gone. It was
+held off on 2026-11-17 because rows leading to tools the app did not show did nothing. 3.6 showed
+every such tool and Milos tried it good on 2026-11-18, and 3.7 gave the app one look, tried good
+the same day. The shadow log stood at 101 lines and no difference. Setting it false is the way back.
