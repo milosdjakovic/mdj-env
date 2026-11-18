@@ -63,6 +63,7 @@ public actor Bridge {
   // who redraws one, and each owner's icons as this connection answered them, asked once.
   private var hosted: [String: BridgedLevel] = [:]
   private var redraw: (@Sendable (any ListSource, Bool) -> Void)?
+  private var applied: (@Sendable (any ListSource, [Effect]) -> Void)?
   private var paneDrawn: (@Sendable (any ListSource, DrawnPane) -> Void)?
   private var ownerIcons: [String: [String: Icon]] = [:]
   private var log: @Sendable (String) -> Void
@@ -89,6 +90,12 @@ public actor Bridge {
   /// Who redraws a hosted list the effects notification names, the stage, hold keeping its highlight.
   public func onRedraw(_ fn: @escaping @Sendable (any ListSource, Bool) -> Void) {
     redraw = fn
+  }
+
+  /// Who applies the other effects the effects notification carries, the stage, step 3.8, a stage
+  /// word a tool's own code calls outside any request, its field cleared or its placeholder changed.
+  public func onEffects(_ fn: @escaping @Sendable (any ListSource, [Effect]) -> Void) {
+    applied = fn
   }
 
   /// Who draws what a hosted list's pane drew, the stage, step 3.3d.
@@ -240,6 +247,10 @@ public actor Bridge {
       for effect in params["effects"].array ?? [] where !effect["rows"].isNull {
         redraw?(level, effect["rows"]["hold"].bool ?? false)
       }
+      // Every other effect, a stage word a tool's code called outside any request, step 3.8.
+      let others = (params["effects"].array ?? []).filter { $0["rows"].isNull }
+      let wire = WireEffects(others, log: { NSLog("Olm bridge: %@", $0) })
+      if !wire.effects.isEmpty { applied?(level, wire.effects) }
     case "paneDrawn":
       // What a hosted list's pane drew, step 3.3d, docs/PROTOCOL-BRIDGE.md The preview pane.
       guard let id = params["level"].string, let level = hosted[id],

@@ -264,7 +264,11 @@ function M.new(opts)
       if not (type(p) == "table" and type(p.name) == "string" and opts.hosted and opts.hosted(p)) then
         rpc.fail(rpc.NOT_SERVED, "the app does not host " .. what.tool, { what = what })
       end
-      return { level = service.pushLevel(nil, p).push.level }
+      local level = service.pushLevel(nil, p).push.level
+      -- What the tool's own code set while its key was opening the list, its placeholder.
+      local pending = opts.pending and opts.pending(p.name)
+      if pending and type(pending.placeholder) == "string" then level.placeholder = pending.placeholder end
+      return { level = level }
     end
     if what.launcher ~= true then
       rpc.fail(rpc.NOT_SERVED, "only the launcher is served yet", { what = what })
@@ -621,6 +625,8 @@ function M.new(opts)
         out[#out + 1] = { pop = { level = level.id } }
       elseif e.setQuery then
         out[#out + 1] = { setQuery = { level = level.id, q = level.q, query = e.setQuery.query } }
+      elseif e.setPlaceholder then
+        out[#out + 1] = { setPlaceholder = { level = level.id, text = e.setPlaceholder.text } }
       else
         out[#out + 1] = e
       end

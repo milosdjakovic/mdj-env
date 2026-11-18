@@ -1811,6 +1811,7 @@ function obj.run(olm, cfg)
     -- stageSetQuery gives the field's own text, Stage:setPlaceholder already public for the
     -- launcher's own paging to reach.
     stageSetPlaceholder = function(text)
+      if hostedWord(modules, plan, "stageSetPlaceholder", text) then return end
       if stageModule then stageModule:setPlaceholder(text) end
     end,
 

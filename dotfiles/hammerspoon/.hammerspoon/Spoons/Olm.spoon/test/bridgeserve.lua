@@ -228,7 +228,19 @@ ok(owning.levels.v1.top == true and owning.levels.v1.parent == nil, "the tool's 
 local ownRows = owning.methods.rows.run({ level = "v1", q = 1, query = "" })
 ok(ownRows.changes and #ownRows.changes.upsert == 1, "and answers its rows")
 ok(#owning.redraws("caffeinate") == 1, "a redraw of the tool reaches it")
-local refused = pcall(owning.methods.open.run, { what = { tool = "vpn" }, query = "" })
+local pendingAsk = owning.methods.open.run
+local waiting = serve.new({ rpc = rpc, clean = frame.clean, facade = facade,
+  hosted = function(p) return p.name == "caffeinate" end,
+  presentationFor = function() return top end,
+  pending = function(name) return name == "caffeinate" and { placeholder = "Waiting" } or nil end,
+  launcher = { memoryKey = memoryKey, rows = function() return {} end },
+  icons = function() return nil end })
+ok(waiting.methods.open.run({ what = { tool = "caffeinate" }, query = "" }).level.placeholder == "Waiting",
+  "a placeholder set while the key was opening the list is the level's")
+local placed = owning.effectsOf({ id = "v1" }, { { setPlaceholder = { text = "Duration" } } })
+ok(placed[1].setPlaceholder and placed[1].setPlaceholder.level == "v1" and placed[1].setPlaceholder.text == "Duration",
+  "a placeholder a hosted list's code set is an effect naming its level")
+local refused = pcall(pendingAsk, { what = { tool = "vpn" }, query = "" })
 ok(refused == false, "a tool the config does not host is not served")
 local unknown = pcall(owning.methods.open.run, { what = { tool = "nothing" }, query = "" })
 ok(unknown == false, "nor is a name with no presentation")

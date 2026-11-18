@@ -496,6 +496,28 @@ do
   eq(posted[1] and posted[1].object, "browsertabs:selectNext", "own key: its verb goes to it")
   note("local.olm.Olm.state", "browsertabs:down")
   eq(k:hosting("browserTabs"), false, "own key: and closed once it is down")
+  -- The words that change a list, outside any request, reach the hosted list the app shows, step
+  -- 3.8, Clipboard History's Manage History, and a placeholder set while its own key is still
+  -- opening the list goes with the list's open.
+  local sent = {}
+  k.notify = function(_, method, params) sent[#sent + 1] = { method = method, params = params }; return true end
+  k._hosts = { browserTabs = true }
+  k._service.paneLevel = function(name) return name == "browserTabs" and { id = "v3", q = 4 } or nil end
+  note("local.olm.Olm.state", "browsertabs:up")
+  eq(k:hostedWord("stageSetPlaceholder", "Duration"), true, "words: a placeholder outside a request is the app's")
+  eq(sent[1] and sent[1].params.effects[1].setPlaceholder.text, "Duration", "words: sent as the effects notification")
+  eq(sent[1] and sent[1].params.level, "v3", "words: to the hosted level on top")
+  eq(k:hostedWord("stageSetQuery", ""), true, "words: so is a query")
+  eq(sent[2] and sent[2].params.effects[1].setQuery.level, "v3", "words: naming its level")
+  eq(k:hostedWord("stageSelectedRow"), false, "words: a word that reads the list is not sent")
+  note("local.olm.Olm.state", "browsertabs:down")
+  eq(k:hostedWord("stageSetPlaceholder", "x"), false, "words: and none once the list is down, the Lua stage's")
+  top = nil
+  k._presenting = { name = "browserTabs", at = hs.timer.secondsSinceEpoch() }
+  eq(k:hostedWord("stageSetPlaceholder", "Opening"), true, "words: a placeholder while the key is opening the list waits")
+  eq(k:_takePending("browserTabs").placeholder, "Opening", "words: and goes with the list's open")
+  eq(k:_takePending("browserTabs"), nil, "words: once")
+  k.notify = nil
   k._hosts = {}
   k._service = nil
 end

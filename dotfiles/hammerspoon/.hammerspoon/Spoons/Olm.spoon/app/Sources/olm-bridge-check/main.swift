@@ -56,6 +56,14 @@ final class Redrawn: @unchecked Sendable {
 }
 let redrawn = Redrawn()
 
+final class Applied: @unchecked Sendable {
+  private let lock = NSLock()
+  private var list: [(ObjectIdentifier, [Effect])] = []
+  func add(_ l: any ListSource, _ e: [Effect]) { lock.lock(); list.append((ObjectIdentifier(l), e)); lock.unlock() }
+  var all: [(ObjectIdentifier, [Effect])] { lock.lock(); defer { lock.unlock() }; return list }
+}
+let applied = Applied()
+
 // Waits up to two seconds for cond.
 func until(_ cond: () async -> Bool) async {
   for _ in 0..<100 {
@@ -86,6 +94,7 @@ let unknownNames = Lines()
 let shown = BridgedLauncher(bridge: bridge, shown: true, natives: ["filesearch": nativeList], log: { unknownNames.add($0) })
 await bridge.attach(launcher: launcher, shown: shown, settled: { told.add($0) })
 await bridge.onRedraw { redrawn.add($0, $1) }
+await bridge.onEffects { applied.add($0, $1) }
 final class Drawn: @unchecked Sendable {
   private let lock = NSLock()
   private var list: [(ObjectIdentifier, DrawnPane)] = []
@@ -378,6 +387,14 @@ send(["jsonrpc": "2.0", "method": "effects", "params": ["level": "v5", "q": 1, "
 await until { !redrawn.all.isEmpty }
 ok(redrawn.all.count == 1 && redrawn.all.first?.0 == ObjectIdentifier(child) && redrawn.all.first?.1 == true,
   "a redraw reaches the hosted level it names, holding the highlight, and an unknown level reaches nothing")
+// A stage word a hosted list's code called outside any request, step 3.8, a placeholder and a query.
+send(["jsonrpc": "2.0", "method": "effects", "params": ["level": "v5", "q": 1, "effects": [
+  ["setPlaceholder": ["level": "v5", "text": "Duration or count"]], ["setQuery": ["level": "v5", "q": 1, "query": ""]]]]])
+await until { !applied.all.isEmpty }
+ok(applied.all.count == 1 && applied.all.first?.0 == ObjectIdentifier(child)
+  && applied.all.first?.1 == [.setPlaceholder("Duration or count"), .setQuery("")],
+  "a placeholder and a query from outside a request reach the level they name, and no redraw")
+ok(redrawn.all.count == 1, "and are not taken for a redraw")
 
 // Its actions pane, step 3.3b. The push names its actions, actions says which apply and what each is
 // called, choices is the level a verb opens with its icons, and run carries the choice made there.

@@ -1019,3 +1019,15 @@ tool's own list, a served one or the launcher. A hosted list was left to the Lua
 nothing. Inside the launcher that never showed, since the launcher's own keys answered first. Both
 now ask `listopen.inApp`, served or hosted, and the bridge's verb sends a hosted list's key to the
 list it sits in, the launcher or itself. `test/rootmechanism.lua` pins it.
+
+### 2026-11-18 17:59, 3.8's trial, Manage History did not change its page in the app
+
+Clipboard History's Manage History changes its page through three stage words, the placeholder,
+the field's text and a redraw. The protocol has said since 3.3c that every stage word crosses to
+the app inside a request and outside one alike, and only the redraw was built. `setPlaceholder`
+was neither recorded nor applied, and outside a request `setQuery` and `hide` stayed on the Lua
+stage. Now all three cross to the hosted level on top either way, the app applies `setPlaceholder`
+and the effects notification carries every effect, and a placeholder set while a tool's own key is
+still opening its list goes with that list's `open`. Inside the launcher it was the same gap, unseen
+because nobody had opened Manage History there. `test/bridge.lua` 164, `test/bridgeserve.lua` 142,
+`olm-bridge-check` 152.

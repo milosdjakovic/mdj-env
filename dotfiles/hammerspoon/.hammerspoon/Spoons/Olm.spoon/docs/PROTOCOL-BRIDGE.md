@@ -710,7 +710,10 @@ and an unknown URL is ignored and logged.
 
 An effect raised outside any handler, a plugin's async redraw, is sent as a notification of the
 same shape, `{"method":"effects","params":{"level":"v7","q":14,"effects":[...]}}`, and the app
-applies it with the same rules.
+applies it with the same rules. Until step 3.8 only the redraw was built either way and `setPlaceholder` was neither recorded nor
+applied, found when Clipboard History's Manage History did not change its page in the app. Now
+`setQuery`, `setPlaceholder` and `hide` cross outside a handler too, to the hosted level on top, and
+a placeholder set while a tool's own key is still opening its list goes with that list's `open`.
 
 ## How it is tested
 

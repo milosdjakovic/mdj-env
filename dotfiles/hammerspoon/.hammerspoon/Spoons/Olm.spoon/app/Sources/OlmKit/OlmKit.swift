@@ -217,6 +217,9 @@ public enum Effect: Sendable, Equatable {
   /// Closes the list shown over another and gives that one back as Backspace on the empty field
   /// does, the bridge's pop, a row of a hosted list leaving its own level, step 3.3c.
   case pop
+  /// Changes what the empty input field says, the bridge's setPlaceholder, a page that changes what
+  /// the field means, Clipboard History's Manage History, step 3.8.
+  case setPlaceholder(String)
 }
 
 /// One of the eight colour roles lib/ui/style.lua resolves for the half the system is on. A plugin

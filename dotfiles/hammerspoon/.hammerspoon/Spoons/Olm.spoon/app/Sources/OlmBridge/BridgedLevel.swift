@@ -127,6 +127,8 @@ struct WireEffects {
         effects.append(.pop)
       } else if !effect["setQuery"].isNull {
         effects.append(.setQuery(effect["setQuery"]["query"].string ?? ""))
+      } else if !effect["setPlaceholder"].isNull {
+        effects.append(.setPlaceholder(effect["setPlaceholder"]["text"].string ?? ""))
       } else if let name = effect["native"]["name"].string {
         // A tool the app serves itself, its own source pushed over the launcher, step 3.3e.
         effects.append(.push(Self.native + name))

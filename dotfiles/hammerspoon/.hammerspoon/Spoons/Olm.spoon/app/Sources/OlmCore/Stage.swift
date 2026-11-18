@@ -590,6 +590,13 @@ public final class Stage {
     paneHost?.draw(elements: elements, height: height, radius: paneRadius, reset: !drawing.keepScroll)
   }
 
+  /// Effects a hosted list's own code asked for outside any request, the bridge's effects
+  /// notification, step 3.8, applied where that list is on screen and nowhere else.
+  public func applyEffects(_ list: any ListSource, _ effects: [Effect]) {
+    guard let source, source === list, panel.isVisible else { return }
+    perform(effects, from: list)
+  }
+
   /// A source's list redrawn where it is on screen, its rows asked again for the same text, hold
   /// keeping the highlight on its row, the bridge's effects notification, step 3.3. A list not up
   /// is left alone.
@@ -1102,6 +1109,9 @@ public final class Stage {
       case .rows(let hold): if !effects.contains(.pop) { search(text, keepHighlight: hold) }
       case .push(let token): if let answered { push(token, from: answered) }
       case .pop: if let answered { popChild(answered) }
+      case .setPlaceholder(let text):
+        level?.placeholder = text
+        apply(status: status)
       }
     }
   }

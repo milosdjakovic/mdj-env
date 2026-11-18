@@ -259,6 +259,7 @@ function obj:serveLauncher(provider)
   local service = serve.new({ rpc = rpc, clean = frame.clean, launcher = provider.launcher, later = later,
     icons = provider.icons or function() return nil end, version = provider.version,
     rowLimit = provider.rowLimit, presentationFor = provider.presentationFor,
+    pending = function(name) return self:_takePending(name) end,
     facade = self._facade, stampIcons = provider.stampIcons, verbs = provider.verbs,
     -- A hosted tool's list is shown in the app when the config's hosts names it, by the name its
     -- presentation carries, a child taking its tool's.
@@ -308,6 +309,43 @@ function obj:presentedRedraw(name, token, resetRow)
   return sent
 end
 
+-- The words that change a list, asked outside any request while a hosted list is the app's, step
+-- 3.8, sent to it as the effects notification, the way a redraw already is. A tool's own code calls
+-- them after a key or a timer, Clipboard History's Manage History changing its placeholder and
+-- clearing its field, and before this only the redraw reached the app. While a tool's own key is
+-- still opening its list in the app, the placeholder waits for the level's open and goes with it.
+local OUTSIDE = { stageSetQuery = true, stageSetPlaceholder = true, stageHide = true }
+
+function obj:_wordOutside(name, ...)
+  if not OUTSIDE[name] or not self._service then return false end
+  local text = tostring((...) or "")
+  local service = self._service
+  local top = type(service.hostedTop) == "function" and service.hostedTop() or nil
+  local pending = self._presenting
+  if pending and (top ~= pending.name) and hs.timer.secondsSinceEpoch() - pending.at < self.OPENING then
+    if name == "stageSetPlaceholder" then pending.placeholder = text; return true end
+    return false
+  end
+  if not (top and self:hosting(top)) then return false end
+  local level = service.paneLevel(top)
+  if not level then return false end
+  local effect
+  if name == "stageSetQuery" then effect = { setQuery = { level = level.id, q = level.q, query = text } }
+  elseif name == "stageSetPlaceholder" then effect = { setPlaceholder = { level = level.id, text = text } }
+  else effect = { hide = {} } end
+  self:notify("effects", { level = level.id, q = level.q, effects = { effect } })
+  return true
+end
+
+--- obj:_takePending(name) -> the placeholder a tool's code set while its own key was opening its list
+--- in the app, once, step 3.8, for serve's open.
+function obj:_takePending(name)
+  local pending = self._presenting
+  if not (pending and pending.name == name) then return nil end
+  self._presenting = nil
+  return { placeholder = pending.placeholder }
+end
+
 --- obj:hostedWord(name, ...) -> handled, value, the root's stage words asking first, step 3.3c of
 --- docs/PLAN-STANDALONE.md. While a request from the app runs a hosted list's code, the words that
 --- read the list answer from that request's own row and query, and the words that change it are
@@ -315,6 +353,7 @@ end
 --- outside a request, and the word then acts on the Lua stage as before.
 function obj:hostedWord(name, ...)
   local f = self._facade
+  if not (f and f.recording()) and self:_wordOutside(name, ...) then return true end
   if not (f and f.recording()) then
     -- Outside a request, the row the app highlights while it shows a hosted list, step 3.3d, so a
     -- tool's own timer, Speed Test's run ticking, asks the app's row and not the hidden Lua stage's.
@@ -339,6 +378,10 @@ function obj:hostedWord(name, ...)
   if name == "stagePop" then f.record({ pop = {} }); return true, true end
   if name == "stageSetQuery" then
     f.record({ setQuery = { query = tostring((...) or "") } })
+    return true
+  end
+  if name == "stageSetPlaceholder" then
+    f.record({ setPlaceholder = { text = tostring((...) or "") } })
     return true
   end
   if name == "stagePush" then
@@ -578,6 +621,7 @@ function obj:presentInApp(name, presentation)
   sayOnce(self, "a hosted tool's own key opens its list in Olm.app while its socket is up, the olmapp piece is on")
   self:_listen()
   self:_opened(p.name:lower())
+  self._presenting = { name = p.name, at = hs.timer.secondsSinceEpoch() }
   local mode = nil
   if self._screenMode then
     local ok, answer = pcall(self._screenMode)
