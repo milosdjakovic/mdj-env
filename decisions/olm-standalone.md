@@ -1070,3 +1070,10 @@ opening is owed and taken when the rows land. A key typed over it is posted agai
 after the app says `hidden`, since Olm.app holds no Accessibility grant to post one, and a hosted
 level learned to say `hidden`, which only the launcher's did. The idle is the Lua stage's
 `CYCLE_IDLE`, now published and sent with the level, so the two cycles share one number.
+
+### 2026-11-19 20:55, step 3.9 ticked
+
+Milos tried all six steps of 3.9 and called it good, one tap, fast taps, an arrow then Return,
+Escape, a letter typed straight after the taps landing in the new layout, and Hammerspoon's bare
+list once the app was quit. Every list a person opens is now drawn by Olm.app while it runs. Left
+before the resting point, the timings its second condition asks for.

@@ -117,9 +117,9 @@ Stage 3, every list in the app
   - Built 2026-11-18, `0719baf4`, with four fixes from its trial the same day: a list opened alone is its own host for its pane and keys, `9f9b93ba` and `ea3edb92`, every stage word that changes a list reaches the app, `bc742c0d`, and a hosted list runs every verb the app does not, `bfb723c5`. Milos's trial good on 2026-11-18, every tool's own key, the fallback after quitting the app and a list opened over a password field.
   - Left after it, a list stepped through with one repeated key, Input Sources' cycle, since the app has no bare mode yet.
 
-- [ ] 3.9 Input Sources' cycle in the app, `docs/DESIGN-APP-HOSTED.md` under 3.9
+- [x] 3.9 Input Sources' cycle in the app, `docs/DESIGN-APP-HOSTED.md` under 3.9
   - Written on 2026-11-19. The cycle key asks the bridge first as `stagePresent` does, the app shows the list bare in the panel's existing bare posture and owns the idle completion, Hammerspoon sends `step` for each further press and posts the retyped key. Milos's go the same day.
-  - Built 2026-11-19. The further presses take the list verb road as `cycleStep`, and a hosted level says `hidden` before it closes when asked. `test/bridge.lua` 181 checks, `test/bridgeserve.lua` 151, `olm-bridge-check` 171. Milos's trial is next.
+  - Built 2026-11-19. The further presses take the list verb road as `cycleStep`, and a hosted level says `hidden` before it closes when asked. `test/bridge.lua` 181 checks, `test/bridgeserve.lua` 151, `olm-bridge-check` 171. Milos's trial good on 2026-11-19, every step of the six, the fallback after quitting the app among them.
 
 The resting point
 - [ ] All five conditions of the resting point hold, checked on every machine whose `olmapp` piece is on
