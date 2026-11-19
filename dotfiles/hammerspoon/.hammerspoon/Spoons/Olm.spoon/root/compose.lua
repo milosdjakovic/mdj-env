@@ -84,6 +84,9 @@ local keyPageLib = load("lib/keypage.lua")
 -- Which plugins are switched off, merged from the person's config and the saved set, and the
 -- one switch a settings page writes through. Pure, every hs call is handed in from here.
 local switchLib = load("lib/pluginswitch.lua")
+-- Olm Settings, every setting the Olm Settings window shows and the one store on this Mac,
+-- ~/.olm/state/settings.json, docs/DESIGN-APP-SETTINGS.md.
+local settingsLib = load("lib/settings.lua")
 -- The one shot note a reload leaves for the load after it, where to reopen and what to say.
 local resumeLib = load("lib/resume.lua")
 local navLib = load("lib/nav.lua")
@@ -284,8 +287,62 @@ end
 -- obj.run, which sits near Lua 5.4's limit of two hundred active locals. opts carries the kit,
 -- the icon resolver, the two field predicates, the resolved compiler, the cache directory and
 -- the logger.
--- The hs.settings key the Olm Chooser list persists its choice under, a provider's name.
-local CHOOSER_SETTINGS_KEY = "olmChooser"
+-- Opens the one settings store, ~/.olm/state/settings.json beside the olm root, moves the old
+-- keys of Hammerspoon's own settings into it once, and lays its saved values over the policy, so
+-- every reader of a policy value below reads the setting with no word of its own. The typography,
+-- the icons, the stage and the plugins' data are laid over as each is loaded. It lives outside
+-- obj.run, which sits near Lua 5.4's limit of two hundred active locals.
+local function openSettings(policy)
+  local root = ((policy.storage or {}).olmRoot or "~/.olm/data"):gsub("^~", os.getenv("HOME") or "")
+  local dir = root:gsub("/+$", ""):gsub("/[^/]*$", "") .. "/state"
+  local warn = hs.logger.new("OlmSettings", "info")
+  local store = settingsLib.store({
+    path = dir .. "/settings.json",
+    read = function(path)
+      local file = io.open(path, "r")
+      if not file then return nil end
+      local text = file:read("a")
+      file:close()
+      return text
+    end,
+    write = function(path, text)
+      hs.fs.mkdir(dir)
+      local tmp = path .. ".tmp"
+      local file = text and io.open(tmp, "w")
+      if not file then return false end
+      file:write(text)
+      file:close()
+      return os.rename(tmp, path) ~= nil
+    end,
+    decode = function(text) return hs.json.decode(text) end,
+    encode = function(value) return hs.json.encode(value, true) end,
+    log = { w = function(message) warn.w(message) end },
+  })
+  local moved = store.migrate({
+    get = function(key) return hs.settings.get(key) end,
+    clear = function(key) hs.settings.clear(key) end,
+  })
+  if #moved > 0 then
+    warn.i("moved " .. table.concat(moved, ", ") .. " from Hammerspoon's settings into " .. dir .. "/settings.json")
+  end
+  local olmSettings = settingsLib.new({ store = store, log = { w = function(message) warn.w(message) end } })
+  olmSettings.overlay("policy", policy)
+  return olmSettings
+end
+
+-- A store shaped as the themes and the appearance ask for one, get and set by an old hs.settings
+-- key, answered from the settings store under the id that key moved to.
+local function keyedStore(olmSettings)
+  local function id(key) return (settingsLib.LEGACY[key] or {}).id or key end
+  return {
+    get = function(key) return olmSettings.store.get(id(key)) end,
+    set = function(key, value) olmSettings.store.set(id(key), value) end,
+  }
+end
+
+-- The settings of this load, see openSettings, kept at file level so it never counts against
+-- obj.run's locals.
+local olmSettings = nil
 
 -- The watcher that reapplies a look following the system accent when the accent changes, kept at
 -- file level so it lives as long as the config and never counts against obj.run's locals.
@@ -419,7 +476,7 @@ end
 -- Answers the engine and a function the root calls once the manifests are read and the dependency
 -- door has answered, see wireIconRenders below. It lives outside obj.run, which sits near Lua
 -- 5.4's limit of two hundred active locals, so the sources and the config end with this call.
-local function buildIcons(atoms, policy, color, weight, warnLog)
+local function buildIcons(atoms, policy, color, weight, warnLog, olmSettings)
   local sf = sfSourceLib.new({
     dir = function() return atoms.storage.ensure(atoms.storage.cacheDir("icons")) end,
     weight = weight,
@@ -435,6 +492,15 @@ local function buildIcons(atoms, policy, color, weight, warnLog)
     file:close()
     return text
   end, warnLog, function(name) return iconKnown[name] end)
+  if olmSettings then
+    local offered = {}
+    for _, source in ipairs(iconSources) do
+      offered[#offered + 1] = { value = source.name, title = source.title or source.name }
+    end
+    olmSettings.declare("icons.set", { choices = offered })
+    olmSettings.declare("icons.fallback", { choices = offered })
+    olmSettings.overlay("icons", iconConfig)
+  end
   local order = iconsConfigLib.order(iconConfig)
   local engine = iconsLib.new({ sources = iconSources, order = order, color = color })
   local sfInOrder = false
@@ -504,6 +570,8 @@ function obj.run(olm, cfg)
   local glyphIconLib = atoms.glyphicon
 
   local policy = defaultsLib.merge(SHIPPED_POLICY, cfg.policy)
+  -- The one settings store, laid over the policy before anything reads it, see openSettings.
+  olmSettings = openSettings(policy)
   -- The person's keymap, config/keymap.lua, handed in as cfg.keymap beside cfg.plugins and read by
   -- nothing but this root, so no plugin ever learns a person's keys. lib/keymap.lua reads it into
   -- its four sections here, keys, leaders, roles and aliases, every entry it cannot read a problem
@@ -586,7 +654,7 @@ function obj.run(olm, cfg)
   -- The other half of the one switch, the identities a settings page saved. Read here, before
   -- anything loads, and merged with the false entries above once step C knows which identities
   -- live under plugins, since only those may be switched off.
-  local savedDisabled = hs.settings.get(switchLib.SETTINGS_KEY)
+  local savedDisabled = olmSettings.saved("plugins.off")
   -- What the resolver merges over each plugin's defaults. A false entry travels in the disabled
   -- set instead, so a false the merge refuses, one written for a host, switches nothing off. Every
   -- key field a person could once write per plugin, key, mods, leader, bindings, surface and
@@ -671,6 +739,7 @@ function obj.run(olm, cfg)
       return text
     end,
     { w = function(message) log.w(message) end })
+  olmSettings.overlay("typography", typography, uiAtom and uiAtom.shippedTypography and uiAtom.shippedTypography())
   local themeLog = { w = function(message) log.w(message) end }
 
   -- Which chooser serves, decided here rather than where the chooser is configured below,
@@ -680,7 +749,15 @@ function obj.run(olm, cfg)
   -- schedules a reload. Only a provider that declares an appearance can be picked there.
   local chooserAtom = atoms.chooser
   do
-    local picked = hs.settings.get(CHOOSER_SETTINGS_KEY)
+    local offered = {}
+    for name, provider in pairs(chooserAtom.providers or {}) do
+      if provider.appearance and provider.appearance.title then
+        offered[#offered + 1] = { value = name, title = provider.appearance.title }
+      end
+    end
+    table.sort(offered, function(a, b) return a.title < b.title end)
+    olmSettings.declare("chooser", { choices = offered, default = policy.chooserProvider })
+    local picked = olmSettings.store.get("chooser")
     local provider = chooserAtom.providers and chooserAtom.providers[picked]
     if picked ~= nil and not (provider and provider.appearance) then
       log.w("the stored chooser " .. tostring(picked) .. " is not one Olm offers, so "
@@ -695,7 +772,7 @@ function obj.run(olm, cfg)
   -- The glass palette moved out of config/themes into the swift provider on 2026-11-02, so a
   -- machine whose stored canvas theme was glass would warn on every load. Forgotten once here,
   -- and the canvas starts from the default theme until another is picked.
-  if hs.settings.get(themesLib.SETTINGS_KEY) == "glass" then hs.settings.set(themesLib.SETTINGS_KEY, nil) end
+  if olmSettings.store.get("theme") == "glass" then olmSettings.store.set("theme", nil) end
 
   local themes = themesLib.new({
     dir = (policy.themes or {}).dir,
@@ -714,8 +791,7 @@ function obj.run(olm, cfg)
       file:close()
       return text
     end,
-    store = { get = function(key) return hs.settings.get(key) end,
-              set = function(key, value) hs.settings.set(key, value) end },
+    store = keyedStore(olmSettings),
     ui = uiAtom,
     specFor = function(colors) return uiSpecLib.spec(policy, colors, typography) end,
     onChange = function(_, colors)
@@ -760,8 +836,7 @@ function obj.run(olm, cfg)
     declared = chosenAppearance,
     themes = themes,
     palette = palette,
-    store = { get = function(key) return hs.settings.get(key) end,
-              set = function(key, value) hs.settings.set(key, value) end },
+    store = keyedStore(olmSettings),
     accent = systemAccent,
     apply = applyColors,
     log = themeLog,
@@ -782,11 +857,25 @@ function obj.run(olm, cfg)
 
   -- The icon engine, see buildIcons above obj.run. prepareIcons is called once the manifests'
   -- icons are read and the dependency door has answered, through wireIconRenders.
+  -- The theme the window offers, or the highlight when the glass serves, each choice by the name
+  -- it is saved under, and the one the chooser that does not serve offers is not drawn.
+  do
+    local highlight = chosenAppearance and chosenAppearance.kind == "highlight"
+    local themeChoices = {}
+    for _, name in ipairs(themes.names()) do themeChoices[#themeChoices + 1] = { value = name, title = name } end
+    olmSettings.declare("theme", { choices = themeChoices, default = themesLib.DEFAULT, absent = highlight })
+    local glassChoices = {}
+    for _, choice in ipairs(highlight and chosenAppearance.choices or {}) do
+      glassChoices[#glassChoices + 1] = { value = choice.name, title = choice.title }
+    end
+    olmSettings.declare("highlight", { choices = glassChoices, absent = not highlight,
+      default = highlight and chosenAppearance.default or nil })
+  end
   local iconEngine, prepareIcons = buildIcons(atoms, policy, function()
     return uiAtom and uiAtom.tokens().colors.foreground or nil
   end, function()
     return uiAtom and uiAtom.tokens().stroke.symbol or nil
-  end, themeLog)
+  end, themeLog, olmSettings)
 
   local canvasPanel = atoms.panel
   canvasPanel:init()
@@ -1184,7 +1273,11 @@ function obj.run(olm, cfg)
   -- step B call through now that it exists.
   ------------------------------------------------------------------------------
 
-  overlay = overlayDisplayLib.new()
+  olmSettings.declare("placement", { default = (policy.overlayDisplay or {}).mode or overlayDisplayLib.modes.cursor })
+  overlay = overlayDisplayLib.new({ store = {
+    get = function() return olmSettings.saved("placement") end,
+    set = function(mode) return olmSettings.store.set("placement", mode) end,
+  } })
   overlay.configure(policy.overlayDisplay or {})
 
   ------------------------------------------------------------------------------
@@ -1635,11 +1728,8 @@ function obj.run(olm, cfg)
     switchLib.save(pendingSwitches, {
       switchable = isSwitchable,
       lockedBy = locks,
-      read = function()
-        local saved = hs.settings.get(switchLib.SETTINGS_KEY)
-        return type(saved) == "table" and saved or {}
-      end,
-      write = function(list) hs.settings.set(switchLib.SETTINGS_KEY, list) end,
+      read = function() return olmSettings.saved("plugins.off") or {} end,
+      write = function(list) olmSettings.store.set("plugins.off", list) end,
     })
     -- The staged set is kept, not cleared, so the page still shows what is about to apply for
     -- the moment before the reload lands, and the scheduled reload is what refuses a second
@@ -1959,7 +2049,7 @@ function obj.run(olm, cfg)
       for name, provider in pairs(chooserAtom.providers or {}) do
         if provider.appearance and provider.appearance.title == title then
           if name == policy.chooserProvider then return true end
-          hs.settings.set(CHOOSER_SETTINGS_KEY, name)
+          olmSettings.store.set("chooser", name)
           scheduleSwitchReload()
           return true
         end
@@ -2110,6 +2200,7 @@ function obj.run(olm, cfg)
   -- assignment in this function's own sequence and only isShowingFor, a closure, reaches it
   -- ahead of that point in the source.
   stageModule = modules[plan.identity.stage or "stage"]
+  olmSettings.overlay("stage", stageModule)
 
   -- Staged plugin choices apply when the stage goes away, by whatever route, since that is the
   -- person saying they are done. Leaving a page for the level above is not the stage going away,
@@ -2991,6 +3082,22 @@ function obj.run(olm, cfg)
     local swift = chooserAtom.providers and chooserAtom.providers.swift
     if bridgeModule and type(bridgeModule.share) == "function" and swift and swift.look then
       bridgeModule:share("chooser", function() return swift.look({ bottomBar = function() return nil end }) end)
+    end
+    -- Every setting the Olm Settings window shows, each plugin a person can switch off among them,
+    -- with what this load has, docs/DESIGN-APP-SETTINGS.md. Written once at load.
+    if bridgeModule and type(bridgeModule.share) == "function" then
+      bridgeModule:share("settings", function()
+        local rows = switchLib.catalog({ manifests = allManifests, directories = directories,
+          switchable = isSwitchable, disabled = disabled, lockedBy = locks, offBecause = offBecause })
+        for _, row in ipairs(rows) do
+          olmSettings.declare("plugin." .. row.identity, { section = "plugins", kind = "switch",
+            applies = "reload", title = row.about.title or row.identity, detail = row.about.description,
+            keywords = { row.identity, "plugin", "enable", "disable" },
+            member = { list = "plugins.off", name = row.identity },
+            locked = row.lockedBy and ("set in config/plugins.lua") or nil })
+        end
+        return olmSettings.share()
+      end)
     end
     -- The bar, the info pane and the field keys of each list the app serves, from the same plan the
     -- Lua list reads with the person's lists section laid over it, written once at load, step 1.4f.

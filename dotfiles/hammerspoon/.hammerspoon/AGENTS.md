@@ -786,8 +786,11 @@ sheets read one seam and land on the same display.
 
 Milos decided the policy offers exactly two choices, nothing more. The live choice is
 set at runtime, not by editing config, through the Olm Placement list in the launcher,
-which is the one place a person sees or changes it. It writes the choice to one
-`hs.settings` key, `overlayDisplayPolicy`. The resolver reads through `effectiveMode`,
+which is the one place a person sees or changes it. It writes the choice to the one Olm
+settings store, `~/.olm/state/settings.json` under `placement`, handed to the resolver by
+the root, see `Spoons/Olm.spoon/lib/settings.lua`. It was the `hs.settings` key
+`overlayDisplayPolicy` until 2026-11-20, moved once into the store on the first load that
+found it. The resolver reads through `effectiveMode`,
 which returns the persisted choice first and falls back to the `config/settings.lua`
 `overlayDisplay` block, so that block is now only the seed for a fresh machine and a
 choice made in the settings tool takes effect on the next overlay with no reload.

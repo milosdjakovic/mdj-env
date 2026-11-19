@@ -130,6 +130,28 @@ Each step ends with Milos's trial, as 3.8 and 3.9 did.
 1. The trim of the table above, and any setting to add.
 2. Whether a reload setting reloads when the window closes, as written, or only on a button.
 
+## As built
+
+**S.1, 2026-11-20.** Milos said go with no trim, so the table stands, and a reload setting applies
+when the window closes, as written. `lib/settings.lua` declares the settings and keeps the store.
+The root opens it first thing in `obj.run`, moves the five old keys of Hammerspoon's own settings,
+`olmChooser`, `olmTheme`, `olmGlassHighlight`, `overlayDisplayPolicy` and `Olm.disabledPlugins`,
+into it once, and lays every saved value over the table it belongs to as each is loaded, the
+policy, the typography, the icons and the Lua stage's `CYCLE_IDLE`. So every reader of those values
+reads the setting with no word of its own, and a saved value the declaration does not allow is said
+once and leaves the file's. The chooser, the theme, the highlight, the placement and the plugin
+switches read and write the store, and nothing calls `hs.settings` for any of them now. The share
+`~/.olm/run/settings.json` is written at load, the sections in order, each setting with its kind,
+its range or choices, how it applies, its default and its value, and every plugin a person can
+switch off as one switch.
+
+Two changes to the table. Window Management's steps and sizes are not declared yet. They reach the
+window manager as its own data, and only a plugin may name itself, which the dry gate holds, so the
+window manager declares them through its manifest in S.4 with the `olm-plugin` skill, and the
+section stays empty until then. The icon set's choices are the icon sources themselves, each with a
+title of its own, and the fonts' and sizes' defaults for a key the typography file leaves out are
+the kit's, `ui.shippedTypography()`, so no font name or source name is written outside its owner.
+
 ## Back out
 
 The four plugins keep their logic as providers, so their launcher rows come back by registering

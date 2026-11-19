@@ -54,6 +54,7 @@ if [ "$tiers" = "dry" ]; then
   "$OLM_LUA" "$here/keypage.lua" || exit 1
   "$OLM_LUA" "$here/bridge.lua" || exit 1
   "$OLM_LUA" "$here/bridgeserve.lua" || exit 1
+  "$OLM_LUA" "$here/settings.lua" || exit 1
   "$OLM_LUA" "$here/securefocus.lua" || exit 1
   "$OLM_LUA" "$here/securenotice.lua" || exit 1
   "$OLM_LUA" "$here/swiftview.lua" || exit 1

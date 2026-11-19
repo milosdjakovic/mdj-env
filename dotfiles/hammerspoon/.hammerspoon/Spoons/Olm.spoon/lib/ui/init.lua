@@ -35,6 +35,8 @@ ui.measure = measure
 --- ui.loadTypography(path, read, log), the composition root's reader for the typography
 --- file, see lib/ui/style.lua. It answers the valid fonts and sizes for the spec.
 ui.loadTypography = styleLib.loadTypography
+--- ui.shippedTypography(), the fonts and sizes used for a key that file leaves out.
+ui.shippedTypography = styleLib.shippedTypography
 
 --- ui.configure(opts), the composition root's door.
 --- opts.spec             the style spec, see lib/ui/style.lua.

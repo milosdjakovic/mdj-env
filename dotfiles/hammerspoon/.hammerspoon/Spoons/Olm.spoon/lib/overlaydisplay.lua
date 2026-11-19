@@ -14,10 +14,11 @@
 -- needs to know the caller is a chooser or a canvas panel, only that a screen
 -- comes back.
 --
--- Two modes only, activeWindow and cursor. The Olm Placement plugin is the one
--- place a person sees or changes this choice, reading and writing it through
--- self.mode and self.setMode, so this file stays the one place that ever calls
--- hs.settings for the policy itself.
+-- Two modes only, activeWindow and cursor. A person changes this choice through
+-- self.setMode, and it is saved in the one settings store the root hands in as
+-- opts.store, ~/.olm/state/settings.json, docs/DESIGN-APP-SETTINGS.md. It used
+-- to be the hs.settings key overlayDisplayPolicy, which lib/settings.lua moves
+-- into that store once.
 
 local M = {}
 
@@ -33,23 +34,17 @@ M.modes = {
   cursor = MODE_CURSOR,
 }
 
---- M.new() returns instance.
---- Takes no deps. The picker this module once carried needed a canvas panel, a
---- displayplacer path, the active display arrangement, and a way to pop the shared
---- stage, and all four left with the picker, so there is nothing left here to
---- inject.
-function M.new()
+--- M.new(opts) returns instance.
+--- opts.store  get() answering the saved mode or nil, set(mode) saving one. With
+---             none, a choice lives only as long as this instance, which is what
+---             a unit case wants.
+function M.new(opts)
   local self = {}
-
-  -- The runtime store key, kept local rather than read from a config table, since
-  -- a fresh install needs somewhere for a choice to persist before any config file
-  -- exists to name one, and nothing outside this file ever reads it. A stored
-  -- table may still carry a leftover fixed key from a machine that had a pin
-  -- before this file was slimmed to two modes. Nothing here reads that key any
-  -- more, and it is deliberately not scrubbed, since a dead key with no reader
-  -- costs nothing and a migration step for it would be ceremony over a value
-  -- nobody will ever see again.
-  local STORE_KEY = "overlayDisplayPolicy" -- { mode }
+  local held = nil
+  local store = (opts or {}).store or {
+    get = function() return held end,
+    set = function(mode) held = mode end,
+  }
 
   -- The seed policy handed to configure, config/settings.lua's own overlayDisplay
   -- block. Defaulted here so self.screen answers something sane even the moment
@@ -71,7 +66,7 @@ function M.new()
   -- plugin takes effect on the next screen resolve with no reload, and an unset key
   -- still honours whatever configure was seeded with.
   local function storeValue()
-    return hs.settings.get(STORE_KEY) or {}
+    return { mode = store.get() }
   end
   -- Clamps to cursor when the stored or seeded mode is not one of the two this file
   -- still knows. This is the whole migration a machine whose stored policy still
@@ -128,9 +123,7 @@ function M.new()
       log.w(string.format("setMode refused '%s', not one of the modes this resolver knows", tostring(mode)))
       return false
     end
-    local s = storeValue()
-    s.mode = mode
-    hs.settings.set(STORE_KEY, s)
+    store.set(mode)
     return true
   end
 

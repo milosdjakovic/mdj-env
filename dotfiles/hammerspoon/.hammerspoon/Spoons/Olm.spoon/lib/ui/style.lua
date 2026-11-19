@@ -78,6 +78,17 @@ local SHIPPED_TYPOGRAPHY = {
 --- variant. They are derived, never configured, apart from the fonts and sizes above.
 M.roles = { "title", "body", "caption", "section", "code" }
 
+--- M.shippedTypography(), a copy of the fonts and sizes the kit uses for a key the typography
+--- file leaves out, which Olm Settings shows as that setting's default.
+function M.shippedTypography()
+  local out = {}
+  for group, values in pairs(SHIPPED_TYPOGRAPHY) do
+    out[group] = {}
+    for k, v in pairs(values) do out[group][k] = v end
+  end
+  return out
+end
+
 -- Which font token and which colour role each type role is drawn with. code is the mono
 -- font and every other role the ui font. title, body and code draw in the foreground, and
 -- caption and section in subtext. A text node

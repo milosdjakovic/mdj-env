@@ -33,7 +33,7 @@ local TEXT = 60
 
 --- M.new() -> source, the name emoji and a draw function, see lib/icons/contract.lua.
 function M.new()
-  local source = { name = "emoji", tinted = true }
+  local source = { name = "emoji", title = "Emoji", tinted = true }
   local canvas
 
   function source.draw(glyph, points, color)

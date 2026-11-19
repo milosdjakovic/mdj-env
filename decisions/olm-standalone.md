@@ -1086,3 +1086,17 @@ values saved on this Mac over the config files. The 2026-10-27 split of the Olm 
 does not stand against it, since that was a list opening as a second window and this is a window
 opened as one. Olm Keys stays its own row, the 2026-10-21 decision. Hammerspoon declares and applies
 every setting and the app draws the window, the line this session drew. `docs/DESIGN-APP-SETTINGS.md`.
+
+### 2026-11-20 00:37, Olm Settings S.1, the store and the declarations
+
+Milos said go with no trim, so the whole table stands and a reload setting applies when the window
+closes. Built `lib/settings.lua` and one store, `~/.olm/state/settings.json`, which takes over the
+five keys Hammerspoon's own settings held, moved once and removed there. A saved value is laid over
+the policy, the typography, the icons and the stage as each loads, so no reader changed, and the
+share `settings.json` is written at load. Window Management was first declared in the library, and
+the dry gate refused it, since core may not name the window manager, and the rename proof showed the
+overlay making an empty `windowSizing` group in its data. Both were right. The overlay no longer
+makes a group a file leaves out, and the window manager declares its own settings through its
+manifest in S.4. The icon sources' names and the kit's font names were refused the same way, so the
+sources carry a title and the kit answers its shipped typography. On this Mac none of the five keys
+was set, so the first load moves nothing.

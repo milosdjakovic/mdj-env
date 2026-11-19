@@ -28,6 +28,8 @@
 --                                     a symbol the system draws, an SF Symbol, so a native view that
 --                                     sets one beside its own text asks the engine's symbol for the
 --                                     name and draws it as one more glyph of that text.
+--   source.title                      optional string. The source's name as a person reads it, the
+--                                     Icon set choice in Olm Settings, its name when not given.
 --   source.variant()                  optional. A function answering a short string for anything
 --                                     besides spec, size and colour that changes the picture, the
 --                                     scale an icon is rasterised at. The engine adds it to its
@@ -73,6 +75,9 @@ function M.validate(source)
   end
   if source.system ~= nil and type(source.system) ~= "boolean" then
     error("icon source '" .. label .. "' has a system field that is not a boolean", 3)
+  end
+  if source.title ~= nil and type(source.title) ~= "string" then
+    error("icon source '" .. label .. "' has a title field that is not a string", 3)
   end
   if source.variant ~= nil and type(source.variant) ~= "function" then
     error("icon source '" .. label .. "' has a variant field that is not a function", 3)
