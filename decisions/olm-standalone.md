@@ -1077,3 +1077,12 @@ Milos tried all six steps of 3.9 and called it good, one tap, fast taps, an arro
 Escape, a letter typed straight after the taps landing in the new layout, and Hammerspoon's bare
 list once the app was quit. Every list a person opens is now drawn by Olm.app while it runs. Left
 before the resting point, the timings its second condition asks for.
+
+### 2026-11-19 21:50, Olm Settings as a window of the app
+
+Milos asked, while the timings record, for one Olm Settings entry replacing the four launcher rows,
+opened by ⌘, from any Olm window as a real window, a sidebar with search and native controls, its
+values saved on this Mac over the config files. The 2026-10-27 split of the Olm Settings plugin
+does not stand against it, since that was a list opening as a second window and this is a window
+opened as one. Olm Keys stays its own row, the 2026-10-21 decision. Hammerspoon declares and applies
+every setting and the app draws the window, the line this session drew. `docs/DESIGN-APP-SETTINGS.md`.

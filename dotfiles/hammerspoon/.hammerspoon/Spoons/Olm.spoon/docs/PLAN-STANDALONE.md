@@ -121,6 +121,9 @@ Stage 3, every list in the app
   - Written on 2026-11-19. The cycle key asks the bridge first as `stagePresent` does, the app shows the list bare in the panel's existing bare posture and owns the idle completion, Hammerspoon sends `step` for each further press and posts the retyped key. Milos's go the same day.
   - Built 2026-11-19. The further presses take the list verb road as `cycleStep`, and a hosted level says `hidden` before it closes when asked. `test/bridge.lua` 181 checks, `test/bridgeserve.lua` 151, `olm-bridge-check` 171. Milos's trial good on 2026-11-19, every step of the six, the fallback after quitting the app among them.
 
+Olm Settings, the app's own window, asked by Milos on 2026-11-19 while the timings record
+- [ ] S.1 to S.4, `docs/DESIGN-APP-SETTINGS.md`. One Olm Settings window in Olm.app, a sidebar with search and native controls, opened by ⌘, from any Olm window, its values saved on this Mac over the config files, and the four launcher rows Olm Chooser, Olm Placement, Olm Theme and Olm Plugins removed. Hammerspoon declares every setting and applies it, the app draws the window. Its design note waits on Milos's go and his trim of what it holds.
+
 The resting point
 - [ ] All five conditions of the resting point hold, checked on every machine whose `olmapp` piece is on
 
