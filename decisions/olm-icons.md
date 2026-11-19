@@ -498,3 +498,9 @@ those surfaces, and `stroke.symbol` now sets list rows alone. The engine names t
 draws as through a source declaring `system`, and the swift view and Olm.app's share send the name
 rather than a PNG. The canvas chooser's panes keep the pictures until it is ported. List row icons
 are unchanged, so the launcher's weight is still the open question he raised.
+
+### 2026-11-19 19:46, the glyph symbols tried and kept
+
+Milos tried dbeb3a2c live, the bar's info icon, the actions pane's lines and a verb's choices in
+Olm.app and the swift chooser, and called it good. List row icons stay at `stroke.symbol`,
+semibold, since he raised nothing further about them once the panes matched their text.

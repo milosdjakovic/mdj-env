@@ -602,6 +602,82 @@ What can go wrong, and what to tell me:
 **Back out:** `keysFlip = false` in `config/plugins.lua` and a reload. Every key opens
 Hammerspoon's list again and the launcher stays in the app.
 
+## 3.9, Input Sources' cycle in the app
+
+Written on 2026-11-19. The last list a person opens that Hammerspoon still draws is a cycle, a list
+stepped through with one repeated key, today Input Sources on fn. Its key calls the Lua stage's
+`cycle`, not `stagePresent`, so 3.8's door never sees it. The Lua stage shows the list bare, rows
+only, with no field and no bottom bar, the highlight one row down, each further press one row
+further and wrapping, and it completes by itself on the highlighted row 0.8 seconds after the last
+press. An arrow or the pointer stops that and the list waits for Return or Escape. Any other key
+completes the list and is typed again into the app underneath, built afresh from its code so it
+comes out in the layout just chosen. This step moves all of that to the app, with the same rules.
+
+**One door again.** The root's `cycleRun` asks the bridge first, as `stagePresent` does since 3.8,
+under the same three conditions, the app up, the tool in `hosts` and `keysFlip` on, and otherwise
+calls the Lua stage as now. A future cycle row of any plugin then takes the same road.
+
+**Who knows what.** The cycle key never reaches the app, since Hammerspoon's binding takes it
+wherever focus is. So Hammerspoon says when a press happened and the app owns everything on screen,
+the highlight, the idle completion, the hand move that stops it, Return, Escape and the other keys.
+
+**What grows:**
+- **The bridge host** gains `cycleInApp(name, presentation, keyCode)`. It answers false where the app
+  cannot take the list. The first press opens `olm://tool?name=<name>&cycle=1` and remembers the
+  tool as cycling. A press while that tool's cycle is on screen in the app sends the notification
+  `step {level}` instead of opening again. The memory clears on the level's `hidden` or `closed`.
+- **The bridge's `open`** for `{"tool": name, "cycle": true}` opens the same hosted level 3.8 opens,
+  carrying `"cycle": {"idle": 0.8}`. The number moves out of `host/stage/init.lua` into one place
+  both stages read, so the two cycles cannot drift.
+- **The bridge's `choose`** takes an optional `retype: {code, mods}`. After the completion has run and
+  the app has said `hidden`, Hammerspoon posts that key down to the app in front, as the Lua stage's
+  `_onBareKey` does. It stays Hammerspoon's because it already holds the Accessibility grant that
+  posting a key needs, and Olm.app does not.
+- **The app's stage** opens a level that says `cycle` in the bare posture the shared panel already
+  has, `ViewState.bare`, which hides the field and draws no bottom bar, steps once as it shows, and
+  arms the idle completion. `step` moves one row down, wrapping, and arms it again. The completion is
+  the stage's own Return on the highlighted row. A highlight the person moves disarms it, Escape
+  closes with no choice, and any other key down the panel claims completes the row and sends its
+  code and modifiers as `retype`. fn and the other modifiers arrive as flag changes, never as a key
+  down, so the cycle key's own release is never taken for another key.
+
+**Not in this step.** Another tool's cycle row. Only Input Sources declares one, and any other added
+later takes the same road with no edit.
+
+**Tests:**
+- `test/bridgeserve.lua` pins `open` with `cycle` and its idle, and `choose` with `retype` posting
+  only after `hidden`, through a fake poster.
+- `test/bridge.lua` pins `cycleInApp`, false under each of the three conditions, the URL on a first
+  press, `step` on a second, and a fresh open once the level said `hidden`.
+- `olm-bridge-check` opens a bare level and checks that it shows stepped once, that `step` moves and
+  wraps, that the idle chooses the highlighted row, that an arrow disarms it, that Escape chooses
+  nothing and that another key chooses with `retype`.
+- The binding asking the bridge first is a few lines in `root/compose.lua`, which no offline test
+  reaches, so the trial checks it, and step 5 checks the Lua fallback.
+
+**The trial, once built, with the app running and at least three input sources on:**
+1. Tap fn once. Expect the app's window, rows only, highlight on the layout used before. A moment
+   later it closes and that layout is current.
+2. Tap fn three times quickly. Expect the highlight to move down one row per tap, wrapping, and the
+   third row's layout current a moment after the last tap.
+3. Tap fn, then press Down. Expect the list to stay. Press Return. Expect that row's layout.
+4. Tap fn, then press Escape. Expect the list gone and the layout unchanged.
+5. In a text field, tap fn twice and type a letter at once. Expect the list gone and the letter
+   typed in the new layout.
+6. Quit the app with the Quit Olm App row and tap fn. Expect Hammerspoon's bare list, working as
+   before.
+
+What can go wrong, and what to tell me:
+- The list opens with a field or a bottom bar. Say which, it means the bare posture was not applied.
+- A fast second tap opens the list again rather than stepping. Say how fast, the open may still be
+  in flight when the step arrives.
+- The letter in step 5 comes out in the old layout or not at all. Say which app you typed into.
+- fn does what System Settings' Globe key setting says instead, the emoji viewer or dictation. That
+  means Hammerspoon's binding did not take the key.
+
+**Back out:** `keysFlip = false` in `config/plugins.lua` and a reload. The cycle goes back to the Lua
+stage with every other tool's key.
+
 ## Back out
 
 Remove a tool from `hosts` and reload. The row answers `unserved` again. For File Search, set the
