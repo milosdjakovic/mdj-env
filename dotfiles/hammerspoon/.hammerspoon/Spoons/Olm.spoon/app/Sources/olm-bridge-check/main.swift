@@ -383,6 +383,54 @@ let orf = request("open")
 send(["jsonrpc": "2.0", "id": orf["id"]!, "error": ["code": -32013, "message": "not hosted"]])
 ok(await refusedOpen == nil, "a tool the Lua side does not host opens nothing")
 
+// Its cycle key, step 3.9, asked open as a cycle, its level carrying the idle, and a key typed over it
+// sent with the choose, the level saying hidden before it closes once the answer asks for it.
+async let cycleOpen = shown.openTool("inputsources", query: "", cycle: true)
+let co = request("open")
+let coWhat = (co["params"] as? [String: Any])?["what"] as? [String: Any]
+ok(coWhat?["tool"] as? String == "inputsources" && coWhat?["cycle"] as? Bool == true, "a cycle key asks open as a cycle")
+answer(co, ["level": ["id": "v21", "name": "inputsources", "placeholder": "Input Sources", "previewPane": false,
+  "ranking": "source", "rowLimit": "default", "fit": true, "cycle": ["idle": 0.8]]])
+guard let cycleLevel = await cycleOpen else { give("the cycle's level did not open") }
+ok(cycleLevel.cycleIdle == 0.8, "its level carries the idle")
+ok(tool?.cycleIdle == nil, "and a tool's own key's level none")
+async let cycleRows = cycleLevel.rows(Query(text: "", generation: 1))
+let cr2 = request("rows")
+answer(cr2, ["q": (cr2["params"] as? [String: Any])?["q"] ?? 0, "revision": "r1", "fromQuery": [String](),
+  "exclusive": false, "changes": ["upsert": [["ref": "v21.1", "key": "k1", "title": "ABC"],
+    ["ref": "v21.2", "key": "k2", "title": "Serbian"]], "remove": [String](), "order": ["k1", "k2"]]])
+_ = try await cycleRows
+async let typedChoose = cycleLevel.choose(Pick(key: "k2", query: "", row: 2, highlight: 3,
+  retype: Retype(code: 0, mods: ["shift"])))
+let tc = request("choose")
+let tcRetype = (tc["params"] as? [String: Any])?["retype"] as? [String: Any]
+ok(tcRetype?["code"] as? Int == 0 && tcRetype?["mods"] as? [String] == ["shift"], "a key typed over it goes with the choose")
+answer(tc, ["effects": [["hide": [String: Any]()], ["after": "hidden"]]])
+ok(await typedChoose == [.hide], "it closes the list")
+async let cycleClosed: Void = cycleLevel.close()
+let cycleHidden = next()
+ok(cycleHidden["method"] as? String == "hidden" && cycleHidden["id"] == nil
+  && (cycleHidden["params"] as? [String: Any])?["level"] as? String == "v21", "the level says hidden before it closes")
+let cycleClose = request("close")
+answer(cycleClose, true)
+await cycleClosed
+
+// The cycle's own rules on the app's stage, step 3.9, as the Lua stage keeps them. The first press
+// lands one row down from the top, each further one more, wrapping, and presses owed before the rows
+// landed are taken at once. The vertical arrows are the list's, Return and keypad Enter complete it,
+// and every other key completes it and is typed again with its modifiers, fn left out.
+ok(Stage.cycleRow(after: 1, from: 1, count: 3) == 2, "a cycle's first press lands on the row used before")
+ok(Stage.cycleRow(after: 1, from: 3, count: 3) == 1, "a press on the last row wraps to the first")
+ok(Stage.cycleRow(after: 4, from: 1, count: 3) == 2, "presses owed before the rows landed are taken together")
+ok(Stage.cycleRow(after: 1, from: 1, count: 1) == 1, "a list of one stays on it")
+ok(Stage.cycleRow(after: 1, from: 1, count: 0) == 0, "and an empty list has no row")
+ok(Stage.cycleKeyKind(125) == .list && Stage.cycleKeyKind(126) == .list, "the vertical arrows are the list's own")
+ok(Stage.cycleKeyKind(36) == .complete && Stage.cycleKeyKind(76) == .complete, "Return and keypad Enter complete it")
+ok(Stage.cycleKeyKind(0) == .retype && Stage.cycleKeyKind(49) == .retype && Stage.cycleKeyKind(48) == .retype,
+  "any other key completes it and is typed again")
+ok(Stage.retypeMods([.maskShift, .maskCommand, .maskSecondaryFn]) == ["shift", "cmd"],
+  "with the modifiers held, by their names, fn left out")
+
 // The effects notification reaches the level it names and no other.
 send(["jsonrpc": "2.0", "method": "effects", "params": ["level": "v9", "q": 1, "effects": [["rows": ["hold": true]]]]])
 send(["jsonrpc": "2.0", "method": "effects", "params": ["level": "v5", "q": 1, "effects": [["rows": ["hold": true]]]]])

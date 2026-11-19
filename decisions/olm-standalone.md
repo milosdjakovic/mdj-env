@@ -1058,3 +1058,15 @@ colour chip alike, crossed with none. The rows now send it through the same `pic
 pane uses, and the app draws it as `Icon.picture`, keeping its own colours. It crosses only where
 the row names no icon the app resolves itself, since every launcher app row also carries its icon
 as a picture and encoding those would write hundreds of files for nothing.
+
+### 2026-11-19 20:50, step 3.9, Input Sources' cycle in the app
+
+Built on Milos's go. The cycle key asks the bridge first as every tool key has since 3.8, and the
+app shows the list bare through the panel's existing bare posture, laid out as the Lua engine's
+`_shapedLayout`, with the idle completion, the hand move that stops it and the keys its own. A
+further press takes the list verb road as `cycleStep` rather than a new socket notification, since
+that road already reaches the stage's own highlight, and a press heard while the list is still
+opening is owed and taken when the rows land. A key typed over it is posted again by Hammerspoon
+after the app says `hidden`, since Olm.app holds no Accessibility grant to post one, and a hosted
+level learned to say `hidden`, which only the launcher's did. The idle is the Lua stage's
+`CYCLE_IDLE`, now published and sent with the level, so the two cycles share one number.

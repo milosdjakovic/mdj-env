@@ -350,6 +350,50 @@ eq(up:presentInApp("clipboard", clip), true, "own key: a hosted tool with the so
 eq(posted[1] and posted[1].name, "local.olm.Olm.open", "own key: by the open notification")
 eq(posted[1] and posted[1].object, "olm://tool?screen=cursor&name=clipboard&query=", "own key: naming the tool and the screen")
 
+-- Its cycle key, step 3.9, cycleInApp asked by the root's cycleRun before the Lua stage.
+local inputs = { name = "inputsources" }
+local function cycler(extra)
+  local o = { hosts = { "inputsources" } }
+  for k, v in pairs(extra or {}) do o[k] = v end
+  return keyed(o)
+end
+posted = {}
+eq(cycler({ keysFlip = false }):cycleInApp("inputsources", inputs), false, "cycle: the switch off keeps the Lua cycle")
+eq(keyed():cycleInApp("inputsources", inputs), false, "cycle: a tool not hosted keeps the Lua cycle")
+local gone = cycler()
+gone._conn = { isUp = function() return false end }
+eq(gone:cycleInApp("inputsources", inputs), false, "cycle: a socket that went keeps the Lua cycle")
+eq(#posted, 0, "cycle: and tells the app nothing")
+local cyc = cycler()
+eq(cyc:cycleInApp("inputsources", inputs), true, "cycle: a first press opens in the app")
+eq(posted[1] and posted[1].object, "olm://tool?name=inputsources&query=&cycle=1", "cycle: as a cycle")
+cyc._runningAt, cyc._runningWas = clock, true
+eq(cyc:cycleInApp("inputsources", inputs), true, "cycle: a press while it opens is taken")
+eq(posted[2] and posted[2].name, "local.olm.Olm.verb", "cycle: as a verb")
+eq(posted[2] and posted[2].object, "inputsources:cycleStep", "cycle: that steps it")
+cyc:_state("inputsources:up")
+eq(cyc:cycleInApp("inputsources", inputs) and posted[3] and posted[3].object, "inputsources:cycleStep",
+  "cycle: and while it is up")
+clock = clock + 1
+cyc:_state("inputsources:down")
+cyc._runningAt, cyc._runningWas = clock, true
+eq(cyc:cycleInApp("inputsources", inputs) and posted[4] and posted[4].object, "olm://tool?name=inputsources&query=&cycle=1",
+  "cycle: once it went down a press opens it again")
+eq(cyc:presentInApp("inputsources", inputs), true, "cycle: its own open key opens it in full")
+eq(cyc._cycling, nil, "cycle: which is no cycle, so the next press opens one")
+
+-- A key typed over a list cycled in the app, posted again a moment after the app hid.
+local keyed2 = {}
+hs.eventtap = { event = { newKeyEvent = function(mods, code, down)
+  return { post = function() keyed2[#keyed2 + 1] = { mods = mods, code = code, down = down } end }
+end } }
+cyc:_retype(0, { "shift" })
+eq(#keyed2, 0, "retype: nothing is posted at once")
+timers[#timers].fn()
+eq(keyed2[1] and keyed2[1].code, 0, "retype: the key is posted after the delay")
+eq(keyed2[1] and keyed2[1].mods[1], "shift", "retype: with its modifiers")
+eq(keyed2[1] and keyed2[1].down, true, "retype: as a key down")
+
 -- Quit Olm App, a row while the app runs, asking each running copy to quit.
 local quitter = fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, socket = true })
 local quit = quitter:actions()[2]

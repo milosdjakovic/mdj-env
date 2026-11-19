@@ -675,6 +675,16 @@ What can go wrong, and what to tell me:
 - fn does what System Settings' Globe key setting says instead, the emoji viewer or dictation. That
   means Hammerspoon's binding did not take the key.
 
+**As built, 2026-11-19.** A further press reaches the app as the list verb `cycleStep` on the road
+every list key already takes, the distributed notification `local.olm.Olm.verb`, rather than a new
+`step` notification over the socket, so the app's stage runs it the way it runs `selectNext`. The app
+is told a cycle is opening before it asks for the level, so a press heard in that gap is owed and
+taken when the rows land. A hosted level now says `hidden` before it closes when a choose asked for
+it, which only the launcher's level did. The stage's cycle rules are pure functions on `Stage`,
+`cycleRow`, `cycleKeyKind` and `retypeMods`, which `olm-bridge-check` pins, and the bare placement is
+`Look.placement(bare:)`, the Lua engine's `_shapedLayout`. `test/bridge.lua` 181 checks,
+`test/bridgeserve.lua` 151 and `olm-bridge-check` 171.
+
 **Back out:** `keysFlip = false` in `config/plugins.lua` and a reload. The cycle goes back to the Lua
 stage with every other tool's key.
 

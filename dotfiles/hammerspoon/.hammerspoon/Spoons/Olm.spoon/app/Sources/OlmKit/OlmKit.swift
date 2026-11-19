@@ -171,12 +171,28 @@ public struct Pick: Sendable, Equatable {
   public var row: Int
   /// The stage's highlight generation when the row was acted on, the bridge's h, 0 where not said.
   public var highlight: Int
+  /// A key typed over a cycled list, which completed it, to be typed again into the app underneath
+  /// once the list has hidden, step 3.9, nil for every other pick.
+  public var retype: Retype?
 
-  public init(key: String, query: String, row: Int = 0, highlight: Int = 0) {
+  public init(key: String, query: String, row: Int = 0, highlight: Int = 0, retype: Retype? = nil) {
     self.key = key
     self.query = query
     self.row = row
     self.highlight = highlight
+    self.retype = retype
+  }
+}
+
+/// A key down as it is typed again, its virtual key code and the modifiers held, by lib/kbd.lua's
+/// names, cmd, alt, ctrl and shift.
+public struct Retype: Sendable, Equatable {
+  public var code: Int
+  public var mods: [String]
+
+  public init(code: Int, mods: [String]) {
+    self.code = code
+    self.mods = mods
   }
 }
 

@@ -196,6 +196,14 @@ public final class Stage {
     let shown: String?
   }
   private var parked: [Parked] = []
+  // A list opened by its cycle key, step 3.9, docs/DESIGN-APP-HOSTED.md under 3.9, shown bare and
+  // completing by itself cycleIdle seconds after the last press, nil for every other list. The
+  // presses owed before its rows land, the first among them, the tool a cycle is opening for, and
+  // the wait for the idle completion, which a hand on the highlight cancels.
+  private var cycleIdle: Double?
+  private var cycleSteps = 0
+  private var expectedCycle: String?
+  private var cycleTimer: Task<Void, Never>?
 
   public init(searcher: Searcher = Searcher()) {
     self.searcher = searcher
@@ -220,8 +228,12 @@ public final class Stage {
 
   /// Opens a source's list with the query in the input field, on the screen the placement choice
   /// names, lib/overlaydisplay.lua's mode.
-  public func open(_ next: any ListSource, query: String, screen mode: String? = nil) {
+  public func open(_ next: any ListSource, query: String, screen mode: String? = nil, cycle idle: Double? = nil) {
     wakeDown()
+    cycleTimer?.cancel()
+    cycleIdle = idle
+    if idle == nil || expectedCycle != next.manifest.name.lowercased() { cycleSteps = idle == nil ? 0 : 1 }
+    expectedCycle = nil
     warmTask?.cancel()
     if let source, source !== next { Task { await source.close() } }
     // Lists a hide did not reach, never the one opening, which closes its own level.
@@ -248,7 +260,7 @@ public final class Stage {
       let tokens = next.manifest.previewPane != nil ? look.paneTokens() : nil
       placedScreen = screen
       placedPane = tokens != nil
-      let (placement, frame) = look.placement(on: screen, pane: tokens != nil)
+      let (placement, frame) = look.placement(on: screen, pane: tokens != nil, bare: cycleIdle != nil)
       panel.place(placement)
       let budget = look.textBudget(on: screen, pane: tokens != nil)
       if budget != rowBudget { onTextBudget?(budget) }
@@ -383,6 +395,7 @@ public final class Stage {
   }
 
   public func hide() {
+    cycleTimer?.cancel()
     let waiting = revealPending
     revealPending = false
     revealTask?.cancel()
@@ -425,7 +438,7 @@ public final class Stage {
   private func unfit() {
     guard fitShown != nil, let look, let screen = placedScreen else { return }
     fitShown = nil
-    let (placement, _) = look.placement(on: screen, pane: placedPane)
+    let (placement, _) = look.placement(on: screen, pane: placedPane, bare: cycleIdle != nil)
     panel.place(placement)
   }
 
@@ -534,7 +547,7 @@ public final class Stage {
     fitShown = nil
     let tokens = wants ? look.paneTokens() : nil
     placedPane = tokens != nil
-    let (placement, frame) = look.placement(on: screen, pane: placedPane)
+    let (placement, frame) = look.placement(on: screen, pane: placedPane, bare: cycleIdle != nil)
     panel.place(placement)
     let budget = look.textBudget(on: screen, pane: placedPane)
     if budget != rowBudget { onTextBudget?(budget) }
@@ -612,7 +625,7 @@ public final class Stage {
     guard count != fitShown, let look, let screen = placedScreen else { return }
     fitShown = count
     if let name = source?.manifest.name { fitLast[name] = count }
-    let (placement, _) = look.placement(on: screen, pane: placedPane, fitRows: count)
+    let (placement, _) = look.placement(on: screen, pane: placedPane, fitRows: count, bare: cycleIdle != nil)
     panel.place(placement)
   }
 
@@ -735,6 +748,13 @@ public final class Stage {
       highlight = at + 1
     } else {
       highlight = next.isEmpty ? 0 : 1
+    }
+    // A cycle's presses owed before its rows landed, each one row down from the top and wrapping, as
+    // the Lua stage's first step lands on the row used before, and the idle completion armed.
+    if cycleIdle != nil, cycleSteps > 0, !next.isEmpty {
+      highlight = Self.cycleRow(after: cycleSteps, from: 1, count: next.count)
+      cycleSteps = 0
+      armCycle()
     }
     if highlight != was || resting != (highlight >= 1 ? next[highlight - 1].key : nil) { highlightGeneration += 1 }
     apply(status: status)
@@ -902,7 +922,13 @@ public final class Stage {
       state.actionsHighlight = actionsPane.lit
     }
     state.lineBreak = level?.titleLineBreak.map { ViewState.lineBreak($0) } ?? look?.lineBreak ?? .byTruncatingTail
-    if look?.showNumbers == true, !rows.isEmpty { state.slots = Array(1...min(9, rows.count)) }
+    // A cycled list is bare, rows only, no field, no bottom bar and no row numbers, which a list
+    // stepped by its own key does not read, the Lua engine's bare posture.
+    if cycleIdle != nil {
+      state.bare = true
+      state.bottomBar = nil
+      state.infoOpen = false
+    } else if look?.showNumbers == true, !rows.isEmpty { state.slots = Array(1...min(9, rows.count)) }
     state.empty = rows.isEmpty && (status != nil || !text.isEmpty)
     state.emptyText = status ?? "No results"
     panel.update(state)
@@ -1044,12 +1070,13 @@ public final class Stage {
   // an answer that hides the list fades them whole with it, and only one that keeps it up closes
   // them, Milos's report in step 1.4f's piece four, where a pane folding under the list's fade was
   // cut halfway. While the actions pane is open the list's text and highlight are its own still.
-  private func act(on index: Int, action: String? = nil, choice: String? = nil, closingPanes: Bool = false) {
+  private func act(on index: Int, action: String? = nil, choice: String? = nil, closingPanes: Bool = false,
+    retype: Retype? = nil) {
     guard index >= 1, index <= rows.count, !rows[index - 1].inert, let source else {
       if closingPanes { closeInfo(); closeActions() }
       return
     }
-    let pick = Pick(key: rows[index - 1].key, query: text, row: index, highlight: highlightGeneration)
+    let pick = Pick(key: rows[index - 1].key, query: text, row: index, highlight: highlightGeneration, retype: retype)
     let mine = generation
     Task {
       let effects = if let action { await source.run(action, on: pick, choice: choice) } else { await source.choose(pick) }
@@ -1139,12 +1166,18 @@ public final class Stage {
   /// One list verb from Hammerspoon's leaders, step 1.4f, run on this list's own highlight. The name
   /// is the method lib/nav.lua routes to. A verb for a tool whose list is not up is dropped.
   public func verb(_ tool: String, _ name: String) {
+    // A press of a cycle key heard while its list is still being opened, owed until its rows land.
+    if name == "cycleStep", tool == expectedCycle {
+      cycleSteps += 1
+      return
+    }
     guard tool == shown, let source else { return }
     // Every verb but the info pane's own closes it first, a key that acts on the list being a
     // person done reading it, stated by Milos in piece two's trial on 2026-11-09.
     if name != "showInfo" { closeInfo() }
     if actionsPane != nil, actionsVerb(name) { return }
     switch name {
+    case "cycleStep": cycleStep()
     case "openActionsPane": toggleActions()
     case "selectNext": panel.move(1)
     case "selectPrev": panel.move(-1)
@@ -1438,6 +1471,87 @@ public final class Stage {
   // How far one scroll key moves the pane, chooser.lua's PANE_SCROLL_STEP.
   private static let paneScrollStep: CGFloat = 120
 
+  // MARK: The cycle, step 3.9
+
+  /// Told before a cycle key's list is opened, so a further press heard while it opens is owed to it.
+  public func expectCycle(_ tool: String) {
+    expectedCycle = tool.lowercased()
+    cycleSteps = 1
+  }
+
+  // One press of the cycle key, the highlight one row down, wrapping, and the idle completion armed
+  // afresh, the Lua stage's _stepCycle. Owed until the rows land when there are none yet.
+  private func cycleStep() {
+    guard cycleIdle != nil else { return }
+    guard !rows.isEmpty else {
+      cycleSteps += 1
+      return
+    }
+    highlight = Self.cycleRow(after: 1, from: highlight, count: rows.count)
+    highlightGeneration += 1
+    apply(status: status)
+    settlePreview()
+    armCycle()
+  }
+
+  // The list completes on the highlighted row once the idle passes with no press, as Return does.
+  private func armCycle() {
+    cycleTimer?.cancel()
+    guard let idle = cycleIdle else { return }
+    let mine = generation
+    cycleTimer = Task {
+      try? await Task.sleep(nanoseconds: UInt64(idle * 1_000_000_000))
+      guard !Task.isCancelled, mine == self.generation, self.cycleIdle != nil else { return }
+      self.act(on: self.highlight)
+    }
+  }
+
+  // A key down over a cycled list, the Lua stage's _onBareKey and the engine's listReads. Return and
+  // keypad Enter complete it, the vertical arrows are the list's own and stop the wait, and every
+  // other key completes it and is typed again into the app underneath once the list is gone. Answers
+  // whether the stage took the key, false leaving an arrow to the native list.
+  private func cycleKey(_ code: Int64, _ flags: CGEventFlags) -> Bool {
+    switch Self.cycleKeyKind(code) {
+    case .list:
+      return false
+    case .complete:
+      cycleTimer?.cancel()
+      act(on: highlight)
+    case .retype:
+      cycleTimer?.cancel()
+      act(on: highlight, retype: Retype(code: Int(code), mods: Self.retypeMods(flags)))
+    }
+    return true
+  }
+
+  /// The row a cycle lands on, steps rows down from the row it is on, wrapping, one based.
+  public nonisolated static func cycleRow(after steps: Int, from row: Int, count: Int) -> Int {
+    guard count > 0 else { return 0 }
+    return ((row - 1 + steps) % count + count) % count + 1
+  }
+
+  /// What a key down does over a cycled list, the engine's listReads and the Lua stage's _onBareKey.
+  public enum CycleKey: Equatable, Sendable { case list, complete, retype }
+
+  public nonisolated static func cycleKeyKind(_ code: Int64) -> CycleKey {
+    switch code {
+    case 125, 126: return .list
+    case 36, 76: return .complete
+    default: return .retype
+    }
+  }
+
+  /// The modifiers held on a key typed again, by lib/kbd.lua's names, fn left out as the Lua stage
+  /// leaves it.
+  public nonisolated static func retypeMods(_ flags: CGEventFlags) -> [String] {
+    var mods: [String] = []
+    if flags.contains(.maskControl) { mods.append("ctrl") }
+    if flags.contains(.maskAlternate) { mods.append("alt") }
+    if flags.contains(.maskShift) { mods.append("shift") }
+    if flags.contains(.maskCommand) { mods.append("cmd") }
+    return mods
+  }
+
   // The digit keys one through nine, as virtual key codes.
   private static let digitKeys: [Int64] = [18, 19, 20, 21, 23, 22, 26, 28, 25]
 
@@ -1445,6 +1559,7 @@ public final class Stage {
   private func listKey(_ data: Data) -> Bool {
     guard let event = CGEvent(withDataAllocator: nil, data: data as CFData) else { return false }
     let code = event.getIntegerValueField(.keyboardEventKeycode)
+    if cycleIdle != nil { return cycleKey(code, event.flags) }
     // Command and a digit opens the row in that slot, as the engine's _chooseSlot does, whether or
     // not the list shows its numbers, the highlight moved onto it first as _choose moves it. Over
     // an open actions pane the pane closes and the digit is the list's, stated by Milos on
@@ -1521,6 +1636,8 @@ public final class Stage {
       if case .int(let index)? = args.first, index != highlight {
         highlight = index
         highlightGeneration += 1
+        // The person moved it, an arrow or the pointer, so a cycle waits for Return or Escape.
+        cycleTimer?.cancel()
         settlePreview()
         followQuickLook()
       }

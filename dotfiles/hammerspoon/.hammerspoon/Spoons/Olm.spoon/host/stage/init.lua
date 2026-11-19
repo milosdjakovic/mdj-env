@@ -146,8 +146,9 @@ local CONSTRUCTION_PLACEHOLDER = ""
 
 -- How long a cycled list waits after the last press of its key before it completes by itself.
 -- 0.8 seconds, settled by trying 1.2, 0.6, 0.35 and 0.5 on 2026-10-25, the shorter ones closing
--- before a second tap could land.
-local CYCLE_IDLE = 0.8
+-- before a second tap could land. Published, since Olm.app's cycle reads the same number through
+-- the bridge, step 3.9, so the two cannot drift.
+obj.CYCLE_IDLE = 0.8
 
 -- How long after a cycled list closes on a typed key that key is typed again, so the app the list
 -- covered has taken focus back by the time it arrives.
@@ -917,7 +918,7 @@ function obj:_stepCycle()
   c.stepping = false
   if not ok then log.e("Stage cycle could not step, " .. tostring(err)) end
   self:_disarmCycle()
-  self._cycleTimer = hs.timer.doAfter(CYCLE_IDLE, function()
+  self._cycleTimer = hs.timer.doAfter(obj.CYCLE_IDLE, function()
     self._cycleTimer = nil
     if self._cycle == c and self:_current() == c.p and self._instance:isShowing() then
       self._instance:insertSelected()

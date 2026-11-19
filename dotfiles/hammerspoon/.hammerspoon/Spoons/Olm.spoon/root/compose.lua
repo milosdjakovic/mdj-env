@@ -2842,7 +2842,12 @@ function obj.run(olm, cfg)
     if not (wiredRegistry.presentationFor and wiredRegistry.presentationFor(identity)) then return nil end
     return function()
       local presentation = wiredRegistry.presentationFor(identity)
-      if presentation and stageModule then stageModule:cycle(presentation, { keyCode = keyCode }) end
+      if not presentation then return end
+      -- Olm.app is asked first, step 3.9, as stagePresent asks it, and the Lua stage cycles otherwise.
+      local bridgeHost = modules and modules[(firstPass.identity or {}).bridge or "bridge"]
+      if bridgeHost and type(bridgeHost.cycleInApp) == "function"
+        and bridgeHost:cycleInApp(identity, presentation) then return end
+      if stageModule then stageModule:cycle(presentation, { keyCode = keyCode }) end
     end
   end
 
@@ -3134,6 +3139,8 @@ function obj.run(olm, cfg)
           end,
           version = tostring(olm.version),
           rowLimit = policy.chooserRowLimit,
+          -- The idle a list cycled in the app completes after, the Lua stage's own, step 3.9.
+          cycleIdle = stageModule and stageModule.CYCLE_IDLE or nil,
           -- A tool's own key opening its hosted list as the only level, step 3.8.
           presentationFor = function(name)
             return wiredRegistry.presentationFor and wiredRegistry.presentationFor(name) or nil

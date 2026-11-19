@@ -271,6 +271,11 @@ A tool the bridge does not serve yet answers error `-32013` and no level, and th
 that led there in place rather than closing and opening the Lua chooser, step 3.3. Since step 3.8 a
 tool the config hosts answers its hosted level as the only level, the fields a push carries, which is
 how a tool's own key opens it, the app handed `olm://tool?name=<name>` by the bridge host first.
+Since step 3.9 a tool's cycle key asks `{"tool":"name","cycle":true}`, handed
+`olm://tool?name=<name>&cycle=1`, and the level carries `"cycle":{"idle":0.8}`, the seconds the Lua
+stage's `CYCLE_IDLE` says, which the app shows bare and completes by itself after that idle. Each
+further press of the key reaches the app as the list verb `cycleStep`, the distributed notification
+`local.olm.Olm.verb` every list key takes, and a press heard before the list is up is owed to it.
 
 The level's fields are the presentation's own, sent as values, and sent again in the effect
 `level` whenever the Lua side sees one change, since the placeholder may be a
@@ -441,6 +446,12 @@ else in an answer and before reading the next message. Work the host defers itse
 `lib/paste.lua` waiting for the modifiers to lift, starts inside the handler and lands wherever the
 frontmost app is when it fires, which the nonactivating panel keeps the right app, so it needs no
 handshake. The step that serves Clipboard History checks it live.
+
+A `choose` on a hosted level may carry `"retype":{"code":0,"mods":["shift"]}`, step 3.9, a key typed
+over a cycled list, which completed it. Where the choice closes the list the host answers `after
+hidden` too and, once the app says `hidden`, posts that key down into the app in front, as the Lua
+stage's `_onBareKey` does, Hammerspoon holding the Accessibility grant posting needs. A hosted level
+says `hidden` before it closes when an answer asked for it, as the launcher's level does.
 
 **What 3.1 serves.** `choose` for the launcher, and the notification `hidden`. A row that would
 become another list, a tool, an alias or a scope's word, answers `{"unserved":{"name":"..."}}` with

@@ -94,9 +94,11 @@ public actor BridgedLauncher: ListSource {
   /// Lua side as the only level, the same level a launcher row pushes, nil when the Lua side does not
   /// host that tool or no session is up. Asked before the stage opens it, since the stage reads a
   /// list's manifest, its name, actions and pane, as it opens.
-  public func openTool(_ name: String, query: String) async -> BridgedLevel? {
+  public func openTool(_ name: String, query: String, cycle: Bool = false) async -> BridgedLevel? {
     do {
-      let answer = try await bridge.request("open", .object(["what": .object(["tool": .string(name)]),
+      var what: [String: JSON] = ["tool": .string(name)]
+      if cycle { what["cycle"] = .bool(true) }
+      let answer = try await bridge.request("open", .object(["what": .object(what),
         "query": .string(query)]))
       guard answer["level"]["id"].string != nil else { return nil }
       let level = BridgedLevel(bridge: bridge, wire: answer["level"], defaultRowLimit: defaultRowLimit, log: log)

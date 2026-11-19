@@ -86,10 +86,18 @@ struct Look {
   }
 
   /// fitRows, a list that fits its rows' count, geometry.lua's fitRows, nil for the full height.
-  func placement(on screen: NSScreen, pane: Bool = false, fitRows: Int? = nil) -> (Placement, PaneFrame?) {
+  /// bare, a list cycled by its key, step 3.9, laid out as the Lua engine's _shapedLayout lays out its
+  /// bare posture, the field's height down to the list's margin and no bottom bar and no peek.
+  func placement(on screen: NSScreen, pane: Bool = false, fitRows: Int? = nil, bare: Bool = false) -> (Placement, PaneFrame?) {
     let primary = NSScreen.screens.first?.frame.height ?? screen.frame.maxY
     let v = screen.visibleFrame
     let frame = LayoutRect(x: v.minX, y: primary - v.maxY, w: v.width, h: v.height)
+    var layout = self.layout
+    if bare {
+      layout.baseH = layout.marginY
+      layout.bottomBarH = 0
+      layout.peek = 0
+    }
     let r = Geometry.resolve(screen: frame, layout: layout, previewPaneWidth: pane ? .list : .none, fitRows: fitRows)
     func fields(_ rect: LayoutRect?, from origin: LayoutRect? = nil) -> Any {
       guard let rect else { return NSNull() }

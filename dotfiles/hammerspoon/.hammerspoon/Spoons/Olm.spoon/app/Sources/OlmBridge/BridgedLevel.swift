@@ -167,6 +167,9 @@ public actor BridgedLevel: ListSource {
   public nonisolated var runsEveryVerb: Bool { true }
   /// The level's id on the Lua side, which the effects notification names.
   public nonisolated let id: String
+  /// Seconds a list opened by its cycle key waits after the last press before it completes, step
+  /// 3.9, nil for a list opened any other way.
+  public nonisolated let cycleIdle: Double?
 
   private let bridge: Bridge
   private let level: Level
@@ -175,12 +178,16 @@ public actor BridgedLevel: ListSource {
   private var q = 0
   private var closed = false
   private var pushes: [String: JSON] = [:]
+  // A choose whose work waits for the window to be ordered out, a key typed again, step 3.9, told as
+  // hidden before the level closes, as the shown launcher tells it.
+  private var waitingHidden = false
   private let log: @Sendable (String) -> Void
 
   /// A level a push effect carries, its name the tool's, which the bar and the info pane are read by.
   init(bridge: Bridge, wire: JSON, defaultRowLimit: Int?, log: @escaping @Sendable (String) -> Void) {
     self.bridge = bridge
     self.id = wire["id"].string ?? ""
+    self.cycleIdle = wire["cycle"]["idle"].number
     let name = (wire["name"].string ?? "").lowercased()
     // The actions its list's actions pane runs, step 3.3b, by the ids the push names.
     let actions = (wire["actions"].array ?? []).compactMap(\.string).map { Action(id: $0, title: $0) }
@@ -216,16 +223,21 @@ public actor BridgedLevel: ListSource {
   public func choose(_ pick: Pick) async -> [Effect] {
     guard !closed, let ref = store.refs[pick.key] else { return [] }
     let answer: JSON
+    var params: [String: JSON] = ["level": .string(id), "q": .number(Double(q)),
+      "h": .number(Double(pick.highlight)), "ref": .string(ref), "row": .number(Double(pick.row)),
+      "query": .string(pick.query), "mods": .array([])]
+    if let retype = pick.retype {
+      params["retype"] = .object(["code": .number(Double(retype.code)), "mods": .array(retype.mods.map { .string($0) })])
+    }
     do {
-      answer = try await bridge.request("choose", .object(["level": .string(id), "q": .number(Double(q)),
-        "h": .number(Double(pick.highlight)), "ref": .string(ref), "row": .number(Double(pick.row)),
-        "query": .string(pick.query), "mods": .array([])]))
+      answer = try await bridge.request("choose", .object(params))
     } catch {
       log("choose did not answer, \(error)")
       return []
     }
     let wire = WireEffects(answer["effects"].array ?? [], log: log)
     pushes.merge(wire.pushes) { $1 }
+    if wire.afterHidden { waitingHidden = true }
     return wire.effects
   }
 
@@ -317,6 +329,10 @@ public actor BridgedLevel: ListSource {
   public func close() async {
     guard !closed else { return }
     closed = true
+    if waitingHidden {
+      waitingHidden = false
+      await bridge.notify("hidden", .object(["level": .string(id)]))
+    }
     await bridge.release(id)
     _ = try? await bridge.request("close", .object(["level": .string(id)]))
   }

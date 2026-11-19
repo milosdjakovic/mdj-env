@@ -56,6 +56,10 @@ local SF, GLYPH = "sf", "emoji"
 ---                  tool, step 3.8, optional, no tool opened without it
 --- opts.picture     function(image) -> a Picture, { path }, or nil, for a row's own picture, an
 ---                  hs.image only Hammerspoon holds, optional, no picture sent without it
+--- opts.cycleIdle   seconds a list cycled in the app waits after the last press before it completes,
+---                  the Lua stage's CYCLE_IDLE, step 3.9, 0.8 when none is handed in
+--- opts.retype      function(code, mods), a key typed over a cycled list posted again into the app
+---                  underneath once the app said hidden, step 3.9, optional, never posted without it
 --- opts.facade      host/bridge/facade.lua's, the stage words a hosted list's code calls during a
 ---                  request recorded as effects, optional
 function M.new(opts)
@@ -271,6 +275,8 @@ function M.new(opts)
         rpc.fail(rpc.NOT_SERVED, "the app does not host " .. what.tool, { what = what })
       end
       local level = service.pushLevel(nil, p).push.level
+      -- Its cycle key, step 3.9, the list shown bare and completing by itself after the idle.
+      if what.cycle == true then level.cycle = { idle = opts.cycleIdle or 0.8 } end
       -- What the tool's own code set while its key was opening the list, its placeholder.
       local pending = opts.pending and opts.pending(p.name)
       if pending and type(pending.placeholder) == "string" then level.placeholder = pending.placeholder end
@@ -378,7 +384,22 @@ function M.new(opts)
     if shown.out.enabled == false then return { effects = {} } end
     if level.kind == "presentation" then
       local item = level.items[params.ref]
-      return { effects = service.choosePresented(level, item, { item = item, row = params.row, query = query }) }
+      local effects = service.choosePresented(level, item, { item = item, row = params.row, query = query })
+      -- A key typed over a cycled list, step 3.9, posted again once the app has hidden, so it lands
+      -- in the app underneath in whatever the choice changed, a keyboard layout. Only for a choice
+      -- that closed the list, since a list that stays up has nothing underneath to type into.
+      local retype = type(params.retype) == "table" and params.retype or nil
+      if retype and type(retype.code) == "number" and opts.retype and effects[1] and effects[1].hide then
+        local mods = {}
+        for _, m in ipairs(type(retype.mods) == "table" and retype.mods or {}) do
+          if type(m) == "string" then mods[#mods + 1] = m end
+        end
+        runWaiting(level.id)
+        service.waiting[level.id] = function() opts.retype(retype.code, mods) end
+        effects[#effects + 1] = { after = "hidden" }
+        if opts.later then opts.later(1, function() runWaiting(level.id) end) end
+      end
+      return { effects = effects }
     end
     if not opts.launcher.choose then rpc.fail(rpc.UNKNOWN, "choose is not served") end
     local effects, run = opts.launcher.choose(level.items[params.ref], query, service.shows)

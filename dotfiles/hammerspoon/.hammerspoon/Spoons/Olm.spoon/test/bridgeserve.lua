@@ -245,6 +245,33 @@ ok(refused == false, "a tool the config does not host is not served")
 local unknown = pcall(owning.methods.open.run, { what = { tool = "nothing" }, query = "" })
 ok(unknown == false, "nor is a name with no presentation")
 
+-- Its cycle key, step 3.9, the level carrying the idle, and a key typed over it posted only once
+-- the app has hidden.
+local laters, retyped = {}, {}
+local cycling = serve.new({ rpc = rpc, clean = frame.clean, facade = facade, cycleIdle = 0.8,
+  hosted = function(p) return p.name == "caffeinate" end,
+  presentationFor = function() return top end,
+  retype = function(code, mods) retyped[#retyped + 1] = { code = code, mods = mods } end,
+  later = function(_, fn) laters[#laters + 1] = fn end,
+  launcher = { memoryKey = memoryKey, rows = function() return {} end },
+  icons = function() return nil end })
+local cycled = cycling.methods.open.run({ what = { tool = "caffeinate", cycle = true }, query = "" })
+ok(cycled.level.cycle and cycled.level.cycle.idle == 0.8, "a cycle key's level carries the idle")
+ok(opened.level.cycle == nil, "and a tool's own key's level carries none")
+local cid = cycled.level.id
+cycling.methods.rows.run({ level = cid, q = 1, query = "" })
+local plain = cycling.methods.choose.run({ level = cid, q = 1, ref = cid .. ".1", query = "" })
+ok(plain.effects[1].hide and plain.effects[#plain.effects].after == nil, "a choose with no key typed waits for nothing")
+local typed = cycling.methods.choose.run({ level = cid, q = 1, ref = cid .. ".1", query = "",
+  retype = { code = 0, mods = { "shift", 3 } } })
+ok(typed.effects[1].hide and typed.effects[#typed.effects].after == "hidden", "a key typed over it closes and waits for hidden")
+ok(#retyped == 0, "nothing is typed before the app has hidden")
+cycling.methods.hidden.run({ level = cid })
+ok(#retyped == 1 and retyped[1].code == 0 and #retyped[1].mods == 1 and retyped[1].mods[1] == "shift",
+  "the key is typed once it has, with its named modifiers only")
+laters[#laters]()
+ok(#retyped == 1, "and the fallback after it types nothing twice")
+
 -- A level whose intercept stays, whose back is its own and whose onSelect answers a child.
 hosting.levels.v9 = { id = "v9", kind = "launcher" }
 local stay = hosting.choosePresented({ kind = "presentation", presentation = paged, id = "v8" }, {})

@@ -66,6 +66,10 @@ obj._opening = {}
 obj._openTimers = {}
 obj._runningAt = nil
 obj._runningWas = false
+-- The tool whose cycle the app shows, lowered, step 3.9, so a further press of its key steps it
+-- rather than opening it again, and the handles of the retyped keys waiting to be posted.
+obj._cycling = nil
+obj._retypes = {}
 
 -- How long a list's answer must stay put before the shadow hands it over, so typing sends one
 -- request per pause rather than one per key.
@@ -286,7 +290,8 @@ function obj:serveLauncher(provider)
     rowLimit = provider.rowLimit, presentationFor = provider.presentationFor,
     pending = function(name) return self:_takePending(name) end,
     facade = self._facade, stampIcons = provider.stampIcons, verbs = provider.verbs,
-    picture = pictureOf,
+    picture = pictureOf, cycleIdle = provider.cycleIdle,
+    retype = function(code, mods) self:_retype(code, mods) end,
     -- A hosted tool's list is shown in the app when the config's hosts names it, by the name its
     -- presentation carries, a child taking its tool's.
     hosted = function(p) return type(p) == "table" and type(p.name) == "string" and self._hosts[p.name] == true end,
@@ -613,6 +618,14 @@ end
 --- asked at every press, so a quit app hands every key back to the Lua list at once. It then opens
 --- olm://tool?name=<name> with Olm's placement, and the app asks open for that tool's level.
 function obj:presentInApp(name, presentation)
+  if not self:_openTool(name, presentation, "") then return false end
+  self._cycling = nil
+  return true
+end
+
+-- The open both a tool's key and its cycle key share, false where the app cannot take the list,
+-- extra appended to the URL.
+function obj:_openTool(name, presentation, extra)
   if not self._keysFlip then return false end
   local p = presentation
   if type(p) ~= "table" or type(p.name) ~= "string" or not self._hosts[p.name] then return false end
@@ -629,7 +642,36 @@ function obj:presentInApp(name, presentation)
     if ok then mode = answer end
   end
   local screen = (type(mode) == "string" and mode:match("^%a+$")) and ("screen=" .. mode .. "&") or ""
-  return self:_post(self.OPEN_NOTE, "olm://tool?" .. screen .. "name=" .. p.name .. "&query=") == true
+  return self:_post(self.OPEN_NOTE, "olm://tool?" .. screen .. "name=" .. p.name .. "&query=" .. extra) == true
+end
+
+--- obj:cycleInApp(name, presentation) -> true when the app took a press of the tool's cycle key, step
+--- 3.9, docs/DESIGN-APP-HOSTED.md under 3.9, under presentInApp's conditions. The first press opens
+--- olm://tool?name=<name>&cycle=1, the list shown bare in the app, and each press while that cycle is
+--- up or opening posts the verb cycleStep, which the app's stage runs on its own highlight.
+function obj:cycleInApp(name, presentation)
+  local p = presentation
+  local tool = type(p) == "table" and type(p.name) == "string" and p.name:lower() or nil
+  if tool and self._cycling == tool and (self._up[tool] or self._opening[tool]) and self:_runningNow() then
+    self:_post(self.VERB_NOTE, tool .. ":cycleStep")
+    return true
+  end
+  if not self:_openTool(name, p, "&cycle=1") then return false end
+  self._cycling = tool
+  return true
+end
+
+-- A key typed over a list cycled in the app, posted again into the app underneath once the app has
+-- hidden, as the Lua stage's _onBareKey posts it, step 3.9. Hammerspoon posts it since it holds the
+-- Accessibility grant posting a key needs and Olm.app does not.
+obj.RETYPE_DELAY = 0.05
+function obj:_retype(code, mods)
+  local t
+  t = hs.timer.doAfter(self.RETYPE_DELAY, function()
+    self._retypes[t] = nil
+    hs.eventtap.event.newKeyEvent(mods or {}, code, true):post()
+  end)
+  self._retypes[t] = true
 end
 
 obj.predicates = {
@@ -708,7 +750,10 @@ function obj:_state(object)
   elseif word == "down" then
     self._up[tool] = nil
     local at = self._opening[tool]
-    if not (at and hs.timer.secondsSinceEpoch() - at < self.DOWN_SLACK) then self:_endOpening(tool) end
+    if not (at and hs.timer.secondsSinceEpoch() - at < self.DOWN_SLACK) then
+      self:_endOpening(tool)
+      if self._cycling == tool then self._cycling = nil end
+    end
   end
 end
 

@@ -167,9 +167,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // A tool's own key, step 3.8, its hosted list asked of the Lua side first and then opened.
         let launcher = shownLauncher, stage = stage
         let query = item("query") ?? "", screen = item("screen")
+        // Its cycle key, step 3.9, the list shown bare, a press heard before it is up counted.
+        let cycle = item("cycle") == "1"
+        if cycle { stage.expectCycle(name) }
         Task { @MainActor in
-          guard let level = await launcher.openTool(name, query: query) else { return }
-          stage.open(level, query: query, screen: screen)
+          guard let level = await launcher.openTool(name, query: query, cycle: cycle) else { return }
+          stage.open(level, query: query, screen: screen, cycle: cycle ? (level.cycleIdle ?? 0.8) : nil)
         }
       } else if let host = url.host, let source = sources[host] {
         stage.open(source, query: item("query") ?? "", screen: item("screen"))
