@@ -13,13 +13,33 @@ what was turned down.
 tab running one script from `tools/`, started in the directory of the pane the key was pressed
 in. The pane closes when the script exits, which is Rex's default for a terminal with a command,
 and its layer closes with it. The tools are herdr's three, copied as they were on 2026-11-02 with
-the herdr calls swapped for Rex ones, and the keys are herdr's too behind the same `alt+z` prefix.
-`alt+z alt+g` lazygit, `alt+z f` the fuzzy search, `alt+z alt+f` lf, and `alt+z alt+z` sends the
-prefix on to a tmux running inside a pane. Two single chords open the same tools, `cmd+shift+f`
-the fuzzy search, `cmd+shift+e` lf and `cmd+shift+l` lazygit. Lazygit is not on g because
-`cmd+shift+g` is Rex's own Go to Directory, and a key the app binds wins over this file, so check
-Rex's menus before giving a tool a cmd chord. Adding a
-tool is a script in `tools/` and one `rex.bind` line.
+the herdr calls swapped for Rex ones. `cmd+shift+g` opens lazygit, `cmd+shift+e` lf and
+`cmd+shift+f` the fuzzy search, the Herdr app's keys. Adding a tool is a script in `tools/` and
+one `rex.bind` line.
+
+## Keys
+
+Rex keeps the Herdr app's keys, `dotfiles/herdr-app/.config/herdr-app/keys.json`, so the fingers
+do not change between the two, and a key changed in one changes in both. Herdr's spaces are Rex's
+sessions. `init.lua` binds the Herdr keys Rex does not ship, tabs on `cmd+shift` with hjkl and
+the brackets, spaces on `cmd+shift+j` and `k`, panes on `cmd+alt` with hjkl, zoom on
+`cmd+alt+enter`, the sidebar on `cmd+b`, tab numbers, renames on F2, and Rex's Go to Anything
+on `cmd+p`, which searches the tabs and panes of every session, View Activity on `cmd+k`, and
+Change Session, which lists only sessions, on `cmd+s`. The three open one window with Sessions,
+Blocks and Activity sections, each on its own section, while `cmd+.`, Show Activity, is the
+sidebar's view and not that window. Activity has `cmd+k`, taken from Change Session, because it
+is the section used most. Go to Anything exists only while Rex's experimental New Quick Switcher is
+on, `Workspace.experiments.usesNewQuickSwitcher` in `SETTINGS`, and without it `cmd+p` only
+beeps, since the action is gone from the app and its menus. New session on `cmd+shift+n` and close window on `cmd+shift+w` are Rex's own, and Herdr
+was moved to match. A few differ because only one app has the feature. Herdr's agents keys,
+`cmd+]` and `ctrl+alt+j` among them, and its layout switch exist only there, and Rex's float and
+activity keys only here. Herdr's `ctrl+1` to `9` for spaces is not carried, since Rex selects a
+session by id and not by position.
+
+A binding in `init.lua` stacks over the key the app ships with, and only a shortcut recorded in
+Rex's own Settings window sits above this file. So taking an app key, as `cmd+shift+g` takes Go to
+Directory and `cmd+alt+h` takes Hide Others, needs nothing more, and the action keeps its place in
+the command palette. `rex keymap --help` states the order.
 
 What differs from herdr. The float starts in the calling pane's directory, read from that pane's
 foreground process, so no script resolves a directory. `MDJ_REX_TARGET` names the calling pane,
@@ -29,6 +49,14 @@ pane is free when its foreground process is a shell with nothing between it and 
 the terminal's `process` method, and otherwise opens the place as a new tab, the same rule
 herdr's finder follows. Escape closes all three, lazygit through the same overlay herdr loads.
 
+Every tool also runs inside `tools/upper-slots`, which sets the float's own palette slots above
+fifteen before the tool starts. Rex's theme import keeps only the sixteen ANSI colours, so
+without it a pane answers slot 20, the selected row's tint in fzf and lf, with the xterm cube's
+dark blue. The slots are read from Ghostty's theme file for the half macOS is on, which already
+carries them from `theme/`, so Rex still has no theme map or emitter of its own. Only the floats
+get them. A plain Rex pane still answers those slots with the cube, so fzf run by hand there
+shows the blue row until Rex's import keeps the slots.
+
 A float clears the calling pane's zoom, because Rex keeps a zoom only while the zoomed pane has
 focus, and zooming again while the float is open pulls focus back out of it. So the action reads
 whether the calling pane was zoomed and runs every tool inside `tools/keep-zoom`, which zooms
@@ -37,8 +65,9 @@ finder opens a new tab. Behind an open float the layout shows unzoomed, and that
 changed from here. A new tool needs nothing for this, the action wraps it.
 
 Rex does not watch the file. After an edit run `rex config reload` from a Rex terminal, and
-`rex config check PATH` validates a draft. `rex keymap` lists what the server loaded and warns
-about a key the app also binds, since a shortcut set in the app wins over this file.
+`rex config check PATH` validates a draft. `rex keymap` lists what the server loaded. A key
+this file binds wins over the one the app ships with, and loses only to a shortcut recorded in
+Rex's own Settings window.
 
 ## What the step does
 

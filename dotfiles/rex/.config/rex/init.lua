@@ -55,7 +55,7 @@ rex.action{
               "env",
               "MDJ_REX_TARGET=" .. (ctx.block_id or ""),
               "MDJ_REX_ZOOMED=" .. (pane_zoomed(ctx.session_id, ctx.block_id) and "1" or ""),
-              tools .. "keep-zoom", tools .. args.tool,
+              tools .. "keep-zoom", tools .. "upper-slots", tools .. args.tool,
             },
           },
         },
@@ -65,15 +65,52 @@ rex.action{
   end,
 }
 
--- The same prefix and the same keys as herdr and tmux, so the fingers do not change between them.
--- Pressing the prefix twice sends it on, for a tmux running inside a Rex pane.
-rex.bind("alt+z>alt+g", "float_tool", { tool = "lazygit.sh", title = "git" })
-rex.bind("alt+z>f", "float_tool", { tool = "find.sh", title = "fuzzy search", width = 0.8, height = 0.8 })
-rex.bind("alt+z>alt+f", "float_tool", { tool = "browse.sh", title = "files" })
-rex.bind("alt+z>alt+z", "pane.send_key", { key = "alt+z" })
+-- Rex keeps the Herdr app's keys, so the fingers do not change between the two.
+-- dotfiles/herdr-app/.config/herdr-app/keys.json is the other half, and a key changed in one
+-- changes in both. A binding here stacks over the key the app ships with, so taking a key Rex
+-- uses, cmd+shift+g from Go to Directory or cmd+alt+h from Hide Others, needs nothing more.
+-- Herdr's spaces are Rex's sessions. Keys Rex already ships with the shared meaning, new tab,
+-- new session on cmd+shift+n, close window on cmd+shift+w, splits and the pane arrows, are not
+-- repeated here.
 
--- Single chords for the same tools, beside the prefix keys. Cmd and shift with g is taken by
--- Rex's own Go to Directory, which wins over this file, so lazygit takes l instead.
-rex.bind("cmd+shift+f", "float_tool", { tool = "find.sh", title = "fuzzy search", width = 0.8, height = 0.8 })
+-- The three tools, as VS Code places source control, the explorer and search.
+rex.bind("cmd+shift+g", "float_tool", { tool = "lazygit.sh", title = "git" })
 rex.bind("cmd+shift+e", "float_tool", { tool = "browse.sh", title = "files" })
-rex.bind("cmd+shift+l", "float_tool", { tool = "lazygit.sh", title = "git" })
+rex.bind("cmd+shift+f", "float_tool", { tool = "find.sh", title = "fuzzy search", width = 0.8, height = 0.8 })
+
+-- Tabs.
+rex.bind("cmd+shift+h", "client.tab.previous")
+rex.bind("cmd+shift+l", "client.tab.next")
+rex.bind("cmd+shift+[", "client.tab.previous")
+rex.bind("cmd+shift+]", "client.tab.next")
+rex.bind("ctrl+shift+tab", "client.tab.previous")
+rex.bind("ctrl+tab", "client.tab.next")
+rex.bind("cmd+ctrl+shift+h", "client.tab.move.backward")
+rex.bind("cmd+ctrl+shift+l", "client.tab.move.forward")
+rex.bind("f2", "client.tab.rename")
+for i = 1, 9 do
+  rex.bind("cmd+" .. i, "client.tab.goto", { index = i })
+end
+
+-- Spaces, which Rex calls sessions.
+rex.bind("cmd+shift+j", "session.next")
+rex.bind("cmd+shift+k", "session.previous")
+rex.bind("cmd+alt+]", "session.next")
+rex.bind("cmd+alt+[", "session.previous")
+rex.bind("cmd+ctrl+w", "session.close")
+rex.bind("shift+f2", "session.rename")
+-- One window with Sessions, Blocks and Activity sections, each key opening it on its own section.
+-- Activity takes cmd+k from Rex's Change Session, since it is the one used most, and sessions
+-- move to cmd+s. cmd+. is Rex's own Show Activity, the sidebar view, and is left alone. Herdr
+-- binds neither k nor s.
+rex.bind("cmd+k", "pane.view_activity")
+rex.bind("cmd+s", "session.switch")
+rex.bind("cmd+p", "pane.go_to")
+
+-- Panes and the sidebar.
+rex.bind("cmd+alt+h", "pane.focus.left")
+rex.bind("cmd+alt+j", "pane.focus.down")
+rex.bind("cmd+alt+k", "pane.focus.up")
+rex.bind("cmd+alt+l", "pane.focus.right")
+rex.bind("cmd+alt+enter", "pane.zoom")
+rex.bind("cmd+b", "client.sidebar.toggle")

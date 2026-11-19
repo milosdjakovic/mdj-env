@@ -235,6 +235,12 @@ beside `cmd-w` for a pane and `cmd-alt-w` for a tab. Keys loaded with no error, 
 was run twice from the command line, folding the sidebar to 36px and opening it again. The keys
 themselves are left to Milos.
 
+2026-11-16 12:31. The keys are shared with Rex, which binds the same set in its `init.lua`. Two moved here
+to match Rex's own, `cmd-shift-n` now makes a space with `cmd-n` left unbound, since Herdr has
+one window and Rex's `cmd-n` is a new window, and `cmd-shift-w` closes the window with
+`window.close`, the tab bar's own close button, rather than repeating `cmd-w`. Not tried in the
+app yet, since this machine does not take the `herdr-app` piece.
+
 2026-11-16 14:22. Asked by Milos. The brand bar's search button is removed, so the open sidebar
 shows only its toggle there, as the rail shows only the expand button in the tab row. No palette
 button was added. `icons/search.svg` went with it, nothing else drew it.

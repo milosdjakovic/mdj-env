@@ -73,11 +73,17 @@ rather than folding it. The toggle is written out in `mdj-sidebar` and in `mdj-b
 import reason above, so a change to one is a change to both.
 
 `cmd-w` closes the focused pane, which closes its tab when it was the last one, `cmd-alt-w`
-closes the tab, and `cmd-ctrl-w` closes the space, asking first. Closing the shown tab goes back to the tab shown before it, as a browser does,
+closes the tab, `cmd-ctrl-w` closes the space, asking first, and `cmd-shift-w` closes the window.
+`cmd-shift-n` makes a new space and `cmd-n` is unbound, since Herdr has one window, and both
+match Rex, where `cmd-n` is a new window. Closing the shown tab goes back to the tab shown before it, as a browser does,
 rather than to the neighbour Herdr picks. `mdj-tabs` keeps each space's tabs in the order they
 were shown and selects the newest one left when the newest is gone, so it catches a close by any
 route, a key, a button, the menu or a program exiting. The order lives in the mod and is lost on
 a reload of it.
+
+Rex keeps these same keys in `dotfiles/rex/.config/rex/init.lua`, with Herdr's spaces as Rex's
+sessions, so a key changed here changes there too, and `dotfiles/rex/AGENTS.md` lists the few
+that differ because only one app has the feature.
 
 There is no prefix key. Every key is one chord, and the modifier says the level. Navigation has
 a vim-like set beside Herdr's own keys. `cmd-shift-h` and `cmd-shift-l` show the previous and next

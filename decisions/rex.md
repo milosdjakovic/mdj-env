@@ -37,6 +37,7 @@ The settings in `SETTINGS` are not tied to this machine and apply wherever the p
 - 2026-11-02 14:10, painting palette slots 16 to 19 into each Rex pane with OSC 4 from the
   Ghostty theme, as a stand in for the slots the theme import drops. It works around Rex's defect
   from our side and keeps the colours of whichever half was active when the pane opened.
+  Reversed for the floats only on 2026-11-19, see the log, and still rejected for plain panes.
 - 2026-11-16 10:35, keeping the zoom on while a float is open. Rex clears a zoom when focus
   leaves the zoomed pane, so the float has to open unfocused for the zoom to survive, which
   leaves the tool without the keyboard. Zooming again with the float open pulls focus out of it.
@@ -126,3 +127,42 @@ The settings in `SETTINGS` are not tied to this machine and apply wherever the p
   before opening and runs each tool inside `tools/keep-zoom`, which zooms the calling pane again
   on exit when focus is still in the float. Checked with the real action, a zoomed pane came back
   zoomed after Escape closed lazygit, and an unzoomed one stayed unzoomed.
+- 2026-11-16 12:31, Rex takes the Herdr app's keys, so the two apps share one set, Herdr's spaces standing for
+  Rex's sessions. `init.lua` binds the Herdr keys Rex lacks, lazygit back on `cmd+shift+g`, and
+  the `alt+z` prefix keys are gone as they are from Herdr. Corrected the same day, the belief
+  in the commit before this one that an app shortcut wins over `init.lua` and that
+  `cmd+shift+g` was therefore out of reach. `rex keymap --help` says the file stacks over the
+  keys the client ships with and under only the shortcuts recorded in the client's own settings,
+  and none are recorded here, so Go to Directory and Hide Others give their keys up with nothing
+  more. Herdr's `ctrl+1` to `9` for spaces is not carried, since `session.select` takes a
+  session id and not a position.
+- 2026-11-19 14:28, the floats set their own slots above fifteen, through `tools/upper-slots`, which reads them
+  from Ghostty's theme file for the half macOS is on and sends them with OSC 4 into the float's
+  pane before the tool starts. The rejection of 2026-11-02 stands for plain panes and no longer
+  for floats, asked by Milos to keep the fix inside Rex. Two things changed. The selected row in
+  fzf and lf moved to slot 20 with the purple tint, and Rex answering it with the cube's dark
+  blue made every pick in a float a bright blue bar, where the old slots 16 to 18 had only
+  darkened a gutter. And a float lives for seconds and reads the half as it opens, so the stale
+  half objection costs only a switch made while one is open. Measured in a throwaway session with
+  the terminal's `format` method in vt with `extra_palette`, the float answered slot 20 with
+  the light half's tint and a plain pane beside it with `rgb:00/00/d7`. Rex's import dropping
+  the slots is still theirs to fix, and the report is still unsent.
+- 2026-11-19 14:28, `cmd+p` opens Rex's Go to Anything, `pane.go_to`, which has no key in Rex's menus, in
+  place of Change Session, which lists only sessions and stays on Rex's own `cmd+k`. Asked by
+  Milos for a search over every tab across sessions. Bound and loaded, not yet opened.
+- 2026-11-19 14:34, `cmd+p` beeped. Go to Anything is shown only while the experimental New Quick Switcher
+  is on, the action's own description saying it opens one list of every session, block and
+  process from Go to Anything, and with it off the item was missing from every Rex menu and the
+  key reached the app with nothing to run. Turned on through
+  `client.setting.developer.experimental.new_quick_switcher` with Milos's go ahead, which stored
+  `Workspace.experiments.usesNewQuickSwitcher` true, and View, Go to Anything appeared at once.
+  Captured into `SETTINGS`, which also took four settings changed in Rex's window since the
+  last capture, activity grouping by priority with its reset, the sidebar at 232 and the
+  standard inactive window pane style off. An experiment can leave a beta, so if `cmd+p` beeps
+  again, look for the item under View first.
+- 2026-11-19 14:53, `cmd+shift+a` opens View Activity, `pane.view_activity`, the quick switcher's Activity
+  section, which Milos found beside Sessions and Blocks in the window `cmd+k` and `cmd+p` open.
+  `cmd+.` stays Rex's Show Activity, the sidebar's view, which is a different action.
+- 2026-11-19 14:54, the switcher's keys settled at `cmd+k` for Activity, `cmd+s` for Sessions and `cmd+p`
+  for Blocks, asked by Milos since Activity is the one used most. `cmd+k` is taken from Rex's
+  own Change Session, and `cmd+shift+a` from the entry before is gone.

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Sets this floating pane's palette slots above fifteen, then runs the tool. Rex's import of a
+# Ghostty theme keeps only the sixteen ANSI colours, so a pane answers slot 20, the selected row's
+# tint in fzf and lf, with the xterm cube's dark blue. Ghostty's own theme file for the half macOS
+# is on holds those slots, written from theme/ like everything else, so they are read from there
+# and set in this pane alone, which Rex honours. A float lives for seconds, so a light and dark
+# switch while it is open shows at the next one. decisions/rex.md has why this is done here.
+set -u
+
+half=light
+[ "$(defaults read -g AppleInterfaceStyle 2>/dev/null)" = Dark ] && half=dark
+theme="${XDG_CONFIG_HOME:-$HOME/.config}/ghostty/themes/mdj-$half"
+
+if [ -r "$theme" ] && [ -w /dev/tty ]; then
+  # A line reads palette, the slot, and six hex digits, and only the slots above fifteen are sent.
+  awk -F'[ =#]+' '/^palette *=/ && $2 + 0 > 15 && length($3) == 6 {
+    printf "\033]4;%d;rgb:%s/%s/%s\033\\", $2, substr($3, 1, 2), substr($3, 3, 2), substr($3, 5, 2)
+  }' "$theme" > /dev/tty
+fi
+
+exec "$@"
