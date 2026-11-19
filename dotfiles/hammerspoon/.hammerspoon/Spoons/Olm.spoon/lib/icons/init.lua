@@ -152,6 +152,24 @@ function M.new(opts)
     return nil
   end
 
+  --- instance.symbol(spec) -> string or nil
+  --- The name of the system symbol spec draws as, when the first source in the order holding a value
+  --- for it declares system, so a native view setting the icon beside its text draws it as a glyph
+  --- of that text, and nil when another source draws it, an emoji, which the view asks image for.
+  function instance.symbol(spec)
+    spec = specOf(spec)
+    if not spec then return nil end
+    for _, name in ipairs(order) do
+      local source = byName[name]
+      local value = source and spec[name]
+      if value ~= nil then
+        if source.system and type(value) == "string" then return value end
+        return nil
+      end
+    end
+    return nil
+  end
+
   --- instance.has(name) -> boolean, whether a source answers to this name, so the root can
   --- warn about an order that names one nothing registered.
   function instance.has(name)

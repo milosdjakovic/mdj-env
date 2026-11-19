@@ -174,11 +174,7 @@ final class KeyCap: FlippedView {
   // ink is as tall as the font's capitals, so it reads as one more glyph of the cap. nil when the
   // system has no symbol of that name, and the key falls back to its glyph.
   private static func symbol(_ name: String, font: NSFont, color: NSColor) -> Key? {
-    let config = NSImage.SymbolConfiguration(pointSize: font.pointSize, weight: Crisp.weight(of: font),
-      scale: .small)
-      .applying(NSImage.SymbolConfiguration(paletteColors: [color.withAlphaComponent(1)]))
-    guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
-      .withSymbolConfiguration(config),
+    guard let image = Crisp.symbol(name, font: font, color: color, scale: .small),
       let ink = inkOf(image, key: name + "@" + String(describing: font.pointSize) + "@" + font.fontName),
       ink.height > 0
     else { return nil }
@@ -375,6 +371,8 @@ final class BarView: FlippedView {
   // whether it is one colour, redrawn in the lit ink while its group is.
   private var keysSource: NSImage?
   private var keysTint = false
+  // The info icon as a symbol, drawn as a glyph of the bar's text in the ink its group stands in.
+  private var keysSymbol: String?
   private var style = Style()
   // The right side morphing from the actions it held to new ones, see BarMorph. While it plays the
   // group stands at the wider of the two widths, morphWidth, its items on its right edge.
@@ -464,7 +462,12 @@ final class BarView: FlippedView {
     }
     keysSource = bottomBar.keysImage
     keysTint = bottomBar.keysTint
-    if let image = bottomBar.keysImage {
+    keysSymbol = bottomBar.keysSymbol.flatMap { Crisp.symbol($0, font: style.titleFont, color: style.text) != nil ? $0 : nil }
+    if keysSymbol != nil {
+      let view = NSImageView()
+      view.imageScaling = .scaleNone
+      parts.append(view)
+    } else if let image = bottomBar.keysImage {
       let view = NSImageView(image: image)
       view.imageScaling = .scaleProportionallyUpOrDown
       parts.append(view)
@@ -555,7 +558,10 @@ final class BarView: FlippedView {
     // The picture on whole pixels and drawn for exactly the pixels it covers, see Crisp.
     for case let view as NSImageView in parts {
       view.frame = Crisp.align(view.frame, in: button)
-      if let keysSource {
+      if let keysSymbol {
+        view.image = Crisp.symbol(keysSymbol, font: style.titleFont,
+          color: style.ink(lit: button.lit || button.hovered == 0).text)
+      } else if let keysSource {
         let crisp = Crisp.image(keysSource, size: view.frame.size, scale: Crisp.scale(of: self))
         let tint = keysTint ? style.ink(lit: button.lit || button.hovered == 0).icon : nil
         view.image = tint.map { Crisp.tinted(crisp, $0) } ?? crisp

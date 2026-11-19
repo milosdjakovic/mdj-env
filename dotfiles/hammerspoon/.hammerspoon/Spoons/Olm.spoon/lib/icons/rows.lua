@@ -79,6 +79,14 @@ function M.new(opts)
     return engine.image(spec, points)
   end
 
+  --- instance.symbol(spec, owner) -> string or nil
+  --- The same resolution as image, answered as the name of the system symbol it draws as, for a
+  --- native view that draws a symbol beside its text as one more glyph of it, nil when it is not one.
+  function instance.symbol(spec, owner)
+    spec = resolve(spec, owner)
+    return spec and engine.symbol and engine.symbol(spec) or nil
+  end
+
   --- instance.elements(spec, owner, frame) -> array of canvas elements or nil
   --- The same resolution as image, answered as elements drawn into frame, for a canvas that
   --- paints the icon itself. A glyph is then text in the frame rather than a picture kept for

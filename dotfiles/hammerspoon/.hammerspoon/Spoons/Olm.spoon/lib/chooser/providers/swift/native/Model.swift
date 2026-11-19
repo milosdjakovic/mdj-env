@@ -159,6 +159,9 @@ struct Row {
   // The image is one colour, an SF Symbol, so a row lit by a solid highlight draws it in the lit
   // text colour as it does the title. An emoji or a row's own picture keeps its colours.
   var tint = false
+  // A symbol drawn as a glyph of the line's text in place of image, an actions pane row's, see
+  // Crisp.symbol, nil for a picture.
+  var symbol: String?
   // The heading an actions pane row is listed under, nil for a list row.
   var section: String?
 }
@@ -183,6 +186,8 @@ struct BottomBar {
   var keysImage: NSImage?
   // The keys image is one colour, see Row's tint.
   var keysTint = false
+  // The info icon as a symbol drawn as a glyph of the bar's text in place of keysImage, see Crisp.symbol.
+  var keysSymbol: String?
   var title: String?
   var panelOpen = false
   // The title of a level a verb opened in the actions pane, heading the floating pane, nil at the top.

@@ -1345,6 +1345,8 @@ public final class Stage {
       let r = OlmKit.Row(key: c.ref, title: c.title, subtitle: c.subtitle, icon: c.icon, inert: !c.enabled)
       var drawn = panelRow(r)
       drawn.subtitle = c.subtitle
+      // A pane line draws a symbol as a glyph of its own text, Crisp.symbol, so it goes by name.
+      if case .symbol(let name)? = c.icon { drawn.symbol = name; drawn.image = nil; drawn.tint = false }
       return Bars.ActionRow(row: drawn, verb: verb, applies: nil, confirm: false, choices: false)
     }
   }

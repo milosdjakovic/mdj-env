@@ -40,7 +40,8 @@
 --- of the engine never asks for one. The engine is loaded here as a module of its own, so the
 --- default provider's copy keeps its hold for the fallback.
 ---
---- M.configure(opts) takes opts.ui, the UI kit, opts.icon, the icon resolver, opts.fallback, the
+--- M.configure(opts) takes opts.ui, the UI kit, opts.icon, the icon resolver, opts.symbol, the
+--- resolver of the system symbol an icon draws as, opts.fallback, the
 --- configured provider to serve when the library is not loaded, opts.yields and opts.listKeys,
 --- the same predicates the default provider is handed, opts.rowLimit and opts.moreIcon, the
 --- default row limit and the row of more's icon the engine takes, as the default provider is
@@ -189,7 +190,7 @@ function M.configure(opts)
   if opts.log ~= nil then LOG = opts.log end
   Engine.configure({ ui = opts.ui, yields = opts.yields, listKeys = opts.listKeys,
     rowLimit = opts.rowLimit, moreIcon = opts.moreIcon })
-  SwiftView.configure({ ui = opts.ui, icon = opts.icon })
+  SwiftView.configure({ ui = opts.ui, icon = opts.icon, symbol = opts.symbol })
   if opts.dir ~= nil and not NATIVE then prepare(opts) end
   return M
 end

@@ -940,9 +940,11 @@ keeps the 72 point canvas with the glyph at 60 that looked right live, and `lib/
 the kit's `iconImage` both draw through the engine. One function, `image(spec, owner)` in
 `lib/icons/rows.lua`, turns an owner and a key or a spec into an image, and every reader goes
 through it. A symbol is one colour on every layer, a palette and not a hierarchical configuration,
-so a multi layer symbol is as strong as a single layer one. Its weight is the look's too,
-`stroke.symbol` in `lib/ui/style.lua`, which the sf source, the swift list and Olm.app all draw at,
-and a symbol set in a key cap takes the key cap font's weight as one more glyph of it. A one colour
+so a multi layer symbol is as strong as a single layer one. A list row's symbol takes the look's
+weight, `stroke.symbol` in `lib/ui/style.lua`, which the sf source, the swift list and Olm.app all
+draw at. A symbol standing beside text, in a key cap, a floating pane line or the bar's info icon,
+is one more glyph of that text instead, drawn by the swift library's `Crisp.symbol` at the text's
+size and weight, so it goes by name and never as a picture, Milos's call on 2026-11-19. A one colour
 picture is redrawn in the ink where it stands, `Ink.icon` in the swift library, the text colour at
 rest and the lit text on a solid highlight, in the list, the floating panes and the bar alike, so a
 picture drawn ahead of time, as Olm.app's share is at load, follows the half on screen. A picture

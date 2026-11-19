@@ -1020,6 +1020,10 @@ function obj.run(olm, cfg)
   wireSwiftChooser(chooserAtom, chooserProvider, {
     ui = uiAtom,
     icon = paintIcon,
+    -- The name of the system symbol an icon draws as, which the swift chooser draws beside its own
+    -- text, an actions pane line's and the bar's info icon, as a glyph of that text. Inline, since
+    -- the function holding it is at Lua's limit of locals.
+    symbol = function(icon, owner) return iconRows and iconRows.symbol(icon, owner) or nil end,
     yields = chooserKeys.yields,
     listKeys = chooserKeys.listKeys,
     rowLimit = policy.chooserRowLimit,

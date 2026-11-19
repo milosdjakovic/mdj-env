@@ -617,6 +617,33 @@ do {
   check("a lead widens the first column", pane([led]).preferredSize.width > pane([longLabel]).preferredSize.width)
 }
 
+// A symbol beside text is one more glyph of it, Crisp.symbol, 2026-11-19. It takes the font's size
+// and weight, so a heavier font draws a heavier symbol, and a pane line naming one shows it.
+do {
+  func ink(_ font: NSFont) -> Int {
+    guard let image = Crisp.symbol("info.circle", font: font, color: .black),
+      let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return -1 }
+    let rep = NSBitmapImageRep(cgImage: cg)
+    var n = 0
+    for y in 0..<rep.pixelsHigh { for x in 0..<rep.pixelsWide where (rep.colorAt(x: x, y: y)?.alphaComponent ?? 0) > 0.5 { n += 1 } }
+    return n
+  }
+  let regular = ink(NSFont.systemFont(ofSize: 14, weight: .regular))
+  let bold = ink(NSFont.systemFont(ofSize: 14, weight: .bold))
+  check("a symbol beside text takes the font's weight", regular > 0 && bold > regular, "regular \(regular) bold \(bold)")
+  let size = Crisp.symbol("info.circle", font: NSFont.systemFont(ofSize: 14), color: .black)?.size ?? .zero
+  check("and its size, as a menu item draws one", size.height > 10 && size.height < 22, "\(size)")
+  check("an unknown name draws nothing", Crisp.symbol("no.such.symbol.olm", font: NSFont.systemFont(ofSize: 14), color: .black) == nil)
+  let v = FloatingPaneView(frame: NSRect(x: 0, y: 0, width: 400, height: 300))
+  v.show(title: nil, lines: [.init(label: "Copy", chord: [], symbol: "doc.on.doc")], style: Style(), placement: Placement(),
+    outer: 6, inner: 6, lineH: 28, gap: 16, radius: 10, iconSide: 18)
+  func images(_ view: NSView) -> [NSImageView] {
+    (view as? NSImageView).map { [$0] } ?? [] + view.subviews.flatMap(images)
+  }
+  let shown = images(v)
+  check("a pane line naming a symbol shows it", shown.count == 1 && shown[0].image != nil && shown[0].imageScaling == .scaleNone)
+}
+
 // A symbol in a key cap is drawn at its colour's alpha, as a glyph beside it is.
 do {
   var style = Style()

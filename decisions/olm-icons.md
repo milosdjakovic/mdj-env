@@ -483,3 +483,18 @@ while the file sets `set = "sf"` and `fallback = "emoji"`, so SF Symbols draw ev
 has an entry and emoji fills in where one has none. Now also named the action panel twice, a word
 retired by `decisions/olm-names.md` on 2026-11-02, and says the actions pane. Found by an audit
 against the repo on 2026-11-16.
+
+### 2026-11-19 18:33, a symbol beside text is a glyph of it
+
+Milos found the launcher's icons heavier than he would like and asked how many kinds there are.
+Three, list rows drawn at 64 points and shrunk to 28, floating pane lines and the bar's info icon
+drawn as the sf source's 64 point pictures and shrunk to about 19, and key cap symbols drawn as a
+glyph of the cap's font. The first two shared `stroke.symbol`, semibold, and looked different only
+because a line shrinks with its picture. He chose to make the second kind the third. A symbol
+beside text, a key cap's, a floating pane line's and the bar's info icon, is now drawn by one
+function, `Crisp.symbol`, at the text's size and the text's own weight, in its colour, the way a
+menu item draws one, so its lines match the letters beside it. That replaces the 2026-11-16 rule for
+those surfaces, and `stroke.symbol` now sets list rows alone. The engine names the symbol a spec
+draws as through a source declaring `system`, and the swift view and Olm.app's share send the name
+rather than a PNG. The canvas chooser's panes keep the pictures until it is ported. List row icons
+are unchanged, so the launcher's weight is still the open question he raised.

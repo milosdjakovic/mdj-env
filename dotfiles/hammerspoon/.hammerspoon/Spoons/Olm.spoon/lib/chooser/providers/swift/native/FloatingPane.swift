@@ -31,6 +31,8 @@ final class FloatingPaneView: FlippedView {
     var image: NSImage? = nil
     // The image is one colour, see Row's tint, redrawn in the lit ink on the highlighted line.
     var tint = false
+    // A symbol drawn as one more glyph of the label, at its size and weight, in place of image.
+    var symbol: String? = nil
     // The heading the line is listed under. A heading is drawn above the first line of each run
     // of lines naming the same one, docs/PLAN-ACTION-PANEL.md.
     var section: String? = nil
@@ -274,7 +276,13 @@ final class FloatingPaneView: FlippedView {
       label.lineBreakMode = .byTruncatingTail
       let chord = KeyCap(line.chord, ink: ink, style: style, placement: placement, holderH: lineH,
         holderRadius: document.radius, enabled: line.enabled)
-      let image = line.image.map { source -> NSImageView in
+      let glyph = line.symbol.flatMap { Crisp.symbol($0, font: style.titleFont, color: label.textColor ?? ink.text) }
+      let image = glyph.map { picture -> NSImageView in
+        // Drawn at its own size in the middle of the picture's room, as a menu item draws one.
+        let view = NSImageView(image: picture)
+        view.imageScaling = .scaleNone
+        return view
+      } ?? line.image.map { source -> NSImageView in
         let picture = line.tint ? Crisp.tinted(source, ink.icon) : source
         let view = NSImageView(image: picture)
         view.imageScaling = .scaleProportionallyUpOrDown

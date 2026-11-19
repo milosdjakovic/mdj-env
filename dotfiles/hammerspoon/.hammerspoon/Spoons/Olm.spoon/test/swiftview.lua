@@ -801,7 +801,17 @@ do
   check("the app's bar share carries the info icon as a data URL", bar and bar.keysImage, "data:image/png;base64,AA==")
   local rows = View.actionsShare({ { action = "toggleBrowser", title = "Browsers", icon = "browsers", owner = "browserTabs" } })
   check("and each actions pane row its icon", rows[1] and rows[1].image, "data:image/png;base64,AA==")
-  View.configure({ icon = function() return nil end })
+  -- A symbol beside text goes by name, drawn by the library as a glyph of that text, 2026-11-19.
+  View.configure({ symbol = function(icon) return icon == "keys" and "info.circle" or nil end })
+  bar = View.barShare({ right = {}, keys = {}, infoIcon = { icon = "keys", owner = "actionspane" } })
+  check("an info icon that is a symbol goes by name", bar and bar.keysSymbol, "info.circle")
+  check("with no picture beside it", bar and bar.keysImage, nil)
+  rows = View.actionsShare({ { action = "a", title = "A", icon = "keys", owner = "x" },
+    { action = "b", title = "B", icon = "browsers", owner = "x" } })
+  check("an actions pane row whose icon is a symbol goes by name", rows[1] and rows[1].symbol, "info.circle")
+  check("and sends no picture", rows[1] and rows[1].image, nil)
+  check("a row whose icon is no symbol keeps its picture", rows[2] and rows[2].image, "data:image/png;base64,AA==")
+  View.configure({ icon = function() return nil end, symbol = function() return nil end })
 end
 
 if failed then

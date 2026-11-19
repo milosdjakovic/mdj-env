@@ -73,6 +73,23 @@ do
   check("has refuses an unregistered name", engine.has("nope"), false)
 end
 
+-- A symbol beside text, 2026-11-19. The engine names the system symbol a spec draws as when the
+-- first source in the order holding a value is a system source, and nothing for any other.
+do
+  local sf, emoji = fake("sf"), fake("emoji")
+  sf.system = true
+  local engine = icons.new({ sources = { emoji, sf }, order = { "sf", "emoji" } })
+  check("a spec the system source holds is named", engine.symbol({ emoji = "E", sf = "info.circle" }), "info.circle")
+  check("a spec only an emoji holds is no symbol", engine.symbol({ emoji = "E" }), nil)
+  check("and a nil spec is none", engine.symbol(nil), nil)
+  local emojiFirst = icons.new({ sources = { emoji, sf }, order = { "emoji", "sf" } })
+  check("an emoji set first draws the emoji, so no symbol", emojiFirst.symbol({ emoji = "E", sf = "info.circle" }), nil)
+  local resolver = rowsLib.new({ engine = engine, declared = function() return { keys = { emoji = "K", sf = "keyboard" } } end, points = 28 })
+  check("the row resolver names a declared key's symbol", resolver.symbol("keys", "owner"), "keyboard")
+  raises("the contract refuses a system field that is not a boolean",
+    function() icons.new({ sources = { { name = "x", draw = function() end, system = "yes" } } }) end, "system")
+end
+
 -- The string shorthand.
 do
   local emoji = fake("emoji")

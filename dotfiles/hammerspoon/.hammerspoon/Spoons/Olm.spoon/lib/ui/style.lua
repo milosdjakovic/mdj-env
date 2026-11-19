@@ -116,7 +116,9 @@ local SHIPPED = {
   -- as an icon takes, AppKit's font weight from minus one to one, semibold, so its lines read in
   -- the text colour beside a row's title rather than as thin grey strokes, stated by Milos on
   -- 2026-11-16. lib/icons/sources/sf.lua, the swift list and Olm.app all draw at it, through the
-  -- symbolWeight of the swift provider's style, so no surface holds a weight of its own.
+  -- symbolWeight of the swift provider's style, so no surface holds a weight of its own. It is a
+  -- list row's weight. A symbol beside text, a key cap's, a floating pane line's and the bar's info
+  -- icon, takes that text's weight instead, Crisp.symbol in the swift library, 2026-11-19.
   stroke = { border = 1, graph = 1.5, symbol = 0.3 },
 
   -- muted is the report toast's alpha for a row naming something that was not there, added

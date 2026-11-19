@@ -69,6 +69,24 @@ local UI = nil
 -- light and dark switch reaches a row's icon with nothing watching for it.
 local ICON = nil
 
+-- The injected symbol resolver, function(icon, owner) -> the system symbol's name or nil. An icon that
+-- is one is sent by name where it stands beside text, an actions pane line or the bar's info icon,
+-- and the library draws it as one more glyph of that text, Crisp.symbol, Milos's call on 2026-11-19.
+local SYMBOL = nil
+
+-- An icon beside text, its symbol's name when it is one, otherwise its picture and whether that is
+-- one colour.
+local function besideText(icon, owner)
+  if icon == nil then return nil end
+  local name = SYMBOL and SYMBOL(icon, owner) or nil
+  if name then return nil, false, name end
+  if ICON then
+    local image, tint = ICON(icon, owner)
+    return image, tint == true, nil
+  end
+  return nil
+end
+
 -- What the list says when a typed query left no rows, the canvas view's own words.
 local NO_RESULTS = "No results"
 
@@ -295,13 +313,13 @@ local function bottomBarData(model)
       lead = k.lead and kbd.wire(k.lead) or nil }
   end
   local icon = model.infoIcon
-  local keysImage, keysTint = nil, false
-  if icon and ICON then keysImage, keysTint = ICON(icon.icon, icon.owner) end
+  local keysImage, keysTint, keysSymbol = nil, false, nil
+  if icon then keysImage, keysTint, keysSymbol = besideText(icon.icon, icon.owner) end
   return { right = right, keys = keys, keysChord = kbd.wire(model.keysChord), title = model.title,
     panelOpen = model.panelOpen == true, panelTitle = model.panelTitle,
     panelHeld = model.panelField and model.panelField.held or nil,
     panelPlaceholder = model.panelField and model.panelField.placeholder or nil,
-    keysImage = keysImage or nil, keysTint = keysImage ~= nil and keysTint == true }
+    keysImage = keysImage or nil, keysTint = keysImage ~= nil and keysTint == true, keysSymbol = keysSymbol }
 end
 
 -- Resolves the icon of every row from lo to hi not asked yet, through the injected resolver, and
@@ -467,10 +485,10 @@ function View:_redrawPanel(s, ns, bottomBar)
   local held = self._held or {}
   local actions = {}
   for i, row in ipairs(ns.filtered) do
-    local image, tint = row.image, false
-    if image == nil and row.icon ~= nil and ICON then image, tint = ICON(row.icon, row.iconOwner) end
+    local image, tint, symbol = row.image, false, nil
+    if image == nil then image, tint, symbol = besideText(row.icon, row.iconOwner) end
     actions[i] = { title = plain(row.title), chord = kbd.wire(row.chord), image = image or nil,
-      tint = image ~= nil and row.image == nil and tint == true, section = row.section,
+      tint = image ~= nil and row.image == nil and tint == true, symbol = symbol, section = row.section,
       enabled = row.enabled ~= false }
   end
   self.native.update(self.id, {
@@ -688,10 +706,9 @@ function M.actionsShare(rows)
   local out = {}
   for _, row in ipairs(rows or {}) do
     if row.action ~= nil then
-      local image, tint
-      if row.icon ~= nil and ICON then image, tint = ICON(row.icon, row.owner) end
+      local image, tint, symbol = besideText(row.icon, row.owner)
       local url = imageURL(image)
-      out[#out + 1] = { title = plain(row.title), chord = kbd.wire(row.chord), image = url,
+      out[#out + 1] = { title = plain(row.title), chord = kbd.wire(row.chord), image = url, symbol = symbol,
         tint = url ~= nil and tint == true, section = row.section, action = row.action,
         applies = row.applies, confirm = row.confirm ~= nil and row.confirm ~= false,
         choices = row.choices ~= nil }
@@ -725,12 +742,13 @@ function M.iconsChanged()
   end
 end
 
---- M.configure(opts) takes opts.ui and opts.icon. Callable more than once, a nil field left
---- unchanged.
+--- M.configure(opts) takes opts.ui, opts.icon and opts.symbol. Callable more than once, a nil field
+--- left unchanged.
 function M.configure(opts)
   opts = opts or {}
   if opts.ui ~= nil then UI = opts.ui end
   if opts.icon ~= nil then ICON = opts.icon end
+  if opts.symbol ~= nil then SYMBOL = opts.symbol end
   return M
 end
 

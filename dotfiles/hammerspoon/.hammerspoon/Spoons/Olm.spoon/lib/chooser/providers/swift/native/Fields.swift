@@ -42,6 +42,7 @@ extension Row {
     muted = f.bool("muted") ?? false
     image = f.image("image")
     tint = f.bool("tint") ?? false
+    symbol = f.string("symbol")
     section = f.string("section")
   }
 }
@@ -153,6 +154,7 @@ extension BottomBar {
     keysChord = f.chord("keysChord")
     keysImage = f.image("keysImage")
     keysTint = f.bool("keysTint") ?? false
+    keysSymbol = f.string("keysSymbol")
     title = f.string("title")
     panelOpen = f.bool("panelOpen") ?? false
     panelTitle = f.string("panelTitle")

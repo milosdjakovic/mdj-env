@@ -1031,10 +1031,17 @@ When a run finishes, the root calls `iconsChanged` on every chooser provider, wh
 lists on screen. At load the root hands the source every symbol the manifests declare. Never call
 `hs.osascript` or `hs.execute` from an icon source, and never wait for a render on the main thread.
 
-Every symbol looks the same wherever it is drawn, semibold and in the foreground colour a row's
-title is drawn in, stated by Milos on 2026-11-16. The weight is one token of the look,
+Every list row's symbol looks the same wherever it is drawn, semibold and in the foreground colour
+a row's title is drawn in, stated by Milos on 2026-11-16. The weight is one token of the look,
 `stroke.symbol` in `lib/ui/style.lua`. The root hands it to the sf source, and the swift provider's
 style carries it as `symbolWeight` to the swift list and to Olm.app, so there is one value to change.
+A symbol standing beside text is drawn another way, Milos's call on 2026-11-19. In a key cap, a
+floating pane line and the bar's info icon it is one more glyph of that text, `Crisp.symbol` in
+`native/List.swift`, at the text's size and weight, in its colour, the way a menu item draws one.
+The engine names it, `symbol(spec)` answering the name where the source drawing a spec declares
+`system`, the sf one, and the swift view sends that name in place of a picture, to its own panel
+and to Olm.app's share alike, so its lines are as heavy as the letters beside it at any size. The
+canvas chooser still draws a pane's symbols as the sf source's pictures.
 No plugin and no surface picks a weight or a colour of its own for an icon, and on the Swift side
 the dry gate's look rule, `test/drygate-swiftlook.lua`, refuses one, stated by Milos on 2026-11-18.
 

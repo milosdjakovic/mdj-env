@@ -82,6 +82,17 @@ enum Crisp {
 }
 
 extension Crisp {
+  // A symbol as one more glyph of font, at its size and its weight, in color, the way a menu item
+  // draws one beside its title. Every symbol that stands beside text is drawn here, a key cap's at
+  // the small scale and a floating pane line's or the bar's info icon at the medium, so its lines are
+  // as heavy as the letters next to it, Milos's call on 2026-11-19. nil when the system has no
+  // symbol of that name.
+  static func symbol(_ name: String, font: NSFont, color: NSColor, scale: NSImage.SymbolScale = .medium) -> NSImage? {
+    let config = NSImage.SymbolConfiguration(pointSize: font.pointSize, weight: weight(of: font), scale: scale)
+      .applying(NSImage.SymbolConfiguration(paletteColors: [color.withAlphaComponent(1)]))
+    return NSImage(systemSymbolName: name, accessibilityDescription: nil)?.withSymbolConfiguration(config)
+  }
+
   // The weight a font is drawn at, from its descriptor's traits, regular when it names none, so a
   // symbol set among a font's glyphs is as heavy as they are.
   static func weight(of font: NSFont) -> NSFont.Weight {
