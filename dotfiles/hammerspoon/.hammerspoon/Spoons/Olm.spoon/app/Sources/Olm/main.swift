@@ -133,8 +133,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // The bridge, step 2.3. Each answer the Lua launcher settles on comes as the shadow notification.
     let bridge = bridge, launcher = bridgedLauncher, shadow = launcherShadow, shown = shownLauncher
     stage.onTextBudget = { budget in Task { await bridge.setTextBudget(budget) } }
-    // Command and comma in any list, docs/DESIGN-APP-SETTINGS.md S.4.
-    stage.onOpenSettings = { [weak self] in self?.settingsWindow.show() }
+    // Command and comma in any list, docs/DESIGN-APP-SETTINGS.md S.4. Handed to LaunchServices as
+    // olm://settings, the way Hammerspoon's row opens it, rather than shown here, since the panel never
+    // makes the app active and an app may only ask to come forward, which the app in front declines,
+    // so a window shown here opened behind it. Found on 2026-11-20 when Command and comma in the
+    // launcher closed it and showed nothing.
+    stage.onOpenSettings = {
+      guard let url = URL(string: "olm://settings") else { return }
+      let configuration = NSWorkspace.OpenConfiguration()
+      configuration.activates = true
+      NSWorkspace.shared.open(url, configuration: configuration)
+    }
     // The settings window built ahead, hidden, so its first open is quick and does not flicker.
     DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in self?.settingsWindow.prepare() }
     Task {

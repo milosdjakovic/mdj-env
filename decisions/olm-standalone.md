@@ -1218,3 +1218,10 @@ with the rules for no layout shift. The sidebar draws its own rows, since a side
 highlight and symbols where the system decides and they did not line up with anything else, the
 accent wash is gone, and the note sits in a fixed slot at the header's right. Rejected: keeping
 List for the sections, since its insets cannot be set to match the search and the window's buttons.
+
+**2026-11-20 14:51, Command and comma in Olm.app's lists opens the window through LaunchServices.** Milos found
+that Command and comma in the launcher closed it and showed no window. In a list Olm.app draws, the
+verb hid the list and showed the window from inside the app, but the panel never makes the app
+active, and since macOS 14 an app may only ask to come forward, so the window opened behind the app
+in front. It is the S.2 fault again, and it has the S.2 answer: the app hands olm://settings to
+LaunchServices with activates set, the same route Hammerspoon's Olm Settings row takes with open.
