@@ -3,7 +3,9 @@
 // written to a folder of its own, a press and a run paired, each alone logged, a held key's repeats
 // taken as one press and a press while a list is up left to the list. It hears no keyboard.
 //
-//   olm-keys-check    exits 0 when every case held, 1 otherwise
+//   olm-keys-check            exits 0 when every case held, 1 otherwise
+//   olm-keys-check --live F   also resolves, for every row of the keymap share F, the press that
+//                             reaches it, ~/.olm/run/keymap.json as this machine's Hammerspoon wrote it
 
 import Foundation
 import OlmKeys
@@ -172,6 +174,40 @@ do {
   c = counts(dir)
   check(c["appOnly"] == 1 && c["hammerspoonOnly"] == 1 && c["paired"] == 3, "a press while a list is up is the list's, \(c)")
   try? FileManager.default.removeItem(at: dir)
+}
+
+// Every row of a real share reached by the press that should reach it, a leader's modifiers with
+// the row's own, or its held key where the modifier half leaves the row to it, and a plain combo's
+// own modifiers. Another row on the same chord answering is its tier rule, which the cases above
+// pin, so only a press reaching nothing or a row on another chord is a failure.
+if let i = CommandLine.arguments.firstIndex(of: "--live"), i + 1 < CommandLine.arguments.count {
+  let url = URL(fileURLWithPath: (CommandLine.arguments[i + 1] as NSString).expandingTildeInPath)
+  if let keymap = try? Keymap.read(url) {
+    let r = Resolver(keymap: keymap)
+    var reached = 0
+    for row in keymap.rows {
+      var mods = row.mods ?? []
+      var held: Set<Int> = []
+      if let name = row.leader, let leader = keymap.leaders.first(where: { $0.name == name }) {
+        if let base = leader.mods, row.mods.map({ $0.isDisjoint(with: base) }) ?? true, !(leader.held && row.mods == nil) {
+          mods = base.union(row.mods ?? [])
+        } else if leader.held, let code = leader.keyCode {
+          held = [code]
+        }
+      }
+      let got = r.resolve(code: row.keyCode, mods: mods, held: held, gate: { _ in true })
+      if case .runs(let other) = got, other.keyCode == row.keyCode, other.leader == row.leader {
+        reached += 1
+        if other.id != row.id { print("  note \(row.id) on its chord answers \(other.id), its tier rule") }
+      } else {
+        check(false, "live: \(row.id), \(row.leader ?? "plain") \(row.key) with \(mods.map(\.rawValue).sorted()) held \(held), got \(String(describing: got))")
+      }
+    }
+    checks += 1
+    print("live: \(reached) of \(keymap.rows.count) rows reached by their own press, on \(keymap.leaders.map(\.name).joined(separator: ", "))")
+  } else {
+    check(false, "live: no keymap share at \(url.path)")
+  }
 }
 
 print("olm-keys-check, \(checks) checks, \(failures) failed")
