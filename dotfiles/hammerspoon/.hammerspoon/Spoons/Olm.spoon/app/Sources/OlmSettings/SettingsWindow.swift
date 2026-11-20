@@ -93,20 +93,21 @@ public final class SettingsWindow: NSObject, NSWindowDelegate {
     } else {
       let model = SettingsModel(share: share(), service: service)
       self.model = model
-      let w = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(model: model)))
+      let w = NSWindow(contentViewController: SettingsSplit(model: model))
       w.title = "Olm Settings"
+      w.titleVisibility = .hidden
       w.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
-      // A compact toolbar with no background and no line under it, so the search sits just under
-      // the window's buttons and the pane runs to the top, as System Settings draws.
+      // A compact toolbar with no line under it, so the window's buttons sit over the sidebar and
+      // the pane runs to the top, as System Settings draws.
       w.toolbar = NSToolbar(identifier: "OlmSettings")
       w.toolbarStyle = .unifiedCompact
       w.titlebarSeparatorStyle = .none
       w.isReleasedWhenClosed = false
-      w.setContentSize(NSSize(width: 1100, height: 740))
-      w.contentMinSize = NSSize(width: 820, height: 500)
+      w.setContentSize(NSSize(width: 1280, height: 780))
+      w.contentMinSize = NSSize(width: SettingsSplit.sidebarWidth + 560, height: 520)
       // The size is kept between openings and the place is not, since it opens centred. Named
       // afresh with each larger default, so a size saved at an older one is not restored.
-      w.setFrameAutosaveName("OlmSettingsFrame")
+      w.setFrameAutosaveName("OlmSettingsWindowFrame")
       w.delegate = self
       window = w
     }
@@ -115,31 +116,6 @@ public final class SettingsWindow: NSObject, NSWindowDelegate {
     NSApp.mainMenu = Self.menu()
     NSApp.activate()
     window?.makeKeyAndOrderFront(nil)
-    if let window { DispatchQueue.main.async { Self.widenSidebar(window) } }
-  }
-
-  /// The sidebar's width, set on the split view AppKit draws. SwiftUI's column width is not honoured
-  /// in a window made by hand, which left the sidebar at about 140 points twice, so the split
-  /// view's own item is given the bounds and the divider moved out when it sits inside them.
-  static let sidebarWidth: (min: CGFloat, ideal: CGFloat, max: CGFloat) = (300, 320, 400)
-
-  static func widenSidebar(_ window: NSWindow) {
-    guard let content = window.contentView, let split = splitView(in: content),
-          let sidebar = split.arrangedSubviews.first else { return }
-    if let controller = split.delegate as? NSSplitViewController, let item = controller.splitViewItems.first {
-      item.minimumThickness = sidebarWidth.min
-      item.maximumThickness = sidebarWidth.max
-    }
-    if sidebar.frame.width < sidebarWidth.min {
-      split.setPosition(sidebarWidth.ideal, ofDividerAt: 0)
-    }
-    NSLog("OlmSettings sidebar %.0f pt", sidebar.frame.width)
-  }
-
-  static func splitView(in view: NSView) -> NSSplitView? {
-    if let split = view as? NSSplitView { return split }
-    for sub in view.subviews { if let found = splitView(in: sub) { return found } }
-    return nil
   }
 
   public func close() { window?.close() }
@@ -198,43 +174,108 @@ public final class SettingsWindow: NSObject, NSWindowDelegate {
   }
 }
 
-struct SettingsView: View {
+/// The sidebar and the pane as AppKit's own split, a sidebar item so it floats as glass on macOS 26
+/// and runs under the window's buttons. SwiftUI's NavigationSplitView ignored its column width in a
+/// window made by hand, about 140 points whatever was asked, and a width forced onto its split view
+/// afterwards flickered as the window resized and collapsed when dragged left. Here the width is
+/// the item's own, fixed, the divider takes no drag and the sidebar cannot collapse.
+@MainActor
+final class SettingsSplit: NSSplitViewController {
+  static let sidebarWidth: CGFloat = 480
+
+  init(model: SettingsModel) {
+    super.init(nibName: nil, bundle: nil)
+    let sidebar = NSSplitViewItem(sidebarWithViewController: NSHostingController(rootView: SettingsSidebar(model: model)))
+    sidebar.minimumThickness = Self.sidebarWidth
+    sidebar.maximumThickness = Self.sidebarWidth
+    sidebar.canCollapse = false
+    sidebar.allowsFullHeightLayout = true
+    sidebar.holdingPriority = .required
+    let detail = NSSplitViewItem(viewController: NSHostingController(rootView: SettingsDetail(model: model)))
+    detail.minimumThickness = 560
+    addSplitViewItem(sidebar)
+    addSplitViewItem(detail)
+  }
+
+  @available(*, unavailable)
+  required init?(coder: NSCoder) { fatalError("not from a nib") }
+
+  /// No place on the divider answers a drag, so the width cannot be changed or the sidebar hidden.
+  override func splitView(_ splitView: NSSplitView, effectiveRect proposedEffectiveRect: NSRect,
+                          forDrawnRect drawnRect: NSRect, ofDividerAt dividerIndex: Int) -> NSRect { .zero }
+
+  override func splitView(_ splitView: NSSplitView, canCollapseSubview subview: NSView) -> Bool { false }
+}
+
+/// The search, the app's name and version, and the sections.
+struct SettingsSidebar: View {
   @ObservedObject var model: SettingsModel
 
   var body: some View {
-    NavigationSplitView {
-      List(selection: $model.selection) {
-        Section { AppIdentity() }
-        Section {
-          ForEach(model.sections) { section in
-            Label(section.title, systemImage: section.symbol).tag(section.id)
-          }
-        }
+    List(selection: $model.selection) {
+      Section {
+        SearchField(text: $model.query)
+        AppIdentity()
       }
-      .navigationSplitViewColumnWidth(min: SettingsWindow.sidebarWidth.min, ideal: SettingsWindow.sidebarWidth.ideal,
-        max: SettingsWindow.sidebarWidth.max)
-      .searchable(text: $model.query, placement: .sidebar, prompt: "Search")
-    } detail: {
-      ZStack {
-        Backdrop()
-        if model.share == nil {
-          ContentUnavailableView("No settings yet", systemImage: "gearshape",
-            description: Text("Hammerspoon writes them when it loads, with the olmapp piece on."))
-        } else if let section = model.current {
-          SectionPage(section: section, model: model)
-            .id(section.id)
-        } else {
-          ContentUnavailableView.search(text: model.query)
+      Section {
+        ForEach(model.sections) { section in
+          Label(section.title, systemImage: section.symbol).tag(section.id)
         }
       }
     }
-    .navigationTitle("Olm Settings")
-    .titleHidden()
-    .toolbarBackgroundHidden()
+    .listStyle(.sidebar)
     .onChange(of: model.query) {
       let sections = model.sections
       if let first = sections.first, !sections.contains(where: { $0.id == model.selection }) {
         model.selection = first.id
+      }
+    }
+  }
+}
+
+/// The search over the sections, the system's search field, since the toolbar's lives with
+/// NavigationSplitView.
+struct SearchField: NSViewRepresentable {
+  @Binding var text: String
+
+  func makeNSView(context: Context) -> NSSearchField {
+    let field = NSSearchField()
+    field.placeholderString = "Search"
+    field.controlSize = .large
+    field.delegate = context.coordinator
+    return field
+  }
+
+  func updateNSView(_ field: NSSearchField, context: Context) {
+    if field.stringValue != text { field.stringValue = text }
+  }
+
+  func makeCoordinator() -> Coordinator { Coordinator(text: $text) }
+
+  final class Coordinator: NSObject, NSSearchFieldDelegate {
+    let text: Binding<String>
+    init(text: Binding<String>) { self.text = text }
+    func controlTextDidChange(_ note: Notification) {
+      if let field = note.object as? NSSearchField { text.wrappedValue = field.stringValue }
+    }
+  }
+}
+
+/// The chosen section over the wash.
+struct SettingsDetail: View {
+  @ObservedObject var model: SettingsModel
+
+  var body: some View {
+    ZStack {
+      Backdrop()
+      if model.share == nil {
+        ContentUnavailableView("No settings yet", systemImage: "gearshape",
+          description: Text("Hammerspoon writes them when it loads, with the olmapp piece on."))
+      } else if let section = model.current {
+        SectionPage(section: section, model: model)
+          .id(section.id)
+      } else {
+        ContentUnavailableView.search(text: model.query)
       }
     }
   }
@@ -285,6 +326,8 @@ struct Backdrop: View {
 /// One section, its header, a line when a change waits for the window to close or was refused, and
 /// its settings on one glass card.
 struct SectionPage: View {
+  /// The one gap between the page and the pane's edges, left, top, right and bottom alike.
+  static let gap: CGFloat = 28
   let section: SettingsSection
   @ObservedObject var model: SettingsModel
 
@@ -320,11 +363,13 @@ struct SectionPage: View {
           }
           .glassCard(cornerRadius: 22)
         }
-        .padding(.horizontal, 28).padding(.top, 18).padding(.bottom, 28)
-        .frame(maxWidth: 820, alignment: .leading)
-        .frame(maxWidth: .infinity)
+        .padding(Self.gap)
+        .frame(maxWidth: .infinity, alignment: .leading)
       }
     }
+    // The gap is measured from the window's edge at the top too, since the toolbar over the pane is
+    // empty, so the page sits the same distance from all four edges.
+    .ignoresSafeArea(.container, edges: .top)
     .softTopEdge()
   }
 }
@@ -482,25 +527,6 @@ extension View {
       glassEffect(.regular.tint(Color.accentColor.opacity(0.18)).interactive(), in: Circle())
     } else {
       background(.regularMaterial, in: Circle())
-    }
-  }
-
-  /// The window keeps its title for Mission Control and the Window menu, and the toolbar shows none,
-  /// since each section's header names it.
-  @ViewBuilder func titleHidden() -> some View {
-    if #available(macOS 15, *) {
-      toolbar(removing: .title)
-    } else {
-      self
-    }
-  }
-
-  /// No toolbar band over the pane, the wash showing to the top of the window.
-  @ViewBuilder func toolbarBackgroundHidden() -> some View {
-    if #available(macOS 15, *) {
-      toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
-    } else {
-      self
     }
   }
 

@@ -1150,3 +1150,14 @@ modifier is not honoured in a window made by hand around an `NSHostingController
 split position was to blame, since the app's defaults hold only window frames. The window now
 finds the `NSSplitView` after it is shown, gives its first item 300 to 400 points when a split view
 controller owns it, and moves the divider to 320 when the sidebar is narrower, logging the width.
+
+**2026-11-20 12:26, the settings sidebar a fixed 480 points on AppKit's own split, and one gap
+round the page.** The 11:57 fix, forcing a width onto the split view NavigationSplitView builds,
+was wrong too. Milos found it flickered as the window resized, since SwiftUI kept laying the column
+out again, and that dragging the divider left collapsed the sidebar. He asked for a 480 point
+sidebar that does not resize. The window's content is now an `NSSplitViewController` of two
+hosting controllers, the sidebar a sidebar item, so it is glass on macOS 26, with 480 as both its
+minimum and maximum, no collapse, and a divider that takes no drag. The search moved into the
+sidebar as the system's search field, since `.searchable` lives with NavigationSplitView. The page
+in the pane was 28 points from the left but about 52 from the top and capped at 820 wide, and Milos
+asked for one gap on all four sides, so it is 28 everywhere, measured from the window's top edge.
