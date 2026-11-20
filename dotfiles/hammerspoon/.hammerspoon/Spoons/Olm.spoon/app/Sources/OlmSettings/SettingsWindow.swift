@@ -61,12 +61,16 @@ public final class SettingsWindow: NSObject, NSWindowDelegate {
       let w = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(model: model)))
       w.title = "Olm Settings"
       w.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
+      // A compact toolbar with no background and no line under it, so the search sits just under
+      // the window's buttons and the pane runs to the top, as System Settings draws.
       w.toolbar = NSToolbar(identifier: "OlmSettings")
-      w.toolbarStyle = .unified
+      w.toolbarStyle = .unifiedCompact
+      w.titlebarSeparatorStyle = .none
       w.isReleasedWhenClosed = false
-      w.setContentSize(NSSize(width: 820, height: 580))
-      w.contentMinSize = NSSize(width: 660, height: 420)
-      w.setFrameAutosaveName("OlmSettings")
+      w.setContentSize(NSSize(width: 1000, height: 700))
+      w.contentMinSize = NSSize(width: 760, height: 480)
+      // Named afresh with the larger size, so a frame saved at the old one is not restored.
+      w.setFrameAutosaveName("OlmSettingsWindow")
       w.delegate = self
       if w.frame.origin == .zero { w.center() }
       window = w
@@ -120,10 +124,15 @@ struct SettingsView: View {
 
   var body: some View {
     NavigationSplitView {
-      List(model.sections, selection: $model.selection) { section in
-        Label(section.title, systemImage: section.symbol).tag(section.id)
+      List(selection: $model.selection) {
+        Section { AppIdentity() }
+        Section {
+          ForEach(model.sections) { section in
+            Label(section.title, systemImage: section.symbol).tag(section.id)
+          }
+        }
       }
-      .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
+      .navigationSplitViewColumnWidth(min: 240, ideal: 270, max: 340)
       .searchable(text: $model.query, placement: .sidebar, prompt: "Search")
     } detail: {
       ZStack {
@@ -141,12 +150,35 @@ struct SettingsView: View {
     }
     .navigationTitle("Olm Settings")
     .titleHidden()
+    .toolbarBackgroundHidden()
     .onChange(of: model.query) {
       let sections = model.sections
       if let first = sections.first, !sections.contains(where: { $0.id == model.selection }) {
         model.selection = first.id
       }
     }
+  }
+}
+
+/// The app's name and version at the head of the sidebar, where System Settings shows the account.
+struct AppIdentity: View {
+  private var version: String {
+    Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+  }
+
+  var body: some View {
+    HStack(spacing: 12) {
+      Image(systemName: "command")
+        .font(.title2.weight(.semibold))
+        .foregroundStyle(.tint)
+        .frame(width: 40, height: 40)
+        .glassCircle()
+      VStack(alignment: .leading, spacing: 1) {
+        Text("Olm").font(.headline)
+        Text("Version \(version)").font(.subheadline).foregroundStyle(.secondary)
+      }
+    }
+    .padding(.vertical, 6)
   }
 }
 
@@ -311,6 +343,15 @@ extension View {
   @ViewBuilder func titleHidden() -> some View {
     if #available(macOS 15, *) {
       toolbar(removing: .title)
+    } else {
+      self
+    }
+  }
+
+  /// No toolbar band over the pane, the wash showing to the top of the window.
+  @ViewBuilder func toolbarBackgroundHidden() -> some View {
+    if #available(macOS 15, *) {
+      toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
     } else {
       self
     }

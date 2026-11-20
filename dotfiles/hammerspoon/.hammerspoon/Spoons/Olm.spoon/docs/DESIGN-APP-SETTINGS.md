@@ -189,6 +189,13 @@ before Liquid Glass, it did not come forward, and the app was not in Command Tab
   search field takes Command C and V. When the window closes the app goes back to an accessory and
   hands the keyboard back to the app before it.
 
+**Layout, 2026-11-20 10:02,** on Milos's look at the glass window, with System Settings as the
+model. The window opens at 1000 by 700 and the sidebar at 270 points, the frame saved under a new
+name so the old size is not restored. The toolbar is compact, with no background and no line, so
+the search sits just under the window's buttons and the pane's wash runs to the top. Under the
+search, where System Settings shows the account, the sidebar shows Olm and its version from the
+bundle, in a glass circle.
+
 ## Back out
 
 The four plugins keep their logic as providers, so their launcher rows come back by registering

@@ -1121,3 +1121,11 @@ built on glass, with each glass falling back to the regular material before macO
 is always handed to `open` in the foreground rather than told by notification, since a notified app
 can only ask to come forward and the app in front declines. While the window is open the app is a
 regular app with a Dock icon, Command Tab and a menu bar, and an accessory again once it closes.
+
+### 2026-11-20 10:02, Olm Settings layout after the glass trial
+
+Milos asked for a larger window, a wider sidebar, the search nearer the top with the app's name and
+version beside it in the style of System Settings' account row, and no band across the top of the
+pane. The window is 1000 by 700 with a 270 point sidebar, the toolbar compact with its background
+and separator hidden, and an Olm row with the bundle's version under the search. The frame autosave
+name changed, since the saved frame would otherwise keep the old size.
