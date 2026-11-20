@@ -1,8 +1,13 @@
 // The Olm Settings window, docs/DESIGN-APP-SETTINGS.md. An ordinary macOS window drawn with the
-// system's own controls, as System Settings is: a sidebar of sections with a search field over it,
-// and the chosen section's settings as a grouped form on the right. It draws whatever the share
-// lists, SettingsShare, read again each time the window is shown, since Hammerspoon writes it at
-// every load.
+// system's own controls and built on Liquid Glass: the floating glass sidebar of sections with a
+// search field over it, and on the right the chosen section's header and its settings on glass
+// cards over a soft wash of the accent colour, so the glass has something to bend. It draws
+// whatever the share lists, SettingsShare, read again each time the window is shown, since
+// Hammerspoon writes it at every load.
+//
+// While the window is open the app is an ordinary one, in the Dock and in Command Tab with a menu
+// bar of its own, and it goes back to running without either when the window closes, since the
+// lists it shows otherwise belong to no app a person switches to.
 //
 // Step S.2 shows every setting and changes none, so each control is drawn disabled. Changing one
 // goes over the bridge in S.3, which is where Hammerspoon checks, saves and applies it.
@@ -44,6 +49,7 @@ public final class SettingsWindow: NSObject, NSWindowDelegate {
   public var isShown: Bool { window?.isVisible ?? false }
 
   /// Shows the window over the app in front and makes it key, since typing goes into its search.
+  /// The app becomes an ordinary one while it is open, so Command Tab finds it.
   public func show() {
     if window != nil, let model {
       // The share as Hammerspoon wrote it at its last load, the section and search kept.
@@ -57,20 +63,56 @@ public final class SettingsWindow: NSObject, NSWindowDelegate {
       w.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
       w.toolbar = NSToolbar(identifier: "OlmSettings")
       w.toolbarStyle = .unified
-      w.titlebarAppearsTransparent = false
       w.isReleasedWhenClosed = false
-      w.setContentSize(NSSize(width: 780, height: 540))
-      w.contentMinSize = NSSize(width: 620, height: 380)
+      w.setContentSize(NSSize(width: 820, height: 580))
+      w.contentMinSize = NSSize(width: 660, height: 420)
       w.setFrameAutosaveName("OlmSettings")
       w.delegate = self
       if w.frame.origin == .zero { w.center() }
       window = w
     }
+    NSApp.setActivationPolicy(.regular)
+    NSApp.mainMenu = Self.menu()
     NSApp.activate()
     window?.makeKeyAndOrderFront(nil)
   }
 
   public func close() { window?.close() }
+
+  /// Back to an app with no Dock icon and no menu bar once the window is gone, and the app in front
+  /// before it given the keyboard back.
+  public func windowWillClose(_ notification: Notification) {
+    DispatchQueue.main.async {
+      guard !(self.window?.isVisible ?? false) else { return }
+      NSApp.mainMenu = nil
+      NSApp.setActivationPolicy(.accessory)
+      NSApp.deactivate()
+    }
+  }
+
+  /// The menu bar while the window is open, the app's own menu, Edit for the search field's
+  /// Command C and V, and Window for Command W and M.
+  static func menu() -> NSMenu {
+    let main = NSMenu()
+    func add(_ title: String, _ items: [NSMenuItem?]) {
+      let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+      let menu = NSMenu(title: title)
+      for i in items { menu.addItem(i ?? .separator()) }
+      item.submenu = menu
+      main.addItem(item)
+    }
+    func item(_ title: String, _ action: String, _ key: String, _ mods: NSEvent.ModifierFlags = .command) -> NSMenuItem {
+      let i = NSMenuItem(title: title, action: Selector(action), keyEquivalent: key)
+      i.keyEquivalentModifierMask = mods
+      return i
+    }
+    add("Olm", [item("Hide Olm", "hide:", "h"), nil, item("Quit Olm", "terminate:", "q")])
+    add("Edit", [item("Undo", "undo:", "z"), item("Redo", "redo:", "z", [.command, .shift]), nil,
+      item("Cut", "cut:", "x"), item("Copy", "copy:", "c"), item("Paste", "paste:", "v"),
+      item("Select All", "selectAll:", "a")])
+    add("Window", [item("Minimize", "performMiniaturize:", "m"), item("Close", "performClose:", "w")])
+    return main
+  }
 }
 
 struct SettingsView: View {
@@ -81,19 +123,24 @@ struct SettingsView: View {
       List(model.sections, selection: $model.selection) { section in
         Label(section.title, systemImage: section.symbol).tag(section.id)
       }
-      .navigationSplitViewColumnWidth(min: 190, ideal: 210, max: 280)
+      .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
       .searchable(text: $model.query, placement: .sidebar, prompt: "Search")
     } detail: {
-      if model.share == nil {
-        ContentUnavailableView("No settings yet", systemImage: "gearshape",
-          description: Text("Hammerspoon writes them when it loads, with the olmapp piece on."))
-      } else if let section = model.current {
-        SectionForm(section: section, searching: !model.query.isEmpty)
-          .id(section.id)
-      } else {
-        ContentUnavailableView.search(text: model.query)
+      ZStack {
+        Backdrop()
+        if model.share == nil {
+          ContentUnavailableView("No settings yet", systemImage: "gearshape",
+            description: Text("Hammerspoon writes them when it loads, with the olmapp piece on."))
+        } else if let section = model.current {
+          SectionPage(section: section)
+            .id(section.id)
+        } else {
+          ContentUnavailableView.search(text: model.query)
+        }
       }
     }
+    .navigationTitle("Olm Settings")
+    .titleHidden()
     .onChange(of: model.query) {
       let sections = model.sections
       if let first = sections.first, !sections.contains(where: { $0.id == model.selection }) {
@@ -103,21 +150,68 @@ struct SettingsView: View {
   }
 }
 
-struct SectionForm: View {
+/// The wash behind the detail, the accent colour fading out, carried under the floating sidebar on
+/// macOS 26 and later so the sidebar's glass bends it too.
+struct Backdrop: View {
+  var body: some View {
+    let wash = ZStack {
+      Rectangle().fill(.background)
+      LinearGradient(colors: [Color.accentColor.opacity(0.22), Color.accentColor.opacity(0.04), .clear],
+        startPoint: .topLeading, endPoint: .bottomTrailing)
+      RadialGradient(colors: [Color.accentColor.opacity(0.14), .clear], center: .bottomTrailing,
+        startRadius: 10, endRadius: 520)
+    }
+    .ignoresSafeArea()
+    if #available(macOS 26, *) {
+      wash.backgroundExtensionEffect()
+    } else {
+      wash
+    }
+  }
+}
+
+/// One section, its header and its settings on one glass card.
+struct SectionPage: View {
   let section: SettingsSection
-  let searching: Bool
 
   var body: some View {
-    Form {
-      Section {
-        ForEach(section.settings) { setting in SettingRow(setting: setting) }
-      } header: {
-        Text("Every value shown is the one in use. Changing one here comes in the next step.")
-          .font(.caption).foregroundStyle(.secondary).textCase(nil)
+    ScrollView {
+      GlassGroup {
+        VStack(alignment: .leading, spacing: 22) {
+          HStack(spacing: 16) {
+            Image(systemName: section.symbol)
+              // The window follows the system's look and not the chooser's.
+              // look-exempt, the section's picture in its glass circle, sized as System Settings does.
+              .font(.system(size: 26, weight: .medium))
+              .foregroundStyle(.tint)
+              .frame(width: 60, height: 60)
+              .glassCircle()
+            VStack(alignment: .leading, spacing: 4) {
+              Text(section.title).font(.largeTitle.weight(.semibold))
+              Text(section.settings.count == 1 ? "1 setting" : "\(section.settings.count) settings")
+                .font(.callout).foregroundStyle(.secondary)
+            }
+          }
+          Label("Every value shown is the one in use. Changing one here comes in the next step.",
+            systemImage: "info.circle")
+            .font(.callout).foregroundStyle(.secondary)
+            .padding(.horizontal, 14).padding(.vertical, 8)
+            .glassCard(cornerRadius: 999)
+          VStack(spacing: 0) {
+            ForEach(Array(section.settings.enumerated()), id: \.element.id) { index, setting in
+              if index > 0 { Divider().padding(.leading, 18) }
+              SettingRow(setting: setting)
+                .padding(.horizontal, 18).padding(.vertical, 12)
+            }
+          }
+          .glassCard(cornerRadius: 22)
+        }
+        .padding(.horizontal, 28).padding(.top, 18).padding(.bottom, 28)
+        .frame(maxWidth: 760, alignment: .leading)
+        .frame(maxWidth: .infinity)
       }
     }
-    .formStyle(.grouped)
-    .navigationTitle(section.title)
+    .softTopEdge()
   }
 }
 
@@ -125,13 +219,17 @@ struct SettingRow: View {
   let setting: Setting
 
   var body: some View {
-    control
-      .disabled(true)
-      .help(setting.locked ?? "")
+    HStack(alignment: .center, spacing: 16) {
+      label
+      Spacer(minLength: 12)
+      control.labelsHidden()
+    }
+    .disabled(true)
+    .help(setting.locked ?? "")
   }
 
   @ViewBuilder private var label: some View {
-    VStack(alignment: .leading, spacing: 2) {
+    VStack(alignment: .leading, spacing: 3) {
       Text(setting.title)
       if let detail = setting.detail, !detail.isEmpty {
         Text(detail).font(.caption).foregroundStyle(.secondary)
@@ -139,7 +237,8 @@ struct SettingRow: View {
       if let locked = setting.locked {
         Text("Locked, \(locked)").font(.caption).foregroundStyle(.secondary)
       } else if setting.needsReload {
-        Text("Applies on reload").font(.caption).foregroundStyle(.secondary)
+        Label("Applies on reload", systemImage: "arrow.clockwise")
+          .font(.caption).foregroundStyle(.secondary)
       }
     }
   }
@@ -147,34 +246,81 @@ struct SettingRow: View {
   @ViewBuilder private var control: some View {
     switch setting.kind {
     case .choice:
-      Picker(selection: .constant(setting.value.text ?? "")) {
+      Picker(setting.title, selection: .constant(setting.value.text ?? "")) {
         ForEach(setting.choices) { choice in Text(choice.title).tag(choice.value) }
         if let v = setting.value.text, !setting.choices.contains(where: { $0.value == v }) {
           Text(v).tag(v)
         }
-      } label: { label }
+      }
+      .fixedSize()
     case .switch:
-      Toggle(isOn: .constant(setting.value.flag ?? false)) { label }
+      Toggle(setting.title, isOn: .constant(setting.value.flag ?? false))
         .toggleStyle(.switch)
     case .number:
-      LabeledContent {
-        HStack(spacing: 10) {
-          if let lo = setting.min, let hi = setting.max, lo < hi {
-            Slider(value: .constant(min(max(setting.value.number ?? lo, lo), hi)), in: lo...hi)
-              .frame(width: 180)
-          }
-          Text(SettingFormat.number(setting.value.number ?? 0, step: setting.step, unit: setting.unit))
-            .monospacedDigit()
-            .frame(minWidth: 64, alignment: .trailing)
+      HStack(spacing: 10) {
+        if let lo = setting.min, let hi = setting.max, lo < hi {
+          Slider(value: .constant(min(max(setting.value.number ?? lo, lo), hi)), in: lo...hi)
+            .frame(width: 180)
         }
-      } label: { label }
+        Text(SettingFormat.number(setting.value.number ?? 0, step: setting.step, unit: setting.unit))
+          .monospacedDigit()
+          .frame(minWidth: 64, alignment: .trailing)
+      }
     case .font:
-      LabeledContent {
-        Text(SettingFormat.font(setting.value.text ?? ""))
-          .font(.custom(setting.value.text ?? "", size: NSFont.systemFontSize))
-      } label: { label }
+      Text(SettingFormat.font(setting.value.text ?? ""))
+        .font(.custom(setting.value.text ?? "", size: NSFont.systemFontSize))
     case .other:
-      LabeledContent { Text(String(describing: setting.value)) } label: { label }
+      Text(String(describing: setting.value))
+    }
+  }
+}
+
+/// Glass where the system has it, macOS 26 and later, and the material it replaced before that.
+struct GlassGroup<Content: View>: View {
+  @ViewBuilder let content: Content
+
+  var body: some View {
+    if #available(macOS 26, *) {
+      GlassEffectContainer(spacing: 22) { content }
+    } else {
+      content
+    }
+  }
+}
+
+extension View {
+  @ViewBuilder func glassCard(cornerRadius: CGFloat) -> some View {
+    let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+    if #available(macOS 26, *) {
+      glassEffect(.regular, in: shape)
+    } else {
+      background(.regularMaterial, in: shape)
+    }
+  }
+
+  @ViewBuilder func glassCircle() -> some View {
+    if #available(macOS 26, *) {
+      glassEffect(.regular.tint(Color.accentColor.opacity(0.18)).interactive(), in: Circle())
+    } else {
+      background(.regularMaterial, in: Circle())
+    }
+  }
+
+  /// The window keeps its title for Mission Control and the Window menu, and the toolbar shows none,
+  /// since each section's header names it.
+  @ViewBuilder func titleHidden() -> some View {
+    if #available(macOS 15, *) {
+      toolbar(removing: .title)
+    } else {
+      self
+    }
+  }
+
+  @ViewBuilder func softTopEdge() -> some View {
+    if #available(macOS 26, *) {
+      scrollEdgeEffectStyle(.soft, for: .top)
+    } else {
+      self
     }
   }
 }

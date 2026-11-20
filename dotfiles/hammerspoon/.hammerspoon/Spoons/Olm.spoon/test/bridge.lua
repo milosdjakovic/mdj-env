@@ -404,7 +404,8 @@ hs.application = { applicationsForBundleID = function(id)
   if appRunning and id == "local.olm.Olm" then return { { kill = function() killed = killed + 1 end } } end
   return {}
 end }
--- Olm Settings, a row where the app is built, olm://settings told to a running app, opened otherwise.
+-- Olm Settings, a row where the app is built, olm://settings always opened in the foreground, running
+-- or not, so the window comes forward.
 local settingsRow = quitter:actions()[3]
 eq(settingsRow and settingsRow.name, "settings", "the third action is Olm Settings")
 eq(settingsRow and settingsRow.description, "Olm Settings", "named Olm Settings")
@@ -416,10 +417,19 @@ do
   local posted, opened = {}, {}
   local savedPost, savedOpen = quitter._post, quitter._open
   quitter._post = function(_, name, object) posted[#posted + 1] = { name = name, object = object } return true end
-  quitter._open = function(_, _, _, url) opened[#opened + 1] = url end
+  quitter._open = function(_, _, _, url, front) opened[#opened + 1] = { url = url, front = front } end
   eq(quitter:openSettings(), true, "settings: asked")
   eq(#opened, 1, "settings: a stopped app is opened")
-  eq(opened[1], "olm://settings", "settings: with its URL")
+  eq(opened[1] and opened[1].url, "olm://settings", "settings: with its URL")
+  eq(opened[1] and opened[1].front, true, "settings: in the foreground")
+  appRunning = true
+  quitter._runningAt = nil
+  eq(quitter:openSettings(), true, "settings: asked of a running app")
+  eq(#opened, 2, "settings: a running app is opened too, not told")
+  eq(opened[2] and opened[2].front, true, "settings: a running app brought forward")
+  eq(#posted, 0, "settings: no notification, which cannot bring the app forward")
+  appRunning = false
+  quitter._runningAt = nil
   quitter._post, quitter._open = savedPost, savedOpen
 end
 eq(quitter.predicates.olmAppRunning(), false, "no row while the app is not running")

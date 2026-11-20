@@ -9,6 +9,11 @@
 # The build goes to a cache outside the checkout, so nothing is written beside the sources. The
 # bundle is signed ad hoc, which is what lets macOS run a bundle built on this machine, with a
 # requirement naming its bundle id so a rebuild keeps the permissions the last one was given.
+#
+# SDKROOT names the tools' SDK for the build. Without it the link recorded the deployment target,
+# 14.0, as the SDK the app was built against, and macOS then draws every window of the app in the
+# look from before Liquid Glass, which is what the Olm Settings window showed in its S.2 trial on
+# 2026-11-20. Hammerspoon records SDK 26, so the app now draws in the same era it does.
 
 set -uo pipefail
 
@@ -28,7 +33,7 @@ mkdir -p "$scratch" "$out"
 
 log="$(mktemp)"
 trap 'rm -f "$log"' EXIT
-if ! (cd "$here" && DEVELOPER_DIR="$tools" "$tools/usr/bin/swift" build --build-system native \
+if ! (cd "$here" && SDKROOT="$tools/SDKs/MacOSX.sdk" DEVELOPER_DIR="$tools" "$tools/usr/bin/swift" build --build-system native \
   -c release --scratch-path "$scratch" --product Olm) >"$log" 2>&1; then
   grep -E 'error' "$log" | head -20 >&2
   echo "olmapp: the build FAILED" >&2

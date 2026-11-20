@@ -18,7 +18,7 @@ scratch="$HOME/.olm/cache/olmapp-package"
 mkdir -p "$scratch"
 out="$(mktemp)"
 trap 'rm -f "$out"' EXIT
-if ! (cd "$here/../app" && DEVELOPER_DIR="$tools" "$tools/usr/bin/swift" build --build-system native \
+if ! (cd "$here/../app" && SDKROOT="$tools/SDKs/MacOSX.sdk" DEVELOPER_DIR="$tools" "$tools/usr/bin/swift" build --build-system native \
   --scratch-path "$scratch" --product olm-bridge-check) >"$out" 2>&1; then
   grep -E 'error' "$out" | head -20
   echo "olmbridge, the build FAILED"

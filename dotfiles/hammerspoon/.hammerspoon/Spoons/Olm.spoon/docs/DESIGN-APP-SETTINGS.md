@@ -169,6 +169,26 @@ The window's state is an `ObservableObject` the window owns rather than `@State`
 command line tools the app builds with ship no SwiftUI macros and `@State` is one in macOS 27's SDK.
 The build said so the first time.
 
+**S.2 trial, 2026-11-20 09:14.** Milos found three things. The window was drawn in the look from
+before Liquid Glass, it did not come forward, and the app was not in Command Tab. All three are fixed:
+
+- **The look.** The app's binary recorded SDK 14.0, its deployment target, as the SDK it was built
+  against, since the build named no SDK, and macOS draws an app linked against an SDK older than 26
+  in the old look. `build.sh` and the three check builds now pass `SDKROOT`, so the app records
+  SDK 27, as Hammerspoon records 26. The window is then built on glass: the system's floating glass
+  sidebar, and on the right a header with the section's picture in a glass circle, a glass capsule
+  for the note, and the settings on one glass card, all in one `GlassEffectContainer` over a wash of
+  the accent colour carried under the sidebar. Before macOS 26 each glass falls back to the
+  regular material.
+- **Coming forward.** A running app told by the notification may only ask to come forward, since
+  macOS 14's activation is cooperative, and the app in front declined. `openSettings` now always
+  hands `olm://settings` to `open` in the foreground, running or not, since LaunchServices brings
+  the app that opens a URL forward.
+- **Command Tab.** While the window is open the app is an ordinary one, in the Dock and in Command
+  Tab, with a menu bar of its own, Olm, Edit and Window, so Command W closes the window and the
+  search field takes Command C and V. When the window closes the app goes back to an accessory and
+  hands the keyboard back to the app before it.
+
 ## Back out
 
 The four plugins keep their logic as providers, so their launcher rows come back by registering

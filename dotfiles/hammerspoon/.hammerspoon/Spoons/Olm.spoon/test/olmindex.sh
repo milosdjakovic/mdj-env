@@ -29,7 +29,7 @@ if [ ! -x "$helper" ] || [ "$source" -nt "$helper" ] || [ "$matcher" -nt "$helpe
     exit 1
   fi
 fi
-if ! (cd "$here/../app" && DEVELOPER_DIR="$tools" "$tools/usr/bin/swift" build --build-system native \
+if ! (cd "$here/../app" && SDKROOT="$tools/SDKs/MacOSX.sdk" DEVELOPER_DIR="$tools" "$tools/usr/bin/swift" build --build-system native \
   --scratch-path "$scratch" --product olm-index-check) >"$out" 2>&1; then
   grep -E 'error' "$out" | head -20
   echo "olmindex, the build FAILED"

@@ -573,16 +573,15 @@ function obj:actions()
   }
 end
 
---- obj:openSettings() -> true when Olm.app was asked to show its Olm Settings window, olm://settings,
---- told by a notification while it runs and started with the URL when it does not.
+--- obj:openSettings() -> true when Olm.app was asked to show its Olm Settings window, olm://settings.
+--- Always handed over by open in the foreground, running or not, never by the notification, since
+--- macOS 14's activation is cooperative and an app told by a notification may only ask to come
+--- forward, which the app in front declines. LaunchServices opening a URL brings its app forward,
+--- found in the S.2 trial on 2026-11-20 when the window opened behind.
 function obj:openSettings()
   local open, app = self:_ready()
   if not open then return false end
-  if self:_running() then
-    self:_post(self.OPEN_NOTE, "olm://settings")
-  else
-    self:_open(open, app, "olm://settings")
-  end
+  self:_open(open, app, "olm://settings", true)
   return true
 end
 
@@ -717,10 +716,11 @@ function obj:_post(name, object)
 end
 
 -- Hands one URL to the app in the background, as a task whose handle is kept until it ends, or
--- with no URL starts the app hidden and in the background.
-function obj:_open(open, app, url)
+-- with no URL starts the app hidden and in the background. front hands the URL in the foreground,
+-- bringing the app forward, for a window of its own.
+function obj:_open(open, app, url, front)
   local task
-  local args = url and { "-g", "-a", app, url } or { "-g", "-j", "-a", app }
+  local args = url and (front and { "-a", app, url } or { "-g", "-a", app, url }) or { "-g", "-j", "-a", app }
   task = hs.task.new(open, function(code, _, err)
     self._tasks[task] = nil
     if code ~= 0 then log.w("Olm.app did not take " .. tostring(url or "a start") .. ", " .. tostring(err)) end

@@ -1109,3 +1109,15 @@ as System Settings does, and the chooser's look is not wanted here. `@State` doe
 command line tools, which ship no SwiftUI macro plugins, so the window owns an `ObservableObject`.
 The launcher row is the bridge host's own action, not a plugin's, since the bridge is the host that
 opens the app, and it is shown wherever the app is built, starting it when it is not running.
+
+### 2026-11-20 09:14, Olm Settings S.2 trial, three faults and the corrected belief about the app's look
+
+Milos found the window in the look from before Liquid Glass, opened behind the app in front, and
+missing from Command Tab. The belief that Olm.app drew with the running system's look was wrong.
+Its binary recorded SDK 14.0, the deployment target, because the build named no SDK, and macOS draws
+an app linked against an SDK older than 26 in the old look, every window of it, the list panels
+included. The build now passes `SDKROOT` and records SDK 27, beside Hammerspoon's 26. The window is
+built on glass, with each glass falling back to the regular material before macOS 26. Olm Settings
+is always handed to `open` in the foreground rather than told by notification, since a notified app
+can only ask to come forward and the app in front declines. While the window is open the app is a
+regular app with a Dock icon, Command Tab and a menu bar, and an accessory again once it closes.
