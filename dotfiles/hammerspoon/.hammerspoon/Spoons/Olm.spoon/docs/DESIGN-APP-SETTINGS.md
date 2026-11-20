@@ -102,9 +102,12 @@ at the foot. The search's magnifier, the sections' symbols and the app's icon sh
 
 **No layout shift.** Nothing a person does moves anything they did not touch.
 
-- What comes and goes keeps its place while hidden, the reset button, the search's clear button, the
-  line saying a change applies on close or was refused, which sits in a fixed slot at the header's
-  right rather than above the card.
+- What comes and goes keeps its place while hidden, the reset button and the search's clear button.
+  The line saying a change applies on close or was refused sits at the header's right, whose height
+  is fixed, and is left out rather than made transparent when there is nothing to say, since Liquid
+  Glass draws its capsule whatever the opacity.
+- The search sits a group's gap under the window's buttons, measured from the window, not from
+  under the title bar.
 - A control sits in a column of fixed width, so a popup's width changing with its choice moves
   nothing, and a number is shown in a fixed width, as wide as it can get, with figures of one width.
 - The sidebar's highlight is a fill behind the row and changes no weight and no size.

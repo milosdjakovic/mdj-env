@@ -36,6 +36,8 @@ final class SettingsModel: ObservableObject {
   /// Where the window's close button starts, which the sidebar's search and the app's row line up
   /// with.
   @Published var leading: CGFloat = 20
+  /// How far the window's buttons reach down from the top, which the search sits a group's gap under.
+  @Published var buttonsBottom: CGFloat = 32
   let service: SettingsService?
 
   init(share: SettingsShare?, service: SettingsService?) {
@@ -108,8 +110,13 @@ public final class SettingsWindow: NSObject, NSWindowDelegate {
   /// window rather than guessed, since the system places the buttons.
   private func alignToButtons() {
     guard let window, let model, let close = window.standardWindowButton(.closeButton) else { return }
-    let left = close.convert(close.bounds, to: nil).minX
+    let frame = close.convert(close.bounds, to: nil)
+    let left = frame.minX
     if left > 0, abs(model.leading - left) > 0.5 { model.leading = left }
+    if let height = window.contentView?.bounds.height {
+      let bottom = height - frame.minY
+      if bottom > 0, abs(model.buttonsBottom - bottom) > 0.5 { model.buttonsBottom = bottom }
+    }
   }
 
   /// Builds the window and lays it out without showing it, called by the app a moment after it
@@ -288,8 +295,11 @@ struct SettingsSidebar: View {
       AppIdentity().padding(.horizontal, Space.pad)
     }
     .padding(.horizontal, model.leading)
-    .padding(.top, Space.related)
+    // The search a group's gap under the window's buttons, measured from the window's top rather
+    // than from under the title bar, whose height left a gap of about forty points.
+    .padding(.top, model.buttonsBottom + Space.group)
     .padding(.bottom, model.leading)
+    .ignoresSafeArea(.container, edges: .top)
     .onChange(of: model.query) {
       let sections = model.sections
       if let first = sections.first, !sections.contains(where: { $0.id == model.selection }) {
@@ -432,8 +442,9 @@ struct SectionPage: View {
                 .font(.callout).foregroundStyle(.secondary)
             }
             Spacer(minLength: Space.group)
-            Note(text: note.text, symbol: note.symbol)
-              .opacity(note.text.isEmpty ? 0 : 1)
+            // Left out when there is nothing to say, not made transparent, since glass draws its
+            // capsule whatever the opacity. The header's height is fixed, so this moves nothing.
+            if !note.text.isEmpty { Note(text: note.text, symbol: note.symbol) }
           }
           .frame(height: Self.header)
           VStack(spacing: 0) {
