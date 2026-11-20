@@ -1382,3 +1382,12 @@ is the app's from 5.1 and would have nothing left to move. 0.3f, the driven repe
 recorded from `lib/chordkey.lua` and the app's repeat answers it. Whether a Carbon hotkey fires under
 secure input is still believed, not measured, and is asked of Milos with this step's trial.
 `docs/DESIGN-APP-KEYS.md` 5.3 has it.
+
+**2026-11-20 22:26, META and H hid the system's own interface and froze for a second and a half.** Found in
+Milos's trial of 5.3, though the action predates it. It walked every window of every application and
+hid each one's application, which took 1649 ms with a dozen apps open, on Hammerspoon's main thread,
+and hid the menu bar agent and Notification Center's interface, since they own windows too. It now
+hides the applications a person switches to, the ones in the Dock, other than the focused one's, as
+macOS's Hide Others does, read from the running applications in 33 ms. META worked inside a
+browser's password field in the same trial, so a Carbon hotkey does fire under secure input on macOS
+27, DESIGN-APP-KEYS.md open question 2 answered.

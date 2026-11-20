@@ -622,19 +622,17 @@ end
 
 --- WindowManager:hideAllExceptFocused()
 --- Method
---- Hide all windows except the focused one
+--- Hide every app in the Dock except the one whose window has focus, as Hide Others does
 function obj:hideAllExceptFocused()
   local focusedWindow = hs.window.focusedWindow()
   if not focusedWindow then return end
-
-  local focusedApp = focusedWindow:application()
-  local allWindows = hs.window.allWindows()
-
-  for _, window in ipairs(allWindows) do
-    local app = window:application()
-    if app:pid() ~= focusedApp:pid() then
-      app:hide()
-    end
+  local keep = focusedWindow:application():pid()
+  -- The apps a person switches to, the ones in the Dock, as macOS's own Hide Others hides them, read
+  -- from the running applications rather than from every window of every app. Walking the windows
+  -- took over a second and a half with a dozen apps open, and hid the menu bar agent and Notification
+  -- Center's interface too, which own windows of their own, found on 2026-11-20.
+  for _, app in ipairs(hs.application.runningApplications()) do
+    if app:kind() == 1 and app:pid() ~= keep and not app:isHidden() then app:hide() end
   end
 end
 
