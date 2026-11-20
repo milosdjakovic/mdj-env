@@ -1249,3 +1249,18 @@ lower priority than the app. Swift source is compiled on install with the comman
 Rejected there: a plugin in the app's own process in any form, one host process for every plugin,
 and a socket per plugin. It answers the plan's open question 3 for our own plugins, Swift, with
 JavaScriptCore kept for later. It waits on Milos's go.
+
+**2026-11-20 16:10, external plugins sandboxed, asked once, Swift only for now.** Milos wanted plugins sandboxed
+rather than run directly, asked whether that still lets a plugin run caffeinate, mullvad and the
+IVPN command, and asked that it not be too limiting and that switching a plugin on ask for its
+permissions at once. Tinycast, which he named, runs its extensions in JavaScriptCore inside the app
+with no sandbox, trusting them once extensions are switched on, which is rejected here. Each plugin
+now runs under macOS's sandbox engine with rules written from its manifest, in four groups a person
+reads, programs, files, network and services, the programs a plugin runs sandboxed with it so the
+services they use are asked for too. Files are granted as whole places a person recognises. One
+sheet at install or switching on asks once, an update shows only what is new, our own plugins are
+allowed by their install, and a block in use is offered as one line with Allow, the same denial
+line that tells an author what to declare. Apple's App Sandbox was rejected, since it stops a plugin
+running tools like tmux or mullvad at all. The sandbox's rule language is deprecated and the
+disclaim flag private, so step 1 proves both here before anything leans on them. Swift is the one
+language at first, other languages a later step.

@@ -16,6 +16,9 @@ extensions someone else wrote in a process of its own", and it answers open ques
 - Claude can develop a plugin in any folder, outside this repository, and test it there.
 - **A plugin never clogs Olm.** Typing, the list, the keys and every other plugin stay live whatever
   one plugin does.
+- **A plugin is sandboxed, without being boxed in.** It reaches only what it declared, it can still
+  run the tools it is for, caffeinate, mullvad, the IVPN command and the like, and switching it on
+  asks for its permissions once, in plain words, rather than failing later.
 
 ## The split, core and external
 
@@ -132,11 +135,11 @@ written against: `about`, `icons`, `defaults` with its bindings and aliases, `su
 `presentation` as the list of what the program answers, `registry` with its launcher row, `settings`
 for Olm Settings, and two fields of its own:
 
-- `run`, how the program is made and started, one of `{ "swift": "Sources" }`, compiled on install,
-  `{ "js": "main.js" }`, run by Olm's JavaScript runner, or `{ "exec": "bin/tmux" }`, any program
-  that speaks the protocol, Python, Go or a script.
-- `needs`, what it asks of the app, the requests above, and the tools it runs, as `needs.tools` does
-  today, so a missing tool is said rather than discovered.
+- `run`, how the program is made, `{ "swift": "Sources" }`, compiled on install. Swift is the one
+  language for now, below.
+- `needs`, what it asks of the app, the requests above, and the permissions of the sandbox, the
+  tools it runs among them, as `needs.tools` does today, so a missing tool is said rather than
+  discovered.
 
 **Swift** is built with `swiftc` from the command line tools, which this repository installs on
 every machine and which the eyedropper and browser tabs plugins already compile with. It links one
@@ -144,9 +147,12 @@ small package, `OlmPluginKit`, the protocol's types and a loop that reads reques
 answers, so a plugin is its handlers and nothing else. The build runs in the background with its
 output kept, and a plugin that fails to build is listed with the compiler's error.
 
-**JavaScript** needs nothing installed, since macOS ships JavaScriptCore. Olm carries one small
-program, `olm-js`, which runs one plugin's JavaScript in a process of its own like any other plugin.
-TypeScript is compiled to JavaScript first, by the plugin's author, so Olm carries no compiler.
+**Swift only, for now.** Since a plugin is a program speaking the protocol, any language could be
+one, and none is ruled out. Swift is the only one Olm builds and supports at first, since every
+plugin of ours is Swift, Claude writes it, it builds on any Mac with the command line tools, and a
+plugin built on the machine from source is never stopped by the download checks a program fetched
+ready made would be. JavaScript through macOS's own JavaScriptCore, and a ready made program of any
+language, are a later step when someone asks, the protocol unchanged.
 
 ## Installing, and developing
 
@@ -172,19 +178,68 @@ skill. A plugin is scaffolded with `olm plugin new`, checked with `olm plugin te
 Our own external plugins live in this repository, one folder each, and `src/setup-olmapp.sh` installs
 them as it builds the app, so a fresh machine gets them with no step of its own.
 
-## Trust, said plainly
+## The sandbox, and asking once
 
-A plugin is a program running as the person, so it can do what any program they run can do: read
-their files, reach the network, run other programs. Installing one is trusting it, and the window
-says so at install, with what its manifest asks for. Olm does not pretend to sandbox it.
+Every plugin runs inside a sandbox, the rule list macOS's own sandbox engine enforces, which Chrome
+keeps its pages in and Claude Code keeps its commands in. The runner writes the rules from the
+plugin's manifest each time it starts it, so what the manifest declares is what the plugin can do,
+and the declarations are enforced rather than only described. Our own plugins run under the same
+rules as anyone's.
 
-One thing is worth deciding rather than discovering. macOS counts a child process as part of the app
-that started it for the permissions it holds, so a plugin started by Olm would act with Olm's
+**What every plugin has without asking,** since none of it reaches anything of the person's: its own
+folder, `~/.olm/plugins/<id>/`, to read and its `data` folder to write, a temporary folder, the
+system's libraries and frameworks, the time, the locale, and talking to Olm over its pipes.
+
+**What a plugin asks for, in a handful of groups a person can read:**
+
+| Group | Example in the manifest | What the person reads |
+|---|---|---|
+| Run programs | `caffeinate`, `mullvad`, `tmux` | Runs caffeinate, mullvad and tmux |
+| Files | `~/Library/Application Support/obsidian` to read | Reads your Obsidian vaults |
+| Network | `internet`, or `local` for this Mac only | Uses the internet |
+| Services | the Mullvad daemon's socket, the power manager | Talks to the Mullvad VPN service |
+
+A program a plugin runs is sandboxed with it, so the services that program uses are part of what
+the plugin asks for. caffeinate needs the power manager, mullvad needs the Mullvad daemon's socket,
+and the IVPN command needs its local port and the file holding it. Each is one narrow door, that
+socket, that service, this Mac and not the internet, and none of them is the network or the person's
+files.
+
+Not too limiting is a design rule here. Files and folders are asked for as whole places a person
+recognises, a vault, the Downloads folder, the home folder for a plugin that searches it, rather
+than file by file. A plugin that genuinely needs the whole home folder or the internet says so and
+gets it once allowed, and the window says so in those words.
+
+**Switching a plugin on asks once.** When a plugin is installed or switched on, Olm shows one sheet,
+its name and what it does, then the groups it asks for in plain words, and Allow or Cancel. Allowed,
+it is never asked again for the same list. An update that asks for more shows only what is new. Our
+own plugins, installed by `src/setup-olmapp.sh`, are allowed by that install, so a fresh machine
+asks nothing for them.
+
+**A block is offered, not hidden.** When the sandbox refuses something, macOS logs exactly what, a
+program, a path, a service, a port. The runner reads that line, puts it in the plugin's log and, for
+a plugin in use, shows one routine line, the VPN plugin was blocked from talking to the Mullvad
+service, with Allow beside it. Allowing it adds that one door to the plugin's grants on this Mac and
+restarts the plugin. That is also how a plugin's author finds what it needs: `olm plugin dev` shows
+each block as it happens, the author adds it to the manifest and runs again, and the manifest ends
+as the exact list of what the plugin touches.
+
+**macOS's own permissions are not shared.** macOS counts a child process as part of the app that
+started it for the permissions it holds, so without care a plugin would act with Olm's
 Accessibility grant. Nothing an external plugin does should need it, since windows, keys and pasting
 are the core's, so the runner starts every plugin disclaiming Olm's grants, and a plugin that needs a
-permission asks for it as itself. Disclaiming goes through the spawn flag macOS's own Terminal and
-Xcode use, which is a private interface, so it can change with a macOS release, and step 1 checks
-it on this machine before anything leans on it. Open question 2 below.
+permission of macOS's asks for it as itself. Disclaiming goes through the spawn flag macOS's own
+Terminal and Xcode use.
+
+**What it is not.** A plugin allowed to run `tmux` can do whatever `tmux` can, so the sandbox narrows
+a plugin to what it said it needs and cannot make a powerful tool harmless. Installing a plugin is
+still trusting its author with that list, and the sheet shows the list so the trust is informed.
+
+**Two interfaces it stands on are not Apple's public ones.** The sandbox's rule language and the
+command that starts a program inside it are deprecated, though Chrome and Claude Code depend on them
+and they work on current macOS, and the disclaim flag is private. Either can change with a macOS
+release, so step 1 proves both on this machine, with caffeinate and mullvad, before anything leans on
+them, and the runner refuses to start plugins unsandboxed when they fail, saying why.
 
 ## Hammerspoon until it is gone
 
@@ -205,23 +260,33 @@ shadow where its rows can be compared, then flipped, which switches the Lua plug
 - **A socket per plugin.** The app starts the process, so its pipes are already a private two way
   stream that ends with it. A socket adds a path to secure and a reconnect for nothing.
 - **Lua as the plugin language after Hammerspoon.** Embedding Lua in the app was turned down on
-  2026-11-05. Lua run as `{ "exec": ... }` by an interpreter a person installs stays possible, like
-  any language, and Olm carries none.
+  2026-11-05. A later step that runs a ready made program of any language would make Lua possible
+  again by an interpreter a person installs, and Olm carries none.
+- **No sandbox, trust at install alone,** as Tinycast does, its extensions in JavaScriptCore inside
+  the app with its file, process and network shims open to them once extensions are switched on.
+  Milos wants plugins sandboxed.
+- **Apple's App Sandbox for each plugin.** It is made for whole apps, keeps a program in a container,
+  and stops it running tools like `tmux`, `ps` or `mullvad`, which is most of what our plugins are
+  for.
 
 ## Steps
 
-1. **The runner and one plugin.** `PluginRunner`, `ExternalSource`, the protocol over pipes, the
-   budgets, the kill and the restart, with a test plugin in Swift that answers rows slowly, spins,
-   leaks and crashes on purpose. Checked by a harness that shows typing in the app is untouched by
-   each, the timings of 1.3f on the app's side.
+1. **The runner, the sandbox and one plugin.** `PluginRunner`, `ExternalSource`, the protocol over
+   pipes, the budgets, the kill and the restart, with a test plugin in Swift that answers rows
+   slowly, spins, leaks and crashes on purpose. The sandbox and the disclaim proved on this machine
+   first, a plugin running caffeinate and mullvad under its rules and refused what it did not
+   declare. Checked by a harness that shows typing in the app is untouched by each, the timings of
+   1.3f on the app's side.
 2. **`OlmPluginKit`, the `olm` command and the test harness.** A plugin written, tested and run from
    a folder outside this repository, by hand and by Claude.
-3. **Installing.** The Plugins section of Olm Settings takes a dropped plugin, shows what it asks
-   for, builds it and lists it with its state, its log and its switch.
+3. **Installing and asking.** The Plugins section of Olm Settings takes a dropped plugin, shows the
+   sheet of what it asks for, builds it and lists it with its state, its grants, its log and its
+   switch, and a block in use is offered with Allow.
 4. **The first plugin of ours.** Keep awake, small and pure, rewritten in Swift as an external
    plugin, run in shadow beside the Lua one and flipped. Then the others, one per step.
 5. **The skill,** written once steps 2 and 3 have settled the commands.
-6. **JavaScript,** `olm-js`, when someone wants to write a plugin without the command line tools.
+6. **Other languages,** JavaScript through JavaScriptCore and a ready made program, when someone
+   asks.
 
 Each step ends with Milos's trial.
 
@@ -230,5 +295,5 @@ Each step ends with Milos's trial.
 1. The budgets, 150 ms soft and 2 s hard for rows, 5 minutes idle, 512 MB, are first guesses, to be
    set from what the step 1 harness measures.
 2. Whether every plugin disclaims Olm's permissions, as proposed, or a plugin may ask to share them.
-3. Whether JavaScript is wanted at all before someone asks for it, since every plugin of ours is
-   Swift. Step 6 is last for that reason.
+3. How wide a file grant may be before the sheet warns, the home folder for one, decided with the
+   first plugin that asks for it.
