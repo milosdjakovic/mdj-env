@@ -299,4 +299,10 @@ backing out is one switch, once the shadow's log holds.
 - The app: `app/Sources/OlmLauncher`, `AppScan`, `Catalog` and `NativeLauncher`, the bridged
   launcher's `typed` mode, `claimed` and `chooseItem`, and `ShadowTee` in `OlmCore/Shadow.swift`.
 - The check: `test/olmlauncher.sh`, in `suite.sh dry`, 17 cases on the order, the gates, the bonus and
-  the subtitles, and `olm-launcher-check --live`, which builds the catalog from this machine.
+  the subtitles, and `olm-launcher-check --live`, which builds the catalog from this machine, with
+  `--dump F` writing its resting order.
+- **Compared with Hammerspoon's on this machine, 2026-11-20.** The resting order of both catalogs,
+  `bridgeRows("")` asked of the running config against `--dump`, the same 218 rows, every key, title
+  and subtitle in the same order, once the app named an application by its `CFBundleName` as
+  `hs.application.nameForBundleID` does. It first took the name Finder shows, so Chrome read Google
+  Chrome and Code read Visual Studio Code, and eleven applications sorted elsewhere.

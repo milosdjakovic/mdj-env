@@ -6,6 +6,7 @@
 //
 //   olm-launcher-check            exits 0 when every case held, 1 otherwise
 //   olm-launcher-check --live     also builds the catalog from this machine's share and applications
+//     --dump F                    and writes its resting order to F, a key, a title and a subtitle a line
 
 import Foundation
 import OlmBridge
@@ -88,6 +89,10 @@ if CommandLine.arguments.contains("--live") {
     print(String(format: "live: %d applications scanned in %.0f ms, %d other rows, %d in all, recency %d",
       installed.count, scan, live.entries.count, built.rows.count, live.recency.count))
     print("live: first ten, " + built.rows.prefix(10).map(\.title).joined(separator: ", "))
+    if let i = CommandLine.arguments.firstIndex(of: "--dump"), i + 1 < CommandLine.arguments.count {
+      let lines = built.rows.map { "\($0.key)\t\($0.title)\t\($0.subtitle)" }.joined(separator: "\n") + "\n"
+      try? lines.write(toFile: CommandLine.arguments[i + 1], atomically: true, encoding: .utf8)
+    }
     checks += 1
   } else {
     check(false, "live: no catalog share at \(url.path)")

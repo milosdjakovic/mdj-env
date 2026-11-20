@@ -36,8 +36,8 @@ public enum AppScan {
       for entry in entries.sorted() where !entry.hasPrefix(".") {
         let path = dir + "/" + entry
         if entry.hasSuffix(".app") {
-          guard let id = Bundle(path: path)?.bundleIdentifier, seen.insert(id).inserted else { continue }
-          out.append((id, displayName(path, entry)))
+          guard let bundle = Bundle(path: path), let id = bundle.bundleIdentifier, seen.insert(id).inserted else { continue }
+          out.append((id, name(bundle, path, entry)))
         } else {
           var isDir: ObjCBool = false
           if fm.fileExists(atPath: path, isDirectory: &isDir), isDir.boolValue { walk(path, depth + 1) }
@@ -48,11 +48,12 @@ public enum AppScan {
     return out
   }
 
-  // The name Finder shows, without the extension, as the Lua side's nameForBundleID answers it.
-  static func displayName(_ path: String, _ entry: String) -> String {
-    var name = FileManager.default.displayName(atPath: path)
-    if name.hasSuffix(".app") { name = String(name.dropLast(4)) }
-    return name.isEmpty ? String(entry.dropLast(4)) : name
+  // The bundle's own name, its CFBundleName, as the Lua side's nameForBundleID answers it, Chrome and
+  // Code rather than the Google Chrome and Visual Studio Code Finder shows, found by comparing the two
+  // catalogs on 2026-11-20. The file's name without the extension where the bundle names none.
+  static func name(_ bundle: Bundle, _ path: String, _ entry: String) -> String {
+    if let n = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String, !n.isEmpty { return n }
+    return String(entry.dropLast(4))
   }
 
   /// The installed applications marked running, with any running one the scan missed that has a

@@ -1315,3 +1315,8 @@ Found while wiring it: the launcher's shadow had logged nothing since the flip o
 2026-11-18, because it compared against what the Lua launcher settled on and the Lua launcher is no
 longer the one opened. The comparison now runs against the launcher in use, through a tee in the app.
 `docs/DESIGN-APP-LAUNCHER.md` step 6.1 has the design and its rejections.
+
+**2026-11-20 19:16, the app's catalog matched Hammerspoon's on this machine.** Compared directly, the two
+resting orders differed in eleven applications, because the app named a bundle by the name Finder
+shows and Hammerspoon by its `CFBundleName`, Google Chrome against Chrome. With the bundle's own
+name both list the same 218 rows in the same order with the same titles and subtitles.
