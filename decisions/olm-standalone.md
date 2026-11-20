@@ -1184,3 +1184,15 @@ than a fault. Milos asked for it back, so the window is again an `NSSplitViewCon
 fixed 280 point sidebar item, no drag, no collapse and no toolbar, as at 12:51. Rejected for good:
 a sidebar Olm draws itself as a glass panel, since it copies a look the running system dropped
 instead of taking whatever the system draws.
+
+**2026-11-20 13:58, S.4 of Olm Settings, ⌘, and one way in.** ⌘, opens Olm Settings from every list,
+as a list key of Olm's own all layer beside the info pane's, so both the Lua lists and Olm.app's
+take it with no code per list, and it is reserved, refused in the keymap's lists section and in a
+manifest's surface. The four launcher rows Olm Chooser, Olm Placement, Olm Theme and Olm Plugins are
+removed and their lists kept, opened only by a key a person gives their open action, since a
+machine without Olm.app has no window and still needs a way to change these. A manifest may now
+declare `settings`, read by `lib/settings.lua`'s `fromManifest`, and the window manager declares its
+steps and sizes there, laid over its own data before configure, which is how a plugin's setting
+reaches the window without the core naming the plugin. Considered and not taken: declaring the
+window manager's settings in `lib/settings.lua`, refused because the dry gate fails any file outside
+plugins that names a plugin.

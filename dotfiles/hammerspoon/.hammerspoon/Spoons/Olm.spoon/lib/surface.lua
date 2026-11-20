@@ -47,6 +47,17 @@ local ACTION_PANEL = { shared = "openActionsPane", action = "openActionsPane", d
 -- The info pane's own verb, toggling the list of every key the open list answers above its
 -- bottomBar. Like the actions pane's it names no plugin and sits in every block this module builds.
 local SHOW_KEYS = { shared = "showInfo", action = "showInfo", description = "Info" }
+-- Olm Settings, opened from any list on Command and comma, closing the list. Like the two above it
+-- names no plugin and sits in every block, and no list may take its chord, see obj.validate.
+local OPEN_SETTINGS = { shared = "openSettings", action = "openSettings", description = "Olm Settings" }
+
+-- Whether a binding sits on Command and comma with no held leader, kept for Olm Settings. Spelled
+-- here rather than asked of lib/keymap.lua, which this module does not load.
+local function isSettingsChord(row)
+  if row.key ~= "," or (row.leader ~= nil and row.leader ~= false) then return false end
+  local m = row.mods or {}
+  return #m == 1 and (m[1] == "cmd" or m[1] == "command")
+end
 
 -- Where the all layer puts one shared verb, a list of places each holding a key, its modifiers
 -- and its leader. An entry is a bare key name on the list role, a table of key, mods and leader
@@ -269,6 +280,9 @@ function obj.validate(name, decl)
       if not rok then return false, rerr end
       local fok, ferr = validatePanelFields("extra[" .. i .. "]", row)
       if not fok then return false, ferr end
+      if isSettingsChord(row) then
+        return false, "extra[" .. i .. "] takes Command and comma, which opens Olm Settings from every list"
+      end
     end
   end
   if decl.when ~= nil and type(decl.when) ~= "string" then
@@ -303,7 +317,7 @@ end
 -- builds, as plain data naming no plugin, see ACTION_PANEL and SHOW_KEYS above.
 --
 -- keys is Olm's own all layer, a shared verb to the key it sits on, primary, secondary, selectNext,
--- selectPrev, close, openActionsPane and showInfo, lib/keymap.lua's listDefaults in a real load,
+-- selectPrev, close, openActionsPane, showInfo and openSettings, lib/keymap.lua's listDefaults in a real load,
 -- an entry being a bare key or a key the field answers with modifiers alone. A verb the
 -- layer gives no key is left out of the block, and a close key the manifest states wins over the
 -- layer's, since it is that list's own default. The person's lists section is laid over the built
@@ -404,7 +418,7 @@ function obj.context(name, decl, available, keys)
     bindings[#bindings + 1] = close
   end
 
-  for _, verb in ipairs({ ACTION_PANEL, SHOW_KEYS }) do
+  for _, verb in ipairs({ ACTION_PANEL, SHOW_KEYS, OPEN_SETTINGS }) do
     for _, b in ipairs(sharedBindings(verb, keys)) do bindings[#bindings + 1] = b end
   end
 

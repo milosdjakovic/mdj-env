@@ -121,6 +121,9 @@ every present, since a new list means something new.
 
 Add one only when something is actually wrong without it.
 
+`settings` puts a number or a switch of the plugin's own data in Olm Settings, applied on reload.
+The contract's `settings` section has the shape, and WindowManager is the example.
+
 `matcher` is absent or `false`, nothing else. Absent inherits the root default, which is what
 a list wants, its supplier returning every row and the engine filtering. `false` is only for a
 level whose field is not a search, a typed name, a duration, a level or a confirm. A list never

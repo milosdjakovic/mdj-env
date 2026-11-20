@@ -54,7 +54,7 @@ return {
     },
   },
 
-  -- Opened from the launcher only, so it proposes no key.
+  -- Opened by a key a person sets in config/keymap.lua only, so it proposes none.
   defaults = {
     description = "Olm Plugins",
   },

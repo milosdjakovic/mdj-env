@@ -219,8 +219,26 @@ The window also opens centred on the screen under the pointer, its sidebar start
 Olm.app has an icon, `app/Olm.icns`, drawn by `app/icon/make-icon.sh` and shown in the Dock, Command
 Tab and the sidebar's Olm row.
 
+**S.4, 2026-11-20 13:58.** ⌘, and one way in.
+
+- **⌘, from any list.** It is a list key of Olm's own all layer, `openSettings` in
+  `lib/keymap.lua`'s `listDefaults`, built into every list by `lib/surface.lua` beside the info
+  pane's, so the info pane of every list names it. A list Olm.app draws hears it in its own field,
+  closes, and shows the window. A Lua list closes through its own close and the bridge opens the
+  window. The keymap refuses ⌘, in the `lists` section unless it names `openSettings`, and a
+  manifest's `surface.extra` row on it refuses that surface, both naming Olm Settings.
+- **The four launcher rows are gone.** Olm Chooser, Olm Placement, Olm Theme and Olm Plugins keep
+  their lists and their `registry.open`, so `olmtheme.open` and the rest can still be given a key in
+  `config/keymap.lua`, which is how a machine without Olm.app changes these.
+- **Window Management.** A manifest may now declare `settings`, the contract's section of that
+  name. The window manager declares its move and resize steps, pressed and held, its smallest
+  width and height, and its default width and height, each a path into its own data, and the root
+  lays a saved value over that data before `configure`, so the plugin reads it with no word of its
+  own. All apply on reload.
+- **The sidebar.** Olm's icon, name and version sit at the foot of the sidebar, under the sections.
+
 ## Back out
 
-The four plugins keep their logic as providers, so their launcher rows come back by registering
-their tools again. The store's values can be removed with `~/.olm/state/settings.json`, which puts
+The four plugins keep their lists, so their launcher rows come back by putting `row` back under
+`registry` in each manifest. The store's values can be removed with `~/.olm/state/settings.json`, which puts
 every setting back on its file.

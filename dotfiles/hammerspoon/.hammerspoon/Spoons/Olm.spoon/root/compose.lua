@@ -1381,6 +1381,18 @@ function obj.run(olm, cfg)
     end
   end
 
+  -- A plugin's own settings, its manifest's settings list, shown in Olm Settings and laid over its
+  -- data here, after everything it is handed is merged and before it is configured, so a value set
+  -- in the window reaches the plugin with no word of its own, docs/DESIGN-APP-SETTINGS.md S.4.
+  for name, manifest in pairs(manifests) do
+    if manifest.settings ~= nil then
+      fannedData[name] = fannedData[name] or {}
+      for _, why in ipairs(olmSettings.plugin(name, manifest.settings, fannedData[name])) do
+        log.e("Olm compose, " .. name .. " " .. why)
+      end
+    end
+  end
+
   -- The keymap's aliases, merged over the person's overrides as that plugin's aliases, so the
   -- resolver, the registrar's collision check, the alias directory and every row hint read the one
   -- merged answer, marked as the person's like any override. A plugin named there takes exactly
@@ -2744,7 +2756,7 @@ function obj.run(olm, cfg)
   -- The action names satisfied by a closure this file builds rather than by any surface. Kept
   -- beside the map for the same reason, since an action in here needing no surface method is
   -- the difference between a key that is fine and a key that is dead.
-  local navExceptionNames = { openActionsPane = true }
+  local navExceptionNames = { openActionsPane = true, openSettings = true }
   local bindOneInContext = navLib.bindOne(repeatableActions)
 
   -- A dot called control surface for every plugin this plan actually built a context for,
@@ -3402,6 +3414,16 @@ function obj.run(olm, cfg)
         local served = listOpenLib.servedOpen(listOpenDeps)
         if served then return modules[plan.identity.bridge or "bridge"]:verb(served, "showInfo") end
         if stageModule then stageModule:toggleInfo() end
+      end,
+      -- THE SEAM, Olm Settings on Command and comma from any list. The window is Olm.app's, so a
+      -- list the app draws is told the verb and closes itself and opens it, and a Lua list closes
+      -- through its own close and the bridge opens the window, docs/DESIGN-APP-SETTINGS.md S.4.
+      openSettings = function()
+        local bridge = modules[plan.identity.bridge or "bridge"]
+        local served = listOpenLib.servedOpen(listOpenDeps)
+        if served then return bridge:verb(served, "openSettings") end
+        if dispatchTable and type(dispatchTable.closeChooser) == "function" then dispatchTable.closeChooser() end
+        if bridge and type(bridge.openSettings) == "function" then bridge:openSettings() end
       end,
       openActionsPane = function()
         local served = listOpenLib.servedOpen(listOpenDeps)

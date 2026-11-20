@@ -857,7 +857,7 @@ do
   eq(moved and moved.entry, "all hyper+n", "and names the entry it came from")
   local order = {}
   for _, b in ipairs(contexts.clip.bindings) do order[#order + 1] = b.action end
-  eq(table.concat(order, ","), "insertSelected,selectNext,selectPrev,scrollDown,deleteSelected,leavePage,closeChooser,openActionsPane,showInfo,showInfo",
+  eq(table.concat(order, ","), "insertSelected,selectNext,selectPrev,scrollDown,deleteSelected,leavePage,closeChooser,openActionsPane,showInfo,showInfo,openSettings",
     "and the list keeps its order")
   local closed = applied({ all = { ["hyper+c"] = "close" } })
   eq(listKeys(closed, "clip", "closeChooser") .. "|" .. listKeys(closed, "pane", "closeChooser"), "c|space",
@@ -1043,7 +1043,7 @@ do
     elseif b.leader == "meta" then onMeta = onMeta + 1 end
   end
   eq(onMeta, #contexts.clip.bindings - 1 - onField, "list role: every bound default of the list sits on meta, the field's own keys apart")
-  eq(onField, 2, "list role: showInfo on its two keys is the one default the field answers on no leader")
+  eq(onField, 3, "list role: showInfo on its two keys and Olm Settings are the defaults the field answers on no leader")
   eq(listedOnly, nil, "list role: a key the list reads for itself is placed on no leader")
   local result = keymap.build({ plan = { effective = {}, identity = {}, contexts = contexts, order = {} },
     roles = ROLES, keycodes = LIST_KEYCODES, listLeader = "meta" })
@@ -1400,8 +1400,8 @@ do
   })
   local order = {}
   for _, b in ipairs(block.bindings) do order[#order + 1] = b.action end
-  eq(table.concat(order, ","), "insertSelected,uninstall,uninstall,selectNext,selectPrev,deleteSelected,closeChooser,openActionsPane,showInfo,showInfo",
-    "bar: the secondary sits right after the primary, on two keys, and showInfo comes last, on two keys")
+  eq(table.concat(order, ","), "insertSelected,uninstall,uninstall,selectNext,selectPrev,deleteSelected,closeChooser,openActionsPane,showInfo,showInfo,openSettings",
+    "bar: the secondary sits right after the primary, on two keys, then showInfo on two keys, and Olm Settings last")
   local secondary, padSecondary, show
   for _, b in ipairs(block.bindings) do
     if b.shared == "secondary" then
@@ -1488,7 +1488,7 @@ do
     keys[#keys + 1] = table.concat(spelled, "+") .. " " .. k.label
   end
   eq(table.concat(keys, " | "),
-    "\u{2726}J+\u{2193} Move Down | \u{2726}K+\u{2191} Move Up | \u{2726}X+esc Close",
+    "\u{2726}J+\u{2193} Move Down | \u{2726}K+\u{2191} Move Up | \u{2726}X+esc Close | \u{2318}, Olm Settings",
     "bottomBar: the navigation keys in declaration order, nothing the bar or the rows already show, no verb the actions pane lists, and no Back on a level Backspace does not leave")
   local function panelPeek()
     for _, row in ipairs(hints.rowsFor("bar", plan, deps)) do if row.action == "peek" then return true end end

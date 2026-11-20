@@ -133,6 +133,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // The bridge, step 2.3. Each answer the Lua launcher settles on comes as the shadow notification.
     let bridge = bridge, launcher = bridgedLauncher, shadow = launcherShadow, shown = shownLauncher
     stage.onTextBudget = { budget in Task { await bridge.setTextBudget(budget) } }
+    // Command and comma in any list, docs/DESIGN-APP-SETTINGS.md S.4.
+    stage.onOpenSettings = { [weak self] in self?.settingsWindow.show() }
     Task {
       await bridge.attach(launcher: launcher, shown: shown, settled: { s in
         guard s.tool == launcher.manifest.name else { return }

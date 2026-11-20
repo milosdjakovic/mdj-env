@@ -164,6 +164,9 @@ public final class Stage {
   /// Told the room a row's text has whenever an open finds it changed, which the composition root
   /// sends Hammerspoon as the bridge's metrics, step 3.2.
   public var onTextBudget: ((Double) -> Void)?
+  /// Asked to open Olm Settings, Command and comma in any list, once the list has closed. Olm.app's
+  /// composition root shows its window.
+  public var onOpenSettings: (() -> Void)?
   // Raised on every move of the highlight, so a source over the bridge can say which highlight a
   // Return was pressed on, the bridge's h, step 3.2.
   private var highlightGeneration = 0
@@ -1184,6 +1187,9 @@ public final class Stage {
     case "hide": hide()
     case "insertSelected": act(on: highlight)
     case "showInfo": toggleInfo()
+    case "openSettings":
+      hide()
+      onOpenSettings?()
     case "scrollPreviewDown", "scrollPreviewUp":
       if pane != nil, previewShown != nil {
         paneHost?.scrollBy(name == "scrollPreviewDown" ? Self.paneScrollStep : -Self.paneScrollStep)

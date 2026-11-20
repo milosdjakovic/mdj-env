@@ -7,7 +7,8 @@ in `hs.settings` under `olmChooser` and wins over `chooser.provider` in `config/
 which stays the default for a machine that never chose. What each chooser lets a person change is
 the Olm Theme list, a theme on the canvas and a highlight on the glass.
 
-It opens from the launcher only, as the Olm Chooser row, with no key of its own, and the list
-replaces the launcher's rows in place. The chooser in use wears Olm's filled ring. Choosing the
+The same choice is the Chooser setting in Olm Settings, which took this list's launcher row on
+2026-11-20. The list opens only on a key a person gives `olmchooser.open` in `config/keymap.lua`,
+which is how a machine without Olm.app changes it. The chooser in use wears Olm's filled ring. Choosing the
 other one reloads Olm, since the chooser is decided once per load, and the next list opens in it.
 Backspace or Escape leaves.

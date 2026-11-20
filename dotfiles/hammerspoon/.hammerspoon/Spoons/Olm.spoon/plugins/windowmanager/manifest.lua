@@ -103,4 +103,34 @@ return {
       { action = "hideAllExceptFocused", key = "H" },
     },
   },
+  -- The steps and sizes shown in Olm Settings under Window Management, docs/DESIGN-APP-SETTINGS.md
+  -- S.4. Each is a path into this plugin's own settings data, so a value set in the window is laid
+  -- over config/settings.lua's windowSizing before configure, and init.lua reads it with no word of
+  -- its own. shipped is the number init.lua falls back to when the file leaves the key out.
+  settings = {
+    { key = "movePixels", at = { "settings", "windowSizing", "movePixels" }, section = "windows",
+      title = "Move step", kind = "number", min = 5, max = 200, step = 5, unit = "pixels", shipped = 20,
+      keywords = { "nudge", "distance", "arrow" } },
+    { key = "movePixelsHeld", at = { "settings", "windowSizing", "movePixelsHeld" }, section = "windows",
+      title = "Move step while held", kind = "number", min = 5, max = 400, step = 5, unit = "pixels", shipped = 40,
+      keywords = { "nudge", "repeat", "hold" } },
+    { key = "resizePixels", at = { "settings", "windowSizing", "resizePixels" }, section = "windows",
+      title = "Resize step", kind = "number", min = 5, max = 200, step = 5, unit = "pixels", shipped = 30,
+      keywords = { "grow", "shrink", "size" } },
+    { key = "resizePixelsHeld", at = { "settings", "windowSizing", "resizePixelsHeld" }, section = "windows",
+      title = "Resize step while held", kind = "number", min = 5, max = 400, step = 5, unit = "pixels", shipped = 50,
+      keywords = { "grow", "shrink", "repeat", "hold" } },
+    { key = "minWidth", at = { "settings", "windowSizing", "minWidth" }, section = "windows",
+      title = "Smallest width", kind = "number", min = 100, max = 2000, step = 10, unit = "pixels", shipped = 400,
+      keywords = { "minimum", "shrink", "floor" } },
+    { key = "minHeight", at = { "settings", "windowSizing", "minHeight" }, section = "windows",
+      title = "Smallest height", kind = "number", min = 100, max = 2000, step = 10, unit = "pixels", shipped = 300,
+      keywords = { "minimum", "shrink", "floor" } },
+    { key = "maxWidth", at = { "settings", "windowSizing", "maxWidth" }, section = "windows",
+      title = "Default width", kind = "number", min = 400, max = 8000, step = 50, unit = "pixels", shipped = 1800,
+      keywords = { "largest", "maximum", "default size" } },
+    { key = "maxHeight", at = { "settings", "windowSizing", "maxHeight" }, section = "windows",
+      title = "Default height", kind = "number", min = 300, max = 5000, step = 50, unit = "pixels", shipped = 1200,
+      keywords = { "largest", "maximum", "default size" } },
+  },
 }

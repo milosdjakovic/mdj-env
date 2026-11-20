@@ -289,6 +289,51 @@ do
   check("saying where it is set", lockedWhy, "is locked, set in config/plugins.lua")
 end
 
+-- S.4, a plugin's own settings from its manifest, laid over its data before it is handed over.
+do
+  local files, io = disk()
+  local store = newStore(files, io, {})
+  store.set("wm.movePixels", 35)
+  store.set("wm.minWidth", 9999)
+  local said = {}
+  local settings = M.new({ store = store, log = { w = function(message) said[#said + 1] = message end } })
+  local specs = {
+    { key = "movePixels", at = { "settings", "windowSizing", "movePixels" }, section = "windows",
+      title = "Move step", kind = "number", min = 5, max = 200, step = 5, unit = "pixels", shipped = 20 },
+    { key = "minWidth", at = { "settings", "windowSizing", "minWidth" }, section = "windows",
+      title = "Smallest width", kind = "number", min = 100, max = 2000, step = 10, shipped = 400 },
+    { key = "resizePixels", at = { "settings", "windowSizing", "resizePixels" }, section = "windows",
+      title = "Resize step", kind = "number", min = 5, max = 200, step = 5, shipped = 30 },
+    { key = "bad", at = { "settings", "x" }, section = "nowhere", title = "Bad", kind = "number", min = 1, max = 2, step = 1 },
+    { key = "movePixels", at = { "settings", "y" }, section = "windows", title = "Again", kind = "switch" },
+    { key = "word", at = { "settings", "z" }, section = "windows", title = "Word", kind = "choice" },
+  }
+  local data = { settings = { windowSizing = { minWidth = 500 } } }
+  local problems = settings.plugin("wm", specs, data)
+  check("a spec naming no section is a problem", problems[1], "settings[4] names no section of the window, nowhere, so it is left out")
+  check("a repeated key is a problem", problems[2], "settings[5] repeats the key movePixels, so it is left out")
+  check("a kind it cannot read is a problem", problems[3], "settings[6] has the kind choice, where a number or a switch is read, so it is left out")
+  check("and the rest are declared", settings.declaration("wm.movePixels") ~= nil and settings.declaration("wm.bad") == nil, true)
+  check("the id is the identity, a dot and the key", settings.declaration("wm.resizePixels").section, "windows")
+  check("every one applies on reload", settings.declaration("wm.movePixels").applies, "reload")
+  check("a saved value is laid over the data", data.settings.windowSizing.movePixels, 35)
+  check("a key the file leaves out defaults to shipped", settings.default("wm.movePixels"), 20)
+  check("a key the file sets defaults to the file", settings.default("wm.minWidth"), 500)
+  check("a saved value out of range leaves the file's", data.settings.windowSizing.minWidth, 500)
+  check("and is said", #said, 1)
+  check("an unsaved one is left out of the data", data.settings.windowSizing.resizePixels, nil)
+  check("a change is checked against the manifest's range", (settings.change("wm.resizePixels", 500)), false)
+  local share = settings.share()
+  local windows
+  for _, section in ipairs(share.sections) do if section.id == "windows" then windows = section end end
+  check("the share has a Window Management section", windows and windows.title, "Window Management")
+  check("holding the declared three", windows and #windows.settings, 3)
+  local noData = settings.plugin("other", specs, nil)
+  check("no data still answers the problems", #noData, 3)
+  local _, wrong = M.fromManifest("x", "words")
+  check("a settings field that is not a list is a problem", wrong[1], "settings is a string rather than a list")
+end
+
 if failed then
   print("settings, FAILED")
   os.exit(1)

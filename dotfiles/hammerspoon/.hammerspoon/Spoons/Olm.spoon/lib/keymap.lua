@@ -714,6 +714,8 @@ function obj.readConfig(config, opts)
           local chord, why = obj.parseChord(text, chordLeaders, opts.keycodes, true)
           if not chord then
             problem(where, why .. ", so the entry is ignored")
+          elseif value ~= "openSettings" and obj.isSettingsChord(chord.key, chord.mods, chord.leader) then
+            problem(where, "is Command and comma, which opens Olm Settings from every list, so the entry is ignored")
           else
             entries[#entries + 1] = { text = text, leader = chord.leader, mods = chord.mods, key = chord.key,
               free = value == false, action = value ~= false and value or nil }
@@ -766,7 +768,19 @@ obj.listDefaults = {
     { key = "/", mods = { "cmd", "shift" }, leader = false },
     { key = "/", mods = { "cmd" }, leader = false },
   },
+  -- Command and comma opens Olm Settings from any list, closing the list, as every macOS app opens
+  -- its settings, docs/DESIGN-APP-SETTINGS.md. It is reserved, see obj.isSettingsChord.
+  openSettings = { { key = ",", mods = { "cmd" }, leader = false } },
 }
+
+--- obj.isSettingsChord(key, mods, leader) -> boolean
+--- Whether a list key is Command and comma on no held leader, the chord kept for Olm Settings in
+--- every list, so the lists section and a manifest are refused it and no list can take it.
+function obj.isSettingsChord(key, mods, leader)
+  if key ~= "," or (leader ~= nil and leader ~= false) then return false end
+  local m = mods or {}
+  return #m == 1 and (m[1] == "cmd" or m[1] == "command")
+end
 
 -- Whether a key types a character into a text field when pressed with no modifier or with Shift
 -- alone, a key whose name is one character, space, or a keypad key that is not Enter or Clear.

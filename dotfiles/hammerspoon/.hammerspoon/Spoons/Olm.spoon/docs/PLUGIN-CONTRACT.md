@@ -1612,6 +1612,25 @@ itself ships, every plugin and every host, is written colon style throughout, so
 "dot"` names a real difference in one target's own contract on the day something finally
 reaches for it, not a matter of preference between two ways of writing the same thing.
 
+### settings
+
+A plugin's own settings, shown in Olm Settings, docs/DESIGN-APP-SETTINGS.md S.4. A list, each entry
+`{ key, at, section, title, kind, keywords }`, and for a number `min`, `max`, `step`, `unit` and
+`shipped`. `at` is a path into the plugin's own data, its first word a `needs.data` field the
+plugin declares with source user, and `shipped` is the value the plugin falls back to when the
+person's file leaves the key out. `section` is one of the window's sections in
+`lib/settings.lua`'s `SECTIONS`, and `kind` is `number` or `switch`.
+
+The root reads the list with `lib/settings.lua`'s `fromManifest` once the plugin's data is merged
+and before `configure`, declares each entry as the identity, a dot and the key, and lays a value
+saved in the window over the data at `at`. So the plugin reads the setting from its own data with
+no word of its own and never learns the window exists. Every such setting applies on reload, since
+the data is handed over once a load. An entry that cannot be read is named in the console and left
+out, the rest still declared. WindowManager's steps and sizes are the settled example.
+
+A setting of Olm itself is never declared here, it is a declaration in `lib/settings.lua`, since
+only the core may name the core.
+
 ## The stage pipeline
 
 Plugins do not choose when they run. Olm holds one fixed ordered pipeline and a plugin

@@ -1,8 +1,8 @@
 # Olm Plugins
 
-Decides which plugins run, with one row per plugin under `plugins`. It opens from the launcher
-only, as the Olm Plugins row, with no key of its own, and the list replaces the launcher's rows in
-place. It was the third page of the Olm Settings plugin until 2026-10-27, when that plugin was
+Decides which plugins run, with one row per plugin under `plugins`. The same switches are the Plugins section of Olm Settings,
+which took this list's launcher row on 2026-11-20. The list opens only on a key a person gives
+`olmplugins.open` in `config/keymap.lua`, which is how a machine without Olm.app changes it. It was the third page of the Olm Settings plugin until 2026-10-27, when that plugin was
 split into Olm Placement, Olm Theme and this, so each opens its list straight from its own row.
 
 The list has one row per plugin, sorted by title, Olm's checked box when it is on and the

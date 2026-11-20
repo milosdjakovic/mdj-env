@@ -109,8 +109,8 @@ M.DECLARED = {
   n("cheatSheetDelay", "behaviour", "Cheat sheet delay", { "policy", "chord", "holdDelay" }, 0.1, 2, 0.05,
     "seconds", 0.6, { "hold", "reveal", "leader", "hyper", "meta" }),
 
-  -- Window Management's steps and sizes are the window manager's, declared by it in S.4 through
-  -- its manifest, since only a plugin may name itself, so its section is empty until then.
+  -- Window Management's steps and sizes are the window manager's, declared in its manifest and
+  -- read by M.fromManifest, since only a plugin may name itself.
 
   { id = "plugins.off", section = "plugins", title = "Plugins switched off", kind = "list", applies = "reload",
     hidden = true, shipped = {} },
@@ -161,6 +161,63 @@ function M.check(decl, value)
     return true
   end
   return false, "has a kind nothing checks, " .. tostring(kind)
+end
+
+--------------------------------------------------------------------------------
+-- A plugin's own settings, its manifest's settings list
+--------------------------------------------------------------------------------
+
+local KINDS = { number = true, switch = true }
+
+--- M.fromManifest(identity, specs) -> declarations, problems
+--- A plugin's settings list read into declarations, docs/DESIGN-APP-SETTINGS.md S.4. Each spec is
+--- { key, at, title, section, kind, keywords, and for a number min, max, step, unit, shipped }. at
+--- is the path into the plugin's own data, its first word a need the manifest declares with source
+--- user, so the saved value is laid over what the plugin is handed and the plugin reads it with no
+--- word of its own. The id is the identity, a dot and the key, so no plugin can take another's or
+--- one of Olm's own, and every such setting applies on reload, since the data is handed over once a
+--- load. A spec that cannot be read is left out and named in problems, the rest still declared.
+function M.fromManifest(identity, specs)
+  local out, problems = {}, {}
+  if specs == nil then return out, problems end
+  if type(specs) ~= "table" then
+    return out, { "settings is a " .. type(specs) .. " rather than a list" }
+  end
+  local sections = {}
+  for _, section in ipairs(M.SECTIONS) do sections[section.id] = true end
+  local seen = {}
+  for i, spec in ipairs(specs) do
+    local where = "settings[" .. i .. "]"
+    local why
+    if type(spec) ~= "table" then why = "is not a table"
+    elseif type(spec.key) ~= "string" or not spec.key:match("^[%w_]+$") then why = "names no key of letters and digits"
+    elseif seen[spec.key] then why = "repeats the key " .. spec.key
+    elseif type(spec.at) ~= "table" or #spec.at == 0 then why = "names no path into the plugin's data in at"
+    elseif type(spec.title) ~= "string" or spec.title == "" then why = "has no title"
+    elseif not sections[spec.section] then why = "names no section of the window, " .. tostring(spec.section)
+    elseif not KINDS[spec.kind] then why = "has the kind " .. tostring(spec.kind) .. ", where a number or a switch is read"
+    elseif spec.kind == "number" and not (type(spec.min) == "number" and type(spec.max) == "number"
+      and spec.min < spec.max and type(spec.step) == "number" and spec.step > 0) then
+      why = "is a number with no range, min below max and a step above nothing"
+    end
+    if not why then
+      for _, word in ipairs(spec.at) do
+        if type(word) ~= "string" or word == "" then why = "has a path in at that is not words" end
+      end
+    end
+    if why then
+      problems[#problems + 1] = where .. " " .. why .. ", so it is left out"
+    else
+      seen[spec.key] = true
+      local target = { identity }
+      for _, word in ipairs(spec.at) do target[#target + 1] = word end
+      out[#out + 1] = { id = identity .. "." .. spec.key, section = spec.section, title = spec.title,
+        kind = spec.kind, target = target, min = spec.min, max = spec.max, step = spec.step,
+        unit = spec.unit, shipped = copy(spec.shipped), keywords = copy(spec.keywords or {}),
+        applies = "reload", owner = identity }
+    end
+  end
+  return out, problems
 end
 
 --------------------------------------------------------------------------------
@@ -308,6 +365,26 @@ function M.new(opts)
       if k == "default" then defaults[id] = copy(v) else decl[k] = copy(v) end
     end
     return decl
+  end
+
+  --- settings.plugin(identity, specs, data) -> problems
+  --- A plugin's manifest settings declared and laid over data, the plugin's own data before it is
+  --- handed over, a group data leaves out made so a saved value still reaches it. Answers the
+  --- problems M.fromManifest found, for the root to say.
+  function self.plugin(identity, specs, data)
+    local decls, problems = M.fromManifest(identity, specs)
+    if #decls == 0 or type(data) ~= "table" then return problems end
+    for _, decl in ipairs(decls) do
+      local node = data
+      for i = 2, #decl.target - 1 do
+        local word = decl.target[i]
+        if type(node[word]) ~= "table" then node[word] = {} end
+        node = node[word]
+      end
+      self.declare(decl.id, decl)
+    end
+    self.overlay(identity, data)
+    return problems
   end
 
   --- settings.value(id) -> the saved value when it is one the declaration allows, else the default.
