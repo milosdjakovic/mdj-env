@@ -1175,3 +1175,12 @@ the sidebar is a 280 point panel over it, `glassEffect` on a rounded rectangle i
 the window's edges, with the window's buttons sitting on it as System Settings draws on macOS 26.
 The search is a glass capsule of its own. Since the width is the panel's frame, it cannot be
 dragged, collapse or flicker, which closes the two split view attempts.
+
+**2026-11-20 13:42, the settings sidebar back to the system's own, since macOS 27 left the floating
+glass panel.** The 13:30 entry was built on a wrong belief, that the floating Liquid Glass sidebar
+of macOS 26 is how a sidebar looks on this machine. This machine runs macOS 27, which abandoned that
+panel, and the flat sidebar AppKit's sidebar split drew at 12:51 was the system's own look rather
+than a fault. Milos asked for it back, so the window is again an `NSSplitViewController` with a
+fixed 280 point sidebar item, no drag, no collapse and no toolbar, as at 12:51. Rejected for good:
+a sidebar Olm draws itself as a glass panel, since it copies a look the running system dropped
+instead of taking whatever the system draws.
