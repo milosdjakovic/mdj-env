@@ -131,3 +131,72 @@ public final class Shadow {
     }
   }
 }
+
+/// The list a person uses, passed through unchanged, each answer it settles on once typing pauses
+/// handed to seen, so a shadow compares against the list in use rather than one nobody opens. The
+/// launcher's since step 6.1, docs/DESIGN-APP-LAUNCHER.md, since the Lua launcher has not been the
+/// one opened since the flip of Hyper and Space on 2026-11-18 and its shadow had stopped being told.
+public actor ShadowTee: ListSource {
+  public nonisolated let manifest: Manifest
+  public nonisolated var runsEveryVerb: Bool { inner.runsEveryVerb }
+  private let inner: any ListSource
+  private let pause: Duration
+  private let seen: @Sendable (String, RowsAnswer, Level) async -> Void
+  private var level = Level()
+  private var pending: Task<Void, Never>?
+
+  public init(_ inner: any ListSource, pause: Duration = .milliseconds(400),
+              seen: @escaping @Sendable (String, RowsAnswer, Level) async -> Void) {
+    self.inner = inner
+    self.manifest = inner.manifest
+    self.pause = pause
+    self.seen = seen
+  }
+
+  private func settle(_ query: String, _ answer: RowsAnswer) {
+    pending?.cancel()
+    let pause = pause, seen = seen, level = level
+    pending = Task {
+      try? await Task.sleep(for: pause)
+      guard !Task.isCancelled else { return }
+      await seen(query, answer, level)
+    }
+  }
+
+  public func open(query: String) async -> Level {
+    level = await inner.open(query: query)
+    return level
+  }
+  public func rows(_ query: Query) async throws -> RowsAnswer {
+    let answer = try await inner.rows(query)
+    if !answer.pending { settle(query.text, answer) }
+    return answer
+  }
+  public func rowsLanded(_ query: Query) async throws -> RowsAnswer? {
+    let answer = try await inner.rowsLanded(query)
+    if let answer, !answer.pending { settle(query.text, answer) }
+    return answer
+  }
+  public func choose(_ pick: Pick) async -> [Effect] {
+    pending?.cancel()
+    return await inner.choose(pick)
+  }
+  public func run(_ action: String, on pick: Pick) async -> [Effect] { await inner.run(action, on: pick) }
+  public func run(_ action: String, on pick: Pick, choice: String?) async -> [Effect] {
+    await inner.run(action, on: pick, choice: choice)
+  }
+  public func actions(on pick: Pick) async -> [String: String]? { await inner.actions(on: pick) }
+  public func choices(_ action: String, on pick: Pick) async -> [Choice] { await inner.choices(action, on: pick) }
+  public func preview(_ pick: Pick) async -> Preview? { await inner.preview(pick) }
+  public func previewLanded(_ pick: Pick) async -> Preview? { await inner.previewLanded(pick) }
+  public func prepare() async -> RowsAnswer? { await inner.prepare() }
+  public func applies(_ gate: String, on pick: Pick) async -> Bool { await inner.applies(gate, on: pick) }
+  public func label(_ verb: String, on pick: Pick) async -> String? { await inner.label(verb, on: pick) }
+  public func pushed(_ token: String) async -> (any ListSource)? { await inner.pushed(token) }
+  public func back() async -> Bool { await inner.back() }
+  public func positioned(frame: ScreenRect?, pane: ScreenRect?) async { await inner.positioned(frame: frame, pane: pane) }
+  public func highlighted(_ pick: Pick?) async { await inner.highlighted(pick) }
+  public func close() async {
+    await inner.close()
+  }
+}

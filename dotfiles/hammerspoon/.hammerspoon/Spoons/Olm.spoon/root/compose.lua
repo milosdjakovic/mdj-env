@@ -3297,9 +3297,19 @@ function obj.run(olm, cfg)
     if bridgeModule and type(bridgeModule.serveLauncher) == "function" then
       local launcher = modules[plan.identity.launcher or "launcher"]
       if launcher and type(launcher.bridgeRows) == "function" then
+        -- The catalog the app builds its launcher from, ~/.olm/run/launchercatalog.json, step 6.1,
+        -- written once after the load and again after every pick.
+        if type(launcher.onCatalog) == "function" then
+          launcher:onCatalog(function()
+            bridgeModule:share("launchercatalog", function() return launcher:catalogShare() end)
+          end)
+        end
         bridgeModule:serveLauncher({
           launcher = {
             rows = function(query) return launcher:bridgeRows(query) end,
+            -- The typed rows alone, for the catalog the app builds itself, step 6.1.
+            typedRows = type(launcher.bridgeTypedRows) == "function"
+              and function(query) return launcher:bridgeTypedRows(query) end or nil,
             -- Return on a row of the app's launcher, step 3.1, through the launcher's own run path.
             choose = function(item, query, hosted) return launcher:bridgeChoose(item, query, hosted) end,
             memoryKey = function(item) return launcher:memoryKeyOf(item) end,

@@ -189,6 +189,11 @@ function obj:_promote(key)
   while #mru > MRU_MAX do table.remove(mru) end
   hs.settings.set(MRU_SETTINGS_KEY, mru)
   self._orderedRowsCache = nil
+  -- The app's catalog orders by the same timeline, so it is handed the timeline again, step 6.1.
+  if self._onCatalog then
+    local ok, err = pcall(self._onCatalog)
+    if not ok then log.w("the catalog share raised, " .. tostring(err)) end
+  end
 end
 
 --- Launcher:configure(opts)
@@ -1104,6 +1109,89 @@ function obj:bridgeChoose(item, query, hosted)
   self:_promote(recencyKey(item))
   self:_noteAssociation(item, type(query) == "string" and query or "")
   return { { hide = {} } }, function() self:_runItem(item, true) end
+end
+
+--- Launcher:bridgeTypedRows(query) -> rows, claimed, fit, handOver
+--- Method
+--- The rows made from what was typed and nothing else, for the app's own catalog, step 6.1 of
+--- docs/PLAN-STANDALONE.md, docs/DESIGN-APP-LAUNCHER.md. The app builds the catalog itself and asks
+--- only for what the query sources compute, a claim answering the whole list as bridgeRows does.
+function obj:bridgeTypedRows(query)
+  query = type(query) == "string" and query or ""
+  if self._page then
+    local out, _, handOver, fit = self:_queryRows(self._page .. query)
+    return out, true, fit, handOver
+  end
+  local out, exclusive, handOver, fit = self:_queryRows(query)
+  if exclusive then return out, true, fit, handOver end
+  return out, false
+end
+
+--- Launcher:catalogShare() -> table
+--- Method
+--- The catalog the app builds its launcher from, step 6.1, every row this host shows that is not an
+--- application, in its natural order, as data, each with the key it is remembered by and the gate it
+--- waits on, the subtitle an application with a chord wears closed and open, since the chord is
+--- spelled here, the recency timeline, the kinds that ignore usage and this host's own bundle, which
+--- is never promoted. The app scans the applications itself. A subtitle a live closure answers is
+--- read as it stands now.
+function obj:catalogShare()
+  self:_ensureStaticRows()
+  local apps = {}
+  for bundleID, cfg in pairs(self:_buildConfiguredApps()) do
+    local chord = cfg and type(cfg.chord) == "table" and cfg.chord.key ~= nil and cfg.chord or nil
+    if chord then
+      local function wearing(status)
+        if chord.leader == nil then
+          return status .. " · " .. self:_plainChord(chord.key, chord.mods) .. (cfg.description and (" " .. cfg.description) or "")
+        end
+        return self:_chordSuffix(status, self:_leaderName(chord.leader), chord.key, chord.mods)
+      end
+      apps[bundleID] = { closed = wearing(PREFIX.app), open = wearing(PREFIX.app .. " · Open") }
+    end
+  end
+  local rows = {}
+  for _, row in ipairs(self._actionRows or {}) do
+    local icon
+    if type(row.icon) == "string" then
+      icon = { owner = row.iconOwner or "launcher", key = row.icon }
+    elseif type(row.icon) == "table" then
+      icon = row.icon
+    end
+    local sub = self:_rowSubTitle(row)
+    rows[#rows + 1] = {
+      title = row.title, subtitle = type(sub) == "string" and sub or nil, icon = icon,
+      item = row.item, keywords = row.keywords, word = row.word, when = row.when,
+      key = recencyKey(row.item),
+    }
+  end
+  local ignore = {}
+  for word in pairs(self._ignoreUsage or {}) do ignore[#ignore + 1] = word end
+  table.sort(ignore)
+  local recency = {}
+  for i, k in ipairs(self._mru or {}) do recency[i] = k end
+  return { version = 1, self = SELF_BUNDLE, appWord = PREFIX.app, appOpen = PREFIX.app .. " · Open",
+    ignoreUsage = ignore, recency = recency, apps = apps, rows = rows }
+end
+
+--- Launcher:onCatalog(fn)
+--- Method
+--- Who is handed the catalog again after each pick, the bridge writing the app's share. It is
+--- handed it once a few seconds after the load too, off the load's own path, since building the
+--- static rows is work. The timer's handle is kept, since one nothing refers to can be collected.
+function obj:onCatalog(fn)
+  self._onCatalog = type(fn) == "function" and fn or nil
+  if self._catalogTimer then self._catalogTimer:stop() end
+  self._catalogTimer = nil
+  if self._onCatalog then
+    self._catalogTimer = hs.timer.doAfter(3, function()
+      self._catalogTimer = nil
+      if self._onCatalog then
+        local ok, err = pcall(self._onCatalog)
+        if not ok then log.w("the catalog share raised, " .. tostring(err)) end
+      end
+    end)
+  end
 end
 
 --- Launcher:memoryKeyOf(item) -> the key the launcher remembers a row by, or nil

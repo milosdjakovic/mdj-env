@@ -58,10 +58,17 @@ public actor BridgedLauncher: ListSource {
   /// Whether this is the launcher a person opens, a level for each show, rather than the shadow's.
   public nonisolated let shown: Bool
 
-  public init(bridge: Bridge, shown: Bool = false, natives: [String: any ListSource] = [:],
+  /// Whether its level serves only the rows made from what was typed, for the catalog the app builds
+  /// itself, step 6.1, docs/DESIGN-APP-LAUNCHER.md.
+  public nonisolated let typed: Bool
+  /// Whether the last rows answer was a claim, the typed rows being the whole list.
+  public private(set) var claimed = false
+
+  public init(bridge: Bridge, shown: Bool = false, typed: Bool = false, natives: [String: any ListSource] = [:],
     log: @escaping @Sendable (String) -> Void = { NSLog("Olm launcher: %@", $0) }) {
     self.bridge = bridge
     self.shown = shown
+    self.typed = typed
     self.natives = natives
     self.log = log
   }
@@ -76,7 +83,9 @@ public actor BridgedLauncher: ListSource {
   }
 
   private func openLevel(query: String, fromURL: Bool) async throws {
-    var what: [String: JSON] = ["what": .object(["launcher": .bool(true)]), "query": .string(query)]
+    var launcher: [String: JSON] = ["launcher": .bool(true)]
+    if typed { launcher["typed"] = .bool(true) }
+    var what: [String: JSON] = ["what": .object(launcher), "query": .string(query)]
     if fromURL { what["fromURL"] = .bool(true) }
     let answer = try await bridge.request("open", .object(what))
     let l = answer["level"]
@@ -162,6 +171,7 @@ public actor BridgedLauncher: ListSource {
     // Applied whatever its age, since the next request names this revision, and dropped as an
     // answer when a newer q has gone out since, docs/PROTOCOL-BRIDGE.md Generations.
     store.apply(answer)
+    claimed = answer["exclusive"].bool ?? false
     // Read before the age check, so a level a superseded answer opened is still closed later.
     let handed = await handOver(answer["handOver"])
     guard mine == q else { throw BridgeError.answered(BridgeError.stale, "superseded") }
@@ -228,6 +238,32 @@ public actor BridgedLauncher: ListSource {
   }
 
   public func run(_ action: String, on pick: Pick) async -> [Effect] { [] }
+
+  /// Whether a row is one this level sent, a typed row, rather than one the app built.
+  public func holds(_ key: String) -> Bool { store.refs[key] != nil }
+
+  /// Return on a row of the catalog the app built itself, step 6.1, named by the item the catalog
+  /// share carried, its effects read as choose reads them.
+  public func chooseItem(_ item: JSON, query: String) async -> [Effect] {
+    guard shown, let level else { return [] }
+    let answer: JSON
+    do {
+      answer = try await bridge.request("chooseItem", .object(["level": .string(level), "item": item,
+        "query": .string(query)]))
+    } catch {
+      log("chooseItem did not answer, \(error)")
+      return []
+    }
+    let wire = WireEffects(answer["effects"].array ?? [], log: log)
+    if wire.afterHidden { waitingHidden = level }
+    pushes = wire.pushes
+    return wire.effects
+  }
+
+  /// The icons each owner's manifest declares, for the catalog the app builds itself.
+  public func icons(_ owners: Set<String>) async -> [String: [String: Icon]] {
+    await bridge.icons(owners)
+  }
 
   /// The hosted list a push effect named, held by the bridge so a redraw reaches it, step 3.3.
   public func pushed(_ token: String) async -> (any ListSource)? {

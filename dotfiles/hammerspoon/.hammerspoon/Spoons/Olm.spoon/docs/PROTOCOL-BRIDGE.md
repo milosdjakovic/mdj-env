@@ -730,6 +730,20 @@ applied, found when Clipboard History's Manage History did not change its page i
 `setQuery`, `setPlaceholder` and `hide` cross outside a handler too, to the hosted level on top, and
 a placeholder set while a tool's own key is still opening its list goes with that list's `open`.
 
+## The launcher's catalog, step 6.1
+
+The app builds the launcher's catalog itself, docs/DESIGN-APP-LAUNCHER.md. Hammerspoon writes
+`~/.olm/run/launchercatalog.json`, version 1, a few seconds after a load and again after every pick:
+`rows`, every row that is not an application in its natural order, each `{title, subtitle,
+keywords, icon, item, word, when, key}`, `apps`, the subtitle an application with a chord wears,
+`{bundleID: {closed, open}}`, `recency`, the timeline's keys, `ignoreUsage`, the words of the kinds
+whose order never follows usage, and `self`, Hammerspoon's bundle id.
+
+`open` with `{"launcher":true,"typed":true}` opens a launcher level whose `rows` answer only the
+rows the query sources make from what was typed, a claim answering the whole list as before.
+`chooseItem {level, item, query}` chooses a catalog row the app built, by the item the share carried,
+answered as `choose` is.
+
 ## The keys, step 5.1
 
 Hammerspoon writes what its binder binds to `~/.olm/run/keymap.json` on every load, through

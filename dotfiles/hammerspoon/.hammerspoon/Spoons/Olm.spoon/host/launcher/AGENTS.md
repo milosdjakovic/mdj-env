@@ -431,6 +431,16 @@ out is a row this launcher built. A contributed row handed back through `runItem
 its owner, so it reaches its plugin's runner exactly as it would have from the full list, and
 the dispatcher gains no case and learns nothing new.
 
+## The catalog Olm.app builds itself, step 6.1
+
+Olm.app builds this host's catalog itself since step 6.1 of `docs/PLAN-STANDALONE.md`, and only the
+typed rows are asked of this host per keystroke, `bridgeTypedRows`. `catalogShare` hands the app
+every row that is not an application as data, written by the root as `launchercatalog.json` once
+after a load and again from `_promote` after every pick through `onCatalog`. So a change to how a row
+is built here, its subtitle, its keywords, its key or its gate, reaches the app through the share and
+must keep the share's fields, and a change to the order in `_orderedRows` or the scan has a twin in
+`app/Sources/OlmLauncher`. `docs/DESIGN-APP-LAUNCHER.md` has the design.
+
 ## App enumeration and caching
 
 The installed app list is scanned from the standard app directories and cached.

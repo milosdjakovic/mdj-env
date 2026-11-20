@@ -1305,3 +1305,13 @@ the resolver and never the hearing, IOHIDManager, which reads before hidutil's r
 modifier chord with an active tap, since Carbon's hotkey needs no grant and is believed to fire
 under secure input. 5.1 is built, waiting on Milos's trial, whose empty log with keys pressed also
 answers whether the tap hears what Hammerspoon swallows.
+
+**2026-11-20 19:06, step 6.1, the launcher's catalog built in the app, in shadow.** The app finds the
+applications itself and reads every other row from a share the launcher host writes after a load and
+after each pick, and asks Hammerspoon per keystroke only for the typed rows, waiting 50 ms at most and
+merging later ones when they land. Choosing, recency and the memory stay Hammerspoon's in 6.1, since
+cycling an app's windows needs Accessibility and moving the stores would mean keeping two in step.
+Found while wiring it: the launcher's shadow had logged nothing since the flip of Hyper and Space on
+2026-11-18, because it compared against what the Lua launcher settled on and the Lua launcher is no
+longer the one opened. The comparison now runs against the launcher in use, through a tee in the app.
+`docs/DESIGN-APP-LAUNCHER.md` step 6.1 has the design and its rejections.

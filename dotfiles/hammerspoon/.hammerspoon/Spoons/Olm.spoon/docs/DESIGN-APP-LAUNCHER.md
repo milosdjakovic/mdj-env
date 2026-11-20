@@ -226,3 +226,77 @@ launcher answers `unserved`.
 A Quit Olm App row came with it, Milos's ask, a second action of the bridge host gated on
 `olmAppRunning`, the piece on and the app running. Choosing it asks the app to quit, the plan's
 back out as a row.
+
+# Step 6.1, the launcher's catalog in the app
+
+Written on 2026-11-20, once Milos put the launcher's catalog second after the keys. Today every
+keystroke in the launcher asks Hammerspoon for the whole list, a round trip of 73 ms median at the
+resting point. After this step typing asks Hammerspoon only for the rows made from what was typed.
+
+## How it works
+
+**The app builds the catalog.** It finds the applications itself, `AppScan`, the folders, depth and
+rules of `host/launcher/init.lua`'s scan, and every other row, the tools, the rows plugins
+contribute and Olm's own, comes from `~/.olm/run/launchercatalog.json`, which the launcher host
+writes a few seconds after a load and again after every pick, `catalogShare`. The share carries each
+row as data, its title, subtitle, keywords, icon, the key it is remembered by, the gate it waits on
+and the item Hammerspoon runs, the subtitle an application with a chord wears closed and open,
+since chords are spelled in Lua, and the recency timeline. `Catalog` orders it exactly as
+`_orderedRows` does.
+
+**Typed rows stay Hammerspoon's, and are never waited for.** The calculator, convert, Window Size
+and the scopes answer from a launcher level opened with `typed`, which serves `bridgeTypedRows`, the
+query sources alone. `NativeLauncher` waits 50 ms for them. Later than that the catalog is shown at
+once and the typed rows are merged when they land, through the stage's own `pending` and
+`rowsLanded`. A claim, a scope's word, is the whole list as before.
+
+**Choosing still runs in Hammerspoon.** A typed row by its ref, as before, and a catalog row by the
+item the share carried, the bridge's new `chooseItem`, through the same path a ref takes. Bringing
+an application's windows forward goes through `lib/appfocus.lua`, which needs Accessibility, and
+moving it is the app toggler's step, 6.2. Choosing happens once per open, so it costs nothing while
+typing.
+
+**Recency and the memory stay Hammerspoon's in 6.1.** A pick is recorded there as now, and the app
+reads the timeline from the share and the memory as the bridged launcher already has it, so the two
+launchers can never order differently and backing out loses nothing. They move to the app with the
+last core step that needs them.
+
+## The shadow, and why it moved
+
+The launcher's shadow compared the app's ranking against what the Lua launcher settled on. Since the
+flip of Hyper and Space on 2026-11-18 the Lua launcher is not the one opened, so it settled nothing
+and the shadow logged nothing after that day. Now the launcher a person opens is passed through
+`ShadowTee`, and each answer it settles on, once typing pauses for 400 ms, ranked by the app's own
+search, is compared with what `NativeLauncher` answers for the same query, in
+`~/.olm/log/shadow-launcher.jsonl` as before. The gate for the flip is that log the same on every
+line through a day of use.
+
+## The flip, next
+
+The launcher a person opens takes `NativeLauncher` in place of the bridged one, behind a setting so
+backing out is one switch, once the shadow's log holds.
+
+## Rejected
+
+- **Porting the action rows to Swift.** 2026-11-20. Every tool's row, every contributed row and every
+  chord is declared in Lua manifests and spelled by Lua, and the app needs only the answer, as with
+  the keys.
+- **Running an application's row in the app now.** 2026-11-20. Cycling an app's windows needs
+  Accessibility, which Olm.app does not hold, and choosing costs nothing while typing.
+- **Moving recency and the memory into the app now.** 2026-11-20. Two stores would have to be kept in
+  step in both directions to keep backing out free, and nothing in typing waits on them, since both
+  are read from what Hammerspoon already hands over.
+- **Watching the application folders.** 2026-11-20, for now. The Lua side watches them with
+  FSEvents. The app scans again at an open when its scan is over 30 seconds old, which costs a few
+  tens of milliseconds off the main thread, and the flip may want a watcher if the shadow shows an
+  app arriving late.
+
+## As built, 2026-11-20
+
+- Hammerspoon: `catalogShare`, `bridgeTypedRows` and `onCatalog` in `host/launcher/init.lua`, a
+  `typed` launcher level and `chooseItem` in `host/bridge/serve.lua`, the share written from
+  `root/compose.lua`. `docs/PROTOCOL-BRIDGE.md` The launcher's catalog has the shapes.
+- The app: `app/Sources/OlmLauncher`, `AppScan`, `Catalog` and `NativeLauncher`, the bridged
+  launcher's `typed` mode, `claimed` and `chooseItem`, and `ShadowTee` in `OlmCore/Shadow.swift`.
+- The check: `test/olmlauncher.sh`, in `suite.sh dry`, 17 cases on the order, the gates, the bonus and
+  the subtitles, and `olm-launcher-check --live`, which builds the catalog from this machine.

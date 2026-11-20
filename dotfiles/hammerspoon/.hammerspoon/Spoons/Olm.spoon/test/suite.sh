@@ -92,6 +92,10 @@ if [ "$tiers" = "dry" ]; then
   "$here/olmkeys.sh"
   rc=$?
   [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ] || exit 1
+  # The launcher's catalog built in Olm.app, see olmlauncher.sh. Exit 2 is the same skip.
+  "$here/olmlauncher.sh"
+  rc=$?
+  [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ] || exit 1
   echo
   exec "$here/drygate.sh" "$@"
 fi

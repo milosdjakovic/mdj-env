@@ -21,6 +21,7 @@ import AppKit
 import FileSearchPlugin
 import OlmBridge
 import OlmKeys
+import OlmLauncher
 import OlmCore
 import OlmKit
 import OlmSettings
@@ -39,6 +40,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private lazy var stage = Stage(searcher: searcher)
   private let sources: [String: any ListSource]
   private let shadows: [String: Shadow]
+  // The catalog's shadow, reached by the tee over the launcher in use, step 6.1.
+  @MainActor enum CatalogCompare { static var shadow: Shadow? }
   // The keys in shadow and the tap it hears through, step 5.1, held for the app's life.
   private var keyShadow: KeyShadow?
   private var keyTap: KeyTap?
@@ -80,21 +83,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let fileSearch = FileSearchSource(context: context, asksAccess: true,
       frecency: FileSearchSource.frecency(context), cloud: demo.map { CloudFiles.demo(fraction: $0) } ?? .system,
       build: FileSearchSource.indexBuild(context))
-    let launcher = BridgedLauncher(bridge: bridge)
+    // The shadow's launcher since step 6.1, the catalog built in the app with only the typed rows
+    // asked of Hammerspoon, compared with what the Lua launcher settles on, docs/DESIGN-APP-LAUNCHER.md.
+    // Its typed answers are waited for whole, since the shadow compares whole lists.
+    let launcher = BridgedLauncher(bridge: bridge, typed: true)
+    let nativeShadow = NativeLauncher(inner: launcher, run: context.run, budget: nil)
     // File Search's row and its typed word push the app's own file search over the launcher, step
     // 3.3e, the same source its own key opens.
     let shownLauncher = BridgedLauncher(bridge: bridge, shown: true, natives: [fileSearch.manifest.name: fileSearch])
     self.shownLauncher = shownLauncher
-    sources = [fileSearch.manifest.name: fileSearch, shownLauncher.manifest.name: shownLauncher]
+    // The launcher a person opens, passed through a tee, so each answer it settles on once typing
+    // pauses is what the catalog the app builds itself is compared with, step 6.1. A claimed answer is
+    // a scope's list, which the catalog never builds, so it is left out.
+    let compared = ShadowTee(shownLauncher) { [searcher] query, answer, level in
+      guard answer.handOver == nil else { return }
+      let ranked = await searcher.rank(answer, query: query, level: level)
+      let kept = ranked.rows.filter { !$0.pinned && !$0.fromQuery }
+      let keys = await shownLauncher.remembered(kept)
+      let claimed = await shownLauncher.claimed
+      await MainActor.run { CatalogCompare.shadow?.settled(query: query, keys: keys, status: answer.status, claimed: claimed) }
+    }
+    sources = [fileSearch.manifest.name: fileSearch, shownLauncher.manifest.name: compared]
     // The shadow answers on a source of its own, so a list a person has open is never touched.
     let shadowed = FileSearchSource(context: context)
     shadows = [shadowed.manifest.name: Shadow(tool: shadowed.manifest.name, source: shadowed,
       searcher: searcher, run: context.run, log: olm.appendingPathComponent("log"),
       skip: { FileSearchSource.shadowSkip($0, settings: .read(from: context.run)) })]
     bridgedLauncher = launcher
-    launcherShadow = Shadow(tool: launcher.manifest.name, source: launcher, searcher: searcher,
+    launcherShadow = Shadow(tool: launcher.manifest.name, source: nativeShadow, searcher: searcher,
       run: context.run, log: olm.appendingPathComponent("log"), skip: { _ in nil },
-      named: { await launcher.remembered($0) })
+      named: { await nativeShadow.remembered($0) })
+    Self.CatalogCompare.shadow = launcherShadow
     super.init()
   }
 

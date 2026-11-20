@@ -290,7 +290,9 @@ function M.new(opts)
     end
     service.nextLevel = service.nextLevel + 1
     local level = { id = "v" .. service.nextLevel, kind = "launcher", refs = {}, items = {}, keys = {},
-      nextRef = 0, sent = nil, revision = 0 }
+      nextRef = 0, sent = nil, revision = 0,
+      -- The app building the catalog itself, step 6.1, so this level serves the typed rows alone.
+      typed = what.typed == true and opts.launcher.typedRows ~= nil or nil }
     service.levels[level.id] = level
     local memory = memoryOut()
     service.sentMemory = {}
@@ -404,8 +406,13 @@ function M.new(opts)
       end
       return { effects = effects }
     end
+    return service.launcherChose(level, level.items[params.ref], query)
+  end }
+
+  -- A launcher row chosen, by its item, what both a ref and a catalog row the app built run through.
+  function service.launcherChose(level, item, query)
     if not opts.launcher.choose then rpc.fail(rpc.UNKNOWN, "choose is not served") end
-    local effects, run = opts.launcher.choose(level.items[params.ref], query, service.shows)
+    local effects, run = opts.launcher.choose(item, query, service.shows)
     effects = service.pushes(level, effects or {})
     if type(run) == "function" then
       runWaiting(level.id)
@@ -414,6 +421,15 @@ function M.new(opts)
       if opts.later then opts.later(1, function() runWaiting(level.id) end) end
     end
     return { effects = effects }
+  end
+
+  -- Return on a row of the catalog the app built itself, step 6.1, named by the item the catalog
+  -- share carried, since the app holds no ref for a row it never asked for.
+  methods.chooseItem = { run = function(params)
+    local level = service.levels[params.level]
+    if not level or level.kind ~= "launcher" then rpc.fail(rpc.GONE, "no launcher level " .. tostring(params.level)) end
+    if type(params.item) ~= "table" then rpc.fail(rpc.PARAMS, "chooseItem needs an item") end
+    return service.launcherChose(level, params.item, type(params.query) == "string" and params.query or "")
   end }
 
   -- The app's chooser is gone, so the work Return left waiting runs now.
@@ -465,7 +481,10 @@ function M.new(opts)
   end
 
   function service.rowsFor(level, query)
-    if level.kind ~= "presentation" then return opts.launcher.rows(query) end
+    if level.kind ~= "presentation" then
+      if level.typed then return opts.launcher.typedRows(query) end
+      return opts.launcher.rows(query)
+    end
     local p = level.presentation
     local rows = p.rows and p.rows(query) or {}
     if opts.stampIcons then rows = opts.stampIcons(rows, p.name) end

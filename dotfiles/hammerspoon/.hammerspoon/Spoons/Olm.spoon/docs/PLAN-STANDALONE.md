@@ -143,7 +143,7 @@ Stage 5, keys
 - [ ] 5.4 The key daemon, optional, kanata kept until then
 
 Stage 6, the core in the app, one per step
-- [ ] 6.1 The launcher's catalog and its recency
+- [ ] 6.1 The launcher's catalog and its recency. The catalog in the app is built and in shadow beside the launcher in use on 2026-11-20, `docs/DESIGN-APP-LAUNCHER.md` step 6.1, the flip next
 - [ ] 6.2 The app toggler
 - [ ] 6.3 The window manager and window size
 - [ ] 6.4 Workspaces
