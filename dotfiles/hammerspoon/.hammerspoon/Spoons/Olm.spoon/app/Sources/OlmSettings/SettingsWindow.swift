@@ -93,7 +93,7 @@ public final class SettingsWindow: NSObject, NSWindowDelegate {
     } else {
       let model = SettingsModel(share: share(), service: service)
       self.model = model
-      let w = NSWindow(contentViewController: SettingsSplit(model: model))
+      let w = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(model: model)))
       w.title = "Olm Settings"
       w.titleVisibility = .hidden
       w.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
@@ -103,7 +103,7 @@ public final class SettingsWindow: NSObject, NSWindowDelegate {
       w.titlebarSeparatorStyle = .none
       w.isReleasedWhenClosed = false
       w.setContentSize(NSSize(width: 1100, height: 740))
-      w.contentMinSize = NSSize(width: SettingsSplit.sidebarWidth + 560, height: 520)
+      w.contentMinSize = NSSize(width: SettingsView.sidebarWidth + 560, height: 520)
       // The size is kept between openings and the place is not, since it opens centred. Named
       // afresh with each larger default, so a size saved at an older one is not restored.
       w.setFrameAutosaveName("OlmSettingsPaneFrame")
@@ -173,56 +173,30 @@ public final class SettingsWindow: NSObject, NSWindowDelegate {
   }
 }
 
-/// The sidebar and the pane as AppKit's own split, a sidebar item so it floats as glass on macOS 26
-/// and runs under the window's buttons. SwiftUI's NavigationSplitView ignored its column width in a
-/// window made by hand, about 140 points whatever was asked, and a width forced onto its split view
-/// afterwards flickered as the window resized and collapsed when dragged left. Here the width is
-/// the item's own, fixed, the divider takes no drag and the sidebar cannot collapse.
-@MainActor
-final class SettingsSplit: NSSplitViewController {
+/// The window's one view: the wash over the whole window, the sidebar a floating Liquid Glass panel
+/// over it, inset from the window's edges with the window's buttons on it as System Settings draws
+/// on macOS 26, and the chosen section beside it. Olm draws the sidebar itself rather than through
+/// a split view, since NavigationSplitView ignored its column width in a window made by hand and
+/// AppKit's sidebar split drew it flat, so its width is fixed here and it is glass on every load.
+struct SettingsView: View {
   static let sidebarWidth: CGFloat = 280
-
-  init(model: SettingsModel) {
-    super.init(nibName: nil, bundle: nil)
-    let sidebar = NSSplitViewItem(sidebarWithViewController: NSHostingController(rootView: SettingsSidebar(model: model)))
-    sidebar.minimumThickness = Self.sidebarWidth
-    sidebar.maximumThickness = Self.sidebarWidth
-    sidebar.canCollapse = false
-    sidebar.allowsFullHeightLayout = true
-    sidebar.holdingPriority = .required
-    let detail = NSSplitViewItem(viewController: NSHostingController(rootView: SettingsDetail(model: model)))
-    detail.minimumThickness = 560
-    addSplitViewItem(sidebar)
-    addSplitViewItem(detail)
-  }
-
-  @available(*, unavailable)
-  required init?(coder: NSCoder) { fatalError("not from a nib") }
-
-  /// No place on the divider answers a drag, so the width cannot be changed or the sidebar hidden.
-  override func splitView(_ splitView: NSSplitView, effectiveRect proposedEffectiveRect: NSRect,
-                          forDrawnRect drawnRect: NSRect, ofDividerAt dividerIndex: Int) -> NSRect { .zero }
-
-  override func splitView(_ splitView: NSSplitView, canCollapseSubview subview: NSView) -> Bool { false }
-}
-
-/// The search, the app's name and version, and the sections.
-struct SettingsSidebar: View {
+  /// The sidebar panel's inset from the window's edges.
+  static let inset: CGFloat = 8
   @ObservedObject var model: SettingsModel
 
   var body: some View {
-    List(selection: $model.selection) {
-      Section {
-        SearchField(text: $model.query)
-        AppIdentity()
-      }
-      Section {
-        ForEach(model.sections) { section in
-          Label(section.title, systemImage: section.symbol).tag(section.id)
-        }
+    ZStack {
+      Backdrop()
+      HStack(spacing: 0) {
+        SettingsSidebar(model: model)
+          .frame(width: Self.sidebarWidth)
+          .frame(maxHeight: .infinity)
+          .glassPanel(cornerRadius: 18)
+          .padding(Self.inset)
+        SettingsDetail(model: model)
       }
     }
-    .listStyle(.sidebar)
+    .ignoresSafeArea()
     .onChange(of: model.query) {
       let sections = model.sections
       if let first = sections.first, !sections.contains(where: { $0.id == model.selection }) {
@@ -232,41 +206,53 @@ struct SettingsSidebar: View {
   }
 }
 
-/// The search over the sections, the system's search field, since the toolbar's lives with
-/// NavigationSplitView.
-struct SearchField: NSViewRepresentable {
-  @Binding var text: String
+/// The search, the app's name and version, and the sections, under the window's buttons.
+struct SettingsSidebar: View {
+  @ObservedObject var model: SettingsModel
 
-  func makeNSView(context: Context) -> NSSearchField {
-    let field = NSSearchField()
-    field.placeholderString = "Search"
-    field.controlSize = .large
-    field.delegate = context.coordinator
-    return field
-  }
-
-  func updateNSView(_ field: NSSearchField, context: Context) {
-    if field.stringValue != text { field.stringValue = text }
-  }
-
-  func makeCoordinator() -> Coordinator { Coordinator(text: $text) }
-
-  final class Coordinator: NSObject, NSSearchFieldDelegate {
-    let text: Binding<String>
-    init(text: Binding<String>) { self.text = text }
-    func controlTextDidChange(_ note: Notification) {
-      if let field = note.object as? NSSearchField { text.wrappedValue = field.stringValue }
+  var body: some View {
+    VStack(alignment: .leading, spacing: 10) {
+      // Room for the window's buttons, which sit on the panel.
+      Color.clear.frame(height: 30)
+      SearchField(text: $model.query).padding(.horizontal, 10)
+      AppIdentity().padding(.horizontal, 14)
+      List(selection: $model.selection) {
+        ForEach(model.sections) { section in
+          Label(section.title, systemImage: section.symbol).tag(section.id)
+        }
+      }
+      .listStyle(.sidebar)
+      .scrollContentBackground(.hidden)
     }
   }
 }
 
-/// The chosen section over the wash.
+/// The search over the sections, in a glass capsule.
+struct SearchField: View {
+  @Binding var text: String
+
+  var body: some View {
+    HStack(spacing: 6) {
+      Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+      TextField("Search", text: $text).textFieldStyle(.plain)
+      if !text.isEmpty {
+        Button { text = "" } label: {
+          Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+      }
+    }
+    .padding(.horizontal, 10).padding(.vertical, 7)
+    .glassCapsule()
+  }
+}
+
+/// The chosen section.
 struct SettingsDetail: View {
   @ObservedObject var model: SettingsModel
 
   var body: some View {
-    ZStack {
-      Backdrop()
+    Group {
       if model.share == nil {
         ContentUnavailableView("No settings yet", systemImage: "gearshape",
           description: Text("Hammerspoon writes them when it loads, with the olmapp piece on."))
@@ -277,6 +263,7 @@ struct SettingsDetail: View {
         ContentUnavailableView.search(text: model.query)
       }
     }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
   }
 }
 
@@ -302,11 +289,11 @@ struct AppIdentity: View {
   }
 }
 
-/// The wash behind the detail, the accent colour fading out, carried under the floating sidebar on
-/// macOS 26 and later so the sidebar's glass bends it too.
+/// The wash over the whole window, the accent colour fading out, so the sidebar's glass has
+/// something to bend.
 struct Backdrop: View {
   var body: some View {
-    let wash = ZStack {
+    ZStack {
       Rectangle().fill(.background)
       LinearGradient(colors: [Color.accentColor.opacity(0.22), Color.accentColor.opacity(0.04), .clear],
         startPoint: .topLeading, endPoint: .bottomTrailing)
@@ -314,11 +301,6 @@ struct Backdrop: View {
         startRadius: 10, endRadius: 520)
     }
     .ignoresSafeArea()
-    if #available(macOS 26, *) {
-      wash.backgroundExtensionEffect()
-    } else {
-      wash
-    }
   }
 }
 
@@ -518,6 +500,27 @@ extension View {
       glassEffect(.regular, in: shape)
     } else {
       background(.regularMaterial, in: shape)
+    }
+  }
+
+  /// The sidebar's panel, clear glass with a hairline rim and a soft shadow so it floats.
+  @ViewBuilder func glassPanel(cornerRadius: CGFloat) -> some View {
+    let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+    if #available(macOS 26, *) {
+      glassEffect(.regular, in: shape)
+        .shadow(color: .black.opacity(0.08), radius: 12, y: 4)
+    } else {
+      background(.regularMaterial, in: shape)
+        .overlay(shape.strokeBorder(.white.opacity(0.4), lineWidth: 0.5))
+        .shadow(color: .black.opacity(0.08), radius: 12, y: 4)
+    }
+  }
+
+  @ViewBuilder func glassCapsule() -> some View {
+    if #available(macOS 26, *) {
+      glassEffect(.regular.interactive(), in: Capsule())
+    } else {
+      background(.thinMaterial, in: Capsule())
     }
   }
 

@@ -1167,3 +1167,11 @@ than 480, so the sidebar stays fixed and undraggable at 280 and the window opens
 again. With the pointer at the top of the pane the empty toolbar drew a band with a line under it
 over the page, so the window has no toolbar now, its title bar see-through and without a separator,
 and the page still meets the window's top edge.
+
+**2026-11-20 13:30, the settings sidebar drawn by Olm as a floating glass panel.** AppKit's sidebar
+split from 12:26 drew the sidebar flat grey, with no glass, and Milos asked for the glass back. The
+window is now one SwiftUI view with no split view of any kind: the wash fills the whole window and
+the sidebar is a 280 point panel over it, `glassEffect` on a rounded rectangle inset 8 points from
+the window's edges, with the window's buttons sitting on it as System Settings draws on macOS 26.
+The search is a glass capsule of its own. Since the width is the panel's frame, it cannot be
+dragged, collapse or flicker, which closes the two split view attempts.
