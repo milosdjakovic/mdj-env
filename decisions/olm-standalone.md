@@ -1264,3 +1264,12 @@ line that tells an author what to declare. Apple's App Sandbox was rejected, sin
 running tools like tmux or mullvad at all. The sandbox's rule language is deprecated and the
 disclaim flag private, so step 1 proves both here before anything leans on them. Swift is the one
 language at first, other languages a later step.
+
+**2026-11-20 16:15, the route to Olm alone written into the plan.** Milos asked for the plan written down. Stages 4
+to 6 of `docs/PLAN-STANDALONE.md`, plugins native, keys and the system plugins, all optional, are
+replaced by five stages and a checklist: 4 the plugin runner, the design note's steps with keep awake
+as the first external plugin, 5 keys as before with the key daemon optional since kanata can keep
+remapping, 6 the core in the app one plugin per step with the launcher's catalog first, 7 our
+external plugins one per step with display profiles first, and 8 Olm alone, the first run,
+Hammerspoon switched off, signing, and where Olm lives asked again. Open question 3 is answered,
+Swift at first in a sandboxed process. The order may change a step at a time.

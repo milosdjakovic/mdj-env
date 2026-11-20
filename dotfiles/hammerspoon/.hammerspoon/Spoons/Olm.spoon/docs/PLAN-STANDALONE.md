@@ -23,7 +23,7 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 3.3 is done, its five steps 3.3a to 3.3e each tried by Milos, the last on 2026-11-17. 3.4, the keys of a list pushed in the app, is done, tried by Milos on 2026-11-17. 3.5, the flip of Hyper and Space, is built and held off behind `launcherFlip` until every tool the launcher leads to is shown in the app, since a row leading to one it does not show did nothing. 3.6 is done, tried by Milos on 2026-11-18. 3.7, one look for every picture and word, is done, tried by Milos on 2026-11-18. 3.5, the flip of Hyper and Space, is done, tried by Milos on 2026-11-18. Checking the resting point found a tool's own key still opening Hammerspoon's list, so 3.8 was added and is done, tried by Milos on 2026-11-18. Input Sources' cycle in the app is done. The resting point was called reached by Milos on 2026-11-20, the launcher's timings read from 62 opens, typing never waiting on Hammerspoon, its rows a Hammerspoon round trip of 73 ms median by design until stage 4, and file search's timings left to a follow up with one open recorded. Next, the route to Olm standing alone, stages 4 to 6. On 2026-11-20 Milos settled the split, the core built into the app in Swift and every other plugin an external one, ours in Swift too, each a process of its own run by the app, `docs/DESIGN-APP-PLUGINS.md`, whose design note waits on his go. 2.3's shadow keeps logging, and its log empty is a condition of 3.5's flip. File search is the app's since 1.5's flip on 2026-11-12.
+Next. 3.3 is done, its five steps 3.3a to 3.3e each tried by Milos, the last on 2026-11-17. 3.4, the keys of a list pushed in the app, is done, tried by Milos on 2026-11-17. 3.5, the flip of Hyper and Space, is built and held off behind `launcherFlip` until every tool the launcher leads to is shown in the app, since a row leading to one it does not show did nothing. 3.6 is done, tried by Milos on 2026-11-18. 3.7, one look for every picture and word, is done, tried by Milos on 2026-11-18. 3.5, the flip of Hyper and Space, is done, tried by Milos on 2026-11-18. Checking the resting point found a tool's own key still opening Hammerspoon's list, so 3.8 was added and is done, tried by Milos on 2026-11-18. Input Sources' cycle in the app is done. The resting point was called reached by Milos on 2026-11-20, the launcher's timings read from 62 opens, typing never waiting on Hammerspoon, its rows a Hammerspoon round trip of 73 ms median by design until stage 4, and file search's timings left to a follow up with one open recorded. The route to Olm standing alone is stages 4 to 8, written on 2026-11-20. Next, 4.1, the plugin runner, the sandbox and a test plugin, on Milos's go. On 2026-11-20 Milos settled the split, the core built into the app in Swift and every other plugin an external one, ours in Swift too, each a process of its own run by the app, `docs/DESIGN-APP-PLUGINS.md`, whose design note waits on his go. 2.3's shadow keeps logging, and its log empty is a condition of 3.5's flip. File search is the app's since 1.5's flip on 2026-11-12.
 
 Stage 0, contracts
 - [x] 0.1 The decision record, 2026-11-05
@@ -127,32 +127,58 @@ Olm Settings, the app's own window, asked by Milos on 2026-11-19 while the timin
 The resting point
 - [x] All five conditions of the resting point hold, checked on every machine whose `olmapp` piece is on, called reached by Milos on 2026-11-20
 
-Stage 4, plugins native, optional
-- [ ] The app catalog and its recency
-- [ ] Emoji
-- [ ] Menu search
-- [ ] Clipboard, the monitor and the store together
-- [ ] The extension host and its first extension
+Stage 4, the plugin runner, `docs/DESIGN-APP-PLUGINS.md`
+- [ ] 4.1 The runner, the sandbox and a test plugin, proved on this machine
+- [ ] 4.2 `OlmPluginKit`, the `olm` command and the test harness
+- [ ] 4.3 Installing from Olm Settings and asking once
+- [ ] 4.4 Keep awake, the first external plugin, shadowed and flipped
+- [ ] 4.5 The skill for writing an external plugin in any folder
 
-Stage 5, keys, optional
+Stage 5, keys
 - [ ] 0.3f Fixtures for the chord engine's timing
 - [ ] 5.1 The app hears the leaders in shadow
 - [ ] 5.2 Cheat sheets in the app
 - [ ] 5.3 Key ownership, META
 - [ ] 5.3 Key ownership, Hyper
-- [ ] 5.4 The key daemon
+- [ ] 5.4 The key daemon, optional, kanata kept until then
 
-Stage 6, self sufficient, optional
-- [ ] Each system plugin, added here when it is started
-- [ ] The settings window and its config model
-- [ ] The first run through the permissions
-- [ ] Signing and notarization
-- [ ] Hammerspoon switched off on a machine
+Stage 6, the core in the app, one per step
+- [ ] 6.1 The launcher's catalog and its recency
+- [ ] 6.2 The app toggler
+- [ ] 6.3 The window manager and window size
+- [ ] 6.4 Workspaces
+- [ ] 6.5 The clipboard, the monitor and the store together
+- [ ] 6.6 Emoji
+- [ ] 6.7 Menu search
+- [ ] 6.8 Input sources
+- [ ] 6.9 Text case
+- [ ] 6.10 The calculator and convert
+- [ ] 6.11 System Settings panes
+
+Stage 7, our external plugins, one per step
+- [ ] Display profiles
+- [ ] Tmux sessions
+- [ ] VPN
+- [ ] Wi-Fi
+- [ ] Audio and volume
+- [ ] Dock auto hide
+- [ ] Speed test
+- [ ] Processes
+- [ ] Obsidian
+- [ ] Browser tabs
+- [ ] Capture
+- [ ] Eyedropper
+
+Stage 8, Olm alone
+- [ ] 8.1 The first run through the permissions
+- [ ] 8.2 Hammerspoon switched off on a machine, the bridge serving nothing
+- [ ] 8.3 Signing and notarization, when Olm goes to another person
+- [ ] 8.4 Where Olm lives, this repository or one of its own, asked again
 
 Open questions
 - [x] 1 Where Olm.app lives, in this repository until Olm is decoupled, 2026-11-07
 - [x] 2 Unix socket or local HTTP, a Unix socket, 2026-11-13
-- [ ] 3 What extensions are written in
+- [x] 3 What extensions are written in, Swift at first in a sandboxed process, 2026-11-20
 - [ ] 4 Leaders in a password field
 - [ ] 5 The calculator
 - [ ] 6 Lua after Hammerspoon
@@ -1048,25 +1074,49 @@ bridged plugin still computes its rows on Hammerspoon's thread, so a slow plugin
 leader key there for that moment, though it can no longer hold up typing in the list. Moving that
 plugin native in stage 4 is what ends it for that plugin.
 
-## After the resting point, optional and at any pace
+## After the resting point, the route to Olm alone
 
-### Stage 4, plugins move native, one per step
+Written on 2026-11-20, once Milos called the resting point reached and asked to go on until Olm
+stands alone. The end is Olm.app with no Hammerspoon at all. What is reached constantly by key, or
+touches windows, typing and the clipboard, is the **core**, Swift built into the app. Every other
+plugin is **external**, a program of its own run by the app in a sandbox, ours in Swift and anyone
+else's installed without a build of Olm, `docs/DESIGN-APP-PLUGINS.md`. The four plugins the settings
+window replaced, Olm Chooser, Olm Placement, Olm Theme and Olm Plugins, are not carried over.
 
-Each plugin moves the same way. Its fixtures first, then a native implementation in the app
-answering in shadow beside the bridged Lua one, then the flip, which switches the Lua plugin off
-for that machine in `config/plugins.lua` and lets the app own it. Back out is the reverse switch.
+Every move keeps the rules of the stages before it. A plugin's new form runs beside the Lua one in
+shadow where its rows can be compared, then a flip switches the Lua plugin off in
+`config/plugins.lua` for that machine, and switching it back on is the way back. No flip drops a
+feature. Each step ends with Milos's trial. The order below can change, a step at a time.
 
-The suggested order is by how often it is opened and how heavy it is in Lua. The app catalog and
-its recency, emoji, menu search, then the clipboard.
+### Stage 4, the plugin runner
 
-The clipboard is the one with a second owner to worry about, since two monitors would capture
-every copy twice. Its flip moves the monitor and the store together, and its store is read by the
-app from the same files before the flip so no history is lost and the Lua side can take it back.
+The way external plugins run is built first, since stage 7 stands on it and every plugin after it
+lands faster for it. Its steps are the design note's.
 
-A TypeScript extension host, if chosen below, joins here as a second host on the same protocol,
-with one small extension written first to prove the API.
+**4.1 The runner, the sandbox and a test plugin.** `PluginRunner`, an actor in the app with one
+child per plugin, `ExternalSource`, the third conformance of the `Source` protocol, and the bridge
+protocol over each plugin's pipes. Budgets on every request, the kill, the restart and the switch
+off after repeated failures. The sandbox is proved on this machine first, a plugin running
+caffeinate and mullvad under rules written from its manifest and refused what it did not declare,
+and the disclaim of Olm's own grants. Test, a plugin built to be slow, to spin, to leak and to crash,
+each shown to leave typing untouched by the timings of 1.3f on the app's side.
+
+**4.2 `OlmPluginKit`, the `olm` command and the test harness.** A plugin written, tested and run
+from a folder outside this repository. `olm plugin new`, `dev`, `test`, `install`, `log`.
+
+**4.3 Installing and asking once.** The Plugins section of Olm Settings takes a dropped plugin, shows
+the one sheet of what it asks for, builds it and lists it with its grants, its log and its switch. A
+block in use is offered with Allow.
+
+**4.4 Keep awake, the first external plugin.** Small and pure, rewritten in Swift as an external
+plugin, run in shadow beside the Lua one and flipped.
+
+**4.5 The skill.** A Claude Code skill for writing an external plugin in any folder, written once 4.2
+and 4.3 have settled the commands.
 
 ### Stage 5, keys
+
+Nothing stands alone while Hammerspoon binds the keys, so this comes before the core moves.
 
 **5.1 The app hears the leaders in shadow.** kanata and the driver keep remapping the physical
 keys and Hammerspoon keeps every binding. The app reads the compiled keymap over the bridge,
@@ -1078,25 +1128,45 @@ binds the keys. Test, the sheets golden against what the app draws, then a live 
 
 **5.3 Key ownership moves one leader at a time.** META first, since window management is one
 plugin, then Hyper. The keymap names the owner of every row so the two processes never both bind
-a chord. Back out, the owner setting.
+a chord. A key whose action is still Hammerspoon's is run over the bridge. Back out, the owner
+setting.
 
-**5.4 The key daemon.** `olmkeyd`, a root daemon that seizes the keyboard and types through the
-same Karabiner VirtualHIDDevice driver, replaces kanata on a machine whose `kanata` piece is on,
-with a tap backend for a machine without the driver that behaves as Hammerspoon does now, blind in
-a password field. It takes over the pairing in `dotfiles/kanata/DRIVER`. kanata stays installed
-and can be started again until the daemon has run long enough to be trusted.
+**5.4 The key daemon, optional.** `olmkeyd`, a root daemon that seizes the keyboard and types
+through the same Karabiner VirtualHIDDevice driver, replaces kanata on a machine whose `kanata` piece
+is on, with a tap backend for a machine without the driver that behaves as Hammerspoon does now,
+blind in a password field. It takes over the pairing in `dotfiles/kanata/DRIVER`. kanata stays
+installed and can be started again until the daemon has run long enough to be trusted. Olm stands
+alone without it, kanata doing the remapping as it does today.
 
-### Stage 6, the system plugins and the rest of being self sufficient
+### Stage 6, the core in the app
 
-Windows, workspaces, display profiles, the app toggler, audio, wifi and the rest, one per step in
-the stage 4 way, each on native APIs rather than the command line tools they call today wherever a
-native API exists. Alongside them, a settings window and the config model behind it, so a person
-sets leaders, remaps, app keys and their styles, plugins and the look there rather than in files,
-and a first run that walks through the permissions macOS asks for, Accessibility, Input
-Monitoring, and the driver and the daemon where they are used. When the bridge serves no plugin on
-a machine, that machine's Hammerspoon piece can be switched off, and removing it is the separate
-act rule 6 describes. Shipping to another person adds signing with a Developer ID and
-notarization.
+One plugin per step, each a Swift module built into the app on native APIs, in the stage 4 way of
+the earlier plan, fixtures first, a native source answering in shadow beside the bridged Lua one,
+then the flip. The order is by how much leans on it. The launcher's catalog first, so typing in the
+launcher no longer asks Hammerspoon for rows, then the app toggler and the windows, the keys a person
+presses most, then the clipboard, whose flip moves the monitor and the store together, its store read
+by the app from the same files before the flip so no history is lost and the Lua side can take it
+back, then the rest.
+
+### Stage 7, our external plugins
+
+Each of ours rewritten in Swift as an external plugin, on native APIs where one exists rather than
+the command line tool it calls today, declaring its sandbox, run in shadow and flipped. Display
+profiles first, since it is the one that must run in the background and proves that path.
+
+### Stage 8, Olm alone
+
+**8.1 The first run.** A first run that walks through what macOS asks of Olm, Accessibility, Input
+Monitoring, and the driver and the daemon where they are used.
+
+**8.2 Hammerspoon switched off.** When the bridge serves nothing on a machine, its `hammerspoon`
+piece is switched off, and removing Hammerspoon is the separate act rule 4 of the repository's
+machine rules describes, done with the person's go ahead.
+
+**8.3 Signing and notarization,** with a Developer ID, when Olm goes to another person.
+
+**8.4 Where Olm lives.** Open question 1 comes back, this repository or one of its own, asked
+before Hammerspoon is switched off.
 
 ## Open questions
 
@@ -1108,7 +1178,8 @@ notarization.
    at `~/.olm/run/bridge.sock` that the app listens on and the Lua side connects to, each message
    its length on a line and then the JSON, `docs/PROTOCOL-BRIDGE.md` revised to it.
 3. What extensions are written in. JavaScriptCore with shims, as Tinycast runs Raycast's, needs no
-   bundled runtime. Decided before the extension host in stage 4.
+   bundled runtime. Decided on 2026-11-20 with Milos, Swift at first, a program of its own run in a
+   sandbox, other languages later on the same protocol, `docs/DESIGN-APP-PLUGINS.md`.
 4. Whether leaders work in a password field, through a bundled virtual HID driver, or the tap
    backend is accepted with its blind spot. Decided before 5.4.
 5. The calculator. A native engine with a rates source this project chooses, rather than bundling
