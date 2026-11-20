@@ -1209,3 +1209,12 @@ starts, so the first open shows a window already laid out. The search is a Liqui
 points tall above the sections, and the window has an empty unified toolbar over a see-through
 title bar, as Finder has, so the buttons sit lower and further in, with the search and the app's
 row starting where the close button does, read off the window.
+
+**2026-11-20 14:38, the settings window on one spacing scale with no layout shift.** Milos found the sidebar's
+highlights out of line with the search and badly spaced, the pane blue though he never asked for it,
+and the line about applying on close pushing the card down when it appeared. The window now takes
+every gap from five tokens, edge, group, pad, related and row, written in the design's Layout section
+with the rules for no layout shift. The sidebar draws its own rows, since a sidebar List places its
+highlight and symbols where the system decides and they did not line up with anything else, the
+accent wash is gone, and the note sits in a fixed slot at the header's right. Rejected: keeping
+List for the sections, since its insets cannot be set to match the search and the window's buttons.

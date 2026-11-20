@@ -82,6 +82,35 @@ opens the window. In Hammerspoon's fallback list the field key ⌘, does the sam
 with a problem line naming Olm Settings, so no list can take it. Outside Olm, ⌘, stays every app's
 own settings.
 
+## Layout
+
+Stated by Milos on 2026-11-20. Every gap in the window is one of the tokens in `Space`, in
+`app/Sources/OlmSettings/SettingsWindow.swift`, and a change to the window keeps to them rather than
+adding a number of its own.
+
+| Token | Points | Where |
+|---|---|---|
+| edge | 24 | from the pane's edge to its page, on all four sides |
+| group | 20 | between groups, the header and the card, the search and the sections, the sections and the app's row |
+| pad | 12 | inside a card or a sidebar row, and between a picture and its text |
+| related | 6 | between related elements, a title and the line under it |
+| row | 2 | between the rows of one list |
+
+The sidebar's edge is where the window's close button starts, read off the window, so the buttons,
+the search and every row's highlight share one left edge, and the same gap is kept on the right and
+at the foot. The search's magnifier, the sections' symbols and the app's icon share one column.
+
+**No layout shift.** Nothing a person does moves anything they did not touch.
+
+- What comes and goes keeps its place while hidden, the reset button, the search's clear button, the
+  line saying a change applies on close or was refused, which sits in a fixed slot at the header's
+  right rather than above the card.
+- A control sits in a column of fixed width, so a popup's width changing with its choice moves
+  nothing, and a number is shown in a fixed width, as wide as it can get, with figures of one width.
+- The sidebar's highlight is a fill behind the row and changes no weight and no size.
+- The pane is the window's own background. The accent wash behind it is gone, Milos never asked for a
+  blue pane.
+
 ## What it holds, for Milos to trim
 
 Sections and the settings in each. Live means applied at once, reload means once the window closes.

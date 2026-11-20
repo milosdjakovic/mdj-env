@@ -242,32 +242,54 @@ final class SettingsSplit: NSSplitViewController {
   override func splitView(_ splitView: NSSplitView, canCollapseSubview subview: NSView) -> Bool { false }
 }
 
-/// The search, the app's name and version, and the sections.
+/// Every gap in the window is one of these, so the layout reads as one system and a change keeps
+/// to it. docs/DESIGN-APP-SETTINGS.md, under Layout, states the rules beside them.
+enum Space {
+  /// From a container's edge to what it holds, the pane's page on all four sides.
+  static let edge: CGFloat = 24
+  /// Between groups, the header and the card, the search and the sections, the sections and the
+  /// app's row.
+  static let group: CGFloat = 20
+  /// Inside a card or a sidebar row, from its edge to its content, and between a picture and its
+  /// text.
+  static let pad: CGFloat = 12
+  /// Between related elements, a title and the line under it, a control and its value.
+  static let related: CGFloat = 6
+  /// Between the rows of one list.
+  static let row: CGFloat = 2
+  /// The height of a sidebar row and of the search, one line of text and its pad.
+  static let rowHeight: CGFloat = 32
+  /// The column a row's control sits in, fixed, so a popup's width changing with its choice moves
+  /// nothing else in the row.
+  static let control: CGFloat = 300
+  /// The width a number's value is shown in, the widest it can be, so dragging moves nothing.
+  static let value: CGFloat = 76
+}
+
+/// The search, the sections and the app's row. The sidebar's edge is where the window's close
+/// button starts, read off the window, so the search, every row's highlight and the buttons share
+/// one left edge, and the same gap is kept on the right.
 struct SettingsSidebar: View {
   @ObservedObject var model: SettingsModel
 
   var body: some View {
-    VStack(spacing: 0) {
-      SearchField(text: $model.query)
-        .padding(.leading, model.leading)
-        .padding(.trailing, 14)
-        .padding(.top, 8)
-        .padding(.bottom, 6)
-      List(selection: $model.selection) {
-        ForEach(model.sections) { section in
-          Label(section.title, systemImage: section.symbol).tag(section.id)
+    VStack(alignment: .leading, spacing: Space.group) {
+      SearchField(text: $model.query, move: move)
+      ScrollView {
+        VStack(spacing: Space.row) {
+          ForEach(model.sections) { section in
+            SidebarRow(section: section, selected: section.id == model.current?.id) {
+              model.selection = section.id
+            }
+          }
         }
       }
-      .listStyle(.sidebar)
-      // The app at the foot of the sidebar, its icon in line with the sections' symbols and the
-      // same gap under it as beside it.
-      AppIdentity()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.leading, model.leading)
-        .padding(.trailing, 14)
-        .padding(.top, 12)
-        .padding(.bottom, 18)
+      .scrollIndicators(.never)
+      AppIdentity().padding(.horizontal, Space.pad)
     }
+    .padding(.horizontal, model.leading)
+    .padding(.top, Space.related)
+    .padding(.bottom, model.leading)
     .onChange(of: model.query) {
       let sections = model.sections
       if let first = sections.first, !sections.contains(where: { $0.id == model.selection }) {
@@ -275,37 +297,78 @@ struct SettingsSidebar: View {
       }
     }
   }
+
+  /// Up and down in the search move between the sections, as in System Settings.
+  private func move(_ by: Int) {
+    let sections = model.sections
+    guard !sections.isEmpty else { return }
+    let at = sections.firstIndex(where: { $0.id == model.current?.id }) ?? 0
+    model.selection = sections[min(max(at + by, 0), sections.count - 1)].id
+  }
 }
 
-/// The search over the sections, a Liquid Glass capsule as tall as System Settings' search on
-/// macOS 27, the field inside it plain so the glass is the only bezel.
-struct SearchField: View {
-  @Binding var text: String
+/// One section in the sidebar. The highlight is a fill behind the row and nothing else changes when
+/// it moves, no weight and no size, so choosing a section shifts nothing.
+struct SidebarRow: View {
+  let section: SettingsSection
+  let selected: Bool
+  let choose: () -> Void
 
   var body: some View {
-    HStack(spacing: 7) {
-      Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-      TextField("Search", text: $text).textFieldStyle(.plain)
-      if !text.isEmpty {
-        Button { text = "" } label: {
-          Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-        }
-        .buttonStyle(.plain)
+    Button(action: choose) {
+      HStack(spacing: Space.pad) {
+        Image(systemName: section.symbol)
+          .foregroundStyle(.tint)
+          .frame(width: 20)
+        Text(section.title)
+          .lineLimit(1)
+        Spacer(minLength: 0)
       }
+      .padding(.horizontal, Space.pad)
+      .frame(height: Space.rowHeight)
+      .contentShape(Rectangle())
+      .background(
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
+          .fill(selected ? Color.primary.opacity(0.09) : .clear)
+      )
     }
-    .padding(.horizontal, 12)
-    .frame(height: 36)
+    .buttonStyle(.plain)
+  }
+}
+
+/// The search over the sections, a Liquid Glass capsule a row tall and a little more, its magnifier
+/// in line with the sections' symbols, the field inside it plain so the glass is the only bezel. The
+/// clear button keeps its place when hidden, so typing moves nothing.
+struct SearchField: View {
+  @Binding var text: String
+  let move: (Int) -> Void
+
+  var body: some View {
+    HStack(spacing: Space.pad) {
+      Image(systemName: "magnifyingglass").foregroundStyle(.secondary).frame(width: 20)
+      TextField("Search", text: $text)
+        .textFieldStyle(.plain)
+        .onKeyPress(.downArrow) { move(1); return .handled }
+        .onKeyPress(.upArrow) { move(-1); return .handled }
+      Button { text = "" } label: {
+        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+      }
+      .buttonStyle(.plain)
+      .opacity(text.isEmpty ? 0 : 1)
+      .disabled(text.isEmpty)
+    }
+    .padding(.horizontal, Space.pad)
+    .frame(height: Space.rowHeight + 4)
     .glassCapsule()
   }
 }
 
-/// The chosen section over the wash.
+/// The chosen section on the window's own background.
 struct SettingsDetail: View {
   @ObservedObject var model: SettingsModel
 
   var body: some View {
-    ZStack {
-      Backdrop()
+    Group {
       if model.share == nil {
         ContentUnavailableView("No settings yet", systemImage: "gearshape",
           description: Text("Hammerspoon writes them when it loads, with the olmapp piece on."))
@@ -316,101 +379,91 @@ struct SettingsDetail: View {
         ContentUnavailableView.search(text: model.query)
       }
     }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
   }
 }
 
-/// The app's icon, name and version at the foot of the sidebar.
+/// The app's icon, name and version at the foot of the sidebar, its icon's left edge in line with
+/// the sections' symbols.
 struct AppIdentity: View {
   private var version: String {
     Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
   }
 
   var body: some View {
-    HStack(spacing: 10) {
+    HStack(spacing: Space.pad) {
       Image(nsImage: NSApp.applicationIconImage)
         .resizable()
         .interpolation(.high)
         .frame(width: 36, height: 36)
-      VStack(alignment: .leading, spacing: 1) {
+      VStack(alignment: .leading, spacing: Space.row) {
         Text("Olm").font(.headline)
         Text("Version \(version)").font(.subheadline).foregroundStyle(.secondary)
       }
+      Spacer(minLength: 0)
     }
   }
 }
 
-/// The wash behind the detail, the accent colour fading out, carried under the floating sidebar on
-/// macOS 26 and later so the sidebar's glass bends it too.
-struct Backdrop: View {
-  var body: some View {
-    let wash = ZStack {
-      Rectangle().fill(.background)
-      LinearGradient(colors: [Color.accentColor.opacity(0.22), Color.accentColor.opacity(0.04), .clear],
-        startPoint: .topLeading, endPoint: .bottomTrailing)
-      RadialGradient(colors: [Color.accentColor.opacity(0.14), .clear], center: .bottomTrailing,
-        startRadius: 10, endRadius: 520)
-    }
-    .ignoresSafeArea()
-    if #available(macOS 26, *) {
-      wash.backgroundExtensionEffect()
-    } else {
-      wash
-    }
-  }
-}
-
-/// One section, its header, a line when a change waits for the window to close or was refused, and
-/// its settings on one glass card.
+/// One section, its header and its settings on one glass card. The line saying a change waits for
+/// the window to close, or was refused, sits in a fixed place at the header's right, so it comes and
+/// goes without moving the card.
 struct SectionPage: View {
-  /// The one gap between the page and the pane's edges, left, top, right and bottom alike.
-  static let gap: CGFloat = 28
+  /// The header's height, the section's picture.
+  static let header: CGFloat = 60
   let section: SettingsSection
   @ObservedObject var model: SettingsModel
 
   var body: some View {
     ScrollView {
       GlassGroup {
-        VStack(alignment: .leading, spacing: 22) {
-          HStack(spacing: 16) {
+        VStack(alignment: .leading, spacing: Space.group) {
+          HStack(spacing: Space.pad + 4) {
             Image(systemName: section.symbol)
               // The window follows the system's look and not the chooser's.
               // look-exempt, the section's picture in its glass circle, sized as System Settings does.
               .font(.system(size: 26, weight: .medium))
               .foregroundStyle(.tint)
-              .frame(width: 60, height: 60)
+              .frame(width: Self.header, height: Self.header)
               .glassCircle()
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: Space.row) {
               Text(section.title).font(.largeTitle.weight(.semibold))
               Text(section.settings.count == 1 ? "1 setting" : "\(section.settings.count) settings")
                 .font(.callout).foregroundStyle(.secondary)
             }
+            Spacer(minLength: Space.group)
+            Note(text: note.text, symbol: note.symbol)
+              .opacity(note.text.isEmpty ? 0 : 1)
           }
-          if let refusal = model.refusal {
-            Note(text: refusal, symbol: "exclamationmark.triangle")
-          } else if model.reloadDue {
-            Note(text: "Changes marked to apply on reload apply when this window closes.", symbol: "arrow.clockwise")
-          }
+          .frame(height: Self.header)
           VStack(spacing: 0) {
             ForEach(Array(section.settings.enumerated()), id: \.element.id) { index, setting in
-              if index > 0 { Divider().padding(.leading, 18) }
+              if index > 0 { Divider().padding(.leading, Space.pad + 4) }
               SettingRow(setting: setting, model: model)
-                .padding(.horizontal, 18).padding(.vertical, 12)
+                .padding(.horizontal, Space.pad + 4).padding(.vertical, Space.pad)
             }
           }
-          .glassCard(cornerRadius: 22)
+          .glassCard(cornerRadius: 20)
         }
-        .padding(Self.gap)
+        .padding(Space.edge)
         .frame(maxWidth: .infinity, alignment: .leading)
       }
     }
-    // The gap is measured from the window's edge at the top too, since nothing is drawn over the pane,
-    // so the page sits the same distance from all four edges.
+    // The gap is measured from the window's edge at the top too, since nothing is drawn over the
+    // pane, so the page sits the same distance from all four edges.
     .ignoresSafeArea(.container, edges: .top)
     .softTopEdge()
   }
+
+  private var note: (text: String, symbol: String) {
+    if let refusal = model.refusal { return (refusal, "exclamationmark.triangle") }
+    if model.reloadDue { return ("Applies when this window closes", "arrow.clockwise") }
+    return ("", "arrow.clockwise")
+  }
 }
 
-/// One line in a glass capsule over the card.
+/// One line in a glass capsule, at most two lines wide enough to read, so a long refusal wraps in
+/// its place rather than pushing the header.
 struct Note: View {
   let text: String
   let symbol: String
@@ -418,7 +471,10 @@ struct Note: View {
   var body: some View {
     Label(text, systemImage: symbol)
       .font(.callout).foregroundStyle(.secondary)
-      .padding(.horizontal, 14).padding(.vertical, 8)
+      .lineLimit(2)
+      .frame(maxWidth: 340, alignment: .leading)
+      .fixedSize(horizontal: false, vertical: true)
+      .padding(.horizontal, Space.pad).padding(.vertical, Space.related + 2)
       .glassCard(cornerRadius: 999)
   }
 }
@@ -428,26 +484,30 @@ struct SettingRow: View {
   @ObservedObject var model: SettingsModel
 
   var body: some View {
-    HStack(alignment: .center, spacing: 16) {
+    // The reset button keeps its place when hidden and the control sits in a column of fixed width,
+    // so a value changing, or the reset appearing, moves nothing in the row.
+    let canReset = setting.differs && setting.locked == nil
+    HStack(alignment: .center, spacing: Space.pad) {
       label
-      Spacer(minLength: 12)
-      if setting.differs && setting.locked == nil {
-        Button {
-          model.change(setting, to: .none, reset: true)
-        } label: {
-          Image(systemName: "arrow.uturn.backward")
-        }
-        .buttonStyle(.borderless)
-        .help("Back to the value in the config files")
+      Spacer(minLength: Space.pad)
+      Button {
+        model.change(setting, to: .none, reset: true)
+      } label: {
+        Image(systemName: "arrow.uturn.backward")
       }
+      .buttonStyle(.borderless)
+      .help("Back to the value in the config files")
+      .opacity(canReset ? 1 : 0)
+      .disabled(!canReset)
       control.labelsHidden()
+        .frame(width: Space.control, alignment: .trailing)
     }
     .disabled(setting.locked != nil || model.busy.contains(setting.id))
     .help(setting.locked ?? "")
   }
 
   @ViewBuilder private var label: some View {
-    VStack(alignment: .leading, spacing: 3) {
+    VStack(alignment: .leading, spacing: Space.related / 2) {
       Text(setting.title)
       if let detail = setting.detail, !detail.isEmpty {
         Text(detail).font(.caption).foregroundStyle(.secondary)
@@ -496,7 +556,7 @@ struct SettingRow: View {
       Toggle(setting.title, isOn: flag)
         .toggleStyle(.switch)
     case .number:
-      HStack(spacing: 10) {
+      HStack(spacing: Space.pad) {
         if let lo = setting.min, let hi = setting.max, lo < hi {
           Slider(value: number(lo, hi), in: lo...hi) { editing in
             if !editing, let v = model.drafts[setting.id] {
@@ -508,7 +568,8 @@ struct SettingRow: View {
         Text(SettingFormat.number(model.drafts[setting.id] ?? setting.value.number ?? 0, step: setting.step,
           unit: setting.unit))
           .monospacedDigit()
-          .frame(minWidth: 64, alignment: .trailing)
+          .lineLimit(1)
+          .frame(width: Space.value, alignment: .trailing)
       }
     case .font:
       Picker(setting.title, selection: choice) {
@@ -541,7 +602,7 @@ struct GlassGroup<Content: View>: View {
 
   var body: some View {
     if #available(macOS 26, *) {
-      GlassEffectContainer(spacing: 22) { content }
+      GlassEffectContainer(spacing: Space.group) { content }
     } else {
       content
     }
