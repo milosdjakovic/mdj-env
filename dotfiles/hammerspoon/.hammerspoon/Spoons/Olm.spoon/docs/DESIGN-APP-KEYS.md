@@ -116,6 +116,30 @@ when a sheet shows. The goldens of each sheet are compared with what the app dra
   configured factory. An element the app cannot draw is logged once by name, in Hammerspoon when it
   cannot cross and in the app when it cannot be read.
 
+**5.3, META's modifier combinations owned by the app, built 2026-11-20.**
+
+- **What moved is the claim.** On this machine META arrives from kanata as Shift, Control and Option,
+  the modifier half of its composite leader. The app claims those combinations through Carbon,
+  `app/Sources/OlmKeys/HotKeys.swift`, resolves a press with the resolver of 5.1, gates included,
+  and runs the row in Hammerspoon by its id, the request `runKey`, which takes META's sheet down as a
+  press does. Window management is still Lua, so the run stays there until 6.3. META's held key,
+  Right Option as F16 where kanata is off, and its sheet stay Hammerspoon's.
+- **The handover.** Two processes cannot both hold one combination, so Hammerspoon lets go first.
+  The app asks with `releaseKeys` each time a session opens and each time Hammerspoon says
+  `keysReady` once its leaders started. Hammerspoon disables that leader's hotkeys, and makes any it
+  binds later disabled. A combination the app cannot claim hands the whole leader back, `reclaimKeys`.
+  When the socket goes Hammerspoon enables them again at once and a second later, since the app may
+  still have held one at the first. A leader holding a list key or a row that waits for release is
+  refused, since the app runs neither. META holds neither.
+- **Repeat** is the chord engine's driven schedule, `KeyRepeat`, a run at the press, the first repeat
+  the machine's delay later and every next one an interval after the previous run answered, so a
+  slow run repeats slower and never queues. Fixture 0.3f, `test/fixtures/keys/repeat.json`, is
+  recorded from `lib/chordkey.lua` itself by `test/repeattiming.lua` and checked by `olm-keys-check`.
+- **The switch** is `appKeys` in `config/plugins.lua`, `{ "meta" }`, an empty list being the way back.
+- **Checked** by `test/leaders.lua`, a released leader making its hotkeys disabled and reclaim
+  enabling them, a leader with a list key refused, `test/bridge.lua`, the three words and the socket
+  going, and `olm-keys-check`, the combinations claimed and the timing.
+
 ## Rejected
 
 - **Porting `lib/keymap.lua` to Swift now.** 2026-11-20. It reads Lua config, and the app needs only
@@ -125,6 +149,9 @@ when a sheet shows. The goldens of each sheet are compared with what the app dra
   key on the one thread that must stay free.
 - **IOHIDManager for hearing.** 2026-11-20. It reads a device's values before hidutil's remap and
   beside kanata's seized device, so the app would have to redo both.
+- **Hammerspoon resolving a press the app claimed, the app only catching it.** 2026-11-20. The engine
+  is the app's from 5.1, checked against every row of the live keymap, and a press resolved in Lua
+  would leave nothing of the engine to move when the rows' actions come to the app.
 - **Porting the sheet's grid to Swift at 5.2.** 2026-11-20. The layout reads the kit's tokens and the
   keymap's sections, both Lua's until stage 8, and the elements it answers already cross for the
   preview pane, so the app draws the very sheet with no second layout to keep in step. A port is

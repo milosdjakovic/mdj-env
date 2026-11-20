@@ -71,7 +71,10 @@ public actor Bridge {
   // Who runs a press on an app Hammerspoon handed over, step 6.2, docs/DESIGN-APP-APPS.md, and who
   // hears each session open, so the app says whether it may act.
   private var appRun: (@Sendable (Any) -> Void)?
-  private var opened: (@Sendable () -> Void)?
+  private var opened: [@Sendable () -> Void] = []
+  // Who hears the session close, and Hammerspoon say its leaders started, step 5.3.
+  private var closed: [@Sendable () -> Void] = []
+  private var keysReady: (@Sendable () -> Void)?
   // Who draws a leader's cheat sheet Hammerspoon laid out, step 5.2, docs/DESIGN-APP-KEYS.md.
   private var sheet: (@Sendable (Any) -> Void)?
   private var log: @Sendable (String) -> Void
@@ -127,7 +130,17 @@ public actor Bridge {
 
   /// Who hears each session open, hello answered.
   public func onOpen(_ fn: @escaping @Sendable () -> Void) {
-    opened = fn
+    opened.append(fn)
+  }
+
+  /// Who hears the session go, the socket closed or Hammerspoon gone.
+  public func onClose(_ fn: @escaping @Sendable () -> Void) {
+    closed.append(fn)
+  }
+
+  /// Who hears Hammerspoon say its leaders started, the keysReady notification, step 5.3.
+  public func onKeysReady(_ fn: @escaping @Sendable () -> Void) {
+    keysReady = fn
   }
 
   /// Who draws what a hosted list's pane drew, the stage, step 3.3d.
@@ -217,6 +230,7 @@ public actor Bridge {
       for l in launchers { await l.reset() }
       hosted = [:]
       ownerIcons = [:]
+      for fn in closed { fn() }
       log("Hammerspoon's connection went")
     }
   }
@@ -234,7 +248,7 @@ public actor Bridge {
       }
       guard conn == id else { return }
       open = true
-      opened?()
+      for fn in opened { fn() }
       sendMetrics()
       for l in launchers.reversed() { try await l.connected(rowLimit: hello["limits"]["rowLimit"].int) }
     } catch {
@@ -287,6 +301,9 @@ public actor Bridge {
     case "keyFired":
       // A global row the binder ran, step 5.1, which the keys' shadow pairs with a press it heard.
       if let id = params["id"].string { keyFired?(id) }
+    case "keysReady":
+      // Hammerspoon's leaders started, so the app asks for the keys it claims, step 5.3.
+      keysReady?()
     case "sheet":
       // A leader's cheat sheet to show or hide, step 5.2.
       sheet?(params.any)

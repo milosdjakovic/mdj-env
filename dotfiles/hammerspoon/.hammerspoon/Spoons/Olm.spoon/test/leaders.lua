@@ -45,6 +45,15 @@ hs = {
       hotkeysBound[#hotkeysBound + 1] = { mods = mods, key = key, press = press, release = release, rep = rep }
       return {}
     end,
+    -- new and enable record through bind, whatever bind a case put there, so a hotkey made disabled
+    -- records nothing until it is enabled, and disable is counted.
+    new = function(mods, key, press, release, rep)
+      local hk = { disabled = 0 }
+      function hk:enable() hs.hotkey.bind(mods, key, press, release, rep); self.on = true; return self end
+      function hk:disable() self.on = false; self.disabled = self.disabled + 1; return self end
+      function hk:delete() self.on = false end
+      return hk
+    end,
   },
   eventtap = {
     checkKeyboardModifiers = function() return heldMods end,
@@ -976,6 +985,30 @@ do
   flags({ shift = true })
   eq(sheet.hid, 2, "sheet: and a change of the set takes it down")
   heldMods = {}
+end
+
+-- Olm.app holding a leader's modifiers, step 5.3. Released before it starts, every combination is
+-- made and none enabled, reclaim enables them, a leader holding a list key is refused, and the held
+-- half of a composite is never touched.
+do
+  local modifier = assert(loadfile(lib .. "leader/triggers/modifier.lua"))()
+  hotkeysBound = {}
+  local m = newLeader({}, predicates, { trigger = modifier.new({ mods = { "shift", "ctrl", "alt" } }) })
+  m:bind("a", function() end, nil, { repeats = true })
+  m:bind("c", function() end)
+  local ok = m:releaseModifiers()
+  eq(ok, true, "release: a leader of modifiers may be released")
+  m:start()
+  eq(#hotkeysBound, 0, "release: released before it starts, no combination is enabled")
+  m:reclaimModifiers()
+  eq(#hotkeysBound, 2, "release: reclaim enables every combination")
+  local listed = newLeader({}, predicates, { trigger = modifier.new({ mods = { "shift", "ctrl", "alt" } }) })
+  listed:bind("c", function() end, nil, { when = "someListOpen" })
+  local ok2, why = listed:releaseModifiers()
+  eq(ok2, false, "release: a leader holding a list key is refused")
+  eq(why, "it holds a list key", "release: and says why")
+  local plain = newLeader({}, predicates, { trigger = modifier.new({ mods = {} }) })
+  eq((plain:releaseModifiers()), false, "release: the plain leader, an empty set, is refused")
 end
 
 print(string.format("leaders: %d checks, %d failed", checks, failures))

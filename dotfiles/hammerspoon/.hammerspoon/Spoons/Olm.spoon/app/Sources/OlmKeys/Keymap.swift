@@ -68,6 +68,8 @@ public struct Keymap: Sendable, Equatable {
   public var leaders: [KeyLeader]
   /// In the order the binder bound them, which the first exact rule reads.
   public var rows: [KeyRow]
+  /// The leaders whose modifier combinations the app claims, step 5.3, by the name a row spells each.
+  public var appKeys: [String] = []
 
   public init(leaders: [KeyLeader], rows: [KeyRow]) {
     self.leaders = leaders
@@ -99,7 +101,9 @@ public struct Keymap: Sendable, Equatable {
         mods: mods(r["mods"]), gate: r["gate"] as? String, priority: (r["priority"] as? NSNumber)?.doubleValue ?? 0,
         repeats: r["repeats"] as? Bool ?? false, afterRelease: r["afterRelease"] as? Bool ?? false)
     }
-    return Keymap(leaders: leaders, rows: rows)
+    var keymap = Keymap(leaders: leaders, rows: rows)
+    keymap.appKeys = o["appKeys"] as? [String] ?? []
+    return keymap
   }
 
   public static func read(_ url: URL) throws -> Keymap {

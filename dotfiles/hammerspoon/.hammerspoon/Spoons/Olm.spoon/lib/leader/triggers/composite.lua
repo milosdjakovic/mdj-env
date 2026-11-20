@@ -63,6 +63,23 @@ function obj.new(spec)
     return false
   end
 
+  -- Olm.app holding a set of modifiers, step 5.3, is the modifier half's, so both words go to every
+  -- half that answers them, the held key staying where it is.
+  function trigger.release()
+    local any = false
+    for _, half in ipairs(halves) do
+      if type(half.release) == "function" and half.release() then any = true end
+    end
+    return any
+  end
+
+  function trigger.reclaim()
+    for _, half in ipairs(halves) do
+      if type(half.reclaim) == "function" then half.reclaim() end
+    end
+    return true
+  end
+
   function trigger.bound(host, binding)
     for _, half in ipairs(halves) do half.bound(host, binding) end
   end

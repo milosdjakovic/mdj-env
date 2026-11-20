@@ -210,5 +210,45 @@ if let i = CommandLine.arguments.firstIndex(of: "--live"), i + 1 < CommandLine.a
   }
 }
 
+// The chord engine's repeat timing, fixture 0.3f, recorded from lib/chordkey.lua by
+// test/repeattiming.lua, answered by the port the app repeats a claimed key on, step 5.3.
+do {
+  let here = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+  let url = here.appendingPathComponent("../../../test/fixtures/keys/repeat.json").standardizedFileURL
+  if let data = try? Data(contentsOf: url), let doc = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+    let cases = doc["cases"] as? [[String: Any]] {
+    for c in cases {
+      let got = KeyRepeat.schedule(delay: c["delay"] as! Double, interval: c["interval"] as! Double,
+        hold: c["hold"] as! Double, handler: (c["handler"] as! NSNumber).doubleValue)
+      let want = (c["runs"] as! [[String: Any]]).map { ((($0["at"] as! NSNumber).doubleValue * 1000).rounded(), $0["depth"] as! Int) }
+      let mine = got.map { (($0.at * 1000).rounded(), $0.depth) }
+      check(mine.count == want.count && zip(mine, want).allSatisfy { $0.0 == $1.0 && $0.1 == $1.1 },
+        "repeat: \(c["name"] ?? ""), wanted \(want), got \(mine)")
+    }
+  } else {
+    check(false, "repeat: no fixture at \(url.path)")
+  }
+}
+
+// The combinations the app claims for a leader it holds, as the modifier trigger claims them, and
+// the leaders the share hands it.
+do {
+  let base: Set<Mod> = [.shift, .ctrl, .alt]
+  let meta = KeyLeader(name: "meta", held: true, keyCode: 106, mods: base, ranked: false)
+  let km = Keymap(leaders: [meta], rows: [
+    KeyRow(id: "w.left", leader: "meta", key: "left", keyCode: 123, mods: nil),
+    KeyRow(id: "w.leftShift", leader: "meta", key: "left", keyCode: 123, mods: [.shift]),
+    KeyRow(id: "w.leftCmd", leader: "meta", key: "left", keyCode: 123, mods: [.cmd]),
+    KeyRow(id: "w.again", leader: "meta", key: "left", keyCode: 123, mods: nil),
+    KeyRow(id: "h.a", leader: "hyper", key: "a", keyCode: 0, mods: nil),
+  ])
+  let combos = KeyOwner.combinations(km, leader: meta, base: base)
+  check(combos.count == 2, "owner: one claim per combination, a row asking for a base modifier left to the held key, \(combos)")
+  check(combos.contains { $0.code == 123 && $0.mods == base }, "owner: a catch all on the base set alone")
+  check(combos.contains { $0.code == 123 && $0.mods == base.union([.cmd]) }, "owner: a row's own modifier added to the base set")
+  let share = #"{"version":1,"leaders":[],"rows":[],"appKeys":["meta"]}"#
+  check((try? Keymap.parse(Data(share.utf8)))?.appKeys == ["meta"], "owner: the share names the leaders the app holds")
+}
+
 print("olm-keys-check, \(checks) checks, \(failures) failed")
 exit(failures == 0 ? 0 : 1)

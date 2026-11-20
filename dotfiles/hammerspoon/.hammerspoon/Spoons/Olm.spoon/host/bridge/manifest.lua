@@ -62,6 +62,10 @@ return {
       -- 6.1, from config/plugins.lua, off by default.
       launcherCatalog = { source = "user", policy = "optional",
         breaks = "the app's launcher asks Hammerspoon for every row on every keystroke, as before" },
+      -- The leaders whose modifier combinations the app claims while its socket is up, step 5.3,
+      -- from config/plugins.lua, none by default.
+      appKeys = { source = "user", policy = "optional",
+        breaks = "every key is bound by Hammerspoon, as before" },
       -- Whether a leader's cheat sheet is drawn by the app while its socket is up, step 5.2, from
       -- config/plugins.lua, off by default.
       sheetsInApp = { source = "user", policy = "optional",

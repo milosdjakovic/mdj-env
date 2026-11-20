@@ -1,0 +1,11 @@
+{
+  "kind": "keys.repeat",
+  "about": "Recorded from lib/chordkey.lua's driven repeat by test/repeattiming.lua, fixture 0.3f, each run of a hold, its start and its depth. Run by test/repeattiming.lua and by olm-keys-check, the app's port, KeyRepeat. Record it again with --record after a change made on purpose.",
+  "cases": [
+    {"name":"a short tap runs once","delay":0.5,"interval":0.1,"hold":0.2,"handler":0,"runs":[{"at":0.0,"depth":0}]},
+    {"name":"a hold past the delay repeats on the interval","delay":0.5,"interval":0.1,"hold":0.95,"handler":0,"runs":[{"at":0.0,"depth":0},{"at":0.5,"depth":1},{"at":0.6,"depth":2},{"at":0.7,"depth":3},{"at":0.8,"depth":4},{"at":0.9,"depth":5}]},
+    {"name":"the machine's slowest beats","delay":2.0,"interval":2.0,"hold":6.5,"handler":0,"runs":[{"at":0.0,"depth":0},{"at":2.0,"depth":1},{"at":4.0,"depth":2},{"at":6.0,"depth":3}]},
+    {"name":"a slow handler repeats slower, never in a burst","delay":0.3,"interval":0.05,"hold":0.8,"handler":0.12,"runs":[{"at":0.0,"depth":0},{"at":0.3,"depth":1},{"at":0.47,"depth":2},{"at":0.64,"depth":3}]},
+    {"name":"a handler slower than the delay delays the first repeat by nothing","delay":0.2,"interval":0.1,"hold":0.6,"handler":0.25,"runs":[{"at":0.0,"depth":0},{"at":0.2,"depth":1},{"at":0.55,"depth":2}]}
+  ]
+}

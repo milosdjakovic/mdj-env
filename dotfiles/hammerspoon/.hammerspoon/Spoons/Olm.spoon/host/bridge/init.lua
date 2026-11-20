@@ -112,6 +112,14 @@ function obj:configure(opts)
   -- Whether the app's launcher builds its catalog itself, step 6.1, off unless the config says true,
   -- written into the catalog's share for the app to read at each open.
   if opts.launcherCatalog ~= nil then self._catalog = opts.launcherCatalog == true end
+  -- The leaders whose modifier combinations Olm.app claims while its socket is up, step 5.3,
+  -- docs/DESIGN-APP-KEYS.md, by the name a row spells each, none unless the config names them.
+  if type(opts.appKeys) == "table" then
+    self._appKeys = {}
+    for _, name in ipairs(opts.appKeys) do
+      if type(name) == "string" then self._appKeys[#self._appKeys + 1] = name:lower() end
+    end
+  end
   -- Whether a leader's cheat sheet is drawn by the app while its socket is up, step 5.2,
   -- docs/DESIGN-APP-KEYS.md, off unless the config says true.
   if opts.sheetsInApp ~= nil then self._sheetsInApp = opts.sheetsInApp == true end
@@ -311,6 +319,7 @@ function obj:serveLauncher(provider)
       if type(v) == "userdata" and v.getString then return v:getString() end
       return tostring(v)
     end })
+  self:_keyMethods(service.methods)
   local conn
   local session = rpc.new({ json = hs.json, methods = service.methods,
     send = function(text) if conn then conn:send(text) end end,
@@ -319,11 +328,99 @@ function obj:serveLauncher(provider)
   conn = transport.new({ path = (self._run or RUN) .. "/" .. self.SOCKET, frame = frame,
     onMessage = function(text) session:receive(text) end,
     onUp = function() log.i("connected to Olm.app's socket") end,
-    onDown = function() session:reset(); service.closeAll(); log.i("Olm.app's socket went") end,
+    onDown = function()
+      session:reset(); service.closeAll(); self:_reclaimKeys(); log.i("Olm.app's socket went")
+    end,
     log = function(text) log.w(text) end })
   self._conn = conn:start()
   self._service, self._session = service, session
   return conn
+end
+
+--- obj:appKeys() -> the leaders whose modifier combinations the app may claim, step 5.3, a list.
+function obj:appKeys()
+  return self._appKeys or {}
+end
+
+--- obj:keyHost(leaders, rows) hands the bridge the leaders by the name a row spells each and the
+--- rows the binder bound, so a press the app claimed runs the very row the binder would have run,
+--- step 5.3. Called by the root as it binds.
+function obj:keyHost(leaders, rows)
+  self._keyLeaders = leaders or {}
+  local runs = {}
+  for _, row in ipairs(rows or {}) do
+    if type(row.run) == "function" then
+      runs[tostring(row.owner) .. "." .. tostring(row.action)] = { run = row.run, leader = row.leader }
+    end
+  end
+  self._keyRuns = runs
+end
+
+--- obj:keysReady() tells the app the leaders have started, so it asks for the keys it claims, which
+--- it also does each time a session opens.
+function obj:keysReady()
+  if #(self._appKeys or {}) > 0 then self:notify("keysReady", {}) end
+end
+
+-- The three words of step 5.3. releaseKeys hands the app the combinations of every leader it names
+-- that the config lets it claim, answering which were released and why any was not. reclaimKeys
+-- takes some back, for combinations the app could not claim. runKey, a request so a repeat is
+-- chained on its answer, runs one bound row by its id with its depth and takes that row's leader's
+-- sheet down, as a press of the key does.
+function obj:_keyMethods(methods)
+  methods.releaseKeys = { run = function(params)
+    local allowed = {}
+    for _, name in ipairs(self._appKeys or {}) do allowed[name] = true end
+    local released, refused = {}, {}
+    for _, name in ipairs(type(params.leaders) == "table" and params.leaders or {}) do
+      local leader = (self._keyLeaders or {})[name]
+      if not allowed[name] then
+        refused[#refused + 1] = { leader = name, why = "the config does not hand it to the app" }
+      elseif not leader then
+        refused[#refused + 1] = { leader = name, why = "it is not in use" }
+      else
+        local ok, why = leader:releaseModifiers()
+        if ok then
+          released[#released + 1] = name
+          self._released = self._released or {}
+          self._released[name] = leader
+        else
+          refused[#refused + 1] = { leader = name, why = why }
+        end
+      end
+    end
+    for _, r in ipairs(refused) do log.i("the app does not claim " .. r.leader .. "'s keys, " .. tostring(r.why)) end
+    return { released = released, refused = refused }
+  end }
+  methods.reclaimKeys = { run = function(params)
+    for _, name in ipairs(type(params.leaders) == "table" and params.leaders or {}) do
+      local leader = self._released and self._released[name]
+      if leader then
+        leader:reclaimModifiers()
+        self._released[name] = nil
+      end
+    end
+    return true
+  end }
+  methods.runKey = { run = function(params)
+    local entry = (self._keyRuns or {})[tostring(params.id)]
+    if not entry then return false end
+    local leader = entry.leader and (self._keyLeaders or {})[entry.leader]
+    if leader then leader:conceal() end
+    entry.run(tonumber(params.depth) or 0)
+    return true
+  end }
+end
+
+-- Every leader the app held, taken back when the socket goes, at once and again a second later, since
+-- the app may still have held a combination at the first.
+function obj:_reclaimKeys()
+  local held = self._released
+  self._released = nil
+  if not held or next(held) == nil then return end
+  local function all() for _, leader in pairs(held) do leader:reclaimModifiers() end end
+  all()
+  self._keyTimer = hs.timer.doAfter(1, all)
 end
 
 --- obj:catalogInApp() -> whether the app's launcher builds its catalog itself, step 6.1.

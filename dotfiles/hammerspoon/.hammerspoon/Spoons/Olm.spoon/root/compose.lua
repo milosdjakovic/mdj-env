@@ -72,12 +72,23 @@ local keyShareLib = load("lib/keyshare.lua")
 -- ~/.olm/run/keymap.json and the rows are wrapped so each run sends keyFired, which the app's shadow
 -- of the keys pairs with what it resolved itself, step 5.1, docs/DESIGN-APP-KEYS.md. With no bridge
 -- the rows are bound as they are.
-local function sharedKeys(bridge, bound, leaderSpecs, keyTable)
+local function sharedKeys(bridge, bound, leaderSpecs, keyTable, leaders)
   if not (bridge and type(bridge.share) == "function" and type(bridge.notify) == "function") then return bound end
   bridge:share("keymap", function()
-    return keyShareLib.share(bound, leaderSpecs, { bindable = binderLib.bindable, keycodes = keyTable })
+    local share = keyShareLib.share(bound, leaderSpecs, { bindable = binderLib.bindable, keycodes = keyTable })
+    -- The leaders whose modifier combinations the app claims, step 5.3.
+    if type(bridge.appKeys) == "function" then share.appKeys = bridge:appKeys() end
+    return share
   end)
-  return keyShareLib.wrap(bound, function(method, params) bridge:notify(method, params) end)
+  local wrapped = keyShareLib.wrap(bound, function(method, params) bridge:notify(method, params) end)
+  -- The rows the app runs by id once it claims a leader's keys, the very wrapped rows bound here.
+  if type(bridge.keyHost) == "function" then bridge:keyHost(leaders, wrapped) end
+  return wrapped
+end
+
+-- Tells the app the leaders have started, step 5.3, so it asks for the keys it claims.
+local function announceKeys(bridge)
+  if bridge and type(bridge.keysReady) == "function" then bridge:keysReady() end
 end
 -- Hands lib/appfocus.lua the bridge's forwarder, so a press on an app runs in Olm.app while it may
 -- act and in Lua otherwise, step 6.2, docs/DESIGN-APP-APPS.md. Answers the bridge, so the binder's
@@ -3380,7 +3391,7 @@ function obj.run(olm, cfg)
   -- each run, sharedKeys above. A call rather than locals here, since this function is at Lua 5.4's
   -- limit of 200.
   for _, problem in ipairs(binderLib.bind(sharedKeys(forwardApps(atoms.appfocus, modules[plan.identity.bridge or "bridge"]), keymap.bound,
-    leaderSpecs, keyTable), {
+    leaderSpecs, keyTable, leadersByName), {
     engines = leadersByName,
     plain = plainLeader,
   })) do
@@ -3575,6 +3586,7 @@ function obj.run(olm, cfg)
   -- saying so, which leaves every leader its own native key.
   keyRemapAtom:apply(remapRows, sharedDepsScope.path("hidutil"))
   w.start(leaderList, chordKeyAtom)
+  announceKeys(modules[plan.identity.bridge or "bridge"])
 
   -- A held leader is deaf while another application holds secure input, so its press there says
   -- which one, see lib/securenotice.lua. ioreg comes through the door from root/manifest.lua.

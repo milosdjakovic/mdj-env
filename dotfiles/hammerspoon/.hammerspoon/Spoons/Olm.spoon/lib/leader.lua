@@ -608,6 +608,29 @@ function obj:_reveal(code)
   self._revealed = true
 end
 
+--- Leader:releaseModifiers() -> ok, why
+--- Method
+--- Lets Olm.app hold this leader's modifier combinations, step 5.3, docs/DESIGN-APP-KEYS.md, its
+--- held key and its sheet staying here. Refused for a leader with no modifiers, and for one holding a
+--- list key or a row that waits for release, neither of which the app runs.
+function obj:releaseModifiers()
+  if not (self._trigger and type(self._trigger.release) == "function") then return false, "it has no modifiers" end
+  for _, b in ipairs(self._sequence or {}) do
+    if b.when then return false, "it holds a list key" end
+    if b.afterRelease then return false, "it holds a row that runs after release" end
+  end
+  if not self._trigger.release() then return false, "it has no modifiers" end
+  return true
+end
+
+--- Leader:reclaimModifiers()
+--- Method
+--- Takes them back, for a socket gone or an app that could not claim them.
+function obj:reclaimModifiers()
+  if self._trigger and type(self._trigger.reclaim) == "function" then self._trigger.reclaim() end
+  return self
+end
+
 --- Leader:conceal()
 --- Method
 --- Takes this leader's sheet down if this leader put it up, the release of a hold, a key pressed

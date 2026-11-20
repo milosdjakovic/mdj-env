@@ -79,6 +79,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     log: { NSLog("Olm apps: %@", $0) })
   private var appsAllowed = AppFocus.allowed
   private var appsTimer: Timer?
+  // The leaders whose modifier combinations the app claims, step 5.3, docs/DESIGN-APP-KEYS.md.
+  private var keyOwner: KeyOwner?
   // The leaders' cheat sheets, step 5.2, drawn from what Hammerspoon laid out.
   private let sheets = SheetHost()
   private let bridge = Bridge(path: context.run.appendingPathComponent("bridge.sock").path)
@@ -252,6 +254,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let box = UncheckedSendable(params)
         Task { @MainActor in sheets.take(box.value) }
       }
+      // The keys the app claims, step 5.3. Asked each time a session opens and each time Hammerspoon
+      // says its leaders started, the keymap read afresh, and every claim dropped as the session goes.
+      let owner = KeyOwner(words: KeyOwner.Words(
+        release: { names in
+          let answer = try? await bridgeForApps.request("releaseKeys", .object(["leaders": .array(names.map { .string($0) })]))
+          return answer?["released"].array?.compactMap(\.string) ?? []
+        },
+        reclaim: { names in
+          _ = try? await bridgeForApps.request("reclaimKeys", .object(["leaders": .array(names.map { .string($0) })]))
+        },
+        run: { id, depth in
+          _ = try? await bridgeForApps.request("runKey", .object(["id": .string(id), "depth": .number(Double(depth))]))
+        }),
+        gate: { name in
+          guard name == "multipleDisplays" else { return true }
+          var count: UInt32 = 0
+          CGGetActiveDisplayList(0, nil, &count)
+          return count > 1
+        },
+        log: { NSLog("Olm keys: %@", $0) })
+      await MainActor.run { self.keyOwner = owner }
+      let keymapURL = context.run.appendingPathComponent("keymap.json")
+      let takeKeys: @Sendable () -> Void = {
+        Task { @MainActor in
+          guard let keymap = try? Keymap.read(keymapURL) else { return }
+          await owner.take(keymap)
+        }
+      }
+      await bridgeForApps.onOpen(takeKeys)
+      await bridgeForApps.onKeysReady(takeKeys)
+      await bridgeForApps.onClose { Task { @MainActor in owner.drop() } }
       await bridgeForApps.onOpen {
         Task { await bridgeForApps.notify("appsReady", .object(["ready": .bool(AppFocus.allowed)])) }
       }

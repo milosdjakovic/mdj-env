@@ -64,6 +64,10 @@ function obj.new(spec)
   -- adds no second hotkey competing for it.
   local hotkeys, claimed = {}, {}
   local started = false
+  -- Whether Olm.app holds this set's combinations, step 5.3, docs/DESIGN-APP-KEYS.md. While it does
+  -- every hotkey here is made and kept disabled, so the app can claim the same combinations, and
+  -- reclaim enables them again.
+  local released = false
   -- Declared before the claims, since a claimed combo hands this trigger to the adapter with every
   -- press, which is how the adapter knows which trigger fired, see _onKey in lib/leader.lua.
   local trigger = {}
@@ -143,8 +147,11 @@ function obj.new(spec)
     -- does not, since hs.hotkey reads a name against that table and the Globe key has no name there.
     local key = binding.key
     if type(key) ~= "string" or hs.keycodes.map[key:lower()] == nil then key = code end
+    -- Bound as it always was, and only made, disabled, while the app holds this set, so a combination
+    -- the app claimed is never contended. bind is new and enable.
+    local make = released and hs.hotkey.new or hs.hotkey.bind
     if repeats then
-      return hs.hotkey.bind(combo, key, press, nil, function()
+      return make(combo, key, press, nil, function()
         local fn, rep = host:_onKey(code, flags)
         if fn and rep then
           if driven then
@@ -156,7 +163,7 @@ function obj.new(spec)
         end
       end)
     end
-    return hs.hotkey.bind(combo, key, press)
+    return make(combo, key, press)
   end
 
   -- Each claim runs under its own pcall, so one combination that raises costs that combination
@@ -299,6 +306,32 @@ function obj.new(spec)
     end
     return true
   end
+
+  --- trigger.release() lets Olm.app hold this set's combinations, every hotkey disabled and every
+  --- one made later made disabled, step 5.3. Answers false for an empty base set, a plain combo.
+  function trigger.release()
+    if #baseMods == 0 then return false end
+    released = true
+    for _, held in pairs(claimed) do
+      if held.hotkey then pcall(held.hotkey.disable, held.hotkey) end
+    end
+    return true
+  end
+
+  --- trigger.reclaim() takes them back, each disabled and enabled again, so one the app still held a
+  --- moment ago is registered afresh.
+  function trigger.reclaim()
+    released = false
+    for _, held in pairs(claimed) do
+      if held.hotkey then
+        pcall(held.hotkey.disable, held.hotkey)
+        pcall(held.hotkey.enable, held.hotkey)
+      end
+    end
+    return true
+  end
+
+  function trigger.isReleased() return released end
 
   function trigger.bound(host, binding)
     if started then claim(host, binding) end

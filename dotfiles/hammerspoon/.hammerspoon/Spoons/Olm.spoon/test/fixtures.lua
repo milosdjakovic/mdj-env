@@ -449,7 +449,22 @@ local function runPrefix(case)
   return {}
 end
 
+-- The chord engine's driven repeat, fixture 0.3f, run on the virtual clock test/repeattiming.lua
+-- records it with, each run's start in milliseconds and its depth compared.
+local function runRepeat(case)
+  local got = assert(loadfile(here .. "repeatclock.lua"))().run(case)
+  local function line(runs)
+    local out = {}
+    for _, r in ipairs(runs) do out[#out + 1] = math.floor(r.at * 1000 + 0.5) .. "ms:" .. r.depth end
+    return table.concat(out, " ")
+  end
+  local want, mine = line(case.runs or {}), line(got)
+  if want ~= mine then return { "wanted " .. want .. ", got " .. mine } end
+  return {}
+end
+
 local KINDS = {
+  ["keys.repeat"] = runRepeat,
   ["stage.prefix"] = runPrefix,
   calls = function(case) return runCall(case) end,
   ["filesearch.parse"] = runParse,

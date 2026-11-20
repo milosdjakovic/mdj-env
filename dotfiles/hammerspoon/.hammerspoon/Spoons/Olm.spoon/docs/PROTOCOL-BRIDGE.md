@@ -761,6 +761,16 @@ binder runs a global row it sends the notification `keyFired`, `{"id":"apptoggle
 the app's shadow of the keys pairs with the press it heard, docs/DESIGN-APP-KEYS.md. A list's own
 keys send nothing.
 
+## The keys the app owns, step 5.3
+
+The share `keymap.json` carries `appKeys`, the leaders whose modifier combinations the app may claim.
+The app asks for them with the request `releaseKeys`, `{"leaders":["meta"]}`, answered
+`{"released":["meta"],"refused":[{"leader":"hyper","why":"..."}]}`, each time a session opens and
+when Hammerspoon sends the notification `keysReady` once its leaders started. `reclaimKeys`, the
+same shape, hands leaders back, and Hammerspoon takes every one back itself when the socket goes. A
+press runs its row with the request `runKey`, `{"id":"windowmanager.moveLeft","depth":0}`, answered
+`true`, or `false` for an id no row has, a repeat sent once the previous one is answered.
+
 ## The cheat sheets, step 5.2
 
 While the `sheetsInApp` switch is on and a session is open, a leader's cheat sheet is sent to the app

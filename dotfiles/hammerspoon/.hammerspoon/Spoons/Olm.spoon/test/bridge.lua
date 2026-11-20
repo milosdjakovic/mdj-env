@@ -683,5 +683,36 @@ do
   eq(#notes, 2, "and with the switch off nothing goes to the app")
 end
 
+-- The keys the app claims, step 5.3. releaseKeys hands over only a leader the config names and the
+-- root runs, runKey runs the bound row by its id with its depth and takes its leader's sheet down,
+-- and a socket gone takes every released leader back.
+do
+  local log = {}
+  local function leader(name, ok, why)
+    return { releaseModifiers = function() log[#log + 1] = "release " .. name; return ok, why end,
+      reclaimModifiers = function() log[#log + 1] = "reclaim " .. name end,
+      conceal = function() log[#log + 1] = "conceal " .. name end }
+  end
+  local kb = fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, appKeys = { "META", "hyper" } })
+  local ran = {}
+  kb:keyHost({ meta = leader("meta", true), hyper = leader("hyper", false, "it holds a list key") },
+    { { owner = "windowmanager", action = "moveLeft", leader = "meta", run = function(d) ran[#ran + 1] = d end } })
+  local methods = {}
+  kb:_keyMethods(methods)
+  local answer = methods.releaseKeys.run({ leaders = { "meta", "hyper", "super" } })
+  eq(#answer.released, 1, "release: one leader released")
+  eq(answer.released[1], "meta", "release: the one the config names and that agreed")
+  eq(#answer.refused, 2, "release: the others refused")
+  eq(methods.runKey.run({ id = "windowmanager.moveLeft", depth = 3 }), true, "runKey: a bound row runs")
+  eq(ran[1], 3, "runKey: with its depth")
+  eq(log[#log], "conceal meta", "runKey: and its leader's sheet is taken down")
+  eq(methods.runKey.run({ id = "nobody.nothing" }), false, "runKey: an unknown id runs nothing")
+  kb:_reclaimKeys()
+  local reclaimed = 0
+  for _, line in ipairs(log) do if line == "reclaim meta" then reclaimed = reclaimed + 1 end end
+  eq(reclaimed, 1, "a socket gone takes the released leader back")
+  eq(kb._released, nil, "and forgets it")
+end
+
 print(string.format("bridge: %d checks, %d failed", checks, failures))
 os.exit(failures == 0 and 0 or 1)

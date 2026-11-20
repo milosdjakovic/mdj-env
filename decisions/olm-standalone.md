@@ -1372,3 +1372,13 @@ cheat sheet's panel goes to the app and every other panel stays where it was. Po
 grid to Swift now was turned down, since its tokens and its sections are Lua's until stage 8 and its
 elements already cross for the preview pane, so the app draws the very sheet with nothing to keep in
 step. `docs/DESIGN-APP-KEYS.md` 5.2 has it.
+
+**2026-11-20 22:11, step 5.3, META's keys claimed by the app, built and flipped.** The app claims META's modifier
+combinations through Carbon behind `appKeys`, resolves each press itself and runs the row in
+Hammerspoon with `runKey`. Hammerspoon lets go first, `releaseKeys`, since two processes cannot hold
+one combination, and takes them back when the socket goes. META's held key and its sheet stay
+Hammerspoon's. Resolving in Lua with the app only catching the key was turned down, since the engine
+is the app's from 5.1 and would have nothing left to move. 0.3f, the driven repeat's timing, was
+recorded from `lib/chordkey.lua` and the app's repeat answers it. Whether a Carbon hotkey fires under
+secure input is still believed, not measured, and is asked of Milos with this step's trial.
+`docs/DESIGN-APP-KEYS.md` 5.3 has it.
