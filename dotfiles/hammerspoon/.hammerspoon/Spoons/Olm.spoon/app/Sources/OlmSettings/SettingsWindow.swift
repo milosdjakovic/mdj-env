@@ -97,17 +97,16 @@ public final class SettingsWindow: NSObject, NSWindowDelegate {
       w.title = "Olm Settings"
       w.titleVisibility = .hidden
       w.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
-      // A compact toolbar with no line under it, so the window's buttons sit over the sidebar and
-      // the pane runs to the top, as System Settings draws.
-      w.toolbar = NSToolbar(identifier: "OlmSettings")
-      w.toolbarStyle = .unifiedCompact
+      // No toolbar and a see-through title bar, so the pane runs to the top with nothing drawn over
+      // it. A toolbar drew a band with a line under it whenever the pointer reached the top.
+      w.titlebarAppearsTransparent = true
       w.titlebarSeparatorStyle = .none
       w.isReleasedWhenClosed = false
-      w.setContentSize(NSSize(width: 1280, height: 780))
+      w.setContentSize(NSSize(width: 1100, height: 740))
       w.contentMinSize = NSSize(width: SettingsSplit.sidebarWidth + 560, height: 520)
       // The size is kept between openings and the place is not, since it opens centred. Named
       // afresh with each larger default, so a size saved at an older one is not restored.
-      w.setFrameAutosaveName("OlmSettingsWindowFrame")
+      w.setFrameAutosaveName("OlmSettingsPaneFrame")
       w.delegate = self
       window = w
     }
@@ -181,7 +180,7 @@ public final class SettingsWindow: NSObject, NSWindowDelegate {
 /// the item's own, fixed, the divider takes no drag and the sidebar cannot collapse.
 @MainActor
 final class SettingsSplit: NSSplitViewController {
-  static let sidebarWidth: CGFloat = 480
+  static let sidebarWidth: CGFloat = 280
 
   init(model: SettingsModel) {
     super.init(nibName: nil, bundle: nil)
@@ -367,8 +366,8 @@ struct SectionPage: View {
         .frame(maxWidth: .infinity, alignment: .leading)
       }
     }
-    // The gap is measured from the window's edge at the top too, since the toolbar over the pane is
-    // empty, so the page sits the same distance from all four edges.
+    // The gap is measured from the window's edge at the top too, since nothing is drawn over the pane,
+    // so the page sits the same distance from all four edges.
     .ignoresSafeArea(.container, edges: .top)
     .softTopEdge()
   }

@@ -1161,3 +1161,9 @@ minimum and maximum, no collapse, and a divider that takes no drag. The search m
 sidebar as the system's search field, since `.searchable` lives with NavigationSplitView. The page
 in the pane was 28 points from the left but about 52 from the top and capped at 820 wide, and Milos
 asked for one gap on all four sides, so it is 28 everywhere, measured from the window's top edge.
+
+**2026-11-20 12:51, the settings sidebar 280 points, and no toolbar.** Milos asked for 280 rather
+than 480, so the sidebar stays fixed and undraggable at 280 and the window opens at 1100 by 740
+again. With the pointer at the top of the pane the empty toolbar drew a band with a line under it
+over the page, so the window has no toolbar now, its title bar see-through and without a separator,
+and the page still meets the window's top edge.
