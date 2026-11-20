@@ -23,7 +23,7 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 3.3 is done, its five steps 3.3a to 3.3e each tried by Milos, the last on 2026-11-17. 3.4, the keys of a list pushed in the app, is done, tried by Milos on 2026-11-17. 3.5, the flip of Hyper and Space, is built and held off behind `launcherFlip` until every tool the launcher leads to is shown in the app, since a row leading to one it does not show did nothing. 3.6 is done, tried by Milos on 2026-11-18. 3.7, one look for every picture and word, is done, tried by Milos on 2026-11-18. 3.5, the flip of Hyper and Space, is done, tried by Milos on 2026-11-18. Checking the resting point found a tool's own key still opening Hammerspoon's list, so 3.8 was added and is done, tried by Milos on 2026-11-18. Next, Input Sources' cycle in the app, then the timings the resting point's second condition asks for. 2.3's shadow keeps logging, and its log empty is a condition of 3.5's flip. File search is the app's since 1.5's flip on 2026-11-12.
+Next. 3.3 is done, its five steps 3.3a to 3.3e each tried by Milos, the last on 2026-11-17. 3.4, the keys of a list pushed in the app, is done, tried by Milos on 2026-11-17. 3.5, the flip of Hyper and Space, is built and held off behind `launcherFlip` until every tool the launcher leads to is shown in the app, since a row leading to one it does not show did nothing. 3.6 is done, tried by Milos on 2026-11-18. 3.7, one look for every picture and word, is done, tried by Milos on 2026-11-18. 3.5, the flip of Hyper and Space, is done, tried by Milos on 2026-11-18. Checking the resting point found a tool's own key still opening Hammerspoon's list, so 3.8 was added and is done, tried by Milos on 2026-11-18. Input Sources' cycle in the app is done. The resting point was called reached by Milos on 2026-11-20, the launcher's timings read from 62 opens, typing never waiting on Hammerspoon, its rows a Hammerspoon round trip of 73 ms median by design until stage 4, and file search's timings left to a follow up with one open recorded. Next, the route to Olm standing alone, stages 4 to 6. 2.3's shadow keeps logging, and its log empty is a condition of 3.5's flip. File search is the app's since 1.5's flip on 2026-11-12.
 
 Stage 0, contracts
 - [x] 0.1 The decision record, 2026-11-05
@@ -125,7 +125,7 @@ Olm Settings, the app's own window, asked by Milos on 2026-11-19 while the timin
 - [ ] S.1 to S.4, `docs/DESIGN-APP-SETTINGS.md`. One Olm Settings window in Olm.app, a sidebar with search and native controls, opened by ⌘, from any Olm window, its values saved on this Mac over the config files, and the four launcher rows Olm Chooser, Olm Placement, Olm Theme and Olm Plugins removed. Hammerspoon declares every setting and applies it, the app draws the window. Milos said go on 2026-11-20 with no trim. S.1, the store and the declarations, is built and tried. S.2, the window read only, is built, see As built there.
 
 The resting point
-- [ ] All five conditions of the resting point hold, checked on every machine whose `olmapp` piece is on
+- [x] All five conditions of the resting point hold, checked on every machine whose `olmapp` piece is on, called reached by Milos on 2026-11-20
 
 Stage 4, plugins native, optional
 - [ ] The app catalog and its recency

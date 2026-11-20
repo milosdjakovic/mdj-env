@@ -1225,3 +1225,14 @@ verb hid the list and showed the window from inside the app, but the panel never
 active, and since macOS 14 an app may only ask to come forward, so the window opened behind the app
 in front. It is the S.2 fault again, and it has the S.2 answer: the app hands olm://settings to
 LaunchServices with activates set, the same route Hammerspoon's Olm Settings row takes with open.
+
+**2026-11-20 15:33, the resting point called reached.** Milos asked why wait for days of timings when the Lua Olm
+works in full and the app is the thing being built, and called it reached. The timings since
+2026-11-19 19:55 UTC hold 62 opens of the app's launcher and 233 keystrokes. A key reaches the field
+in 26 ms median and 62 at the 95th, whatever the rows do, so typing never waits on Hammerspoon. Rows
+come in 73 ms median and 133 at the 95th, a round trip to Hammerspoon, which computes the launcher's
+rows until stage 4 moves the catalog. The belief that the app's rows took about 82 ms against about
+40 ms in the Lua launcher compared unlike lists, since every Lua sample is of another list, input
+sources and the calculator, and none is of the launcher. Left as follow ups and not conditions: file
+search's rows at 171 ms median from one open, and a main thread stall of 57 ms median once an open,
+the app's own. Recording is switched off by removing ~/.olm/run/timings.
