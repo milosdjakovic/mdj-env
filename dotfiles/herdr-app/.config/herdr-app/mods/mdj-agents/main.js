@@ -2,6 +2,8 @@
 // A viewed done agent stays in Done until left.
 
 import { View, div, image, svg } from "gpui-kit";
+// A space group's header: 8 above a row-sized outline.
+const GROUP = 36;
 import { v_flex, h_flex } from "gpui-base";
 import { agents, terminals, panes, focused, spaces, run, theme, shared, setShared, setAgentOrder, openOverlay, closeOverlay, props, window, layout, settings } from "herdr";
 
@@ -470,7 +472,21 @@ export default class Agents extends View {
     const header = (g) => {
       const open = !this.folded.has(g.id);
       const top = g.members.reduce((m, a) => ((RANK[a.status] ?? 0) > (RANK[m] ?? 0) ? a.status : m), null);
-      return h_flex()
+      const fold = (_e, cx) => {
+        open ? this.folded.add(g.id) : this.folded.delete(g.id);
+        cx.notify();
+      };
+      const tail = (el) => el
+        .when(byPriority || !open, (el) => el.child(div().text_color(t.dim).child(String(g.members.length))))
+        .child(div().flex_1())
+        .when(!open, (el) => el
+          .when(!byPriority && top && top !== "idle", (el) => el.child(this.status(t, { status: top }, true)))
+          .child(svg("mods/mdj-icons/11/chevron-right.svg").size(11).flex_none().text_color(t.dim)));
+      if (g.space) return v_flex().id(g.id).pt(8).h(GROUP).flex_none().on_click(fold)
+        .child(tail(h_flex().h(28).flex_none().items_center().w_full().pl(5).pr(5).gap(8).text_size(13.5)
+          .child(letter(g).size(18).text_size(13.5))
+          .child(div().truncate().text_color(t.foreground).child(g.label))));
+      return tail(h_flex()
         .id(g.id)
         .px(8)
         .pt(8)
@@ -482,26 +498,28 @@ export default class Agents extends View {
         .font_medium()
         .cursor_pointer()
         .hover((s) => s.text_color(t.foreground))
-        .on_click((_e, cx) => {
-          open ? this.folded.add(g.id) : this.folded.delete(g.id);
-          cx.notify();
-        })
-        .child(div().truncate().text_color(t[g.status] ?? t.dim).child(g.label))
-        .when(byPriority || !open, (el) => el.child(div().text_color(t.dim).child(String(g.members.length))))
-        .child(div().flex_1())
-        .when(!open, (el) => el
-          .when(!byPriority && top && top !== "idle", (el) => el.child(this.status(t, { status: top }, true)))
-          .child(svg("mods/mdj-icons/11/chevron-right.svg").size(11).flex_none().text_color(t.dim)));
+        .on_click(fold)
+        .child(div().truncate().text_color(t[g.status] ?? t.dim).child(g.label)));
     };
-    // mdj: on the rail a group's header keeps its 30px, so folding moves no row, and shows a generic agent
-    // icon where its name sits, in its space's avatar colour, so the agents under it read as that space's.
-    // A priority section takes its state's colour, pinned dim. Asked by Milos on 2026-11-15.
+    // mdj: open, a space's group header is drawn as Spaces draws an unselected space, a 28px row with the
+    // avatar's letter, same slot, font, size and 18px box 5px in, then the name in `foreground`, with no
+    // border, hover or cursor, and a click still folds the group. On the rail it is a 28px cube with 6px
+    // corners and a 1px border in that space's avatar colour, the shape of a selected rail cube, so it reads
+    // as that space's label and never as one to pick, in the same 36px as open, so folding moves no row. A priority section belongs to no space and keeps its plain header, and Lucide's
+    // bot on the rail in its state's colour, pinned dim. The bot stood for every group from 2026-11-15 until
+    // Milos asked on 2026-11-17 for the letters, non-selectable and non-hoverable, shaped like a selected row.
     const colors = shared("space.colors") ?? {};
-    const marker = (g) => {
+    const tint = (g) => {
       const c = g.space ? (colors[g.space] ?? "ansi6") : g.status;
-      return h_flex().id(g.id).h(30).pt(8).flex_none().justify_center().items_center().tooltip(g.label || "Agents")
-        .child(svg("mods/mdj-icons/14/bot.svg").size(14).text_color((c && t[c]) || t.dim));
+      return c ? (c.startsWith("#") ? c : t[c]) ?? t.dim : t.dim;
     };
+    const outline = (g) => h_flex().h(28).flex_none().rounded(6).border(1).border_color(tint(g)).items_center();
+    const letter = (g) => h_flex().flex_none().items_center().justify_center().font_family(String(settings().font_family))
+      .font_normal().text_color(tint(g)).child(div().relative().left(0.5).top(0.3).child([...g.label][0]?.toUpperCase() ?? "?"));
+    const marker = (g) => g.space
+      ? v_flex().id(g.id).pt(8).h(GROUP).flex_none().child(outline(g).w_full().justify_center().child(letter(g).size(18).text_size(13.5)))
+      : h_flex().id(g.id).h(30).pt(8).flex_none().justify_center().items_center()
+        .child(svg("mods/mdj-icons/14/bot.svg").size(14).text_color(tint(g)));
     const rows = groups.flatMap((g) => [collapsed ? marker(g) : header(g), ...(this.folded.has(g.id) ? [] : g.members.flatMap(withKids))]);
 
     return splitDrag(v_flex().id("ag-root"), "agents")
