@@ -65,7 +65,7 @@ function fades(t, view, inset) {
 // mdj: the selected look, the pane's own background and a soft shadow, is a layer under the row's content.
 // Selecting shows it at once; a fade on switching was tried and taken out, asked for on 2026-11-09.
 // A hovered row that is not selected gets the same colour at half strength and no shadow, so it never looks selected.
-const card = (id, on, t, radius = 6) => div().id(id).absolute().top(0).left(0).right(0).bottom(0).rounded(radius)
+const card = (id, on, t, radius = 14) => div().id(id).absolute().top(0).left(0).right(0).bottom(0).rounded(radius)
   .bg(t.raised).shadow_sm().opacity(on ? 1 : 0);
 const dimmed = (t) => t.raised + "80";
 
@@ -217,9 +217,9 @@ export default class Agents extends View {
       .children(SORTS.map((s) => h_flex()
         .id(`sort-${s.id}`)
         .h(31)
-        .px(8)
+        .px(12)
         .gap(9)
-        .rounded(6)
+        .rounded_full()
         .items_center()
         .text_color(t.foreground)
         .hover((el) => el.bg((t.hover === t.canvas ? t.chrome : t.hover)))
@@ -255,9 +255,9 @@ export default class Agents extends View {
     const on = k.address === shown;
     const open = () => (this.listed.has(k.address) ? run("pane.focus", { terminal: k.address }) : this.peek(k.address));
     // mdj: on the rail a sub-agent is a cube like its parent's, in the same place its row has open.
-    if (rail) return h_flex().id(`sub-${k.address}`).relative().w_full().h(28).flex_none().rounded(6).items_center().justify_center()
+    if (rail) return h_flex().id(`sub-${k.address}`).relative().w_full().h(28).flex_none().rounded_full().items_center().justify_center()
       .tooltip(String(k.name || k.template || k.program?.name || k.address))
-      .child(card(`sub-card-${k.address}`, on, t, 6))
+      .child(card(`sub-card-${k.address}`, on, t, 14))
       .when(!on, (el) => el.hover((s) => s.bg(dimmed(t))))
       .on_click(open)
       .child(railState(t, st, pic));
@@ -265,14 +265,14 @@ export default class Agents extends View {
       .id(`sub-${k.address}`)
       .pl(39)
       .pr(8)
-      .rounded(6)
+      .rounded_full()
       .h(28)
       .flex_none()
       .gap(0)
       .items_center()
       .text_size(13.5)
       .relative()
-      .child(card(`sub-card-${k.address}`, on, t, 6))
+      .child(card(`sub-card-${k.address}`, on, t, 14))
       .when(!on, (el) => el.hover((s) => s.bg(dimmed(t))))
       .on_click(open)
       .children(s.lines.map(l => div().self_start().mt(-4).w(9).h(17).mr(4).flex_none()
@@ -342,7 +342,7 @@ export default class Agents extends View {
         .gap(3)
         .flex()
         .items_center()
-        .rounded(4)
+        .rounded_full()
         .text_size(11)
         .text_color(open ? t.dim : (t[top] ?? t.dim))
         .cursor_pointer()
@@ -389,11 +389,11 @@ export default class Agents extends View {
           .w_full()
           .h(28)
           .flex_none()
-          .rounded(6)
+          .rounded_full()
           .items_center()
           .justify_center()
           .tooltip(String(label(a) || a.program?.name || "agent"))
-          .child(card(`ag-card-${a.address}`, a.focused, t, 6))
+          .child(card(`ag-card-${a.address}`, a.focused, t, 14))
           .when(!a.focused, (el) => el.hover((s) => s.bg(dimmed(t))))
           .on_click(() => run("pane.focus", { pane: a.pane }))
           .child(railState(t, a.status, icon(a.program, 16, t.foreground) ?? div().text_color(t.muted).child(String(i + 1))));
@@ -405,7 +405,7 @@ export default class Agents extends View {
         .id(`pin-${a.address}`)
         .flex_none()
         .p(2)
-        .rounded(4)
+        .rounded_full()
         .text_color(t.dim)
         .cursor_pointer()
         .hover((s) => s.bg((t.hover === t.canvas ? t.chrome : t.hover)).text_color(t.foreground))
@@ -424,16 +424,16 @@ export default class Agents extends View {
       const name = full ? a.space_name || label(a) : more ?? (/^\d+$/.test(label(a)) ? a.program?.name || label(a) : label(a));
       return h_flex()
         .id(`ag-${a.address}`)
-        .pl(5)
-        .pr(5)
+        .pl(9)
+        .pr(9)
         .h(28)
         .flex_none()
-        .rounded(6)
+        .rounded_full()
         .items_center()
         .gap(8)
         // The focused agent looks like the pane and the selected tab: the terminal's page, a soft shadow.
         .relative()
-        .child(card(`ag-card-${a.address}`, a.focused, t, 6))
+        .child(card(`ag-card-${a.address}`, a.focused, t, 14))
         .cursor_pointer()
         .when(!a.focused, (el) => el.hover((s) => s.bg(dimmed(t))))
         .on_hover((on, cx) => {
@@ -483,7 +483,7 @@ export default class Agents extends View {
           .when(!byPriority && top && top !== "idle", (el) => el.child(this.status(t, { status: top }, true)))
           .child(svg("mods/mdj-icons/11/chevron-right.svg").size(11).flex_none().text_color(t.dim)));
       if (g.space) return v_flex().id(g.id).pt(8).h(GROUP).flex_none().on_click(fold)
-        .child(tail(h_flex().h(28).flex_none().items_center().w_full().pl(5).pr(5).gap(8).text_size(13.5)
+        .child(tail(h_flex().h(28).flex_none().items_center().w_full().pl(9).pr(9).gap(8).text_size(13.5)
           .child(letter(g).size(18).text_size(13.5))
           .child(div().truncate().text_color(t.foreground).child(g.label))));
       return tail(h_flex()
@@ -502,9 +502,9 @@ export default class Agents extends View {
         .child(div().truncate().text_color(t[g.status] ?? t.dim).child(g.label)));
     };
     // mdj: open, a space's group header is drawn as Spaces draws an unselected space, a 28px row with the
-    // avatar's letter, same slot, font, size and 18px box 5px in, then the name in `foreground`, with no
-    // border, hover or cursor, and a click still folds the group. On the rail it is a 28px cube with 6px
-    // corners and a 1px border in that space's avatar colour, the shape of a selected rail cube, so it reads
+    // avatar's letter, same slot, font, size and 18px box 9px in, then the name in `foreground`, with no
+    // border, hover or cursor, and a click still folds the group. On the rail it is a 28px circle with a
+    // 1px border in that space's avatar colour, the shape of a selected rail cube, so it reads
     // as that space's label and never as one to pick, in the same 36px as open, so folding moves no row. A priority section belongs to no space and keeps its plain header, and Lucide's
     // bot on the rail in its state's colour, pinned dim. The bot stood for every group from 2026-11-15 until
     // Milos asked on 2026-11-17 for the letters, non-selectable and non-hoverable, shaped like a selected row.
@@ -513,7 +513,7 @@ export default class Agents extends View {
       const c = g.space ? (colors[g.space] ?? "ansi6") : g.status;
       return c ? (c.startsWith("#") ? c : t[c]) ?? t.dim : t.dim;
     };
-    const outline = (g) => h_flex().h(28).flex_none().rounded(6).border(1).border_color(tint(g)).items_center();
+    const outline = (g) => h_flex().h(28).flex_none().rounded_full().border(1).border_color(tint(g)).items_center();
     const letter = (g) => h_flex().flex_none().items_center().justify_center().font_family(String(settings().font_family))
       .font_normal().text_color(tint(g)).child(div().relative().left(0.5).top(0.3).child([...g.label][0]?.toUpperCase() ?? "?"));
     const marker = (g) => g.space
@@ -571,12 +571,12 @@ export default class Agents extends View {
               div()
                 .id("ag-sort")
                 .size(26)
-                .when(collapsed, (el) => el.w_full().rounded(6))
+                .when(collapsed, (el) => el.w_full().rounded_full())
                 .flex_none()
                 .flex()
                 .items_center()
                 .justify_center()
-                .rounded(6)
+                .rounded_full()
                 .text_size(11)
                 .text_color(t.muted)
                 .hover((s) => s.bg((t.hover === t.canvas ? t.chrome : t.hover)).text_color(t.foreground))

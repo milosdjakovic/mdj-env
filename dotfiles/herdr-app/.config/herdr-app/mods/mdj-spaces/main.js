@@ -65,7 +65,7 @@ function fades(t, view, inset) {
 // mdj: the selected look, the pane's own background and a soft shadow, is a layer under the row's content.
 // Selecting shows it at once; a fade on switching was tried and taken out, asked for on 2026-11-09.
 // A hovered row that is not selected gets the same colour at half strength and no shadow, so it never looks selected.
-const card = (id, on, t, radius = 6) => div().id(id).absolute().top(0).left(0).right(0).bottom(0).rounded(radius)
+const card = (id, on, t, radius = 14) => div().id(id).absolute().top(0).left(0).right(0).bottom(0).rounded(radius)
   .bg(t.raised).shadow_sm().opacity(on ? 1 : 0);
 const dimmed = (t) => t.raised + "80";
 
@@ -88,7 +88,7 @@ function place(s, ps) {
   return ps.find((p) => tabs.has(p.tab) && p.cwd)?.cwd || s.folder;
 }
 // mdj: every row in the side lists and every tab on the top bar is ROW tall with RADIUS corners.
-const ROW = 28, RADIUS = 6;
+const ROW = 28, RADIUS = 14;
 const rowHeight = () => ROW;
 const RAIL_CELL = 28;
 const railCell = (el) => h_flex().flex_none().justify_center().child(el);
@@ -385,7 +385,7 @@ export default class Spaces extends View {
       const icon = svg(`mods/mdj-icons/13/${m ? "server" : "monitor"}.svg`).size(13).flex_none();
       const badge = div().absolute().right(-3).bottom(-2).size(6).rounded(3).border_1().border_color(t.canvas).bg(connected ? t.ansi2 : t.dim);
       const head = h_flex().id(`machine-${m ?? "local"}`).h(26).flex_none().px(collapsed ? 0 : 8).gap(7).items_center().text_size(13.5).text_color(t.dim)
-        .when(collapsed, el => el.mt(4).w(RAIL_CELL).justify_center().rounded(6).tooltip(m ? `${m} · ${connected ? "connected" : (machine?.state ?? "asleep").replace(/_/g, " ")}` : "This computer"))
+        .when(collapsed, el => el.mt(4).w(RAIL_CELL).justify_center().rounded_full().tooltip(m ? `${m} · ${connected ? "connected" : (machine?.state ?? "asleep").replace(/_/g, " ")}` : "This computer"))
         .cursor_pointer().hover(s => s.bg((t.hover === t.canvas ? t.chrome : t.hover)))
         .on_click((_e, cx) => {
           folded ? this.folded.delete(m) : this.folded.add(m);
@@ -403,15 +403,15 @@ export default class Spaces extends View {
               .tooltip(repair?.error || "This machine was rebuilt or replaced. Click to connect to the new one.")
               .on_click((_e, cx) => { cx.stop_propagation(); this.reconnect(machine, cx); })
               .child(repair?.busy ? "Connecting…" : "Connect"))))
-          .when(connected, el => el.child(div().id(`machine-add-${m ?? "local"}`).flex_none().px(4).rounded(4).hover(s => s.bg((t.hover === t.canvas ? t.chrome : t.hover)).text_color(t.foreground))
+          .when(connected, el => el.child(div().id(`machine-add-${m ?? "local"}`).flex_none().px(4).rounded_full().hover(s => s.bg((t.hover === t.canvas ? t.chrome : t.hover)).text_color(t.foreground))
             .on_click((_e, cx) => { cx.stop_propagation(); run("space.new", { machine: m ?? "" }); }).child(svg("mods/mdj-icons/12/plus.svg").size(12))))
           .child(div().size(6).rounded(3).flex_none().bg(connected ? t.ansi2 : t.dim))
           .child(svg(`mods/mdj-icons/11/chevron-${folded ? "right" : "down"}.svg`).size(11).flex_none()));
-      const empty = h_flex().id(`machine-new-${m ?? "local"}`).h(28).flex_none().px(collapsed ? 0 : 8).gap(7).items_center().rounded(6)
+      const empty = h_flex().id(`machine-new-${m ?? "local"}`).h(28).flex_none().px(collapsed ? 0 : 10).gap(7).items_center().rounded_full()
         .text_size(12).text_color(t.dim).hover(s => s.bg((t.hover === t.canvas ? t.chrome : t.hover)).text_color(t.foreground))
         .on_click(() => run("space.new", { machine: m ?? "" }))
-        .when(collapsed, el => el.w(RAIL_CELL).rounded(6).justify_center().tooltip(`New space on ${m ?? "this computer"}`)
-          .child(h_flex().size(18).rounded(1).border_1().border_color(t.dim).items_center().justify_center()
+        .when(collapsed, el => el.w(RAIL_CELL).rounded_full().justify_center().tooltip(`New space on ${m ?? "this computer"}`)
+          .child(h_flex().size(18).rounded_full().border_1().border_color(t.dim).items_center().justify_center()
             .child(svg("mods/mdj-icons/10/plus.svg").size(10))))
         .when(!collapsed, el => el.child(svg("mods/mdj-icons/12/plus.svg").size(12)).child("New space there"));
       if (!collapsed && rebuilt) return [head];
@@ -458,8 +458,8 @@ export default class Spaces extends View {
         const x = (i + 0.5) / n, ease = x * x * (3 - 2 * x);
         return div().w(1).flex_none().bg(fill + hex(ease));
       }))
-      .child(div().flex_none().pr(4).rounded_r(RADIUS).bg(fill).flex().items_center()
-        .child(div().id(`space-close-${w.id}`).size(18).flex_none().flex().items_center().justify_center().rounded(1).text_color(t.dim)
+      .child(div().flex_none().pr(8).rounded_r(RADIUS).bg(fill).flex().items_center()
+        .child(div().id(`space-close-${w.id}`).size(18).flex_none().flex().items_center().justify_center().rounded_full().text_color(t.dim)
           .hover(s => s.bg(t.dim + "26").text_color(t.foreground))
           .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
           .on_mouse_up("left", (_e, cx) => cx.stop_propagation())
@@ -476,8 +476,8 @@ export default class Spaces extends View {
     return v_flex()
       .relative()
       .id(`space-${w.id}`)
-      .pl(5)
-      .pr(10)
+      .pl(9)
+      .pr(14)
       .h(rowHeight({ tree }))
       .flex_none()
       .justify_center()
@@ -571,7 +571,7 @@ export default class Spaces extends View {
         // mdj: the header is 26px on the rail as well, so folding the sidebar leaves every row where it was.
         .when(collapsed, el => el.pl(4).pr(4))
         .when(!collapsed, el => el.child("Spaces"))
-        .child(div().id("space-new").size(26).text_color(t.muted).when(collapsed, el => el.w_full().rounded(6)).flex_none().flex().items_center().justify_center().rounded(6).hover(s => s.bg((t.hover === t.canvas ? t.chrome : t.hover)).text_color(t.foreground))
+        .child(div().id("space-new").size(26).text_color(t.muted).when(collapsed, el => el.w_full().rounded_full()).flex_none().flex().items_center().justify_center().rounded_full().hover(s => s.bg((t.hover === t.canvas ? t.chrome : t.hover)).text_color(t.foreground))
           .on_click(() => run("space.new")).child(svg("mods/mdj-icons/14/plus.svg").size(14))))
       // mdj: the list is scrolled by this mod rather than by a scroll area, which tells a mod no offset, so
       // the fades are drawn from the offset the rows are drawn at and cannot drift. 4px inside the clip give

@@ -39,7 +39,7 @@ export default class Pane extends View {
       .flex()
       .items_center()
       .justify_center()
-      .rounded(0)
+      .rounded_full()
       .text_color(t.dim)
       .hover((s) => s.bg(t.dim + "26").text_color(t.foreground))
       .on_click((_e, cx) => {

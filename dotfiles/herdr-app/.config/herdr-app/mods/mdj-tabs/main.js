@@ -5,7 +5,7 @@ import { spaces, panes, run, openOverlay, theme, window, shared, setShared, layo
 // mdj: the selected look, the pane's own background and a soft shadow, is a layer under the row's content.
 // Selecting shows it at once; a fade on switching was tried and taken out, asked for on 2026-11-09.
 // A hovered row that is not selected gets the same colour at half strength and no shadow, so it never looks selected.
-const card = (id, on, t, radius = 6) => div().id(id).absolute().top(0).left(0).right(0).bottom(0).rounded(radius)
+const card = (id, on, t, radius = 14) => div().id(id).absolute().top(0).left(0).right(0).bottom(0).rounded(radius)
   .bg(t.raised).shadow_sm().opacity(on ? 1 : 0);
 const dimmed = (t) => t.raised + "80";
 
@@ -151,7 +151,7 @@ export default class MdjTabs extends View {
     const fill = (c.active ? t.raised : over ? mix(t.canvas, t.raised) : t.canvas).slice(0, 7);
     const n = 20;
     const slot = over
-      ? div().id(`close-${c.id}`).size(18).flex_none().flex().items_center().justify_center().rounded(1).text_color(t.dim)
+      ? div().id(`close-${c.id}`).size(18).flex_none().flex().items_center().justify_center().rounded_full().text_color(t.dim)
         .hover(s => s.bg(t.dim + "26").text_color(t.foreground))
         .on_mouse_down("left", (_e, cx) => cx.stop_propagation()).on_click((_e, cx) => { cx.stop_propagation(); run("tab.close", { id: c.id }); })
         .child(svg("mods/mdj-icons/12/x.svg").size(12))
@@ -161,7 +161,7 @@ export default class MdjTabs extends View {
         const x = (i + 0.5) / n, ease = x * x * (3 - 2 * x);
         return div().w(1).flex_none().bg(fill + hex(ease));
       }))
-      .child(div().flex_none().pr(4).rounded_r(radius).bg(fill).flex().items_center()
+      .child(div().flex_none().pr(8).rounded_r(radius).bg(fill).flex().items_center()
         .when(Boolean(c.zoomed), el => el.child(div().size(18).flex_none().flex().items_center().justify_center()
           .child(svg("mods/mdj-icons/12/maximize-2.svg").size(12).text_color(t.accent))))
         .when(over || Boolean(status), el => el.child(slot)));
@@ -175,7 +175,7 @@ export default class MdjTabs extends View {
     this.paneLook(space);
     const stop = (_e, cx) => cx.stop_propagation();
     // mdj: every control on this bar is one size, ROW tall with RADIUS corners, like the side lists.
-    const ROW = 28, RADIUS = 6, hoverBg = dimmed(t);
+    const ROW = 28, RADIUS = 14, hoverBg = dimmed(t);
     const button = (id, label, action) => div().id(id).size(ROW).mt(4).flex_none().flex().items_center().justify_center().rounded(RADIUS).text_color(t.muted).hover(s => s.bg(hoverBg).text_color(t.foreground))
       .on_mouse_down("left", stop).on_click(action).child(label);
     const item = (c, i) => {
@@ -189,7 +189,7 @@ export default class MdjTabs extends View {
       const over = this.hoverTab === c.id;
       const status = c.status === "working" ? svg("mods/workspace-chrome/spinner.svg").size(12).flex_none().text_color(t.working).spin(900)
         : c.status === "blocked" || c.status === "done" ? div().size(6).rounded(3).bg(t[c.status]) : null;
-      return h_flex().id(`tab-${c.id}`).h(ROW).min_w(ROW * 4).pl(5).pr(10).gap(8).rounded(RADIUS).items_center().flex_none().text_size(13.5).relative()
+      return h_flex().id(`tab-${c.id}`).h(ROW).min_w(ROW * 4).pl(9).pr(14).gap(8).rounded(RADIUS).items_center().flex_none().text_size(13.5).relative()
         .child(card(`tab-card-${c.id}`, c.active, t, RADIUS)).text_color(c.active ? t.foreground : t.muted)
         .when(!c.active, el => el.hover(s => s.bg(dimmed(t))))
         .on_size_change((s, cx) => { if ((this.widths ??= {})[c.id] !== s.width) { this.widths[c.id] = s.width; cx.notify(); } })
@@ -221,7 +221,7 @@ export default class MdjTabs extends View {
     this.syncPanel(space, panel, body, enabled);
     const panelButton = (id, label, icon) => {
       const on = panel && !panel.hidden && body?.active === id;
-      return h_flex().id(`panel-${id}`).h(ROW).mt(4).pl(5).pr(10).gap(8).flex_none().items_center().rounded(RADIUS)
+      return h_flex().id(`panel-${id}`).h(ROW).mt(4).pl(9).pr(14).gap(8).flex_none().items_center().rounded(RADIUS)
         .text_size(13.5).relative().child(card(`panel-card-${id}`, on, t, RADIUS)).text_color(on ? t.foreground : t.muted)
         .when(!on, el => el.hover(s => s.bg(dimmed(t)))).on_mouse_down("left", stop)
         .on_click(() => {

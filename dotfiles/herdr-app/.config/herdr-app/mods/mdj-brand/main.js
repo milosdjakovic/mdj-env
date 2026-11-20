@@ -29,15 +29,15 @@ function toggleSidebar() {
 export default class MdjBrand extends View {
   button(id, label, action) {
     const t = theme();
-    return div().id(id).size(26).flex_none().flex().items_center().justify_center().rounded(6).text_color(t.muted).hover(s => s.bg((t.hover === t.canvas ? t.chrome : t.hover)).text_color(t.foreground))
+    return div().id(id).size(26).flex_none().flex().items_center().justify_center().rounded_full().text_color(t.muted).hover(s => s.bg((t.hover === t.canvas ? t.chrome : t.hover)).text_color(t.foreground))
       .on_mouse_down("left", (_e, cx) => cx.stop_propagation()).on_click(action).child(label);
   }
   render() {
     const t = theme();
     const collapsed = narrow();
     if (props()?.footer) {
-      const row = (id, icon, label, dim, action) => h_flex().id(id).h(28).px(8).gap(9).items_center().rounded(6)
-        .when(collapsed, el => el.relative().w_full().px(0).rounded(6).justify_center().tooltip(label))
+      const row = (id, icon, label, dim, action) => h_flex().id(id).h(28).px(10).gap(9).items_center().rounded_full()
+        .when(collapsed, el => el.relative().w_full().px(0).rounded_full().justify_center().tooltip(label))
         .text_color(dim ? t.dim : t.muted).hover(s => s.bg((t.hover === t.canvas ? t.chrome : t.hover)).text_color(t.foreground)).cursor_pointer()
         .on_click(action).child(svg(`mods/mdj-icons/14/${icon}.svg`).size(14))
         .when(!collapsed, el => el.child(label));
