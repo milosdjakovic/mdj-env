@@ -212,18 +212,26 @@ struct SettingsSidebar: View {
   @ObservedObject var model: SettingsModel
 
   var body: some View {
-    List(selection: $model.selection) {
-      Section {
-        SearchField(text: $model.query)
-        AppIdentity()
-      }
-      Section {
-        ForEach(model.sections) { section in
-          Label(section.title, systemImage: section.symbol).tag(section.id)
+    VStack(spacing: 0) {
+      List(selection: $model.selection) {
+        Section {
+          SearchField(text: $model.query)
+        }
+        Section {
+          ForEach(model.sections) { section in
+            Label(section.title, systemImage: section.symbol).tag(section.id)
+          }
         }
       }
+      .listStyle(.sidebar)
+      // The app at the foot of the sidebar, its icon in line with the sections' symbols and the
+      // same gap under it as beside it.
+      AppIdentity()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 18)
+        .padding(.top, 12)
+        .padding(.bottom, 18)
     }
-    .listStyle(.sidebar)
     .onChange(of: model.query) {
       let sections = model.sections
       if let first = sections.first, !sections.contains(where: { $0.id == model.selection }) {
@@ -281,25 +289,23 @@ struct SettingsDetail: View {
   }
 }
 
-/// The app's icon, name and version at the head of the sidebar, where System Settings shows the
-/// account.
+/// The app's icon, name and version at the foot of the sidebar.
 struct AppIdentity: View {
   private var version: String {
     Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
   }
 
   var body: some View {
-    HStack(spacing: 12) {
+    HStack(spacing: 10) {
       Image(nsImage: NSApp.applicationIconImage)
         .resizable()
         .interpolation(.high)
-        .frame(width: 44, height: 44)
+        .frame(width: 36, height: 36)
       VStack(alignment: .leading, spacing: 1) {
         Text("Olm").font(.headline)
         Text("Version \(version)").font(.subheadline).foregroundStyle(.secondary)
       }
     }
-    .padding(.vertical, 6)
   }
 }
 
