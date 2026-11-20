@@ -136,6 +136,9 @@ when a sheet shows. The goldens of each sheet are compared with what the app dra
   slow run repeats slower and never queues. Fixture 0.3f, `test/fixtures/keys/repeat.json`, is
   recorded from `lib/chordkey.lua` itself by `test/repeattiming.lua` and checked by `olm-keys-check`.
 - **The switch** is `appKeys` in `config/plugins.lua`, `{ "meta" }`, an empty list being the way back.
+- **What the app holds** is written to `~/.olm/run/keys-owned.json` after every take and drop, each
+  leader with its count of combinations, since Carbon lets a second process claim a combination
+  another holds, so a probe from outside cannot tell, and the app's log is not readable from a shell.
 - **Checked** by `test/leaders.lua`, a released leader making its hotkeys disabled and reclaim
   enabling them, a leader with a list key refused, `test/bridge.lua`, the three words and the socket
   going, and `olm-keys-check`, the combinations claimed and the timing.

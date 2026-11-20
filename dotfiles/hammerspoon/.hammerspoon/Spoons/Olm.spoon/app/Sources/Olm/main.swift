@@ -274,7 +274,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           return count > 1
         },
         log: { NSLog("Olm keys: %@", $0) })
-      await MainActor.run { self.keyOwner = owner }
+      // What the app holds, ~/.olm/run/keys-owned.json, each leader with its combinations' count, so a
+      // look from outside the app reads it rather than guessing.
+      let ownedURL = context.run.appendingPathComponent("keys-owned.json")
+      await MainActor.run {
+        owner.onChange = { held in
+          let doc: [String: Any] = ["held": held, "updated": ISO8601DateFormatter().string(from: Date())]
+          if let data = try? JSONSerialization.data(withJSONObject: doc, options: [.sortedKeys]) {
+            try? data.write(to: ownedURL, options: .atomic)
+          }
+        }
+        self.keyOwner = owner
+      }
       let keymapURL = context.run.appendingPathComponent("keymap.json")
       let takeKeys: @Sendable () -> Void = {
         Task { @MainActor in

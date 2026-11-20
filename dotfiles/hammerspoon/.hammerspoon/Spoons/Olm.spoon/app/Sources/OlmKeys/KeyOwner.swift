@@ -36,6 +36,8 @@ public final class KeyOwner {
   private let words: Words
   private let gate: (String) -> Bool
   private let log: (String) -> Void
+  /// Told what the app holds after every take and drop, each leader with its combinations' count.
+  public var onChange: (([String: Int]) -> Void)?
   private lazy var keys = HotKeys { [weak self] id, down in self?.heard(id, down) }
   private var claims: [UInt32: Claim] = [:]
   private var resolver = Resolver(keymap: Keymap(leaders: [], rows: []))
@@ -88,6 +90,13 @@ public final class KeyOwner {
       }
     }
     if !refused.isEmpty { await words.reclaim(refused) }
+    tell()
+  }
+
+  private func tell() {
+    var held: [String: Int] = [:]
+    for claim in claims.values { held[claim.leader, default: 0] += 1 }
+    onChange?(held)
   }
 
   /// Every claim let go, for a socket gone.
@@ -96,6 +105,7 @@ public final class KeyOwner {
     repeating = nil
     keys.releaseAll()
     claims = [:]
+    tell()
   }
 
   /// Each combination a leader's modifier half claims, its base set united with a row's own, a catch
