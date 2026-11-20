@@ -473,18 +473,23 @@ struct SectionPage: View {
   }
 }
 
-/// One line in a glass capsule, at most two lines wide enough to read, so a long refusal wraps in
-/// its place rather than pushing the header.
+/// One line in a glass capsule as wide as its words, at the header's right, a long refusal wrapped to
+/// two lines in its place rather than pushing the header.
 struct Note: View {
   let text: String
   let symbol: String
 
   var body: some View {
-    Label(text, systemImage: symbol)
+    // As wide as its words on one line, and only a long refusal wraps to two, at most 420 wide.
+    ViewThatFits(in: .horizontal) {
+      capsule(Label(text, systemImage: symbol).lineLimit(1).fixedSize())
+      capsule(Label(text, systemImage: symbol).lineLimit(2).frame(width: 420, alignment: .leading))
+    }
+  }
+
+  private func capsule(_ content: some View) -> some View {
+    content
       .font(.callout).foregroundStyle(.secondary)
-      .lineLimit(2)
-      .frame(maxWidth: 340, alignment: .leading)
-      .fixedSize(horizontal: false, vertical: true)
       .padding(.horizontal, Space.pad).padding(.vertical, Space.related + 2)
       .glassCard(cornerRadius: 999)
   }
@@ -495,23 +500,26 @@ struct SettingRow: View {
   @ObservedObject var model: SettingsModel
 
   var body: some View {
-    // The reset button keeps its place when hidden and the control sits in a column of fixed width,
-    // so a value changing, or the reset appearing, moves nothing in the row.
+    // The reset button sits a pad's gap before the control, in the control's column of fixed width,
+    // and keeps its place when hidden, so the reset appearing moves nothing in the row.
     let canReset = setting.differs && setting.locked == nil
     HStack(alignment: .center, spacing: Space.pad) {
       label
       Spacer(minLength: Space.pad)
-      Button {
-        model.change(setting, to: .none, reset: true)
-      } label: {
-        Image(systemName: "arrow.uturn.backward")
+      HStack(spacing: Space.pad) {
+        Spacer(minLength: 0)
+        Button {
+          model.change(setting, to: .none, reset: true)
+        } label: {
+          Image(systemName: "arrow.uturn.backward")
+        }
+        .buttonStyle(.borderless)
+        .help("Back to the value in the config files")
+        .opacity(canReset ? 1 : 0)
+        .disabled(!canReset)
+        control.labelsHidden()
       }
-      .buttonStyle(.borderless)
-      .help("Back to the value in the config files")
-      .opacity(canReset ? 1 : 0)
-      .disabled(!canReset)
-      control.labelsHidden()
-        .frame(width: Space.control, alignment: .trailing)
+      .frame(width: Space.control)
     }
     .disabled(setting.locked != nil || model.busy.contains(setting.id))
     .help(setting.locked ?? "")
