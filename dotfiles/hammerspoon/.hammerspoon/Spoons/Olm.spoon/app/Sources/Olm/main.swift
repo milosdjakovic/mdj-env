@@ -78,7 +78,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private let typedLauncher: BridgedLauncher
   private let launcherShadow: Shadow
   // The Olm Settings window, its changes sent over the bridge, S.3 of docs/DESIGN-APP-SETTINGS.md.
-  private lazy var settingsWindow = SettingsWindow(service: Self.settingsService(bridge))
+  private lazy var settingsWindow = SettingsWindow(service: Self.settingsService(bridge),
+    permissions: Self.permissions())
+
+  /// Every permission the app uses, for the Permissions page of Olm Settings: Accessibility for
+  /// bringing an app forward, Input Monitoring for hearing the keys, and the three folders file
+  /// search reads. A folder is probed only once file search has asked about it, since probing one
+  /// never answered raises macOS's prompt, and the probe opens it without listing it.
+  static func permissions() -> [Permission] {
+    let access = FolderAccess(home: home, store: context.store)
+    let folders = access.folders.map { folder in
+      Permission(id: "folder." + folder.name, title: "\(folder.name) Folder",
+        detail: "File search finding files in \(folder.name)", symbol: "folder",
+        settingsURL: FolderAccess.settingsURL,
+        check: {
+          guard access.load().asked else { return false }
+          guard let dir = opendir(folder.path) else { return false }
+          closedir(dir)
+          return true
+        },
+        ask: { DispatchQueue.global(qos: .userInitiated).async { _ = FolderAccess.readable(folder) } })
+    }
+    return [
+      Permission(id: "accessibility", title: "Accessibility",
+        detail: "Bringing an app forward, cycling its windows, hiding and placing it",
+        symbol: "macwindow.on.rectangle",
+        settingsURL: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
+        check: { AppFocus.allowed }, ask: { AppFocus.ask() }),
+      Permission(id: "inputMonitoring", title: "Input Monitoring",
+        detail: "Hearing the keyboard, the leader keys",
+        symbol: "keyboard",
+        settingsURL: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent",
+        check: { KeyTap.allowed }, ask: { KeyTap.ask() }),
+    ] + folders
+  }
 
   // The tools the serves share names, none where it is missing or names none.
   static func served(in run: URL) -> [String] {

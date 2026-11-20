@@ -1356,3 +1356,11 @@ placed long after the press, the next time a person brought that app forward som
 belief corrected is that the wait gave up after five seconds. The app's port stops at twenty attempts
 as the code meant and logs a wait that ran out. Lua's wait is left as it is, since it goes with the
 shadow.
+
+**2026-11-20 21:49, a Permissions page in Olm Settings.** Milos asked for every permission's status and a way
+to turn each on or off. The app cannot switch its own permission, so each row's button opens the
+list in System Settings, asking macOS first where it was never asked. Found while he gave
+Accessibility for 6.2: on macOS 27 that list is named Device Control and Data Access, which the
+setup's grant guidance in `DEPENDENCIES.map` now says. And a reset of Olm's entry with `tccutil`
+while he was turning it on cleared his switch, so a grant is never reset while a person is in that
+list.

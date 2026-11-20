@@ -269,6 +269,17 @@ Tab and the sidebar's Olm row.
   own. All apply on reload.
 - **The sidebar.** Olm's icon, name and version sit at the foot of the sidebar, under the sections.
 
+**Permissions, 2026-11-20.** Asked for by Milos once Accessibility was given for step 6.2. A page
+after every section the share lists, drawn by the app and not from the share, since only the app can
+ask macOS what it is allowed: Accessibility, Input Monitoring, and the Desktop, Documents and
+Downloads folders file search reads. Each row says Allowed or Not allowed, read again every second
+while the page is up, and its button opens the list in System Settings where the switch is, asking
+macOS first where the permission was never asked for, which is what puts Olm in that list. An app
+cannot switch its own permission, so the switch itself stays in System Settings. A folder is probed
+only once file search has asked about it, since probing one never answered raises macOS's prompt,
+and the probe opens it without listing it. The list is the composition root's,
+`AppDelegate.permissions()`, so a part that comes to need a permission adds its row there.
+
 ## Back out
 
 The four plugins keep their lists, so their launcher rows come back by putting `row` back under

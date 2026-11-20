@@ -39,14 +39,30 @@ final class SettingsModel: ObservableObject {
   /// How far the window's buttons reach down from the top, which the search sits a group's gap under.
   @Published var buttonsBottom: CGFloat = 32
   let service: SettingsService?
+  /// The permissions the Permissions page lists, and whether macOS gives each now.
+  let permissions: [Permission]
+  @Published var granted: [String: Bool] = [:]
 
-  init(share: SettingsShare?, service: SettingsService?) {
+  init(share: SettingsShare?, service: SettingsService?, permissions: [Permission] = []) {
     self.share = share
     self.service = service
-    selection = share?.sections.first?.id
+    self.permissions = permissions
+    selection = share?.sections.first?.id ?? (permissions.isEmpty ? nil : PermissionsPage.id)
   }
 
-  var sections: [SettingsSection] { share?.matching(query) ?? [] }
+  /// The share's sections a search finds, then the Permissions page when it has any to list.
+  var sections: [SettingsSection] {
+    var out = share?.matching(query) ?? []
+    if !permissions.isEmpty, PermissionsPage.matches(query, permissions) { out.append(PermissionsPage.section) }
+    return out
+  }
+
+  /// Asks macOS about each permission again, publishing only a change.
+  func recheck() {
+    var now: [String: Bool] = [:]
+    for p in permissions { now[p.id] = p.check() }
+    if now != granted { granted = now }
+  }
 
   var current: SettingsSection? { sections.first(where: { $0.id == selection }) ?? sections.first }
 
@@ -79,10 +95,14 @@ public final class SettingsWindow: NSObject, NSWindowDelegate {
   private var model: SettingsModel?
   private let share: () -> SettingsShare?
   private let service: SettingsService?
+  private let permissions: [Permission]
 
-  public init(share: @escaping () -> SettingsShare? = { SettingsShare.read() }, service: SettingsService? = nil) {
+  /// permissions, every permission the app uses, listed on the Permissions page.
+  public init(share: @escaping () -> SettingsShare? = { SettingsShare.read() }, service: SettingsService? = nil,
+    permissions: [Permission] = []) {
     self.share = share
     self.service = service
+    self.permissions = permissions
   }
 
   public var isShown: Bool { window?.isVisible ?? false }
@@ -130,7 +150,7 @@ public final class SettingsWindow: NSObject, NSWindowDelegate {
   }
 
   private func build() {
-    let model = SettingsModel(share: share(), service: service)
+    let model = SettingsModel(share: share(), service: service, permissions: permissions)
     self.model = model
     let w = NSWindow(contentViewController: SettingsSplit(model: model))
     w.title = "Olm Settings"
@@ -379,7 +399,9 @@ struct SettingsDetail: View {
 
   var body: some View {
     Group {
-      if model.share == nil {
+      if model.current?.id == PermissionsPage.id {
+        PermissionsView(model: model)
+      } else if model.share == nil {
         ContentUnavailableView("No settings yet", systemImage: "gearshape",
           description: Text("Hammerspoon writes them when it loads, with the olmapp piece on."))
       } else if let section = model.current {
