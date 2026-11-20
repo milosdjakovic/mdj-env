@@ -61,10 +61,10 @@ return {
     intercept = { member = "intercept", call = "dot" },
   },
 
+  -- No launcher row since Olm Settings, docs/DESIGN-APP-SETTINGS.md S.4, which holds this setting
+  -- in its window. The list stays, reached from config/keymap.lua with this plugin's open action,
+  -- which is how a machine without Olm.app changes it.
   registry = {
-    row = { settings = true, icon = "chooser",
-      detail = "how every list is drawn",
-      keywords = "glass, canvas, native, provider, picker, look" },
     open = { member = "show", call = "dot" },
   },
 }

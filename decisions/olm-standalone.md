@@ -1196,3 +1196,16 @@ steps and sizes there, laid over its own data before configure, which is how a p
 reaches the window without the core naming the plugin. Considered and not taken: declaring the
 window manager's settings in `lib/settings.lua`, refused because the dry gate fails any file outside
 plugins that names a plugin.
+
+**2026-11-20 14:29, the four launcher rows actually removed, and the settings window opens built.** The 13:58
+entry said the rows Olm Chooser, Olm Placement, Olm Theme and Olm Plugins were removed, and they
+were not. The script that edited the four manifests built the change and then wrote back the file
+it started from, so only a comment moved, and the gates passed because nothing they check names
+those rows. Milos found them still in the launcher. They are removed now, and the launcher goldens
+lose exactly those four rows. Milos also found the window slow to open and flickering. Each
+NSHostingController sized the window once SwiftUI had measured its views, after the window was up,
+so both now have no sizing options, and the app builds the window hidden two seconds after it
+starts, so the first open shows a window already laid out. The search is a Liquid Glass capsule 36
+points tall above the sections, and the window has an empty unified toolbar over a see-through
+title bar, as Finder has, so the buttons sit lower and further in, with the search and the app's
+row starting where the close button does, read off the window.

@@ -33,6 +33,9 @@ final class SettingsModel: ObservableObject {
   /// A change taken that applies on reload, so the window reloads once when it closes.
   @Published var reloadDue = false
   @Published var busy: Set<String> = []
+  /// Where the window's close button starts, which the sidebar's search and the app's row line up
+  /// with.
+  @Published var leading: CGFloat = 20
   let service: SettingsService?
 
   init(share: SettingsShare?, service: SettingsService?) {
@@ -91,30 +94,56 @@ public final class SettingsWindow: NSObject, NSWindowDelegate {
       model.share = share()
       if !model.sections.contains(where: { $0.id == model.selection }) { model.selection = model.sections.first?.id }
     } else {
-      let model = SettingsModel(share: share(), service: service)
-      self.model = model
-      let w = NSWindow(contentViewController: SettingsSplit(model: model))
-      w.title = "Olm Settings"
-      w.titleVisibility = .hidden
-      w.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
-      // No toolbar and a see-through title bar, so the pane runs to the top with nothing drawn over
-      // it. A toolbar drew a band with a line under it whenever the pointer reached the top.
-      w.titlebarAppearsTransparent = true
-      w.titlebarSeparatorStyle = .none
-      w.isReleasedWhenClosed = false
-      w.setContentSize(NSSize(width: 1100, height: 740))
-      w.contentMinSize = NSSize(width: SettingsSplit.sidebarWidth + 560, height: 520)
-      // The size is kept between openings and the place is not, since it opens centred. Named
-      // afresh with each larger default, so a size saved at an older one is not restored.
-      w.setFrameAutosaveName("OlmSettingsPaneFrame")
-      w.delegate = self
-      window = w
+      build()
     }
     if let window, !window.isVisible { Self.centre(window) }
     NSApp.setActivationPolicy(.regular)
     NSApp.mainMenu = Self.menu()
     NSApp.activate()
     window?.makeKeyAndOrderFront(nil)
+    alignToButtons()
+  }
+
+  /// The sidebar's search and the app's row start where the close button does, read off the
+  /// window rather than guessed, since the system places the buttons.
+  private func alignToButtons() {
+    guard let window, let model, let close = window.standardWindowButton(.closeButton) else { return }
+    let left = close.convert(close.bounds, to: nil).minX
+    if left > 0, abs(model.leading - left) > 0.5 { model.leading = left }
+  }
+
+  /// Builds the window and lays it out without showing it, called by the app a moment after it
+  /// starts, so the first open shows a window already drawn rather than building SwiftUI's views
+  /// while it comes up, which was slow and flickered.
+  public func prepare() {
+    guard window == nil else { return }
+    build()
+    window?.contentView?.layoutSubtreeIfNeeded()
+    alignToButtons()
+  }
+
+  private func build() {
+    let model = SettingsModel(share: share(), service: service)
+    self.model = model
+    let w = NSWindow(contentViewController: SettingsSplit(model: model))
+    w.title = "Olm Settings"
+    w.titleVisibility = .hidden
+    w.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
+    // An empty toolbar in the full unified style, as Finder has, so the window's buttons sit lower
+    // and further in with room around them, over a see-through title bar with no line, so no band is
+    // drawn over the pane. The compact style drew one when the pointer reached the top.
+    w.toolbar = NSToolbar(identifier: "OlmSettings")
+    w.toolbarStyle = .unified
+    w.titlebarAppearsTransparent = true
+    w.titlebarSeparatorStyle = .none
+    w.isReleasedWhenClosed = false
+    w.setContentSize(NSSize(width: 1100, height: 740))
+    w.contentMinSize = NSSize(width: SettingsSplit.sidebarWidth + 560, height: 520)
+    // The size is kept between openings and the place is not, since it opens centred. Named
+    // afresh with each larger default, so a size saved at an older one is not restored.
+    w.setFrameAutosaveName("OlmSettingsPaneFrame")
+    w.delegate = self
+    window = w
   }
 
   public func close() { window?.close() }
@@ -185,13 +214,19 @@ final class SettingsSplit: NSSplitViewController {
 
   init(model: SettingsModel) {
     super.init(nibName: nil, bundle: nil)
-    let sidebar = NSSplitViewItem(sidebarWithViewController: NSHostingController(rootView: SettingsSidebar(model: model)))
+    // Neither hosting controller sizes the window, which it otherwise does once SwiftUI has measured
+    // its views, after the window is up, and which showed as a flicker on open.
+    let side = NSHostingController(rootView: SettingsSidebar(model: model))
+    side.sizingOptions = []
+    let sidebar = NSSplitViewItem(sidebarWithViewController: side)
     sidebar.minimumThickness = Self.sidebarWidth
     sidebar.maximumThickness = Self.sidebarWidth
     sidebar.canCollapse = false
     sidebar.allowsFullHeightLayout = true
     sidebar.holdingPriority = .required
-    let detail = NSSplitViewItem(viewController: NSHostingController(rootView: SettingsDetail(model: model)))
+    let pane = NSHostingController(rootView: SettingsDetail(model: model))
+    pane.sizingOptions = []
+    let detail = NSSplitViewItem(viewController: pane)
     detail.minimumThickness = 560
     addSplitViewItem(sidebar)
     addSplitViewItem(detail)
@@ -213,14 +248,14 @@ struct SettingsSidebar: View {
 
   var body: some View {
     VStack(spacing: 0) {
+      SearchField(text: $model.query)
+        .padding(.leading, model.leading)
+        .padding(.trailing, 14)
+        .padding(.top, 8)
+        .padding(.bottom, 6)
       List(selection: $model.selection) {
-        Section {
-          SearchField(text: $model.query)
-        }
-        Section {
-          ForEach(model.sections) { section in
-            Label(section.title, systemImage: section.symbol).tag(section.id)
-          }
+        ForEach(model.sections) { section in
+          Label(section.title, systemImage: section.symbol).tag(section.id)
         }
       }
       .listStyle(.sidebar)
@@ -228,7 +263,8 @@ struct SettingsSidebar: View {
       // same gap under it as beside it.
       AppIdentity()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 18)
+        .padding(.leading, model.leading)
+        .padding(.trailing, 14)
         .padding(.top, 12)
         .padding(.bottom, 18)
     }
@@ -241,31 +277,25 @@ struct SettingsSidebar: View {
   }
 }
 
-/// The search over the sections, the system's search field, since the toolbar's lives with
-/// NavigationSplitView.
-struct SearchField: NSViewRepresentable {
+/// The search over the sections, a Liquid Glass capsule as tall as System Settings' search on
+/// macOS 27, the field inside it plain so the glass is the only bezel.
+struct SearchField: View {
   @Binding var text: String
 
-  func makeNSView(context: Context) -> NSSearchField {
-    let field = NSSearchField()
-    field.placeholderString = "Search"
-    field.controlSize = .large
-    field.delegate = context.coordinator
-    return field
-  }
-
-  func updateNSView(_ field: NSSearchField, context: Context) {
-    if field.stringValue != text { field.stringValue = text }
-  }
-
-  func makeCoordinator() -> Coordinator { Coordinator(text: $text) }
-
-  final class Coordinator: NSObject, NSSearchFieldDelegate {
-    let text: Binding<String>
-    init(text: Binding<String>) { self.text = text }
-    func controlTextDidChange(_ note: Notification) {
-      if let field = note.object as? NSSearchField { text.wrappedValue = field.stringValue }
+  var body: some View {
+    HStack(spacing: 7) {
+      Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+      TextField("Search", text: $text).textFieldStyle(.plain)
+      if !text.isEmpty {
+        Button { text = "" } label: {
+          Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+      }
     }
+    .padding(.horizontal, 12)
+    .frame(height: 36)
+    .glassCapsule()
   }
 }
 
@@ -519,6 +549,14 @@ struct GlassGroup<Content: View>: View {
 }
 
 extension View {
+  @ViewBuilder func glassCapsule() -> some View {
+    if #available(macOS 26, *) {
+      glassEffect(.regular.interactive(), in: Capsule())
+    } else {
+      background(.thinMaterial, in: Capsule())
+    }
+  }
+
   @ViewBuilder func glassCard(cornerRadius: CGFloat) -> some View {
     let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
     if #available(macOS 26, *) {

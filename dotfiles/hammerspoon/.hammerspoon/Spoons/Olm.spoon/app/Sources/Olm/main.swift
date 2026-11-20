@@ -135,6 +135,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     stage.onTextBudget = { budget in Task { await bridge.setTextBudget(budget) } }
     // Command and comma in any list, docs/DESIGN-APP-SETTINGS.md S.4.
     stage.onOpenSettings = { [weak self] in self?.settingsWindow.show() }
+    // The settings window built ahead, hidden, so its first open is quick and does not flicker.
+    DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in self?.settingsWindow.prepare() }
     Task {
       await bridge.attach(launcher: launcher, shown: shown, settled: { s in
         guard s.tool == launcher.manifest.name else { return }
