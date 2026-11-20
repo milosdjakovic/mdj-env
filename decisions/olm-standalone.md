@@ -1236,3 +1236,16 @@ rows until stage 4 moves the catalog. The belief that the app's rows took about 
 sources and the calculator, and none is of the launcher. Left as follow ups and not conditions: file
 search's rows at 171 ms median from one open, and a main thread stall of 57 ms median once an open,
 the app's own. Recording is switched off by removing ~/.olm/run/timings.
+
+**2026-11-20 15:50, external plugins, a process each, run by the app.** After the resting point Milos settled the
+end state, Hammerspoon out of the picture entirely, the core built into the app in Swift, and every
+other plugin, display profiles, tmux sessions, VPN and the like, an external plugin anyone can write
+and install without a build of Olm, ours in Swift as well, and Claude able to develop one in any
+folder. He asked that plugins never clog the app and how they are run. The design note is
+`docs/DESIGN-APP-PLUGINS.md` in the spoon. A runner actor inside the app starts one process per
+plugin and speaks the bridge protocol to it over its pipes, every request to a budget, a plugin
+that breaks one killed and one that keeps failing switched off, started only when needed and at a
+lower priority than the app. Swift source is compiled on install with the command line tools.
+Rejected there: a plugin in the app's own process in any form, one host process for every plugin,
+and a socket per plugin. It answers the plan's open question 3 for our own plugins, Swift, with
+JavaScriptCore kept for later. It waits on Milos's go.
