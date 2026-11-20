@@ -730,6 +730,22 @@ applied, found when Clipboard History's Manage History did not change its page i
 `setQuery`, `setPlaceholder` and `hide` cross outside a handler too, to the hosted level on top, and
 a placeholder set while a tool's own key is still opening its list goes with that list's `open`.
 
+## The keys, step 5.1
+
+Hammerspoon writes what its binder binds to `~/.olm/run/keymap.json` on every load, through
+`lib/keyshare.lua`, version 1, the leaders in use and every global row in the order bound:
+
+```json
+{"version":1,"leaders":[{"name":"hyper","held":true,"keyCode":79,"mods":["shift","ctrl","alt","cmd"],"ranked":true}],
+ "rows":[{"id":"apptoggler.Safari","leader":"hyper","key":"a","keyCode":0,"mods":[],"gate":null,
+   "priority":0,"repeats":false,"afterRelease":false}]}
+```
+
+A row's `mods` is absent for a catch all and its `leader` absent for a plain combo. Each time the
+binder runs a global row it sends the notification `keyFired`, `{"id":"apptoggler.Safari"}`, which
+the app's shadow of the keys pairs with the press it heard, docs/DESIGN-APP-KEYS.md. A list's own
+keys send nothing.
+
 ## How it is tested
 
 The plan's bridge transcripts are this protocol as recorded conversations under

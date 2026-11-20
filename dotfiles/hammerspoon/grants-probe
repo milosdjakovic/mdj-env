@@ -38,6 +38,11 @@ CANNOT_ANSWER_HERE=2
 # from this module's own declaration of the application, so it is written once.
 if [[ "${1:-}" == --subject ]]; then
     case "${2:-}" in
+        olmapp-input-monitoring)
+            # Olm.app asks for it itself and macOS lists it, so the app is what a person opens.
+            echo "app local.olm.Olm"
+            exit 0
+            ;;
         accessibility|location)
             here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
             app="$(awk -F'|' '/^[[:space:]]*#/ { next } { k = $2; gsub(/[[:space:]]/, "", k) } k == "app" { v = $3; gsub(/^[[:space:]]+|[[:space:]]+$/, "", v); print v; exit }' "$here/dependencies-module")"
@@ -150,6 +155,24 @@ case "$locator" in
                 ;;
             *)
                 echo "grants-probe: the config answered '$answer', which is not a location reading" >&2
+                exit $CANNOT_ANSWER_HERE
+                ;;
+        esac
+        ;;
+    olmapp-input-monitoring)
+        # Olm.app writes what macOS answers it, CGPreflightListenEventAccess, each time it starts and
+        # tries its tap, since a check run here would answer for the terminal. No file is an app
+        # that has not said.
+        grants="$HOME/.olm/state/app/grants.json"
+        if [[ ! -f "$grants" ]]; then
+            echo "grants-probe: Olm.app has not said whether it may hear the keyboard, start it once" >&2
+            exit $CANNOT_ANSWER_HERE
+        fi
+        case "$(tr -d ' \n' < "$grants")" in
+            *'"inputMonitoring":true'*)  echo "granted" ;;
+            *'"inputMonitoring":false'*) echo "notDetermined" ;;
+            *)
+                echo "grants-probe: $grants says nothing about Input Monitoring" >&2
                 exit $CANNOT_ANSWER_HERE
                 ;;
         esac

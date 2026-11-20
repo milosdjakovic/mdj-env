@@ -1,0 +1,178 @@
+// Step 5.1's check, docs/DESIGN-APP-KEYS.md. The resolver against the rules of lib/leader.lua's
+// _resolve and its three triggers, case by case, and the shadow's pairing driven through a keymap
+// written to a folder of its own, a press and a run paired, each alone logged, a held key's repeats
+// taken as one press and a press while a list is up left to the list. It hears no keyboard.
+//
+//   olm-keys-check    exits 0 when every case held, 1 otherwise
+
+import Foundation
+import OlmKeys
+
+var failures = 0
+var checks = 0
+func check(_ ok: Bool, _ what: String) {
+  checks += 1
+  if !ok {
+    failures += 1
+    print("  FAIL \(what)")
+  }
+}
+
+let hyperMods: Set<Mod> = [.shift, .ctrl, .alt, .cmd]
+let metaMods: Set<Mod> = [.shift, .ctrl, .alt]
+let hyper = KeyLeader(name: "hyper", held: true, keyCode: 79, mods: hyperMods, ranked: true)
+let meta = KeyLeader(name: "meta", held: true, keyCode: 106, mods: metaMods, ranked: false)
+let A = 0, J = 38, LEFT = 123, FOUR = 21, BACKTICK = 50
+
+func ran(_ r: Resolution?) -> String? {
+  if case .runs(let row) = r { return row.id }
+  return nil
+}
+
+// The triggers.
+do {
+  let keymap = Keymap(leaders: [hyper, meta], rows: [
+    KeyRow(id: "apptoggler.Safari", leader: "hyper", key: "a", keyCode: A, mods: []),
+    KeyRow(id: "capture.copy", leader: "hyper", key: "4", keyCode: FOUR, mods: [.shift]),
+    KeyRow(id: "windowmanager.leftHalf", leader: "meta", key: "left", keyCode: LEFT, mods: nil, repeats: true),
+    KeyRow(id: "apptoggler.Ghostty", leader: nil, key: "`", keyCode: BACKTICK, mods: [.alt]),
+  ])
+  let r = Resolver(keymap: keymap)
+  let open: (String) -> Bool = { _ in true }
+  check(ran(r.resolve(code: A, mods: [], held: [79], gate: open)) == "apptoggler.Safari", "Hyper held as F18 and A")
+  check(ran(r.resolve(code: A, mods: hyperMods, held: [], gate: open)) == "apptoggler.Safari", "Hyper as four modifiers and A")
+  check(r.resolve(code: A, mods: [], held: [], gate: open) == nil, "A alone passes through")
+  check(r.resolve(code: A, mods: [.cmd], held: [], gate: open) == nil, "Command and A passes through")
+  check(ran(r.resolve(code: FOUR, mods: [.shift], held: [79], gate: open)) == "capture.copy", "F18, Shift and 4")
+  check(r.resolve(code: FOUR, mods: hyperMods, held: [], gate: open) == nil,
+    "the four modifiers and 4 leave Hyper and Shift and 4 to the held key, since Shift is in the set")
+  check(ran(r.resolve(code: LEFT, mods: metaMods, held: [], gate: open)) == "windowmanager.leftHalf", "META as modifiers, a catch all")
+  check(r.resolve(code: LEFT, mods: metaMods.union([.cmd]), held: [], gate: open) == nil,
+    "a catch all on a leader of modifiers is claimed on the set alone")
+  check(ran(r.resolve(code: LEFT, mods: [.cmd], held: [106], gate: open)) == "windowmanager.leftHalf",
+    "a catch all under a held key fires with any modifiers")
+  check(ran(r.resolve(code: BACKTICK, mods: [.alt], held: [], gate: open)) == "apptoggler.Ghostty", "a plain combo")
+  check(r.resolve(code: BACKTICK, mods: [.alt, .shift], held: [], gate: open) == nil, "a plain combo is exact")
+  check(r.resolve(code: 79, mods: [], held: [79], gate: open) == nil, "the leader's own key resolves nothing")
+}
+
+// The two tier rules and the gates.
+do {
+  let ranked = KeyLeader(name: "r", held: true, keyCode: 80, mods: nil, ranked: true)
+  let first = KeyLeader(name: "f", held: true, keyCode: 90, mods: nil, ranked: false)
+  func rows(_ leader: String) -> [KeyRow] {
+    [
+      KeyRow(id: "\(leader).shiftJ", leader: leader, key: "j", keyCode: J, mods: [.shift], gate: "off"),
+      KeyRow(id: "\(leader).anyJ", leader: leader, key: "j", keyCode: J, mods: nil),
+      KeyRow(id: "\(leader).plainA1", leader: leader, key: "a", keyCode: A, mods: [], priority: 0),
+      KeyRow(id: "\(leader).plainA2", leader: leader, key: "a", keyCode: A, mods: [], priority: 5),
+      KeyRow(id: "\(leader).any1", leader: leader, key: "left", keyCode: LEFT, mods: nil),
+      KeyRow(id: "\(leader).any2", leader: leader, key: "left", keyCode: LEFT, mods: nil),
+      KeyRow(id: "\(leader).gated", leader: leader, key: "4", keyCode: FOUR, mods: [], gate: "off"),
+    ]
+  }
+  let r = Resolver(keymap: Keymap(leaders: [ranked, first], rows: rows("r") + rows("f")))
+  let gate: (String) -> Bool = { $0 != "off" }
+  check(ran(r.resolve(code: J, mods: [.shift], held: [80], gate: gate)) == "r.anyJ",
+    "ranked, an exact row gated off leaves the catch all to answer")
+  check(r.resolve(code: J, mods: [.shift], held: [90], gate: gate) == .swallowed,
+    "first exact, an exact row gated off is swallowed there")
+  check(ran(r.resolve(code: A, mods: [], held: [80], gate: gate)) == "r.plainA2", "ranked, the higher priority wins")
+  check(ran(r.resolve(code: A, mods: [], held: [90], gate: gate)) == "f.plainA1", "first exact, the first bound wins")
+  check(ran(r.resolve(code: LEFT, mods: [], held: [80], gate: gate)) == "r.any1", "ranked, the first catch all among equals")
+  check(ran(r.resolve(code: LEFT, mods: [], held: [90], gate: gate)) == "f.any2", "first exact, the last catch all")
+  check(r.resolve(code: FOUR, mods: [], held: [80], gate: gate) == .swallowed, "ranked, every row gated off swallows")
+  check(r.resolve(code: FOUR, mods: [], held: [90], gate: gate) == .swallowed, "first exact, every row gated off swallows")
+  check(r.resolve(code: 1, mods: [], held: [80], gate: gate) == nil, "a key nothing binds passes through")
+}
+
+// The share as Hammerspoon writes it.
+do {
+  let json = """
+  {"version":1,"leaders":[{"name":"hyper","held":true,"keyCode":79,"mods":["shift","ctrl","alt","cmd"],"ranked":true}],
+   "rows":[{"id":"apptoggler.Safari","leader":"hyper","key":"a","keyCode":0,"mods":[],"repeats":false},
+           {"id":"windowmanager.leftHalf","leader":"meta","key":"left","keyCode":123,"repeats":true},
+           {"id":"nokey.row","leader":"hyper","key":"globe"}]}
+  """
+  let k = try? Keymap.parse(Data(json.utf8))
+  check(k?.leaders.first?.mods == hyperMods && k?.leaders.first?.ranked == true, "a leader read")
+  check(k?.rows.count == 2, "a row with no keycode left out")
+  check(k?.rows[0].mods == [] && k?.rows[1].mods == nil, "an exact row and a catch all told apart")
+  check((try? Keymap.parse(Data(#"{"version":2}"#.utf8))) == nil, "another version refused")
+}
+
+// The shadow's pairing, through a keymap in a folder of its own.
+func counts(_ dir: URL) -> [String: Int] {
+  let url = dir.appendingPathComponent("log/shadow-keys-count.json")
+  guard let data = try? Data(contentsOf: url), let o = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [:] }
+  return o.compactMapValues { $0 as? Int }
+}
+func lines(_ dir: URL) -> [String] {
+  (try? String(contentsOf: dir.appendingPathComponent("log/shadow-keys.jsonl"), encoding: .utf8))?
+    .split(separator: "\n").map(String.init) ?? []
+}
+func pause(_ s: Double) { Thread.sleep(forTimeInterval: s) }
+do {
+  let dir = FileManager.default.temporaryDirectory.appendingPathComponent("olm-keys-check-\(getpid())")
+  try? FileManager.default.removeItem(at: dir)
+  let run = dir.appendingPathComponent("run")
+  try! FileManager.default.createDirectory(at: run, withIntermediateDirectories: true)
+  let json = """
+  {"version":1,"leaders":[{"name":"hyper","held":true,"keyCode":79,"mods":["shift","ctrl","alt","cmd"],"ranked":true},
+   {"name":"meta","held":true,"keyCode":106,"mods":["shift","ctrl","alt"],"ranked":false}],
+   "rows":[{"id":"apptoggler.Safari","leader":"hyper","key":"a","keyCode":0,"mods":[]},
+           {"id":"windowmanager.leftHalf","leader":"meta","key":"left","keyCode":123,"repeats":true}]}
+  """
+  try! Data(json.utf8).write(to: run.appendingPathComponent("keymap.json"))
+  let shadow = KeyShadow(run: run, log: dir.appendingPathComponent("log"), say: { _ in })
+  shadow.start()
+  func now() -> Double { ProcessInfo.processInfo.systemUptime }
+  func press(_ code: Int, _ mods: Set<Mod>, repeat r: Bool = false) {
+    shadow.heard(KeyEvent(kind: .down, code: code, mods: mods, autorepeat: r, at: now()))
+  }
+  func release(_ code: Int, _ mods: Set<Mod>) {
+    shadow.heard(KeyEvent(kind: .up, code: code, mods: mods, autorepeat: false, at: now()))
+  }
+  pause(0.2)
+  // A press and its run.
+  press(A, hyperMods)
+  pause(0.02)
+  shadow.fired("apptoggler.Safari")
+  // A run that came before the press was heard.
+  shadow.fired("apptoggler.Safari")
+  press(A, hyperMods)
+  // A held repeating key, its run and three repeats, the OS's own autorepeats not presses.
+  press(LEFT, metaMods)
+  for _ in 0..<3 {
+    shadow.fired("windowmanager.leftHalf")
+    press(LEFT, metaMods, repeat: true)
+    pause(0.03)
+  }
+  release(LEFT, metaMods)
+  shadow.fired("windowmanager.leftHalf")
+  pause(1.8)
+  var c = counts(dir)
+  check(c["paired"] == 3, "a press and its run paired either way round, and a held key's repeats one press, \(c)")
+  check(c["appOnly"] == 0 && c["hammerspoonOnly"] == 0, "and nothing logged, \(lines(dir))")
+  // A press Hammerspoon did not run, and a run the app did not hear.
+  press(A, hyperMods)
+  shadow.fired("windowmanager.leftHalf")
+  pause(1.8)
+  c = counts(dir)
+  check(c["appOnly"] == 1 && c["hammerspoonOnly"] == 1, "each alone logged, \(c)")
+  let logged = lines(dir)
+  check(logged.count == 2 && logged[0].contains("appOnly") && logged[0].contains("apptoggler.Safari")
+    && logged[1].contains("hammerspoonOnly"), "one line each, \(logged)")
+  // A list of the app's own up takes its presses.
+  shadow.list(up: true)
+  press(A, hyperMods)
+  shadow.fired("apptoggler.Safari")
+  shadow.list(up: false)
+  pause(1.8)
+  c = counts(dir)
+  check(c["appOnly"] == 1 && c["hammerspoonOnly"] == 1 && c["paired"] == 3, "a press while a list is up is the list's, \(c)")
+  try? FileManager.default.removeItem(at: dir)
+}
+
+print("olm-keys-check, \(checks) checks, \(failures) failed")
+exit(failures == 0 ? 0 : 1)

@@ -20,6 +20,7 @@
 import AppKit
 import FileSearchPlugin
 import OlmBridge
+import OlmKeys
 import OlmCore
 import OlmKit
 import OlmSettings
@@ -38,6 +39,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private lazy var stage = Stage(searcher: searcher)
   private let sources: [String: any ListSource]
   private let shadows: [String: Shadow]
+  // The keys in shadow and the tap it hears through, step 5.1, held for the app's life.
+  private var keyShadow: KeyShadow?
+  private var keyTap: KeyTap?
   private let bridge = Bridge(path: context.run.appendingPathComponent("bridge.sock").path)
   private let bridgedLauncher: BridgedLauncher
   private let shownLauncher: BridgedLauncher
@@ -122,7 +126,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     stage.servesKeys = { Self.served(in: context.run).contains($0.lowercased()) }
     // List keys, step 1.4f, docs/DESIGN-APP-LIST-KEYS.md. The stage says up and down, a list verb
     // Hammerspoon's leaders heard comes back as "<tool>:<verb>", and an ask answers the state.
+    // The keys in shadow, step 5.1, docs/DESIGN-APP-KEYS.md. The app hears every press, resolves it
+    // against the keymap Hammerspoon compiled and pairs it with what Hammerspoon ran. A list of the
+    // app's own being up leaves its presses to it. Input Monitoring is asked for once, by macOS's own
+    // prompt, and the tap keeps trying until it is given.
+    let keyShadow = KeyShadow(run: context.run, log: olm.appendingPathComponent("log"))
+    self.keyShadow = keyShadow
+    keyShadow.start()
+    if !KeyTap.allowed { KeyTap.ask() }
+    // Whether macOS lets the app hear the keyboard, written for the setup's grants-probe, which can
+    // only ask the app, ~/.olm/state/app/grants.json.
+    let grants = olm.appendingPathComponent("state/app/grants.json")
+    let keyTap = KeyTap(handle: { keyShadow.heard($0) }, log: { NSLog("Olm keys: %@", $0) }, report: { allowed in
+      try? FileManager.default.createDirectory(at: grants.deletingLastPathComponent(), withIntermediateDirectories: true)
+      try? Data("{\"inputMonitoring\":\(allowed)}\n".utf8).write(to: grants, options: .atomic)
+    })
+    self.keyTap = keyTap
+    keyTap.start()
+    Task { await bridge.onKeyFired { keyShadow.fired($0) } }
     stage.onShowing = { tool, up in
+      keyShadow.list(up: up)
       DistributedNotificationCenter.default().postNotificationName(Notification.Name("local.olm.Olm.state"),
         object: "\(tool):\(up ? "up" : "down")", userInfo: nil, deliverImmediately: true)
     }

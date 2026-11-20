@@ -64,6 +64,21 @@ local keycodesLib = load("lib/keycodes.lua")
 -- The one place a global key is bound, walking the keymap's rows in order. Pure like the keymap,
 -- with the engines handed in, so a plain case drives the same dispatch this file runs.
 local binderLib = load("lib/binder.lua")
+-- What Olm.app is handed of the keys, the bound rows and the leaders in use, and the rows the binder
+-- is handed wrapped so each run tells the app which row ran, step 5.1, docs/DESIGN-APP-KEYS.md.
+local keyShareLib = load("lib/keyshare.lua")
+
+-- The rows the binder is handed. Where Olm.app is on, the bridge writes what the binder binds to
+-- ~/.olm/run/keymap.json and the rows are wrapped so each run sends keyFired, which the app's shadow
+-- of the keys pairs with what it resolved itself, step 5.1, docs/DESIGN-APP-KEYS.md. With no bridge
+-- the rows are bound as they are.
+local function sharedKeys(bridge, bound, leaderSpecs, keyTable)
+  if not (bridge and type(bridge.share) == "function" and type(bridge.notify) == "function") then return bound end
+  bridge:share("keymap", function()
+    return keyShareLib.share(bound, leaderSpecs, { bindable = binderLib.bindable, keycodes = keyTable })
+  end)
+  return keyShareLib.wrap(bound, function(method, params) bridge:notify(method, params) end)
+end
 -- How rows other plugins contribute reach the launcher and how a chosen one runs, assembled
 -- from the plan's set answers. A pure module like the registrar, so the unit case drives the
 -- same code this file runs.
@@ -3330,7 +3345,11 @@ function obj.run(olm, cfg)
   -- leader. The order the leaders receive the rows in is the order the paths it replaced bound
   -- them in, which is the order of the keymap's bound list. Two roles naming one catalog leader
   -- share that one leader and its policy, which a keymap collision would name if two rows met.
-  for _, problem in ipairs(binderLib.bind(keymap.bound, {
+  -- Where Olm.app is on, it is handed what the binder binds and the binder the rows wrapped to say
+  -- each run, sharedKeys above. A call rather than locals here, since this function is at Lua 5.4's
+  -- limit of 200.
+  for _, problem in ipairs(binderLib.bind(sharedKeys(modules[plan.identity.bridge or "bridge"], keymap.bound,
+    leaderSpecs, keyTable), {
     engines = leadersByName,
     plain = plainLeader,
   })) do

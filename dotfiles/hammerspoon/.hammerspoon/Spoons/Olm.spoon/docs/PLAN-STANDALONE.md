@@ -23,7 +23,7 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 3.3 is done, its five steps 3.3a to 3.3e each tried by Milos, the last on 2026-11-17. 3.4, the keys of a list pushed in the app, is done, tried by Milos on 2026-11-17. 3.5, the flip of Hyper and Space, is built and held off behind `launcherFlip` until every tool the launcher leads to is shown in the app, since a row leading to one it does not show did nothing. 3.6 is done, tried by Milos on 2026-11-18. 3.7, one look for every picture and word, is done, tried by Milos on 2026-11-18. 3.5, the flip of Hyper and Space, is done, tried by Milos on 2026-11-18. Checking the resting point found a tool's own key still opening Hammerspoon's list, so 3.8 was added and is done, tried by Milos on 2026-11-18. Input Sources' cycle in the app is done. The resting point was called reached by Milos on 2026-11-20, the launcher's timings read from 62 opens, typing never waiting on Hammerspoon, its rows a Hammerspoon round trip of 73 ms median by design until stage 4, and file search's timings left to a follow up with one open recorded. The route to Olm standing alone is stages 4 to 8, written on 2026-11-20. 4.1, the plugin runner, the sandbox and a test plugin, is built and checked, waiting on Milos's trial, and the sandbox and the disclaim flag were both proved on macOS 27.0.1 first. On 2026-11-20 Milos settled the split, the core built into the app in Swift and every other plugin an external one, ours in Swift too, each a process of its own run by the app, `docs/DESIGN-APP-PLUGINS.md`, whose design note he said go to. 2.3's shadow keeps logging, and its log empty is a condition of 3.5's flip. File search is the app's since 1.5's flip on 2026-11-12.
+Next. 3.3 is done, its five steps 3.3a to 3.3e each tried by Milos, the last on 2026-11-17. 3.4, the keys of a list pushed in the app, is done, tried by Milos on 2026-11-17. 3.5, the flip of Hyper and Space, is built and held off behind `launcherFlip` until every tool the launcher leads to is shown in the app, since a row leading to one it does not show did nothing. 3.6 is done, tried by Milos on 2026-11-18. 3.7, one look for every picture and word, is done, tried by Milos on 2026-11-18. 3.5, the flip of Hyper and Space, is done, tried by Milos on 2026-11-18. Checking the resting point found a tool's own key still opening Hammerspoon's list, so 3.8 was added and is done, tried by Milos on 2026-11-18. Input Sources' cycle in the app is done. The resting point was called reached by Milos on 2026-11-20, the launcher's timings read from 62 opens, typing never waiting on Hammerspoon, its rows a Hammerspoon round trip of 73 ms median by design until stage 4, and file search's timings left to a follow up with one open recorded. The route to Olm standing alone is stages 4 to 8, written on 2026-11-20. 4.1, the plugin runner, the sandbox and a test plugin, is built and checked, waiting on Milos's trial, and the sandbox and the disclaim flag were both proved on macOS 27.0.1 first. On 2026-11-20 Milos put keys, stage 5, and the launcher's catalog, 6.1, before the rest of stage 4, since Hammerspoon cannot go while it binds the keys and serves the core lists. 5.1, the keys in shadow, is built, `docs/DESIGN-APP-KEYS.md`, waiting on Milos's trial. On 2026-11-20 Milos settled the split, the core built into the app in Swift and every other plugin an external one, ours in Swift too, each a process of its own run by the app, `docs/DESIGN-APP-PLUGINS.md`, whose design note he said go to. 2.3's shadow keeps logging, and its log empty is a condition of 3.5's flip. File search is the app's since 1.5's flip on 2026-11-12.
 
 Stage 0, contracts
 - [x] 0.1 The decision record, 2026-11-05
@@ -127,7 +127,7 @@ Olm Settings, the app's own window, asked by Milos on 2026-11-19 while the timin
 The resting point
 - [x] All five conditions of the resting point hold, checked on every machine whose `olmapp` piece is on, called reached by Milos on 2026-11-20
 
-Stage 4, the plugin runner, `docs/DESIGN-APP-PLUGINS.md`
+Stage 4, the plugin runner, `docs/DESIGN-APP-PLUGINS.md`. After 4.1, stage 5 and 6.1 come first, Milos's call on 2026-11-20, and 4.2 to 4.5 follow with keep awake
 - [ ] 4.1 The runner, the sandbox and a test plugin, proved on this machine. Built and checked on 2026-11-20, `test/olmplugins.sh`, see As built in the design note, waiting on Milos's trial.
 - [ ] 4.2 `OlmPluginKit`, the `olm` command and the test harness
 - [ ] 4.3 Installing from Olm Settings and asking once
@@ -135,8 +135,8 @@ Stage 4, the plugin runner, `docs/DESIGN-APP-PLUGINS.md`
 - [ ] 4.5 The skill for writing an external plugin in any folder
 
 Stage 5, keys
-- [ ] 0.3f Fixtures for the chord engine's timing
-- [ ] 5.1 The app hears the leaders in shadow
+- [ ] 0.3f Fixtures for the chord engine's timing, moved into 5.3, since shadowing times nothing, `docs/DESIGN-APP-KEYS.md`
+- [ ] 5.1 The app hears the leaders in shadow. Built on 2026-11-20, `test/olmkeys.sh`, see As built in `docs/DESIGN-APP-KEYS.md`, waiting on Milos's trial
 - [ ] 5.2 Cheat sheets in the app
 - [ ] 5.3 Key ownership, META
 - [ ] 5.3 Key ownership, Hyper
@@ -1116,7 +1116,8 @@ and 4.3 have settled the commands.
 
 ### Stage 5, keys
 
-Nothing stands alone while Hammerspoon binds the keys, so this comes before the core moves.
+Nothing stands alone while Hammerspoon binds the keys, so this comes before the core moves, and
+since 2026-11-20 before 4.2 to 4.5 too. `docs/DESIGN-APP-KEYS.md` is the design.
 
 **5.1 The app hears the leaders in shadow.** kanata and the driver keep remapping the physical
 keys and Hammerspoon keeps every binding. The app reads the compiled keymap over the bridge,

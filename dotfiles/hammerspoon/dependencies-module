@@ -31,6 +31,13 @@ lua | path | lua | optional | reading every plugin manifest so the collector can
 # Hammerspoon.
 accessibility | grant | accessibility | required | every leader key, every chord, and every window action goes through the accessibility layer, and the config does nothing at all without it
 
+# Olm.app's Input Monitoring, its first grant, which lets it hear the keyboard, step 5.1 of the
+# Olm spoon's docs/PLAN-STANDALONE.md. Optional, since only the keys' shadow stops without it and
+# Hammerspoon binds every key until step 5.3. Olm.app asks for it itself with macOS's own prompt and
+# answers for it in a file of its own, since only the app can be asked about the app, so the
+# grants-probe beside this file reads that.
+olmapp-input-monitoring | grant | olmapp-input-monitoring | optional | Olm.app hearing the keyboard, the keys' shadow today and the leaders it binds from step 5.3
+
 # Comparing a fresh inventory snapshot against the committed golden one. Optional and declared at
 # module level rather than in any plugin, for the same reason lua is above, it belongs to this
 # module's own tooling and the running configuration never touches it.

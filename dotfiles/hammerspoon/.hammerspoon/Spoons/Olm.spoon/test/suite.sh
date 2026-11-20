@@ -52,6 +52,7 @@ if [ "$tiers" = "dry" ]; then
   "$OLM_LUA" "$here/systemsettings.lua" || exit 1
   "$OLM_LUA" "$here/rootmechanism.lua" || exit 1
   "$OLM_LUA" "$here/keypage.lua" || exit 1
+  "$OLM_LUA" "$here/keyshare.lua" || exit 1
   "$OLM_LUA" "$here/bridge.lua" || exit 1
   "$OLM_LUA" "$here/bridgeserve.lua" || exit 1
   "$OLM_LUA" "$here/settings.lua" || exit 1
@@ -85,6 +86,10 @@ if [ "$tiers" = "dry" ]; then
   [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ] || exit 1
   # Olm.app's end of the bridge over a socket of its own, see olmbridge.sh. Exit 2 is the same skip.
   "$here/olmbridge.sh"
+  rc=$?
+  [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ] || exit 1
+  # Olm.app's keys, the resolver and the shadow's pairing, see olmkeys.sh. Exit 2 is the same skip.
+  "$here/olmkeys.sh"
   rc=$?
   [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ] || exit 1
   echo

@@ -10,6 +10,7 @@
 //   OlmCore      the stage, the searcher, the look and the shadow
 //   OlmBridge    the socket Hammerspoon connects to and the lists it serves, step 2.3
 //   OlmSettings  the Olm Settings window and the share it draws, docs/DESIGN-APP-SETTINGS.md
+//   OlmKeys      the keys heard and resolved against the keymap Hammerspoon compiled, docs/DESIGN-APP-KEYS.md
 //   OlmPlugins   the runner for external plugins, a sandboxed process each, docs/DESIGN-APP-PLUGINS.md
 //   plugins      one module each under Plugins/, depending on OlmKit alone
 //   Olm          the composition root
@@ -43,6 +44,8 @@ let package = Package(
     .target(name: "OlmBridge", dependencies: ["OlmKit", "OlmSearch"], path: "Sources/OlmBridge"),
     // The Olm Settings window, drawn from the share Hammerspoon writes, docs/DESIGN-APP-SETTINGS.md.
     .target(name: "OlmSettings", path: "Sources/OlmSettings"),
+    // The keys, heard through a tap and resolved as the Lua leaders resolve them, step 5.1.
+    .target(name: "OlmKeys", path: "Sources/OlmKeys"),
     // External plugins, each its own sandboxed process the runner speaks the bridge protocol to,
     // docs/DESIGN-APP-PLUGINS.md, step 4.1.
     .target(name: "OlmPlugins", dependencies: ["OlmKit", "OlmBridge"], path: "Sources/OlmPlugins"),
@@ -50,7 +53,7 @@ let package = Package(
     .target(name: "FileSearchPlugin", dependencies: ["OlmKit"], path: "Plugins/FileSearch"),
     .executableTarget(
       name: "Olm",
-      dependencies: ["OlmKit", "OlmCore", "OlmBridge", "OlmSettings", "FileSearchPlugin"],
+      dependencies: ["OlmKit", "OlmCore", "OlmBridge", "OlmSettings", "OlmKeys", "FileSearchPlugin"],
       path: "Sources/Olm"
     ),
     .executableTarget(name: "olm-fixtures", dependencies: ["OlmKit", "OlmSearch", "OlmLook", "OlmCore", "FileSearchPlugin"],
@@ -58,6 +61,8 @@ let package = Package(
     // The bridge checked over a socket of its own, a fake Hammerspoon answering it.
     .executableTarget(name: "olm-bridge-check", dependencies: ["OlmKit", "OlmCore", "OlmBridge", "OlmSettings"],
       path: "Sources/olm-bridge-check", swiftSettings: v5),
+    // The keys' resolver checked against the Lua leader's rules, step 5.1.
+    .executableTarget(name: "olm-keys-check", dependencies: ["OlmKeys"], path: "Sources/olm-keys-check", swiftSettings: v5),
     // The runner checked against a plugin that misbehaves on purpose, step 4.1.
     .executableTarget(name: "olm-plugin-check", dependencies: ["OlmKit", "OlmBridge", "OlmPlugins"],
       path: "Sources/olm-plugin-check", swiftSettings: v5),

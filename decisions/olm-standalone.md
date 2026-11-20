@@ -1291,3 +1291,17 @@ never fired, because readings were dropped at exactly the window's age and none 
 enough to judge by. And Foundation's `resolvingSymlinksInPath` strips `/private`, so rules written
 from it named `/var/run/mullvad-vpn` while the sandbox matches `/private/var/run/mullvad-vpn`, and
 mullvad was refused its daemon until every path went through `realpath`.
+
+**2026-11-20 17:41, keys and the launcher's catalog before the rest of stage 4, and 5.1 built.** Milos
+said go to the order proposed once 4.1 was done: stage 5, keys, then 6.1, the launcher's catalog,
+then 4.2 to 4.5 with keep awake, since Hammerspoon cannot be switched off while it binds the keys
+and serves the core lists, and installing and the permission sheet move nothing towards that.
+`docs/DESIGN-APP-KEYS.md` is the design. The keymap stays compiled in Lua until stage 8 and is
+handed to the app as `keymap.json`, and the app ports only the engine that turns a press into an
+action. It hears through a listen only tap at the HID level, which needs Input Monitoring, Olm.app's
+first grant. 0.3f, the chord engine's timing, moves into 5.3, since a shadow times nothing.
+Rejected: porting `lib/keymap.lua` now, Hammerspoon forwarding every key event, which would shadow
+the resolver and never the hearing, IOHIDManager, which reads before hidutil's remap, and claiming a
+modifier chord with an active tap, since Carbon's hotkey needs no grant and is believed to fire
+under secure input. 5.1 is built, waiting on Milos's trial, whose empty log with keys pressed also
+answers whether the tap hears what Hammerspoon swallows.

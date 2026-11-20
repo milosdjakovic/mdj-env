@@ -66,6 +66,8 @@ public actor Bridge {
   private var applied: (@Sendable (any ListSource, [Effect]) -> Void)?
   private var paneDrawn: (@Sendable (any ListSource, DrawnPane) -> Void)?
   private var ownerIcons: [String: [String: Icon]] = [:]
+  // Who hears each global row Hammerspoon ran, the keys' shadow, step 5.1, docs/DESIGN-APP-KEYS.md.
+  private var keyFired: (@Sendable (String) -> Void)?
   private var log: @Sendable (String) -> Void
 
   /// path is the socket, ~/.olm/run/bridge.sock for the app. announce false posts no listening note,
@@ -96,6 +98,11 @@ public actor Bridge {
   /// word a tool's own code calls outside any request, its field cleared or its placeholder changed.
   public func onEffects(_ fn: @escaping @Sendable (any ListSource, [Effect]) -> Void) {
     applied = fn
+  }
+
+  /// Who hears each global row Hammerspoon's binder ran, by its id, the keyFired notification.
+  public func onKeyFired(_ fn: @escaping @Sendable (String) -> Void) {
+    keyFired = fn
   }
 
   /// Who draws what a hosted list's pane drew, the stage, step 3.3d.
@@ -251,6 +258,9 @@ public actor Bridge {
       let others = (params["effects"].array ?? []).filter { $0["rows"].isNull }
       let wire = WireEffects(others, log: { NSLog("Olm bridge: %@", $0) })
       if !wire.effects.isEmpty { applied?(level, wire.effects) }
+    case "keyFired":
+      // A global row the binder ran, step 5.1, which the keys' shadow pairs with a press it heard.
+      if let id = params["id"].string { keyFired?(id) }
     case "paneDrawn":
       // What a hosted list's pane drew, step 3.3d, docs/PROTOCOL-BRIDGE.md The preview pane.
       guard let id = params["level"].string, let level = hosted[id],
