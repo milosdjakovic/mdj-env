@@ -1,0 +1,15 @@
+{
+  "id": "misbehave",
+  "title": "Misbehave",
+  "version": "0.1.0",
+  "protocol": 1,
+  "run": { "swift": "Sources" },
+  "permissions": {
+    "programs": ["caffeinate", "mullvad"],
+    "services": [
+      { "mach": "com.apple.PowerManagement.control" },
+      { "iokit": "RootDomainUserClient" },
+      { "socket": "/var/run/mullvad-vpn" }
+    ]
+  }
+}

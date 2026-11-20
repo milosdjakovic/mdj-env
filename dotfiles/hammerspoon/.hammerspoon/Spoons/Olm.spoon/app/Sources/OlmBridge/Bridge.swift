@@ -104,17 +104,17 @@ public actor Bridge {
   }
 
   /// A hosted list a push opened, held until its close, so the effects notification reaches it.
-  func hold(_ level: BridgedLevel) {
+  package func hold(_ level: BridgedLevel) {
     hosted[level.id] = level
   }
 
-  func release(_ id: String) {
+  package func release(_ id: String) {
     hosted[id] = nil
   }
 
   /// The icons each owner's manifest declares, asked over this connection once per owner, sf
   /// preferred over emoji.
-  func icons(_ owners: Set<String>) async -> [String: [String: Icon]] {
+  package func icons(_ owners: Set<String>) async -> [String: [String: Icon]] {
     for owner in owners.sorted() where ownerIcons[owner] == nil {
       var table: [String: Icon] = [:]
       if let answer = try? await request("icons", .object(["owner": .string(owner)])) {

@@ -3,7 +3,8 @@
 Written on 2026-11-20, asked for by Milos once the resting point was called reached. It fills in
 the third kind of source `docs/DESIGN-APP.md` names under The source, "an extension host, which runs
 extensions someone else wrote in a process of its own", and it answers open question 3 of
-`docs/PLAN-STANDALONE.md`, what extensions are written in. It waits on Milos's go.
+`docs/PLAN-STANDALONE.md`, what extensions are written in. Milos said go on 2026-11-20, and step 1
+is built, see As built.
 
 ## What he asked for
 
@@ -101,7 +102,9 @@ Each of these holds with no help from the plugin.
 2. **Every request has a budget.** Rows answer within 150 ms or the list shows its working state
    and keeps the last rows, and an answer that comes later is drawn if its generation is still current.
    At 2 s the request is cancelled and the plugin is told. `choose` has 5 s, `hello` 2 s. A plugin
-   that has a request past its hard limit and does not answer a `ping` within 1 s is killed.
+   that has not answered a cancelled request within 1 s more is taken as stuck and killed. A `ping`
+   was planned instead and dropped as built, since a plugin answering pings on one thread while
+   another spins answers them happily.
 3. **Started only when needed, and stopped when not.** The launcher's rows and actions for a plugin
    come from its manifest, so typing in the launcher starts no plugin. A plugin starts when its key
    is pressed, its alias typed or its row chosen, and is stopped after 5 minutes unused. A plugin that
@@ -112,7 +115,9 @@ Each of these holds with no help from the plugin.
    `background` plugin at background quality.
 5. **What a plugin may send is bounded.** A message is at most 8 MiB as on the bridge, rows are cut
    at the level's row limit, `redraw` and `notify` are coalesced and rate limited, and a plugin
-   whose memory passes 512 MB, read with `proc_pidinfo` every few seconds, is killed and said.
+   whose memory passes 512 MB, read with `proc_pid_rusage` every second, is killed and said, and
+   so is one that keeps more than 90 percent of a core busy for 10 s, a spin outside any request
+   that no limit on a request can see.
 6. **A plugin that keeps failing is switched off.** Three crashes or kills in ten minutes and it is
    off until a person turns it on again in Olm Settings, which says why, with its log one click away.
 7. **The launcher's typed rows are the one live path, and the tightest.** A plugin whose rows come
@@ -247,6 +252,51 @@ While the move runs, the plugins not yet rewritten are still served by Hammerspo
 as they are today. Each external plugin of ours is rewritten in Swift, run beside the Lua one in
 shadow where its rows can be compared, then flipped, which switches the Lua plugin off in
 `config/plugins.lua`. When the bridge serves nothing, Hammerspoon is switched off, the end of stage 6.
+
+## As built
+
+**Step 1, the runner, the sandbox and a test plugin, built 2026-11-20.** `app/Sources/OlmPlugins`.
+
+- **Proved first, on macOS 27.0.1.** A probe started a child through `sandbox-exec` with rules
+  written for it. Declared, caffeinate ran and `mullvad status` reached its daemon. Undeclared,
+  `/bin/ls`, `~/.zshrc`, `~/Documents` and the internet were each refused, and its own data folder
+  was written. The disclaim flag, `responsibility_spawnattrs_setdisclaim`, found by `dlsym`, is what
+  keeps a plugin from Olm's grants: a child started without it read the Accessibility grant of the
+  program that started it as its own, and with it read none. Every refusal is logged by macOS with
+  the process's name and pid, which is what a block offered with Allow will read, step 3.
+- **`RunningPlugin`**, an actor per plugin, starts it on the first request, says hello, holds every
+  request to its limit, cancels with `$/cancelRequest` and kills after the grace, reads memory and
+  processor every second, stops it after the idle time and counts each ending. **`PluginRunner`**
+  holds them and switches a plugin off after three failures in ten minutes. **`PluginProcess`** is the
+  spawn, `posix_spawn` of `sandbox-exec` with only the plugin's stdin, stdout and stderr open in it,
+  a process group of its own so a kill takes every program it started, utility or background
+  quality of service and the disclaim, and its writes go out on a queue of their own so a plugin
+  that stops reading never holds the runner.
+- **`ExternalSource`** opens the plugin's level and is then the bridge's own `BridgedLevel` over a
+  different peer, `LevelPeer`, the requests, notifications and levels both the bridge and a plugin
+  answer, so a plugin's rows, effects and actions read exactly as Hammerspoon's do. A plugin that is
+  off, cannot start or stopped says why as its list's status. A timed out answer keeps the rows shown.
+- **The rules** start from `(deny default)` and macOS's own `bsd.sb`, its folder read, its `data`
+  and `tmp` folders written, its own program run, and each declared program resolved on a fixed
+  path, never the person's PATH, and handed to the plugin in `hello` under the name it declared. A
+  program inside an application bundle may read that bundle. Every path goes through `realpath`,
+  since Foundation's own resolving strips `/private` and the rules then match nothing, which is how
+  mullvad was first refused its socket. Two lookups Foundation makes on every launch are refused
+  without a log line, so the log holds only what a plugin really tried.
+- **The manifest** is `olm-plugin.json`, its id, title, version, protocol, `background` and
+  `permissions` with `programs`, `files`, `network` and `services` as `mach`, `socket` or `iokit`.
+- **The check** is `test/olmplugins.sh`, run on its own since it takes about eighty seconds. It
+  builds `app/Plugins/External/misbehave` and checks 40 things: the sandbox's answers, an answer in
+  a second kept, a ten second request cancelled and the polite plugin left running, one that hangs
+  or spins killed about 3.1 s after it was asked, one burning a core in the background killed in 5 s,
+  one leaking killed at 512 MB in about 2 s, a crash started again on the next request, a message
+  past 8 MiB stopping it, idling not counted as a failure, three crashes switching it off and its
+  list saying so. Through all of it the main thread stayed within 5 ms at p99, and its worst single
+  delays, 9 to 18 ms, came in any case including the baseline with no plugin running, which is the
+  machine rather than the runner. No line of the runner runs on the main thread.
+- **Left for later steps.** Reading the sandbox's refusals and offering Allow is step 3, the
+  requests a plugin makes of Olm, `notify`, `redraw`, `copy`, `paste`, `open` and `store`, come with
+  step 4, and nothing in Olm.app loads a plugin yet.
 
 ## Rejected
 

@@ -1273,3 +1273,21 @@ remapping, 6 the core in the app one plugin per step with the launcher's catalog
 external plugins one per step with display profiles first, and 8 Olm alone, the first run,
 Hammerspoon switched off, signing, and where Olm lives asked again. Open question 3 is answered,
 Swift at first in a sandboxed process. The order may change a step at a time.
+
+**2026-11-20 17:25, step 4.1 built, the sandbox and the disclaim proved on macOS 27.0.1.** Milos said
+go. A probe ran a child under `sandbox-exec` with written rules, and caffeinate and `mullvad status`
+ran while an undeclared program, `~/.zshrc`, `~/Documents` and the internet were refused. The
+disclaim flag works: without it the child read the Accessibility grant of the program that started
+it, with it none. `app/Sources/OlmPlugins` holds the runner, a plugin process each, and
+`ExternalSource`, which is the bridge's own hosted level over a new `LevelPeer`, so a plugin and
+Hammerspoon read the protocol one way. `test/olmplugins.sh` checks 40 things against a plugin
+built to misbehave, and the main thread stayed within 5 ms at p99 through all of it.
+
+Three beliefs were corrected while building it. The `ping` the design planned for a stuck plugin
+was dropped for a cancel and a grace, since a plugin answering pings on one thread while another
+spins would never be caught. A processor cap was added, a core kept 90 percent busy for 10 s, since
+a plugin spinning in the background breaks no request's limit, and the first version of that cap
+never fired, because readings were dropped at exactly the window's age and none was ever old
+enough to judge by. And Foundation's `resolvingSymlinksInPath` strips `/private`, so rules written
+from it named `/var/run/mullvad-vpn` while the sandbox matches `/private/var/run/mullvad-vpn`, and
+mullvad was refused its daemon until every path went through `realpath`.

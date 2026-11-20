@@ -10,6 +10,7 @@
 //   OlmCore      the stage, the searcher, the look and the shadow
 //   OlmBridge    the socket Hammerspoon connects to and the lists it serves, step 2.3
 //   OlmSettings  the Olm Settings window and the share it draws, docs/DESIGN-APP-SETTINGS.md
+//   OlmPlugins   the runner for external plugins, a sandboxed process each, docs/DESIGN-APP-PLUGINS.md
 //   plugins      one module each under Plugins/, depending on OlmKit alone
 //   Olm          the composition root
 //
@@ -42,6 +43,9 @@ let package = Package(
     .target(name: "OlmBridge", dependencies: ["OlmKit", "OlmSearch"], path: "Sources/OlmBridge"),
     // The Olm Settings window, drawn from the share Hammerspoon writes, docs/DESIGN-APP-SETTINGS.md.
     .target(name: "OlmSettings", path: "Sources/OlmSettings"),
+    // External plugins, each its own sandboxed process the runner speaks the bridge protocol to,
+    // docs/DESIGN-APP-PLUGINS.md, step 4.1.
+    .target(name: "OlmPlugins", dependencies: ["OlmKit", "OlmBridge"], path: "Sources/OlmPlugins"),
     // File search, the first native plugin. Its grammar and its index are its own.
     .target(name: "FileSearchPlugin", dependencies: ["OlmKit"], path: "Plugins/FileSearch"),
     .executableTarget(
@@ -54,6 +58,9 @@ let package = Package(
     // The bridge checked over a socket of its own, a fake Hammerspoon answering it.
     .executableTarget(name: "olm-bridge-check", dependencies: ["OlmKit", "OlmCore", "OlmBridge", "OlmSettings"],
       path: "Sources/olm-bridge-check", swiftSettings: v5),
+    // The runner checked against a plugin that misbehaves on purpose, step 4.1.
+    .executableTarget(name: "olm-plugin-check", dependencies: ["OlmKit", "OlmBridge", "OlmPlugins"],
+      path: "Sources/olm-plugin-check", swiftSettings: v5),
     .executableTarget(name: "olm-index-check", dependencies: ["OlmKit", "OlmLook", "OlmCore", "FileSearchPlugin"],
       path: "Sources/olm-index-check", swiftSettings: v5),
   ]

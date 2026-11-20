@@ -161,6 +161,20 @@ struct WireEffects {
   }
 }
 
+/// Who a hosted level's requests go to, Hammerspoon over the bridge's socket or an external plugin
+/// over its own pipes, docs/DESIGN-APP-PLUGINS.md, so one level reads the protocol for both.
+package protocol LevelPeer: Actor {
+  func request(_ method: String, _ params: JSON) async throws -> JSON
+  func notify(_ method: String, _ params: JSON) async
+  /// The icons each owner's manifest declares, by owner and key.
+  func icons(_ owners: Set<String>) async -> [String: [String: Icon]]
+  /// A level held open until its close, so a notification naming it reaches it.
+  func hold(_ level: BridgedLevel) async
+  func release(_ id: String) async
+}
+
+extension Bridge: LevelPeer {}
+
 public actor BridgedLevel: ListSource {
   public nonisolated let manifest: Manifest
   /// Every list verb the stage does not run itself is the tool's, run in Lua on the app's row.
@@ -171,7 +185,7 @@ public actor BridgedLevel: ListSource {
   /// 3.9, nil for a list opened any other way.
   public nonisolated let cycleIdle: Double?
 
-  private let bridge: Bridge
+  private let bridge: any LevelPeer
   private let level: Level
   private let defaultRowLimit: Int?
   private var store = RowStore()
@@ -184,7 +198,7 @@ public actor BridgedLevel: ListSource {
   private let log: @Sendable (String) -> Void
 
   /// A level a push effect carries, its name the tool's, which the bar and the info pane are read by.
-  init(bridge: Bridge, wire: JSON, defaultRowLimit: Int?, log: @escaping @Sendable (String) -> Void) {
+  package init(bridge: any LevelPeer, wire: JSON, defaultRowLimit: Int?, log: @escaping @Sendable (String) -> Void) {
     self.bridge = bridge
     self.id = wire["id"].string ?? ""
     self.cycleIdle = wire["cycle"]["idle"].number
