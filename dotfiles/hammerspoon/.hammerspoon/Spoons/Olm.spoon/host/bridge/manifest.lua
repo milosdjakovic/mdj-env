@@ -58,6 +58,10 @@ return {
       -- config/plugins.lua, off by default.
       launcherFlip = { source = "user", policy = "optional",
         breaks = "Hyper and Space opens the Lua launcher, as before" },
+      -- Whether the app's launcher builds its catalog itself and asks only for the typed rows, step
+      -- 6.1, from config/plugins.lua, off by default.
+      launcherCatalog = { source = "user", policy = "optional",
+        breaks = "the app's launcher asks Hammerspoon for every row on every keystroke, as before" },
       -- Whether a tool's own key opens its list in the app while its socket is up, step 3.8, from
       -- config/plugins.lua, off by default.
       keysFlip = { source = "user", policy = "optional",

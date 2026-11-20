@@ -26,6 +26,9 @@ public final class Shadow {
   private let requestURL: URL
   private let logURL: URL
   private let named: (@Sendable ([Row]) async -> [String])?
+  // What a line calls the side that told the shadow and the side it answered through.
+  private let toldAs: String
+  private let answeredAs: String
   private var told = 0
   // How many differing keys a line names on each side, so a line stays readable.
   private static let named = 5
@@ -33,8 +36,11 @@ public final class Shadow {
   /// named answers the keys of the rows the app ranked that the Lua side names too, every row's key
   /// when nil, the launcher's leaving out a row with no memory key.
   public init(tool: String, source: any ListSource, searcher: Searcher, run: URL, log: URL,
-              skip: @escaping (String) -> String?, named: (@Sendable ([Row]) async -> [String])? = nil) {
+              skip: @escaping (String) -> String?, named: (@Sendable ([Row]) async -> [String])? = nil,
+              toldAs: String = "lua", answeredAs: String = "app") {
     self.named = named
+    self.toldAs = toldAs
+    self.answeredAs = answeredAs
     self.tool = tool
     self.source = source
     self.searcher = searcher
@@ -99,19 +105,20 @@ public final class Shadow {
     let lua = request.keys
     var line: [String: Any] = [
       "at": Self.now(), "id": request.id, "query": request.query,
-      "same": lua == app, "lua": lua.count, "app": app.count,
+      "same": lua == app, toldAs: lua.count, answeredAs: app.count,
     ]
-    if let s = request.status { line["luaStatus"] = s }
+    let T = toldAs.prefix(1).uppercased() + toldAs.dropFirst(), A = answeredAs.prefix(1).uppercased() + answeredAs.dropFirst()
+    if let s = request.status { line["\(toldAs)Status"] = s }
     if request.claimed { line["claimed"] = true }
-    if let status { line["appStatus"] = status }
+    if let status { line["\(answeredAs)Status"] = status }
     if lua != app {
       let shared = min(lua.count, app.count)
       line["firstDiff"] = ((0..<shared).first { lua[$0] != app[$0] } ?? shared) + 1
       let luaSet = Set(lua), appSet = Set(app)
-      line["onlyLua"] = Array(lua.filter { !appSet.contains($0) }.prefix(Self.named))
-      line["onlyApp"] = Array(app.filter { !luaSet.contains($0) }.prefix(Self.named))
-      line["luaTop"] = Array(lua.prefix(Self.named))
-      line["appTop"] = Array(app.prefix(Self.named))
+      line["only\(T)"] = Array(lua.filter { !appSet.contains($0) }.prefix(Self.named))
+      line["only\(A)"] = Array(app.filter { !luaSet.contains($0) }.prefix(Self.named))
+      line["\(toldAs)Top"] = Array(lua.prefix(Self.named))
+      line["\(answeredAs)Top"] = Array(app.prefix(Self.named))
     }
     append(line)
   }

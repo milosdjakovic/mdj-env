@@ -1320,3 +1320,18 @@ longer the one opened. The comparison now runs against the launcher in use, thro
 resting orders differed in eleven applications, because the app named a bundle by the name Finder
 shows and Hammerspoon by its `CFBundleName`, Google Chrome against Chrome. With the bundle's own
 name both list the same 218 rows in the same order with the same titles and subtitles.
+
+**2026-11-20 19:43, development never waits on a measurement.** Milos does not want Olm's development to stop
+because a measurement wants time, a shadow's log, a day of use or a trial's numbers. Every
+measurement is set running on the side and read in the sessions that follow, and the next step starts
+at once. Rule 3 of `docs/PLAN-STANDALONE.md`, which held a flip until a shadow's log had stayed
+empty over real use, is revised to a shadow running beside the flip, and rule 10 states the rule.
+The belief corrected is that a flip had to be earned by time, which is how the resting point waited
+on days of timings and 6.1's flip on a day of launcher use.
+
+**2026-11-20 19:53, step 6.1 flipped.** The launcher Milos opens builds its catalog in the app since today, behind
+`launcherCatalog` in `config/plugins.lua`, without waiting for a day of the shadow's log, by the rule
+written an hour earlier. Off, it asks Hammerspoon for the whole list as before. The shadow now
+compares the launcher in use with Hammerspoon's whole list. Going back is the switch and a reload,
+which was not tried live, since trying it means opening the launcher on the screen, and the check
+pins that the switch is read.

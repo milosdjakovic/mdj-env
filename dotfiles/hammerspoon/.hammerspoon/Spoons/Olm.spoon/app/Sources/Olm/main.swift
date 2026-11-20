@@ -48,6 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private let bridge = Bridge(path: context.run.appendingPathComponent("bridge.sock").path)
   private let bridgedLauncher: BridgedLauncher
   private let shownLauncher: BridgedLauncher
+  private let typedLauncher: BridgedLauncher
   private let launcherShadow: Shadow
   // The Olm Settings window, its changes sent over the bridge, S.3 of docs/DESIGN-APP-SETTINGS.md.
   private lazy var settingsWindow = SettingsWindow(service: Self.settingsService(bridge))
@@ -83,24 +84,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let fileSearch = FileSearchSource(context: context, asksAccess: true,
       frecency: FileSearchSource.frecency(context), cloud: demo.map { CloudFiles.demo(fraction: $0) } ?? .system,
       build: FileSearchSource.indexBuild(context))
-    // The shadow's launcher since step 6.1, the catalog built in the app with only the typed rows
-    // asked of Hammerspoon, compared with what the Lua launcher settles on, docs/DESIGN-APP-LAUNCHER.md.
-    // Its typed answers are waited for whole, since the shadow compares whole lists.
-    let launcher = BridgedLauncher(bridge: bridge, typed: true)
-    let nativeShadow = NativeLauncher(inner: launcher, run: context.run, budget: nil)
+    // The shadow's launcher, Hammerspoon's whole list, which the launcher in use is compared with,
+    // step 6.1, docs/DESIGN-APP-LAUNCHER.md.
+    let launcher = BridgedLauncher(bridge: bridge)
     // File Search's row and its typed word push the app's own file search over the launcher, step
     // 3.3e, the same source its own key opens.
-    let shownLauncher = BridgedLauncher(bridge: bridge, shown: true, natives: [fileSearch.manifest.name: fileSearch])
+    let natives: [String: any ListSource] = [fileSearch.manifest.name: fileSearch]
+    let shownLauncher = BridgedLauncher(bridge: bridge, shown: true, natives: natives)
     self.shownLauncher = shownLauncher
-    // The launcher a person opens, passed through a tee, so each answer it settles on once typing
-    // pauses is what the catalog the app builds itself is compared with, step 6.1. A claimed answer is
-    // a scope's list, which the catalog never builds, so it is left out.
-    let compared = ShadowTee(shownLauncher) { [searcher] query, answer, level in
+    // The launcher a person opens since step 6.1, its catalog built in the app and only the typed rows
+    // asked of Hammerspoon, or the whole list asked as before while the launcherCatalog switch is off.
+    let typedLauncher = BridgedLauncher(bridge: bridge, shown: true, typed: true, natives: natives)
+    self.typedLauncher = typedLauncher
+    let inUse = NativeLauncher(inner: typedLauncher, fallback: shownLauncher, run: context.run)
+    // Passed through a tee, so each answer it settles on once typing pauses is compared with what
+    // Hammerspoon's whole list would have been. A list a typed word handed over is left out.
+    let compared = ShadowTee(inUse) { [searcher] query, answer, level in
       guard answer.handOver == nil else { return }
       let ranked = await searcher.rank(answer, query: query, level: level)
       let kept = ranked.rows.filter { !$0.pinned && !$0.fromQuery }
-      let keys = await shownLauncher.remembered(kept)
-      let claimed = await shownLauncher.claimed
+      let keys = await inUse.remembered(kept)
+      let claimed = await inUse.claimed
       await MainActor.run { CatalogCompare.shadow?.settled(query: query, keys: keys, status: answer.status, claimed: claimed) }
     }
     sources = [fileSearch.manifest.name: fileSearch, shownLauncher.manifest.name: compared]
@@ -110,9 +114,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       searcher: searcher, run: context.run, log: olm.appendingPathComponent("log"),
       skip: { FileSearchSource.shadowSkip($0, settings: .read(from: context.run)) })]
     bridgedLauncher = launcher
-    launcherShadow = Shadow(tool: launcher.manifest.name, source: nativeShadow, searcher: searcher,
+    launcherShadow = Shadow(tool: launcher.manifest.name, source: launcher, searcher: searcher,
       run: context.run, log: olm.appendingPathComponent("log"), skip: { _ in nil },
-      named: { await nativeShadow.remembered($0) })
+      named: { await launcher.remembered($0) }, toldAs: "app", answeredAs: "lua")
     Self.CatalogCompare.shadow = launcherShadow
     super.init()
   }
@@ -173,7 +177,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     DistributedNotificationCenter.default().addObserver(self, selector: #selector(askNote(_:)),
       name: Notification.Name("local.olm.Olm.ask"), object: nil, suspensionBehavior: .deliverImmediately)
     // The bridge, step 2.3. Each answer the Lua launcher settles on comes as the shadow notification.
-    let bridge = bridge, launcher = bridgedLauncher, shadow = launcherShadow, shown = shownLauncher
+    let bridge = bridge, launcher = bridgedLauncher, shown = shownLauncher, typed = typedLauncher
     stage.onTextBudget = { budget in Task { await bridge.setTextBudget(budget) } }
     // Command and comma in any list, docs/DESIGN-APP-SETTINGS.md S.4. Handed to LaunchServices as
     // olm://settings, the way Hammerspoon's row opens it, rather than shown here, since the panel never
@@ -189,10 +193,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // The settings window built ahead, hidden, so its first open is quick and does not flicker.
     DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in self?.settingsWindow.prepare() }
     Task {
-      await bridge.attach(launcher: launcher, shown: shown, settled: { s in
-        guard s.tool == launcher.manifest.name else { return }
-        Task { @MainActor in shadow.settled(query: s.query, keys: s.keys, status: s.status, claimed: s.claimed) }
-      })
+      // What the Lua launcher settles on is no longer compared, since from step 6.1 the shadow
+      // compares the launcher in use with Hammerspoon's whole list, through the tee above.
+      await bridge.attach(launcher: launcher, shown: shown, also: [typed], settled: { _ in })
       // A hosted list's redraw asked by its tool, a timed session ending, step 3.3, where it is up.
       let stage = self.stage
       await bridge.onRedraw { list, hold in Task { @MainActor in stage.redraw(list, hold: hold) } }

@@ -80,14 +80,18 @@ public actor Bridge {
 
   /// The launcher the session opens, the shadow's, the one a person opens on the trial key, step
   /// 3.2, and who hears each settled answer.
-  public func attach(launcher: BridgedLauncher, shown: BridgedLauncher? = nil,
+  /// also, a launcher told of sessions and the memory beside those two, the typed one under the
+  /// catalog the app builds itself, step 6.1.
+  public func attach(launcher: BridgedLauncher, shown: BridgedLauncher? = nil, also: [BridgedLauncher] = [],
     settled: @escaping @Sendable (Settled) -> Void) {
     self.launcher = launcher
     self.shownLauncher = shown
+    self.alsoLaunchers = also
     self.settled = settled
   }
 
-  private var launchers: [BridgedLauncher] { [launcher, shownLauncher].compactMap { $0 } }
+  private var alsoLaunchers: [BridgedLauncher] = []
+  private var launchers: [BridgedLauncher] { [launcher, shownLauncher].compactMap { $0 } + alsoLaunchers }
 
   /// Who redraws a hosted list the effects notification names, the stage, hold keeping its highlight.
   public func onRedraw(_ fn: @escaping @Sendable (any ListSource, Bool) -> Void) {

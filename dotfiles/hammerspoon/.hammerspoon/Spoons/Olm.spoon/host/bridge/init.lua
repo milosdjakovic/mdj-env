@@ -109,6 +109,9 @@ function obj:configure(opts)
   -- Whether Hyper and Space opens the app's launcher, step 3.5, off unless the config says true.
   -- Held off on 2026-11-17 until every tool the launcher leads to is shown in the app.
   if opts.launcherFlip ~= nil then self._flip = opts.launcherFlip == true end
+  -- Whether the app's launcher builds its catalog itself, step 6.1, off unless the config says true,
+  -- written into the catalog's share for the app to read at each open.
+  if opts.launcherCatalog ~= nil then self._catalog = opts.launcherCatalog == true end
   -- Whether a tool's own key opens its list in the app, step 3.8, off unless the config says true.
   if opts.keysFlip ~= nil then self._keysFlip = opts.keysFlip == true end
   if type(opts.shares) == "table" then self:_share(opts.shares) end
@@ -315,6 +318,11 @@ function obj:serveLauncher(provider)
   self._conn = conn:start()
   self._service, self._session = service, session
   return conn
+end
+
+--- obj:catalogInApp() -> whether the app's launcher builds its catalog itself, step 6.1.
+function obj:catalogInApp()
+  return self._catalog == true
 end
 
 --- obj:notify(method, params) -> true when sent, a notification to the app over the socket, sent

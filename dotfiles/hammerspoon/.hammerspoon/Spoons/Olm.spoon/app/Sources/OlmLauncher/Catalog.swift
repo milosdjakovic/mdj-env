@@ -38,6 +38,8 @@ public struct CatalogShare: Sendable {
   public var selfBundle: String?
   public var appWord: String
   public var appOpen: String
+  /// Whether the launcher a person opens builds its catalog in the app, the launcherCatalog switch.
+  public var inApp: Bool
 
   public static func parse(_ data: Data) -> CatalogShare? {
     guard let j = JSON.decode(data), j["version"].int == 1 else { return nil }
@@ -53,7 +55,8 @@ public struct CatalogShare: Sendable {
     }
     return CatalogShare(entries: entries, apps: apps, recency: (j["recency"].array ?? []).compactMap(\.string),
       ignoreUsage: Set((j["ignoreUsage"].array ?? []).compactMap(\.string)), selfBundle: j["self"].string,
-      appWord: j["appWord"].string ?? "Application", appOpen: j["appOpen"].string ?? "Application · Open")
+      appWord: j["appWord"].string ?? "Application", appOpen: j["appOpen"].string ?? "Application · Open",
+      inApp: j["inApp"].bool ?? false)
   }
 }
 

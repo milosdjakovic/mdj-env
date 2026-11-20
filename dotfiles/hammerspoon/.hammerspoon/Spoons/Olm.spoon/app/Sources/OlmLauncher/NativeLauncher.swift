@@ -23,6 +23,11 @@ public actor NativeLauncher: ListSource {
   public static let typedBudget = 50
 
   private let inner: BridgedLauncher
+  /// The whole list asked of Hammerspoon, what an open takes while the launcherCatalog switch is off,
+  /// nil for the shadow's, which is always the app's.
+  private let fallback: BridgedLauncher?
+  // Decided at each open, so a list never changes path while it is up.
+  private var native = true
   private let shareURL: URL
   /// nil waits for every typed answer, the shadow's, which compares whole lists.
   private let budget: Int?
@@ -41,9 +46,11 @@ public actor NativeLauncher: ListSource {
   /// Seconds a scan of the applications is kept before an open scans again.
   static let scanAge: TimeInterval = 30
 
-  public init(inner: BridgedLauncher, run: URL, budget: Int? = NativeLauncher.typedBudget,
+  public init(inner: BridgedLauncher, fallback: BridgedLauncher? = nil, run: URL,
+              budget: Int? = NativeLauncher.typedBudget,
               say: @escaping @Sendable (String) -> Void = { NSLog("Olm launcher: %@", $0) }) {
     self.inner = inner
+    self.fallback = fallback
     self.manifest = inner.manifest
     shareURL = run.appendingPathComponent("launchercatalog.json")
     self.budget = budget
@@ -107,15 +114,19 @@ public actor NativeLauncher: ListSource {
 
   public func open(query: String) async -> Level {
     await refresh(force: true)
+    native = fallback == nil || (share?.inApp ?? false)
+    if !native, let fallback { return await fallback.open(query: query) }
     return await inner.open(query: query)
   }
 
   public func prepare() async -> RowsAnswer? {
     await refresh(force: true)
+    guard fallback == nil || (share?.inApp ?? false) else { return nil }
     return built.map { RowsAnswer(rows: $0.rows) }
   }
 
   public func rows(_ query: Query) async throws -> RowsAnswer {
+    if !native, let fallback { return try await fallback.rows(query) }
     await refresh()
     waiting?.task.cancel()
     waiting = nil
@@ -155,6 +166,7 @@ public actor NativeLauncher: ListSource {
   }
 
   public func rowsLanded(_ query: Query) async throws -> RowsAnswer? {
+    if !native, let fallback { return try await fallback.rowsLanded(query) }
     guard let w = waiting, w.query == query.text else { return nil }
     waiting = nil
     guard let landed = await w.task.value, let built else { return nil }
@@ -177,12 +189,22 @@ public actor NativeLauncher: ListSource {
 
   /// The keys the Lua shadow names its rows by, every remembered row's, in order.
   public func remembered(_ rows: [Row]) async -> [String] {
+    if !native, let fallback { return await fallback.remembered(rows) }
     let typed = Set(await inner.remembered(rows))
     let mine = built?.remembered ?? []
     return rows.map(\.key).filter { mine.contains($0) || typed.contains($0) }
   }
 
+  /// Whether the last answer was a claim, the typed rows being the whole list.
+  public var claimed: Bool {
+    get async {
+      if !native, let fallback { return await fallback.claimed }
+      return await inner.claimed
+    }
+  }
+
   public func choose(_ pick: Pick) async -> [Effect] {
+    if !native, let fallback { return await fallback.choose(pick) }
     if await inner.holds(pick.key) { return await inner.choose(pick) }
     guard let item = built?.items[pick.key] else { return [] }
     return await inner.chooseItem(item, query: pick.query)
@@ -190,11 +212,15 @@ public actor NativeLauncher: ListSource {
 
   public func run(_ action: String, on pick: Pick) async -> [Effect] { [] }
 
-  public func pushed(_ token: String) async -> (any ListSource)? { await inner.pushed(token) }
+  public func pushed(_ token: String) async -> (any ListSource)? {
+    if !native, let fallback { return await fallback.pushed(token) }
+    return await inner.pushed(token)
+  }
 
   public func close() async {
     waiting?.task.cancel()
     waiting = nil
+    if !native, let fallback { return await fallback.close() }
     await inner.close()
   }
 }

@@ -271,10 +271,17 @@ search, is compared with what `NativeLauncher` answers for the same query, in
 `~/.olm/log/shadow-launcher.jsonl` as before. The gate for the flip is that log the same on every
 line through a day of use.
 
-## The flip, next
+## The flip, 2026-11-20
 
-The launcher a person opens takes `NativeLauncher` in place of the bridged one, behind a setting so
-backing out is one switch, once the shadow's log holds.
+The launcher a person opens is `NativeLauncher` since 2026-11-20, flipped as soon as the two catalogs
+agreed on this machine rather than after a day of the shadow's log, Milos's rule that development
+never waits on a measurement, rule 10 of `docs/PLAN-STANDALONE.md`. It reads the `launcherCatalog`
+switch from the share at each open, `inApp`, on in `config/plugins.lua`, and while it is off it asks
+Hammerspoon for the whole list as before, through the bridged launcher it keeps as its fallback, so
+`false` and a reload is the way back. The shadow now runs the other way round. Each answer the
+launcher in use settles on once typing pauses is compared with Hammerspoon's whole list for the same
+query, `app` the launcher in use and `lua` Hammerspoon's in each line of
+`~/.olm/log/shadow-launcher.jsonl`, read as the work goes on.
 
 ## Rejected
 

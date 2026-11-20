@@ -119,6 +119,10 @@ return {
     -- every tool in hosts below, through the one door every tool shows its list by. False is the
     -- way back, and the launcher stays in the app.
     keysFlip = true,
+    -- Whether the app's launcher builds its catalog itself and asks Hammerspoon only for the rows made
+    -- from what was typed, step 6.1, on since 2026-11-20 once both catalogs listed the same rows in
+    -- the same order on this machine. False is the way back, every row asked of Hammerspoon again.
+    launcherCatalog = true,
     -- The tools whose own list the app shows inside its launcher, step 3.3, so the launcher's row
     -- for one replaces its rows in place in the app's window. A tool joins in the step that hosts
     -- it, and taking it out leaves its row put in the app's launcher, as before. Since step 3.6

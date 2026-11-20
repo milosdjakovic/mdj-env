@@ -3301,7 +3301,11 @@ function obj.run(olm, cfg)
         -- written once after the load and again after every pick.
         if type(launcher.onCatalog) == "function" then
           launcher:onCatalog(function()
-            bridgeModule:share("launchercatalog", function() return launcher:catalogShare() end)
+            bridgeModule:share("launchercatalog", function()
+              local share = launcher:catalogShare()
+              share.inApp = type(bridgeModule.catalogInApp) == "function" and bridgeModule:catalogInApp() or false
+              return share
+            end)
           end)
         end
         bridgeModule:serveLauncher({

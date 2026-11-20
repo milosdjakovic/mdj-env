@@ -74,6 +74,9 @@ do {
   check((bonus.first { $0.key == "special:clipboard" }?.bonus ?? 0) > 0, "a remembered row takes its bonus")
   check(Catalog.withBonus(built, memory: ["ol": ["special:clipboard"]], query: "").allSatisfy { $0.bonus == 0 },
     "no bonus on an empty query")
+  check(share.inApp == false, "a share that does not say inApp leaves the launcher on Hammerspoon's whole list")
+  let switched = CatalogShare.parse(Data(shareJSON.replacingOccurrences(of: "\"version\":1,", with: "\"version\":1,\"inApp\":true,").utf8))
+  check(switched?.inApp == true, "the launcherCatalog switch read from the share")
   let open = Catalog.build(share, apps: apps, gate: { _ in true }, icon: { _ in nil })
   check(open.rows.contains { $0.key == "window:nextDisplay" }, "an open gate shows its row")
 }

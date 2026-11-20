@@ -143,7 +143,7 @@ Stage 5, keys
 - [ ] 5.4 The key daemon, optional, kanata kept until then
 
 Stage 6, the core in the app, one per step
-- [ ] 6.1 The launcher's catalog and its recency. The catalog in the app is built and in shadow beside the launcher in use on 2026-11-20, `docs/DESIGN-APP-LAUNCHER.md` step 6.1, the flip next
+- [ ] 6.1 The launcher's catalog and its recency. The catalog in the app is built and flipped on 2026-11-20 behind `launcherCatalog`, `docs/DESIGN-APP-LAUNCHER.md` step 6.1, its shadow logging beside it. Recency, the memory and choosing move later
 - [ ] 6.2 The app toggler
 - [ ] 6.3 The window manager and window size
 - [ ] 6.4 Workspaces
@@ -182,6 +182,23 @@ Open questions
 - [ ] 4 Leaders in a password field
 - [ ] 5 The calculator
 - [ ] 6 Lua after Hammerspoon
+
+## Open measurements
+
+Rule 10. What is running on the side and where it gathers, read at the start of a session and acted
+on as part of that session's work. A line is struck through with the date once it is answered, and
+never deleted.
+
+- **The keys in shadow, 5.1.** `~/.olm/log/shadow-keys.jsonl`, each difference, and
+  `~/.olm/log/shadow-keys-count.json`, how many presses were heard and paired. Waits on Olm.app's
+  Input Monitoring grant, asked of Milos on 2026-11-20. Also answers whether the tap hears what
+  Hammerspoon swallows, docs/DESIGN-APP-KEYS.md open question 1.
+- **The launcher's catalog, 6.1.** `~/.olm/log/shadow-launcher.jsonl`, the launcher in use against the
+  catalog the app builds, every line `same` when they agree.
+- **File search's rows,** 171 ms median from one open at the resting point, 2026-11-20.
+- **The app's main thread,** a 57 ms stall per open at the resting point, 2026-11-20.
+- **The plugin runner's budgets, 4.1,** first guesses, docs/DESIGN-APP-PLUGINS.md open question 1, set
+  from what the first external plugin shows in use.
 
 ## Ledger
 
@@ -775,10 +792,12 @@ until it can.
    one machine, through the `olmapp` machine piece or one setting. Going back is turning it off
    again, and the step is not finished until going back has been tried and shown to restore the
    old path.
-3. **Shadow before flip.** Wherever the app is about to take over a decision the Lua side makes
-   today, a ranking, a keymap, a list of rows, it first computes the same answer beside the Lua
-   one and logs every difference, and nothing is shown. The flip comes only when the log has
-   stayed empty over real use.
+3. **Shadow beside the flip, never in front of it.** Wherever the app takes over a decision the Lua
+   side makes today, a ranking, a keymap, a list of rows, it computes the same answer beside the
+   Lua one and logs every difference. The flip comes as soon as the step's own checks pass and a
+   direct comparison on this machine agrees, behind the switch rule 2 asks for, and the shadow keeps
+   logging after it, so a difference real use finds is read and fixed as the work goes on. Revised
+   on 2026-11-20, see rule 10. Until then the flip waited for the log to stay empty over real use.
 4. **Fixtures are the gate.** Behaviour that moves is pinned first as language neutral fixtures,
    input and expected output in JSON, that the Lua side and the Swift side both run. The Swift side
 runs them from programs rather than `swift test`, decided at 1.1. A part moves
@@ -804,6 +823,15 @@ runs them from programs rather than `swift test`, decided at 1.1. A part moves
    look is a feature too, stated by Milos the same day. The app's chooser draws with the swift
    chooser's own style, sizes and placement, handed over by the bridge rather than written again
    in Swift, so the only difference a trial shows is a part not built yet, each named in its step.
+
+10. **Development never waits on a measurement.** Stated by Milos on 2026-11-20. Nothing in this
+   plan stops for a measurement taken over time, a shadow's log, a day of use, a timing or a trial's
+   numbers. Whatever is to be measured is set running on the side, recorded where it will be read,
+   and the next step starts at once. Each later session reads what has gathered, `~/.olm/log` and
+   the list under Open measurements, and fixes what it shows as part of the work then. A
+   step is finished when its checks pass, never when a measurement has run long enough. Something
+   only a person can do, a grant or a look at the screen, is asked for once and the work goes on
+   beside it.
 
 ## How we test
 
