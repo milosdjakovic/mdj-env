@@ -1100,3 +1100,12 @@ makes a group a file leaves out, and the window manager declares its own setting
 manifest in S.4. The icon sources' names and the kit's font names were refused the same way, so the
 sources carry a title and the kit answers its shipped typography. On this Mac none of the five keys
 was set, so the first load moves nothing.
+
+### 2026-11-20 01:17, Olm Settings S.2, the window read only
+
+Milos tried S.1 and said go. The window is SwiftUI in an NSWindow, in a module of its own,
+`OlmSettings`, since a sidebar, a search and a grouped form of system controls is what SwiftUI draws
+as System Settings does, and the chooser's look is not wanted here. `@State` does not build with the
+command line tools, which ship no SwiftUI macro plugins, so the window owns an `ObservableObject`.
+The launcher row is the bridge host's own action, not a plugin's, since the bridge is the host that
+opens the app, and it is shown wherever the app is built, starting it when it is not running.

@@ -273,7 +273,7 @@ eq(wordEffects.context, nil, "the context ends with the request")
 -- The trial key of step 3.2, bridge.launcher, gated on the piece, the app and the socket setting.
 local tried = fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, socket = true })
 local actions = tried:actions()
-eq(#actions == 2 and actions[1].name, "launcher", "the bridge declares two actions, launcher first")
+eq(#actions == 3 and actions[1].name, "launcher", "the bridge declares three actions, launcher first")
 eq(actions[1].when, "olmAppLauncher", "gated on its own predicate")
 eq(tried.predicates.olmAppLauncher(), true, "on where the piece, the app and the socket are")
 eq(fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, run = run, socket = false }).predicates.olmAppLauncher(),
@@ -404,6 +404,24 @@ hs.application = { applicationsForBundleID = function(id)
   if appRunning and id == "local.olm.Olm" then return { { kill = function() killed = killed + 1 end } } end
   return {}
 end }
+-- Olm Settings, a row where the app is built, olm://settings told to a running app, opened otherwise.
+local settingsRow = quitter:actions()[3]
+eq(settingsRow and settingsRow.name, "settings", "the third action is Olm Settings")
+eq(settingsRow and settingsRow.description, "Olm Settings", "named Olm Settings")
+eq(settingsRow and settingsRow.when, "olmAppReady", "gated on the app being built")
+eq(quitter.predicates.olmAppReady(), true, "a row where the piece is on and the app built")
+eq(fresh({ pieces = { olmapp = "off" }, deps = deps, app = APP, run = run, socket = true }).predicates.olmAppReady(),
+  false, "no row where the piece is off")
+do
+  local posted, opened = {}, {}
+  local savedPost, savedOpen = quitter._post, quitter._open
+  quitter._post = function(_, name, object) posted[#posted + 1] = { name = name, object = object } return true end
+  quitter._open = function(_, _, _, url) opened[#opened + 1] = url end
+  eq(quitter:openSettings(), true, "settings: asked")
+  eq(#opened, 1, "settings: a stopped app is opened")
+  eq(opened[1], "olm://settings", "settings: with its URL")
+  quitter._post, quitter._open = savedPost, savedOpen
+end
 eq(quitter.predicates.olmAppRunning(), false, "no row while the app is not running")
 appRunning = true
 quitter._runningAt = nil

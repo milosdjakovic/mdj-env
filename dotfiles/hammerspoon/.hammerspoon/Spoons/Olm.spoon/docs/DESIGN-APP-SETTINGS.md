@@ -152,6 +152,23 @@ section stays empty until then. The icon set's choices are the icon sources them
 title of its own, and the fonts' and sizes' defaults for a key the typography file leaves out are
 the kit's, `ui.shippedTypography()`, so no font name or source name is written outside its owner.
 
+**S.1 tried** on Milos's go for S.2, 2026-11-20.
+
+**S.2, 2026-11-20 01:17.** The window, read only. A new module of the app, `OlmSettings`, holds the share's
+model, `SettingsShare`, with its search, and the window, `SettingsWindow`, SwiftUI hosted in an
+NSWindow: a `NavigationSplitView` whose sidebar lists the sections under a search field, and a
+grouped form of the chosen section on the right, a popup for a choice, a switch, a slider with its
+value for a number, a font shown in itself. Each says when it applies on reload, a plugin its
+description and a locked one why. Every control is drawn disabled until S.3. The search keeps only
+the sections holding a setting every typed word finds, in its title, detail, keywords or section
+title, and only those settings in it. `olm://settings` shows it, reading the share afresh each time,
+and the Olm Settings launcher row is the bridge host's third action, `bridge.settings`, a row where
+the app is built, telling a running app and starting one that is not.
+
+The window's state is an `ObservableObject` the window owns rather than `@State`, because the
+command line tools the app builds with ship no SwiftUI macros and `@State` is one in macOS 27's SDK.
+The build said so the first time.
+
 ## Back out
 
 The four plugins keep their logic as providers, so their launcher rows come back by registering

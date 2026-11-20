@@ -23,6 +23,7 @@ import Foundation
 import OlmBridge
 import OlmCore
 import OlmKit
+import OlmSettings
 
 var failures = 0, checks = 0
 func ok(_ cond: Bool, _ what: String) {
@@ -695,6 +696,51 @@ await bridge.stop()
 ok(!FileManager.default.fileExists(atPath: path), "stopping removes the socket")
 try? await Task.sleep(nanoseconds: UInt64((Listener.healDelay + 0.2) * 1_000_000_000))
 ok(!FileManager.default.fileExists(atPath: path), "and a stopped listener makes it no more")
+
+// The Olm Settings share, docs/DESIGN-APP-SETTINGS.md step S.2, read as the window reads it.
+do {
+  let text = """
+  {"version":1,"sections":[
+   {"id":"general","title":"General","symbol":"gearshape","settings":[
+    {"id":"chooser","title":"Chooser","kind":"choice","applies":"reload","keywords":["glass","canvas"],
+     "choices":[{"value":"default","title":"Canvas"},{"value":"swift","title":"Glass"}],"default":"swift","value":"default"},
+    {"id":"rowLimit","title":"Rows per list","kind":"number","applies":"live","keywords":["limit"],
+     "min":10,"max":500,"step":10,"unit":"rows","default":50,"value":50},
+    {"title":"no id"}]},
+   {"id":"plugins","title":"Plugins","symbol":"puzzlepiece.extension","settings":[
+    {"id":"plugin.vpn","title":"VPN","detail":"Connect and disconnect","kind":"switch","applies":"reload",
+     "keywords":["vpn","plugin"],"default":true,"value":false,"locked":"set in config/plugins.lua"}]}]}
+  """
+  let share = SettingsShare.parse(Data(text.utf8))
+  ok(share != nil, "settings: a share is read")
+  ok(share?.version == 1, "settings: with its version")
+  ok(share?.sections.map(\.id) == ["general", "plugins"], "settings: its sections in order")
+  ok(share?.sections.first?.settings.count == 2, "settings: a setting with no id is left out")
+  let chooser = share?.sections.first?.settings.first
+  ok(chooser?.kind == .choice && chooser?.choices.map(\.title) == ["Canvas", "Glass"], "settings: a choice and its titles")
+  ok(chooser?.value == .text("default") && chooser?.defaultValue == .text("swift"), "settings: its value and default")
+  ok(chooser?.differs == true && chooser?.needsReload == true, "settings: it differs and needs a reload")
+  let rows = share?.sections.first?.settings.last
+  ok(rows?.kind == .number && rows?.value == .number(50) && rows?.max == 500, "settings: a number and its range")
+  ok(rows?.differs == false, "settings: a number at its default does not differ")
+  let vpn = share?.sections.last?.settings.first
+  ok(vpn?.kind == .switch && vpn?.value == .flag(false) && vpn?.defaultValue == .flag(true), "settings: a switch is a flag, not a number")
+  ok(vpn?.locked == "set in config/plugins.lua" && vpn?.detail == "Connect and disconnect", "settings: its lock and detail")
+  ok(share?.matching("").count == 2, "settings: an empty search is every section")
+  ok(share?.matching("glass").map(\.id) == ["general"], "settings: a keyword finds its section")
+  ok(share?.matching("glass").first?.settings.map(\.id) == ["chooser"], "settings: with only what it found")
+  ok(share?.matching("PLUGINS vpn").first?.settings.map(\.id) == ["plugin.vpn"], "settings: every word, any case, a section title among them")
+  ok(share?.matching("connect").first?.settings.map(\.id) == ["plugin.vpn"], "settings: the detail is searched")
+  ok(share?.matching("nothing at all").isEmpty == true, "settings: no match is no section")
+  ok(SettingsShare.parse(Data("[]".utf8)) == nil, "settings: a share that is not one is nil")
+  ok(SettingFormat.number(0.15, step: 0.01, unit: "seconds") == "0.15 s", "settings: seconds to the step's decimals")
+  ok(SettingFormat.number(1, step: 0.5, unit: "points") == "1.0 pt", "settings: a half step has one decimal")
+  ok(SettingFormat.number(50, step: 10, unit: "rows") == "50 rows", "settings: a whole step has none")
+  ok(SettingFormat.number(0.98, step: 0.01, unit: "times") == "0.98×", "settings: times")
+  ok(SettingFormat.font(".AppleSystemUIFont") == "System" && SettingFormat.font("Menlo") == "Menlo", "settings: a font's name")
+  let live = SettingsShare.read(from: URL(fileURLWithPath: "/nonexistent/settings.json"))
+  ok(live == nil, "settings: a missing share is nil")
+}
 
 print("olm-bridge-check, \(checks) checks, \(failures) failed")
 exit(failures == 0 ? 0 : 1)

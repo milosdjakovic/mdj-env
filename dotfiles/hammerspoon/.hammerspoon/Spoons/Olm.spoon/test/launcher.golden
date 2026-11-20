@@ -91,3 +91,4 @@
 91	settingsPane:x-apple.systempreferences:com.apple.Profiles-Settings.extension	Device Management	System Settings	deviceManagement	systemsettings	-	profiles, mdm | System Settings	50
 92	bridge:launcher	App Launcher	Olm	launcher	bridge	olmAppLauncher	Olm	-
 93	bridge:quit	Quit Olm App	Olm	quit	bridge	olmAppRunning	olm.app, stop, exit | Olm	-
+94	bridge:settings	Olm Settings	Olm	settings	bridge	olmAppReady	preferences, options, configure, theme, placement, chooser, plugins | Olm	-

@@ -28,6 +28,8 @@ return {
     launcher = { emoji = "🧪", sf = "flask" },
     -- The mark Processes quits an app with, since this row quits one too, Milos finding eject wrong.
     quit = { emoji = "🛑", sf = "xmark.circle" },
+    -- Olm Settings, the window of the app's own.
+    settings = { emoji = "⚙️", sf = "gearshape" },
   },
 
   needs = {

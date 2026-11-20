@@ -565,7 +565,25 @@ function obj:actions()
     -- the back out of the plan's stage 3 as a row, asked for by Milos on 2026-11-17.
     { name = "quit", description = "Quit Olm App", icon = "quit", when = "olmAppRunning",
       keywords = "olm.app, stop, exit", run = function() self:_quitApp() end },
+    -- Olm Settings, the app's own window, docs/DESIGN-APP-SETTINGS.md, olm://settings. A row where
+    -- the app is built, starting it when it is not running, since only the app draws the window.
+    { name = "settings", description = "Olm Settings", icon = "settings", when = "olmAppReady",
+      keywords = "preferences, options, configure, theme, placement, chooser, plugins",
+      run = function() self:openSettings() end },
   }
+end
+
+--- obj:openSettings() -> true when Olm.app was asked to show its Olm Settings window, olm://settings,
+--- told by a notification while it runs and started with the URL when it does not.
+function obj:openSettings()
+  local open, app = self:_ready()
+  if not open then return false end
+  if self:_running() then
+    self:_post(self.OPEN_NOTE, "olm://settings")
+  else
+    self:_open(open, app, "olm://settings")
+  end
+  return true
 end
 
 -- Asks Olm.app to quit, the way the Dock's Quit does, so it closes its socket on the way out.
@@ -677,6 +695,7 @@ end
 obj.predicates = {
   olmAppLauncher = function() return obj:_launcherReady() ~= nil end,
   olmAppRunning = function() return obj:_ready() ~= nil and obj:_runningNow() == true end,
+  olmAppReady = function() return obj:_ready() ~= nil end,
 }
 
 -- The app's bundle id, app/build.sh's, and the name of the notification a served key opens it by.

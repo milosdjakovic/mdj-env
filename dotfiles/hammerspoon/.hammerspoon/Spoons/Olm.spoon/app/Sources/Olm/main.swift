@@ -13,6 +13,8 @@
 // and every difference logged to ~/.olm/log/shadow-launcher.jsonl. olm://launcher shows the app's own
 // launcher, a second bridged launcher with a level for each show, opened by the trial key of step
 // 3.2, docs/DESIGN-APP-LAUNCHER.md, while Hyper and Space still opens the Lua one.
+// olm://settings shows the Olm Settings window, docs/DESIGN-APP-SETTINGS.md, drawn from the share
+// Hammerspoon writes at every load.
 // An olm:// URL never runs anything, and one this app does not know is logged and dropped.
 
 import AppKit
@@ -20,6 +22,7 @@ import FileSearchPlugin
 import OlmBridge
 import OlmCore
 import OlmKit
+import OlmSettings
 
 let home = FileManager.default.homeDirectoryForCurrentUser
 let olm = home.appendingPathComponent(".olm")
@@ -39,6 +42,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private let bridgedLauncher: BridgedLauncher
   private let shownLauncher: BridgedLauncher
   private let launcherShadow: Shadow
+  private lazy var settingsWindow = SettingsWindow()
 
   // The tools the serves share names, none where it is missing or names none.
   static func served(in run: URL) -> [String] {
@@ -163,6 +167,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       } else if url.host == "shadow", let tool = item("tool"), let shadow = shadows[tool],
         let id = item("id").flatMap({ Int($0) }) {
         shadow.run(id: id)
+      } else if url.host == "settings" {
+        settingsWindow.show()
       } else if url.host == "tool", let name = item("name") {
         // A tool's own key, step 3.8, its hosted list asked of the Lua side first and then opened.
         let launcher = shownLauncher, stage = stage
