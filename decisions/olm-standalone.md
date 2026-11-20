@@ -1142,3 +1142,11 @@ saved by `lib/settings.lua`'s `change`, and is answered with the whole share so 
 what Hammerspoon holds. Olm.app gained its icon, drawn by a script and committed as `app/Olm.icns`,
 since the build has no Xcode to compile an asset catalogue, and the window opens centred under the
 pointer.
+
+**2026-11-20 11:57, the settings sidebar width set on AppKit's split view.** The belief at 10:34,
+that `navigationSplitViewColumnWidth(min: 300, ideal: 320)` gives a 320 point sidebar, was wrong.
+Milos's screenshot showed about 140 points, the same as before the 270 and 320 changes, so the
+modifier is not honoured in a window made by hand around an `NSHostingController`, and no saved
+split position was to blame, since the app's defaults hold only window frames. The window now
+finds the `NSSplitView` after it is shown, gives its first item 300 to 400 points when a split view
+controller owns it, and moves the divider to 320 when the sidebar is narrower, logging the width.

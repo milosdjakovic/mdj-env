@@ -115,6 +115,31 @@ public final class SettingsWindow: NSObject, NSWindowDelegate {
     NSApp.mainMenu = Self.menu()
     NSApp.activate()
     window?.makeKeyAndOrderFront(nil)
+    if let window { DispatchQueue.main.async { Self.widenSidebar(window) } }
+  }
+
+  /// The sidebar's width, set on the split view AppKit draws. SwiftUI's column width is not honoured
+  /// in a window made by hand, which left the sidebar at about 140 points twice, so the split
+  /// view's own item is given the bounds and the divider moved out when it sits inside them.
+  static let sidebarWidth: (min: CGFloat, ideal: CGFloat, max: CGFloat) = (300, 320, 400)
+
+  static func widenSidebar(_ window: NSWindow) {
+    guard let content = window.contentView, let split = splitView(in: content),
+          let sidebar = split.arrangedSubviews.first else { return }
+    if let controller = split.delegate as? NSSplitViewController, let item = controller.splitViewItems.first {
+      item.minimumThickness = sidebarWidth.min
+      item.maximumThickness = sidebarWidth.max
+    }
+    if sidebar.frame.width < sidebarWidth.min {
+      split.setPosition(sidebarWidth.ideal, ofDividerAt: 0)
+    }
+    NSLog("OlmSettings sidebar %.0f pt", sidebar.frame.width)
+  }
+
+  static func splitView(in view: NSView) -> NSSplitView? {
+    if let split = view as? NSSplitView { return split }
+    for sub in view.subviews { if let found = splitView(in: sub) { return found } }
+    return nil
   }
 
   public func close() { window?.close() }
@@ -186,7 +211,8 @@ struct SettingsView: View {
           }
         }
       }
-      .navigationSplitViewColumnWidth(min: 300, ideal: 320, max: 400)
+      .navigationSplitViewColumnWidth(min: SettingsWindow.sidebarWidth.min, ideal: SettingsWindow.sidebarWidth.ideal,
+        max: SettingsWindow.sidebarWidth.max)
       .searchable(text: $model.query, placement: .sidebar, prompt: "Search")
     } detail: {
       ZStack {
