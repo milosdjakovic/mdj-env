@@ -1129,3 +1129,16 @@ version beside it in the style of System Settings' account row, and no band acro
 pane. The window is 1000 by 700 with a 270 point sidebar, the toolbar compact with its background
 and separator hidden, and an Olm row with the bundle's version under the search. The frame autosave
 name changed, since the saved frame would otherwise keep the old size.
+
+### 2026-11-20 10:34, Olm Settings S.3, changing a setting, and live narrowed to three
+
+The design note listed most settings as live. Reading the readers showed that only the placement,
+the theme and the highlight have a word that applies them without a reload. The row limit, the
+type, the corners, the paddings, the motion, the hold delay and the fn cycle's wait are all copied
+as Olm loads, into list configs, the look's tokens, the leaders and the app's serve. Making each
+live would mean a rebuild path per reader, so they declare reload instead, and the window reloads
+once when it closes if any of them changed. A change goes over the bridge as `setting`, checked and
+saved by `lib/settings.lua`'s `change`, and is answered with the whole share so the window draws
+what Hammerspoon holds. Olm.app gained its icon, drawn by a script and committed as `app/Olm.icns`,
+since the build has no Xcode to compile an asset catalogue, and the window opens centred under the
+pointer.

@@ -9,30 +9,62 @@
 // bar of its own, and it goes back to running without either when the window closes, since the
 // lists it shows otherwise belong to no app a person switches to.
 //
-// Step S.2 shows every setting and changes none, so each control is drawn disabled. Changing one
-// goes over the bridge in S.3, which is where Hammerspoon checks, saves and applies it.
+// A change goes to Hammerspoon over the bridge, S.3, which checks it, saves it and applies it, and
+// answers with the share as it stands, which the window then draws, so it never shows a value
+// Hammerspoon did not take. A setting that applies on reload is applied once, when the window
+// closes.
 
 import AppKit
 import Combine
 import SwiftUI
 
-/// What the window is showing, the section chosen and the search typed. A class the window owns
-/// rather than view state, since the command line tools the app builds with ship no SwiftUI macros
-/// and @State is one in macOS 27's SDK.
+/// What the window is showing, the section chosen, the search typed, a slider being dragged and the
+/// last refusal. A class the window owns rather than view state, since the command line tools the
+/// app builds with ship no SwiftUI macros and @State is one in macOS 27's SDK.
 @MainActor
 final class SettingsModel: ObservableObject {
   @Published var share: SettingsShare?
   @Published var selection: String?
   @Published var query = ""
+  /// A slider's value while it is dragged, sent when it is let go.
+  @Published var drafts: [String: Double] = [:]
+  /// The last change Hammerspoon refused, the setting's title and why.
+  @Published var refusal: String?
+  /// A change taken that applies on reload, so the window reloads once when it closes.
+  @Published var reloadDue = false
+  @Published var busy: Set<String> = []
+  let service: SettingsService?
 
-  init(share: SettingsShare?) {
+  init(share: SettingsShare?, service: SettingsService?) {
     self.share = share
+    self.service = service
     selection = share?.sections.first?.id
   }
 
   var sections: [SettingsSection] { share?.matching(query) ?? [] }
 
   var current: SettingsSection? { sections.first(where: { $0.id == selection }) ?? sections.first }
+
+  /// Sends one change, or a reset, and draws the share Hammerspoon answers with.
+  func change(_ setting: Setting, to value: SettingValue, reset: Bool = false) {
+    guard let service else {
+      refusal = "\(setting.title) was not changed, Olm.app has no bridge to Hammerspoon."
+      return
+    }
+    busy.insert(setting.id)
+    Task { @MainActor in
+      let answer = await service.change(setting.id, value, reset)
+      busy.remove(setting.id)
+      drafts[setting.id] = nil
+      if let share = answer.share { self.share = share }
+      if answer.ok {
+        refusal = nil
+        if setting.needsReload { reloadDue = true }
+      } else {
+        refusal = "\(setting.title) \(answer.why ?? "was not taken")."
+      }
+    }
+  }
 }
 
 /// The window, made once and shown again with the share as it stands.
@@ -41,22 +73,25 @@ public final class SettingsWindow: NSObject, NSWindowDelegate {
   private var window: NSWindow?
   private var model: SettingsModel?
   private let share: () -> SettingsShare?
+  private let service: SettingsService?
 
-  public init(share: @escaping () -> SettingsShare? = { SettingsShare.read() }) {
+  public init(share: @escaping () -> SettingsShare? = { SettingsShare.read() }, service: SettingsService? = nil) {
     self.share = share
+    self.service = service
   }
 
   public var isShown: Bool { window?.isVisible ?? false }
 
-  /// Shows the window over the app in front and makes it key, since typing goes into its search.
-  /// The app becomes an ordinary one while it is open, so Command Tab finds it.
+  /// Shows the window over the app in front, centred on the screen under the pointer when it was
+  /// closed, and makes it key, since typing goes into its search. The app becomes an ordinary one
+  /// while it is open, so Command Tab finds it.
   public func show() {
     if window != nil, let model {
       // The share as Hammerspoon wrote it at its last load, the section and search kept.
       model.share = share()
       if !model.sections.contains(where: { $0.id == model.selection }) { model.selection = model.sections.first?.id }
     } else {
-      let model = SettingsModel(share: share())
+      let model = SettingsModel(share: share(), service: service)
       self.model = model
       let w = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(model: model)))
       w.title = "Olm Settings"
@@ -67,14 +102,15 @@ public final class SettingsWindow: NSObject, NSWindowDelegate {
       w.toolbarStyle = .unifiedCompact
       w.titlebarSeparatorStyle = .none
       w.isReleasedWhenClosed = false
-      w.setContentSize(NSSize(width: 1000, height: 700))
-      w.contentMinSize = NSSize(width: 760, height: 480)
-      // Named afresh with the larger size, so a frame saved at the old one is not restored.
-      w.setFrameAutosaveName("OlmSettingsWindow")
+      w.setContentSize(NSSize(width: 1100, height: 740))
+      w.contentMinSize = NSSize(width: 820, height: 500)
+      // The size is kept between openings and the place is not, since it opens centred. Named
+      // afresh with each larger default, so a size saved at an older one is not restored.
+      w.setFrameAutosaveName("OlmSettingsFrame")
       w.delegate = self
-      if w.frame.origin == .zero { w.center() }
       window = w
     }
+    if let window, !window.isVisible { Self.centre(window) }
     NSApp.setActivationPolicy(.regular)
     NSApp.mainMenu = Self.menu()
     NSApp.activate()
@@ -83,9 +119,27 @@ public final class SettingsWindow: NSObject, NSWindowDelegate {
 
   public func close() { window?.close() }
 
-  /// Back to an app with no Dock icon and no menu bar once the window is gone, and the app in front
-  /// before it given the keyboard back.
+  /// The window centred on the screen under the pointer, the screen every Olm list opens on, and
+  /// no larger than that screen leaves room for.
+  static func centre(_ window: NSWindow) {
+    let pointer = NSEvent.mouseLocation
+    guard let screen = NSScreen.screens.first(where: { NSMouseInRect(pointer, $0.frame, false) }) ?? NSScreen.main
+    else { return window.center() }
+    let room = screen.visibleFrame
+    var frame = window.frame
+    frame.size.width = min(frame.width, room.width)
+    frame.size.height = min(frame.height, room.height)
+    frame.origin = NSPoint(x: (room.midX - frame.width / 2).rounded(), y: (room.midY - frame.height / 2).rounded())
+    window.setFrame(frame, display: false)
+  }
+
+  /// Back to an app with no Dock icon and no menu bar once the window is gone, the app in front
+  /// before it given the keyboard back, and a change waiting for a reload applied.
   public func windowWillClose(_ notification: Notification) {
+    if let model, model.reloadDue, let service {
+      model.reloadDue = false
+      Task { await service.done() }
+    }
     DispatchQueue.main.async {
       guard !(self.window?.isVisible ?? false) else { return }
       NSApp.mainMenu = nil
@@ -132,7 +186,7 @@ struct SettingsView: View {
           }
         }
       }
-      .navigationSplitViewColumnWidth(min: 240, ideal: 270, max: 340)
+      .navigationSplitViewColumnWidth(min: 300, ideal: 320, max: 400)
       .searchable(text: $model.query, placement: .sidebar, prompt: "Search")
     } detail: {
       ZStack {
@@ -141,7 +195,7 @@ struct SettingsView: View {
           ContentUnavailableView("No settings yet", systemImage: "gearshape",
             description: Text("Hammerspoon writes them when it loads, with the olmapp piece on."))
         } else if let section = model.current {
-          SectionPage(section: section)
+          SectionPage(section: section, model: model)
             .id(section.id)
         } else {
           ContentUnavailableView.search(text: model.query)
@@ -160,7 +214,8 @@ struct SettingsView: View {
   }
 }
 
-/// The app's name and version at the head of the sidebar, where System Settings shows the account.
+/// The app's icon, name and version at the head of the sidebar, where System Settings shows the
+/// account.
 struct AppIdentity: View {
   private var version: String {
     Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
@@ -168,11 +223,10 @@ struct AppIdentity: View {
 
   var body: some View {
     HStack(spacing: 12) {
-      Image(systemName: "command")
-        .font(.title2.weight(.semibold))
-        .foregroundStyle(.tint)
-        .frame(width: 40, height: 40)
-        .glassCircle()
+      Image(nsImage: NSApp.applicationIconImage)
+        .resizable()
+        .interpolation(.high)
+        .frame(width: 44, height: 44)
       VStack(alignment: .leading, spacing: 1) {
         Text("Olm").font(.headline)
         Text("Version \(version)").font(.subheadline).foregroundStyle(.secondary)
@@ -202,9 +256,11 @@ struct Backdrop: View {
   }
 }
 
-/// One section, its header and its settings on one glass card.
+/// One section, its header, a line when a change waits for the window to close or was refused, and
+/// its settings on one glass card.
 struct SectionPage: View {
   let section: SettingsSection
+  @ObservedObject var model: SettingsModel
 
   var body: some View {
     ScrollView {
@@ -224,22 +280,22 @@ struct SectionPage: View {
                 .font(.callout).foregroundStyle(.secondary)
             }
           }
-          Label("Every value shown is the one in use. Changing one here comes in the next step.",
-            systemImage: "info.circle")
-            .font(.callout).foregroundStyle(.secondary)
-            .padding(.horizontal, 14).padding(.vertical, 8)
-            .glassCard(cornerRadius: 999)
+          if let refusal = model.refusal {
+            Note(text: refusal, symbol: "exclamationmark.triangle")
+          } else if model.reloadDue {
+            Note(text: "Changes marked to apply on reload apply when this window closes.", symbol: "arrow.clockwise")
+          }
           VStack(spacing: 0) {
             ForEach(Array(section.settings.enumerated()), id: \.element.id) { index, setting in
               if index > 0 { Divider().padding(.leading, 18) }
-              SettingRow(setting: setting)
+              SettingRow(setting: setting, model: model)
                 .padding(.horizontal, 18).padding(.vertical, 12)
             }
           }
           .glassCard(cornerRadius: 22)
         }
         .padding(.horizontal, 28).padding(.top, 18).padding(.bottom, 28)
-        .frame(maxWidth: 760, alignment: .leading)
+        .frame(maxWidth: 820, alignment: .leading)
         .frame(maxWidth: .infinity)
       }
     }
@@ -247,16 +303,39 @@ struct SectionPage: View {
   }
 }
 
+/// One line in a glass capsule over the card.
+struct Note: View {
+  let text: String
+  let symbol: String
+
+  var body: some View {
+    Label(text, systemImage: symbol)
+      .font(.callout).foregroundStyle(.secondary)
+      .padding(.horizontal, 14).padding(.vertical, 8)
+      .glassCard(cornerRadius: 999)
+  }
+}
+
 struct SettingRow: View {
   let setting: Setting
+  @ObservedObject var model: SettingsModel
 
   var body: some View {
     HStack(alignment: .center, spacing: 16) {
       label
       Spacer(minLength: 12)
+      if setting.differs && setting.locked == nil {
+        Button {
+          model.change(setting, to: .none, reset: true)
+        } label: {
+          Image(systemName: "arrow.uturn.backward")
+        }
+        .buttonStyle(.borderless)
+        .help("Back to the value in the config files")
+      }
       control.labelsHidden()
     }
-    .disabled(true)
+    .disabled(setting.locked != nil || model.busy.contains(setting.id))
     .help(setting.locked ?? "")
   }
 
@@ -275,10 +354,31 @@ struct SettingRow: View {
     }
   }
 
+  private var choice: Binding<String> {
+    Binding(get: { setting.value.text ?? "" }, set: { value in
+      if value != setting.value.text { model.change(setting, to: .text(value)) }
+    })
+  }
+
+  private var flag: Binding<Bool> {
+    Binding(get: { setting.value.flag ?? false }, set: { value in
+      if value != setting.value.flag { model.change(setting, to: .flag(value)) }
+    })
+  }
+
+  /// The slider's value, the drag's while it is held, snapped to the setting's step.
+  private func number(_ lo: Double, _ hi: Double) -> Binding<Double> {
+    Binding(get: { model.drafts[setting.id] ?? min(max(setting.value.number ?? lo, lo), hi) }, set: { value in
+      var v = value
+      if let step = setting.step, step > 0 { v = (v / step).rounded() * step }
+      model.drafts[setting.id] = min(max(v, lo), hi)
+    })
+  }
+
   @ViewBuilder private var control: some View {
     switch setting.kind {
     case .choice:
-      Picker(setting.title, selection: .constant(setting.value.text ?? "")) {
+      Picker(setting.title, selection: choice) {
         ForEach(setting.choices) { choice in Text(choice.title).tag(choice.value) }
         if let v = setting.value.text, !setting.choices.contains(where: { $0.value == v }) {
           Text(v).tag(v)
@@ -286,24 +386,45 @@ struct SettingRow: View {
       }
       .fixedSize()
     case .switch:
-      Toggle(setting.title, isOn: .constant(setting.value.flag ?? false))
+      Toggle(setting.title, isOn: flag)
         .toggleStyle(.switch)
     case .number:
       HStack(spacing: 10) {
         if let lo = setting.min, let hi = setting.max, lo < hi {
-          Slider(value: .constant(min(max(setting.value.number ?? lo, lo), hi)), in: lo...hi)
-            .frame(width: 180)
+          Slider(value: number(lo, hi), in: lo...hi) { editing in
+            if !editing, let v = model.drafts[setting.id] {
+              if v != setting.value.number { model.change(setting, to: .number(v)) } else { model.drafts[setting.id] = nil }
+            }
+          }
+          .frame(width: 200)
         }
-        Text(SettingFormat.number(setting.value.number ?? 0, step: setting.step, unit: setting.unit))
+        Text(SettingFormat.number(model.drafts[setting.id] ?? setting.value.number ?? 0, step: setting.step,
+          unit: setting.unit))
           .monospacedDigit()
           .frame(minWidth: 64, alignment: .trailing)
       }
     case .font:
-      Text(SettingFormat.font(setting.value.text ?? ""))
-        .font(.custom(setting.value.text ?? "", size: NSFont.systemFontSize))
+      Picker(setting.title, selection: choice) {
+        ForEach(FontChoices.names(including: setting.value.text), id: \.self) { name in
+          Text(SettingFormat.font(name)).tag(name)
+        }
+      }
+      .fixedSize()
     case .other:
       Text(String(describing: setting.value))
     }
+  }
+}
+
+/// The fonts a font setting offers, the system's two and every family installed, with the one in
+/// use first when it is none of them.
+enum FontChoices {
+  @MainActor static let families = NSFontManager.shared.availableFontFamilies.filter { !$0.hasPrefix(".") }
+
+  @MainActor static func names(including current: String?) -> [String] {
+    var out = [".AppleSystemUIFont", ".AppleSystemUIFontMonospaced"]
+    if let current, !current.isEmpty, !out.contains(current), !families.contains(current) { out.append(current) }
+    return out + families
   }
 }
 

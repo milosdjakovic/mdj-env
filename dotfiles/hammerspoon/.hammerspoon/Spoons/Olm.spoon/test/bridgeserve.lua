@@ -719,5 +719,36 @@ do
     "and a claim that hands nothing over carries none")
 end
 
+-- The Olm Settings window's setting and settingsDone, S.3, handed to the root's words and refused
+-- with no settings served.
+do
+  local asked, done = {}, 0
+  local serving = serve.new({ rpc = rpc, clean = frame.clean,
+    launcher = { rows = function() return {} end, memoryKey = memoryKey }, icons = function() return nil end,
+    settings = {
+      change = function(id, value)
+        asked[#asked + 1] = { id = id, value = value }
+        if value == 99 then return false, "is above 24" end
+        return true
+      end,
+      share = function() return { version = 1, sections = {} } end,
+      done = function() done = done + 1 end,
+    } })
+  local taken = serving.methods.setting.run({ id = "cornerRadius", value = 6 })
+  ok(taken.ok == true and taken.why == nil, "a setting the root takes answers ok")
+  ok(taken.share and taken.share.version == 1, "with the share as it now stands")
+  ok(asked[1].id == "cornerRadius" and asked[1].value == 6, "the id and the value reach the root")
+  local refused = serving.methods.setting.run({ id = "cornerRadius", value = 99 })
+  ok(refused.ok == false and refused.why == "is above 24", "a refusal answers why in words")
+  serving.methods.setting.run({ id = "cornerRadius", value = 6, reset = true })
+  ok(asked[3].value == nil, "a reset reaches the root as no value")
+  ok(pcall(serving.methods.setting.run, { value = 6 }) == false, "a setting with no id is refused")
+  ok(serving.methods.settingsDone.run({}) == true and done == 1, "settingsDone tells the root the window closed")
+  local bare = serve.new({ rpc = rpc, clean = frame.clean,
+    launcher = { rows = function() return {} end, memoryKey = memoryKey }, icons = function() return nil end })
+  ok(pcall(bare.methods.setting.run, { id = "x", value = 1 }) == false, "no settings served refuses setting")
+  ok(pcall(bare.methods.settingsDone.run, {}) == false, "and settingsDone")
+end
+
 print(string.format("bridgeserve: %d checks, %d failed", checks, failures))
 os.exit(failures == 0 and 0 or 1)

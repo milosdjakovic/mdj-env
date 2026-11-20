@@ -344,6 +344,45 @@ end
 -- obj.run's locals.
 local olmSettings = nil
 
+-- The Olm Settings window's words over the bridge, docs/DESIGN-APP-SETTINGS.md S.3. A change is
+-- checked and saved by the settings, the placement, the theme and the highlight applied at once
+-- through the words that already apply them, and any other change waits for done, the window
+-- closing, which reloads once. deps holds overlay, appearance, reload and reshare, the last
+-- writing ~/.olm/run/settings.json again so the window opened next shows the change.
+local function settingsService(deps)
+  local reloadDue = false
+  local function appearanceSet(value)
+    if deps.appearance and value ~= nil then deps.appearance.set(value) end
+  end
+  local live = {
+    placement = function(value)
+      if deps.overlay and deps.overlay.setMode and value ~= nil then deps.overlay.setMode(value) end
+    end,
+    theme = appearanceSet,
+    highlight = appearanceSet,
+  }
+  return {
+    change = function(id, value)
+      local ok, why = olmSettings.change(id, value)
+      if not ok then return false, why end
+      if live[id] then
+        live[id](olmSettings.value(id))
+      else
+        local decl = olmSettings.declaration(id)
+        if decl and decl.applies == "reload" then reloadDue = true end
+      end
+      if deps.reshare then deps.reshare() end
+      return true
+    end,
+    share = function() return olmSettings.share() end,
+    done = function()
+      if not reloadDue then return end
+      reloadDue = false
+      deps.reload()
+    end,
+  }
+end
+
 -- The watcher that reapplies a look following the system accent when the accent changes, kept at
 -- file level so it lives as long as the config and never counts against obj.run's locals.
 local appearanceWatcher = nil
@@ -3248,6 +3287,9 @@ function obj.run(olm, cfg)
           rowLimit = policy.chooserRowLimit,
           -- The idle a list cycled in the app completes after, the Lua stage's own, step 3.9.
           cycleIdle = stageModule and stageModule.CYCLE_IDLE or nil,
+          -- The Olm Settings window's changes, S.3, see settingsService above obj.run.
+          settings = settingsService({ overlay = overlay, appearance = appearance, reload = scheduleSwitchReload,
+            reshare = function() bridgeModule:share("settings", function() return olmSettings.share() end) end }),
           -- A tool's own key opening its hosted list as the only level, step 3.8.
           presentationFor = function(name)
             return wiredRegistry.presentationFor and wiredRegistry.presentationFor(name) or nil

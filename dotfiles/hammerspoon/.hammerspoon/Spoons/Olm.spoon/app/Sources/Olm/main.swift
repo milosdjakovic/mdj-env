@@ -42,13 +42,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private let bridgedLauncher: BridgedLauncher
   private let shownLauncher: BridgedLauncher
   private let launcherShadow: Shadow
-  private lazy var settingsWindow = SettingsWindow()
+  // The Olm Settings window, its changes sent over the bridge, S.3 of docs/DESIGN-APP-SETTINGS.md.
+  private lazy var settingsWindow = SettingsWindow(service: Self.settingsService(bridge))
 
   // The tools the serves share names, none where it is missing or names none.
   static func served(in run: URL) -> [String] {
     guard let data = try? Data(contentsOf: run.appendingPathComponent("serves.json")),
       let doc = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [] }
     return doc["tools"] as? [String] ?? []
+  }
+
+  /// The window's two words over the bridge, a change answered with the share as Hammerspoon now
+  /// holds it, and done once the window closes.
+  static func settingsService(_ bridge: Bridge) -> SettingsService {
+    SettingsService(change: { id, value, reset in
+      do {
+        let answer = try await bridge.request("setting", .object(["id": .string(id), "value": JSON(value.any),
+          "reset": .bool(reset)]))
+        guard case .object(let o) = answer else { return SettingAnswer(ok: false, why: "was answered oddly", share: nil) }
+        let share = o["share"].flatMap { try? JSONSerialization.data(withJSONObject: $0.any) }.flatMap(SettingsShare.parse)
+        return SettingAnswer(ok: o["ok"] == .bool(true), why: o["why"]?.string, share: share)
+      } catch {
+        return SettingAnswer(ok: false, why: "was not changed, Hammerspoon did not answer (\(error))", share: nil)
+      }
+    }, done: {
+      _ = try? await bridge.request("settingsDone", .object([:]))
+    })
   }
 
   override init() {

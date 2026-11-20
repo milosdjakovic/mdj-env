@@ -196,6 +196,29 @@ the search sits just under the window's buttons and the pane's wash runs to the 
 search, where System Settings shows the account, the sidebar shows Olm and its version from the
 bundle, in a glass circle.
 
+**S.2 tried** on Milos's go for S.3, 2026-11-20.
+
+**S.3, 2026-11-20 10:34.** Changing a setting. Every control in the window is live, and a change goes to
+Hammerspoon as the bridge request `setting {id, value, reset}`, which `lib/settings.lua`'s
+`change` checks against the declaration and saves, a value equal to the file's or a reset removing
+the saved one, a plugin's switch kept in the list of plugins switched off, and a hidden, absent or
+locked setting refused with why. The answer carries the share as it now stands, which the window
+draws, so it never shows a value Hammerspoon did not take, and a refusal is said in a line over the
+card. Each row whose value differs from the file's has a reset button.
+
+What applies at once is narrower than the table above said, and the declarations now say so. Only
+the placement, the theme and the highlight have a word that applies them live, `overlay.setMode`
+and `appearance.set`, which `settingsService` in `root/compose.lua` calls. Every other value is
+copied as Olm loads, the row limit into each list's config, the fonts, sizes, corners, paddings and
+motion into the look and the Swift style, the hold delay into each leader and the fn cycle's wait
+into the app's serve, so each declares reload, and the window sends `settingsDone` as it closes,
+which reloads once when anything waiting for a reload changed. A font is a popup of the system's
+two fonts and every installed family.
+
+The window also opens centred on the screen under the pointer, its sidebar starts at 320 points, and
+Olm.app has an icon, `app/Olm.icns`, drawn by `app/icon/make-icon.sh` and shown in the Dock, Command
+Tab and the sidebar's Olm row.
+
 ## Back out
 
 The four plugins keep their logic as providers, so their launcher rows come back by registering

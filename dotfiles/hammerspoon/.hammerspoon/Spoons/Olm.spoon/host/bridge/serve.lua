@@ -60,6 +60,9 @@ local SF, GLYPH = "sf", "emoji"
 ---                  the Lua stage's CYCLE_IDLE, step 3.9, 0.8 when none is handed in
 --- opts.retype      function(code, mods), a key typed over a cycled list posted again into the app
 ---                  underneath once the app said hidden, step 3.9, optional, never posted without it
+--- opts.settings    the Olm Settings window's three words, change(id, value) -> ok, why, share()
+---                  -> the share, and done() once the window closes, docs/DESIGN-APP-SETTINGS.md
+---                  S.3, optional, setting and settingsDone refused without it
 --- opts.facade      host/bridge/facade.lua's, the stage words a hosted list's code calls during a
 ---                  request recorded as effects, optional
 function M.new(opts)
@@ -762,6 +765,27 @@ function M.new(opts)
 
   -- Backspace on a hosted list's empty field, the presentation's own back first, as the Lua
   -- stage's _back asks it. handled false is the app's to pop.
+  -- One setting the Olm Settings window changed, or reset with reset, checked and saved by the
+  -- root, answered with whether it was taken, why not in words, and the share as it now stands, so
+  -- the window draws what Hammerspoon holds rather than what it asked for.
+  methods.setting = { run = function(params)
+    local settings = opts.settings
+    if not settings then rpc.fail(rpc.PARAMS, "settings are not served here") end
+    if type(params.id) ~= "string" then rpc.fail(rpc.PARAMS, "setting needs an id") end
+    local value = params.value
+    if params.reset == true then value = nil end
+    local ok, why = settings.change(params.id, value)
+    return { ok = ok == true, why = why, share = settings.share() }
+  end }
+
+  -- The window closed, so a change that waits for a reload is applied now, once.
+  methods.settingsDone = { run = function()
+    local settings = opts.settings
+    if not settings then rpc.fail(rpc.PARAMS, "settings are not served here") end
+    settings.done()
+    return true
+  end }
+
   methods.back = { run = function(params)
     local level = service.levels[params.level]
     if not level then rpc.fail(rpc.GONE, "no level " .. tostring(params.level)) end

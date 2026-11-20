@@ -26,6 +26,17 @@ public enum SettingValue: Equatable, Sendable {
     }
   }
 
+  /// The value as JSONSerialization takes it, what a change sends over the bridge.
+  public var any: Any {
+    switch self {
+    case .text(let s): return s
+    case .number(let n): return n
+    case .flag(let b): return b
+    case .names(let a): return a
+    case .none: return NSNull()
+    }
+  }
+
   public var text: String? { if case .text(let s) = self { return s }; return nil }
   public var number: Double? { if case .number(let n) = self { return n }; return nil }
   public var flag: Bool? { if case .flag(let b) = self { return b }; return nil }
@@ -152,5 +163,33 @@ public enum SettingFormat {
     case ".AppleSystemUIFontMonospaced": return "System Monospaced"
     default: return name.hasPrefix(".") ? String(name.dropFirst()) : name
     }
+  }
+}
+
+/// Hammerspoon's answer to one change, docs/DESIGN-APP-SETTINGS.md S.3: whether it was taken, why
+/// not in words, and the share as it now stands.
+public struct SettingAnswer: Sendable {
+  public let ok: Bool
+  public let why: String?
+  public let share: SettingsShare?
+
+  public init(ok: Bool, why: String?, share: SettingsShare?) {
+    self.ok = ok
+    self.why = why
+    self.share = share
+  }
+}
+
+/// How the window reaches Hammerspoon, handed in by the app so this module knows no bridge. change
+/// sends one setting, a reset with no value, and done tells it the window closed, so a change that
+/// waits for a reload is applied once.
+public struct SettingsService: Sendable {
+  public let change: @Sendable (_ id: String, _ value: SettingValue, _ reset: Bool) async -> SettingAnswer
+  public let done: @Sendable () async -> Void
+
+  public init(change: @escaping @Sendable (String, SettingValue, Bool) async -> SettingAnswer,
+    done: @escaping @Sendable () async -> Void) {
+    self.change = change
+    self.done = done
   }
 }

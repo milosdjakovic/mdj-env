@@ -3,7 +3,9 @@
 --
 -- A setting is declared once here, its id, its section, its title and the words a search finds it
 -- by, its kind, its choices or its range, whether it applies at once or on a reload, and where its
--- default comes from. The default is always the config file's own value, so a new machine starts
+-- default comes from. Live is only what the root can apply without a reload, the placement, the
+-- theme and the highlight, since every other value is copied into the look, the leaders or the
+-- lists as Olm loads. The rest apply in one reload when the window closes, S.3. The default is always the config file's own value, so a new machine starts
 -- from the files, and a value saved in the store wins over it on this one.
 --
 -- The store is one JSON file, ~/.olm/state/settings.json, { version = 1, values = { id = value } }.
@@ -45,7 +47,7 @@ M.LEGACY = {
 -- default when the file leaves the key out, the value the reader itself would use then.
 local function n(id, section, title, target, min, max, step, unit, shipped, keywords)
   return { id = id, section = section, title = title, kind = "number", target = target, min = min,
-    max = max, step = step, unit = unit, shipped = shipped, keywords = keywords or {}, applies = "live" }
+    max = max, step = step, unit = unit, shipped = shipped, keywords = keywords or {}, applies = "reload" }
 end
 
 M.DECLARED = {
@@ -62,9 +64,9 @@ M.DECLARED = {
     keywords = { "colour", "color", "palette", "dark", "light" } },
   { id = "highlight", section = "appearance", title = "Highlight", kind = "choice", applies = "live",
     keywords = { "theme", "accent", "colour", "color", "glass", "selection" } },
-  { id = "font.ui", section = "appearance", title = "Interface font", kind = "font", applies = "live",
+  { id = "font.ui", section = "appearance", title = "Interface font", kind = "font", applies = "reload",
     target = { "typography", "fonts", "ui" }, keywords = { "typeface", "text" } },
-  { id = "font.mono", section = "appearance", title = "Code font", kind = "font", applies = "live",
+  { id = "font.mono", section = "appearance", title = "Code font", kind = "font", applies = "reload",
     target = { "typography", "fonts", "mono" }, keywords = { "typeface", "monospaced", "fixed" } },
   n("size.title", "appearance", "Title size", { "typography", "sizes", "title" }, 10, 32, 1, "points", nil,
     { "text", "font" }),
@@ -78,9 +80,9 @@ M.DECLARED = {
     { "text", "font", "monospaced" }),
   -- The icon sets' choices are the sources the root builds, declared there, and the file's
   -- reader fills a key it leaves out, so neither carries a value here.
-  { id = "icons.set", section = "appearance", title = "Icon set", kind = "choice", applies = "live",
+  { id = "icons.set", section = "appearance", title = "Icon set", kind = "choice", applies = "reload",
     target = { "icons", "set" }, keywords = { "symbols", "glyphs", "pictures" } },
-  { id = "icons.fallback", section = "appearance", title = "Icon fallback", kind = "choice", applies = "live",
+  { id = "icons.fallback", section = "appearance", title = "Icon fallback", kind = "choice", applies = "reload",
     target = { "icons", "fallback" }, keywords = { "symbols", "glyphs", "pictures" } },
   n("cornerRadius", "appearance", "Corner radius", { "policy", "surface", "cornerRadius" }, 0, 24, 1, "points", 17,
     { "rounded", "corners", "radius" }),
@@ -357,6 +359,38 @@ function M.new(opts)
         if saved ~= nil and parent ~= nil then parent[key] = saved end
       end
     end
+  end
+
+  --- settings.change(id, value) -> ok, why
+  --- The window's change of one setting, checked against its declaration and saved, or with value
+  --- nil reset, its saved value removed so the file's stands again. A value equal to the default
+  --- is not saved. A plugin's switch is kept in its list, the plugins switched off. A hidden,
+  --- absent or locked setting is refused, why says so in words.
+  function self.change(id, value)
+    local decl = byId[id]
+    if decl == nil or decl.hidden or decl.absent then return false, "is not a setting the window shows" end
+    if decl.locked then return false, "is locked, " .. tostring(decl.locked) end
+    if decl.member then
+      local on = value
+      if on == nil then on = true end
+      if type(on) ~= "boolean" then return false, "is not on or off" end
+      local off = {}
+      for _, name in ipairs(self.value(decl.member.list) or {}) do
+        if name ~= decl.member.name then off[#off + 1] = name end
+      end
+      if not on then off[#off + 1] = decl.member.name end
+      table.sort(off)
+      store.set(decl.member.list, #off > 0 and off or nil)
+      return true
+    end
+    if value == nil then
+      store.set(id, nil)
+      return true
+    end
+    local ok, why = M.check(decl, value)
+    if not ok then return false, why end
+    if equal(value, defaults[id]) then store.set(id, nil) else store.set(id, value) end
+    return true
   end
 
   --- settings.share() -> the table ~/.olm/run/settings.json holds, every section in order with

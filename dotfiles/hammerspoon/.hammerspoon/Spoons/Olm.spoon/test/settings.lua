@@ -254,6 +254,41 @@ do
   check("the share encodes", type(encoded), "string")
 end
 
+-- S.3, a change from the window, checked, saved, reset, and a switch kept in its list.
+do
+  local files, io = disk()
+  local store = newStore(files, io)
+  local settings = M.new({ store = store })
+  settings.overlay("policy", { surface = { cornerRadius = 17 } })
+  local ok, why = settings.change("cornerRadius", 40)
+  check("a value out of range is refused", ok, false)
+  check("with the reason", why, "is above 24")
+  check("and nothing is saved", store.get("cornerRadius"), nil)
+  check("a number in range is taken", (settings.change("cornerRadius", 6)), true)
+  check("and saved", store.get("cornerRadius"), 6)
+  check("and is the value", settings.value("cornerRadius"), 6)
+  check("a reset is taken", (settings.change("cornerRadius", nil)), true)
+  check("and removes the saved value", store.get("cornerRadius"), nil)
+  check("so the file's stands", settings.value("cornerRadius"), 17)
+  settings.change("cornerRadius", 6)
+  settings.change("cornerRadius", 17)
+  check("a value equal to the file's is not saved", store.get("cornerRadius"), nil)
+  check("a hidden list is refused", (settings.change("plugins.off", { "vpn" })), false)
+  check("an unknown id is refused", (settings.change("nothing", 1)), false)
+  settings.declare("plugin.vpn", { section = "plugins", kind = "switch", applies = "reload", title = "VPN",
+    member = { list = "plugins.off", name = "vpn" } })
+  settings.declare("plugin.git", { section = "plugins", kind = "switch", applies = "reload", title = "Git",
+    member = { list = "plugins.off", name = "git" }, locked = "set in config/plugins.lua" })
+  check("a switch turned off is taken", (settings.change("plugin.vpn", false)), true)
+  check("and joins the plugins switched off", table.concat(store.get("plugins.off") or {}, ","), "vpn")
+  check("a switch that is not on or off is refused", (settings.change("plugin.vpn", "off")), false)
+  check("a switch turned on again is taken", (settings.change("plugin.vpn", true)), true)
+  check("and leaves an empty list unsaved", store.get("plugins.off"), nil)
+  local lockedOk, lockedWhy = settings.change("plugin.git", false)
+  check("a locked switch is refused", lockedOk, false)
+  check("saying where it is set", lockedWhy, "is locked, set in config/plugins.lua")
+end
+
 if failed then
   print("settings, FAILED")
   os.exit(1)

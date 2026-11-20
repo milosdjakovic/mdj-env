@@ -53,6 +53,8 @@ cp "$here/Info.plist" "$stage/Contents/Info.plist"
 # with the shared search, Sources/OlmSearch/Match.swift, so it keeps a name exactly when the list
 # would, as the Lua side compiles it.
 mkdir -p "$stage/Contents/Resources"
+# The app's icon, drawn by icon/make-icon.sh and committed, Info.plist's CFBundleIconFile.
+cp "$here/Olm.icns" "$stage/Contents/Resources/Olm.icns"
 if ! DEVELOPER_DIR="$tools" "$tools/usr/bin/swiftc" -sdk "$tools/SDKs/MacOSX.sdk" -O "$here/../plugins/filesearch/sources/fileindex.swift" \
   "$here/Sources/OlmSearch/Match.swift" -o "$stage/Contents/Resources/fileindex" >"$log" 2>&1; then
   grep -E 'error' "$log" | head -20 >&2
