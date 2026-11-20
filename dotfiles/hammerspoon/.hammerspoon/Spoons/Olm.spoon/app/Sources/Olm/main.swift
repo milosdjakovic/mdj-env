@@ -36,6 +36,13 @@ let context = PluginContext(
   resources: Bundle.main.resourceURL ?? URL(fileURLWithPath: "."),
   store: olm.appendingPathComponent("state/filesearch"))
 
+/// A value handed to the main thread that Swift cannot see is safe to send, JSON from the bridge
+/// that nothing else holds.
+struct UncheckedSendable<T>: @unchecked Sendable {
+  let value: T
+  init(_ value: T) { self.value = value }
+}
+
 /// What macOS lets the app do, written for the setup's grants-probe, which can only ask the app,
 /// ~/.olm/state/app/grants.json. Each grant is told by whoever checks it, on its own thread.
 final class Grants: @unchecked Sendable {
@@ -72,6 +79,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     log: { NSLog("Olm apps: %@", $0) })
   private var appsAllowed = AppFocus.allowed
   private var appsTimer: Timer?
+  // The leaders' cheat sheets, step 5.2, drawn from what Hammerspoon laid out.
+  private let sheets = SheetHost()
   private let bridge = Bridge(path: context.run.appendingPathComponent("bridge.sock").path)
   private let bridgedLauncher: BridgedLauncher
   private let shownLauncher: BridgedLauncher
@@ -236,6 +245,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     Task {
       await bridgeForApps.onAppRun { params in
         if let press = AppPress(params) { appFocus.run(press) }
+      }
+      // A leader's cheat sheet Hammerspoon laid out, drawn here, step 5.2, docs/DESIGN-APP-KEYS.md.
+      let sheets = self.sheets
+      await bridgeForApps.onSheet { params in
+        let box = UncheckedSendable(params)
+        Task { @MainActor in sheets.take(box.value) }
       }
       await bridgeForApps.onOpen {
         Task { await bridgeForApps.notify("appsReady", .object(["ready": .bool(AppFocus.allowed)])) }

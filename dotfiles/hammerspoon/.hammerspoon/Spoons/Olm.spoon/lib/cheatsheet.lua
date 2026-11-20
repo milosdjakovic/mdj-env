@@ -352,6 +352,18 @@ function obj:configure(opts)
   return self
 end
 
+--- CheatSheet:setBackend(factory)
+--- The drawing backend the sheet's panel is put on screen through, lib/panel.lua's per instance
+--- backend, function(frame, window, configured) -> backend, nil for the configured one. Set by the
+--- root once the bridge is wired, step 5.2, so a sheet is drawn by Olm.app while it may. A panel
+--- already made is destroyed, so the next show builds one through the new backend.
+function obj:setBackend(factory)
+  self._backend = type(factory) == "function" and factory or nil
+  if self._panel then self._panel:destroy() end
+  self._panel = nil
+  return self
+end
+
 -- The cheat sheet pads PADDING_SCALE times the kit's panel pad on every side, an overlay
 -- that holds a whole grid reading better with more room around it, unless configure set a
 -- padding of its own.
@@ -372,6 +384,7 @@ function obj:_ensurePanel()
   self._panel = cfg.factory.new({
     placement = cfg.factory.placements.center,
     padX = self:_padding(), padY = self:_padding(),
+    backend = self._backend,
     content = {
       preferredSize = function()
         self._built = self:_build()

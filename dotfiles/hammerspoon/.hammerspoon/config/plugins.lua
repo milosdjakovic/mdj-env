@@ -123,6 +123,10 @@ return {
     -- from what was typed, step 6.1, on since 2026-11-20 once both catalogs listed the same rows in
     -- the same order on this machine. False is the way back, every row asked of Hammerspoon again.
     launcherCatalog = true,
+    -- Whether a leader's cheat sheet is drawn by the app, step 5.2, docs/DESIGN-APP-KEYS.md, on since
+    -- 2026-11-20. Hammerspoon still decides when a sheet shows and lays it out, and draws it itself
+    -- whenever the app's socket is down. False is the way back.
+    sheetsInApp = true,
     -- Whether a press on an app, a Hyper app key or an app row in the launcher, is run by the app,
     -- step 6.2, docs/DESIGN-APP-APPS.md, on since 2026-11-20 with its shadow logging beside it. The
     -- app runs one only once it holds Accessibility and has said so, and Lua runs it otherwise. False

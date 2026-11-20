@@ -97,6 +97,25 @@ when a sheet shows. The goldens of each sheet are compared with what the app dra
   `~/.olm/log/shadow-keys-count.json` for how many presses were heard and paired since the app
   started, so an empty log is read beside the presses it covered.
 
+**5.2, the cheat sheets drawn by the app, built 2026-11-20.**
+
+- **What moved is the window, not the layout.** `lib/cheatsheet.lua` still lays each sheet out and
+  `lib/panel.lua` still places it, centred on the screen the overlay policy picks, and reduces it to
+  hs.canvas elements. A panel may now carry its own drawing backend, and the cheat sheet's is the
+  bridge's, `obj:sheetBackend()`, a router over the backend Hammerspoon drew with before and one that
+  sends the frame, the surface's corner and the content elements to the app as the notification
+  `sheet`, and `sheet` with `hide` when the leader is released. The app draws them in
+  `app/Sources/OlmCore/SheetHost.swift` on the swift chooser's own panel window, `PanePanel` with a
+  panel's config, the window Hammerspoon's native backend already used, read by the same
+  `PaneElements` reader a hosted list's preview pane is, step 3.3d. So the app's sheet is the Lua
+  sheet element for element, which is what comparing with the goldens would have checked.
+- **The switch** is `sheetsInApp` in `config/plugins.lua`. While the socket is down, or the switch is
+  off, Hammerspoon draws the sheet as before.
+- **Checked** by `test/bridge.lua`, a show and a hide sent, and the configured backend drawing with
+  the session gone or the switch off, and `test/panelbackends.lua`, a panel's own backend handed the
+  configured factory. An element the app cannot draw is logged once by name, in Hammerspoon when it
+  cannot cross and in the app when it cannot be read.
+
 ## Rejected
 
 - **Porting `lib/keymap.lua` to Swift now.** 2026-11-20. It reads Lua config, and the app needs only
@@ -106,6 +125,10 @@ when a sheet shows. The goldens of each sheet are compared with what the app dra
   key on the one thread that must stay free.
 - **IOHIDManager for hearing.** 2026-11-20. It reads a device's values before hidutil's remap and
   beside kanata's seized device, so the app would have to redo both.
+- **Porting the sheet's grid to Swift at 5.2.** 2026-11-20. The layout reads the kit's tokens and the
+  keymap's sections, both Lua's until stage 8, and the elements it answers already cross for the
+  preview pane, so the app draws the very sheet with no second layout to keep in step. A port is
+  stage 8's, with the keymap's.
 - **Claiming a modifier chord with an active event tap.** 2026-11-20. Carbon's hotkey needs no grant
   and is believed to work under secure input, where a tap is blind.
 

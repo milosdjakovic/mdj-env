@@ -371,6 +371,30 @@ do
   check("and a destroyed panel is not showing", panel:isShowing(), false)
 end
 
+-- A panel's own backend, step 5.2: handed the frame, the window and the configured factory, and
+-- drawn through, the configured factory never called by the panel itself.
+do
+  local P = freshPanel()
+  local configuredCalls, handed = 0, nil
+  P.configure({ backend = function() configuredCalls = configuredCalls + 1; return nil end })
+  local shown = {}
+  local panel = P.new({ placement = CENTER, content = sheetContent(), backend = function(frame, window, configured)
+    handed = configured
+    local b = {}
+    function b.place(f) shown.frame = f end
+    function b.render(surface, content) shown.content = content end
+    function b.show() shown.up = true end
+    function b.hide() shown.up = false end
+    function b.isShowing() return shown.up == true end
+    function b.destroy() end
+    return b
+  end })
+  panel:show()
+  check("a panel's own backend draws it", shown.up, true)
+  check("and is handed the configured factory", type(handed), "function")
+  check("which the panel itself never calls", configuredCalls, 0)
+end
+
 if failed then
   print("panelbackends, FAILED")
   os.exit(1)

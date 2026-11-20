@@ -1364,3 +1364,11 @@ Accessibility for 6.2: on macOS 27 that list is named Device Control and Data Ac
 setup's grant guidance in `DEPENDENCIES.map` now says. And a reset of Olm's entry with `tccutil`
 while he was turning it on cleared his switch, so a grant is never reset while a person is in that
 list.
+
+**2026-11-20 21:56, step 5.2, the cheat sheets drawn by the app, built and flipped.** A held leader's sheet is
+drawn by Olm.app behind `sheetsInApp`, while Hammerspoon still decides when it shows and lays it
+out. The seam is the panel's drawing backend, which a panel may now carry for itself, so only the
+cheat sheet's panel goes to the app and every other panel stays where it was. Porting the sheet's
+grid to Swift now was turned down, since its tokens and its sections are Lua's until stage 8 and its
+elements already cross for the preview pane, so the app draws the very sheet with nothing to keep in
+step. `docs/DESIGN-APP-KEYS.md` 5.2 has it.

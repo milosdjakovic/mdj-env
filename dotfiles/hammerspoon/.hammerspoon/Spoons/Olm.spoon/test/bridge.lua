@@ -643,5 +643,45 @@ do
   eq(off:appsInApp(), false, "with the switch off no press goes to the app")
 end
 
+-- The cheat sheet's backend, step 5.2, docs/DESIGN-APP-KEYS.md. With the switch on and a session
+-- open a show goes to the app as the notification sheet and a hide as sheet with hide, and with
+-- either missing the configured backend draws it.
+do
+  local notes, drew = {}, {}
+  local sb = fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, sheetsInApp = true })
+  sb._conn, sb._service = {}, {}
+  sb._session = { open = true, notify = function(_, method, params) notes[#notes + 1] = { method, params }; return true end }
+  local configured = function()
+    local b = {}
+    function b.place() end
+    function b.render() end
+    function b.show() drew[#drew + 1] = "show" end
+    function b.hide() drew[#drew + 1] = "hide" end
+    function b.isShowing() return false end
+    function b.destroy() end
+    return b
+  end
+  local backend = sb:sheetBackend()({ x = 0, y = 0, w = 10, h = 10 }, {}, configured)
+  backend.place({ x = 5, y = 6, w = 300, h = 200 })
+  backend.render({ { type = "rectangle", action = "fill", roundedRectRadii = { xRadius = 14, yRadius = 14 } } },
+    { { type = "rectangle", action = "fill", frame = { x = 1, y = 2, w = 3, h = 4 }, fillColor = { red = 1 } } })
+  backend.show()
+  eq(notes[1] and notes[1][1], "sheet", "a sheet shown goes to the app")
+  eq(notes[1] and notes[1][2].frame.w, 300, "at the frame the panel placed")
+  eq(notes[1] and notes[1][2].radius, 14, "with the surface's corner")
+  eq(notes[1] and #notes[1][2].elements, 1, "and the content's elements")
+  eq(backend.isShowing(), true, "and the backend says it is showing")
+  eq(#drew, 0, "and Hammerspoon draws nothing")
+  backend.hide()
+  eq(notes[2] and notes[2][2].hide, true, "a hide goes to the app too")
+  sb._session.open = false
+  backend.show()
+  eq(drew[1], "show", "with the session gone the configured backend draws it")
+  sb._session.open = true
+  sb._sheetsInApp = false
+  backend.show()
+  eq(#notes, 2, "and with the switch off nothing goes to the app")
+end
+
 print(string.format("bridge: %d checks, %d failed", checks, failures))
 os.exit(failures == 0 and 0 or 1)

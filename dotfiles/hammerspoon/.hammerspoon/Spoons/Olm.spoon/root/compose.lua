@@ -88,6 +88,14 @@ local function forwardApps(appfocus, bridge)
   end
   return bridge
 end
+-- Hands the cheat sheet the bridge's backend, so a leader's sheet is drawn by Olm.app while its
+-- socket is up and the sheetsInApp switch is on, and by Hammerspoon otherwise, step 5.2,
+-- docs/DESIGN-APP-KEYS.md. A call rather than locals at its caller, which is at Lua's limit.
+local function routeSheets(cheatSheet, bridge)
+  if cheatSheet and type(cheatSheet.setBackend) == "function" and bridge and type(bridge.sheetBackend) == "function" then
+    cheatSheet:setBackend(bridge:sheetBackend())
+  end
+end
 -- How rows other plugins contribute reach the launcher and how a chosen one runs, assembled
 -- from the plan's set answers. A pure module like the registrar, so the unit case drives the
 -- same code this file runs.
@@ -3604,6 +3612,7 @@ function obj.run(olm, cfg)
   -- needs it. A row standing for an app wears that app's name and icon, resolved here once, and
   -- an app not on this machine is left off. The sheet draws by the leader's own keycode, which the
   -- adapter hands it, or by its name for a leader of modifiers.
+  routeSheets(cheatSheetAtom, modules[plan.identity.bridge or "bridge"])
   if leaderSheetModule then
     local sheetIdentity = plan.identity.leadersheet or "leadersheet"
     local directoryOfIdentity = {}

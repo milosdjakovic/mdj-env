@@ -82,6 +82,9 @@
 ---   padX, padY inner padding around the content (default the kit's inset.x on all four
 ---              sides, so a chip against the edge nests in the surface's corner).
 ---   style      per-instance surface override; nil inherits the configured default.
+---   backend    per-instance drawing backend, function(frame, window, configured) -> backend,
+---              handed the factory configure set so it can draw through it, nil drawing through
+---              that factory alone. The cheat sheet's panel takes Olm.app's this way, step 5.2.
 ---   level      window level, an hs.canvas.windowLevels value (default popUpMenu), which
 ---              either backend puts its window at.
 ---   content    REQUIRED renderer:
@@ -420,11 +423,16 @@ function Panel:_ensureBackend(frame)
     return nil
   end
   local onClick = self.config.content.onClick
-  self.backend = BACKEND(frame, {
+  local window = {
     level = self.config.level or hs.canvas.windowLevels.popUpMenu,
     onClick = type(onClick) == "function" and onClick or nil,
     activates = true,
-  })
+  }
+  if type(self.config.backend) == "function" then
+    self.backend = self.config.backend(frame, window, BACKEND)
+  else
+    self.backend = BACKEND(frame, window)
+  end
   return self.backend
 end
 

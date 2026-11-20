@@ -761,6 +761,13 @@ binder runs a global row it sends the notification `keyFired`, `{"id":"apptoggle
 the app's shadow of the keys pairs with the press it heard, docs/DESIGN-APP-KEYS.md. A list's own
 keys send nothing.
 
+## The cheat sheets, step 5.2
+
+While the `sheetsInApp` switch is on and a session is open, a leader's cheat sheet is sent to the app
+as the notification `sheet`, `{"frame":{"x":..,"y":..,"w":..,"h":..},"radius":14,"elements":[..]}`,
+the panel's frame in Hammerspoon's screen space, its surface's corner, which the app's glass takes,
+and the content elements encoded as a preview pane's are. `{"hide":true}` takes it down.
+
 ## Bringing an app forward, step 6.2
 
 While the `appToggler` switch is on and the app has said it may act, `lib/appfocus.lua` hands each

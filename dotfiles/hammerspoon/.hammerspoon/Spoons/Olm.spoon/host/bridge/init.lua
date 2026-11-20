@@ -112,6 +112,9 @@ function obj:configure(opts)
   -- Whether the app's launcher builds its catalog itself, step 6.1, off unless the config says true,
   -- written into the catalog's share for the app to read at each open.
   if opts.launcherCatalog ~= nil then self._catalog = opts.launcherCatalog == true end
+  -- Whether a leader's cheat sheet is drawn by the app while its socket is up, step 5.2,
+  -- docs/DESIGN-APP-KEYS.md, off unless the config says true.
+  if opts.sheetsInApp ~= nil then self._sheetsInApp = opts.sheetsInApp == true end
   -- Whether a press on an app is run by the app, step 6.2, docs/DESIGN-APP-APPS.md, off unless the
   -- config says true, and even then only while the app has said it may act.
   if opts.appToggler ~= nil then self._appToggler = opts.appToggler == true end
@@ -328,6 +331,12 @@ function obj:catalogInApp()
   return self._catalog == true
 end
 
+--- obj:sheetsShown() -> whether a cheat sheet goes to the app now, step 5.2: the switch on and a
+--- session open.
+function obj:sheetsShown()
+  return self._sheetsInApp == true and self._session ~= nil and self._session.open == true
+end
+
 --- obj:appsInApp() -> whether a press on an app goes to the app now, step 6.2: the switch on, a
 --- session open and the app having said it may act.
 function obj:appsInApp()
@@ -495,6 +504,30 @@ function obj:paneBackend(owner, localFactory)
   local lib = panes()
   local remote = lib.backend(function(content, scroll) self:_paneDrawn(owner, content, scroll) end)
   return lib.router(localFactory, remote, function() return self:hosting(owner) end)
+end
+
+--- obj:sheetBackend() -> the cheat sheet panel's backend, lib/panel.lua's per instance one, step
+--- 5.2. While sheetsShown says yes a show goes to the app as the notification sheet, the panel's
+--- frame, its corner and its content elements, and a hide as sheet with hide true. Otherwise, and
+--- for a show the app could not be sent, it draws through the configured backend as before.
+function obj:sheetBackend()
+  return function(frame, window, configured)
+    local lib = panes()
+    local remote = lib.sheetBackend(function(placed, surface, content)
+      if not self:sheetsShown() then return false end
+      local elements, dropped = lib.encode(content, { color = rgbaOf, text = textOf, picture = pictureOf })
+      for _, kind in ipairs(dropped) do
+        if not self._said["sheet:" .. kind] then
+          self._said["sheet:" .. kind] = true
+          log.w("a " .. kind .. " element of a cheat sheet could not cross to Olm.app and was left out")
+        end
+      end
+      return self:notify("sheet", { frame = { x = placed.x, y = placed.y, w = placed.w, h = placed.h },
+        radius = lib.radiusOf(surface), elements = elements }) == true
+    end, function() self:notify("sheet", { hide = true }) end)
+    local localFactory = function(f, w) return configured and configured(f, w) or nil end
+    return lib.router(localFactory, remote, function() return self:sheetsShown() end)(frame, window)
+  end
 end
 
 -- One paint of owner's pane sent to the level that shows it, naming the highlight the Lua side was

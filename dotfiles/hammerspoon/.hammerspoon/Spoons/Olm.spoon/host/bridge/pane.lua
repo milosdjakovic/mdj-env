@@ -60,6 +60,39 @@ function M.encode(elements, deps)
   return out, dropped
 end
 
+--- M.radiusOf(surface) -> the corner of a panel's surface, its fill's or its stroke's widened by
+--- half the stroke, lib/chooser/providers/swift/pane.lua's rule, since the app draws its own glass.
+function M.radiusOf(surface)
+  for _, el in ipairs(surface or {}) do
+    local radii = el.type == "rectangle" and el.roundedRectRadii
+    if radii and el.action == "fill" then return radii.xRadius or 0 end
+  end
+  for _, el in ipairs(surface or {}) do
+    local radii = el.type == "rectangle" and el.roundedRectRadii
+    if radii and el.action == "stroke" then return (radii.xRadius or 0) + (el.strokeWidth or 1) / 2 end
+  end
+  return 0
+end
+
+--- M.sheetBackend(show, hide) -> a panel backend factory, step 5.2, whose show hands show(frame,
+--- surface, content) what the panel last placed and rendered, answering whether the app took it,
+--- and whose hide calls hide() when a show was taken. isShowing is whether the app holds one.
+function M.sheetBackend(show, hide)
+  return function(frame)
+    local b, placed, drawn, up = {}, frame, nil, false
+    function b.place(f) placed = f end
+    function b.render(surface, content) drawn = { surface = surface, content = content } end
+    function b.show() up = drawn ~= nil and show(placed, drawn.surface, drawn.content) == true end
+    function b.hide()
+      if up then hide() end
+      up = false
+    end
+    function b.isShowing() return up end
+    function b.destroy() b.hide() end
+    return b
+  end
+end
+
 --- M.backend(send) -> a backend factory whose render hands send(content, scroll) the content of a
 --- paint, scroll being lib/previewpane.lua's { height, visible, reset } for a native scroll. The
 --- surface is left out, since the app draws its own glass, as the swift chooser's backend does.
