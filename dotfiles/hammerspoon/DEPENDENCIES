@@ -11,6 +11,7 @@ hammerspoon | app | org.hammerspoon.Hammerspoon | required | hammerspoon | the a
 lua | path | lua | optional | hammerspoon | reading every plugin manifest so the collector can build this module's generated manifest
 accessibility | grant | accessibility | required | hammerspoon | every leader key, every chord, and every window action goes through the accessibility layer, and the config does nothing at all without it
 olmapp-input-monitoring | grant | olmapp-input-monitoring | optional | hammerspoon | Olm.app hearing the keyboard, the keys' shadow today and the leaders it binds from step 5.3
+olmapp-accessibility | grant | olmapp-accessibility | optional | hammerspoon | Olm.app bringing an app forward, a Hyper app key and an app row in the launcher, which Hammerspoon runs instead until it is given
 diff | system | /usr/bin/diff | optional | hammerspoon | showing what moved when the inventory snapshot stops matching its golden file
 mise | path | mise | optional | hammerspoon | finding the Lua interpreter of the version Hammerspoon embeds, which the offline gates run on
 strings | system | /usr/bin/strings | optional | hammerspoon | reading the Lua version out of the installed Hammerspoon's LuaSkin framework

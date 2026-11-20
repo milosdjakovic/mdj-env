@@ -79,6 +79,15 @@ local function sharedKeys(bridge, bound, leaderSpecs, keyTable)
   end)
   return keyShareLib.wrap(bound, function(method, params) bridge:notify(method, params) end)
 end
+-- Hands lib/appfocus.lua the bridge's forwarder, so a press on an app runs in Olm.app while it may
+-- act and in Lua otherwise, step 6.2, docs/DESIGN-APP-APPS.md. Answers the bridge, so the binder's
+-- call carries it and this function's caller adds no local. With no bridge nothing is forwarded.
+local function forwardApps(appfocus, bridge)
+  if appfocus and type(appfocus.forwardTo) == "function" then
+    appfocus.forwardTo(bridge and type(bridge.appForwarder) == "function" and bridge:appForwarder(appfocus.plan) or nil)
+  end
+  return bridge
+end
 -- How rows other plugins contribute reach the launcher and how a chosen one runs, assembled
 -- from the plan's set answers. A pure module like the registrar, so the unit case drives the
 -- same code this file runs.
@@ -3362,7 +3371,7 @@ function obj.run(olm, cfg)
   -- Where Olm.app is on, it is handed what the binder binds and the binder the rows wrapped to say
   -- each run, sharedKeys above. A call rather than locals here, since this function is at Lua 5.4's
   -- limit of 200.
-  for _, problem in ipairs(binderLib.bind(sharedKeys(modules[plan.identity.bridge or "bridge"], keymap.bound,
+  for _, problem in ipairs(binderLib.bind(sharedKeys(forwardApps(atoms.appfocus, modules[plan.identity.bridge or "bridge"]), keymap.bound,
     leaderSpecs, keyTable), {
     engines = leadersByName,
     plain = plainLeader,

@@ -13,12 +13,14 @@
 // and every difference logged to ~/.olm/log/shadow-launcher.jsonl. olm://launcher shows the app's own
 // launcher, a second bridged launcher with a level for each show, opened by the trial key of step
 // 3.2, docs/DESIGN-APP-LAUNCHER.md, while Hyper and Space still opens the Lua one.
+// olm://apps-plan?bundles=A,B&hides=0 writes what a press on each app would do, changing nothing.
 // olm://settings shows the Olm Settings window, docs/DESIGN-APP-SETTINGS.md, drawn from the share
 // Hammerspoon writes at every load.
 // An olm:// URL never runs anything, and one this app does not know is logged and dropped.
 
 import AppKit
 import FileSearchPlugin
+import OlmApps
 import OlmBridge
 import OlmKeys
 import OlmLauncher
@@ -34,6 +36,25 @@ let context = PluginContext(
   resources: Bundle.main.resourceURL ?? URL(fileURLWithPath: "."),
   store: olm.appendingPathComponent("state/filesearch"))
 
+/// What macOS lets the app do, written for the setup's grants-probe, which can only ask the app,
+/// ~/.olm/state/app/grants.json. Each grant is told by whoever checks it, on its own thread.
+final class Grants: @unchecked Sendable {
+  private let lock = NSLock()
+  private var said: [String: Bool] = [:]
+  private let url: URL
+  init(_ url: URL) { self.url = url }
+
+  func tell(_ name: String, _ allowed: Bool) {
+    lock.lock()
+    defer { lock.unlock() }
+    said[name] = allowed
+    try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+    if let data = try? JSONSerialization.data(withJSONObject: said, options: [.sortedKeys]) {
+      try? (data + Data("\n".utf8)).write(to: url, options: .atomic)
+    }
+  }
+}
+
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
   private let searcher = Searcher()
@@ -45,6 +66,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   // The keys in shadow and the tap it hears through, step 5.1, held for the app's life.
   private var keyShadow: KeyShadow?
   private var keyTap: KeyTap?
+  // Bringing an app forward, step 6.2, docs/DESIGN-APP-APPS.md, and whether it may, checked every ten
+  // seconds and told to Hammerspoon on a change.
+  private let appFocus = AppFocus(shadow: AppShadow(log: olm.appendingPathComponent("log")),
+    log: { NSLog("Olm apps: %@", $0) })
+  private var appsAllowed = AppFocus.allowed
+  private var appsTimer: Timer?
   private let bridge = Bridge(path: context.run.appendingPathComponent("bridge.sock").path)
   private let bridgedLauncher: BridgedLauncher
   private let shownLauncher: BridgedLauncher
@@ -159,14 +186,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     if !KeyTap.allowed { KeyTap.ask() }
     // Whether macOS lets the app hear the keyboard, written for the setup's grants-probe, which can
     // only ask the app, ~/.olm/state/app/grants.json.
-    let grants = olm.appendingPathComponent("state/app/grants.json")
+    let grants = Grants(olm.appendingPathComponent("state/app/grants.json"))
     let keyTap = KeyTap(handle: { keyShadow.heard($0) }, log: { NSLog("Olm keys: %@", $0) }, report: { allowed in
-      try? FileManager.default.createDirectory(at: grants.deletingLastPathComponent(), withIntermediateDirectories: true)
-      try? Data("{\"inputMonitoring\":\(allowed)}\n".utf8).write(to: grants, options: .atomic)
+      grants.tell("inputMonitoring", allowed)
     })
     self.keyTap = keyTap
     keyTap.start()
     Task { await bridge.onKeyFired { keyShadow.fired($0) } }
+    // A press on an app Hammerspoon hands over, step 6.2, run on the app's own queue, and whether it
+    // may, said once each session opens and again on a change. Accessibility is asked for once, by
+    // macOS's own prompt, and until it is given Hammerspoon runs every press as before.
+    let appFocus = appFocus
+    let bridgeForApps = bridge
+    if !appsAllowed { AppFocus.ask() }
+    grants.tell("accessibility", appsAllowed)
+    Task {
+      await bridgeForApps.onAppRun { params in
+        if let press = AppPress(params) { appFocus.run(press) }
+      }
+      await bridgeForApps.onOpen {
+        Task { await bridgeForApps.notify("appsReady", .object(["ready": .bool(AppFocus.allowed)])) }
+      }
+    }
+    appsTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
+      MainActor.assumeIsolated {
+        guard let self else { return }
+        let now = AppFocus.allowed
+        guard now != self.appsAllowed else { return }
+        self.appsAllowed = now
+        grants.tell("accessibility", now)
+        NSLog("Olm apps: Accessibility is %@", now ? "allowed" : "not allowed")
+        Task { await bridgeForApps.notify("appsReady", .object(["ready": .bool(now)])) }
+      }
+    }
     stage.onShowing = { tool, up in
       keyShadow.list(up: up)
       DistributedNotificationCenter.default().postNotificationName(Notification.Name("local.olm.Olm.state"),
@@ -244,6 +296,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       } else if url.host == "shadow", let tool = item("tool"), let shadow = shadows[tool],
         let id = item("id").flatMap({ Int($0) }) {
         shadow.run(id: id)
+      } else if url.host == "apps-plan" {
+        // What a press on each app named would do now, written to ~/.olm/run/apps-plan.json and
+        // changing nothing, so the live check compares it with lib/appfocus.lua's plan, step 6.2.
+        let bundles = (item("bundles") ?? "").split(separator: ",").map(String.init)
+        let hides = item("hides") == "1", appFocus = appFocus
+        let out = context.run.appendingPathComponent("apps-plan.json")
+        DispatchQueue.global().async {
+          var doc: [String: Any] = ["allowed": AppFocus.allowed]
+          doc["plans"] = appFocus.plans(bundles, hides: hides).mapValues { p -> [String: Any] in
+            var o: [String: Any] = ["outcome": p.outcome.rawValue]
+            if let w = p.window { o["window"] = Int(w) }
+            return o
+          }
+          if let data = try? JSONSerialization.data(withJSONObject: doc, options: [.sortedKeys]) {
+            try? data.write(to: out, options: .atomic)
+          }
+        }
       } else if url.host == "settings" {
         settingsWindow.show()
       } else if url.host == "tool", let name = item("name") {

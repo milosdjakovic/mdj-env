@@ -68,6 +68,10 @@ public actor Bridge {
   private var ownerIcons: [String: [String: Icon]] = [:]
   // Who hears each global row Hammerspoon ran, the keys' shadow, step 5.1, docs/DESIGN-APP-KEYS.md.
   private var keyFired: (@Sendable (String) -> Void)?
+  // Who runs a press on an app Hammerspoon handed over, step 6.2, docs/DESIGN-APP-APPS.md, and who
+  // hears each session open, so the app says whether it may act.
+  private var appRun: (@Sendable (Any) -> Void)?
+  private var opened: (@Sendable () -> Void)?
   private var log: @Sendable (String) -> Void
 
   /// path is the socket, ~/.olm/run/bridge.sock for the app. announce false posts no listening note,
@@ -107,6 +111,16 @@ public actor Bridge {
   /// Who hears each global row Hammerspoon's binder ran, by its id, the keyFired notification.
   public func onKeyFired(_ fn: @escaping @Sendable (String) -> Void) {
     keyFired = fn
+  }
+
+  /// Who runs a press on an app, the appRun notification's params as Foundation answers them.
+  public func onAppRun(_ fn: @escaping @Sendable (Any) -> Void) {
+    appRun = fn
+  }
+
+  /// Who hears each session open, hello answered.
+  public func onOpen(_ fn: @escaping @Sendable () -> Void) {
+    opened = fn
   }
 
   /// Who draws what a hosted list's pane drew, the stage, step 3.3d.
@@ -213,6 +227,7 @@ public actor Bridge {
       }
       guard conn == id else { return }
       open = true
+      opened?()
       sendMetrics()
       for l in launchers.reversed() { try await l.connected(rowLimit: hello["limits"]["rowLimit"].int) }
     } catch {
@@ -265,6 +280,9 @@ public actor Bridge {
     case "keyFired":
       // A global row the binder ran, step 5.1, which the keys' shadow pairs with a press it heard.
       if let id = params["id"].string { keyFired?(id) }
+    case "appRun":
+      // A press on an app Hammerspoon handed over, step 6.2, run by the app's own queue.
+      appRun?(params.any)
     case "paneDrawn":
       // What a hosted list's pane drew, step 3.3d, docs/PROTOCOL-BRIDGE.md The preview pane.
       guard let id = params["level"].string, let level = hosted[id],

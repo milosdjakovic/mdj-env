@@ -750,5 +750,15 @@ do
   ok(pcall(bare.methods.settingsDone.run, {}) == false, "and settingsDone")
 end
 
+-- Whether the app may bring an application forward, step 6.2, held until the session goes.
+do
+  local ready = serve.new({ rpc = rpc, clean = frame.clean, launcher = { rows = function() return {} end } })
+  ok(ready.appsReady ~= true, "the app has not said it may act before it says so")
+  ready.methods.appsReady.run({ ready = true })
+  ok(ready.appsReady == true, "appsReady true says it may")
+  ready.closeAll()
+  ok(ready.appsReady == false, "and a socket that went forgets it")
+end
+
 print(string.format("bridgeserve: %d checks, %d failed", checks, failures))
 os.exit(failures == 0 and 0 or 1)

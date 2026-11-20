@@ -170,16 +170,9 @@ end
 --- happened, "hidden", "launched", or "focused", so a caller that also asked for placement
 --- knows whether a window was really brought forward or merely sent away.
 function obj:toggle(bundleID)
-  local app = hs.application.get(bundleID)
-
-  if app and app:isFrontmost() and #app:allWindows() > 0 then
-    app:hide()
-    return "hidden"
-  end
-
-  local wasRunning = app ~= nil
-  hs.application.launchOrFocusByBundleID(bundleID)
-  return wasRunning and "focused" or "launched"
+  -- The one decision lib/appfocus.lua makes for focus or cycle as well, so the app's shadow is
+  -- handed the same answer this runs, docs/DESIGN-APP-APPS.md.
+  return self._appFocus.toggle(bundleID)
 end
 
 --- AppToggler:launchOrFocus(bundleID)
@@ -298,12 +291,20 @@ end
 --- showing, launching, or focusing rather than a plain cycle.
 function obj:_buildAction(spec, bundleID)
   local self_ref = self
+  -- A placement written as a Lua function cannot cross to the app, so such an app runs here.
+  local crosses = type(spec.placement) ~= "function"
+  local id = "apptoggler." .. tostring(self._names and self._names[bundleID] or bundleID)
   return function()
+    -- Olm.app runs the press when it can, step 6.2, and Lua as before when it cannot.
+    if crosses and self_ref._appFocus.toApp({ id = id, bundle = bundleID, hides = spec.hides == true,
+      placement = spec.placement }) then
+      return
+    end
     local outcome
     if spec.hides then
       outcome = self_ref:toggle(bundleID)
     else
-      outcome = self_ref._appFocus.focusOrCycle(bundleID)
+      outcome = self_ref._appFocus.focusOrCycle(bundleID, id, true)
     end
     if spec.placement and PLACING_OUTCOMES[outcome] then
       self_ref:_setupPlacement(bundleID, spec.placement)
@@ -458,6 +459,11 @@ end
 function obj:_build(apps, styles, toggles)
   local self_ref = self
   local styled = self:_styled(apps, styles, toggles)
+  -- Each app's catalog name by its bundle id, the action id a styled run hands the app's shadow.
+  self._names = {}
+  for name, bid in pairs(apps) do
+    if type(name) == "string" and type(bid) == "string" then self._names[bid] = name end
+  end
   local actions = {}
   for _, name in ipairs(sortedNames(apps)) do
     local bundleID = apps[name]
@@ -468,7 +474,7 @@ function obj:_build(apps, styles, toggles)
         name = name, app = bundleID, description = style and style.description or nil,
         group = function() return self_ref:_isRunning(bundleID) and RUNNING or DORMANT end,
         run = style and self:_buildAction(style.spec, bundleID)
-          or function() appFocus.focusOrCycle(bundleID) end,
+          or function() appFocus.focusOrCycle(bundleID, "apptoggler." .. name) end,
       }
     end
   end

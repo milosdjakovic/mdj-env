@@ -37,6 +37,7 @@ accessibility | grant | accessibility | required | every leader key, every chord
 # answers for it in a file of its own, since only the app can be asked about the app, so the
 # grants-probe beside this file reads that.
 olmapp-input-monitoring | grant | olmapp-input-monitoring | optional | Olm.app hearing the keyboard, the keys' shadow today and the leaders it binds from step 5.3
+olmapp-accessibility | grant | olmapp-accessibility | optional | Olm.app bringing an app forward, a Hyper app key and an app row in the launcher, which Hammerspoon runs instead until it is given
 
 # Comparing a fresh inventory snapshot against the committed golden one. Optional and declared at
 # module level rather than in any plugin, for the same reason lua is above, it belongs to this

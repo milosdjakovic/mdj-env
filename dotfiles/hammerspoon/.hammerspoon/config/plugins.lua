@@ -123,6 +123,11 @@ return {
     -- from what was typed, step 6.1, on since 2026-11-20 once both catalogs listed the same rows in
     -- the same order on this machine. False is the way back, every row asked of Hammerspoon again.
     launcherCatalog = true,
+    -- Whether a press on an app, a Hyper app key or an app row in the launcher, is run by the app,
+    -- step 6.2, docs/DESIGN-APP-APPS.md, on since 2026-11-20 with its shadow logging beside it. The
+    -- app runs one only once it holds Accessibility and has said so, and Lua runs it otherwise. False
+    -- is the way back, every press run in Hammerspoon again.
+    appToggler = true,
     -- The tools whose own list the app shows inside its launcher, step 3.3, so the launcher's row
     -- for one replaces its rows in place in the app's window. A tool joins in the step that hosts
     -- it, and taking it out leaves its row put in the app's launcher, as before. Since step 3.6

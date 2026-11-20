@@ -62,6 +62,10 @@ return {
       -- 6.1, from config/plugins.lua, off by default.
       launcherCatalog = { source = "user", policy = "optional",
         breaks = "the app's launcher asks Hammerspoon for every row on every keystroke, as before" },
+      -- Whether a press on an app is run by the app while it may act, step 6.2, from
+      -- config/plugins.lua, off by default.
+      appToggler = { source = "user", policy = "optional",
+        breaks = "every press on an app runs in Hammerspoon, as before" },
       -- Whether a tool's own key opens its list in the app while its socket is up, step 3.8, from
       -- config/plugins.lua, off by default.
       keysFlip = { source = "user", policy = "optional",

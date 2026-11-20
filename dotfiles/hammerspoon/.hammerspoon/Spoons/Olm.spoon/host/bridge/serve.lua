@@ -432,6 +432,14 @@ function M.new(opts)
     return service.launcherChose(level, params.item, type(params.query) == "string" and params.query or "")
   end }
 
+  -- Whether the app may bring an application forward, step 6.2, docs/DESIGN-APP-APPS.md, told once
+  -- each session opens and again whenever its Accessibility grant changes. A notification, never
+  -- answered, dropped with the session by closeAll.
+  methods.appsReady = { run = function(params)
+    service.appsReady = params.ready == true
+    return true
+  end }
+
   -- The app's chooser is gone, so the work Return left waiting runs now.
   methods.hidden = { run = function(params)
     runWaiting(params.level)
@@ -472,6 +480,8 @@ function M.new(opts)
   --- service.closeAll() closes every level, each hosted one told its onClose top down, for a new
   --- session or a socket that went, since the app that held them is gone
   function service.closeAll()
+    -- A new session or a socket that went, so the app has not said it may act until it says again.
+    service.appsReady = false
     local ids = {}
     for id in pairs(service.levels) do ids[#ids + 1] = id end
     table.sort(ids, function(a, b) return tonumber(a:sub(2)) > tonumber(b:sub(2)) end)

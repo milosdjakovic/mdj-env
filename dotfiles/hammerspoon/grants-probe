@@ -38,7 +38,7 @@ CANNOT_ANSWER_HERE=2
 # from this module's own declaration of the application, so it is written once.
 if [[ "${1:-}" == --subject ]]; then
     case "${2:-}" in
-        olmapp-input-monitoring)
+        olmapp-input-monitoring|olmapp-accessibility)
             # Olm.app asks for it itself and macOS lists it, so the app is what a person opens.
             echo "app local.olm.Olm"
             exit 0
@@ -173,6 +173,23 @@ case "$locator" in
             *'"inputMonitoring":false'*) echo "notDetermined" ;;
             *)
                 echo "grants-probe: $grants says nothing about Input Monitoring" >&2
+                exit $CANNOT_ANSWER_HERE
+                ;;
+        esac
+        ;;
+    olmapp-accessibility)
+        # Olm.app writes what AXIsProcessTrusted answers it at launch and on every change, checked
+        # every ten seconds, for the same reason as Input Monitoring above.
+        grants="$HOME/.olm/state/app/grants.json"
+        if [[ ! -f "$grants" ]]; then
+            echo "grants-probe: Olm.app has not said whether it may bring an app forward, start it once" >&2
+            exit $CANNOT_ANSWER_HERE
+        fi
+        case "$(tr -d ' \n' < "$grants")" in
+            *'"accessibility":true'*)  echo "granted" ;;
+            *'"accessibility":false'*) echo "notDetermined" ;;
+            *)
+                echo "grants-probe: $grants says nothing about Accessibility, an Olm.app from before step 6.2" >&2
                 exit $CANNOT_ANSWER_HERE
                 ;;
         esac

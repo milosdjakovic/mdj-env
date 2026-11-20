@@ -697,6 +697,7 @@ The pilot, stage 1, reaches the app before any bridge exists, through URLs Hamme
 | `olm://filesearch?screen=MODE&query=TEXT` | shows its file search with TEXT in the input field, on the screen MODE names, `activeWindow` or `cursor`, Olm's placement choice at the press, the active window's screen when it is left out. host/bridge hands a running app the same URL as the object of the distributed notification `local.olm.Olm.open`, some fifty milliseconds sooner than `open`, and starts an app not running with `open`, 2026-11-08 |
 | `olm://launcher?screen=MODE&query=TEXT` | shows its launcher, from step 3.2, a level of its own opened for each show and closed as the list closes, `hidden` sent before that close when a run waits for it. The trial key, the bridge host's action `bridge.launcher`, opens it the way a served key opens file search |
 | `olm://shadow?tool=filesearch&id=N` | answers the query in `~/.olm/run/filesearchshadow.json` with its own engine, compares its rows with the Lua answer written there and appends one line to `~/.olm/log/shadow-filesearch.jsonl`, the shadow of step 1.3e, showing nothing. host/bridge asks it by the distributed notification `local.olm.Olm.shadow` with the object `filesearch:N` instead, since running `open` while the Lua list was up left it with no rows, 2026-11-08 |
+| `olm://apps-plan?bundles=A,B&hides=0` | writes to `~/.olm/run/apps-plan.json` what a press on each app named would do now, the same decision `appRun` runs, and changes nothing, the live check of step 6.2 |
 | `olm://ping?nonce=N` | writes N and the time to `~/.olm/run/ping`, the test step 1.1 names |
 
 Any program on the machine can open a URL, so a URL only ever shows a list with text in its input
@@ -759,6 +760,23 @@ A row's `mods` is absent for a catch all and its `leader` absent for a plain com
 binder runs a global row it sends the notification `keyFired`, `{"id":"apptoggler.Safari"}`, which
 the app's shadow of the keys pairs with the press it heard, docs/DESIGN-APP-KEYS.md. A list's own
 keys send nothing.
+
+## Bringing an app forward, step 6.2
+
+While the `appToggler` switch is on and the app has said it may act, `lib/appfocus.lua` hands each
+press on an app to the app as the notification `appRun` rather than running it:
+
+```json
+{"id":"apptoggler.Ghostty","bundle":"com.mitchellh.ghostty","hides":true,
+ "placement":{"width":2400,"height":1350,"padding":{"x":40,"y":20}},"lua":{"outcome":"focused"}}
+```
+
+`id` is the action pressed, `launcher` for an app row the launcher ran, `placement` absent for none
+and never sent for one written as a Lua function, which stays in Lua. `lua` is what Lua would have
+done, `launched`, `focused`, `cycled` with the `window` number a cycle reaches, or `hidden`, for the
+app's shadow, docs/DESIGN-APP-APPS.md. The app says whether it may act with its own notification
+`appsReady`, `{"ready":true}`, once each session opens and again whenever its Accessibility grant
+changes, and Hammerspoon forgets it with the session.
 
 ## How it is tested
 

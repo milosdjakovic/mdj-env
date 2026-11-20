@@ -618,5 +618,30 @@ do
   hs.application = nil
 end
 
+-- The forwarder lib/appfocus.lua is handed, step 6.2, docs/DESIGN-APP-APPS.md. A press goes to
+-- the app only with the switch on, a session open and the app having said it may act, and carries
+-- Lua's own plan for the shadow.
+do
+  local notes = {}
+  local fwd = fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, appToggler = true })
+  local service = { appsReady = false }
+  fwd._conn, fwd._service = {}, service
+  fwd._session = { open = true, notify = function(_, method, params) notes[#notes + 1] = { method, params }; return true end }
+  local send = fwd:appForwarder(function(bundle, hides) return { outcome = hides and "hidden" or "cycled", window = 7 } end)
+  eq(send({ id = "apptoggler.Safari", bundle = "s.s", hides = false }), false, "an app that has not said it may act takes nothing")
+  service.appsReady = true
+  eq(send({ id = "apptoggler.Safari", bundle = "s.s", hides = false, placement = function() end }), true,
+    "an app that said it may act takes the press")
+  eq(notes[1][1], "appRun", "as the notification appRun")
+  eq(notes[1][2].lua.outcome, "cycled", "carrying Lua's plan")
+  eq(notes[1][2].placement, nil, "and never a placement that is not a table")
+  fwd._session.open = false
+  eq(send({ bundle = "s.s" }), false, "a closed session takes nothing")
+  local off = fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP })
+  off._conn, off._service, off._session = {}, { appsReady = true }, fwd._session
+  off._session.open = true
+  eq(off:appsInApp(), false, "with the switch off no press goes to the app")
+end
+
 print(string.format("bridge: %d checks, %d failed", checks, failures))
 os.exit(failures == 0 and 0 or 1)

@@ -1335,3 +1335,24 @@ written an hour earlier. Off, it asks Hammerspoon for the whole list as before. 
 compares the launcher in use with Hammerspoon's whole list. Going back is the switch and a reload,
 which was not tried live, since trying it means opening the launcher on the screen, and the check
 pins that the switch is read.
+
+**2026-11-20 21:00, step 6.2, the app toggler, built and flipped.** Focus or cycle, show and hide and placement
+run in Olm.app, behind `appToggler` in `config/plugins.lua`, `docs/DESIGN-APP-APPS.md`. Hammerspoon
+still binds the keys and the launcher still chooses in Lua, so both reach the app through one seam in
+`lib/appfocus.lua`, which hands a press over as `appRun` while the app has said with `appsReady` that
+it holds Accessibility, and runs it in Lua otherwise. So the flip costs nothing before the grant is
+given. Lua's own decision travels beside each press for the shadow, and the decision is now one
+function in Lua that acting and the plan share. A placement written as a Lua function stays in Lua,
+since it cannot cross, and `config/toggles.lua` writes none. The app's Accessibility calls run on a
+queue of their own bounded to a second each, where Hammerspoon's run on its main thread with macOS's
+six second default, so a hung app stalls its own press and nothing else. Running the launcher's app
+rows straight from the app on Return was put off, since recency and the memory are still Lua's and
+Return goes there regardless, until they move.
+
+**2026-11-20 21:00, the toggler's placement wait never stopped.** `plugins/apptoggler/init.lua` calls
+`hs.timer.waitUntil` with a fourth argument, twenty attempts, which that function does not take, so a
+placement waited every quarter second for as long as the app was not ready, and a window could be
+placed long after the press, the next time a person brought that app forward some other way. The
+belief corrected is that the wait gave up after five seconds. The app's port stops at twenty attempts
+as the code meant and logs a wait that ran out. Lua's wait is left as it is, since it goes with the
+shadow.

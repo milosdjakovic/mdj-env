@@ -119,6 +119,14 @@ The catalog of bundle ids is config/apps.lua and the styles and the toggles list
 config/toggles.lua, and this plugin's own apptoggler entry in config/plugins.lua hands all three
 over as this plugin's own data. None holds a key, every key is in config/keymap.lua.
 
+## Run by Olm.app
+
+Since step 6.2 a press is handed to Olm.app and run there, through the one seam in
+`lib/appfocus.lua`, while the bridge's `appToggler` switch in config/plugins.lua is
+on and the app holds Accessibility. Otherwise it runs here as before, and so does
+an app whose placement is written as a Lua function, since a function cannot
+cross. `docs/DESIGN-APP-APPS.md` has it.
+
 ## History
 
 A show and hide behaviour and a placement engine both used to live in

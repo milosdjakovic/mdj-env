@@ -53,6 +53,7 @@ if [ "$tiers" = "dry" ]; then
   "$OLM_LUA" "$here/rootmechanism.lua" || exit 1
   "$OLM_LUA" "$here/keypage.lua" || exit 1
   "$OLM_LUA" "$here/keyshare.lua" || exit 1
+  "$OLM_LUA" "$here/appfocus.lua" || exit 1
   "$OLM_LUA" "$here/bridge.lua" || exit 1
   "$OLM_LUA" "$here/bridgeserve.lua" || exit 1
   "$OLM_LUA" "$here/settings.lua" || exit 1
@@ -94,6 +95,10 @@ if [ "$tiers" = "dry" ]; then
   [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ] || exit 1
   # The launcher's catalog built in Olm.app, see olmlauncher.sh. Exit 2 is the same skip.
   "$here/olmlauncher.sh"
+  rc=$?
+  [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ] || exit 1
+  # Bringing an app forward in Olm.app, see olmapps.sh. Exit 2 is the same skip.
+  "$here/olmapps.sh"
   rc=$?
   [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ] || exit 1
   echo

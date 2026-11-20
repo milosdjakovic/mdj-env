@@ -112,6 +112,9 @@ function obj:configure(opts)
   -- Whether the app's launcher builds its catalog itself, step 6.1, off unless the config says true,
   -- written into the catalog's share for the app to read at each open.
   if opts.launcherCatalog ~= nil then self._catalog = opts.launcherCatalog == true end
+  -- Whether a press on an app is run by the app, step 6.2, docs/DESIGN-APP-APPS.md, off unless the
+  -- config says true, and even then only while the app has said it may act.
+  if opts.appToggler ~= nil then self._appToggler = opts.appToggler == true end
   -- Whether a tool's own key opens its list in the app, step 3.8, off unless the config says true.
   if opts.keysFlip ~= nil then self._keysFlip = opts.keysFlip == true end
   if type(opts.shares) == "table" then self:_share(opts.shares) end
@@ -323,6 +326,25 @@ end
 --- obj:catalogInApp() -> whether the app's launcher builds its catalog itself, step 6.1.
 function obj:catalogInApp()
   return self._catalog == true
+end
+
+--- obj:appsInApp() -> whether a press on an app goes to the app now, step 6.2: the switch on, a
+--- session open and the app having said it may act.
+function obj:appsInApp()
+  return self._appToggler == true and self._session ~= nil and self._session.open == true
+    and self._service ~= nil and self._service.appsReady == true
+end
+
+--- obj:appForwarder(plan) -> the forwarder lib/appfocus.lua is handed, step 6.2. It sends the press
+--- as the notification appRun with what Lua would have done, plan(bundle, hides), for the app's
+--- shadow, and answers whether it was sent, false whenever appsInApp says no so Lua runs it.
+function obj:appForwarder(plan)
+  return function(press)
+    if not self:appsInApp() then return false end
+    local lua = type(plan) == "function" and plan(press.bundle, press.hides == true) or nil
+    return self:notify("appRun", { id = press.id, bundle = press.bundle, hides = press.hides == true,
+      placement = type(press.placement) == "table" and press.placement or nil, lua = lua }) == true
+  end
 end
 
 --- obj:notify(method, params) -> true when sent, a notification to the app over the socket, sent

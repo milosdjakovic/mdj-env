@@ -37,19 +37,17 @@ function M.configure(opts)
   return M
 end
 
---- appfocus.focusOrCycle(bundleID) -> outcome
---- Focus an app, or cycle through its windows if already frontmost. Never hides. First press
---- shows the last focused window, each subsequent press moves to the next window and wraps to
---- the first. Answers "launched", "focused", or "cycled", so a caller that also asked for
---- placement knows a cycle within an already frontmost app never counts as the outcome
---- placement fires on.
-function M.focusOrCycle(bundleID)
+-- What a press on an app would do, read from the app as it stands and changing nothing. Answers
+-- the outcome, "launched", "focused", "cycled" or "hidden", and for a cycle the window it reaches.
+-- hides true is the show and hide form, a press on an app in front with a window hiding it, and
+-- otherwise focus or cycle. One decision for acting and for the plan the app's shadow is handed,
+-- docs/DESIGN-APP-APPS.md, so the two can never drift apart.
+local function decide(bundleID, hides)
   local app = hs.application.get(bundleID)
-
-  -- Not running, so launch it.
-  if not app then
-    hs.application.launchOrFocusByBundleID(bundleID)
-    return "launched"
+  if not app then return "launched" end
+  if hides then
+    if app:isFrontmost() and #app:allWindows() > 0 then return "hidden", nil, app end
+    return "focused", nil, app
   end
 
   -- Standard, non minimized windows in a deterministic order, so cycling is consistent, since
@@ -62,32 +60,80 @@ function M.focusOrCycle(bundleID)
   end
   table.sort(windows, function(a, b) return a:id() < b:id() end)
 
-  -- No cyclable windows, so fall back to launch or focus.
-  if #windows == 0 then
-    hs.application.launchOrFocusByBundleID(bundleID)
-    return "focused"
-  end
+  -- No cyclable windows, or not in front, so launch or focus brings it forward.
+  if #windows == 0 or not app:isFrontmost() then return "focused", nil, app end
 
-  if app:isFrontmost() then
-    -- Already focused, so move to the next window and wrap to the first.
-    local focused = hs.window.focusedWindow()
-    local index = nil
-    if focused then
-      for i, w in ipairs(windows) do
-        if w:id() == focused:id() then
-          index = i
-          break
-        end
+  -- Already focused, so move to the next window and wrap to the first.
+  local focused = hs.window.focusedWindow()
+  local index = nil
+  if focused then
+    for i, w in ipairs(windows) do
+      if w:id() == focused:id() then
+        index = i
+        break
       end
     end
-    local nextIndex = index and (index % #windows) + 1 or 1
-    windows[nextIndex]:focus()
-    return "cycled"
-  else
-    -- Not focused, so bring the app forward with its last focused window.
-    hs.application.launchOrFocusByBundleID(bundleID)
-    return "focused"
   end
+  return "cycled", windows[index and (index % #windows) + 1 or 1], app
+end
+
+--- appfocus.plan(bundleID, hides) -> { outcome, window }
+--- What a press would do, the window a cycle reaches by its id, changing nothing. Handed to the
+--- app beside each press it runs, so its shadow compares its own decision with this one.
+function M.plan(bundleID, hides)
+  local outcome, window = decide(bundleID, hides)
+  return { outcome = outcome, window = window and window:id() or nil }
+end
+
+-- Who runs a press in Olm.app, set by the root, step 6.2. Called with the press, { id, bundle,
+-- hides, placement }, it answers true when the app took it and false when Lua runs it as before.
+local forward = nil
+
+--- appfocus.forwardTo(fn) sets the forwarder, nil taking it away, docs/DESIGN-APP-APPS.md.
+function M.forwardTo(fn)
+  forward = type(fn) == "function" and fn or nil
+  return M
+end
+
+--- appfocus.toApp(press) -> whether Olm.app took the press, { id, bundle, hides, placement }, a
+--- placement handed only as a table. A raise in the forwarder is a press Lua runs.
+function M.toApp(press)
+  if not forward or type(press) ~= "table" or type(press.bundle) ~= "string" then return false end
+  local ok, took = pcall(forward, press)
+  if not ok then log.w("the app did not take a press, " .. tostring(took)) end
+  return ok and took == true
+end
+
+--- appfocus.focusOrCycle(bundleID, id) -> outcome
+--- Focus an app, or cycle through its windows if already frontmost. Never hides. First press
+--- shows the last focused window, each subsequent press moves to the next window and wraps to
+--- the first. Answers "launched", "focused", or "cycled", so a caller that also asked for
+--- placement knows a cycle within an already frontmost app never counts as the outcome
+--- placement fires on, and "app" when Olm.app took the press, id naming who pressed for its
+--- shadow, the launcher when none is handed. here true runs it in Lua whatever the forwarder says,
+--- for a caller whose own part of the press, a placement written as a function, stays in Lua.
+function M.focusOrCycle(bundleID, id, here)
+  if not here and M.toApp({ id = id or "launcher", bundle = bundleID, hides = false }) then return "app" end
+  local outcome, window = decide(bundleID, false)
+  if outcome == "cycled" then
+    window:focus()
+  else
+    hs.application.launchOrFocusByBundleID(bundleID)
+  end
+  return outcome
+end
+
+--- appfocus.toggle(bundleID) -> outcome
+--- Show or hide, a press on an app in front with a window hiding it and any other launching or
+--- focusing it. Answers "hidden", "launched" or "focused", the app toggler's `hides` form.
+function M.toggle(bundleID)
+  local outcome, _, app = decide(bundleID, true)
+  if outcome == "hidden" then
+    app:hide()
+  else
+    hs.application.launchOrFocusByBundleID(bundleID)
+  end
+  return outcome
 end
 
 --- appfocus.openURL(bundleID, url) -> outcome
