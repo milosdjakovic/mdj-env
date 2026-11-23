@@ -112,7 +112,7 @@ function obj:planInput(win, extra)
   end
   local id = win:id()
   local screen = win:screen()
-  local pointer = hs.mouse.absolutePosition()
+  local pointer = hs.mouse and hs.mouse.absolutePosition() or nil
   local s = {
     window = rectOf(win:frame()), id = id, screen = screen and uuidOf(screen), screens = screens,
     pointer = pointer and { x = pointer.x, y = pointer.y } or nil,
