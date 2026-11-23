@@ -31,7 +31,20 @@ eq(AppPlan.decide(AppState(running: true, frontmost: true, windows: [w30, w10], 
 eq(AppPlan.decide(AppState(running: true, frontmost: true, windows: [w30, w10], focused: nil), hides: false),
   AppPlan(.cycled, window: 10), "and with no focused window starts at the first")
 eq(AppPlan.decide(AppState(running: true, frontmost: true, windows: [w30, w10], focused: 99), hides: false),
-  AppPlan(.cycled, window: 10), "and with focus in another app starts at the first")
+  AppPlan(.cycled, window: 10), "and with a focused window it does not walk and no main window starts at the first")
+let w40 = AppWindow(id: 40, standard: true, minimized: false)
+eq(AppPlan.decide(AppState(running: true, frontmost: true, windows: [w30, w10, w40, dialog], focused: 5, main: 30),
+  hides: false), AppPlan(.cycled, window: 40), "and with a dialog focused steps from the main window")
+// Round robin, each press stepping from the window the one before reached, Chrome's three windows
+// walked all the way round rather than swapped once, 2026-11-23.
+var walked: [UInt32] = [], at: UInt32 = 10
+for _ in 0..<4 {
+  let plan = AppPlan.decide(AppState(running: true, frontmost: true, windows: [w40, dialog, w30, w10], focused: at, main: at),
+    hides: false)
+  at = plan.window ?? 0
+  walked.append(at)
+}
+eq(walked, [30, 40, 10, 30], "each press walks to the next window by number and wraps")
 eq(AppPlan.decide(AppState(running: true, frontmost: true, windows: [dialog]), hides: false), AppPlan(.focused),
   "an app in front with only a dialog is focused")
 eq(AppPlan.decide(AppState(running: true, frontmost: true, windows: [dialog]), hides: true), AppPlan(.hidden),

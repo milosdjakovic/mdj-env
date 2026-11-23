@@ -138,8 +138,13 @@ public final class AppFocus: @unchecked Sendable {
     let found = running(bundle)
     let app = found.map { element($0.pid) }
     let listed = app.map(windows) ?? []
+    // The app's own focused and main windows, never the system wide focused application's, which
+    // answered none of Chrome's at its presses, so every cycle restarted at the first, 2026-11-23.
+    let own = { (name: String) in
+      hides ? nil : app.flatMap { self.attribute($0, name) }.flatMap { self.number($0 as! AXUIElement) }
+    }
     let state = AppState(running: found != nil, frontmost: found?.active ?? false, windows: listed.map(\.1),
-      focused: found == nil || hides ? nil : focused().window.flatMap(number))
+      focused: own(kAXFocusedWindowAttribute), main: own(kAXMainWindowAttribute))
     return (AppPlan.decide(state, hides: hides), app, listed)
   }
 

@@ -42,8 +42,12 @@ Each call on that queue is bounded to one second, so a hung app costs one key an
 **The same decisions, read the same way.** An app's windows are its `AXWindows`, a standard one is
 subrole `AXStandardWindow`, a minimized one is left out, and they are ordered by window number,
 `_AXUIElementGetWindow`, the same private call Hammerspoon's `hs.window:id()` stands on, so the two
-orders match. Frontmost is the running application's `isActive`, and the focused window is the
-system wide focused application's focused window, both as Hammerspoon reads them. Launching or
+orders match. Frontmost is the running application's `isActive`. A cycle steps from the app's own
+focused window, or from its main window when the focused one is not a window the cycle walks, read
+from the app's element in both, `hs.application:focusedWindow()` and `mainWindow()` in Lua. It used
+to be the system wide focused application's focused window, and on 2026-11-23 that answered none of
+Chrome's at every press, so each press started again at the first window and two windows swapped
+once and then stood still, while Chrome's own focused window was right all along. Launching or
 focusing goes through LaunchServices with activation, which reopens a window for a running app that
 has none, as `launchOrFocusByBundleID` does. A window is focused by making it main, raising it and
 making its application frontmost through Accessibility, which an app in the background may do.

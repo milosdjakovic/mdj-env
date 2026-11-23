@@ -63,17 +63,18 @@ local function decide(bundleID, hides)
   -- No cyclable windows, or not in front, so launch or focus brings it forward.
   if #windows == 0 or not app:isFrontmost() then return "focused", nil, app end
 
-  -- Already focused, so move to the next window and wrap to the first.
-  local focused = hs.window.focusedWindow()
-  local index = nil
-  if focused then
+  -- Already in front, so move to the next window and wrap to the first. The window a cycle steps
+  -- from is the app's own focused window, or its main window when the focused one is not a window
+  -- the cycle walks, a popup or a sheet. Never the system's focused window, which at a press could
+  -- answer none of the app's, so every press after the first landed on the first window again and
+  -- Chrome swapped once and then stood still, 2026-11-23.
+  local function indexOf(win)
+    if not win then return nil end
     for i, w in ipairs(windows) do
-      if w:id() == focused:id() then
-        index = i
-        break
-      end
+      if w:id() == win:id() then return i end
     end
   end
+  local index = indexOf(app:focusedWindow()) or indexOf(app:mainWindow())
   return "cycled", windows[index and (index % #windows) + 1 or 1], app
 end
 

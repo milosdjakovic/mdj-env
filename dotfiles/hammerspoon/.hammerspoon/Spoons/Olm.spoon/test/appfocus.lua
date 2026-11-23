@@ -33,6 +33,10 @@ local function app(bid, windows, front)
   world.apps[bid] = { _bid = bid, _windows = windows, _front = front,
     isFrontmost = function(a) return a._front end,
     allWindows = function(a) return a._windows end,
+    focusedWindow = function(a)
+      for _, w in ipairs(a._windows) do if w == world.focused then return w end end
+    end,
+    mainWindow = function() return nil end,
     hide = function(a) did[#did + 1] = "hide " .. a._bid end }
 end
 local function reset()
@@ -101,6 +105,38 @@ appfocus.forwardTo(function() error("gone") end)
 eq(appfocus.focusOrCycle("a.b"), "cycled", "a raising forwarder is a press Lua runs")
 appfocus.forwardTo(nil)
 eq(appfocus.toApp({ bundle = "a.b" }), false, "with no forwarder nothing is handed over")
+
+-- Round robin with the system's focus elsewhere. On 2026-11-23 Chrome's two windows swapped once
+-- and then every press reached the first by number again, since the press was read while the
+-- system answered no focused window of Chrome's although Chrome's own focused window was right.
+-- So a cycle steps from the app's own focused window, or from its main window when the focused
+-- one is not a window a cycle walks, and each press walks every window and wraps.
+reset()
+local owner = { _bid = "c.c", _front = true }
+local function ringWindow(id, standard)
+  local w = window(id, { standard = standard })
+  w.focus = function(self) owner._focused = self; did[#did + 1] = "focus " .. self._id end
+  return w
+end
+local r10, r20, r30, popup = ringWindow(10), ringWindow(20), ringWindow(30), ringWindow(5, false)
+owner._windows = { r30, popup, r10, r20 }
+owner.isFrontmost = function(a) return a._front end
+owner.allWindows = function(a) return a._windows end
+owner.focusedWindow = function(a) return a._focused end
+owner.mainWindow = function(a) return a._main end
+world.apps["c.c"] = owner
+world.focused = nil
+owner._focused = r20
+local ring = {}
+for _ = 1, 4 do
+  appfocus.focusOrCycle("c.c")
+  ring[#ring + 1] = tostring(owner._focused and owner._focused._id)
+end
+eq(table.concat(ring, " "), "30 10 20 30", "each press walks to the next window by number and wraps, the system's focus elsewhere")
+owner._focused, owner._main = popup, r20
+eq(appfocus.plan("c.c", false).window, 30, "a focused window a cycle does not walk steps from the main window")
+owner._focused, owner._main = nil, nil
+eq(appfocus.plan("c.c", false).window, 10, "and with neither the cycle starts at the first")
 
 -- The toggler's runs.
 local toggler = assert(loadfile(here .. "../plugins/apptoggler/init.lua"))()

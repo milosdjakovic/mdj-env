@@ -17,17 +17,22 @@ public struct AppWindow: Sendable, Equatable {
 }
 
 /// An app as a press finds it. windows is every window AXWindows answers, focused the window number
-/// of the focused application's focused window, whichever app that is.
+/// of the app's own focused window and main that of its main window. The app's own, never the
+/// system's focused window, which at a press could answer none of the app's, so a cycle started at
+/// the first window on every press and Chrome swapped once and then stood still, 2026-11-23.
 public struct AppState: Sendable, Equatable {
   public let running: Bool
   public let frontmost: Bool
   public let windows: [AppWindow]
   public let focused: UInt32?
-  public init(running: Bool, frontmost: Bool = false, windows: [AppWindow] = [], focused: UInt32? = nil) {
+  public let main: UInt32?
+  public init(running: Bool, frontmost: Bool = false, windows: [AppWindow] = [], focused: UInt32? = nil,
+    main: UInt32? = nil) {
     self.running = running
     self.frontmost = frontmost
     self.windows = windows
     self.focused = focused
+    self.main = main
   }
 }
 
@@ -46,7 +51,8 @@ public struct AppPlan: Sendable, Equatable {
   }
 
   /// hides true is the show and hide form, an app in front with any window hiding, otherwise focus
-  /// or cycle, which walks the standard windows not minimized in window number order and wraps.
+  /// or cycle, which walks the standard windows not minimized in window number order and wraps,
+  /// stepping from the focused window, or from the main window when the focused one is not walked.
   public static func decide(_ state: AppState, hides: Bool) -> AppPlan {
     guard state.running else { return AppPlan(.launched) }
     if hides {
@@ -54,7 +60,8 @@ public struct AppPlan: Sendable, Equatable {
     }
     let cyclable = state.windows.filter { $0.standard && !$0.minimized }.sorted { $0.id < $1.id }
     guard !cyclable.isEmpty, state.frontmost else { return AppPlan(.focused) }
-    let index = state.focused.flatMap { f in cyclable.firstIndex { $0.id == f } }
+    let at = { (n: UInt32?) in n.flatMap { f in cyclable.firstIndex { $0.id == f } } }
+    let index = at(state.focused) ?? at(state.main)
     let next = index.map { ($0 + 1) % cyclable.count } ?? 0
     return AppPlan(.cycled, window: cyclable[next].id)
   }

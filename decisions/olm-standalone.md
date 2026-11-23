@@ -1452,3 +1452,11 @@ turned down, since the geometry carries a dozen decisions two copies would let d
 found was Lua's floored modulo, which wraps the previous screen to the last where Swift's truncating
 one would not. The unit case for the hold step loads the plugin in a sandbox and was given loadfile
 and the screen and window ids the plugin now reads, its checks unchanged.
+
+**2026-11-23 11:01, an app key cycled once and then stood still.** Milos's report, Hyper and C on
+Chrome swapping its windows once and then answering nothing new. The cycle stepped from the system's
+focused window, which at a press answered none of Chrome's, so every press after the first started
+again at the first window. It steps from the app's own focused window now, or its main window when
+the focused one is a popup or a sheet, in Lua and in the app alike, and both tests walk three
+windows round and wrap. Written by another session and left uncommitted, taken over here at
+Milos's word after review.
