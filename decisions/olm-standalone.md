@@ -1514,3 +1514,12 @@ with what Hammerspoon has shown over the temporary bridge, kept apart so it can 
 the app switcher is in Olm.app. So one list, the catalog shown only for apps this Mac has, in one
 enum, `HammerspoonCatalog`. The two cards of the 12:17 entry, Olm's Applications and Other
 Applications, are gone.
+
+**2026-11-23 12:44, a mode and a shortcut for every application waits for the app switcher.**
+Milos: the focus is moving Hammerspoon's functions into Olm.app, and once app switching is there every
+application gets an override and a shortcut. The recorder then offers Hyper, META and SUPER, several
+modifiers, and the function key leaders F13 to F20, with each caveat explained on the page. Until then
+the Applications page keys only what Hammerspoon's catalog knows. Making an action for any scanned
+application now, through Hammerspoon, was the alternative and is not taken, since it would build in
+Lua what is about to move. The presses already run in the app, 22 of 22 agreeing since its start;
+what moves next for app switching is the catalog, the actions and the keys.

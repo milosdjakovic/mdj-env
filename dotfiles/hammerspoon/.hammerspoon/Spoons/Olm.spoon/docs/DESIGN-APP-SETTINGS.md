@@ -347,6 +347,24 @@ machines use are not listed here. That one enum is temporary and is removed whol
 switcher moves into Olm.app. An app saved with a mode of its own and since gone stays listed, Not
 installed, so its mode can be reset. This replaces the cards of the fifth round.
 
+**Applications, the seventh round, deferred until the app switcher is in Olm.app, 2026-11-23.**
+Milos's order: the focus now is moving what Hammerspoon does into Olm.app, so the page stays as the
+sixth round left it, a key only for an application Hammerspoon knows. Once the catalog, the actions
+and the keys of app switching live in the app, 6.2 in `docs/PLAN-STANDALONE.md`, every listed
+application takes a mode and a shortcut, and the recorder grows past Hyper and one key:
+
+- a leader of the person's choosing, Hyper, META or SUPER, or none;
+- any set of modifiers beside it;
+- a leader that arrives as a function key, F13 to F20, which is how Caps Lock, Right Option and Right
+  Command become leaders and how a pedal or a macro pad becomes one.
+
+Each choice says its caveat where it is made. The ones known now: a held leader is a function key
+read by an event tap, so it is deaf while an application holds secure input and macOS's own shortcut
+fields cannot record it; Hyper as four real modifiers collides with any app's menu shortcut on them;
+a plain combination with Command is likely an app's menu item; macOS keeps some combinations before
+any app sees them, Hyper and slash among them; and a remapped key loses its own meaning in every
+app. The full list is written when the recorder is designed.
+
 **Export and import, 2026-11-23.** Milos's aim is one Olm config, exported and imported, that makes
 another Mac's Olm the same, with Hammerspoon still behind the bridge until its behaviour moves. The
 store is that config. Export writes its values under the kind `olm.config` to a file the person
