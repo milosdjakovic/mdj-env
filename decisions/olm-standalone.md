@@ -1506,3 +1506,11 @@ visibleProcessList` after his trial. Escape closes the window, after a search's 
 show on its row rather than in a card of its own, and that a set key stand out as well. The
 Overridden card is gone, the 12:14 entry's layout otherwise kept. A set mode and a set key share one
 look, the accent text on a light tint with an outline, and a default mode and no key are muted.
+
+**2026-11-23 12:27, the Applications page is the scan, with Hammerspoon's catalog laid over it.**
+Milos saw Zed and Yomu listed, Not installed. They came from config/apps.lua, a catalog every machine
+shares. He said there are no Olm applications: the page is what the scan finds and what is added,
+with what Hammerspoon has shown over the temporary bridge, kept apart so it can be plucked out once
+the app switcher is in Olm.app. So one list, the catalog shown only for apps this Mac has, in one
+enum, `HammerspoonCatalog`. The two cards of the 12:17 entry, Olm's Applications and Other
+Applications, are gone.

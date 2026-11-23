@@ -338,6 +338,15 @@ Other Applications. A mode of the row's own and a key that is set are drawn in t
 tint with an outline, and Default and None are muted, so a scroll catches what is set. This replaces
 the Overridden and Following the Default cards of the second round.
 
+**Applications, the sixth round, 2026-11-23.** Milos asked for no Olm's Applications at all. The
+page is one list, Applications, of what the scan finds and what is added. What the app toggler in
+Hammerspoon does with an app, its style and so its action and key, comes from the catalog of
+config/apps.lua over the bridge and is laid over that list by `HammerspoonCatalog` in
+`Applications.swift`, only for an app this Mac has, so Zed, Yomu and the rest of the catalog other
+machines use are not listed here. That one enum is temporary and is removed whole when the app
+switcher moves into Olm.app. An app saved with a mode of its own and since gone stays listed, Not
+installed, so its mode can be reset. This replaces the cards of the fifth round.
+
 **Export and import, 2026-11-23.** Milos's aim is one Olm config, exported and imported, that makes
 another Mac's Olm the same, with Hammerspoon still behind the bridge until its behaviour moves. The
 store is that config. Export writes its values under the kind `olm.config` to a file the person

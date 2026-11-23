@@ -1,7 +1,8 @@
 // The Applications page of Olm Settings, every application an app key can reach, what Olm does with
 // each, and a mode of its own over its style's and the global one, docs/DESIGN-APP-SETTINGS.md
 // Applications. The page draws the app toggler's setting `apptoggler.apps`, a table of applications by
-// bundle id, and its catalog, what the plugin knows of each, both from the share. The applications
+// bundle id, and lays Hammerspoon's catalog over the list for the apps this Mac has, a temporary
+// bridge kept in `HammerspoonCatalog` alone. The applications
 // installed here are the page's own to find, read at the top of /Applications, /System/Applications
 // and ~/Applications and never inside a folder there, so a suite's helpers and an app's bundled
 // utilities stay out, and an app that runs with no Dock icon, an agent or a background helper, is
@@ -78,6 +79,8 @@ final class AppsPageModel: ObservableObject {
   /// Each application's icon at row size, drawn once off the main thread, by bundle id, so
   /// scrolling draws a bitmap and asks macOS for nothing.
   @Published var icons: [String: NSImage] = [:]
+  /// The applications on this Mac, scanned or named elsewhere and found at their path, by bundle id.
+  @Published var found = Set<String>()
   /// The action whose key is being recorded, and the monitor hearing the key.
   @Published var recording: String?
   private var monitor: Any?
@@ -111,9 +114,13 @@ final class AppsPageModel: ObservableObject {
       var icons: [String: NSImage] = [:]
       for app in wanted {
         if let path = app.path ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier: app.bundle)?.path,
-          let icon = AppsPageModel.rowIcon(path) { icons[app.bundle] = icon }
+          FileManager.default.fileExists(atPath: path), let icon = AppsPageModel.rowIcon(path) { icons[app.bundle] = icon }
       }
-      await MainActor.run { self.icons.merge(icons) { a, _ in a } }
+      let present = Set(icons.keys)
+      await MainActor.run {
+        self.icons.merge(icons) { a, _ in a }
+        self.found.formUnion(present)
+      }
     }
   }
 
@@ -127,7 +134,8 @@ final class AppsPageModel: ObservableObject {
       var paths: [String: String] = [:]
       for app in found { paths[app.bundle] = app.path }
       for extra in also {
-        if let path = extra.path ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier: extra.bundle)?.path {
+        if let path = extra.path ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier: extra.bundle)?.path,
+          FileManager.default.fileExists(atPath: path) {
           paths[extra.bundle] = paths[extra.bundle] ?? path
         }
       }
@@ -138,6 +146,7 @@ final class AppsPageModel: ObservableObject {
         self.installed = found
         self.keys = keys
         self.icons = icons
+        self.found = Set(paths.keys)
       }
     }
   }
@@ -275,8 +284,6 @@ struct AppsView: View {
 
   var body: some View {
     let all = entries
-    let known = all.filter(\.configured)
-    let others = all.filter { !$0.configured }
     ScrollView {
       VStack(alignment: .leading, spacing: Space.group) {
         header
@@ -295,8 +302,7 @@ struct AppsView: View {
           }
           .help("Add an application kept outside the Applications folders")
         }
-        card("Olm's Applications", known)
-        card("Other Applications", others)
+        card("Applications", all)
         if !page.scanned || page.installed.isEmpty {
           ProgressView().frame(maxWidth: .infinity)
         }
@@ -388,21 +394,24 @@ struct AppsView: View {
     return page.keys[action]
   }
 
+  /// One list: every application the scan finds, every one added here, and each with what the app
+  /// toggler in Hammerspoon does with it today laid over it, by `HammerspoonCatalog`.
   private var entries: [AppEntry] {
     var out: [AppEntry] = []
     var seen = Set<String>()
-    let installed = Dictionary(page.installed.map { ($0.bundle, $0) }, uniquingKeysWith: { a, _ in a })
-    for app in setting.catalog where seen.insert(app.bundle).inserted {
-      out.append(AppEntry(bundle: app.bundle, name: installed[app.bundle]?.name ?? app.name,
-        path: app.path ?? installed[app.bundle]?.path, catalog: app, own: table[app.bundle]))
-    }
-    for (bundle, own) in table where seen.insert(bundle).inserted {
-      out.append(AppEntry(bundle: bundle, name: own.name ?? installed[bundle]?.name ?? bundle,
-        path: own.path ?? installed[bundle]?.path, catalog: nil, own: own))
-    }
+    let catalog = HammerspoonCatalog.byBundle(setting.catalog, found: page.found)
     for app in page.installed where seen.insert(app.bundle).inserted {
-      out.append(AppEntry(bundle: app.bundle, name: app.name, path: app.path, catalog: nil, own: nil))
+      out.append(AppEntry(bundle: app.bundle, name: app.name, path: app.path, catalog: catalog[app.bundle],
+        own: table[app.bundle]))
     }
+    // An application kept outside the scanned folders, added here, or saved with a mode of its own
+    // and since gone, so the mode can still be reset.
+    for (bundle, own) in table where seen.insert(bundle).inserted {
+      out.append(AppEntry(bundle: bundle, name: own.name ?? catalog[bundle]?.name ?? bundle,
+        path: own.path, catalog: catalog[bundle], own: own))
+    }
+    out += HammerspoonCatalog.outsideScan(setting.catalog, found: page.found, seen: &seen)
+      .map { AppEntry(bundle: $0.bundle, name: $0.name, path: $0.path, catalog: $0, own: nil) }
     let words = page.filter.lowercased().split(whereSeparator: { $0.isWhitespace }).map(String.init)
     return out
       .filter { e in words.allSatisfy { (e.name + " " + e.bundle).lowercased().contains($0) } }
@@ -493,6 +502,7 @@ struct AppsView: View {
     next[id] = own
     page.filter = ""
     if page.icons[id] == nil { page.icons[id] = AppsPageModel.rowIcon(url.path) }
+    page.found.insert(id)
     model.change(setting, to: .apps(next))
   }
 }
@@ -589,7 +599,7 @@ struct AppRow: View {
   private var detail: String {
     var parts: [String] = []
     if let style = entry.catalog?.style { parts.append("Style \(style)" + (entry.catalog?.placed == true ? ", placed" : "")) }
-    if entry.catalog == nil || entry.catalog?.added == true { parts.append(entry.own == nil ? "Not used by Olm" : "Added") }
+    if entry.own?.path != nil { parts.append("Added") }
     if entry.catalog == nil || entry.catalog?.added == true, let path = entry.path, entry.own?.path != nil { parts.append(path) }
     if icon == nil { parts.append("Not installed") }
     if parts.isEmpty { parts.append(entry.bundle) }
@@ -648,5 +658,25 @@ enum RowMenu {
     withExtendedLifetime(target) {
       _ = menu.popUp(positioning: current, at: view.convert(event.locationInWindow, from: nil), in: view)
     }
+  }
+}
+
+/// Temporary, the bridge to Hammerspoon. What the app toggler there knows of each application, its
+/// style, whether it is placed and so its action and key, comes in the share as the setting's
+/// catalog, the apps of config/apps.lua, which names apps for every machine. Only those on this Mac
+/// are shown. Removed whole once the app switcher lives in Olm.app, the list then the scan and the
+/// added apps alone, docs/PLAN-STANDALONE.md.
+enum HammerspoonCatalog {
+  /// The catalog's applications this Mac has, by bundle id.
+  static func byBundle(_ catalog: [CatalogApp], found: Set<String>) -> [String: CatalogApp] {
+    var out: [String: CatalogApp] = [:]
+    for app in catalog where found.contains(app.bundle) && out[app.bundle] == nil { out[app.bundle] = app }
+    return out
+  }
+
+  /// The catalog's applications this Mac has where the scan does not look, inside a folder, a Chrome
+  /// app for one, not yet listed.
+  static func outsideScan(_ catalog: [CatalogApp], found: Set<String>, seen: inout Set<String>) -> [CatalogApp] {
+    catalog.filter { found.contains($0.bundle) && seen.insert($0.bundle).inserted }
   }
 }
