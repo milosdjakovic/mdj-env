@@ -24,8 +24,6 @@
   <string>File search reads the files it finds in Documents, to preview them.</string>
   <key>NSDownloadsFolderUsageDescription</key>
   <string>File search reads the files it finds in Downloads, to preview them.</string>
-  <key>LSUIElement</key>
-  <true/>
   <key>NSAppSleepDisabled</key>
   <true/>
   <key>LSMultipleInstancesProhibited</key>

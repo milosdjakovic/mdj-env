@@ -289,7 +289,7 @@ since that sort. Recordings take 2.4 MB.
 - `app/` in the spoon, a Swift package with one executable, `Olm`, that depends on the swift
   chooser's package, so a change there that breaks the app fails its build.
 - `app/build.sh` wraps it into `Olm.app`, signed ad hoc. The app has no Dock icon
-  (`LSUIElement`), keeps one instance, and answers `olm://ping?nonce=N` by writing N to
+  (`LSUIElement` until 2026-11-23, the accessory activation policy since), keeps one instance, and answers `olm://ping?nonce=N` by writing N to
   `~/.olm/run/ping`. Any other URL is logged and dropped.
 - The `olmapp` machine piece, off by default. Where it is on, `src/setup-olmapp.sh` builds the
   app into `/Applications` (into `~/.olm/app` until 2026-11-23) and registers it for `olm://`. Its tools are declared in

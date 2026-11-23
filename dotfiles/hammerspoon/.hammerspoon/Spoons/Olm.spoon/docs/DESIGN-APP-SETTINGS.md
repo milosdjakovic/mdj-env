@@ -67,7 +67,9 @@ window. Every list keeps working from Hammerspoon as before.
 ## The window
 
 - A normal macOS window titled Olm Settings, opened over the app in front and made key, since
-  typing goes into its search and its fields. Olm.app stays out of the Dock, `LSUIElement`.
+  typing goes into its search and its fields. Olm.app stays out of the Dock by its activation policy, set to accessory before it runs, and
+  not by `LSUIElement`, which kept it out of the app order macOS keeps, so the switcher listed
+  the open window last.
 - A sidebar of sections with a search field at the top. Typing filters the settings of every section
   by title and keywords, as System Settings does, and a match opens its section with the setting lit.
 - The right pane is a grouped form. A choice is a popup or a radio group, on and off is a switch, a

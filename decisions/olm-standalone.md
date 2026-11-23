@@ -1625,3 +1625,11 @@ typed there, until the launcher's choosing moves.
   used. The window now also opens Olm through Launch Services, `NSWorkspace.openApplication` on its
   own bundle with `activates`, when the app is still not active, which is how the Dock asks.
   Reasoned rather than measured, a read only log of the front app runs while Milos tries it.
+- **2026-11-23 20:27, the switcher's order, the cause found, the entry above corrected.**
+  Launch Services did not help, Milos found Olm last again. The front app log showed why: while
+  Olm was in front, `lsappinfo visibleProcessList`, the order macOS keeps of apps used, did not
+  hold it at all. Olm.app's Info.plist carried `LSUIElement`, and macOS keeps an app declared a UI
+  element out of that order for its whole life, whatever policy it takes at run time, so the
+  switcher could only append it. The flag is gone. The app still has no Dock icon at rest, since
+  `main.swift` sets the accessory policy before it runs, and lsappinfo reads it as a UI element
+  from that policy. The Launch Services fallback stays, harmless, for an activation turned down.
