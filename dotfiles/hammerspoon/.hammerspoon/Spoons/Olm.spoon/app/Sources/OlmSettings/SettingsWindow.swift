@@ -51,6 +51,7 @@ final class SettingsModel: ObservableObject {
     self.service = service
     self.permissions = permissions
     selection = share?.sections.first?.id ?? (permissions.isEmpty ? nil : PermissionsPage.id)
+    appsPage.warm(share)
   }
 
   /// The share's sections a search finds, then the Permissions page when it has any to list.

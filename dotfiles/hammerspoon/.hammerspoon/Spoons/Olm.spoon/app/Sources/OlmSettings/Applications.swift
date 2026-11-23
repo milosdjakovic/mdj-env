@@ -82,8 +82,44 @@ final class AppsPageModel: ObservableObject {
   @Published var recording: String?
   private var monitor: Any?
 
+  /// The picture an application not installed here wears.
+  static let generic: NSImage = {
+    let icon = NSWorkspace.shared.icon(for: .applicationBundle)
+    icon.size = NSSize(width: 28, height: 28)
+    return icon
+  }()
+
+  /// Started as the window is prepared, with the catalog and the table from the share, so the list
+  /// and every icon are ready before the page is first opened.
+  func warm(_ share: SettingsShare?) {
+    let apps = share?.sections.flatMap(\.settings).first { $0.kind == .apps }
+    let also = (apps?.catalog.map { ($0.bundle, $0.path) } ?? [])
+      + (apps?.value.apps ?? [:]).map { ($0.key, $0.value.path) }
+    scan(also: also)
+  }
+
+  /// Bundles whose icon was already looked for, found or not, so a fill asks once.
+  private var looked = Set<String>()
+
+  /// Icons for applications that came after the scan, an added one or a catalog grown by a reload,
+  /// drawn off the main thread.
+  func fill(_ apps: [(bundle: String, path: String?)]) {
+    let wanted = apps.filter { !looked.contains($0.bundle) }
+    guard scanned, !wanted.isEmpty else { return }
+    for app in wanted { looked.insert(app.bundle) }
+    Task.detached(priority: .userInitiated) {
+      var icons: [String: NSImage] = [:]
+      for app in wanted {
+        if let path = app.path ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier: app.bundle)?.path,
+          let icon = AppsPageModel.rowIcon(path) { icons[app.bundle] = icon }
+      }
+      await MainActor.run { self.icons.merge(icons) { a, _ in a } }
+    }
+  }
+
   func scan(also: [(bundle: String, path: String?)]) {
     guard !scanned else { return }
+    for app in also { looked.insert(app.bundle) }
     scanned = true
     Task.detached(priority: .userInitiated) {
       let found = AppScan.scan()
@@ -98,6 +134,7 @@ final class AppsPageModel: ObservableObject {
       var icons: [String: NSImage] = [:]
       for (bundle, path) in paths { icons[bundle] = AppsPageModel.rowIcon(path) }
       await MainActor.run {
+        for app in found { self.looked.insert(app.bundle) }
         self.installed = found
         self.keys = keys
         self.icons = icons
@@ -262,7 +299,11 @@ struct AppsView: View {
       .frame(maxWidth: .infinity, alignment: .leading)
     }
     .ignoresSafeArea(.container, edges: .top)
-    .onAppear { page.scan(also: setting.catalog.map { ($0.bundle, $0.path) } + table.map { ($0.key, $0.value.path) }) }
+    .onAppear {
+      let apps = setting.catalog.map { ($0.bundle, $0.path) } + table.map { ($0.key, $0.value.path) }
+      page.scan(also: apps)
+      page.fill(apps)
+    }
     .onDisappear { page.stop() }
   }
 
@@ -296,7 +337,7 @@ struct AppsView: View {
   }
 
   // A long list sits on a plain fill rather than glass, which redraws its blur under every row on
-  // every scrolled frame, and its rows are made only as they scroll into view.
+  // every scrolled frame.
   @ViewBuilder private func card(_ title: String, _ list: [AppEntry]) -> some View {
     if !list.isEmpty {
       VStack(alignment: .leading, spacing: Space.related) {
@@ -307,10 +348,11 @@ struct AppsView: View {
           Text("Shortcut").font(.caption).foregroundStyle(.secondary).frame(width: AppColumns.key, alignment: .leading)
         }
         .padding(.horizontal, Space.pad + 4)
-        LazyVStack(spacing: 0) {
+        // Every row made at once, a few hundred at most, so none appears as it scrolls into view.
+        VStack(spacing: 0) {
           ForEach(Array(list.enumerated()), id: \.element.id) { index, entry in
             if index > 0 { Divider().padding(.leading, Space.pad + 4) }
-            AppRow(entry: entry, icon: page.icons[entry.bundle], globalWords: AppRow.words(global),
+            AppRow(entry: entry, icon: page.icons[entry.bundle],
               chord: entry.action.flatMap(chord), recording: entry.action != nil && page.recording == entry.action,
               keyOwn: entry.action.map { keysTable[$0] != nil } ?? false, busy: !model.busy.isEmpty,
               choose: { choose(entry, $0) }, remove: { remove(entry) },
@@ -452,7 +494,6 @@ struct AppsView: View {
 struct AppRow: View {
   let entry: AppEntry
   let icon: NSImage?
-  let globalWords: String
   let chord: String?
   let recording: Bool
   let keyOwn: Bool
@@ -462,12 +503,17 @@ struct AppRow: View {
   let record: () -> Void
   let resetKey: () -> Void
 
-  static func words(_ mode: String) -> String { mode == "hides" ? "Show and hide" : "Cycle through windows" }
+  static func words(_ mode: String) -> String { mode == "hides" ? "Show and hide" : "Cycle windows" }
 
   var body: some View {
     HStack(alignment: .center, spacing: Space.pad) {
       Group {
-        if let icon { Image(nsImage: icon) } else { Image(systemName: "app.dashed").foregroundStyle(.secondary) }
+        if let icon {
+          Image(nsImage: icon)
+        } else {
+          // An application the catalog names and this Mac does not have, the generic picture faded.
+          Image(nsImage: AppsPageModel.generic).opacity(0.4)
+        }
       }
       .frame(width: 28, height: 28)
       VStack(alignment: .leading, spacing: Space.related / 2) {
@@ -490,17 +536,14 @@ struct AppRow: View {
         .opacity(entry.overridden ? 1 : 0)
         .disabled(!entry.overridden)
       Picker(entry.name, selection: Binding(get: { entry.own?.mode ?? "default" }, set: choose)) {
-        Text(followsTitle).tag("default")
+        Text("Default").tag("default")
         Divider()
-        Text("Cycle through windows").tag("cycle")
+        Text("Cycle windows").tag("cycle")
         Text("Show and hide").tag("hides")
       }
       .labelsHidden()
       .fixedSize()
       .tint(entry.overridden ? .accentColor : nil)
-      if entry.overridden {
-        Text("Overridden").font(.caption.weight(.semibold)).foregroundStyle(.tint)
-      }
       Spacer(minLength: 0)
       if entry.removable {
         Button(action: remove) { Image(systemName: "minus.circle") }
@@ -528,19 +571,13 @@ struct AppRow: View {
     }
   }
 
-  /// What the default follows, the style's hides where it states one, otherwise the global mode.
-  private var followsTitle: String {
-    if let hides = entry.catalog?.hides, let style = entry.catalog?.style {
-      return "Default, \(Self.words(hides ? "hides" : "cycle")) (\(style))"
-    }
-    return "Default, \(globalWords)"
-  }
 
   private var detail: String {
     var parts: [String] = []
     if let style = entry.catalog?.style { parts.append("Style \(style)" + (entry.catalog?.placed == true ? ", placed" : "")) }
     if entry.catalog == nil || entry.catalog?.added == true { parts.append(entry.own == nil ? "Not used by Olm" : "Added") }
     if entry.catalog == nil || entry.catalog?.added == true, let path = entry.path, entry.own?.path != nil { parts.append(path) }
+    if icon == nil { parts.append("Not installed") }
     if parts.isEmpty { parts.append(entry.bundle) }
     return parts.joined(separator: " · ")
   }
