@@ -124,7 +124,8 @@ return {
     launcherCatalog = true,
     -- The leaders whose modifier combinations the app claims while its socket is up, step 5.3,
     -- docs/DESIGN-APP-KEYS.md, META since 2026-11-20, Hyper and plain, the rows with no leader, since 2026-11-23. Each one's held key and its sheet stay Hammerspoon's,
-    -- and every row still runs here, asked by the app with runKey. Hammerspoon takes the keys back the
+    -- and every row still runs here, asked by the app with runKey, except META's window rows, which the app
+    -- runs itself since 6.3b, windowsInApp below. Hammerspoon takes the keys back the
     -- moment the socket goes. An empty list is the way back.
     appKeys = { "meta", "hyper", "plain" },
     -- Whether a leader's cheat sheet is drawn by the app, step 5.2, docs/DESIGN-APP-KEYS.md, on since

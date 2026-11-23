@@ -98,6 +98,9 @@ the app. Hide Others hides every regular app showing but the frontmost. Hammersp
 exactSize or a size the share lacks, and every launcher row, still runs in Hammerspoon. False is the
 way back, and with it the shadow compares again.
 
+Milos tried it on 2026-11-23, every action, held moves and resizes, the layouts, a named size, Hide
+Others and the sheet, and called it good; 31 frames placed and none refused. 6.3 is done.
+
 ## Rejected
 
 - **Porting the plugin method by method into Swift with no shared statement.** 2026-11-23. The

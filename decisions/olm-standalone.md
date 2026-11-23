@@ -1585,3 +1585,9 @@ goes down. The frame is always written size, position, size, rather than Lua's p
 the workaround only on a miss, since an Accessibility write is cheap and one path is simpler to hold;
 a visible step on a display move is the risk, and his trial answers it. Rejected: running a launcher
 row in the app too, since the launcher chooses in Lua until recency moves, as 6.2 left app rows.
+
+**2026-11-23 15:22, 6.3 done.** Milos tried the flipped window keys, every action, held
+steps, the layouts, a named size, Hide Others and the sheet, and said all good. The log counted 31
+frames placed and none refused, so the always size, position, size write showed no step worth a
+word. What stays in Hammerspoon from 6.3 is a window row chosen in the launcher and an exact size
+typed there, until the launcher's choosing moves.

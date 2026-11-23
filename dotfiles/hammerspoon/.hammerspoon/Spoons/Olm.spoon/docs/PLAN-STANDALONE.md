@@ -146,7 +146,7 @@ Stage 5, keys
 Stage 6, the core in the app, one per step
 - [ ] 6.1 The launcher's catalog and its recency. The catalog in the app is built and flipped on 2026-11-20 behind `launcherCatalog`, `docs/DESIGN-APP-LAUNCHER.md` step 6.1, its shadow logging beside it. Recency, the memory and choosing move later
 - [ ] 6.2 The app toggler. Built and flipped on 2026-11-20 behind `appToggler`, `docs/DESIGN-APP-APPS.md`, on branch `olm-6.2-apptoggler` merged to main. Waits on Olm.app's Accessibility grant and a day of the shadow. The presses run in the app, while the catalog, each app's style and action and the keys still come from Hammerspoon. Moving those into the app is what lets the Applications page give every application a mode and a shortcut, Milos's order of 2026-11-23, with a recorder that offers each leader, Hyper, META and SUPER, any set of modifiers, and the leaders that arrive as function keys F13 to F20, each choice saying its caveat on the page, `docs/DESIGN-APP-SETTINGS.md` the seventh round. Until then only the applications Hammerspoon knows have a key
-- [ ] 6.3 The window manager and window size, `docs/DESIGN-APP-WINDOWS.md`. 6.3a, the geometry as one pure function in Lua and in Swift held to 72 recorded fixtures, done on 2026-11-23. 6.3b, the app placing the window: its shadow built on 2026-11-23, every META window key read in the app before Hammerspoon runs it and compared, the settings in Olm's config the same day, and the flip on 2026-11-23 behind `windowsInApp`, every META window key and Hide Others run in the app, waiting on Milos's trial
+- [x] 6.3 The window manager and window size, `docs/DESIGN-APP-WINDOWS.md`. 6.3a, the geometry as one pure function in Lua and in Swift held to 72 recorded fixtures, done on 2026-11-23. 6.3b, the app placing the window: its shadow built on 2026-11-23, every META window key read in the app before Hammerspoon runs it and compared, the settings in Olm's config the same day, and the flip on 2026-11-23 behind `windowsInApp`, every META window key and Hide Others run in the app, tried by Milos on 2026-11-23, 31 frames placed and none refused. The window rows the launcher chooses and an exact size typed there run in Hammerspoon until the launcher's choosing moves, as 6.2 left app rows
 - [ ] 6.4 Workspaces
 - [ ] 6.5 The clipboard, the monitor and the store together
 - [ ] 6.6 Emoji
@@ -200,10 +200,9 @@ never deleted.
   than Lua would have, a placement a window refused and a wait that ran out, and
   `~/.olm/log/shadow-apps-count.json`, how many presses ran and agreed. Waits on Olm.app's
   Accessibility grant, asked of Milos on 2026-11-20. Answers docs/DESIGN-APP-APPS.md open question 1.
-- **The window manager, 6.3b.** `~/.olm/log/shadow-windows.jsonl`, each META window key where the
-  app read the window or the screens other than Hammerspoon, or planned another frame, and
-  `~/.olm/log/shadow-windows-count.json`, how many ran, agreed and went unanswered, and the slowest
-  read. Answers whether the app reads a window as Hammerspoon does, docs/DESIGN-APP-WINDOWS.md.
+- **The window manager, 6.3b.** Answered on 2026-11-23, no difference while in shadow and, since the
+  flip, 31 frames placed and none refused. `~/.olm/log/shadow-windows-count.json` keeps counting
+  placed and refused frames, and `shadow-windows.jsonl` holds a line for each refused one.
 - **File search's rows,** 171 ms median from one open at the resting point, 2026-11-20.
 - **The app's main thread,** a 57 ms stall per open at the resting point, 2026-11-20.
 - **The plugin runner's budgets, 4.1,** first guesses, docs/DESIGN-APP-PLUGINS.md open question 1, set
