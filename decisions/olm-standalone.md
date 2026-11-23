@@ -1616,3 +1616,12 @@ typed there, until the launcher's choosing moves.
   the styles move into the app with the rest of 6.2, since removing the file now would take the
   popup away from the other machines that read it. A press Lua runs, the app down or without its
   grant, places only a centred window at a size in points, and the rest is the app's alone.
+- **2026-11-23 20:23, Olm Settings listed last by the app switcher, a belief corrected.** Reported
+  by Milos: Olm opened, Command comma, then any other app, and Olm stood last in the switcher. The
+  earlier fix, activating a run loop turn after turning the app ordinary, held that the order came
+  from activating too early. It did not cover this. Since macOS 14 `NSApp.activate` is only a
+  request, and one made while a nonactivating panel of Olm's own or the bridge started the window
+  is turned down, so the window took key and looked in front while macOS never counted Olm as
+  used. The window now also opens Olm through Launch Services, `NSWorkspace.openApplication` on its
+  own bundle with `activates`, when the app is still not active, which is how the Dock asks.
+  Reasoned rather than measured, a read only log of the front app runs while Milos tries it.

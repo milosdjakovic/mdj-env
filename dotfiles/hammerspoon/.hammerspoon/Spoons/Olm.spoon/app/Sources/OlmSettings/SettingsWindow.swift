@@ -133,14 +133,20 @@ public final class SettingsWindow: NSObject, NSWindowDelegate {
     // An app turned ordinary is activated once the change has taken, a turn of the run loop later.
     // Activated in the same turn, macOS never counted it as the app in front, so Command Tab kept it
     // last however recently it was used.
-    if becoming {
-      DispatchQueue.main.async {
-        NSApp.activate()
-        self.window?.makeKeyAndOrderFront(nil)
-      }
-    } else {
+    //
+    // NSApp.activate is only a request since macOS 14, and one made from Olm's own list, a panel
+    // that never activates, or from the bridge is turned down: the window still took key, so it
+    // looked in front, while macOS never counted Olm as used and the switchers listed it last. So
+    // Olm also opens itself through Launch Services, as the Dock does, which macOS honours.
+    let front = {
       NSApp.activate()
+      self.window?.makeKeyAndOrderFront(nil)
+      guard !NSApp.isActive else { return }
+      let configuration = NSWorkspace.OpenConfiguration()
+      configuration.activates = true
+      NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: configuration) { _, _ in }
     }
+    if becoming { DispatchQueue.main.async(execute: front) } else { front() }
     watchEscape()
   }
 
