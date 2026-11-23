@@ -31,11 +31,24 @@ struct Look {
 
   static let path = FileManager.default.homeDirectoryForCurrentUser.path + "/.olm/run/chooser.json"
 
+  private static func document() -> [String: Any]? {
+    guard let data = FileManager.default.contents(atPath: path) else { return nil }
+    return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+  }
+
+  // How every surface the app shows comes and goes, the motion block of the look the bridge last
+  // wrote, applied for all of them at once. The app calls it as it starts and as each session
+  // opens, so a cheat sheet shown before any list moves as the launcher does. Until 2026-11-23 only
+  // a list opening applied it, and every sheet before the first list came and went at once.
+  static func applyMotion() {
+    guard let doc = document() else { return }
+    Motion.apply(JSONFields(doc["motion"]))
+  }
+
   // The look the bridge last wrote, or nil when there is none, a machine whose Hammerspoon has not
   // loaded with the piece on since the app was built. The motion is applied as it is read.
   static func read() -> Look? {
-    guard let data = FileManager.default.contents(atPath: path),
-      let doc = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+    guard let doc = document(),
       let style = doc["style"] as? [String: Any],
       let layout = doc["layout"] as? [String: Any]
     else { return nil }

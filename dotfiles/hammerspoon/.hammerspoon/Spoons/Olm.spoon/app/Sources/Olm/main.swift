@@ -242,6 +242,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // macOS's own prompt, and until it is given Hammerspoon runs every press as before.
     let appFocus = appFocus
     let bridgeForApps = bridge
+    // The motion every surface shares, before any of them shows, Look.applyMotion.
+    Look.applyMotion()
     if !appsAllowed { AppFocus.ask() }
     grants.tell("accessibility", appsAllowed)
     Task {
@@ -299,6 +301,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       await bridgeForApps.onOpen {
         Task { await bridgeForApps.notify("appsReady", .object(["ready": .bool(AppFocus.allowed)])) }
       }
+      // The motion every surface shares, read again as Hammerspoon connects, since a load may have
+      // moved it, Look.applyMotion.
+      await bridgeForApps.onOpen { Task { @MainActor in Look.applyMotion() } }
     }
     appsTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
       MainActor.assumeIsolated {

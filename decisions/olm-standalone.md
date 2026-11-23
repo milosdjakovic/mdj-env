@@ -1400,3 +1400,11 @@ counted the elements that crossed on the Lua side and never asked whether a wind
 is the gap. The same read lost an app placement's whole-number padding and every window number app
 focus was handed. The bridge now hands each number over as an NSNumber, which reads as Double always
 and as Int when whole, and olm-bridge-check holds both readings.
+
+**2026-11-23 09:20, a cheat sheet moved only after the first list had opened.** Milos saw the first
+few sheets after the fix above appear and vanish at once, and the later ones move. The app took the
+motion tokens from the look only when a list opened, Stage reading Look.read, so until the first one
+every WindowMotion played with a duration of zero. The sheets already came and went through the same
+PanePanel and WindowMotion as the launcher's own panes, so nothing about the motion was duplicated,
+only its tokens arrived late. Look.applyMotion now applies them for every surface as the app starts
+and as each session opens, and a list still applies them as it opens.
