@@ -1539,3 +1539,14 @@ Olm.app earlier that day, none at the load itself. When the socket goes, Hammers
 keys at once and again a second later, and an app back within that second had already claimed them
 exclusively, so the second pass failed on each. Keys kept working, the app holding them. releaseKeys
 now stops the pending pass.
+
+**2026-11-23 13:43, the window settings are Olm's.** Milos agreed that Olm's settings are the
+window manager's one source, ported from Hammerspoon's config. Five values joined the eight in the
+manifest, seven rows since two are sizes of two numbers, each shipping the value config/settings.lua
+had, and that file's gap and windowSizing were deleted. The default width and height shipped 1800 and
+1200 against the file's 2400 and 1350, so the file's became the shipped ones and nothing on screen
+moved. A plugin setting's shipped value now fills a key the config leaves out, since only a saved
+value reached the data before and a removed file key would have fallen to the code's own numbers.
+Olm.app reads the settings from the share and its shadow plans with them. Rejected: keeping the
+values in config/settings.lua and the app reading Hammerspoon's per press, which leaves the app
+needing Hammerspoon and the export missing them.

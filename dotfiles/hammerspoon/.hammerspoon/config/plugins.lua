@@ -40,16 +40,15 @@ local displays   = require("config.displays")
 local filesearch = require("config.filesearch")
 local processes  = require("config.processes")
 
-local gap = settings.gap
-local margins = { top = gap, right = gap, bottom = gap, left = gap }
-
 return {
   displayProfiles = {
     data = { profiles = displays.profiles, settleDelay = displays.settleDelay },
   },
 
   windowmanager = {
-    data = { settings = settings, margins = margins },
+    -- The gap and the window sizes are Olm's settings, laid into settings before configure, and the
+    -- margins follow the gap unless stated here.
+    data = { settings = settings },
   },
 
   -- The app toggler's data, no keys. The catalog of bundle ids lives in config/apps.lua and how

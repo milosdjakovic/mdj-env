@@ -81,8 +81,13 @@ function obj:getScreenFrame(screen)
   return Plan.canvas(screen:frame(), self:_resolvedMargins())
 end
 
--- The margins as numbers, each one a number or a function answering one.
+-- The margins as numbers, each one a number or a function answering one, and the gap on every side
+-- where none is stated, so one gap insets the canvas and parts tiled windows.
 function obj:_resolvedMargins()
+  if next(self._margins or {}) == nil then
+    local gap = self:_gap()
+    return { top = gap, right = gap, bottom = gap, left = gap }
+  end
   return {
     top = self:_resolveMargin(self._margins.top), right = self:_resolveMargin(self._margins.right),
     bottom = self:_resolveMargin(self._margins.bottom), left = self:_resolveMargin(self._margins.left),

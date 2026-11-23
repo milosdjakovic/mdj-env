@@ -313,3 +313,29 @@ extension WindowResult {
     self.init(frame: frame, screen: o["screen"] as? String, remember: remember, verify: o["verify"] as? Bool ?? false)
   }
 }
+
+// MARK: The settings the app holds, Olm's own, step 6.3b
+
+/// The margins, gap and sizing a plan reads, from Olm's settings, by each setting's key in the window
+/// manager's manifest, movePixels, gap, smallWidth. A key not given takes plan.lua's own default.
+public struct WindowSettings: Sendable {
+  public var margins = WindowMargins()
+  public var gap: Double = 0
+  public var sizing = WindowSizing()
+  public init() {}
+
+  public init(values v: [String: Double]) {
+    self.init()
+    gap = v["gap"] ?? 0
+    margins = WindowMargins(top: gap, right: gap, bottom: gap, left: gap)
+    sizing.maxWidth = v["maxWidth"]; sizing.maxHeight = v["maxHeight"]
+    sizing.fullHeightMaxWidth = v["fullHeightMaxWidth"]
+    sizing.movePixels = v["movePixels"]; sizing.movePixelsHeld = v["movePixelsHeld"]
+    sizing.resizePixels = v["resizePixels"]; sizing.resizePixelsHeld = v["resizePixelsHeld"]
+    sizing.holdGrace = v["holdGrace"]; sizing.minWidth = v["minWidth"]; sizing.minHeight = v["minHeight"]
+    if v["smallWidth"] != nil || v["smallHeight"] != nil { sizing.smallSize = (v["smallWidth"], v["smallHeight"]) }
+    if v["recordingWidth"] != nil || v["recordingHeight"] != nil {
+      sizing.screenRecording = (v["recordingWidth"], v["recordingHeight"])
+    }
+  }
+}

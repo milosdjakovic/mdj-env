@@ -134,8 +134,8 @@ Sections and the settings in each. Live means applied at once, reload means once
 | Motion | Rise and scale | `motion.rise`, `motion.scale` | number | live |
 | Behaviour | The fn cycle's wait | the Lua stage's `CYCLE_IDLE` | seconds 0.3 to 2 | live |
 | Behaviour | Cheat sheet reveal delay | `cheatSheet` | seconds | live |
-| Window management | Move and resize steps, pressed and held | `windowSizing` | pixels | live |
-| Window management | Smallest and largest window | `windowSizing` | pixels | live |
+| Window management | Move and resize steps, pressed and held, and the repeats before the held one | the window manager's manifest, Olm's own since 2026-11-23 | pixels | live |
+| Window management | The gap, the smallest, default, full height, small and screen recording sizes | the window manager's manifest, Olm's own since 2026-11-23 | pixels | live |
 | Plugins | Each plugin on or off, with its description | Olm Plugins | switch | reload |
 
 Left out on purpose. The keys, `config/keymap.lua`, which Olm Keys lists. This machine's Hyper apps

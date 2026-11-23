@@ -81,6 +81,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   // The window manager in shadow, step 6.3b, docs/DESIGN-APP-WINDOWS.md: each META window key read
   // here before Hammerspoon runs it, and compared with what Hammerspoon read and planned.
   private let windowShadow = WindowShadow(log: olm.appendingPathComponent("log"))
+  /// The window manager's settings as Olm's settings share holds them, by each setting's key.
+  nonisolated static func windowSettings() -> WindowSettings? {
+    guard let share = SettingsShare.read() else { return nil }
+    var values: [String: Double] = [:]
+    let prefix = "windowmanager."
+    for setting in share.sections.flatMap(\.settings) where setting.id.hasPrefix(prefix) {
+      if let n = setting.value.number { values[String(setting.id.dropFirst(prefix.count))] = n }
+    }
+    return values.isEmpty ? nil : WindowSettings(values: values)
+  }
   private var appsTimer: Timer?
   // The leaders whose modifier combinations the app claims, step 5.3, docs/DESIGN-APP-KEYS.md.
   private var keyOwner: KeyOwner?
@@ -293,7 +303,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           let before = action == nil ? nil : await WindowRead.snapshot()
           let answer = try? await bridgeForApps.request("runKey", .object(["id": .string(id), "depth": .number(Double(depth))]))
           if let action, let before {
-            windowShadow.compare(action: action, depth: depth, app: before, lua: answer?["window"].any)
+            windowShadow.compare(action: action, depth: depth, app: before, settings: Self.windowSettings(),
+              lua: answer?["window"].any)
           }
         },
         list: { leader, code, mods, depth in

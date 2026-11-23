@@ -44,13 +44,11 @@ return {
       -- The when name to predicate table is not declared here any more. The window leader lib
       -- owns the gate, like Hyper, and the root hands it the table when it configures it, so
       -- this plugin only says which name a binding carries.
-      -- configure's own margins, config/settings.lua's gap on all four sides. The person's
-      -- own preference, and configure already treats an absent one as {}, so it degrades
-      -- rather than breaks.
+      -- configure's own margins, the screen insets, stated only to differ from the gap, which
+      -- insets every side when none is stated.
       margins = { source = "user", policy = "optional",
-                  breaks = "every window still sizes and moves the same way, sitting flush to the " ..
-                           "screen edge exactly as the shipped default gap already does, and only " ..
-                           "loses the person's own wider gap if they set one in settings" },
+                  breaks = "every side of the screen is inset by the gap in Olm Settings, as it is " ..
+                           "with no margins stated" },
       -- configure's own settings block, animation duration, resize pixel step, and every
       -- named window size. The person's own tuning, and configure already treats an absent
       -- one as {}, falling back to this plugin's own hardcoded numbers.
@@ -103,11 +101,22 @@ return {
       { action = "hideAllExceptFocused", key = "H" },
     },
   },
-  -- The steps and sizes shown in Olm Settings under Window Management, docs/DESIGN-APP-SETTINGS.md
-  -- S.4. Each is a path into this plugin's own settings data, so a value set in the window is laid
-  -- over config/settings.lua's windowSizing before configure, and init.lua reads it with no word of
-  -- its own. shipped is the number init.lua falls back to when the file leaves the key out.
+  -- The gap, steps and sizes, Olm's own settings in Olm Settings under Window Management,
+  -- docs/DESIGN-APP-SETTINGS.md S.4, and since 2026-11-23 their only home, config/settings.lua no
+  -- longer stating them. Each is a path into this plugin's settings data, filled with the shipped
+  -- value and a saved one laid over it before configure, so init.lua reads them with no word of its
+  -- own, and the share hands them to Olm.app, step 6.3b.
+  --
+  -- A move or resize key travels one of two amounts. The step is a press on its own, small since a
+  -- press places a window by eye, and the held step each repeat of a held key, where a hold's speed
+  -- comes from since the repeat rate is the machine's. The hold grace is how many repeats still
+  -- count as a press. A resize step is what the screen's long edge grows by, the short edge taking
+  -- its share, so a window grows in the screen's shape and a rotated screen behaves alike. The
+  -- smallest width and height are the floor a shrink stops at.
   settings = {
+    { key = "gap", at = { "settings", "gap" }, section = "windows",
+      title = "Gap", kind = "number", min = 0, max = 100, step = 2, unit = "pixels", shipped = 0,
+      keywords = { "margin", "gutter", "spacing", "padding" } },
     { key = "movePixels", at = { "settings", "windowSizing", "movePixels" }, section = "windows",
       title = "Move step", kind = "number", min = 5, max = 200, step = 5, unit = "pixels", shipped = 20,
       keywords = { "nudge", "distance", "arrow" } },
@@ -127,10 +136,28 @@ return {
       title = "Smallest height", kind = "number", min = 100, max = 2000, step = 10, unit = "pixels", shipped = 300,
       keywords = { "minimum", "shrink", "floor" } },
     { key = "maxWidth", at = { "settings", "windowSizing", "maxWidth" }, section = "windows",
-      title = "Default width", kind = "number", min = 400, max = 8000, step = 50, unit = "pixels", shipped = 1800,
+      title = "Default width", kind = "number", min = 400, max = 8000, step = 50, unit = "pixels", shipped = 2400,
       keywords = { "largest", "maximum", "default size" } },
     { key = "maxHeight", at = { "settings", "windowSizing", "maxHeight" }, section = "windows",
-      title = "Default height", kind = "number", min = 300, max = 5000, step = 50, unit = "pixels", shipped = 1200,
+      title = "Default height", kind = "number", min = 300, max = 5000, step = 50, unit = "pixels", shipped = 1350,
       keywords = { "largest", "maximum", "default size" } },
+    { key = "fullHeightMaxWidth", at = { "settings", "windowSizing", "fullHeightMaxWidth" }, section = "windows",
+      title = "Full height width", kind = "number", min = 400, max = 8000, step = 50, unit = "pixels", shipped = 2400,
+      keywords = { "full height", "tall", "column" } },
+    { key = "smallWidth", at = { "settings", "windowSizing", "smallSize", "width" }, section = "windows",
+      title = "Small width", kind = "number", min = 200, max = 4000, step = 50, unit = "pixels", shipped = 700,
+      keywords = { "small size", "compact" } },
+    { key = "smallHeight", at = { "settings", "windowSizing", "smallSize", "height" }, section = "windows",
+      title = "Small height", kind = "number", min = 200, max = 4000, step = 50, unit = "pixels", shipped = 800,
+      keywords = { "small size", "compact" } },
+    { key = "recordingWidth", at = { "settings", "windowSizing", "screenRecording", "width" }, section = "windows",
+      title = "Screen recording width", kind = "number", min = 400, max = 8000, step = 50, unit = "pixels", shipped = 2400,
+      keywords = { "recording", "capture", "video" } },
+    { key = "recordingHeight", at = { "settings", "windowSizing", "screenRecording", "height" }, section = "windows",
+      title = "Screen recording height", kind = "number", min = 300, max = 5000, step = 50, unit = "pixels", shipped = 1350,
+      keywords = { "recording", "capture", "video" } },
+    { key = "holdGrace", at = { "settings", "windowSizing", "holdGrace" }, section = "windows",
+      title = "Repeats before the held step", kind = "number", min = 0, max = 10, step = 1, unit = "repeats", shipped = 1,
+      keywords = { "hold", "repeat", "grace" } },
   },
 }

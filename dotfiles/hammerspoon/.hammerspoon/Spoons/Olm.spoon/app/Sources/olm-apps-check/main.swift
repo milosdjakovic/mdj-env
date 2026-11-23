@@ -147,5 +147,15 @@ windows.compare(action: "leftHalf", depth: 0, app: snap, lua: nil)
 let w = windows.current
 eq([w.ran, w.same, w.differs, w.unanswered], [3, 1, 1, 1], "every press is counted, agreeing, differing or unanswered")
 
+// Olm's own window settings, by the manifest's keys.
+let own = WindowSettings(values: ["gap": 8, "movePixels": 25, "smallWidth": 700, "smallHeight": 800])
+eq(own.margins, WindowMargins(top: 8, right: 8, bottom: 8, left: 8), "the gap insets every side")
+eq(own.sizing.movePixels, 25.0, "a step is read by its key")
+eq(own.sizing.smallSize?.width, 700.0, "and the small size from its two keys")
+eq(WindowShadow.differences(action: "leftHalf", app: snap, settings: own, lua: ["input": luaInput, "result": luaResult]),
+  ["settings", "frame"], "settings other than Hammerspoon's are named, and the plan they change")
+eq(WindowShadow.differences(action: "leftHalf", app: snap, settings: WindowSettings(values: ["gap": 0]),
+  lua: ["input": luaInput, "result": luaResult]), [], "the same settings differ by nothing")
+
 print("olm-apps-check: \(checks) checks, \(failures) failures")
 exit(failures == 0 ? 0 : 1)

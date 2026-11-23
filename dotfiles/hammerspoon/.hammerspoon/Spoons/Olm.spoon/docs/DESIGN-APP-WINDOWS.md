@@ -48,20 +48,23 @@ differs, `window`, `id`, `screen`, `screens`, `frame`, `lands`, `plan` or `hidde
 and the slowest read in `shadow-windows-count.json`. It runs only while the app holds Accessibility,
 and it moves nothing. `olm-apps-check` holds the comparison.
 
-What the shadow does not yet give the app is the settings. The margins, the gap and the sizing come
-from Hammerspoon's report on each press, which is enough to compare and not enough to act alone.
-Before the flip the app needs them from Olm's own config, which is the next decision, see Open
-questions.
+The settings first came from Hammerspoon's report on each press, enough to compare and not to act
+alone, and moved into Olm's config the same day, below.
 
 The trial is the log empty through ordinary use, every action pressed at least once, on one screen
 and on two.
 
-## Open questions
+### The window settings in Olm's config, 2026-11-23
 
-1. Where the app reads the window settings from once it acts alone. The eight steps and sizes in
-   Olm Settings are already in the settings share; the gap, the full height width, the hold grace,
-   the screen recording size and the small size are only in config/settings.lua. Declaring those as
-   settings too would put every one in the exported config and in the share, the way the eight are.
+Milos chose that Olm's settings are the window manager's only home. The gap, the full height width,
+the small size, the screen recording size and the hold grace joined the eight steps and sizes as
+settings of the plugin's manifest, under Window Management, each shipping the value
+config/settings.lua had, and that file no longer states the gap or `windowSizing`. A plugin's
+settings now fill a key the person's config leaves out with the shipped value,
+`settings.overlay`'s `fill`, so the manifest is the one statement of a default. The margins follow
+the gap unless `config/plugins.lua` states them. The app reads all of them from the settings share,
+`WindowSettings`, and the shadow plans with its own, naming `settings` when they differ from what
+Hammerspoon planned with. So the flip needs nothing from Hammerspoon but the press.
 
 ## Rejected
 

@@ -462,7 +462,7 @@ function M.new(opts)
       if decl.extra and type(resolve) == "function" then decl.extraFrom = resolve(decl.extra) end
       self.declare(decl.id, decl)
     end
-    self.overlay(identity, data)
+    self.overlay(identity, data, nil, true)
     return problems
   end
 
@@ -497,8 +497,11 @@ function M.new(opts)
   --- file's value, else the same key of shipped, a table shaped as root, else the declaration's
   --- shipped one, and lays the saved value over it in place. Called by the root once per table as
   --- each is loaded, the policy, the typography, the icons, the stage. A group root leaves out is
-  --- not made, so a setting with nowhere to go is shown and not applied.
-  function self.overlay(name, root, shipped)
+  --- not made, so a setting with nowhere to go is shown and not applied. fill, which a plugin's
+  --- settings pass, also writes the declaration's shipped value where the file leaves the key out,
+  --- so the manifest is the one statement of a default and a value can leave the person's config
+  --- for Olm's, as the window sizes did on 2026-11-23.
+  function self.overlay(name, root, shipped, fill)
     if type(root) ~= "table" then return end
     for _, decl in ipairs(order) do
       local target = decl.target
@@ -512,7 +515,11 @@ function M.new(opts)
         if found == nil then found = decl.shipped end
         defaults[decl.id] = copy(found)
         local saved = self.saved(decl.id)
-        if saved ~= nil and parent ~= nil then parent[key] = saved end
+        if saved ~= nil and parent ~= nil then
+          parent[key] = saved
+        elseif fill and parent ~= nil and parent[key] == nil and found ~= nil then
+          parent[key] = copy(found)
+        end
       end
     end
   end

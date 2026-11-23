@@ -42,8 +42,8 @@ public final class WindowShadow: @unchecked Sendable {
 
   /// One press compared: the app's read before it, and Hammerspoon's report, runKey's window member as
   /// Foundation answers JSON, nil when it sent none.
-  public func compare(action: String, depth: Int, app: WindowSnapshot, lua: Any?) {
-    let problems = Self.differences(action: action, app: app, lua: lua)
+  public func compare(action: String, depth: Int, app: WindowSnapshot, settings: WindowSettings? = nil, lua: Any?) {
+    let problems = Self.differences(action: action, app: app, settings: settings, lua: lua)
     queue.sync {
       counts.ran += 1
       counts.slowest = max(counts.slowest, app.took)
@@ -63,7 +63,10 @@ public final class WindowShadow: @unchecked Sendable {
   }
 
   /// What differs, empty when nothing does, nil when Hammerspoon reported nothing to compare.
-  public static func differences(action: String, app: WindowSnapshot, lua: Any?) -> [String]? {
+  /// settings, the app's own from Olm's config, compared with the ones Hammerspoon planned with and
+  /// planned with in their place, nil planning with Hammerspoon's.
+  public static func differences(action: String, app: WindowSnapshot, settings: WindowSettings? = nil,
+    lua: Any?) -> [String]? {
     guard let report = lua as? [String: Any] else { return nil }
     var out: [String] = []
     if action == "hideAllExceptFocused" {
@@ -80,12 +83,20 @@ public final class WindowShadow: @unchecked Sendable {
       || zip(app.screens, theirs.screens).contains(where: { $0.uuid != $1.uuid || !near($0.frame, $1.frame) }) {
       out.append("screens")
     }
-    // The app's plan over its own read, with Hammerspoon's settings, depth and memory.
+    // The app's plan over its own read and its own settings, with Hammerspoon's depth and memory.
     var mine = theirs
     mine.window = app.window
     mine.id = app.id
     mine.screen = app.screen
     mine.screens = app.screens
+    if let settings {
+      if settings.margins != theirs.margins || settings.gap != theirs.gap || settings.sizing != theirs.sizing {
+        out.append("settings")
+      }
+      mine.margins = settings.margins
+      mine.gap = settings.gap
+      mine.sizing = settings.sizing
+    }
     let planned = WindowPlan.plan(action, mine)
     let wanted = (report["result"] as? [String: Any]).flatMap(WindowResult.init(json:))
     switch (planned, wanted) {

@@ -322,7 +322,7 @@ do
   check("a key the file sets defaults to the file", settings.default("wm.minWidth"), 500)
   check("a saved value out of range leaves the file's", data.settings.windowSizing.minWidth, 500)
   check("and is said", #said, 1)
-  check("an unsaved one is left out of the data", data.settings.windowSizing.resizePixels, nil)
+  check("an unsaved one the file leaves out takes its shipped value in the data", data.settings.windowSizing.resizePixels, 30)
   check("a change is checked against the manifest's range", (settings.change("wm.resizePixels", 500)), false)
   local share = settings.share()
   local windows
